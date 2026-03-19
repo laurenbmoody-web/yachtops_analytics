@@ -61,3 +61,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 console.log('[SUPABASE] ✅ Singleton client initialized with lock bypass for browser stability');
+
+function supabaseClient(...args) {
+  // eslint-disable-next-line no-console
+  console.warn('Placeholder: supabaseClient is not implemented yet.', args);
+  return null;
+}
+
+export { supabaseClient };
