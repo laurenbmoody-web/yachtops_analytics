@@ -38,7 +38,8 @@ export const PermissionTier = {
   CHIEF: 'CHIEF',
   HOD: 'HOD',
   CREW: 'CREW',
-  OPTIONAL_CREW: 'OPTIONAL_CREW'
+  OPTIONAL_CREW: 'OPTIONAL_CREW',
+  VIEW_ONLY: 'VIEW_ONLY'
 };
 
 // User status enum
@@ -615,6 +616,18 @@ export const hasHODAccess = (user) => {
 export const canAccessDepartment = (user, department) => {
   if (hasCommandAccess(user)) return true;
   return user?.department === department;
+};
+
+export const isViewOnly = (user) => {
+  if (!user) return false;
+  const tier = (
+    user?.permission_tier ||
+    user?.permissionTier ||
+    user?.effectiveTier ||
+    user?.tier ||
+    ''
+  )?.toUpperCase()?.trim();
+  return tier === PermissionTier?.VIEW_ONLY;
 };
 
 // Department display names
