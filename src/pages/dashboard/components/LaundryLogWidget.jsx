@@ -122,8 +122,8 @@ const LaundryLogWidget = () => {
             <span className="text-4xl font-bold text-white">{laundryStats?.itemsIn}</span>
           </div>
 
-          {/* MIDDLE SECTION - Lighter background */}
-          <div className="flex-1 bg-[#1a3a52] dark:bg-[#1a3a52]">
+          {/* MIDDLE SECTION - Same dark navy as sides */}
+          <div className="flex-1 bg-[#0B1F33] dark:bg-[#0B1F33]">
             {/* Empty middle section for visual separation */}
           </div>
 
