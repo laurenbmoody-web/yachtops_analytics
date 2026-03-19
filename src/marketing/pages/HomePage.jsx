@@ -1,25 +1,72 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import MarketingLayout from '../MarketingLayout';
 
-/* ─── Decorative UI mockup ──────────────────────────────────────────────── */
+/* ─── Pill buttons ───────────────────────────────────────────────────────── */
+const PillPrimary = ({ to, children }) => (
+  <Link
+    to={to}
+    className="mkt-archivo inline-block transition-colors duration-150"
+    style={{
+      fontWeight: 900, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase',
+      color: 'white', backgroundColor: '#1E3A5F', borderRadius: 50, padding: '10px 22px',
+      textDecoration: 'none',
+    }}
+    onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#141D2E')}
+    onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#1E3A5F')}
+  >
+    {children}
+  </Link>
+);
+
+const PillSecondary = ({ to, children }) => (
+  <Link
+    to={to}
+    className="mkt-archivo inline-block transition-colors duration-150"
+    style={{
+      fontWeight: 700, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase',
+      color: '#1E3A5F', border: '2px solid #1E3A5F', backgroundColor: 'transparent',
+      borderRadius: 50, padding: '8px 22px', textDecoration: 'none',
+    }}
+    onMouseEnter={e => {
+      e.currentTarget.style.backgroundColor = '#1E3A5F';
+      e.currentTarget.style.color = 'white';
+    }}
+    onMouseLeave={e => {
+      e.currentTarget.style.backgroundColor = 'transparent';
+      e.currentTarget.style.color = '#1E3A5F';
+    }}
+  >
+    {children}
+  </Link>
+);
+
+/* ─── Dashboard mockup ───────────────────────────────────────────────────── */
 const DashboardMockup = () => (
-  <div className="relative w-full max-w-2xl mx-auto">
-    {/* Glow behind */}
-    <div className="absolute inset-0 translate-y-6 blur-3xl opacity-25 bg-gradient-to-br from-[#00A8CC] to-[#1E3A5F] rounded-3xl" />
-    {/* Window chrome */}
-    <div className="relative bg-[#0E1726] border border-white/[0.10] rounded-2xl overflow-hidden shadow-2xl">
+  <div className="relative w-full max-w-lg">
+    <div
+      className="relative rounded-2xl overflow-hidden shadow-2xl"
+      style={{ backgroundColor: '#0E1726', border: '1px solid rgba(255,255,255,0.08)' }}
+    >
       {/* Title bar */}
-      <div className="flex items-center gap-2 px-5 py-3.5 border-b border-white/[0.07] bg-[#0B1220]">
-        <span className="w-3 h-3 rounded-full bg-[#FF5F57]" />
-        <span className="w-3 h-3 rounded-full bg-[#FEBC2E]" />
-        <span className="w-3 h-3 rounded-full bg-[#28C840]" />
-        <span className="ml-3 text-xs text-white/25 font-mono">Cargo — Dashboard</span>
+      <div
+        className="flex items-center gap-2 px-5 py-3"
+        style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', backgroundColor: '#0B1220' }}
+      >
+        <span className="w-3 h-3 rounded-full" style={{ backgroundColor: '#FF5F57' }} />
+        <span className="w-3 h-3 rounded-full" style={{ backgroundColor: '#FEBC2E' }} />
+        <span className="w-3 h-3 rounded-full" style={{ backgroundColor: '#28C840' }} />
+        <span className="ml-3 mkt-dmsans" style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>
+          Cargo — Dashboard
+        </span>
       </div>
-      {/* Sidebar + content layout */}
-      <div className="flex h-[320px] sm:h-[380px]">
+      {/* Layout */}
+      <div className="flex" style={{ height: 320 }}>
         {/* Sidebar */}
-        <div className="hidden sm:flex flex-col gap-1 w-48 border-r border-white/[0.06] p-3 bg-[#0B1220]/60 flex-shrink-0">
+        <div
+          className="flex flex-col gap-1 p-3"
+          style={{ width: 160, borderRight: '1px solid rgba(255,255,255,0.06)', backgroundColor: 'rgba(11,18,32,0.6)', flexShrink: 0 }}
+        >
           {[
             { label: 'Today', active: true },
             { label: 'Inventory' },
@@ -27,46 +74,51 @@ const DashboardMockup = () => (
             { label: 'Trips' },
             { label: 'Guests' },
             { label: 'Defects' },
-            { label: 'Laundry' },
           ].map(({ label, active }) => (
             <div
               key={label}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-xs ${
-                active ? 'bg-[#00A8CC]/15 text-[#00A8CC]' : 'text-white/30'
-              }`}
+              className="flex items-center gap-2 px-3 py-2 rounded-md mkt-dmsans"
+              style={{
+                fontSize: 11,
+                color: active ? '#4A90E2' : 'rgba(255,255,255,0.3)',
+                backgroundColor: active ? 'rgba(74,144,226,0.12)' : 'transparent',
+              }}
             >
-              <div className={`w-1.5 h-1.5 rounded-full ${active ? 'bg-[#00A8CC]' : 'bg-white/15'}`} />
+              <div
+                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                style={{ backgroundColor: active ? '#4A90E2' : 'rgba(255,255,255,0.15)' }}
+              />
               {label}
             </div>
           ))}
         </div>
-        {/* Content pane */}
+        {/* Content */}
         <div className="flex-1 p-5 overflow-hidden">
-          <p className="text-[10px] text-white/25 uppercase tracking-widest mb-4">Today — 19 Mar</p>
-          {/* Stat cards */}
-          <div className="grid grid-cols-3 gap-2.5 mb-5">
-            {[
-              { label: 'Open Tasks', value: '12' },
-              { label: 'Crew On', value: '8' },
-              { label: 'Defects', value: '3' },
-            ].map(({ label, value }) => (
-              <div key={label} className="bg-white/[0.04] border border-white/[0.06] rounded-lg p-3">
-                <p className="text-white/30 text-[9px] uppercase tracking-wide mb-1">{label}</p>
-                <p className="text-white text-xl font-semibold font-heading">{value}</p>
+          <p className="mkt-archivo" style={{ fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: 14 }}>
+            Today — 19 Mar
+          </p>
+          <div className="grid grid-cols-3 gap-2 mb-5">
+            {[{ label: 'Open Tasks', value: '12' }, { label: 'Crew On', value: '8' }, { label: 'Defects', value: '3' }].map(({ label, value }) => (
+              <div
+                key={label}
+                className="rounded-lg p-3"
+                style={{ backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+              >
+                <p className="mkt-dmsans" style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.3)', marginBottom: 4 }}>{label}</p>
+                <p className="mkt-archivo" style={{ fontSize: 22, fontWeight: 900, color: 'white' }}>{value}</p>
               </div>
             ))}
           </div>
-          {/* Recent activity rows */}
-          <div className="space-y-2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {[
-              { dot: 'bg-[#00A8CC]', text: 'Engine room inventory sync complete' },
-              { dot: 'bg-amber-400', text: 'Defect #14 assigned to Chief Eng.' },
-              { dot: 'bg-emerald-400', text: 'Trip "Monaco → Portofino" confirmed' },
-              { dot: 'bg-white/20', text: 'Crew rotation updated for April' },
+              { dot: '#4A90E2', text: 'Engine room inventory sync complete' },
+              { dot: '#F59E0B', text: 'Defect #14 assigned to Chief Eng.' },
+              { dot: '#10B981', text: 'Trip "Monaco → Portofino" confirmed' },
+              { dot: 'rgba(255,255,255,0.2)', text: 'Crew rotation updated for April' },
             ].map(({ dot, text }, i) => (
               <div key={i} className="flex items-center gap-2.5">
-                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
-                <p className="text-white/35 text-[11px]">{text}</p>
+                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: dot }} />
+                <p className="mkt-dmsans" style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>{text}</p>
               </div>
             ))}
           </div>
@@ -76,87 +128,111 @@ const DashboardMockup = () => (
   </div>
 );
 
-/* ─── Section: Hero ─────────────────────────────────────────────────────── */
+/* ─── Hero ───────────────────────────────────────────────────────────────── */
 const HeroSection = () => (
-  <section className="relative pt-32 pb-24 sm:pt-40 sm:pb-32 px-6 overflow-hidden">
-    {/* Background radial glow */}
-    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-[#00A8CC]/[0.07] blur-[120px] rounded-full pointer-events-none" />
+  <section style={{ paddingTop: 96, paddingBottom: 80, overflow: 'visible' }}>
+    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 32px' }}>
+      <div className="grid lg:grid-cols-2 gap-16 items-center">
 
-    <div className="relative max-w-7xl mx-auto">
-      <div className="max-w-3xl mx-auto text-center mb-16">
-        {/* Tag */}
-        <div className="inline-flex items-center gap-2 bg-[#00A8CC]/10 border border-[#00A8CC]/20 text-[#00A8CC] text-xs font-semibold px-3.5 py-1.5 rounded-full mb-8 tracking-wide uppercase">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#00A8CC]" />
-          Built for professional yacht operations
-        </div>
-
-        {/* Headline */}
-        <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-[1.08] tracking-tight mb-6">
-          The ops platform built for{' '}
-          <span className="text-[#00A8CC]">real yacht crews</span>
-        </h1>
-
-        {/* Subhead */}
-        <p className="text-lg sm:text-xl text-white/50 leading-relaxed max-w-2xl mx-auto mb-10">
-          Cargo unifies inventory, crew scheduling, trips, guests, defects, and
-          every operational detail in one system. No more spreadsheets. No more
-          WhatsApp threads. Just your vessel, running.
-        </p>
-
-        {/* CTAs */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-          <Link
-            to="/contact"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#00A8CC] hover:bg-[#0094B3] text-white font-semibold text-base px-7 py-3.5 rounded-xl transition-colors duration-200 shadow-lg shadow-[#00A8CC]/20"
+        {/* Text */}
+        <div style={{ overflow: 'visible' }}>
+          {/* Eyebrow */}
+          <p
+            className="mkt-archivo"
+            style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 20 }}
           >
-            Book a Demo
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </Link>
-          <Link
-            to="/features"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 border border-white/[0.12] hover:border-white/[0.22] text-white/70 hover:text-white font-medium text-base px-7 py-3.5 rounded-xl transition-colors duration-200"
-          >
-            Explore Features
-          </Link>
-        </div>
-      </div>
+            Built for professional yacht operations
+          </p>
 
-      {/* Mockup */}
-      <DashboardMockup />
-    </div>
-  </section>
-);
-
-/* ─── Section: Stat strip ───────────────────────────────────────────────── */
-const stats = [
-  { value: '10+', label: 'Operational modules' },
-  { value: '100%', label: 'Crew visibility' },
-  { value: '0', label: 'Spreadsheets needed' },
-  { value: '1', label: 'Platform for everything' },
-];
-
-const StatsStrip = () => (
-  <section className="border-y border-white/[0.06] bg-[#0B1220]/80">
-    <div className="max-w-7xl mx-auto px-6 lg:px-8 py-10">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-4">
-        {stats.map(({ value, label }) => (
-          <div key={label} className="text-center">
-            <p className="font-heading text-3xl sm:text-4xl font-bold text-[#00A8CC] mb-1">{value}</p>
-            <p className="text-sm text-white/40">{label}</p>
+          {/* Three-line headline */}
+          <div style={{ marginBottom: 20, overflow: 'visible' }}>
+            <div
+              className="mkt-archivo block"
+              style={{ fontWeight: 900, fontSize: 38, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1, marginBottom: 4 }}
+            >
+              THE OPS PLATFORM
+            </div>
+            <div
+              className="mkt-archivo block"
+              style={{ fontWeight: 900, fontSize: 38, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1, marginBottom: 2 }}
+            >
+              BUILT FOR
+            </div>
+            {/* Line 3 — highlighted */}
+            <div style={{ position: 'relative', display: 'inline-block', marginTop: 2, overflow: 'visible' }}>
+              <span
+                aria-hidden="true"
+                style={{
+                  position: 'absolute', top: 0, bottom: 0,
+                  left: -24, right: -12,
+                  background: 'rgba(74,144,226,0.5)',
+                  borderRadius: 8, zIndex: 0,
+                }}
+              />
+              <span
+                className="mkt-archivo"
+                style={{
+                  position: 'relative', zIndex: 1,
+                  fontWeight: 900, fontSize: 38, textTransform: 'uppercase',
+                  color: 'white', lineHeight: 1, padding: '5px 0', display: 'block',
+                }}
+              >
+                REAL YACHT CREWS
+              </span>
+            </div>
           </div>
-        ))}
+
+          {/* Body */}
+          <p
+            className="mkt-dmsans"
+            style={{ fontWeight: 400, fontSize: 14, color: '#64748B', maxWidth: 420, lineHeight: 1.7, marginBottom: 24 }}
+          >
+            Cargo unifies inventory, crew scheduling, trips, guests, defects, and
+            every operational detail into one system. No more spreadsheets.
+            No more WhatsApp threads.
+          </p>
+
+          {/* CTAs */}
+          <div className="flex flex-wrap gap-3">
+            <PillPrimary to="/contact">Book a Demo</PillPrimary>
+            <PillSecondary to="/features">Explore Features</PillSecondary>
+          </div>
+        </div>
+
+        {/* Mockup */}
+        <div className="hidden lg:flex justify-end">
+          <DashboardMockup />
+        </div>
       </div>
     </div>
   </section>
 );
 
-/* ─── Section: Problem → Solution ───────────────────────────────────────── */
+/* ─── Trust bar ──────────────────────────────────────────────────────────── */
+const TrustBar = () => (
+  <div
+    style={{
+      backgroundColor: '#1E3A5F',
+      borderTop: '2px solid #1E3A5F',
+      borderBottom: '2px solid #1E3A5F',
+      padding: '14px 32px',
+      textAlign: 'center',
+    }}
+  >
+    <p
+      className="mkt-archivo"
+      style={{ fontWeight: 900, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}
+    >
+      INVENTORY &nbsp;·&nbsp; CREW SCHEDULING &nbsp;·&nbsp; TRIP MANAGEMENT &nbsp;·&nbsp; GUEST PROFILES &nbsp;·&nbsp; DEFECT TRACKING &nbsp;·&nbsp; VESSEL OPERATIONS
+    </p>
+  </div>
+);
+
+/* ─── Problem / Solution ─────────────────────────────────────────────────── */
 const problems = [
   'Inventory scattered across paper lists and spreadsheets',
   'Crew schedules lost in WhatsApp chats',
-  'Guest preferences stored in the captain\'s notebook',
+  "Guest preferences stored in the captain's notebook",
   'Maintenance defects tracked in email threads',
   'No single source of truth for anything',
 ];
@@ -170,207 +246,249 @@ const solutions = [
 ];
 
 const ProblemSolution = () => (
-  <section className="py-24 px-6">
-    <div className="max-w-7xl mx-auto">
-      <div className="text-center mb-16">
-        <h2 className="font-heading text-3xl sm:text-4xl font-bold text-white mb-4">
-          Yachts are complex. Most software isn't built for them.
-        </h2>
-        <p className="text-white/45 text-lg max-w-2xl mx-auto">
-          Cargo was designed from the ground up for the realities of running a
-          professional vessel — not adapted from hotel or fleet software.
-        </p>
+  <section style={{ padding: '80px 32px', maxWidth: 1280, margin: '0 auto' }}>
+    <div className="text-center mb-14">
+      <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>
+        The problem
+      </p>
+      <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 28, color: '#1E3A5F', lineHeight: 1.15, marginBottom: 10 }}>
+        Yachts are complex. Most software isn't built for them.
+      </h2>
+      <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 14, color: '#64748B', maxWidth: 480, margin: '0 auto' }}>
+        Cargo was designed from the ground up for real vessel operations — not adapted from hotel or fleet software.
+      </p>
+    </div>
+
+    <div className="grid md:grid-cols-2 gap-5" style={{ maxWidth: 860, margin: '0 auto' }}>
+      {/* Without */}
+      <div className="bg-white rounded-xl p-7" style={{ border: '2px solid #E2E8F0' }}>
+        <div className="flex items-center gap-2 mb-6">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(248,113,113,0.12)' }}>
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <path d="M2 2l9 9M11 2l-9 9" stroke="#F87171" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+          </div>
+          <h3 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#1E3A5F' }}>
+            Without Cargo
+          </h3>
+        </div>
+        <ul style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {problems.map(p => (
+            <li key={p} className="flex items-start gap-3">
+              <span className="mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'rgba(248,113,113,0.5)' }} />
+              <span className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 13, color: '#64748B', lineHeight: 1.5 }}>{p}</span>
+            </li>
+          ))}
+        </ul>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-        {/* Problems */}
-        <div className="bg-[#141D2E] border border-white/[0.07] rounded-2xl p-8">
-          <div className="flex items-center gap-2 mb-6">
-            <div className="w-7 h-7 rounded-lg bg-red-500/15 flex items-center justify-center flex-shrink-0">
-              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
-                <path d="M2 2l9 9M11 2l-9 9" stroke="#F87171" strokeWidth="1.8" strokeLinecap="round" />
-              </svg>
-            </div>
-            <h3 className="font-semibold text-white">Without Cargo</h3>
+      {/* With Cargo */}
+      <div className="bg-white rounded-xl p-7" style={{ border: '2px solid #1E3A5F' }}>
+        <div className="flex items-center gap-2 mb-6">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(74,144,226,0.12)' }}>
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <path d="M2 6.5l3 3 6-6" stroke="#4A90E2" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </div>
-          <ul className="space-y-4">
-            {problems.map((p) => (
-              <li key={p} className="flex items-start gap-3 text-sm text-white/45">
-                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-red-400/50 flex-shrink-0" />
-                {p}
-              </li>
-            ))}
-          </ul>
+          <h3 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#1E3A5F' }}>
+            With Cargo
+          </h3>
         </div>
-
-        {/* Solutions */}
-        <div className="bg-[#0F1E30] border border-[#00A8CC]/20 rounded-2xl p-8">
-          <div className="flex items-center gap-2 mb-6">
-            <div className="w-7 h-7 rounded-lg bg-[#00A8CC]/15 flex items-center justify-center flex-shrink-0">
-              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
-                <path d="M2 6.5l3 3 6-6" stroke="#00A8CC" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
-            <h3 className="font-semibold text-white">With Cargo</h3>
-          </div>
-          <ul className="space-y-4">
-            {solutions.map((s) => (
-              <li key={s} className="flex items-start gap-3 text-sm text-white/60">
-                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#00A8CC]/60 flex-shrink-0" />
-                {s}
-              </li>
-            ))}
-          </ul>
-        </div>
+        <ul style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {solutions.map(s => (
+            <li key={s} className="flex items-start gap-3">
+              <span className="mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#4A90E2' }} />
+              <span className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 13, color: '#64748B', lineHeight: 1.5 }}>{s}</span>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   </section>
 );
 
-/* ─── Section: Feature Highlights ───────────────────────────────────────── */
-const features = [
+/* ─── Feature cards ──────────────────────────────────────────────────────── */
+const FEATURE_CARDS = [
   {
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <rect x="2" y="2" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-        <rect x="11" y="2" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-        <rect x="2" y="11" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-        <rect x="11" y="11" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-      </svg>
-    ),
+    n: '01',
     title: 'Inventory Intelligence',
-    description:
-      'Four-level location-based navigation gives every crew member instant access to any item on the vessel. Smart import, barcode scanning, and automated low-stock tracking.',
+    body: 'Four-level location-based navigation gives every crew member instant access to any item on the vessel. Smart import, analytics, and automated low-stock tracking.',
     href: '/features',
+    dark: false,
   },
   {
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <circle cx="10" cy="6" r="3" stroke="currentColor" strokeWidth="1.5" />
-        <circle cx="4" cy="15" r="2" stroke="currentColor" strokeWidth="1.5" />
-        <circle cx="16" cy="15" r="2" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M7 14.5C7 12.6 8.3 11 10 11s3 1.6 3 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    ),
+    n: '02',
     title: 'Crew & Scheduling',
-    description:
-      'Duty sets, rotation management, and individual crew profiles in one place. Assign roles, track certifications, and keep everyone on the same schedule.',
+    body: 'Duty sets, rotation management, and individual crew profiles in one place. Assign roles, track certifications, and keep everyone on the same schedule.',
     href: '/features',
+    dark: false,
   },
   {
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path d="M3 6a2 2 0 012-2h10a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V6z" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M7 4V3M13 4V3M3 9h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    ),
+    n: '03',
     title: 'Trips & Guests',
-    description:
-      'Full trip lifecycle management — itinerary, guest allocation, and preference syncing. Every guest preference is available to every crew member for every charter.',
+    body: 'Full trip lifecycle management — itinerary, guest allocation, and preference syncing. Every guest preference is available to every crew member for every charter.',
     href: '/features',
+    dark: true,
   },
 ];
 
-const FeaturesHighlight = () => (
-  <section className="py-24 px-6 bg-[#060E1A]">
-    <div className="max-w-7xl mx-auto">
-      <div className="text-center mb-16">
-        <p className="text-[#00A8CC] text-xs font-semibold uppercase tracking-widest mb-4">Core capabilities</p>
-        <h2 className="font-heading text-3xl sm:text-4xl font-bold text-white mb-4">
-          Everything your vessel needs to run
-        </h2>
-        <p className="text-white/45 text-lg max-w-2xl mx-auto">
-          Cargo covers the full operational surface of a modern vessel, with depth
-          in each module that purpose-built tools can't match.
-        </p>
-      </div>
+const FeatureCard = ({ n, title, body, href, dark }) => {
+  const [hovered, setHovered] = useState(false);
+  const isDark = dark || hovered;
 
-      <div className="grid md:grid-cols-3 gap-6">
-        {features.map(({ icon, title, description, href }) => (
-          <div
-            key={title}
-            className="group bg-[#141D2E] border border-white/[0.07] hover:border-white/[0.12] rounded-2xl p-7 transition-colors duration-200"
-          >
-            <div className="w-10 h-10 rounded-xl bg-[#00A8CC]/10 text-[#00A8CC] flex items-center justify-center mb-5">
-              {icon}
-            </div>
-            <h3 className="font-heading font-semibold text-lg text-white mb-3">{title}</h3>
-            <p className="text-sm text-white/45 leading-relaxed mb-5">{description}</p>
-            <Link
-              to={href}
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-[#00A8CC] hover:text-white transition-colors duration-200"
-            >
-              Learn more
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                <path d="M3 7h8M8 4l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </Link>
-          </div>
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        borderRadius: 12,
+        border: `2px solid ${isDark ? '#141D2E' : '#1E3A5F'}`,
+        backgroundColor: isDark ? '#141D2E' : 'white',
+        padding: 13,
+        transition: 'all 0.2s ease',
+        cursor: 'default',
+      }}
+    >
+      <p
+        className="mkt-archivo"
+        style={{
+          fontWeight: 900,
+          fontSize: 24,
+          color: isDark ? 'rgba(74,144,226,0.7)' : (dark ? 'rgba(74,144,226,0.6)' : '#4A90E2'),
+          marginBottom: 3,
+        }}
+      >
+        {n}
+      </p>
+      <h3
+        className="mkt-archivo"
+        style={{
+          fontWeight: 900,
+          fontSize: 12,
+          textTransform: 'uppercase',
+          letterSpacing: '0.06em',
+          color: isDark ? 'white' : '#1E3A5F',
+          marginBottom: 4,
+        }}
+      >
+        {title}
+      </h3>
+      <p
+        className="mkt-dmsans"
+        style={{
+          fontWeight: 400,
+          fontSize: 11,
+          color: isDark ? '#94A3B8' : '#64748B',
+          lineHeight: 1.5,
+        }}
+      >
+        {body}
+      </p>
+    </div>
+  );
+};
+
+const FeatureCards = () => (
+  <section style={{ backgroundColor: '#F8FAFC', padding: 14 }}>
+    <div style={{ maxWidth: 1280, margin: '0 auto' }}>
+      <div className="grid grid-cols-1 md:grid-cols-3" style={{ gap: 8 }}>
+        {FEATURE_CARDS.map(card => (
+          <FeatureCard key={card.n} {...card} />
         ))}
       </div>
     </div>
   </section>
 );
 
-/* ─── Section: Module strip ──────────────────────────────────────────────── */
-const modules = [
+/* ─── Module strip ───────────────────────────────────────────────────────── */
+const MODULES = [
   'Inventory', 'Crew Scheduling', 'Trip Management', 'Guest Profiles',
   'Defect Tracking', 'Laundry', 'Ops Calendar', 'Duty Sets',
   'Activity Feed', 'Vessel Blueprint', 'Locations', 'Logs & Deliveries',
 ];
 
 const ModuleStrip = () => (
-  <section className="py-24 px-6">
-    <div className="max-w-7xl mx-auto">
-      <div className="text-center mb-12">
-        <p className="text-[#00A8CC] text-xs font-semibold uppercase tracking-widest mb-4">One platform</p>
-        <h2 className="font-heading text-3xl sm:text-4xl font-bold text-white">
-          Every module your operation needs
-        </h2>
-      </div>
-      <div className="flex flex-wrap justify-center gap-2.5">
-        {modules.map((mod) => (
-          <span
-            key={mod}
-            className="px-4 py-2 bg-[#141D2E] border border-white/[0.07] rounded-full text-sm text-white/50"
-          >
-            {mod}
-          </span>
-        ))}
-      </div>
+  <section style={{ padding: '72px 32px', maxWidth: 1280, margin: '0 auto' }}>
+    <div className="text-center mb-10">
+      <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>
+        One platform
+      </p>
+      <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 28, color: '#1E3A5F', lineHeight: 1.15 }}>
+        Every module your operation needs
+      </h2>
+    </div>
+    <div className="flex flex-wrap justify-center" style={{ gap: 8 }}>
+      {MODULES.map(mod => (
+        <span
+          key={mod}
+          className="mkt-archivo"
+          style={{
+            fontWeight: 700,
+            fontSize: 10,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            color: '#1E3A5F',
+            border: '2px solid #1E3A5F',
+            borderRadius: 50,
+            padding: '6px 14px',
+            backgroundColor: 'white',
+          }}
+        >
+          {mod}
+        </span>
+      ))}
     </div>
   </section>
 );
 
-/* ─── Section: CTA Banner ────────────────────────────────────────────────── */
+/* ─── CTA banner ─────────────────────────────────────────────────────────── */
 const CTABanner = () => (
-  <section className="py-24 px-6">
-    <div className="max-w-3xl mx-auto">
-      <div className="relative bg-gradient-to-br from-[#0F1E30] to-[#0B1220] border border-[#00A8CC]/20 rounded-3xl p-12 text-center overflow-hidden">
-        {/* Glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-32 bg-[#00A8CC]/10 blur-3xl rounded-full" />
-        <div className="relative">
-          <h2 className="font-heading text-3xl sm:text-4xl font-bold text-white mb-4">
-            Ready to bring order to your vessel ops?
-          </h2>
-          <p className="text-white/45 text-lg mb-8 max-w-xl mx-auto">
-            Book a demo and see how Cargo works for your specific vessel and crew structure.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link
-              to="/contact"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#00A8CC] hover:bg-[#0094B3] text-white font-semibold px-7 py-3.5 rounded-xl transition-colors duration-200 shadow-lg shadow-[#00A8CC]/20"
-            >
-              Book a Demo
-            </Link>
-            <Link
-              to="/contact"
-              className="w-full sm:w-auto inline-flex items-center justify-center border border-white/[0.12] hover:border-white/[0.22] text-white/60 hover:text-white font-medium px-7 py-3.5 rounded-xl transition-colors duration-200"
-            >
-              Join the Waitlist
-            </Link>
-          </div>
-        </div>
+  <section style={{ padding: '0 32px 80px' }}>
+    <div
+      className="rounded-2xl text-center"
+      style={{
+        maxWidth: 860,
+        margin: '0 auto',
+        backgroundColor: '#1E3A5F',
+        padding: '56px 40px',
+      }}
+    >
+      <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(74,144,226,0.8)', marginBottom: 12 }}>
+        Get started
+      </p>
+      <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 28, color: 'white', lineHeight: 1.15, marginBottom: 10 }}>
+        Ready to bring order to your vessel ops?
+      </h2>
+      <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 14, color: 'rgba(255,255,255,0.55)', maxWidth: 440, margin: '0 auto 28px' }}>
+        Book a demo and see how Cargo works for your specific vessel and crew structure.
+      </p>
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+        <Link
+          to="/contact"
+          className="mkt-archivo transition-colors duration-150"
+          style={{
+            fontWeight: 900, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase',
+            color: '#1E3A5F', backgroundColor: 'white', borderRadius: 50,
+            padding: '10px 24px', textDecoration: 'none',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#F8FAFC')}
+          onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'white')}
+        >
+          Book a Demo
+        </Link>
+        <Link
+          to="/contact"
+          className="mkt-archivo transition-colors duration-150"
+          style={{
+            fontWeight: 700, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase',
+            color: 'white', border: '2px solid rgba(255,255,255,0.4)', borderRadius: 50,
+            padding: '8px 24px', textDecoration: 'none',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.7)')}
+          onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)')}
+        >
+          Join the Waitlist
+        </Link>
       </div>
     </div>
   </section>
@@ -380,9 +498,9 @@ const CTABanner = () => (
 const HomePage = () => (
   <MarketingLayout>
     <HeroSection />
-    <StatsStrip />
+    <TrustBar />
     <ProblemSolution />
-    <FeaturesHighlight />
+    <FeatureCards />
     <ModuleStrip />
     <CTABanner />
   </MarketingLayout>
