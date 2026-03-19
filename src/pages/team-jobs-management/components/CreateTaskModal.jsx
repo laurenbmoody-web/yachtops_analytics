@@ -113,8 +113,7 @@ const CreateTaskModal = ({ boards, defaultBoardId, onClose, onCreate, selectedDe
     try {
       let tmQuery = supabase?.from('tenant_members')?.select('user_id, department_id, permission_tier')
         ?.eq('tenant_id', activeTenantId)
-        ?.eq('active', true)
-        ?.eq('status', 'ACTIVE');
+        ?.eq('active', true);
 
       if (effectiveDeptId) {
         tmQuery = tmQuery?.eq('department_id', effectiveDeptId);

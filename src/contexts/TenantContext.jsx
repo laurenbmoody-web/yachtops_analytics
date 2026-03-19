@@ -136,7 +136,6 @@ export const TenantProvider = ({ children, authSession, authUser }) => {
       `)
       ?.eq('user_id', userId)
       ?.eq('active', true)
-      ?.eq('status', 'ACTIVE')
       ?.order('joined_at', { ascending: false, nullsLast: true });
 
     if (error) {
@@ -233,7 +232,6 @@ export const TenantProvider = ({ children, authSession, authUser }) => {
           ?.select('tenant_id, joined_at, permission_tier, department_id')
           ?.eq('user_id', authUser?.id)
           ?.eq('active', true)
-          ?.eq('status', 'ACTIVE')
           ?.order('joined_at', { ascending: false, nullsLast: true });
         
         if (!result?.error) {

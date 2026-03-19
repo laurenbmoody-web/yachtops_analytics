@@ -120,8 +120,7 @@ const RotationCalendar = ({ templates, departmentId, tenantId, currentUserId }) 
         ?.select('id, user_id, department_id')
         ?.eq('tenant_id', tenantId)
         ?.eq('department_id', departmentId)
-        ?.eq('active', true)
-        ?.eq('status', 'ACTIVE');
+        ?.eq('active', true);
 
       if (tmError) throw tmError;
 

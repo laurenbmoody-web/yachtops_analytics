@@ -55,7 +55,6 @@ export const bootstrapUserTenant = async (userId) => {
       `)
       ?.eq('user_id', userId)
       ?.eq('active', true)
-      ?.eq('status', 'ACTIVE')
       ?.order('joined_at', { ascending: true });
 
     if (membershipsError) {
@@ -156,7 +155,6 @@ export const fetchUserTenantMemberships = async (userId) => {
     `)
     ?.eq('user_id', userId)
     ?.eq('active', true)
-    ?.eq('status', 'ACTIVE')
     ?.order('joined_at', { ascending: true });
 
   if (error) {
@@ -248,7 +246,6 @@ export const switchActiveTenant = async (userId, tenantId) => {
     ?.eq('user_id', userId)
     ?.eq('tenant_id', tenantId)
     ?.eq('active', true)
-    ?.eq('status', 'ACTIVE')
     ?.single();
 
   if (membershipError || !membership) {
@@ -303,7 +300,6 @@ export const getActiveTenantId = async (userId) => {
       ?.select('tenant_id')
       ?.eq('user_id', userId)
       ?.eq('active', true)
-      ?.eq('status', 'ACTIVE')
       ?.order('joined_at', { ascending: true })
       ?.limit(1);
 
@@ -376,7 +372,6 @@ export const verifyActiveTenant = async (userId) => {
       ?.eq('user_id', userId)
       ?.eq('tenant_id', profile?.last_active_tenant_id)
       ?.eq('active', true)
-      ?.eq('status', 'ACTIVE')
       ?.single();
 
     if (membershipError || !membership) {
