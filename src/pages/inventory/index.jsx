@@ -95,13 +95,23 @@ const Inventory = () => {
   const isChiefOnlyUser = userTier === 'CHIEF';
 
   // Permission matrix:
-  // COMMAND   – view/edit/delete any item in any department
-  // CHIEF     – view all departments, edit/delete only own department
-  // HOD       – view/edit/delete own department only
-  // CREW      – view/edit (stock adjust) own department only, no delete, no add
+  // COMMAND   – view/edit/delete/add any item in any department
+  // CHIEF     – view ALL dept folders; add/edit/delete only in OWN department
+  // HOD       – view/add/edit/delete own department only (other depts not visible)
+  // CREW      – view/adjust stock own department only, no delete, no add
   // VIEW_ONLY – view own department only, read-only
 
-  // Whether the user can interact with (edit/adjust stock of) a specific item
+  // The department of the L1 folder currently being browsed (e.g. "ENGINEERING")
+  const currentFolderDept = currentL1?.name?.toUpperCase();
+
+  // True when the user is browsing inside their own department's folder
+  // (or at root where no L1 is selected yet, or COMMAND who can do everything)
+  const isInOwnDeptFolder =
+    userTier === 'COMMAND' ||
+    !currentL1 ||
+    currentFolderDept === userDept;
+
+  // Whether the user can adjust stock / edit a specific item
   const canInteractWithItem = (item) => {
     if (userTier === 'COMMAND') return true;
     if (userTier === 'VIEW_ONLY' || userTier === 'OPTIONAL_CREW') return false;
@@ -109,9 +119,18 @@ const Inventory = () => {
     return item?.usageDepartment?.toUpperCase() === userDept;
   };
 
-  const canImport = userTier === 'COMMAND' || userTier === 'CHIEF' || userTier === 'HOD';
-  const canAddItem = userTier === 'COMMAND' || userTier === 'CHIEF' || userTier === 'HOD';
-  const canBulkDelete = userTier === 'COMMAND' || userTier === 'CHIEF' || userTier === 'HOD';
+  // Whether the user can delete a specific item (CREW cannot delete)
+  const canDeleteItem = (item) => {
+    if (userTier === 'COMMAND') return true;
+    if (userTier === 'CREW' || userTier === 'VIEW_ONLY' || userTier === 'OPTIONAL_CREW') return false;
+    // Chief/HOD: only own dept
+    return item?.usageDepartment?.toUpperCase() === userDept;
+  };
+
+  // Add/Import/BulkDelete: only allowed inside the user's own department folder
+  const canImport = (userTier === 'COMMAND') || ((userTier === 'CHIEF' || userTier === 'HOD') && isInOwnDeptFolder);
+  const canAddItem = (userTier === 'COMMAND') || ((userTier === 'CHIEF' || userTier === 'HOD') && isInOwnDeptFolder);
+  const canBulkDelete = (userTier === 'COMMAND') || ((userTier === 'CHIEF' || userTier === 'HOD') && isInOwnDeptFolder);
   const canAccessSettings = userTier === 'COMMAND' || userTier === 'CHIEF';
   const canExport = userTier === 'COMMAND' || userTier === 'CHIEF' || userTier === 'HOD';
 
@@ -329,6 +348,15 @@ const Inventory = () => {
     // HOD, Crew, View Only: own department only
     if (!userDept) return itemsList;
     return itemsList?.filter(item => item?.usageDepartment?.toUpperCase() === userDept);
+  };
+
+  // Filter L1 department folders based on role:
+  // COMMAND + CHIEF: see all folders
+  // HOD / Crew / View Only: only their own department folder
+  const filterL1ByDepartment = (l1List) => {
+    if (userTier === 'COMMAND' || userTier === 'CHIEF') return l1List;
+    if (!userDept) return l1List;
+    return l1List?.filter(cat => cat?.name?.toUpperCase() === userDept);
   };
 
   // Toggle selection mode
@@ -626,6 +654,7 @@ const Inventory = () => {
                 onEdit={handleEditItem}
                 onDelete={handleDeleteItem}
                 canEdit={canInteractWithItem(item)}
+                canDelete={canDeleteItem(item)}
                 canAdjustStock={canInteractWithItem(item)}
                 onQuickView={handleQuickView}
               />
@@ -740,7 +769,7 @@ const Inventory = () => {
         {/* Content based on view level */}
         {viewLevel === 'L1' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {categoriesL1?.map(category => (
+            {filterL1ByDepartment(categoriesL1)?.map(category => (
               <CategoryWidget
                 key={category?.id}
                 category={category}
