@@ -255,7 +255,13 @@ export const initializeRoles = () => {
     localStorage.setItem(ROLES_KEY, JSON.stringify(SEED_ROLES));
     return SEED_ROLES;
   }
-  return JSON.parse(existing);
+  try {
+    return JSON.parse(existing);
+  } catch {
+    console.error('initializeRoles: corrupt localStorage data, reinitializing');
+    localStorage.setItem(ROLES_KEY, JSON.stringify(SEED_ROLES));
+    return SEED_ROLES;
+  }
 };
 
 // Load roles
@@ -392,7 +398,11 @@ const initializeUsers = () => {
 
   const existing = localStorage.getItem(USERS_KEY);
   if (existing) {
-    return JSON.parse(existing);
+    try {
+      return JSON.parse(existing);
+    } catch {
+      console.error('initializeUsers: corrupt localStorage data, reinitializing');
+    }
   }
 
   const defaultUser = {
@@ -634,10 +644,6 @@ export const getTierDisplayName = (tier) => {
   };
   return names?.[tier] || tier;
 };
-function getAllUsers(...args) {
-  // eslint-disable-next-line no-console
-  console.warn('Placeholder: getAllUsers is not implemented yet.', args);
-  return null;
+export function getAllUsers() {
+  return loadUsers();
 }
-
-export { getAllUsers };

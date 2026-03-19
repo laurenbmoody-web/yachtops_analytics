@@ -86,11 +86,7 @@ export const AuthProvider = ({ children }) => {
           setTenantError(`Session load failed: ${error?.message}`);
           setLastBootstrapStep('session_error');
         } else {
-          console.log('[AUTH] ✅ auth: session loaded', {
-            hasSession: !!initialSession,
-            userId: initialSession?.user?.id,
-            email: initialSession?.user?.email
-          });
+          console.log('[AUTH] ✅ auth: session loaded', { hasSession: !!initialSession });
           setLastBootstrapStep('session_loaded');
           
           // Store initial session
@@ -641,63 +637,6 @@ export const AuthProvider = ({ children }) => {
   const isChiefStew = currentUser?.roleId === 'role-8';
   const isCrew = currentUser?.tier === 'CREW';
 
-  const value = { 
-    currentUser,
-    setCurrentUser,
-    currentTenantId,
-    setCurrentTenantId,
-    activeTenantId,
-    setActiveTenantId: (id) => {
-      setActiveTenantId(id);
-      localStorage.setItem('cargo_active_tenant_id', id);
-    },
-    updateActiveTenantId: (id) => {
-      setActiveTenantId(id);
-      localStorage.setItem('cargo_active_tenant_id', id);
-    },
-    session,
-    user,
-    loading,
-    tenantLoading,
-    hasTenant,
-    tenantRole,
-    tenantError,
-    bootstrapComplete,
-    bootstrapStatus,
-    refreshUser,
-    setCurrentTenant,
-    isCommand,
-    isChief,
-    isHOD,
-    isChiefStew,
-    isCrew,
-    retryBootstrap: () => {
-      console.log('[AUTH] Manual retry triggered');
-      lastBootstrappedUserId.current = null;
-      bootstrapInProgress.current = false;
-      setBootstrapComplete(false);
-    },
-    signOut: async () => {
-      await supabase?.auth?.signOut();
-      clearCurrentUser();
-    }
-  };
-  
-  // Log context value on every render (for debugging)
-  console.log('[AUTH] 📊 Current auth context:', {
-    hasSession: !!session,
-    userId: user?.id,
-    loading,
-    tenantLoading,
-    hasTenant,
-    tenantId: activeTenantId,
-    tenantRole,
-    tenantError,
-    bootstrapComplete,
-    bootstrapStatus,
-    lastBootstrapStep
-  });
-
   return (
     <AuthContext.Provider
       value={{
@@ -706,18 +645,39 @@ export const AuthProvider = ({ children }) => {
         currentTenantId,
         setCurrentTenantId,
         activeTenantId,
-        setActiveTenantId,
-        updateActiveTenantId,
+        setActiveTenantId: (id) => {
+          setActiveTenantId(id);
+          localStorage.setItem('cargo_active_tenant_id', id);
+        },
+        updateActiveTenantId: (id) => {
+          setActiveTenantId(id);
+          localStorage.setItem('cargo_active_tenant_id', id);
+        },
         session,
         user,
         loading,
-        tenantRole,
-        tenantError,
         tenantLoading,
         hasTenant,
+        tenantRole,
+        tenantError,
         bootstrapComplete,
         bootstrapStatus,
-        retryBootstrap,
+        refreshUser,
+        setCurrentTenant,
+        isCommand,
+        isChief,
+        isHOD,
+        isChiefStew,
+        isCrew,
+        retryBootstrap: () => {
+          lastBootstrappedUserId.current = null;
+          bootstrapInProgress.current = false;
+          setBootstrapComplete(false);
+        },
+        signOut: async () => {
+          await supabase?.auth?.signOut();
+          clearCurrentUser();
+        },
         hasCommandAccess: () => hasCommandAccess(currentUser),
         hasChiefAccess: () => hasChiefAccess(currentUser),
         hasHODAccess: () => hasHODAccess(currentUser),
