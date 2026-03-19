@@ -16,9 +16,6 @@ import ComprehensiveJobModal from '../team-jobs-management/components/Comprehens
 import { supabase } from '../../lib/supabaseClient';
 
 
-// DEV_MODE constant
-const DEV_MODE = true;
-
 const Dashboard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -37,28 +34,27 @@ const Dashboard = () => {
   const checkSession = async () => {
     try {
       const { data: { session: currentSession } } = await supabase?.auth?.getSession();
-      
+
       if (!currentSession?.user) {
         navigate('/login-authentication', { replace: true });
         return;
       }
-      
+
       setSession(currentSession);
       setUserEmail(currentSession?.user?.email);
-      
+
       // Load active tenant ID
       const tenantId = localStorage.getItem('cargo_active_tenant_id');
       setActiveTenantId(tenantId);
-      
+
       // Load tenant_members role and store in session
       await loadTenantMemberRole(currentSession?.user?.id, tenantId);
-      
+
       // Load vessel data for hero image
       await loadVesselData(tenantId);
-      
-      setLoading(false);
     } catch (err) {
       console.error('Session check error:', err);
+    } finally {
       setLoading(false);
     }
   };
