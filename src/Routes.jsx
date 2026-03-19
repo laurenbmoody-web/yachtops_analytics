@@ -36,9 +36,8 @@ import VesselSignupFlowStep1 from './pages/vessel-signup-flow-step-1';
 import VesselSettings from './pages/vessel-settings';
 import Membership from './pages/membership';
 import SettingsPage from './pages/settings';
-import MyProfileManagement from './pages/NotFound';
+import MyProfileManagement from './pages/my-profile-management';
 
-import { getCurrentUser } from './utils/authStorage';
 import { isDevMode } from './utils/devMode';
 
 import TripItineraryTimeline from './pages/trip-itinerary-timeline/index';
@@ -87,14 +86,12 @@ const InviteRedirect = () => {
 
 // Fallback route component with authentication-based redirect
 const FallbackRoute = () => {
-  const currentUser = getCurrentUser();
-  
-  if (currentUser) {
-    // User is authenticated, redirect to dashboard
+  const { session } = useAuth();
+
+  if (session) {
     return <Navigate to="/dashboard" replace />;
   }
-  
-  // User is not authenticated, redirect to public landing page
+
   return <Navigate to="/public-landing-page" replace />;
 };
 

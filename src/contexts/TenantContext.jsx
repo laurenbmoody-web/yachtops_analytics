@@ -2,9 +2,6 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { supabase } from '../lib/supabaseClient';
 import { isDevMode } from '../utils/devMode';
 
-// DEV_MODE fallback for tenant resolution
-const DEV_MODE = true;
-
 const TenantContext = createContext();
 
 export const useTenant = () => {
@@ -84,7 +81,8 @@ export const VesselFallbackUI = () => {
 
 export const TenantProvider = ({ children, authSession, authUser }) => {
   const [activeTenantId, setActiveTenantIdState] = useState(() => {
-    return localStorage.getItem('activeTenantId') || null;
+    // Read from canonical key, fall back to legacy key for existing sessions
+    return localStorage.getItem('cargo_active_tenant_id') || localStorage.getItem('activeTenantId') || null;
   });
   const [loadingTenant, setLoadingTenant] = useState(true);
   const [devNoTenant, setDevNoTenant] = useState(false);
@@ -98,16 +96,19 @@ export const TenantProvider = ({ children, authSession, authUser }) => {
   // Public setter that also updates localStorage
   const setActiveTenantId = (tenantId) => {
     if (tenantId) {
-      localStorage.setItem('activeTenantId', tenantId);
+      localStorage.setItem('cargo_active_tenant_id', tenantId);
     } else {
-      localStorage.removeItem('activeTenantId');
+      localStorage.removeItem('cargo_active_tenant_id');
     }
+    // Clean up legacy key
+    localStorage.removeItem('activeTenantId');
     setActiveTenantIdState(tenantId);
   };
 
   // Clear all stale localStorage tenant keys
   const clearStaleTenantKeys = () => {
     console.log('[TENANT] Clearing stale localStorage tenant keys');
+    localStorage.removeItem('cargo_active_tenant_id');
     localStorage.removeItem('activeTenantId');
     localStorage.removeItem('currentTenantId');
     localStorage.removeItem('last_active_tenant_id');
@@ -189,8 +190,9 @@ export const TenantProvider = ({ children, authSession, authUser }) => {
     if (isDevMode()) {
       console.log('[TENANT] 🔧 DEV MODE: Bypassing tenant checks');
       
-      const storedTenantId = localStorage.getItem('activeTenantId') || 
-                             localStorage.getItem('currentTenantId') || 
+      const storedTenantId = localStorage.getItem('cargo_active_tenant_id') ||
+                             localStorage.getItem('activeTenantId') ||
+                             localStorage.getItem('currentTenantId') ||
                              localStorage.getItem('last_active_tenant_id');
       
       if (storedTenantId) {
@@ -285,7 +287,7 @@ export const TenantProvider = ({ children, authSession, authUser }) => {
           console.error('[TENANT] Error fetching memberships:', error);
         }
         
-        if (DEV_MODE && !devFallbackApplied?.current) {
+        if (isDevMode() && !devFallbackApplied?.current) {
           console.log('🔧 DEV tenant fallback active');
           const mockTenantId = 'dev-mock-tenant-' + Date.now();
           setActiveTenantId(mockTenantId);
@@ -293,7 +295,7 @@ export const TenantProvider = ({ children, authSession, authUser }) => {
           setLoadingTenant(false);
           return;
         }
-        
+
         setActiveTenantId(null);
         setLoadingTenant(false);
         return;
@@ -301,8 +303,8 @@ export const TenantProvider = ({ children, authSession, authUser }) => {
 
       if (!memberships || memberships?.length === 0) {
         console.log('[TENANT] No active memberships found');
-        
-        if (DEV_MODE && !devFallbackApplied?.current) {
+
+        if (isDevMode() && !devFallbackApplied?.current) {
           console.log('🔧 DEV tenant fallback active');
           const mockTenantId = 'dev-mock-tenant-' + Date.now();
           setActiveTenantId(mockTenantId);
@@ -317,7 +319,7 @@ export const TenantProvider = ({ children, authSession, authUser }) => {
       }
 
       // Check if localStorage tenant is valid against fetched memberships
-      const storedTenantId = localStorage.getItem('activeTenantId');
+      const storedTenantId = localStorage.getItem('cargo_active_tenant_id') || localStorage.getItem('activeTenantId');
       const isStoredValid = memberships?.some(m => m?.tenant_id === storedTenantId);
 
       if (isStoredValid) {
@@ -354,7 +356,7 @@ export const TenantProvider = ({ children, authSession, authUser }) => {
     } catch (err) {
       console.error('[TENANT] Exception in ensureTenantSelected:', err);
       
-      if (DEV_MODE && !devFallbackApplied?.current) {
+      if (isDevMode() && !devFallbackApplied?.current) {
         console.log('🔧 DEV tenant fallback active');
         const mockTenantId = 'dev-mock-tenant-' + Date.now();
         setActiveTenantId(mockTenantId);
@@ -362,7 +364,7 @@ export const TenantProvider = ({ children, authSession, authUser }) => {
         setLoadingTenant(false);
         return;
       }
-      
+
       setActiveTenantId(null);
       setLoadingTenant(false);
     }
