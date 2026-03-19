@@ -1,13 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
-const footerLinks = [
+const COLUMNS = [
   {
     heading: 'Product',
     links: [
       { label: 'Overview', href: '/product' },
       { label: 'Features', href: '/features' },
-      { label: 'Who It\'s For', href: '/who-its-for' },
+      { label: "Who It's For", href: '/who-its-for' },
     ],
   },
   {
@@ -19,86 +19,104 @@ const footerLinks = [
     ],
   },
   {
-    heading: 'Get Started',
+    heading: 'Access',
     links: [
+      { label: 'Log in', href: '/login-authentication' },
       { label: 'Book a Demo', href: '/contact' },
       { label: 'Join Waitlist', href: '/contact' },
-      { label: 'Sign In', href: '/login-authentication' },
     ],
   },
 ];
 
-const MarketingFooter = () => {
-  return (
-    <footer className="bg-[#050C16] border-t border-white/[0.06]">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 lg:gap-8">
+const MarketingFooter = () => (
+  <footer className="bg-[#F8FAFC]" style={{ borderTop: '2px solid #1E3A5F' }}>
+    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '56px 32px 36px' }}>
 
-          {/* Brand column */}
-          <div className="lg:col-span-2">
-            <Link to="/" className="inline-flex items-center gap-2.5 mb-4">
-              <div className="w-7 h-7 bg-[#00A8CC] rounded-[5px] flex items-center justify-center flex-shrink-0">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                  <path d="M2 3h10M2 7h7M2 11h5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round"/>
-                </svg>
-              </div>
-              <span className="font-heading font-semibold text-[17px] text-white tracking-tight">
-                Cargo
-              </span>
+      {/* Top grid */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
+
+        {/* Brand */}
+        <div className="md:col-span-1">
+          <Link to="/" style={{ textDecoration: 'none', display: 'inline-block', marginBottom: 10 }}>
+            <span
+              className="mkt-archivo"
+              style={{ fontWeight: 900, fontSize: 18, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#1E3A5F' }}
+            >
+              Cargo
+            </span>
+          </Link>
+          <p
+            className="mkt-dmsans"
+            style={{ fontWeight: 400, fontSize: 13, color: '#64748B', lineHeight: 1.65, maxWidth: 220, marginTop: 8 }}
+          >
+            The operational system for running yachts. One platform for everything.
+          </p>
+          <div className="flex gap-2 mt-5">
+            <Link
+              to="/contact"
+              className="mkt-archivo"
+              style={{
+                fontWeight: 900, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase',
+                color: 'white', backgroundColor: '#1E3A5F', borderRadius: 50, padding: '7px 16px', textDecoration: 'none',
+              }}
+            >
+              Book Demo
             </Link>
-            <p className="text-sm text-white/40 leading-relaxed max-w-xs mt-3">
-              The operational system for running yachts. One platform for inventory, crew, trips, guests, and everything in between.
-            </p>
-            <div className="flex items-center gap-3 mt-6">
-              <Link
-                to="/contact"
-                className="inline-flex items-center bg-[#00A8CC] hover:bg-[#0094B3] text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors duration-200"
-              >
-                Book Demo
-              </Link>
-              <Link
-                to="/contact"
-                className="inline-flex items-center border border-white/[0.12] hover:border-white/[0.2] text-white/60 hover:text-white text-xs font-medium px-4 py-2 rounded-lg transition-colors duration-200"
-              >
-                Join Waitlist
-              </Link>
-            </div>
+            <Link
+              to="/contact"
+              className="mkt-archivo"
+              style={{
+                fontWeight: 700, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase',
+                color: '#1E3A5F', border: '2px solid #1E3A5F', borderRadius: 50, padding: '5px 16px', textDecoration: 'none',
+              }}
+            >
+              Waitlist
+            </Link>
           </div>
-
-          {/* Link columns */}
-          {footerLinks.map((col) => (
-            <div key={col.heading}>
-              <h4 className="text-xs font-semibold text-white/30 uppercase tracking-widest mb-4">
-                {col.heading}
-              </h4>
-              <ul className="space-y-3">
-                {col.links.map((link) => (
-                  <li key={link.href}>
-                    <Link
-                      to={link.href}
-                      className="text-sm text-white/50 hover:text-white transition-colors duration-200"
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
         </div>
 
-        {/* Bottom bar */}
-        <div className="mt-14 pt-6 border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-white/25">
-            &copy; {new Date().getFullYear()} Cargo. All rights reserved.
-          </p>
-          <p className="text-xs text-white/25">
-            Built for real yacht operations.
-          </p>
-        </div>
+        {/* Link columns */}
+        {COLUMNS.map(({ heading, links }) => (
+          <div key={heading}>
+            <h4
+              className="mkt-archivo"
+              style={{ fontWeight: 900, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#1E3A5F', marginBottom: 16 }}
+            >
+              {heading}
+            </h4>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {links.map(({ label, href }) => (
+                <li key={label}>
+                  <Link
+                    to={href}
+                    className="mkt-dmsans transition-colors duration-150"
+                    style={{ fontWeight: 400, fontSize: 13, color: '#64748B', textDecoration: 'none' }}
+                    onMouseEnter={e => (e.currentTarget.style.color = '#1E3A5F')}
+                    onMouseLeave={e => (e.currentTarget.style.color = '#64748B')}
+                  >
+                    {label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </div>
-    </footer>
-  );
-};
+
+      {/* Bottom bar */}
+      <div
+        className="flex flex-col sm:flex-row justify-between items-center gap-3"
+        style={{ marginTop: 48, paddingTop: 20, borderTop: '1px solid #E2E8F0' }}
+      >
+        <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 12, color: '#64748B' }}>
+          &copy; {new Date().getFullYear()} Cargo. All rights reserved.
+        </p>
+        <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 12, color: '#64748B' }}>
+          Built for real yacht operations.
+        </p>
+      </div>
+    </div>
+  </footer>
+);
 
 export default MarketingFooter;

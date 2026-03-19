@@ -3,14 +3,9 @@ import { Link } from 'react-router-dom';
 import MarketingLayout from '../MarketingLayout';
 
 /* ─── Role cards ─────────────────────────────────────────────────────────── */
-const roles = [
+const ROLES = [
   {
-    title: 'Captain',
-    color: 'text-[#00A8CC]',
-    border: 'border-[#00A8CC]/20',
-    bg: 'bg-[#00A8CC]/10',
-    dot: 'bg-[#00A8CC]',
-    tag: 'COMMAND',
+    n: '01', title: 'Captain', tag: 'COMMAND',
     headline: 'Full operational oversight — wherever you are',
     points: [
       'Complete visibility across all crew, trips, and vessel systems',
@@ -21,12 +16,7 @@ const roles = [
     ],
   },
   {
-    title: 'Chief Stewardess',
-    color: 'text-violet-400',
-    border: 'border-violet-400/20',
-    bg: 'bg-violet-400/10',
-    dot: 'bg-violet-400',
-    tag: 'CHIEF',
+    n: '02', title: 'Chief Stewardess', tag: 'CHIEF',
     headline: 'Guest experience managed, not guessed',
     points: [
       'Complete guest preference profiles for every charter',
@@ -37,12 +27,7 @@ const roles = [
     ],
   },
   {
-    title: 'Chief Engineer',
-    color: 'text-amber-400',
-    border: 'border-amber-400/20',
-    bg: 'bg-amber-400/10',
-    dot: 'bg-amber-400',
-    tag: 'CHIEF',
+    n: '03', title: 'Chief Engineer', tag: 'CHIEF',
     headline: 'Every defect tracked, nothing slips through',
     points: [
       'Log, assign, and close defects with a full audit trail',
@@ -53,12 +38,7 @@ const roles = [
     ],
   },
   {
-    title: 'Bosun',
-    color: 'text-emerald-400',
-    border: 'border-emerald-400/20',
-    bg: 'bg-emerald-400/10',
-    dot: 'bg-emerald-400',
-    tag: 'CREW',
+    n: '04', title: 'Bosun', tag: 'CREW',
     headline: 'Deck ops organised without the back-and-forth',
     points: [
       'Deck and exterior inventory locations always up to date',
@@ -69,12 +49,7 @@ const roles = [
     ],
   },
   {
-    title: 'Purser / Manager',
-    color: 'text-sky-400',
-    border: 'border-sky-400/20',
-    bg: 'bg-sky-400/10',
-    dot: 'bg-sky-400',
-    tag: 'COMMAND',
+    n: '05', title: 'Purser / Manager', tag: 'COMMAND',
     headline: 'The administrative layer, finally under control',
     points: [
       'Guest management and preference directory',
@@ -86,68 +61,51 @@ const roles = [
   },
 ];
 
-/* ─── Vessel type cards ──────────────────────────────────────────────────── */
-const vesselTypes = [
-  {
-    type: 'Superyacht',
-    sub: '30m+',
-    body: 'Large professional crews need role-based access, structured inventory, and coordinated operations across departments. Cargo is built for exactly this complexity.',
-  },
-  {
-    type: 'Explorer / Expedition',
-    sub: 'Long-range',
-    body: 'Remote operations demand reliable access to provisioning data, maintenance history, and crew schedules without connectivity dependencies.',
-  },
-  {
-    type: 'Charter Fleet',
-    sub: 'Multi-vessel',
-    body: 'Manage guest preferences, trip histories, and crew across multiple vessels from a single platform with per-vessel data isolation.',
-  },
-  {
-    type: 'Private Yacht',
-    sub: 'Owner-operated',
-    body: 'A lean crew still deserves a proper system. Cargo scales down without removing capability — you only use what you need.',
-  },
+/* ─── Vessel types ───────────────────────────────────────────────────────── */
+const VESSEL_TYPES = [
+  { n: '01', type: 'Superyacht', sub: '30m+', body: 'Large professional crews need role-based access, structured inventory, and coordinated operations across departments. Cargo is built for exactly this complexity.' },
+  { n: '02', type: 'Explorer / Expedition', sub: 'Long-range', body: 'Remote operations demand reliable access to provisioning data, maintenance history, and crew schedules without connectivity dependencies.' },
+  { n: '03', type: 'Charter Fleet', sub: 'Multi-vessel', body: 'Manage guest preferences, trip histories, and crew across multiple vessels from a single platform with per-vessel data isolation.' },
+  { n: '04', type: 'Private Yacht', sub: 'Owner-operated', body: 'A lean crew still deserves a proper system. Cargo scales down without removing capability — you only use what you need.' },
 ];
 
 /* ─── Page ───────────────────────────────────────────────────────────────── */
 const WhoItsForPage = () => (
   <MarketingLayout>
     {/* Hero */}
-    <section className="relative pt-32 pb-20 sm:pt-40 sm:pb-24 px-6 text-center overflow-hidden">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-[#00A8CC]/[0.06] blur-[100px] rounded-full pointer-events-none" />
-      <div className="relative max-w-3xl mx-auto">
-        <p className="text-[#00A8CC] text-xs font-semibold uppercase tracking-widest mb-5">Who it's for</p>
-        <h1 className="font-heading text-4xl sm:text-5xl font-bold text-white leading-[1.08] tracking-tight mb-5">
+    <section style={{ paddingTop: 96, paddingBottom: 56, borderBottom: '1px solid #E2E8F0', textAlign: 'center' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 32px' }}>
+        <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>Who it's for</p>
+        <h1 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 38, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1.05, marginBottom: 14 }}>
           Built for everyone who runs the vessel
         </h1>
-        <p className="text-lg text-white/50 leading-relaxed max-w-2xl mx-auto">
-          Cargo gives each crew member exactly what they need — no more, no less.
-          Role-based access means the captain sees everything, and crew see their world.
+        <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 15, color: '#64748B', maxWidth: 520, margin: '0 auto', lineHeight: 1.7 }}>
+          Cargo gives each crew member exactly what they need. Role-based access means the captain sees everything, and crew see their world.
         </p>
       </div>
     </section>
 
-    {/* Roles */}
-    <section className="pb-24 px-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {roles.map(({ title, color, border, bg, dot, tag, headline, points }) => (
-            <div key={title} className={`bg-[#141D2E] border ${border} rounded-2xl p-7`}>
-              <div className="flex items-start justify-between mb-5">
+    {/* Role cards */}
+    <section style={{ padding: '72px 32px', borderBottom: '1px solid #E2E8F0' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto' }}>
+        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {ROLES.map(({ n, title, tag, headline, points }) => (
+            <div key={n} className="bg-white rounded-xl p-6" style={{ border: '2px solid #1E3A5F' }}>
+              <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h3 className={`font-heading font-semibold text-lg ${color}`}>{title}</h3>
-                  <p className="text-white/35 text-sm mt-0.5">{headline}</p>
+                  <p className="mkt-archivo" style={{ fontWeight: 900, fontSize: 22, color: '#4A90E2', lineHeight: 1, marginBottom: 4 }}>{n}</p>
+                  <h3 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#1E3A5F' }}>{title}</h3>
+                  <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 12, color: '#64748B', marginTop: 2 }}>{headline}</p>
                 </div>
-                <span className={`flex-shrink-0 ml-3 text-[10px] font-bold px-2 py-0.5 rounded ${bg} ${color}`}>
+                <span className="mkt-archivo flex-shrink-0 ml-3" style={{ fontWeight: 900, fontSize: 9, letterSpacing: '0.08em', color: '#4A90E2', backgroundColor: 'rgba(74,144,226,0.1)', borderRadius: 50, padding: '4px 8px' }}>
                   {tag}
                 </span>
               </div>
-              <ul className="space-y-3">
-                {points.map((p) => (
-                  <li key={p} className="flex items-start gap-2.5 text-sm text-white/45">
-                    <span className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
-                    {p}
+              <ul style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {points.map(p => (
+                  <li key={p} className="flex items-start gap-2.5">
+                    <span className="mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#4A90E2' }} />
+                    <span className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 12, color: '#64748B', lineHeight: 1.5 }}>{p}</span>
                   </li>
                 ))}
               </ul>
@@ -158,23 +116,22 @@ const WhoItsForPage = () => (
     </section>
 
     {/* Vessel types */}
-    <section className="py-24 px-6 bg-[#060E1A]">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-12">
-          <p className="text-[#00A8CC] text-xs font-semibold uppercase tracking-widest mb-4">Vessel types</p>
-          <h2 className="font-heading text-3xl sm:text-4xl font-bold text-white mb-4">
-            Scales to the size of your operation
-          </h2>
-          <p className="text-white/45 text-lg max-w-2xl mx-auto">
+    <section style={{ padding: '72px 32px', backgroundColor: 'white', borderBottom: '1px solid #E2E8F0' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto' }}>
+        <div className="text-center" style={{ marginBottom: 48 }}>
+          <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>Vessel types</p>
+          <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 28, color: '#1E3A5F', lineHeight: 1.15, marginBottom: 10 }}>Scales to the size of your operation</h2>
+          <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 14, color: '#64748B', maxWidth: 440, margin: '0 auto', lineHeight: 1.65 }}>
             From private yachts to large charter fleets, Cargo adapts to the complexity you bring to it.
           </p>
         </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {vesselTypes.map(({ type, sub, body }) => (
-            <div key={type} className="bg-[#141D2E] border border-white/[0.07] rounded-2xl p-6">
-              <p className="font-heading font-semibold text-white text-base mb-0.5">{type}</p>
-              <p className="text-[#00A8CC] text-xs font-medium mb-4">{sub}</p>
-              <p className="text-sm text-white/40 leading-relaxed">{body}</p>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {VESSEL_TYPES.map(({ n, type, sub, body }) => (
+            <div key={n} className="bg-[#F8FAFC] rounded-xl p-6" style={{ border: '2px solid #1E3A5F' }}>
+              <p className="mkt-archivo" style={{ fontWeight: 900, fontSize: 22, color: '#4A90E2', lineHeight: 1, marginBottom: 6 }}>{n}</p>
+              <h3 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#1E3A5F', marginBottom: 2 }}>{type}</h3>
+              <p className="mkt-dmsans" style={{ fontWeight: 500, fontSize: 11, color: '#4A90E2', marginBottom: 8 }}>{sub}</p>
+              <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 12, color: '#64748B', lineHeight: 1.6 }}>{body}</p>
             </div>
           ))}
         </div>
@@ -182,23 +139,18 @@ const WhoItsForPage = () => (
     </section>
 
     {/* CTA */}
-    <section className="py-24 px-6">
-      <div className="max-w-3xl mx-auto">
-        <div className="relative bg-gradient-to-br from-[#0F1E30] to-[#0B1220] border border-[#00A8CC]/20 rounded-3xl p-12 text-center overflow-hidden">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-32 bg-[#00A8CC]/10 blur-3xl rounded-full" />
-          <div className="relative">
-            <h2 className="font-heading text-3xl font-bold text-white mb-4">Sound like your vessel?</h2>
-            <p className="text-white/45 text-lg mb-8">
-              Book a demo and show us your setup — we'll walk through how Cargo fits your crew structure.
-            </p>
-            <Link
-              to="/contact"
-              className="inline-flex items-center gap-2 bg-[#00A8CC] hover:bg-[#0094B3] text-white font-semibold px-7 py-3.5 rounded-xl transition-colors duration-200 shadow-lg shadow-[#00A8CC]/20"
-            >
-              Book a Demo
-            </Link>
-          </div>
-        </div>
+    <section style={{ padding: '72px 32px' }}>
+      <div className="rounded-2xl text-center" style={{ maxWidth: 860, margin: '0 auto', backgroundColor: '#1E3A5F', padding: '56px 40px' }}>
+        <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(74,144,226,0.8)', marginBottom: 12 }}>Get started</p>
+        <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 26, color: 'white', lineHeight: 1.15, marginBottom: 10 }}>Sound like your vessel?</h2>
+        <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 14, color: 'rgba(255,255,255,0.55)', maxWidth: 400, margin: '0 auto 28px', lineHeight: 1.65 }}>
+          Book a demo and show us your setup — we'll walk through how Cargo fits your crew structure.
+        </p>
+        <Link to="/contact" className="mkt-archivo transition-colors duration-150"
+          style={{ fontWeight: 900, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#1E3A5F', backgroundColor: 'white', borderRadius: 50, padding: '10px 24px', textDecoration: 'none', display: 'inline-block' }}
+          onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#F8FAFC')}
+          onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'white')}
+        >Book a Demo</Link>
       </div>
     </section>
   </MarketingLayout>

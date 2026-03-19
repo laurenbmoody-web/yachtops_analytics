@@ -1,35 +1,42 @@
 import React, { useState } from 'react';
 import MarketingLayout from '../MarketingLayout';
 
-/* ─── Form field ─────────────────────────────────────────────────────────── */
+/* ─── Form primitives ────────────────────────────────────────────────────── */
 const Field = ({ label, id, type = 'text', placeholder, required, value, onChange }) => (
   <div>
-    <label htmlFor={id} className="block text-sm font-medium text-white/60 mb-2">
-      {label}{required && <span className="text-[#00A8CC] ml-0.5">*</span>}
+    <label htmlFor={id} className="mkt-archivo block" style={{ fontWeight: 700, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#1E3A5F', marginBottom: 6 }}>
+      {label}{required && <span style={{ color: '#4A90E2', marginLeft: 2 }}>*</span>}
     </label>
     <input
-      id={id}
-      type={type}
-      placeholder={placeholder}
-      required={required}
-      value={value}
-      onChange={onChange}
-      className="w-full bg-white/[0.04] border border-white/[0.10] hover:border-white/[0.18] focus:border-[#00A8CC]/50 focus:outline-none focus:ring-1 focus:ring-[#00A8CC]/30 text-white placeholder-white/25 text-sm rounded-xl px-4 py-3 transition-colors duration-200"
+      id={id} type={type} placeholder={placeholder} required={required}
+      value={value} onChange={onChange}
+      className="mkt-dmsans w-full transition-colors duration-150"
+      style={{
+        fontWeight: 400, fontSize: 14, color: '#1E3A5F',
+        backgroundColor: 'white', border: '2px solid #E2E8F0',
+        borderRadius: 8, padding: '10px 14px', outline: 'none',
+      }}
+      onFocus={e => (e.currentTarget.style.borderColor = '#1E3A5F')}
+      onBlur={e => (e.currentTarget.style.borderColor = '#E2E8F0')}
     />
   </div>
 );
 
 const SelectField = ({ label, id, required, value, onChange, children }) => (
   <div>
-    <label htmlFor={id} className="block text-sm font-medium text-white/60 mb-2">
-      {label}{required && <span className="text-[#00A8CC] ml-0.5">*</span>}
+    <label htmlFor={id} className="mkt-archivo block" style={{ fontWeight: 700, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#1E3A5F', marginBottom: 6 }}>
+      {label}{required && <span style={{ color: '#4A90E2', marginLeft: 2 }}>*</span>}
     </label>
     <select
-      id={id}
-      required={required}
-      value={value}
-      onChange={onChange}
-      className="w-full bg-[#0E1726] border border-white/[0.10] hover:border-white/[0.18] focus:border-[#00A8CC]/50 focus:outline-none focus:ring-1 focus:ring-[#00A8CC]/30 text-white text-sm rounded-xl px-4 py-3 transition-colors duration-200 appearance-none"
+      id={id} required={required} value={value} onChange={onChange}
+      className="mkt-dmsans w-full transition-colors duration-150"
+      style={{
+        fontWeight: 400, fontSize: 14, color: '#1E3A5F',
+        backgroundColor: 'white', border: '2px solid #E2E8F0',
+        borderRadius: 8, padding: '10px 14px', outline: 'none', appearance: 'none',
+      }}
+      onFocus={e => (e.currentTarget.style.borderColor = '#1E3A5F')}
+      onBlur={e => (e.currentTarget.style.borderColor = '#E2E8F0')}
     >
       {children}
     </select>
@@ -37,37 +44,33 @@ const SelectField = ({ label, id, required, value, onChange, children }) => (
 );
 
 /* ─── What happens next ──────────────────────────────────────────────────── */
-const steps = [
-  { n: '1', title: 'We review your submission', body: 'We\'ll take a look at your vessel type and team size to make sure Cargo is a good fit.' },
-  { n: '2', title: 'We reach out within 24 hours', body: 'A real person will contact you to confirm the demo or answer any pre-demo questions.' },
-  { n: '3', title: '30-minute demo call', body: 'We\'ll walk through Cargo with your specific operation in mind — no generic slides.' },
+const STEPS = [
+  { n: '01', title: 'We review your submission', body: "We'll take a look at your vessel type and team size to make sure Cargo is a good fit." },
+  { n: '02', title: 'We reach out within 24 hours', body: 'A real person will contact you to confirm the demo or answer any pre-demo questions.' },
+  { n: '03', title: '30-minute demo call', body: "We'll walk through Cargo with your specific operation in mind — no generic slides." },
 ];
 
 /* ─── Form ───────────────────────────────────────────────────────────────── */
 const ContactForm = () => {
-  const [form, setForm] = useState({
-    name: '', email: '', vessel: '', role: '', intent: 'demo', message: '',
-  });
+  const [form, setForm] = useState({ name: '', email: '', vessel: '', role: '', intent: 'demo', message: '' });
   const [submitted, setSubmitted] = useState(false);
-
-  const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Placeholder — wire to backend in a future phase
-    setSubmitted(true);
-  };
+  const set = field => e => setForm(f => ({ ...f, [field]: e.target.value }));
 
   if (submitted) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <div className="w-14 h-14 rounded-full bg-[#00A8CC]/15 flex items-center justify-center mb-5">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M5 12l4.5 4.5L19 7" stroke="#00A8CC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <div className="flex flex-col items-center justify-center text-center" style={{ padding: '48px 0' }}>
+        <div
+          className="flex items-center justify-center"
+          style={{ width: 52, height: 52, borderRadius: '50%', backgroundColor: 'rgba(74,144,226,0.1)', border: '2px solid #4A90E2', marginBottom: 16 }}
+        >
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+            <path d="M4 11l4.5 4.5L18 6" stroke="#4A90E2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
-        <h3 className="font-heading font-bold text-xl text-white mb-2">We've received your request</h3>
-        <p className="text-white/45 text-sm max-w-xs">
+        <h3 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 16, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#1E3A5F', marginBottom: 8 }}>
+          Request received
+        </h3>
+        <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 13, color: '#64748B', maxWidth: 280 }}>
           Someone from the team will be in touch within 24 hours to confirm your demo.
         </p>
       </div>
@@ -75,22 +78,13 @@ const ContactForm = () => {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <div className="grid sm:grid-cols-2 gap-5">
-        <Field
-          label="Your name" id="name" placeholder="e.g. Jamie Hartley"
-          required value={form.name} onChange={set('name')}
-        />
-        <Field
-          label="Email address" id="email" type="email" placeholder="you@vessel.com"
-          required value={form.email} onChange={set('email')}
-        />
+    <form onSubmit={e => { e.preventDefault(); setSubmitted(true); }} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="grid sm:grid-cols-2 gap-4">
+        <Field label="Your name" id="name" placeholder="e.g. Jamie Hartley" required value={form.name} onChange={set('name')} />
+        <Field label="Email address" id="email" type="email" placeholder="you@vessel.com" required value={form.email} onChange={set('email')} />
       </div>
-      <div className="grid sm:grid-cols-2 gap-5">
-        <Field
-          label="Vessel name" id="vessel" placeholder="e.g. M/Y Serenity"
-          value={form.vessel} onChange={set('vessel')}
-        />
+      <div className="grid sm:grid-cols-2 gap-4">
+        <Field label="Vessel name" id="vessel" placeholder="e.g. M/Y Serenity" value={form.vessel} onChange={set('vessel')} />
         <SelectField label="Your role" id="role" value={form.role} onChange={set('role')}>
           <option value="" disabled>Select your role…</option>
           <option value="captain">Captain</option>
@@ -109,28 +103,37 @@ const ContactForm = () => {
         <option value="pricing">Pricing enquiry</option>
       </SelectField>
       <div>
-        <label htmlFor="message" className="block text-sm font-medium text-white/60 mb-2">
-          Anything else you'd like us to know
+        <label htmlFor="message" className="mkt-archivo block" style={{ fontWeight: 700, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#1E3A5F', marginBottom: 6 }}>
+          Anything else
         </label>
         <textarea
-          id="message"
-          rows={4}
+          id="message" rows={4}
           placeholder="Tell us about your vessel, crew size, current pain points…"
-          value={form.message}
-          onChange={set('message')}
-          className="w-full bg-white/[0.04] border border-white/[0.10] hover:border-white/[0.18] focus:border-[#00A8CC]/50 focus:outline-none focus:ring-1 focus:ring-[#00A8CC]/30 text-white placeholder-white/25 text-sm rounded-xl px-4 py-3 transition-colors duration-200 resize-none"
+          value={form.message} onChange={set('message')}
+          className="mkt-dmsans w-full transition-colors duration-150"
+          style={{
+            fontWeight: 400, fontSize: 14, color: '#1E3A5F',
+            backgroundColor: 'white', border: '2px solid #E2E8F0',
+            borderRadius: 8, padding: '10px 14px', outline: 'none', resize: 'none',
+          }}
+          onFocus={e => (e.currentTarget.style.borderColor = '#1E3A5F')}
+          onBlur={e => (e.currentTarget.style.borderColor = '#E2E8F0')}
         />
       </div>
       <button
         type="submit"
-        className="w-full flex items-center justify-center gap-2 bg-[#00A8CC] hover:bg-[#0094B3] text-white font-semibold text-base py-3.5 rounded-xl transition-colors duration-200 shadow-lg shadow-[#00A8CC]/20"
+        className="mkt-archivo w-full transition-colors duration-150"
+        style={{
+          fontWeight: 900, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase',
+          color: 'white', backgroundColor: '#1E3A5F', borderRadius: 50,
+          padding: '12px 24px', border: 'none', cursor: 'pointer',
+        }}
+        onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#141D2E')}
+        onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#1E3A5F')}
       >
         Submit Request
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
       </button>
-      <p className="text-center text-xs text-white/25">
+      <p className="mkt-dmsans text-center" style={{ fontWeight: 400, fontSize: 11, color: '#94A3B8' }}>
         No commitment required. We'll reach out within 24 hours.
       </p>
     </form>
@@ -141,64 +144,67 @@ const ContactForm = () => {
 const ContactPage = () => (
   <MarketingLayout>
     {/* Hero */}
-    <section className="relative pt-32 pb-16 sm:pt-40 sm:pb-20 px-6 text-center overflow-hidden">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-[#00A8CC]/[0.06] blur-[100px] rounded-full pointer-events-none" />
-      <div className="relative max-w-2xl mx-auto">
-        <p className="text-[#00A8CC] text-xs font-semibold uppercase tracking-widest mb-5">Get in touch</p>
-        <h1 className="font-heading text-4xl sm:text-5xl font-bold text-white leading-[1.08] tracking-tight mb-5">
+    <section style={{ paddingTop: 96, paddingBottom: 56, borderBottom: '1px solid #E2E8F0', textAlign: 'center' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 32px' }}>
+        <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>Get in touch</p>
+        <h1 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 38, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1.05, marginBottom: 14 }}>
           Let's talk about your vessel
         </h1>
-        <p className="text-lg text-white/50 leading-relaxed">
-          Book a demo, join the waitlist, or just ask a question.
-          We respond to every message personally.
+        <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 15, color: '#64748B', maxWidth: 460, margin: '0 auto', lineHeight: 1.7 }}>
+          Book a demo, join the waitlist, or just ask a question. We respond to every message personally.
         </p>
       </div>
     </section>
 
-    {/* Main content */}
-    <section className="pb-24 px-6">
-      <div className="max-w-5xl mx-auto grid lg:grid-cols-5 gap-12">
+    {/* Main */}
+    <section style={{ padding: '72px 32px 80px' }}>
+      <div style={{ maxWidth: 1000, margin: '0 auto', display: 'grid', gap: 40 }} className="grid lg:grid-cols-5">
 
         {/* Form */}
-        <div className="lg:col-span-3 bg-[#141D2E] border border-white/[0.07] rounded-2xl p-8">
-          <h2 className="font-heading font-semibold text-lg text-white mb-6">Send us a message</h2>
+        <div className="lg:col-span-3 bg-white rounded-xl p-8" style={{ border: '2px solid #1E3A5F' }}>
+          <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#1E3A5F', marginBottom: 24 }}>
+            Send us a message
+          </h2>
           <ContactForm />
         </div>
 
-        {/* What happens next */}
-        <div className="lg:col-span-2 space-y-6">
+        {/* Sidebar */}
+        <div className="lg:col-span-2" style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
           <div>
-            <h3 className="font-heading font-semibold text-white text-base mb-5">What happens next</h3>
-            <div className="space-y-5">
-              {steps.map(({ n, title, body }) => (
+            <h3 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#1E3A5F', marginBottom: 20 }}>
+              What happens next
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              {STEPS.map(({ n, title, body }) => (
                 <div key={n} className="flex gap-4">
-                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-[#00A8CC]/15 border border-[#00A8CC]/25 flex items-center justify-center">
-                    <span className="text-[#00A8CC] text-xs font-bold">{n}</span>
+                  <div
+                    className="flex-shrink-0 flex items-center justify-center mkt-archivo"
+                    style={{ width: 28, height: 28, borderRadius: '50%', border: '2px solid #1E3A5F', fontWeight: 900, fontSize: 10, color: '#1E3A5F' }}
+                  >
+                    {n}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-white mb-0.5">{title}</p>
-                    <p className="text-xs text-white/40 leading-relaxed">{body}</p>
+                    <p className="mkt-archivo" style={{ fontWeight: 900, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1E3A5F', marginBottom: 3 }}>{title}</p>
+                    <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 12, color: '#64748B', lineHeight: 1.6 }}>{body}</p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Divider */}
-          <div className="border-t border-white/[0.06]" />
-
-          {/* Quick answers */}
-          <div>
-            <p className="text-xs font-semibold text-white/30 uppercase tracking-widest mb-4">Quick answers</p>
-            <div className="space-y-3">
+          <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: 24 }}>
+            <h3 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.14em', color: '#94A3B8', marginBottom: 14 }}>
+              Quick answers
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {[
                 { q: 'Response time', a: 'Within 24 hours on weekdays' },
                 { q: 'Demo length', a: '30 minutes, no commitment' },
                 { q: 'Pricing', a: 'Per vessel, all modules included' },
               ].map(({ q, a }) => (
                 <div key={q} className="flex justify-between items-baseline">
-                  <span className="text-xs text-white/40">{q}</span>
-                  <span className="text-xs text-white/60 font-medium">{a}</span>
+                  <span className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 12, color: '#94A3B8' }}>{q}</span>
+                  <span className="mkt-dmsans" style={{ fontWeight: 500, fontSize: 12, color: '#64748B' }}>{a}</span>
                 </div>
               ))}
             </div>
