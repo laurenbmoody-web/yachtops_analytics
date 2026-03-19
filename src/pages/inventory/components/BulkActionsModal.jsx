@@ -26,22 +26,7 @@ const BulkActionsModal = ({ selectedItems, items, onClose, onComplete }) => {
   const [taxonomyL4, setTaxonomyL4] = useState([]);
 
   const currentUser = getCurrentUser();
-  const userTier = (
-    currentUser?.permission_tier ||
-    currentUser?.permissionTier ||
-    currentUser?.effectiveTier ||
-    currentUser?.tier ||
-    ''
-  )?.toUpperCase()?.trim();
-  const userDept = currentUser?.department?.toUpperCase();
-  // All selected items must belong to the user's own department for delete to be allowed
-  const selectedItemsForDelete = items?.filter(item => selectedItems?.includes(item?.id));
-  const allSelectedInOwnDept = selectedItemsForDelete?.every(
-    item => item?.usageDepartment?.toUpperCase() === userDept
-  );
-  const canDelete =
-    userTier === 'COMMAND' ||
-    ((userTier === 'CHIEF' || userTier === 'HOD') && allSelectedInOwnDept);
+  const canDelete = hasCommandAccess(currentUser) || hasChiefAccess(currentUser);
 
   const selectedItemsData = items?.filter(item => selectedItems?.includes(item?.id));
 

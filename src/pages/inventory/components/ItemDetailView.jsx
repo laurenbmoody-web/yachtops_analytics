@@ -12,26 +12,7 @@ const ItemDetailView = ({ item, onClose, onUpdate }) => {
   const navigate = useNavigate();
   const currentUser = getCurrentUser();
 
-  // Resolve tier and department for this user
-  const userTier = (
-    currentUser?.permission_tier ||
-    currentUser?.permissionTier ||
-    currentUser?.effectiveTier ||
-    currentUser?.tier ||
-    ''
-  )?.toUpperCase()?.trim();
-  const userDept = currentUser?.department?.toUpperCase();
-  const itemDept = item?.usageDepartment?.toUpperCase();
-
-  // COMMAND: edit anything; CHIEF/HOD: only own dept; CREW/VIEW_ONLY: no edit
-  const canEdit =
-    userTier === 'COMMAND' ||
-    ((userTier === 'CHIEF' || userTier === 'HOD') && itemDept === userDept);
-
-  // CREW cannot delete; CHIEF/HOD only own dept; COMMAND unrestricted
-  const canDelete =
-    userTier === 'COMMAND' ||
-    ((userTier === 'CHIEF' || userTier === 'HOD') && itemDept === userDept);
+  const canEdit = hasCommandAccess(currentUser) || hasChiefAccess(currentUser) || hasHODAccess(currentUser);
 
   // Get category names from IDs
   const l1Category = item?.l1Id ? getCategoryL1ById(item?.l1Id) : null;
