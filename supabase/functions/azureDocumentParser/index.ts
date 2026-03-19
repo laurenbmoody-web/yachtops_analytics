@@ -11,7 +11,7 @@ declare const Deno: { env: { get(key: string): string | undefined } };
 
 const AZURE_ENDPOINT = Deno.env.get('AZURE_DOC_INTELLIGENCE_ENDPOINT') || '';
 const AZURE_KEY = Deno.env.get('AZURE_DOC_INTELLIGENCE_KEY') || '';
-const AZURE_API_VERSION = Deno.env.get('AZURE_DOC_INTELLIGENCE_API_VERSION') || '2024-11-30';
+const AZURE_API_VERSION = Deno.env.get('AZURE_DOC_INTELLIGENCE_API_VERSION') || '';
 
 // ---------------------------------------------------------------------------
 // Normalize Azure Layout result into a table-friendly structure
