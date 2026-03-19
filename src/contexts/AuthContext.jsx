@@ -407,11 +407,10 @@ export const AuthProvider = ({ children }) => {
           
           const { data: membership, error: membershipError } = await supabase
             ?.from('tenant_members')
-            ?.select('tenant_id, permission_tier, role, department, active, status')
+            ?.select('tenant_id, permission_tier, role, department, active')
             ?.eq('user_id', currentUserId)
             ?.eq('tenant_id', profile?.current_tenant_id)
             ?.eq('active', true)
-            ?.eq('status', 'ACTIVE')
             ?.single();
           
           if (membershipError || !membership) {
@@ -473,10 +472,9 @@ export const AuthProvider = ({ children }) => {
           
           const { data: memberships, error: membershipError } = await supabase
             ?.from('tenant_members')
-            ?.select('tenant_id, role, active, status')
+            ?.select('tenant_id, role, active')
             ?.eq('user_id', currentUserId)
             ?.eq('active', true)
-            ?.eq('status', 'ACTIVE')
             ?.order('joined_at', { ascending: false })
             ?.limit(1);
           
