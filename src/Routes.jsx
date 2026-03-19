@@ -50,8 +50,6 @@ import { useAuth, RouteChangeLogger } from './contexts/AuthContext';
 import TodayDetailPage from './pages/today-detail/index';
 import NotFound from './pages/NotFound';
 
-// DEV_MODE constant for debugging
-const DEV_MODE = import.meta.env?.DEV;
 
 // Dev Mode Banner Component
 const DevModeBanner = () => {
@@ -150,7 +148,7 @@ const ProtectedRoute = ({ children, requiresTenant = true, requiredRoles = null 
   }
   
   // Console logs for debugging
-  if (DEV_MODE) {
+  if (isDevMode()) {
     console.log('[ProtectedRoute] Debug:', {
       path: currentPath,
       authLoading,
@@ -179,7 +177,7 @@ const ProtectedRoute = ({ children, requiresTenant = true, requiredRoles = null 
         </div>
         
         {/* DEV MODE DEBUG PANEL */}
-        {DEV_MODE && (
+        {isDevMode() && (
           <div className="mt-8 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs font-mono max-w-md w-full">
             <div className="font-bold mb-2 text-gray-700 dark:text-gray-300">🔧 DEV DEBUG</div>
             <div className="space-y-1 text-gray-600 dark:text-gray-400">
@@ -233,7 +231,7 @@ const ProtectedRoute = ({ children, requiresTenant = true, requiredRoles = null 
         </div>
         
         {/* DEV MODE DEBUG PANEL */}
-        {DEV_MODE && (
+        {isDevMode() && (
           <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs font-mono max-w-md w-full">
             <div className="font-bold mb-2 text-gray-700 dark:text-gray-300">🔧 DEV DEBUG</div>
             <div className="space-y-1 text-gray-600 dark:text-gray-400">
@@ -279,7 +277,7 @@ const ProtectedRoute = ({ children, requiresTenant = true, requiredRoles = null 
         </div>
         
         {/* DEV MODE DEBUG PANEL */}
-        {DEV_MODE && (
+        {isDevMode() && (
           <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs font-mono max-w-md w-full">
             <div className="font-bold mb-2 text-gray-700 dark:text-gray-300">🔧 DEV DEBUG</div>
             <div className="space-y-1 text-gray-600 dark:text-gray-400">
@@ -329,7 +327,7 @@ const ProtectedRoute = ({ children, requiresTenant = true, requiredRoles = null 
             </a>
           </div>
           {/* DEV MODE DEBUG PANEL */}
-          {DEV_MODE && (
+          {isDevMode() && (
             <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs font-mono max-w-md w-full">
               <div className="font-bold mb-2 text-gray-700 dark:text-gray-300">🔧 DEV DEBUG</div>
               <div className="space-y-1 text-gray-600 dark:text-gray-400">
@@ -415,7 +413,7 @@ const CommandRoute = ({ children }) => {
           </p>
         </div>
         
-        {DEV_MODE && (
+        {isDevMode() && (
           <div className="mt-8 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs font-mono max-w-md w-full">
             <div className="font-bold mb-2 text-gray-700 dark:text-gray-300">🔧 DEV DEBUG</div>
             <div className="space-y-1 text-gray-600 dark:text-gray-400">
@@ -464,7 +462,7 @@ const CommandRoute = ({ children }) => {
           </a>
         </div>
         
-        {DEV_MODE && (
+        {isDevMode() && (
           <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs font-mono max-w-md w-full">
             <div className="font-bold mb-2 text-gray-700 dark:text-gray-300">🔧 DEV DEBUG</div>
             <div className="space-y-1 text-gray-600 dark:text-gray-400">
@@ -509,7 +507,7 @@ const CommandRoute = ({ children }) => {
           </a>
         </div>
         
-        {DEV_MODE && (
+        {isDevMode() && (
           <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs font-mono max-w-md w-full">
             <div className="font-bold mb-2 text-gray-700 dark:text-gray-300">🔧 DEV DEBUG</div>
             <div className="space-y-1 text-gray-600 dark:text-gray-400">
@@ -593,7 +591,7 @@ const CommandChiefRoute = ({ children }) => {
           </p>
         </div>
         
-        {DEV_MODE && (
+        {isDevMode() && (
           <div className="mt-8 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs font-mono max-w-md w-full">
             <div className="font-bold mb-2 text-gray-700 dark:text-gray-300">🔧 DEV DEBUG</div>
             <div className="space-y-1 text-gray-600 dark:text-gray-400">
@@ -642,7 +640,7 @@ const CommandChiefRoute = ({ children }) => {
           </a>
         </div>
         
-        {DEV_MODE && (
+        {isDevMode() && (
           <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs font-mono max-w-md w-full">
             <div className="font-bold mb-2 text-gray-700 dark:text-gray-300">🔧 DEV DEBUG</div>
             <div className="space-y-1 text-gray-600 dark:text-gray-400">
@@ -687,7 +685,7 @@ const CommandChiefRoute = ({ children }) => {
           </a>
         </div>
         
-        {DEV_MODE && (
+        {isDevMode() && (
           <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs font-mono max-w-md w-full">
             <div className="font-bold mb-2 text-gray-700 dark:text-gray-300">🔧 DEV DEBUG</div>
             <div className="space-y-1 text-gray-600 dark:text-gray-400">
