@@ -32,6 +32,13 @@ import PreferencesDirectory from './pages/preferences-directory';
 import GuestPreferenceProfile from './pages/guest-preference-profile';
 import CrewProfile from './pages/crew-profile';
 import PublicLandingPage from './pages/public-landing-page';
+import HomePage from './marketing/pages/HomePage';
+import ProductPage from './marketing/pages/ProductPage';
+import FeaturesPage from './marketing/pages/FeaturesPage';
+import WhoItsForPage from './marketing/pages/WhoItsForPage';
+import AboutPage from './marketing/pages/AboutPage';
+import FAQPage from './marketing/pages/FAQPage';
+import ContactPage from './marketing/pages/ContactPage';
 import VesselSignupFlowStep1 from './pages/vessel-signup-flow-step-1';
 import VesselSettings from './pages/vessel-settings';
 import Membership from './pages/membership';
@@ -787,8 +794,17 @@ const Routes = () => {
       <RouteChangeLogger />
       <ScrollToTop />
       <RouterRoutes>
+        {/* Marketing Routes */}
+        <Route path="/" element={<HomePage />} />
+        <Route path="/product" element={<ProductPage />} />
+        <Route path="/features" element={<FeaturesPage />} />
+        <Route path="/who-its-for" element={<WhoItsForPage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/faq" element={<FAQPage />} />
+        <Route path="/contact" element={<ContactPage />} />
+
         {/* Public Routes */}
-        <Route path="/" element={<PublicLandingPage />} />
+        <Route path="/public-landing-page" element={<PublicLandingPage />} />
         <Route path="/signup-vessel" element={<VesselSignupFlowStep1 />} />
         <Route path="/login-authentication" element={<LoginAuthentication />} />
         
