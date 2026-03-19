@@ -137,7 +137,28 @@ const Inventory = () => {
   // Determine current view level
   const viewLevel = !categoryId ? 'L1' : !subcategoryL2Id ? 'L2' : !subcategoryL3Id ? 'L2_OR_L3_OR_ITEMS' : 'ITEMS';
 
-  // Add this block - Move filteredItems before it's used
+  // Filter items by department based on role:
+  // Command + Chief: respect the selected department scope (default ALL)
+  // HOD / Crew / View Only: always restricted to their own department
+  const filterItemsByDepartment = (itemsList) => {
+    if (userTier === 'COMMAND' || isChiefOnlyUser) {
+      if (departmentScope === 'ALL') return itemsList;
+      return itemsList?.filter(item => item?.usageDepartment?.toUpperCase() === departmentScope);
+    }
+    // HOD, Crew, View Only: own department only
+    if (!userDept) return itemsList;
+    return itemsList?.filter(item => item?.usageDepartment?.toUpperCase() === userDept);
+  };
+
+  // Filter L1 department folders based on role:
+  // COMMAND + CHIEF: see all folders
+  // HOD / Crew / View Only: only their own department folder
+  const filterL1ByDepartment = (l1List) => {
+    if (userTier === 'COMMAND' || userTier === 'CHIEF') return l1List;
+    if (!userDept) return l1List;
+    return l1List?.filter(cat => cat?.name?.toUpperCase() === userDept);
+  };
+
   const filteredItems = filterItemsByDepartment(items?.filter(item =>
     item?.name?.toLowerCase()?.includes(searchQuery?.toLowerCase())
   ));
@@ -335,28 +356,6 @@ const Inventory = () => {
   const handleDepartmentScopeChange = (newScope) => {
     setDepartmentScope(newScope);
     setDepartmentScopeState(newScope);
-  };
-
-  // Filter items by department based on role:
-  // Command + Chief: respect the selected department scope (default ALL)
-  // HOD / Crew / View Only: always restricted to their own department
-  const filterItemsByDepartment = (itemsList) => {
-    if (userTier === 'COMMAND' || isChiefOnlyUser) {
-      if (departmentScope === 'ALL') return itemsList;
-      return itemsList?.filter(item => item?.usageDepartment?.toUpperCase() === departmentScope);
-    }
-    // HOD, Crew, View Only: own department only
-    if (!userDept) return itemsList;
-    return itemsList?.filter(item => item?.usageDepartment?.toUpperCase() === userDept);
-  };
-
-  // Filter L1 department folders based on role:
-  // COMMAND + CHIEF: see all folders
-  // HOD / Crew / View Only: only their own department folder
-  const filterL1ByDepartment = (l1List) => {
-    if (userTier === 'COMMAND' || userTier === 'CHIEF') return l1List;
-    if (!userDept) return l1List;
-    return l1List?.filter(cat => cat?.name?.toUpperCase() === userDept);
   };
 
   // Toggle selection mode
