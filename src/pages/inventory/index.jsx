@@ -19,7 +19,7 @@ import { getItemsByTaxonomy, deleteItem, bulkDeleteItems, updateItemStockLocatio
 import AddEditItemModal from './components/AddEditItemModal';
 import ExcelImportModal from './components/ExcelImportModal';
 import BulkDeleteConfirmationModal from './components/BulkDeleteConfirmationModal';
-import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess, isViewOnly } from '../../utils/authStorage';
+import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess } from '../../utils/authStorage';
 import { getDepartmentScope, setDepartmentScope } from '../../utils/departmentScopeStorage';
 import { logBulkDelete } from './utils/activityLogger';
 import ItemTile from './components/ItemTile';
@@ -80,40 +80,11 @@ const Inventory = () => {
   const [vesselLocations, setVesselLocations] = useState([]);
 
   const currentUser = getCurrentUser();
-
-  // Resolve the user's permission tier and department for permission checks
-  const userTier = (
-    currentUser?.permission_tier ||
-    currentUser?.permissionTier ||
-    currentUser?.effectiveTier ||
-    currentUser?.tier ||
-    ''
-  )?.toUpperCase()?.trim();
-  const userDept = currentUser?.department?.toUpperCase();
-
-  // True only for strictly CHIEF (not Command)
-  const isChiefOnlyUser = userTier === 'CHIEF';
-
-  // Permission matrix:
-  // COMMAND   – view/edit/delete any item in any department
-  // CHIEF     – view all departments, edit/delete only own department
-  // HOD       – view/edit/delete own department only
-  // CREW      – view/edit (stock adjust) own department only, no delete, no add
-  // VIEW_ONLY – view own department only, read-only
-
-  // Whether the user can interact with (edit/adjust stock of) a specific item
-  const canInteractWithItem = (item) => {
-    if (userTier === 'COMMAND') return true;
-    if (userTier === 'VIEW_ONLY' || userTier === 'OPTIONAL_CREW') return false;
-    // Chief/HOD/Crew: only their own department's items
-    return item?.usageDepartment?.toUpperCase() === userDept;
-  };
-
-  const canImport = userTier === 'COMMAND' || userTier === 'CHIEF' || userTier === 'HOD';
-  const canAddItem = userTier === 'COMMAND' || userTier === 'CHIEF' || userTier === 'HOD';
-  const canBulkDelete = userTier === 'COMMAND' || userTier === 'CHIEF' || userTier === 'HOD';
-  const canAccessSettings = userTier === 'COMMAND' || userTier === 'CHIEF';
-  const canExport = userTier === 'COMMAND' || userTier === 'CHIEF' || userTier === 'HOD';
+  const canImport = hasCommandAccess(currentUser) || hasChiefAccess(currentUser) || hasHODAccess(currentUser);
+  const canAddItem = hasCommandAccess(currentUser) || hasChiefAccess(currentUser) || hasHODAccess(currentUser);
+  const canBulkDelete = hasCommandAccess(currentUser) || hasChiefAccess(currentUser);
+  const canAccessSettings = hasCommandAccess(currentUser) || hasChiefAccess(currentUser);
+  const canExport = hasCommandAccess(currentUser) || hasChiefAccess(currentUser) || hasHODAccess(currentUser);
 
   // Determine current view level
   const viewLevel = !categoryId ? 'L1' : !subcategoryL2Id ? 'L2' : !subcategoryL3Id ? 'L2_OR_L3_OR_ITEMS' : 'ITEMS';
@@ -318,17 +289,10 @@ const Inventory = () => {
     setDepartmentScopeState(newScope);
   };
 
-  // Filter items by department based on role:
-  // Command + Chief: respect the selected department scope (default ALL)
-  // HOD / Crew / View Only: always restricted to their own department
+  // Filter items by department
   const filterItemsByDepartment = (itemsList) => {
-    if (userTier === 'COMMAND' || isChiefOnlyUser) {
-      if (departmentScope === 'ALL') return itemsList;
-      return itemsList?.filter(item => item?.usageDepartment?.toUpperCase() === departmentScope);
-    }
-    // HOD, Crew, View Only: own department only
-    if (!userDept) return itemsList;
-    return itemsList?.filter(item => item?.usageDepartment?.toUpperCase() === userDept);
+    if (departmentScope === 'ALL') return itemsList;
+    return itemsList?.filter(item => item?.usageDepartment?.toUpperCase() === departmentScope);
   };
 
   // Toggle selection mode
@@ -610,7 +574,6 @@ const Inventory = () => {
             sortField={sortField}
             sortDirection={sortDirection}
             onSort={handleSort}
-            canAdjustStockForItem={canInteractWithItem}
           />
         ) : (
           <div className={`grid ${getGridColumns()} gap-4`}>
@@ -625,8 +588,7 @@ const Inventory = () => {
                 vesselLocations={vesselLocations}
                 onEdit={handleEditItem}
                 onDelete={handleDeleteItem}
-                canEdit={canInteractWithItem(item)}
-                canAdjustStock={canInteractWithItem(item)}
+                canEdit={canAddItem}
                 onQuickView={handleQuickView}
               />
             ))}
@@ -727,8 +689,8 @@ const Inventory = () => {
               {!categoryId ? 'Inventory' : currentL3?.name || currentL2?.name || currentL1?.name}
             </h1>
             
-            {/* Department Filter Chips - Command and Chief can filter across all departments */}
-            {(userTier === 'COMMAND' || isChiefOnlyUser) && items?.length > 0 && (
+            {/* Department Filter Chips - Command Only */}
+            {hasCommandAccess(currentUser) && items?.length > 0 && (
               <DepartmentFilterChips
                 selectedDepartment={departmentScope}
                 onDepartmentChange={handleDepartmentScopeChange}

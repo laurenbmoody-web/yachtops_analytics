@@ -122,18 +122,14 @@ const formatExpiryDate = (dateStr) => {
   }
 };
 
-const ItemListView = ({ items, selectionMode, selectedItems, onToggleSelect, onQuantityChange, zoomLevel = 3, vesselLocations = [], onQuickView, sortField: sortFieldProp, sortDirection: sortDirectionProp, onSort, canAdjustStockForItem }) => {
+const ItemListView = ({ items, selectionMode, selectedItems, onToggleSelect, onQuantityChange, zoomLevel = 3, vesselLocations = [], onQuickView, sortField: sortFieldProp, sortDirection: sortDirectionProp, onSort }) => {
   const navigate = useNavigate();
   const [sortFieldInternal, setSortFieldInternal] = useState('name');
   const [sortDirectionInternal, setSortDirectionInternal] = useState('asc');
   const [openPopoverId, setOpenPopoverId] = useState(null);
   const [showLocationSheetItem, setShowLocationSheetItem] = useState(null);
   const currentUser = getCurrentUser();
-  // Default (global) stock adjust permission – used when no per-item function is provided
-  const canAdjustStockDefault = hasCommandAccess(currentUser) || hasChiefAccess(currentUser) || hasHODAccess(currentUser);
-  // Resolve whether stock can be adjusted for a given item
-  const resolveCanAdjustStock = (item) =>
-    canAdjustStockForItem ? canAdjustStockForItem(item) : canAdjustStockDefault;
+  const canAdjustStock = hasCommandAccess(currentUser) || hasChiefAccess(currentUser) || hasHODAccess(currentUser);
 
   // Use controlled sort props if provided, otherwise fall back to internal state
   const sortField = sortFieldProp !== undefined ? sortFieldProp : sortFieldInternal;
@@ -237,7 +233,7 @@ const ItemListView = ({ items, selectionMode, selectedItems, onToggleSelect, onQ
   const handleDecrement = (e, item) => {
     e?.stopPropagation();
     e?.preventDefault();
-    if (!resolveCanAdjustStock(item)) return;
+    if (!canAdjustStock) return;
     const hasMultiple = item?.stockLocations?.length > 1;
     if (hasMultiple) {
       setOpenPopoverId(openPopoverId === item?.id ? null : item?.id);
@@ -251,7 +247,7 @@ const ItemListView = ({ items, selectionMode, selectedItems, onToggleSelect, onQ
   const handleIncrement = (e, item) => {
     e?.stopPropagation();
     e?.preventDefault();
-    if (!resolveCanAdjustStock(item)) return;
+    if (!canAdjustStock) return;
     const hasMultiple = item?.stockLocations?.length > 1;
     if (hasMultiple) {
       setOpenPopoverId(openPopoverId === item?.id ? null : item?.id);
@@ -426,48 +422,43 @@ const ItemListView = ({ items, selectionMode, selectedItems, onToggleSelect, onQ
 
                     {/* Quantity — minus | value | plus */}
                     <td className="px-4 py-3 w-36">
-                      {(() => {
-                        const itemCanAdjust = resolveCanAdjustStock(item);
-                        return (
-                          <div className="flex items-center gap-2" data-qty-controls onClick={e => e?.stopPropagation()}>
-                            <button
-                              onClick={(e) => handleDecrement(e, item)}
-                              disabled={!itemCanAdjust}
-                              className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors flex-shrink-0 ${
-                                itemCanAdjust
-                                  ? 'bg-gray-100 hover:bg-gray-200 text-gray-700 cursor-pointer' : 'bg-gray-50 text-gray-300 cursor-not-allowed'
-                              }`}
-                              aria-label="Decrease quantity"
-                            >
-                              <Icon name="Minus" size={13} />
-                            </button>
-                            <div className="relative">
-                              <div className="min-w-[36px] text-center">
-                                <span className="text-sm font-bold text-gray-900">{totalQty}</span>
-                              </div>
-                              {openPopoverId === item?.id && (
-                                <LocationPopover
-                                  item={item}
-                                  onUpdate={(updatedLocations) => handlePopoverUpdate(item?.id, updatedLocations)}
-                                  onClose={() => setOpenPopoverId(null)}
-                                  vesselLocations={vesselLocations}
-                                />
-                              )}
-                            </div>
-                            <button
-                              onClick={(e) => handleIncrement(e, item)}
-                              disabled={!itemCanAdjust}
-                              className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors flex-shrink-0 ${
-                                itemCanAdjust
-                                  ? 'bg-blue-50 hover:bg-blue-100 text-blue-600 cursor-pointer' : 'bg-gray-50 text-gray-300 cursor-not-allowed'
-                              }`}
-                              aria-label="Increase quantity"
-                            >
-                              <Icon name="Plus" size={13} />
-                            </button>
+                      <div className="flex items-center gap-2" data-qty-controls onClick={e => e?.stopPropagation()}>
+                        <button
+                          onClick={(e) => handleDecrement(e, item)}
+                          disabled={!canAdjustStock}
+                          className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors flex-shrink-0 ${
+                            canAdjustStock
+                              ? 'bg-gray-100 hover:bg-gray-200 text-gray-700 cursor-pointer' :'bg-gray-50 text-gray-300 cursor-not-allowed'
+                          }`}
+                          aria-label="Decrease quantity"
+                        >
+                          <Icon name="Minus" size={13} />
+                        </button>
+                        <div className="relative">
+                          <div className="min-w-[36px] text-center">
+                            <span className="text-sm font-bold text-gray-900">{totalQty}</span>
                           </div>
-                        );
-                      })()}
+                          {openPopoverId === item?.id && (
+                            <LocationPopover
+                              item={item}
+                              onUpdate={(updatedLocations) => handlePopoverUpdate(item?.id, updatedLocations)}
+                              onClose={() => setOpenPopoverId(null)}
+                              vesselLocations={vesselLocations}
+                            />
+                          )}
+                        </div>
+                        <button
+                          onClick={(e) => handleIncrement(e, item)}
+                          disabled={!canAdjustStock}
+                          className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors flex-shrink-0 ${
+                            canAdjustStock
+                              ? 'bg-blue-50 hover:bg-blue-100 text-blue-600 cursor-pointer' :'bg-gray-50 text-gray-300 cursor-not-allowed'
+                          }`}
+                          aria-label="Increase quantity"
+                        >
+                          <Icon name="Plus" size={13} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

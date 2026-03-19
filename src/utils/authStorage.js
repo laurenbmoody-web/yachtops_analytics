@@ -38,8 +38,7 @@ export const PermissionTier = {
   CHIEF: 'CHIEF',
   HOD: 'HOD',
   CREW: 'CREW',
-  OPTIONAL_CREW: 'OPTIONAL_CREW',
-  VIEW_ONLY: 'VIEW_ONLY'
+  OPTIONAL_CREW: 'OPTIONAL_CREW'
 };
 
 // User status enum
@@ -256,13 +255,7 @@ export const initializeRoles = () => {
     localStorage.setItem(ROLES_KEY, JSON.stringify(SEED_ROLES));
     return SEED_ROLES;
   }
-  try {
-    return JSON.parse(existing);
-  } catch {
-    console.error('initializeRoles: corrupt localStorage data, reinitializing');
-    localStorage.setItem(ROLES_KEY, JSON.stringify(SEED_ROLES));
-    return SEED_ROLES;
-  }
+  return JSON.parse(existing);
 };
 
 // Load roles
@@ -399,11 +392,7 @@ const initializeUsers = () => {
 
   const existing = localStorage.getItem(USERS_KEY);
   if (existing) {
-    try {
-      return JSON.parse(existing);
-    } catch {
-      console.error('initializeUsers: corrupt localStorage data, reinitializing');
-    }
+    return JSON.parse(existing);
   }
 
   const defaultUser = {
@@ -618,18 +607,6 @@ export const canAccessDepartment = (user, department) => {
   return user?.department === department;
 };
 
-export const isViewOnly = (user) => {
-  if (!user) return false;
-  const tier = (
-    user?.permission_tier ||
-    user?.permissionTier ||
-    user?.effectiveTier ||
-    user?.tier ||
-    ''
-  )?.toUpperCase()?.trim();
-  return tier === PermissionTier?.VIEW_ONLY;
-};
-
 // Department display names
 export const getDepartmentDisplayName = (department) => {
   const mapping = {
@@ -657,6 +634,10 @@ export const getTierDisplayName = (tier) => {
   };
   return names?.[tier] || tier;
 };
-export function getAllUsers() {
-  return loadUsers();
+function getAllUsers(...args) {
+  // eslint-disable-next-line no-console
+  console.warn('Placeholder: getAllUsers is not implemented yet.', args);
+  return null;
 }
+
+export { getAllUsers };
