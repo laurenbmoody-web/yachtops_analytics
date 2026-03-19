@@ -20,11 +20,8 @@ import { hasCommandAccess } from './authStorage';
  */
 export const getDepartmentScope = () => {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored && DEPARTMENT_OPTIONS.some(opt => opt.value === stored)) {
-      return stored;
-    }
-    return 'ALL';
+    const stored = sessionStorage.getItem(STORAGE_KEY);
+    return stored || 'ALL';
   } catch (error) {
     console.error('Error reading department scope:', error);
     return 'ALL';
@@ -32,12 +29,12 @@ export const getDepartmentScope = () => {
 };
 
 /**
- * Set department scope in localStorage
+ * Set department scope in session storage
  * @param {string} scope - Department scope value
  */
 export const setDepartmentScope = (scope) => {
   try {
-    localStorage.setItem(STORAGE_KEY, scope);
+    sessionStorage.setItem(STORAGE_KEY, scope);
   } catch (error) {
     console.error('Error saving department scope:', error);
   }

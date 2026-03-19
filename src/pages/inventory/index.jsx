@@ -19,7 +19,7 @@ import { getItemsByTaxonomy, deleteItem, bulkDeleteItems, updateItemStockLocatio
 import AddEditItemModal from './components/AddEditItemModal';
 import ExcelImportModal from './components/ExcelImportModal';
 import BulkDeleteConfirmationModal from './components/BulkDeleteConfirmationModal';
-import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess, isViewOnly } from '../../utils/authStorage';
+import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess } from '../../utils/authStorage';
 import { getDepartmentScope, setDepartmentScope } from '../../utils/departmentScopeStorage';
 import { logBulkDelete } from './utils/activityLogger';
 import ItemTile from './components/ItemTile';
@@ -637,7 +637,6 @@ const Inventory = () => {
             sortField={sortField}
             sortDirection={sortDirection}
             onSort={handleSort}
-            canAdjustStockForItem={canInteractWithItem}
           />
         ) : (
           <div className={`grid ${getGridColumns()} gap-4`}>
@@ -755,8 +754,8 @@ const Inventory = () => {
               {!categoryId ? 'Inventory' : currentL3?.name || currentL2?.name || currentL1?.name}
             </h1>
             
-            {/* Department Filter Chips - Command and Chief can filter across all departments */}
-            {(userTier === 'COMMAND' || isChiefOnlyUser) && items?.length > 0 && (
+            {/* Department Filter Chips - Command Only */}
+            {hasCommandAccess(currentUser) && items?.length > 0 && (
               <DepartmentFilterChips
                 selectedDepartment={departmentScope}
                 onDepartmentChange={handleDepartmentScopeChange}

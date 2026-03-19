@@ -565,8 +565,9 @@ export const saveItem = async (itemData) => {
         ?.eq('id', itemData?.id)
         ?.eq('tenant_id', tenantId)
         ?.select()
-        ?.single();
+        ?.maybeSingle();
       if (error) { console.error('[inventoryStorage] saveItem update error:', error?.message); return false; }
+      if (!data) { console.error('[inventoryStorage] saveItem update error: no row matched id', itemData?.id); return false; }
       savedItem = rowToItem(data);
     } else {
       row.created_by = supabaseUserId;

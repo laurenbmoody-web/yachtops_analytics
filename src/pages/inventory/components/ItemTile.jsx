@@ -23,7 +23,7 @@ const resolveLocationName = (loc, vesselLocations, idx) => {
   return `Location ${idx + 1}`;
 };
 
-const ItemTile = ({ item, onEdit, onDelete, onQuantityChange, canEdit, canAdjustStock: canAdjustStockProp, selectionMode, isSelected, onToggleSelect, vesselLocations = [], onQuickView }) => {
+const ItemTile = ({ item, onEdit, onDelete, onQuantityChange, canEdit, selectionMode, isSelected, onToggleSelect, vesselLocations = [], onQuickView }) => {
   const [showLocationExpander, setShowLocationExpander] = useState(false);
   const navigate = useNavigate();
   const currentUser = getCurrentUser();
@@ -37,11 +37,7 @@ const ItemTile = ({ item, onEdit, onDelete, onQuantityChange, canEdit, canAdjust
 
   const hasMultipleLocations = (item?.stockLocations?.length || 0) > 1;
 
-  // If canAdjustStock is explicitly provided by parent (dept-aware), use it.
-  // Otherwise fall back to role-based check for backward compatibility.
-  const canAdjustStock = canAdjustStockProp !== undefined
-    ? canAdjustStockProp
-    : (canEdit || hasCommandAccess(currentUser) || hasChiefAccess(currentUser) || hasHODAccess(currentUser));
+  const canAdjustStock = canEdit || hasCommandAccess(currentUser) || hasChiefAccess(currentUser) || hasHODAccess(currentUser);
 
   const handleIncrement = (e) => {
     e?.stopPropagation();

@@ -10,7 +10,7 @@ import { useAuth } from '../../contexts/AuthContext';
 
 const MyProfile = () => {
   const navigate = useNavigate();
-  const { session, loading: authLoading } = useAuth();
+  const { session, loading: authLoading, user: authUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [userId, setUserId] = useState(null);
@@ -30,17 +30,19 @@ const MyProfile = () => {
   const [missingFields, setMissingFields] = useState([]);
 
   useEffect(() => {
-    loadProfile();
-  }, []);
+    if (!authLoading) {
+      loadProfile();
+    }
+  }, [authLoading]);
 
   const loadProfile = async () => {
     try {
       setLoading(true);
       
-      const { data: { user }, error: authError } = await supabase?.auth?.getUser();
-      if (authError || !user) {
-        console.error('MyProfile: Auth error:', authError);
-        // DO NOT redirect here - ProtectedRoute handles this
+      // Use user from AuthContext instead of making a network call to getUser()
+      const user = authUser || session?.user;
+      if (!user) {
+        console.error('MyProfile: No authenticated user found');
         setLoading(false);
         return;
       }
@@ -58,7 +60,7 @@ const MyProfile = () => {
         console.error('MyProfile: Profile fetch error:', profileError);
       } else {
         setFullName(profileData?.full_name || '');
-        setEmail(profileData?.email || '');
+        setEmail(profileData?.email || user?.email || '');
       }
       
       // Fetch personal_profile data
@@ -77,7 +79,7 @@ const MyProfile = () => {
       
       calculateCompletion({
         full_name: profileData?.full_name,
-        email: profileData?.email,
+        email: profileData?.email || user?.email,
         phone: personalProfileData?.phone,
         nationality: personalProfileData?.nationality,
         dob: personalProfileData?.dob,
