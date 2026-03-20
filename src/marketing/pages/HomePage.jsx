@@ -257,7 +257,7 @@ const solutions = [
 const ProblemSolution = () => (
   <section style={{ padding: '64px 32px', maxWidth: 1280, margin: '0 auto' }}>
     <div style={{ marginBottom: 0 }}>
-      <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>
+      <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 14, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>
         The problem
       </p>
       <div style={{ borderLeft: '5px solid #4A90E2', paddingLeft: 22, marginBottom: 48 }}>
@@ -319,7 +319,7 @@ const ProblemSolution = () => (
 /* ─── CTA banner ─────────────────────────────────────────────────────────── */
 const CTABanner = () => (
   <section style={{ backgroundColor: '#1E3A5F', padding: '80px 32px', textAlign: 'center' }}>
-    <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(74,144,226,0.8)', marginBottom: 12 }}>
+    <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 14, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(74,144,226,0.8)', marginBottom: 12 }}>
       Get started
     </p>
     <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 44, textTransform: 'uppercase', color: 'white', lineHeight: 0.97, marginBottom: 16 }}>
