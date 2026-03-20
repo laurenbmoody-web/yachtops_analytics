@@ -132,16 +132,16 @@ const DashboardMockup = () => (
 
 /* ─── Hero ───────────────────────────────────────────────────────────────── */
 const HeroSection = () => (
-  <section style={{ paddingTop: 56, paddingBottom: 48, overflowX: 'hidden' }}>
+  <section style={{ paddingTop: 80, paddingBottom: 64, overflowX: 'hidden' }}>
     <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 32px' }}>
-      <div className="grid lg:grid-cols-2 gap-16 items-center">
+      <div className="grid lg:grid-cols-2 gap-16 items-start">
 
         {/* Text */}
         <div>
           {/* Eyebrow */}
           <p
             className="mkt-archivo"
-            style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 20 }}
+            style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 8 }}
           >
             Built by crew, for crew
           </p>
@@ -270,7 +270,7 @@ const ProblemSolution = () => (
       </div>
     </div>
 
-    <div className="grid md:grid-cols-2 gap-5" style={{ maxWidth: 860 }}>
+    <div className="grid md:grid-cols-2 gap-5" style={{ maxWidth: 860, margin: '0 auto' }}>
       {/* Without */}
       <div className="rounded-xl" style={{ border: '2px solid #E2E8F0', padding: 28 }}>
         <div className="flex items-center gap-2 mb-6">
@@ -318,53 +318,43 @@ const ProblemSolution = () => (
 
 /* ─── CTA banner ─────────────────────────────────────────────────────────── */
 const CTABanner = () => (
-  <section style={{ padding: '80px 32px' }}>
-    <div
-      className="rounded-2xl text-center"
-      style={{
-        maxWidth: 860,
-        margin: '0 auto',
-        backgroundColor: '#1E3A5F',
-        padding: '56px 40px',
-      }}
-    >
-      <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(74,144,226,0.8)', marginBottom: 12 }}>
-        Get started
-      </p>
-      <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 44, textTransform: 'uppercase', color: 'white', lineHeight: 0.97, marginBottom: 16 }}>
-        READY TO BRING<br />ORDER TO YOUR<br />VESSEL OPS?
-      </h2>
-      <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 15, color: 'rgba(255,255,255,0.5)', maxWidth: 400, margin: '0 auto 28px' }}>
-        Book a demo and see how Cargo works for your specific vessel and crew structure.
-      </p>
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-        <Link
-          to="/contact"
-          className="mkt-archivo transition-colors duration-150"
-          style={{
-            fontWeight: 900, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
-            color: '#1E3A5F', backgroundColor: 'white', borderRadius: 50,
-            padding: '15px 32px', textDecoration: 'none',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#F8FAFC')}
-          onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'white')}
-        >
-          Book a Demo
-        </Link>
-        <Link
-          to="/contact"
-          className="mkt-archivo transition-colors duration-150"
-          style={{
-            fontWeight: 700, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
-            color: 'white', border: '2px solid rgba(255,255,255,0.4)', borderRadius: 50,
-            padding: '15px 32px', textDecoration: 'none',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.7)')}
-          onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)')}
-        >
-          Join the Waitlist
-        </Link>
-      </div>
+  <section style={{ backgroundColor: '#1E3A5F', padding: '80px 32px', textAlign: 'center' }}>
+    <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(74,144,226,0.8)', marginBottom: 12 }}>
+      Get started
+    </p>
+    <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 44, textTransform: 'uppercase', color: 'white', lineHeight: 0.97, marginBottom: 16 }}>
+      READY TO BRING<br />ORDER TO YOUR<br />VESSEL OPS?
+    </h2>
+    <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 15, color: 'rgba(255,255,255,0.5)', maxWidth: 400, margin: '0 auto 28px' }}>
+      Book a demo and see how Cargo works for your specific vessel and crew structure.
+    </p>
+    <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+      <Link
+        to="/contact"
+        className="mkt-archivo transition-colors duration-150"
+        style={{
+          fontWeight: 900, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+          color: '#1E3A5F', backgroundColor: 'white', borderRadius: 50,
+          padding: '15px 32px', textDecoration: 'none',
+        }}
+        onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#F8FAFC')}
+        onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'white')}
+      >
+        Book a Demo
+      </Link>
+      <Link
+        to="/contact"
+        className="mkt-archivo transition-colors duration-150"
+        style={{
+          fontWeight: 700, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+          color: 'white', border: '2px solid rgba(255,255,255,0.4)', borderRadius: 50,
+          padding: '15px 32px', textDecoration: 'none',
+        }}
+        onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.7)')}
+        onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)')}
+      >
+        Join the Waitlist
+      </Link>
     </div>
   </section>
 );
