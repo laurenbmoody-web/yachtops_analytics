@@ -82,13 +82,6 @@ const PETAL_PATHS = {
   },
 };
 
-const LABEL_POS = {
-  tl: { top: -20, left: 0 },
-  tr: { top: -20, right: 0 },
-  bl: { bottom: -20, left: 0 },
-  br: { bottom: -20, right: 0 },
-};
-
 const PETAL_POS = {
   tl: { top: 0, left: 0 },
   tr: { top: 0, right: 0 },
@@ -148,9 +141,12 @@ const ProductHero = () => {
 
           {/* LEFT — text */}
           <div className="product-hero-text-col">
-            <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 12 }}>
-              The product
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <span style={{ display: 'block', width: 28, height: 2, backgroundColor: '#4A90E2', flexShrink: 0 }} />
+              <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: 13, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', margin: 0 }}>
+                The product
+              </p>
+            </div>
             <h1 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 32, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1, marginBottom: 16 }}>
               ONE PLATFORM. END-TO-END VESSEL OPERATIONS.
             </h1>
@@ -168,15 +164,15 @@ const ProductHero = () => {
                 </div>
               ) : (
                 <div>
-                  <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 22, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1, marginBottom: 10 }}>
+                  <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 29, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1, marginBottom: 10 }}>
                     {pillar.heading}
                   </h2>
-                  <p className="mkt-dmsans" style={{ fontSize: 13, color: '#64748B', lineHeight: 1.65, marginBottom: 14 }}>
+                  <p className="mkt-dmsans" style={{ fontSize: 15, color: '#64748B', lineHeight: 1.6, marginBottom: 14 }}>
                     {pillar.body}
                   </p>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                     {pillar.tags.map(tag => (
-                      <span key={tag} className="mkt-archivo" style={{ fontWeight: 700, fontSize: 8, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#1E3A5F', padding: '4px 10px', borderRadius: 20, border: '1.5px solid #1E3A5F' }}>
+                      <span key={tag} className="mkt-archivo" style={{ fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#1E3A5F', padding: '6px 14px', borderRadius: 20, border: '1.5px solid #1E3A5F' }}>
                         {tag}
                       </span>
                     ))}
@@ -202,26 +198,6 @@ const ProductHero = () => {
                 const isActive = active === key;
                 return (
                   <React.Fragment key={key}>
-                    {/* Corner label */}
-                    <span
-                      className="mkt-archivo"
-                      style={{
-                        position: 'absolute',
-                        ...LABEL_POS[pos],
-                        fontWeight: 700,
-                        fontSize: 9,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.08em',
-                        color: isActive ? '#1E3A5F' : '#94A3B8',
-                        transition: 'color 0.3s ease',
-                        whiteSpace: 'nowrap',
-                        pointerEvents: 'none',
-                        lineHeight: 1,
-                      }}
-                    >
-                      {label}
-                    </span>
-
                     {/* Petal SVG */}
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
