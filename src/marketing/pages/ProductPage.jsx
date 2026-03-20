@@ -225,12 +225,18 @@ const CargoLogoNav = ({ activePillar }) => {
   );
 };
 
-const PetalIcon = ({ petal }) => {
-  const viewBoxes = { tl: '0 0 14 14', tr: '14 0 14 14', bl: '0 14 14 14', br: '14 14 14 14' };
+const PETAL_SHAPES = {
+  tl: { d: 'M 107.675781 493.1875 C 107.675781 417.746094 138.230469 343.980469 191.574219 290.636719 C 244.917969 237.292969 318.6875 206.738281 394.125 206.738281 L 394.125 423.472656 C 394.125 461.976562 362.914062 493.1875 324.410156 493.1875 Z', vb: '97 197 307 307' },
+  tr: { d: 'M 415.863281 206.738281 C 491.304688 206.738281 565.070312 237.292969 618.414062 290.636719 C 671.757812 343.980469 702.3125 417.746094 702.3125 493.1875 L 485.578125 493.1875 C 447.074219 493.1875 415.863281 461.976562 415.863281 423.472656 Z', vb: '406 197 307 307' },
+  bl: { d: 'M 394.125 805.253906 C 318.6875 805.253906 244.917969 774.699219 191.574219 721.351562 C 138.230469 668.007812 107.675781 594.242188 107.675781 518.800781 L 324.410156 518.800781 C 362.914062 518.800781 394.125 550.015625 394.125 588.515625 Z', vb: '97 508 307 307' },
+  br: { d: 'M 702.3125 518.800781 C 702.3125 594.242188 671.757812 668.007812 618.414062 721.351562 C 565.070312 774.699219 491.304688 805.253906 415.863281 805.253906 L 415.863281 588.515625 C 415.863281 550.015625 447.074219 518.800781 485.578125 518.800781 Z', vb: '406 508 307 307' },
+};
+
+const PetalSegment = ({ petal, size = 72, color = '#1E3A5F' }) => {
+  const { d, vb } = PETAL_SHAPES[petal];
   return (
-    <svg width="16" height="16" viewBox={viewBoxes[petal]} fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="0" y="0" width="28" height="28" rx="5" fill="#4A90E2" />
-      <path d="M20 9a7 7 0 1 0 0 10" stroke="white" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox={vb}>
+      <path fill={color} fillRule="nonzero" d={d} />
     </svg>
   );
 };
@@ -335,8 +341,8 @@ const FourPillars = () => {
               }}
             >
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <PetalIcon petal={PETAL_MAP[id]} />
+                <PetalSegment petal={PETAL_MAP[id]} size={72} color="#1E3A5F" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, marginTop: 16 }}>
                   <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#4A90E2' }}>{nav}</span>
                 </div>
                 <h3 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 22, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1.05, marginBottom: 10 }}>{heading}</h3>
