@@ -441,10 +441,9 @@ const CTABanner = () => (
 /* ─── Page ───────────────────────────────────────────────────────────────── */
 const ProductPage = () => (
   <MarketingLayout>
-    <PageHero eyebrow="The product" headline="One platform. End-to-end vessel operations." sub="Cargo replaces the patchwork of spreadsheets, chat threads, and disconnected apps that most vessel teams rely on today." />
-    <FourPillars />
     <HowItWorks />
-    <ModuleOverview />
+    <FourPillars />
+    <PageHero eyebrow="The product" headline="One platform. End-to-end vessel operations." sub="Cargo replaces the patchwork of spreadsheets, chat threads, and disconnected apps that most vessel teams rely on today." />
     <WhyCargo />
     <CTABanner />
   </MarketingLayout>
