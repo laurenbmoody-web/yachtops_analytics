@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import MarketingLayout from '../MarketingLayout';
 
@@ -196,7 +196,6 @@ const HeroSection = () => (
 
           {/* CTAs */}
           <div className="flex flex-wrap gap-3">
-            <PillPrimary to="/contact">Book a Demo</PillPrimary>
             <PillSecondary to="/features">Explore Features</PillSecondary>
           </div>
         </div>
@@ -251,9 +250,14 @@ const ProblemSolution = () => (
       <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>
         The problem
       </p>
-      <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 28, color: '#1E3A5F', lineHeight: 1.15, marginBottom: 10 }}>
-        Yachts are complex. Most software is built by people who've never set foot on one.
-      </h2>
+      <div style={{ borderLeft: '4px solid #4A90E2', paddingLeft: 16, marginBottom: 10, textAlign: 'left' }}>
+        <p className="mkt-archivo" style={{ fontWeight: 900, fontSize: 22, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1.05, marginBottom: 6 }}>
+          Yachts are complex.
+        </p>
+        <p className="mkt-archivo" style={{ fontWeight: 900, fontSize: 16, textTransform: 'uppercase', color: '#64748B', lineHeight: 1.2 }}>
+          Most software is built by people who've never set foot on one.
+        </p>
+      </div>
       <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 14, color: '#64748B', maxWidth: 480, margin: '0 auto' }}>
         Cargo was designed from the ground up for real vessel operations — not adapted from hotel or fleet software.
       </p>
@@ -303,136 +307,6 @@ const ProblemSolution = () => (
           ))}
         </ul>
       </div>
-    </div>
-  </section>
-);
-
-/* ─── Feature cards ──────────────────────────────────────────────────────── */
-const FEATURE_CARDS = [
-  {
-    n: '01',
-    title: 'Inventory Intelligence',
-    body: 'Four-level location-based navigation gives every crew member instant access to any item on the vessel. Smart import, analytics, and automated low-stock tracking.',
-    href: '/features',
-  },
-  {
-    n: '02',
-    title: 'Crew & Scheduling',
-    body: 'Duty sets, rotation management, and individual crew profiles in one place. Assign roles, track certifications, and keep everyone on the same schedule.',
-    href: '/features',
-  },
-  {
-    n: '03',
-    title: 'Trips & Guests',
-    body: 'Full trip lifecycle management — itinerary, guest allocation, and preference syncing. Every guest preference is available to every crew member for every charter.',
-    href: '/features',
-  },
-];
-
-const FeatureCard = ({ n, title, body }) => {
-  const [hovered, setHovered] = useState(false);
-
-  return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        borderRadius: 12,
-        border: `2px solid ${hovered ? '#141D2E' : '#1E3A5F'}`,
-        backgroundColor: hovered ? '#141D2E' : 'white',
-        padding: 13,
-        transition: 'all 0.2s ease',
-        cursor: 'default',
-      }}
-    >
-      <p
-        className="mkt-archivo"
-        style={{
-          fontWeight: 900,
-          fontSize: 24,
-          color: hovered ? 'rgba(74,144,226,0.7)' : '#4A90E2',
-          marginBottom: 3,
-        }}
-      >
-        {n}
-      </p>
-      <h3
-        className="mkt-archivo"
-        style={{
-          fontWeight: 900,
-          fontSize: 12,
-          textTransform: 'uppercase',
-          letterSpacing: '0.06em',
-          color: hovered ? 'white' : '#1E3A5F',
-          marginBottom: 4,
-        }}
-      >
-        {title}
-      </h3>
-      <p
-        className="mkt-dmsans"
-        style={{
-          fontWeight: 400,
-          fontSize: 11,
-          color: hovered ? '#94A3B8' : '#64748B',
-          lineHeight: 1.5,
-        }}
-      >
-        {body}
-      </p>
-    </div>
-  );
-};
-
-const FeatureCards = () => (
-  <section style={{ backgroundColor: '#F8FAFC', padding: 14 }}>
-    <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-      <div className="grid grid-cols-1 md:grid-cols-3" style={{ gap: 8 }}>
-        {FEATURE_CARDS.map(card => (
-          <FeatureCard key={card.n} {...card} />
-        ))}
-      </div>
-    </div>
-  </section>
-);
-
-/* ─── Module strip ───────────────────────────────────────────────────────── */
-const MODULES = [
-  'Inventory', 'Crew Scheduling', 'Trip Management', 'Guest Profiles',
-  'Defect Tracking', 'Laundry', 'Ops Calendar', 'Duty Sets',
-  'Activity Feed', 'Vessel Blueprint', 'Locations', 'Logs & Deliveries',
-];
-
-const ModuleStrip = () => (
-  <section style={{ padding: '72px 32px', maxWidth: 1280, margin: '0 auto' }}>
-    <div className="text-center mb-10">
-      <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>
-        One platform
-      </p>
-      <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 28, color: '#1E3A5F', lineHeight: 1.15 }}>
-        Every module your operation needs
-      </h2>
-    </div>
-    <div className="flex flex-wrap justify-center" style={{ gap: 8 }}>
-      {MODULES.map(mod => (
-        <span
-          key={mod}
-          className="mkt-archivo"
-          style={{
-            fontWeight: 700,
-            fontSize: 10,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            color: '#1E3A5F',
-            border: '2px solid #1E3A5F',
-            borderRadius: 50,
-            padding: '6px 14px',
-            backgroundColor: 'white',
-          }}
-        >
-          {mod}
-        </span>
-      ))}
     </div>
   </section>
 );
@@ -496,8 +370,6 @@ const HomePage = () => (
     <HeroSection />
     <TrustBar />
     <ProblemSolution />
-    <FeatureCards />
-    <ModuleStrip />
     <CTABanner />
   </MarketingLayout>
 );
