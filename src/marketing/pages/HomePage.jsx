@@ -9,7 +9,8 @@ const PillPrimary = ({ to, children }) => (
     className="mkt-archivo inline-block transition-colors duration-150"
     style={{
       fontWeight: 900, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase',
-      color: 'white', backgroundColor: '#1E3A5F', borderRadius: 50, padding: '10px 22px',
+      color: 'white', backgroundColor: '#1E3A5F', borderRadius: 50,
+      padding: '12px 22px 10px',
       textDecoration: 'none',
     }}
     onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#141D2E')}
@@ -42,6 +43,7 @@ const PillSecondary = ({ to, children }) => (
 );
 
 /* ─── Dashboard mockup ───────────────────────────────────────────────────── */
+// TODO: Replace with real system screenshot when available
 const DashboardMockup = () => (
   <div className="relative w-full max-w-lg">
     <div
@@ -130,22 +132,22 @@ const DashboardMockup = () => (
 
 /* ─── Hero ───────────────────────────────────────────────────────────────── */
 const HeroSection = () => (
-  <section style={{ paddingTop: 96, paddingBottom: 80, overflow: 'visible' }}>
+  <section style={{ paddingTop: 96, paddingBottom: 80, overflowX: 'hidden' }}>
     <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 32px' }}>
       <div className="grid lg:grid-cols-2 gap-16 items-center">
 
         {/* Text */}
-        <div style={{ overflow: 'visible' }}>
+        <div>
           {/* Eyebrow */}
           <p
             className="mkt-archivo"
             style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 20 }}
           >
-            Built for professional yacht operations
+            Built by crew, for crew
           </p>
 
           {/* Three-line headline */}
-          <div style={{ marginBottom: 20, overflow: 'visible' }}>
+          <div style={{ marginBottom: 20 }}>
             <div
               className="mkt-archivo block"
               style={{ fontWeight: 900, fontSize: 38, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1, marginBottom: 4 }}
@@ -158,13 +160,13 @@ const HeroSection = () => (
             >
               BUILT FOR
             </div>
-            {/* Line 3 — highlighted */}
-            <div style={{ position: 'relative', display: 'inline-block', marginTop: 2, overflow: 'visible' }}>
+            {/* Line 3 — highlighted, bleeds left */}
+            <div style={{ position: 'relative', display: 'inline-block', marginTop: 2 }}>
               <span
                 aria-hidden="true"
                 style={{
                   position: 'absolute', top: 0, bottom: 0,
-                  left: -24, right: -12,
+                  left: -9999, right: -12,
                   background: 'rgba(74,144,226,0.5)',
                   borderRadius: 8, zIndex: 0,
                 }}
@@ -187,9 +189,9 @@ const HeroSection = () => (
             className="mkt-dmsans"
             style={{ fontWeight: 400, fontSize: 14, color: '#64748B', maxWidth: 420, lineHeight: 1.7, marginBottom: 24 }}
           >
-            Cargo unifies inventory, crew scheduling, trips, guests, defects, and
-            every operational detail into one system. No more spreadsheets.
-            No more WhatsApp threads.
+            Cargo unifies crew and guest management, inventory, preferences and
+            provisioning, trips, defects, accounts and many more operational
+            details into one system.
           </p>
 
           {/* CTAs */}
@@ -223,26 +225,24 @@ const TrustBar = () => (
       className="mkt-archivo"
       style={{ fontWeight: 900, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}
     >
-      INVENTORY &nbsp;·&nbsp; CREW SCHEDULING &nbsp;·&nbsp; TRIP MANAGEMENT &nbsp;·&nbsp; GUEST PROFILES &nbsp;·&nbsp; DEFECT TRACKING &nbsp;·&nbsp; VESSEL OPERATIONS
+      CREW OPS &nbsp;·&nbsp; GUEST OPS &nbsp;·&nbsp; VESSEL OPS
     </p>
   </div>
 );
 
 /* ─── Problem / Solution ─────────────────────────────────────────────────── */
 const problems = [
-  'Inventory scattered across paper lists and spreadsheets',
-  'Crew schedules lost in WhatsApp chats',
-  "Guest preferences stored in the captain's notebook",
-  'Maintenance defects tracked in email threads',
-  'No single source of truth for anything',
+  'Inventory scattered across different platforms and papers',
+  'Crew schedules lost to Excel or WhatsApp',
+  'Guest preferences etched in memory, not systems',
+  'No single source of truth',
 ];
 
 const solutions = [
-  'Real-time inventory at every location, searchable and auditable',
-  'Crew scheduling and rotation with duty-set visibility',
-  'Guest preference profiles synced to every trip',
-  'Defect tracking from report to close-out',
-  'One platform where the whole vessel runs',
+  'Real-time inventory with interactive mapping',
+  'Crew scheduling visible and logged',
+  'Guest preferences synced, stored and smartly linked to provisioning',
+  'One platform — your vessel\'s digital twin',
 ];
 
 const ProblemSolution = () => (
@@ -252,7 +252,7 @@ const ProblemSolution = () => (
         The problem
       </p>
       <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 28, color: '#1E3A5F', lineHeight: 1.15, marginBottom: 10 }}>
-        Yachts are complex. Most software isn't built for them.
+        Yachts are complex. Most software is built by people who've never set foot on one.
       </h2>
       <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 14, color: '#64748B', maxWidth: 480, margin: '0 auto' }}>
         Cargo was designed from the ground up for real vessel operations — not adapted from hotel or fleet software.
@@ -314,27 +314,23 @@ const FEATURE_CARDS = [
     title: 'Inventory Intelligence',
     body: 'Four-level location-based navigation gives every crew member instant access to any item on the vessel. Smart import, analytics, and automated low-stock tracking.',
     href: '/features',
-    dark: false,
   },
   {
     n: '02',
     title: 'Crew & Scheduling',
     body: 'Duty sets, rotation management, and individual crew profiles in one place. Assign roles, track certifications, and keep everyone on the same schedule.',
     href: '/features',
-    dark: false,
   },
   {
     n: '03',
     title: 'Trips & Guests',
     body: 'Full trip lifecycle management — itinerary, guest allocation, and preference syncing. Every guest preference is available to every crew member for every charter.',
     href: '/features',
-    dark: true,
   },
 ];
 
-const FeatureCard = ({ n, title, body, href, dark }) => {
+const FeatureCard = ({ n, title, body }) => {
   const [hovered, setHovered] = useState(false);
-  const isDark = dark || hovered;
 
   return (
     <div
@@ -342,8 +338,8 @@ const FeatureCard = ({ n, title, body, href, dark }) => {
       onMouseLeave={() => setHovered(false)}
       style={{
         borderRadius: 12,
-        border: `2px solid ${isDark ? '#141D2E' : '#1E3A5F'}`,
-        backgroundColor: isDark ? '#141D2E' : 'white',
+        border: `2px solid ${hovered ? '#141D2E' : '#1E3A5F'}`,
+        backgroundColor: hovered ? '#141D2E' : 'white',
         padding: 13,
         transition: 'all 0.2s ease',
         cursor: 'default',
@@ -354,7 +350,7 @@ const FeatureCard = ({ n, title, body, href, dark }) => {
         style={{
           fontWeight: 900,
           fontSize: 24,
-          color: isDark ? 'rgba(74,144,226,0.7)' : (dark ? 'rgba(74,144,226,0.6)' : '#4A90E2'),
+          color: hovered ? 'rgba(74,144,226,0.7)' : '#4A90E2',
           marginBottom: 3,
         }}
       >
@@ -367,7 +363,7 @@ const FeatureCard = ({ n, title, body, href, dark }) => {
           fontSize: 12,
           textTransform: 'uppercase',
           letterSpacing: '0.06em',
-          color: isDark ? 'white' : '#1E3A5F',
+          color: hovered ? 'white' : '#1E3A5F',
           marginBottom: 4,
         }}
       >
@@ -378,7 +374,7 @@ const FeatureCard = ({ n, title, body, href, dark }) => {
         style={{
           fontWeight: 400,
           fontSize: 11,
-          color: isDark ? '#94A3B8' : '#64748B',
+          color: hovered ? '#94A3B8' : '#64748B',
           lineHeight: 1.5,
         }}
       >
