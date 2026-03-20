@@ -319,7 +319,7 @@ const ProblemSolution = () => (
 /* ─── CTA banner ─────────────────────────────────────────────────────────── */
 const CTABanner = () => (
   <section style={{ backgroundColor: '#1E3A5F', padding: '80px 32px', textAlign: 'center' }}>
-    <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(74,144,226,0.8)', marginBottom: 12 }}>
+    <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 14, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(74,144,226,0.8)', marginBottom: 12 }}>
       Get started
     </p>
     <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 44, textTransform: 'uppercase', color: 'white', lineHeight: 0.97, marginBottom: 16 }}>
