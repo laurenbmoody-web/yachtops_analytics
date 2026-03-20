@@ -107,7 +107,7 @@ const ModuleOverview = () => (
 
 /* ─── Four Pillars ───────────────────────────────────────────────────────── */
 const PETAL_MAP = { crew: 'tl', vessel: 'tr', guest: 'bl', continuity: 'br' };
-const PETAL_TRANSFORMS = { tl: 'translate(-5px, -5px)', tr: 'translate(5px, -5px)', bl: 'translate(-5px, 5px)', br: 'translate(5px, 5px)' };
+const PETAL_TRANSFORMS = { tl: 'translate(-20px, -20px) scale(1.07)', tr: 'translate(20px, -20px) scale(1.07)', bl: 'translate(-20px, 20px) scale(1.07)', br: 'translate(20px, 20px) scale(1.07)' };
 const PETAL_ORIGINS = { tl: '65% 65%', tr: '35% 65%', bl: '65% 35%', br: '35% 35%' };
 
 const PILLARS = [
@@ -154,7 +154,7 @@ const CargoLogoNav = ({ activePillar }) => {
   });
   const f = (p) => ({ fill: ap === p ? '#0d1f35' : '#1E3A5F', transition: 'fill 0.3s ease' });
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="64" viewBox="0 0 810 1012.49997" style={{ display: 'block', margin: '0 auto 16px' }}>
+    <svg xmlns="http://www.w3.org/2000/svg" width="80" viewBox="0 0 810 1012.49997" style={{ display: 'block', margin: '0 auto 16px' }}>
       <defs>
         <clipPath id="fp-092bb80a56"><path d="M 415.863281 206.738281 L 703 206.738281 L 703 493.1875 L 415.863281 493.1875 Z M 415.863281 206.738281 " clipRule="nonzero"/></clipPath>
         <clipPath id="fp-b9daef7671"><path d="M 415.863281 206.738281 C 491.304688 206.738281 565.070312 237.292969 618.414062 290.636719 C 671.757812 343.980469 702.3125 417.746094 702.3125 493.1875 L 485.578125 493.1875 C 447.074219 493.1875 415.863281 461.976562 415.863281 423.472656 Z M 415.863281 206.738281 " clipRule="nonzero"/></clipPath>
