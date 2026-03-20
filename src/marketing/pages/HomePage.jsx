@@ -134,14 +134,14 @@ const DashboardMockup = () => (
 const HeroSection = () => (
   <section style={{ paddingTop: 80, paddingBottom: 64, overflowX: 'hidden' }}>
     <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 32px' }}>
-      <div className="grid lg:grid-cols-2 gap-16 items-center">
+      <div className="grid lg:grid-cols-2 gap-16 items-start">
 
         {/* Text */}
         <div>
           {/* Eyebrow */}
           <p
             className="mkt-archivo"
-            style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 20 }}
+            style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 8 }}
           >
             Built by crew, for crew
           </p>
