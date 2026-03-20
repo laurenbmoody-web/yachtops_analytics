@@ -182,7 +182,7 @@ const PetalIcon = ({ petal }) => {
   return (
     <svg width="16" height="16" viewBox={viewBoxes[petal]} fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect x="0" y="0" width="28" height="28" rx="5" fill="#4A90E2" />
-      <path d="M20 9a7 7 0 1 0 0 10" stroke="white" strokeWidth="2" strokeLinecap="round" fill="none" />
+      <path d="M20 9a7 7 0 1 0 0 10" stroke="white" strokeWidth="2.5" strokeLinecap="round" fill="none" />
     </svg>
   );
 };
