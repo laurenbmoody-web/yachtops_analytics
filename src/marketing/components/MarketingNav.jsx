@@ -21,7 +21,8 @@ const MarketingNav = () => {
         style={{ maxWidth: 1280, margin: '0 auto', padding: '0 32px', height: 56 }}
       >
         {/* Logo */}
-        <Link to="/" style={{ textDecoration: 'none' }}>
+        <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <img src="/cargo-logo.svg" alt="Cargo" style={{ height: 28, width: 'auto' }} />
           <span
             className="mkt-archivo"
             style={{
@@ -73,10 +74,12 @@ const MarketingNav = () => {
         <div className="flex items-center" style={{ gap: 4 }}>
           <Link
             to="/login-authentication"
-            className="mkt-dmsans transition-colors duration-150"
+            className="mkt-archivo transition-colors duration-150"
             style={{
-              fontWeight: 400,
-              fontSize: 14,
+              fontWeight: 900,
+              fontSize: 11,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
               color: '#64748B',
               textDecoration: 'none',
               padding: '0 14px',
