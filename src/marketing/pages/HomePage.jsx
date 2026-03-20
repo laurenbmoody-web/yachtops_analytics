@@ -141,7 +141,7 @@ const HeroSection = () => (
           {/* Eyebrow */}
           <p
             className="mkt-archivo"
-            style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 8 }}
+            style={{ fontWeight: 600, fontSize: 14, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 8 }}
           >
             Built by crew, for crew
           </p>
