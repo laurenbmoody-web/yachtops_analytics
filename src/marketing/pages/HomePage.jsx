@@ -257,7 +257,7 @@ const solutions = [
 const ProblemSolution = () => (
   <section style={{ padding: '64px 32px', maxWidth: 1280, margin: '0 auto' }}>
     <div style={{ marginBottom: 0 }}>
-      <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>
+      <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 14, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>
         The problem
       </p>
       <div style={{ borderLeft: '5px solid #4A90E2', paddingLeft: 22, marginBottom: 48 }}>
