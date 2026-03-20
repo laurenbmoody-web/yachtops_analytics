@@ -105,51 +105,53 @@ const ModuleOverview = () => (
   </section>
 );
 
-/* ─── Comparison table ───────────────────────────────────────────────────── */
-const ROWS = [
-  { label: 'Built for yacht ops', cargo: true, generic: false },
-  { label: 'Role-based crew access', cargo: true, generic: false },
-  { label: 'Location-first inventory', cargo: true, generic: false },
-  { label: 'Guest preference management', cargo: true, generic: false },
-  { label: 'Integrated trip & crew calendar', cargo: true, generic: false },
-  { label: 'Voyage & defect history', cargo: true, generic: false },
-  { label: 'Mobile-ready for crew', cargo: true, generic: true },
-  { label: 'Cloud-hosted', cargo: true, generic: true },
+/* ─── Why Cargo ──────────────────────────────────────────────────────────── */
+const WHY_ROWS = [
+  {
+    label: 'NOT HOTEL SOFTWARE',
+    body: 'Generic hospitality tools were built for hotels and restaurants. Cargo was built around how vessels are actually structured — locations, departments, duty sets, and charter cycles.',
+  },
+  {
+    label: 'NOT FLEET SOFTWARE',
+    body: 'Commercial fleet tools manage assets at scale. Cargo manages the day-to-day operational reality of a single vessel — the guests, the crew, the inventory, the trips — all connected.',
+  },
+  {
+    label: 'NOT A SPREADSHEET',
+    body: 'Excel and WhatsApp are not systems — they are workarounds. Cargo replaces the patchwork with a single source of truth every department can rely on, from the captain to the chef.',
+  },
 ];
 
-const Check = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-    <circle cx="8" cy="8" r="7" fill="rgba(74,144,226,0.12)" />
-    <path d="M4.5 8l2.5 2.5L11.5 5" stroke="#4A90E2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-const Cross = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-    <circle cx="8" cy="8" r="7" fill="rgba(248,113,113,0.1)" />
-    <path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="#F87171" strokeWidth="1.5" strokeLinecap="round" />
-  </svg>
-);
-
 const WhyCargo = () => (
-  <section style={{ padding: '72px 32px', maxWidth: 860, margin: '0 auto' }}>
-    <SectionHeading eyebrow="Why Cargo" headline="Not adapted from hotel or fleet software" sub="Generic operations tools miss what makes yacht ops unique. Cargo was built for it." />
-    <div className="bg-white rounded-xl overflow-hidden" style={{ border: '2px solid #1E3A5F' }}>
-      <div className="grid grid-cols-3 px-6 py-4" style={{ borderBottom: '1px solid #E2E8F0' }}>
-        <span className="mkt-archivo col-span-1" style={{ fontWeight: 900, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#64748B' }}>Capability</span>
-        <span className="mkt-archivo text-center" style={{ fontWeight: 900, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#1E3A5F' }}>Cargo</span>
-        <span className="mkt-archivo text-center" style={{ fontWeight: 900, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#64748B' }}>Generic tools</span>
+  <section style={{ backgroundColor: '#1E3A5F', padding: '80px 32px' }}>
+    <div style={{ maxWidth: 720 }}>
+      <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: 20 }}>
+        WHY CARGO
+      </p>
+      <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 42, textTransform: 'uppercase', color: 'white', lineHeight: 0.97, marginBottom: 28 }}>
+        BUILT FOR THE WAY YACHTS ACTUALLY OPERATE.
+      </h2>
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+        {WHY_ROWS.map(({ label, body }, i) => (
+          <div
+            key={label}
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 20,
+              paddingTop: 20,
+              paddingBottom: 20,
+              borderBottom: i < WHY_ROWS.length - 1 ? '1px solid rgba(255,255,255,0.1)' : 'none',
+            }}
+          >
+            <span className="mkt-archivo" style={{ fontWeight: 900, fontSize: 11, color: '#4A90E2', letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap', paddingTop: 2, minWidth: 140 }}>
+              {label}
+            </span>
+            <span className="mkt-dmsans" style={{ fontSize: 15, color: 'rgba(255,255,255,0.6)', lineHeight: 1.6 }}>
+              {body}
+            </span>
+          </div>
+        ))}
       </div>
-      {ROWS.map(({ label, cargo, generic }, i) => (
-        <div
-          key={label}
-          className="grid grid-cols-3 items-center px-6 py-3"
-          style={{ borderBottom: i < ROWS.length - 1 ? '1px solid #F1F5F9' : 'none' }}
-        >
-          <span className="mkt-dmsans col-span-1" style={{ fontWeight: 400, fontSize: 13, color: '#64748B' }}>{label}</span>
-          <span className="flex justify-center">{cargo ? <Check /> : <Cross />}</span>
-          <span className="flex justify-center">{generic ? <Check /> : <Cross />}</span>
-        </div>
-      ))}
     </div>
   </section>
 );
