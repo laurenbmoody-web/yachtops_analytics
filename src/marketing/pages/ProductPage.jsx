@@ -223,72 +223,86 @@ const FourPillars = () => {
   };
 
   return (
-    <section style={{ backgroundColor: '#F8FAFC', borderTop: '2px solid #1E3A5F', display: 'grid', gridTemplateColumns: '120px 1fr' }}>
-      {/* Sticky sidebar */}
-      <div style={{ position: 'sticky', top: 80, height: 'fit-content', backgroundColor: '#F8FAFC', borderRight: '2px solid #1E3A5F', padding: '32px 0' }}>
-        <CargoLogoNav activePillar={activePillar} />
-        {PILLARS.map(({ id, nav }) => (
-          <button
-            key={id}
-            onClick={() => scrollTo(id)}
-            style={{
-              display: 'block',
-              width: '100%',
-              fontFamily: '"Archivo Black", sans-serif',
-              fontWeight: 900,
-              fontSize: 9,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              color: activePillar === id ? '#1E3A5F' : '#94A3B8',
-              textAlign: 'center',
-              padding: '12px 8px',
-              borderTop: 'none',
-              borderLeft: 'none',
-              borderRight: 'none',
-              borderBottom: '1px solid #E2E8F0',
-              cursor: 'pointer',
-              transition: 'color 0.2s',
-              background: 'none',
-              boxSizing: 'border-box',
-            }}
-          >
-            {nav}
-          </button>
-        ))}
+    <section style={{ backgroundColor: '#F8FAFC', borderTop: '2px solid #1E3A5F' }}>
+      {/* Full-width dark header */}
+      <div style={{ backgroundColor: '#1E3A5F', padding: '52px 40px 48px' }}>
+        <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(74,144,226,0.9)', marginBottom: 14 }}>THE PRODUCT</p>
+        <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 36, textTransform: 'uppercase', color: 'white', lineHeight: 1.0, marginBottom: 12 }}>
+          FOUR PILLARS.<br />ONE PLATFORM.
+        </h2>
+        <p className="mkt-dmsans" style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', maxWidth: 460, lineHeight: 1.65 }}>
+          Everything a professional vessel needs to operate — built into a single system your entire crew can use.
+        </p>
       </div>
 
-      {/* Scrollable content */}
-      <div style={{ overflowY: 'auto' }}>
-        {PILLARS.map(({ id, nav, heading, body, modules, mockupLabel }, i) => (
-          <div
-            key={id}
-            data-pillar={id}
-            ref={el => { pillarRefs.current[id] = el; }}
-            style={{
-              padding: '48px 40px',
-              borderBottom: i < PILLARS.length - 1 ? '2px solid #E2E8F0' : 'none',
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: 40,
-              alignItems: 'start',
-            }}
-          >
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <PetalIcon petal={PETAL_MAP[id]} />
-                <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#4A90E2' }}>{nav}</span>
+      {/* Two-column sticky sidebar + content */}
+      <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr' }}>
+        {/* Sticky sidebar */}
+        <div style={{ position: 'sticky', top: 80, height: 'fit-content', backgroundColor: '#F8FAFC', borderRight: '2px solid #1E3A5F', padding: '32px 0' }}>
+          <CargoLogoNav activePillar={activePillar} />
+          {PILLARS.map(({ id, nav }) => (
+            <button
+              key={id}
+              onClick={() => scrollTo(id)}
+              style={{
+                display: 'block',
+                width: '100%',
+                fontFamily: '"Archivo Black", sans-serif',
+                fontWeight: 900,
+                fontSize: 9,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: activePillar === id ? '#1E3A5F' : '#94A3B8',
+                textAlign: 'center',
+                padding: '12px 8px',
+                borderTop: 'none',
+                borderLeft: 'none',
+                borderRight: 'none',
+                borderBottom: '1px solid #E2E8F0',
+                cursor: 'pointer',
+                transition: 'color 0.2s',
+                background: 'none',
+                boxSizing: 'border-box',
+              }}
+            >
+              {nav}
+            </button>
+          ))}
+        </div>
+
+        {/* Scrollable content */}
+        <div style={{ overflowY: 'auto' }}>
+          {PILLARS.map(({ id, nav, heading, body, modules, mockupLabel }, i) => (
+            <div
+              key={id}
+              data-pillar={id}
+              ref={el => { pillarRefs.current[id] = el; }}
+              style={{
+                padding: '48px 40px',
+                borderBottom: i < PILLARS.length - 1 ? '2px solid #E2E8F0' : 'none',
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 40,
+                alignItems: 'start',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <PetalIcon petal={PETAL_MAP[id]} />
+                  <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#4A90E2' }}>{nav}</span>
+                </div>
+                <h3 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 22, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1.05, marginBottom: 10 }}>{heading}</h3>
+                <p className="mkt-dmsans" style={{ fontSize: 13, color: '#64748B', lineHeight: 1.65, marginBottom: 16, maxWidth: 360 }}>{body}</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {modules.map(m => (
+                    <span key={m} className="mkt-archivo" style={{ fontWeight: 700, fontSize: 8, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#1E3A5F', padding: '4px 10px', borderRadius: 20, border: '1.5px solid #1E3A5F' }}>{m}</span>
+                  ))}
+                </div>
               </div>
-              <h3 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 22, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1.05, marginBottom: 10 }}>{heading}</h3>
-              <p className="mkt-dmsans" style={{ fontSize: 13, color: '#64748B', lineHeight: 1.65, marginBottom: 16, maxWidth: 360 }}>{body}</p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {modules.map(m => (
-                  <span key={m} className="mkt-archivo" style={{ fontWeight: 700, fontSize: 8, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#1E3A5F', padding: '4px 10px', borderRadius: 20, border: '1.5px solid #1E3A5F' }}>{m}</span>
-                ))}
-              </div>
+              <MockupScreen label={mockupLabel} />
             </div>
-            <MockupScreen label={mockupLabel} />
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </section>
   );
