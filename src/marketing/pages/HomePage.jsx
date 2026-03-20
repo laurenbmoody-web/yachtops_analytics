@@ -132,7 +132,7 @@ const DashboardMockup = () => (
 
 /* ─── Hero ───────────────────────────────────────────────────────────────── */
 const HeroSection = () => (
-  <section style={{ paddingTop: 96, paddingBottom: 64, overflowX: 'hidden' }}>
+  <section style={{ paddingTop: 110, paddingBottom: 64, overflowX: 'hidden' }}>
     <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 32px' }}>
       <div className="grid lg:grid-cols-2 gap-16 items-start">
 
