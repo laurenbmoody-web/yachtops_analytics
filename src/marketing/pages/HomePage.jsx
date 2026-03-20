@@ -27,7 +27,7 @@ const PillSecondary = ({ to, children }) => (
     style={{
       fontWeight: 700, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase',
       color: '#1E3A5F', border: '2px solid #1E3A5F', backgroundColor: 'transparent',
-      borderRadius: 50, padding: '8px 22px', textDecoration: 'none',
+      borderRadius: 50, padding: '12px 24px', textDecoration: 'none',
     }}
     onMouseEnter={e => {
       e.currentTarget.style.backgroundColor = '#1E3A5F';
@@ -132,7 +132,7 @@ const DashboardMockup = () => (
 
 /* ─── Hero ───────────────────────────────────────────────────────────────── */
 const HeroSection = () => (
-  <section style={{ paddingTop: 96, paddingBottom: 80, overflowX: 'hidden' }}>
+  <section style={{ paddingTop: 56, paddingBottom: 48, overflowX: 'hidden' }}>
     <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 32px' }}>
       <div className="grid lg:grid-cols-2 gap-16 items-center">
 
@@ -150,13 +150,13 @@ const HeroSection = () => (
           <div style={{ marginBottom: 20 }}>
             <div
               className="mkt-archivo block"
-              style={{ fontWeight: 900, fontSize: 38, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1, marginBottom: 4 }}
+              style={{ fontWeight: 900, fontSize: 42, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1, marginBottom: 4 }}
             >
               THE OPS PLATFORM
             </div>
             <div
               className="mkt-archivo block"
-              style={{ fontWeight: 900, fontSize: 38, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1, marginBottom: 2 }}
+              style={{ fontWeight: 900, fontSize: 42, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1, marginBottom: 2 }}
             >
               BUILT FOR
             </div>
@@ -175,7 +175,7 @@ const HeroSection = () => (
                 className="mkt-archivo"
                 style={{
                   position: 'relative', zIndex: 1,
-                  fontWeight: 900, fontSize: 38, textTransform: 'uppercase',
+                  fontWeight: 900, fontSize: 42, textTransform: 'uppercase',
                   color: 'white', lineHeight: 1, padding: '5px 0', display: 'block',
                 }}
               >
@@ -187,7 +187,7 @@ const HeroSection = () => (
           {/* Body */}
           <p
             className="mkt-dmsans"
-            style={{ fontWeight: 400, fontSize: 14, color: '#64748B', maxWidth: 420, lineHeight: 1.7, marginBottom: 24 }}
+            style={{ fontWeight: 400, fontSize: 15, color: '#64748B', maxWidth: 420, lineHeight: 1.7, marginBottom: 24 }}
           >
             Cargo unifies crew and guest management, inventory, preferences and
             provisioning, trips, defects, accounts and many more operational
@@ -210,22 +210,32 @@ const HeroSection = () => (
 );
 
 /* ─── Trust bar ──────────────────────────────────────────────────────────── */
+const TRUST_PILLARS = ['CREW OPS', 'VESSEL OPS', 'GUEST OPS', 'CONTINUITY'];
+
 const TrustBar = () => (
   <div
     style={{
       backgroundColor: '#1E3A5F',
-      borderTop: '2px solid #1E3A5F',
-      borderBottom: '2px solid #1E3A5F',
-      padding: '14px 32px',
-      textAlign: 'center',
+      display: 'grid',
+      gridTemplateColumns: '1fr 2px 1fr 2px 1fr 2px 1fr',
+      height: 52,
     }}
   >
-    <p
-      className="mkt-archivo"
-      style={{ fontWeight: 900, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}
-    >
-      CREW OPS &nbsp;·&nbsp; GUEST OPS &nbsp;·&nbsp; VESSEL OPS
-    </p>
+    {TRUST_PILLARS.map((label, i) => (
+      <React.Fragment key={label}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span
+            className="mkt-archivo"
+            style={{ fontWeight: 900, fontSize: 12, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'white' }}
+          >
+            {label}
+          </span>
+        </div>
+        {i < TRUST_PILLARS.length - 1 && (
+          <div style={{ backgroundColor: 'rgba(255,255,255,0.15)' }} />
+        )}
+      </React.Fragment>
+    ))}
   </div>
 );
 
@@ -245,27 +255,24 @@ const solutions = [
 ];
 
 const ProblemSolution = () => (
-  <section style={{ padding: '80px 32px', maxWidth: 1280, margin: '0 auto' }}>
-    <div className="text-center mb-14">
+  <section style={{ padding: '64px 32px', maxWidth: 1280, margin: '0 auto' }}>
+    <div style={{ marginBottom: 0 }}>
       <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>
         The problem
       </p>
-      <div style={{ borderLeft: '4px solid #4A90E2', paddingLeft: 16, marginBottom: 10, textAlign: 'left' }}>
-        <p className="mkt-archivo" style={{ fontWeight: 900, fontSize: 22, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1.05, marginBottom: 6 }}>
+      <div style={{ borderLeft: '5px solid #4A90E2', paddingLeft: 22, marginBottom: 48 }}>
+        <p className="mkt-archivo" style={{ fontWeight: 900, fontSize: 36, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 0.97, marginBottom: 8 }}>
           Yachts are complex.
         </p>
-        <p className="mkt-archivo" style={{ fontWeight: 900, fontSize: 16, textTransform: 'uppercase', color: '#64748B', lineHeight: 1.2 }}>
+        <p className="mkt-archivo" style={{ fontWeight: 900, fontSize: 24, textTransform: 'uppercase', color: '#64748B', lineHeight: 1.05 }}>
           Most software is built by people who've never set foot on one.
         </p>
       </div>
-      <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 14, color: '#64748B', maxWidth: 480, margin: '0 auto' }}>
-        Cargo was designed from the ground up for real vessel operations — not adapted from hotel or fleet software.
-      </p>
     </div>
 
-    <div className="grid md:grid-cols-2 gap-5" style={{ maxWidth: 860, margin: '0 auto' }}>
+    <div className="grid md:grid-cols-2 gap-5" style={{ maxWidth: 860 }}>
       {/* Without */}
-      <div className="bg-white rounded-xl p-7" style={{ border: '2px solid #E2E8F0' }}>
+      <div className="rounded-xl" style={{ border: '2px solid #E2E8F0', padding: 28 }}>
         <div className="flex items-center gap-2 mb-6">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(248,113,113,0.12)' }}>
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
@@ -276,18 +283,17 @@ const ProblemSolution = () => (
             Without Cargo
           </h3>
         </div>
-        <ul style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {problems.map(p => (
-            <li key={p} className="flex items-start gap-3">
-              <span className="mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'rgba(248,113,113,0.5)' }} />
-              <span className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 13, color: '#64748B', lineHeight: 1.5 }}>{p}</span>
-            </li>
+            <div key={p} className="mkt-dmsans" style={{ fontSize: 13, padding: '10px 14px', backgroundColor: '#F8FAFC', borderRadius: 8, color: '#64748B', lineHeight: 1.5 }}>
+              {p}
+            </div>
           ))}
-        </ul>
+        </div>
       </div>
 
       {/* With Cargo */}
-      <div className="bg-white rounded-xl p-7" style={{ border: '2px solid #1E3A5F' }}>
+      <div className="rounded-xl" style={{ border: '2px solid #1E3A5F', padding: 28 }}>
         <div className="flex items-center gap-2 mb-6">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(74,144,226,0.12)' }}>
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
@@ -298,14 +304,13 @@ const ProblemSolution = () => (
             With Cargo
           </h3>
         </div>
-        <ul style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {solutions.map(s => (
-            <li key={s} className="flex items-start gap-3">
-              <span className="mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#4A90E2' }} />
-              <span className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 13, color: '#64748B', lineHeight: 1.5 }}>{s}</span>
-            </li>
+            <div key={s} className="mkt-dmsans" style={{ fontSize: 13, padding: '10px 14px', backgroundColor: 'rgba(30,58,95,0.04)', borderRadius: 8, borderLeft: '3px solid #4A90E2', color: '#1E3A5F', lineHeight: 1.5 }}>
+              {s}
+            </div>
           ))}
-        </ul>
+        </div>
       </div>
     </div>
   </section>
@@ -313,7 +318,7 @@ const ProblemSolution = () => (
 
 /* ─── CTA banner ─────────────────────────────────────────────────────────── */
 const CTABanner = () => (
-  <section style={{ padding: '0 32px 80px' }}>
+  <section style={{ padding: '80px 32px' }}>
     <div
       className="rounded-2xl text-center"
       style={{
@@ -326,10 +331,10 @@ const CTABanner = () => (
       <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(74,144,226,0.8)', marginBottom: 12 }}>
         Get started
       </p>
-      <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 28, color: 'white', lineHeight: 1.15, marginBottom: 10 }}>
-        Ready to bring order to your vessel ops?
+      <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 44, textTransform: 'uppercase', color: 'white', lineHeight: 0.97, marginBottom: 16 }}>
+        READY TO BRING<br />ORDER TO YOUR<br />VESSEL OPS?
       </h2>
-      <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 14, color: 'rgba(255,255,255,0.55)', maxWidth: 440, margin: '0 auto 28px' }}>
+      <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 15, color: 'rgba(255,255,255,0.5)', maxWidth: 400, margin: '0 auto 28px' }}>
         Book a demo and see how Cargo works for your specific vessel and crew structure.
       </p>
       <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -337,9 +342,9 @@ const CTABanner = () => (
           to="/contact"
           className="mkt-archivo transition-colors duration-150"
           style={{
-            fontWeight: 900, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase',
+            fontWeight: 900, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
             color: '#1E3A5F', backgroundColor: 'white', borderRadius: 50,
-            padding: '10px 24px', textDecoration: 'none',
+            padding: '15px 32px', textDecoration: 'none',
           }}
           onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#F8FAFC')}
           onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'white')}
@@ -350,9 +355,9 @@ const CTABanner = () => (
           to="/contact"
           className="mkt-archivo transition-colors duration-150"
           style={{
-            fontWeight: 700, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase',
+            fontWeight: 700, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
             color: 'white', border: '2px solid rgba(255,255,255,0.4)', borderRadius: 50,
-            padding: '8px 24px', textDecoration: 'none',
+            padding: '15px 32px', textDecoration: 'none',
           }}
           onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.7)')}
           onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)')}
