@@ -248,7 +248,7 @@ const STEPS = [
 
 const HowItWorks = () => (
   <section style={{ padding: '72px 32px', maxWidth: 1280, margin: '0 auto' }}>
-    <SectionHeading eyebrow="How it works" headline="Up and running in days, not months" sub="Cargo is built for vessels that operate now. No months-long implementation projects." />
+    <SectionHeading eyebrow="How it works" headline="Up and running in days, not months" />
     <div className="grid md:grid-cols-3 gap-8" style={{ maxWidth: 960, margin: '0 auto' }}>
       {STEPS.map(({ n, title, body }) => (
         <div key={n}>
