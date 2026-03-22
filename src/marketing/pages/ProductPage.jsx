@@ -242,7 +242,7 @@ const ProductHero = () => {
 /* ─── How it works ───────────────────────────────────────────────────────── */
 const STEPS = [
   { n: '01', title: 'Set up your vessel', body: 'Add your vessel profile, define locations and storage areas, and configure your crew structure. Cargo maps to how your vessel is actually organised.' },
-  { n: '02', title: 'Onboard your crew', body: 'Invite crew by role and email. Each person gets the access level they need — COMMAND, CHIEF, or standard crew. Roles enforce what each person can see and do.' },
+  { n: '02', title: 'Onboard your crew', body: 'Invite your crew by role. Each person sees only what they need to — from captain to deckhand, access is built around how your vessel is actually structured.' },
   { n: '03', title: 'Run everything from one place', body: 'Inventory, scheduling, trips, guests, defects — all accessible from the same system, all connected to the same vessel context.' },
 ];
 
