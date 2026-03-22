@@ -263,7 +263,7 @@ const HowItWorks = () => (
 
 /* ─── CTA ────────────────────────────────────────────────────────────────── */
 const CTABanner = () => (
-  <section style={{ padding: '0 32px 80px' }}>
+  <section style={{ padding: '80px 32px' }}>
     <div className="rounded-2xl text-center" style={{ maxWidth: 860, margin: '0 auto', backgroundColor: '#1E3A5F', padding: '56px 40px' }}>
       <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(74,144,226,0.8)', marginBottom: 12 }}>Get started</p>
       <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 26, color: 'white', lineHeight: 1.15, marginBottom: 10 }}>Ready to see Cargo in action?</h2>
