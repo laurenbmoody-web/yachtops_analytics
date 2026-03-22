@@ -151,6 +151,9 @@ const ProductHero = () => {
               ONE PLATFORM. END-TO-END VESSEL OPERATIONS.
             </h1>
 
+            {/* Divider */}
+            <div style={{ borderTop: '1px solid #E2E8F0', width: '100%', margin: '18px 0' }} />
+
             {/* Content panel */}
             <div style={{ minHeight: 160 }}>
               {!pillar ? (
@@ -164,7 +167,7 @@ const ProductHero = () => {
                 </div>
               ) : (
                 <div>
-                  <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 29, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1, marginBottom: 10 }}>
+                  <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 18, textTransform: 'uppercase', color: '#4A90E2', lineHeight: 1, marginBottom: 10 }}>
                     {pillar.heading}
                   </h2>
                   <p className="mkt-dmsans" style={{ fontSize: 15, color: '#64748B', lineHeight: 1.6, marginBottom: 14 }}>
