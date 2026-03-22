@@ -286,11 +286,42 @@ const CTABanner = () => (
   </section>
 );
 
+/* ─── Departments ────────────────────────────────────────────────────────── */
+const DEPTS = [
+  { name: 'Deck', body: 'No more job lists on paper or chasing the bosun on the radio. Every defect logged, every task assigned, every piece of deck kit accounted for — in one place the whole team can see.' },
+  { name: 'Interior', body: "Your guests' preferences shouldn't live in your head. Cargo keeps every cabin preference, service note and laundry log linked to every trip — so the handover is seamless whether it's a new season or a new stew." },
+  { name: 'Galley', body: "The guest brief shouldn't arrive the morning they board. Cargo connects dietary requirements and guest preferences directly to provisioning so the chef knows exactly what's needed, for who, before the delivery arrives." },
+  { name: 'Engine Room', body: "A defect reported on deck shouldn't disappear into a WhatsApp thread. Cargo logs it, assigns it, tracks it to close-out — with every spare part and piece of equipment mapped to the vessel blueprint so the engineer always knows exactly where to look." },
+];
+
+const Departments = () => (
+  <section style={{ backgroundColor: '#F8FAFC', borderTop: '2px solid #1E3A5F', borderBottom: '2px solid #1E3A5F', padding: '72px 32px' }}>
+    <div style={{ maxWidth: 1280, margin: '0 auto' }}>
+      <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 12 }}>
+        Built for every department
+      </p>
+      <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 36, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 0.97, marginBottom: 56 }}>
+        Every system built for people who use it.
+      </h2>
+      {DEPTS.map(({ name, body }, i) => (
+        <div key={name} style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 40, paddingTop: 32, paddingBottom: 32, borderTop: '1px solid #E2E8F0', ...(i === DEPTS.length - 1 ? { borderBottom: '1px solid #E2E8F0' } : {}), alignItems: 'start' }}>
+          <div>
+            <p className="mkt-archivo" style={{ fontWeight: 900, fontSize: 22, textTransform: 'uppercase', color: '#1E3A5F', letterSpacing: '0.04em', margin: 0 }}>{name}</p>
+            <div style={{ width: 32, height: 3, backgroundColor: '#4A90E2', borderRadius: 2, marginTop: 8 }} />
+          </div>
+          <p className="mkt-dmsans" style={{ fontSize: 15, color: '#64748B', lineHeight: 1.7, maxWidth: 560, margin: 0 }}>{body}</p>
+        </div>
+      ))}
+    </div>
+  </section>
+);
+
 /* ─── Page ───────────────────────────────────────────────────────────────── */
 const ProductPage = () => (
   <MarketingLayout>
     <ProductHero />
     <HowItWorks />
+    <Departments />
     <CTABanner />
   </MarketingLayout>
 );
