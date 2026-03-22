@@ -106,7 +106,7 @@ const ProductHero = () => {
   const handleTap = (key) => setActive(prev => prev === key ? null : key);
 
   return (
-    <section style={{ backgroundColor: '#F8FAFC', paddingTop: 64, paddingBottom: 56, borderBottom: '2px solid #1E3A5F', overflow: 'hidden' }}>
+    <section style={{ backgroundColor: '#F8FAFC', paddingTop: 135, paddingBottom: 56, borderBottom: '2px solid #1E3A5F', overflow: 'hidden' }}>
       <style>{`
         .product-hero-grid {
           display: grid;
