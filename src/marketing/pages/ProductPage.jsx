@@ -4,7 +4,7 @@ import MarketingLayout from '../MarketingLayout';
 
 /* ─── Shared primitives ──────────────────────────────────────────────────── */
 const Eyebrow = ({ children }) => (
-  <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>
+  <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 13, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>
     {children}
   </p>
 );
