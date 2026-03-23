@@ -678,6 +678,223 @@ const GuestMockup = () => (
   </div>
 );
 
+/* ─── Inventory Mockup ───────────────────────────────────────────────────── */
+const INV_NAV_ITEMS = ['Today', 'Inventory', 'Crew', 'Trips', 'Guests', 'Defects', 'Jobs'];
+
+const FOLDERS = [
+  { name: 'Galley',       count: '0 items · 11 folders', active: false },
+  { name: 'Interior',     count: '0 items · 4 folders',  active: false },
+  { name: 'Bridge',       count: '0 items',              active: false },
+  { name: 'Engineering',  count: '0 items',              active: false },
+  { name: 'Medical',      count: '341 items · 1 folder', active: true  },
+  { name: 'Deck',         count: '0 items',              active: false },
+  { name: 'Security',     count: '0 items',              active: false },
+  { name: 'Spa',          count: '0 items',              active: false },
+];
+
+const INV_ITEMS = [
+  { name: 'Aciclovir 5% cream 2g',              meta: '# CARGO–000145 · Exp 31 Jul 2027', qty: 1 },
+  { name: 'Antacid - alginate sodium 500mg tab', meta: '# CARGO–000126 · Exp 01 Jan 2026', qty: 1 },
+  { name: 'Anusol cream 23g',                    meta: '# CARGO–000129 · Exp 30 Apr 2027', qty: 1 },
+];
+
+const FolderIcon = () => (
+  <svg width="20" height="16" viewBox="0 0 20 16" fill="none" style={{ display: 'block', marginBottom: 8 }}>
+    <path d="M0 2.5A2.5 2.5 0 012.5 0h3.586a1 1 0 01.707.293L8.414 1.5H17.5A2.5 2.5 0 0120 4v9.5a2.5 2.5 0 01-2.5 2.5h-15A2.5 2.5 0 010 13.5V2.5z" fill="#4A90E2" fillOpacity="0.7"/>
+  </svg>
+);
+
+const InventoryMockup = () => (
+  <div style={{
+    borderRadius: 12,
+    overflow: 'hidden',
+    border: '1px solid rgba(255,255,255,0.08)',
+    fontFamily: 'Inter, sans-serif',
+    userSelect: 'none',
+  }}>
+    {/* Browser chrome */}
+    <div style={{
+      backgroundColor: '#1a2844',
+      padding: '10px 14px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      borderBottom: '1px solid rgba(255,255,255,0.06)',
+    }}>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ width: 11, height: 11, borderRadius: '50%', backgroundColor: '#ef4444' }} />
+        <div style={{ width: 11, height: 11, borderRadius: '50%', backgroundColor: '#f59e0b' }} />
+        <div style={{ width: 11, height: 11, borderRadius: '50%', backgroundColor: '#22c55e' }} />
+      </div>
+      <div style={{
+        flex: 1,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        borderRadius: 6,
+        padding: '4px 10px',
+        fontSize: 10,
+        color: 'rgba(255,255,255,0.4)',
+        letterSpacing: '0.01em',
+      }}>
+        cargotechnology.netlify.app/inventory
+      </div>
+    </div>
+
+    {/* App body */}
+    <div style={{ display: 'flex', backgroundColor: '#0d1a2e', height: 480 }}>
+
+      {/* Sidebar */}
+      <div style={{
+        width: 180,
+        flexShrink: 0,
+        backgroundColor: '#0a1628',
+        display: 'flex',
+        flexDirection: 'column',
+        borderRight: '1px solid rgba(255,255,255,0.05)',
+      }}>
+        <div style={{ padding: '18px 16px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+          <span style={{
+            fontFamily: '"Archivo Black", sans-serif',
+            fontWeight: 900,
+            fontSize: 14,
+            color: 'white',
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+          }}>CARGO</span>
+        </div>
+        <nav style={{ padding: '8px 0' }}>
+          {INV_NAV_ITEMS.map(item => {
+            const active = item === 'Inventory';
+            return (
+              <div key={item} style={{
+                padding: '8px 16px',
+                fontSize: 12,
+                fontWeight: active ? 600 : 400,
+                color: active ? 'white' : 'rgba(255,255,255,0.4)',
+                backgroundColor: active ? 'rgba(255,255,255,0.06)' : 'transparent',
+                borderLeft: active ? '2px solid #4A90E2' : '2px solid transparent',
+                cursor: 'default',
+              }}>{item}</div>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Main content */}
+      <div style={{ flex: 1, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14, overflow: 'hidden' }}>
+
+        {/* Row 1: header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: 'white', lineHeight: 1.2 }}>Inventory</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>Department folders</div>
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {['↓ Export', '📄 Import document'].map(label => (
+              <div key={label} style={{
+                fontSize: 10,
+                color: 'rgba(255,255,255,0.6)',
+                backgroundColor: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: 6,
+                padding: '5px 10px',
+                cursor: 'default',
+                whiteSpace: 'nowrap',
+              }}>{label}</div>
+            ))}
+            <div style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: 'white',
+              backgroundColor: '#3B82F6',
+              borderRadius: 6,
+              padding: '5px 10px',
+              cursor: 'default',
+            }}>+ Add ▾</div>
+          </div>
+        </div>
+
+        {/* Row 2: folder grid */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          gap: 8,
+        }}>
+          {FOLDERS.map(folder => (
+            <div key={folder.name} style={{
+              backgroundColor: folder.active ? 'rgba(74,144,226,0.05)' : 'rgba(255,255,255,0.05)',
+              borderRadius: 8,
+              padding: 12,
+              border: folder.active ? '1px solid rgba(74,144,226,0.4)' : '1px solid rgba(255,255,255,0.06)',
+              cursor: 'default',
+            }}>
+              <FolderIcon />
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'white', marginBottom: 3 }}>{folder.name}</div>
+              <div style={{ fontSize: 9, color: folder.active ? '#4A90E2' : 'rgba(255,255,255,0.35)' }}>{folder.count}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Row 3: section label */}
+        <div style={{
+          borderTop: '1px solid rgba(255,255,255,0.05)',
+          paddingTop: 12,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}>
+          <span style={{
+            fontSize: 10,
+            color: 'rgba(255,255,255,0.3)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            fontWeight: 600,
+          }}>Items (74)</span>
+          <span style={{ fontSize: 10, color: '#4A90E2', cursor: 'default' }}>Select All</span>
+        </div>
+
+        {/* Row 4: inventory items */}
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {INV_ITEMS.map(item => (
+            <div key={item.name} style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              backgroundColor: 'rgba(255,255,255,0.04)',
+              borderRadius: 7,
+              padding: '9px 12px',
+              marginBottom: 5,
+              border: '1px solid rgba(255,255,255,0.04)',
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 11, fontWeight: 500, color: 'white', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</div>
+                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)' }}>{item.meta}</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                <div style={{
+                  width: 22, height: 22, borderRadius: '50%',
+                  backgroundColor: 'rgba(239,68,68,0.2)',
+                  color: '#ef4444',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 14, fontWeight: 600, cursor: 'default',
+                }}>−</div>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'white', minWidth: 14, textAlign: 'center' }}>{item.qty}</span>
+                <div style={{
+                  width: 22, height: 22, borderRadius: '50%',
+                  backgroundColor: 'rgba(34,197,94,0.2)',
+                  color: '#22c55e',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 14, fontWeight: 600, cursor: 'default',
+                }}>+</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+      </div>
+    </div>
+  </div>
+);
+
 /* ─── Feature Section ─────────────────────────────────────────────────────── */
 const FeatureSection = ({ eyebrow, heading, body, tags, odd, mockup }) => (
   <section style={{
@@ -826,6 +1043,7 @@ const FeaturesPage = () => (
       heading="Know exactly what you have and where."
       body="Department folders, location hierarchy and real-time item tracking. From the medical cabinet to the galley stores — every item accounted for, every expiry date tracked."
       tags={['Department Folders', 'Location Hierarchy', 'Bulk Import', 'Expiry Tracking', 'CARGO Item IDs', 'Export']}
+      mockup={<InventoryMockup />}
     />
 
     {/* Section 4: Jobs & Tasks */}
