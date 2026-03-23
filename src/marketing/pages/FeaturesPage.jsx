@@ -377,6 +377,307 @@ const CrewMockup = () => (
   </div>
 );
 
+/* ─── Guest Preferences Mockup ──────────────────────────────────────────────── */
+const GUEST_NAV_ITEMS = ['Today', 'Inventory', 'Crew', 'Trips', 'Guests', 'Defects', 'Jobs'];
+
+const PREF_CATEGORIES = [
+  { icon: '⚕', title: 'Allergies & Medical', meta: '1 preference · Allergies' },
+  { icon: '🍽', title: 'Food & Drink',        meta: '16 preferences · Steak' },
+  { icon: '✦',  title: 'Service Style',       meta: '12 preferences · Dining Service Style' },
+];
+
+const PERSONALITY_PILLS = [
+  { label: 'Very private', active: false },
+  { label: 'Social',       active: false },
+  { label: 'Relaxed',      active: true  },
+  { label: 'Easygoing',    active: false },
+];
+
+const DINING_ROWS = [
+  { meal: 'Breakfast', style: 'Buffet' },
+  { meal: 'Lunch',     style: 'Family Style' },
+  { meal: 'Dinner',    style: 'American (Plated)' },
+];
+
+const GuestMockup = () => (
+  <div style={{
+    borderRadius: 12,
+    overflow: 'hidden',
+    border: '1px solid rgba(255,255,255,0.08)',
+    fontFamily: 'Inter, sans-serif',
+    userSelect: 'none',
+  }}>
+    {/* Browser chrome */}
+    <div style={{
+      backgroundColor: '#1a2844',
+      padding: '10px 14px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      borderBottom: '1px solid rgba(255,255,255,0.06)',
+    }}>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ width: 11, height: 11, borderRadius: '50%', backgroundColor: '#ef4444' }} />
+        <div style={{ width: 11, height: 11, borderRadius: '50%', backgroundColor: '#f59e0b' }} />
+        <div style={{ width: 11, height: 11, borderRadius: '50%', backgroundColor: '#22c55e' }} />
+      </div>
+      <div style={{
+        flex: 1,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        borderRadius: 6,
+        padding: '4px 10px',
+        fontSize: 10,
+        color: 'rgba(255,255,255,0.4)',
+        letterSpacing: '0.01em',
+      }}>
+        cargotechnology.netlify.app/guests/john-doe/preferences
+      </div>
+    </div>
+
+    {/* App body */}
+    <div style={{ display: 'flex', backgroundColor: '#0d1a2e', height: 460 }}>
+
+      {/* Sidebar */}
+      <div style={{
+        width: 180,
+        flexShrink: 0,
+        backgroundColor: '#0a1628',
+        display: 'flex',
+        flexDirection: 'column',
+        borderRight: '1px solid rgba(255,255,255,0.05)',
+      }}>
+        <div style={{ padding: '18px 16px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+          <span style={{
+            fontFamily: '"Archivo Black", sans-serif',
+            fontWeight: 900,
+            fontSize: 14,
+            color: 'white',
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+          }}>CARGO</span>
+        </div>
+        <nav style={{ padding: '8px 0' }}>
+          {GUEST_NAV_ITEMS.map(item => {
+            const active = item === 'Guests';
+            return (
+              <div key={item} style={{
+                padding: '8px 16px',
+                fontSize: 12,
+                fontWeight: active ? 600 : 400,
+                color: active ? 'white' : 'rgba(255,255,255,0.4)',
+                backgroundColor: active ? 'rgba(255,255,255,0.06)' : 'transparent',
+                borderLeft: active ? '2px solid #4A90E2' : '2px solid transparent',
+                cursor: 'default',
+              }}>{item}</div>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Main content */}
+      <div style={{ flex: 1, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden' }}>
+
+        {/* Back link */}
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 2, cursor: 'default' }}>
+          ← Back to Preferences
+        </div>
+
+        {/* Guest profile card */}
+        <div style={{
+          backgroundColor: 'rgba(255,255,255,0.04)',
+          borderRadius: 10,
+          padding: 14,
+          border: '1px solid rgba(255,255,255,0.06)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+        }}>
+          {/* Avatar */}
+          <div style={{
+            width: 40,
+            height: 40,
+            borderRadius: '50%',
+            backgroundColor: '#4A90E2',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 700,
+            fontSize: 14,
+            color: 'white',
+            flexShrink: 0,
+          }}>JD</div>
+          {/* Name + badges */}
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'white', marginBottom: 6 }}>John Doe</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{
+                fontSize: 10,
+                fontWeight: 600,
+                color: '#ef4444',
+                backgroundColor: 'rgba(239,68,68,0.2)',
+                borderRadius: 4,
+                padding: '2px 7px',
+              }}>Allergies</span>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>Cabin: Cabin 101</span>
+            </div>
+          </div>
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+            {['↓ Export Preferences', '📅 Average Day'].map(label => (
+              <div key={label} style={{
+                fontSize: 10,
+                color: 'rgba(255,255,255,0.6)',
+                backgroundColor: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: 6,
+                padding: '5px 9px',
+                cursor: 'default',
+                whiteSpace: 'nowrap',
+              }}>{label}</div>
+            ))}
+            <div style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: 'white',
+              backgroundColor: '#3B82F6',
+              borderRadius: 6,
+              padding: '5px 9px',
+              cursor: 'default',
+              whiteSpace: 'nowrap',
+            }}>✦ Preference Assistant 100%</div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div style={{
+          display: 'flex',
+          gap: 20,
+          borderBottom: '1px solid rgba(255,255,255,0.07)',
+          paddingBottom: 0,
+        }}>
+          {['Preferences', 'Trips', 'Comments', 'History'].map(tab => {
+            const active = tab === 'Preferences';
+            return (
+              <div key={tab} style={{
+                fontSize: 12,
+                fontWeight: active ? 600 : 400,
+                color: active ? '#3B82F6' : 'rgba(255,255,255,0.4)',
+                paddingBottom: 8,
+                borderBottom: active ? '2px solid #3B82F6' : '2px solid transparent',
+                cursor: 'default',
+              }}>{tab}</div>
+            );
+          })}
+        </div>
+
+        {/* Two-column content */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 220px', gap: 16, flex: 1, minHeight: 0 }}>
+
+          {/* Left: preference categories */}
+          <div>
+            {PREF_CATEGORIES.map((cat, i) => (
+              <div key={cat.title} style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '10px 0',
+                borderBottom: '1px solid rgba(255,255,255,0.05)',
+              }}>
+                <div style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 14,
+                  flexShrink: 0,
+                }}>{cat.icon}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'white', marginBottom: 2 }}>{cat.title}</div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{cat.meta}</div>
+                </div>
+                <div style={{
+                  fontSize: 10,
+                  color: '#4A90E2',
+                  cursor: 'default',
+                }}>Edit</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Right: stacked panels */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+            {/* Personality profile */}
+            <div style={{
+              backgroundColor: 'rgba(255,255,255,0.03)',
+              borderRadius: 10,
+              padding: 14,
+              border: '1px solid rgba(255,255,255,0.06)',
+            }}>
+              <div style={{
+                fontSize: 10,
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                color: 'rgba(255,255,255,0.5)',
+                marginBottom: 10,
+              }}>Personality Profile</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {PERSONALITY_PILLS.map(({ label, active }) => (
+                  <span key={label} style={{
+                    fontSize: 10,
+                    fontWeight: active ? 600 : 400,
+                    color: active ? 'white' : 'rgba(255,255,255,0.45)',
+                    backgroundColor: active ? '#3B82F6' : 'rgba(255,255,255,0.05)',
+                    border: active ? 'none' : '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 20,
+                    padding: '4px 10px',
+                    cursor: 'default',
+                  }}>{label}</span>
+                ))}
+              </div>
+            </div>
+
+            {/* Dining style */}
+            <div style={{
+              backgroundColor: 'rgba(255,255,255,0.03)',
+              borderRadius: 10,
+              padding: 14,
+              border: '1px solid rgba(255,255,255,0.06)',
+            }}>
+              <div style={{
+                fontSize: 10,
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                color: 'rgba(255,255,255,0.5)',
+                marginBottom: 10,
+              }}>Dining Style</div>
+              {DINING_ROWS.map(({ meal, style }) => (
+                <div key={meal} style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '5px 0',
+                  borderBottom: '1px solid rgba(255,255,255,0.04)',
+                }}>
+                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{meal}</span>
+                  <span style={{ fontSize: 10, color: 'white', fontWeight: 500 }}>{style}</span>
+                </div>
+              ))}
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+);
+
 /* ─── Feature Section ─────────────────────────────────────────────────────── */
 const FeatureSection = ({ eyebrow, heading, body, tags, odd, mockup }) => (
   <section style={{
@@ -515,6 +816,7 @@ const FeaturesPage = () => (
       heading="Know your guests before they board."
       body="A 10-step preference assistant captures everything — allergies, dining style, service preferences, personality — so every trip starts with the full picture."
       tags={['Guest Profiles', 'Preference Assistant', 'Allergies & Medical', 'Food & Drink', 'Service Style', 'Trip History']}
+      mockup={<GuestMockup />}
     />
 
     {/* Section 3: Inventory */}
