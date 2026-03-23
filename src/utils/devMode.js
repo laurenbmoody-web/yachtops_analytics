@@ -18,21 +18,27 @@
  */
 
 /**
- * Check if DEV MODE is currently enabled
+ * Check if DEV MODE is currently enabled.
+ * Only active in local development builds — never in production.
  * @returns {boolean} True if dev mode is active
  */
 export function isDevMode() {
+  // Never allow dev mode in production
+  if (!import.meta.env.DEV) {
+    return false;
+  }
+
   // Check URL query parameter
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams?.get('auth') === '0') {
     return true;
   }
-  
+
   // Check localStorage
   if (localStorage.getItem('cargo_dev_mode') === '1') {
     return true;
   }
-  
+
   return false;
 }
 
