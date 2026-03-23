@@ -895,6 +895,233 @@ const InventoryMockup = () => (
   </div>
 );
 
+/* ─── Jobs & Tasks Mockup ────────────────────────────────────────────────── */
+const JOBS_NAV_ITEMS = ['Today', 'Inventory', 'Crew', 'Trips', 'Guests', 'Defects', 'Jobs'];
+
+const OPEN_JOBS = [
+  { title: 'Laundry',   date: 'Mar 22' },
+  { title: 'Crew Mess', date: 'Mar 22' },
+];
+
+const COMPLETED_JOBS = [
+  { title: "Captain's Cabin", date: 'Mar 21' },
+  { title: 'Stairs',          date: 'Mar 20' },
+  { title: 'Bridge',          date: 'Mar 19' },
+];
+
+const JobCard = ({ title, date, done }) => (
+  <div style={{
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 8,
+    padding: '10px 12px',
+    marginBottom: 6,
+    border: '1px solid rgba(255,255,255,0.05)',
+    opacity: done ? 0.4 : 1,
+  }}>
+    <div style={{
+      fontSize: 11,
+      fontWeight: 700,
+      color: 'white',
+      marginBottom: 5,
+      textDecoration: done ? 'line-through' : 'none',
+    }}>{title}</div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2">
+        <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+      <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)' }}>{date}</span>
+    </div>
+  </div>
+);
+
+const JobsMockup = () => (
+  <div style={{
+    borderRadius: 12,
+    overflow: 'hidden',
+    border: '1px solid rgba(255,255,255,0.08)',
+    fontFamily: 'Inter, sans-serif',
+    userSelect: 'none',
+  }}>
+    {/* Browser chrome */}
+    <div style={{
+      backgroundColor: '#1a2844',
+      padding: '10px 14px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      borderBottom: '1px solid rgba(255,255,255,0.06)',
+    }}>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ width: 11, height: 11, borderRadius: '50%', backgroundColor: '#ef4444' }} />
+        <div style={{ width: 11, height: 11, borderRadius: '50%', backgroundColor: '#f59e0b' }} />
+        <div style={{ width: 11, height: 11, borderRadius: '50%', backgroundColor: '#22c55e' }} />
+      </div>
+      <div style={{
+        flex: 1,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        borderRadius: 6,
+        padding: '4px 10px',
+        fontSize: 10,
+        color: 'rgba(255,255,255,0.4)',
+        letterSpacing: '0.01em',
+      }}>
+        cargotechnology.netlify.app/jobs
+      </div>
+    </div>
+
+    {/* App body */}
+    <div style={{ display: 'flex', backgroundColor: '#0d1a2e', height: 500 }}>
+
+      {/* Sidebar */}
+      <div style={{
+        width: 180,
+        flexShrink: 0,
+        backgroundColor: '#0a1628',
+        display: 'flex',
+        flexDirection: 'column',
+        borderRight: '1px solid rgba(255,255,255,0.05)',
+      }}>
+        <div style={{ padding: '18px 16px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+          <span style={{
+            fontFamily: '"Archivo Black", sans-serif',
+            fontWeight: 900,
+            fontSize: 14,
+            color: 'white',
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+          }}>CARGO</span>
+        </div>
+        <nav style={{ padding: '8px 0' }}>
+          {JOBS_NAV_ITEMS.map(item => {
+            const active = item === 'Jobs';
+            return (
+              <div key={item} style={{
+                padding: '8px 16px',
+                fontSize: 12,
+                fontWeight: active ? 600 : 400,
+                color: active ? 'white' : 'rgba(255,255,255,0.4)',
+                backgroundColor: active ? 'rgba(255,255,255,0.06)' : 'transparent',
+                borderLeft: active ? '2px solid #4A90E2' : '2px solid transparent',
+                cursor: 'default',
+              }}>{item}</div>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Main content */}
+      <div style={{ flex: 1, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14, overflow: 'hidden' }}>
+
+        {/* Row 1: header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: 'white', lineHeight: 1.2 }}>Jobs</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>Manage all team tasks and boards</div>
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {['Department: Interior ▾', 'Pending Acceptance (0)', '↻ Manage Rotation'].map(label => (
+              <div key={label} style={{
+                fontSize: 10,
+                color: 'rgba(255,255,255,0.5)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 6,
+                padding: '5px 9px',
+                cursor: 'default',
+                whiteSpace: 'nowrap',
+              }}>{label}</div>
+            ))}
+            <div style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: 'white',
+              backgroundColor: '#3B82F6',
+              borderRadius: 6,
+              padding: '5px 10px',
+              cursor: 'default',
+            }}>+ Create Job</div>
+          </div>
+        </div>
+
+        {/* Row 2: Kanban grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, flex: 1, minHeight: 0, overflow: 'hidden' }}>
+
+          {/* Column 1: Open Jobs */}
+          <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'white' }}>Open Jobs</span>
+              <span style={{
+                fontSize: 10,
+                color: 'rgba(255,255,255,0.3)',
+                backgroundColor: 'rgba(255,255,255,0.06)',
+                padding: '1px 7px',
+                borderRadius: 10,
+              }}>2 tasks</span>
+            </div>
+            {OPEN_JOBS.map(j => <JobCard key={j.title} title={j.title} date={j.date} done={false} />)}
+            <div style={{ fontSize: 9, color: '#22c55e', margin: '6px 0 8px', cursor: 'default' }}>
+              ✓ Completed today (34)
+            </div>
+            {COMPLETED_JOBS.map(j => <JobCard key={j.title} title={j.title} date={j.date} done={true} />)}
+          </div>
+
+          {/* Column 2: Dailies — empty state */}
+          <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'white', marginBottom: 10 }}>Dailies</div>
+            <div style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingBottom: 24,
+            }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: '50%',
+                backgroundColor: 'rgba(255,255,255,0.05)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                marginBottom: 10,
+              }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2">
+                  <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>
+                  <path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/>
+                </svg>
+              </div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>No jobs for Interior</div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', textAlign: 'center' }}>Nothing due today and nothing overdue.</div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginTop: 12 }}>Total: 0</div>
+              <div style={{ fontSize: 10, color: '#4A90E2', marginTop: 10, cursor: 'default' }}>+ Add a job...</div>
+            </div>
+          </div>
+
+          {/* Column 3: New Board */}
+          <div style={{
+            border: '2px dashed rgba(255,255,255,0.08)',
+            borderRadius: 10,
+            backgroundColor: 'rgba(255,255,255,0.02)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '30px 12px',
+            gap: 6,
+            cursor: 'default',
+          }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: '50%',
+              backgroundColor: 'rgba(255,255,255,0.06)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 18, color: 'rgba(255,255,255,0.4)',
+            }}>+</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'white' }}>New Board</div>
+            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)', textAlign: 'center' }}>Create a custom board for your team</div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 /* ─── Feature Section ─────────────────────────────────────────────────────── */
 const FeatureSection = ({ eyebrow, heading, body, tags, odd, mockup }) => (
   <section style={{
@@ -1053,6 +1280,7 @@ const FeaturesPage = () => (
       heading="Every task assigned, nothing lost."
       body="Department job lists, daily task boards and recurring templates. Every task has an owner, a due date and a status the whole team can see."
       tags={['Open Jobs', 'Dailies Board', 'Custom Boards', 'Department Filter', 'Task Notes', 'Manage Rotation']}
+      mockup={<JobsMockup />}
     />
 
     {/* CTA */}
