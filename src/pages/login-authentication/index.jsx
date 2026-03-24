@@ -17,6 +17,8 @@ const LoginAuthentication = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [existingSession, setExistingSession] = useState(null);
+  const [switchingUser, setSwitchingUser] = useState(false);
 
   // Initialize roles on component mount
   React.useEffect(() => {
@@ -29,8 +31,8 @@ const LoginAuthentication = () => {
       try {
         const { data: { session } } = await supabase?.auth?.getSession();
         if (session?.user) {
-          console.log('[LOGIN] User already logged in, redirecting to dashboard');
-          navigate('/dashboard', { replace: true });
+          console.log('[LOGIN] Existing session found, showing welcome back screen');
+          setExistingSession(session);
         }
       } catch (err) {
         console.error('[LOGIN] Error checking session:', err);
@@ -39,7 +41,19 @@ const LoginAuthentication = () => {
       }
     };
     checkSession();
-  }, [navigate]);
+  }, []);
+
+  const handleSwitchUser = async () => {
+    setSwitchingUser(true);
+    try {
+      await supabase?.auth?.signOut();
+      setExistingSession(null);
+    } catch (err) {
+      console.error('[LOGIN] Error signing out:', err);
+    } finally {
+      setSwitchingUser(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e?.preventDefault();
@@ -141,6 +155,52 @@ const LoginAuthentication = () => {
         <div className="flex flex-col items-center gap-3">
           <Icon name="Loader2" size={32} className="animate-spin text-primary" />
           <p className="text-sm text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Welcome back interstitial — existing session found
+  if (existingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background transition-colors duration-300 p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
+              <Image
+                src={theme === 'dark' ? '/assets/images/Cargo_20logo_20solid_20beige-1767558154320.svg' : '/assets/images/Cargo_20logo_20solid_20navy-1767558047979.svg'}
+                alt="Cargo Logo"
+                className="w-10 h-10"
+              />
+            </div>
+            <h1 className="text-2xl font-semibold text-foreground mb-2">Welcome back</h1>
+            <p className="text-sm text-muted-foreground">Signed in as</p>
+            <p className="text-sm font-medium text-foreground mt-0.5">{existingSession.user?.email}</p>
+          </div>
+
+          <div className="bg-card border border-border rounded-2xl p-8 shadow-sm space-y-3">
+            <Button
+              className="w-full"
+              onClick={() => navigate('/dashboard', { replace: true })}
+            >
+              Continue
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              disabled={switchingUser}
+              onClick={handleSwitchUser}
+            >
+              {switchingUser ? (
+                <>
+                  <Icon name="Loader2" size={16} className="animate-spin mr-2" />
+                  Signing out...
+                </>
+              ) : (
+                'Sign in as someone else'
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     );
