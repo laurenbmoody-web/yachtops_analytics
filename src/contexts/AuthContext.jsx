@@ -164,6 +164,11 @@ export const AuthProvider = ({ children }) => {
       // Handle session updates
       if (newSession) {
         console.log('[AUTH] ✅ Session updated, storing as valid session');
+        // If this is a different user (fresh login), reset bootstrap so the
+        // spinner shows while the new tenant context is loaded.
+        if (lastBootstrappedUserId.current !== newSession?.user?.id) {
+          setBootstrapComplete(false);
+        }
         setSession(newSession);
         setUser(newSession?.user || null);
         lastValidSession.current = newSession;
