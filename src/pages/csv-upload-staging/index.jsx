@@ -320,7 +320,7 @@ Sample Item,Pantry,Dry Goods,each,Pantry,10,20,5,Sample Supplier,15.99,Sample no
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
       <Header />
-      <main className="p-6 max-w-[1400px] mx-auto pt-24">
+      <main className="p-6 max-w-[1400px] mx-auto">
         {/* Page Header */}
         <div className="flex items-center gap-4 mb-8">
           <button

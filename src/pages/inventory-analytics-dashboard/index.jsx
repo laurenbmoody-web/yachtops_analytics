@@ -192,7 +192,7 @@ const InventoryAnalyticsDashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-      <main className="p-6 max-w-[1600px] mx-auto pt-24">
+      <main className="p-6 max-w-[1600px] mx-auto">
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Inventory Health</h1>

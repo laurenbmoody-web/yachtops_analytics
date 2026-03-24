@@ -307,7 +307,7 @@ const DutySetsRotationManagement = () => {
     return (
       <div className="min-h-screen bg-background transition-colors duration-300">
         <Header />
-        <main className="p-6 max-w-[1800px] mx-auto pt-24">
+        <main className="p-6 max-w-[1800px] mx-auto">
           <div className="bg-card rounded-xl border border-border shadow-sm p-12 text-center">
             <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
             <p className="text-sm text-muted-foreground">Loading...</p>
@@ -322,7 +322,7 @@ const DutySetsRotationManagement = () => {
     return (
       <div className="min-h-screen bg-background transition-colors duration-300">
         <Header />
-        <main className="p-6 max-w-[1800px] mx-auto pt-24">
+        <main className="p-6 max-w-[1800px] mx-auto">
           <div className="bg-card rounded-xl border border-border shadow-sm p-12 text-center">
             <Icon name="Lock" size={48} className="mx-auto mb-4 text-muted-foreground opacity-30" />
             <h2 className="text-xl font-semibold text-foreground mb-2">Access Restricted</h2>
@@ -336,7 +336,7 @@ const DutySetsRotationManagement = () => {
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
       <Header />
-      <main className="p-6 max-w-[1800px] mx-auto pt-24">
+      <main className="p-6 max-w-[1800px] mx-auto">
         {/* Page Header */}
         <div className="flex items-center justify-between mb-6">
           <div>

@@ -1881,7 +1881,7 @@ const canEdit = (() => {
       
       {/* Auth Loading State */}
       {authLoading && (
-        <main className="p-6 max-w-[1800px] mx-auto pt-24">
+        <main className="p-6 max-w-[1800px] mx-auto">
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
@@ -1893,7 +1893,7 @@ const canEdit = (() => {
 
       {/* Signed Out State */}
       {!authLoading && !session?.user && (
-        <main className="p-6 max-w-[1800px] mx-auto pt-24">
+        <main className="p-6 max-w-[1800px] mx-auto">
           <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
             <div className="w-16 h-16 rounded-full bg-warning/10 flex items-center justify-center">
               <Icon name="AlertCircle" size={32} className="text-warning" />
@@ -1916,7 +1916,7 @@ const canEdit = (() => {
       
       {/* Error State - Show full page error without redirect */}
       {!authLoading && session?.user && profileError && (
-        <main className="p-6 max-w-[1800px] mx-auto pt-24">
+        <main className="p-6 max-w-[1800px] mx-auto">
           <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
             <div className="w-16 h-16 rounded-full bg-error/10 flex items-center justify-center">
               <Icon name="AlertCircle" size={32} className="text-error" />
@@ -1939,7 +1939,7 @@ const canEdit = (() => {
 
       {/* Loading State */}
       {!authLoading && session?.user && !profileLoading && !profileError && crewMember && (
-        <main className="p-6 max-w-[1800px] mx-auto pt-24">
+        <main className="p-6 max-w-[1800px] mx-auto">
           {/* Hidden File Input for Avatar Upload */}
           <input
             ref={fileInputRef}

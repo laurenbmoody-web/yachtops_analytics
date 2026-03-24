@@ -210,7 +210,7 @@ const AutoImportReviewAdjustment = () => {
     return (
       <div className="min-h-screen bg-background transition-colors duration-300">
         <Header />
-        <main className="p-6 max-w-[1400px] mx-auto pt-24">
+        <main className="p-6 max-w-[1400px] mx-auto">
           <div className="bg-card border border-border rounded-2xl p-8 shadow-sm text-center">
             <div className="w-20 h-20 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-6">
               <Icon name="CheckCircle2" size={48} className="text-success" />
@@ -273,7 +273,7 @@ const AutoImportReviewAdjustment = () => {
     return (
       <div className="min-h-screen bg-background transition-colors duration-300">
         <Header />
-        <main className="p-6 max-w-[1400px] mx-auto pt-24">
+        <main className="p-6 max-w-[1400px] mx-auto">
           <div className="bg-card border border-border rounded-2xl p-8 shadow-sm text-center">
             <div className="flex justify-center mb-8">
               <div className="relative w-48 h-48">
@@ -318,7 +318,7 @@ const AutoImportReviewAdjustment = () => {
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
       <Header />
-      <main className="p-6 max-w-[1400px] mx-auto pt-24">
+      <main className="p-6 max-w-[1400px] mx-auto">
         {/* Page Header */}
         <div className="flex items-center gap-4 mb-8">
           <button

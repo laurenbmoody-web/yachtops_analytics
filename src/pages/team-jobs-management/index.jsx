@@ -1918,7 +1918,7 @@ const TeamJobsManagement = () => {
       }}
     >
       <Header />
-      <main className="p-6 max-w-[1800px] mx-auto pt-24">
+      <main className="p-6 max-w-[1800px] mx-auto">
         {/* Loading skeleton while tenantMember is loading */}
         {tierLoading ? (
           <div className="flex flex-col gap-6">

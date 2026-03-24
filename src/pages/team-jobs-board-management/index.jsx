@@ -121,7 +121,7 @@ const TeamJobsBoardManagement = () => {
     return (
       <div className="min-h-screen bg-background transition-colors duration-300">
         <Header />
-        <main className="p-6 max-w-[1800px] mx-auto pt-24">
+        <main className="p-6 max-w-[1800px] mx-auto">
           <div className="text-center py-12">
             <h1 className="text-2xl font-semibold text-foreground mb-4">Board Not Found</h1>
             <Button onClick={() => navigate('/jobs')}>Back to Jobs</Button>
@@ -134,7 +134,7 @@ const TeamJobsBoardManagement = () => {
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
       <Header />
-      <main className="p-6 max-w-[1800px] mx-auto pt-24">
+      <main className="p-6 max-w-[1800px] mx-auto">
         <div className="mb-6">
           <Button variant="outline" iconName="ArrowLeft" onClick={() => navigate('/jobs')}>
             Back to Jobs

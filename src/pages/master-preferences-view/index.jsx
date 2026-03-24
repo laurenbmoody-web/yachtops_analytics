@@ -473,7 +473,7 @@ const MasterPreferencesView = () => {
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
       <Header />
-      <main className="p-6 max-w-[1400px] mx-auto pt-24">
+      <main className="p-6 max-w-[1400px] mx-auto">
         {/* Page Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-semibold text-foreground mb-1">Guest Preferences</h1>

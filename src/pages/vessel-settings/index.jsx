@@ -984,7 +984,7 @@ const VesselSettings = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <div className="max-w-7xl mx-auto px-4 py-6 pt-24">
+      <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Page Header */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-foreground">Vessel Hub</h1>
