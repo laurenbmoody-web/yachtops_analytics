@@ -284,7 +284,7 @@ const TripDetailView = () => {
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
       <Header />
-      <main className="flex pt-16 h-screen overflow-hidden">
+      <main className="flex h-[calc(100vh-4rem)] overflow-hidden">
         {/* LEFT SIDEBAR NAVIGATION - FIXED WIDTH, FLUSH LEFT, NO SHRINK */}
         <aside className="w-60 border-r border-border bg-card flex-shrink-0 overflow-y-auto pl-0">
           <div className="py-0 px-4">

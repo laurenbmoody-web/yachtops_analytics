@@ -157,7 +157,7 @@ const FleetOperationsOverview = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <div className="pt-16">
+      <div className="">
         <div className="lg:pr-96">
           <div className="px-4 md:px-6 lg:px-8 py-6 md:py-8">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 md:mb-8">
