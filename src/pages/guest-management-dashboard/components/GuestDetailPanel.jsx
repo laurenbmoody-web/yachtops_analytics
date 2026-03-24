@@ -66,47 +66,47 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
   const isDeleted = guest?.isDeleted || false;
 
   useEffect(() => {
-    setFormData(guest);
-    setIsEditing(false);
-    
-    // Build cabin options
-    const decks = getAllDecks();
-    const options = [];
-    
-    decks?.forEach(deck => {
-      const zones = getZonesByDeck(deck?.id);
-      zones?.forEach(zone => {
-        const spaces = getSpacesByZone(zone?.id);
-        spaces?.forEach(space => {
-          options?.push({
-            path: `${deck?.name} > ${zone?.name} > ${space?.name}`,
-            deckId: deck?.id,
-            deckName: deck?.name,
-            zoneId: zone?.id,
-            zoneName: zone?.name,
-            spaceId: space?.id,
-            spaceName: space?.name
-          });
-        });
-      });
-    });
-    
-    setCabinOptions(options);
-    
-    // Parse existing cabin location
-    if (guest?.cabinLocationPath) {
-      const exists = options?.some(opt => opt?.path === guest?.cabinLocationPath);
-      if (exists) {
-        setSelectedCabinPath(guest?.cabinLocationPath);
-        setLocationNotFound(false);
-      } else {
-        setSelectedCabinPath(guest?.cabinLocationPath);
-        setLocationNotFound(true);
+    const init = async () => {
+      setFormData(guest);
+      setIsEditing(false);
+
+      // Build cabin options from Supabase vessel_locations (async)
+      const options = [];
+      try {
+        const decks = await getAllDecks() || [];
+        for (const deck of decks) {
+          const zones = await getZonesByDeck(deck?.id) || [];
+          for (const zone of zones) {
+            const spaces = await getSpacesByZone(zone?.id) || [];
+            for (const space of spaces) {
+              options.push({
+                path: `${deck?.name} > ${zone?.name} > ${space?.name}`,
+                deckId: deck?.id,
+                deckName: deck?.name,
+                zoneId: zone?.id,
+                zoneName: zone?.name,
+                spaceId: space?.id,
+                spaceName: space?.name,
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[GuestDetailPanel] Failed to load cabin locations:', err);
       }
-    } else if (guest?.cabinLocationLabel || guest?.cabinAllocated) {
-      // Legacy free text
-      setCabinFreeText(guest?.cabinLocationLabel || guest?.cabinAllocated || '');
-    }
+
+      setCabinOptions(options);
+
+      // Parse existing cabin location
+      if (guest?.cabinLocationPath) {
+        const exists = options?.some(opt => opt?.path === guest?.cabinLocationPath);
+        setSelectedCabinPath(guest?.cabinLocationPath);
+        setLocationNotFound(!exists);
+      } else if (guest?.cabinLocationLabel || guest?.cabinAllocated) {
+        setCabinFreeText(guest?.cabinLocationLabel || guest?.cabinAllocated || '');
+      }
+    };
+    init();
   }, [guest]);
 
   useEffect(() => {
@@ -242,9 +242,9 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
     setLocationNotFound(false);
   };
   
-  const handleLocationHierarchyChange = (level, value) => {
-    const decks = getAllDecks();
-    
+  const handleLocationHierarchyChange = async (level, value) => {
+    const decks = await getAllDecks() || [];
+
     if (level === 'deck') {
       const selectedDeck = decks?.find(d => d?.id === value);
       setFormData(prev => ({
@@ -254,7 +254,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
       }));
       setLocationNotFound(false);
     } else if (level === 'zone') {
-      const zones = getZonesByDeck(formData?.cabinLocationIds?.deckId);
+      const zones = await getZonesByDeck(formData?.cabinLocationIds?.deckId) || [];
       const selectedZone = zones?.find(z => z?.id === value);
       const selectedDeck = decks?.find(d => d?.id === formData?.cabinLocationIds?.deckId);
       setFormData(prev => ({
@@ -264,16 +264,16 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
       }));
       setLocationNotFound(false);
     } else if (level === 'space') {
-      const spaces = getSpacesByZone(formData?.cabinLocationIds?.zoneId);
+      const spaces = await getSpacesByZone(formData?.cabinLocationIds?.zoneId) || [];
       const selectedSpace = spaces?.find(s => s?.id === value);
-      const zones = getZonesByDeck(formData?.cabinLocationIds?.deckId);
+      const zones = await getZonesByDeck(formData?.cabinLocationIds?.deckId) || [];
       const selectedZone = zones?.find(z => z?.id === formData?.cabinLocationIds?.zoneId);
       const selectedDeck = decks?.find(d => d?.id === formData?.cabinLocationIds?.deckId);
       setFormData(prev => ({
         ...prev,
         cabinLocationIds: { ...prev?.cabinLocationIds, spaceId: value },
-        cabinLocationPath: selectedDeck && selectedZone && selectedSpace 
-          ? `${selectedDeck?.name} > ${selectedZone?.name} > ${selectedSpace?.name}` 
+        cabinLocationPath: selectedDeck && selectedZone && selectedSpace
+          ? `${selectedDeck?.name} > ${selectedZone?.name} > ${selectedSpace?.name}`
           : ''
       }));
       setLocationNotFound(false);
