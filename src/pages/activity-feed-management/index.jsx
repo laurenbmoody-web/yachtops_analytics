@@ -163,7 +163,7 @@ const ActivityFeedManagement = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="p-6 max-w-[1400px] mx-auto pt-24">
+      <main className="p-6 max-w-[1400px] mx-auto">
         {/* Page Header */}
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-2">

@@ -405,7 +405,7 @@ const RoleManagement = () => {
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
       <Header />
-      <main className="p-6 max-w-[1800px] mx-auto pt-24">
+      <main className="p-6 max-w-[1800px] mx-auto">
         {/* Pending Transfer Banner for Current COMMAND */}
         {isCommandUser && pendingTransfer && pendingTransfer?.from_user_id === user?.id && (
           <div className="mb-6 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-4">

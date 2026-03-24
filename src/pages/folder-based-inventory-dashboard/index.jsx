@@ -218,7 +218,7 @@ const FolderBasedInventoryDashboard = () => {
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
       <Header />
-      <main className="p-6 max-w-[1400px] mx-auto pt-24">
+      <main className="p-6 max-w-[1400px] mx-auto">
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-semibold text-foreground mb-2 font-heading">Inventory</h1>

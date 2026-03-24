@@ -268,7 +268,7 @@ const DirectExcelSelectionInterface = () => {
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
       <Header />
-      <main className="p-6 max-w-[1600px] mx-auto pt-24">
+      <main className="p-6 max-w-[1600px] mx-auto">
         {/* Page Header */}
         <div className="flex items-center gap-4 mb-8">
           <button

@@ -344,7 +344,7 @@ const GuestManagementDashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="p-6 max-w-[1800px] mx-auto pt-24">
+      <main className="p-6 max-w-[1800px] mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>

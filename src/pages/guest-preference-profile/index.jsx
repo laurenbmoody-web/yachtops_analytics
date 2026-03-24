@@ -1215,7 +1215,7 @@ const GuestPreferenceProfile = () => {
     return (
       <div className="min-h-screen bg-background transition-colors duration-300">
         <Header />
-        <main className="p-6 max-w-[1800px] mx-auto pt-24">
+        <main className="p-6 max-w-[1800px] mx-auto">
           <div className="flex items-center justify-center py-24">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
@@ -1230,7 +1230,7 @@ const GuestPreferenceProfile = () => {
     return (
       <div className="min-h-screen bg-background transition-colors duration-300">
         <Header />
-        <main className="p-6 max-w-[1800px] mx-auto pt-24">
+        <main className="p-6 max-w-[1800px] mx-auto">
           <button
             onClick={() => navigate('/preferences')}
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
@@ -1252,7 +1252,7 @@ const GuestPreferenceProfile = () => {
     return (
       <div className="min-h-screen bg-background transition-colors duration-300">
         <Header />
-        <main className="p-6 max-w-[1800px] mx-auto pt-24">
+        <main className="p-6 max-w-[1800px] mx-auto">
           <button
             onClick={() => navigate('/preferences')}
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
@@ -1273,7 +1273,7 @@ const GuestPreferenceProfile = () => {
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
       <Header />
-      <main className="p-6 max-w-[1800px] mx-auto pt-24">
+      <main className="p-6 max-w-[1800px] mx-auto">
         <button
           onClick={() => navigate('/preferences')}
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"

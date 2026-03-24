@@ -366,7 +366,7 @@ const TripPreferencesOverview = () => {
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
       <Header />
-      <main className="p-6 max-w-[1000px] mx-auto pt-24">
+      <main className="p-6 max-w-[1000px] mx-auto">
         {/* Back Button */}
         <button
           onClick={() => navigate(`/trips/${tripId}`)}

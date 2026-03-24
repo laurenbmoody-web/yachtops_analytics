@@ -380,7 +380,7 @@ const DryRunPreview = () => {
     return (
       <div className="min-h-screen bg-background transition-colors duration-300">
         <Header />
-        <main className="p-6 max-w-[1400px] mx-auto pt-24">
+        <main className="p-6 max-w-[1400px] mx-auto">
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <Icon name="Loader" size={40} className="text-primary animate-spin mx-auto mb-4" />
@@ -395,7 +395,7 @@ const DryRunPreview = () => {
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
       <Header />
-      <main className="p-6 max-w-[1400px] mx-auto pt-24">
+      <main className="p-6 max-w-[1400px] mx-auto">
         {/* Page Header */}
         <div className="flex items-center gap-4 mb-8">
           <button

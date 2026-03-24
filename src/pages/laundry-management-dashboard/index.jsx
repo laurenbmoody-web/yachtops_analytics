@@ -188,7 +188,7 @@ const LaundryManagementDashboard = () => {
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
       <Header />
-      <main className="container mx-auto px-4 pt-20 pb-6 max-w-7xl">
+      <main className="container mx-auto px-4 pb-6 max-w-7xl">
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
