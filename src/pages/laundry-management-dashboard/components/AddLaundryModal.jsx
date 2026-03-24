@@ -466,18 +466,28 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
                   <Icon name="Camera" size={64} className="text-muted-foreground" />
                   <div>
                     <p className="text-lg font-semibold text-foreground">Take or Upload Photo</p>
-                    <p className="text-sm text-muted-foreground mt-1">Required • Max 5MB</p>
+                    <p className="text-sm text-muted-foreground mt-1">Optional • Max 5MB</p>
                   </div>
                 </button>
               </div>
-              <Button
-                variant="ghost"
-                onClick={() => setStep(1)}
-                className="w-full"
-              >
-                <Icon name="ChevronLeft" size={16} className="mr-2" />
-                Back
-              </Button>
+              <div className="flex gap-3">
+                <Button
+                  variant="ghost"
+                  onClick={() => setStep(1)}
+                  className="flex-1"
+                >
+                  <Icon name="ChevronLeft" size={16} className="mr-2" />
+                  Back
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setStep(3)}
+                  className="flex-1"
+                >
+                  Skip Photo
+                  <Icon name="ChevronRight" size={16} className="ml-2" />
+                </Button>
+              </div>
             </div>
           )}
           
