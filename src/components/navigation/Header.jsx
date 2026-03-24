@@ -232,11 +232,38 @@ const Header = () => {
     setSearchResults([...groups]);
     setIsSearching(false);
 
+    const tenantId = localStorage.getItem('cargo_active_tenant_id');
+    const timeout = (ms) => new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms));
+
+    // Inventory items (Supabase, async)
+    try {
+      const { data: inventoryData } = await Promise.race([
+        supabase
+          ?.from('inventory_items')
+          ?.select('id, name, l1_name, l2_name, l3_name')
+          ?.eq('tenant_id', tenantId)
+          ?.ilike('name', `%${q}%`)
+          ?.limit(5),
+        timeout(5000)
+      ]);
+      const inventoryItems = (inventoryData || []).map(item => ({
+        label: item.name,
+        subtitle: [item.l1_name, item.l2_name, item.l3_name].filter(Boolean).join(' → '),
+        path: '/inventory',
+        icon: 'Package',
+      }));
+      if (inventoryItems.length) {
+        setSearchResults(prev => [...prev.filter(g => g.category !== 'Inventory'), { category: 'Inventory', items: inventoryItems }]);
+      }
+    } catch {
+      // Supabase unavailable or timed out
+    }
+
     // Guests (Supabase, async) — append when ready, silently skip on timeout/error
     try {
       const guestList = await Promise.race([
         loadGuests(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+        timeout(5000)
       ]);
       const guests = (guestList || [])
         .filter(g => {
