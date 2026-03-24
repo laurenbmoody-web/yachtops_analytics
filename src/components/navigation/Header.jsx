@@ -228,9 +228,16 @@ const Header = () => {
       }));
     if (jobs.length) groups.push({ category: 'Jobs', items: jobs });
 
-    // Guests (Supabase, async)
+    // Show sync results immediately — don't wait on Supabase
+    setSearchResults([...groups]);
+    setIsSearching(false);
+
+    // Guests (Supabase, async) — append when ready, silently skip on timeout/error
     try {
-      const guestList = await loadGuests();
+      const guestList = await Promise.race([
+        loadGuests(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+      ]);
       const guests = (guestList || [])
         .filter(g => {
           const name = `${g?.firstName || ''} ${g?.lastName || ''}`.toLowerCase();
@@ -243,13 +250,12 @@ const Header = () => {
           path: '/guest-management-dashboard',
           icon: 'User',
         }));
-      if (guests.length) groups.push({ category: 'Guests', items: guests });
+      if (guests.length) {
+        setSearchResults(prev => [...prev.filter(g => g.category !== 'Guests'), { category: 'Guests', items: guests }]);
+      }
     } catch {
-      // Supabase unavailable — skip guests
+      // Supabase unavailable or timed out — guests simply won't appear
     }
-
-    setSearchResults(groups);
-    setIsSearching(false);
   }, []);
 
   const handleSearchChange = (e) => {

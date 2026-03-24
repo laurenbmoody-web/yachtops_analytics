@@ -131,10 +131,9 @@ const ProtectedRoute = ({ children, requiresTenant = true, requiredRoles = null 
   // Determine current path for debug display
   const currentPath = window.location?.pathname;
   
-  // CRITICAL: Treat null role/tenant as LOADING until bootstrap completes
-  // This prevents premature "no access" decisions
-  const isContextLoading = contextLoading || !bootstrapComplete || 
-    (requiresTenant && (role === null || role === undefined || tenant_id === null || tenant_id === undefined));
+  // Show loading spinner until bootstrap is complete.
+  // Steps 3/4 below handle null tenant_id / role after bootstrap finishes.
+  const isContextLoading = contextLoading || !bootstrapComplete;
   
   // Determine decision state for debugging
   let decision = 'UNKNOWN';
