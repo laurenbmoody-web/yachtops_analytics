@@ -55,14 +55,14 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
   // Load active guests when owner type is Guest
   useEffect(() => {
     if (formData?.ownerType === OwnerType?.GUEST) {
-      // Get active guest IDs from current active trip
-      const activeGuestIds = getActiveGuestsFromCurrentTrip();
-      
-      // Load all guests and filter to only active ones
-      const allGuests = loadGuests()?.filter(g => !g?.isDeleted);
-      const activeGuestsData = allGuests?.filter(g => activeGuestIds?.includes(g?.id));
-      
-      setActiveGuests(activeGuestsData);
+      const loadActiveGuests = async () => {
+        const activeGuestIds = getActiveGuestsFromCurrentTrip();
+        const allGuests = await loadGuests();
+        const filtered = (allGuests || []).filter(g => !g?.isDeleted);
+        const activeGuestsData = filtered.filter(g => activeGuestIds?.includes(g?.id));
+        setActiveGuests(activeGuestsData);
+      };
+      loadActiveGuests();
     }
   }, [formData?.ownerType]);
   
