@@ -599,7 +599,7 @@ const Inventory = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-16">
+    <div className="min-h-screen bg-gray-50 ">
       <Header />
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Page Header - Row 1: Breadcrumb, Title, and Action Buttons */}

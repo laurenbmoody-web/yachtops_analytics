@@ -675,6 +675,8 @@ const Header = () => {
           </div>
         </div>
       </header>
+      {/* Spacer — pushes page content below the fixed header (h-16 = 64px) */}
+      <div className="h-16" aria-hidden="true" />
       {/* Notifications Drawer */}
       <NotificationsDrawer 
         isOpen={notificationsOpen} 
