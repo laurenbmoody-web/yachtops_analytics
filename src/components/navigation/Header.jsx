@@ -197,65 +197,137 @@ const Header = () => {
     setIsSearching(true);
     const groups = [];
 
-    // Pages (static, instant)
+    // ── Sync / localStorage ──────────────────────────────────────────────────
+
+    // Pages (static)
     const pages = NAV_PAGES.filter(p => p.label.toLowerCase().includes(q)).slice(0, 4);
     if (pages.length) groups.push({ category: 'Pages', items: pages });
 
-    // Crew (localStorage, sync)
-    const crew = (loadUsers() || [])
-      .filter(u => {
-        const name = `${u?.firstName || ''} ${u?.lastName || ''}`.toLowerCase();
-        return name.includes(q) || (u?.role || '').toLowerCase().includes(q);
-      })
-      .slice(0, 3)
-      .map(u => ({
-        label: `${u?.firstName || ''} ${u?.lastName || ''}`.trim() || u?.email || 'Crew member',
-        subtitle: u?.role || '',
-        path: `/profile/${u?.id}`,
-        icon: 'User',
-      }));
-    if (crew.length) groups.push({ category: 'Crew', items: crew });
+    // Defects (localStorage)
+    try {
+      const defects = (JSON.parse(localStorage.getItem('cargo_defects_v1') || '[]'))
+        .filter(d => (d?.title || '').toLowerCase().includes(q) || (d?.description || '').toLowerCase().includes(q))
+        .slice(0, 3)
+        .map(d => ({ label: d.title || 'Untitled defect', subtitle: d.status || '', path: '/defects', icon: 'AlertTriangle' }));
+      if (defects.length) groups.push({ category: 'Defects', items: defects });
+    } catch { /* skip */ }
 
-    // Jobs (localStorage, sync)
-    const jobs = (loadCards() || [])
-      .filter(c => (c?.title || '').toLowerCase().includes(q) || (c?.description || '').toLowerCase().includes(q))
-      .slice(0, 3)
-      .map(c => ({
-        label: c?.title || 'Untitled job',
-        subtitle: c?.status || '',
-        path: '/team-jobs-management',
-        icon: 'CheckSquare',
-      }));
-    if (jobs.length) groups.push({ category: 'Jobs', items: jobs });
+    // Trips (localStorage)
+    try {
+      const trips = (JSON.parse(localStorage.getItem('cargo.trips.v1') || '[]'))
+        .filter(t => (t?.title || '').toLowerCase().includes(q))
+        .slice(0, 3)
+        .map(t => ({ label: t.title || 'Untitled trip', subtitle: t.status || '', path: '/trips-management-dashboard', icon: 'Map' }));
+      if (trips.length) groups.push({ category: 'Trips', items: trips });
+    } catch { /* skip */ }
 
-    // Show sync results immediately — don't wait on Supabase
+    // Laundry (localStorage)
+    try {
+      const laundry = (JSON.parse(localStorage.getItem('cargo_laundry_v1') || '[]'))
+        .filter(l => (l?.description || '').toLowerCase().includes(q) || (l?.ownerName || '').toLowerCase().includes(q))
+        .slice(0, 3)
+        .map(l => ({ label: l.description || 'Laundry item', subtitle: l.ownerName || '', path: '/laundry-management-dashboard', icon: 'Shirt' }));
+      if (laundry.length) groups.push({ category: 'Laundry', items: laundry });
+    } catch { /* skip */ }
+
+    // Show sync results immediately
     setSearchResults([...groups]);
     setIsSearching(false);
 
-    // Guests (Supabase, async) — append when ready, silently skip on timeout/error
-    try {
-      const guestList = await Promise.race([
-        loadGuests(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
-      ]);
-      const guests = (guestList || [])
-        .filter(g => {
-          const name = `${g?.firstName || ''} ${g?.lastName || ''}`.toLowerCase();
-          return name.includes(q);
-        })
-        .slice(0, 3)
-        .map(g => ({
-          label: `${g?.firstName || ''} ${g?.lastName || ''}`.trim() || 'Guest',
-          subtitle: g?.guestType || 'Guest',
-          path: '/guest-management-dashboard',
+    // ── Supabase (parallel, appended as they arrive) ─────────────────────────
+    const tenantId = localStorage.getItem('cargo_active_tenant_id');
+    if (!tenantId) return;
+
+    const TIMEOUT = 5000;
+    const race = (promise) => Promise.race([promise, new Promise((_, r) => setTimeout(() => r(new Error('timeout')), TIMEOUT))]);
+
+    const [crewRes, jobsRes, inventoryRes, guestsRes] = await Promise.allSettled([
+      // Crew — profiles scoped to this tenant via tenant_members
+      race(
+        supabase
+          ?.from('profiles')
+          ?.select('id, full_name, email, tenant_members!inner(role)')
+          ?.eq('tenant_members.tenant_id', tenantId)
+          ?.eq('tenant_members.active', true)
+          ?.ilike('full_name', `%${q}%`)
+          ?.limit(5)
+      ),
+      // Jobs
+      race(
+        supabase
+          ?.from('team_jobs')
+          ?.select('id, title, status')
+          ?.eq('tenant_id', tenantId)
+          ?.ilike('title', `%${q}%`)
+          ?.limit(5)
+      ),
+      // Inventory items
+      race(
+        supabase
+          ?.from('inventory_items')
+          ?.select('id, name, l1_name, l2_name, l3_name')
+          ?.eq('tenant_id', tenantId)
+          ?.ilike('name', `%${q}%`)
+          ?.limit(5)
+      ),
+      // Guests
+      race(loadGuests()),
+    ]);
+
+    setSearchResults(prev => {
+      const updated = [...prev];
+      const upsert = (category, items) => {
+        if (!items?.length) return;
+        const idx = updated.findIndex(g => g.category === category);
+        if (idx >= 0) updated[idx] = { category, items };
+        else updated.push({ category, items });
+      };
+
+      if (crewRes.status === 'fulfilled') {
+        const items = (crewRes.value?.data || []).map(u => ({
+          label: u.full_name || u.email || 'Crew member',
+          subtitle: u.tenant_members?.[0]?.role || '',
+          path: `/profile/${u.id}`,
           icon: 'User',
         }));
-      if (guests.length) {
-        setSearchResults(prev => [...prev.filter(g => g.category !== 'Guests'), { category: 'Guests', items: guests }]);
+        upsert('Crew', items);
       }
-    } catch {
-      // Supabase unavailable or timed out — guests simply won't appear
-    }
+
+      if (jobsRes.status === 'fulfilled') {
+        const items = (jobsRes.value?.data || []).map(j => ({
+          label: j.title || 'Untitled job',
+          subtitle: j.status || '',
+          path: '/team-jobs-management',
+          icon: 'CheckSquare',
+        }));
+        upsert('Jobs', items);
+      }
+
+      if (inventoryRes.status === 'fulfilled') {
+        const items = (inventoryRes.value?.data || []).map(item => ({
+          label: item.name,
+          subtitle: [item.l1_name, item.l2_name, item.l3_name].filter(Boolean).join(' → '),
+          path: '/inventory',
+          icon: 'Package',
+        }));
+        upsert('Inventory', items);
+      }
+
+      if (guestsRes.status === 'fulfilled') {
+        const items = (guestsRes.value || [])
+          .filter(g => `${g?.firstName || ''} ${g?.lastName || ''}`.toLowerCase().includes(q))
+          .slice(0, 5)
+          .map(g => ({
+            label: `${g?.firstName || ''} ${g?.lastName || ''}`.trim() || 'Guest',
+            subtitle: g?.guestType || 'Guest',
+            path: '/guest-management-dashboard',
+            icon: 'UserCheck',
+          }));
+        upsert('Guests', items);
+      }
+
+      return updated;
+    });
   }, []);
 
   const handleSearchChange = (e) => {
