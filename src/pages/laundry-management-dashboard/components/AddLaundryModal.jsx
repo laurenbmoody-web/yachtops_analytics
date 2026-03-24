@@ -77,33 +77,39 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
   
   // Load decks on mount
   useEffect(() => {
-    const loadedDecks = getAllDecks();
-    console.log('AddLaundryModal - Loaded decks:', loadedDecks);
-    setDecks(loadedDecks || []);
+    const loadDecks = async () => {
+      const loadedDecks = await getAllDecks();
+      setDecks(loadedDecks || []);
+    };
+    loadDecks();
   }, []);
-  
+
   // Load zones when deck changes
   useEffect(() => {
     if (selectedDeck) {
-      const loadedZones = getZonesByDeck(selectedDeck);
-      console.log('AddLaundryModal - Loaded zones for deck', selectedDeck, ':', loadedZones);
-      setZones(loadedZones || []);
-      setSelectedZone('');
-      setSelectedSpace('');
-      setSpaces([]);
+      const loadZones = async () => {
+        const loadedZones = await getZonesByDeck(selectedDeck);
+        setZones(loadedZones || []);
+        setSelectedZone('');
+        setSelectedSpace('');
+        setSpaces([]);
+      };
+      loadZones();
     } else {
       setZones([]);
       setSpaces([]);
     }
   }, [selectedDeck]);
-  
+
   // Load spaces when zone changes
   useEffect(() => {
     if (selectedZone) {
-      const loadedSpaces = getSpacesByZone(selectedZone);
-      console.log('AddLaundryModal - Loaded spaces for zone', selectedZone, ':', loadedSpaces);
-      setSpaces(loadedSpaces || []);
-      setSelectedSpace('');
+      const loadSpaces = async () => {
+        const loadedSpaces = await getSpacesByZone(selectedZone);
+        setSpaces(loadedSpaces || []);
+        setSelectedSpace('');
+      };
+      loadSpaces();
     } else {
       setSpaces([]);
     }
