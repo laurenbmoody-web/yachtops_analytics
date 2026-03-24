@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../AppIcon';
 import Image from '../AppImage';
@@ -6,13 +6,15 @@ import AcceptAdminBanner from './AcceptAdminBanner';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
-import { getCurrentUser, clearCurrentUser, hasCommandAccess } from '../../utils/authStorage';
+import { getCurrentUser, clearCurrentUser, hasCommandAccess, loadUsers } from '../../utils/authStorage';
 import { canAccessGuestManagement } from '../../pages/guest-management-dashboard/utils/guestPermissions';
 import { canAccessTrips } from '../../pages/trips-management-dashboard/utils/tripPermissions';
 import NotificationsDrawer from './NotificationsDrawer';
 import SettingsModal from './SettingsModal';
 import { getUnreadCount, checkDueAndOverdueJobs } from '../../pages/team-jobs-management/utils/notifications';
 import { isDevMode } from '../../utils/devMode';
+import { loadCards } from '../../pages/team-jobs-management/utils/cardStorage';
+import { loadGuests } from '../../pages/guest-management-dashboard/utils/guestStorage';
 
 
 const Header = () => {
@@ -26,8 +28,14 @@ const Header = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [tenantMemberRole, setTenantMemberRole] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const menuRef = useRef(null);
   const alertRef = useRef(null);
+  const searchRef = useRef(null);
+  const searchTimeout = useRef(null);
 
   // New state for real data from Supabase
   const [profileData, setProfileData] = useState(null);
@@ -158,11 +166,114 @@ const Header = () => {
       if (alertRef?.current && !alertRef?.current?.contains(event?.target)) {
         setAlertsOpen(false);
       }
+      if (searchRef?.current && !searchRef?.current?.contains(event?.target)) {
+        setIsSearchOpen(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const NAV_PAGES = [
+    { label: 'Dashboard', path: '/dashboard', icon: 'LayoutDashboard' },
+    { label: 'Inventory', path: '/inventory', icon: 'Package' },
+    { label: 'Laundry', path: '/laundry-management-dashboard', icon: 'Shirt' },
+    { label: 'Trips', path: '/trips-management-dashboard', icon: 'Map' },
+    { label: 'Guests', path: '/guest-management-dashboard', icon: 'Users' },
+    { label: 'Crew', path: '/crew-management', icon: 'Users' },
+    { label: 'Jobs', path: '/team-jobs-management', icon: 'CheckSquare' },
+    { label: 'Defects', path: '/defects', icon: 'AlertTriangle' },
+    { label: 'Calendar', path: '/ops-vessel-calendar', icon: 'Calendar' },
+    { label: 'Accounts', path: '/accounts', icon: 'DollarSign' },
+    { label: 'Activity', path: '/activity', icon: 'Activity' },
+    { label: 'Settings', path: '/settings/vessel', icon: 'Settings' },
+  ];
+
+  const performSearch = useCallback(async (query) => {
+    const q = query.toLowerCase().trim();
+    if (!q) { setSearchResults([]); setIsSearching(false); return; }
+
+    setIsSearching(true);
+    const groups = [];
+
+    // Pages (static, instant)
+    const pages = NAV_PAGES.filter(p => p.label.toLowerCase().includes(q)).slice(0, 4);
+    if (pages.length) groups.push({ category: 'Pages', items: pages });
+
+    // Crew (localStorage, sync)
+    const crew = (loadUsers() || [])
+      .filter(u => {
+        const name = `${u?.firstName || ''} ${u?.lastName || ''}`.toLowerCase();
+        return name.includes(q) || (u?.role || '').toLowerCase().includes(q);
+      })
+      .slice(0, 3)
+      .map(u => ({
+        label: `${u?.firstName || ''} ${u?.lastName || ''}`.trim() || u?.email || 'Crew member',
+        subtitle: u?.role || '',
+        path: `/profile/${u?.id}`,
+        icon: 'User',
+      }));
+    if (crew.length) groups.push({ category: 'Crew', items: crew });
+
+    // Jobs (localStorage, sync)
+    const jobs = (loadCards() || [])
+      .filter(c => (c?.title || '').toLowerCase().includes(q) || (c?.description || '').toLowerCase().includes(q))
+      .slice(0, 3)
+      .map(c => ({
+        label: c?.title || 'Untitled job',
+        subtitle: c?.status || '',
+        path: '/team-jobs-management',
+        icon: 'CheckSquare',
+      }));
+    if (jobs.length) groups.push({ category: 'Jobs', items: jobs });
+
+    // Guests (Supabase, async)
+    try {
+      const guestList = await loadGuests();
+      const guests = (guestList || [])
+        .filter(g => {
+          const name = `${g?.firstName || ''} ${g?.lastName || ''}`.toLowerCase();
+          return name.includes(q);
+        })
+        .slice(0, 3)
+        .map(g => ({
+          label: `${g?.firstName || ''} ${g?.lastName || ''}`.trim() || 'Guest',
+          subtitle: g?.guestType || 'Guest',
+          path: '/guest-management-dashboard',
+          icon: 'User',
+        }));
+      if (guests.length) groups.push({ category: 'Guests', items: guests });
+    } catch {
+      // Supabase unavailable — skip guests
+    }
+
+    setSearchResults(groups);
+    setIsSearching(false);
+  }, []);
+
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    setIsSearchOpen(true);
+    clearTimeout(searchTimeout.current);
+    if (!value.trim()) { setSearchResults([]); setIsSearching(false); return; }
+    setIsSearching(true);
+    searchTimeout.current = setTimeout(() => performSearch(value), 300);
+  };
+
+  const handleSearchSelect = (path) => {
+    navigate(path);
+    setIsSearchOpen(false);
+    setSearchQuery('');
+    setSearchResults([]);
+  };
+
+  const handleSearchClear = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setIsSearchOpen(false);
+  };
 
   const handleLogout = async () => {
     try {
@@ -252,18 +363,70 @@ const Header = () => {
         </div>
         {/* CENTRE ZONE: Search Bar */}
         <div className="flex-1 flex justify-center px-8">
-          <div className="relative w-full max-w-md">
+          <div className="relative w-full max-w-md" ref={searchRef}>
             <Icon
               name="Search"
               size={18}
               color="var(--color-muted-foreground)"
-              className="absolute left-3 top-1/2 -translate-y-1/2"
+              className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
             />
             <input
               type="text"
-              placeholder="Search..."
-              className="w-full pl-10 pr-4 py-2 bg-muted border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              value={searchQuery}
+              onChange={handleSearchChange}
+              onFocus={() => { if (searchQuery.trim()) setIsSearchOpen(true); }}
+              onKeyDown={(e) => { if (e.key === 'Escape') handleSearchClear(); }}
+              placeholder="Search pages, crew, jobs, guests..."
+              className="w-full pl-10 pr-8 py-2 bg-muted border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
+            {searchQuery && (
+              <button
+                onClick={handleSearchClear}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground transition-smooth"
+              >
+                <Icon name="X" size={14} />
+              </button>
+            )}
+
+            {/* Results dropdown */}
+            {isSearchOpen && searchQuery.trim() && (
+              <div className="absolute top-full left-0 right-0 mt-1.5 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden max-h-[480px] overflow-y-auto">
+                {isSearching ? (
+                  <div className="px-4 py-3 text-sm text-muted-foreground flex items-center gap-2">
+                    <Icon name="Loader" size={14} className="animate-spin" />
+                    Searching...
+                  </div>
+                ) : searchResults.length === 0 ? (
+                  <div className="px-4 py-3 text-sm text-muted-foreground">
+                    No results for &ldquo;{searchQuery}&rdquo;
+                  </div>
+                ) : (
+                  searchResults.map((group) => (
+                    <div key={group.category}>
+                      <div className="px-4 py-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/40 border-b border-border">
+                        {group.category}
+                      </div>
+                      {group.items.map((item, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handleSearchSelect(item.path)}
+                          className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-muted transition-smooth border-b border-border/50 last:border-0"
+                        >
+                          <Icon name={item.icon} size={15} className="text-muted-foreground flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{item.label}</p>
+                            {item.subtitle && (
+                              <p className="text-xs text-muted-foreground capitalize truncate">{item.subtitle}</p>
+                            )}
+                          </div>
+                          <Icon name="ChevronRight" size={14} className="text-muted-foreground ml-auto flex-shrink-0" />
+                        </button>
+                      ))}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
           </div>
         </div>
         {/* RIGHT ZONE: Icons + User */}
