@@ -118,16 +118,27 @@ const ProtectedRoute = ({ children, requiresTenant = true, requiredRoles = null 
     );
   }
   
-  const { 
-    session, 
-    loading: authLoading, 
-    user, 
-    tenantLoading: contextLoading, 
+  const {
+    session,
+    loading: authLoading,
+    user,
+    tenantLoading: contextLoading,
     bootstrapComplete,
-    activeTenantId: tenant_id, 
-    tenantRole: role 
+    activeTenantId: tenant_id,
+    tenantRole: role,
+    retryBootstrap
   } = useAuth();
-  
+
+  // Auto-retry once if bootstrap completed but found no tenant (transient failure on first login)
+  const hasAutoRetried = useRef(false);
+  useEffect(() => {
+    if (bootstrapComplete && session && !tenant_id && !hasAutoRetried.current) {
+      hasAutoRetried.current = true;
+      console.log('[ProtectedRoute] tenant_id null after bootstrap — auto-retrying once');
+      retryBootstrap();
+    }
+  }, [bootstrapComplete, session, tenant_id]);
+
   // Determine current path for debug display
   const currentPath = window.location?.pathname;
   
