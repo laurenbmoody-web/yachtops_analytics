@@ -7,14 +7,38 @@ import { showToast } from '../../../utils/toast';
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DEPARTMENTS = ['Galley', 'Interior', 'Deck', 'Engineering', 'Admin'];
 
+const CURRENCIES = [
+  { code: 'GBP', symbol: '£' },
+  { code: 'USD', symbol: '$' },
+  { code: 'EUR', symbol: '€' },
+];
+
+const CATEGORY_L1 = ['Dry Goods','Fresh Produce','Frozen','Dairy','Beverages','Cleaning & Laundry','Deck Stores','Engineering Supplies','Guest Amenities','Crew Supplies'];
+const CATEGORY_L2 = {
+  'Dry Goods': ['Pasta','Rice','Flour','Cereals','Tinned Goods','Sauces','Oils & Vinegars'],
+  'Fresh Produce': ['Fruit','Vegetables','Herbs','Salads'],
+  'Frozen': ['Meat','Fish & Seafood','Ready Meals','Desserts'],
+  'Dairy': ['Milk','Cheese','Yoghurt','Butter & Cream','Eggs'],
+  'Beverages': ['Water','Soft Drinks','Juices','Coffee & Tea'],
+  'Cleaning & Laundry': ['Detergents','Cloths & Mops','Bin Bags','Laundry'],
+  'Deck Stores': ['Ropes','Cleaning','Safety','Maintenance'],
+  'Engineering Supplies': ['Spares','Lubricants','Consumables','Safety'],
+  'Guest Amenities': ['Toiletries','Towels','Stationery'],
+  'Crew Supplies': ['Provisions','Uniforms','Stationery'],
+};
+
 const BLANK_ITEM = () => ({
   _id: crypto.randomUUID(),
   name: '',
+  brand: '',
+  size: '',
   category: '',
+  sub_category: '',
   department: '',
   quantity_ordered: '',
   unit: '',
   estimated_unit_cost: '',
+  item_notes: '',
 });
 
 // Load trips from localStorage
@@ -149,6 +173,8 @@ const CreateProvisioningListModal = ({
     port_location: '',
     supplier_id: '',
     estimated_cost: '',
+    currency: 'GBP',
+    order_by_date: '',
     notes: '',
   });
   const [formErrors, setFormErrors] = useState({});
@@ -170,7 +196,18 @@ const CreateProvisioningListModal = ({
     guestPreferences: [],
     lowStock: [],
     orderPatterns: [],
+    masterHistory: [],
   });
+  const [templates, setTemplates] = useState([]);
+  const [masterHistory, setMasterHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyDept, setHistoryDept] = useState('');
+  const [checkedHistory, setCheckedHistory] = useState(new Set());
+  const [historySubTab, setHistorySubTab] = useState('templates');
+  const [previewTemplateId, setPreviewTemplateId] = useState(null);
+  const [previewItems, setPreviewItems] = useState([]);
+  const [historyPopKey, setHistoryPopKey] = useState(null);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [selectedSuggestions, setSelectedSuggestions] = useState(new Set());
 
@@ -181,14 +218,19 @@ const CreateProvisioningListModal = ({
   useEffect(() => {
     if (isOpen) {
       setActiveTab('manual');
-      setForm({ title: '', trip_id: '', departments: [], port_location: '', supplier_id: '', estimated_cost: '', notes: '' });
+      setForm({ title: '', trip_id: '', departments: [], port_location: '', supplier_id: '', estimated_cost: '', currency: 'GBP', order_by_date: '', notes: '' });
       setItems([BLANK_ITEM()]);
       setFormErrors({});
       setSaving(false);
-      setSuggestions({ guestPreferences: [], lowStock: [], orderPatterns: [] });
+      setSuggestions({ guestPreferences: [], lowStock: [], orderPatterns: [], masterHistory: [] });
       setSelectedSuggestions(new Set());
       setAddingSupplier(false);
       setNewSupplierName('');
+      setCheckedHistory(new Set());
+      setHistorySearch('');
+      setHistoryDept('');
+      setHistorySubTab('templates');
+      setPreviewTemplateId(null);
     }
   }, [isOpen]);
 
@@ -315,10 +357,42 @@ const CreateProvisioningListModal = ({
       })(),
     ]);
 
+    // ── Source 4: Master history — items ordered 3+ times not already on list
+    const currentNames = new Set(items.map(i => (i.name || '').toLowerCase().trim()));
+    let masterHistoryItems = [];
+    try {
+      const { data: deliveredLists } = await supabase?.from('provisioning_lists')?.select('id')?.eq('tenant_id', activeTenantId)?.eq('status', 'delivered');
+      if (deliveredLists?.length) {
+        const { data: hItems } = await supabase?.from('provisioning_items')?.select('name, brand, size, category, unit, created_at')?.in('list_id', deliveredLists.map(l => l.id));
+        const byName = {};
+        (hItems || []).forEach(i => {
+          const k = (i.name || '').toLowerCase().trim();
+          if (!k) return;
+          if (!byName[k]) byName[k] = { name: i.name, brand: i.brand||'', size: i.size||'', category: i.category||'', unit: i.unit||'', count: 0, last: null };
+          byName[k].count++;
+          const d = i.created_at ? new Date(i.created_at) : null;
+          if (d && (!byName[k].last || d > byName[k].last)) byName[k].last = d;
+        });
+        masterHistoryItems = Object.values(byName)
+          .filter(h => h.count >= 3 && !currentNames.has(h.name.toLowerCase().trim()))
+          .map(h => ({
+            id: `mh-${h.name}`,
+            name: h.name,
+            brand: h.brand,
+            size: h.size,
+            category: h.category,
+            unit: h.unit,
+            reason: `Regular Order — ordered ${h.count} times previously${h.last ? `, last ${Math.round((Date.now()-h.last)/86400000)}d ago` : ''}`,
+            source: 'master_history',
+          }));
+      }
+    } catch {}
+
     setSuggestions({
       guestPreferences: prefResult.status === 'fulfilled' ? prefResult.value : [],
       lowStock:         stockResult.status === 'fulfilled' ? stockResult.value : [],
       orderPatterns:    patternResult.status === 'fulfilled' ? patternResult.value : [],
+      masterHistory:    masterHistoryItems,
     });
     setSuggestionsLoading(false);
   }, [form.trip_id, activeTenantId, trips]);
@@ -327,7 +401,43 @@ const CreateProvisioningListModal = ({
     if (activeTab === 'smart' && form.trip_id) {
       loadSuggestions();
     }
+    if (activeTab === 'history' && !historyLoading && !masterHistory.length && !templates.length) {
+      loadHistoryAndTemplates();
+    }
   }, [activeTab, form.trip_id, loadSuggestions]);
+
+  const loadHistoryAndTemplates = async () => {
+    if (!activeTenantId) return;
+    setHistoryLoading(true);
+    try {
+      const [tmplRes, listsRes] = await Promise.allSettled([
+        supabase?.from('provisioning_lists')?.select('id, title, department, updated_at')?.eq('tenant_id', activeTenantId)?.eq('is_template', true)?.order('updated_at', { ascending: false }),
+        supabase?.from('provisioning_lists')?.select('id')?.eq('tenant_id', activeTenantId)?.eq('status', 'delivered'),
+      ]);
+      if (tmplRes.status === 'fulfilled' && !tmplRes.value.error) setTemplates(tmplRes.value.data || []);
+
+      if (listsRes.status === 'fulfilled' && !listsRes.value.error && listsRes.value.data?.length) {
+        const listIds = listsRes.value.data.map(l => l.id);
+        const { data: hItems } = await supabase?.from('provisioning_items')?.select('name, brand, size, category, sub_category, department, unit, quantity_ordered, created_at')?.in('list_id', listIds)?.order('name');
+        const byName = {};
+        (hItems || []).forEach(i => {
+          const k = `${(i.name||'').toLowerCase()}|${(i.brand||'').toLowerCase()}`;
+          if (!k) return;
+          if (!byName[k]) byName[k] = { name: i.name, brand: i.brand||'', size: i.size||'', category: i.category||'', sub_category: i.sub_category||'', department: i.department||'', unit: i.unit||'each', count: 0, qtys: [], last: null };
+          byName[k].count++;
+          if (i.quantity_ordered) byName[k].qtys.push(Number(i.quantity_ordered));
+          const d = i.created_at ? new Date(i.created_at) : null;
+          if (d && (!byName[k].last || d > byName[k].last)) byName[k].last = d;
+        });
+        setMasterHistory(Object.values(byName).map(h => ({
+          ...h,
+          avg_qty: h.qtys.length ? Math.round(h.qtys.reduce((a,b)=>a+b,0)/h.qtys.length*10)/10 : null,
+          last_qty: h.qtys[h.qtys.length-1] || null,
+        })).sort((a,b) => b.count - a.count));
+      }
+    } catch(e) { console.error(e); }
+    setHistoryLoading(false);
+  };
 
   // ─── Form helpers ────────────────────────────────────────────────────────────
   const setField = (key, val) => {
@@ -395,6 +505,8 @@ const CreateProvisioningListModal = ({
         port_location:  form.port_location.trim() || null,
         supplier_id:    form.supplier_id || null,
         estimated_cost: form.estimated_cost ? Number(form.estimated_cost) : null,
+        currency:       form.currency || 'GBP',
+        order_by_date:  form.order_by_date || null,
         notes:          form.notes.trim() || null,
         status,
         created_by:     userId,
@@ -412,14 +524,18 @@ const CreateProvisioningListModal = ({
       const validItems = items.filter(i => i.name.trim());
       if (validItems.length) {
         const itemRows = validItems.map(i => ({
-          list_id:            newList.id,
-          name:               i.name.trim(),
-          category:           i.category.trim() || null,
-          department:         i.department || null,
-          quantity_ordered:   Number(i.quantity_ordered) || 0,
-          unit:               i.unit.trim() || null,
+          list_id:             newList.id,
+          name:                i.name.trim(),
+          brand:               i.brand?.trim() || null,
+          size:                i.size?.trim() || null,
+          category:            i.category?.trim() || null,
+          sub_category:        i.sub_category?.trim() || null,
+          department:          i.department || null,
+          quantity_ordered:    Number(i.quantity_ordered) || 0,
+          unit:                i.unit?.trim() || null,
           estimated_unit_cost: i.estimated_unit_cost ? Number(i.estimated_unit_cost) : null,
-          source:             'manual',
+          item_notes:          i.item_notes?.trim() || null,
+          source:              'manual',
         }));
         const { error: itemErr } = await supabase?.from('provisioning_items')?.insert(itemRows);
         if (itemErr) throw itemErr;
@@ -549,8 +665,9 @@ const CreateProvisioningListModal = ({
           {/* Tabs */}
           <div style={{ display: 'flex', gap: 0 }}>
             {[
-              { key: 'manual', label: 'Build Manually' },
-              { key: 'smart',  label: 'Smart Suggestions' },
+              { key: 'manual',  label: 'Build Manually' },
+              { key: 'smart',   label: 'Smart Suggestions' },
+              { key: 'history', label: 'Templates & History' },
             ].map(tab => (
               <button
                 key={tab.key}
@@ -644,8 +761,17 @@ const CreateProvisioningListModal = ({
                 )}
               </div>
 
-              {/* Port / Supplier row */}
+              {/* Order By Date / Port row */}
               <div style={{ ...rowGrid('1fr 1fr'), ...fieldWrap }}>
+                <div>
+                  <label style={labelStyle}>Order By Date</label>
+                  <input
+                    type="date"
+                    style={inputStyle}
+                    value={form.order_by_date}
+                    onChange={e => setField('order_by_date', e.target.value)}
+                  />
+                </div>
                 <div>
                   <label style={labelStyle}>Port / Location</label>
                   <input
@@ -654,6 +780,42 @@ const CreateProvisioningListModal = ({
                     value={form.port_location}
                     onChange={e => setField('port_location', e.target.value)}
                   />
+                </div>
+              </div>
+
+              {/* Supplier row */}
+              <div style={{ ...rowGrid('1fr 1fr'), ...fieldWrap }}>
+                <div>
+                  <label style={labelStyle}>Estimated Cost</label>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <div style={{ display: 'flex', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 7, overflow: 'hidden', flexShrink: 0 }}>
+                      {CURRENCIES.map(c => (
+                        <button
+                          key={c.code}
+                          type="button"
+                          onClick={() => setField('currency', c.code)}
+                          style={{
+                            background: form.currency === c.code ? '#3B82F6' : 'rgba(255,255,255,0.05)',
+                            border: 'none',
+                            padding: '8px 10px',
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: form.currency === c.code ? 'white' : 'rgba(255,255,255,0.45)',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {c.symbol} {c.code}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      type="number" min="0" step="0.01"
+                      style={{ ...inputStyle, flex: 1 }}
+                      placeholder="0.00"
+                      value={form.estimated_cost}
+                      onChange={e => setField('estimated_cost', e.target.value)}
+                    />
+                  </div>
                 </div>
                 <div>
                   <label style={labelStyle}>Supplier</label>
@@ -687,23 +849,8 @@ const CreateProvisioningListModal = ({
                 </div>
               </div>
 
-              {/* Estimated cost / Notes row */}
-              <div style={{ ...rowGrid('1fr 2fr'), ...fieldWrap }}>
-                <div>
-                  <label style={labelStyle}>Estimated Cost</label>
-                  <div style={{ position: 'relative' }}>
-                    <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>£</span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      style={{ ...inputStyle, paddingLeft: 24 }}
-                      placeholder="0.00"
-                      value={form.estimated_cost}
-                      onChange={e => setField('estimated_cost', e.target.value)}
-                    />
-                  </div>
-                </div>
+              {/* Notes row */}
+              <div style={{ ...fieldWrap }}>
                 <div>
                   <label style={labelStyle}>Notes</label>
                   <textarea
@@ -725,92 +872,66 @@ const CreateProvisioningListModal = ({
                 </div>
 
                 {/* Column headers */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: '2fr 1.2fr 1.2fr 0.8fr 0.9fr 1fr 28px',
-                  gap: 6,
-                  marginBottom: 6,
-                  padding: '0 2px',
-                }}>
-                  {['Item name', 'Category', 'Department', 'Qty', 'Unit', '£ Unit cost', ''].map((h, i) => (
+                <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 0.8fr 0.7fr 1fr 1fr 0.7fr 0.7fr 0.9fr 28px', gap: 5, marginBottom: 6, padding: '0 2px' }}>
+                  {['Item name','Brand','Size','Category','Sub-cat','Dept','Qty','Unit cost',''].map((h, i) => (
                     <span key={i} style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</span>
                   ))}
                 </div>
 
-                {items.map((item) => (
-                  <div key={item._id} style={{
-                    display: 'grid',
-                    gridTemplateColumns: '2fr 1.2fr 1.2fr 0.8fr 0.9fr 1fr 28px',
-                    gap: 6,
-                    marginBottom: 6,
-                    alignItems: 'center',
-                  }}>
-                    <input
-                      style={inputStyle}
-                      placeholder="Item name"
-                      value={item.name}
-                      onChange={e => updateItem(item._id, 'name', e.target.value)}
-                    />
-                    <input
-                      style={inputStyle}
-                      placeholder="Category"
-                      value={item.category}
-                      onChange={e => updateItem(item._id, 'category', e.target.value)}
-                    />
-                    <select
-                      style={{ ...inputStyle, color: item.department ? 'white' : 'rgba(255,255,255,0.35)' }}
-                      value={item.department}
-                      onChange={e => updateItem(item._id, 'department', e.target.value)}
-                    >
-                      <option value="">Dept</option>
-                      {(form.departments.length ? form.departments : DEPARTMENTS).map(d => (
-                        <option key={d} value={d}>{d}</option>
-                      ))}
-                    </select>
-                    <input
-                      type="number"
-                      min="0"
-                      style={inputStyle}
-                      placeholder="0"
-                      value={item.quantity_ordered}
-                      onChange={e => updateItem(item._id, 'quantity_ordered', e.target.value)}
-                    />
-                    <input
-                      style={inputStyle}
-                      placeholder="each"
-                      value={item.unit}
-                      onChange={e => updateItem(item._id, 'unit', e.target.value)}
-                    />
-                    <div style={{ position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>£</span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        style={{ ...inputStyle, paddingLeft: 20 }}
-                        placeholder="0.00"
-                        value={item.estimated_unit_cost}
-                        onChange={e => updateItem(item._id, 'estimated_unit_cost', e.target.value)}
-                      />
+                {items.map((item) => {
+                  const currSym = CURRENCIES.find(c => c.code === form.currency)?.symbol || '£';
+                  const l2Options = CATEGORY_L2[item.category] || [];
+                  return (
+                    <div key={item._id} style={{ marginBottom: 8, backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 7, padding: '8px 8px 4px' }}>
+                      {/* Row 1: name, brand, size, category, sub-cat, dept, qty, unit, cost, delete */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 0.8fr 0.7fr 1fr 1fr 0.7fr 0.7fr 0.9fr 28px', gap: 5, alignItems: 'center' }}>
+                        <input style={inputStyle} placeholder="Item name" value={item.name} onChange={e => updateItem(item._id, 'name', e.target.value)} />
+                        <input style={inputStyle} placeholder="Brand" value={item.brand || ''} onChange={e => updateItem(item._id, 'brand', e.target.value)} />
+                        <input style={inputStyle} placeholder="e.g. 500ml" value={item.size || ''} onChange={e => updateItem(item._id, 'size', e.target.value)} />
+                        <select
+                          style={{ ...inputStyle, color: item.category ? 'white' : 'rgba(255,255,255,0.35)' }}
+                          value={item.category || ''}
+                          onChange={e => { updateItem(item._id, 'category', e.target.value); updateItem(item._id, 'sub_category', ''); }}
+                        >
+                          <option value="">Category</option>
+                          {CATEGORY_L1.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <select
+                          style={{ ...inputStyle, color: item.sub_category ? 'white' : 'rgba(255,255,255,0.35)' }}
+                          value={item.sub_category || ''}
+                          onChange={e => updateItem(item._id, 'sub_category', e.target.value)}
+                          disabled={!item.category}
+                        >
+                          <option value="">Sub-cat</option>
+                          {l2Options.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <select
+                          style={{ ...inputStyle, color: item.department ? 'white' : 'rgba(255,255,255,0.35)' }}
+                          value={item.department}
+                          onChange={e => updateItem(item._id, 'department', e.target.value)}
+                        >
+                          <option value="">Dept</option>
+                          {(form.departments.length ? form.departments : DEPARTMENTS).map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                        <input type="number" min="0" style={inputStyle} placeholder="0" value={item.quantity_ordered} onChange={e => updateItem(item._id, 'quantity_ordered', e.target.value)} />
+                        <div style={{ position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: 7, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }}>{currSym}</span>
+                          <input type="number" min="0" step="0.01" style={{ ...inputStyle, paddingLeft: 18 }} placeholder="0.00" value={item.estimated_unit_cost} onChange={e => updateItem(item._id, 'estimated_unit_cost', e.target.value)} />
+                        </div>
+                        <button onClick={() => removeItem(item._id)} title="Remove" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.25)', fontSize: 15, cursor: 'pointer', padding: 0, textAlign: 'center', lineHeight: 1 }}>🗑</button>
+                      </div>
+                      {/* Row 2: item notes */}
+                      <div style={{ marginTop: 5, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <input
+                          style={{ ...inputStyle, fontSize: 11, padding: '5px 9px', color: 'rgba(255,255,255,0.5)' }}
+                          placeholder="Item note e.g. check expiry, specific brand only"
+                          value={item.item_notes || ''}
+                          onChange={e => updateItem(item._id, 'item_notes', e.target.value)}
+                        />
+                      </div>
                     </div>
-                    <button
-                      onClick={() => removeItem(item._id)}
-                      title="Remove item"
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'rgba(255,255,255,0.25)',
-                        fontSize: 16,
-                        cursor: 'pointer',
-                        lineHeight: 1,
-                        padding: 0,
-                        textAlign: 'center',
-                      }}
-                    >
-                      🗑
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
 
                 <button
                   onClick={addItem}
@@ -856,10 +977,12 @@ const CreateProvisioningListModal = ({
                   <SuggestionGroup title="Guest Preferences" items={suggestions.guestPreferences} />
                   <SuggestionGroup title="Low Stock" items={suggestions.lowStock} />
                   <SuggestionGroup title="Order Patterns" items={suggestions.orderPatterns} />
+                  <SuggestionGroup title="Regular Orders (History)" items={suggestions.masterHistory} />
 
                   {!suggestions.guestPreferences.length &&
                    !suggestions.lowStock.length &&
-                   !suggestions.orderPatterns.length && (
+                   !suggestions.orderPatterns.length &&
+                   !suggestions.masterHistory.length && (
                     <div style={{ textAlign: 'center', padding: '40px 24px' }}>
                       <p style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.3)', marginBottom: 6 }}>No suggestions available</p>
                       <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)' }}>
@@ -883,6 +1006,168 @@ const CreateProvisioningListModal = ({
                     </div>
                   )}
                 </>
+              )}
+            </div>
+          )}
+
+          {/* ── TEMPLATES & HISTORY TAB ────────────────────────────────────── */}
+          {activeTab === 'history' && (
+            <div>
+              {/* Sub-tabs */}
+              <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: 16 }}>
+                {[['templates','Saved Templates'],['history','Master Order History']].map(([key, label]) => (
+                  <button key={key} onClick={() => setHistorySubTab(key)} style={{ background: 'none', border: 'none', borderBottom: historySubTab === key ? '2px solid #3B82F6' : '2px solid transparent', padding: '7px 14px 9px', fontSize: 12, fontWeight: historySubTab === key ? 600 : 400, color: historySubTab === key ? 'white' : 'rgba(255,255,255,0.4)', cursor: 'pointer', marginBottom: -1 }}>{label}</button>
+                ))}
+              </div>
+
+              {historyLoading ? (
+                <div style={{ textAlign: 'center', padding: '40px 24px' }}><p style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)' }}>Loading…</p></div>
+              ) : historySubTab === 'templates' ? (
+                templates.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 24px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>No saved templates</p>
+                    <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', margin: 0 }}>Save a list as a template from its detail view to reuse it here.</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {templates.map(t => (
+                      <div key={t.id} style={{ backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '12px 14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 600, color: 'white' }}>{t.title}</p>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                              {(Array.isArray(t.department) ? t.department : (t.department||'').split(',')).filter(Boolean).map(d => (
+                                <span key={d} style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}>{d.trim()}</span>
+                              ))}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: 7, flexShrink: 0 }}>
+                            <button
+                              onClick={async () => {
+                                if (previewTemplateId === t.id) { setPreviewTemplateId(null); return; }
+                                const { data } = await supabase?.from('provisioning_items')?.select('*')?.eq('list_id', t.id);
+                                setPreviewItems(data || []);
+                                setPreviewTemplateId(t.id);
+                              }}
+                              style={{ ...btnGhost, fontSize: 11, padding: '6px 10px' }}
+                            >{previewTemplateId === t.id ? 'Hide' : 'Preview'}</button>
+                            <button
+                              onClick={async () => {
+                                const { data } = await supabase?.from('provisioning_items')?.select('*')?.eq('list_id', t.id);
+                                const mapped = (data || []).map(i => ({ ...BLANK_ITEM(), name: i.name||'', brand: i.brand||'', size: i.size||'', category: i.category||'', sub_category: i.sub_category||'', department: i.department||'', quantity_ordered: i.quantity_ordered||'', unit: i.unit||'', estimated_unit_cost: i.estimated_unit_cost||'', item_notes: i.item_notes||'' }));
+                                setItems(prev => [...prev.filter(i => i.name.trim()), ...mapped]);
+                                setActiveTab('manual');
+                              }}
+                              style={{ ...btnBlue, fontSize: 11, padding: '6px 10px' }}
+                            >Use template</button>
+                          </div>
+                        </div>
+                        {previewTemplateId === t.id && previewItems.length > 0 && (
+                          <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                            {previewItems.map((i, idx) => (
+                              <div key={idx} style={{ display: 'flex', gap: 8, fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>
+                                <span style={{ color: 'white' }}>{i.name}</span>
+                                {i.brand && <span>· {i.brand}</span>}
+                                <span>· {i.quantity_ordered} {i.unit}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : (
+                /* Master Order History */
+                masterHistory.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 24px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.4)', margin: '0 0 6px' }}>No order history yet</p>
+                    <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', margin: 0 }}>Your master order history will build automatically as deliveries are logged.</p>
+                  </div>
+                ) : (
+                  <div>
+                    {/* Search + dept filter */}
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                      <input style={{ ...inputStyle, flex: 1 }} placeholder="Search items, brands, categories…" value={historySearch} onChange={e => setHistorySearch(e.target.value)} />
+                      <select style={{ ...inputStyle, width: 140 }} value={historyDept} onChange={e => setHistoryDept(e.target.value)}>
+                        <option value="">All departments</option>
+                        {[...new Set(masterHistory.map(h => h.department).filter(Boolean))].sort().map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </div>
+
+                    {/* Items list */}
+                    {(() => {
+                      const filtered = masterHistory.filter(h => {
+                        if (historyDept && h.department !== historyDept) return false;
+                        if (historySearch) { const q = historySearch.toLowerCase(); return (h.name||'').toLowerCase().includes(q) || (h.brand||'').toLowerCase().includes(q) || (h.category||'').toLowerCase().includes(q); }
+                        return true;
+                      });
+                      if (!filtered.length) return <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: '20px 0' }}>No items match.</p>;
+
+                      const byDept = filtered.reduce((acc, h) => { const d = h.department||'Other'; if (!acc[d]) acc[d] = []; acc[d].push(h); return acc; }, {});
+
+                      return Object.entries(byDept).map(([dept, deptItems]) => {
+                        const deptKeys = deptItems.map(h => `${h.name}|${h.brand}`);
+                        const allChecked = deptKeys.length > 0 && deptKeys.every(k => checkedHistory.has(k));
+                        return (
+                          <div key={dept} style={{ marginBottom: 14 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 6, marginBottom: 6 }}>
+                              <input type="checkbox" checked={allChecked} onChange={() => {
+                                setCheckedHistory(prev => {
+                                  const n = new Set(prev);
+                                  deptKeys.forEach(k => allChecked ? n.delete(k) : n.add(k));
+                                  return n;
+                                });
+                              }} style={{ accentColor: '#3B82F6' }} />
+                              <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{dept}</span>
+                            </div>
+                            {deptItems.map(h => {
+                              const key = `${h.name}|${h.brand}`;
+                              const showPop = historyPopKey === key;
+                              return (
+                                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 6, marginBottom: 3, backgroundColor: checkedHistory.has(key) ? 'rgba(59,130,246,0.07)' : 'rgba(255,255,255,0.02)' }}>
+                                  <input type="checkbox" checked={checkedHistory.has(key)} onChange={() => setCheckedHistory(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; })} style={{ accentColor: '#3B82F6', flexShrink: 0 }} />
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                      <span style={{ fontSize: 12, color: 'white' }}>{h.name}</span>
+                                      {h.brand && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>{h.brand}</span>}
+                                      {h.size && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>{h.size}</span>}
+                                    </div>
+                                    <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>{h.category || '—'}</span>
+                                  </div>
+                                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', flexShrink: 0 }}>×{h.count}</span>
+                                  <div style={{ position: 'relative', flexShrink: 0 }}>
+                                    <button onClick={() => setHistoryPopKey(showPop ? null : key)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', fontSize: 13, padding: '0 2px' }}>ⓘ</button>
+                                    {showPop && (
+                                      <div style={{ position: 'absolute', right: 0, bottom: 22, zIndex: 30, backgroundColor: '#0d1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '8px 12px', fontSize: 11, color: 'rgba(255,255,255,0.6)', whiteSpace: 'nowrap', boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}>
+                                        <p style={{ margin: '0 0 3px' }}>Last ordered: <strong style={{ color: 'white' }}>{h.last_qty != null ? `${h.last_qty} ${h.unit}` : '—'}</strong></p>
+                                        <p style={{ margin: 0 }}>Average: <strong style={{ color: 'white' }}>{h.avg_qty != null ? `${h.avg_qty} ${h.unit}` : '—'}</strong></p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      });
+                    })()}
+
+                    {checkedHistory.size > 0 && (
+                      <div style={{ position: 'sticky', bottom: 0, padding: '12px 0 0', borderTop: '1px solid rgba(255,255,255,0.06)', backgroundColor: '#0d1a2e', marginTop: 8 }}>
+                        <button style={btnBlue} onClick={() => {
+                          const selected = masterHistory.filter(h => checkedHistory.has(`${h.name}|${h.brand}`));
+                          const mapped = selected.map(h => ({ ...BLANK_ITEM(), name: h.name, brand: h.brand||'', size: h.size||'', category: h.category||'', sub_category: h.sub_category||'', department: h.department||'', unit: h.unit||'' }));
+                          setItems(prev => [...prev.filter(i => i.name.trim()), ...mapped]);
+                          setCheckedHistory(new Set());
+                          setActiveTab('manual');
+                        }}>
+                          Add {checkedHistory.size} selected item{checkedHistory.size !== 1 ? 's' : ''} to list →
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
               )}
             </div>
           )}
