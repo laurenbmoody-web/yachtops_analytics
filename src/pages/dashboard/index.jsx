@@ -156,7 +156,14 @@ const Dashboard = () => {
 
             {/* RIGHT SIDEBAR - 3 columns */}
             <div className="lg:col-span-3 space-y-6">
-              <AccountsWidget />
+              <AccountsWidget
+                title="Charter Accounts"
+                account={{ percentage: 68, spent: 34000, total: 50000, remaining: 16000, trend: -12, color: 'bg-primary' }}
+              />
+              <AccountsWidget
+                title="Owner Accounts"
+                account={{ percentage: 47, spent: 23500, total: 50000, remaining: 26500, trend: 8, color: 'bg-purple-500' }}
+              />
               <InventoryHealthWidget />
             </div>
           </div>
