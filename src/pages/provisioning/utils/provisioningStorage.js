@@ -309,6 +309,157 @@ export const createDelivery = async (deliveryData) => {
   }
 };
 
+// ── Status update (for kanban drag) ───────────────────────────────────────────
+
+export const updateListStatus = async (listId, status) => {
+  try {
+    const { data, error } = await supabase
+      ?.from('provisioning_lists')
+      ?.update({ status, updated_at: new Date().toISOString() })
+      ?.eq('id', listId)
+      ?.select()
+      ?.single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('[provisioningStorage] updateListStatus error:', err);
+    throw err;
+  }
+};
+
+// ── Templates ──────────────────────────────────────────────────────────────────
+
+export const fetchTemplates = async (vesselId) => {
+  try {
+    const { data, error } = await supabase
+      ?.from('provisioning_lists')
+      ?.select('*')
+      ?.eq('vessel_id', vesselId)
+      ?.eq('is_template', true)
+      ?.order('updated_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('[provisioningStorage] fetchTemplates error:', err);
+    return [];
+  }
+};
+
+export const saveAsTemplate = async (listId, isTemplate) => {
+  try {
+    const { data, error } = await supabase
+      ?.from('provisioning_lists')
+      ?.update({ is_template: isTemplate, updated_at: new Date().toISOString() })
+      ?.eq('id', listId)
+      ?.select()
+      ?.single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('[provisioningStorage] saveAsTemplate error:', err);
+    throw err;
+  }
+};
+
+// ── Master Order History ───────────────────────────────────────────────────────
+
+export const fetchMasterOrderHistory = async (vesselId) => {
+  try {
+    // Get all delivered lists for this vessel
+    const { data: lists, error: listsErr } = await supabase
+      ?.from('provisioning_lists')
+      ?.select('id, title')
+      ?.eq('vessel_id', vesselId)
+      ?.eq('status', 'delivered');
+    if (listsErr) throw listsErr;
+    if (!lists?.length) return [];
+
+    const listIds = lists.map(l => l.id);
+
+    const { data: items, error: itemsErr } = await supabase
+      ?.from('provisioning_items')
+      ?.select('id, list_id, name, brand, size, category, sub_category, department, quantity_ordered, unit, created_at')
+      ?.in('list_id', listIds)
+      ?.order('name');
+    if (itemsErr) throw itemsErr;
+
+    // Group and aggregate by name+brand+size key
+    const historyMap = {};
+    (items || []).forEach(item => {
+      const key = `${(item.name || '').toLowerCase()}|${(item.brand || '').toLowerCase()}|${(item.size || '').toLowerCase()}`;
+      if (!historyMap[key]) {
+        historyMap[key] = {
+          name: item.name,
+          brand: item.brand || '',
+          size: item.size || '',
+          category: item.category || '',
+          sub_category: item.sub_category || '',
+          department: item.department || '',
+          unit: item.unit || 'each',
+          times_ordered: 0,
+          quantities: [],
+          last_ordered: null,
+        };
+      }
+      historyMap[key].times_ordered += 1;
+      if (item.quantity_ordered) historyMap[key].quantities.push(parseFloat(item.quantity_ordered));
+      const d = item.created_at ? new Date(item.created_at) : null;
+      if (d && (!historyMap[key].last_ordered || d > historyMap[key].last_ordered)) {
+        historyMap[key].last_ordered = d;
+      }
+    });
+
+    return Object.values(historyMap).map(h => ({
+      ...h,
+      avg_quantity: h.quantities.length
+        ? Math.round((h.quantities.reduce((s, q) => s + q, 0) / h.quantities.length) * 10) / 10
+        : null,
+      last_quantity: h.quantities[h.quantities.length - 1] || null,
+      last_ordered_date: h.last_ordered,
+    })).sort((a, b) => b.times_ordered - a.times_ordered);
+  } catch (err) {
+    console.error('[provisioningStorage] fetchMasterOrderHistory error:', err);
+    return [];
+  }
+};
+
+// ── Duplicate list ─────────────────────────────────────────────────────────────
+
+export const duplicateList = async (sourceListId, vesselId, userId) => {
+  try {
+    const [list, items] = await Promise.all([
+      fetchProvisioningList(sourceListId),
+      fetchListItems(sourceListId),
+    ]);
+    if (!list) throw new Error('Source list not found');
+
+    const { id: _id, created_at: _ca, updated_at: _ua, ...listFields } = list;
+    const newList = await createProvisioningList({
+      ...listFields,
+      vessel_id: vesselId,
+      title: `${list.title} Copy`,
+      status: PROVISIONING_STATUS.DRAFT,
+      is_template: false,
+      created_by: userId,
+    });
+
+    if (items?.length) {
+      const itemPayload = items.map(({ id: _iid, created_at: _ic, ...item }) => ({
+        ...item,
+        list_id: newList.id,
+        status: ITEM_STATUS.PENDING,
+        quantity_received: null,
+      }));
+      await upsertItems(itemPayload);
+    }
+
+    return newList;
+  } catch (err) {
+    console.error('[provisioningStorage] duplicateList error:', err);
+    throw err;
+  }
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 export const computeListStatusAfterDelivery = (items) => {
