@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
@@ -12,6 +12,8 @@ import {
   updateProvisioningList,
   upsertItems,
   fetchSuppliers,
+  fetchTemplates,
+  fetchMasterOrderHistory,
   PROVISIONING_STATUS,
   PROVISION_DEPARTMENTS,
   PROVISION_UNITS,
@@ -19,13 +21,17 @@ import {
 } from './utils/provisioningStorage';
 import { getSmartSuggestions } from '../../utils/provisioningSuggestions';
 import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
+import { getAllCategoriesL1, getCategoriesL2ByL1 } from '../inventory/utils/taxonomyStorage';
 
-const STEPS = ['List Details', 'Smart Suggestions', 'Build List', 'Review & Submit'];
+const STEPS = ['List Details', 'Smart Suggestions', 'Build List', 'Templates & History', 'Review & Submit'];
 
 const emptyItem = () => ({
   _id: `new_${Date.now()}_${Math.random().toString(36).slice(2)}`,
   name: '',
+  brand: '',
+  size: '',
   category: '',
+  sub_category: '',
   department: 'Galley',
   quantity_ordered: 1,
   unit: 'each',
@@ -33,8 +39,11 @@ const emptyItem = () => ({
   allergen_flags: [],
   source: 'manual',
   notes: '',
+  item_notes: '',
   status: 'pending',
 });
+
+const CURRENCY_SYMBOLS = { GBP: '£', USD: '$', EUR: '€' };
 
 const ProvisioningForm = () => {
   const navigate = useNavigate();
@@ -61,6 +70,8 @@ const ProvisioningForm = () => {
     supplier_id: '',
     notes: '',
     estimated_cost: '',
+    currency: 'GBP',
+    order_by_date: '',
   });
 
   // Step 2 — Smart suggestions
@@ -103,10 +114,12 @@ const ProvisioningForm = () => {
             supplier_id: list.supplier_id || '',
             notes: list.notes || '',
             estimated_cost: list.estimated_cost || '',
+            currency: list.currency || 'GBP',
+            order_by_date: list.order_by_date || '',
           });
         }
         if (listItems?.length) {
-          setItems(listItems.map(i => ({ ...i, _id: i.id })));
+          setItems(listItems.map(i => ({ ...i, _id: i.id, brand: i.brand || '', size: i.size || '', sub_category: i.sub_category || '', item_notes: i.item_notes || '' })));
         }
       } catch (err) {
         setError('Failed to load list data.');
@@ -199,6 +212,8 @@ const ProvisioningForm = () => {
         supplier_id: details.supplier_id || null,
         notes: details.notes || null,
         estimated_cost: details.estimated_cost ? parseFloat(details.estimated_cost) : null,
+        currency: details.currency || 'GBP',
+        order_by_date: details.order_by_date || null,
         status,
         created_by: user?.id,
       };
@@ -223,6 +238,10 @@ const ProvisioningForm = () => {
           quantity_received: i.quantity_received ? parseFloat(i.quantity_received) : null,
           estimated_unit_cost: i.estimated_unit_cost ? parseFloat(i.estimated_unit_cost) : null,
           allergen_flags: i.allergen_flags || [],
+          brand: i.brand || null,
+          size: i.size || null,
+          sub_category: i.sub_category || null,
+          item_notes: i.item_notes || null,
         }));
         await upsertItems(itemPayload);
       }
@@ -351,14 +370,38 @@ const ProvisioningForm = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-foreground mb-1.5">Estimated Total Cost</label>
+                <label className="block text-xs font-medium text-foreground mb-1.5">Order By Date</label>
+                <input
+                  type="date"
+                  value={details.order_by_date}
+                  onChange={e => setDetails(p => ({ ...p, order_by_date: e.target.value }))}
+                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-foreground mb-1.5">Estimated Total Cost</label>
+              <div className="flex gap-2">
+                <div className="flex rounded-lg border border-border overflow-hidden">
+                  {Object.entries(CURRENCY_SYMBOLS).map(([code, symbol]) => (
+                    <button
+                      key={code}
+                      type="button"
+                      onClick={() => setDetails(p => ({ ...p, currency: code }))}
+                      className={`px-3 py-2 text-xs font-medium transition-colors ${details.currency === code ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                    >
+                      {symbol} {code}
+                    </button>
+                  ))}
+                </div>
                 <input
                   type="number"
                   min="0"
                   value={details.estimated_cost}
                   onChange={e => setDetails(p => ({ ...p, estimated_cost: e.target.value }))}
                   placeholder="0.00"
-                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
             </div>
@@ -445,9 +488,9 @@ const ProvisioningForm = () => {
                       <ItemRow
                         key={item._id}
                         item={item}
-                        dept={dept}
                         onChange={(field, val) => updateItem(item._id, field, val)}
                         onRemove={() => removeItem(item._id)}
+                        currencySymbol={CURRENCY_SYMBOLS[details.currency] || '£'}
                       />
                     ))}
                   </div>
@@ -465,8 +508,18 @@ const ProvisioningForm = () => {
           </div>
         )}
 
-        {/* ── STEP 3: Review & Submit ──────────────────────────────────────── */}
+        {/* ── STEP 3: Templates & History ──────────────────────────────────── */}
         {step === 3 && (
+          <TemplatesHistoryStep
+            activeTenantId={activeTenantId}
+            items={items}
+            setItems={setItems}
+            setStep={setStep}
+          />
+        )}
+
+        {/* ── STEP 4: Review & Submit ──────────────────────────────────────── */}
+        {step === 4 && (
           <div className="space-y-4">
             <div className="bg-card border border-border rounded-xl p-5 space-y-3">
               <h3 className="text-sm font-semibold text-foreground">Summary</h3>
@@ -565,31 +618,83 @@ const ProvisioningForm = () => {
 
 // ── Item Row ──────────────────────────────────────────────────────────────────
 
-const ItemRow = ({ item, dept, onChange, onRemove }) => {
-  const categories = PROVISION_CATEGORIES[dept] || ['Other'];
+const FALLBACK_L1 = ['Dry Goods','Fresh Produce','Frozen','Dairy','Beverages','Cleaning & Laundry','Deck Stores','Engineering Supplies','Guest Amenities','Crew Supplies'];
+
+const ItemRow = ({ item, onChange, onRemove, currencySymbol }) => {
   const [showAllergen, setShowAllergen] = useState(item.allergen_flags?.length > 0);
+  const [showNotes, setShowNotes] = useState(!!item.item_notes);
+  const [customL1, setCustomL1] = useState('');
+  const [customL2, setCustomL2] = useState('');
+  const [showCustomL1, setShowCustomL1] = useState(false);
+  const [showCustomL2, setShowCustomL2] = useState(false);
+  const [sessionL1, setSessionL1] = useState([]);
+  const [sessionL2, setSessionL2] = useState([]);
+
+  const l1List = [...(getAllCategoriesL1() || []).map(c => c.name), ...sessionL1];
+  const hasTaxL1 = l1List.length > 0;
+  const topCategories = hasTaxL1 ? l1List : FALLBACK_L1;
+
+  const selectedL1 = getAllCategoriesL1()?.find(c => c.name === item.category);
+  const l2Raw = selectedL1 ? (getCategoriesL2ByL1(selectedL1.id) || []).map(c => c.name) : [];
+  const l2List = [...l2Raw, ...sessionL2];
+
+  const handleL1Change = (val) => {
+    if (val === '__custom__') { setShowCustomL1(true); return; }
+    onChange('category', val);
+    onChange('sub_category', '');
+  };
+
+  const handleL2Change = (val) => {
+    if (val === '__custom__') { setShowCustomL2(true); return; }
+    onChange('sub_category', val);
+  };
+
+  const addCustomL1 = () => {
+    if (!customL1.trim()) return;
+    setSessionL1(p => [...p, customL1.trim()]);
+    onChange('category', customL1.trim());
+    onChange('sub_category', '');
+    setCustomL1(''); setShowCustomL1(false);
+  };
+
+  const addCustomL2 = () => {
+    if (!customL2.trim()) return;
+    setSessionL2(p => [...p, customL2.trim()]);
+    onChange('sub_category', customL2.trim());
+    setCustomL2(''); setShowCustomL2(false);
+  };
 
   return (
     <div className="px-5 py-3 space-y-2">
-      <div className="grid grid-cols-[1fr_120px_80px_90px_90px_32px] gap-2 items-start">
+      {/* Row 1: name, brand, size, dept, qty, unit, cost, remove */}
+      <div className="grid grid-cols-[1fr_100px_80px_110px_70px_90px_90px_32px] gap-2 items-start">
         <input
           value={item.name}
           onChange={e => onChange('name', e.target.value)}
           placeholder="Item name"
           className="bg-background border border-border rounded-lg px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
         />
+        <input
+          value={item.brand || ''}
+          onChange={e => onChange('brand', e.target.value)}
+          placeholder="Brand"
+          className="bg-background border border-border rounded-lg px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+        />
+        <input
+          value={item.size || ''}
+          onChange={e => onChange('size', e.target.value)}
+          placeholder="Size"
+          className="bg-background border border-border rounded-lg px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+        />
         <select
-          value={item.category}
-          onChange={e => onChange('category', e.target.value)}
+          value={item.department}
+          onChange={e => onChange('department', e.target.value)}
           className="bg-background border border-border rounded-lg px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
         >
-          <option value="">Category</option>
-          {categories.map(c => <option key={c} value={c}>{c}</option>)}
+          {PROVISION_DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
         <input
-          type="number"
-          min="0"
-          step="0.1"
+          type="number" min="0" step="0.1"
           value={item.quantity_ordered}
           onChange={e => onChange('quantity_ordered', e.target.value)}
           className="bg-background border border-border rounded-lg px-2 py-1.5 text-sm text-center text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
@@ -602,25 +707,63 @@ const ItemRow = ({ item, dept, onChange, onRemove }) => {
           {PROVISION_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
         </select>
         <input
-          type="number"
-          min="0"
-          step="0.01"
+          type="number" min="0" step="0.01"
           value={item.estimated_unit_cost}
           onChange={e => onChange('estimated_unit_cost', e.target.value)}
-          placeholder="$/unit"
+          placeholder={`${currencySymbol || '$'}/unit`}
           className="bg-background border border-border rounded-lg px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
         />
         <button onClick={onRemove} className="p-1.5 text-muted-foreground hover:text-red-500 transition-colors">
           <Icon name="X" className="w-3.5 h-3.5" />
         </button>
       </div>
-      <div className="flex items-center gap-3">
+
+      {/* Row 2: L1 category, L2 sub-category */}
+      <div className="flex gap-2 items-start">
+        <div className="flex-1">
+          {showCustomL1 ? (
+            <div className="flex gap-1">
+              <input autoFocus value={customL1} onChange={e => setCustomL1(e.target.value)} placeholder="Custom category" onKeyDown={e => e.key === 'Enter' && addCustomL1()} className="flex-1 bg-background border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              <button onClick={addCustomL1} className="text-xs px-2 py-1 bg-primary text-primary-foreground rounded-lg">Add</button>
+              <button onClick={() => setShowCustomL1(false)} className="text-xs px-2 py-1 text-muted-foreground">✕</button>
+            </div>
+          ) : (
+            <select value={item.category || ''} onChange={e => handleL1Change(e.target.value)} className="w-full bg-background border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+              <option value="">Category</option>
+              {topCategories.map(c => <option key={c} value={c}>{c}</option>)}
+              <option value="__custom__">Add custom…</option>
+            </select>
+          )}
+        </div>
+        {item.category && (
+          <div className="flex-1">
+            {showCustomL2 ? (
+              <div className="flex gap-1">
+                <input autoFocus value={customL2} onChange={e => setCustomL2(e.target.value)} placeholder="Custom sub-category" onKeyDown={e => e.key === 'Enter' && addCustomL2()} className="flex-1 bg-background border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                <button onClick={addCustomL2} className="text-xs px-2 py-1 bg-primary text-primary-foreground rounded-lg">Add</button>
+                <button onClick={() => setShowCustomL2(false)} className="text-xs px-2 py-1 text-muted-foreground">✕</button>
+              </div>
+            ) : l2List.length > 0 ? (
+              <select value={item.sub_category || ''} onChange={e => handleL2Change(e.target.value)} className="w-full bg-background border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+                <option value="">Sub-category</option>
+                {l2List.map(c => <option key={c} value={c}>{c}</option>)}
+                <option value="__custom__">Add custom…</option>
+              </select>
+            ) : (
+              <button onClick={() => setShowCustomL2(true)} className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 border border-dashed border-border rounded-lg w-full text-left">+ Sub-category</button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Row 3: allergen + notes icon + item_notes */}
+      <div className="flex items-center gap-2 flex-wrap">
         <button
           onClick={() => setShowAllergen(p => !p)}
           className={`text-xs flex items-center gap-1 px-2 py-0.5 rounded transition-colors ${showAllergen || item.allergen_flags?.length ? 'text-red-600 bg-red-50 dark:bg-red-950/30' : 'text-muted-foreground hover:text-foreground'}`}
         >
           <Icon name="AlertTriangle" className="w-3 h-3" />
-          Allergen flag
+          Allergen
         </button>
         {showAllergen && (
           <input
@@ -630,13 +773,279 @@ const ItemRow = ({ item, dept, onChange, onRemove }) => {
             className="flex-1 bg-background border border-border rounded-lg px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
           />
         )}
-        <input
-          value={item.notes}
-          onChange={e => onChange('notes', e.target.value)}
-          placeholder="Notes…"
-          className="flex-1 bg-background border border-border rounded-lg px-2.5 py-1 text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-        />
+        <button
+          onClick={() => setShowNotes(p => !p)}
+          className={`p-1 rounded transition-colors ${showNotes || item.item_notes ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+          title="Item note"
+        >
+          <Icon name="StickyNote" className="w-3.5 h-3.5" />
+        </button>
+        {showNotes && (
+          <input
+            value={item.item_notes || ''}
+            onChange={e => onChange('item_notes', e.target.value)}
+            placeholder="Item note e.g. check expiry, specific brand only"
+            className="flex-1 bg-background border border-border rounded-lg px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        )}
       </div>
+    </div>
+  );
+};
+
+// ── Templates & History Step ──────────────────────────────────────────────────
+
+const TemplatesHistoryStep = ({ activeTenantId, items, setItems, setStep }) => {
+  const [subTab, setSubTab] = useState('templates');
+  const [templates, setTemplates] = useState([]);
+  const [history, setHistory] = useState([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [previewId, setPreviewId] = useState(null);
+  const [previewItems, setPreviewItems] = useState([]);
+  const [checked, setChecked] = useState(new Set());
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyDept, setHistoryDept] = useState('all');
+  const [openPopover, setOpenPopover] = useState(null);
+
+  useEffect(() => {
+    if (!activeTenantId) return;
+    setLoadingTemplates(true);
+    fetchTemplates(activeTenantId).then(setTemplates).finally(() => setLoadingTemplates(false));
+    setLoadingHistory(true);
+    fetchMasterOrderHistory(activeTenantId).then(setHistory).finally(() => setLoadingHistory(false));
+  }, [activeTenantId]);
+
+  const handleUseTemplate = async (template) => {
+    const tItems = await fetchListItems(template.id);
+    const mapped = (tItems || []).map(i => ({
+      ...emptyItem(),
+      name: i.name || '',
+      brand: i.brand || '',
+      size: i.size || '',
+      category: i.category || '',
+      sub_category: i.sub_category || '',
+      department: i.department || 'Galley',
+      quantity_ordered: i.quantity_ordered || 1,
+      unit: i.unit || 'each',
+      estimated_unit_cost: i.estimated_unit_cost || '',
+      allergen_flags: i.allergen_flags || [],
+      item_notes: i.item_notes || '',
+      notes: i.notes || '',
+      source: 'template',
+    }));
+    setItems(prev => [...prev, ...mapped]);
+    setStep(2);
+  };
+
+  const handlePreview = async (template) => {
+    if (previewId === template.id) { setPreviewId(null); return; }
+    const tItems = await fetchListItems(template.id);
+    setPreviewItems(tItems || []);
+    setPreviewId(template.id);
+  };
+
+  // History filtering
+  const filteredHistory = history.filter(h => {
+    if (historyDept !== 'all' && h.department !== historyDept) return false;
+    if (historySearch) {
+      const q = historySearch.toLowerCase();
+      return (h.name||'').toLowerCase().includes(q) || (h.brand||'').toLowerCase().includes(q) || (h.category||'').toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  // Group by dept → category
+  const grouped = filteredHistory.reduce((acc, h) => {
+    const dept = h.department || 'Other';
+    const cat = h.category || 'Uncategorised';
+    if (!acc[dept]) acc[dept] = {};
+    if (!acc[dept][cat]) acc[dept][cat] = [];
+    acc[dept][cat].push(h);
+    return acc;
+  }, {});
+
+  const deptList = [...new Set(history.map(h => h.department || 'Other'))].sort();
+
+  const toggleChecked = (key) => setChecked(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+  const toggleDeptAll = (dept) => {
+    const deptItems = filteredHistory.filter(h => (h.department||'Other') === dept);
+    const keys = deptItems.map(h => `${h.name}|${h.brand}|${h.size}`);
+    const allChecked = keys.every(k => checked.has(k));
+    setChecked(prev => {
+      const n = new Set(prev);
+      keys.forEach(k => allChecked ? n.delete(k) : n.add(k));
+      return n;
+    });
+  };
+
+  const handleAddSelected = () => {
+    const selected = filteredHistory.filter(h => checked.has(`${h.name}|${h.brand}|${h.size}`));
+    const mapped = selected.map(h => ({
+      ...emptyItem(),
+      name: h.name,
+      brand: h.brand || '',
+      size: h.size || '',
+      category: h.category || '',
+      sub_category: h.sub_category || '',
+      department: h.department || 'Galley',
+      unit: h.unit || 'each',
+      quantity_ordered: '',
+      source: 'history',
+    }));
+    setItems(prev => [...prev, ...mapped]);
+    setChecked(new Set());
+    setStep(2);
+  };
+
+  const inputCls = 'bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary';
+
+  return (
+    <div className="space-y-4">
+      {/* Sub-tabs */}
+      <div className="flex gap-1 bg-muted rounded-xl p-1">
+        {[['templates','Saved Templates'],['history','Master Order History']].map(([id, label]) => (
+          <button key={id} onClick={() => setSubTab(id)} className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${subTab === id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>{label}</button>
+        ))}
+      </div>
+
+      {subTab === 'templates' && (
+        <>
+          {loadingTemplates ? (
+            <div className="space-y-3">{[1,2].map(i => <div key={i} className="bg-card border border-border rounded-xl p-4 animate-pulse h-20" />)}</div>
+          ) : templates.length === 0 ? (
+            <div className="bg-card border border-border rounded-xl p-10 text-center">
+              <Icon name="BookTemplate" className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">No templates saved yet. Save a list as a template from its detail view.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {templates.map(t => {
+                const depts = t.department ? t.department.split(',').map(d => d.trim()).filter(Boolean) : [];
+                const lastUsed = t.updated_at ? new Date(t.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+                return (
+                  <div key={t.id} className="bg-card border border-border rounded-xl p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-foreground text-sm">{t.title}</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {depts.map(d => <span key={d} className="text-xs px-2 py-0.5 bg-muted rounded text-muted-foreground">{d}</span>)}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">{t.item_count ?? '?'} items · Last used {lastUsed}</p>
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <button onClick={() => handlePreview(t)} className="px-3 py-1.5 text-xs border border-border rounded-lg text-muted-foreground hover:bg-muted transition-colors">
+                          {previewId === t.id ? 'Hide' : 'Preview'}
+                        </button>
+                        <button onClick={() => handleUseTemplate(t)} className="px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
+                          Use template
+                        </button>
+                      </div>
+                    </div>
+                    {previewId === t.id && (
+                      <div className="mt-3 pt-3 border-t border-border space-y-1">
+                        {previewItems.map((i, idx) => (
+                          <div key={idx} className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span className="text-foreground">{i.name}</span>
+                            <span>·</span>
+                            <span>{i.quantity_ordered} {i.unit}</span>
+                            {i.brand && <span className="text-slate-500">{i.brand}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {subTab === 'history' && (
+        <>
+          <div className="flex gap-2">
+            <input value={historySearch} onChange={e => setHistorySearch(e.target.value)} placeholder="Search items, brands, categories…" className={`flex-1 ${inputCls}`} />
+            <select value={historyDept} onChange={e => setHistoryDept(e.target.value)} className={inputCls}>
+              <option value="all">All departments</option>
+              {deptList.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
+
+          {loadingHistory ? (
+            <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="bg-card border border-border rounded-xl p-4 animate-pulse h-12" />)}</div>
+          ) : filteredHistory.length === 0 ? (
+            <div className="bg-card border border-border rounded-xl p-10 text-center">
+              <Icon name="History" className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">{history.length === 0 ? 'Your master order history will build automatically as deliveries are logged. Start by creating and delivering your first provisioning list.' : 'No items match your search.'}</p>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-4">
+                {Object.entries(grouped).map(([dept, cats]) => {
+                  const deptItems = filteredHistory.filter(h => (h.department||'Other') === dept);
+                  const deptKeys = deptItems.map(h => `${h.name}|${h.brand}|${h.size}`);
+                  const allDeptChecked = deptKeys.length > 0 && deptKeys.every(k => checked.has(k));
+                  return (
+                    <div key={dept} className="bg-card border border-border rounded-xl overflow-hidden">
+                      <div className="flex items-center gap-3 px-4 py-2.5 bg-muted/40 border-b border-border">
+                        <input type="checkbox" checked={allDeptChecked} onChange={() => toggleDeptAll(dept)} className="rounded border-border" />
+                        <span className="text-xs font-semibold text-foreground uppercase tracking-wide">{dept}</span>
+                        <span className="text-xs text-muted-foreground ml-auto">{deptItems.length} items</span>
+                      </div>
+                      {Object.entries(cats).map(([cat, catItems]) => (
+                        <div key={cat}>
+                          <div className="px-4 py-1.5 bg-muted/20 border-b border-border/50">
+                            <span className="text-xs text-muted-foreground">{cat}</span>
+                          </div>
+                          {catItems.map(h => {
+                            const key = `${h.name}|${h.brand}|${h.size}`;
+                            const daysAgo = h.last_ordered_date ? Math.round((Date.now() - new Date(h.last_ordered_date)) / 86400000) : null;
+                            return (
+                              <div key={key} className="flex items-center gap-3 px-4 py-2.5 border-b border-border/40 hover:bg-muted/20 transition-colors">
+                                <input type="checkbox" checked={checked.has(key)} onChange={() => toggleChecked(key)} className="rounded border-border" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-sm text-foreground">{h.name}</span>
+                                    {h.brand && <span className="text-xs text-muted-foreground">{h.brand}</span>}
+                                    {h.size && <span className="text-xs text-muted-foreground">{h.size}</span>}
+                                    <span className="text-xs px-1.5 py-0.5 bg-muted rounded text-muted-foreground">{dept}</span>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">{cat}</p>
+                                </div>
+                                <span className="text-xs text-muted-foreground shrink-0">×{h.times_ordered}</span>
+                                {daysAgo != null && <span className="text-xs text-muted-foreground shrink-0">{daysAgo}d ago</span>}
+                                <div className="relative">
+                                  <button onClick={() => setOpenPopover(openPopover === key ? null : key)} className="p-1 text-muted-foreground hover:text-foreground transition-colors">
+                                    <Icon name="Info" className="w-3.5 h-3.5" />
+                                  </button>
+                                  {openPopover === key && (
+                                    <div className="absolute right-0 bottom-7 z-20 bg-card border border-border rounded-lg p-3 shadow-lg text-xs space-y-1 w-44">
+                                      <p className="text-muted-foreground">Last ordered: <span className="text-foreground font-medium">{h.last_quantity != null ? `${h.last_quantity} ${h.unit}` : '—'}</span></p>
+                                      <p className="text-muted-foreground">Average: <span className="text-foreground font-medium">{h.avg_quantity != null ? `${h.avg_quantity} ${h.unit}` : '—'}</span></p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+              {checked.size > 0 && (
+                <div className="sticky bottom-0 bg-background/90 backdrop-blur border-t border-border pt-3 pb-1">
+                  <button onClick={handleAddSelected} className="w-full py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors">
+                    Add {checked.size} selected item{checked.size !== 1 ? 's' : ''} to list
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </>
+      )}
     </div>
   );
 };
