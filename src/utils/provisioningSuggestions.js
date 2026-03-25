@@ -260,6 +260,88 @@ async function getLocationAwareSuggestions(tripId) {
   }
 }
 
+// ── Query 5: Master History ────────────────────────────────────────────────────
+
+/**
+ * Surface items ordered 3+ times historically that are not on the current list
+ * and not already covered by low_stock suggestions.
+ */
+export async function getMasterHistorySuggestions(vesselId, currentItems = []) {
+  try {
+    const { data: lists } = await supabase
+      ?.from('provisioning_lists')
+      ?.select('id')
+      ?.eq('vessel_id', vesselId)
+      ?.eq('status', 'delivered');
+
+    if (!lists?.length) return [];
+    const listIds = lists.map(l => l.id);
+
+    const { data: items } = await supabase
+      ?.from('provisioning_items')
+      ?.select('name, brand, size, category, sub_category, department, unit, quantity_ordered, created_at')
+      ?.in('list_id', listIds);
+
+    if (!items?.length) return [];
+
+    const historyMap = {};
+    items.forEach(item => {
+      const key = (item.name || '').toLowerCase().trim();
+      if (!key) return;
+      if (!historyMap[key]) {
+        historyMap[key] = {
+          name: item.name,
+          brand: item.brand || '',
+          size: item.size || '',
+          category: item.category || '',
+          sub_category: item.sub_category || '',
+          department: item.department || 'Galley',
+          unit: item.unit || 'each',
+          count: 0,
+          dates: [],
+        };
+      }
+      historyMap[key].count += 1;
+      if (item.created_at) historyMap[key].dates.push(new Date(item.created_at));
+    });
+
+    // Items already on the current list (by lowercase name)
+    const currentNames = new Set((currentItems || []).map(i => (i.name || '').toLowerCase().trim()));
+
+    const suggestions = [];
+    Object.values(historyMap).forEach(h => {
+      if (h.count < 3) return;
+      if (currentNames.has(h.name.toLowerCase().trim())) return;
+
+      const lastDate = h.dates.length ? new Date(Math.max(...h.dates)) : null;
+      const daysAgo = lastDate ? Math.round((Date.now() - lastDate) / 86400000) : null;
+
+      suggestions.push({
+        id: `master_${h.name.replace(/\s/g, '_')}_${Math.random().toString(36).slice(2)}`,
+        name: h.name,
+        brand: h.brand,
+        size: h.size,
+        category: h.category,
+        sub_category: h.sub_category,
+        department: h.department,
+        source: 'master_history',
+        reason: `Ordered ${h.count} time${h.count !== 1 ? 's' : ''} previously${daysAgo != null ? `, last ordered ${daysAgo} days ago` : ''}`,
+        priority: 'normal',
+        quantity_ordered: 1,
+        unit: h.unit,
+        allergen_flags: [],
+        times_ordered: h.count,
+        last_ordered_days_ago: daysAgo,
+      });
+    });
+
+    return suggestions.sort((a, b) => b.times_ordered - a.times_ordered);
+  } catch (err) {
+    console.warn('[provisioningSuggestions] master history query failed:', err);
+    return [];
+  }
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 
 /**
@@ -268,14 +350,16 @@ async function getLocationAwareSuggestions(tripId) {
  *
  * @param {string} tripId
  * @param {string} vesselId   — maps to tenant_id in this codebase
- * @returns {Promise<Object>} { guest_preference, low_stock, invoice_pattern, location_aware }
+ * @param {Array}  currentItems — items already on the list (to exclude from master_history)
+ * @returns {Promise<Object>}
  */
-export async function getSmartSuggestions(tripId, vesselId) {
-  const [guestPrefs, lowStock, invoicePattern, locationAware] = await Promise.allSettled([
+export async function getSmartSuggestions(tripId, vesselId, currentItems = []) {
+  const [guestPrefs, lowStock, invoicePattern, locationAware, masterHistory] = await Promise.allSettled([
     tripId ? getGuestPreferenceSuggestions(tripId, vesselId) : Promise.resolve([]),
     getLowStockSuggestions(vesselId),
     getInvoicePatternSuggestions(vesselId),
     tripId ? getLocationAwareSuggestions(tripId) : Promise.resolve([]),
+    getMasterHistorySuggestions(vesselId, currentItems),
   ]);
 
   return {
@@ -283,6 +367,7 @@ export async function getSmartSuggestions(tripId, vesselId) {
     low_stock: lowStock.status === 'fulfilled' ? lowStock.value : [],
     invoice_pattern: invoicePattern.status === 'fulfilled' ? invoicePattern.value : [],
     location_aware: locationAware.status === 'fulfilled' ? locationAware.value : [],
+    master_history: masterHistory.status === 'fulfilled' ? masterHistory.value : [],
   };
 }
 
@@ -291,4 +376,5 @@ export const SOURCE_META = {
   low_stock: { label: 'Low Stock', icon: 'AlertTriangle', color: 'text-amber-500' },
   invoice_pattern: { label: 'Regular Order', icon: 'RefreshCw', color: 'text-blue-500' },
   location_aware: { label: 'Location / Passage', icon: 'Map', color: 'text-green-500' },
+  master_history: { label: 'Regular Orders', icon: 'History', color: 'text-teal-500' },
 };
