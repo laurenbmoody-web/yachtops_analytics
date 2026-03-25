@@ -679,6 +679,8 @@ export const AuthProvider = ({ children }) => {
       lastBootstrappedUserId.current = null;
       bootstrapInProgress.current = false;
       setBootstrapComplete(false);
+      setTenantError(null);
+      setLoading(true); // Triggers [session, loading] bootstrap effect
     },
     signOut: async () => {
       await supabase?.auth?.signOut();
