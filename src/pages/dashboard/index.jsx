@@ -26,6 +26,7 @@ import ReportDefectModal from '../defects/components/ReportDefectModal';
 import ComprehensiveJobModal from '../team-jobs-management/components/ComprehensiveJobModal';
 import SortableWidget from './components/SortableWidget';
 import DashboardEditBar from './components/DashboardEditBar';
+import ProvisioningWidget from './components/ProvisioningWidget';
 
 import { useDashboardLayout } from './useDashboardLayout';
 import { supabase } from '../../lib/supabaseClient';
@@ -168,6 +169,8 @@ const Dashboard = () => {
         return <AccountsWidget title="Owner Accounts" account={OWNER_ACCOUNT} />;
       case 'inventoryHealth':
         return <InventoryHealthWidget />;
+      case 'provisioning':
+        return <ProvisioningWidget />;
       default:
         return null;
     }
