@@ -180,6 +180,7 @@ const Header = () => {
     { label: 'Inventory', path: '/inventory', icon: 'Package' },
     { label: 'Laundry', path: '/laundry-management-dashboard', icon: 'Shirt' },
     { label: 'Trips', path: '/trips-management-dashboard', icon: 'Map' },
+    { label: 'Provisioning', path: '/provisioning', icon: 'ShoppingBag' },
     { label: 'Guests', path: '/guest-management-dashboard', icon: 'Users' },
     { label: 'Crew', path: '/crew-management', icon: 'Users' },
     { label: 'Jobs', path: '/team-jobs-management', icon: 'CheckSquare' },

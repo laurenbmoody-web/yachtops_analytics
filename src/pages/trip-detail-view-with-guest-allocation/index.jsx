@@ -16,6 +16,8 @@ import { createGuest } from '../guest-management-dashboard/utils/guestStorage';
 import { getCurrentUser } from '../../utils/authStorage';
 import { showToast } from '../../utils/toast';
 import { canAccessTrips, canEditTrip, canDeleteTrip } from '../trips-management-dashboard/utils/tripPermissions';
+import { fetchProvisioningListsByTrip } from '../provisioning/utils/provisioningStorage';
+import StatusBadge from '../provisioning/components/StatusBadge';
 
 
 import AddOrSelectGuestModal from './components/AddOrSelectGuestModal';
@@ -57,6 +59,10 @@ const TripDetailView = () => {
   // Photo upload state
   const [photos, setPhotos] = useState([]);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
+  // Provisioning state
+  const [provisioningLists, setProvisioningLists] = useState([]);
+  const [provisioningLoading, setProvisioningLoading] = useState(false);
 
   const permissions = {
     canEdit: canEditTrip(currentUser),
@@ -104,6 +110,17 @@ const TripDetailView = () => {
       setActiveSection('overview');
     }
   }, [location]);
+
+  // Load provisioning lists when provisioning tab is active
+  useEffect(() => {
+    if (activeSection === 'provisioning' && tripId) {
+      setProvisioningLoading(true);
+      fetchProvisioningListsByTrip(tripId)
+        .then(lists => setProvisioningLists(lists || []))
+        .catch(() => setProvisioningLists([]))
+        .finally(() => setProvisioningLoading(false));
+    }
+  }, [activeSection, tripId]);
 
   const loadTripData = () => {
     const tripData = getTripById(tripId);
@@ -352,6 +369,14 @@ const TripDetailView = () => {
                 }`}
               >
                 Activity
+              </button>
+              <button
+                onClick={() => navigate(`/trips/${tripId}?tab=provisioning`)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-smooth text-left ${
+                  activeSection === 'provisioning' ?'bg-primary text-primary-foreground' :'bg-card text-muted-foreground hover:bg-muted hover:text-foreground'
+                }`}
+              >
+                Provisioning
               </button>
             </nav>
           </div>
@@ -839,6 +864,79 @@ const TripDetailView = () => {
                     >
                       <Icon name="Upload" size={16} />
                       Upload First Photo
+                    </Button>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
+          {activeSection === 'provisioning' && (
+            <>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-semibold text-foreground">Provisioning</h2>
+                {(currentUser?.role === 'COMMAND' || currentUser?.role === 'CHIEF') && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => navigate(`/provisioning/new?trip_id=${tripId}`)}
+                  >
+                    <Icon name="Plus" size={16} className="mr-1" />
+                    Create Provisioning List
+                  </Button>
+                )}
+              </div>
+              {provisioningLoading ? (
+                <div className="space-y-3">
+                  {[1, 2].map(i => (
+                    <div key={i} className="bg-card border border-border rounded-xl p-4 animate-pulse">
+                      <div className="h-4 bg-muted rounded w-1/3 mb-2" />
+                      <div className="h-3 bg-muted rounded w-1/4" />
+                    </div>
+                  ))}
+                </div>
+              ) : provisioningLists.length > 0 ? (
+                <div className="space-y-3">
+                  {provisioningLists.map(list => (
+                    <div
+                      key={list.id}
+                      className="bg-card border border-border rounded-xl p-4 flex items-center justify-between cursor-pointer hover:border-primary/50 transition-colors"
+                      onClick={() => navigate(`/provisioning/${list.id}`)}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <p className="font-medium text-foreground truncate">{list.title}</p>
+                          <StatusBadge status={list.status} />
+                        </div>
+                        <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                          {list.department && (
+                            <span className="capitalize">{list.department.replace(/_/g, ' ')}</span>
+                          )}
+                          {list.item_count != null && (
+                            <span>{list.item_count} item{list.item_count !== 1 ? 's' : ''}</span>
+                          )}
+                          {list.estimated_cost != null && (
+                            <span>Est. {new Intl.NumberFormat('en-US', { style: 'currency', currency: list.currency || 'USD', maximumFractionDigits: 0 }).format(list.estimated_cost)}</span>
+                          )}
+                        </div>
+                      </div>
+                      <Icon name="ChevronRight" size={18} className="text-muted-foreground flex-shrink-0 ml-3" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-card border border-border rounded-xl p-12 text-center">
+                  <Icon name="ShoppingBag" size={48} className="text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground font-medium mb-2">No provisioning lists yet</p>
+                  <p className="text-sm text-muted-foreground mb-6">Create a provisioning list to manage supplies for this trip.</p>
+                  {(currentUser?.role === 'COMMAND' || currentUser?.role === 'CHIEF') && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => navigate(`/provisioning/new?trip_id=${tripId}`)}
+                    >
+                      <Icon name="Plus" size={16} className="mr-1" />
+                      Create Provisioning List
                     </Button>
                   )}
                 </div>

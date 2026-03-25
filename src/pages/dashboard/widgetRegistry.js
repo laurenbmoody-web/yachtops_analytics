@@ -60,10 +60,16 @@ export const WIDGET_META = {
     allowedTiers: WIDGET_PERMISSIONS.ALL,
     defaultColumn: 'right',
   },
+  provisioning: {
+    id: 'provisioning',
+    title: 'Provisioning',
+    allowedTiers: WIDGET_PERMISSIONS.ALL,
+    defaultColumn: 'right',
+  },
 };
 
 export const DEFAULT_LAYOUT = {
   left:   ['teamJobs', 'todaySnapshot', 'recentActivity'],
   center: ['vesselView', 'laundry', 'quickActions'],
-  right:  ['charterAccounts', 'ownerAccounts', 'inventoryHealth'],
+  right:  ['charterAccounts', 'ownerAccounts', 'inventoryHealth', 'provisioning'],
 };
