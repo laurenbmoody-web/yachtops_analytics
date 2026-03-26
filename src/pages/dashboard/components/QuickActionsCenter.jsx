@@ -1,47 +1,48 @@
 import React from 'react';
-import Icon from '../../../components/AppIcon';
+import { Plus, Package, AlertTriangle, ClipboardCheck } from 'lucide-react';
 
 const QuickActionsCenter = ({ onAddInventory, onLogDelivery, onReportDefect, onCreateJob }) => {
   const actions = [
-    { 
-      label: 'Add inventory item', 
-      icon: 'Plus', 
-      onClick: onAddInventory,
-      color: 'bg-primary/90 hover:bg-primary'
-    },
-    { 
-      label: 'Log delivery', 
-      icon: 'Package', 
-      onClick: onLogDelivery,
-      color: 'bg-primary/90 hover:bg-primary'
-    },
-    { 
-      label: 'Report defect', 
-      icon: 'AlertTriangle', 
-      onClick: onReportDefect,
-      color: 'bg-primary/90 hover:bg-primary'
-    },
-    { 
-      label: 'Create job', 
-      icon: 'CheckSquare', 
-      onClick: onCreateJob,
-      color: 'bg-primary/90 hover:bg-primary'
-    }
+    { icon: Plus,           label: 'Add inventory item', onClick: onAddInventory },
+    { icon: Package,        label: 'Log delivery',        onClick: onLogDelivery },
+    { icon: AlertTriangle,  label: 'Report defect',       onClick: onReportDefect },
+    { icon: ClipboardCheck, label: 'Create job',          onClick: onCreateJob },
   ];
 
   return (
-    <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
+    <div className="bg-card rounded-xl p-5 shadow-sm">
       <h3 className="text-sm font-semibold text-foreground mb-4">Quick actions</h3>
-      <div className="grid grid-cols-2 gap-3">
-        {actions?.map((action, index) => (
-          <button
-            key={index}
-            onClick={action?.onClick}
-            className={`${action?.color} text-white rounded-lg p-4 transition-all duration-200 shadow-sm hover:shadow-md flex items-center justify-center gap-2 font-medium text-sm`}
-          >
-            <Icon name={action?.icon} className="w-5 h-5" />
-            {action?.label}
-          </button>
+      <div className="flex items-center justify-center gap-7 py-3">
+        {actions.map(({ icon: Icon, label, onClick }) => (
+          <div key={label} className="relative group">
+            <button
+              onClick={onClick}
+              className="
+                w-[62px] h-[62px] rounded-full
+                flex items-center justify-center
+                bg-card text-foreground
+                border-[1.5px] border-foreground border-b-[4px]
+                shadow-sm
+                transition-all duration-[250ms] ease-out
+                hover:bg-foreground hover:text-card hover:border-foreground
+                hover:shadow-lg hover:-translate-y-0.5
+              "
+            >
+              <Icon className="w-6 h-6" />
+            </button>
+            <span
+              className="
+                hidden group-hover:block
+                absolute top-full left-1/2 -translate-x-1/2 mt-2.5
+                whitespace-nowrap text-[11px] font-medium
+                text-foreground bg-card
+                px-2.5 py-1 rounded-md shadow-md
+                pointer-events-none z-50
+              "
+            >
+              {label}
+            </span>
+          </div>
         ))}
       </div>
     </div>
