@@ -218,22 +218,7 @@ const Dashboard = () => {
       <div className={`min-h-screen bg-background ${isEditing ? 'pb-20' : ''}`}>
         <Header />
 
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          {/* Top bar: Customise button */}
-          <div className="flex justify-end mb-4">
-            <button
-              onClick={() => setIsEditing((v) => !v)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border transition-colors ${
-                isEditing
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-card text-muted-foreground border-border hover:bg-muted'
-              }`}
-            >
-              <Settings2 className="w-4 h-4" />
-              {isEditing ? 'Editing layout…' : 'Customise Layout'}
-            </button>
-          </div>
-
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-6">
           {/* 3-Column Grid with DnD */}
           <DndContext
             sensors={sensors}
@@ -256,6 +241,21 @@ const Dashboard = () => {
               ) : null}
             </DragOverlay>
           </DndContext>
+        </div>
+
+        {/* Customise Layout — fixed bottom-right */}
+        <div className="fixed bottom-6 right-6 z-50">
+          <button
+            onClick={() => setIsEditing((v) => !v)}
+            className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-xl border shadow-lg transition-colors ${
+              isEditing
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-card text-muted-foreground border-border hover:bg-muted'
+            }`}
+          >
+            <Settings2 className="w-4 h-4" />
+            {isEditing ? 'Editing layout…' : 'Customise Layout'}
+          </button>
         </div>
 
         {/* Edit mode bar */}
