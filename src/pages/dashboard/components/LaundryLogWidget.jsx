@@ -110,7 +110,7 @@ const LaundryLogWidget = () => {
 
   return (
     <>
-      <div className="relative flex items-center justify-center py-16">
+      <div className="relative flex items-center justify-center py-10">
         {/* Pill-shaped widget with two-tone coloring */}
         <div className="relative flex items-stretch h-24 w-full max-w-2xl rounded-full overflow-hidden shadow-lg">
           {/* LEFT SECTION - Dark Navy with ITEMS IN */}
