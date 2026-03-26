@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
@@ -529,4 +529,46 @@ input.invite-readonly-field[readonly]:-webkit-autofill:active {
   -webkit-text-fill-color: #F1F5F9 !important;
   -webkit-box-shadow: 0 0 0 1000px #334155 inset !important;
   box-shadow: 0 0 0 1000px #334155 inset !important;
+}
+
+/* ─── Typography ─────────────────────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 { font-family: 'Outfit', sans-serif; }
+body, p, span, button, input, textarea, select { font-family: 'Plus Jakarta Sans', sans-serif; }
+
+/* ─── Card 3D bottom edge ────────────────────────────────────────────────── */
+.bg-card {
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 5px solid rgba(255, 255, 255, 0.25);
+  border-radius: 18px;
+  transition: border-bottom-width 0.15s ease, transform 0.15s ease;
+}
+.bg-card:hover {
+  border-bottom-width: 6px;
+  transform: translateY(-1px);
+}
+
+/* Day theme overrides for card border */
+.day .bg-card,
+[data-theme="day"] .bg-card {
+  border-color: #1a1a1a;
+  border-bottom-color: #1a1a1a;
+}
+
+/* ─── Quick action round button ──────────────────────────────────────────── */
+.quick-action-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #FAF8F4;
+  border: 1.5px solid #d1ccc4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s ease;
+}
+.quick-action-btn:hover {
+  background: #1a1a1a;
+  border-color: #1a1a1a;
+  color: #ffffff;
+  transform: scale(1.08);
 }
