@@ -535,14 +535,14 @@ input.invite-readonly-field[readonly]:-webkit-autofill:active {
 h1, h2, h3, h4, h5, h6 { font-family: 'Outfit', sans-serif; }
 body, p, span, button, input, textarea, select { font-family: 'Plus Jakarta Sans', sans-serif; }
 
-/* ─── Card 3D bottom edge ────────────────────────────────────────────────── */
-.bg-card {
+/* ─── Card 3D bottom edge — divs only, not buttons/inputs ───────────────── */
+div.bg-card {
   border: 1.5px solid rgba(255, 255, 255, 0.12);
   border-bottom: 5px solid rgba(255, 255, 255, 0.25);
   border-radius: 18px;
   transition: border-bottom-width 0.15s ease, transform 0.15s ease;
 }
-.bg-card:hover {
+div.bg-card:hover {
   border-bottom-width: 6px;
   transform: translateY(-1px);
 }
@@ -557,8 +557,8 @@ body, p, span, button, input, textarea, select { font-family: 'Plus Jakarta Sans
 }
 
 /* Day theme overrides for card border */
-.day .bg-card,
-[data-theme="day"] .bg-card {
+.day div.bg-card,
+[data-theme="day"] div.bg-card {
   border-color: #1a1a1a;
   border-bottom-color: #1a1a1a;
 }

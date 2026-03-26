@@ -143,7 +143,7 @@ const Dashboard = () => {
       case 'vesselView':
         return (
           <div
-            className="bg-card border border-border rounded-xl shadow-sm overflow-hidden"
+            className="rounded-xl overflow-hidden"
             style={{ boxShadow: '0 0 40px rgba(74,144,226,0.15), 0 4px 6px rgba(0,0,0,0.1)' }}
           >
             <BlueprintNavigator
@@ -218,7 +218,7 @@ const Dashboard = () => {
       <div className={`min-h-screen bg-background ${isEditing ? 'pb-20' : ''}`}>
         <Header />
 
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-[72px] pb-6">
+        <div className="max-w-[1600px] mx-auto px-6 pb-6 pt-20">
           {/* 3-Column Grid with DnD */}
           <DndContext
             sensors={sensors}
