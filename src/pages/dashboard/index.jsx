@@ -218,7 +218,7 @@ const Dashboard = () => {
       <div className={`min-h-screen bg-background ${isEditing ? 'pb-20' : ''}`}>
         <Header />
 
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-6">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-[72px] pb-6">
           {/* 3-Column Grid with DnD */}
           <DndContext
             sensors={sensors}
