@@ -547,6 +547,15 @@ body, p, span, button, input, textarea, select { font-family: 'Plus Jakarta Sans
   transform: translateY(-1px);
 }
 
+/* Nav bar resets — no 3D edge, no radius, no hover lift */
+.nav-header,
+.nav-header:hover {
+  border: none !important;
+  border-radius: 0 !important;
+  transform: none !important;
+  transition: none !important;
+}
+
 /* Day theme overrides for card border */
 .day .bg-card,
 [data-theme="day"] .bg-card {
