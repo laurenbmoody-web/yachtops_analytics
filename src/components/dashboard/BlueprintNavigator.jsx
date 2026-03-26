@@ -15,15 +15,16 @@ const BlueprintNavigator = ({ heroImageUrl, useCustomHero }) => {
     : '/assets/images/yacht_blueprint-1770460015354.png';
 
   return (
-    <div 
+    <div
       style={{
-        display: 'inline-block',
+        display: 'block',
         padding: 0,
         margin: 0,
         overflow: 'hidden',
         borderRadius: '16px',
         background: 'transparent',
-        width: '100%'
+        width: '100%',
+        lineHeight: 0,
       }}
     >
       {!imageError || shouldShowCustom ? (
@@ -33,10 +34,11 @@ const BlueprintNavigator = ({ heroImageUrl, useCustomHero }) => {
           onError={handleImageError}
           style={{
             display: 'block',
-            width: shouldShowCustom ? '100%' : 'auto',
-            height: shouldShowCustom ? '100%' : 'auto',
+            width: '100%',
+            height: 'auto',
             maxWidth: '100%',
-            objectFit: shouldShowCustom ? 'cover' : 'unset'
+            objectFit: 'cover',
+            verticalAlign: 'top',
           }}
         />
       ) : (
