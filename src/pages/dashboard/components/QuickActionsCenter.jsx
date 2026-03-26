@@ -10,10 +10,8 @@ const QuickActionsCenter = ({ onAddInventory, onLogDelivery, onReportDefect, onC
   ];
 
   return (
-    <div className="bg-card rounded-xl p-5 shadow-sm">
-      <h3 className="text-sm font-semibold text-foreground mb-4">Quick actions</h3>
-      <div className="flex items-center justify-center gap-7 py-3">
-        {actions.map(({ icon: Icon, label, onClick }) => (
+    <div className="flex items-center justify-center gap-7 py-3">
+      {actions.map(({ icon: Icon, label, onClick }) => (
           <div key={label} className="relative group">
             <button
               onClick={onClick}
@@ -43,8 +41,7 @@ const QuickActionsCenter = ({ onAddInventory, onLogDelivery, onReportDefect, onC
               {label}
             </span>
           </div>
-        ))}
-      </div>
+      ))}
     </div>
   );
 };

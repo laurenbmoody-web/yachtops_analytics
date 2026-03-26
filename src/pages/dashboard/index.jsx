@@ -143,7 +143,7 @@ const Dashboard = () => {
       case 'vesselView':
         return (
           <div
-            className="bg-card border border-border rounded-xl shadow-sm"
+            className="bg-card border border-border rounded-xl shadow-sm overflow-hidden"
             style={{ boxShadow: '0 0 40px rgba(74,144,226,0.15), 0 4px 6px rgba(0,0,0,0.1)' }}
           >
             <BlueprintNavigator
