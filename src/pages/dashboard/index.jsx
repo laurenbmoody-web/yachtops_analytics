@@ -241,21 +241,21 @@ const Dashboard = () => {
               ) : null}
             </DragOverlay>
           </DndContext>
-        </div>
 
-        {/* Customise Layout — fixed bottom-right */}
-        <div className="fixed bottom-6 right-6 z-50">
-          <button
-            onClick={() => setIsEditing((v) => !v)}
-            className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-xl border shadow-lg transition-colors ${
-              isEditing
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-card text-muted-foreground border-border hover:bg-muted'
-            }`}
-          >
-            <Settings2 className="w-4 h-4" />
-            {isEditing ? 'Editing layout…' : 'Customise Layout'}
-          </button>
+          {/* Customise Layout — bottom of page, right-aligned */}
+          <div className="flex justify-end mt-8">
+            <button
+              onClick={() => setIsEditing((v) => !v)}
+              className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-xl border transition-colors ${
+                isEditing
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-card text-muted-foreground border-border hover:bg-muted'
+              }`}
+            >
+              <Settings2 className="w-4 h-4" />
+              {isEditing ? 'Editing layout…' : 'Customise Layout'}
+            </button>
+          </div>
         </div>
 
         {/* Edit mode bar */}
