@@ -93,7 +93,7 @@ const BODY = {
 };
 const FOOTER = {
   padding: '16px 24px',
-  borderTop: '1px solid rgba(255,255,255,0.06)',
+  borderTop: '1px solid rgba(255,255,255,0.08)',
   display: 'flex',
   alignItems: 'center',
   gap: 10,
@@ -102,25 +102,26 @@ const FOOTER = {
 
 const inputStyle = {
   width: '100%',
-  backgroundColor: 'rgba(255,255,255,0.05)',
+  height: 40,
+  backgroundColor: 'rgba(255,255,255,0.06)',
   border: '1px solid rgba(255,255,255,0.1)',
-  borderRadius: 7,
-  padding: '8px 11px',
+  borderRadius: 8,
+  padding: '0 12px',
   fontSize: 13,
   color: 'white',
   outline: 'none',
   boxSizing: 'border-box',
 };
 const labelStyle = {
-  fontSize: 11,
+  fontSize: 10,
   fontWeight: 600,
-  color: 'rgba(255,255,255,0.5)',
+  color: 'rgba(255,255,255,0.4)',
   marginBottom: 6,
   display: 'block',
   textTransform: 'uppercase',
-  letterSpacing: '0.06em',
+  letterSpacing: '0.1em',
 };
-const fieldWrap = { marginBottom: 16 };
+const fieldWrap = { marginBottom: 20 };
 const rowGrid = (cols) => ({
   display: 'grid',
   gridTemplateColumns: cols,
@@ -128,10 +129,10 @@ const rowGrid = (cols) => ({
 });
 
 const btnBlue = {
-  backgroundColor: '#3B82F6',
+  backgroundColor: '#4A90E2',
   border: 'none',
-  borderRadius: 7,
-  padding: '9px 18px',
+  borderRadius: 8,
+  padding: '9px 20px',
   fontSize: 13,
   fontWeight: 600,
   color: 'white',
@@ -140,10 +141,10 @@ const btnBlue = {
 const btnGhost = {
   backgroundColor: 'transparent',
   border: '1px solid rgba(255,255,255,0.12)',
-  borderRadius: 7,
+  borderRadius: 8,
   padding: '9px 18px',
   fontSize: 13,
-  color: 'rgba(255,255,255,0.6)',
+  color: 'rgba(255,255,255,0.5)',
   cursor: 'pointer',
 };
 const btnDisabled = {
@@ -208,6 +209,7 @@ const CreateProvisioningListModal = ({
   const [previewTemplateId, setPreviewTemplateId] = useState(null);
   const [previewItems, setPreviewItems] = useState([]);
   const [historyPopKey, setHistoryPopKey] = useState(null);
+  const [expandedNotes, setExpandedNotes] = useState(new Set());
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [selectedSuggestions, setSelectedSuggestions] = useState(new Set());
 
@@ -231,6 +233,7 @@ const CreateProvisioningListModal = ({
       setHistoryDept('');
       setHistorySubTab('templates');
       setPreviewTemplateId(null);
+      setExpandedNotes(new Set());
     }
   }, [isOpen]);
 
@@ -653,7 +656,7 @@ const CreateProvisioningListModal = ({
         {/* Header */}
         <div style={HEADER}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'white' }}>New Provisioning List</h2>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'white' }}>New Provisioning List</h2>
             <button
               onClick={onClose}
               style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}
@@ -675,10 +678,10 @@ const CreateProvisioningListModal = ({
                 style={{
                   background: 'none',
                   border: 'none',
-                  borderBottom: activeTab === tab.key ? '2px solid #3B82F6' : '2px solid transparent',
+                  borderBottom: activeTab === tab.key ? '2px solid #4A90E2' : '2px solid transparent',
                   padding: '8px 16px 10px',
                   fontSize: 13,
-                  fontWeight: activeTab === tab.key ? 600 : 400,
+                  fontWeight: activeTab === tab.key ? 600 : 500,
                   color: activeTab === tab.key ? 'white' : 'rgba(255,255,255,0.4)',
                   cursor: 'pointer',
                   marginBottom: -1,
@@ -745,9 +748,9 @@ const CreateProvisioningListModal = ({
                           borderRadius: 20,
                           fontSize: 12,
                           fontWeight: active ? 600 : 400,
-                          border: `1px solid ${active ? '#3B82F6' : 'rgba(255,255,255,0.12)'}`,
-                          backgroundColor: active ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.04)',
-                          color: active ? '#4A90E2' : 'rgba(255,255,255,0.5)',
+                          border: `1px solid ${active ? '#4A90E2' : 'rgba(255,255,255,0.12)'}`,
+                          backgroundColor: active ? '#4A90E2' : 'rgba(255,255,255,0.05)',
+                          color: active ? 'white' : 'rgba(255,255,255,0.5)',
                           cursor: 'pointer',
                         }}
                       >
@@ -787,24 +790,30 @@ const CreateProvisioningListModal = ({
               <div style={{ ...rowGrid('1fr 1fr'), ...fieldWrap }}>
                 <div>
                   <label style={labelStyle}>Estimated Cost</label>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <div style={{ display: 'flex', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 7, overflow: 'hidden', flexShrink: 0 }}>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                       {CURRENCIES.map(c => (
                         <button
                           key={c.code}
                           type="button"
                           onClick={() => setField('currency', c.code)}
                           style={{
-                            background: form.currency === c.code ? '#3B82F6' : 'rgba(255,255,255,0.05)',
-                            border: 'none',
-                            padding: '8px 10px',
-                            fontSize: 12,
+                            width: 36,
+                            height: 36,
+                            borderRadius: 8,
+                            border: form.currency === c.code ? 'none' : '1px solid rgba(255,255,255,0.1)',
+                            background: form.currency === c.code ? '#4A90E2' : 'rgba(255,255,255,0.05)',
+                            fontSize: 14,
                             fontWeight: 600,
-                            color: form.currency === c.code ? 'white' : 'rgba(255,255,255,0.45)',
+                            color: form.currency === c.code ? 'white' : 'rgba(255,255,255,0.5)',
                             cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: 0,
                           }}
                         >
-                          {c.symbol} {c.code}
+                          {c.symbol}
                         </button>
                       ))}
                     </div>
@@ -854,7 +863,7 @@ const CreateProvisioningListModal = ({
                 <div>
                   <label style={labelStyle}>Notes</label>
                   <textarea
-                    style={{ ...inputStyle, resize: 'vertical', minHeight: 70 }}
+                    style={{ ...inputStyle, height: 'auto', resize: 'none', minHeight: 80, padding: '10px 12px', lineHeight: 1.5 }}
                     placeholder="Any notes for this list..."
                     value={form.notes}
                     onChange={e => setField('notes', e.target.value)}
@@ -871,71 +880,73 @@ const CreateProvisioningListModal = ({
                   </span>
                 </div>
 
-                {/* Column headers */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 0.8fr 0.7fr 1fr 1fr 0.7fr 0.7fr 0.9fr 28px', gap: 5, marginBottom: 6, padding: '0 2px' }}>
-                  {['Item name','Brand','Size','Category','Sub-cat','Dept','Qty','Unit cost',''].map((h, i) => (
-                    <span key={i} style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</span>
-                  ))}
-                </div>
-
-                {items.map((item) => {
+                {items.map((item, idx) => {
                   const currSym = CURRENCIES.find(c => c.code === form.currency)?.symbol || '£';
                   const l2Options = CATEGORY_L2[item.category] || [];
+                  const noteExpanded = expandedNotes.has(item._id) || !!item.item_notes;
                   return (
-                    <div key={item._id} style={{ marginBottom: 8, backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 7, padding: '8px 8px 4px' }}>
-                      {/* Row 1: name, brand, size, category, sub-cat, dept, qty, unit, cost, delete */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 0.8fr 0.7fr 1fr 1fr 0.7fr 0.7fr 0.9fr 28px', gap: 5, alignItems: 'center' }}>
-                        <input style={inputStyle} placeholder="Item name" value={item.name} onChange={e => updateItem(item._id, 'name', e.target.value)} />
-                        <input style={inputStyle} placeholder="Brand" value={item.brand || ''} onChange={e => updateItem(item._id, 'brand', e.target.value)} />
-                        <input style={inputStyle} placeholder="e.g. 500ml" value={item.size || ''} onChange={e => updateItem(item._id, 'size', e.target.value)} />
-                        <select
-                          style={{ ...inputStyle, color: item.category ? 'white' : 'rgba(255,255,255,0.35)' }}
-                          value={item.category || ''}
-                          onChange={e => { updateItem(item._id, 'category', e.target.value); updateItem(item._id, 'sub_category', ''); }}
-                        >
+                    <div key={item._id} style={{ marginBottom: 8, backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 14 }}>
+                      {/* Card header */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                        <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 13, cursor: 'grab', userSelect: 'none' }}>⠿</span>
+                        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', fontWeight: 500, flex: 1 }}>Item {idx + 1}</span>
+                        <button
+                          onClick={() => removeItem(item._id)}
+                          title="Remove"
+                          style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', fontSize: 15, cursor: 'pointer', padding: 0, lineHeight: 1 }}
+                          onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                          onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.3)'}
+                        >🗑</button>
+                      </div>
+                      {/* Row 1: name, brand, size */}
+                      <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
+                        <input style={{ ...inputStyle, flex: 2 }} placeholder="Item name" value={item.name} onChange={e => updateItem(item._id, 'name', e.target.value)} />
+                        <input style={{ ...inputStyle, flex: 1 }} placeholder="Brand" value={item.brand || ''} onChange={e => updateItem(item._id, 'brand', e.target.value)} />
+                        <input style={{ ...inputStyle, flex: 1 }} placeholder="Size e.g. 500ml" value={item.size || ''} onChange={e => updateItem(item._id, 'size', e.target.value)} />
+                      </div>
+                      {/* Row 2: category, sub-cat, dept, qty, unit cost */}
+                      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                        <select style={{ ...inputStyle, flex: '1.5 1 0', minWidth: 0, color: item.category ? 'white' : 'rgba(255,255,255,0.35)' }} value={item.category || ''} onChange={e => { updateItem(item._id, 'category', e.target.value); updateItem(item._id, 'sub_category', ''); }}>
                           <option value="">Category</option>
                           {CATEGORY_L1.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
-                        <select
-                          style={{ ...inputStyle, color: item.sub_category ? 'white' : 'rgba(255,255,255,0.35)' }}
-                          value={item.sub_category || ''}
-                          onChange={e => updateItem(item._id, 'sub_category', e.target.value)}
-                          disabled={!item.category}
-                        >
-                          <option value="">Sub-cat</option>
+                        <select style={{ ...inputStyle, flex: '1.5 1 0', minWidth: 0, color: item.sub_category ? 'white' : 'rgba(255,255,255,0.35)' }} value={item.sub_category || ''} onChange={e => updateItem(item._id, 'sub_category', e.target.value)} disabled={!item.category}>
+                          <option value="">Sub-category</option>
                           {l2Options.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
-                        <select
-                          style={{ ...inputStyle, color: item.department ? 'white' : 'rgba(255,255,255,0.35)' }}
-                          value={item.department}
-                          onChange={e => updateItem(item._id, 'department', e.target.value)}
-                        >
+                        <select style={{ ...inputStyle, flex: '1 1 0', minWidth: 0, color: item.department ? 'white' : 'rgba(255,255,255,0.35)' }} value={item.department} onChange={e => updateItem(item._id, 'department', e.target.value)}>
                           <option value="">Dept</option>
                           {(form.departments.length ? form.departments : DEPARTMENTS).map(d => <option key={d} value={d}>{d}</option>)}
                         </select>
-                        <input type="number" min="0" style={inputStyle} placeholder="0" value={item.quantity_ordered} onChange={e => updateItem(item._id, 'quantity_ordered', e.target.value)} />
-                        <div style={{ position: 'relative' }}>
-                          <span style={{ position: 'absolute', left: 7, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }}>{currSym}</span>
-                          <input type="number" min="0" step="0.01" style={{ ...inputStyle, paddingLeft: 18 }} placeholder="0.00" value={item.estimated_unit_cost} onChange={e => updateItem(item._id, 'estimated_unit_cost', e.target.value)} />
+                        <input type="number" min="0" style={{ ...inputStyle, flex: '1 1 0', minWidth: 0 }} placeholder="Qty" value={item.quantity_ordered} onChange={e => updateItem(item._id, 'quantity_ordered', e.target.value)} />
+                        <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
+                          <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }}>{currSym}</span>
+                          <input type="number" min="0" step="0.01" style={{ ...inputStyle, width: '100%', paddingLeft: 26 }} placeholder="0.00" value={item.estimated_unit_cost} onChange={e => updateItem(item._id, 'estimated_unit_cost', e.target.value)} />
                         </div>
-                        <button onClick={() => removeItem(item._id)} title="Remove" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.25)', fontSize: 15, cursor: 'pointer', padding: 0, textAlign: 'center', lineHeight: 1 }}>🗑</button>
                       </div>
-                      {/* Row 2: item notes */}
-                      <div style={{ marginTop: 5, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {/* Row 3: notes */}
+                      {noteExpanded ? (
                         <input
-                          style={{ ...inputStyle, fontSize: 11, padding: '5px 9px', color: 'rgba(255,255,255,0.5)' }}
-                          placeholder="Item note e.g. check expiry, specific brand only"
+                          style={{ ...inputStyle, width: '100%', fontSize: 12, color: 'rgba(255,255,255,0.7)' }}
+                          placeholder="Item note — e.g. check expiry, preferred brand only"
                           value={item.item_notes || ''}
                           onChange={e => updateItem(item._id, 'item_notes', e.target.value)}
                         />
-                      </div>
+                      ) : (
+                        <button
+                          onClick={() => setExpandedNotes(prev => { const n = new Set(prev); n.add(item._id); return n; })}
+                          style={{ background: 'none', border: 'none', fontSize: 11, color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: 0 }}
+                        >+ Add note</button>
+                      )}
                     </div>
                   );
                 })}
 
                 <button
                   onClick={addItem}
-                  style={{ background: 'none', border: 'none', fontSize: 12, color: '#4A90E2', cursor: 'pointer', padding: '6px 0', marginTop: 4 }}
+                  style={{ width: '100%', background: 'transparent', border: '1px dashed rgba(255,255,255,0.15)', borderRadius: 8, padding: '10px 0', fontSize: 12, color: 'rgba(255,255,255,0.4)', cursor: 'pointer', marginTop: 4, textAlign: 'center', boxSizing: 'border-box' }}
+                  onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)'}
+                  onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
                   + Add item
                 </button>
@@ -1175,11 +1186,14 @@ const CreateProvisioningListModal = ({
 
         {/* Footer */}
         <div style={FOOTER}>
-          <button style={{ ...btnGhost, marginRight: 'auto' }} onClick={onClose} disabled={saving}>
+          <button style={{ ...btnGhost, marginRight: 'auto', color: 'rgba(255,255,255,0.5)' }} onClick={onClose} disabled={saving}>
             Cancel
           </button>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>
+            {items.filter(i => i.name.trim()).length} added
+          </span>
           <button
-            style={{ ...btnGhost, ...(saving ? btnDisabled : {}) }}
+            style={{ ...btnGhost, color: 'rgba(255,255,255,0.7)', ...(saving ? btnDisabled : {}) }}
             disabled={saving}
             onClick={() => handleSave('draft')}
           >
