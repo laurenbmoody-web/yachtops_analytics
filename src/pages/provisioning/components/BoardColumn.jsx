@@ -159,6 +159,13 @@ const QuickAddItem = ({ onAdd }) => {
 
 const CURRENCY_SYMBOLS = { GBP: '£', USD: '$', EUR: '€' };
 
+// department can be text[] from DB (array) or legacy comma-string — normalise to array
+const parseDept = (dept) => {
+  if (!dept) return [];
+  if (Array.isArray(dept)) return dept.filter(Boolean);
+  return dept.split(',').map(d => d.trim()).filter(Boolean);
+};
+
 const BoardColumn = ({
   list,
   items,

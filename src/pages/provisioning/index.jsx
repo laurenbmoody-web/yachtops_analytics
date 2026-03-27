@@ -133,7 +133,9 @@ const ProvisioningWorkspace = () => {
     if (list.is_private) return list.created_by === userId;
     if (userTier === 'COMMAND') return true;
     if (['CHIEF', 'HOD'].includes(userTier)) {
-      const listDepts = list.department ? list.department.split(',').map(d => d.trim()) : [];
+      const listDepts = Array.isArray(list.department)
+        ? list.department.filter(Boolean)
+        : (list.department ? list.department.split(',').map(d => d.trim()) : []);
       return !listDepts.length || listDepts.some(d => d === userDept) || list.created_by === userId;
     }
     return false;
@@ -198,7 +200,7 @@ const ProvisioningWorkspace = () => {
         order_by_date: order_by_date || null,
         status: PROVISIONING_STATUS.DRAFT,
         created_by: userId,
-        department: '',
+        department: [],
         port_location: '',
         notes: '',
         currency: 'USD',
