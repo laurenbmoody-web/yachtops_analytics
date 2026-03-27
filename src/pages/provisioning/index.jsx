@@ -25,16 +25,26 @@ import { showToast } from '../../utils/toast';
 
 // ── New Board inline form ────────────────────────────────────────────────────
 
-const NewBoardColumn = ({ trips, onCreated, onCancel }) => {
+const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
   const [title, setTitle] = useState('');
   const [tripId, setTripId] = useState('');
   const [orderByDate, setOrderByDate] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [localError, setLocalError] = useState('');
 
   const inputCls = 'w-full bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.08)] rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none focus:border-[#4A90E2] transition-colors';
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!title.trim()) return;
-    onCreated({ title: title.trim(), trip_id: tripId || null, order_by_date: orderByDate || null });
+    if (!tenantId) { setLocalError('No vessel selected — cannot create board.'); return; }
+    setCreating(true);
+    setLocalError('');
+    try {
+      await onCreated({ title: title.trim(), trip_id: tripId || null, order_by_date: orderByDate || null });
+    } catch (err) {
+      setLocalError(err?.message || 'Failed to create board');
+      setCreating(false);
+    }
   };
 
   return (
@@ -63,13 +73,16 @@ const NewBoardColumn = ({ trips, onCreated, onCancel }) => {
           className={inputCls}
         />
       </div>
+      {localError && (
+        <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{localError}</p>
+      )}
       <div className="flex gap-2">
         <button
           onClick={handleCreate}
-          disabled={!title.trim()}
+          disabled={!title.trim() || creating}
           className="flex-1 py-2 bg-[#4A90E2] text-white text-sm font-medium rounded-lg hover:bg-[#4A90E2]/80 disabled:opacity-40 transition-colors"
         >
-          Create
+          {creating ? 'Creating...' : 'Create'}
         </button>
         <button onClick={onCancel} className="px-3 py-2 text-sm text-slate-400 hover:text-white transition-colors">
           Cancel
@@ -201,7 +214,7 @@ const ProvisioningWorkspace = () => {
       showToast('Board created', 'success');
     } catch (err) {
       console.error('[Provisioning] createBoard error:', err);
-      showToast('Failed to create board', 'error');
+      throw err; // re-throw so NewBoardColumn can display it inline
     }
   };
 
@@ -468,6 +481,8 @@ const ProvisioningWorkspace = () => {
             {showNewBoard && (
               <NewBoardColumn
                 trips={trips}
+                tenantId={activeTenantId}
+                userId={userId}
                 onCreated={handleCreateBoard}
                 onCancel={() => setShowNewBoard(false)}
               />
