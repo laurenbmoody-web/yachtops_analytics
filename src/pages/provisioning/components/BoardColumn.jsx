@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
 import StatusBadge from './StatusBadge';
 import ItemCard from './ItemCard';
-import { PROVISION_DEPARTMENTS } from '../utils/provisioningStorage';
 
 // ── Order-by date badge ──────────────────────────────────────────────────────
 
@@ -93,7 +92,6 @@ const BoardMenu = ({ canEdit, canDelete, onEdit, onSuggestions, onTemplates, onD
 const QuickAddItem = ({ onAdd }) => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
-  const [dept, setDept] = useState('Galley');
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -103,8 +101,9 @@ const QuickAddItem = ({ onAdd }) => {
   const handleSubmit = () => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    onAdd({ name: trimmed, department: dept });
+    onAdd({ name: trimmed });
     setName('');
+    // keep open so user can type next item immediately
     if (inputRef.current) inputRef.current.focus();
   };
 
@@ -112,44 +111,33 @@ const QuickAddItem = ({ onAdd }) => {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="w-full text-left px-3 py-2 text-sm text-slate-500 hover:text-slate-300 hover:bg-white/5 rounded-lg transition-colors flex items-center gap-1.5"
+        className="w-full text-left px-3 py-2 border border-dashed border-[rgba(255,255,255,0.15)] rounded-lg text-sm text-[rgba(255,255,255,0.35)] hover:text-[rgba(255,255,255,0.6)] hover:border-[rgba(255,255,255,0.25)] transition-colors"
       >
-        <Icon name="Plus" className="w-3.5 h-3.5" />
-        Add item
+        + Add item
       </button>
     );
   }
 
   return (
-    <div className="px-2 pb-2">
-      <div className="bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] rounded-lg p-2 space-y-2">
+    <div className="px-1 pb-2">
+      <div className="bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.15)] rounded-lg px-3 py-2 flex items-center gap-2">
         <input
           ref={inputRef}
           value={name}
           onChange={e => setName(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') handleSubmit(); if (e.key === 'Escape') setOpen(false); }}
+          onKeyDown={e => {
+            if (e.key === 'Enter') handleSubmit();
+            if (e.key === 'Escape') { setOpen(false); setName(''); }
+          }}
           placeholder="Item name..."
-          className="w-full bg-transparent text-sm text-white placeholder:text-slate-500 outline-none"
+          className="flex-1 bg-transparent text-sm text-white placeholder:text-slate-500 outline-none"
         />
-        <div className="flex items-center gap-2">
-          <select
-            value={dept}
-            onChange={e => setDept(e.target.value)}
-            className="flex-1 bg-[#0d1a2e] border border-[rgba(255,255,255,0.1)] rounded text-xs text-slate-300 px-2 py-1 outline-none"
-          >
-            {PROVISION_DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-          </select>
-          <button
-            onClick={handleSubmit}
-            disabled={!name.trim()}
-            className="px-2.5 py-1 bg-[#4A90E2] text-white text-xs font-medium rounded hover:bg-[#4A90E2]/80 disabled:opacity-40 transition-colors"
-          >
-            Add
-          </button>
-          <button onClick={() => setOpen(false)} className="text-slate-500 hover:text-slate-300">
-            <Icon name="X" className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        <button
+          onClick={() => { setOpen(false); setName(''); }}
+          className="text-slate-500 hover:text-slate-300 flex-shrink-0"
+        >
+          <Icon name="X" className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   );
@@ -174,6 +162,7 @@ const BoardColumn = ({
   canEdit,
   canDelete,
   onItemClick,
+  onItemStatusChange,
   onQuickAdd,
   onEditBoard,
   onSuggestions,
@@ -234,7 +223,7 @@ const BoardColumn = ({
         style={{ maxHeight: 'calc(100vh - 260px)' }}
       >
         {filteredItems.map(item => (
-          <ItemCard key={item.id} item={item} onClick={onItemClick} />
+          <ItemCard key={item.id} item={item} onClick={onItemClick} onStatusChange={onItemStatusChange} />
         ))}
         {filteredItems.length === 0 && hiddenCount === 0 && (
           <div className="flex items-center justify-center py-8">
