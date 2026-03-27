@@ -153,9 +153,17 @@ const KanbanCard = ({ list, canEdit, deleting, onView, onEdit, onDuplicate, onDe
 
       {/* Trip */}
       {list.trip_title && (
-        <div className="flex items-center gap-1 text-xs text-slate-400 mb-2">
+        <div className="flex items-center gap-1 text-xs text-slate-400 mb-1">
           <Icon name="ExternalLink" className="w-3 h-3 flex-shrink-0" />
           <span className="truncate">{list.trip_title}</span>
+        </div>
+      )}
+
+      {/* Port / Location */}
+      {list.port_location && (
+        <div className="flex items-center gap-1 text-xs text-slate-400 mb-2">
+          <Icon name="MapPin" className="w-3 h-3 flex-shrink-0" />
+          <span className="truncate">{list.port_location}</span>
         </div>
       )}
 
@@ -250,11 +258,16 @@ const ListRow = ({ list, canEdit, deleting, onView, onEdit, onDuplicate, onDelet
         </div>
       </td>
       <td className="px-4 py-3 text-sm text-muted-foreground">{list.supplier_name || '—'}</td>
+      <td className="px-4 py-3 text-sm text-muted-foreground">{list.trip_title || '—'}</td>
+      <td className="px-4 py-3 text-sm text-muted-foreground">{list.port_location || '—'}</td>
       <td className="px-4 py-3 text-sm font-medium text-foreground text-right">
         {list.estimated_cost ? `${currencySymbol}${Math.round(list.estimated_cost).toLocaleString()}` : '—'}
       </td>
       <td className="px-4 py-3"><StatusBadge status={list.status} /></td>
       <td className="px-4 py-3 text-sm text-muted-foreground text-center">{list.item_count ?? 0}</td>
+      <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+        {list.created_at ? new Date(list.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+      </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <button onClick={onView} className="text-xs text-primary hover:underline">View</button>
@@ -285,6 +298,7 @@ const ProvisioningListView = () => {
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [deptFilter, setDeptFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [deletingId, setDeletingId] = useState(null);
   const [view, setView] = useState(() => localStorage.getItem(VIEW_KEY) || 'kanban');
   const [sortBy, setSortBy] = useState('title');
@@ -382,6 +396,15 @@ const ProvisioningListView = () => {
   const filtered = lists.filter(l => {
     if (statusFilter !== 'all' && l.status !== statusFilter) return false;
     if (deptFilter !== 'all' && l.department !== deptFilter) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      if (
+        !l.title?.toLowerCase().includes(q) &&
+        !l.port_location?.toLowerCase().includes(q) &&
+        !l.supplier_name?.toLowerCase().includes(q) &&
+        !l.trip_title?.toLowerCase().includes(q)
+      ) return false;
+    }
     return true;
   });
 
@@ -457,7 +480,18 @@ const ProvisioningListView = () => {
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-6 flex-wrap">
+          {/* Search */}
+          <div className="relative">
+            <Icon name="Search" className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search lists..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="pl-8 pr-3 py-1.5 text-sm bg-card border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary w-48"
+            />
+          </div>
           <div className="flex items-center gap-1.5">
             <label className="text-xs text-muted-foreground">Status:</label>
             <select
@@ -482,9 +516,9 @@ const ProvisioningListView = () => {
               {PROVISION_DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
-          {(statusFilter !== 'all' || deptFilter !== 'all') && (
+          {(statusFilter !== 'all' || deptFilter !== 'all' || searchQuery) && (
             <button
-              onClick={() => { setStatusFilter('all'); setDeptFilter('all'); }}
+              onClick={() => { setStatusFilter('all'); setDeptFilter('all'); setSearchQuery(''); }}
               className="text-xs text-muted-foreground hover:text-foreground"
             >
               Clear filters
@@ -570,9 +604,12 @@ const ProvisioningListView = () => {
                     { col: 'order_by_date', label: 'Order By' },
                     { col: null, label: 'Departments' },
                     { col: null, label: 'Supplier' },
+                    { col: null, label: 'Trip' },
+                    { col: null, label: 'Port / Location' },
                     { col: 'estimated_cost', label: 'Est. Cost' },
                     { col: 'status', label: 'Status' },
                     { col: 'item_count', label: 'Items' },
+                    { col: 'created_at', label: 'Created' },
                     { col: null, label: '' },
                   ].map(({ col, label }, i) => (
                     <th
