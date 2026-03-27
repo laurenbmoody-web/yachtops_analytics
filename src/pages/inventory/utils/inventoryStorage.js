@@ -93,6 +93,8 @@ const rowToItem = (row) => {
     imageUrl: row?.image_url,
     supplier: row?.supplier,
     condition: row?.condition,
+    icon: row?.icon || null,
+    color: row?.color || null,
     createdAt: row?.created_at,
     updatedAt: row?.updated_at,
   };
@@ -280,6 +282,8 @@ const itemToRow = (item, tenantId) => ({
   currency: item?.currency || 'USD',
   // Strip blob: URLs — they are local-only and cannot be stored in the DB
   image_url: item?.imageUrl && !item?.imageUrl?.startsWith('blob:') ? item?.imageUrl : null,
+  icon: item?.icon || null,
+  color: item?.color || null,
   supplier: item?.supplier || null,
   condition: item?.condition || null,
   custom_fields: item?.customFields && Object.keys(item?.customFields)?.length > 0 ? item?.customFields : null,
@@ -730,6 +734,23 @@ export const updateItemStockLocations = async (itemId, updatedLocations) => {
     return true;
   } catch (err) {
     console.error('[inventoryStorage] updateItemStockLocations exception:', err?.message);
+    return false;
+  }
+};
+
+export const updateItemAppearance = async (itemId, icon, color) => {
+  try {
+    const tenantId = getActiveTenantId();
+    if (!tenantId || !itemId) return false;
+    const { error } = await supabase
+      ?.from('inventory_items')
+      ?.update({ icon: icon || null, color: color || null, updated_at: new Date()?.toISOString() })
+      ?.eq('id', itemId)
+      ?.eq('tenant_id', tenantId);
+    if (error) { console.error('[inventoryStorage] updateItemAppearance error:', error?.message); return false; }
+    return true;
+  } catch (err) {
+    console.error('[inventoryStorage] updateItemAppearance exception:', err?.message);
     return false;
   }
 };
