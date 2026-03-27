@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import MarketingLayout from '../MarketingLayout';
+import useScrollAnimations from '../../hooks/useScrollAnimations';
 
 /* ─── Crew Calendar Mockup ───────────────────────────────────────────────── */
 const DAYS = [
@@ -1205,11 +1206,13 @@ const FeatureSection = ({ eyebrow, heading, body, tags, odd, mockup }) => (
 );
 
 /* ─── Page ───────────────────────────────────────────────────────────────── */
-const FeaturesPage = () => (
-  <MarketingLayout>
+const FeaturesPage = () => {
+  useScrollAnimations();
+  return (
+    <MarketingLayout>
     {/* Hero */}
     <section style={{ backgroundColor: '#1E3A5F', padding: '80px 32px', textAlign: 'center' }}>
-      <p style={{
+      <p data-animate-hero="fade-up" data-delay="0" style={{
         fontFamily: 'Inter, sans-serif',
         fontWeight: 600,
         fontSize: 10,
@@ -1220,7 +1223,7 @@ const FeaturesPage = () => (
       }}>
         Features
       </p>
-      <h1 style={{
+      <h1 data-animate-hero="fade-up" data-delay="0.12" style={{
         fontFamily: '"Archivo Black", sans-serif',
         fontWeight: 900,
         fontSize: 52,
@@ -1231,7 +1234,7 @@ const FeaturesPage = () => (
       }}>
         EVERY FEATURE YOUR CREW NEEDS.
       </h1>
-      <p style={{
+      <p data-animate-hero="fade-up" data-delay="0.24" style={{
         fontFamily: '"DM Sans", sans-serif',
         fontSize: 16,
         color: 'rgba(255,255,255,0.5)',
@@ -1285,7 +1288,7 @@ const FeaturesPage = () => (
 
     {/* CTA */}
     <section style={{ backgroundColor: '#1E3A5F', padding: '80px 32px', textAlign: 'center' }}>
-      <p style={{
+      <p data-animate="fade-up" style={{
         fontFamily: 'Inter, sans-serif',
         fontWeight: 600,
         fontSize: 10,
@@ -1336,7 +1339,8 @@ const FeaturesPage = () => (
         BOOK A DEMO
       </Link>
     </section>
-  </MarketingLayout>
-);
+    </MarketingLayout>
+  );
+};
 
 export default FeaturesPage;

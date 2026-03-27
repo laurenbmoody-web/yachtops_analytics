@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import MarketingLayout from '../MarketingLayout';
+import useScrollAnimations from '../../hooks/useScrollAnimations';
 
 /* ─── Accordion item ─────────────────────────────────────────────────────── */
 const FAQItem = ({ q, a, index }) => {
@@ -83,16 +84,18 @@ const FAQ_GROUPS = [
 ];
 
 /* ─── Page ───────────────────────────────────────────────────────────────── */
-const FAQPage = () => (
-  <MarketingLayout>
+const FAQPage = () => {
+  useScrollAnimations();
+  return (
+    <MarketingLayout>
     {/* Hero */}
     <section style={{ paddingTop: 96, paddingBottom: 56, borderBottom: '1px solid #E2E8F0', textAlign: 'center' }}>
       <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 32px' }}>
-        <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>FAQ</p>
-        <h1 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 38, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1.05, marginBottom: 14 }}>
+        <p data-animate-hero="fade-up" data-delay="0" className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>FAQ</p>
+        <h1 data-animate-hero="fade-up" data-delay="0.12" className="mkt-archivo" style={{ fontWeight: 900, fontSize: 38, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1.05, marginBottom: 14 }}>
           Common questions
         </h1>
-        <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 15, color: '#64748B', maxWidth: 440, margin: '0 auto', lineHeight: 1.7 }}>
+        <p data-animate-hero="fade-up" data-delay="0.24" className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 15, color: '#64748B', maxWidth: 440, margin: '0 auto', lineHeight: 1.7 }}>
           If you don't find what you need here, get in touch and we'll answer directly.
         </p>
       </div>
@@ -100,7 +103,7 @@ const FAQPage = () => (
 
     {/* FAQ groups */}
     <section style={{ padding: '72px 32px' }}>
-      <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 56 }}>
+      <div data-animate="stagger" data-stagger="0.15" style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 56 }}>
         {FAQ_GROUPS.map(({ heading, items }) => (
           <div key={heading}>
             <h2
@@ -120,6 +123,7 @@ const FAQPage = () => (
     {/* Still have questions */}
     <section style={{ padding: '0 32px 80px' }}>
       <div
+        data-animate="fade-up"
         className="rounded-xl text-center"
         style={{ maxWidth: 560, margin: '0 auto', padding: '40px 32px', backgroundColor: 'white', border: '2px solid #1E3A5F' }}
       >
@@ -133,7 +137,8 @@ const FAQPage = () => (
         >Get in touch</Link>
       </div>
     </section>
-  </MarketingLayout>
-);
+    </MarketingLayout>
+  );
+};
 
 export default FAQPage;
