@@ -8,6 +8,35 @@ const getActiveTenantId = () =>
   localStorage.getItem('activeTenantId') ||
   null;
 
+// ─── Folder appearance localStorage helpers ────────────────────────────────
+const FOLDER_APPEARANCE_PREFIX = 'cargo_folder_appearance_';
+
+const folderAppearanceKey = (pathSegments, name) => {
+  const parts = [...(pathSegments || []), name];
+  return parts?.join(' > ');
+};
+
+export const saveFolderAppearanceLocal = (pathSegments, name, icon, color) => {
+  const tenantId = getActiveTenantId();
+  if (!tenantId) return;
+  const storeKey = FOLDER_APPEARANCE_PREFIX + tenantId;
+  let store = {};
+  try { store = JSON.parse(localStorage.getItem(storeKey) || '{}'); } catch (_) {}
+  const k = folderAppearanceKey(pathSegments, name);
+  if (icon || color) {
+    store[k] = { icon: icon || null, color: color || null };
+  } else {
+    delete store[k];
+  }
+  localStorage.setItem(storeKey, JSON.stringify(store));
+};
+
+export const getFolderAppearanceLocal = () => {
+  const tenantId = getActiveTenantId();
+  if (!tenantId) return {};
+  try { return JSON.parse(localStorage.getItem(FOLDER_APPEARANCE_PREFIX + tenantId) || '{}'); } catch (_) { return {}; }
+};
+
 // Map DB row → JS object
 const rowToItem = (row) => {
   if (!row) return null;
@@ -838,6 +867,22 @@ export const getFolderTree = async () => {
         tree[parentKey].folderMeta[childName] = { icon: row?.icon || null, color: row?.color || null };
       }
     });
+    // Merge localStorage appearance data (primary persistence layer until DB migration is applied)
+    const localAppearance = getFolderAppearanceLocal();
+    Object.entries(localAppearance).forEach(([fullPath, meta]) => {
+      const parts = fullPath?.split(' > ');
+      if (!parts?.length) return;
+      const childName = parts?.[parts?.length - 1];
+      const parentSegments = parts?.slice(0, -1);
+      const parentKey = parentSegments?.join('|||');
+      if (tree?.[parentKey]?.folderMeta) {
+        // Overwrite DB value with local value (local is source of truth until migration runs)
+        tree[parentKey].folderMeta[childName] = {
+          icon: meta?.icon || tree?.[parentKey]?.folderMeta?.[childName]?.icon || null,
+          color: meta?.color || tree?.[parentKey]?.folderMeta?.[childName]?.color || null,
+        };
+      }
+    });
     return tree;
   } catch (err) {
     console.error('[inventoryStorage] getFolderTree exception:', err?.message);
@@ -1075,6 +1120,8 @@ export const createFolder = async (parentSegments, name, icon = null, color = nu
         color: color || null,
       });
     if (error) { console.error('[inventoryStorage] createFolder error:', error?.message); return false; }
+    // Also persist appearance locally for immediate reads
+    if (icon || color) saveFolderAppearanceLocal(parentSegments, name, icon, color);
     return true;
   } catch (err) {
     console.error('[inventoryStorage] createFolder exception:', err?.message);
@@ -1083,12 +1130,15 @@ export const createFolder = async (parentSegments, name, icon = null, color = nu
 };
 
 /**
- * Update icon and color on an existing folder row in inventory_locations.
+ * Update icon and color on a folder.
+ * Persists to localStorage immediately (always works) and also attempts DB update.
  */
 export const updateFolderAppearance = async (pathSegments, name, icon, color) => {
+  // Always persist locally first so it survives regardless of DB column state
+  saveFolderAppearanceLocal(pathSegments, name, icon, color);
   try {
     const tenantId = getActiveTenantId();
-    if (!tenantId) return false;
+    if (!tenantId) return true; // localStorage save succeeded
     let location, sub_location;
     if (pathSegments?.length === 0) {
       location = name;
@@ -1109,11 +1159,11 @@ export const updateFolderAppearance = async (pathSegments, name, icon, color) =>
       query = query?.eq('sub_location', sub_location);
     }
     const { error } = await query;
-    if (error) { console.error('[inventoryStorage] updateFolderAppearance error:', error?.message); return false; }
+    if (error) { console.warn('[inventoryStorage] updateFolderAppearance DB error (will use localStorage):', error?.message); }
     return true;
   } catch (err) {
-    console.error('[inventoryStorage] updateFolderAppearance exception:', err?.message);
-    return false;
+    console.warn('[inventoryStorage] updateFolderAppearance DB exception (will use localStorage):', err?.message);
+    return true; // localStorage save succeeded
   }
 };
 

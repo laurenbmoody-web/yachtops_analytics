@@ -55,10 +55,30 @@ const ICON_KEYWORD_MAP = [
 ];
 
 const FOLDER_ICON_PALETTE = [
-  'FolderOpen', 'MapPin', 'Shirt', 'Waves', 'Flower2', 'ChefHat', 'Wine',
-  'Sparkles', 'Monitor', 'Wrench', 'ShieldCheck', 'BedDouble', 'Anchor',
-  'Compass', 'Trophy', 'Sailboat', 'Droplets', 'FileText', 'Camera',
-  'Star', 'Heart', 'Coffee', 'Gift', 'Package', 'Music', 'Apple',
+  // Folders & navigation
+  'FolderOpen', 'Folder', 'MapPin', 'Map', 'Compass', 'Navigation',
+  // Food & drink
+  'ChefHat', 'UtensilsCrossed', 'Utensils', 'Wine', 'Beer', 'Coffee', 'Apple', 'Carrot', 'Fish', 'Beef', 'Cake',
+  // Household & linen
+  'Shirt', 'Layers', 'BedDouble', 'Bath', 'Sofa', 'Lamp', 'Paintbrush',
+  // Outdoor & nautical
+  'Waves', 'Anchor', 'Sailboat', 'Ship', 'Wind', 'Sun', 'Umbrella', 'Mountain',
+  // Nature & garden
+  'Flower2', 'Flower', 'Sprout', 'Leaf', 'TreePine',
+  // Sport & recreation
+  'Trophy', 'Dumbbell', 'Bike', 'Gamepad2', 'Target',
+  // Tech & media
+  'Monitor', 'Tv', 'Speaker', 'Headphones', 'Camera', 'Music', 'Radio', 'Wifi',
+  // Tools & engineering
+  'Wrench', 'Hammer', 'Settings', 'Gauge', 'Zap',
+  // Safety & medical
+  'ShieldCheck', 'Heart', 'HeartPulse', 'AlertTriangle', 'Flame',
+  // Cleaning & hygiene
+  'Sparkles', 'Droplets', 'Droplet',
+  // Office & admin
+  'FileText', 'ClipboardList', 'Package', 'Box', 'Archive', 'Star', 'Gift',
+  // People & access
+  'Users', 'Key', 'Lock', 'Tag',
 ];
 
 const FOLDER_COLOR_PALETTE = [
@@ -198,6 +218,7 @@ const AddFolderModal = ({ parentPath, onClose, onSave }) => {
   const [selectedIcon, setSelectedIcon] = useState(null);
   const [selectedColor, setSelectedColor] = useState(null);
   const [showIconPicker, setShowIconPicker] = useState(false);
+  const [iconSearch, setIconSearch] = useState('');
   const inputRef = useRef(null);
 
   useEffect(() => { setTimeout(() => inputRef?.current?.focus(), 100); }, []);
@@ -279,13 +300,19 @@ const AddFolderModal = ({ parentPath, onClose, onSave }) => {
           {/* Icon grid */}
           {showIconPicker && (
             <div className="mt-2 p-3 bg-background border border-border rounded-xl">
-              <p className="text-xs text-muted-foreground mb-2">Choose icon</p>
-              <div className="grid grid-cols-7 gap-1.5">
-                {FOLDER_ICON_PALETTE?.map(iconName => (
+              <input
+                type="text"
+                value={iconSearch}
+                onChange={e => setIconSearch(e?.target?.value)}
+                placeholder="Search icons…"
+                className="w-full px-2.5 py-1.5 text-xs bg-background border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/30 text-foreground mb-2"
+              />
+              <div className="grid grid-cols-8 gap-1 max-h-40 overflow-y-auto">
+                {FOLDER_ICON_PALETTE?.filter(n => !iconSearch || n?.toLowerCase()?.includes(iconSearch?.toLowerCase()))?.map(iconName => (
                   <button
                     key={iconName}
                     type="button"
-                    onClick={() => { setSelectedIcon(iconName); setShowIconPicker(false); }}
+                    onClick={() => { setSelectedIcon(iconName); setShowIconPicker(false); setIconSearch(''); }}
                     className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
                       selectedIcon === iconName
                         ? 'bg-primary text-primary-foreground'
@@ -393,6 +420,7 @@ const EditFolderAppearanceModal = ({ folderName, currentIcon, currentColor, onCl
   const [selectedIcon, setSelectedIcon] = useState(currentIcon || null);
   const [selectedColor, setSelectedColor] = useState(currentColor || null);
   const [showIconPicker, setShowIconPicker] = useState(false);
+  const [iconSearch, setIconSearch] = useState('');
 
   const previewColor = selectedColor || '#4A90E2';
   const previewIcon = selectedIcon || 'FolderOpen';
@@ -431,13 +459,19 @@ const EditFolderAppearanceModal = ({ folderName, currentIcon, currentColor, onCl
 
         {showIconPicker && (
           <div className="mb-4 p-3 bg-background border border-border rounded-xl">
-            <p className="text-xs text-muted-foreground mb-2">Choose icon</p>
-            <div className="grid grid-cols-7 gap-1.5">
-              {FOLDER_ICON_PALETTE?.map(iconName => (
+            <input
+              type="text"
+              value={iconSearch}
+              onChange={e => setIconSearch(e?.target?.value)}
+              placeholder="Search icons…"
+              className="w-full px-2.5 py-1.5 text-xs bg-background border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/30 text-foreground mb-2"
+            />
+            <div className="grid grid-cols-8 gap-1 max-h-44 overflow-y-auto">
+              {FOLDER_ICON_PALETTE?.filter(n => !iconSearch || n?.toLowerCase()?.includes(iconSearch?.toLowerCase()))?.map(iconName => (
                 <button
                   key={iconName}
                   type="button"
-                  onClick={() => { setSelectedIcon(iconName); setShowIconPicker(false); }}
+                  onClick={() => { setSelectedIcon(iconName); setShowIconPicker(false); setIconSearch(''); }}
                   className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
                     selectedIcon === iconName
                       ? 'bg-primary text-primary-foreground'
