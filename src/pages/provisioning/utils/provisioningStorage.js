@@ -161,8 +161,6 @@ export const fetchListItems = async (listId) => {
       ?.from('provisioning_items')
       ?.select('*')
       ?.eq('list_id', listId)
-      ?.order('department')
-      ?.order('category')
       ?.order('name');
     if (error) throw error;
     return data || [];

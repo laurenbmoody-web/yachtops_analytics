@@ -173,9 +173,12 @@ const BoardColumn = ({
   const currencySymbol = CURRENCY_SYMBOLS[list.currency] || '$';
 
   return (
-    <div className="flex flex-col w-[280px] min-w-[280px] flex-shrink-0 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.07)] rounded-xl">
+    <div
+      className="flex flex-col w-[280px] min-w-[280px] flex-shrink-0 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.07)] rounded-xl"
+      style={{ height: 'calc(100vh - 160px)' }}
+    >
       {/* Header */}
-      <div className="px-3 pt-3 pb-2">
+      <div className="px-3 pt-3 pb-2 flex-shrink-0">
         <div className="flex items-start justify-between gap-1">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
@@ -217,11 +220,8 @@ const BoardColumn = ({
         )}
       </div>
 
-      {/* Items */}
-      <div
-        className="flex-1 overflow-y-auto px-2 space-y-2 pb-1"
-        style={{ maxHeight: 'calc(100vh - 260px)' }}
-      >
+      {/* Items — scrollable, takes remaining space */}
+      <div className="flex-1 overflow-y-auto px-2 space-y-2 py-1 min-h-0">
         {filteredItems.map(item => (
           <ItemCard key={item.id} item={item} onClick={onItemClick} onStatusChange={onItemStatusChange} />
         ))}
@@ -230,17 +230,18 @@ const BoardColumn = ({
             <p className="text-xs text-slate-600">No items yet</p>
           </div>
         )}
+        {/* Hidden count inside scroll so it doesn't push quick-add */}
+        {hiddenCount > 0 && (
+          <p className="text-[10px] text-slate-500 text-center py-1">
+            {hiddenCount} item{hiddenCount !== 1 ? 's' : ''} hidden by filter
+          </p>
+        )}
       </div>
 
-      {/* Hidden count */}
-      {hiddenCount > 0 && (
-        <p className="text-[10px] text-slate-500 text-center py-1">
-          {hiddenCount} item{hiddenCount !== 1 ? 's' : ''} hidden by filter
-        </p>
-      )}
-
-      {/* Quick-add */}
-      {canEdit && <QuickAddItem onAdd={onQuickAdd} />}
+      {/* Quick-add — always visible, outside scroll area */}
+      <div className="px-2 pb-2 pt-1 flex-shrink-0">
+        <QuickAddItem onAdd={onQuickAdd} />
+      </div>
     </div>
   );
 };
