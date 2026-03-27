@@ -432,7 +432,7 @@ const Header = () => {
         >
           <Image
             src={theme === 'night' 
-              ? "/assets/images/Cargo_20logo_20solid_20beige-1767558154320.svg" : "/assets/images/Cargo_20logo_20solid_20navy-1767558047979.svg"
+              ? "/assets/images/cargo_merged_reverse_navy.png" : "/assets/images/cargo_merged_originalmark_syne800_true.png"
             }
             alt="Company Logo"
             className="h-8 w-auto object-contain"
