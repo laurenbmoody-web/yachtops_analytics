@@ -4,7 +4,7 @@
  * Required Supabase tables (create if not exists):
  *
  * provisioning_lists:
- *   id uuid pk, vessel_id uuid, trip_id uuid nullable,
+ *   id uuid pk, tenant_id uuid, trip_id uuid nullable,
  *   title text, status text, department text,
  *   created_by uuid, created_at timestamptz, updated_at timestamptz,
  *   notes text, supplier_id uuid nullable,
@@ -18,7 +18,7 @@
  *   source text, notes text, status text
  *
  * provisioning_suppliers:
- *   id uuid pk, vessel_id uuid, name text, email text,
+ *   id uuid pk, tenant_id uuid, name text, email text,
  *   phone text, port_location text, department text, notes text
  *
  * provisioning_deliveries:
@@ -67,7 +67,7 @@ export const fetchProvisioningLists = async (vesselId) => {
     const { data, error } = await supabase
       ?.from('provisioning_lists')
       ?.select('*')
-      ?.eq('vessel_id', vesselId)
+      ?.eq('tenant_id', vesselId)
       ?.order('created_at', { ascending: false });
     if (error) throw error;
     return data || [];
@@ -223,7 +223,7 @@ export const fetchSuppliers = async (vesselId) => {
     const { data, error } = await supabase
       ?.from('provisioning_suppliers')
       ?.select('*')
-      ?.eq('vessel_id', vesselId)
+      ?.eq('tenant_id', vesselId)
       ?.order('name');
     if (error) throw error;
     return data || [];
@@ -334,7 +334,7 @@ export const fetchTemplates = async (vesselId) => {
     const { data, error } = await supabase
       ?.from('provisioning_lists')
       ?.select('*')
-      ?.eq('vessel_id', vesselId)
+      ?.eq('tenant_id', vesselId)
       ?.eq('is_template', true)
       ?.order('updated_at', { ascending: false });
     if (error) throw error;
@@ -369,7 +369,7 @@ export const fetchMasterOrderHistory = async (vesselId) => {
     const { data: lists, error: listsErr } = await supabase
       ?.from('provisioning_lists')
       ?.select('id, title')
-      ?.eq('vessel_id', vesselId)
+      ?.eq('tenant_id', vesselId)
       ?.eq('status', 'delivered');
     if (listsErr) throw listsErr;
     if (!lists?.length) return [];
@@ -436,7 +436,7 @@ export const duplicateList = async (sourceListId, vesselId, userId) => {
     const { id: _id, created_at: _ca, updated_at: _ua, ...listFields } = list;
     const newList = await createProvisioningList({
       ...listFields,
-      vessel_id: vesselId,
+      tenant_id: vesselId,
       title: `${list.title} Copy`,
       status: PROVISIONING_STATUS.DRAFT,
       is_template: false,

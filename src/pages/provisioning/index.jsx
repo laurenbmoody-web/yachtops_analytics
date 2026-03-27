@@ -534,7 +534,7 @@ const ProvisioningListView = () => {
           </div>
         )}
 
-        {filtered.length === 0 ? (
+        {!error && filtered.length === 0 ? (
           <div className="bg-card border border-border rounded-xl p-12 text-center">
             <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
               <Icon name="ShoppingBag" className="w-8 h-8 text-muted-foreground" />
