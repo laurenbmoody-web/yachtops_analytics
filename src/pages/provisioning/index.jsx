@@ -135,28 +135,34 @@ const ProvisioningWorkspace = () => {
     setLoading(true);
     setError(null);
     try {
-      const [fetchedLists, fetchedSuppliers, fetchedTrips] = await Promise.all([
+      // loadTrips is synchronous (localStorage) — wrap safely
+      let fetchedTrips = [];
+      try { fetchedTrips = loadTrips() || []; } catch { fetchedTrips = []; }
+
+      const [fetchedLists, fetchedSuppliers] = await Promise.all([
         fetchProvisioningLists(activeTenantId),
         fetchSuppliers(activeTenantId).catch(() => []),
-        loadTrips().catch(() => []),
       ]);
-      setLists(fetchedLists);
-      setSuppliers(fetchedSuppliers);
+      setLists(fetchedLists || []);
+      setSuppliers(fetchedSuppliers || []);
       setTrips(Array.isArray(fetchedTrips) ? fetchedTrips : []);
 
       // Load items for all lists in parallel
       const itemsMap = {};
-      await Promise.all(
-        fetchedLists.map(async (l) => {
-          try {
-            itemsMap[l.id] = await fetchListItems(l.id);
-          } catch {
-            itemsMap[l.id] = [];
-          }
-        })
-      );
+      if (fetchedLists?.length) {
+        await Promise.all(
+          fetchedLists.map(async (l) => {
+            try {
+              itemsMap[l.id] = await fetchListItems(l.id);
+            } catch {
+              itemsMap[l.id] = [];
+            }
+          })
+        );
+      }
       setItemsByList(itemsMap);
-    } catch {
+    } catch (err) {
+      console.error('[ProvisioningWorkspace] loadAll error:', err);
       setError('Could not load provisioning boards. Please try again.');
     } finally {
       setLoading(false);
