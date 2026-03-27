@@ -1241,7 +1241,7 @@ const ItemAppearancePopover = ({ item, anchorRect, onClose, onSave }) => {
 };
 
 // ─── Item Row (List View) ──────────────────────────────────────────────────────
-const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickView, isSelected, onToggleSelect, selectionMode = false }) => {
+const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickView, isSelected, onToggleSelect, selectionMode = false, onAppearanceChange }) => {
   const [item, setItem] = useState(itemProp);
   useEffect(() => { setItem(itemProp); }, [itemProp]);
 
@@ -1390,7 +1390,7 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickV
         item={item}
         anchorRect={appearanceAnchor}
         onClose={() => setAppearanceAnchor(null)}
-        onSave={(updated) => setItem(updated)}
+        onSave={(updated) => { setItem(updated); onAppearanceChange?.(updated?.id, updated?.icon, updated?.color); }}
       />
     )}
     </>
@@ -1398,7 +1398,7 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickV
 };
 
 // ─── Item Grid Card (Grid View) ────────────────────────────────────────────────
-const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickView, isSelected, onToggleSelect, selectionMode = false }) => {
+const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickView, isSelected, onToggleSelect, selectionMode = false, onAppearanceChange }) => {
   const [item, setItem] = useState(itemProp);
   useEffect(() => { setItem(itemProp); }, [itemProp]);
   const [appearanceAnchor, setAppearanceAnchor] = useState(null);
@@ -1566,7 +1566,7 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQ
         item={item}
         anchorRect={appearanceAnchor}
         onClose={() => setAppearanceAnchor(null)}
-        onSave={(updated) => setItem(updated)}
+        onSave={(updated) => { setItem(updated); onAppearanceChange?.(updated?.id, updated?.icon, updated?.color); }}
       />
     )}
     </>
@@ -2578,6 +2578,10 @@ const LocationFirstInventory = () => {
     loadData();
   };
 
+  const handleItemAppearanceChange = useCallback((itemId, icon, color) => {
+    setItems(prev => prev?.map(i => i?.id === itemId ? { ...i, icon, color } : i));
+  }, []);
+
   const filteredItems = (() => {
     let result = items?.filter(item => {
       if (searchQuery) {
@@ -3266,6 +3270,7 @@ const LocationFirstInventory = () => {
                     onQuickView={(i) => setQuickViewItem(i)}
                     isSelected={selectedItemIds?.has(item?.id)}
                     onToggleSelect={handleToggleSelectItem}
+                    onAppearanceChange={handleItemAppearanceChange}
                   />
                 ))}
               </div>
@@ -3282,6 +3287,7 @@ const LocationFirstInventory = () => {
                     onQuickView={(i) => setQuickViewItem(i)}
                     isSelected={selectedItemIds?.has(item?.id)}
                     onToggleSelect={handleToggleSelectItem}
+                    onAppearanceChange={handleItemAppearanceChange}
                   />
                 ))}
               </div>
