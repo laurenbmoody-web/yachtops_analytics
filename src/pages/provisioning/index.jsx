@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors, closestCenter,
@@ -66,7 +66,7 @@ const OrderByBadge = ({ date }) => {
 
 // ── Draggable Kanban Card ─────────────────────────────────────────────────────
 
-const KanbanCard = ({ list, canEdit, deleting, onView, onEdit, onDuplicate, onDelete, isDragOverlay }) => {
+const KanbanCard = ({ list, canEdit, canDelete, deleting, onView, onEdit, onDuplicate, onDelete, isDragOverlay }) => {
   const { attributes, listeners, setNodeRef, isDragging, transform } = useDraggable({ id: list.id, data: { list } });
 
   const depts = list.department ? list.department.split(',').map(d => d.trim()).filter(Boolean) : [];
@@ -92,16 +92,18 @@ const KanbanCard = ({ list, canEdit, deleting, onView, onEdit, onDuplicate, onDe
       {...attributes}
     >
       {/* Hover action bar */}
-      {!isDragOverlay && (
+      {!isDragOverlay && (canEdit || canDelete) && (
         <div className="absolute top-2 right-2 hidden group-hover:flex items-center gap-1 bg-background/90 backdrop-blur-sm border border-border rounded-lg px-1.5 py-1 z-10">
-          <button
-            onPointerDown={e => e.stopPropagation()}
-            onClick={e => { e.stopPropagation(); onEdit(); }}
-            className="p-1 text-muted-foreground hover:text-primary transition-colors"
-            title="Edit"
-          >
-            <Icon name="Pencil" className="w-3.5 h-3.5" />
-          </button>
+          {canEdit && (
+            <button
+              onPointerDown={e => e.stopPropagation()}
+              onClick={e => { e.stopPropagation(); onEdit(); }}
+              className="p-1 text-muted-foreground hover:text-primary transition-colors"
+              title="Edit"
+            >
+              <Icon name="Pencil" className="w-3.5 h-3.5" />
+            </button>
+          )}
           {canEdit && (
             <button
               onPointerDown={e => e.stopPropagation()}
@@ -112,15 +114,17 @@ const KanbanCard = ({ list, canEdit, deleting, onView, onEdit, onDuplicate, onDe
               <Icon name="Copy" className="w-3.5 h-3.5" />
             </button>
           )}
-          <button
-            onPointerDown={e => e.stopPropagation()}
-            onClick={e => { e.stopPropagation(); onDelete(); }}
-            disabled={deleting}
-            className="p-1 text-muted-foreground hover:text-red-400 transition-colors disabled:opacity-50"
-            title="Delete"
-          >
-            <Icon name="Trash2" className="w-3.5 h-3.5" />
-          </button>
+          {canDelete && (
+            <button
+              onPointerDown={e => e.stopPropagation()}
+              onClick={e => { e.stopPropagation(); onDelete(); }}
+              disabled={deleting}
+              className="p-1 text-muted-foreground hover:text-red-400 transition-colors disabled:opacity-50"
+              title="Delete"
+            >
+              <Icon name="Trash2" className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       )}
 
@@ -130,7 +134,10 @@ const KanbanCard = ({ list, canEdit, deleting, onView, onEdit, onDuplicate, onDe
         onClick={e => { e.stopPropagation(); onView(); }}
         className="w-full text-left"
       >
-        <p className="font-bold text-white text-sm leading-snug pr-16 mb-2 hover:text-primary transition-colors">{list.title}</p>
+        <div className="flex items-start gap-1.5 pr-16 mb-2">
+          <p className="font-bold text-white text-sm leading-snug hover:text-primary transition-colors flex-1">{list.title}</p>
+          {list.is_private && <Icon name="Lock" className="w-3 h-3 text-amber-400 flex-shrink-0 mt-0.5" title="Private" />}
+        </div>
       </button>
 
       {/* Order by badge */}
@@ -193,7 +200,7 @@ const KanbanCard = ({ list, canEdit, deleting, onView, onEdit, onDuplicate, onDe
 
 // ── Droppable Column ──────────────────────────────────────────────────────────
 
-const KanbanColumn = ({ column, lists, canEdit, deletingId, onView, onEdit, onDuplicate, onDelete }) => {
+const KanbanColumn = ({ column, lists, getCanEdit, getCanDelete, deletingId, onView, onEdit, onDuplicate, onDelete }) => {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
   return (
@@ -220,7 +227,8 @@ const KanbanColumn = ({ column, lists, canEdit, deletingId, onView, onEdit, onDu
           <KanbanCard
             key={list.id}
             list={list}
-            canEdit={canEdit}
+            canEdit={getCanEdit(list)}
+            canDelete={getCanDelete(list)}
             deleting={deletingId === list.id}
             onView={() => onView(list)}
             onEdit={() => onEdit(list)}
@@ -235,15 +243,18 @@ const KanbanColumn = ({ column, lists, canEdit, deletingId, onView, onEdit, onDu
 
 // ── List Row ──────────────────────────────────────────────────────────────────
 
-const ListRow = ({ list, canEdit, deleting, onView, onEdit, onDuplicate, onDelete }) => {
+const ListRow = ({ list, canEdit, canDelete, deleting, onView, onEdit, onDuplicate, onDelete }) => {
   const depts = list.department ? list.department.split(',').map(d => d.trim()).filter(Boolean) : [];
   const currencySymbol = CURRENCY_SYMBOLS[list.currency] || '$';
   return (
     <tr className="border-b border-border hover:bg-muted/30 transition-colors group">
       <td className="px-4 py-3">
-        <button onClick={onView} className="text-sm font-medium text-foreground hover:text-primary transition-colors text-left">
-          {list.title}
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button onClick={onView} className="text-sm font-medium text-foreground hover:text-primary transition-colors text-left">
+            {list.title}
+          </button>
+          {list.is_private && <Icon name="Lock" className="w-3 h-3 text-amber-400 flex-shrink-0" title="Private" />}
+        </div>
       </td>
       <td className="px-4 py-3">
         <OrderByBadge date={list.order_by_date} />
@@ -271,15 +282,17 @@ const ListRow = ({ list, canEdit, deleting, onView, onEdit, onDuplicate, onDelet
       <td className="px-4 py-3">
         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <button onClick={onView} className="text-xs text-primary hover:underline">View</button>
-          <button onClick={onEdit} className="text-xs text-muted-foreground hover:text-foreground">Edit</button>
+          {canEdit && <button onClick={onEdit} className="text-xs text-muted-foreground hover:text-foreground">Edit</button>}
           {canEdit && (
             <button onClick={onDuplicate} className="text-xs text-muted-foreground hover:text-blue-400">
               <Icon name="Copy" className="w-3.5 h-3.5" />
             </button>
           )}
-          <button onClick={onDelete} disabled={deleting} className="text-xs text-red-500 hover:text-red-600 disabled:opacity-50">
-            {deleting ? '…' : <Icon name="Trash2" className="w-3.5 h-3.5" />}
-          </button>
+          {canDelete && (
+            <button onClick={onDelete} disabled={deleting} className="text-xs text-red-500 hover:text-red-600 disabled:opacity-50">
+              {deleting ? '…' : <Icon name="Trash2" className="w-3.5 h-3.5" />}
+            </button>
+          )}
         </div>
       </td>
     </tr>
@@ -306,7 +319,30 @@ const ProvisioningListView = () => {
   const [activeCard, setActiveCard] = useState(null);
 
   const userTier = (user?.permission_tier || user?.effectiveTier || '').toUpperCase();
-  const canCreate = !userTier || ['COMMAND', 'CHIEF', 'CREW'].includes(userTier);
+  const userDept = (user?.department || '').trim();
+  const userId = user?.id;
+
+  // CREATE: everyone except VIEW_ONLY (and unknown tier defaults to allowed while loading)
+  const canCreate = userTier !== 'VIEW_ONLY';
+
+  // Visibility: private lists only shown to their creator (or COMMAND)
+  const canViewList = useCallback((list) => {
+    if (list.is_private) return list.created_by === userId || userTier === 'COMMAND';
+    return true;
+  }, [userId, userTier]);
+
+  // Edit: COMMAND = all; CHIEF/HOD = their dept or created by them; others = only their own private lists
+  const canEditList = useCallback((list) => {
+    if (list.is_private) return list.created_by === userId;
+    if (userTier === 'COMMAND') return true;
+    if (['CHIEF', 'HOD'].includes(userTier)) {
+      const listDepts = list.department ? list.department.split(',').map(d => d.trim()) : [];
+      return !listDepts.length || listDepts.some(d => d === userDept) || list.created_by === userId;
+    }
+    return false;
+  }, [userId, userTier, userDept]);
+
+  const canDeleteList = canEditList;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -370,6 +406,7 @@ const ProvisioningListView = () => {
     const targetStatus = over.id;
     const list = lists.find(l => l.id === active.id);
     if (!list || list.status === targetStatus) return;
+    if (!canEditList(list)) return; // Only users who can edit may change status via drag
 
     // Optimistic update
     setLists(prev => prev.map(l => l.id === list.id ? { ...l, status: targetStatus } : l));
@@ -380,7 +417,7 @@ const ProvisioningListView = () => {
       setLists(prev => prev.map(l => l.id === list.id ? { ...l, status: list.status } : l));
       showToast('Failed to update status.', 'error');
     }
-  }, [lists]);
+  }, [lists, canEditList]);
 
   // List view sort
   const handleSort = (col) => {
@@ -392,8 +429,8 @@ const ProvisioningListView = () => {
     <Icon name={sortDir === 'asc' ? 'ChevronUp' : 'ChevronDown'} className="w-3 h-3 inline ml-1" />
   );
 
-  // Filter
-  const filtered = lists.filter(l => {
+  const filtered = useMemo(() => lists.filter(l => {
+    if (!canViewList(l)) return false;
     if (statusFilter !== 'all' && l.status !== statusFilter) return false;
     if (deptFilter !== 'all' && l.department !== deptFilter) return false;
     if (searchQuery) {
@@ -406,10 +443,9 @@ const ProvisioningListView = () => {
       ) return false;
     }
     return true;
-  });
+  }), [lists, canViewList, statusFilter, deptFilter, searchQuery]);
 
-  // Sorted for list view
-  const sorted = [...filtered].sort((a, b) => {
+  const sorted = useMemo(() => [...filtered].sort((a, b) => {
     let aVal = a[sortBy] || '';
     let bVal = b[sortBy] || '';
     if (sortBy === 'order_by_date') {
@@ -418,7 +454,7 @@ const ProvisioningListView = () => {
     }
     const cmp = typeof aVal === 'number' ? aVal - bVal : String(aVal).localeCompare(String(bVal));
     return sortDir === 'asc' ? cmp : -cmp;
-  });
+  }), [filtered, sortBy, sortDir]);
 
   if (loading) {
     return (
@@ -567,7 +603,8 @@ const ProvisioningListView = () => {
                     key={col.id}
                     column={col}
                     lists={colLists}
-                    canEdit={canCreate}
+                    getCanEdit={canEditList}
+                    getCanDelete={canDeleteList}
                     deletingId={deletingId}
                     onView={l => navigate(`/provisioning/${l.id}`)}
                     onEdit={l => navigate(`/provisioning/${l.id}/edit`)}
@@ -582,7 +619,8 @@ const ProvisioningListView = () => {
               {activeCard ? (
                 <KanbanCard
                   list={activeCard}
-                  canEdit={canCreate}
+                  canEdit={canEditList(activeCard)}
+                  canDelete={canDeleteList(activeCard)}
                   deleting={false}
                   onView={() => {}}
                   onEdit={() => {}}
@@ -627,7 +665,8 @@ const ProvisioningListView = () => {
                   <ListRow
                     key={list.id}
                     list={list}
-                    canEdit={canCreate}
+                    canEdit={canEditList(list)}
+                    canDelete={canDeleteList(list)}
                     deleting={deletingId === list.id}
                     onView={() => navigate(`/provisioning/${list.id}`)}
                     onEdit={() => navigate(`/provisioning/${list.id}/edit`)}
