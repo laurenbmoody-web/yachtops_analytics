@@ -306,7 +306,7 @@ const ProvisioningListView = () => {
   const [activeCard, setActiveCard] = useState(null);
 
   const userTier = (user?.permission_tier || user?.effectiveTier || '').toUpperCase();
-  const canCreate = ['COMMAND', 'CHIEF'].includes(userTier);
+  const canCreate = !userTier || ['COMMAND', 'CHIEF', 'CREW'].includes(userTier);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
