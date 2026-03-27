@@ -8,7 +8,8 @@
  *   title text, status text, department text,
  *   created_by uuid, created_at timestamptz, updated_at timestamptz,
  *   notes text, supplier_id uuid nullable,
- *   estimated_cost numeric, actual_cost numeric, port_location text
+ *   estimated_cost numeric, actual_cost numeric, port_location text,
+ *   is_private boolean default false, is_template boolean default false
  *
  * provisioning_items:
  *   id uuid pk, list_id uuid fk provisioning_lists,

@@ -72,6 +72,7 @@ const ProvisioningForm = () => {
     estimated_cost: '',
     currency: 'GBP',
     order_by_date: '',
+    is_private: false,
   });
 
   // Step 2 — Smart suggestions
@@ -116,6 +117,7 @@ const ProvisioningForm = () => {
             estimated_cost: list.estimated_cost || '',
             currency: list.currency || 'GBP',
             order_by_date: list.order_by_date || '',
+            is_private: list.is_private || false,
           });
         }
         if (listItems?.length) {
@@ -214,6 +216,7 @@ const ProvisioningForm = () => {
         estimated_cost: details.estimated_cost ? parseFloat(details.estimated_cost) : null,
         currency: details.currency || 'GBP',
         order_by_date: details.order_by_date || null,
+        is_private: details.is_private || false,
         status,
         created_by: user?.id,
       };
@@ -430,6 +433,23 @@ const ProvisioningForm = () => {
                 placeholder="Any specific instructions or requirements…"
               />
             </div>
+
+            <button
+              type="button"
+              onClick={() => setDetails(p => ({ ...p, is_private: !p.is_private }))}
+              className={`flex items-center justify-between w-full p-3 rounded-lg border transition-colors ${details.is_private ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-700' : 'bg-muted border-border hover:bg-muted/80'}`}
+            >
+              <div className="flex items-center gap-2 text-left">
+                <Icon name="Lock" className={`w-4 h-4 flex-shrink-0 ${details.is_private ? 'text-amber-500' : 'text-muted-foreground'}`} />
+                <div>
+                  <p className={`text-sm font-medium ${details.is_private ? 'text-amber-700 dark:text-amber-400' : 'text-foreground'}`}>Private list</p>
+                  <p className="text-xs text-muted-foreground">Only visible to you — you keep full edit and delete access</p>
+                </div>
+              </div>
+              <div className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors ${details.is_private ? 'bg-amber-500' : 'bg-muted-foreground/30'}`}>
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${details.is_private ? 'translate-x-4' : 'translate-x-0'}`} />
+              </div>
+            </button>
           </div>
         )}
 
