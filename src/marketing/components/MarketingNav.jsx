@@ -22,7 +22,7 @@ const MarketingNav = () => {
       >
         {/* Logo */}
         <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <img src="/assets/images/Cargo_20logo_20solid_20navy-1767558047979.svg" alt="Cargo" style={{ height: 28, width: 'auto' }} />
+          <img src="/assets/images/cargo_merged_originalmark_syne800_true.png" alt="Cargo" style={{ height: 28, width: 'auto' }} />
           <span
             className="mkt-archivo"
             style={{

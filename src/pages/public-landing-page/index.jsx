@@ -52,7 +52,7 @@ const PublicLandingPage = () => {
         <div className="text-center mb-12">
           <div className="flex items-center justify-center mb-6">
             <Image
-              src={theme === 'day' ? '/assets/images/Cargo_20logo_20solid_20navy-1767558047979.svg' : '/assets/images/Cargo_20logo_20solid_20beige-1767558154320.svg'}
+              src={theme === 'day' ? '/assets/images/cargo_merged_originalmark_syne800_true.png' : '/assets/images/cargo_merged_reverse_navy.png'}
               alt="Cargo Logo"
               className="h-16 w-auto"
             />
