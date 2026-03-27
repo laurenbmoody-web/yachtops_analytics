@@ -254,19 +254,20 @@ const ProvisioningWorkspace = () => {
 
   // ── Item actions ─────────────────────────────────────────────────────────
 
-  const handleQuickAdd = async (listId, { name, department }) => {
+  const handleQuickAdd = async (listId, { name }) => {
     try {
       const newItem = {
         list_id: listId,
         name,
-        department,
+        department: '',
         quantity_ordered: 1,
         unit: 'each',
         status: 'pending',
         source: 'manual',
       };
       const saved = await upsertItems([newItem]);
-      setItemsByList(prev => ({ ...prev, [listId]: [...(prev[listId] || []), ...saved] }));
+      // new items appear at top of column
+      setItemsByList(prev => ({ ...prev, [listId]: [...saved, ...(prev[listId] || [])] }));
     } catch {
       showToast('Failed to add item', 'error');
     }
@@ -293,6 +294,23 @@ const ProvisioningWorkspace = () => {
       ...prev,
       [listId]: (prev[listId] || []).filter(i => i.id !== itemId),
     }));
+  };
+
+  const handleItemStatusChange = async (listId, item, newStatus) => {
+    // Optimistic update
+    setItemsByList(prev => ({
+      ...prev,
+      [listId]: (prev[listId] || []).map(i => i.id === item.id ? { ...i, status: newStatus } : i),
+    }));
+    try {
+      await upsertItems([{ id: item.id, list_id: listId, status: newStatus }]);
+    } catch {
+      // Revert on failure
+      setItemsByList(prev => ({
+        ...prev,
+        [listId]: (prev[listId] || []).map(i => i.id === item.id ? { ...i, status: item.status } : i),
+      }));
+    }
   };
 
   const handleAddItemsFromDrawer = (listId, newItems) => {
@@ -469,6 +487,7 @@ const ProvisioningWorkspace = () => {
                   canEdit={canEditList(list)}
                   canDelete={canDeleteList(list)}
                   onItemClick={(item) => openItemDrawer(item, list.id)}
+                  onItemStatusChange={(item, status) => handleItemStatusChange(list.id, item, status)}
                   onQuickAdd={(data) => handleQuickAdd(list.id, data)}
                   onEditBoard={() => openBoardDrawer(list.id, 'edit')}
                   onSuggestions={() => openBoardDrawer(list.id, 'suggestions')}
