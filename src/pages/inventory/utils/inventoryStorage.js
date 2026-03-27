@@ -784,7 +784,7 @@ export const getFolderTree = async () => {
       try {
         const result = await supabase
           ?.from('inventory_locations')
-          ?.select('location, sub_location, is_department_root, department, visibility')
+          ?.select('location, sub_location, is_department_root, department, visibility, icon, color')
           ?.eq('tenant_id', tenantId)
           ?.eq('is_archived', false)
           ?.order('sort_order', { ascending: true });
@@ -810,7 +810,7 @@ export const getFolderTree = async () => {
     // Reconstruct tree from flat rows
     const tree = {};
     const ensureKey = (key) => {
-      if (!tree?.[key]) tree[key] = { subFolders: [], renamedMap: {} };
+      if (!tree?.[key]) tree[key] = { subFolders: [], renamedMap: {}, folderMeta: {} };
     };
     (data || [])?.forEach(row => {
       const loc = row?.location;
@@ -823,6 +823,7 @@ export const getFolderTree = async () => {
         if (!tree?.[rootKey]?.subFolders?.includes(loc)) {
           tree?.[rootKey]?.subFolders?.push(loc);
         }
+        tree[rootKey].folderMeta[loc] = { icon: row?.icon || null, color: row?.color || null };
       } else {
         // Sub-folder path: 'Pantries' or 'Pantries > Cold Storage'
         const subSegments = sub?.split(' > ');
@@ -834,6 +835,7 @@ export const getFolderTree = async () => {
         if (!tree?.[parentKey]?.subFolders?.includes(childName)) {
           tree?.[parentKey]?.subFolders?.push(childName);
         }
+        tree[parentKey].folderMeta[childName] = { icon: row?.icon || null, color: row?.color || null };
       }
     });
     return tree;
@@ -1022,7 +1024,7 @@ export const archiveFolder = async (parentSegments, folderName) => {
  * parentSegments = [] for root, ['Interior'] for sub-folder of Interior, etc.
  * name = new folder name
  */
-export const createFolder = async (parentSegments, name) => {
+export const createFolder = async (parentSegments, name, icon = null, color = null) => {
   try {
     const tenantId = getActiveTenantId();
     if (!tenantId) return false;
@@ -1069,11 +1071,48 @@ export const createFolder = async (parentSegments, name) => {
         created_by: userId,
         is_archived: false,
         sort_order: 0,
+        icon: icon || null,
+        color: color || null,
       });
     if (error) { console.error('[inventoryStorage] createFolder error:', error?.message); return false; }
     return true;
   } catch (err) {
     console.error('[inventoryStorage] createFolder exception:', err?.message);
+    return false;
+  }
+};
+
+/**
+ * Update icon and color on an existing folder row in inventory_locations.
+ */
+export const updateFolderAppearance = async (pathSegments, name, icon, color) => {
+  try {
+    const tenantId = getActiveTenantId();
+    if (!tenantId) return false;
+    let location, sub_location;
+    if (pathSegments?.length === 0) {
+      location = name;
+      sub_location = null;
+    } else {
+      location = pathSegments?.[0];
+      const subParts = [...pathSegments?.slice(1), name];
+      sub_location = subParts?.join(' > ');
+    }
+    let query = supabase
+      ?.from('inventory_locations')
+      ?.update({ icon: icon || null, color: color || null })
+      ?.eq('tenant_id', tenantId)
+      ?.eq('location', location);
+    if (sub_location === null) {
+      query = query?.is('sub_location', null);
+    } else {
+      query = query?.eq('sub_location', sub_location);
+    }
+    const { error } = await query;
+    if (error) { console.error('[inventoryStorage] updateFolderAppearance error:', error?.message); return false; }
+    return true;
+  } catch (err) {
+    console.error('[inventoryStorage] updateFolderAppearance exception:', err?.message);
     return false;
   }
 };
