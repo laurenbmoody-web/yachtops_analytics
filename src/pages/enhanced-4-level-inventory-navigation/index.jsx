@@ -1109,7 +1109,6 @@ const ItemAppearancePopover = ({ item, anchorRect, onClose, onSave }) => {
   const handleSave = async (icon, color) => {
     await updateItemAppearance(item?.id, icon, color);
     onSave({ ...item, icon, color });
-    onClose();
   };
 
   // Position: below + left-aligned to anchor, clamped to viewport
