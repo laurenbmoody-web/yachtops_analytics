@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import MarketingLayout from '../MarketingLayout';
+import useScrollAnimations from '../../hooks/useScrollAnimations';
 
 /* ─── Pill buttons ───────────────────────────────────────────────────────── */
 const PillPrimary = ({ to, children }) => (
@@ -360,13 +361,16 @@ const CTABanner = () => (
 );
 
 /* ─── Page ───────────────────────────────────────────────────────────────── */
-const HomePage = () => (
-  <MarketingLayout>
-    <HeroSection />
-    <TrustBar />
-    <ProblemSolution />
-    <CTABanner />
-  </MarketingLayout>
-);
+const HomePage = () => {
+  useScrollAnimations();
+  return (
+    <MarketingLayout>
+      <HeroSection />
+      <TrustBar />
+      <ProblemSolution />
+      <CTABanner />
+    </MarketingLayout>
+  );
+};
 
 export default HomePage;
