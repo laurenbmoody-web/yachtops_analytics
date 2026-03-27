@@ -48,7 +48,7 @@
     "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
     "framer-motion": "^10.16.4",
-        "gsap": "^3.12.5",
+    "gsap": "^3.14.2",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.484.0",

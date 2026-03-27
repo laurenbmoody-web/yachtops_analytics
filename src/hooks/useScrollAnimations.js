@@ -4,7 +4,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
 
-export const useScrollAnimations = (dependencies = []) => {
+const useScrollAnimations = (dependencies = []) => {
     const hasAnimated = useRef(false);
 
     useEffect(() => {
