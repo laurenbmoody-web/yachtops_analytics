@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import MarketingLayout from '../MarketingLayout';
+import useScrollAnimations from '../../hooks/useScrollAnimations';
 
 /* ─── Role cards ─────────────────────────────────────────────────────────── */
 const ROLES = [
@@ -70,16 +71,18 @@ const VESSEL_TYPES = [
 ];
 
 /* ─── Page ───────────────────────────────────────────────────────────────── */
-const WhoItsForPage = () => (
-  <MarketingLayout>
+const WhoItsForPage = () => {
+  useScrollAnimations();
+  return (
+    <MarketingLayout>
     {/* Hero */}
     <section style={{ paddingTop: 96, paddingBottom: 56, borderBottom: '1px solid #E2E8F0', textAlign: 'center' }}>
       <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 32px' }}>
-        <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>Who it's for</p>
-        <h1 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 38, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1.05, marginBottom: 14 }}>
+        <p data-animate-hero="fade-up" data-delay="0" className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>Who it's for</p>
+        <h1 data-animate-hero="fade-up" data-delay="0.12" className="mkt-archivo" style={{ fontWeight: 900, fontSize: 38, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1.05, marginBottom: 14 }}>
           Built for everyone who runs the vessel
         </h1>
-        <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 15, color: '#64748B', maxWidth: 520, margin: '0 auto', lineHeight: 1.7 }}>
+        <p data-animate-hero="fade-up" data-delay="0.24" className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 15, color: '#64748B', maxWidth: 520, margin: '0 auto', lineHeight: 1.7 }}>
           Cargo gives each crew member exactly what they need. Role-based access means the captain sees everything, and crew see their world.
         </p>
       </div>
@@ -88,7 +91,7 @@ const WhoItsForPage = () => (
     {/* Role cards */}
     <section style={{ padding: '72px 32px', borderBottom: '1px solid #E2E8F0' }}>
       <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div data-animate="stagger" className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
           {ROLES.map(({ n, title, tag, headline, points }) => (
             <div key={n} className="bg-white rounded-xl p-6" style={{ border: '2px solid #1E3A5F' }}>
               <div className="flex items-start justify-between mb-4">
@@ -118,14 +121,14 @@ const WhoItsForPage = () => (
     {/* Vessel types */}
     <section style={{ padding: '72px 32px', backgroundColor: 'white', borderBottom: '1px solid #E2E8F0' }}>
       <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-        <div className="text-center" style={{ marginBottom: 48 }}>
+        <div data-animate="fade-up" className="text-center" style={{ marginBottom: 48 }}>
           <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>Vessel types</p>
           <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 28, color: '#1E3A5F', lineHeight: 1.15, marginBottom: 10 }}>Scales to the size of your operation</h2>
           <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 14, color: '#64748B', maxWidth: 440, margin: '0 auto', lineHeight: 1.65 }}>
             From private yachts to large charter fleets, Cargo adapts to the complexity you bring to it.
           </p>
         </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div data-animate="stagger" className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {VESSEL_TYPES.map(({ n, type, sub, body }) => (
             <div key={n} className="bg-[#F8FAFC] rounded-xl p-6" style={{ border: '2px solid #1E3A5F' }}>
               <p className="mkt-archivo" style={{ fontWeight: 900, fontSize: 22, color: '#4A90E2', lineHeight: 1, marginBottom: 6 }}>{n}</p>
@@ -140,7 +143,7 @@ const WhoItsForPage = () => (
 
     {/* CTA */}
     <section style={{ padding: '72px 32px' }}>
-      <div className="rounded-2xl text-center" style={{ maxWidth: 860, margin: '0 auto', backgroundColor: '#1E3A5F', padding: '56px 40px' }}>
+      <div data-animate="fade-up" className="rounded-2xl text-center" style={{ maxWidth: 860, margin: '0 auto', backgroundColor: '#1E3A5F', padding: '56px 40px' }}>
         <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(74,144,226,0.8)', marginBottom: 12 }}>Get started</p>
         <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 26, color: 'white', lineHeight: 1.15, marginBottom: 10 }}>Sound like your vessel?</h2>
         <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 14, color: 'rgba(255,255,255,0.55)', maxWidth: 400, margin: '0 auto 28px', lineHeight: 1.65 }}>
@@ -153,7 +156,8 @@ const WhoItsForPage = () => (
         >Book a Demo</Link>
       </div>
     </section>
-  </MarketingLayout>
-);
+    </MarketingLayout>
+  );
+};
 
 export default WhoItsForPage;

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import MarketingLayout from '../MarketingLayout';
+import useScrollAnimations from '../../hooks/useScrollAnimations';
 
 /* ─── Form primitives ────────────────────────────────────────────────────── */
 const Field = ({ label, id, type = 'text', placeholder, required, value, onChange }) => (
@@ -141,16 +142,18 @@ const ContactForm = () => {
 };
 
 /* ─── Page ───────────────────────────────────────────────────────────────── */
-const ContactPage = () => (
-  <MarketingLayout>
+const ContactPage = () => {
+  useScrollAnimations();
+  return (
+    <MarketingLayout>
     {/* Hero */}
     <section style={{ paddingTop: 96, paddingBottom: 56, borderBottom: '1px solid #E2E8F0', textAlign: 'center' }}>
       <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 32px' }}>
-        <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>Get in touch</p>
-        <h1 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 38, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1.05, marginBottom: 14 }}>
+        <p data-animate-hero="fade-up" data-delay="0" className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>Get in touch</p>
+        <h1 data-animate-hero="fade-up" data-delay="0.12" className="mkt-archivo" style={{ fontWeight: 900, fontSize: 38, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1.05, marginBottom: 14 }}>
           Let's talk about your vessel
         </h1>
-        <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 15, color: '#64748B', maxWidth: 460, margin: '0 auto', lineHeight: 1.7 }}>
+        <p data-animate-hero="fade-up" data-delay="0.24" className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 15, color: '#64748B', maxWidth: 460, margin: '0 auto', lineHeight: 1.7 }}>
           Book a demo, join the waitlist, or just ask a question. We respond to every message personally.
         </p>
       </div>
@@ -161,7 +164,7 @@ const ContactPage = () => (
       <div style={{ maxWidth: 1000, margin: '0 auto', display: 'grid', gap: 40 }} className="grid lg:grid-cols-5">
 
         {/* Form */}
-        <div className="lg:col-span-3 bg-white rounded-xl p-8" style={{ border: '2px solid #1E3A5F' }}>
+        <div data-animate="fade-up" className="lg:col-span-3 bg-white rounded-xl p-8" style={{ border: '2px solid #1E3A5F' }}>
           <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#1E3A5F', marginBottom: 24 }}>
             Send us a message
           </h2>
@@ -169,7 +172,7 @@ const ContactPage = () => (
         </div>
 
         {/* Sidebar */}
-        <div className="lg:col-span-2" style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+        <div data-animate="fade-up" data-delay="0.12" className="lg:col-span-2" style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
           <div>
             <h3 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#1E3A5F', marginBottom: 20 }}>
               What happens next
@@ -212,7 +215,8 @@ const ContactPage = () => (
         </div>
       </div>
     </section>
-  </MarketingLayout>
-);
+    </MarketingLayout>
+  );
+};
 
 export default ContactPage;

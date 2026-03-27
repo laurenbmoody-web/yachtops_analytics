@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import MarketingLayout from '../MarketingLayout';
+import useScrollAnimations from '../../hooks/useScrollAnimations';
 
 /* ─── Shared primitives ──────────────────────────────────────────────────── */
 const Eyebrow = ({ children }) => (
@@ -141,13 +142,13 @@ const ProductHero = () => {
 
           {/* LEFT — text */}
           <div className="product-hero-text-col">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <div data-animate-hero="fade-up" data-delay="0" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
               <span style={{ display: 'block', width: 28, height: 2, backgroundColor: '#4A90E2', flexShrink: 0 }} />
               <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: 13, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', margin: 0 }}>
                 The product
               </p>
             </div>
-            <h1 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 32, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1, marginBottom: 16 }}>
+            <h1 data-animate-hero="fade-up" data-delay="0.12" className="mkt-archivo" style={{ fontWeight: 900, fontSize: 32, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1, marginBottom: 16 }}>
               ONE PLATFORM. END-TO-END VESSEL OPERATIONS.
             </h1>
 
@@ -249,7 +250,7 @@ const STEPS = [
 const HowItWorks = () => (
   <section style={{ padding: '72px 32px', maxWidth: 1280, margin: '0 auto' }}>
     <SectionHeading eyebrow="How it works" headline="Up and running in days, not months" />
-    <div className="grid md:grid-cols-3 gap-8" style={{ maxWidth: 960, margin: '0 auto' }}>
+    <div data-animate="stagger" className="grid md:grid-cols-3 gap-8" style={{ maxWidth: 960, margin: '0 auto' }}>
       {STEPS.map(({ n, title, body }) => (
         <div key={n}>
           <p className="mkt-archivo" style={{ fontWeight: 900, fontSize: 40, color: 'rgba(74,144,226,0.15)', lineHeight: 1, marginBottom: 12 }}>{n}</p>
@@ -264,7 +265,7 @@ const HowItWorks = () => (
 /* ─── CTA ────────────────────────────────────────────────────────────────── */
 const CTABanner = () => (
   <section style={{ padding: '80px 32px' }}>
-    <div className="rounded-2xl text-center" style={{ maxWidth: 860, margin: '0 auto', backgroundColor: '#1E3A5F', padding: '56px 40px' }}>
+    <div data-animate="fade-up" className="rounded-2xl text-center" style={{ maxWidth: 860, margin: '0 auto', backgroundColor: '#1E3A5F', padding: '56px 40px' }}>
       <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(74,144,226,0.8)', marginBottom: 12 }}>Get started</p>
       <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 26, color: 'white', lineHeight: 1.15, marginBottom: 10 }}>Ready to see Cargo in action?</h2>
       <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 14, color: 'rgba(255,255,255,0.55)', maxWidth: 400, margin: '0 auto 28px', lineHeight: 1.65 }}>
@@ -297,10 +298,10 @@ const DEPTS = [
 const Departments = () => (
   <section style={{ backgroundColor: '#F8FAFC', borderTop: '2px solid #1E3A5F', borderBottom: '2px solid #1E3A5F', padding: '72px 32px' }}>
     <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-      <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 12 }}>
+      <p data-animate="fade-up" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 12 }}>
         Built for every department
       </p>
-      <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 36, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 0.97, marginBottom: 56 }}>
+      <h2 data-animate="fade-up" data-delay="0.1" className="mkt-archivo" style={{ fontWeight: 900, fontSize: 36, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 0.97, marginBottom: 56 }}>
         Every system built for people who use it.
       </h2>
       {DEPTS.map(({ name, body }, i) => (
@@ -317,13 +318,16 @@ const Departments = () => (
 );
 
 /* ─── Page ───────────────────────────────────────────────────────────────── */
-const ProductPage = () => (
-  <MarketingLayout>
+const ProductPage = () => {
+  useScrollAnimations();
+  return (
+    <MarketingLayout>
     <ProductHero />
     <HowItWorks />
     <Departments />
     <CTABanner />
-  </MarketingLayout>
-);
+    </MarketingLayout>
+  );
+};
 
 export default ProductPage;

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import MarketingLayout from '../MarketingLayout';
+import useScrollAnimations from '../../hooks/useScrollAnimations';
 
 const VALUES = [
   { n: '01', title: 'Vessel-first thinking', body: "Every feature decision starts with one question: does this match how vessels actually operate? If a workflow doesn't reflect reality on deck, it doesn't ship." },
@@ -9,16 +10,18 @@ const VALUES = [
   { n: '04', title: 'Information stays on the vessel', body: 'Guest preferences, inventory data, and crew details are sensitive. We build with data ownership and privacy in mind at every layer.' },
 ];
 
-const AboutPage = () => (
-  <MarketingLayout>
+const AboutPage = () => {
+  useScrollAnimations();
+  return (
+    <MarketingLayout>
     {/* Hero */}
     <section style={{ paddingTop: 96, paddingBottom: 56, borderBottom: '1px solid #E2E8F0', textAlign: 'center' }}>
       <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 32px' }}>
-        <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>About</p>
-        <h1 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 38, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1.05, marginBottom: 14 }}>
+        <p data-animate-hero="fade-up" data-delay="0" className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>About</p>
+        <h1 data-animate-hero="fade-up" data-delay="0.12" className="mkt-archivo" style={{ fontWeight: 900, fontSize: 38, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1.05, marginBottom: 14 }}>
           Built out of frustration with how yachts are run
         </h1>
-        <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 15, color: '#64748B', maxWidth: 520, margin: '0 auto', lineHeight: 1.7 }}>
+        <p data-animate-hero="fade-up" data-delay="0.24" className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 15, color: '#64748B', maxWidth: 520, margin: '0 auto', lineHeight: 1.7 }}>
           Cargo started from a simple observation: professional vessel operations are genuinely complex, but almost no software takes them seriously.
         </p>
       </div>
@@ -27,7 +30,7 @@ const AboutPage = () => (
     {/* Origin story */}
     <section style={{ padding: '72px 32px', borderBottom: '1px solid #E2E8F0' }}>
       <div style={{ maxWidth: 760, margin: '0 auto' }}>
-        <div className="bg-white rounded-xl p-10" style={{ border: '2px solid #1E3A5F', display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div data-animate="fade-up" className="bg-white rounded-xl p-10" style={{ border: '2px solid #1E3A5F', display: 'flex', flexDirection: 'column', gap: 20 }}>
           {[
             "Most yacht operations tools are one of two things: consumer apps repurposed for professional use, or enterprise fleet-management software scaled down and stripped of context. Neither works for a 50m vessel with a crew of 12 running back-to-back charters.",
             "The spreadsheets are relentless. There's one for inventory, one for crew scheduling, one for guest preferences, another for defects. They live on different laptops, go out of sync constantly, and disappear with rotating crew. Critical information becomes institutional knowledge instead of documented fact.",
@@ -49,7 +52,7 @@ const AboutPage = () => (
     <section style={{ padding: '72px 32px', backgroundColor: 'white', borderBottom: '1px solid #E2E8F0' }}>
       <div style={{ maxWidth: 1280, margin: '0 auto' }}>
         <div className="grid lg:grid-cols-2 gap-16 items-start">
-          <div>
+          <div data-animate="fade-up">
             <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>Mission</p>
             <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 28, color: '#1E3A5F', lineHeight: 1.15, marginBottom: 16 }}>
               Make professional vessel operations genuinely manageable
@@ -61,7 +64,7 @@ const AboutPage = () => (
               Not a MVP. Not a pivot. A focused, deliberate platform for people who take their work seriously.
             </p>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div data-animate="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {VALUES.map(({ n, title, body }) => (
               <div key={n} className="bg-[#F8FAFC] rounded-xl p-5 flex gap-4" style={{ border: '2px solid #1E3A5F' }}>
                 <p className="mkt-archivo flex-shrink-0" style={{ fontWeight: 900, fontSize: 18, color: '#4A90E2', lineHeight: 1, marginTop: 2 }}>{n}</p>
@@ -78,7 +81,7 @@ const AboutPage = () => (
 
     {/* CTA */}
     <section style={{ padding: '72px 32px' }}>
-      <div className="text-center" style={{ maxWidth: 560, margin: '0 auto' }}>
+      <div data-animate="fade-up" className="text-center" style={{ maxWidth: 560, margin: '0 auto' }}>
         <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>Get involved</p>
         <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 26, color: '#1E3A5F', lineHeight: 1.15, marginBottom: 10 }}>Want to be part of it?</h2>
         <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 14, color: '#64748B', marginBottom: 28, lineHeight: 1.65 }}>
@@ -98,7 +101,8 @@ const AboutPage = () => (
         </div>
       </div>
     </section>
-  </MarketingLayout>
-);
+    </MarketingLayout>
+  );
+};
 
 export default AboutPage;
