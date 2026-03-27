@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors, closestCenter,
@@ -417,7 +417,7 @@ const ProvisioningListView = () => {
       setLists(prev => prev.map(l => l.id === list.id ? { ...l, status: list.status } : l));
       showToast('Failed to update status.', 'error');
     }
-  }, [lists]);
+  }, [lists, canEditList]);
 
   // List view sort
   const handleSort = (col) => {
@@ -429,8 +429,7 @@ const ProvisioningListView = () => {
     <Icon name={sortDir === 'asc' ? 'ChevronUp' : 'ChevronDown'} className="w-3 h-3 inline ml-1" />
   );
 
-  // Filter
-  const filtered = lists.filter(l => {
+  const filtered = useMemo(() => lists.filter(l => {
     if (!canViewList(l)) return false;
     if (statusFilter !== 'all' && l.status !== statusFilter) return false;
     if (deptFilter !== 'all' && l.department !== deptFilter) return false;
@@ -444,10 +443,9 @@ const ProvisioningListView = () => {
       ) return false;
     }
     return true;
-  });
+  }), [lists, canViewList, statusFilter, deptFilter, searchQuery]);
 
-  // Sorted for list view
-  const sorted = [...filtered].sort((a, b) => {
+  const sorted = useMemo(() => [...filtered].sort((a, b) => {
     let aVal = a[sortBy] || '';
     let bVal = b[sortBy] || '';
     if (sortBy === 'order_by_date') {
@@ -456,7 +454,7 @@ const ProvisioningListView = () => {
     }
     const cmp = typeof aVal === 'number' ? aVal - bVal : String(aVal).localeCompare(String(bVal));
     return sortDir === 'asc' ? cmp : -cmp;
-  });
+  }), [filtered, sortBy, sortDir]);
 
   if (loading) {
     return (
