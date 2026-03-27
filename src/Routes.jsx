@@ -48,9 +48,7 @@ import MyProfileManagement from './pages/NotFound';
 import { getCurrentUser } from './utils/authStorage';
 import { isDevMode } from './utils/devMode';
 
-import ProvisioningListView from './pages/provisioning';
-import ProvisioningForm from './pages/provisioning/ProvisioningForm';
-import ProvisioningDetail from './pages/provisioning/ProvisioningDetail';
+import ProvisioningWorkspace from './pages/provisioning';
 import ProvisioningSuppliers from './pages/provisioning/ProvisioningSuppliers';
 import TripItineraryTimeline from './pages/trip-itinerary-timeline/index';
 import InviteAcceptPage from './pages/invite-accept';
@@ -915,11 +913,8 @@ const Routes = () => {
         <Route path="/smart-import-with-auto-assignment-engine" element={<ProtectedRoute><SmartImportWithAutoAssignmentEngine /></ProtectedRoute>} />
         
         {/* Provisioning Routes */}
-        <Route path="/provisioning" element={<ProtectedRoute><ProvisioningListView /></ProtectedRoute>} />
-        <Route path="/provisioning/new" element={<ProtectedRoute><ProvisioningForm /></ProtectedRoute>} />
+        <Route path="/provisioning" element={<ProtectedRoute><ProvisioningWorkspace /></ProtectedRoute>} />
         <Route path="/provisioning/suppliers" element={<ProtectedRoute><ProvisioningSuppliers /></ProtectedRoute>} />
-        <Route path="/provisioning/:listId" element={<ProtectedRoute><ProvisioningDetail /></ProtectedRoute>} />
-        <Route path="/provisioning/:listId/edit" element={<ProtectedRoute><ProvisioningForm /></ProtectedRoute>} />
 
         {/* Accounts */}
         <Route path="/accounts" element={<ProtectedRoute><Accounts /></ProtectedRoute>} />
