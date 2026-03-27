@@ -52,13 +52,17 @@ const NewBoardColumn = ({ trips, onCreated, onCancel }) => {
         <option value="">Link to trip (optional)</option>
         {(trips || []).map(t => <option key={t.id} value={t.id}>{t.title || t.name}</option>)}
       </select>
-      <input
-        type="date"
-        value={orderByDate}
-        onChange={e => setOrderByDate(e.target.value)}
-        className={inputCls}
-        placeholder="Order by date"
-      />
+      <div>
+        <label style={{ display: 'block', fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>
+          Order by date
+        </label>
+        <input
+          type="date"
+          value={orderByDate}
+          onChange={e => setOrderByDate(e.target.value)}
+          className={inputCls}
+        />
+      </div>
       <div className="flex gap-2">
         <button
           onClick={handleCreate}
@@ -173,22 +177,30 @@ const ProvisioningWorkspace = () => {
 
   const handleCreateBoard = async ({ title, trip_id, order_by_date }) => {
     try {
+      console.log('[Provisioning] createBoard — tenant_id:', activeTenantId, 'userId:', userId);
       const newList = await createProvisioningList({
         tenant_id: activeTenantId,
         title,
-        trip_id,
-        order_by_date,
+        trip_id: trip_id || null,
+        order_by_date: order_by_date || null,
         status: PROVISIONING_STATUS.DRAFT,
         created_by: userId,
         department: '',
+        port_location: '',
         notes: '',
+        currency: 'USD',
+        estimated_cost: null,
+        actual_cost: null,
+        supplier_id: null,
         is_private: false,
+        is_template: false,
       });
       setLists(prev => [newList, ...prev]);
       setItemsByList(prev => ({ ...prev, [newList.id]: [] }));
       setShowNewBoard(false);
       showToast('Board created', 'success');
-    } catch {
+    } catch (err) {
+      console.error('[Provisioning] createBoard error:', err);
       showToast('Failed to create board', 'error');
     }
   };
@@ -317,7 +329,7 @@ const ProvisioningWorkspace = () => {
     return (
       <>
         <Header />
-        <div className="min-h-screen bg-[#0d1a2e] flex items-center justify-center">
+        <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#0d1a2e' }}>
           <div className="w-6 h-6 border-2 border-[#4A90E2] border-t-transparent rounded-full animate-spin" />
         </div>
       </>
@@ -327,9 +339,9 @@ const ProvisioningWorkspace = () => {
   return (
     <>
       <Header />
-      <div className="min-h-screen bg-[#0d1a2e]">
+      <div className="min-h-screen" style={{ backgroundColor: '#0d1a2e' }}>
         {/* Toolbar */}
-        <div className="sticky top-0 z-20 bg-[#0d1a2e] border-b border-[rgba(255,255,255,0.06)] px-6 py-3">
+        <div className="sticky top-0 z-20 border-b border-[rgba(255,255,255,0.06)] px-6 py-3" style={{ backgroundColor: '#0d1a2e' }}>
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <h1 className="text-lg font-bold text-white">Provisioning</h1>
