@@ -23,18 +23,6 @@ const MarketingNav = () => {
         {/* Logo */}
         <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
           <img src="/assets/images/cargo_merged_originalmark_syne800_true.png" alt="Cargo" style={{ height: 28, width: 'auto' }} />
-          <span
-            className="mkt-archivo"
-            style={{
-              fontWeight: 900,
-              fontSize: 18,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              color: '#1E3A5F',
-            }}
-          >
-            Cargo
-          </span>
         </Link>
 
         {/* Centre links */}

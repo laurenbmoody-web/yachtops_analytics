@@ -438,7 +438,7 @@ const Header = () => {
             className="h-8 w-auto object-contain"
           />
           <div className="text-muted-foreground text-xl">|</div>
-          <span className="text-lg font-semibold text-foreground font-branding">Cargo</span>
+          
         </div>
         {/* CENTRE ZONE: Search Bar */}
         <div className="flex-1 flex justify-center px-8">
