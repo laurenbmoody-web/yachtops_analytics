@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Button from '../../components/ui/Button';
 import Icon from '../../components/AppIcon';
-import { getAllItems, getItemsByLocation, getItemCountByLocation, deleteItem, saveItem, getFolderTree, createFolder, renameFolderInDB, deleteFolderFromDB, migrateLocalStorageFolderTree, moveFolderInDB, ensureDepartmentFolders, updateFolderVisibility, archiveFolder, updateItemStockLocations, bulkDeleteItemsByIds, bulkMoveItemsByIds } from '../inventory/utils/inventoryStorage';
+import { getAllItems, getItemsByLocation, getItemCountByLocation, deleteItem, saveItem, getFolderTree, createFolder, renameFolderInDB, deleteFolderFromDB, migrateLocalStorageFolderTree, moveFolderInDB, ensureDepartmentFolders, updateFolderVisibility, archiveFolder, updateItemStockLocations, bulkDeleteItemsByIds, bulkMoveItemsByIds, updateFolderAppearance } from '../inventory/utils/inventoryStorage';
 import { getCurrentUser, DEPARTMENTS } from '../../utils/authStorage';
 import { isDevMode } from '../../utils/devMode';
 import { useAuth } from '../../contexts/AuthContext';
@@ -24,6 +24,64 @@ import { exportInventoryToPDF } from './utils/inventoryPdfExport';
 import { exportInventoryToXLSX } from './utils/inventoryXlsxExport';
 
 const SLASH_PLACEHOLDER = '__FWDSLASH__';
+
+// ─── Folder Icon Suggestions ───────────────────────────────────────────────────
+const ICON_KEYWORD_MAP = [
+  { keywords: ['linen', 'towel', 'bedding', 'sheet', 'pillow', 'duvet', 'bed'], icon: 'Shirt' },
+  { keywords: ['watersport', 'water sport', 'jetski', 'jet ski', 'surf', 'kayak', 'paddle', 'dive', 'snorkel', 'swim', 'wakeboard', 'kite'], icon: 'Waves' },
+  { keywords: ['floral', 'flower', 'plant', 'garden', 'bouquet', 'bloom', 'botanical'], icon: 'Flower2' },
+  { keywords: ['food', 'pantry', 'galley', 'kitchen', 'catering', 'cuisine', 'meal', 'dining', 'snack', 'provision', 'dry good'], icon: 'ChefHat' },
+  { keywords: ['drink', 'beverage', 'wine', 'spirit', 'alcohol', 'bar', 'cellar', 'champagne', 'beer', 'cocktail', 'juice', 'water bottle'], icon: 'Wine' },
+  { keywords: ['clean', 'laundry', 'hygiene', 'detergent', 'soap', 'polish', 'chemical', 'sanitise', 'sanitize', 'bleach', 'disinfect'], icon: 'Sparkles' },
+  { keywords: ['tech', 'electronic', 'av', 'audio', 'video', 'media', 'entertainment', 'tv', 'screen', 'speaker', 'wifi', 'cable'], icon: 'Monitor' },
+  { keywords: ['tool', 'maintenance', 'repair', 'engineering', 'engine', 'mechanical', 'hardware', 'bolt', 'screw', 'wrench'], icon: 'Wrench' },
+  { keywords: ['safety', 'medical', 'first aid', 'health', 'emergency', 'rescue', 'fire', 'life jacket', 'ppe', 'protection'], icon: 'ShieldCheck' },
+  { keywords: ['uniform', 'clothing', 'crew wear', 'apparel', 'shirt', 'jacket', 'hat', 'cap', 'polo', 'outfit'], icon: 'ShirtIcon' },
+  { keywords: ['cabin', 'stateroom', 'bedroom', 'guest', 'room', 'suite', 'bathroom', 'toilet', 'shower'], icon: 'BedDouble' },
+  { keywords: ['deck', 'exterior', 'outdoor', 'outside', 'teak', 'canvas', 'cover', 'awning', 'cushion', 'sunbed'], icon: 'Anchor' },
+  { keywords: ['navigation', 'chart', 'map', 'compass', 'gps', 'instrument', 'bridge'], icon: 'Compass' },
+  { keywords: ['sport', 'game', 'toy', 'recreation', 'leisure', 'fun', 'board game', 'fishing', 'golf', 'tennis'], icon: 'Trophy' },
+  { keywords: ['tender', 'boat', 'dinghy', 'vessel', 'yacht', 'rib', 'craft'], icon: 'Sailboat' },
+  { keywords: ['fuel', 'oil', 'lubricant', 'fluid', 'coolant', 'hydraulic', 'diesel', 'gas', 'petrol'], icon: 'Droplets' },
+  { keywords: ['paper', 'stationery', 'office', 'document', 'print', 'ink', 'pen', 'notepad'], icon: 'FileText' },
+  { keywords: ['photo', 'camera', 'image', 'picture', 'drone'], icon: 'Camera' },
+  { keywords: ['music', 'instrument', 'audio', 'sound'], icon: 'Music' },
+  { keywords: ['seasonal', 'holiday', 'christmas', 'decoration', 'festive', 'event', 'occasion'], icon: 'Star' },
+  { keywords: ['spa', 'wellness', 'beauty', 'lotion', 'cream', 'toiletry', 'cosmetic', 'perfume'], icon: 'Heart' },
+  { keywords: ['coffee', 'tea', 'espresso', 'cup', 'mug'], icon: 'Coffee' },
+  { keywords: ['fruit', 'vegetable', 'fresh', 'produce', 'grocery'], icon: 'Apple' },
+  { keywords: ['gift', 'welcome', 'amenity', 'present', 'souvenir', 'merchandise'], icon: 'Gift' },
+  { keywords: ['storage', 'box', 'container', 'archive', 'spare'], icon: 'Package' },
+];
+
+const FOLDER_ICON_PALETTE = [
+  'FolderOpen', 'MapPin', 'Shirt', 'Waves', 'Flower2', 'ChefHat', 'Wine',
+  'Sparkles', 'Monitor', 'Wrench', 'ShieldCheck', 'BedDouble', 'Anchor',
+  'Compass', 'Trophy', 'Sailboat', 'Droplets', 'FileText', 'Camera',
+  'Star', 'Heart', 'Coffee', 'Gift', 'Package', 'Music', 'Apple',
+];
+
+const FOLDER_COLOR_PALETTE = [
+  { label: 'Blue',   value: '#4A90E2' },
+  { label: 'Navy',   value: '#1E3A5F' },
+  { label: 'Teal',   value: '#0D9488' },
+  { label: 'Green',  value: '#16A34A' },
+  { label: 'Amber',  value: '#D97706' },
+  { label: 'Red',    value: '#DC2626' },
+  { label: 'Purple', value: '#7C3AED' },
+  { label: 'Pink',   value: '#DB2777' },
+  { label: 'Slate',  value: '#475569' },
+  { label: 'Rose',   value: '#E11D48' },
+];
+
+const suggestIconForName = (name) => {
+  if (!name) return null;
+  const lower = name?.toLowerCase();
+  for (const { keywords, icon } of ICON_KEYWORD_MAP) {
+    if (keywords?.some(k => lower?.includes(k))) return icon;
+  }
+  return null;
+};
 
 const encodeSegment = (s) =>
   encodeURIComponent(s?.replace(/\//g, SLASH_PLACEHOLDER));
@@ -137,24 +195,36 @@ const applySortToItems = (items, sortBy) => {
 const AddFolderModal = ({ parentPath, onClose, onSave }) => {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const [selectedIcon, setSelectedIcon] = useState(null);
+  const [selectedColor, setSelectedColor] = useState(null);
+  const [showIconPicker, setShowIconPicker] = useState(false);
   const inputRef = useRef(null);
 
   useEffect(() => { setTimeout(() => inputRef?.current?.focus(), 100); }, []);
 
+  const handleNameChange = (e) => {
+    const val = e?.target?.value;
+    setName(val);
+    setError('');
+    const suggested = suggestIconForName(val);
+    if (suggested && !selectedIcon) setSelectedIcon(suggested);
+  };
+
   const handleSave = () => {
     const trimmed = name?.trim();
     if (!trimmed) { setError('Please enter a name'); return; }
-    onSave(trimmed);
+    onSave({ name: trimmed, icon: selectedIcon || null, color: selectedColor || null });
   };
 
-  const label = 'Add Sub-folder';
   const parentLabel = parentPath?.length > 0 ? parentPath?.[parentPath?.length - 1] : null;
+  const previewColor = selectedColor || '#4A90E2';
+  const previewIcon = selectedIcon || 'FolderOpen';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-foreground">{label}</h2>
+          <h2 className="text-lg font-semibold text-foreground">Add Sub-folder</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
             <Icon name="X" size={18} />
           </button>
@@ -162,19 +232,108 @@ const AddFolderModal = ({ parentPath, onClose, onSave }) => {
         {parentLabel && (
           <p className="text-sm text-muted-foreground mb-3">Inside: <span className="font-medium text-foreground">{parentLabel}</span></p>
         )}
+
+        {/* Name input */}
         <div className="mb-4">
-          <label className="block text-sm font-medium text-foreground mb-1.5">Sub-folder name</label>
+          <label className="block text-sm font-medium text-foreground mb-1.5">Folder name</label>
           <input
             ref={inputRef}
             type="text"
             value={name}
-            onChange={(e) => { setName(e?.target?.value); setError(''); }}
+            onChange={handleNameChange}
             onKeyDown={(e) => { if (e?.key === 'Enter') handleSave(); if (e?.key === 'Escape') onClose(); }}
-            placeholder="e.g. Cold Storage"
+            placeholder="e.g. Linen & Towels"
             className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground"
           />
           {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
         </div>
+
+        {/* Preview + Icon/Color selectors */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-foreground mb-2">Appearance</label>
+          <div className="flex items-center gap-3">
+            {/* Preview circle */}
+            <div
+              className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: previewColor + '22', border: `2px solid ${previewColor}44` }}
+            >
+              <Icon name={previewIcon} size={22} style={{ color: previewColor }} />
+            </div>
+
+            {/* Icon picker toggle */}
+            <div className="flex-1">
+              <button
+                type="button"
+                onClick={() => setShowIconPicker(v => !v)}
+                className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm bg-background border border-border rounded-xl hover:border-primary/50 transition-colors text-foreground"
+              >
+                <div className="flex items-center gap-2">
+                  <Icon name={previewIcon} size={14} className="text-muted-foreground" />
+                  <span className="text-muted-foreground text-xs">{previewIcon}</span>
+                </div>
+                <Icon name={showIconPicker ? 'ChevronUp' : 'ChevronDown'} size={14} className="text-muted-foreground" />
+              </button>
+            </div>
+          </div>
+
+          {/* Icon grid */}
+          {showIconPicker && (
+            <div className="mt-2 p-3 bg-background border border-border rounded-xl">
+              <p className="text-xs text-muted-foreground mb-2">Choose icon</p>
+              <div className="grid grid-cols-7 gap-1.5">
+                {FOLDER_ICON_PALETTE?.map(iconName => (
+                  <button
+                    key={iconName}
+                    type="button"
+                    onClick={() => { setSelectedIcon(iconName); setShowIconPicker(false); }}
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                      selectedIcon === iconName
+                        ? 'bg-primary text-primary-foreground'
+                        : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                    }`}
+                    title={iconName}
+                  >
+                    <Icon name={iconName} size={14} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Color swatches */}
+          <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+            {FOLDER_COLOR_PALETTE?.map(c => (
+              <button
+                key={c?.value}
+                type="button"
+                onClick={() => setSelectedColor(selectedColor === c?.value ? null : c?.value)}
+                className="w-6 h-6 rounded-full transition-transform hover:scale-110 flex-shrink-0"
+                style={{
+                  backgroundColor: c?.value,
+                  outline: selectedColor === c?.value ? `2px solid ${c?.value}` : '2px solid transparent',
+                  outlineOffset: 2,
+                }}
+                title={c?.label}
+              />
+            ))}
+            {selectedColor && (
+              <button
+                type="button"
+                onClick={() => setSelectedColor(null)}
+                className="text-xs text-muted-foreground hover:text-foreground ml-1 underline"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+          {name && suggestIconForName(name) && selectedIcon === suggestIconForName(name) && (
+            <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
+              <Icon name="Sparkles" size={10} />
+              Icon suggested based on folder name
+            </p>
+          )}
+        </div>
+
         <div className="flex gap-2 justify-end">
           <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors">Cancel</button>
           <button onClick={handleSave} className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors">Create</button>
@@ -229,8 +388,115 @@ const EditFolderModal = ({ currentName, onClose, onSave }) => {
   );
 };
 
+// ─── Edit Folder Appearance Modal ────────────────────────────────────────────
+const EditFolderAppearanceModal = ({ folderName, currentIcon, currentColor, onClose, onSave }) => {
+  const [selectedIcon, setSelectedIcon] = useState(currentIcon || null);
+  const [selectedColor, setSelectedColor] = useState(currentColor || null);
+  const [showIconPicker, setShowIconPicker] = useState(false);
+
+  const previewColor = selectedColor || '#4A90E2';
+  const previewIcon = selectedIcon || 'FolderOpen';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-foreground">Edit Appearance</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
+            <Icon name="X" size={18} />
+          </button>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">{folderName}</p>
+
+        {/* Preview + Icon toggle */}
+        <div className="flex items-center gap-3 mb-4">
+          <div
+            className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: previewColor + '22', border: `2px solid ${previewColor}44` }}
+          >
+            <Icon name={previewIcon} size={22} style={{ color: previewColor }} />
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowIconPicker(v => !v)}
+            className="flex-1 flex items-center justify-between gap-2 px-3 py-2 text-sm bg-background border border-border rounded-xl hover:border-primary/50 transition-colors text-foreground"
+          >
+            <div className="flex items-center gap-2">
+              <Icon name={previewIcon} size={14} className="text-muted-foreground" />
+              <span className="text-muted-foreground text-xs">{previewIcon}</span>
+            </div>
+            <Icon name={showIconPicker ? 'ChevronUp' : 'ChevronDown'} size={14} className="text-muted-foreground" />
+          </button>
+        </div>
+
+        {showIconPicker && (
+          <div className="mb-4 p-3 bg-background border border-border rounded-xl">
+            <p className="text-xs text-muted-foreground mb-2">Choose icon</p>
+            <div className="grid grid-cols-7 gap-1.5">
+              {FOLDER_ICON_PALETTE?.map(iconName => (
+                <button
+                  key={iconName}
+                  type="button"
+                  onClick={() => { setSelectedIcon(iconName); setShowIconPicker(false); }}
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                    selectedIcon === iconName
+                      ? 'bg-primary text-primary-foreground'
+                      : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                  }`}
+                  title={iconName}
+                >
+                  <Icon name={iconName} size={14} />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="mb-5">
+          <p className="text-xs font-medium text-muted-foreground mb-2">Colour</p>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {FOLDER_COLOR_PALETTE?.map(c => (
+              <button
+                key={c?.value}
+                type="button"
+                onClick={() => setSelectedColor(selectedColor === c?.value ? null : c?.value)}
+                className="w-6 h-6 rounded-full transition-transform hover:scale-110 flex-shrink-0"
+                style={{
+                  backgroundColor: c?.value,
+                  outline: selectedColor === c?.value ? `2px solid ${c?.value}` : '2px solid transparent',
+                  outlineOffset: 2,
+                }}
+                title={c?.label}
+              />
+            ))}
+            {selectedColor && (
+              <button
+                type="button"
+                onClick={() => setSelectedColor(null)}
+                className="text-xs text-muted-foreground hover:text-foreground ml-1 underline"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex gap-2 justify-end">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors">Cancel</button>
+          <button
+            onClick={() => onSave({ icon: selectedIcon, color: selectedColor })}
+            className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Folder Settings Cog Modal ────────────────────────────────────────────────
-const FolderSettingsModal = ({ folderName, parentSegments, currentVisibility, onClose, onRename, onMove, onDelete, onArchive, onVisibilityChange, canMove }) => {
+const FolderSettingsModal = ({ folderName, parentSegments, currentVisibility, onClose, onRename, onMove, onDelete, onArchive, onVisibilityChange, onEditAppearance, canMove }) => {
   const [showVisibilityMenu, setShowVisibilityMenu] = useState(false);
   const [savingVisibility, setSavingVisibility] = useState(false);
 
@@ -268,6 +534,17 @@ const FolderSettingsModal = ({ folderName, parentSegments, currentVisibility, on
             <Icon name="Pencil" size={15} className="text-muted-foreground" />
             Rename folder
           </button>
+
+          {/* Edit Appearance */}
+          {onEditAppearance && (
+            <button
+              onClick={() => { onClose(); onEditAppearance(); }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-foreground hover:bg-muted rounded-xl transition-colors text-left"
+            >
+              <Icon name="Palette" size={15} className="text-muted-foreground" />
+              Edit icon &amp; colour
+            </button>
+          )}
 
           {/* Move */}
           {canMove !== false && (
@@ -1037,7 +1314,7 @@ const ItemGridCard = ({ item, canEdit, onEdit, onDelete, onUpdate, onQuickView, 
 };
 
 // ─── Folder Card ───────────────────────────────────────────────────────────────
-const FolderCard = ({ name, icon, itemCount, subFolderCount, depth, onClick, canEdit, onEdit, onDelete, onCog, onVisibilityChange, canMove, dragHandleProps, isDragging, isFolderDropTarget, isDropTargetReady, showCog }) => (
+const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onClick, canEdit, onEdit, onDelete, onCog, onVisibilityChange, canMove, dragHandleProps, isDragging, isFolderDropTarget, isDropTargetReady, showCog }) => (
   <div
     onClick={onClick}
     className={[
@@ -1064,8 +1341,21 @@ const FolderCard = ({ name, icon, itemCount, subFolderCount, depth, onClick, can
             <Icon name="GripVertical" size={14} />
           </div>
         )}
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${depth === 0 ? 'bg-primary/10' : 'bg-muted'}`}>
-          <Icon name={icon || (depth === 0 ? 'MapPin' : 'FolderOpen')} size={20} className={depth === 0 ? 'text-primary' : 'text-muted-foreground'} />
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center"
+          style={color
+            ? { backgroundColor: color + '22', border: `1.5px solid ${color}44` }
+            : depth === 0
+              ? { backgroundColor: 'var(--color-primary-10, rgba(74,144,226,0.1))' }
+              : { backgroundColor: 'var(--color-muted)' }
+          }
+        >
+          <Icon
+            name={icon || (depth === 0 ? 'MapPin' : 'FolderOpen')}
+            size={20}
+            style={color ? { color } : {}}
+            className={!color ? (depth === 0 ? 'text-primary' : 'text-muted-foreground') : ''}
+          />
         </div>
       </div>
       <div className="flex items-center gap-1">
@@ -1114,7 +1404,7 @@ const FolderCard = ({ name, icon, itemCount, subFolderCount, depth, onClick, can
 );
 
 // ─── Sortable Folder Card Wrapper ─────────────────────────────────────────────
-const SortableFolderCard = ({ id, name, icon, itemCount, subFolderCount, depth, onClick, canEdit, onEdit, onDelete, onCog, showCog, folderDropTargetId, folderDropTargetReady }) => {
+const SortableFolderCard = ({ id, name, icon, color, itemCount, subFolderCount, depth, onClick, canEdit, onEdit, onDelete, onCog, showCog, folderDropTargetId, folderDropTargetReady }) => {
   const {
     attributes,
     listeners,
@@ -1137,6 +1427,7 @@ const SortableFolderCard = ({ id, name, icon, itemCount, subFolderCount, depth, 
       <FolderCard
         name={name}
         icon={icon}
+        color={color}
         itemCount={itemCount}
         subFolderCount={subFolderCount}
         depth={depth}
@@ -1444,6 +1735,7 @@ const LocationFirstInventory = () => {
   const [folderTree, setFolderTree] = useState({});
   const [activeDragId, setActiveDragId] = useState(null);
   const [movingFolderName, setMovingFolderName] = useState(null);
+  const [appearanceFolderName, setAppearanceFolderName] = useState(null);
 
   const [selectedItemIds, setSelectedItemIds] = useState(new Set());
   const [showExportModal, setShowExportModal] = useState(false);
@@ -1977,8 +2269,8 @@ const LocationFirstInventory = () => {
     loadData();
   };
 
-  const handleAddFolder = async (name) => {
-    await createFolder(pathSegments, name);
+  const handleAddFolder = async ({ name, icon, color }) => {
+    await createFolder(pathSegments, name, icon, color);
     setShowAddFolderModal(false);
     loadData();
   };
@@ -2017,6 +2309,13 @@ const LocationFirstInventory = () => {
   const handleVisibilityChange = async (folderName, visibility) => {
     await updateFolderVisibility(pathSegments, folderName, visibility);
     setFolderVisibilities(prev => ({ ...prev, [folderName]: visibility }));
+  };
+
+  const handleSaveAppearance = async ({ icon, color }) => {
+    if (!appearanceFolderName) return;
+    await updateFolderAppearance(pathSegments, appearanceFolderName, icon, color);
+    setAppearanceFolderName(null);
+    loadData();
   };
 
   const filteredItems = (() => {
@@ -2614,12 +2913,16 @@ const LocationFirstInventory = () => {
                     const folderSegments = [...pathSegments, folderName];
                     const isReadOnly = isFolderReadOnly(folderName);
                     const showCog = shouldShowCog(folderName);
+                    const meta = folderTree?.[pathKey(pathSegments)]?.folderMeta?.[folderName] || {};
+                    const folderIcon = meta?.icon || (isRoot ? 'MapPin' : 'FolderOpen');
+                    const folderColor = meta?.color || null;
                     return (
                       <SortableFolderCard
                         key={folderName}
                         id={folderName}
                         name={folderName}
-                        icon={isRoot ? 'MapPin' : 'FolderOpen'}
+                        icon={folderIcon}
+                        color={folderColor}
                         itemCount={itemCounts?.[folderName] ?? 0}
                         subFolderCount={getSubFoldersFromTree(folderTree, folderSegments)?.length}
                         depth={pathSegments?.length}
@@ -2643,7 +2946,8 @@ const LocationFirstInventory = () => {
             {activeDragId ? (
               <FolderCard
                 name={activeDragId}
-                icon={isRoot ? 'MapPin' : 'FolderOpen'}
+                icon={folderTree?.[pathKey(pathSegments)]?.folderMeta?.[activeDragId]?.icon || (isRoot ? 'MapPin' : 'FolderOpen')}
+                color={folderTree?.[pathKey(pathSegments)]?.folderMeta?.[activeDragId]?.color || null}
                 itemCount={itemCounts?.[activeDragId] ?? 0}
                 subFolderCount={0}
                 depth={pathSegments?.length}
@@ -2819,6 +3123,7 @@ const LocationFirstInventory = () => {
           onDelete={() => setDeletingFolderName(cogFolderName)}
           onArchive={() => setArchivingFolderName(cogFolderName)}
           onVisibilityChange={(v) => handleVisibilityChange(cogFolderName, v)}
+          onEditAppearance={() => setAppearanceFolderName(cogFolderName)}
           canMove={!isRoot}
         />
       )}
@@ -2833,6 +3138,15 @@ const LocationFirstInventory = () => {
           isChief={isChief}
           isHOD={isHOD}
           userDepartment={userDepartment}
+        />
+      )}
+      {appearanceFolderName && (
+        <EditFolderAppearanceModal
+          folderName={appearanceFolderName}
+          currentIcon={folderTree?.[pathKey(pathSegments)]?.folderMeta?.[appearanceFolderName]?.icon || null}
+          currentColor={folderTree?.[pathKey(pathSegments)]?.folderMeta?.[appearanceFolderName]?.color || null}
+          onClose={() => setAppearanceFolderName(null)}
+          onSave={handleSaveAppearance}
         />
       )}
       {quickViewItem && (
