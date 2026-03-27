@@ -141,6 +141,8 @@ const HeroSection = () => (
         <div>
           {/* Eyebrow */}
           <p
+            data-animate-hero="fade-up"
+            data-delay="0"
             className="mkt-archivo"
             style={{ fontWeight: 600, fontSize: 14, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 8 }}
           >
@@ -148,7 +150,7 @@ const HeroSection = () => (
           </p>
 
           {/* Three-line headline */}
-          <div style={{ marginBottom: 20 }}>
+          <div data-animate-hero="fade-up" data-delay="0.12" style={{ marginBottom: 20 }}>
             <div
               className="mkt-archivo block"
               style={{ fontWeight: 900, fontSize: 42, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1, marginBottom: 4 }}
@@ -187,6 +189,8 @@ const HeroSection = () => (
 
           {/* Body */}
           <p
+            data-animate-hero="fade-up"
+            data-delay="0.28"
             className="mkt-dmsans"
             style={{ fontWeight: 400, fontSize: 15, color: '#64748B', maxWidth: 420, lineHeight: 1.7, marginBottom: 24 }}
           >
@@ -196,13 +200,13 @@ const HeroSection = () => (
           </p>
 
           {/* CTAs */}
-          <div className="flex flex-wrap gap-3">
+          <div data-animate-hero="fade-up" data-delay="0.42" className="flex flex-wrap gap-3">
             <PillSecondary to="/features">Explore Features</PillSecondary>
           </div>
         </div>
 
         {/* Mockup */}
-        <div className="hidden lg:flex justify-end">
+        <div data-animate-hero="fade-right" data-delay="0.18" className="hidden lg:flex justify-end">
           <DashboardMockup />
         </div>
       </div>
@@ -258,10 +262,10 @@ const solutions = [
 const ProblemSolution = () => (
   <section style={{ padding: '64px 32px', maxWidth: 1280, margin: '0 auto' }}>
     <div style={{ marginBottom: 0 }}>
-      <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 14, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>
+      <p data-animate="fade-up" className="mkt-archivo" style={{ fontWeight: 600, fontSize: 14, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>
         The problem
       </p>
-      <div style={{ borderLeft: '5px solid #4A90E2', paddingLeft: 22, marginBottom: 48 }}>
+      <div data-animate="fade-up" data-delay="0.1" style={{ borderLeft: '5px solid #4A90E2', paddingLeft: 22, marginBottom: 48 }}>
         <p className="mkt-archivo" style={{ fontWeight: 900, fontSize: 36, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 0.97, marginBottom: 8 }}>
           Yachts are complex.
         </p>
@@ -273,7 +277,7 @@ const ProblemSolution = () => (
 
     <div className="grid md:grid-cols-2 gap-5" style={{ maxWidth: 860, margin: '0 auto' }}>
       {/* Without */}
-      <div className="rounded-xl" style={{ border: '2px solid #E2E8F0', padding: 28 }}>
+      <div data-animate="fade-up" data-delay="0.05" className="rounded-xl" style={{ border: '2px solid #E2E8F0', padding: 28 }}>
         <div className="flex items-center gap-2 mb-6">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(248,113,113,0.12)' }}>
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
@@ -294,7 +298,7 @@ const ProblemSolution = () => (
       </div>
 
       {/* With Cargo */}
-      <div className="rounded-xl" style={{ border: '2px solid #1E3A5F', padding: 28 }}>
+      <div data-animate="fade-up" data-delay="0.18" className="rounded-xl" style={{ border: '2px solid #1E3A5F', padding: 28 }}>
         <div className="flex items-center gap-2 mb-6">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(74,144,226,0.12)' }}>
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
@@ -320,16 +324,16 @@ const ProblemSolution = () => (
 /* ─── CTA banner ─────────────────────────────────────────────────────────── */
 const CTABanner = () => (
   <section style={{ backgroundColor: '#1E3A5F', padding: '80px 32px', textAlign: 'center' }}>
-    <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 14, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(74,144,226,0.8)', marginBottom: 12 }}>
+    <p data-animate="fade-up" className="mkt-archivo" style={{ fontWeight: 600, fontSize: 14, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(74,144,226,0.8)', marginBottom: 12 }}>
       Get started
     </p>
-    <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 44, textTransform: 'uppercase', color: 'white', lineHeight: 0.97, marginBottom: 16 }}>
+    <h2 data-animate="fade-up" data-delay="0.1" className="mkt-archivo" style={{ fontWeight: 900, fontSize: 44, textTransform: 'uppercase', color: 'white', lineHeight: 0.97, marginBottom: 16 }}>
       READY TO BRING<br />ORDER TO YOUR<br />VESSEL OPS?
     </h2>
-    <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 15, color: 'rgba(255,255,255,0.5)', maxWidth: 400, margin: '0 auto 28px' }}>
+    <p data-animate="fade-up" data-delay="0.2" className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 15, color: 'rgba(255,255,255,0.5)', maxWidth: 400, margin: '0 auto 28px' }}>
       Book a demo and see how Cargo works for your specific vessel and crew structure.
     </p>
-    <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+    <div data-animate="fade-up" data-delay="0.3" className="flex flex-col sm:flex-row items-center justify-center gap-3">
       <Link
         to="/contact"
         className="mkt-archivo transition-colors duration-150"
