@@ -36,12 +36,19 @@ const EditMode = ({ list, suppliers, trips, tenantId, onSaved, onDeleted, onClos
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // department may be text[] from DB or legacy comma-string — normalise to comma-string for form
+  const normDept = (dept) => {
+    if (!dept) return '';
+    if (Array.isArray(dept)) return dept.filter(Boolean).join(', ');
+    return dept;
+  };
+
   useEffect(() => {
     if (list) {
       setForm({
         title: list.title || '',
         trip_id: list.trip_id || '',
-        department: list.department || '',
+        department: normDept(list.department),
         port_location: list.port_location || '',
         order_by_date: list.order_by_date || '',
         supplier_id: list.supplier_id || '',
@@ -57,10 +64,14 @@ const EditMode = ({ list, suppliers, trips, tenantId, onSaved, onDeleted, onClos
     if (!form.title.trim()) return;
     setSaving(true);
     try {
+      // department stored as text[] in DB — convert comma-string → array
+      const deptArray = form.department
+        ? form.department.split(',').map(d => d.trim()).filter(Boolean)
+        : [];
       const updated = await updateProvisioningList(list.id, {
         title: form.title.trim(),
         trip_id: form.trip_id || null,
-        department: form.department,
+        department: deptArray,
         port_location: form.port_location,
         order_by_date: form.order_by_date || null,
         supplier_id: form.supplier_id || null,
