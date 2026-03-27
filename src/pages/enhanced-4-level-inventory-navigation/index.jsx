@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Button from '../../components/ui/Button';
 import Icon from '../../components/AppIcon';
-import { getAllItems, getItemsByLocation, getItemCountByLocation, deleteItem, saveItem, getFolderTree, createFolder, renameFolderInDB, deleteFolderFromDB, migrateLocalStorageFolderTree, moveFolderInDB, ensureDepartmentFolders, updateFolderVisibility, archiveFolder, updateItemStockLocations, bulkDeleteItemsByIds, bulkMoveItemsByIds, updateFolderAppearance } from '../inventory/utils/inventoryStorage';
+import { getAllItems, getItemsByLocation, getItemCountByLocation, deleteItem, saveItem, getFolderTree, createFolder, renameFolderInDB, deleteFolderFromDB, migrateLocalStorageFolderTree, moveFolderInDB, ensureDepartmentFolders, updateFolderVisibility, archiveFolder, updateItemStockLocations, bulkDeleteItemsByIds, bulkMoveItemsByIds, updateFolderAppearance, updateItemAppearance } from '../inventory/utils/inventoryStorage';
 import { getCurrentUser, DEPARTMENTS } from '../../utils/authStorage';
 import { isDevMode } from '../../utils/devMode';
 import { useAuth } from '../../contexts/AuthContext';
@@ -1079,8 +1079,174 @@ const getLastLocationSegment = (loc) => {
   return parts?.[parts?.length - 1] || raw;
 };
 
+// ─── Item Appearance Popover ───────────────────────────────────────────────────
+const ITEM_COLOR_PRESETS = [
+  '#4A90E2', '#1E3A5F', '#0D9488', '#16A34A', '#D97706',
+  '#DC2626', '#7C3AED', '#DB2777', '#475569', '#E11D48',
+  '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#F97316',
+];
+
+const ItemAppearancePopover = ({ item, anchorRect, onClose, onSave }) => {
+  const [tab, setTab] = useState('icon');
+  const [selectedIcon, setSelectedIcon] = useState(item?.icon || null);
+  const [selectedColor, setSelectedColor] = useState(item?.color || null);
+  const [iconSearch, setIconSearch] = useState('');
+  const popoverRef = useRef(null);
+
+  useEffect(() => {
+    const handleClick = (e) => { if (popoverRef?.current && !popoverRef?.current?.contains(e?.target)) onClose(); };
+    const handleKey = (e) => { if (e?.key === 'Escape') onClose(); };
+    setTimeout(() => {
+      document?.addEventListener('mousedown', handleClick);
+      document?.addEventListener('keydown', handleKey);
+    }, 0);
+    return () => {
+      document?.removeEventListener('mousedown', handleClick);
+      document?.removeEventListener('keydown', handleKey);
+    };
+  }, [onClose]);
+
+  const handleSave = async (icon, color) => {
+    await updateItemAppearance(item?.id, icon, color);
+    onSave({ ...item, icon, color });
+    onClose();
+  };
+
+  // Position: below + left-aligned to anchor, clamped to viewport
+  const style = (() => {
+    if (!anchorRect) return { position: 'fixed', top: 120, left: 20 };
+    const W = window?.innerWidth || 800;
+    const H = window?.innerHeight || 600;
+    let top = anchorRect?.bottom + 6;
+    let left = anchorRect?.left;
+    if (left + 296 > W - 8) left = W - 296 - 8;
+    if (top + 320 > H - 8) top = anchorRect?.top - 326;
+    return { position: 'fixed', top, left, zIndex: 9999, width: 296 };
+  })();
+
+  const filteredIcons = FOLDER_ICON_PALETTE?.filter(n => !iconSearch || n?.toLowerCase()?.includes(iconSearch?.toLowerCase()));
+
+  return (
+    <div ref={popoverRef} style={style} className="bg-card border border-border rounded-2xl shadow-xl overflow-hidden">
+      {/* Header tabs */}
+      <div className="flex border-b border-border">
+        {[{ id: 'icon', label: 'Icon' }, { id: 'color', label: 'Colour' }]?.map(t => (
+          <button
+            key={t?.id}
+            onClick={() => setTab(t?.id)}
+            className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
+              tab === t?.id ? 'text-primary border-b-2 border-primary bg-primary/5' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {t?.label}
+          </button>
+        ))}
+        <button onClick={onClose} className="px-3 text-muted-foreground hover:text-foreground">
+          <Icon name="X" size={14} />
+        </button>
+      </div>
+
+      <div className="p-3">
+        {/* Preview strip */}
+        <div className="flex items-center gap-2 mb-3 p-2 bg-muted/40 rounded-xl">
+          <div
+            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={selectedColor ? { backgroundColor: selectedColor + '25', border: `1.5px solid ${selectedColor}50` } : {}}
+          >
+            <Icon
+              name={selectedIcon || 'Package'}
+              size={18}
+              style={selectedColor ? { color: selectedColor } : {}}
+              className={!selectedColor ? 'text-muted-foreground' : ''}
+            />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-foreground truncate">{item?.name}</p>
+            <p className="text-xs text-muted-foreground">{selectedIcon || 'Default icon'}{selectedColor ? ` · ${selectedColor}` : ''}</p>
+          </div>
+          {(selectedIcon || selectedColor) && (
+            <button
+              onClick={() => { setSelectedIcon(null); setSelectedColor(null); handleSave(null, null); }}
+              className="text-xs text-muted-foreground hover:text-foreground underline flex-shrink-0"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
+        {tab === 'icon' && (
+          <>
+            <input
+              type="text"
+              value={iconSearch}
+              onChange={e => setIconSearch(e?.target?.value)}
+              placeholder="Search icons…"
+              className="w-full px-2.5 py-1.5 text-xs bg-background border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/30 text-foreground mb-2"
+            />
+            <div className="grid grid-cols-8 gap-1 max-h-36 overflow-y-auto">
+              {filteredIcons?.map(iconName => (
+                <button
+                  key={iconName}
+                  title={iconName}
+                  onClick={() => { setSelectedIcon(iconName); handleSave(iconName, selectedColor); }}
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                    selectedIcon === iconName ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Icon name={iconName} size={14} />
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {tab === 'color' && (
+          <>
+            {/* Preset swatches */}
+            <div className="grid grid-cols-5 gap-2 mb-3">
+              {ITEM_COLOR_PRESETS?.map(hex => (
+                <button
+                  key={hex}
+                  onClick={() => { setSelectedColor(hex); handleSave(selectedIcon, hex); }}
+                  className="w-full aspect-square rounded-lg transition-transform hover:scale-110 flex-shrink-0"
+                  style={{
+                    backgroundColor: hex,
+                    outline: selectedColor === hex ? `2.5px solid ${hex}` : '2.5px solid transparent',
+                    outlineOffset: 2,
+                  }}
+                  title={hex}
+                />
+              ))}
+            </div>
+            {/* Full spectrum */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-muted-foreground flex-shrink-0">Custom</label>
+              <input
+                type="color"
+                value={selectedColor || '#4A90E2'}
+                onChange={e => setSelectedColor(e?.target?.value)}
+                onBlur={e => handleSave(selectedIcon, e?.target?.value)}
+                className="h-8 flex-1 rounded-lg border border-border cursor-pointer bg-background"
+                style={{ padding: '2px 4px' }}
+              />
+              {selectedColor && (
+                <span className="text-xs font-mono text-muted-foreground">{selectedColor}</span>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ─── Item Row (List View) ──────────────────────────────────────────────────────
-const ItemRow = ({ item, canEdit, onEdit, onDelete, onUpdate, onQuickView, isSelected, onToggleSelect, selectionMode = false }) => {
+const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickView, isSelected, onToggleSelect, selectionMode = false }) => {
+  const [item, setItem] = useState(itemProp);
+  useEffect(() => { setItem(itemProp); }, [itemProp]);
+
+  const [appearanceAnchor, setAppearanceAnchor] = useState(null);
+
   const stockLocations = item?.stockLocations || [];
   const totalQty = stockLocations?.length > 0
     ? stockLocations?.reduce((sum, loc) => sum + (loc?.qty || 0), 0)
@@ -1109,8 +1275,14 @@ const ItemRow = ({ item, canEdit, onEdit, onDelete, onUpdate, onQuickView, isSel
     try { return new Date(rawExpiry)?.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return rawExpiry; }
   })() : null;
 
+  const accentColor = item?.color || null;
+
   return (
-    <div className={`flex flex-col bg-card rounded-xl border transition-all group ${isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30'}`}>
+    <>
+    <div
+      className={`flex flex-col bg-card rounded-xl border transition-all group overflow-hidden ${isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30'}`}
+      style={accentColor ? { borderLeftColor: accentColor, borderLeftWidth: 3 } : {}}
+    >
       <div className="flex items-center gap-3 p-3">
         <button
           onClick={(e) => { e?.stopPropagation(); onToggleSelect?.(item); }}
@@ -1121,6 +1293,19 @@ const ItemRow = ({ item, canEdit, onEdit, onDelete, onUpdate, onQuickView, isSel
           title={isSelected ? 'Deselect' : 'Select'}
         >
           {isSelected && <Icon name="Check" size={11} className="text-primary-foreground" />}
+        </button>
+
+        {/* Colour/icon swatch — click to customise */}
+        <button
+          onClick={(e) => { e?.stopPropagation(); setAppearanceAnchor(e?.currentTarget?.getBoundingClientRect()); }}
+          className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all hover:scale-110 border"
+          style={accentColor
+            ? { backgroundColor: accentColor + '25', borderColor: accentColor + '60', color: accentColor }
+            : { backgroundColor: 'var(--color-muted)', borderColor: 'var(--color-border)', color: 'var(--color-muted-foreground)' }
+          }
+          title="Customise icon & colour"
+        >
+          <Icon name={item?.icon || 'Palette'} size={13} />
         </button>
 
         {/* Item info: Name | Category | Code | Expiry */}
@@ -1200,11 +1385,23 @@ const ItemRow = ({ item, canEdit, onEdit, onDelete, onUpdate, onQuickView, isSel
         </div>
       )}
     </div>
+    {appearanceAnchor && (
+      <ItemAppearancePopover
+        item={item}
+        anchorRect={appearanceAnchor}
+        onClose={() => setAppearanceAnchor(null)}
+        onSave={(updated) => setItem(updated)}
+      />
+    )}
+    </>
   );
 };
 
 // ─── Item Grid Card (Grid View) ────────────────────────────────────────────────
-const ItemGridCard = ({ item, canEdit, onEdit, onDelete, onUpdate, onQuickView, isSelected, onToggleSelect, selectionMode = false }) => {
+const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickView, isSelected, onToggleSelect, selectionMode = false }) => {
+  const [item, setItem] = useState(itemProp);
+  useEffect(() => { setItem(itemProp); }, [itemProp]);
+  const [appearanceAnchor, setAppearanceAnchor] = useState(null);
   const stockLocations = item?.stockLocations || [];
   const totalQty = stockLocations?.length > 0
     ? stockLocations?.reduce((sum, loc) => sum + (loc?.qty || 0), 0)
@@ -1226,6 +1423,8 @@ const ItemGridCard = ({ item, canEdit, onEdit, onDelete, onUpdate, onQuickView, 
   }, []);
 
   const imageUrl = item?.imageUrl && !item?.imageUrl?.startsWith('blob:') ? item?.imageUrl : null;
+  const accentColor = item?.color || null;
+  const accentIcon = item?.icon || null;
 
   // Derive category label from taxonomy names
   const categoryLabel = item?.l3Name || item?.l2Name || item?.l1Name || null;
@@ -1236,17 +1435,35 @@ const ItemGridCard = ({ item, canEdit, onEdit, onDelete, onUpdate, onQuickView, 
   })() : null;
 
   return (
-    <div className={`bg-card rounded-2xl border transition-all overflow-hidden group flex flex-col ${isSelected ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/30'}`}>
+    <>
+    <div
+      className={`bg-card rounded-2xl border transition-all overflow-hidden group flex flex-col ${isSelected ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/30'}`}
+      style={accentColor ? { borderTopColor: accentColor, borderTopWidth: 3 } : {}}
+    >
       <div
-        className="relative h-28 bg-muted flex items-center justify-center overflow-hidden cursor-pointer"
+        className="relative h-28 flex items-center justify-center overflow-hidden cursor-pointer bg-muted"
+        style={accentColor && !imageUrl ? { backgroundColor: accentColor + '22' } : {}}
         onClick={() => onQuickView?.(item)}
         title="Quick view"
       >
         {imageUrl ? (
           <img src={imageUrl} alt={item?.name} className="w-full h-full object-cover" />
         ) : (
-          <Icon name="Package" size={28} className="text-muted-foreground/30" />
+          <Icon
+            name={accentIcon || 'Package'}
+            size={32}
+            style={accentColor ? { color: accentColor } : {}}
+            className={!accentColor ? 'text-muted-foreground/30' : ''}
+          />
         )}
+        {/* Appearance edit button */}
+        <button
+          onClick={(e) => { e?.stopPropagation(); setAppearanceAnchor(e?.currentTarget?.getBoundingClientRect()); }}
+          className="absolute bottom-2 right-2 w-7 h-7 rounded-lg bg-background/90 border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+          title="Customise icon & colour"
+        >
+          <Icon name="Palette" size={12} />
+        </button>
         {isLow && (
           <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-red-500 text-white text-xs font-bold shadow">Low</div>
         )}
@@ -1344,6 +1561,15 @@ const ItemGridCard = ({ item, canEdit, onEdit, onDelete, onUpdate, onQuickView, 
         )}
       </div>
     </div>
+    {appearanceAnchor && (
+      <ItemAppearancePopover
+        item={item}
+        anchorRect={appearanceAnchor}
+        onClose={() => setAppearanceAnchor(null)}
+        onSave={(updated) => setItem(updated)}
+      />
+    )}
+    </>
   );
 };
 
