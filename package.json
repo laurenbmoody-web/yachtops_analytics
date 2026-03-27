@@ -9,7 +9,7 @@
       "react-dom",
       "@reduxjs/toolkit",
       "redux",
-      "react-router-dom",
+      "react-router-dom"
     ],
     "devDependencies": [
       "@vitejs/plugin-react",
