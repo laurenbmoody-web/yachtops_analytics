@@ -8,6 +8,7 @@ const getActiveTenantId = () =>
   localStorage.getItem('activeTenantId') ||
   null;
 
+
 // Map DB row → JS object
 const rowToItem = (row) => {
   if (!row) return null;
