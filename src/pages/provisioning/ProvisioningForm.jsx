@@ -204,7 +204,7 @@ const ProvisioningForm = () => {
     setError(null);
     try {
       const listPayload = {
-        vessel_id: activeTenantId,
+        tenant_id: activeTenantId,
         title: details.title.trim(),
         trip_id: details.trip_id || null,
         department: details.department.join(', '),

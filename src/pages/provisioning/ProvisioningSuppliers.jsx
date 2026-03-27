@@ -59,7 +59,7 @@ const ProvisioningSuppliers = () => {
         const updated = await updateSupplier(editingId, form);
         setSuppliers(prev => prev.map(s => s.id === editingId ? updated : s));
       } else {
-        const created = await createSupplier({ ...form, vessel_id: activeTenantId });
+        const created = await createSupplier({ ...form, tenant_id: activeTenantId });
         setSuppliers(prev => [...prev, created]);
       }
       setShowModal(false);
