@@ -188,6 +188,66 @@ export const QtyCell = ({ item, field, value, editingCell, setEditingCell, onSav
   );
 };
 
+// ── CostCell — unit cost with currency symbol prefix ─────────────────────────
+const COST_CURRENCY_SYMBOLS = { GBP: '£', USD: '$', EUR: '€' };
+
+export const CostCell = ({ item, listCurrency, editingCell, setEditingCell, onSave }) => {
+  const isActive = editingCell?.itemId === item.id && editingCell?.field === 'estimated_unit_cost';
+  const inputRef = useRef(null);
+  const [local, setLocal] = useState('');
+  const currCode = item.currency || listCurrency || 'USD';
+  const symbol = COST_CURRENCY_SYMBOLS[currCode] || currCode;
+
+  useEffect(() => {
+    if (isActive && inputRef.current) {
+      inputRef.current.focus();
+      try { inputRef.current.select(); } catch {}
+    }
+  }, [isActive]);
+
+  const activate = () => {
+    setLocal(item.estimated_unit_cost ?? '');
+    setEditingCell({ itemId: item.id, field: 'estimated_unit_cost' });
+  };
+
+  const commit = () => {
+    setEditingCell(null);
+    onSave(item, 'estimated_unit_cost', local);
+  };
+
+  if (isActive) {
+    return (
+      <div className="px-1 flex items-center min-h-[38px]">
+        <input
+          ref={inputRef}
+          type="number"
+          value={local}
+          onChange={e => setLocal(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') commit();
+            if (e.key === 'Escape') setEditingCell(null);
+          }}
+          onBlur={commit}
+          className="w-full bg-primary/5 border border-primary/40 rounded px-1.5 py-0.5 text-[13px] text-foreground text-right outline-none tabular-nums"
+          min="0"
+          step="0.01"
+        />
+      </div>
+    );
+  }
+
+  const val = item.estimated_unit_cost;
+  return (
+    <div className="flex items-center justify-end px-2 min-h-[38px] cursor-text select-none" onClick={activate}>
+      {val != null && val !== '' ? (
+        <span className="text-[13px] text-foreground tabular-nums">{symbol}{parseFloat(val).toFixed(2)}</span>
+      ) : (
+        <span className="text-[12px] text-muted-foreground/25">—</span>
+      )}
+    </div>
+  );
+};
+
 // ── StatusCell — click to open status select ──────────────────────────────────
 export const StatusCell = ({ item, editingCell, setEditingCell, onSave }) => {
   const isActive = editingCell?.itemId === item.id && editingCell?.field === 'status';
@@ -422,7 +482,7 @@ export const DeptGroup = ({
               <SelectCell item={item} field="department" value={item.department} options={deptOptions} editingCell={editingCell} setEditingCell={setEditingCell} onSave={onCellSave} />
               <CompoundMeasureCell item={item} editingCell={editingCell} setEditingCell={setEditingCell} onSave={onCellSave} onStep={onQtyStep} />
               <QtyCell item={item} field="quantity_received" value={item.quantity_received} editingCell={editingCell} setEditingCell={setEditingCell} onSave={onCellSave} onStep={onQtyStep} />
-              <EditCell item={item} field="estimated_unit_cost" value={item.estimated_unit_cost} type="number" align="right" editingCell={editingCell} setEditingCell={setEditingCell} onSave={onCellSave} />
+              <CostCell item={item} listCurrency={currency} editingCell={editingCell} setEditingCell={setEditingCell} onSave={onCellSave} />
 
               {/* Total (read-only) */}
               <div className="flex items-center justify-end px-2 min-h-[38px]">

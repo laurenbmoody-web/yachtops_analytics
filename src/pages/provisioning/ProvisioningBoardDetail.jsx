@@ -609,6 +609,7 @@ const ProvisioningBoardDetail = () => {
         item={itemDrawer.item}
         listId={id}
         tenantId={activeTenantId}
+        listCurrency={currency}
         departments={departments}
         theme="light"
         onSaved={handleItemDrawerSaved}
