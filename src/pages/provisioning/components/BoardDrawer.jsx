@@ -13,9 +13,9 @@ import {
   fetchListItems,
   upsertItems,
   PROVISIONING_STATUS,
-  PROVISION_DEPARTMENTS,
   formatCurrency,
 } from '../utils/provisioningStorage';
+import { supabase } from '../../../lib/supabaseClient';
 import { getSmartSuggestions } from '../../../utils/provisioningSuggestions';
 
 // ── Edit mode ────────────────────────────────────────────────────────────────
@@ -35,6 +35,25 @@ const EditMode = ({ list, suppliers, trips, tenantId, onSaved, onDeleted, onClos
   });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [departments, setDepartments] = useState([]);
+
+  useEffect(() => {
+    if (!tenantId) return;
+    (async () => {
+      try {
+        const { data, error } = await supabase?.rpc('get_tenant_departments', { p_tenant_id: tenantId });
+        if (!error && data?.length) {
+          setDepartments(data.map(d => (typeof d === 'string' ? d : d.name)).filter(Boolean));
+          return;
+        }
+        if (error) console.warn('[BoardDrawer] get_tenant_departments RPC failed:', error);
+        setDepartments([]);
+      } catch (err) {
+        console.warn('[BoardDrawer] fetchDepartments error:', err);
+        setDepartments([]);
+      }
+    })();
+  }, [tenantId]);
 
   // department may be text[] from DB or legacy comma-string — normalise to comma-string for form
   const normDept = (dept) => {
@@ -144,7 +163,7 @@ const EditMode = ({ list, suppliers, trips, tenantId, onSaved, onDeleted, onClos
       <div>
         <label className={labelCls}>Departments</label>
         <div className="flex flex-wrap gap-2">
-          {PROVISION_DEPARTMENTS.map(d => {
+          {departments.map(d => {
             const selected = form.department.split(',').map(s => s.trim()).filter(Boolean).includes(d);
             return (
               <button

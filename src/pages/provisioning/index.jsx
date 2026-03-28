@@ -19,8 +19,8 @@ import {
   upsertItems,
   fetchSuppliers,
   PROVISIONING_STATUS,
-  PROVISION_DEPARTMENTS,
 } from './utils/provisioningStorage';
+import { supabase } from '../../lib/supabaseClient';
 import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
 import { showToast } from '../../utils/toast';
 import {
@@ -172,6 +172,7 @@ const ProvisioningWorkspace = () => {
   const [itemsByList, setItemsByList] = useState({});
   const [suppliers, setSuppliers] = useState([]);
   const [trips, setTrips] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -220,7 +221,24 @@ const ProvisioningWorkspace = () => {
   useEffect(() => {
     if (!activeTenantId) return;
     loadAll();
+    fetchTenantDepartments();
   }, [activeTenantId]);
+
+  const fetchTenantDepartments = async () => {
+    if (!activeTenantId) return;
+    try {
+      const { data, error } = await supabase?.rpc('get_tenant_departments', { p_tenant_id: activeTenantId });
+      if (!error && data?.length) {
+        setDepartments(data.map(d => (typeof d === 'string' ? d : d.name)).filter(Boolean));
+        return;
+      }
+      if (error) console.warn('[Provisioning] get_tenant_departments RPC failed:', error);
+      setDepartments([]);
+    } catch (err) {
+      console.warn('[Provisioning] fetchTenantDepartments error:', err);
+      setDepartments([]);
+    }
+  };
 
   const loadAll = async () => {
     setLoading(true);
@@ -529,7 +547,7 @@ const ProvisioningWorkspace = () => {
                 className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary"
               >
                 <option value="all">All depts</option>
-                {PROVISION_DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                {departments.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
               {hasActiveFilters && (
                 <button
