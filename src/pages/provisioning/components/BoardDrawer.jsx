@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Icon from '../../../components/AppIcon';
 import Drawer from './Drawer';
 import SmartSuggestionsPanel from './SmartSuggestionsPanel';
@@ -334,6 +334,15 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
+  // Templates tab
+  const [previewTplId, setPreviewTplId] = useState(null);
+  const [previewItems, setPreviewItems] = useState({});
+  const [previewLoading, setPreviewLoading] = useState({});
+
+  // History tab
+  const [checkedItems, setCheckedItems] = useState(new Set());
+  const [infoPopover, setInfoPopover] = useState(null);
+
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
@@ -369,30 +378,89 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
     }
   };
 
-  const handleAddHistoryItem = async (histItem) => {
-    const newItem = {
+  const handlePreviewToggle = async (tplId) => {
+    if (previewTplId === tplId) { setPreviewTplId(null); return; }
+    setPreviewTplId(tplId);
+    if (!previewItems[tplId]) {
+      setPreviewLoading(prev => ({ ...prev, [tplId]: true }));
+      try {
+        const items = await fetchListItems(tplId);
+        setPreviewItems(prev => ({ ...prev, [tplId]: items }));
+      } catch {
+        setPreviewItems(prev => ({ ...prev, [tplId]: [] }));
+      } finally {
+        setPreviewLoading(prev => ({ ...prev, [tplId]: false }));
+      }
+    }
+  };
+
+  // History helpers
+  const histKey = (h) => `${h.name}|${h.brand || ''}|${h.size || ''}`;
+
+  const groupedHistory = useMemo(() => {
+    const q = search.toLowerCase();
+    const filtered = q
+      ? history.filter(h =>
+          h.name?.toLowerCase().includes(q) ||
+          h.brand?.toLowerCase().includes(q) ||
+          h.category?.toLowerCase().includes(q)
+        )
+      : history;
+    const groups = {};
+    filtered.forEach(h => {
+      const dept = h.department || 'Other';
+      const cat = h.category || 'Uncategorised';
+      if (!groups[dept]) groups[dept] = {};
+      if (!groups[dept][cat]) groups[dept][cat] = [];
+      groups[dept][cat].push(h);
+    });
+    return groups;
+  }, [history, search]);
+
+  const deptKeys = (dept) =>
+    Object.values(groupedHistory[dept] || {}).flat().map(histKey);
+
+  const toggleCheck = (key) => {
+    setCheckedItems(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+  const selectAllDept = (dept, check) => {
+    const keys = deptKeys(dept);
+    setCheckedItems(prev => {
+      const next = new Set(prev);
+      keys.forEach(k => (check ? next.add(k) : next.delete(k)));
+      return next;
+    });
+  };
+
+  const handleAddSelected = async () => {
+    const allHistItems = Object.values(groupedHistory).flatMap(cats => Object.values(cats).flat());
+    const toAdd = allHistItems.filter(h => checkedItems.has(histKey(h)));
+    const newItems = toAdd.map(h => ({
       list_id: list.id,
-      name: histItem.name,
-      brand: histItem.brand || '',
-      size: histItem.size || '',
-      category: histItem.category || '',
-      sub_category: histItem.sub_category || '',
-      department: histItem.department || 'Galley',
-      quantity_ordered: histItem.last_quantity || histItem.avg_quantity || 1,
-      unit: histItem.unit || 'each',
+      name: h.name,
+      brand: h.brand || '',
+      size: h.size || '',
+      category: h.category || '',
+      sub_category: h.sub_category || '',
+      department: h.department || '',
+      unit: h.unit || 'each',
+      quantity_ordered: null,
       source: 'history',
       status: 'pending',
-    };
+    }));
     try {
-      const saved = await upsertItems([newItem]);
+      const saved = await upsertItems(newItems);
       onAddItems(list.id, saved);
+      setCheckedItems(new Set());
     } catch {
       // silent
     }
   };
-
-  const q = search.toLowerCase();
-  const filteredHistory = q ? history.filter(h => h.name?.toLowerCase().includes(q)) : history;
 
   const inputCls = 'w-full bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.08)] rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none focus:border-[#4A90E2] transition-colors';
 
@@ -425,50 +493,160 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
           {templates.length === 0 && (
             <p className="text-sm text-slate-500 text-center py-6">No templates saved yet.</p>
           )}
-          {templates.map(tpl => (
-            <div key={tpl.id} className="bg-white/5 border border-white/8 rounded-lg p-3 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-white">{tpl.title}</p>
-                <p className="text-xs text-slate-400">{tpl.department || 'All departments'}</p>
+          {templates.map(tpl => {
+            const depts = Array.isArray(tpl.department)
+              ? tpl.department.filter(Boolean)
+              : tpl.department ? [tpl.department] : [];
+            const isPreviewing = previewTplId === tpl.id;
+            const pItems = previewItems[tpl.id];
+            return (
+              <div key={tpl.id} className="bg-white/5 border border-white/8 rounded-lg p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-white">{tpl.title}</p>
+                    {depts.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {depts.map(d => (
+                          <span key={d} className="text-[10px] px-1.5 py-0.5 bg-white/10 text-slate-400 rounded">{d}</span>
+                        ))}
+                      </div>
+                    )}
+                    {isPreviewing && pItems && (
+                      <p className="text-[10px] text-slate-500 mt-1">{pItems.length} item{pItems.length !== 1 ? 's' : ''}</p>
+                    )}
+                  </div>
+                  <div className="flex gap-1.5 flex-shrink-0">
+                    <button
+                      onClick={() => handlePreviewToggle(tpl.id)}
+                      className="px-2.5 py-1.5 bg-white/5 text-slate-400 text-xs rounded-lg hover:bg-white/10 transition-colors"
+                    >
+                      {isPreviewing ? 'Hide' : 'Preview'}
+                    </button>
+                    <button
+                      onClick={() => handleApplyTemplate(tpl)}
+                      className="px-3 py-1.5 bg-[#4A90E2]/20 text-[#4A90E2] text-xs font-medium rounded-lg hover:bg-[#4A90E2]/30 transition-colors"
+                    >
+                      Use template
+                    </button>
+                  </div>
+                </div>
+                {isPreviewing && (
+                  <div className="mt-3 border-t border-white/5 pt-3">
+                    {previewLoading[tpl.id] ? (
+                      <p className="text-xs text-slate-500">Loading items…</p>
+                    ) : !pItems || pItems.length === 0 ? (
+                      <p className="text-xs text-slate-500">No items in this template.</p>
+                    ) : (
+                      <div className="space-y-1 max-h-40 overflow-y-auto">
+                        {pItems.map(item => (
+                          <p key={item.id} className="text-xs text-slate-400">
+                            {item.name}
+                            {item.brand ? ` · ${item.brand}` : ''}
+                            {item.size ? ` · ${item.size}` : ''}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              <button
-                onClick={() => handleApplyTemplate(tpl)}
-                className="px-3 py-1.5 bg-[#4A90E2]/20 text-[#4A90E2] text-xs font-medium rounded-lg hover:bg-[#4A90E2]/30 transition-colors"
-              >
-                Apply
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="space-y-3">
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search past orders..."
+            placeholder="Search by name, brand or category…"
             className={inputCls}
           />
-          {filteredHistory.length === 0 && (
+
+          {/* Add selected — sticky at top when any checked */}
+          {checkedItems.size > 0 && (
+            <button
+              onClick={handleAddSelected}
+              className="w-full py-2 bg-[#4A90E2] text-white text-sm font-medium rounded-lg hover:bg-[#4A90E2]/80 transition-colors"
+            >
+              Add {checkedItems.size} selected item{checkedItems.size !== 1 ? 's' : ''}
+            </button>
+          )}
+
+          {Object.keys(groupedHistory).length === 0 && (
             <p className="text-sm text-slate-500 text-center py-6">No order history found.</p>
           )}
-          <div className="space-y-1 max-h-[60vh] overflow-y-auto">
-            {filteredHistory.slice(0, 100).map((h, i) => (
-              <div key={i} className="flex items-center justify-between py-2 px-2 hover:bg-white/5 rounded-lg transition-colors">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-white truncate">{h.name}</p>
-                  <p className="text-xs text-slate-500">
-                    Ordered {h.times_ordered}x · avg {h.avg_quantity} {h.unit}
-                    {h.brand ? ` · ${h.brand}` : ''}
-                  </p>
+
+          <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-1">
+            {Object.entries(groupedHistory).map(([dept, cats]) => {
+              const allDeptKeys = deptKeys(dept);
+              const allDeptChecked = allDeptKeys.length > 0 && allDeptKeys.every(k => checkedItems.has(k));
+              return (
+                <div key={dept}>
+                  {/* Department header */}
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{dept}</span>
+                    <button
+                      onClick={() => selectAllDept(dept, !allDeptChecked)}
+                      className="text-[10px] text-[#4A90E2] hover:underline"
+                    >
+                      {allDeptChecked ? 'Deselect all' : 'Select all'}
+                    </button>
+                  </div>
+
+                  {Object.entries(cats).map(([cat, items]) => (
+                    <div key={cat} className="mb-3">
+                      <p className="text-[10px] font-medium text-slate-600 uppercase tracking-wide mb-1 pl-1">{cat}</p>
+                      {items.map(h => {
+                        const key = histKey(h);
+                        const isChecked = checkedItems.has(key);
+                        const lastDate = h.last_ordered_date
+                          ? new Date(h.last_ordered_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })
+                          : null;
+                        return (
+                          <div key={key} className="flex items-start gap-2 py-1.5 px-1 hover:bg-white/5 rounded-lg transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleCheck(key)}
+                              className="mt-1 flex-shrink-0 accent-[#4A90E2]"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-white leading-snug">{h.name}</p>
+                              <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                                {h.brand && <span className="text-xs text-slate-500">{h.brand}</span>}
+                                {h.size && <span className="text-xs text-slate-500">{h.size}</span>}
+                                <span className="text-[10px] px-1.5 py-0.5 bg-white/5 text-slate-500 rounded">{dept}</span>
+                                <span className="text-[10px] text-slate-600">×{h.times_ordered}</span>
+                                {lastDate && <span className="text-[10px] text-slate-600">{lastDate}</span>}
+                              </div>
+                            </div>
+                            {/* Info popover */}
+                            <div className="relative flex-shrink-0">
+                              <button
+                                onMouseEnter={() => setInfoPopover(key)}
+                                onMouseLeave={() => setInfoPopover(null)}
+                                className="p-1 text-slate-600 hover:text-slate-400 transition-colors"
+                              >
+                                <Icon name="Info" className="w-3.5 h-3.5" />
+                              </button>
+                              {infoPopover === key && (
+                                <div
+                                  className="absolute right-0 bottom-7 z-20 rounded-lg shadow-xl text-xs text-slate-300 whitespace-nowrap"
+                                  style={{ background: '#1a2540', border: '1px solid rgba(255,255,255,0.12)', padding: '8px 12px' }}
+                                >
+                                  <p>Last qty: {h.last_quantity != null ? `${h.last_quantity} ${h.unit}` : '—'}</p>
+                                  <p>Avg qty: {h.avg_quantity != null ? `${h.avg_quantity} ${h.unit}` : '—'}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
                 </div>
-                <button
-                  onClick={() => handleAddHistoryItem(h)}
-                  className="ml-2 px-2 py-1 text-xs text-[#4A90E2] hover:bg-[#4A90E2]/10 rounded transition-colors"
-                >
-                  Add
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

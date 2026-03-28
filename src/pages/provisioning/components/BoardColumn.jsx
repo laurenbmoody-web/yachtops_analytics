@@ -401,8 +401,7 @@ const BoardColumn = ({
                 flexShrink: 0,
               }}
             >
-              <Icon name="Lightbulb" style={{ width: 9, height: 9 }} />
-              Suggestions
+              <span>✦</span><span>Suggestions</span>
             </button>
 
             {/* Templates button */}

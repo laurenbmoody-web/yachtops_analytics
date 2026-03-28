@@ -105,7 +105,7 @@ const FIELD_CSS = `
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'USD', departments = [], theme = 'dark', onSaved, onDeleted, onClose }) => {
+const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'USD', departments = [], suppliers = [], theme = 'dark', onSaved, onDeleted, onClose }) => {
   const isLight = theme === 'light';
   const { user } = useAuth();
   const userTier = (user?.permission_tier || user?.effectiveTier || '').toUpperCase();
@@ -139,6 +139,8 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'USD', depart
         notes: item.notes || '',
         source: item.source || 'manual',
         accounting_description: item.accounting_description || '',
+        supplier_id: item.supplier_id || '',
+        port_location: item.port_location || '',
       });
     }
   }, [item]);
@@ -203,6 +205,8 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'USD', depart
       notes: base.notes || '',
       source: base.source || 'manual',
       accounting_description: base.accounting_description || '',
+      supplier_id: base.supplier_id || null,
+      port_location: base.port_location || '',
     };
   };
 
@@ -396,6 +400,33 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'USD', depart
                 }
               </select>
             </Field>
+
+            {/* Supplier */}
+            <div style={{ marginTop: 8 }}>
+              <Field label="Supplier">
+                <select
+                  value={form.supplier_id || ''}
+                  onChange={e => setAndSave('supplier_id', e.target.value || null)}
+                  className={inputCls}
+                >
+                  <option value="">No supplier</option>
+                  {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </Field>
+            </div>
+
+            {/* Port / Location */}
+            <div style={{ marginTop: 8 }}>
+              <Field label="Port / Location">
+                <input
+                  value={form.port_location || ''}
+                  onChange={e => set('port_location', e.target.value)}
+                  onBlur={() => saveField()}
+                  className={inputCls}
+                  placeholder="e.g. Palma, FR"
+                />
+              </Field>
+            </div>
 
             {form.department && (
               <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
