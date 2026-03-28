@@ -10,6 +10,8 @@ import {
 import { UNIT_GROUPS } from './DetailTableCells';
 import { useAuth } from '../../../contexts/AuthContext';
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+
 const ALLERGEN_OPTIONS = [
   'Gluten', 'Dairy', 'Eggs', 'Nuts', 'Peanuts', 'Soy', 'Fish', 'Shellfish',
   'Sesame', 'Celery', 'Mustard', 'Sulphites',
@@ -30,17 +32,78 @@ const CURRENCY_PILLS = [
   { code: 'EUR', symbol: '€' },
 ];
 
-// ── Section divider wrapper ───────────────────────────────────────────────────
+// Per-status selected pill colours
+const STATUS_STYLES = {
+  pending:       { bg: '#f1f5f9', border: '#94a3b8', color: '#475569' },
+  ordered:       { bg: '#eff6ff', border: '#93c5fd', color: '#1d4ed8' },
+  received:      { bg: '#f0fdf4', border: '#86efac', color: '#15803d' },
+  short_delivered: { bg: '#fffbeb', border: '#fcd34d', color: '#b45309' },
+  not_delivered: { bg: '#fef2f2', border: '#fca5a5', color: '#b91c1c' },
+};
+
+// ── Section wrapper — spacing only, no divider line ───────────────────────────
 const Section = ({ label, children }) => (
-  <div className="mt-4 pt-4" style={{ borderTop: '1px solid #F1F5F9' }}>
+  <div style={{ paddingTop: 20 }}>
     {label && (
-      <p className="text-[10px] font-semibold uppercase text-[#94A3B8] mb-2" style={{ letterSpacing: '0.1em' }}>
+      <p style={{
+        fontSize: 10, fontWeight: 600, letterSpacing: '0.12em',
+        textTransform: 'uppercase', color: '#cbd5e1', marginBottom: 10,
+      }}>
         {label}
       </p>
     )}
     {children}
   </div>
 );
+
+// ── Field sub-label (inside sections) ────────────────────────────────────────
+const FL = ({ children }) => (
+  <span style={{ display: 'block', fontSize: 10, color: '#cbd5e1', fontWeight: 500, letterSpacing: '0.04em', marginBottom: 4 }}>
+    {children}
+  </span>
+);
+
+// ── CSS for .idr-field inputs/selects/textareas ───────────────────────────────
+const FIELD_CSS = `
+  .idr-field {
+    width: 100%;
+    background: transparent;
+    border: 1.5px solid transparent;
+    outline: none;
+    font-size: 14px;
+    color: #1E3A5F;
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    padding: 5px 0;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+    box-sizing: border-box;
+  }
+  .idr-field::placeholder { color: #CBD5E1; }
+  .idr-field:hover {
+    background: #f8fafc;
+    padding: 5px 8px;
+  }
+  .idr-field:focus {
+    background: #ffffff;
+    border-color: #4A90E2;
+    padding: 5px 8px;
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.08);
+  }
+  select.idr-field { cursor: pointer; }
+  textarea.idr-field { resize: none; line-height: 1.6; min-height: 80px; }
+  .idr-cost-input {
+    background: #f8fafc;
+    padding: 5px 8px;
+  }
+  .idr-cost-input:hover { background: #f8fafc; }
+  .idr-cost-input:focus {
+    background: #ffffff;
+    border-color: #4A90E2;
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.08);
+  }
+`;
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'USD', departments = [], theme = 'dark', onSaved, onDeleted, onClose }) => {
   const isLight = theme === 'light';
@@ -88,7 +151,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'USD', depart
       .catch(() => setLocRows([]));
   }, [form.department, tenantId]);
 
-  // ── Derived cascading options ──────────────────────────────────────────────
+  // ── Derived cascading options ─────────────────────────────────────────────
   const locL2Options = locRows
     .filter(r => !r.sub_location.includes(' > '))
     .map(r => r.sub_location);
@@ -100,19 +163,13 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'USD', depart
 
   const locL3Options = locL2
     ? locRows
-        .filter(r =>
-          r.sub_location.startsWith(locL2 + ' > ') &&
-          r.sub_location.split(' > ').length === 2
-        )
+        .filter(r => r.sub_location.startsWith(locL2 + ' > ') && r.sub_location.split(' > ').length === 2)
         .map(r => r.sub_location.split(' > ')[1])
     : [];
 
   const locL4Options = locL2 && locL3
     ? locRows
-        .filter(r =>
-          r.sub_location.startsWith(locL2 + ' > ' + locL3 + ' > ') &&
-          r.sub_location.split(' > ').length === 3
-        )
+        .filter(r => r.sub_location.startsWith(locL2 + ' > ' + locL3 + ' > ') && r.sub_location.split(' > ').length === 3)
         .map(r => r.sub_location.split(' > ')[2])
     : [];
 
@@ -183,237 +240,268 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'USD', depart
     } catch { setDeleting(false); }
   };
 
-  // ── Style constants ───────────────────────────────────────────────────────
-
+  // ── Dark-theme fallbacks (unchanged from previous version) ────────────────
   const inputCls = isLight
-    ? 'w-full rounded-lg px-3 py-2 text-sm outline-none transition-colors bg-white border border-[#E2E8F0] text-[#1E3A5F] focus:border-[#4A90E2]'
+    ? 'idr-field'
     : 'w-full rounded-lg px-3 py-2 text-sm text-white outline-none transition-colors bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.1)] focus:border-[#4A90E2]';
   const labelCls = isLight
-    ? 'block text-[10px] font-semibold uppercase tracking-wider mb-1 text-[#64748B]'
+    ? ''  // replaced by <FL> component
     : 'block text-[10px] font-semibold uppercase tracking-wider mb-1 text-[rgba(255,255,255,0.4)]';
 
   // ── Computed values ───────────────────────────────────────────────────────
-
   const activeCurrCode = form.currency || listCurrency || 'USD';
   const activeCurrSymbol = CURRENCY_PILLS.find(p => p.code === activeCurrCode)?.symbol || '$';
   const totalCost = (parseFloat(form.quantity_ordered) || 0) * (parseFloat(form.estimated_unit_cost) || 0);
 
   if (!open || !item) return null;
 
+  // ── Helper to wrap a label above a field ─────────────────────────────────
+  const Field = ({ label, children }) => (
+    <div>
+      {isLight ? <FL>{label}</FL> : <label className={labelCls}>{label}</label>}
+      {children}
+    </div>
+  );
+
   return (
-    <Drawer
-      open={open}
-      onClose={onClose}
-      theme={theme}
-      title={
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="truncate">{form.name || 'Item Details'}</span>
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {savedFlash && (
-              <span className={`text-xs font-normal animate-pulse ${isLight ? 'text-[#16a34a]' : 'text-green-400'}`}>Saved</span>
-            )}
-            {!isNew && (
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="p-1 rounded text-[#94A3B8] hover:text-red-500 transition-colors disabled:opacity-40"
-              >
-                <Icon name="Trash2" className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
-      }
-    >
-      <div className="pb-8">
-
-        {/* ═══════════ SECTION 1: IDENTITY ═══════════ */}
-        <div>
-          {/* Name — large, prominent, title-weight */}
-          <input
-            value={form.name || ''}
-            onChange={e => set('name', e.target.value)}
-            onBlur={() => saveField()}
-            placeholder="Item name"
-            className={`w-full bg-transparent outline-none font-semibold pb-1.5 border-b transition-colors ${
-              isLight
-                ? 'text-[#1E3A5F] border-[#E2E8F0] placeholder:text-[#CBD5E1] focus:border-[#4A90E2]'
-                : 'text-white border-white/10 placeholder:text-white/25 focus:border-[#4A90E2]'
-            }`}
-            style={{ fontSize: 18 }}
-          />
-          {/* Brand */}
-          <div className="mt-3">
-            <label className={labelCls}>Brand</label>
-            <input
-              value={form.brand || ''}
-              onChange={e => set('brand', e.target.value)}
-              onBlur={() => saveField()}
-              className={inputCls}
-              placeholder="Brand"
-            />
-          </div>
-        </div>
-
-        {/* ═══════════ SECTION 2: MEASURE ═══════════ */}
-        <Section label="Measure">
-          <div className="flex gap-2">
-            <div style={{ flex: 2 }}>
-              <label className={labelCls}>Size</label>
-              <input
-                value={form.size || ''}
-                onChange={e => set('size', e.target.value)}
-                onBlur={() => saveField()}
-                className={inputCls}
-                placeholder="e.g. 500g"
-              />
+    <>
+      {isLight && <style>{FIELD_CSS}</style>}
+      <Drawer
+        open={open}
+        onClose={onClose}
+        theme={theme}
+        title={
+          isLight ? (
+            /* ── Mockup header title area ── */
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>Edit item</span>
+              {savedFlash && (
+                <span style={{ fontSize: 11, color: '#16a34a', fontWeight: 500 }} className="animate-pulse">Saved</span>
+              )}
+              {!isNew && (
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center', color: '#fca5a5', transition: 'color 0.15s', opacity: deleting ? 0.4 : 1 }}
+                  onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                  onMouseLeave={e => e.currentTarget.style.color = '#fca5a5'}
+                >
+                  <Icon name="Trash2" style={{ width: 14, height: 14 }} />
+                </button>
+              )}
             </div>
-            <div style={{ flex: 2 }}>
-              <label className={labelCls}>Unit</label>
-              <select value={form.unit || 'each'} onChange={e => setAndSave('unit', e.target.value)} className={inputCls}>
-                {UNIT_GROUPS.map(g => (
-                  <optgroup key={g.label} label={g.label}>
-                    {g.options.map(u => <option key={u} value={u}>{u}</option>)}
-                  </optgroup>
-                ))}
-              </select>
+          ) : (
+            /* ── Dark theme header (unchanged) ── */
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="truncate">{form.name || 'Item Details'}</span>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {savedFlash && <span className="text-xs font-normal text-green-400 animate-pulse">Saved</span>}
+                {!isNew && (
+                  <button onClick={handleDelete} disabled={deleting} className="p-1 rounded text-[#94A3B8] hover:text-red-500 transition-colors disabled:opacity-40">
+                    <Icon name="Trash2" className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
-            <div style={{ flex: 1 }}>
-              <label className={labelCls}>Qty</label>
-              <input
-                type="number"
-                value={form.quantity_ordered ?? ''}
-                onChange={e => set('quantity_ordered', e.target.value)}
-                onBlur={() => saveField()}
-                className={`${inputCls} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
-                min="0"
-                step="0.1"
-              />
-            </div>
-          </div>
-        </Section>
+          )
+        }
+      >
+        <div style={{ paddingBottom: 32 }}>
 
-        {/* ═══════════ SECTION 3: LOCATION ═══════════ */}
-        <Section label="Location">
-          {/* Department */}
+          {/* ════ SECTION 1: IDENTITY ════ */}
           <div>
-            <label className={labelCls}>Department</label>
-            <select
-              value={form.department || ''}
-              onChange={e => {
-                const dept = e.target.value;
-                setForm(prev => ({ ...prev, department: dept, category: '', sub_category: '' }));
-                saveField({ department: dept, category: '', sub_category: '' });
-              }}
-              className={inputCls}
-            >
-              <option value="">None</option>
-              {departments.length === 0
-                ? <option disabled value="">No departments configured</option>
-                : departments.map(d => <option key={d} value={d}>{d}</option>)
-              }
-            </select>
+            {/* Name — 22px/700, bottom border only */}
+            <input
+              value={form.name || ''}
+              onChange={e => set('name', e.target.value)}
+              onBlur={() => saveField()}
+              placeholder={isLight ? 'Untitled item' : 'Item name'}
+              style={isLight ? {
+                width: '100%', fontSize: 22, fontWeight: 700,
+                color: '#1E3A5F', background: 'none', border: 'none',
+                borderBottom: '2px solid #4A90E2', outline: 'none',
+                padding: '16px 0 4px', display: 'block',
+                fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
+              } : {}}
+              className={!isLight ? 'w-full bg-transparent outline-none font-semibold pb-1.5 border-b border-white/10 text-white placeholder:text-white/25 focus:border-[#4A90E2] transition-colors' : ''}
+            />
+            {/* Brand */}
+            <div style={{ marginTop: 16 }}>
+              <Field label="Brand">
+                <input value={form.brand || ''} onChange={e => set('brand', e.target.value)} onBlur={() => saveField()} className={inputCls} placeholder="e.g. Heinz, Maggi" />
+              </Field>
+            </div>
           </div>
 
-          {/* Category cascade — inventory_locations hierarchy */}
-          {form.department && (
-            <div className="mt-3 space-y-3">
-              {locL2Options.length > 0 && (
+          {/* ════ SECTION 2: MEASURE ════ */}
+          <Section label="Measure">
+            {isLight ? (
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr', gap: 8 }}>
+                <div><FL>Size</FL><input value={form.size || ''} onChange={e => set('size', e.target.value)} onBlur={() => saveField()} className="idr-field" placeholder="e.g. 500g" /></div>
                 <div>
-                  <label className={labelCls}>Category</label>
-                  <select
-                    value={locL2}
-                    onChange={e => {
-                      const val = e.target.value;
-                      setForm(prev => ({ ...prev, category: val, sub_category: val }));
-                      saveField({ category: val, sub_category: val });
-                    }}
-                    className={inputCls}
-                  >
-                    <option value="">Select category…</option>
-                    {locL2Options.map(o => <option key={o} value={o}>{o}</option>)}
+                  <FL>Unit</FL>
+                  <select value={form.unit || 'each'} onChange={e => setAndSave('unit', e.target.value)} className="idr-field">
+                    {UNIT_GROUPS.map(g => (
+                      <optgroup key={g.label} label={g.label}>
+                        {g.options.map(u => <option key={u} value={u}>{u}</option>)}
+                      </optgroup>
+                    ))}
                   </select>
                 </div>
-              )}
-
-              {locL2 && locL3Options.length > 0 && (
                 <div>
-                  <label className={labelCls}>Sub-category</label>
-                  <select
-                    value={locL3}
-                    onChange={e => {
-                      const val = e.target.value;
-                      const path = val ? `${locL2} > ${val}` : locL2;
-                      setForm(prev => ({ ...prev, sub_category: path }));
-                      saveField({ sub_category: path });
-                    }}
-                    className={inputCls}
-                  >
-                    <option value="">Select…</option>
-                    {locL3Options.map(o => <option key={o} value={o}>{o}</option>)}
+                  <FL>Qty</FL>
+                  <input type="number" value={form.quantity_ordered ?? ''} onChange={e => set('quantity_ordered', e.target.value)} onBlur={() => saveField()} className="idr-field [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" min="0" step="0.1" />
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <div style={{ flex: 2 }}>
+                  <label className={labelCls}>Size</label>
+                  <input value={form.size || ''} onChange={e => set('size', e.target.value)} onBlur={() => saveField()} className={inputCls} placeholder="e.g. 500g" />
+                </div>
+                <div style={{ flex: 2 }}>
+                  <label className={labelCls}>Unit</label>
+                  <select value={form.unit || 'each'} onChange={e => setAndSave('unit', e.target.value)} className={inputCls}>
+                    {UNIT_GROUPS.map(g => (
+                      <optgroup key={g.label} label={g.label}>
+                        {g.options.map(u => <option key={u} value={u}>{u}</option>)}
+                      </optgroup>
+                    ))}
                   </select>
                 </div>
-              )}
-
-              {locL3 && locL4Options.length > 0 && (
-                <div>
-                  <label className={labelCls}>Sub-category 2</label>
-                  <select
-                    value={locL4}
-                    onChange={e => {
-                      const val = e.target.value;
-                      const path = val ? `${locL2} > ${locL3} > ${val}` : `${locL2} > ${locL3}`;
-                      setForm(prev => ({ ...prev, sub_category: path }));
-                      saveField({ sub_category: path });
-                    }}
-                    className={inputCls}
-                  >
-                    <option value="">Select…</option>
-                    {locL4Options.map(o => <option key={o} value={o}>{o}</option>)}
-                  </select>
+                <div style={{ flex: 1 }}>
+                  <label className={labelCls}>Qty</label>
+                  <input type="number" value={form.quantity_ordered ?? ''} onChange={e => set('quantity_ordered', e.target.value)} onBlur={() => saveField()} className={`${inputCls} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} min="0" step="0.1" />
                 </div>
-              )}
-            </div>
-          )}
-        </Section>
+              </div>
+            )}
+          </Section>
 
-        {/* ═══════════ SECTION 4: COST ═══════════ */}
-        <Section label="Cost">
-          <div className="flex gap-3">
-            {/* Unit cost with currency toggle */}
-            <div className="flex-1">
-              <label className={labelCls}>Unit Cost</label>
-              <div className="flex items-center">
-                {/* Currency pills */}
-                <div className="flex flex-shrink-0">
-                  {CURRENCY_PILLS.map((pill, idx) => {
+          {/* ════ SECTION 3: LOCATION ════ */}
+          <Section label="Location">
+            <Field label="Department">
+              <select
+                value={form.department || ''}
+                onChange={e => {
+                  const dept = e.target.value;
+                  setForm(prev => ({ ...prev, department: dept, category: '', sub_category: '' }));
+                  saveField({ department: dept, category: '', sub_category: '' });
+                }}
+                className={inputCls}
+              >
+                <option value="">None</option>
+                {departments.length === 0
+                  ? <option disabled value="">No departments configured</option>
+                  : departments.map(d => <option key={d} value={d}>{d}</option>)
+                }
+              </select>
+            </Field>
+
+            {form.department && (
+              <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {locL2Options.length > 0 && (
+                  <Field label="Category">
+                    <select
+                      value={locL2}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setForm(prev => ({ ...prev, category: val, sub_category: val }));
+                        saveField({ category: val, sub_category: val });
+                      }}
+                      className={inputCls}
+                    >
+                      <option value="">Select category…</option>
+                      {locL2Options.map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </Field>
+                )}
+
+                {locL2 && locL3Options.length > 0 && (
+                  isLight ? (
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                      <span style={{ color: '#e2e8f0', fontSize: 12, flexShrink: 0, paddingTop: 18 }}>↳</span>
+                      <div style={{ flex: 1 }}>
+                        <Field label="Sub-category">
+                          <select
+                            value={locL3}
+                            onChange={e => {
+                              const val = e.target.value;
+                              const path = val ? `${locL2} > ${val}` : locL2;
+                              setForm(prev => ({ ...prev, sub_category: path }));
+                              saveField({ sub_category: path });
+                            }}
+                            className="idr-field"
+                          >
+                            <option value="">Select…</option>
+                            {locL3Options.map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        </Field>
+                      </div>
+                    </div>
+                  ) : (
+                    <Field label="Sub-category">
+                      <select value={locL3} onChange={e => { const val = e.target.value; const path = val ? `${locL2} > ${val}` : locL2; setForm(prev => ({ ...prev, sub_category: path })); saveField({ sub_category: path }); }} className={inputCls}>
+                        <option value="">Select…</option>
+                        {locL3Options.map(o => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    </Field>
+                  )
+                )}
+
+                {locL3 && locL4Options.length > 0 && (
+                  isLight ? (
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                      <span style={{ color: '#e2e8f0', fontSize: 12, flexShrink: 0, paddingTop: 18 }}>↳</span>
+                      <div style={{ flex: 1 }}>
+                        <Field label="Sub-category 2">
+                          <select
+                            value={locL4}
+                            onChange={e => {
+                              const val = e.target.value;
+                              const path = val ? `${locL2} > ${locL3} > ${val}` : `${locL2} > ${locL3}`;
+                              setForm(prev => ({ ...prev, sub_category: path }));
+                              saveField({ sub_category: path });
+                            }}
+                            className="idr-field"
+                          >
+                            <option value="">Select…</option>
+                            {locL4Options.map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        </Field>
+                      </div>
+                    </div>
+                  ) : (
+                    <Field label="Sub-category 2">
+                      <select value={locL4} onChange={e => { const val = e.target.value; const path = val ? `${locL2} > ${locL3} > ${val}` : `${locL2} > ${locL3}`; setForm(prev => ({ ...prev, sub_category: path })); saveField({ sub_category: path }); }} className={inputCls}>
+                        <option value="">Select…</option>
+                        {locL4Options.map(o => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    </Field>
+                  )
+                )}
+              </div>
+            )}
+          </Section>
+
+          {/* ════ SECTION 4: COST ════ */}
+          <Section label="Cost">
+            {isLight ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {/* Currency toggle group */}
+                <div style={{ display: 'flex', background: '#f8fafc', borderRadius: 6, flexShrink: 0 }}>
+                  {CURRENCY_PILLS.map(pill => {
                     const active = activeCurrCode === pill.code;
-                    const isFirst = idx === 0;
-                    const isLast = idx === CURRENCY_PILLS.length - 1;
                     return (
                       <button
                         key={pill.code}
                         type="button"
-                        onClick={() => {
-                          setForm(prev => ({ ...prev, currency: pill.code }));
-                          saveField({ currency: pill.code });
-                        }}
+                        onClick={() => { setForm(prev => ({ ...prev, currency: pill.code })); saveField({ currency: pill.code }); }}
                         style={{
-                          width: 32,
-                          height: 32,
-                          fontSize: 12,
-                          fontWeight: 600,
+                          width: 28, height: 28, borderRadius: 6,
+                          fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer',
                           background: active ? '#1E3A5F' : 'transparent',
-                          color: active ? '#ffffff' : '#64748B',
-                          border: '1px solid #E2E8F0',
-                          borderRight: isLast ? '1px solid #E2E8F0' : 'none',
-                          borderRadius: isFirst ? '8px 0 0 8px' : isLast ? '0 8px 8px 0' : '0',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                          transition: 'background 0.15s, color 0.15s',
+                          color: active ? '#ffffff' : '#cbd5e1',
+                          transition: 'all 0.15s',
                         }}
                       >
                         {pill.symbol}
@@ -421,7 +509,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'USD', depart
                     );
                   })}
                 </div>
-                {/* Cost input */}
+                {/* Cost input — #f8fafc unfocused */}
                 <input
                   type="number"
                   value={form.estimated_unit_cost ?? ''}
@@ -430,157 +518,178 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'USD', depart
                   placeholder="0.00"
                   min="0"
                   step="0.01"
-                  style={{ borderRadius: '0 8px 8px 0', borderLeft: 'none' }}
-                  className={`flex-1 rounded-lg px-3 py-2 text-sm outline-none transition-colors ${
-                    isLight
-                      ? 'bg-white border border-[#E2E8F0] text-[#1E3A5F] focus:border-[#4A90E2]'
-                      : 'text-white bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.1)] focus:border-[#4A90E2]'
-                  }`}
+                  className="idr-field idr-cost-input"
+                  style={{ flex: 1 }}
                 />
+                {/* Total — inline italic */}
+                {totalCost > 0 && (
+                  <span style={{ fontSize: 13, color: '#94a3b8', fontStyle: 'italic', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                    = {activeCurrSymbol}{totalCost.toFixed(2)} total
+                  </span>
+                )}
               </div>
-            </div>
-
-            {/* Total — read-only calculated */}
-            <div className="flex-1">
-              <label className={labelCls}>Total</label>
-              <div
-                className={`rounded-lg px-3 flex items-center ${isLight ? 'bg-slate-50 border border-[#E2E8F0]' : 'bg-white/5 border border-white/5'}`}
-                style={{ height: 36 }}
-              >
-                <span className="text-sm tabular-nums text-[#94A3B8]">
-                  {totalCost > 0 ? `${activeCurrSymbol}${totalCost.toFixed(2)}` : '—'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Quantity Received — only when non-pending */}
-          {form.status && form.status !== 'pending' && (
-            <div className="mt-3">
-              <label className={labelCls}>Quantity Received</label>
-              <input
-                type="number"
-                value={form.quantity_received ?? ''}
-                onChange={e => set('quantity_received', e.target.value)}
-                onBlur={() => saveField()}
-                className={inputCls}
-                min="0"
-                step="0.1"
-              />
-            </div>
-          )}
-        </Section>
-
-        {/* ═══════════ SECTION 5: FLAGS ═══════════ */}
-        <Section label="Flags">
-          <div className="flex flex-wrap gap-1.5">
-            {ALLERGEN_OPTIONS.map(a => {
-              const active = (form.allergen_flags || []).includes(a);
-              return (
-                <button
-                  key={a}
-                  onClick={() => toggleAllergen(a)}
-                  className={`px-2 py-1 text-xs rounded-full border transition-colors ${
-                    active
-                      ? 'bg-red-500/20 border-red-500/40 text-red-400'
-                      : isLight
-                        ? 'bg-slate-100 border-slate-200 text-slate-500 hover:text-[#1E3A5F]'
-                        : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {a}
-                </button>
-              );
-            })}
-          </div>
-        </Section>
-
-        {/* ═══════════ SECTION 6: STATUS ═══════════ */}
-        <Section label="Status">
-          <div className="flex flex-wrap gap-1.5">
-            {Object.entries(ITEM_STATUS_CONFIG).map(([val, cfg]) => (
-              <button
-                key={val}
-                onClick={() => setAndSave('status', val)}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                  form.status === val
-                    ? 'bg-[#4A90E2]/20 border-[#4A90E2]/50 text-[#4A90E2]'
-                    : isLight
-                      ? 'bg-slate-100 border-slate-200 text-slate-500 hover:text-[#1E3A5F]'
-                      : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
-                }`}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                {cfg.label}
-              </button>
-            ))}
-          </div>
-        </Section>
-
-        {/* ═══════════ SECTION 7: NOTES ═══════════ */}
-        <Section label="Notes">
-          <textarea
-            value={form.item_notes || ''}
-            onChange={e => set('item_notes', e.target.value)}
-            onBlur={() => saveField()}
-            rows={3}
-            className={inputCls}
-            placeholder="Any notes about this item — storage instructions, sourcing preferences, special requirements..."
-          />
-        </Section>
-
-        {/* Source badge — read-only, only shown when source is non-manual */}
-        {form.source && form.source !== 'manual' && (
-          <div className="mt-3">
-            <span
-              style={{
-                display: 'inline-block',
-                background: 'rgba(0,0,0,0.05)',
-                color: '#94A3B8',
-                fontSize: 10,
-                padding: '2px 8px',
-                borderRadius: 10,
-              }}
-            >
-              {SOURCE_LABELS[form.source] || form.source}
-            </span>
-          </div>
-        )}
-
-        {/* ═══════════ SECTION 9: ACCOUNTING (COMMAND / CHIEF only) ═══════════ */}
-        {canViewAccounting && (
-          <div className="mt-4 pt-4" style={{ borderTop: '1px solid #F1F5F9' }}>
-            <button
-              onClick={() => setAccountingOpen(v => !v)}
-              className="w-full flex items-center justify-between"
-            >
-              <span
-                className="text-[10px] font-semibold uppercase text-[#94A3B8]"
-                style={{ letterSpacing: '0.1em' }}
-              >
-                Accounting
-              </span>
-              <Icon
-                name={accountingOpen ? 'ChevronUp' : 'ChevronDown'}
-                className="w-3.5 h-3.5 text-[#94A3B8]"
-              />
-            </button>
-            {accountingOpen && (
-              <div className="mt-2">
-                <input
-                  value={form.accounting_description || ''}
-                  onChange={e => set('accounting_description', e.target.value)}
-                  onBlur={() => saveField()}
-                  className={inputCls}
-                  placeholder="e.g. food and beverage, guest entertainment, maintenance supplies"
-                />
+            ) : (
+              /* Dark theme cost row (unchanged from previous version) */
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className={labelCls}>Unit Cost</label>
+                  <div className="flex items-center">
+                    <div className="flex flex-shrink-0">
+                      {CURRENCY_PILLS.map((pill, idx) => {
+                        const active = activeCurrCode === pill.code;
+                        const isFirst = idx === 0; const isLast = idx === CURRENCY_PILLS.length - 1;
+                        return (
+                          <button key={pill.code} type="button"
+                            onClick={() => { setForm(prev => ({ ...prev, currency: pill.code })); saveField({ currency: pill.code }); }}
+                            style={{ width: 32, height: 32, fontSize: 12, fontWeight: 600, background: active ? '#1E3A5F' : 'transparent', color: active ? '#ffffff' : '#64748B', border: '1px solid #E2E8F0', borderRight: isLast ? '1px solid #E2E8F0' : 'none', borderRadius: isFirst ? '8px 0 0 8px' : isLast ? '0 8px 8px 0' : '0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 0.15s, color 0.15s' }}
+                          >{pill.symbol}</button>
+                        );
+                      })}
+                    </div>
+                    <input type="number" value={form.estimated_unit_cost ?? ''} onChange={e => set('estimated_unit_cost', e.target.value)} onBlur={() => saveField()} placeholder="0.00" min="0" step="0.01" style={{ borderRadius: '0 8px 8px 0', borderLeft: 'none' }} className="flex-1 rounded-lg px-3 py-2 text-sm outline-none transition-colors text-white bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.1)] focus:border-[#4A90E2]" />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <label className={labelCls}>Total</label>
+                  <div className="rounded-lg px-3 flex items-center bg-white/5 border border-white/5" style={{ height: 36 }}>
+                    <span className="text-sm tabular-nums text-[#94A3B8]">{totalCost > 0 ? `${activeCurrSymbol}${totalCost.toFixed(2)}` : '—'}</span>
+                  </div>
+                </div>
               </div>
             )}
-          </div>
-        )}
 
-      </div>
-    </Drawer>
+            {/* Quantity received — non-pending only */}
+            {form.status && form.status !== 'pending' && (
+              <div style={{ marginTop: 12 }}>
+                <Field label="Quantity Received">
+                  <input type="number" value={form.quantity_received ?? ''} onChange={e => set('quantity_received', e.target.value)} onBlur={() => saveField()} className={inputCls} min="0" step="0.1" />
+                </Field>
+              </div>
+            )}
+          </Section>
+
+          {/* ════ SECTION 5: FLAGS ════ */}
+          <Section label="Flags">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {ALLERGEN_OPTIONS.map(a => {
+                const active = (form.allergen_flags || []).includes(a);
+                return isLight ? (
+                  <button
+                    key={a}
+                    onClick={() => toggleAllergen(a)}
+                    style={{
+                      padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 500,
+                      cursor: 'pointer', transition: 'all 0.15s', border: '1px solid',
+                      background: active ? '#fef3c7' : '#f8fafc',
+                      borderColor: active ? '#fcd34d' : '#e2e8f0',
+                      color: active ? '#92400e' : '#94a3b8',
+                    }}
+                  >{a}</button>
+                ) : (
+                  <button
+                    key={a}
+                    onClick={() => toggleAllergen(a)}
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${active ? 'bg-red-500/20 border-red-500/40 text-red-400' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+                  >{a}</button>
+                );
+              })}
+            </div>
+          </Section>
+
+          {/* ════ SECTION 6: STATUS ════ */}
+          <Section label="Status">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {Object.entries(ITEM_STATUS_CONFIG).map(([val, cfg]) => {
+                const isActive = form.status === val;
+                const s = STATUS_STYLES[val] || {};
+                return isLight ? (
+                  <button
+                    key={val}
+                    onClick={() => setAndSave('status', val)}
+                    style={{
+                      padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                      cursor: 'pointer', transition: 'all 0.15s', border: '1px solid',
+                      background: isActive ? s.bg : 'transparent',
+                      borderColor: isActive ? s.border : '#e2e8f0',
+                      color: isActive ? s.color : '#94a3b8',
+                    }}
+                  >{cfg.label}</button>
+                ) : (
+                  <button
+                    key={val}
+                    onClick={() => setAndSave('status', val)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${isActive ? 'bg-[#4A90E2]/20 border-[#4A90E2]/50 text-[#4A90E2]' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                    {cfg.label}
+                  </button>
+                );
+              })}
+            </div>
+          </Section>
+
+          {/* ════ SECTION 7: NOTES ════ */}
+          <Section label="Notes">
+            <textarea
+              value={form.item_notes || ''}
+              onChange={e => set('item_notes', e.target.value)}
+              onBlur={() => saveField()}
+              rows={3}
+              className={inputCls}
+              placeholder="Any notes about this item — storage instructions, sourcing preferences, special requirements..."
+            />
+          </Section>
+
+          {/* Source badge — only when non-manual */}
+          {form.source && form.source !== 'manual' && (
+            <div style={{ marginTop: 8 }}>
+              {isLight ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#f8fafc', color: '#cbd5e1', fontSize: 10, borderRadius: 4, padding: '2px 6px', fontWeight: 500 }}>
+                  ✦ {SOURCE_LABELS[form.source] || form.source}
+                </span>
+              ) : (
+                <span style={{ display: 'inline-block', background: 'rgba(0,0,0,0.05)', color: '#94A3B8', fontSize: 10, padding: '2px 8px', borderRadius: 10 }}>
+                  {SOURCE_LABELS[form.source] || form.source}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* ════ SECTION 9: ACCOUNTING (COMMAND / CHIEF only) ════ */}
+          {canViewAccounting && (
+            isLight ? (
+              <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 16, marginTop: 20 }}>
+                <button
+                  onClick={() => setAccountingOpen(v => !v)}
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', cursor: 'pointer', padding: '2px 0', background: 'none', border: 'none' }}
+                >
+                  <span style={{ fontSize: 11, color: '#cbd5e1', fontWeight: 500 }}>Accounting</span>
+                  <span style={{ fontSize: 10, color: '#e2e8f0', display: 'inline-block', transform: accountingOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}>▾</span>
+                </button>
+                {accountingOpen && (
+                  <div style={{ marginTop: 10 }}>
+                    <input value={form.accounting_description || ''} onChange={e => set('accounting_description', e.target.value)} onBlur={() => saveField()} className="idr-field" placeholder="e.g. food and beverage, guest entertainment, maintenance supplies" />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="mt-4 pt-4" style={{ borderTop: '1px solid #F1F5F9' }}>
+                <button onClick={() => setAccountingOpen(v => !v)} className="w-full flex items-center justify-between">
+                  <span className="text-[10px] font-semibold uppercase text-[#94A3B8]" style={{ letterSpacing: '0.1em' }}>Accounting</span>
+                  <Icon name={accountingOpen ? 'ChevronUp' : 'ChevronDown'} className="w-3.5 h-3.5 text-[#94A3B8]" />
+                </button>
+                {accountingOpen && (
+                  <div className="mt-2">
+                    <input value={form.accounting_description || ''} onChange={e => set('accounting_description', e.target.value)} onBlur={() => saveField()} className="w-full rounded-lg px-3 py-2 text-sm text-white outline-none bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.1)] focus:border-[#4A90E2] transition-colors" placeholder="e.g. food and beverage, guest entertainment, maintenance supplies" />
+                  </div>
+                )}
+              </div>
+            )
+          )}
+
+        </div>
+      </Drawer>
+    </>
   );
 };
 
