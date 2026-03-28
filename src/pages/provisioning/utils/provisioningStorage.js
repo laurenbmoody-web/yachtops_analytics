@@ -216,7 +216,7 @@ export const updateProvisioningItem = async (itemId, updates) => {
   try {
     const { data, error } = await supabase
       ?.from('provisioning_items')
-      ?.update({ ...updates, updated_at: new Date().toISOString() })
+      ?.update(updates)
       ?.eq('id', itemId)
       ?.select()
       ?.single();
