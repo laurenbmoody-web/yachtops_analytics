@@ -65,13 +65,29 @@ export const PROVISION_CATEGORIES = {
 
 export const fetchProvisioningLists = async (vesselId) => {
   try {
+    // Try ordering by sort_order (requires the column to exist — run the migration first)
     const { data, error } = await supabase
       ?.from('provisioning_lists')
       ?.select('*')
       ?.eq('tenant_id', vesselId)
       ?.order('sort_order', { ascending: true, nullsFirst: false })
       ?.order('created_at', { ascending: true });
-    if (error) throw error;
+
+    // If sort_order column doesn't exist yet (code: 42703 / PGRST204), fall back gracefully
+    if (error) {
+      const isMissingColumn = error.code === '42703' || error.code === 'PGRST204' || error.message?.includes('sort_order');
+      if (isMissingColumn) {
+        console.warn('[provisioningStorage] sort_order column missing — run migration. Falling back to created_at order.');
+        const { data: fallback, error: fbErr } = await supabase
+          ?.from('provisioning_lists')
+          ?.select('*')
+          ?.eq('tenant_id', vesselId)
+          ?.order('created_at', { ascending: false });
+        if (fbErr) throw fbErr;
+        return fallback || [];
+      }
+      throw error;
+    }
     return data || [];
   } catch (err) {
     console.error('[provisioningStorage] fetchProvisioningLists error:', err);
