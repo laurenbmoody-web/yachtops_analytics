@@ -1,15 +1,21 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ITEM_STATUS_CONFIG } from './StatusBadge';
+import React, { useState, useRef, useEffect } from 'react';
 
-const STATUS_ORDER = ['pending', 'received', 'short_delivered', 'not_delivered'];
+const STATUS_CONFIG = {
+  pending:          { label: 'Pending',       bg: 'rgba(100,116,139,0.2)', color: '#94A3B8' },
+  ordered:          { label: 'Ordered',       bg: 'rgba(74,144,226,0.2)',  color: '#4A90E2' },
+  received:         { label: 'Received',      bg: 'rgba(34,197,94,0.2)',   color: '#22c55e' },
+  short_delivered:  { label: 'Short',         bg: 'rgba(245,158,11,0.2)',  color: '#f59e0b' },
+  not_delivered:    { label: 'Not Delivered', bg: 'rgba(239,68,68,0.2)',   color: '#ef4444' },
+};
 
-const ItemCard = ({ item, onClick, onStatusChange }) => {
-  const statusCfg = ITEM_STATUS_CONFIG[item.status] || ITEM_STATUS_CONFIG.pending;
-  const [menu, setMenu] = useState(null); // { x, y }
+const STATUS_ORDER = ['pending', 'ordered', 'received', 'short_delivered', 'not_delivered'];
+
+const ItemCard = ({ item, onClick, onStatusChange, onQuantityChange }) => {
+  const cfg = STATUS_CONFIG[item.status] || STATUS_CONFIG.pending;
+  const [menu, setMenu] = useState(null);
   const menuRef = useRef(null);
   const longPressTimer = useRef(null);
 
-  // Close menu on outside click
   useEffect(() => {
     if (!menu) return;
     const handler = (e) => {
@@ -26,79 +32,97 @@ const ItemCard = ({ item, onClick, onStatusChange }) => {
 
   const handleTouchStart = (e) => {
     longPressTimer.current = setTimeout(() => {
-      const touch = e.touches[0];
-      setMenu({ x: touch.clientX, y: touch.clientY });
+      const t = e.touches[0];
+      setMenu({ x: t.clientX, y: t.clientY });
     }, 500);
   };
 
-  const handleTouchEnd = () => {
-    clearTimeout(longPressTimer.current);
-  };
+  const handleTouchEnd = () => clearTimeout(longPressTimer.current);
 
-  const handleStatusPick = (e, status) => {
+  const handleQty = (e, delta) => {
     e.stopPropagation();
-    setMenu(null);
-    if (onStatusChange) onStatusChange(item, status);
+    const next = Math.max(0, (item.quantity_ordered || 0) + delta);
+    if (onQuantityChange) onQuantityChange(item, next);
   };
 
   return (
     <>
-      <button
+      <div
         onClick={() => { if (!menu) onClick(item); }}
         onContextMenu={handleContextMenu}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         onTouchMove={handleTouchEnd}
-        className="w-full text-left bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.06)] rounded-lg px-3 py-2.5 hover:border-[rgba(255,255,255,0.12)] hover:bg-[rgba(255,255,255,0.07)] transition-all"
+        className="flex items-center gap-2 cursor-pointer rounded-lg border border-border bg-card hover:bg-muted/60 transition-colors"
+        style={{ padding: '9px 12px', marginBottom: 5 }}
       >
         {/* Name */}
-        <p className="text-[13px] font-semibold text-white leading-snug truncate">
-          {item.name || 'Untitled item'}
-        </p>
+        <span
+          className="text-foreground flex-1 min-w-0 truncate"
+          style={{ fontSize: 13, fontWeight: 500 }}
+        >
+          {item.name || 'Untitled'}
+        </span>
 
-        {/* Brand + Size */}
-        {(item.brand || item.size) && (
-          <p className="text-[11px] mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.4)' }}>
-            {[item.brand, item.size].filter(Boolean).join(' · ')}
-          </p>
-        )}
-
-        {/* Bottom row */}
-        <div className="flex items-center gap-2 mt-2">
-          {item.department && (
-            <span className="text-[10px] px-1.5 py-0.5 bg-white/10 text-slate-300 rounded-full truncate max-w-[80px]">
-              {item.department}
-            </span>
-          )}
-          <span className="flex items-center gap-1 text-[10px] text-slate-400">
-            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusCfg.dot}`} />
-            {statusCfg.label}
+        {/* Qty controls */}
+        <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
+          <button
+            onClick={(e) => handleQty(e, -1)}
+            style={{
+              width: 20, height: 20, borderRadius: '50%', border: 'none', cursor: 'pointer',
+              background: 'rgba(239,68,68,0.15)', color: '#ef4444',
+              fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              lineHeight: 1, padding: 0,
+            }}
+          >−</button>
+          <span
+            className="text-foreground text-center"
+            style={{ fontSize: 13, fontWeight: 600, minWidth: 24 }}
+          >
+            {item.quantity_ordered ?? 0}
           </span>
-          <span className="ml-auto text-[11px] text-slate-400 whitespace-nowrap">
-            {item.quantity_ordered || 0} {item.unit || 'each'}
-          </span>
+          <button
+            onClick={(e) => handleQty(e, 1)}
+            style={{
+              width: 20, height: 20, borderRadius: '50%', border: 'none', cursor: 'pointer',
+              background: 'rgba(34,197,94,0.15)', color: '#22c55e',
+              fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              lineHeight: 1, padding: 0,
+            }}
+          >+</button>
         </div>
-      </button>
+
+        {/* Status badge */}
+        <span
+          className="flex-shrink-0 uppercase"
+          style={{
+            fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 10,
+            background: cfg.bg, color: cfg.color,
+          }}
+        >
+          {cfg.label}
+        </span>
+      </div>
 
       {/* Status context menu */}
       {menu && (
         <div
           ref={menuRef}
-          className="fixed z-50 py-1 rounded-lg shadow-2xl border border-[rgba(255,255,255,0.1)]"
-          style={{ top: menu.y, left: menu.x, backgroundColor: '#162236', minWidth: 160 }}
+          className="fixed z-50 py-1 rounded-lg shadow-2xl border border-border bg-card"
+          style={{ top: menu.y, left: menu.x, minWidth: 160 }}
         >
-          <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Set status</p>
+          <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Set status</p>
           {STATUS_ORDER.map(s => {
-            const cfg = ITEM_STATUS_CONFIG[s];
+            const c = STATUS_CONFIG[s];
             return (
               <button
                 key={s}
-                onClick={(e) => handleStatusPick(e, s)}
-                className="w-full text-left px-3 py-2 text-sm text-slate-300 hover:bg-white/5 flex items-center gap-2"
+                onClick={(e) => { e.stopPropagation(); setMenu(null); if (onStatusChange) onStatusChange(item, s); }}
+                className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2"
               >
-                <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
-                {cfg.label}
-                {item.status === s && <span className="ml-auto text-[#4A90E2]">✓</span>}
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.color, display: 'inline-block', flexShrink: 0 }} />
+                {c.label}
+                {item.status === s && <span className="ml-auto text-primary">✓</span>}
               </button>
             );
           })}
