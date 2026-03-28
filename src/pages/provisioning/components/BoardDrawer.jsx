@@ -15,12 +15,11 @@ import {
   PROVISIONING_STATUS,
   formatCurrency,
 } from '../utils/provisioningStorage';
-import { supabase } from '../../../lib/supabaseClient';
 import { getSmartSuggestions } from '../../../utils/provisioningSuggestions';
 
 // ── Edit mode ────────────────────────────────────────────────────────────────
 
-const EditMode = ({ list, suppliers, trips, tenantId, onSaved, onDeleted, onClose }) => {
+const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved, onDeleted, onClose }) => {
   const [form, setForm] = useState({
     title: '',
     trip_id: '',
@@ -35,25 +34,6 @@ const EditMode = ({ list, suppliers, trips, tenantId, onSaved, onDeleted, onClos
   });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [departments, setDepartments] = useState([]);
-
-  useEffect(() => {
-    if (!tenantId) return;
-    (async () => {
-      try {
-        const { data, error } = await supabase?.rpc('get_tenant_departments', { p_tenant_id: tenantId });
-        if (!error && data?.length) {
-          setDepartments(data.map(d => (typeof d === 'string' ? d : d.name)).filter(Boolean));
-          return;
-        }
-        if (error) console.warn('[BoardDrawer] get_tenant_departments RPC failed:', error);
-        setDepartments([]);
-      } catch (err) {
-        console.warn('[BoardDrawer] fetchDepartments error:', err);
-        setDepartments([]);
-      }
-    })();
-  }, [tenantId]);
 
   // department may be text[] from DB or legacy comma-string — normalise to comma-string for form
   const normDept = (dept) => {
@@ -163,22 +143,25 @@ const EditMode = ({ list, suppliers, trips, tenantId, onSaved, onDeleted, onClos
       <div>
         <label className={labelCls}>Departments</label>
         <div className="flex flex-wrap gap-2">
-          {departments.map(d => {
-            const selected = form.department.split(',').map(s => s.trim()).filter(Boolean).includes(d);
-            return (
-              <button
-                key={d}
-                onClick={() => {
-                  const current = form.department.split(',').map(s => s.trim()).filter(Boolean);
-                  const next = selected ? current.filter(x => x !== d) : [...current, d];
-                  set('department', next.join(', '));
-                }}
-                className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${selected ? 'bg-[#4A90E2]/20 border-[#4A90E2]/40 text-[#4A90E2]' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
-              >
-                {d}
-              </button>
-            );
-          })}
+          {departments.length === 0
+            ? <span className="text-xs text-slate-500 italic">No departments configured</span>
+            : departments.map(d => {
+                const selected = form.department.split(',').map(s => s.trim()).filter(Boolean).includes(d);
+                return (
+                  <button
+                    key={d}
+                    onClick={() => {
+                      const current = form.department.split(',').map(s => s.trim()).filter(Boolean);
+                      const next = selected ? current.filter(x => x !== d) : [...current, d];
+                      set('department', next.join(', '));
+                    }}
+                    className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${selected ? 'bg-[#4A90E2]/20 border-[#4A90E2]/40 text-[#4A90E2]' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+                  >
+                    {d}
+                  </button>
+                );
+              })
+          }
         </div>
       </div>
 
@@ -501,7 +484,7 @@ const DRAWER_TITLES = {
   templates: 'Templates & History',
 };
 
-const BoardDrawer = ({ open, mode, list, suppliers, trips, tenantId, onSaved, onDeleted, onAddItems, onClose }) => {
+const BoardDrawer = ({ open, mode, list, suppliers, trips, tenantId, departments = [], onSaved, onDeleted, onAddItems, onClose }) => {
   if (!list) return null;
 
   return (
@@ -512,6 +495,7 @@ const BoardDrawer = ({ open, mode, list, suppliers, trips, tenantId, onSaved, on
           suppliers={suppliers}
           trips={trips}
           tenantId={tenantId}
+          departments={departments}
           onSaved={onSaved}
           onDeleted={onDeleted}
           onClose={onClose}

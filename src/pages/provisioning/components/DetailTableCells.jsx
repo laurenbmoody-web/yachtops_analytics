@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Icon from '../../../components/AppIcon';
 import {
-  PROVISION_DEPARTMENTS,
   PROVISION_CATEGORIES,
   PROVISION_UNITS,
 } from '../utils/provisioningStorage';
@@ -237,6 +236,7 @@ export const DeptGroup = ({
   editingCell,
   setEditingCell,
   isAllergenRisk,
+  deptOptions = [],
   onToggleAll,
   onToggleItem,
   onCellSave,
@@ -255,7 +255,6 @@ export const DeptGroup = ({
   }, 0);
 
   const categoryOptions = (PROVISION_CATEGORIES[dept] || []).map(c => ({ value: c, label: c }));
-  const deptOptions = PROVISION_DEPARTMENTS.map(d => ({ value: d, label: d }));
   const unitOptions = PROVISION_UNITS.map(u => ({ value: u, label: u }));
   const isAdding = addingToDept === dept;
 
