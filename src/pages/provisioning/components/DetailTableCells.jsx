@@ -7,7 +7,7 @@ import {
 
 // ── Grid template shared across header / rows / subtotal ─────────────────────
 // cols: check | name | brand | size | category | dept | qty_ord | qty_rec | unit | unit_cost | total | status | actions
-export const DETAIL_GRID = '36px minmax(140px,1fr) 95px 72px 118px 98px 98px 98px 68px 80px 80px 118px 40px';
+export const DETAIL_GRID = '36px minmax(140px,1fr) 95px 72px 118px 98px 98px 98px 68px 80px 80px 118px 72px';
 
 // ── Item status config ────────────────────────────────────────────────────────
 export const ITEM_STATUS_OPTIONS = [
@@ -237,6 +237,7 @@ export const DeptGroup = ({
   setEditingCell,
   isAllergenRisk,
   deptOptions = [],
+  onEditItem,
   onToggleAll,
   onToggleItem,
   onCellSave,
@@ -337,25 +338,23 @@ export const DeptGroup = ({
 
               <StatusCell item={item} editingCell={editingCell} setEditingCell={setEditingCell} onSave={onStatusSave} />
 
-              {/* Notes tooltip + delete */}
-              <div className="flex items-center justify-center min-h-[38px] relative">
-                {item.notes ? (
-                  <div className="relative group/notes">
-                    <button className="p-1 rounded text-muted-foreground hover:text-foreground">
-                      <Icon name="FileText" className="w-3.5 h-3.5" />
-                    </button>
-                    <div className="absolute right-7 top-1/2 -translate-y-1/2 z-50 hidden group-hover/notes:block w-52 bg-card border border-border rounded-lg px-3 py-2 text-xs text-foreground shadow-xl pointer-events-none whitespace-normal">
-                      {item.notes}
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => onDeleteItem(item.id)}
-                    className="p-1 rounded text-muted-foreground/0 group-hover:text-muted-foreground/40 hover:!text-red-500 transition-colors"
-                  >
-                    <Icon name="Trash2" className="w-3.5 h-3.5" />
-                  </button>
-                )}
+              {/* Delete + edit */}
+              <div className="flex items-center justify-center gap-0.5 min-h-[38px]">
+                <button
+                  onClick={() => onDeleteItem(item.id)}
+                  className="p-1 rounded text-muted-foreground/0 group-hover:text-muted-foreground/40 hover:!text-red-500 transition-colors"
+                >
+                  <Icon name="Trash2" className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => onEditItem?.(item)}
+                  className="p-1 rounded transition-colors"
+                  style={{ color: 'rgba(0,0,0,0.3)' }}
+                  onMouseEnter={e => e.currentTarget.style.color = '#1E3A5F'}
+                  onMouseLeave={e => e.currentTarget.style.color = 'rgba(0,0,0,0.3)'}
+                >
+                  <Icon name="Pencil" style={{ width: 14, height: 14 }} />
+                </button>
               </div>
             </div>
           );

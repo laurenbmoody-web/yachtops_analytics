@@ -10,6 +10,7 @@ import {
   fetchListItems,
   fetchSuppliers,
   upsertItems,
+  updateProvisioningItem,
   deleteProvisioningItem,
   updateProvisioningList,
   deleteProvisioningList,
@@ -20,6 +21,7 @@ import {
   PROVISION_UNITS,
   formatCurrency,
 } from './utils/provisioningStorage';
+import ItemDrawer from './components/ItemDrawer';
 import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
 import { loadGuests } from '../guest-management-dashboard/utils/guestStorage';
 import { showToast } from '../../utils/toast';
@@ -137,6 +139,7 @@ const ProvisioningBoardDetail = () => {
   const [newItemName, setNewItemName] = useState('');
   const [showMenu, setShowMenu] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [itemDrawer, setItemDrawer] = useState({ open: false, item: null });
   const menuRef = useRef(null);
 
   const userTier = (user?.permission_tier || user?.effectiveTier || '').toUpperCase();
@@ -206,12 +209,12 @@ const ProvisioningBoardDetail = () => {
     if (item[field] === value) return;
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, [field]: value } : i));
     try {
-      await upsertItems([{ id: item.id, list_id: id, [field]: value }]);
+      await updateProvisioningItem(item.id, { [field]: value });
     } catch {
       setItems(prev => prev.map(i => i.id === item.id ? { ...i, [field]: item[field] } : i));
       showToast('Failed to save', 'error');
     }
-  }, [id]);
+  }, []);
 
   const handleQtyStep = useCallback(async (item, field, delta) => {
     const next = Math.max(0, (parseFloat(item[field]) || 0) + delta);
@@ -248,6 +251,19 @@ const ProvisioningBoardDetail = () => {
       showToast('Failed to add item', 'error');
     }
   };
+
+  const handleItemDrawerSaved = useCallback((listId, savedItems) => {
+    setItems(prev => prev.map(i => {
+      const match = savedItems.find(s => s.id === i.id);
+      return match ? { ...i, ...match } : i;
+    }));
+    // Keep drawer item in sync so re-saving reflects latest values
+    setItemDrawer(prev => {
+      if (!prev.item) return prev;
+      const updated = savedItems.find(s => s.id === prev.item.id);
+      return updated ? { ...prev, item: { ...prev.item, ...updated } } : prev;
+    });
+  }, []);
 
   // ── Board actions ─────────────────────────────────────────────────────────
 
@@ -551,6 +567,7 @@ const ProvisioningBoardDetail = () => {
                   onQtyStep={handleQtyStep}
                   onStatusSave={handleStatusSave}
                   onDeleteItem={handleDeleteItem}
+                  onEditItem={(item) => setItemDrawer({ open: true, item })}
                   onAddItem={handleAddItem}
                   formatCurrency={formatCurrency}
                   addingToDept={addingToDept}
@@ -586,6 +603,20 @@ const ProvisioningBoardDetail = () => {
           onClose={() => setShowEditModal(false)}
         />
       )}
+
+      <ItemDrawer
+        open={itemDrawer.open}
+        item={itemDrawer.item}
+        listId={id}
+        departments={departments}
+        theme="light"
+        onSaved={handleItemDrawerSaved}
+        onDeleted={(listId, itemId) => {
+          setItems(prev => prev.filter(i => i.id !== itemId));
+          setItemDrawer({ open: false, item: null });
+        }}
+        onClose={() => setItemDrawer({ open: false, item: null })}
+      />
     </>
   );
 };
