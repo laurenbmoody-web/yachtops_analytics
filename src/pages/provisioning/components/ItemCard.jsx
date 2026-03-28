@@ -53,8 +53,8 @@ const ItemCard = ({ item, onClick, onStatusChange, onQuantityChange }) => {
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         onTouchMove={handleTouchEnd}
-        className="flex items-center gap-2 cursor-pointer rounded-lg border border-border bg-card hover:bg-muted/60 transition-colors"
-        style={{ padding: '9px 12px', marginBottom: 5 }}
+        className="flex items-center gap-2 cursor-pointer bg-card border border-border/40 hover:bg-muted/60 transition-colors"
+        style={{ padding: '8px 10px', marginBottom: 4, borderRadius: 6 }}
       >
         {/* Name */}
         <span
