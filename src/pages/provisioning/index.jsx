@@ -32,7 +32,7 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
   const [creating, setCreating] = useState(false);
   const [localError, setLocalError] = useState('');
 
-  const inputCls = 'w-full bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.08)] rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none focus:border-[#4A90E2] transition-colors';
+  const inputCls = 'w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary transition-colors';
 
   const handleCreate = async () => {
     if (!title.trim()) return;
@@ -48,8 +48,8 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
   };
 
   return (
-    <div className="flex flex-col w-[280px] min-w-[280px] flex-shrink-0 bg-[rgba(255,255,255,0.03)] border-2 border-dashed border-[rgba(255,255,255,0.15)] rounded-xl p-4 space-y-3">
-      <h3 className="text-sm font-bold text-white">New Board</h3>
+    <div className="flex flex-col w-[340px] min-w-[340px] flex-shrink-0 bg-card border-2 border-dashed border-border rounded-xl p-4 space-y-3">
+      <h3 className="text-sm font-bold text-foreground">New Board</h3>
       <input
         autoFocus
         value={title}
@@ -63,7 +63,7 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
         {(trips || []).map(t => <option key={t.id} value={t.id}>{t.title || t.name}</option>)}
       </select>
       <div>
-        <label style={{ display: 'block', fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>
+        <label className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
           Order by date
         </label>
         <input
@@ -80,11 +80,11 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
         <button
           onClick={handleCreate}
           disabled={!title.trim() || creating}
-          className="flex-1 py-2 bg-[#4A90E2] text-white text-sm font-medium rounded-lg hover:bg-[#4A90E2]/80 disabled:opacity-40 transition-colors"
+          className="flex-1 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/80 disabled:opacity-40 transition-colors"
         >
           {creating ? 'Creating...' : 'Create'}
         </button>
-        <button onClick={onCancel} className="px-3 py-2 text-sm text-slate-400 hover:text-white transition-colors">
+        <button onClick={onCancel} className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
           Cancel
         </button>
       </div>
@@ -296,6 +296,24 @@ const ProvisioningWorkspace = () => {
     }));
   };
 
+  const handleItemQuantityChange = async (listId, item, newQty) => {
+    const prev = item.quantity_ordered ?? 0;
+    // Optimistic update
+    setItemsByList(prevMap => ({
+      ...prevMap,
+      [listId]: (prevMap[listId] || []).map(i => i.id === item.id ? { ...i, quantity_ordered: newQty } : i),
+    }));
+    try {
+      await upsertItems([{ id: item.id, list_id: listId, quantity_ordered: newQty }]);
+    } catch {
+      // Revert on failure
+      setItemsByList(prevMap => ({
+        ...prevMap,
+        [listId]: (prevMap[listId] || []).map(i => i.id === item.id ? { ...i, quantity_ordered: prev } : i),
+      }));
+    }
+  };
+
   const handleItemStatusChange = async (listId, item, newStatus) => {
     // Optimistic update
     setItemsByList(prev => ({
@@ -362,8 +380,8 @@ const ProvisioningWorkspace = () => {
     return (
       <>
         <Header />
-        <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#0d1a2e' }}>
-          <div className="w-6 h-6 border-2 border-[#4A90E2] border-t-transparent rounded-full animate-spin" />
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       </>
     );
@@ -372,28 +390,28 @@ const ProvisioningWorkspace = () => {
   return (
     <>
       <Header />
-      <div className="min-h-screen" style={{ backgroundColor: '#0d1a2e' }}>
+      <div className="min-h-screen bg-background">
         {/* Toolbar */}
-        <div className="sticky top-0 z-20 border-b border-[rgba(255,255,255,0.06)] px-6 py-3" style={{ backgroundColor: '#0d1a2e' }}>
+        <div className="sticky top-0 z-20 bg-background border-b border-border px-6 py-3">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <h1 className="text-lg font-bold text-white">Provisioning</h1>
+              <h1 className="text-lg font-bold text-foreground">Provisioning</h1>
               {/* Search */}
               <div className="relative">
-                <Icon name="Search" className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+                <Icon name="Search" className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Search items..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="pl-8 pr-3 py-1.5 text-sm bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.08)] rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:border-[#4A90E2] w-48"
+                  className="pl-8 pr-3 py-1.5 text-sm bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary w-48"
                 />
               </div>
               {/* Status filter */}
               <select
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
-                className="bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.08)] rounded-lg px-2.5 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-[#4A90E2]"
+                className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary"
               >
                 <option value="all">All statuses</option>
                 {Object.entries(ITEM_STATUS_CONFIG).map(([val, cfg]) => (
@@ -404,7 +422,7 @@ const ProvisioningWorkspace = () => {
               <select
                 value={deptFilter}
                 onChange={e => setDeptFilter(e.target.value)}
-                className="bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.08)] rounded-lg px-2.5 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-[#4A90E2]"
+                className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary"
               >
                 <option value="all">All depts</option>
                 {PROVISION_DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
@@ -412,7 +430,7 @@ const ProvisioningWorkspace = () => {
               {hasActiveFilters && (
                 <button
                   onClick={() => { setSearchQuery(''); setStatusFilter('all'); setDeptFilter('all'); }}
-                  className="text-xs text-slate-500 hover:text-white transition-colors"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Clear filters
                 </button>
@@ -421,7 +439,7 @@ const ProvisioningWorkspace = () => {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => navigate('/provisioning/suppliers')}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-400 border border-[rgba(255,255,255,0.1)] rounded-lg hover:bg-white/5 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground border border-border rounded-lg hover:bg-muted transition-colors"
               >
                 <Icon name="Users" className="w-4 h-4" />
                 Suppliers
@@ -429,7 +447,7 @@ const ProvisioningWorkspace = () => {
               {canCreate && (
                 <button
                   onClick={() => setShowNewBoard(true)}
-                  className="flex items-center gap-1.5 px-4 py-1.5 bg-[#4A90E2] text-white text-sm font-medium rounded-lg hover:bg-[#4A90E2]/80 transition-colors"
+                  className="flex items-center gap-1.5 px-4 py-1.5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/80 transition-colors"
                 >
                   <Icon name="Plus" className="w-4 h-4" />
                   New Board
@@ -451,15 +469,15 @@ const ProvisioningWorkspace = () => {
         {!error && visibleLists.length === 0 && !showNewBoard && (
           <div className="flex items-center justify-center" style={{ minHeight: 'calc(100vh - 130px)' }}>
             <div className="text-center">
-              <div className="w-16 h-16 bg-[rgba(255,255,255,0.05)] rounded-full flex items-center justify-center mx-auto mb-4">
-                <Icon name="ShoppingBag" className="w-8 h-8 text-slate-500" />
+              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                <Icon name="ShoppingBag" className="w-8 h-8 text-muted-foreground" />
               </div>
-              <h3 className="text-base font-semibold text-white mb-1">No provisioning boards yet</h3>
-              <p className="text-sm text-slate-500 mb-4">Create your first board to get started.</p>
+              <h3 className="text-base font-semibold text-foreground mb-1">No provisioning boards yet</h3>
+              <p className="text-sm text-muted-foreground mb-4">Create your first board to get started.</p>
               {canCreate && (
                 <button
                   onClick={() => setShowNewBoard(true)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#4A90E2] text-white text-sm font-medium rounded-lg hover:bg-[#4A90E2]/80 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/80 transition-colors"
                 >
                   <Icon name="Plus" className="w-4 h-4" />
                   New Board
@@ -488,7 +506,9 @@ const ProvisioningWorkspace = () => {
                   canDelete={canDeleteList(list)}
                   onItemClick={(item) => openItemDrawer(item, list.id)}
                   onItemStatusChange={(item, status) => handleItemStatusChange(list.id, item, status)}
+                  onItemQuantityChange={(item, qty) => handleItemQuantityChange(list.id, item, qty)}
                   onQuickAdd={(data) => handleQuickAdd(list.id, data)}
+                  onNavigate={(id) => navigate('/provisioning/' + id)}
                   onEditBoard={() => openBoardDrawer(list.id, 'edit')}
                   onSuggestions={() => openBoardDrawer(list.id, 'suggestions')}
                   onTemplates={() => openBoardDrawer(list.id, 'templates')}

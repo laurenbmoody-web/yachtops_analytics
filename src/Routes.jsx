@@ -49,6 +49,7 @@ import { getCurrentUser } from './utils/authStorage';
 import { isDevMode } from './utils/devMode';
 
 import ProvisioningWorkspace from './pages/provisioning';
+import ProvisioningBoardDetail from './pages/provisioning/ProvisioningBoardDetail';
 import ProvisioningSuppliers from './pages/provisioning/ProvisioningSuppliers';
 import TripItineraryTimeline from './pages/trip-itinerary-timeline/index';
 import InviteAcceptPage from './pages/invite-accept';
@@ -915,6 +916,7 @@ const Routes = () => {
         {/* Provisioning Routes */}
         <Route path="/provisioning" element={<ProtectedRoute><ProvisioningWorkspace /></ProtectedRoute>} />
         <Route path="/provisioning/suppliers" element={<ProtectedRoute><ProvisioningSuppliers /></ProtectedRoute>} />
+        <Route path="/provisioning/:id" element={<ProtectedRoute><ProvisioningBoardDetail /></ProtectedRoute>} />
 
         {/* Accounts */}
         <Route path="/accounts" element={<ProtectedRoute><Accounts /></ProtectedRoute>} />
