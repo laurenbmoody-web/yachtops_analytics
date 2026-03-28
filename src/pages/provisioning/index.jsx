@@ -14,6 +14,7 @@ import {
   fetchListItems,
   createProvisioningList,
   deleteProvisioningList,
+  updateProvisioningList,
   duplicateList,
   upsertItems,
   fetchSuppliers,
@@ -22,6 +23,47 @@ import {
 } from './utils/provisioningStorage';
 import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
 import { showToast } from '../../utils/toast';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  horizontalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+// ── Sortable wrapper for each board column ───────────────────────────────────
+
+const SortableBoardColumn = ({ list, ...props }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: list.id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+    >
+      <BoardColumn
+        list={list}
+        {...props}
+        dragHandleProps={{ ...attributes, ...listeners }}
+        isDragging={isDragging}
+      />
+    </div>
+  );
+};
 
 // ── New Board inline form ────────────────────────────────────────────────────
 
@@ -123,6 +165,10 @@ const ProvisioningWorkspace = () => {
   const userDept = (user?.department || '').trim();
   const userId = user?.id;
   const canCreate = userTier !== 'VIEW_ONLY';
+  const isCommand = userTier === 'COMMAND';
+
+  // DnD
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   const canViewList = useCallback((list) => {
     if (list.is_private) return list.created_by === userId || userTier === 'COMMAND';
@@ -242,13 +288,45 @@ const ProvisioningWorkspace = () => {
   };
 
   const handleDeleteBoard = async (list) => {
-    if (!window.confirm(`Delete "${list.title}"? This cannot be undone.`)) return;
     try {
       await deleteProvisioningList(list.id);
       handleBoardDeleted(list.id);
       showToast('Board deleted', 'success');
     } catch {
       showToast('Failed to delete board', 'error');
+    }
+  };
+
+  const handleTitleSave = async (listId, newTitle) => {
+    setLists(prev => prev.map(l => l.id === listId ? { ...l, title: newTitle } : l));
+    try {
+      await updateProvisioningList(listId, { title: newTitle });
+    } catch {
+      loadAll();
+      showToast('Failed to save title', 'error');
+    }
+  };
+
+  const handleColourChange = async (listId, colour) => {
+    setLists(prev => prev.map(l => l.id === listId ? { ...l, board_colour: colour } : l));
+    try {
+      await updateProvisioningList(listId, { board_colour: colour });
+    } catch {
+      showToast('Failed to save colour', 'error');
+    }
+  };
+
+  const handleDragEnd = async ({ active, over }) => {
+    if (!over || active.id === over.id) return;
+    const oldIdx = lists.findIndex(l => l.id === active.id);
+    const newIdx = lists.findIndex(l => l.id === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const reordered = arrayMove(lists, oldIdx, newIdx);
+    setLists(reordered);
+    try {
+      await Promise.all(reordered.map((l, idx) => updateProvisioningList(l.id, { sort_order: idx })));
+    } catch {
+      showToast('Failed to save board order', 'error');
     }
   };
 
@@ -489,46 +567,52 @@ const ProvisioningWorkspace = () => {
 
         {/* Board workspace — horizontal scroll */}
         {(visibleLists.length > 0 || showNewBoard) && (
-          <div className="flex gap-4 overflow-x-auto px-6 py-4" style={{ minHeight: 'calc(100vh - 130px)' }}>
-            {visibleLists.map(list => {
-              const allItems = itemsByList[list.id] || [];
-              const filtered = getFilteredItems(list.id);
-              const hiddenCount = allItems.length - filtered.length;
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={visibleLists.map(l => l.id)} strategy={horizontalListSortingStrategy}>
+              <div className="flex gap-4 overflow-x-auto px-6 py-4" style={{ minHeight: 'calc(100vh - 130px)' }}>
+                {visibleLists.map(list => {
+                  const allItems = itemsByList[list.id] || [];
+                  const filtered = getFilteredItems(list.id);
+                  const hiddenCount = allItems.length - filtered.length;
 
-              return (
-                <BoardColumn
-                  key={list.id}
-                  list={list}
-                  items={allItems}
-                  filteredItems={filtered}
-                  hiddenCount={hasActiveFilters ? hiddenCount : 0}
-                  canEdit={canEditList(list)}
-                  canDelete={canDeleteList(list)}
-                  onItemClick={(item) => openItemDrawer(item, list.id)}
-                  onItemStatusChange={(item, status) => handleItemStatusChange(list.id, item, status)}
-                  onItemQuantityChange={(item, qty) => handleItemQuantityChange(list.id, item, qty)}
-                  onQuickAdd={(data) => handleQuickAdd(list.id, data)}
-                  onNavigate={(id) => navigate('/provisioning/' + id)}
-                  onEditBoard={() => openBoardDrawer(list.id, 'edit')}
-                  onSuggestions={() => openBoardDrawer(list.id, 'suggestions')}
-                  onTemplates={() => openBoardDrawer(list.id, 'templates')}
-                  onDuplicate={() => handleDuplicate(list)}
-                  onDelete={() => handleDeleteBoard(list)}
-                />
-              );
-            })}
+                  return (
+                    <SortableBoardColumn
+                      key={list.id}
+                      list={list}
+                      items={allItems}
+                      filteredItems={filtered}
+                      hiddenCount={hasActiveFilters ? hiddenCount : 0}
+                      canEdit={canEditList(list)}
+                      canCommandDelete={isCommand}
+                      onItemClick={(item) => openItemDrawer(item, list.id)}
+                      onItemStatusChange={(item, status) => handleItemStatusChange(list.id, item, status)}
+                      onItemQuantityChange={(item, qty) => handleItemQuantityChange(list.id, item, qty)}
+                      onQuickAdd={(data) => handleQuickAdd(list.id, data)}
+                      onNavigate={(id) => navigate('/provisioning/' + id)}
+                      onEditBoard={() => openBoardDrawer(list.id, 'edit')}
+                      onSuggestions={() => openBoardDrawer(list.id, 'suggestions')}
+                      onTemplates={() => openBoardDrawer(list.id, 'templates')}
+                      onDuplicate={() => handleDuplicate(list)}
+                      onDelete={() => handleDeleteBoard(list)}
+                      onTitleSave={handleTitleSave}
+                      onColourChange={handleColourChange}
+                    />
+                  );
+                })}
 
-            {/* New board column */}
-            {showNewBoard && (
-              <NewBoardColumn
-                trips={trips}
-                tenantId={activeTenantId}
-                userId={userId}
-                onCreated={handleCreateBoard}
-                onCancel={() => setShowNewBoard(false)}
-              />
-            )}
-          </div>
+                {/* New board column */}
+                {showNewBoard && (
+                  <NewBoardColumn
+                    trips={trips}
+                    tenantId={activeTenantId}
+                    userId={userId}
+                    onCreated={handleCreateBoard}
+                    onCancel={() => setShowNewBoard(false)}
+                  />
+                )}
+              </div>
+            </SortableContext>
+          </DndContext>
         )}
       </div>
 
