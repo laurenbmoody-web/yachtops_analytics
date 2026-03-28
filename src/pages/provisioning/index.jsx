@@ -667,6 +667,7 @@ const ProvisioningWorkspace = () => {
         open={itemDrawer.open}
         item={itemDrawer.item}
         listId={itemDrawer.listId}
+        tenantId={activeTenantId}
         departments={departments}
         onSaved={handleItemSaved}
         onDeleted={handleItemDeleted}

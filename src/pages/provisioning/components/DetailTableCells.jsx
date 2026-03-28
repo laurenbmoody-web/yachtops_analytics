@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Icon from '../../../components/AppIcon';
-import {
-  PROVISION_CATEGORIES,
-} from '../utils/provisioningStorage';
+// No provisioning constants needed — category column is read-only in the table
 
 // ── Grid template shared across header / rows / subtotal ─────────────────────
 // cols: check | name | brand | category | dept | size/unit/qty | qty_rec | unit_cost | total | status | actions
@@ -349,7 +347,6 @@ export const DeptGroup = ({
     return sum + (parseFloat(i.quantity_ordered) || 0) * (parseFloat(i.estimated_unit_cost) || 0);
   }, 0);
 
-  const categoryOptions = (PROVISION_CATEGORIES[dept] || []).map(c => ({ value: c, label: c }));
   const isAdding = addingToDept === dept;
 
   return (
@@ -412,7 +409,16 @@ export const DeptGroup = ({
 
               <EditCell item={item} field="name" value={item.name} editingCell={editingCell} setEditingCell={setEditingCell} onSave={onCellSave} placeholder="Item name" />
               <EditCell item={item} field="brand" value={item.brand} editingCell={editingCell} setEditingCell={setEditingCell} onSave={onCellSave} />
-              <SelectCell item={item} field="category" value={item.category} options={categoryOptions} editingCell={editingCell} setEditingCell={setEditingCell} onSave={onCellSave} />
+              {/* Category — read-only, edit via drawer */}
+              <div className="flex items-center px-2 min-h-[38px]">
+                {(item.sub_category || item.category) ? (
+                  <span className="text-[13px] text-foreground truncate" title={item.sub_category || item.category}>
+                    {item.sub_category || item.category}
+                  </span>
+                ) : (
+                  <span className="text-[12px] text-muted-foreground/25">—</span>
+                )}
+              </div>
               <SelectCell item={item} field="department" value={item.department} options={deptOptions} editingCell={editingCell} setEditingCell={setEditingCell} onSave={onCellSave} />
               <CompoundMeasureCell item={item} editingCell={editingCell} setEditingCell={setEditingCell} onSave={onCellSave} onStep={onQtyStep} />
               <QtyCell item={item} field="quantity_received" value={item.quantity_received} editingCell={editingCell} setEditingCell={setEditingCell} onSave={onCellSave} onStep={onQtyStep} />
