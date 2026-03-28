@@ -5,7 +5,6 @@ import { ITEM_STATUS_CONFIG } from './StatusBadge';
 import {
   upsertItems,
   deleteProvisioningItem,
-  PROVISION_DEPARTMENTS,
   PROVISION_UNITS,
 } from '../utils/provisioningStorage';
 import { getAllCategoriesL1, getCategoriesL2ByL1 } from '../../inventory/utils/taxonomyStorage';
@@ -29,7 +28,7 @@ const SOURCE_LABELS = {
   template: 'Template',
 };
 
-const ItemDrawer = ({ open, item, listId, onSaved, onDeleted, onClose }) => {
+const ItemDrawer = ({ open, item, listId, departments = [], onSaved, onDeleted, onClose }) => {
   const [form, setForm] = useState({});
   const [categories, setCategories] = useState([]);
   const [subCategories, setSubCategories] = useState([]);
@@ -216,7 +215,10 @@ const ItemDrawer = ({ open, item, listId, onSaved, onDeleted, onClose }) => {
           <label className={labelCls}>Department</label>
           <select value={form.department || ''} onChange={e => setAndSave('department', e.target.value)} className={inputCls}>
             <option value="">None</option>
-            {PROVISION_DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+            {departments.length === 0
+              ? <option disabled value="">No departments configured</option>
+              : departments.map(d => <option key={d} value={d}>{d}</option>)
+            }
           </select>
         </div>
 

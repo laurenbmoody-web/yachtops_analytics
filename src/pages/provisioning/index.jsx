@@ -18,9 +18,9 @@ import {
   duplicateList,
   upsertItems,
   fetchSuppliers,
+  fetchVesselDepartments,
   PROVISIONING_STATUS,
 } from './utils/provisioningStorage';
-import { supabase } from '../../lib/supabaseClient';
 import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
 import { showToast } from '../../utils/toast';
 import {
@@ -221,24 +221,8 @@ const ProvisioningWorkspace = () => {
   useEffect(() => {
     if (!activeTenantId) return;
     loadAll();
-    fetchTenantDepartments();
+    fetchVesselDepartments(activeTenantId).then(setDepartments);
   }, [activeTenantId]);
-
-  const fetchTenantDepartments = async () => {
-    if (!activeTenantId) return;
-    try {
-      const { data, error } = await supabase?.rpc('get_tenant_departments', { p_tenant_id: activeTenantId });
-      if (!error && data?.length) {
-        setDepartments(data.map(d => (typeof d === 'string' ? d : d.name)).filter(Boolean));
-        return;
-      }
-      if (error) console.warn('[Provisioning] get_tenant_departments RPC failed:', error);
-      setDepartments([]);
-    } catch (err) {
-      console.warn('[Provisioning] fetchTenantDepartments error:', err);
-      setDepartments([]);
-    }
-  };
 
   const loadAll = async () => {
     setLoading(true);
@@ -671,6 +655,7 @@ const ProvisioningWorkspace = () => {
         suppliers={suppliers}
         trips={trips}
         tenantId={activeTenantId}
+        departments={departments}
         onSaved={handleBoardSaved}
         onDeleted={handleBoardDeleted}
         onAddItems={handleAddItemsFromDrawer}
@@ -682,6 +667,7 @@ const ProvisioningWorkspace = () => {
         open={itemDrawer.open}
         item={itemDrawer.item}
         listId={itemDrawer.listId}
+        departments={departments}
         onSaved={handleItemSaved}
         onDeleted={handleItemDeleted}
         onClose={() => setItemDrawer({ open: false, item: null, listId: null })}

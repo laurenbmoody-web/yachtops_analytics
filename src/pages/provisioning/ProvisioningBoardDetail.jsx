@@ -14,8 +14,8 @@ import {
   updateProvisioningList,
   deleteProvisioningList,
   duplicateList,
+  fetchVesselDepartments,
   PROVISIONING_STATUS,
-  PROVISION_DEPARTMENTS,
   PROVISION_CATEGORIES,
   PROVISION_UNITS,
   formatCurrency,
@@ -124,6 +124,7 @@ const ProvisioningBoardDetail = () => {
   const [suppliers, setSuppliers] = useState([]);
   const [trip, setTrip] = useState(null);
   const [allergenGuests, setAllergenGuests] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -143,7 +144,10 @@ const ProvisioningBoardDetail = () => {
 
   // ── Load ──────────────────────────────────────────────────────────────────
 
-  useEffect(() => { if (id) loadAll(); }, [id, activeTenantId]);
+  useEffect(() => {
+    if (id) loadAll();
+    if (activeTenantId) fetchVesselDepartments(activeTenantId).then(setDepartments);
+  }, [id, activeTenantId]);
 
   const loadAll = async () => {
     setLoading(true);
@@ -308,10 +312,10 @@ const ProvisioningBoardDetail = () => {
     });
     if (addingToDept && !groups[addingToDept]) groups[addingToDept] = [];
     const ordered = [];
-    PROVISION_DEPARTMENTS.forEach(d => { if (groups[d] !== undefined) ordered.push({ dept: d, items: groups[d] }); });
-    Object.keys(groups).forEach(d => { if (!PROVISION_DEPARTMENTS.includes(d)) ordered.push({ dept: d, items: groups[d] }); });
+    departments.forEach(d => { if (groups[d] !== undefined) ordered.push({ dept: d, items: groups[d] }); });
+    Object.keys(groups).forEach(d => { if (!departments.includes(d)) ordered.push({ dept: d, items: groups[d] }); });
     return ordered;
-  }, [filteredItems, addingToDept]);
+  }, [filteredItems, addingToDept, departments]);
 
   const grandTotals = useMemo(() => items.reduce((acc, i) => {
     const qty = parseFloat(i.quantity_ordered) || 0;
@@ -475,7 +479,7 @@ const ProvisioningBoardDetail = () => {
             </div>
             <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)} className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary">
               <option value="all">All depts</option>
-              {PROVISION_DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+              {departments.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary">
               <option value="all">All statuses</option>
@@ -512,7 +516,7 @@ const ProvisioningBoardDetail = () => {
               <p className="text-sm font-medium text-foreground mb-1">No items yet</p>
               <p className="text-xs text-muted-foreground mb-4">Add items to track your provisioning order.</p>
               <button
-                onClick={() => { setAddingToDept('Galley'); setNewItemName(''); }}
+                onClick={() => { setAddingToDept(departments[0] || 'Other'); setNewItemName(''); }}
                 className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/80"
               >
                 <Icon name="Plus" className="w-4 h-4" /> Add first item
@@ -527,6 +531,7 @@ const ProvisioningBoardDetail = () => {
                   key={dept}
                   dept={dept}
                   items={deptItems}
+                  deptOptions={departments.map(d => ({ value: d, label: d }))}
                   currency={currency}
                   selectedItems={selectedItems}
                   allChecked={deptItems.length > 0 && deptItems.every(i => selectedItems.has(i.id))}

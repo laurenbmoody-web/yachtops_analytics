@@ -61,6 +61,31 @@ export const PROVISION_CATEGORIES = {
   Admin: ['Stationery', 'Medical', 'Safety', 'Other'],
 };
 
+// ── Vessel departments ────────────────────────────────────────────────────────
+
+/**
+ * Fetch active departments for this vessel from vessels.departments_in_use.
+ * Returns a string[] of department names, or [] on failure / missing config.
+ */
+export const fetchVesselDepartments = async (tenantId) => {
+  if (!tenantId) return [];
+  try {
+    const { data, error } = await supabase
+      ?.from('vessels')
+      ?.select('departments_in_use')
+      ?.eq('tenant_id', tenantId)
+      ?.limit(1)
+      ?.single();
+    if (error || !data?.departments_in_use) return [];
+    const raw = data.departments_in_use;
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+  } catch (err) {
+    console.warn('[provisioningStorage] fetchVesselDepartments error:', err);
+    return [];
+  }
+};
+
 // ── Lists ─────────────────────────────────────────────────────────────────────
 
 export const fetchProvisioningLists = async (vesselId) => {
