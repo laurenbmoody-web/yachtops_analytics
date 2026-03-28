@@ -212,6 +212,25 @@ export const fetchListItems = async (listId) => {
   }
 };
 
+export const updateProvisioningItem = async (itemId, updates) => {
+  try {
+    const { data, error } = await supabase
+      ?.from('provisioning_items')
+      ?.update({ ...updates, updated_at: new Date().toISOString() })
+      ?.eq('id', itemId)
+      ?.select()
+      ?.single();
+    if (error) {
+      console.error('[provisioningStorage] updateProvisioningItem error:', JSON.stringify(error), 'itemId:', itemId, 'updates:', updates);
+      throw error;
+    }
+    return data;
+  } catch (err) {
+    console.error('[provisioningStorage] updateProvisioningItem caught:', err);
+    throw err;
+  }
+};
+
 export const upsertItems = async (items) => {
   try {
     const { data, error } = await supabase

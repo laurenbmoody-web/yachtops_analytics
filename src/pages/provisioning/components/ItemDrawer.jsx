@@ -28,7 +28,8 @@ const SOURCE_LABELS = {
   template: 'Template',
 };
 
-const ItemDrawer = ({ open, item, listId, departments = [], onSaved, onDeleted, onClose }) => {
+const ItemDrawer = ({ open, item, listId, departments = [], theme = 'dark', onSaved, onDeleted, onClose }) => {
+  const isLight = theme === 'light';
   const [form, setForm] = useState({});
   const [categories, setCategories] = useState([]);
   const [subCategories, setSubCategories] = useState([]);
@@ -143,10 +144,12 @@ const ItemDrawer = ({ open, item, listId, departments = [], onSaved, onDeleted, 
     } catch { setDeleting(false); }
   };
 
-  const inputCls = 'w-full rounded-lg px-3 py-2 text-sm text-white outline-none transition-colors'
-    + ' bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.1)] focus:border-[#4A90E2]';
-  const labelCls = 'block text-[10px] font-semibold uppercase tracking-wider mb-1'
-    + ' text-[rgba(255,255,255,0.4)]';
+  const inputCls = isLight
+    ? 'w-full rounded-lg px-3 py-2 text-sm outline-none transition-colors bg-white border border-[#E2E8F0] text-[#1E3A5F] focus:border-[#4A90E2]'
+    : 'w-full rounded-lg px-3 py-2 text-sm text-white outline-none transition-colors bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.1)] focus:border-[#4A90E2]';
+  const labelCls = isLight
+    ? 'block text-[10px] font-semibold uppercase tracking-wider mb-1 text-[#64748B]'
+    : 'block text-[10px] font-semibold uppercase tracking-wider mb-1 text-[rgba(255,255,255,0.4)]';
 
   if (!open || !item) return null;
 
@@ -154,11 +157,12 @@ const ItemDrawer = ({ open, item, listId, departments = [], onSaved, onDeleted, 
     <Drawer
       open={open}
       onClose={onClose}
+      theme={theme}
       title={
         <div className="flex items-center gap-2 min-w-0">
           <span className="truncate">{form.name || 'Item Details'}</span>
           {savedFlash && (
-            <span className="text-xs text-green-400 font-normal flex-shrink-0 animate-pulse">Saved</span>
+            <span className={`text-xs font-normal flex-shrink-0 animate-pulse ${isLight ? 'text-[#16a34a]' : 'text-green-400'}`}>Saved</span>
           )}
         </div>
       }
@@ -188,7 +192,9 @@ const ItemDrawer = ({ open, item, listId, departments = [], onSaved, onDeleted, 
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
                   form.status === val
                     ? 'bg-[#4A90E2]/20 border-[#4A90E2]/50 text-[#4A90E2]'
-                    : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
+                    : isLight
+                      ? 'bg-slate-100 border-slate-200 text-slate-500 hover:text-[#1E3A5F]'
+                      : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
                 }`}
               >
                 <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
@@ -278,7 +284,13 @@ const ItemDrawer = ({ open, item, listId, departments = [], onSaved, onDeleted, 
               const active = (form.allergen_flags || []).includes(a);
               return (
                 <button key={a} onClick={() => toggleAllergen(a)}
-                  className={`px-2 py-1 text-xs rounded-full border transition-colors ${active ? 'bg-red-500/20 border-red-500/40 text-red-400' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}>
+                  className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                    active
+                      ? 'bg-red-500/20 border-red-500/40 text-red-400'
+                      : isLight
+                        ? 'bg-slate-100 border-slate-200 text-slate-500 hover:text-[#1E3A5F]'
+                        : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
+                  }`}>
                   {a}
                 </button>
               );
@@ -289,7 +301,7 @@ const ItemDrawer = ({ open, item, listId, departments = [], onSaved, onDeleted, 
         {/* Source */}
         <div>
           <label className={labelCls}>Source</label>
-          <p className="text-sm text-slate-400 px-3 py-2 bg-white/5 rounded-lg">
+          <p className={`text-sm px-3 py-2 rounded-lg ${isLight ? 'text-[#64748B] bg-slate-50 border border-[#E2E8F0]' : 'text-slate-400 bg-white/5'}`}>
             {SOURCE_LABELS[form.source] || form.source || 'Manual'}
           </p>
         </div>
@@ -308,9 +320,9 @@ const ItemDrawer = ({ open, item, listId, departments = [], onSaved, onDeleted, 
 
         {/* Delete */}
         {!isNew && (
-          <div className="border-t border-white/5 pt-4">
+          <div className={`pt-4 ${isLight ? 'border-t border-[#E2E8F0]' : 'border-t border-white/5'}`}>
             <button onClick={handleDelete} disabled={deleting}
-              className="w-full py-2 bg-red-500/10 text-red-400 text-sm rounded-lg hover:bg-red-500/20 disabled:opacity-40 transition-colors">
+              className={`w-full py-2 text-sm rounded-lg disabled:opacity-40 transition-colors ${isLight ? 'bg-red-50 text-red-500 hover:bg-red-100' : 'bg-red-500/10 text-red-400 hover:bg-red-500/20'}`}>
               {deleting ? 'Deleting...' : 'Delete Item'}
             </button>
           </div>
