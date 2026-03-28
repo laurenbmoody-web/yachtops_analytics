@@ -143,7 +143,7 @@ const BoardMenu = ({ canEdit, canCommandDelete, onEdit, onSuggestions, onTemplat
         <Icon name="MoreVertical" className="w-4 h-4" />
       </button>
       {open && (
-        <div className="absolute right-0 top-7 w-48 bg-card border border-border rounded-lg shadow-xl z-30 py-1">
+        <div className="absolute right-0 top-7 w-48 bg-card border border-border rounded-lg shadow-xl z-30 py-1 overflow-hidden">
           {canEdit && (
             <button onClick={() => { setOpen(false); onEdit(); }} className="w-full text-left mx-1 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md flex items-center gap-2">
               <Icon name="Pencil" className="w-3.5 h-3.5" /> Edit board details
