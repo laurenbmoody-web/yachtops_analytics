@@ -145,27 +145,27 @@ const BoardMenu = ({ canEdit, canCommandDelete, onEdit, onSuggestions, onTemplat
       {open && (
         <div className="absolute right-0 top-7 w-48 bg-card border border-border rounded-lg shadow-xl z-30 py-1">
           {canEdit && (
-            <button onClick={() => { setOpen(false); onEdit(); }} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
+            <button onClick={() => { setOpen(false); onEdit(); }} className="w-full text-left mx-1 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md flex items-center gap-2">
               <Icon name="Pencil" className="w-3.5 h-3.5" /> Edit board details
             </button>
           )}
           {canEdit && (
-            <button onClick={() => { setOpen(false); onSuggestions(); }} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
+            <button onClick={() => { setOpen(false); onSuggestions(); }} className="w-full text-left mx-1 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md flex items-center gap-2">
               <Icon name="Lightbulb" className="w-3.5 h-3.5" /> Get suggestions
             </button>
           )}
           {canEdit && (
-            <button onClick={() => { setOpen(false); onTemplates(); }} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
+            <button onClick={() => { setOpen(false); onTemplates(); }} className="w-full text-left mx-1 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md flex items-center gap-2">
               <Icon name="FileText" className="w-3.5 h-3.5" /> Templates & history
             </button>
           )}
-          <button onClick={() => { setOpen(false); onDuplicate(); }} className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
+          <button onClick={() => { setOpen(false); onDuplicate(); }} className="w-full text-left mx-1 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md flex items-center gap-2">
             <Icon name="Copy" className="w-3.5 h-3.5" /> Duplicate
           </button>
           <div className="border-t border-border my-1" />
           <button
             onClick={() => { setOpen(false); onDeleteClick(); }}
-            className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-2"
+            className="w-full text-left mx-1 px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md flex items-center gap-2"
           >
             <Icon name="Trash2" className="w-3.5 h-3.5" /> Delete board
           </button>
