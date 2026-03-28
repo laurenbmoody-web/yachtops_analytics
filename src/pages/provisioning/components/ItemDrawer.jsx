@@ -23,7 +23,13 @@ const SOURCE_LABELS = {
   template: 'Template',
 };
 
-const ItemDrawer = ({ open, item, listId, tenantId, departments = [], theme = 'dark', onSaved, onDeleted, onClose }) => {
+const CURRENCY_PILLS = [
+  { code: 'GBP', symbol: '£' },
+  { code: 'USD', symbol: '$' },
+  { code: 'EUR', symbol: '€' },
+];
+
+const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'USD', departments = [], theme = 'dark', onSaved, onDeleted, onClose }) => {
   const isLight = theme === 'light';
   const [form, setForm] = useState({});
   const [locRows, setLocRows] = useState([]);
@@ -44,6 +50,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, departments = [], theme = 'd
         quantity_ordered: item.quantity_ordered ?? 1,
         unit: item.unit || 'each',
         estimated_unit_cost: item.estimated_unit_cost || '',
+        currency: item.currency || null,
         status: item.status || 'pending',
         quantity_received: item.quantity_received ?? '',
         allergen_flags: item.allergen_flags || [],
@@ -113,6 +120,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, departments = [], theme = 'd
       quantity_ordered: parseFloat(base.quantity_ordered) || 1,
       unit: base.unit || 'each',
       estimated_unit_cost: base.estimated_unit_cost ? parseFloat(base.estimated_unit_cost) : null,
+      currency: base.currency || null,
       status: base.status || 'pending',
       quantity_received: base.quantity_received !== '' ? parseFloat(base.quantity_received) : null,
       allergen_flags: base.allergen_flags || [],
@@ -348,10 +356,64 @@ const ItemDrawer = ({ open, item, listId, tenantId, departments = [], theme = 'd
           </div>
         )}
 
-        {/* Est. unit cost */}
+        {/* Est. unit cost — currency toggle + cost input */}
         <div>
           <label className={labelCls}>Estimated Unit Cost</label>
-          <input type="number" value={form.estimated_unit_cost ?? ''} onChange={e => set('estimated_unit_cost', e.target.value)} onBlur={() => saveField()} className={inputCls} placeholder="0.00" min="0" step="0.01" />
+          <div className="flex items-center">
+            {/* Currency pills */}
+            <div className="flex flex-shrink-0">
+              {CURRENCY_PILLS.map((pill, idx) => {
+                const active = (form.currency || listCurrency || 'USD') === pill.code;
+                const isFirst = idx === 0;
+                const isLast = idx === CURRENCY_PILLS.length - 1;
+                return (
+                  <button
+                    key={pill.code}
+                    type="button"
+                    onClick={() => {
+                      setForm(prev => ({ ...prev, currency: pill.code }));
+                      saveField({ currency: pill.code });
+                    }}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      background: active ? '#1E3A5F' : 'transparent',
+                      color: active ? '#ffffff' : '#64748B',
+                      border: '1px solid #E2E8F0',
+                      borderRight: isLast ? '1px solid #E2E8F0' : 'none',
+                      borderRadius: isFirst ? '8px 0 0 8px' : isLast ? '0 8px 8px 0' : '0',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      transition: 'background 0.15s, color 0.15s',
+                    }}
+                  >
+                    {pill.symbol}
+                  </button>
+                );
+              })}
+            </div>
+            {/* Cost input */}
+            <input
+              type="number"
+              value={form.estimated_unit_cost ?? ''}
+              onChange={e => set('estimated_unit_cost', e.target.value)}
+              onBlur={() => saveField()}
+              placeholder="0.00"
+              min="0"
+              step="0.01"
+              style={{ borderRadius: '0 8px 8px 0', borderLeft: 'none' }}
+              className={`flex-1 rounded-lg px-3 py-2 text-sm outline-none transition-colors ${
+                isLight
+                  ? 'bg-white border border-[#E2E8F0] text-[#1E3A5F] focus:border-[#4A90E2]'
+                  : 'text-white bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.1)] focus:border-[#4A90E2]'
+              }`}
+            />
+          </div>
         </div>
 
         {/* Allergens */}
