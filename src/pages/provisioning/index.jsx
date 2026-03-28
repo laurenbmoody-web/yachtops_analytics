@@ -65,6 +65,32 @@ const SortableBoardColumn = ({ list, ...props }) => {
   );
 };
 
+// ── Ghost "add new board" column ─────────────────────────────────────────────
+
+const GhostBoardColumn = ({ onClick }) => {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="flex flex-col w-[340px] min-w-[340px] flex-shrink-0 rounded-xl transition-colors"
+      style={{
+        height: 'calc(100vh - 160px)',
+        border: `2px ${hovered ? 'solid' : 'dashed'} rgba(0,0,0,0.12)`,
+        background: hovered ? 'rgba(0,0,0,0.03)' : 'transparent',
+        cursor: 'pointer',
+      }}
+    >
+      <div className="flex-1 flex flex-col items-center justify-center gap-2">
+        <Icon name="Plus" className="w-6 h-6 text-muted-foreground" />
+        <p className="text-sm font-semibold text-muted-foreground">New Board</p>
+        <p className="text-xs text-muted-foreground/60">Click to add a board</p>
+      </div>
+    </div>
+  );
+};
+
 // ── New Board inline form ────────────────────────────────────────────────────
 
 const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
@@ -543,8 +569,8 @@ const ProvisioningWorkspace = () => {
           </div>
         )}
 
-        {/* Empty state */}
-        {!error && visibleLists.length === 0 && !showNewBoard && (
+        {/* Empty state — only for users who cannot create boards */}
+        {!error && visibleLists.length === 0 && !showNewBoard && !canCreate && (
           <div className="flex items-center justify-center" style={{ minHeight: 'calc(100vh - 130px)' }}>
             <div className="text-center">
               <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
@@ -566,10 +592,10 @@ const ProvisioningWorkspace = () => {
         )}
 
         {/* Board workspace — horizontal scroll */}
-        {(visibleLists.length > 0 || showNewBoard) && (
+        {(visibleLists.length > 0 || showNewBoard || canCreate) && (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={visibleLists.map(l => l.id)} strategy={horizontalListSortingStrategy}>
-              <div className="flex gap-4 overflow-x-auto px-6 py-4" style={{ minHeight: 'calc(100vh - 130px)' }}>
+            <div className="flex gap-4 overflow-x-auto px-6 py-4" style={{ minHeight: 'calc(100vh - 130px)' }}>
+              <SortableContext items={visibleLists.map(l => l.id)} strategy={horizontalListSortingStrategy}>
                 {visibleLists.map(list => {
                   const allItems = itemsByList[list.id] || [];
                   const filtered = getFilteredItems(list.id);
@@ -599,19 +625,22 @@ const ProvisioningWorkspace = () => {
                     />
                   );
                 })}
+              </SortableContext>
 
-                {/* New board column */}
-                {showNewBoard && (
-                  <NewBoardColumn
-                    trips={trips}
-                    tenantId={activeTenantId}
-                    userId={userId}
-                    onCreated={handleCreateBoard}
-                    onCancel={() => setShowNewBoard(false)}
-                  />
-                )}
-              </div>
-            </SortableContext>
+              {/* Ghost column — always visible to creators, becomes the new board form when clicked */}
+              {canCreate && !showNewBoard && (
+                <GhostBoardColumn onClick={() => setShowNewBoard(true)} />
+              )}
+              {showNewBoard && (
+                <NewBoardColumn
+                  trips={trips}
+                  tenantId={activeTenantId}
+                  userId={userId}
+                  onCreated={handleCreateBoard}
+                  onCancel={() => setShowNewBoard(false)}
+                />
+              )}
+            </div>
           </DndContext>
         )}
       </div>
