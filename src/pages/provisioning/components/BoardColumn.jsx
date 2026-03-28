@@ -371,10 +371,7 @@ const BoardColumn = ({
               <button
                 onClick={() => setColourOpen(v => !v)}
                 title="Board colour"
-                className="p-1 rounded hover:bg-muted transition-colors"
-                style={{ color: 'rgba(255,255,255,0.4)' }}
-                onMouseEnter={e => e.currentTarget.style.color = 'white'}
-                onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.4)'}
+                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               >
                 {/* Palette SVG */}
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
