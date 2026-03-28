@@ -286,6 +286,11 @@ const BoardColumn = ({
     }
   };
 
+  // ── Header hover (for fade-in action buttons) ───────────────────────────
+  const [headerHovered, setHeaderHovered] = useState(false);
+  const [suggHovered, setSuggHovered] = useState(false);
+  const [tplHovered, setTplHovered] = useState(false);
+
   // ── Colour picker ───────────────────────────────────────────────────────
   const [colourOpen, setColourOpen] = useState(false);
   const colourBtnRef = useRef(null);
@@ -313,7 +318,12 @@ const BoardColumn = ({
       style={containerStyle}
     >
       {/* Header */}
-      <div className="px-2 pt-3 pb-2 flex-shrink-0 border-b border-border" style={headerStyle}>
+      <div
+        className="px-2 pt-3 pb-2 flex-shrink-0 border-b border-border"
+        style={headerStyle}
+        onMouseEnter={() => setHeaderHovered(true)}
+        onMouseLeave={() => { setHeaderHovered(false); setSuggHovered(false); setTplHovered(false); }}
+      >
         <div className="flex items-start gap-1">
           {/* Drag handle */}
           <DragHandle dragHandleProps={dragHandleProps} />
@@ -364,6 +374,64 @@ const BoardColumn = ({
               className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               <Icon name="ExternalLink" className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Suggestions button */}
+            <button
+              onClick={onSuggestions}
+              title="Smart Suggestions"
+              onMouseEnter={() => setSuggHovered(true)}
+              onMouseLeave={() => setSuggHovered(false)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 3,
+                padding: '3px 8px',
+                borderRadius: 10,
+                border: '1px solid rgba(255,255,255,0.12)',
+                background: suggHovered ? 'rgba(255,255,255,0.08)' : 'transparent',
+                cursor: 'pointer',
+                fontSize: 10,
+                fontWeight: 600,
+                color: suggHovered ? 'white' : 'rgba(255,255,255,0.5)',
+                transition: 'all 0.15s',
+                opacity: headerHovered ? 1 : 0,
+                pointerEvents: headerHovered ? 'auto' : 'none',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+              }}
+            >
+              <Icon name="Lightbulb" style={{ width: 9, height: 9 }} />
+              Suggestions
+            </button>
+
+            {/* Templates button */}
+            <button
+              onClick={onTemplates}
+              title="Templates & History"
+              onMouseEnter={() => setTplHovered(true)}
+              onMouseLeave={() => setTplHovered(false)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 3,
+                padding: '3px 8px',
+                borderRadius: 10,
+                border: '1px solid rgba(255,255,255,0.12)',
+                background: tplHovered ? 'rgba(255,255,255,0.08)' : 'transparent',
+                cursor: 'pointer',
+                fontSize: 10,
+                fontWeight: 600,
+                color: tplHovered ? 'white' : 'rgba(255,255,255,0.5)',
+                transition: 'all 0.15s',
+                opacity: headerHovered ? 1 : 0,
+                pointerEvents: headerHovered ? 'auto' : 'none',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+              }}
+            >
+              <Icon name="FileText" style={{ width: 9, height: 9 }} />
+              Templates
             </button>
 
             {/* Palette button */}
