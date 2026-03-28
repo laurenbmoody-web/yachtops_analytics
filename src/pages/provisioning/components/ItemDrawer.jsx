@@ -5,14 +5,9 @@ import { ITEM_STATUS_CONFIG } from './StatusBadge';
 import {
   upsertItems,
   deleteProvisioningItem,
+  fetchInventoryLocationChildren,
 } from '../utils/provisioningStorage';
 import { UNIT_GROUPS } from './DetailTableCells';
-import { getAllCategoriesL1, getCategoriesL2ByL1 } from '../../inventory/utils/taxonomyStorage';
-
-const FALLBACK_CATEGORIES = [
-  'Dry Goods', 'Fresh Produce', 'Frozen', 'Dairy', 'Beverages',
-  'Cleaning & Laundry', 'Deck Stores', 'Engineering Supplies', 'Guest Amenities', 'Crew Supplies',
-];
 
 const ALLERGEN_OPTIONS = [
   'Gluten', 'Dairy', 'Eggs', 'Nuts', 'Peanuts', 'Soy', 'Fish', 'Shellfish',
@@ -28,11 +23,10 @@ const SOURCE_LABELS = {
   template: 'Template',
 };
 
-const ItemDrawer = ({ open, item, listId, departments = [], theme = 'dark', onSaved, onDeleted, onClose }) => {
+const ItemDrawer = ({ open, item, listId, tenantId, departments = [], theme = 'dark', onSaved, onDeleted, onClose }) => {
   const isLight = theme === 'light';
   const [form, setForm] = useState({});
-  const [categories, setCategories] = useState([]);
-  const [subCategories, setSubCategories] = useState([]);
+  const [locRows, setLocRows] = useState([]);
   const [savedFlash, setSavedFlash] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const flashTimer = useRef(null);
@@ -56,30 +50,48 @@ const ItemDrawer = ({ open, item, listId, departments = [], theme = 'dark', onSa
         item_notes: item.item_notes || '',
         notes: item.notes || '',
         source: item.source || 'manual',
+        accounting_description: item.accounting_description || '',
       });
     }
   }, [item]);
 
+  // Fetch inventory location children whenever department or tenantId changes
   useEffect(() => {
-    const load = async () => {
-      try {
-        const cats = await getAllCategoriesL1();
-        setCategories(cats?.length ? cats.map(c => c.name || c) : FALLBACK_CATEGORIES);
-      } catch { setCategories(FALLBACK_CATEGORIES); }
-    };
-    load();
-  }, []);
+    if (!form.department || !tenantId) { setLocRows([]); return; }
+    fetchInventoryLocationChildren(tenantId, form.department)
+      .then(setLocRows)
+      .catch(() => setLocRows([]));
+  }, [form.department, tenantId]);
 
-  useEffect(() => {
-    if (!form.category) { setSubCategories([]); return; }
-    const load = async () => {
-      try {
-        const subs = await getCategoriesL2ByL1(form.category);
-        setSubCategories(subs?.length ? subs.map(s => s.name || s) : []);
-      } catch { setSubCategories([]); }
-    };
-    load();
-  }, [form.category]);
+  // ── Derived cascading options ──────────────────────────────────────────────
+  const locL2Options = locRows
+    .filter(r => !r.sub_location.includes(' > '))
+    .map(r => r.sub_location);
+
+  const locL2 = form.category || '';
+  const subParts = form.sub_category ? form.sub_category.split(' > ') : [];
+  const locL3 = subParts[1] || '';
+  const locL4 = subParts[2] || '';
+
+  const locL3Options = locL2
+    ? locRows
+        .filter(r =>
+          r.sub_location.startsWith(locL2 + ' > ') &&
+          r.sub_location.split(' > ').length === 2
+        )
+        .map(r => r.sub_location.split(' > ')[1])
+    : [];
+
+  const locL4Options = locL2 && locL3
+    ? locRows
+        .filter(r =>
+          r.sub_location.startsWith(locL2 + ' > ' + locL3 + ' > ') &&
+          r.sub_location.split(' > ').length === 3
+        )
+        .map(r => r.sub_location.split(' > ')[2])
+    : [];
+
+  // ── Save helpers ──────────────────────────────────────────────────────────
 
   const showSaved = () => {
     setSavedFlash(true);
@@ -107,6 +119,7 @@ const ItemDrawer = ({ open, item, listId, departments = [], theme = 'dark', onSa
       item_notes: base.item_notes || '',
       notes: base.notes || '',
       source: base.source || 'manual',
+      accounting_description: base.accounting_description || '',
     };
   };
 
@@ -213,7 +226,15 @@ const ItemDrawer = ({ open, item, listId, departments = [], theme = 'dark', onSa
         {/* Department */}
         <div>
           <label className={labelCls}>Department</label>
-          <select value={form.department || ''} onChange={e => setAndSave('department', e.target.value)} className={inputCls}>
+          <select
+            value={form.department || ''}
+            onChange={e => {
+              const dept = e.target.value;
+              setForm(prev => ({ ...prev, department: dept, category: '', sub_category: '' }));
+              saveField({ department: dept, category: '', sub_category: '' });
+            }}
+            className={inputCls}
+          >
             <option value="">None</option>
             {departments.length === 0
               ? <option disabled value="">No departments configured</option>
@@ -222,25 +243,69 @@ const ItemDrawer = ({ open, item, listId, departments = [], theme = 'dark', onSa
           </select>
         </div>
 
-        {/* Category + Sub */}
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <label className={labelCls}>Category</label>
-            <select value={form.category || ''} onChange={e => { set('category', e.target.value); set('sub_category', ''); saveField({ category: e.target.value, sub_category: '' }); }} className={inputCls}>
-              <option value="">Select...</option>
-              {categories.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+        {/* Category — dynamic inventory-linked hierarchy */}
+        {form.department && (
+          <div className="space-y-3">
+            {/* Level 2 — Category */}
+            {locL2Options.length > 0 && (
+              <div>
+                <label className={labelCls}>Category</label>
+                <select
+                  value={locL2}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setForm(prev => ({ ...prev, category: val, sub_category: val }));
+                    saveField({ category: val, sub_category: val });
+                  }}
+                  className={inputCls}
+                >
+                  <option value="">Select category…</option>
+                  {locL2Options.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+            )}
+
+            {/* Level 3 — Sub-category */}
+            {locL2 && locL3Options.length > 0 && (
+              <div>
+                <label className={labelCls}>Sub-category</label>
+                <select
+                  value={locL3}
+                  onChange={e => {
+                    const val = e.target.value;
+                    const path = val ? `${locL2} > ${val}` : locL2;
+                    setForm(prev => ({ ...prev, sub_category: path }));
+                    saveField({ sub_category: path });
+                  }}
+                  className={inputCls}
+                >
+                  <option value="">Select…</option>
+                  {locL3Options.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+            )}
+
+            {/* Level 4 — Sub-category 2 */}
+            {locL3 && locL4Options.length > 0 && (
+              <div>
+                <label className={labelCls}>Sub-category 2</label>
+                <select
+                  value={locL4}
+                  onChange={e => {
+                    const val = e.target.value;
+                    const path = val ? `${locL2} > ${locL3} > ${val}` : `${locL2} > ${locL3}`;
+                    setForm(prev => ({ ...prev, sub_category: path }));
+                    saveField({ sub_category: path });
+                  }}
+                  className={inputCls}
+                >
+                  <option value="">Select…</option>
+                  {locL4Options.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+            )}
           </div>
-          {subCategories.length > 0 && (
-            <div className="flex-1">
-              <label className={labelCls}>Sub-category</label>
-              <select value={form.sub_category || ''} onChange={e => setAndSave('sub_category', e.target.value)} className={inputCls}>
-                <option value="">Select...</option>
-                {subCategories.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-          )}
-        </div>
+        )}
 
         {/* Measure: Size | Unit | Qty */}
         <div>
@@ -323,6 +388,18 @@ const ItemDrawer = ({ open, item, listId, departments = [], theme = 'dark', onSa
         <div>
           <label className={labelCls}>Item Notes</label>
           <textarea value={form.item_notes || ''} onChange={e => set('item_notes', e.target.value)} onBlur={() => saveField()} rows={2} className={inputCls} placeholder="Notes about this item..." />
+        </div>
+
+        {/* Accounting Description */}
+        <div>
+          <label className={labelCls}>Accounting Description</label>
+          <input
+            value={form.accounting_description || ''}
+            onChange={e => set('accounting_description', e.target.value)}
+            onBlur={() => saveField()}
+            className={inputCls}
+            placeholder="e.g. food and beverage, guest entertainment, maintenance supplies"
+          />
         </div>
 
         {/* Notes */}

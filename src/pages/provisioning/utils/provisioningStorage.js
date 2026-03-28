@@ -61,6 +61,39 @@ export const PROVISION_CATEGORIES = {
   Admin: ['Stationery', 'Medical', 'Safety', 'Other'],
 };
 
+// ── Inventory location hierarchy ──────────────────────────────────────────────
+
+/**
+ * Fetch all non-archived inventory_locations sub-location rows for a given
+ * department (location column value).  Returns the raw rows so callers can
+ * slice the hierarchy at any depth client-side.
+ *
+ * Schema: inventory_locations.location = department name
+ *         inventory_locations.sub_location = null (root) | 'L2' | 'L2 > L3' | …
+ *
+ * Requires column: provisioning_items.accounting_description text DEFAULT ''
+ *   ALTER TABLE public.provisioning_items
+ *     ADD COLUMN IF NOT EXISTS accounting_description text DEFAULT '';
+ */
+export const fetchInventoryLocationChildren = async (tenantId, location) => {
+  if (!tenantId || !location) return [];
+  try {
+    const { data, error } = await supabase
+      ?.from('inventory_locations')
+      ?.select('location, sub_location, sort_order')
+      ?.eq('tenant_id', tenantId)
+      ?.eq('location', location)
+      ?.not('sub_location', 'is', null)
+      ?.neq('is_archived', true)
+      ?.order('sort_order', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.warn('[provisioningStorage] fetchInventoryLocationChildren error:', err);
+    return [];
+  }
+};
+
 // ── Vessel departments ────────────────────────────────────────────────────────
 
 /**
