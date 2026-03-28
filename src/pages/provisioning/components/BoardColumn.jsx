@@ -14,7 +14,7 @@ const DragHandle = ({ dragHandleProps }) => (
     style={{ touchAction: 'none' }}
   >
     <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor"
-      className="text-white/20 group-hover/drag:text-white/50 transition-colors">
+      className="text-muted-foreground group-hover/drag:text-foreground transition-colors">
       <circle cx="2.5" cy="2.5" r="1.5" />
       <circle cx="7.5" cy="2.5" r="1.5" />
       <circle cx="2.5" cy="7.5" r="1.5" />
