@@ -165,25 +165,25 @@ const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved,
         </div>
       </div>
 
+      {/* Supplier */}
+      <div>
+        <label className={labelCls}>Supplier</label>
+        <select value={form.supplier_id} onChange={e => set('supplier_id', e.target.value)} className={inputCls}>
+          <option value="">No supplier</option>
+          {(suppliers || []).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+      </div>
+
       {/* Port */}
       <div>
         <label className={labelCls}>Port / Location</label>
-        <input value={form.port_location} onChange={e => set('port_location', e.target.value)} className={inputCls} placeholder="e.g. Antibes" />
+        <input value={form.port_location} onChange={e => set('port_location', e.target.value)} className={inputCls} placeholder="e.g. Palma, FR" />
       </div>
 
       {/* Order by date */}
       <div>
         <label className={labelCls}>Order By Date</label>
         <input type="date" value={form.order_by_date} onChange={e => set('order_by_date', e.target.value)} className={inputCls} />
-      </div>
-
-      {/* Supplier */}
-      <div>
-        <label className={labelCls}>Supplier</label>
-        <select value={form.supplier_id} onChange={e => set('supplier_id', e.target.value)} className={inputCls}>
-          <option value="">None</option>
-          {(suppliers || []).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
       </div>
 
       {/* Cost + Currency */}
