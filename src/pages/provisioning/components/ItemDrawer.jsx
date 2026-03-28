@@ -5,8 +5,8 @@ import { ITEM_STATUS_CONFIG } from './StatusBadge';
 import {
   upsertItems,
   deleteProvisioningItem,
-  PROVISION_UNITS,
 } from '../utils/provisioningStorage';
+import { UNIT_GROUPS } from './DetailTableCells';
 import { getAllCategoriesL1, getCategoriesL2ByL1 } from '../../inventory/utils/taxonomyStorage';
 
 const FALLBACK_CATEGORIES = [
@@ -204,16 +204,10 @@ const ItemDrawer = ({ open, item, listId, departments = [], theme = 'dark', onSa
           </div>
         </div>
 
-        {/* Brand + Size */}
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <label className={labelCls}>Brand</label>
-            <input value={form.brand || ''} onChange={e => set('brand', e.target.value)} onBlur={() => saveField()} className={inputCls} placeholder="Brand" />
-          </div>
-          <div className="flex-1">
-            <label className={labelCls}>Size</label>
-            <input value={form.size || ''} onChange={e => set('size', e.target.value)} onBlur={() => saveField()} className={inputCls} placeholder="e.g. 500g" />
-          </div>
+        {/* Brand */}
+        <div>
+          <label className={labelCls}>Brand</label>
+          <input value={form.brand || ''} onChange={e => set('brand', e.target.value)} onBlur={() => saveField()} className={inputCls} placeholder="Brand" />
         </div>
 
         {/* Department */}
@@ -248,17 +242,36 @@ const ItemDrawer = ({ open, item, listId, departments = [], theme = 'dark', onSa
           )}
         </div>
 
-        {/* Qty + Unit */}
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <label className={labelCls}>Quantity</label>
-            <input type="number" value={form.quantity_ordered ?? ''} onChange={e => set('quantity_ordered', e.target.value)} onBlur={() => saveField()} className={inputCls} min="0" step="0.1" />
-          </div>
-          <div className="flex-1">
-            <label className={labelCls}>Unit</label>
-            <select value={form.unit || 'each'} onChange={e => setAndSave('unit', e.target.value)} className={inputCls}>
-              {PROVISION_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-            </select>
+        {/* Measure: Size | Unit | Qty */}
+        <div>
+          <label className={labelCls}>Measure</label>
+          <div className="flex gap-2">
+            <div style={{ flex: 2 }}>
+              <label className={labelCls}>Size</label>
+              <input value={form.size || ''} onChange={e => set('size', e.target.value)} onBlur={() => saveField()} className={inputCls} placeholder="e.g. 500g" />
+            </div>
+            <div style={{ flex: 2 }}>
+              <label className={labelCls}>Unit</label>
+              <select value={form.unit || 'each'} onChange={e => setAndSave('unit', e.target.value)} className={inputCls}>
+                {UNIT_GROUPS.map(g => (
+                  <optgroup key={g.label} label={g.label}>
+                    {g.options.map(u => <option key={u} value={u}>{u}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+            <div style={{ flex: 1 }}>
+              <label className={labelCls}>Qty</label>
+              <input
+                type="number"
+                value={form.quantity_ordered ?? ''}
+                onChange={e => set('quantity_ordered', e.target.value)}
+                onBlur={() => saveField()}
+                className={`${inputCls} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+                min="0"
+                step="0.1"
+              />
+            </div>
           </div>
         </div>
 

@@ -2,12 +2,20 @@ import React, { useState, useEffect, useRef } from 'react';
 import Icon from '../../../components/AppIcon';
 import {
   PROVISION_CATEGORIES,
-  PROVISION_UNITS,
 } from '../utils/provisioningStorage';
 
 // ── Grid template shared across header / rows / subtotal ─────────────────────
-// cols: check | name | brand | size | category | dept | qty_ord | qty_rec | unit | unit_cost | total | status | actions
-export const DETAIL_GRID = '36px minmax(140px,1fr) 95px 72px 118px 98px 98px 98px 68px 80px 80px 118px 72px';
+// cols: check | name | brand | category | dept | size/unit/qty | qty_rec | unit_cost | total | status | actions
+export const DETAIL_GRID = '36px minmax(140px,1fr) 95px 118px 98px 190px 98px 80px 80px 118px 72px';
+
+// ── Grouped unit options ──────────────────────────────────────────────────────
+export const UNIT_GROUPS = [
+  { label: 'Weight',  options: ['g', 'kg', 'oz', 'lb'] },
+  { label: 'Volume',  options: ['ml', 'l', 'fl oz', 'cup', 'tsp', 'tbsp'] },
+  { label: 'Count',   options: ['each', 'pair', 'set', 'box', 'pack', 'case', 'carton', 'dozen'] },
+  { label: 'Length',  options: ['cm', 'm', 'ft', 'inch'] },
+  { label: 'Other',   options: ['portion', 'serving', 'sheet', 'roll', 'sachet', 'tube', 'bottle', 'can', 'jar', 'bag'] },
+];
 
 // ── Item status config ────────────────────────────────────────────────────────
 export const ITEM_STATUS_OPTIONS = [
@@ -226,6 +234,92 @@ export const StatusCell = ({ item, editingCell, setEditingCell, onSave }) => {
   );
 };
 
+// ── CompoundMeasureCell — Size | Unit | Qty in one cell ──────────────────────
+const CompoundMeasureCell = ({ item, editingCell, setEditingCell, onSave, onStep }) => {
+  const isSizeActive = editingCell?.itemId === item.id && editingCell?.field === 'size';
+  const isQtyActive  = editingCell?.itemId === item.id && editingCell?.field === 'quantity_ordered';
+  const sizeRef = useRef(null);
+  const qtyRef  = useRef(null);
+  const [localSize, setLocalSize] = useState('');
+  const [localQty,  setLocalQty]  = useState('');
+
+  useEffect(() => {
+    if (isSizeActive && sizeRef.current) { sizeRef.current.focus(); try { sizeRef.current.select(); } catch {} }
+  }, [isSizeActive]);
+  useEffect(() => {
+    if (isQtyActive && qtyRef.current) { qtyRef.current.focus(); try { qtyRef.current.select(); } catch {} }
+  }, [isQtyActive]);
+
+  const commitSize = () => { setEditingCell(null); onSave(item, 'size', localSize); };
+  const commitQty  = () => { setEditingCell(null); onSave(item, 'quantity_ordered', localQty); };
+
+  return (
+    <div className="flex items-center gap-1 px-2 min-h-[38px]" onClick={e => e.stopPropagation()}>
+      {/* Size */}
+      {isSizeActive ? (
+        <input ref={sizeRef} value={localSize} onChange={e => setLocalSize(e.target.value)}
+          onBlur={commitSize}
+          onKeyDown={e => { if (e.key === 'Enter') commitSize(); if (e.key === 'Escape') setEditingCell(null); }}
+          className="bg-primary/5 border border-primary/40 rounded px-1 py-0.5 text-[12px] text-foreground outline-none"
+          style={{ width: 44 }}
+        />
+      ) : (
+        <span
+          className="text-[12px] text-foreground cursor-text text-center"
+          style={{ minWidth: 24 }}
+          onClick={() => { setLocalSize(item.size ?? ''); setEditingCell({ itemId: item.id, field: 'size' }); }}
+        >
+          {item.size || '—'}
+        </span>
+      )}
+
+      <span className="text-muted-foreground/30 text-[11px] flex-shrink-0 select-none">|</span>
+
+      {/* Unit */}
+      <select
+        value={item.unit || 'each'}
+        onChange={e => onSave(item, 'unit', e.target.value)}
+        className="bg-transparent border-none outline-none text-[12px] text-foreground cursor-pointer flex-shrink-0"
+        style={{ maxWidth: 58 }}
+      >
+        {UNIT_GROUPS.map(g => (
+          <optgroup key={g.label} label={g.label}>
+            {g.options.map(u => <option key={u} value={u}>{u}</option>)}
+          </optgroup>
+        ))}
+      </select>
+
+      <span className="text-muted-foreground/30 text-[11px] flex-shrink-0 select-none">|</span>
+
+      {/* Qty stepper */}
+      <div className="flex items-center gap-0.5 flex-shrink-0">
+        <button onClick={() => onStep(item, 'quantity_ordered', -1)}
+          style={{ width: 16, height: 16, borderRadius: '50%', border: 'none', cursor: 'pointer', background: 'rgba(239,68,68,0.12)', color: '#ef4444', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, lineHeight: 1, flexShrink: 0 }}
+        >−</button>
+        {isQtyActive ? (
+          <input ref={qtyRef} type="number" min="0" value={localQty} onChange={e => setLocalQty(e.target.value)}
+            onBlur={commitQty}
+            onKeyDown={e => { if (e.key === 'Enter') commitQty(); if (e.key === 'Escape') setEditingCell(null); }}
+            className="bg-primary/5 border border-primary/40 rounded px-1 py-0.5 text-[12px] text-foreground text-center outline-none tabular-nums"
+            style={{ width: 36 }}
+          />
+        ) : (
+          <span
+            className="text-[12px] font-medium text-foreground tabular-nums text-center cursor-text"
+            style={{ minWidth: 20 }}
+            onClick={() => { setLocalQty(item.quantity_ordered ?? ''); setEditingCell({ itemId: item.id, field: 'quantity_ordered' }); }}
+          >
+            {item.quantity_ordered ?? '—'}
+          </span>
+        )}
+        <button onClick={() => onStep(item, 'quantity_ordered', 1)}
+          style={{ width: 16, height: 16, borderRadius: '50%', border: 'none', cursor: 'pointer', background: 'rgba(34,197,94,0.12)', color: '#22c55e', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, lineHeight: 1, flexShrink: 0 }}
+        >+</button>
+      </div>
+    </div>
+  );
+};
+
 // ── DeptGroup — one department section with items table ───────────────────────
 export const DeptGroup = ({
   dept,
@@ -256,7 +350,6 @@ export const DeptGroup = ({
   }, 0);
 
   const categoryOptions = (PROVISION_CATEGORIES[dept] || []).map(c => ({ value: c, label: c }));
-  const unitOptions = PROVISION_UNITS.map(u => ({ value: u, label: u }));
   const isAdding = addingToDept === dept;
 
   return (
@@ -282,12 +375,10 @@ export const DeptGroup = ({
           </div>
           <div className="p-2.5">Item Name</div>
           <div className="p-2.5">Brand</div>
-          <div className="p-2.5">Size</div>
           <div className="p-2.5">Category</div>
           <div className="p-2.5">Dept</div>
-          <div className="p-2.5 text-right">Qty Ord.</div>
+          <div className="p-2.5">Size / Unit / Qty</div>
           <div className="p-2.5 text-right">Qty Rec.</div>
-          <div className="p-2.5">Unit</div>
           <div className="p-2.5 text-right">Unit Cost</div>
           <div className="p-2.5 text-right">Total</div>
           <div className="p-2.5">Status</div>
@@ -321,12 +412,10 @@ export const DeptGroup = ({
 
               <EditCell item={item} field="name" value={item.name} editingCell={editingCell} setEditingCell={setEditingCell} onSave={onCellSave} placeholder="Item name" />
               <EditCell item={item} field="brand" value={item.brand} editingCell={editingCell} setEditingCell={setEditingCell} onSave={onCellSave} />
-              <EditCell item={item} field="size" value={item.size} editingCell={editingCell} setEditingCell={setEditingCell} onSave={onCellSave} />
               <SelectCell item={item} field="category" value={item.category} options={categoryOptions} editingCell={editingCell} setEditingCell={setEditingCell} onSave={onCellSave} />
               <SelectCell item={item} field="department" value={item.department} options={deptOptions} editingCell={editingCell} setEditingCell={setEditingCell} onSave={onCellSave} />
-              <QtyCell item={item} field="quantity_ordered" value={item.quantity_ordered} editingCell={editingCell} setEditingCell={setEditingCell} onSave={onCellSave} onStep={onQtyStep} />
+              <CompoundMeasureCell item={item} editingCell={editingCell} setEditingCell={setEditingCell} onSave={onCellSave} onStep={onQtyStep} />
               <QtyCell item={item} field="quantity_received" value={item.quantity_received} editingCell={editingCell} setEditingCell={setEditingCell} onSave={onCellSave} onStep={onQtyStep} />
-              <SelectCell item={item} field="unit" value={item.unit} options={unitOptions} editingCell={editingCell} setEditingCell={setEditingCell} onSave={onCellSave} />
               <EditCell item={item} field="estimated_unit_cost" value={item.estimated_unit_cost} type="number" align="right" editingCell={editingCell} setEditingCell={setEditingCell} onSave={onCellSave} />
 
               {/* Total (read-only) */}
@@ -367,8 +456,7 @@ export const DeptGroup = ({
             style={{ gridTemplateColumns: DETAIL_GRID }}
           >
             <div /><div className="px-2 py-2 text-[12px] font-medium text-muted-foreground">Subtotal</div>
-            <div /><div /><div /><div /><div /><div /><div />
-            <div />
+            <div /><div /><div /><div /><div /><div />
             <div className="px-2 py-2 text-right text-[12px] font-semibold text-foreground tabular-nums">
               {fmt(subtotal, currency)}
             </div>
