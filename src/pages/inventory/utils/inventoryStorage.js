@@ -287,6 +287,7 @@ const itemToRow = (item, tenantId) => ({
   supplier: item?.supplier || null,
   condition: item?.condition || null,
   custom_fields: item?.customFields && Object.keys(item?.customFields)?.length > 0 ? item?.customFields : null,
+  is_alcohol: item?.isAlcohol ?? false,
   updated_at: new Date()?.toISOString(),
 });
 
@@ -584,14 +585,14 @@ export const saveItem = async (itemData) => {
       if (error) { console.error('[inventoryStorage] saveItem insert error:', error?.message); return false; }
       savedItem = rowToItem(data);
     }
-    // Best-effort: write icon/color/is_alcohol separately (columns may not exist on all DB instances)
-    if (savedItem?.id && (itemData?.icon || itemData?.color || itemData?.isAlcohol != null)) {
+    // Best-effort: write icon/color separately (columns may not exist on all DB instances)
+    // Only update when these fields are explicitly provided — avoids clearing values set elsewhere
+    if (savedItem?.id && (itemData?.icon != null || itemData?.color != null)) {
       try {
         await supabase?.from('inventory_items')
           ?.update({
             icon: itemData?.icon || null,
             color: itemData?.color || null,
-            is_alcohol: itemData?.isAlcohol ?? false,
           })
           ?.eq('id', savedItem.id)
           ?.eq('tenant_id', tenantId);
