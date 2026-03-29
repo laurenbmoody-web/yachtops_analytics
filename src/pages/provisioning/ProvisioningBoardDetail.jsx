@@ -143,6 +143,9 @@ const ProvisioningBoardDetail = () => {
   const [activeTab, setActiveTab] = useState('items');
   const [hoveredRow, setHoveredRow] = useState(null);
   const menuRef = useRef(null);
+  const [displayCurrency, setDisplayCurrency] = useState(null);
+  const [fxRates, setFxRates] = useState({ GBP: 1, USD: 1.27, EUR: 1.17 });
+  const [fxRatesLabel, setFxRatesLabel] = useState('Using estimated rates');
 
   const userTier = (user?.permission_tier || user?.effectiveTier || '').toUpperCase();
   const canDelete = userTier === 'COMMAND';
@@ -164,6 +167,7 @@ const ProvisioningBoardDetail = () => {
         activeTenantId ? fetchSuppliers(activeTenantId).catch(() => []) : Promise.resolve([]),
       ]);
       setList(fetchedList);
+      setDisplayCurrency(fetchedList?.currency || 'GBP');
       setItems(fetchedItems || []);
       setSuppliers(fetchedSuppliers || []);
 
@@ -200,6 +204,19 @@ const ProvisioningBoardDetail = () => {
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
   }, [showMenu]);
+
+  // Fetch live FX rates once on mount (GBP base)
+  useEffect(() => {
+    fetch('https://api.frankfurter.dev/v2/rates?base=GBP&quotes=USD,EUR')
+      .then(r => r.json())
+      .then(data => {
+        if (data?.rates?.USD && data?.rates?.EUR) {
+          setFxRates({ GBP: 1, USD: data.rates.USD, EUR: data.rates.EUR });
+          setFxRatesLabel('Rates updated today');
+        }
+      })
+      .catch(() => { /* keep hardcoded fallback rates */ });
+  }, []);
 
   // ── Cell save ─────────────────────────────────────────────────────────────
 
@@ -342,6 +359,18 @@ const ProvisioningBoardDetail = () => {
     return { estimated: acc.estimated + qty * cost, actual: acc.actual + qtyRec * cost };
   }, { estimated: 0, actual: 0 }), [items]);
 
+  const convertedTotals = useMemo(() => {
+    const disp = displayCurrency || 'GBP';
+    return items.reduce((acc, i) => {
+      const qty = parseFloat(i.quantity_ordered) || 0;
+      const qtyRec = parseFloat(i.quantity_received) || 0;
+      const cost = parseFloat(i.estimated_unit_cost) || 0;
+      const iCurr = i.currency || (list?.currency || 'GBP');
+      const c = (cost / (fxRates[iCurr] || 1)) * (fxRates[disp] || 1);
+      return { estimated: acc.estimated + qty * c, actual: acc.actual + qtyRec * c };
+    }, { estimated: 0, actual: 0 });
+  }, [items, displayCurrency, fxRates, list]);
+
   // ── Checkboxes ────────────────────────────────────────────────────────────
 
   const allChecked = filteredItems.length > 0 && filteredItems.every(i => selectedItems.has(i.id));
@@ -391,9 +420,10 @@ const ProvisioningBoardDetail = () => {
 
   const TABLE_GRID = '36px minmax(200px,1.5fr) minmax(130px,0.8fr) minmax(190px,1fr) 90px 80px 120px 56px';
 
-  const CURR_SYMBOLS = { USD: '$', EUR: '€' };
-  console.log('[BoardDetail] list.currency:', list?.currency, '→ symbol will be:', CURR_SYMBOLS[list?.currency] || '£');
+  const CURR_SYMBOLS = { GBP: '£', USD: '$', EUR: '€' };
   const currSymbol = CURR_SYMBOLS[list?.currency] || '£';
+  const dispCurr = displayCurrency || currency;
+  const dispSymbol = CURR_SYMBOLS[dispCurr] || '£';
 
   // ── Additional computed values ────────────────────────────────────────────
 
@@ -532,17 +562,17 @@ const ProvisioningBoardDetail = () => {
                 Estimated Total
               </p>
               <div style={{ fontSize: 28, fontWeight: 300, color: '#0F172A', letterSpacing: '-0.03em', lineHeight: 1 }}>
-                <span style={{ fontSize: 16, color: '#CBD5E1', fontWeight: 300 }}>{currSymbol}</span>
-                {Math.round(grandTotals.estimated).toLocaleString()}
+                <span style={{ fontSize: 16, color: '#CBD5E1', fontWeight: 300 }}>{dispSymbol}</span>
+                {Math.round(convertedTotals.estimated).toLocaleString()}
               </div>
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 6 }}>
                 <span style={{ fontSize: 11, color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 4 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4ADE80', display: 'inline-block', flexShrink: 0 }} />
-                  {currSymbol}{Math.round(grandTotals.actual).toLocaleString()} received
+                  {dispSymbol}{Math.round(convertedTotals.actual).toLocaleString()} received
                 </span>
                 <span style={{ fontSize: 11, color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 4 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FCD34D', display: 'inline-block', flexShrink: 0 }} />
-                  {currSymbol}{Math.round(Math.max(0, grandTotals.estimated - grandTotals.actual)).toLocaleString()} outstanding
+                  {dispSymbol}{Math.round(Math.max(0, convertedTotals.estimated - convertedTotals.actual)).toLocaleString()} outstanding
                 </span>
               </div>
             </div>
@@ -695,22 +725,49 @@ const ProvisioningBoardDetail = () => {
               </button>
             )}
           </div>
-          {/* Progress */}
-          {(() => {
-            const totalItems = items.length;
-            const receivedItems = items.filter(i => i.status === 'received').length;
-            const pct = totalItems > 0 ? receivedItems / totalItems : 0;
-            return (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                <span style={{ fontSize: 11, color: '#94A3B8', whiteSpace: 'nowrap' }}>
-                  {receivedItems} of {totalItems} items received
-                </span>
-                <div style={{ width: 64, height: 3, background: '#F1F5F9', borderRadius: 99, overflow: 'hidden', flexShrink: 0 }}>
-                  <div style={{ height: '100%', width: `${Math.round(pct * 100)}%`, background: 'linear-gradient(90deg, #4A90E2, #34D399)', borderRadius: 99, transition: 'width 0.4s' }} />
-                </div>
+          {/* Right side: currency toggle + progress */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
+            {/* Display currency toggle */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+              <div style={{ display: 'flex', gap: 3 }}>
+                {[{ code: 'GBP', symbol: '£' }, { code: 'USD', symbol: '$' }, { code: 'EUR', symbol: '€' }].map(pill => {
+                  const active = dispCurr === pill.code;
+                  return (
+                    <button
+                      key={pill.code}
+                      onClick={() => setDisplayCurrency(pill.code)}
+                      style={{
+                        fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 20,
+                        background: active ? '#1E3A5F' : 'transparent',
+                        color: active ? 'white' : '#94A3B8',
+                        border: active ? '1px solid #1E3A5F' : '1px solid #E2E8F0',
+                        cursor: 'pointer', transition: 'all 0.15s',
+                      }}
+                    >
+                      {pill.symbol} {pill.code}
+                    </button>
+                  );
+                })}
               </div>
-            );
-          })()}
+              <span style={{ fontSize: 10, color: '#CBD5E1' }}>{fxRatesLabel}</span>
+            </div>
+            {/* Progress */}
+            {(() => {
+              const totalItems = items.length;
+              const receivedItems = items.filter(i => i.status === 'received').length;
+              const pct = totalItems > 0 ? receivedItems / totalItems : 0;
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                  <span style={{ fontSize: 11, color: '#94A3B8', whiteSpace: 'nowrap' }}>
+                    {receivedItems} of {totalItems} items received
+                  </span>
+                  <div style={{ width: 64, height: 3, background: '#F1F5F9', borderRadius: 99, overflow: 'hidden', flexShrink: 0 }}>
+                    <div style={{ height: '100%', width: `${Math.round(pct * 100)}%`, background: 'linear-gradient(90deg, #4A90E2, #34D399)', borderRadius: 99, transition: 'width 0.4s' }} />
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
         </div>
 
         {/* ── Items area ────────────────────────────────────────────────── */}
@@ -735,7 +792,12 @@ const ProvisioningBoardDetail = () => {
             <>
               {deptGroups.map(({ dept, items: deptItems }) => {
                 const deptChip = getDeptChip(dept);
-                const deptSubtotal = deptItems.reduce((acc, i) => acc + (parseFloat(i.quantity_ordered) || 0) * (parseFloat(i.estimated_unit_cost) || 0), 0);
+                const deptSubtotal = deptItems.reduce((acc, i) => {
+                  const cost = parseFloat(i.estimated_unit_cost) || 0;
+                  const qty = parseFloat(i.quantity_ordered) || 0;
+                  const iCurr = i.currency || currency;
+                  return acc + qty * ((cost / (fxRates[iCurr] || 1)) * (fxRates[dispCurr] || 1));
+                }, 0);
                 const allDeptSel = deptItems.length > 0 && deptItems.every(i => selectedItems.has(i.id));
                 return (
                   <div key={dept} style={{ marginBottom: 24 }}>
@@ -746,7 +808,7 @@ const ProvisioningBoardDetail = () => {
                       </span>
                       <span style={{ fontSize: 11, color: '#CBD5E1', flexShrink: 0 }}>{deptItems.length} item{deptItems.length !== 1 ? 's' : ''}</span>
                       <div style={{ flex: 1, height: 1, background: '#F1F5F9' }} />
-                      <span style={{ fontSize: 11, color: '#94A3B8', flexShrink: 0 }}>{currSymbol}{deptSubtotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                      <span style={{ fontSize: 11, color: '#94A3B8', flexShrink: 0 }}>{dispSymbol}{deptSubtotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
                     </div>
 
                     {/* White card table */}
@@ -780,9 +842,12 @@ const ProvisioningBoardDetail = () => {
                       {deptItems.map((item, rowIdx) => {
                         const badge = STATUS_BADGE[item.status] || STATUS_BADGE.pending;
                         const isHovered = hoveredRow === item.id;
-                        const rowCurr = CURR_SYMBOLS[item.currency] || CURR_SYMBOLS[list?.currency] || '£';
                         const isEditing = editingCell?.itemId === item.id;
                         const allergen = isAllergenRisk(item);
+                        const itemCurr = item.currency || currency;
+                        const convertCost = (amt) => (parseFloat(amt) / (fxRates[itemCurr] || 1)) * (fxRates[dispCurr] || 1);
+                        const showOriginal = itemCurr !== dispCurr;
+                        const origSymbol = CURR_SYMBOLS[itemCurr] || '£';
                         return (
                           <div
                             key={item.id}
@@ -901,7 +966,16 @@ const ProvisioningBoardDetail = () => {
                                   onDoubleClick={() => setEditingCell({ itemId: item.id, field: 'estimated_unit_cost' })}
                                   style={{ fontSize: 13, color: '#0F172A', cursor: 'default' }}
                                 >
-                                  {item.estimated_unit_cost != null ? `${rowCurr}${parseFloat(item.estimated_unit_cost).toFixed(2)}` : <span style={{ color: '#CBD5E1' }}>—</span>}
+                                  {item.estimated_unit_cost != null ? (
+                                    <span style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                      <span>{dispSymbol}{convertCost(item.estimated_unit_cost).toFixed(2)}</span>
+                                      {showOriginal && (
+                                        <span style={{ fontSize: 10, color: '#CBD5E1', fontStyle: 'italic' }}>
+                                          {origSymbol}{parseFloat(item.estimated_unit_cost).toFixed(2)}
+                                        </span>
+                                      )}
+                                    </span>
+                                  ) : <span style={{ color: '#CBD5E1' }}>—</span>}
                                 </span>
                               )}
                             </div>
@@ -911,7 +985,7 @@ const ProvisioningBoardDetail = () => {
                                 const qty = parseFloat(item.quantity_ordered);
                                 const cost = parseFloat(item.estimated_unit_cost);
                                 return !isNaN(qty) && !isNaN(cost)
-                                  ? <span style={{ fontSize: 13, color: '#0F172A', fontWeight: 500 }}>{rowCurr}{(qty * cost).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                                  ? <span style={{ fontSize: 13, color: '#0F172A', fontWeight: 500 }}>{dispSymbol}{(qty * convertCost(cost)).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
                                   : <span style={{ fontSize: 13, color: '#CBD5E1' }}>—</span>;
                               })()}
                             </div>
@@ -968,7 +1042,7 @@ const ProvisioningBoardDetail = () => {
                           <span style={{ fontSize: 11, color: '#94A3B8' }}>{deptItems.length} item{deptItems.length !== 1 ? 's' : ''}</span>
                         </div>
                         <div style={{ padding: '8px 8px', display: 'flex', alignItems: 'center' }}>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: '#1E3A5F' }}>{currSymbol}{deptSubtotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: '#1E3A5F' }}>{dispSymbol}{deptSubtotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
                         </div>
                         <div />{/* status col */}
                         <div />{/* actions col */}
@@ -1009,11 +1083,11 @@ const ProvisioningBoardDetail = () => {
                 <span style={{ fontSize: 12, color: '#94A3B8' }}>{items.length} item{items.length !== 1 ? 's' : ''} total</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
                   <span style={{ fontSize: 12, color: '#94A3B8' }}>
-                    Estimated: <span style={{ fontWeight: 700, color: '#0F172A' }}>{currSymbol}{Math.round(grandTotals.estimated).toLocaleString()}</span>
+                    Estimated: <span style={{ fontWeight: 700, color: '#0F172A' }}>{dispSymbol}{Math.round(convertedTotals.estimated).toLocaleString()}</span>
                   </span>
-                  {grandTotals.actual > 0 && (
+                  {convertedTotals.actual > 0 && (
                     <span style={{ fontSize: 12, color: '#94A3B8' }}>
-                      Received: <span style={{ fontWeight: 700, color: '#15803D' }}>{currSymbol}{Math.round(grandTotals.actual).toLocaleString()}</span>
+                      Received: <span style={{ fontWeight: 700, color: '#15803D' }}>{dispSymbol}{Math.round(convertedTotals.actual).toLocaleString()}</span>
                     </span>
                   )}
                 </div>
@@ -1021,27 +1095,27 @@ const ProvisioningBoardDetail = () => {
 
               {/* ── Summary cards ─────────────────────────────────────── */}
               {(() => {
-                const receivedValue = grandTotals.actual;
-                const outstandingValue = Math.max(0, grandTotals.estimated - grandTotals.actual);
-                const estimatedValue = grandTotals.estimated;
+                const receivedValue = convertedTotals.actual;
+                const outstandingValue = Math.max(0, convertedTotals.estimated - convertedTotals.actual);
+                const estimatedValue = convertedTotals.estimated;
                 const summaryCards = [
                   {
                     label: 'Received',
-                    value: `${currSymbol}${Math.round(receivedValue).toLocaleString()}`,
+                    value: `${dispSymbol}${Math.round(receivedValue).toLocaleString()}`,
                     sub: `${items.filter(i => i.status === 'received').length} of ${items.length} items`,
                     accent: '#4ADE80',
                     valueColor: '#15803D',
                   },
                   {
                     label: 'Outstanding',
-                    value: `${currSymbol}${Math.round(outstandingValue).toLocaleString()}`,
+                    value: `${dispSymbol}${Math.round(outstandingValue).toLocaleString()}`,
                     sub: `${items.filter(i => i.status !== 'received').length} items pending`,
                     accent: '#FCD34D',
                     valueColor: '#B45309',
                   },
                   {
                     label: 'Estimated Total',
-                    value: `${currSymbol}${Math.round(estimatedValue).toLocaleString()}`,
+                    value: `${dispSymbol}${Math.round(estimatedValue).toLocaleString()}`,
                     sub: `${items.length} item${items.length !== 1 ? 's' : ''}`,
                     accent: '#4A90E2',
                     valueColor: '#1E3A5F',
