@@ -381,12 +381,12 @@ const ProvisioningBoardDetail = () => {
   };
 
   const STATUS_HERO_COLOR = {
-    draft:                        { dot: '#94A3B8', text: '#94A3B8' },
-    pending_approval:             { dot: '#F59E0B', text: '#F59E0B' },
+    draft:                        { dot: '#F59E0B', text: '#F59E0B' },
+    pending_approval:             { dot: '#4A90E2', text: '#4A90E2' },
     sent_to_supplier:             { dot: '#3B82F6', text: '#3B82F6' },
     partially_delivered:          { dot: '#F59E0B', text: '#F59E0B' },
     delivered_with_discrepancies: { dot: '#EF4444', text: '#EF4444' },
-    delivered:                    { dot: '#22C55E', text: '#22C55E' },
+    delivered:                    { dot: '#22C55E', text: '#15803D' },
   };
 
   const TABLE_GRID = '36px minmax(200px,1.5fr) minmax(130px,0.8fr) minmax(190px,1fr) 90px 80px 120px 56px';
@@ -460,184 +460,175 @@ const ProvisioningBoardDetail = () => {
       <div className="min-h-screen bg-background">
 
         {/* ── Hero ─────────────────────────────────────────────────────── */}
-        <div style={{ background: 'white', borderBottom: '1px solid #F1F5F9', padding: '36px 32px 0' }}>
+        <div style={{ background: 'white', borderBottom: '1px solid #F1F5F9' }}>
 
-          {/* Back link */}
-          <button
-            onClick={() => navigate('/provisioning')}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 20, padding: 0 }}
-            onMouseEnter={e => e.currentTarget.style.color = '#1E3A5F'}
-            onMouseLeave={e => e.currentTarget.style.color = '#94A3B8'}
-          >
-            <Icon name="ArrowLeft" style={{ width: 13, height: 13 }} /> Back to boards
-          </button>
-
-          {/* Two-column grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 48, alignItems: 'start', marginBottom: 20 }}>
-
-            {/* Left */}
-            <div>
-              {/* Status line */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                <div style={{ width: 6, height: 6, borderRadius: '50%', background: heroStatus.dot, flexShrink: 0 }} />
-                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: heroStatus.text }}>
-                  {statusLabel}
+          {/* ROW 1 — back link ← → total */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 32px 0' }}>
+            <button
+              onClick={() => navigate('/provisioning')}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              onMouseEnter={e => e.currentTarget.style.color = '#1E3A5F'}
+              onMouseLeave={e => e.currentTarget.style.color = '#94A3B8'}
+            >
+              <Icon name="ArrowLeft" style={{ width: 13, height: 13 }} /> Back to boards
+            </button>
+            <div style={{ textAlign: 'right' }}>
+              <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#CBD5E1', margin: '0 0 4px' }}>
+                Estimated Total
+              </p>
+              <div style={{ fontSize: 28, fontWeight: 300, color: '#0F172A', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                <span style={{ fontSize: 16, color: '#CBD5E1', fontWeight: 300 }}>{currSymbol}</span>
+                {Math.round(grandTotals.estimated).toLocaleString()}
+              </div>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 6 }}>
+                <span style={{ fontSize: 11, color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4ADE80', display: 'inline-block', flexShrink: 0 }} />
+                  {currSymbol}{Math.round(grandTotals.actual).toLocaleString()} received
                 </span>
-                {isOverdue && (
-                  <span style={{ fontSize: 10, color: '#EF4444', background: '#FEF2F2', padding: '2px 8px', borderRadius: 4, border: '1px solid #FECACA' }}>
-                    Overdue
-                  </span>
-                )}
-              </div>
-
-              {/* Board name */}
-              <h1 style={{ fontSize: 32, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.025em', lineHeight: 1.05, margin: metaItems.length > 0 ? '0 0 18px' : '0' }}>
-                {renderTitle(list.title)}
-              </h1>
-
-              {/* Meta band */}
-              {metaItems.length > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', marginBottom: 0 }}>
-                {metaItems.map((m, idx) => (
-                  <div key={idx} style={{
-                    display: 'flex', alignItems: 'center', gap: 5,
-                    fontSize: 11, color: '#94A3B8',
-                    paddingLeft: idx === 0 ? 0 : 16, paddingRight: 16,
-                    borderRight: idx === metaItems.length - 1 ? 'none' : '1px solid #F1F5F9',
-                  }}>
-                    {m.type === 'chips' ? (
-                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                        {m.content.map(d => {
-                          const cs = getDeptChip(d);
-                          return (
-                            <span key={d} style={{ background: cs.bg, color: cs.color, fontSize: 9, fontWeight: 700, padding: '3px 8px', borderRadius: 3, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                              {d}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <>
-                        <Icon name={m.icon} style={{ width: 13, height: 13, flexShrink: 0 }} />
-                        {m.content}
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
-              )}
-            </div>
-
-            {/* Right */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 16 }}>
-              {/* Total block */}
-              <div style={{ textAlign: 'right' }}>
-                <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#CBD5E1', marginBottom: 6 }}>
-                  Estimated Total
-                </p>
-                <div style={{ fontSize: 40, fontWeight: 300, color: '#0F172A', letterSpacing: '-0.03em', lineHeight: 1 }}>
-                  <span style={{ fontSize: 20, color: '#CBD5E1', fontWeight: 300 }}>{currSymbol}</span>
-                  {Math.round(grandTotals.estimated).toLocaleString()}
-                </div>
-                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
-                  <span style={{ fontSize: 11, color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4ADE80', display: 'inline-block', flexShrink: 0 }} />
-                    {currSymbol}{Math.round(grandTotals.actual).toLocaleString()} received
-                  </span>
-                  <span style={{ fontSize: 11, color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FCD34D', display: 'inline-block', flexShrink: 0 }} />
-                    {currSymbol}{Math.round(Math.max(0, grandTotals.estimated - grandTotals.actual)).toLocaleString()} outstanding
-                  </span>
-                </div>
-              </div>
-
-              {/* Actions row */}
-              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'nowrap', justifyContent: 'flex-end' }}>
-                <button
-                  onClick={() => showToast('Smart Suggestions coming soon', 'success')}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8' }}
-                >
-                  ✦ Suggestions
-                </button>
-                <button
-                  onClick={() => showToast('Templates coming soon', 'success')}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
-                >
-                  <Icon name="FileText" style={{ width: 13, height: 13 }} /> Templates
-                </button>
-                <button
-                  onClick={() => { showToast('Use "Save as PDF" in the print dialog', 'success'); setTimeout(() => window.print(), 300); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
-                >
-                  <Icon name="FileDown" style={{ width: 13, height: 13 }} /> PDF
-                </button>
-                <button
-                  onClick={() => window.print()}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
-                >
-                  <Icon name="Printer" style={{ width: 13, height: 13 }} /> Print
-                </button>
-                {isDraftOrPending && (
-                  <button
-                    onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: '#1E3A5F', border: '1px solid #1E3A5F', color: 'white', whiteSpace: 'nowrap' }}
-                  >
-                    <Icon name="Send" style={{ width: 13, height: 13 }} /> Submit for Approval
-                  </button>
-                )}
-                {/* More options */}
-                <div className="relative" ref={menuRef}>
-                  <button
-                    onClick={() => setShowMenu(v => !v)}
-                    style={{ display: 'flex', alignItems: 'center', padding: '7px 9px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
-                  >
-                    <Icon name="MoreHorizontal" style={{ width: 14, height: 14 }} />
-                  </button>
-                  {showMenu && (
-                    <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[185px] z-50">
-                      <button onClick={() => { setShowMenu(false); setShowEditModal(true); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
-                        <Icon name="Pencil" className="w-4 h-4" /> Edit Board
-                      </button>
-                      <button onClick={handleDuplicate} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
-                        <Icon name="Copy" className="w-4 h-4" /> Duplicate
-                      </button>
-                      {canDelete && (
-                        <>
-                          <div className="my-1 border-t border-border" />
-                          <button onClick={handleDeleteBoard} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 flex items-center gap-2">
-                            <Icon name="Trash2" className="w-4 h-4" /> Delete Board
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <span style={{ fontSize: 11, color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FCD34D', display: 'inline-block', flexShrink: 0 }} />
+                  {currSymbol}{Math.round(Math.max(0, grandTotals.estimated - grandTotals.actual)).toLocaleString()} outstanding
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Tabs */}
-          <div style={{ display: 'flex', borderTop: '1px solid #F8FAFC', marginTop: 0, paddingTop: 16 }}>
-            {[
-              { id: 'items', label: 'Items' },
-              { id: 'details', label: 'Board Details' },
-              { id: 'deliveries', label: 'Deliveries' },
-              { id: 'history', label: 'History' },
-            ].map(tab => (
+          {/* ROW 2 — board name + status chip + overdue chip */}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, padding: '8px 32px 0' }}>
+            <h1 style={{ fontSize: 32, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.025em', lineHeight: 1.05, margin: 0, flexShrink: 0 }}>
+              {renderTitle(list.title)}
+            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: heroStatus.dot, display: 'inline-block', flexShrink: 0 }} />
+              <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: heroStatus.text, whiteSpace: 'nowrap' }}>
+                {statusLabel}
+              </span>
+            </div>
+            {isOverdue && (
+              <span style={{ fontSize: 10, color: '#EF4444', background: '#FEF2F2', padding: '2px 8px', borderRadius: 4, border: '1px solid #FECACA', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                Overdue
+              </span>
+            )}
+          </div>
+
+          {/* ROW 3 — meta band (only when data exists) */}
+          {metaItems.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', padding: '6px 32px 0' }}>
+              {metaItems.map((m, idx) => (
+                <div key={idx} style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  fontSize: 11, color: '#94A3B8',
+                  paddingLeft: idx === 0 ? 0 : 16, paddingRight: 16,
+                  borderRight: idx === metaItems.length - 1 ? 'none' : '1px solid #F1F5F9',
+                }}>
+                  {m.type === 'chips' ? (
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      {m.content.map(d => {
+                        const cs = getDeptChip(d);
+                        return (
+                          <span key={d} style={{ background: cs.bg, color: cs.color, fontSize: 9, fontWeight: 700, padding: '3px 8px', borderRadius: 3, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                            {d}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <>
+                      <Icon name={m.icon} style={{ width: 13, height: 13, flexShrink: 0 }} />
+                      {m.content}
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Tab bar + actions (single row) */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 32px', borderTop: '1px solid #F1F5F9', marginTop: 12 }}>
+            {/* Tabs left */}
+            <div style={{ display: 'flex' }}>
+              {[
+                { id: 'items', label: 'Items' },
+                { id: 'details', label: 'Board Details' },
+                { id: 'deliveries', label: 'Deliveries' },
+                { id: 'history', label: 'History' },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  style={{
+                    fontSize: 12, fontWeight: activeTab === tab.id ? 600 : 500,
+                    color: activeTab === tab.id ? '#1E3A5F' : '#94A3B8',
+                    padding: '12px 18px', cursor: 'pointer', background: 'none', border: 'none',
+                    borderBottom: activeTab === tab.id ? '2px solid #4A90E2' : '2px solid transparent',
+                    marginBottom: -1, transition: 'all 0.15s',
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            {/* Actions right */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap' }}>
               <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                style={{
-                  fontSize: 12, fontWeight: activeTab === tab.id ? 600 : 500,
-                  color: activeTab === tab.id ? '#1E3A5F' : '#94A3B8',
-                  padding: '12px 18px', cursor: 'pointer', background: 'none', border: 'none',
-                  borderBottom: activeTab === tab.id ? '2px solid #4A90E2' : '2px solid transparent',
-                  marginBottom: -1, transition: 'all 0.15s',
-                }}
+                onClick={() => showToast('Smart Suggestions coming soon', 'success')}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8' }}
               >
-                {tab.label}
+                ✦ Suggestions
               </button>
-            ))}
+              <button
+                onClick={() => showToast('Templates coming soon', 'success')}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
+              >
+                <Icon name="FileText" style={{ width: 13, height: 13 }} /> Templates
+              </button>
+              <button
+                onClick={() => { showToast('Use "Save as PDF" in the print dialog', 'success'); setTimeout(() => window.print(), 300); }}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
+              >
+                <Icon name="FileDown" style={{ width: 13, height: 13 }} /> PDF
+              </button>
+              <button
+                onClick={() => window.print()}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
+              >
+                <Icon name="Printer" style={{ width: 13, height: 13 }} /> Print
+              </button>
+              {isDraftOrPending && (
+                <button
+                  onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: '#1E3A5F', border: '1px solid #1E3A5F', color: 'white', whiteSpace: 'nowrap' }}
+                >
+                  <Icon name="Send" style={{ width: 13, height: 13 }} /> Submit for Approval
+                </button>
+              )}
+              <div className="relative" ref={menuRef}>
+                <button
+                  onClick={() => setShowMenu(v => !v)}
+                  style={{ display: 'flex', alignItems: 'center', padding: '6px 8px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
+                >
+                  <Icon name="MoreHorizontal" style={{ width: 14, height: 14 }} />
+                </button>
+                {showMenu && (
+                  <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[185px] z-50">
+                    <button onClick={() => { setShowMenu(false); setShowEditModal(true); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
+                      <Icon name="Pencil" className="w-4 h-4" /> Edit Board
+                    </button>
+                    <button onClick={handleDuplicate} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
+                      <Icon name="Copy" className="w-4 h-4" /> Duplicate
+                    </button>
+                    {canDelete && (
+                      <>
+                        <div className="my-1 border-t border-border" />
+                        <button onClick={handleDeleteBoard} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 flex items-center gap-2">
+                          <Icon name="Trash2" className="w-4 h-4" /> Delete Board
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
