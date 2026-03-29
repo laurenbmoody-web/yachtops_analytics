@@ -1462,37 +1462,38 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickV
           const idx = bottleModalLocIdx;
           setBottleModalLocIdx(null);
           if (idx >= 0) {
-            // Multi-location: adjust this location qty -1, mark partial, clear others
+            // Per-location partial: only touch this location, leave all others intact
             const updated = locationQtys?.map((l, i) => {
-              const { partial: _p, ...rest } = l;
-              if (i === idx) return { ...rest, qty: Math.max(0, (l?.qty || 0) - 1), partial: fraction };
-              return rest;
+              if (i !== idx) return l;
+              // Decrement qty only when setting a new partial (not editing an existing one)
+              const newQty = l?.partial != null ? (l?.qty || 0) : Math.max(0, (l?.qty || 0) - 1);
+              return { ...l, qty: newQty, partial: fraction };
             });
             setLocationQtys(updated);
             updateItemStockLocations(item?.id, updated);
+          } else {
+            // Single-location: persist to inventory_items.partial_bottle
+            await updatePartialBottle(item?.id, fraction);
+            setItem(prev => ({ ...prev, partialBottle: fraction }));
           }
-          await updatePartialBottle(item?.id, fraction);
-          setItem(prev => ({ ...prev, partialBottle: fraction }));
           onUpdate?.();
         }}
         onClear={async () => {
           const idx = bottleModalLocIdx;
           setBottleModalLocIdx(null);
           if (idx >= 0) {
-            // Restore qty +1 for location that had the partial
+            // Per-location: only clear this location's partial, restore its qty
             const updated = locationQtys?.map((l, i) => {
-              if (i === idx && l?.partial != null) {
-                const { partial: _p, ...rest } = l;
-                return { ...rest, qty: (l?.qty || 0) + 1 };
-              }
+              if (i !== idx) return l;
               const { partial: _p, ...rest } = l;
-              return rest;
+              return { ...rest, qty: l?.partial != null ? (l?.qty || 0) + 1 : (l?.qty || 0) };
             });
             setLocationQtys(updated);
             updateItemStockLocations(item?.id, updated);
+          } else {
+            await updatePartialBottle(item?.id, null);
+            setItem(prev => ({ ...prev, partialBottle: null }));
           }
-          await updatePartialBottle(item?.id, null);
-          setItem(prev => ({ ...prev, partialBottle: null }));
           onUpdate?.();
         }}
         onClose={() => setBottleModalLocIdx(null)}
@@ -1723,15 +1724,16 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQ
           setBottleModalLocIdx(null);
           if (idx >= 0) {
             const updated = locationQtys?.map((l, i) => {
-              const { partial: _p, ...rest } = l;
-              if (i === idx) return { ...rest, qty: Math.max(0, (l?.qty || 0) - 1), partial: fraction };
-              return rest;
+              if (i !== idx) return l;
+              const newQty = l?.partial != null ? (l?.qty || 0) : Math.max(0, (l?.qty || 0) - 1);
+              return { ...l, qty: newQty, partial: fraction };
             });
             setLocationQtys(updated);
             updateItemStockLocations(item?.id, updated);
+          } else {
+            await updatePartialBottle(item?.id, fraction);
+            setItem(prev => ({ ...prev, partialBottle: fraction }));
           }
-          await updatePartialBottle(item?.id, fraction);
-          setItem(prev => ({ ...prev, partialBottle: fraction }));
           onUpdate?.();
         }}
         onClear={async () => {
@@ -1739,18 +1741,16 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQ
           setBottleModalLocIdx(null);
           if (idx >= 0) {
             const updated = locationQtys?.map((l, i) => {
-              if (i === idx && l?.partial != null) {
-                const { partial: _p, ...rest } = l;
-                return { ...rest, qty: (l?.qty || 0) + 1 };
-              }
+              if (i !== idx) return l;
               const { partial: _p, ...rest } = l;
-              return rest;
+              return { ...rest, qty: l?.partial != null ? (l?.qty || 0) + 1 : (l?.qty || 0) };
             });
             setLocationQtys(updated);
             updateItemStockLocations(item?.id, updated);
+          } else {
+            await updatePartialBottle(item?.id, null);
+            setItem(prev => ({ ...prev, partialBottle: null }));
           }
-          await updatePartialBottle(item?.id, null);
-          setItem(prev => ({ ...prev, partialBottle: null }));
           onUpdate?.();
         }}
         onClose={() => setBottleModalLocIdx(null)}
