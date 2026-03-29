@@ -1370,7 +1370,7 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickV
           {!isMultiLocation && isAlcoholItem(item) && (
             <button
               onClick={(e) => { e?.stopPropagation(); setBottleModalLocIdx(-1); }}
-              title={item?.partialBottle != null ? `Partial bottle: ${Math.round(item.partialBottle * 100)}% — click to edit` : 'Track partial bottle'}
+              title={item?.partialBottle != null ? `Partial bottle: ${item.partialBottle.toFixed(2)} — click to edit` : 'Track partial bottle'}
               style={{
                 width: 28, height: 28, flexShrink: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1407,7 +1407,7 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickV
                   {isAlcoholItem(item) && (
                     <button
                       onClick={(e) => { e?.stopPropagation(); setBottleModalLocIdx(idx); }}
-                      title={hasPartial ? `Partial: ${Math.round(loc.partial * 100)}% — click to edit` : 'Record partial bottle'}
+                      title={hasPartial ? `Partial: ${loc.partial.toFixed(2)} — click to edit` : 'Record partial bottle'}
                       style={{
                         width: 22, height: 22, flexShrink: 0,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1428,7 +1428,7 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickV
                     <Icon name="Minus" size={10} />
                   </button>
                   <span className="min-w-[28px] text-center text-xs font-semibold text-foreground">
-                    {hasPartial ? `${loc?.qty || 0} + ${Math.round(loc.partial * 100)}%` : (loc?.qty || 0)}
+                    {hasPartial ? ((loc?.qty || 0) + loc.partial).toFixed(2).replace(/\.?0+$/, '') : (loc?.qty || 0)}
                   </span>
                   <button
                     onClick={(e) => { e?.stopPropagation(); const updated = locationQtys?.map((l, i) => i === idx ? { ...l, qty: (l?.qty || 0) + 1 } : l); setLocationQtys(updated); pendingLocUpdateRef.current = true; updateItemStockLocations(item?.id, updated); }}
@@ -1666,7 +1666,7 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQ
                     {isAlcoholItem(item) && (
                       <button
                         onClick={(e) => { e?.stopPropagation(); setBottleModalLocIdx(idx); }}
-                        title={hasPartial ? `Partial: ${Math.round(loc.partial * 100)}% — click to edit` : 'Record partial bottle'}
+                        title={hasPartial ? `Partial: ${loc.partial.toFixed(2)} — click to edit` : 'Record partial bottle'}
                         style={{
                           width: 20, height: 20, flexShrink: 0,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1687,7 +1687,7 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQ
                       <Icon name="Minus" size={10} />
                     </button>
                     <span className="min-w-[28px] text-center text-xs font-semibold text-foreground">
-                      {hasPartial ? `${loc?.qty || 0} + ${Math.round(loc.partial * 100)}%` : (loc?.qty || 0)}
+                      {hasPartial ? ((loc?.qty || 0) + loc.partial).toFixed(2).replace(/\.?0+$/, '') : (loc?.qty || 0)}
                     </span>
                     <button
                       onClick={(e) => { e?.stopPropagation(); const updated = locationQtys?.map((l, i) => i === idx ? { ...l, qty: (l?.qty || 0) + 1 } : l); setLocationQtys(updated); pendingLocUpdateRef.current = true; updateItemStockLocations(item?.id, updated); }}
