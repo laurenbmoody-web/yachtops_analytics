@@ -463,7 +463,7 @@ const ProvisioningBoardDetail = () => {
         <div style={{ background: 'white', borderBottom: '1px solid #F1F5F9' }}>
 
           {/* Left column (back link + title + meta) ← → Right column (total) */}
-          <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', padding: '8px 32px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', padding: '20px 32px 0' }}>
 
             {/* Left column */}
             <div style={{ display: 'flex', flexDirection: 'column' }}>
