@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Button from '../../components/ui/Button';
 import Icon from '../../components/AppIcon';
-import { getAllTaxonomyL1, getTaxonomyL2ByL1, getTaxonomyL3ByL2, getTaxonomyL4ByL3, createTaxonomyL1, createTaxonomyL2, createTaxonomyL3, createTaxonomyL4, renameTaxonomyL1, renameTaxonomyL2, renameTaxonomyL3, renameTaxonomyL4, archiveTaxonomyL2, archiveTaxonomyL3, archiveTaxonomyL4, getItemCountForL1, getItemCountForL2, getItemCountForL3, getItemCountForL4, canCreateL1, canCreateL2L3L4, migrateOldTaxonomyToNew } from '../inventory/utils/taxonomyStorage';
+import { getAllTaxonomyL1, getTaxonomyL2ByL1, getTaxonomyL3ByL2, getTaxonomyL4ByL3, createTaxonomyL1, createTaxonomyL2, createTaxonomyL3, createTaxonomyL4, renameTaxonomyL1, renameTaxonomyL2, renameTaxonomyL3, renameTaxonomyL4, archiveTaxonomyL2, archiveTaxonomyL3, archiveTaxonomyL4, setTaxonomyL2IsAlcohol, getItemCountForL1, getItemCountForL2, getItemCountForL3, getItemCountForL4, canCreateL1, canCreateL2L3L4, migrateOldTaxonomyToNew } from '../inventory/utils/taxonomyStorage';
 import { getCurrentUser, hasCommandAccess, hasChiefAccess } from '../../utils/authStorage';
 
 const InventoryCategorySettings = () => {
@@ -246,6 +246,20 @@ const InventoryCategorySettings = () => {
     }
   };
 
+  const handleToggleL2Alcohol = (e, category) => {
+    e?.stopPropagation();
+    const newValue = !category?.isAlcohol;
+    const success = setTaxonomyL2IsAlcohol(category?.id, newValue);
+    if (success) {
+      setTaxonomyL2(prev => prev?.map(item =>
+        item?.id === category?.id ? { ...item, isAlcohol: newValue } : item
+      ));
+      if (selectedL2?.id === category?.id) {
+        setSelectedL2(prev => ({ ...prev, isAlcohol: newValue }));
+      }
+    }
+  };
+
   if (!canAccess) {
     return null;
   }
@@ -464,6 +478,19 @@ const InventoryCategorySettings = () => {
                           </>
                         ) : (
                           <>
+                            <button
+                              onClick={(e) => handleToggleL2Alcohol(e, category)}
+                              title={category?.isAlcohol ? 'Alcohol category (click to unmark)' : 'Mark as alcohol category'}
+                              className="p-1 rounded transition-colors"
+                              style={{
+                                color: category?.isAlcohol ? '#C4842A' : '#CBD5E1',
+                                border: category?.isAlcohol ? '1px solid #C4842A' : '1px dashed #CBD5E1',
+                                borderRadius: 4,
+                                background: category?.isAlcohol ? 'rgba(196,132,42,0.08)' : 'transparent'
+                              }}
+                            >
+                              <Icon name="Wine" size={13} />
+                            </button>
                             {canManageL2L3L4 && selectedL2?.id === category?.id && (
                               <>
                                 <button

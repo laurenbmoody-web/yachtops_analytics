@@ -13,6 +13,22 @@ const SUBCATEGORIES_L3_KEY = 'cargo_taxonomy_subcategories_l3';
 const PRESET_INITIALIZED_KEY = 'cargo_taxonomy_preset_initialized';
 
 // ============================================
+// ALCOHOL DETECTION
+// ============================================
+
+const ALCOHOL_KEYWORDS = [
+  'alcohol', 'wine', 'champagne', 'spirits', 'vodka', 'gin', 'whisky', 'whiskey',
+  'beer', 'lager', 'ale', 'liqueur', 'rum', 'tequila', 'brandy', 'cognac',
+  'prosecco', 'cava', 'rosé', 'rose', 'drinks store', 'bar stock', 'cellar',
+  'beverages', 'cocktail', 'aperitif', 'digestif', 'port', 'sherry', 'mead'
+];
+
+export const autoDetectAlcohol = (name) => {
+  const nameLower = name?.toLowerCase() || '';
+  return ALCOHOL_KEYWORDS.some(kw => nameLower.includes(kw));
+};
+
+// ============================================
 // CATEGORY (Level 1) CRUD
 // ============================================
 
@@ -51,6 +67,7 @@ export const saveCategory = (categoryData) => {
         icon: categoryData?.icon || 'Package',
         sortOrder: categoryData?.sortOrder || categories?.length,
         department: categoryData?.department || 'INTERIOR',
+        isAlcohol: categoryData?.isAlcohol !== undefined ? categoryData?.isAlcohol : autoDetectAlcohol(categoryData?.name),
         isArchived: false,
         createdAt: timestamp,
         updatedAt: timestamp
@@ -125,6 +142,7 @@ export const saveSubcategoryL2 = (subcategoryData) => {
         categoryId: subcategoryData?.categoryId,
         name: subcategoryData?.name,
         sortOrder: subcategoryData?.sortOrder || subcategories?.filter(s => s?.categoryId === subcategoryData?.categoryId)?.length,
+        isAlcohol: subcategoryData?.isAlcohol !== undefined ? subcategoryData?.isAlcohol : autoDetectAlcohol(subcategoryData?.name),
         isArchived: false,
         createdAt: timestamp,
         updatedAt: timestamp

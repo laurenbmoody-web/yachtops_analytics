@@ -5,7 +5,15 @@ import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import Select from '../../../components/ui/Select';
 import AddItemDrawer from './AddItemDrawer';
-import { getItemById, duplicateItem, calculateTotalQuantity } from '../utils/inventoryStorage';
+import PartialBottleModal from './PartialBottleModal';
+import { getItemById, saveItem, duplicateItem, calculateTotalQuantity } from '../utils/inventoryStorage';
+import { getCategoryById, getSubcategoryL2ById, autoDetectAlcohol } from '../utils/taxonomyStorage';
+
+const ALCOHOL_KEYWORDS = [
+  'alcohol', 'wine', 'champagne', 'spirits', 'vodka', 'gin', 'whisky', 'whiskey',
+  'beer', 'lager', 'ale', 'liqueur', 'rum', 'tequila', 'brandy', 'cognac',
+  'prosecco', 'cava', 'drinks store', 'bar'
+];
 
 const ItemDetail = () => {
   const navigate = useNavigate();
@@ -16,6 +24,7 @@ const ItemDetail = () => {
   const [showOverflowMenu, setShowOverflowMenu] = useState(false);
   const [item, setItem] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
+  const [showPartialBottleModal, setShowPartialBottleModal] = useState(false);
 
   useEffect(() => {
     loadItem();
@@ -84,6 +93,36 @@ const ItemDetail = () => {
     loadItem();
     setIsEditOpen(false);
     setIsDuplicateOpen(false);
+  };
+
+  // Detect if this item's category is alcohol-related
+  const isAlcoholItem = () => {
+    if (!item) return false;
+    // Check category isAlcohol flag first
+    const cat = getCategoryById(item?.categoryId);
+    if (cat?.isAlcohol !== undefined) return !!cat.isAlcohol;
+    const l2 = getSubcategoryL2ById(item?.subcategoryL2Id);
+    if (l2?.isAlcohol !== undefined) return !!l2.isAlcohol;
+    // Fall back to keyword detection on category name or item category string
+    const nameToCheck = (cat?.name || item?.category || '').toLowerCase();
+    const l2Name = (l2?.name || '').toLowerCase();
+    return ALCOHOL_KEYWORDS.some(kw => nameToCheck.includes(kw) || l2Name.includes(kw));
+  };
+
+  const handlePartialBottleSave = (fraction) => {
+    if (!item) return;
+    const updated = { ...item, partialBottle: fraction };
+    saveItem(updated);
+    setItem(updated);
+    setShowPartialBottleModal(false);
+  };
+
+  const handlePartialBottleClear = () => {
+    if (!item) return;
+    const updated = { ...item, partialBottle: null };
+    saveItem(updated);
+    setItem(updated);
+    setShowPartialBottleModal(false);
   };
 
   const handleDuplicate = () => {
@@ -218,12 +257,35 @@ const ItemDetail = () => {
                 <div className="flex items-baseline gap-2">
                   <span className="text-4xl font-bold text-foreground">{item?.quantity}</span>
                   <span className="text-lg text-muted-foreground">{item?.unit}</span>
+                  {isAlcoholItem() && item?.partialBottle != null && (
+                    <span className="text-sm text-muted-foreground">
+                      + {Math.round(item.partialBottle * 100)}% partial
+                    </span>
+                  )}
                 </div>
               </div>
-              <div className={`px-4 py-2 rounded-xl text-sm font-medium ${
-                getStatusBg(item?.status)
-              } ${getStatusColor(item?.status)}`}>
-                <span className="capitalize">{item?.status}</span>
+              <div className="flex items-center gap-2">
+                {isAlcoholItem() && (
+                  <button
+                    onClick={() => setShowPartialBottleModal(true)}
+                    title={item?.partialBottle != null ? 'Edit partial bottle' : 'Add partial bottle'}
+                    style={{
+                      width: 36, height: 36,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      borderRadius: 8, cursor: 'pointer', transition: 'background 0.15s',
+                      border: item?.partialBottle != null ? '2px solid #C4842A' : '2px dashed #CBD5E1',
+                      background: item?.partialBottle != null ? 'rgba(196,132,42,0.1)' : 'transparent',
+                      color: item?.partialBottle != null ? '#C4842A' : '#94A3B8'
+                    }}
+                  >
+                    <Icon name="Wine" size={18} />
+                  </button>
+                )}
+                <div className={`px-4 py-2 rounded-xl text-sm font-medium ${
+                  getStatusBg(item?.status)
+                } ${getStatusColor(item?.status)}`}>
+                  <span className="capitalize">{item?.status}</span>
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -375,6 +437,17 @@ const ItemDetail = () => {
         categoryId={categoryId}
         onSave={handleItemSaved}
       />
+
+      {/* Partial Bottle Modal */}
+      {showPartialBottleModal && (
+        <PartialBottleModal
+          initialValue={item?.partialBottle ?? null}
+          itemName={item?.name}
+          onSave={handlePartialBottleSave}
+          onClear={handlePartialBottleClear}
+          onClose={() => setShowPartialBottleModal(false)}
+        />
+      )}
     </div>
   );
 };
