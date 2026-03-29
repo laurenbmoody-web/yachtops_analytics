@@ -492,11 +492,8 @@ const ProvisioningBoardDetail = () => {
         {/* ── Hero ─────────────────────────────────────────────────────── */}
         <div style={{ background: 'white', borderBottom: '1px solid #F1F5F9' }}>
 
-          {/* Left column (back link + title + meta) ← → Right column (total) */}
-          <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', padding: '20px 32px 0' }}>
-
-            {/* Left column */}
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {/* Hero content — full width */}
+          <div style={{ padding: '20px 32px 0' }}>
               {/* Back link */}
               <button
                 onClick={() => navigate('/provisioning')}
@@ -554,29 +551,6 @@ const ProvisioningBoardDetail = () => {
                   ))}
                 </div>
               )}
-            </div>
-
-            {/* Right column — total pinned to bottom */}
-            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', paddingBottom: 8, textAlign: 'right' }}>
-              <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#CBD5E1', margin: '0 0 4px' }}>
-                Estimated Total
-              </p>
-              <div style={{ fontSize: 28, fontWeight: 300, color: '#0F172A', letterSpacing: '-0.03em', lineHeight: 1 }}>
-                <span style={{ fontSize: 16, color: '#CBD5E1', fontWeight: 300 }}>{dispSymbol}</span>
-                {Math.round(convertedTotals.estimated).toLocaleString()}
-              </div>
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 6 }}>
-                <span style={{ fontSize: 11, color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4ADE80', display: 'inline-block', flexShrink: 0 }} />
-                  {dispSymbol}{Math.round(convertedTotals.actual).toLocaleString()} received
-                </span>
-                <span style={{ fontSize: 11, color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FCD34D', display: 'inline-block', flexShrink: 0 }} />
-                  {dispSymbol}{Math.round(Math.max(0, convertedTotals.estimated - convertedTotals.actual)).toLocaleString()} outstanding
-                </span>
-              </div>
-            </div>
-
           </div>
 
           {/* Tab bar + actions (single row) */}
@@ -725,49 +699,22 @@ const ProvisioningBoardDetail = () => {
               </button>
             )}
           </div>
-          {/* Right side: currency toggle + progress */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
-            {/* Display currency toggle */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
-              <div style={{ display: 'flex', gap: 3 }}>
-                {[{ code: 'GBP', symbol: '£' }, { code: 'USD', symbol: '$' }, { code: 'EUR', symbol: '€' }].map(pill => {
-                  const active = dispCurr === pill.code;
-                  return (
-                    <button
-                      key={pill.code}
-                      onClick={() => setDisplayCurrency(pill.code)}
-                      style={{
-                        fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 20,
-                        background: active ? '#1E3A5F' : 'transparent',
-                        color: active ? 'white' : '#94A3B8',
-                        border: active ? '1px solid #1E3A5F' : '1px solid #E2E8F0',
-                        cursor: 'pointer', transition: 'all 0.15s',
-                      }}
-                    >
-                      {pill.symbol} {pill.code}
-                    </button>
-                  );
-                })}
-              </div>
-              <span style={{ fontSize: 10, color: '#CBD5E1' }}>{fxRatesLabel}</span>
-            </div>
-            {/* Progress */}
-            {(() => {
-              const totalItems = items.length;
-              const receivedItems = items.filter(i => i.status === 'received').length;
-              const pct = totalItems > 0 ? receivedItems / totalItems : 0;
-              return (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                  <span style={{ fontSize: 11, color: '#94A3B8', whiteSpace: 'nowrap' }}>
-                    {receivedItems} of {totalItems} items received
-                  </span>
-                  <div style={{ width: 64, height: 3, background: '#F1F5F9', borderRadius: 99, overflow: 'hidden', flexShrink: 0 }}>
-                    <div style={{ height: '100%', width: `${Math.round(pct * 100)}%`, background: 'linear-gradient(90deg, #4A90E2, #34D399)', borderRadius: 99, transition: 'width 0.4s' }} />
-                  </div>
+          {/* Progress */}
+          {(() => {
+            const totalItems = items.length;
+            const receivedItems = items.filter(i => i.status === 'received').length;
+            const pct = totalItems > 0 ? receivedItems / totalItems : 0;
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                <span style={{ fontSize: 11, color: '#94A3B8', whiteSpace: 'nowrap' }}>
+                  {receivedItems} of {totalItems} items received
+                </span>
+                <div style={{ width: 64, height: 3, background: '#F1F5F9', borderRadius: 99, overflow: 'hidden', flexShrink: 0 }}>
+                  <div style={{ height: '100%', width: `${Math.round(pct * 100)}%`, background: 'linear-gradient(90deg, #4A90E2, #34D399)', borderRadius: 99, transition: 'width 0.4s' }} />
                 </div>
-              );
-            })()}
-          </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* ── Items area ────────────────────────────────────────────────── */}
@@ -1122,6 +1069,7 @@ const ProvisioningBoardDetail = () => {
                   },
                 ];
                 return (
+                  <>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginTop: 24 }}>
                     {summaryCards.map(card => (
                       <div key={card.label} style={{ background: 'white', border: '1px solid #F1F5F9', borderLeft: `3px solid ${card.accent}`, borderRadius: 10, padding: '18px 20px' }}>
@@ -1135,6 +1083,33 @@ const ProvisioningBoardDetail = () => {
                       </div>
                     ))}
                   </div>
+                  {/* Currency toggle — below summary cards */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginTop: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+                      {[{ code: 'GBP', symbol: '£' }, { code: 'USD', symbol: '$' }, { code: 'EUR', symbol: '€' }].map((pill, idx) => {
+                        const active = dispCurr === pill.code;
+                        return (
+                          <React.Fragment key={pill.code}>
+                            {idx > 0 && (
+                              <span style={{ fontSize: 11, color: '#E2E8F0', margin: '0 6px', userSelect: 'none' }}>·</span>
+                            )}
+                            <button
+                              onClick={() => setDisplayCurrency(pill.code)}
+                              style={{
+                                fontSize: 11, fontWeight: active ? 700 : 400,
+                                color: active ? '#1E3A5F' : '#CBD5E1',
+                                background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                              }}
+                            >
+                              {pill.symbol} {pill.code}
+                            </button>
+                          </React.Fragment>
+                        );
+                      })}
+                    </div>
+                    <span style={{ fontSize: 10, color: '#CBD5E1', marginTop: 4 }}>{fxRatesLabel}</span>
+                  </div>
+                  </>
                 );
               })()}
             </>
