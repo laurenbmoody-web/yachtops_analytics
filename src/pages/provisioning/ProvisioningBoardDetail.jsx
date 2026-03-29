@@ -780,6 +780,7 @@ const ProvisioningBoardDetail = () => {
                       {deptItems.map((item, rowIdx) => {
                         const badge = STATUS_BADGE[item.status] || STATUS_BADGE.pending;
                         const isHovered = hoveredRow === item.id;
+                        const rowCurr = CURR_SYMBOLS[item.currency] || CURR_SYMBOLS[list?.currency] || '£';
                         const isEditing = editingCell?.itemId === item.id;
                         const allergen = isAllergenRisk(item);
                         return (
@@ -900,7 +901,7 @@ const ProvisioningBoardDetail = () => {
                                   onDoubleClick={() => setEditingCell({ itemId: item.id, field: 'estimated_unit_cost' })}
                                   style={{ fontSize: 13, color: '#0F172A', cursor: 'default' }}
                                 >
-                                  {item.estimated_unit_cost != null ? `${currSymbol}${parseFloat(item.estimated_unit_cost).toFixed(2)}` : <span style={{ color: '#CBD5E1' }}>—</span>}
+                                  {item.estimated_unit_cost != null ? `${rowCurr}${parseFloat(item.estimated_unit_cost).toFixed(2)}` : <span style={{ color: '#CBD5E1' }}>—</span>}
                                 </span>
                               )}
                             </div>
@@ -910,7 +911,7 @@ const ProvisioningBoardDetail = () => {
                                 const qty = parseFloat(item.quantity_ordered);
                                 const cost = parseFloat(item.estimated_unit_cost);
                                 return !isNaN(qty) && !isNaN(cost)
-                                  ? <span style={{ fontSize: 13, color: '#0F172A', fontWeight: 500 }}>{currSymbol}{(qty * cost).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                                  ? <span style={{ fontSize: 13, color: '#0F172A', fontWeight: 500 }}>{rowCurr}{(qty * cost).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
                                   : <span style={{ fontSize: 13, color: '#CBD5E1' }}>—</span>;
                               })()}
                             </div>
