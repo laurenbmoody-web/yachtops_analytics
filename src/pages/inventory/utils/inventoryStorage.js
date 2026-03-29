@@ -96,6 +96,7 @@ const rowToItem = (row) => {
     icon: row?.icon || null,
     color: row?.color || null,
     partialBottle: row?.partial_bottle ?? null,
+    isAlcohol: row?.is_alcohol ?? false,
     createdAt: row?.created_at,
     updatedAt: row?.updated_at,
   };
@@ -583,11 +584,15 @@ export const saveItem = async (itemData) => {
       if (error) { console.error('[inventoryStorage] saveItem insert error:', error?.message); return false; }
       savedItem = rowToItem(data);
     }
-    // Best-effort: write icon/color separately (columns may not exist on all DB instances)
-    if (savedItem?.id && (itemData?.icon || itemData?.color)) {
+    // Best-effort: write icon/color/is_alcohol separately (columns may not exist on all DB instances)
+    if (savedItem?.id && (itemData?.icon || itemData?.color || itemData?.isAlcohol != null)) {
       try {
         await supabase?.from('inventory_items')
-          ?.update({ icon: itemData?.icon || null, color: itemData?.color || null })
+          ?.update({
+            icon: itemData?.icon || null,
+            color: itemData?.color || null,
+            is_alcohol: itemData?.isAlcohol ?? false,
+          })
           ?.eq('id', savedItem.id)
           ?.eq('tenant_id', tenantId);
       } catch (_) {}
