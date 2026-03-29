@@ -140,6 +140,8 @@ const ProvisioningBoardDetail = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [itemDrawer, setItemDrawer] = useState({ open: false, item: null });
+  const [activeTab, setActiveTab] = useState('items');
+  const [hoveredRow, setHoveredRow] = useState(null);
   const menuRef = useRef(null);
 
   const userTier = (user?.permission_tier || user?.effectiveTier || '').toUpperCase();
@@ -357,8 +359,70 @@ const ProvisioningBoardDetail = () => {
     if (!list?.department) return [];
     return Array.isArray(list.department) ? list.department.filter(Boolean) : list.department.split(',').map(d => d.trim()).filter(Boolean);
   }, [list]);
-  const currency = list?.currency || 'USD';
+  const currency = list?.currency || 'GBP';
   const isDraftOrPending = list?.status === PROVISIONING_STATUS.DRAFT || list?.status === PROVISIONING_STATUS.PENDING_APPROVAL;
+
+  // ── Style constants ───────────────────────────────────────────────────────
+
+  const DEPT_CHIP_STYLES = {
+    Galley:      { bg: '#FEF9C3', color: '#854D0E' },
+    Interior:    { bg: '#EDE9FE', color: '#5B21B6' },
+    Deck:        { bg: '#DCFCE7', color: '#166534' },
+    Engineering: { bg: '#FFF7ED', color: '#9A3412' },
+  };
+  const getDeptChip = (dept) => DEPT_CHIP_STYLES[dept] || { bg: '#F1F5F9', color: '#64748B' };
+
+  const STATUS_BADGE = {
+    pending:         { bg: '#F8FAFC', color: '#94A3B8', border: '#F1F5F9', dot: '#CBD5E1', label: 'Pending' },
+    ordered:         { bg: '#EFF6FF', color: '#1D4ED8', border: '#BFDBFE', dot: '#60A5FA', label: 'Ordered' },
+    received:        { bg: '#F0FDF4', color: '#15803D', border: '#BBF7D0', dot: '#4ADE80', label: 'Received' },
+    short_delivered: { bg: '#FFFBEB', color: '#B45309', border: '#FDE68A', dot: '#FCD34D', label: 'Short' },
+    not_delivered:   { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA', dot: '#FCA5A5', label: 'Not Delivered' },
+  };
+
+  const STATUS_HERO_COLOR = {
+    draft:                        { dot: '#94A3B8', text: '#94A3B8' },
+    pending_approval:             { dot: '#F59E0B', text: '#F59E0B' },
+    sent_to_supplier:             { dot: '#3B82F6', text: '#3B82F6' },
+    partially_delivered:          { dot: '#F59E0B', text: '#F59E0B' },
+    delivered_with_discrepancies: { dot: '#EF4444', text: '#EF4444' },
+    delivered:                    { dot: '#22C55E', text: '#22C55E' },
+  };
+
+  const TABLE_GRID = '36px minmax(200px,1.5fr) minmax(130px,0.8fr) minmax(190px,1fr) 90px 80px 120px 56px';
+
+  const CURR_SYMBOLS = { GBP: '£', USD: '$', EUR: '€' };
+  const currSymbol = CURR_SYMBOLS[currency] || '£';
+
+  // ── Additional computed values ────────────────────────────────────────────
+
+  const isOverdue = list?.order_by_date
+    ? new Date(list.order_by_date) < new Date(new Date().setHours(0, 0, 0, 0))
+    : false;
+
+  const heroStatus = STATUS_HERO_COLOR[list?.status] || { dot: '#94A3B8', text: '#94A3B8' };
+  const statusLabel = (list?.status || '').replace(/_/g, ' ').toUpperCase();
+
+  const renderTitle = (title = '') => {
+    const emIdx = title.indexOf('—');
+    const hypIdx = title.indexOf(' - ');
+    const idx = emIdx !== -1 ? emIdx : hypIdx;
+    const sep = emIdx !== -1 ? '—' : ' - ';
+    if (idx === -1) return <span>{title}</span>;
+    return (
+      <>
+        <span>{title.slice(0, idx + sep.length)}</span>
+        <span style={{ color: '#4A90E2' }}>{title.slice(idx + sep.length)}</span>
+      </>
+    );
+  };
+
+  const metaItems = [
+    trip && { icon: 'Calendar', content: trip.title || trip.name },
+    list?.port_location && { icon: 'MapPin', content: list.port_location },
+    supplierName && { icon: 'User', content: supplierName },
+    deptTags.length > 0 && { type: 'chips', content: deptTags },
+  ].filter(Boolean);
 
   // ── States ────────────────────────────────────────────────────────────────
 
@@ -394,79 +458,185 @@ const ProvisioningBoardDetail = () => {
       <Header />
       <div className="min-h-screen bg-background">
 
-        {/* ── Page header ──────────────────────────────────────────────── */}
-        <div className="sticky top-0 z-20 bg-background border-b border-border px-6 py-3">
+        {/* ── Hero ─────────────────────────────────────────────────────── */}
+        <div style={{ background: 'white', borderBottom: '1px solid #F1F5F9', padding: '36px 32px 0' }}>
+
+          {/* Back link */}
           <button
             onClick={() => navigate('/provisioning')}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-2 transition-colors"
+            style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 20, padding: 0 }}
+            onMouseEnter={e => e.currentTarget.style.color = '#1E3A5F'}
+            onMouseLeave={e => e.currentTarget.style.color = '#94A3B8'}
           >
-            <Icon name="ArrowLeft" className="w-3.5 h-3.5" /> Back to boards
+            <Icon name="ArrowLeft" style={{ width: 13, height: 13 }} /> Back to boards
           </button>
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl font-bold text-foreground">{list.title}</h1>
-              <StatusBadge status={list.status} />
-              {list.order_by_date && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-muted rounded-full text-xs text-muted-foreground border border-border">
-                  <Icon name="Calendar" className="w-3 h-3" />
-                  {new Date(list.order_by_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+
+          {/* Two-column grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 48, alignItems: 'start', marginBottom: 32 }}>
+
+            {/* Left */}
+            <div>
+              {/* Status line */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: heroStatus.dot, flexShrink: 0 }} />
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: heroStatus.text }}>
+                  {statusLabel}
                 </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {isDraftOrPending && (
-                <button
-                  onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)}
-                  className="px-3 py-1.5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/80 transition-colors"
-                >
-                  Submit for Approval
-                </button>
-              )}
-              <div className="relative" ref={menuRef}>
-                <button
-                  onClick={() => setShowMenu(v => !v)}
-                  className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Icon name="MoreHorizontal" className="w-5 h-5" />
-                </button>
-                {showMenu && (
-                  <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[185px] z-50">
-                    <button onClick={() => { setShowMenu(false); setShowEditModal(true); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
-                      <Icon name="Pencil" className="w-4 h-4" /> Edit Board
-                    </button>
-                    {isDraftOrPending && (
-                      <button onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
-                        <Icon name="Send" className="w-4 h-4" /> Submit for Approval
-                      </button>
-                    )}
-                    <button onClick={handleDuplicate} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
-                      <Icon name="Copy" className="w-4 h-4" /> Duplicate
-                    </button>
-                    {canDelete && (
+                {isOverdue && (
+                  <span style={{ fontSize: 10, color: '#EF4444', background: '#FEF2F2', padding: '2px 8px', borderRadius: 4, border: '1px solid #FECACA' }}>
+                    Overdue
+                  </span>
+                )}
+              </div>
+
+              {/* Board name */}
+              <h1 style={{ fontSize: 32, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.025em', lineHeight: 1.05, marginBottom: 18, margin: '0 0 18px' }}>
+                {renderTitle(list.title)}
+              </h1>
+
+              {/* Meta band — always rendered */}
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', minHeight: 20 }}>
+                {metaItems.map((m, idx) => (
+                  <div key={idx} style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    fontSize: 11, color: '#94A3B8',
+                    paddingLeft: idx === 0 ? 0 : 16, paddingRight: 16,
+                    borderRight: idx === metaItems.length - 1 ? 'none' : '1px solid #F1F5F9',
+                  }}>
+                    {m.type === 'chips' ? (
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                        {m.content.map(d => {
+                          const cs = getDeptChip(d);
+                          return (
+                            <span key={d} style={{ background: cs.bg, color: cs.color, fontSize: 9, fontWeight: 700, padding: '3px 8px', borderRadius: 3, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                              {d}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    ) : (
                       <>
-                        <div className="my-1 border-t border-border" />
-                        <button onClick={handleDeleteBoard} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 flex items-center gap-2">
-                          <Icon name="Trash2" className="w-4 h-4" /> Delete Board
-                        </button>
+                        <Icon name={m.icon} style={{ width: 13, height: 13, flexShrink: 0 }} />
+                        {m.content}
                       </>
                     )}
                   </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 16 }}>
+              {/* Total block */}
+              <div style={{ textAlign: 'right' }}>
+                <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#CBD5E1', marginBottom: 6 }}>
+                  Estimated Total
+                </p>
+                <div style={{ fontSize: 40, fontWeight: 300, color: '#0F172A', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                  <span style={{ fontSize: 20, color: '#CBD5E1', fontWeight: 300 }}>{currSymbol}</span>
+                  {Math.round(grandTotals.estimated).toLocaleString()}
+                </div>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
+                  <span style={{ fontSize: 11, color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4ADE80', display: 'inline-block', flexShrink: 0 }} />
+                    {currSymbol}{Math.round(grandTotals.actual).toLocaleString()} received
+                  </span>
+                  <span style={{ fontSize: 11, color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FCD34D', display: 'inline-block', flexShrink: 0 }} />
+                    {currSymbol}{Math.round(Math.max(0, grandTotals.estimated - grandTotals.actual)).toLocaleString()} outstanding
+                  </span>
+                </div>
+              </div>
+
+              {/* Actions row */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => showToast('Smart Suggestions coming soon', 'success')}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '7px 13px', borderRadius: 7, cursor: 'pointer', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8' }}
+                >
+                  ✦ Suggestions
+                </button>
+                <button
+                  onClick={() => showToast('Templates coming soon', 'success')}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, padding: '7px 13px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
+                >
+                  <Icon name="FileText" style={{ width: 13, height: 13 }} /> Templates
+                </button>
+                <button
+                  onClick={() => { showToast('Use "Save as PDF" in the print dialog', 'success'); setTimeout(() => window.print(), 300); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, padding: '7px 13px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
+                >
+                  <Icon name="FileDown" style={{ width: 13, height: 13 }} /> PDF
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, padding: '7px 13px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
+                >
+                  <Icon name="Printer" style={{ width: 13, height: 13 }} /> Print
+                </button>
+                {isDraftOrPending && (
+                  <button
+                    onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '7px 13px', borderRadius: 7, cursor: 'pointer', background: '#1E3A5F', border: '1px solid #1E3A5F', color: 'white' }}
+                  >
+                    <Icon name="Send" style={{ width: 13, height: 13 }} /> Submit for Approval
+                  </button>
                 )}
+                {/* More options */}
+                <div className="relative" ref={menuRef}>
+                  <button
+                    onClick={() => setShowMenu(v => !v)}
+                    style={{ display: 'flex', alignItems: 'center', padding: '7px 9px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
+                  >
+                    <Icon name="MoreHorizontal" style={{ width: 14, height: 14 }} />
+                  </button>
+                  {showMenu && (
+                    <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[185px] z-50">
+                      <button onClick={() => { setShowMenu(false); setShowEditModal(true); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
+                        <Icon name="Pencil" className="w-4 h-4" /> Edit Board
+                      </button>
+                      <button onClick={handleDuplicate} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
+                        <Icon name="Copy" className="w-4 h-4" /> Duplicate
+                      </button>
+                      {canDelete && (
+                        <>
+                          <div className="my-1 border-t border-border" />
+                          <button onClick={handleDeleteBoard} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 flex items-center gap-2">
+                            <Icon name="Trash2" className="w-4 h-4" /> Delete Board
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* ── Meta row ─────────────────────────────────────────────────── */}
-        {(trip || list.port_location || supplierName || list.estimated_cost || deptTags.length > 0) && (
-          <div className="px-6 py-2.5 border-b border-border flex flex-wrap items-center gap-x-5 gap-y-1.5 bg-muted/20 text-[13px] text-muted-foreground">
-            {trip && <span className="flex items-center gap-1.5"><Icon name="Anchor" className="w-3.5 h-3.5 flex-shrink-0" />{trip.title || trip.name}</span>}
-            {list.port_location && <span className="flex items-center gap-1.5"><Icon name="MapPin" className="w-3.5 h-3.5 flex-shrink-0" />{list.port_location}</span>}
-            {supplierName && <span className="flex items-center gap-1.5"><Icon name="Building2" className="w-3.5 h-3.5 flex-shrink-0" />{supplierName}</span>}
-            {list.estimated_cost > 0 && <span className="flex items-center gap-1.5"><Icon name="DollarSign" className="w-3.5 h-3.5 flex-shrink-0" />Est. {formatCurrency(list.estimated_cost, currency)}</span>}
-            {deptTags.map(d => <span key={d} className="px-2 py-0.5 bg-muted border border-border rounded text-xs">{d}</span>)}
+          {/* Tabs */}
+          <div style={{ display: 'flex', borderTop: '1px solid #F8FAFC', marginTop: 0 }}>
+            {[
+              { id: 'items', label: 'Items' },
+              { id: 'details', label: 'Board Details' },
+              { id: 'deliveries', label: 'Deliveries' },
+              { id: 'history', label: 'History' },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  fontSize: 12, fontWeight: activeTab === tab.id ? 600 : 500,
+                  color: activeTab === tab.id ? '#1E3A5F' : '#94A3B8',
+                  padding: '12px 18px', cursor: 'pointer', background: 'none', border: 'none',
+                  borderBottom: activeTab === tab.id ? '2px solid #4A90E2' : '2px solid transparent',
+                  marginBottom: -1, transition: 'all 0.15s',
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
-        )}
+        </div>
 
         {/* ── Allergen banner ───────────────────────────────────────────── */}
         {allergenGuests.length > 0 && (
@@ -483,114 +653,398 @@ const ProvisioningBoardDetail = () => {
         )}
 
         {/* ── Toolbar ───────────────────────────────────────────────────── */}
-        <div className="px-6 py-3 flex items-center justify-between gap-4 border-b border-border flex-wrap">
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="relative">
-              <Icon name="Search" className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+        <div style={{ background: 'white', borderBottom: '1px solid #F1F5F9', padding: '10px 32px', position: 'sticky', top: 0, zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {/* Search */}
+            <div style={{ position: 'relative' }}>
+              <Icon name="Search" style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', width: 13, height: 13, color: '#CBD5E1', pointerEvents: 'none' }} />
               <input
-                type="text" placeholder="Search items…" value={searchQuery}
+                type="text"
+                placeholder="Search items…"
+                value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="pl-8 pr-3 py-1.5 text-sm bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary w-44"
+                style={{ paddingLeft: 28, paddingRight: 10, paddingTop: 6, paddingBottom: 6, fontSize: 12, background: '#F8FAFC', border: '1px solid #F1F5F9', borderRadius: 7, color: '#0F172A', outline: 'none', width: 220 }}
               />
             </div>
-            <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)} className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary">
+            {/* Dept filter */}
+            <select
+              value={deptFilter}
+              onChange={e => setDeptFilter(e.target.value)}
+              style={{ fontSize: 11, background: 'white', border: '1px solid #F1F5F9', borderRadius: 7, padding: '6px 10px', color: '#64748B', outline: 'none', cursor: 'pointer' }}
+            >
               <option value="all">All depts</option>
               {departments.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary">
+            {/* Status filter */}
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+              style={{ fontSize: 11, background: 'white', border: '1px solid #F1F5F9', borderRadius: 7, padding: '6px 10px', color: '#64748B', outline: 'none', cursor: 'pointer' }}
+            >
               <option value="all">All statuses</option>
               {ITEM_STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
             {hasFilters && (
-              <button onClick={() => { setSearchQuery(''); setDeptFilter('all'); setStatusFilter('all'); }} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              <button
+                onClick={() => { setSearchQuery(''); setDeptFilter('all'); setStatusFilter('all'); }}
+                style={{ fontSize: 11, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
+                onMouseEnter={e => e.currentTarget.style.color = '#1E3A5F'}
+                onMouseLeave={e => e.currentTarget.style.color = '#94A3B8'}
+              >
                 Clear filters
               </button>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => window.print()} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground border border-border rounded-lg hover:bg-muted transition-colors">
-              <Icon name="Printer" className="w-4 h-4" /> Print
-            </button>
-            <button onClick={() => { showToast('Use "Save as PDF" in the print dialog', 'success'); setTimeout(() => window.print(), 300); }} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground border border-border rounded-lg hover:bg-muted transition-colors">
-              <Icon name="FileDown" className="w-4 h-4" /> Export PDF
-            </button>
-            {isDraftOrPending && (
-              <button onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)} className="flex items-center gap-1.5 px-4 py-1.5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/80 transition-colors">
-                Submit for Approval
-              </button>
-            )}
-          </div>
+          {/* Progress */}
+          {(() => {
+            const totalItems = items.length;
+            const receivedItems = items.filter(i => i.status === 'received').length;
+            const pct = totalItems > 0 ? receivedItems / totalItems : 0;
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                <span style={{ fontSize: 11, color: '#94A3B8', whiteSpace: 'nowrap' }}>
+                  {receivedItems} of {totalItems} items received
+                </span>
+                <div style={{ width: 64, height: 3, background: '#F1F5F9', borderRadius: 99, overflow: 'hidden', flexShrink: 0 }}>
+                  <div style={{ height: '100%', width: `${Math.round(pct * 100)}%`, background: 'linear-gradient(90deg, #4A90E2, #34D399)', borderRadius: 99, transition: 'width 0.4s' }} />
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* ── Items area ────────────────────────────────────────────────── */}
-        <div className="px-6 py-5 pb-12">
+        <div style={{ padding: '24px 32px 48px', background: '#F8FAFC' }}>
           {deptGroups.length === 0 && !hasFilters ? (
-            <div className="py-20 text-center">
-              <div className="w-14 h-14 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                <Icon name="ShoppingBag" className="w-7 h-7 text-muted-foreground" />
+            <div style={{ padding: '80px 0', textAlign: 'center' }}>
+              <div style={{ width: 56, height: 56, background: '#F8FAFC', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                <Icon name="ShoppingBag" style={{ width: 28, height: 28, color: '#CBD5E1' }} />
               </div>
-              <p className="text-sm font-medium text-foreground mb-1">No items yet</p>
-              <p className="text-xs text-muted-foreground mb-4">Add items to track your provisioning order.</p>
+              <p style={{ fontSize: 14, fontWeight: 500, color: '#0F172A', marginBottom: 4 }}>No items yet</p>
+              <p style={{ fontSize: 12, color: '#94A3B8', marginBottom: 16 }}>Add items to track your provisioning order.</p>
               <button
                 onClick={() => { setAddingToDept(departments[0] || 'Other'); setNewItemName(''); }}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/80"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: '#1E3A5F', border: 'none', borderRadius: 8, color: 'white', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
               >
-                <Icon name="Plus" className="w-4 h-4" /> Add first item
+                <Icon name="Plus" style={{ width: 14, height: 14 }} /> Add first item
               </button>
             </div>
           ) : deptGroups.length === 0 ? (
-            <div className="py-12 text-center text-sm text-muted-foreground">No items match your filters.</div>
+            <div style={{ padding: '48px 0', textAlign: 'center', fontSize: 13, color: '#94A3B8' }}>No items match your filters.</div>
           ) : (
             <>
-              {deptGroups.map(({ dept, items: deptItems }) => (
-                <DeptGroup
-                  key={dept}
-                  dept={dept}
-                  items={deptItems}
-                  deptOptions={departments.map(d => ({ value: d, label: d }))}
-                  currency={currency}
-                  selectedItems={selectedItems}
-                  allChecked={deptItems.length > 0 && deptItems.every(i => selectedItems.has(i.id))}
-                  editingCell={editingCell}
-                  setEditingCell={setEditingCell}
-                  isAllergenRisk={isAllergenRisk}
-                  onToggleAll={() => {
-                    const allSel = deptItems.every(i => selectedItems.has(i.id));
-                    setSelectedItems(prev => {
-                      const n = new Set(prev);
-                      deptItems.forEach(i => allSel ? n.delete(i.id) : n.add(i.id));
-                      return n;
-                    });
-                  }}
-                  onToggleItem={toggleItem}
-                  onCellSave={handleCellSave}
-                  onQtyStep={handleQtyStep}
-                  onStatusSave={handleStatusSave}
-                  onDeleteItem={handleDeleteItem}
-                  onEditItem={(item) => setItemDrawer({ open: true, item })}
-                  onAddItem={handleAddItem}
-                  formatCurrency={formatCurrency}
-                  addingToDept={addingToDept}
-                  setAddingToDept={setAddingToDept}
-                  newItemName={newItemName}
-                  setNewItemName={setNewItemName}
-                />
-              ))}
+              {deptGroups.map(({ dept, items: deptItems }) => {
+                const deptChip = getDeptChip(dept);
+                const deptSubtotal = deptItems.reduce((acc, i) => acc + (parseFloat(i.quantity_ordered) || 0) * (parseFloat(i.estimated_unit_cost) || 0), 0);
+                const allDeptSel = deptItems.length > 0 && deptItems.every(i => selectedItems.has(i.id));
+                return (
+                  <div key={dept} style={{ marginBottom: 24 }}>
+                    {/* Dept header row */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                      <span style={{ background: deptChip.bg, color: deptChip.color, fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, letterSpacing: '0.06em', textTransform: 'uppercase', flexShrink: 0 }}>
+                        {dept}
+                      </span>
+                      <span style={{ fontSize: 11, color: '#CBD5E1', flexShrink: 0 }}>{deptItems.length} item{deptItems.length !== 1 ? 's' : ''}</span>
+                      <div style={{ flex: 1, height: 1, background: '#F1F5F9' }} />
+                      <span style={{ fontSize: 11, color: '#94A3B8', flexShrink: 0 }}>{currSymbol}{deptSubtotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                    </div>
 
-              {/* Grand total */}
-              <div className="mt-2 pt-4 border-t-2 border-border flex items-center justify-between flex-wrap gap-4">
-                <span className="text-sm text-muted-foreground">{items.length} item{items.length !== 1 ? 's' : ''}</span>
-                <div className="flex items-center gap-6 text-sm flex-wrap">
-                  <span className="text-muted-foreground">
-                    Estimated total: <span className="font-semibold text-foreground">{formatCurrency(grandTotals.estimated, currency)}</span>
+                    {/* White card table */}
+                    <div style={{ background: 'white', border: '1px solid #F1F5F9', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                      {/* Table header */}
+                      <div style={{ display: 'grid', gridTemplateColumns: TABLE_GRID, gap: 0, padding: '0 16px', background: '#FAFAFA', borderBottom: '1px solid #F1F5F9' }}>
+                        {/* Checkbox */}
+                        <div style={{ display: 'flex', alignItems: 'center', padding: '10px 0' }}>
+                          <input type="checkbox" checked={allDeptSel} onChange={() => {
+                            setSelectedItems(prev => {
+                              const n = new Set(prev);
+                              deptItems.forEach(i => allDeptSel ? n.delete(i.id) : n.add(i.id));
+                              return n;
+                            });
+                          }} style={{ width: 13, height: 13, accentColor: '#4A90E2', cursor: 'pointer' }} />
+                        </div>
+                        {['Item', 'Category', 'Size · Unit · Qty', 'Unit Cost', 'Total', 'Status', ''].map((h, hi) => (
+                          <div key={hi} style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '10px 8px', display: 'flex', alignItems: 'center' }}>
+                            {h}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Item rows */}
+                      {deptItems.map((item, rowIdx) => {
+                        const badge = STATUS_BADGE[item.status] || STATUS_BADGE.pending;
+                        const isHovered = hoveredRow === item.id;
+                        const isEditing = editingCell?.itemId === item.id;
+                        const allergen = isAllergenRisk(item);
+                        return (
+                          <div
+                            key={item.id}
+                            onMouseEnter={() => setHoveredRow(item.id)}
+                            onMouseLeave={() => setHoveredRow(null)}
+                            style={{
+                              display: 'grid', gridTemplateColumns: TABLE_GRID, gap: 0, padding: '0 16px',
+                              background: allergen ? '#FFFBEB' : isHovered ? '#FAFCFF' : 'white',
+                              borderBottom: rowIdx < deptItems.length - 1 ? '1px solid #F8FAFC' : 'none',
+                              transition: 'background 0.1s',
+                            }}
+                          >
+                            {/* Checkbox */}
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 0' }}>
+                              <input type="checkbox" checked={selectedItems.has(item.id)} onChange={() => toggleItem(item.id)} style={{ width: 13, height: 13, accentColor: '#4A90E2', cursor: 'pointer' }} />
+                            </div>
+                            {/* Item (name + brand italic sub-text) */}
+                            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '9px 8px', gap: 2 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                {allergen && <span title="Allergen risk" style={{ fontSize: 11 }}>⚠</span>}
+                                {editingCell?.itemId === item.id && editingCell?.field === 'name' ? (
+                                  <input
+                                    autoFocus
+                                    defaultValue={item.name}
+                                    onBlur={e => { handleCellSave(item, 'name', e.target.value); setEditingCell(null); }}
+                                    onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingCell(null); }}
+                                    style={{ fontSize: 13, color: '#0F172A', background: '#F0F7FF', border: '1px solid #93C5FD', borderRadius: 5, padding: '2px 6px', width: '100%', outline: 'none' }}
+                                  />
+                                ) : (
+                                  <span
+                                    onDoubleClick={() => setEditingCell({ itemId: item.id, field: 'name' })}
+                                    style={{ fontSize: 13, color: '#0F172A', fontWeight: 500, cursor: 'default', lineHeight: 1.3 }}
+                                  >
+                                    {item.name}
+                                  </span>
+                                )}
+                              </div>
+                              {item.brand && (
+                                <span style={{ fontSize: 11, color: '#94A3B8', fontStyle: 'italic', paddingLeft: allergen ? 18 : 0 }}>
+                                  {item.brand}
+                                </span>
+                              )}
+                            </div>
+                            {/* Category */}
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
+                              <span style={{ fontSize: 12, color: '#64748B' }}>
+                                {[item.category, item.sub_category].filter(Boolean).join(' › ') || <span style={{ color: '#CBD5E1' }}>—</span>}
+                              </span>
+                            </div>
+                            {/* Size · Unit · Qty (compound) */}
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px', gap: 4, flexWrap: 'nowrap', overflow: 'hidden' }}>
+                              {item.size && (
+                                <>
+                                  <span style={{ fontSize: 12, color: '#64748B', flexShrink: 0 }}>{item.size}</span>
+                                  <span style={{ fontSize: 11, color: '#CBD5E1', flexShrink: 0 }}>·</span>
+                                </>
+                              )}
+                              <select
+                                value={item.unit || 'each'}
+                                onChange={e => handleCellSave(item, 'unit', e.target.value)}
+                                style={{ fontSize: 11, color: '#64748B', background: 'none', border: 'none', outline: 'none', cursor: 'pointer', padding: 0, minWidth: 0, flexShrink: 1 }}
+                              >
+                                {PROVISION_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                              </select>
+                              <span style={{ fontSize: 11, color: '#CBD5E1', flexShrink: 0 }}>·</span>
+                              <button
+                                onClick={() => handleQtyStep(item, 'quantity_ordered', -1)}
+                                style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F1F5F9', border: 'none', borderRadius: 3, cursor: 'pointer', fontSize: 13, color: '#64748B', flexShrink: 0, lineHeight: 1, padding: 0 }}
+                              >−</button>
+                              {editingCell?.itemId === item.id && editingCell?.field === 'quantity_ordered' ? (
+                                <input
+                                  autoFocus
+                                  type="number"
+                                  defaultValue={item.quantity_ordered ?? ''}
+                                  onBlur={e => { handleCellSave(item, 'quantity_ordered', e.target.value); setEditingCell(null); }}
+                                  onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingCell(null); }}
+                                  style={{ fontSize: 13, color: '#0F172A', background: '#F0F7FF', border: '1px solid #93C5FD', borderRadius: 5, padding: '2px 4px', width: 44, outline: 'none', textAlign: 'center', flexShrink: 0 }}
+                                />
+                              ) : (
+                                <span
+                                  onDoubleClick={() => setEditingCell({ itemId: item.id, field: 'quantity_ordered' })}
+                                  style={{ fontSize: 13, color: '#0F172A', cursor: 'default', minWidth: 18, textAlign: 'center', flexShrink: 0 }}
+                                >
+                                  {item.quantity_ordered ?? <span style={{ color: '#CBD5E1' }}>—</span>}
+                                </span>
+                              )}
+                              <button
+                                onClick={() => handleQtyStep(item, 'quantity_ordered', 1)}
+                                style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F1F5F9', border: 'none', borderRadius: 3, cursor: 'pointer', fontSize: 13, color: '#64748B', flexShrink: 0, lineHeight: 1, padding: 0 }}
+                              >+</button>
+                            </div>
+                            {/* Unit Cost */}
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
+                              {editingCell?.itemId === item.id && editingCell?.field === 'estimated_unit_cost' ? (
+                                <input
+                                  autoFocus
+                                  type="number"
+                                  defaultValue={item.estimated_unit_cost ?? ''}
+                                  onBlur={e => { handleCellSave(item, 'estimated_unit_cost', e.target.value); setEditingCell(null); }}
+                                  onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingCell(null); }}
+                                  style={{ fontSize: 13, color: '#0F172A', background: '#F0F7FF', border: '1px solid #93C5FD', borderRadius: 5, padding: '2px 6px', width: 64, outline: 'none' }}
+                                />
+                              ) : (
+                                <span
+                                  onDoubleClick={() => setEditingCell({ itemId: item.id, field: 'estimated_unit_cost' })}
+                                  style={{ fontSize: 13, color: '#0F172A', cursor: 'default' }}
+                                >
+                                  {item.estimated_unit_cost != null ? `${currSymbol}${parseFloat(item.estimated_unit_cost).toFixed(2)}` : <span style={{ color: '#CBD5E1' }}>—</span>}
+                                </span>
+                              )}
+                            </div>
+                            {/* Total */}
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
+                              {(() => {
+                                const qty = parseFloat(item.quantity_ordered);
+                                const cost = parseFloat(item.estimated_unit_cost);
+                                return !isNaN(qty) && !isNaN(cost)
+                                  ? <span style={{ fontSize: 13, color: '#0F172A', fontWeight: 500 }}>{currSymbol}{(qty * cost).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                                  : <span style={{ fontSize: 13, color: '#CBD5E1' }}>—</span>;
+                              })()}
+                            </div>
+                            {/* Status badge select */}
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
+                              <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                                <span style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', width: 5, height: 5, borderRadius: '50%', background: badge.dot, pointerEvents: 'none', zIndex: 1 }} />
+                                <select
+                                  value={item.status || 'pending'}
+                                  onChange={e => handleStatusSave(item, 'status', e.target.value)}
+                                  style={{
+                                    paddingLeft: 16, paddingRight: 8, paddingTop: 3, paddingBottom: 3,
+                                    fontSize: 11, fontWeight: 600, background: badge.bg, color: badge.color,
+                                    border: `1px solid ${badge.border}`, borderRadius: 6,
+                                    cursor: 'pointer', outline: 'none', appearance: 'none',
+                                  }}
+                                >
+                                  {ITEM_STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                </select>
+                              </div>
+                            </div>
+                            {/* Actions */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '11px 0', gap: 2 }}>
+                              {isHovered && (
+                                <>
+                                  <button
+                                    onClick={() => setItemDrawer({ open: true, item })}
+                                    title="Edit"
+                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, background: 'none', border: 'none', borderRadius: 5, cursor: 'pointer', color: '#94A3B8' }}
+                                    onMouseEnter={e => e.currentTarget.style.background = '#F1F5F9'}
+                                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                  >
+                                    <Icon name="Pencil" style={{ width: 12, height: 12 }} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteItem(item.id)}
+                                    title="Delete"
+                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, background: 'none', border: 'none', borderRadius: 5, cursor: 'pointer', color: '#94A3B8' }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.color = '#EF4444'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#94A3B8'; }}
+                                  >
+                                    <Icon name="Trash2" style={{ width: 12, height: 12 }} />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Subtotal row */}
+                      <div style={{ display: 'grid', gridTemplateColumns: TABLE_GRID, gap: 0, padding: '0 16px', background: '#FAFAFA', borderTop: '1px solid #F1F5F9' }}>
+                        <div style={{ gridColumn: '1 / 6', padding: '8px 8px 8px 0' }}>
+                          <span style={{ fontSize: 11, color: '#94A3B8' }}>{deptItems.length} item{deptItems.length !== 1 ? 's' : ''}</span>
+                        </div>
+                        <div style={{ padding: '8px 8px', display: 'flex', alignItems: 'center' }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: '#1E3A5F' }}>{currSymbol}{deptSubtotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                        </div>
+                        <div />{/* status col */}
+                        <div />{/* actions col */}
+                      </div>
+
+                      {/* Add item row */}
+                      {addingToDept === dept ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderTop: '1px dashed #E2E8F0', background: '#FAFEFF' }}>
+                          <input
+                            autoFocus
+                            type="text"
+                            placeholder="Item name…"
+                            value={newItemName}
+                            onChange={e => setNewItemName(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') handleAddItem(dept); if (e.key === 'Escape') { setAddingToDept(null); setNewItemName(''); } }}
+                            style={{ flex: 1, fontSize: 13, background: 'white', border: '1px solid #93C5FD', borderRadius: 6, padding: '5px 10px', outline: 'none', color: '#0F172A' }}
+                          />
+                          <button onClick={() => handleAddItem(dept)} style={{ fontSize: 12, fontWeight: 600, padding: '5px 12px', background: '#1E3A5F', border: 'none', borderRadius: 6, color: 'white', cursor: 'pointer' }}>Add</button>
+                          <button onClick={() => { setAddingToDept(null); setNewItemName(''); }} style={{ fontSize: 12, padding: '5px 10px', background: 'none', border: '1px solid #E2E8F0', borderRadius: 6, color: '#94A3B8', cursor: 'pointer' }}>Cancel</button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => { setAddingToDept(dept); setNewItemName(''); }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '9px 16px', background: 'none', border: 'none', borderTop: '1px dashed #F1F5F9', cursor: 'pointer', fontSize: 12, color: '#CBD5E1', textAlign: 'left' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = '#FAFEFF'; e.currentTarget.style.color = '#4A90E2'; e.currentTarget.style.borderTopColor = '#4A90E2'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#CBD5E1'; e.currentTarget.style.borderTopColor = '#F1F5F9'; }}
+                        >
+                          <Icon name="Plus" style={{ width: 13, height: 13 }} /> Add item to {dept}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Grand total row */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderTop: '2px solid #F1F5F9', marginTop: 8, flexWrap: 'wrap', gap: 12 }}>
+                <span style={{ fontSize: 12, color: '#94A3B8' }}>{items.length} item{items.length !== 1 ? 's' : ''} total</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+                  <span style={{ fontSize: 12, color: '#94A3B8' }}>
+                    Estimated: <span style={{ fontWeight: 700, color: '#0F172A' }}>{currSymbol}{Math.round(grandTotals.estimated).toLocaleString()}</span>
                   </span>
                   {grandTotals.actual > 0 && (
-                    <span className="text-muted-foreground">
-                      Actual (received): <span className="font-semibold text-foreground">{formatCurrency(grandTotals.actual, currency)}</span>
+                    <span style={{ fontSize: 12, color: '#94A3B8' }}>
+                      Received: <span style={{ fontWeight: 700, color: '#15803D' }}>{currSymbol}{Math.round(grandTotals.actual).toLocaleString()}</span>
                     </span>
                   )}
                 </div>
               </div>
+
+              {/* ── Summary cards ─────────────────────────────────────── */}
+              {(() => {
+                const receivedValue = grandTotals.actual;
+                const outstandingValue = Math.max(0, grandTotals.estimated - grandTotals.actual);
+                const estimatedValue = grandTotals.estimated;
+                const summaryCards = [
+                  {
+                    label: 'Received',
+                    value: `${currSymbol}${Math.round(receivedValue).toLocaleString()}`,
+                    sub: `${items.filter(i => i.status === 'received').length} of ${items.length} items`,
+                    accent: '#4ADE80',
+                    valueColor: '#15803D',
+                  },
+                  {
+                    label: 'Outstanding',
+                    value: `${currSymbol}${Math.round(outstandingValue).toLocaleString()}`,
+                    sub: `${items.filter(i => i.status !== 'received').length} items pending`,
+                    accent: '#FCD34D',
+                    valueColor: '#B45309',
+                  },
+                  {
+                    label: 'Estimated Total',
+                    value: `${currSymbol}${Math.round(estimatedValue).toLocaleString()}`,
+                    sub: `${items.length} item${items.length !== 1 ? 's' : ''}`,
+                    accent: '#4A90E2',
+                    valueColor: '#1E3A5F',
+                  },
+                ];
+                return (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginTop: 24 }}>
+                    {summaryCards.map(card => (
+                      <div key={card.label} style={{ background: 'white', border: '1px solid #F1F5F9', borderLeft: `3px solid ${card.accent}`, borderRadius: 10, padding: '18px 20px' }}>
+                        <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#94A3B8', marginBottom: 8 }}>
+                          {card.label}
+                        </p>
+                        <p style={{ fontSize: 26, fontWeight: 700, color: card.valueColor, letterSpacing: '-0.02em', lineHeight: 1, marginBottom: 6 }}>
+                          {card.value}
+                        </p>
+                        <p style={{ fontSize: 11, color: '#CBD5E1' }}>{card.sub}</p>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </>
           )}
         </div>
