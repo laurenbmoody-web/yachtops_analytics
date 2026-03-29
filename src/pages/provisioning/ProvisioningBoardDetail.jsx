@@ -463,16 +463,16 @@ const ProvisioningBoardDetail = () => {
         <div style={{ background: 'white', borderBottom: '1px solid #F1F5F9' }}>
 
           {/* ROW 1 — back link ← → total */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 32px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', padding: '12px 32px 0' }}>
             <button
               onClick={() => navigate('/provisioning')}
-              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 8 }}
               onMouseEnter={e => e.currentTarget.style.color = '#1E3A5F'}
               onMouseLeave={e => e.currentTarget.style.color = '#94A3B8'}
             >
               <Icon name="ArrowLeft" style={{ width: 13, height: 13 }} /> Back to boards
             </button>
-            <div style={{ textAlign: 'right' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', paddingBottom: 8, textAlign: 'right' }}>
               <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#CBD5E1', margin: '0 0 4px' }}>
                 Estimated Total
               </p>
@@ -494,7 +494,7 @@ const ProvisioningBoardDetail = () => {
           </div>
 
           {/* ROW 2 — board name + status chip + overdue chip */}
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, padding: '8px 32px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '8px 32px 0', marginBottom: 6 }}>
             <h1 style={{ fontSize: 32, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.025em', lineHeight: 1.05, margin: 0, flexShrink: 0 }}>
               {renderTitle(list.title)}
             </h1>
@@ -757,9 +757,15 @@ const ProvisioningBoardDetail = () => {
                             });
                           }} style={{ width: 13, height: 13, accentColor: '#4A90E2', cursor: 'pointer' }} />
                         </div>
-                        {['Item', 'Category', 'Size · Unit · Qty', 'Unit Cost', 'Total', 'Status', ''].map((h, hi) => (
-                          <div key={hi} style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '10px 8px', display: 'flex', alignItems: 'center' }}>
-                            {h}
+                        {['Item', 'Category', null, 'Unit Cost', 'Total', 'Status', ''].map((h, hi) => (
+                          <div key={hi} style={{ fontSize: 9, fontWeight: 700, color: '#CBD5E1', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '10px 8px', display: 'flex', alignItems: 'center', width: '100%' }}>
+                            {hi === 2 ? (
+                              <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: 4 }}>
+                                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#CBD5E1', flex: '0 0 auto' }}>Size</span>
+                                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#CBD5E1', flex: '1 1 auto', textAlign: 'center' }}>Unit</span>
+                                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#CBD5E1', flex: '0 0 auto' }}>Qty</span>
+                              </div>
+                            ) : h}
                           </div>
                         ))}
                       </div>
