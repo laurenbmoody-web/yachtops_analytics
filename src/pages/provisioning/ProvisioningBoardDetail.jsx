@@ -969,6 +969,51 @@ const ProvisioningBoardDetail = () => {
                   )}
                 </div>
               </div>
+
+              {/* ── Summary cards ─────────────────────────────────────── */}
+              {(() => {
+                const receivedValue = grandTotals.actual;
+                const outstandingValue = Math.max(0, grandTotals.estimated - grandTotals.actual);
+                const estimatedValue = grandTotals.estimated;
+                const summaryCards = [
+                  {
+                    label: 'Received',
+                    value: `${currSymbol}${Math.round(receivedValue).toLocaleString()}`,
+                    sub: `${items.filter(i => i.status === 'received').length} of ${items.length} items`,
+                    accent: '#4ADE80',
+                    valueColor: '#15803D',
+                  },
+                  {
+                    label: 'Outstanding',
+                    value: `${currSymbol}${Math.round(outstandingValue).toLocaleString()}`,
+                    sub: `${items.filter(i => i.status !== 'received').length} items pending`,
+                    accent: '#FCD34D',
+                    valueColor: '#B45309',
+                  },
+                  {
+                    label: 'Estimated Total',
+                    value: `${currSymbol}${Math.round(estimatedValue).toLocaleString()}`,
+                    sub: `${items.length} item${items.length !== 1 ? 's' : ''}`,
+                    accent: '#4A90E2',
+                    valueColor: '#1E3A5F',
+                  },
+                ];
+                return (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginTop: 24 }}>
+                    {summaryCards.map(card => (
+                      <div key={card.label} style={{ background: 'white', border: '1px solid #F1F5F9', borderLeft: `3px solid ${card.accent}`, borderRadius: 10, padding: '18px 20px' }}>
+                        <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#94A3B8', marginBottom: 8 }}>
+                          {card.label}
+                        </p>
+                        <p style={{ fontSize: 26, fontWeight: 700, color: card.valueColor, letterSpacing: '-0.02em', lineHeight: 1, marginBottom: 6 }}>
+                          {card.value}
+                        </p>
+                        <p style={{ fontSize: 11, color: '#CBD5E1' }}>{card.sub}</p>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </>
           )}
         </div>
