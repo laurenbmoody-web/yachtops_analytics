@@ -391,8 +391,8 @@ const ProvisioningBoardDetail = () => {
 
   const TABLE_GRID = '36px minmax(200px,1.5fr) minmax(130px,0.8fr) minmax(190px,1fr) 90px 80px 120px 56px';
 
-  const CURR_SYMBOLS = { GBP: '£', USD: '$', EUR: '€' };
-  const currSymbol = CURR_SYMBOLS[currency] || '£';
+  const CURR_SYMBOLS = { USD: '$', EUR: '€' };
+  const currSymbol = CURR_SYMBOLS[list?.currency] || '£';
 
   // ── Additional computed values ────────────────────────────────────────────
 
@@ -472,7 +472,7 @@ const ProvisioningBoardDetail = () => {
           </button>
 
           {/* Two-column grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 48, alignItems: 'start', marginBottom: 32 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 48, alignItems: 'start', marginBottom: 32 }}>
 
             {/* Left */}
             <div>
@@ -494,8 +494,9 @@ const ProvisioningBoardDetail = () => {
                 {renderTitle(list.title)}
               </h1>
 
-              {/* Meta band — always rendered */}
-              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', minHeight: 20 }}>
+              {/* Meta band */}
+              {metaItems.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
                 {metaItems.map((m, idx) => (
                   <div key={idx} style={{
                     display: 'flex', alignItems: 'center', gap: 5,
@@ -523,6 +524,7 @@ const ProvisioningBoardDetail = () => {
                   </div>
                 ))}
               </div>
+              )}
             </div>
 
             {/* Right */}
@@ -549,7 +551,7 @@ const ProvisioningBoardDetail = () => {
               </div>
 
               {/* Actions row */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'nowrap', justifyContent: 'flex-end' }}>
                 <button
                   onClick={() => showToast('Smart Suggestions coming soon', 'success')}
                   style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '7px 13px', borderRadius: 7, cursor: 'pointer', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8' }}
@@ -822,7 +824,18 @@ const ProvisioningBoardDetail = () => {
                             {/* Category */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
                               <span style={{ fontSize: 12, color: '#64748B' }}>
-                                {[item.category, item.sub_category].filter(Boolean).join(' › ') || <span style={{ color: '#CBD5E1' }}>—</span>}
+                                {(() => {
+                                  const segs = [item.category, item.sub_category]
+                                    .filter(Boolean)
+                                    .join(' > ')
+                                    .split(/\s*[>›]\s*/)
+                                    .map(s => s.trim())
+                                    .filter(Boolean)
+                                    .filter((s, i, arr) => arr.indexOf(s) === i);
+                                  return segs.length > 0
+                                    ? segs.join(' › ')
+                                    : <span style={{ color: '#CBD5E1' }}>—</span>;
+                                })()}
                               </span>
                             </div>
                             {/* Size · Unit · Qty (compound) */}
