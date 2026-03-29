@@ -516,6 +516,23 @@ export const archiveTaxonomyL2 = (l2Id) => {
   }
 };
 
+export const setTaxonomyL2IsAlcohol = (l2Id, isAlcohol) => {
+  try {
+    const data = localStorage.getItem(TAXONOMY_L2_KEY);
+    const taxonomy = data ? JSON.parse(data) : [];
+    const index = taxonomy?.findIndex(t => t?.id === l2Id);
+    if (index !== -1) {
+      taxonomy[index] = { ...taxonomy[index], isAlcohol, updatedAt: new Date()?.toISOString() };
+      localStorage.setItem(TAXONOMY_L2_KEY, JSON.stringify(taxonomy));
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error('Error setting isAlcohol on L2:', error);
+    return false;
+  }
+};
+
 // ============================================
 // TAXONOMY L3 (SUBCATEGORY) - CRUD
 // ============================================

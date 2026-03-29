@@ -324,7 +324,12 @@ export const calculateTotalQuantity = (item) => {
       total += parseFloat(variant?.quantity || 0);
     });
   }
-  
+
+  // Add partial bottle fraction (0–1) for alcohol items
+  if (item?.partialBottle != null) {
+    total += parseFloat(item?.partialBottle || 0);
+  }
+
   return total;
 };
 
