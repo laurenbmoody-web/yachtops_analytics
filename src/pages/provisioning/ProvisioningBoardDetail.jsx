@@ -359,7 +359,7 @@ const ProvisioningBoardDetail = () => {
     if (!list?.department) return [];
     return Array.isArray(list.department) ? list.department.filter(Boolean) : list.department.split(',').map(d => d.trim()).filter(Boolean);
   }, [list]);
-  const currency = list?.currency || 'USD';
+  const currency = list?.currency || 'GBP';
   const isDraftOrPending = list?.status === PROVISIONING_STATUS.DRAFT || list?.status === PROVISIONING_STATUS.PENDING_APPROVAL;
 
   // ── Style constants ───────────────────────────────────────────────────────
@@ -389,10 +389,10 @@ const ProvisioningBoardDetail = () => {
     delivered:                    { dot: '#22C55E', text: '#22C55E' },
   };
 
-  const TABLE_GRID = '36px minmax(200px,1.5fr) minmax(160px,1fr) minmax(210px,1.2fr) 90px 90px 120px 56px';
+  const TABLE_GRID = '36px minmax(200px,1.5fr) minmax(130px,0.8fr) minmax(190px,1fr) 90px 80px 120px 56px';
 
   const CURR_SYMBOLS = { GBP: '£', USD: '$', EUR: '€' };
-  const currSymbol = CURR_SYMBOLS[currency] || '$';
+  const currSymbol = CURR_SYMBOLS[currency] || '£';
 
   // ── Additional computed values ────────────────────────────────────────────
 
@@ -494,37 +494,35 @@ const ProvisioningBoardDetail = () => {
                 {renderTitle(list.title)}
               </h1>
 
-              {/* Meta band */}
-              {metaItems.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
-                  {metaItems.map((m, idx) => (
-                    <div key={idx} style={{
-                      display: 'flex', alignItems: 'center', gap: 5,
-                      fontSize: 11, color: '#94A3B8',
-                      paddingLeft: idx === 0 ? 0 : 16, paddingRight: 16,
-                      borderRight: idx === metaItems.length - 1 ? 'none' : '1px solid #F1F5F9',
-                    }}>
-                      {m.type === 'chips' ? (
-                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                          {m.content.map(d => {
-                            const cs = getDeptChip(d);
-                            return (
-                              <span key={d} style={{ background: cs.bg, color: cs.color, fontSize: 9, fontWeight: 700, padding: '3px 8px', borderRadius: 3, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                                {d}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <>
-                          <Icon name={m.icon} style={{ width: 13, height: 13, flexShrink: 0 }} />
-                          {m.content}
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+              {/* Meta band — always rendered */}
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', minHeight: 20 }}>
+                {metaItems.map((m, idx) => (
+                  <div key={idx} style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    fontSize: 11, color: '#94A3B8',
+                    paddingLeft: idx === 0 ? 0 : 16, paddingRight: 16,
+                    borderRight: idx === metaItems.length - 1 ? 'none' : '1px solid #F1F5F9',
+                  }}>
+                    {m.type === 'chips' ? (
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                        {m.content.map(d => {
+                          const cs = getDeptChip(d);
+                          return (
+                            <span key={d} style={{ background: cs.bg, color: cs.color, fontSize: 9, fontWeight: 700, padding: '3px 8px', borderRadius: 3, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                              {d}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <>
+                        <Icon name={m.icon} style={{ width: 13, height: 13, flexShrink: 0 }} />
+                        {m.content}
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Right */}
@@ -716,7 +714,7 @@ const ProvisioningBoardDetail = () => {
         </div>
 
         {/* ── Items area ────────────────────────────────────────────────── */}
-        <div style={{ padding: '24px 32px 48px' }}>
+        <div style={{ padding: '24px 32px 48px', background: '#F8FAFC' }}>
           {deptGroups.length === 0 && !hasFilters ? (
             <div style={{ padding: '80px 0', textAlign: 'center' }}>
               <div style={{ width: 56, height: 56, background: '#F8FAFC', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
@@ -743,7 +741,7 @@ const ProvisioningBoardDetail = () => {
                   <div key={dept} style={{ marginBottom: 24 }}>
                     {/* Dept header row */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                      <span style={{ background: deptChip.bg, color: deptChip.color, fontSize: 10, fontWeight: 700, padding: '4px 10px', borderRadius: 4, letterSpacing: '0.06em', textTransform: 'uppercase', flexShrink: 0 }}>
+                      <span style={{ background: deptChip.bg, color: deptChip.color, fontSize: 9, fontWeight: 700, padding: '4px 10px', borderRadius: 4, letterSpacing: '0.06em', textTransform: 'uppercase', flexShrink: 0 }}>
                         {dept}
                       </span>
                       <span style={{ fontSize: 11, color: '#CBD5E1', flexShrink: 0 }}>{deptItems.length} item{deptItems.length !== 1 ? 's' : ''}</span>
@@ -752,7 +750,7 @@ const ProvisioningBoardDetail = () => {
                     </div>
 
                     {/* White card table */}
-                    <div style={{ background: 'white', border: '1px solid #F1F5F9', borderRadius: 10, overflow: 'hidden' }}>
+                    <div style={{ background: 'white', border: '1px solid #F1F5F9', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
                       {/* Table header */}
                       <div style={{ display: 'grid', gridTemplateColumns: TABLE_GRID, gap: 0, padding: '0 16px', background: '#FAFAFA', borderBottom: '1px solid #F1F5F9' }}>
                         {/* Checkbox */}
@@ -765,7 +763,7 @@ const ProvisioningBoardDetail = () => {
                             });
                           }} style={{ width: 13, height: 13, accentColor: '#4A90E2', cursor: 'pointer' }} />
                         </div>
-                        {['Item', 'Brand / Size', 'Category', 'Qty', 'Unit Cost', 'Status', ''].map((h, hi) => (
+                        {['Item', 'Category', 'Size · Unit · Qty', 'Unit Cost', 'Total', 'Status', ''].map((h, hi) => (
                           <div key={hi} style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '10px 8px', display: 'flex', alignItems: 'center' }}>
                             {h}
                           </div>
@@ -794,40 +792,59 @@ const ProvisioningBoardDetail = () => {
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 0' }}>
                               <input type="checkbox" checked={selectedItems.has(item.id)} onChange={() => toggleItem(item.id)} style={{ width: 13, height: 13, accentColor: '#4A90E2', cursor: 'pointer' }} />
                             </div>
-                            {/* Item name */}
-                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px', gap: 6 }}>
-                              {allergen && <span title="Allergen risk" style={{ fontSize: 11 }}>⚠</span>}
-                              {editingCell?.itemId === item.id && editingCell?.field === 'name' ? (
-                                <input
-                                  autoFocus
-                                  defaultValue={item.name}
-                                  onBlur={e => { handleCellSave(item, 'name', e.target.value); setEditingCell(null); }}
-                                  onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingCell(null); }}
-                                  style={{ fontSize: 13, color: '#0F172A', background: '#F0F7FF', border: '1px solid #93C5FD', borderRadius: 5, padding: '2px 6px', width: '100%', outline: 'none' }}
-                                />
-                              ) : (
-                                <span
-                                  onDoubleClick={() => setEditingCell({ itemId: item.id, field: 'name' })}
-                                  style={{ fontSize: 13, color: '#0F172A', fontWeight: 500, cursor: 'default', lineHeight: 1.3 }}
-                                >
-                                  {item.name}
+                            {/* Item (name + brand italic sub-text) */}
+                            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '9px 8px', gap: 2 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                {allergen && <span title="Allergen risk" style={{ fontSize: 11 }}>⚠</span>}
+                                {editingCell?.itemId === item.id && editingCell?.field === 'name' ? (
+                                  <input
+                                    autoFocus
+                                    defaultValue={item.name}
+                                    onBlur={e => { handleCellSave(item, 'name', e.target.value); setEditingCell(null); }}
+                                    onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingCell(null); }}
+                                    style={{ fontSize: 13, color: '#0F172A', background: '#F0F7FF', border: '1px solid #93C5FD', borderRadius: 5, padding: '2px 6px', width: '100%', outline: 'none' }}
+                                  />
+                                ) : (
+                                  <span
+                                    onDoubleClick={() => setEditingCell({ itemId: item.id, field: 'name' })}
+                                    style={{ fontSize: 13, color: '#0F172A', fontWeight: 500, cursor: 'default', lineHeight: 1.3 }}
+                                  >
+                                    {item.name}
+                                  </span>
+                                )}
+                              </div>
+                              {item.brand && (
+                                <span style={{ fontSize: 11, color: '#94A3B8', fontStyle: 'italic', paddingLeft: allergen ? 18 : 0 }}>
+                                  {item.brand}
                                 </span>
                               )}
-                            </div>
-                            {/* Brand / Size */}
-                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
-                              <span style={{ fontSize: 12, color: '#64748B' }}>
-                                {[item.brand, item.size].filter(Boolean).join(' · ') || <span style={{ color: '#CBD5E1' }}>—</span>}
-                              </span>
                             </div>
                             {/* Category */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
                               <span style={{ fontSize: 12, color: '#64748B' }}>
-                                {[item.category, item.sub_category].filter(Boolean).join(' / ') || <span style={{ color: '#CBD5E1' }}>—</span>}
+                                {[item.category, item.sub_category].filter(Boolean).join(' › ') || <span style={{ color: '#CBD5E1' }}>—</span>}
                               </span>
                             </div>
-                            {/* Qty + Unit */}
-                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px', gap: 4 }}>
+                            {/* Size · Unit · Qty (compound) */}
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px', gap: 4, flexWrap: 'nowrap', overflow: 'hidden' }}>
+                              {item.size && (
+                                <>
+                                  <span style={{ fontSize: 12, color: '#64748B', flexShrink: 0 }}>{item.size}</span>
+                                  <span style={{ fontSize: 11, color: '#CBD5E1', flexShrink: 0 }}>·</span>
+                                </>
+                              )}
+                              <select
+                                value={item.unit || 'each'}
+                                onChange={e => handleCellSave(item, 'unit', e.target.value)}
+                                style={{ fontSize: 11, color: '#64748B', background: 'none', border: 'none', outline: 'none', cursor: 'pointer', padding: 0, minWidth: 0, flexShrink: 1 }}
+                              >
+                                {PROVISION_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                              </select>
+                              <span style={{ fontSize: 11, color: '#CBD5E1', flexShrink: 0 }}>·</span>
+                              <button
+                                onClick={() => handleQtyStep(item, 'quantity_ordered', -1)}
+                                style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F1F5F9', border: 'none', borderRadius: 3, cursor: 'pointer', fontSize: 13, color: '#64748B', flexShrink: 0, lineHeight: 1, padding: 0 }}
+                              >−</button>
                               {editingCell?.itemId === item.id && editingCell?.field === 'quantity_ordered' ? (
                                 <input
                                   autoFocus
@@ -835,17 +852,20 @@ const ProvisioningBoardDetail = () => {
                                   defaultValue={item.quantity_ordered ?? ''}
                                   onBlur={e => { handleCellSave(item, 'quantity_ordered', e.target.value); setEditingCell(null); }}
                                   onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingCell(null); }}
-                                  style={{ fontSize: 13, color: '#0F172A', background: '#F0F7FF', border: '1px solid #93C5FD', borderRadius: 5, padding: '2px 6px', width: 56, outline: 'none' }}
+                                  style={{ fontSize: 13, color: '#0F172A', background: '#F0F7FF', border: '1px solid #93C5FD', borderRadius: 5, padding: '2px 4px', width: 44, outline: 'none', textAlign: 'center', flexShrink: 0 }}
                                 />
                               ) : (
                                 <span
                                   onDoubleClick={() => setEditingCell({ itemId: item.id, field: 'quantity_ordered' })}
-                                  style={{ fontSize: 13, color: '#0F172A', cursor: 'default', minWidth: 24 }}
+                                  style={{ fontSize: 13, color: '#0F172A', cursor: 'default', minWidth: 18, textAlign: 'center', flexShrink: 0 }}
                                 >
                                   {item.quantity_ordered ?? <span style={{ color: '#CBD5E1' }}>—</span>}
                                 </span>
                               )}
-                              <span style={{ fontSize: 11, color: '#94A3B8' }}>{item.unit || ''}</span>
+                              <button
+                                onClick={() => handleQtyStep(item, 'quantity_ordered', 1)}
+                                style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F1F5F9', border: 'none', borderRadius: 3, cursor: 'pointer', fontSize: 13, color: '#64748B', flexShrink: 0, lineHeight: 1, padding: 0 }}
+                              >+</button>
                             </div>
                             {/* Unit Cost */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
@@ -866,6 +886,16 @@ const ProvisioningBoardDetail = () => {
                                   {item.estimated_unit_cost != null ? `${currSymbol}${parseFloat(item.estimated_unit_cost).toFixed(2)}` : <span style={{ color: '#CBD5E1' }}>—</span>}
                                 </span>
                               )}
+                            </div>
+                            {/* Total */}
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
+                              {(() => {
+                                const qty = parseFloat(item.quantity_ordered);
+                                const cost = parseFloat(item.estimated_unit_cost);
+                                return !isNaN(qty) && !isNaN(cost)
+                                  ? <span style={{ fontSize: 13, color: '#0F172A', fontWeight: 500 }}>{currSymbol}{(qty * cost).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                                  : <span style={{ fontSize: 13, color: '#CBD5E1' }}>—</span>;
+                              })()}
                             </div>
                             {/* Status badge select */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
@@ -922,7 +952,8 @@ const ProvisioningBoardDetail = () => {
                         <div style={{ padding: '8px 8px', display: 'flex', alignItems: 'center' }}>
                           <span style={{ fontSize: 12, fontWeight: 600, color: '#1E3A5F' }}>{currSymbol}{deptSubtotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
                         </div>
-                        <div />
+                        <div />{/* status col */}
+                        <div />{/* actions col */}
                       </div>
 
                       {/* Add item row */}
