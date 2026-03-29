@@ -463,16 +463,16 @@ const ProvisioningBoardDetail = () => {
         <div style={{ background: 'white', borderBottom: '1px solid #F1F5F9' }}>
 
           {/* ROW 1 — back link ← → total */}
-          <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', padding: '12px 32px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', padding: '10px 32px 0' }}>
             <button
               onClick={() => navigate('/provisioning')}
-              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 8 }}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 6 }}
               onMouseEnter={e => e.currentTarget.style.color = '#1E3A5F'}
               onMouseLeave={e => e.currentTarget.style.color = '#94A3B8'}
             >
               <Icon name="ArrowLeft" style={{ width: 13, height: 13 }} /> Back to boards
             </button>
-            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', paddingBottom: 8, textAlign: 'right' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', minHeight: '100%', paddingBottom: 8, textAlign: 'right' }}>
               <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#CBD5E1', margin: '0 0 4px' }}>
                 Estimated Total
               </p>
@@ -498,7 +498,7 @@ const ProvisioningBoardDetail = () => {
             <h1 style={{ fontSize: 32, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.025em', lineHeight: 1.05, margin: 0, flexShrink: 0 }}>
               {renderTitle(list.title)}
             </h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, marginTop: 6 }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: heroStatus.dot, display: 'inline-block', flexShrink: 0 }} />
               <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: heroStatus.text, whiteSpace: 'nowrap' }}>
                 {statusLabel}
