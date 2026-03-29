@@ -140,6 +140,8 @@ const ProvisioningBoardDetail = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [itemDrawer, setItemDrawer] = useState({ open: false, item: null });
+  const [activeTab, setActiveTab] = useState('items');
+  const [hoveredRow, setHoveredRow] = useState(null);
   const menuRef = useRef(null);
 
   const userTier = (user?.permission_tier || user?.effectiveTier || '').toUpperCase();
@@ -360,6 +362,68 @@ const ProvisioningBoardDetail = () => {
   const currency = list?.currency || 'USD';
   const isDraftOrPending = list?.status === PROVISIONING_STATUS.DRAFT || list?.status === PROVISIONING_STATUS.PENDING_APPROVAL;
 
+  // ── Style constants ───────────────────────────────────────────────────────
+
+  const DEPT_CHIP_STYLES = {
+    Galley:      { bg: '#FEF9C3', color: '#854D0E' },
+    Interior:    { bg: '#EDE9FE', color: '#5B21B6' },
+    Deck:        { bg: '#DCFCE7', color: '#166534' },
+    Engineering: { bg: '#FFF7ED', color: '#9A3412' },
+  };
+  const getDeptChip = (dept) => DEPT_CHIP_STYLES[dept] || { bg: '#F1F5F9', color: '#64748B' };
+
+  const STATUS_BADGE = {
+    pending:         { bg: '#F8FAFC', color: '#94A3B8', border: '#F1F5F9', dot: '#CBD5E1', label: 'Pending' },
+    ordered:         { bg: '#EFF6FF', color: '#1D4ED8', border: '#BFDBFE', dot: '#60A5FA', label: 'Ordered' },
+    received:        { bg: '#F0FDF4', color: '#15803D', border: '#BBF7D0', dot: '#4ADE80', label: 'Received' },
+    short_delivered: { bg: '#FFFBEB', color: '#B45309', border: '#FDE68A', dot: '#FCD34D', label: 'Short' },
+    not_delivered:   { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA', dot: '#FCA5A5', label: 'Not Delivered' },
+  };
+
+  const STATUS_HERO_COLOR = {
+    draft:                        { dot: '#94A3B8', text: '#94A3B8' },
+    pending_approval:             { dot: '#F59E0B', text: '#F59E0B' },
+    sent_to_supplier:             { dot: '#3B82F6', text: '#3B82F6' },
+    partially_delivered:          { dot: '#F59E0B', text: '#F59E0B' },
+    delivered_with_discrepancies: { dot: '#EF4444', text: '#EF4444' },
+    delivered:                    { dot: '#22C55E', text: '#22C55E' },
+  };
+
+  const TABLE_GRID = '36px minmax(200px,1.5fr) minmax(160px,1fr) minmax(210px,1.2fr) 90px 90px 120px 56px';
+
+  const CURR_SYMBOLS = { GBP: '£', USD: '$', EUR: '€' };
+  const currSymbol = CURR_SYMBOLS[currency] || '$';
+
+  // ── Additional computed values ────────────────────────────────────────────
+
+  const isOverdue = list?.order_by_date
+    ? new Date(list.order_by_date) < new Date(new Date().setHours(0, 0, 0, 0))
+    : false;
+
+  const heroStatus = STATUS_HERO_COLOR[list?.status] || { dot: '#94A3B8', text: '#94A3B8' };
+  const statusLabel = (list?.status || '').replace(/_/g, ' ').toUpperCase();
+
+  const renderTitle = (title = '') => {
+    const emIdx = title.indexOf('—');
+    const hypIdx = title.indexOf(' - ');
+    const idx = emIdx !== -1 ? emIdx : hypIdx;
+    const sep = emIdx !== -1 ? '—' : ' - ';
+    if (idx === -1) return <span>{title}</span>;
+    return (
+      <>
+        <span>{title.slice(0, idx + sep.length)}</span>
+        <span style={{ color: '#4A90E2' }}>{title.slice(idx + sep.length)}</span>
+      </>
+    );
+  };
+
+  const metaItems = [
+    trip && { icon: 'Calendar', content: trip.title || trip.name },
+    list?.port_location && { icon: 'MapPin', content: list.port_location },
+    supplierName && { icon: 'User', content: supplierName },
+    deptTags.length > 0 && { type: 'chips', content: deptTags },
+  ].filter(Boolean);
+
   // ── States ────────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -394,79 +458,187 @@ const ProvisioningBoardDetail = () => {
       <Header />
       <div className="min-h-screen bg-background">
 
-        {/* ── Page header ──────────────────────────────────────────────── */}
-        <div className="sticky top-0 z-20 bg-background border-b border-border px-6 py-3">
+        {/* ── Hero ─────────────────────────────────────────────────────── */}
+        <div style={{ background: 'white', borderBottom: '1px solid #F1F5F9', padding: '36px 32px 0' }}>
+
+          {/* Back link */}
           <button
             onClick={() => navigate('/provisioning')}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-2 transition-colors"
+            style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 20, padding: 0 }}
+            onMouseEnter={e => e.currentTarget.style.color = '#1E3A5F'}
+            onMouseLeave={e => e.currentTarget.style.color = '#94A3B8'}
           >
-            <Icon name="ArrowLeft" className="w-3.5 h-3.5" /> Back to boards
+            <Icon name="ArrowLeft" style={{ width: 13, height: 13 }} /> Back to boards
           </button>
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl font-bold text-foreground">{list.title}</h1>
-              <StatusBadge status={list.status} />
-              {list.order_by_date && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-muted rounded-full text-xs text-muted-foreground border border-border">
-                  <Icon name="Calendar" className="w-3 h-3" />
-                  {new Date(list.order_by_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+
+          {/* Two-column grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 48, alignItems: 'start', marginBottom: 32 }}>
+
+            {/* Left */}
+            <div>
+              {/* Status line */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: heroStatus.dot, flexShrink: 0 }} />
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: heroStatus.text }}>
+                  {statusLabel}
                 </span>
+                {isOverdue && (
+                  <span style={{ fontSize: 10, color: '#EF4444', background: '#FEF2F2', padding: '2px 8px', borderRadius: 4, border: '1px solid #FECACA' }}>
+                    Overdue
+                  </span>
+                )}
+              </div>
+
+              {/* Board name */}
+              <h1 style={{ fontSize: 32, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.025em', lineHeight: 1.05, marginBottom: 18, margin: '0 0 18px' }}>
+                {renderTitle(list.title)}
+              </h1>
+
+              {/* Meta band */}
+              {metaItems.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {metaItems.map((m, idx) => (
+                    <div key={idx} style={{
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      fontSize: 11, color: '#94A3B8',
+                      paddingLeft: idx === 0 ? 0 : 16, paddingRight: 16,
+                      borderRight: idx === metaItems.length - 1 ? 'none' : '1px solid #F1F5F9',
+                    }}>
+                      {m.type === 'chips' ? (
+                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                          {m.content.map(d => {
+                            const cs = getDeptChip(d);
+                            return (
+                              <span key={d} style={{ background: cs.bg, color: cs.color, fontSize: 9, fontWeight: 700, padding: '3px 8px', borderRadius: 3, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                                {d}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <>
+                          <Icon name={m.icon} style={{ width: 13, height: 13, flexShrink: 0 }} />
+                          {m.content}
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              {isDraftOrPending && (
+
+            {/* Right */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 16 }}>
+              {/* Total block */}
+              <div style={{ textAlign: 'right' }}>
+                <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#CBD5E1', marginBottom: 6 }}>
+                  Estimated Total
+                </p>
+                <div style={{ fontSize: 40, fontWeight: 300, color: '#0F172A', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                  <span style={{ fontSize: 20, color: '#CBD5E1', fontWeight: 300 }}>{currSymbol}</span>
+                  {Math.round(grandTotals.estimated).toLocaleString()}
+                </div>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
+                  <span style={{ fontSize: 11, color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4ADE80', display: 'inline-block', flexShrink: 0 }} />
+                    {currSymbol}{Math.round(grandTotals.actual).toLocaleString()} received
+                  </span>
+                  <span style={{ fontSize: 11, color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FCD34D', display: 'inline-block', flexShrink: 0 }} />
+                    {currSymbol}{Math.round(Math.max(0, grandTotals.estimated - grandTotals.actual)).toLocaleString()} outstanding
+                  </span>
+                </div>
+              </div>
+
+              {/* Actions row */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 <button
-                  onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)}
-                  className="px-3 py-1.5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/80 transition-colors"
+                  onClick={() => showToast('Smart Suggestions coming soon', 'success')}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '7px 13px', borderRadius: 7, cursor: 'pointer', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8' }}
                 >
-                  Submit for Approval
+                  ✦ Suggestions
                 </button>
-              )}
-              <div className="relative" ref={menuRef}>
                 <button
-                  onClick={() => setShowMenu(v => !v)}
-                  className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => showToast('Templates coming soon', 'success')}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, padding: '7px 13px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
                 >
-                  <Icon name="MoreHorizontal" className="w-5 h-5" />
+                  <Icon name="FileText" style={{ width: 13, height: 13 }} /> Templates
                 </button>
-                {showMenu && (
-                  <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[185px] z-50">
-                    <button onClick={() => { setShowMenu(false); setShowEditModal(true); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
-                      <Icon name="Pencil" className="w-4 h-4" /> Edit Board
-                    </button>
-                    {isDraftOrPending && (
-                      <button onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
-                        <Icon name="Send" className="w-4 h-4" /> Submit for Approval
-                      </button>
-                    )}
-                    <button onClick={handleDuplicate} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
-                      <Icon name="Copy" className="w-4 h-4" /> Duplicate
-                    </button>
-                    {canDelete && (
-                      <>
-                        <div className="my-1 border-t border-border" />
-                        <button onClick={handleDeleteBoard} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 flex items-center gap-2">
-                          <Icon name="Trash2" className="w-4 h-4" /> Delete Board
-                        </button>
-                      </>
-                    )}
-                  </div>
+                <button
+                  onClick={() => { showToast('Use "Save as PDF" in the print dialog', 'success'); setTimeout(() => window.print(), 300); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, padding: '7px 13px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
+                >
+                  <Icon name="FileDown" style={{ width: 13, height: 13 }} /> PDF
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, padding: '7px 13px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
+                >
+                  <Icon name="Printer" style={{ width: 13, height: 13 }} /> Print
+                </button>
+                {isDraftOrPending && (
+                  <button
+                    onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '7px 13px', borderRadius: 7, cursor: 'pointer', background: '#1E3A5F', border: '1px solid #1E3A5F', color: 'white' }}
+                  >
+                    <Icon name="Send" style={{ width: 13, height: 13 }} /> Submit for Approval
+                  </button>
                 )}
+                {/* More options */}
+                <div className="relative" ref={menuRef}>
+                  <button
+                    onClick={() => setShowMenu(v => !v)}
+                    style={{ display: 'flex', alignItems: 'center', padding: '7px 9px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
+                  >
+                    <Icon name="MoreHorizontal" style={{ width: 14, height: 14 }} />
+                  </button>
+                  {showMenu && (
+                    <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[185px] z-50">
+                      <button onClick={() => { setShowMenu(false); setShowEditModal(true); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
+                        <Icon name="Pencil" className="w-4 h-4" /> Edit Board
+                      </button>
+                      <button onClick={handleDuplicate} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
+                        <Icon name="Copy" className="w-4 h-4" /> Duplicate
+                      </button>
+                      {canDelete && (
+                        <>
+                          <div className="my-1 border-t border-border" />
+                          <button onClick={handleDeleteBoard} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 flex items-center gap-2">
+                            <Icon name="Trash2" className="w-4 h-4" /> Delete Board
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* ── Meta row ─────────────────────────────────────────────────── */}
-        {(trip || list.port_location || supplierName || list.estimated_cost || deptTags.length > 0) && (
-          <div className="px-6 py-2.5 border-b border-border flex flex-wrap items-center gap-x-5 gap-y-1.5 bg-muted/20 text-[13px] text-muted-foreground">
-            {trip && <span className="flex items-center gap-1.5"><Icon name="Anchor" className="w-3.5 h-3.5 flex-shrink-0" />{trip.title || trip.name}</span>}
-            {list.port_location && <span className="flex items-center gap-1.5"><Icon name="MapPin" className="w-3.5 h-3.5 flex-shrink-0" />{list.port_location}</span>}
-            {supplierName && <span className="flex items-center gap-1.5"><Icon name="Building2" className="w-3.5 h-3.5 flex-shrink-0" />{supplierName}</span>}
-            {list.estimated_cost > 0 && <span className="flex items-center gap-1.5"><Icon name="DollarSign" className="w-3.5 h-3.5 flex-shrink-0" />Est. {formatCurrency(list.estimated_cost, currency)}</span>}
-            {deptTags.map(d => <span key={d} className="px-2 py-0.5 bg-muted border border-border rounded text-xs">{d}</span>)}
+          {/* Tabs */}
+          <div style={{ display: 'flex', borderTop: '1px solid #F8FAFC', marginTop: 0 }}>
+            {[
+              { id: 'items', label: 'Items' },
+              { id: 'details', label: 'Board Details' },
+              { id: 'deliveries', label: 'Deliveries' },
+              { id: 'history', label: 'History' },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  fontSize: 12, fontWeight: activeTab === tab.id ? 600 : 500,
+                  color: activeTab === tab.id ? '#1E3A5F' : '#94A3B8',
+                  padding: '12px 18px', cursor: 'pointer', background: 'none', border: 'none',
+                  borderBottom: activeTab === tab.id ? '2px solid #4A90E2' : '2px solid transparent',
+                  marginBottom: -1, transition: 'all 0.15s',
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
-        )}
+        </div>
 
         {/* ── Allergen banner ───────────────────────────────────────────── */}
         {allergenGuests.length > 0 && (
