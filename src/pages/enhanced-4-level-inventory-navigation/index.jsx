@@ -1761,7 +1761,7 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQ
 };
 
 // ─── Folder Card ───────────────────────────────────────────────────────────────
-const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onClick, canEdit, onEdit, onDelete, onCog, onVisibilityChange, canMove, dragHandleProps, isDragging, isFolderDropTarget, isDropTargetReady, showCog }) => (
+const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onClick, canEdit, onEdit, onDelete, onCog, onPalette, onVisibilityChange, canMove, dragHandleProps, isDragging, isFolderDropTarget, isDropTargetReady, showCog }) => (
   <div
     onClick={onClick}
     className={[
@@ -1812,6 +1812,15 @@ const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onCli
             <span>Move inside</span>
           </div>
         )}
+        {canEdit && onPalette && !isFolderDropTarget && (
+          <button
+            onClick={(e) => { e?.stopPropagation(); onPalette?.(); }}
+            className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+            title="Edit icon &amp; colour"
+          >
+            <Icon name="Palette" size={14} />
+          </button>
+        )}
         {showCog && onCog && !isFolderDropTarget && (
           <button
             onClick={(e) => { e?.stopPropagation(); onCog?.(); }}
@@ -1851,7 +1860,7 @@ const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onCli
 );
 
 // ─── Sortable Folder Card Wrapper ─────────────────────────────────────────────
-const SortableFolderCard = ({ id, name, icon, color, itemCount, subFolderCount, depth, onClick, canEdit, onEdit, onDelete, onCog, showCog, folderDropTargetId, folderDropTargetReady }) => {
+const SortableFolderCard = ({ id, name, icon, color, itemCount, subFolderCount, depth, onClick, canEdit, onEdit, onDelete, onCog, onPalette, showCog, folderDropTargetId, folderDropTargetReady }) => {
   const {
     attributes,
     listeners,
@@ -1883,6 +1892,7 @@ const SortableFolderCard = ({ id, name, icon, color, itemCount, subFolderCount, 
         onEdit={onEdit}
         onDelete={onDelete}
         onCog={onCog}
+        onPalette={onPalette}
         showCog={showCog}
         dragHandleProps={{ ...attributes, ...listeners }}
         isDragging={isDragging}
@@ -3382,6 +3392,7 @@ const LocationFirstInventory = () => {
                         onEdit={() => setEditingFolderName(folderName)}
                         onDelete={() => setDeletingFolderName(folderName)}
                         onCog={() => setCogFolderName(folderName)}
+                        onPalette={canEdit && !isFolderReadOnly(folderName) ? () => setAppearanceFolderName(folderName) : undefined}
                         showCog={showCog}
                         folderDropTargetId={folderDropTargetId}
                         folderDropTargetReady={folderDropTargetReady}
