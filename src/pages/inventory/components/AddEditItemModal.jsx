@@ -10,6 +10,20 @@ const SUGGESTED_TAGS = ['drinks', 'wine', 'cleaning', 'spares', 'linen', 'snacks
 
 const WINE_KEYWORDS = ['wine', 'vino', 'champagne', 'prosecco', 'cava', 'bordeaux', 'burgundy', 'rioja', 'chianti', 'merlot', 'cabernet', 'chardonnay', 'sauvignon', 'pinot', 'shiraz', 'syrah', 'riesling', 'viognier', 'rosé', 'rose'];
 
+const ALCOHOL_KEYWORDS = [
+  ...WINE_KEYWORDS,
+  'alcohol', 'spirits', 'vodka', 'gin', 'whisky', 'whiskey', 'rum', 'tequila', 'mezcal',
+  'brandy', 'cognac', 'beer', 'lager', 'ale', 'stout', 'ipa', 'craft beer', 'liqueur',
+  'aperitif', 'digestif', 'vermouth', 'amaro', 'port', 'sherry', 'mead',
+  'bar stock', 'cellar', 'drinks store', 'beverages',
+];
+
+const autoDetectAlcohol = (folderDisplay) => {
+  if (!folderDisplay) return false;
+  const lower = folderDisplay?.toLowerCase();
+  return ALCOHOL_KEYWORDS?.some(kw => lower?.includes(kw));
+};
+
 const pathKey = (segments) => segments?.join('|||');
 const getSubFoldersFromTree = (tree, segments) => tree?.[pathKey(segments)]?.subFolders || [];
 const buildFolderPath = (segments) => segments?.join(' > ');
@@ -557,6 +571,7 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
     tastingNotes: '',
     inventoryFolderPath: defaultLocation ? (defaultSubLocation ? [defaultLocation, defaultSubLocation] : [defaultLocation]) : [],
     inventoryFolderDisplay: defaultLocation ? (defaultSubLocation ? `${defaultLocation} > ${defaultSubLocation}` : defaultLocation) : '',
+    isAlcohol: autoDetectAlcohol(defaultLocation ? (defaultSubLocation ? `${defaultLocation} > ${defaultSubLocation}` : defaultLocation) : ''),
   });
 
   const [locationRows, setLocationRows] = useState([emptyLocationRow()]);
@@ -639,6 +654,7 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
         tastingNotes: item?.tastingNotes || '',
         inventoryFolderPath: folderPath,
         inventoryFolderDisplay: folderDisplay,
+        isAlcohol: item?.isAlcohol ?? autoDetectAlcohol(folderDisplay),
       });
 
       if (item?.defaultLocationId) {
@@ -675,6 +691,8 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
       ...prev,
       inventoryFolderPath: path,
       inventoryFolderDisplay: displayPath,
+      // Auto-detect alcohol from folder path on new items; preserve explicit user setting on edit
+      ...(!isEdit && { isAlcohol: autoDetectAlcohol(displayPath) }),
     }));
     setErrors(prev => ({ ...prev, inventoryFolder: null }));
     setShowFolderPicker(false);
@@ -766,6 +784,7 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
         restockLevel: formData?.restockLevel !== '' ? parseFloat(formData?.restockLevel) : null,
         unitCost: formData?.unitCost !== '' ? parseFloat(formData?.unitCost) : null,
         year: formData?.year !== '' ? parseInt(formData?.year, 10) : null,
+        isAlcohol: formData?.isAlcohol ?? false,
       };
 
       const result = await saveItem(payload);
@@ -890,6 +909,32 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
                 <Icon name="ChevronRight" size={16} className="text-muted-foreground shrink-0" />
               </button>
               {errors?.inventoryFolder && <p className="mt-1 text-xs text-red-500">{errors?.inventoryFolder}</p>}
+            </div>
+
+            {/* ── Alcohol Toggle ── */}
+            <div className="flex items-center justify-between py-2.5 px-3 bg-muted/40 rounded-xl border border-border">
+              <div>
+                <p className="text-sm font-medium text-foreground">Alcoholic beverage</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Enables partial bottle tracking</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleChange('isAlcohol', !formData?.isAlcohol)}
+                style={{
+                  width: 44, height: 24, borderRadius: 12, flexShrink: 0,
+                  background: formData?.isAlcohol ? '#8B1538' : 'var(--color-border, #CBD5E1)',
+                  border: 'none', cursor: 'pointer', position: 'relative',
+                  transition: 'background 0.2s',
+                }}
+                aria-checked={formData?.isAlcohol}
+                role="switch"
+              >
+                <span style={{
+                  position: 'absolute', top: 3, left: formData?.isAlcohol ? 23 : 3,
+                  width: 18, height: 18, borderRadius: '50%', background: '#fff',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s',
+                }} />
+              </button>
             </div>
 
             {/* ── Year / Vintage ── */}

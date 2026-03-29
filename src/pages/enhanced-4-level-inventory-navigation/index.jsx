@@ -1096,6 +1096,9 @@ const ALCOHOL_PATH_KEYWORDS = [
 ];
 
 const isAlcoholItem = (item) => {
+  // Prefer the explicit DB flag set via the Add/Edit modal
+  if (item?.isAlcohol != null) return !!item?.isAlcohol;
+  // Fall back to keyword detection on the item's taxonomy/location path
   const pathText = [item?.subLocation, item?.location, item?.l3Name, item?.l2Name, item?.l1Name]
     .filter(Boolean).join(' ').toLowerCase();
   return ALCOHOL_PATH_KEYWORDS.some(kw => pathText.includes(kw));
