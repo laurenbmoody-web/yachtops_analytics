@@ -40,11 +40,11 @@ export const getAllItems = () => {
   try {
     const data = localStorage.getItem(STORAGE_KEY);
     const allItems = data ? JSON.parse(data) : [];
-    
+
     // Apply department scope enforcement at data level
     const currentUser = getCurrentUser();
     const requestedScope = getDepartmentScope();
-    
+
     return enforceDepartmentScopeForInventory(
       allItems,
       getItemDepartment,
@@ -53,6 +53,17 @@ export const getAllItems = () => {
     );
   } catch (error) {
     console.error('Error loading inventory items:', error);
+    return [];
+  }
+};
+
+// Read all items from storage WITHOUT department filtering (for mutations)
+const getAllItemsRaw = () => {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch (error) {
+    console.error('Error loading raw inventory items:', error);
     return [];
   }
 };
@@ -157,7 +168,7 @@ const checkRestockAlert = (item, previousTotal) => {
 // Save item (add or update)
 export const saveItem = (itemData) => {
   try {
-    const items = getAllItems();
+    const items = getAllItemsRaw();
     const timestamp = new Date()?.toISOString();
     
     // Get previous total for restock check
@@ -222,7 +233,7 @@ export const saveItem = (itemData) => {
 // Delete item
 export const deleteItem = (itemId) => {
   try {
-    const items = getAllItems();
+    const items = getAllItemsRaw();
     const filtered = items?.filter(item => item?.id !== itemId);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
     return true;
@@ -241,7 +252,7 @@ export const deleteItem = (itemId) => {
  */
 export const deleteCategory = (categoryName, deleteItems = false, assetId = null) => {
   try {
-    const items = getAllItems();
+    const items = getAllItemsRaw();
     const normalizedCategory = normalizeCategoryNameUtil(categoryName);
     
     if (deleteItems) {
