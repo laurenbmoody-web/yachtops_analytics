@@ -462,17 +462,72 @@ const ProvisioningBoardDetail = () => {
         {/* ── Hero ─────────────────────────────────────────────────────── */}
         <div style={{ background: 'white', borderBottom: '1px solid #F1F5F9' }}>
 
-          {/* ROW 1 — back link ← → total */}
-          <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', padding: '10px 32px 0' }}>
-            <button
-              onClick={() => navigate('/provisioning')}
-              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 6 }}
-              onMouseEnter={e => e.currentTarget.style.color = '#1E3A5F'}
-              onMouseLeave={e => e.currentTarget.style.color = '#94A3B8'}
-            >
-              <Icon name="ArrowLeft" style={{ width: 13, height: 13 }} /> Back to boards
-            </button>
-            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', minHeight: '100%', paddingBottom: 8, textAlign: 'right' }}>
+          {/* Left column (back link + title + meta) ← → Right column (total) */}
+          <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', padding: '4px 32px 0' }}>
+
+            {/* Left column */}
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {/* Back link */}
+              <button
+                onClick={() => navigate('/provisioning')}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 4 }}
+                onMouseEnter={e => e.currentTarget.style.color = '#1E3A5F'}
+                onMouseLeave={e => e.currentTarget.style.color = '#94A3B8'}
+              >
+                <Icon name="ArrowLeft" style={{ width: 13, height: 13 }} /> Back to boards
+              </button>
+              {/* Board name + status chip + overdue chip */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 6 }}>
+                <h1 style={{ fontSize: 32, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.025em', lineHeight: 1.05, margin: 0, flexShrink: 0 }}>
+                  {renderTitle(list.title)}
+                </h1>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, marginTop: 6 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: heroStatus.dot, display: 'inline-block', flexShrink: 0 }} />
+                  <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: heroStatus.text, whiteSpace: 'nowrap' }}>
+                    {statusLabel}
+                  </span>
+                </div>
+                {isOverdue && (
+                  <span style={{ fontSize: 10, color: '#EF4444', background: '#FEF2F2', padding: '2px 8px', borderRadius: 4, border: '1px solid #FECACA', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                    Overdue
+                  </span>
+                )}
+              </div>
+              {/* Meta band (conditional) */}
+              {metaItems.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {metaItems.map((m, idx) => (
+                    <div key={idx} style={{
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      fontSize: 11, color: '#94A3B8',
+                      paddingLeft: idx === 0 ? 0 : 16, paddingRight: 16,
+                      borderRight: idx === metaItems.length - 1 ? 'none' : '1px solid #F1F5F9',
+                    }}>
+                      {m.type === 'chips' ? (
+                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                          {m.content.map(d => {
+                            const cs = getDeptChip(d);
+                            return (
+                              <span key={d} style={{ background: cs.bg, color: cs.color, fontSize: 9, fontWeight: 700, padding: '3px 8px', borderRadius: 3, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                                {d}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <>
+                          <Icon name={m.icon} style={{ width: 13, height: 13, flexShrink: 0 }} />
+                          {m.content}
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Right column — total pinned to bottom */}
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', paddingBottom: 8, textAlign: 'right' }}>
               <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#CBD5E1', margin: '0 0 4px' }}>
                 Estimated Total
               </p>
@@ -491,57 +546,8 @@ const ProvisioningBoardDetail = () => {
                 </span>
               </div>
             </div>
-          </div>
 
-          {/* ROW 2 — board name + status chip + overdue chip */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '8px 32px 0', marginBottom: 6 }}>
-            <h1 style={{ fontSize: 32, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.025em', lineHeight: 1.05, margin: 0, flexShrink: 0 }}>
-              {renderTitle(list.title)}
-            </h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, marginTop: 6 }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: heroStatus.dot, display: 'inline-block', flexShrink: 0 }} />
-              <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: heroStatus.text, whiteSpace: 'nowrap' }}>
-                {statusLabel}
-              </span>
-            </div>
-            {isOverdue && (
-              <span style={{ fontSize: 10, color: '#EF4444', background: '#FEF2F2', padding: '2px 8px', borderRadius: 4, border: '1px solid #FECACA', flexShrink: 0, whiteSpace: 'nowrap' }}>
-                Overdue
-              </span>
-            )}
           </div>
-
-          {/* ROW 3 — meta band (only when data exists) */}
-          {metaItems.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', padding: '6px 32px 0' }}>
-              {metaItems.map((m, idx) => (
-                <div key={idx} style={{
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  fontSize: 11, color: '#94A3B8',
-                  paddingLeft: idx === 0 ? 0 : 16, paddingRight: 16,
-                  borderRight: idx === metaItems.length - 1 ? 'none' : '1px solid #F1F5F9',
-                }}>
-                  {m.type === 'chips' ? (
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                      {m.content.map(d => {
-                        const cs = getDeptChip(d);
-                        return (
-                          <span key={d} style={{ background: cs.bg, color: cs.color, fontSize: 9, fontWeight: 700, padding: '3px 8px', borderRadius: 3, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                            {d}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <>
-                      <Icon name={m.icon} style={{ width: 13, height: 13, flexShrink: 0 }} />
-                      {m.content}
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
 
           {/* Tab bar + actions (single row) */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 32px', borderTop: '1px solid #F1F5F9', marginTop: 12 }}>
