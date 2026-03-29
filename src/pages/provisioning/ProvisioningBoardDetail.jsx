@@ -655,43 +655,64 @@ const ProvisioningBoardDetail = () => {
         )}
 
         {/* ── Toolbar ───────────────────────────────────────────────────── */}
-        <div className="px-6 py-3 flex items-center justify-between gap-4 border-b border-border flex-wrap">
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="relative">
-              <Icon name="Search" className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+        <div style={{ background: 'white', borderBottom: '1px solid #F1F5F9', padding: '10px 32px', position: 'sticky', top: 0, zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {/* Search */}
+            <div style={{ position: 'relative' }}>
+              <Icon name="Search" style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', width: 13, height: 13, color: '#CBD5E1', pointerEvents: 'none' }} />
               <input
-                type="text" placeholder="Search items…" value={searchQuery}
+                type="text"
+                placeholder="Search items…"
+                value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="pl-8 pr-3 py-1.5 text-sm bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary w-44"
+                style={{ paddingLeft: 28, paddingRight: 10, paddingTop: 6, paddingBottom: 6, fontSize: 12, background: '#F8FAFC', border: '1px solid #F1F5F9', borderRadius: 7, color: '#0F172A', outline: 'none', width: 220 }}
               />
             </div>
-            <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)} className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary">
+            {/* Dept filter */}
+            <select
+              value={deptFilter}
+              onChange={e => setDeptFilter(e.target.value)}
+              style={{ fontSize: 11, background: 'white', border: '1px solid #F1F5F9', borderRadius: 7, padding: '6px 10px', color: '#64748B', outline: 'none', cursor: 'pointer' }}
+            >
               <option value="all">All depts</option>
               {departments.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary">
+            {/* Status filter */}
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+              style={{ fontSize: 11, background: 'white', border: '1px solid #F1F5F9', borderRadius: 7, padding: '6px 10px', color: '#64748B', outline: 'none', cursor: 'pointer' }}
+            >
               <option value="all">All statuses</option>
               {ITEM_STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
             {hasFilters && (
-              <button onClick={() => { setSearchQuery(''); setDeptFilter('all'); setStatusFilter('all'); }} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              <button
+                onClick={() => { setSearchQuery(''); setDeptFilter('all'); setStatusFilter('all'); }}
+                style={{ fontSize: 11, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
+                onMouseEnter={e => e.currentTarget.style.color = '#1E3A5F'}
+                onMouseLeave={e => e.currentTarget.style.color = '#94A3B8'}
+              >
                 Clear filters
               </button>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => window.print()} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground border border-border rounded-lg hover:bg-muted transition-colors">
-              <Icon name="Printer" className="w-4 h-4" /> Print
-            </button>
-            <button onClick={() => { showToast('Use "Save as PDF" in the print dialog', 'success'); setTimeout(() => window.print(), 300); }} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground border border-border rounded-lg hover:bg-muted transition-colors">
-              <Icon name="FileDown" className="w-4 h-4" /> Export PDF
-            </button>
-            {isDraftOrPending && (
-              <button onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)} className="flex items-center gap-1.5 px-4 py-1.5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/80 transition-colors">
-                Submit for Approval
-              </button>
-            )}
-          </div>
+          {/* Progress */}
+          {(() => {
+            const totalItems = items.length;
+            const receivedItems = items.filter(i => i.status === 'received').length;
+            const pct = totalItems > 0 ? receivedItems / totalItems : 0;
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                <span style={{ fontSize: 11, color: '#94A3B8', whiteSpace: 'nowrap' }}>
+                  {receivedItems} of {totalItems} items received
+                </span>
+                <div style={{ width: 64, height: 3, background: '#F1F5F9', borderRadius: 99, overflow: 'hidden', flexShrink: 0 }}>
+                  <div style={{ height: '100%', width: `${Math.round(pct * 100)}%`, background: 'linear-gradient(90deg, #4A90E2, #34D399)', borderRadius: 99, transition: 'width 0.4s' }} />
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* ── Items area ────────────────────────────────────────────────── */}
