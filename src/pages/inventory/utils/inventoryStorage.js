@@ -282,8 +282,6 @@ const itemToRow = (item, tenantId) => ({
   currency: item?.currency || 'USD',
   // Strip blob: URLs — they are local-only and cannot be stored in the DB
   image_url: item?.imageUrl && !item?.imageUrl?.startsWith('blob:') ? item?.imageUrl : null,
-  icon: item?.icon || null,
-  color: item?.color || null,
   supplier: item?.supplier || null,
   condition: item?.condition || null,
   custom_fields: item?.customFields && Object.keys(item?.customFields)?.length > 0 ? item?.customFields : null,
@@ -583,6 +581,15 @@ export const saveItem = async (itemData) => {
         ?.single();
       if (error) { console.error('[inventoryStorage] saveItem insert error:', error?.message); return false; }
       savedItem = rowToItem(data);
+    }
+    // Best-effort: write icon/color separately (columns may not exist on all DB instances)
+    if (savedItem?.id && (itemData?.icon || itemData?.color)) {
+      try {
+        await supabase?.from('inventory_items')
+          ?.update({ icon: itemData?.icon || null, color: itemData?.color || null })
+          ?.eq('id', savedItem.id)
+          ?.eq('tenant_id', tenantId);
+      } catch (_) {}
     }
     // Log activity
     try {
