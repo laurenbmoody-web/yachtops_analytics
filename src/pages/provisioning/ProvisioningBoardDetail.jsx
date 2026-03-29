@@ -392,6 +392,7 @@ const ProvisioningBoardDetail = () => {
   const TABLE_GRID = '36px minmax(200px,1.5fr) minmax(130px,0.8fr) minmax(190px,1fr) 90px 80px 120px 56px';
 
   const CURR_SYMBOLS = { USD: '$', EUR: '€' };
+  console.log('[BoardDetail] list.currency:', list?.currency, '→ symbol will be:', CURR_SYMBOLS[list?.currency] || '£');
   const currSymbol = CURR_SYMBOLS[list?.currency] || '£';
 
   // ── Additional computed values ────────────────────────────────────────────
@@ -472,7 +473,7 @@ const ProvisioningBoardDetail = () => {
           </button>
 
           {/* Two-column grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 48, alignItems: 'start', marginBottom: 32 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 48, alignItems: 'start', marginBottom: 32 }}>
 
             {/* Left */}
             <div>
@@ -490,13 +491,13 @@ const ProvisioningBoardDetail = () => {
               </div>
 
               {/* Board name */}
-              <h1 style={{ fontSize: 32, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.025em', lineHeight: 1.05, marginBottom: 18, margin: '0 0 18px' }}>
+              <h1 style={{ fontSize: 32, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.025em', lineHeight: 1.05, margin: metaItems.length > 0 ? '0 0 18px' : '0' }}>
                 {renderTitle(list.title)}
               </h1>
 
               {/* Meta band */}
               {metaItems.length > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', marginBottom: 0 }}>
                 {metaItems.map((m, idx) => (
                   <div key={idx} style={{
                     display: 'flex', alignItems: 'center', gap: 5,
