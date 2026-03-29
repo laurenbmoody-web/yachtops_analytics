@@ -469,7 +469,7 @@ const Header = () => {
 
             {/* Results dropdown */}
             {isSearchOpen && searchQuery.trim() && (
-              <div className="absolute top-full left-0 right-0 mt-1.5 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden max-h-[480px] overflow-y-auto">
+              <div className="absolute top-full left-0 right-0 mt-1.5 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden max-h-[480px] overflow-y-auto" onMouseDown={e => e.preventDefault()}>
                 {isSearching ? (
                   <div className="px-4 py-3 text-sm text-muted-foreground flex items-center gap-2">
                     <Icon name="Loader" size={14} className="animate-spin" />
