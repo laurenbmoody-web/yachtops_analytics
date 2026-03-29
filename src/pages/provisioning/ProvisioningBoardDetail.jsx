@@ -1069,6 +1069,7 @@ const ProvisioningBoardDetail = () => {
                   },
                 ];
                 return (
+                  <>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginTop: 24 }}>
                     {summaryCards.map(card => (
                       <div key={card.label} style={{ background: 'white', border: '1px solid #F1F5F9', borderLeft: `3px solid ${card.accent}`, borderRadius: 10, padding: '18px 20px' }}>
@@ -1108,6 +1109,7 @@ const ProvisioningBoardDetail = () => {
                     </div>
                     <span style={{ fontSize: 10, color: '#CBD5E1', marginTop: 4 }}>{fxRatesLabel}</span>
                   </div>
+                  </>
                 );
               })()}
             </>
