@@ -95,6 +95,7 @@ const rowToItem = (row) => {
     condition: row?.condition,
     icon: row?.icon || null,
     color: row?.color || null,
+    partialBottle: row?.partial_bottle ?? null,
     createdAt: row?.created_at,
     updatedAt: row?.updated_at,
   };
@@ -758,6 +759,24 @@ export const updateItemAppearance = async (itemId, icon, color) => {
     return true;
   } catch (err) {
     console.error('[inventoryStorage] updateItemAppearance exception:', err?.message);
+    return false;
+  }
+};
+
+export const updatePartialBottle = async (itemId, fraction) => {
+  try {
+    const tenantId = getActiveTenantId();
+    if (!tenantId || !itemId) return false;
+    const value = fraction == null ? null : Math.max(0, Math.min(1, parseFloat(fraction)));
+    const { error } = await supabase
+      ?.from('inventory_items')
+      ?.update({ partial_bottle: value, updated_at: new Date()?.toISOString() })
+      ?.eq('id', itemId)
+      ?.eq('tenant_id', tenantId);
+    if (error) { console.error('[inventoryStorage] updatePartialBottle error:', error?.message); return false; }
+    return true;
+  } catch (err) {
+    console.error('[inventoryStorage] updatePartialBottle exception:', err?.message);
     return false;
   }
 };

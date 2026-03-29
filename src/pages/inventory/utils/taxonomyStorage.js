@@ -11,6 +11,18 @@ const TAXONOMY_L4_KEY = 'cargo_taxonomy_l4';
 const PRESET_INITIALIZED_KEY = 'cargo_taxonomy_4level_initialized';
 const MIGRATION_COMPLETED_KEY = 'cargo_taxonomy_3to4_migration';
 
+const ALCOHOL_KEYWORDS = [
+  'alcohol', 'wine', 'champagne', 'spirits', 'vodka', 'gin', 'whisky', 'whiskey',
+  'beer', 'lager', 'ale', 'stout', 'ipa', 'craft beer', 'liqueur', 'rum', 'tequila',
+  'mezcal', 'brandy', 'cognac', 'prosecco', 'cava', 'sparkling', 'rosé', 'rose',
+  'dessert wine', 'red wine', 'white wine', 'aperitif', 'digestif', 'vermouth',
+  'amaro', 'port', 'sherry', 'mead', 'bar stock', 'cellar', 'drinks store',
+];
+const autoDetectAlcohol = (name) => {
+  const lower = name?.toLowerCase() || '';
+  return ALCOHOL_KEYWORDS.some(kw => lower.includes(kw));
+};
+
 // Add helper functions at top of file after imports
 const hasCommandAccess = (user) => {
   const captainRoles = ['Captain', 'Relief Captain', 'Build Captain', 'Fleet Captain', 'Skipper', 'Captain / Engineer'];
@@ -412,6 +424,7 @@ export const createTaxonomyL2 = (l1Id, name) => {
       name: name,
       sortOrder: maxSort + 1,
       isArchived: false,
+      isAlcohol: autoDetectAlcohol(name),
       createdAt: new Date()?.toISOString()
     };
 
@@ -576,6 +589,7 @@ export const createTaxonomyL3 = (l1Id, l2Id, name) => {
     const l3InSameL2 = taxonomy?.filter(t => t?.l2Id === l2Id);
     const maxSort = Math.max(0, ...l3InSameL2?.map(t => t?.sortOrder || 0));
 
+    const parentL2 = getTaxonomyL2ById(l2Id);
     const newL3 = {
       id: `l3-${Date.now()}-${Math.random()?.toString(36)?.substr(2, 9)}`,
       l1Id: l1Id,
@@ -583,6 +597,7 @@ export const createTaxonomyL3 = (l1Id, l2Id, name) => {
       name: name,
       sortOrder: maxSort + 1,
       isArchived: false,
+      isAlcohol: parentL2?.isAlcohol || autoDetectAlcohol(name),
       createdAt: new Date()?.toISOString()
     };
 

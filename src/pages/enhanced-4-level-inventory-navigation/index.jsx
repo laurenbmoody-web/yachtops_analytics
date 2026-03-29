@@ -3,12 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Button from '../../components/ui/Button';
 import Icon from '../../components/AppIcon';
-import { getAllItems, getItemsByLocation, getItemCountByLocation, deleteItem, saveItem, getFolderTree, createFolder, renameFolderInDB, deleteFolderFromDB, migrateLocalStorageFolderTree, moveFolderInDB, ensureDepartmentFolders, updateFolderVisibility, archiveFolder, updateItemStockLocations, bulkDeleteItemsByIds, bulkMoveItemsByIds, updateFolderAppearance, updateItemAppearance } from '../inventory/utils/inventoryStorage';
+import { getAllItems, getItemsByLocation, getItemCountByLocation, deleteItem, saveItem, getFolderTree, createFolder, renameFolderInDB, deleteFolderFromDB, migrateLocalStorageFolderTree, moveFolderInDB, ensureDepartmentFolders, updateFolderVisibility, archiveFolder, updateItemStockLocations, bulkDeleteItemsByIds, bulkMoveItemsByIds, updateFolderAppearance, updateItemAppearance, updatePartialBottle } from '../inventory/utils/inventoryStorage';
 import { getCurrentUser, DEPARTMENTS } from '../../utils/authStorage';
 import { isDevMode } from '../../utils/devMode';
 import { useAuth } from '../../contexts/AuthContext';
 import AddEditItemModal from '../inventory/components/AddEditItemModal';
 import ItemQuickViewPanel from '../inventory/components/ItemQuickViewPanel';
+import PartialBottleModal from '../inventory/components/PartialBottleModal';
 import { supabase } from '../../lib/supabaseClient';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core';
 import {
@@ -1079,6 +1080,20 @@ const getLastLocationSegment = (loc) => {
   return parts?.[parts?.length - 1] || raw;
 };
 
+const ALCOHOL_PATH_KEYWORDS = [
+  'alcohol', 'wine', 'champagne', 'spirits', 'vodka', 'gin', 'whisky', 'whiskey',
+  'rum', 'tequila', 'mezcal', 'brandy', 'cognac', 'beer', 'lager', 'ale', 'stout',
+  'ipa', 'craft beer', 'liqueur', 'aperitif', 'digestif', 'vermouth', 'amaro',
+  'prosecco', 'cava', 'sparkling', 'red wine', 'white wine', 'rosé', 'rose',
+  'dessert wine',
+];
+
+const isAlcoholItem = (item) => {
+  const pathText = [item?.subLocation, item?.location, item?.l3Name, item?.l2Name, item?.l1Name]
+    .filter(Boolean).join(' ').toLowerCase();
+  return ALCOHOL_PATH_KEYWORDS.some(kw => pathText.includes(kw));
+};
+
 // ─── Item Appearance Popover ───────────────────────────────────────────────────
 const ITEM_COLOR_PRESETS = [
   '#4A90E2', '#1E3A5F', '#0D9488', '#16A34A', '#D97706',
@@ -1245,6 +1260,7 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickV
   useEffect(() => { setItem(itemProp); }, [itemProp]);
 
   const [appearanceAnchor, setAppearanceAnchor] = useState(null);
+  const [showBottleModal, setShowBottleModal] = useState(false);
 
   const stockLocations = item?.stockLocations || [];
   const totalQty = stockLocations?.length > 0
@@ -1343,6 +1359,22 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickV
 
         <div className="flex items-center gap-3 flex-shrink-0">
           <QuickQtyControl item={item} onUpdate={onUpdate} locationQtys={locationQtys} setLocationQtys={setLocationQtys} showLocations={showLocations} onToggleLocations={() => setShowLocations(v => !v)} />
+          {isAlcoholItem(item) && (
+            <button
+              onClick={(e) => { e?.stopPropagation(); setShowBottleModal(true); }}
+              title={item?.partialBottle != null ? `Partial bottle: ${Math.round(item.partialBottle * 100)}% — click to edit` : 'Track partial bottle'}
+              style={{
+                width: 28, height: 28, flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                borderRadius: 7, cursor: 'pointer', transition: 'all 0.15s',
+                border: item?.partialBottle != null ? '1.5px solid #8B1538' : '1.5px dashed #CBD5E1',
+                background: item?.partialBottle != null ? 'rgba(139,21,56,0.08)' : 'transparent',
+                color: item?.partialBottle != null ? '#8B1538' : '#94A3B8',
+              }}
+            >
+              <Icon name="Wine" size={14} />
+            </button>
+          )}
           {canEdit && (
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button onClick={(e) => { e?.stopPropagation(); onEdit?.(item); }} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
@@ -1392,6 +1424,23 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickV
         onSave={(updated) => { setItem(updated); onAppearanceChange?.(updated?.id, updated?.icon, updated?.color); }}
       />
     )}
+    {showBottleModal && (
+      <PartialBottleModal
+        itemName={item?.name}
+        initialValue={item?.partialBottle ?? null}
+        onSave={async (fraction) => {
+          const ok = await updatePartialBottle(item?.id, fraction);
+          if (ok) { setItem(prev => ({ ...prev, partialBottle: fraction })); onUpdate?.(); }
+          setShowBottleModal(false);
+        }}
+        onClear={async () => {
+          const ok = await updatePartialBottle(item?.id, null);
+          if (ok) { setItem(prev => ({ ...prev, partialBottle: null })); onUpdate?.(); }
+          setShowBottleModal(false);
+        }}
+        onClose={() => setShowBottleModal(false)}
+      />
+    )}
     </>
   );
 };
@@ -1401,6 +1450,7 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQ
   const [item, setItem] = useState(itemProp);
   useEffect(() => { setItem(itemProp); }, [itemProp]);
   const [appearanceAnchor, setAppearanceAnchor] = useState(null);
+  const [showBottleModal, setShowBottleModal] = useState(false);
   const stockLocations = item?.stockLocations || [];
   const totalQty = stockLocations?.length > 0
     ? stockLocations?.reduce((sum, loc) => sum + (loc?.qty || 0), 0)
@@ -1528,7 +1578,26 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQ
         {/* Quantity control */}
         <div className="flex items-center justify-between mt-auto pt-1 border-t border-border/50">
           <span className="text-xs text-muted-foreground">Qty</span>
-          <QuickQtyControl item={item} onUpdate={onUpdate} locationQtys={locationQtys} setLocationQtys={setLocationQtys} showLocations={showLocations} onToggleLocations={() => setShowLocations(v => !v)} />
+          <div className="flex items-center gap-1.5">
+            {isAlcoholItem(item) && (
+              <button
+                onClick={(e) => { e?.stopPropagation(); setShowBottleModal(true); }}
+                title={item?.partialBottle != null ? `Partial bottle: ${Math.round(item.partialBottle * 100)}%` : 'Record partial bottle'}
+                style={{
+                  width: 26, height: 26,
+                  border: item?.partialBottle != null ? '1.5px solid #8B1538' : '1.5px dashed #CBD5E1',
+                  background: item?.partialBottle != null ? 'rgba(139,21,56,0.08)' : 'transparent',
+                  color: item?.partialBottle != null ? '#8B1538' : '#94A3B8',
+                  borderRadius: 7, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <Icon name="Wine" size={13} />
+              </button>
+            )}
+            <QuickQtyControl item={item} onUpdate={onUpdate} locationQtys={locationQtys} setLocationQtys={setLocationQtys} showLocations={showLocations} onToggleLocations={() => setShowLocations(v => !v)} />
+          </div>
         </div>
         {isMultiLocation && showLocations && locationQtys?.length > 0 && (
           <div className="border-t border-border pt-2 flex flex-col gap-1.5">
@@ -1566,6 +1635,25 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQ
         anchorRect={appearanceAnchor}
         onClose={() => setAppearanceAnchor(null)}
         onSave={(updated) => { setItem(updated); onAppearanceChange?.(updated?.id, updated?.icon, updated?.color); }}
+      />
+    )}
+    {showBottleModal && (
+      <PartialBottleModal
+        itemName={item?.name}
+        initialValue={item?.partialBottle ?? null}
+        onSave={async (fraction) => {
+          setShowBottleModal(false);
+          await updatePartialBottle(item?.id, fraction);
+          setItem(prev => ({ ...prev, partialBottle: fraction }));
+          onUpdate?.();
+        }}
+        onClear={async () => {
+          setShowBottleModal(false);
+          await updatePartialBottle(item?.id, null);
+          setItem(prev => ({ ...prev, partialBottle: null }));
+          onUpdate?.();
+        }}
+        onClose={() => setShowBottleModal(false)}
       />
     )}
     </>
