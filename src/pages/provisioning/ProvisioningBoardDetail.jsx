@@ -473,7 +473,7 @@ const ProvisioningBoardDetail = () => {
           </button>
 
           {/* Two-column grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 48, alignItems: 'start', marginBottom: 32 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 48, alignItems: 'start', marginBottom: 20 }}>
 
             {/* Left */}
             <div>
@@ -555,32 +555,32 @@ const ProvisioningBoardDetail = () => {
               <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'nowrap', justifyContent: 'flex-end' }}>
                 <button
                   onClick={() => showToast('Smart Suggestions coming soon', 'success')}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '7px 13px', borderRadius: 7, cursor: 'pointer', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8' }}
                 >
                   ✦ Suggestions
                 </button>
                 <button
                   onClick={() => showToast('Templates coming soon', 'success')}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, padding: '7px 13px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
                 >
                   <Icon name="FileText" style={{ width: 13, height: 13 }} /> Templates
                 </button>
                 <button
                   onClick={() => { showToast('Use "Save as PDF" in the print dialog', 'success'); setTimeout(() => window.print(), 300); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, padding: '7px 13px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
                 >
                   <Icon name="FileDown" style={{ width: 13, height: 13 }} /> PDF
                 </button>
                 <button
                   onClick={() => window.print()}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, padding: '7px 13px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
                 >
                   <Icon name="Printer" style={{ width: 13, height: 13 }} /> Print
                 </button>
                 {isDraftOrPending && (
                   <button
                     onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '7px 13px', borderRadius: 7, cursor: 'pointer', background: '#1E3A5F', border: '1px solid #1E3A5F', color: 'white' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: '#1E3A5F', border: '1px solid #1E3A5F', color: 'white', whiteSpace: 'nowrap' }}
                   >
                     <Icon name="Send" style={{ width: 13, height: 13 }} /> Submit for Approval
                   </button>
@@ -617,7 +617,7 @@ const ProvisioningBoardDetail = () => {
           </div>
 
           {/* Tabs */}
-          <div style={{ display: 'flex', borderTop: '1px solid #F8FAFC', marginTop: 0 }}>
+          <div style={{ display: 'flex', borderTop: '1px solid #F8FAFC', marginTop: 0, paddingTop: 16 }}>
             {[
               { id: 'items', label: 'Items' },
               { id: 'details', label: 'Board Details' },
