@@ -105,7 +105,7 @@ const FIELD_CSS = `
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'USD', departments = [], suppliers = [], theme = 'dark', onSaved, onDeleted, onClose }) => {
+const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', departments = [], suppliers = [], theme = 'dark', onSaved, onDeleted, onClose }) => {
   const isLight = theme === 'light';
   const { user } = useAuth();
   const userTier = (user?.permission_tier || user?.effectiveTier || '').toUpperCase();
