@@ -716,70 +716,255 @@ const ProvisioningBoardDetail = () => {
         </div>
 
         {/* ── Items area ────────────────────────────────────────────────── */}
-        <div className="px-6 py-5 pb-12">
+        <div style={{ padding: '24px 32px 48px' }}>
           {deptGroups.length === 0 && !hasFilters ? (
-            <div className="py-20 text-center">
-              <div className="w-14 h-14 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                <Icon name="ShoppingBag" className="w-7 h-7 text-muted-foreground" />
+            <div style={{ padding: '80px 0', textAlign: 'center' }}>
+              <div style={{ width: 56, height: 56, background: '#F8FAFC', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                <Icon name="ShoppingBag" style={{ width: 28, height: 28, color: '#CBD5E1' }} />
               </div>
-              <p className="text-sm font-medium text-foreground mb-1">No items yet</p>
-              <p className="text-xs text-muted-foreground mb-4">Add items to track your provisioning order.</p>
+              <p style={{ fontSize: 14, fontWeight: 500, color: '#0F172A', marginBottom: 4 }}>No items yet</p>
+              <p style={{ fontSize: 12, color: '#94A3B8', marginBottom: 16 }}>Add items to track your provisioning order.</p>
               <button
                 onClick={() => { setAddingToDept(departments[0] || 'Other'); setNewItemName(''); }}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/80"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: '#1E3A5F', border: 'none', borderRadius: 8, color: 'white', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
               >
-                <Icon name="Plus" className="w-4 h-4" /> Add first item
+                <Icon name="Plus" style={{ width: 14, height: 14 }} /> Add first item
               </button>
             </div>
           ) : deptGroups.length === 0 ? (
-            <div className="py-12 text-center text-sm text-muted-foreground">No items match your filters.</div>
+            <div style={{ padding: '48px 0', textAlign: 'center', fontSize: 13, color: '#94A3B8' }}>No items match your filters.</div>
           ) : (
             <>
-              {deptGroups.map(({ dept, items: deptItems }) => (
-                <DeptGroup
-                  key={dept}
-                  dept={dept}
-                  items={deptItems}
-                  deptOptions={departments.map(d => ({ value: d, label: d }))}
-                  currency={currency}
-                  selectedItems={selectedItems}
-                  allChecked={deptItems.length > 0 && deptItems.every(i => selectedItems.has(i.id))}
-                  editingCell={editingCell}
-                  setEditingCell={setEditingCell}
-                  isAllergenRisk={isAllergenRisk}
-                  onToggleAll={() => {
-                    const allSel = deptItems.every(i => selectedItems.has(i.id));
-                    setSelectedItems(prev => {
-                      const n = new Set(prev);
-                      deptItems.forEach(i => allSel ? n.delete(i.id) : n.add(i.id));
-                      return n;
-                    });
-                  }}
-                  onToggleItem={toggleItem}
-                  onCellSave={handleCellSave}
-                  onQtyStep={handleQtyStep}
-                  onStatusSave={handleStatusSave}
-                  onDeleteItem={handleDeleteItem}
-                  onEditItem={(item) => setItemDrawer({ open: true, item })}
-                  onAddItem={handleAddItem}
-                  formatCurrency={formatCurrency}
-                  addingToDept={addingToDept}
-                  setAddingToDept={setAddingToDept}
-                  newItemName={newItemName}
-                  setNewItemName={setNewItemName}
-                />
-              ))}
+              {deptGroups.map(({ dept, items: deptItems }) => {
+                const deptChip = getDeptChip(dept);
+                const deptSubtotal = deptItems.reduce((acc, i) => acc + (parseFloat(i.quantity_ordered) || 0) * (parseFloat(i.estimated_unit_cost) || 0), 0);
+                const allDeptSel = deptItems.length > 0 && deptItems.every(i => selectedItems.has(i.id));
+                return (
+                  <div key={dept} style={{ marginBottom: 24 }}>
+                    {/* Dept header row */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                      <span style={{ background: deptChip.bg, color: deptChip.color, fontSize: 10, fontWeight: 700, padding: '4px 10px', borderRadius: 4, letterSpacing: '0.06em', textTransform: 'uppercase', flexShrink: 0 }}>
+                        {dept}
+                      </span>
+                      <span style={{ fontSize: 11, color: '#CBD5E1', flexShrink: 0 }}>{deptItems.length} item{deptItems.length !== 1 ? 's' : ''}</span>
+                      <div style={{ flex: 1, height: 1, background: '#F1F5F9' }} />
+                      <span style={{ fontSize: 11, color: '#94A3B8', flexShrink: 0 }}>{currSymbol}{deptSubtotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                    </div>
 
-              {/* Grand total */}
-              <div className="mt-2 pt-4 border-t-2 border-border flex items-center justify-between flex-wrap gap-4">
-                <span className="text-sm text-muted-foreground">{items.length} item{items.length !== 1 ? 's' : ''}</span>
-                <div className="flex items-center gap-6 text-sm flex-wrap">
-                  <span className="text-muted-foreground">
-                    Estimated total: <span className="font-semibold text-foreground">{formatCurrency(grandTotals.estimated, currency)}</span>
+                    {/* White card table */}
+                    <div style={{ background: 'white', border: '1px solid #F1F5F9', borderRadius: 10, overflow: 'hidden' }}>
+                      {/* Table header */}
+                      <div style={{ display: 'grid', gridTemplateColumns: TABLE_GRID, gap: 0, padding: '0 16px', background: '#FAFAFA', borderBottom: '1px solid #F1F5F9' }}>
+                        {/* Checkbox */}
+                        <div style={{ display: 'flex', alignItems: 'center', padding: '10px 0' }}>
+                          <input type="checkbox" checked={allDeptSel} onChange={() => {
+                            setSelectedItems(prev => {
+                              const n = new Set(prev);
+                              deptItems.forEach(i => allDeptSel ? n.delete(i.id) : n.add(i.id));
+                              return n;
+                            });
+                          }} style={{ width: 13, height: 13, accentColor: '#4A90E2', cursor: 'pointer' }} />
+                        </div>
+                        {['Item', 'Brand / Size', 'Category', 'Qty', 'Unit Cost', 'Status', ''].map((h, hi) => (
+                          <div key={hi} style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '10px 8px', display: 'flex', alignItems: 'center' }}>
+                            {h}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Item rows */}
+                      {deptItems.map((item, rowIdx) => {
+                        const badge = STATUS_BADGE[item.status] || STATUS_BADGE.pending;
+                        const isHovered = hoveredRow === item.id;
+                        const isEditing = editingCell?.itemId === item.id;
+                        const allergen = isAllergenRisk(item);
+                        return (
+                          <div
+                            key={item.id}
+                            onMouseEnter={() => setHoveredRow(item.id)}
+                            onMouseLeave={() => setHoveredRow(null)}
+                            style={{
+                              display: 'grid', gridTemplateColumns: TABLE_GRID, gap: 0, padding: '0 16px',
+                              background: allergen ? '#FFFBEB' : isHovered ? '#FAFCFF' : 'white',
+                              borderBottom: rowIdx < deptItems.length - 1 ? '1px solid #F8FAFC' : 'none',
+                              transition: 'background 0.1s',
+                            }}
+                          >
+                            {/* Checkbox */}
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 0' }}>
+                              <input type="checkbox" checked={selectedItems.has(item.id)} onChange={() => toggleItem(item.id)} style={{ width: 13, height: 13, accentColor: '#4A90E2', cursor: 'pointer' }} />
+                            </div>
+                            {/* Item name */}
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px', gap: 6 }}>
+                              {allergen && <span title="Allergen risk" style={{ fontSize: 11 }}>⚠</span>}
+                              {editingCell?.itemId === item.id && editingCell?.field === 'name' ? (
+                                <input
+                                  autoFocus
+                                  defaultValue={item.name}
+                                  onBlur={e => { handleCellSave(item, 'name', e.target.value); setEditingCell(null); }}
+                                  onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingCell(null); }}
+                                  style={{ fontSize: 13, color: '#0F172A', background: '#F0F7FF', border: '1px solid #93C5FD', borderRadius: 5, padding: '2px 6px', width: '100%', outline: 'none' }}
+                                />
+                              ) : (
+                                <span
+                                  onDoubleClick={() => setEditingCell({ itemId: item.id, field: 'name' })}
+                                  style={{ fontSize: 13, color: '#0F172A', fontWeight: 500, cursor: 'default', lineHeight: 1.3 }}
+                                >
+                                  {item.name}
+                                </span>
+                              )}
+                            </div>
+                            {/* Brand / Size */}
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
+                              <span style={{ fontSize: 12, color: '#64748B' }}>
+                                {[item.brand, item.size].filter(Boolean).join(' · ') || <span style={{ color: '#CBD5E1' }}>—</span>}
+                              </span>
+                            </div>
+                            {/* Category */}
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
+                              <span style={{ fontSize: 12, color: '#64748B' }}>
+                                {[item.category, item.sub_category].filter(Boolean).join(' / ') || <span style={{ color: '#CBD5E1' }}>—</span>}
+                              </span>
+                            </div>
+                            {/* Qty + Unit */}
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px', gap: 4 }}>
+                              {editingCell?.itemId === item.id && editingCell?.field === 'quantity_ordered' ? (
+                                <input
+                                  autoFocus
+                                  type="number"
+                                  defaultValue={item.quantity_ordered ?? ''}
+                                  onBlur={e => { handleCellSave(item, 'quantity_ordered', e.target.value); setEditingCell(null); }}
+                                  onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingCell(null); }}
+                                  style={{ fontSize: 13, color: '#0F172A', background: '#F0F7FF', border: '1px solid #93C5FD', borderRadius: 5, padding: '2px 6px', width: 56, outline: 'none' }}
+                                />
+                              ) : (
+                                <span
+                                  onDoubleClick={() => setEditingCell({ itemId: item.id, field: 'quantity_ordered' })}
+                                  style={{ fontSize: 13, color: '#0F172A', cursor: 'default', minWidth: 24 }}
+                                >
+                                  {item.quantity_ordered ?? <span style={{ color: '#CBD5E1' }}>—</span>}
+                                </span>
+                              )}
+                              <span style={{ fontSize: 11, color: '#94A3B8' }}>{item.unit || ''}</span>
+                            </div>
+                            {/* Unit Cost */}
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
+                              {editingCell?.itemId === item.id && editingCell?.field === 'estimated_unit_cost' ? (
+                                <input
+                                  autoFocus
+                                  type="number"
+                                  defaultValue={item.estimated_unit_cost ?? ''}
+                                  onBlur={e => { handleCellSave(item, 'estimated_unit_cost', e.target.value); setEditingCell(null); }}
+                                  onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingCell(null); }}
+                                  style={{ fontSize: 13, color: '#0F172A', background: '#F0F7FF', border: '1px solid #93C5FD', borderRadius: 5, padding: '2px 6px', width: 64, outline: 'none' }}
+                                />
+                              ) : (
+                                <span
+                                  onDoubleClick={() => setEditingCell({ itemId: item.id, field: 'estimated_unit_cost' })}
+                                  style={{ fontSize: 13, color: '#0F172A', cursor: 'default' }}
+                                >
+                                  {item.estimated_unit_cost != null ? `${currSymbol}${parseFloat(item.estimated_unit_cost).toFixed(2)}` : <span style={{ color: '#CBD5E1' }}>—</span>}
+                                </span>
+                              )}
+                            </div>
+                            {/* Status badge select */}
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
+                              <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                                <span style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', width: 5, height: 5, borderRadius: '50%', background: badge.dot, pointerEvents: 'none', zIndex: 1 }} />
+                                <select
+                                  value={item.status || 'pending'}
+                                  onChange={e => handleStatusSave(item, 'status', e.target.value)}
+                                  style={{
+                                    paddingLeft: 16, paddingRight: 8, paddingTop: 3, paddingBottom: 3,
+                                    fontSize: 11, fontWeight: 600, background: badge.bg, color: badge.color,
+                                    border: `1px solid ${badge.border}`, borderRadius: 6,
+                                    cursor: 'pointer', outline: 'none', appearance: 'none',
+                                  }}
+                                >
+                                  {ITEM_STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                </select>
+                              </div>
+                            </div>
+                            {/* Actions */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '11px 0', gap: 2 }}>
+                              {isHovered && (
+                                <>
+                                  <button
+                                    onClick={() => setItemDrawer({ open: true, item })}
+                                    title="Edit"
+                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, background: 'none', border: 'none', borderRadius: 5, cursor: 'pointer', color: '#94A3B8' }}
+                                    onMouseEnter={e => e.currentTarget.style.background = '#F1F5F9'}
+                                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                  >
+                                    <Icon name="Pencil" style={{ width: 12, height: 12 }} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteItem(item.id)}
+                                    title="Delete"
+                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, background: 'none', border: 'none', borderRadius: 5, cursor: 'pointer', color: '#94A3B8' }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.color = '#EF4444'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#94A3B8'; }}
+                                  >
+                                    <Icon name="Trash2" style={{ width: 12, height: 12 }} />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Subtotal row */}
+                      <div style={{ display: 'grid', gridTemplateColumns: TABLE_GRID, gap: 0, padding: '0 16px', background: '#FAFAFA', borderTop: '1px solid #F1F5F9' }}>
+                        <div style={{ gridColumn: '1 / 6', padding: '8px 8px 8px 0' }}>
+                          <span style={{ fontSize: 11, color: '#94A3B8' }}>{deptItems.length} item{deptItems.length !== 1 ? 's' : ''}</span>
+                        </div>
+                        <div style={{ padding: '8px 8px', display: 'flex', alignItems: 'center' }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: '#1E3A5F' }}>{currSymbol}{deptSubtotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                        </div>
+                        <div />
+                      </div>
+
+                      {/* Add item row */}
+                      {addingToDept === dept ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderTop: '1px dashed #E2E8F0', background: '#FAFEFF' }}>
+                          <input
+                            autoFocus
+                            type="text"
+                            placeholder="Item name…"
+                            value={newItemName}
+                            onChange={e => setNewItemName(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') handleAddItem(dept); if (e.key === 'Escape') { setAddingToDept(null); setNewItemName(''); } }}
+                            style={{ flex: 1, fontSize: 13, background: 'white', border: '1px solid #93C5FD', borderRadius: 6, padding: '5px 10px', outline: 'none', color: '#0F172A' }}
+                          />
+                          <button onClick={() => handleAddItem(dept)} style={{ fontSize: 12, fontWeight: 600, padding: '5px 12px', background: '#1E3A5F', border: 'none', borderRadius: 6, color: 'white', cursor: 'pointer' }}>Add</button>
+                          <button onClick={() => { setAddingToDept(null); setNewItemName(''); }} style={{ fontSize: 12, padding: '5px 10px', background: 'none', border: '1px solid #E2E8F0', borderRadius: 6, color: '#94A3B8', cursor: 'pointer' }}>Cancel</button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => { setAddingToDept(dept); setNewItemName(''); }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '9px 16px', background: 'none', border: 'none', borderTop: '1px dashed #F1F5F9', cursor: 'pointer', fontSize: 12, color: '#CBD5E1', textAlign: 'left' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = '#FAFEFF'; e.currentTarget.style.color = '#4A90E2'; e.currentTarget.style.borderTopColor = '#4A90E2'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#CBD5E1'; e.currentTarget.style.borderTopColor = '#F1F5F9'; }}
+                        >
+                          <Icon name="Plus" style={{ width: 13, height: 13 }} /> Add item to {dept}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Grand total row */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderTop: '2px solid #F1F5F9', marginTop: 8, flexWrap: 'wrap', gap: 12 }}>
+                <span style={{ fontSize: 12, color: '#94A3B8' }}>{items.length} item{items.length !== 1 ? 's' : ''} total</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+                  <span style={{ fontSize: 12, color: '#94A3B8' }}>
+                    Estimated: <span style={{ fontWeight: 700, color: '#0F172A' }}>{currSymbol}{Math.round(grandTotals.estimated).toLocaleString()}</span>
                   </span>
                   {grandTotals.actual > 0 && (
-                    <span className="text-muted-foreground">
-                      Actual (received): <span className="font-semibold text-foreground">{formatCurrency(grandTotals.actual, currency)}</span>
+                    <span style={{ fontSize: 12, color: '#94A3B8' }}>
+                      Received: <span style={{ fontWeight: 700, color: '#15803D' }}>{currSymbol}{Math.round(grandTotals.actual).toLocaleString()}</span>
                     </span>
                   )}
                 </div>
