@@ -1280,32 +1280,38 @@ const ProvisioningBoardDetail = () => {
                           const catPath = [bi.department, bi.sub_category || bi.category].filter(Boolean).join(' > ');
                           const invStatus = bi.cargo_item_id
                             ? `→ Pushed to inventory (${bi.cargo_item_id})`
-                            : bi.inventory_item_id ? '→ Linked to inventory'
+                            : bi.inventory_item_id ? `→ Linked to inventory`
                             : '→ Skipped (not pushed to inventory)';
                           const liveItem = items.find(i => i.id === bi.id);
                           const effectivePS = paymentStatusMap[bi.id] ?? liveItem?.payment_status ?? 'awaiting_invoice';
-                          const itemCost = bi.estimated_unit_cost != null
-                            ? (() => { const c = parseFloat(bi.estimated_unit_cost) * (parseFloat(bi.quantity_received) || 1); return c > 0 ? `· ${currSym}${c.toFixed(0)}` : ''; })()
+                          const isPaid = ['paid', 'paid_upfront'].includes(effectivePS);
+                          const costVal = isPaid && liveItem?.actual_unit_cost != null
+                            ? parseFloat(liveItem.actual_unit_cost)
+                            : parseFloat(bi.estimated_unit_cost);
+                          const costStr = !isNaN(costVal) && costVal > 0
+                            ? `${currSym}${(costVal * (parseFloat(bi.quantity_received) || 1)).toFixed(0)}`
                             : '';
+                          const qtyStr = isPartial
+                            ? `Qty: ${bi.quantity_received}/${bi.quantity_ordered}`
+                            : `Qty: ${bi.quantity_received ?? '?'}`;
+                          const itemTitle = [bi.name, bi.brand, bi.size].filter(Boolean).join(' · ');
+                          const segments = [itemTitle, catPath ? `${catPath} ${invStatus}` : invStatus, [costStr, qtyStr].filter(Boolean).join(' · ')].filter(Boolean);
                           return (
                             <div key={idx} style={{ padding: '10px 20px', borderTop: idx > 0 ? '1px solid #F8FAFC' : 'none' }}>
-                              {/* Line 1: name · brand · size · Qty · Cost */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <Icon name="CheckCircle" style={{ width: 13, height: 13, color: '#4ADE80', flexShrink: 0 }} />
-                                <span style={{ fontSize: 13, color: '#94A3B8', textDecoration: 'line-through', flex: 1, minWidth: 0 }}>
-                                  {[bi.name, bi.brand, bi.size].filter(Boolean).join(' · ')}
-                                </span>
-                                <span style={{ fontSize: 12, fontWeight: 600, color: isPartial ? '#B45309' : '#64748B', flexShrink: 0, whiteSpace: 'nowrap' }}>
-                                  Qty: {bi.quantity_received ?? '?'}{isPartial ? ` of ${bi.quantity_ordered}` : ''}{bi.unit ? ` ${bi.unit}` : ''} {itemCost}
-                                </span>
+                              {/* Line 1: name · brand · size │ category → invStatus │ $cost · Qty */}
+                              <div
+                                onClick={() => liveItem && setItemDrawer({ open: true, item: liveItem })}
+                                style={{ fontSize: 13, color: '#374151', cursor: liveItem ? 'pointer' : 'default', lineHeight: 1.4 }}
+                              >
+                                {segments.map((seg, si) => (
+                                  <React.Fragment key={si}>
+                                    {si > 0 && <span style={{ color: '#CBD5E1', margin: '0 8px' }}>│</span>}
+                                    <span style={{ color: si === 0 ? '#374151' : si === 1 ? '#94A3B8' : isPartial ? '#B45309' : '#64748B', fontSize: si === 1 ? 11 : 13 }}>{seg}</span>
+                                  </React.Fragment>
+                                ))}
                               </div>
-                              {/* Line 2: category path · inventory status */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 3, paddingLeft: 21 }}>
-                                {catPath && <span style={{ fontSize: 11, color: '#CBD5E1' }}>{catPath}</span>}
-                                <span style={{ fontSize: 11, color: '#94A3B8' }}>{invStatus}</span>
-                              </div>
-                              {/* Line 3: payment status */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5, paddingLeft: 21 }}>
+                              {/* Line 2: payment status */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5 }}>
                                 <span style={{ fontSize: 11, color: '#CBD5E1' }}>Payment:</span>
                                 <select
                                   value={effectivePS}
@@ -1339,34 +1345,40 @@ const ProvisioningBoardDetail = () => {
                     <div style={{ background: 'white', border: '1px solid #F1F5F9', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
                       {completedItems.map((item, idx) => {
                         const effectivePS = paymentStatusMap[item.id] ?? item.payment_status ?? 'awaiting_invoice';
-                        const currSym = dispSymbol;
-                        const itemCost = item.estimated_unit_cost != null
-                          ? (() => { const c = parseFloat(item.estimated_unit_cost) * (parseFloat(item.quantity_received) || 1); return c > 0 ? `· ${currSym}${c.toFixed(0)}` : ''; })()
+                        const isPaid = ['paid', 'paid_upfront'].includes(effectivePS);
+                        const costVal = isPaid && item.actual_unit_cost != null
+                          ? parseFloat(item.actual_unit_cost)
+                          : parseFloat(item.estimated_unit_cost);
+                        const costStr = !isNaN(costVal) && costVal > 0
+                          ? `${dispSymbol}${(costVal * (parseFloat(item.quantity_received) || 1)).toFixed(0)}`
                           : '';
+                        const isPartial = item.quantity_ordered != null && item.quantity_received < item.quantity_ordered;
+                        const qtyStr = isPartial
+                          ? `Qty: ${item.quantity_received}/${item.quantity_ordered}`
+                          : `Qty: ${parseFloat(item.quantity_received) || 0}`;
+                        const invStatus = item.cargo_item_id
+                          ? `→ Pushed to inventory (${item.cargo_item_id})`
+                          : item.inventory_item_id ? `→ Linked to inventory`
+                          : '→ Skipped (not pushed to inventory)';
+                        const catPath = [item.department, item.sub_category || item.category].filter(Boolean).join(' > ');
+                        const itemTitle = [item.name, item.brand, item.size].filter(Boolean).join(' · ');
+                        const segments = [itemTitle, catPath ? `${catPath} ${invStatus}` : invStatus, [costStr, qtyStr].filter(Boolean).join(' · ')].filter(Boolean);
                         return (
                           <div key={item.id} style={{ padding: '10px 20px', borderTop: idx > 0 ? '1px solid #F8FAFC' : 'none' }}>
-                            {/* Line 1 */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <Icon name="CheckCircle" style={{ width: 13, height: 13, color: '#4ADE80', flexShrink: 0 }} />
-                              <span
-                                onClick={() => setItemDrawer({ open: true, item })}
-                                style={{ fontSize: 13, color: '#94A3B8', textDecoration: 'line-through', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}
-                              >
-                                {[item.name, item.brand, item.size].filter(Boolean).join(' · ')}
-                              </span>
-                              <span style={{ fontSize: 12, fontWeight: 600, color: '#64748B', flexShrink: 0, whiteSpace: 'nowrap' }}>
-                                Qty: {parseFloat(item.quantity_received) || 0}{item.unit ? ` ${item.unit}` : ''} {itemCost}
-                              </span>
+                            {/* Line 1: name · brand · size │ category → invStatus │ $cost · Qty */}
+                            <div
+                              onClick={() => setItemDrawer({ open: true, item })}
+                              style={{ fontSize: 13, color: '#374151', cursor: 'pointer', lineHeight: 1.4 }}
+                            >
+                              {segments.map((seg, si) => (
+                                <React.Fragment key={si}>
+                                  {si > 0 && <span style={{ color: '#CBD5E1', margin: '0 8px' }}>│</span>}
+                                  <span style={{ color: si === 0 ? '#374151' : si === 1 ? '#94A3B8' : isPartial ? '#B45309' : '#64748B', fontSize: si === 1 ? 11 : 13 }}>{seg}</span>
+                                </React.Fragment>
+                              ))}
                             </div>
-                            {/* Line 2 */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 3, paddingLeft: 21 }}>
-                              {item.department && <span style={{ fontSize: 11, color: '#CBD5E1' }}>{item.department}{item.category ? ` > ${item.category}` : ''}</span>}
-                              <span style={{ fontSize: 11, color: '#94A3B8' }}>
-                                {item.cargo_item_id ? `→ Pushed to inventory (${item.cargo_item_id})` : item.inventory_item_id ? '→ Linked to inventory' : '→ Skipped'}
-                              </span>
-                            </div>
-                            {/* Line 3: payment status */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5, paddingLeft: 21 }}>
+                            {/* Line 2: payment status */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5 }}>
                               <span style={{ fontSize: 11, color: '#CBD5E1' }}>Payment:</span>
                               <select
                                 value={effectivePS}
