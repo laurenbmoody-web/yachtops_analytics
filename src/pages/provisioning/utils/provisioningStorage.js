@@ -1116,3 +1116,55 @@ export const fetchDeliveryBatches = async (listId) => {
     return [];
   }
 };
+
+// ── Payment status + actual cost ──────────────────────────────────────────────
+
+/**
+ * Update payment_status (and optionally actual_unit_cost) on a provisioning item.
+ * Silently succeeds even if the column doesn't exist yet.
+ */
+export const updateItemPaymentStatus = async (itemId, paymentStatus, actualUnitCost) => {
+  try {
+    const updates = { payment_status: paymentStatus };
+    if (actualUnitCost != null) updates.actual_unit_cost = actualUnitCost;
+    const { error } = await supabase
+      ?.from('provisioning_items')
+      ?.update(updates)
+      ?.eq('id', itemId);
+    if (error) throw error;
+  } catch { /* column may not exist yet — non-fatal */ }
+};
+
+/**
+ * Update a provisioning_deliveries batch record (invoice metadata, file URL, etc.)
+ */
+export const updateDeliveryBatch = async (batchId, updates) => {
+  try {
+    const { error } = await supabase
+      ?.from('provisioning_deliveries')
+      ?.update(updates)
+      ?.eq('id', batchId);
+    if (error) throw error;
+  } catch { /* non-fatal */ }
+};
+
+/**
+ * Upload an invoice file to Supabase Storage and return the public URL.
+ * Bucket: provisioning-invoices (must exist and have public access).
+ */
+export const uploadInvoiceFile = async (file, batchId) => {
+  try {
+    const ext = file.name.split('.').pop() || 'pdf';
+    const path = `${batchId}/${Date.now()}.${ext}`;
+    const { error } = await supabase?.storage
+      ?.from('provisioning-invoices')
+      ?.upload(path, file, { upsert: true });
+    if (error) return null;
+    const { data } = await supabase?.storage
+      ?.from('provisioning-invoices')
+      ?.getPublicUrl(path);
+    return data?.publicUrl || null;
+  } catch {
+    return null;
+  }
+};

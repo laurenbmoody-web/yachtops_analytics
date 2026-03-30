@@ -7,7 +7,9 @@ import {
   deleteProvisioningItem,
   fetchAllInventoryLocations,
   searchInventoryItems,
+  updateItemPaymentStatus,
 } from '../utils/provisioningStorage';
+import { PAYMENT_STATUS_OPTIONS } from './InvoiceUploadModal';
 import { UNIT_GROUPS } from './DetailTableCells';
 import { useAuth } from '../../../contexts/AuthContext';
 
@@ -751,7 +753,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
           </Section>
 
           {/* ════ SECTION 4: COST ════ */}
-          <Section label="Cost">
+          <Section label={isReceived ? 'Quoted cost' : 'Estimated cost'}>
             {isLight ? (
               <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -913,6 +915,51 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
               })}
             </div>
           </Section>
+
+          {/* ════ SECTION 6b: PAYMENT (received items only) ════ */}
+          {isReceived && (
+            <Section label="Payment">
+              {isLight ? (
+                <>
+                  <FL>Payment status</FL>
+                  <select
+                    value={form.payment_status || 'awaiting_invoice'}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setForm(prev => ({ ...prev, payment_status: val }));
+                      updateItemPaymentStatus(form.id, val, null).catch(() => {});
+                    }}
+                    style={{
+                      width: '100%', background: '#f8fafc', border: '1px solid #e2e8f0',
+                      borderRadius: 8, padding: '7px 10px', fontSize: 13, color: '#1e293b',
+                      outline: 'none', cursor: 'pointer',
+                    }}
+                  >
+                    {PAYMENT_STATUS_OPTIONS.map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </>
+              ) : (
+                <>
+                  <label className={labelCls}>Payment status</label>
+                  <select
+                    value={form.payment_status || 'awaiting_invoice'}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setForm(prev => ({ ...prev, payment_status: val }));
+                      updateItemPaymentStatus(form.id, val, null).catch(() => {});
+                    }}
+                    className={inputCls}
+                  >
+                    {PAYMENT_STATUS_OPTIONS.map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </>
+              )}
+            </Section>
+          )}
 
           {/* ════ SECTION 7: NOTES ════ */}
           <Section label="Notes">
