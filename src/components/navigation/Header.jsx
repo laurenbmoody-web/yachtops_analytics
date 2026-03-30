@@ -266,7 +266,7 @@ const Header = () => {
       race(
         supabase
           ?.from('inventory_items')
-          ?.select('id, name, l1_name, l2_name, l3_name')
+          ?.select('id, name, location, sub_location, l1_name, l2_name, l3_name')
           ?.eq('tenant_id', tenantId)
           ?.ilike('name', `%${q}%`)
           ?.limit(5)
@@ -305,12 +305,18 @@ const Header = () => {
       }
 
       if (inventoryRes.status === 'fulfilled') {
-        const items = (inventoryRes.value?.data || []).map(item => ({
-          label: item.name,
-          subtitle: [item.l1_name, item.l2_name, item.l3_name].filter(Boolean).join(' → '),
-          path: '/inventory',
-          icon: 'Package',
-        }));
+        const encSeg = (s) => encodeURIComponent(s?.replace(/\//g, '__FWDSLASH__'));
+        const items = (inventoryRes.value?.data || []).map(item => {
+          const segments = [
+            item.location,
+            ...(item.sub_location ? item.sub_location.split(' > ') : []),
+          ].filter(Boolean);
+          const path = segments.length > 0
+            ? '/inventory/location/' + segments.map(encSeg).join('/')
+            : '/inventory';
+          const subtitle = segments.join(' › ') || [item.l1_name, item.l2_name, item.l3_name].filter(Boolean).join(' › ');
+          return { label: item.name, subtitle, path, icon: 'Package' };
+        });
         upsert('Inventory', items);
       }
 
