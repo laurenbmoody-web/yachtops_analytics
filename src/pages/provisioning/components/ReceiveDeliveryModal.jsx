@@ -126,6 +126,64 @@ const LocationPicker = ({ value, onChange, locations = [], borderColor = '#e2e8f
   );
 };
 
+// ── Progressive category picker (inventory_locations hierarchy) ──────────────
+
+const CategoryPicker = ({ paths = [], value = '', onChange, disabled = false, borderColor = '#e2e8f0' }) => {
+  const segments = value ? value.split(' > ') : [];
+
+  const getLevelOptions = (level) => {
+    const prefix = segments.slice(0, level).join(' > ');
+    const relevant = prefix
+      ? paths.filter(p => p === prefix || p.startsWith(prefix + ' > '))
+      : paths;
+    const seen = new Set();
+    const opts = [];
+    for (const path of relevant) {
+      const seg = path.split(' > ')[level];
+      if (seg && !seen.has(seg)) { seen.add(seg); opts.push(seg); }
+    }
+    return opts;
+  };
+
+  const handleChange = (level, val) => {
+    const newSegs = [...segments.slice(0, level), ...(val ? [val] : [])];
+    onChange(newSegs.join(' > '));
+  };
+
+  const dropdowns = [];
+  for (let level = 0; ; level++) {
+    const opts = getLevelOptions(level);
+    if (opts.length === 0) break;
+    dropdowns.push({ level, opts, selected: segments[level] || '' });
+    if (!segments[level]) break;
+  }
+
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+      {dropdowns.map(({ level, opts, selected }) => (
+        <select
+          key={level}
+          value={selected}
+          onChange={e => handleChange(level, e.target.value)}
+          disabled={disabled}
+          style={{
+            fontSize: 12, padding: '4px 6px', border: `1px solid ${borderColor}`, borderRadius: 6,
+            background: 'white', color: selected ? '#0F172A' : '#94A3B8',
+            cursor: disabled ? 'default' : 'pointer', outline: 'none', flexShrink: 0,
+            maxWidth: 140, opacity: disabled ? 0.55 : 1,
+          }}
+        >
+          <option value="">Select…</option>
+          {opts.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+      ))}
+      {dropdowns.length === 0 && paths.length === 0 && (
+        <span style={{ fontSize: 12, color: '#CBD5E1' }}>No categories configured</span>
+      )}
+    </div>
+  );
+};
+
 // ── Physical storage location picker (vessel_locations table) ────────────────
 
 const VesselLocationPicker = ({ value, onChange, vesselLocations = [], borderColor = '#e2e8f0', placeholder = 'Select location…' }) => {
@@ -589,15 +647,14 @@ const PushStep = ({
                         </div>
                       </div>
 
-                      {/* Inventory category (hierarchy path) */}
+                      {/* Inventory category — progressive hierarchy picker */}
                       <div>
                         <FLD>Inventory category *</FLD>
-                        <LocationPicker
-                          value={newForm.categoryPath}
+                        <CategoryPicker
+                          paths={allLocations}
+                          value={newForm.categoryPath || ''}
                           onChange={v => onNewItemFormChange(item.id, 'categoryPath', v)}
-                          locations={allLocations}
                           borderColor="#FED7AA"
-                          placeholder="e.g. Bar > Main Bar > Spirits…"
                         />
                       </div>
 
