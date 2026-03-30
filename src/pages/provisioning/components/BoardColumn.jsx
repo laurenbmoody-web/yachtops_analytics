@@ -240,8 +240,6 @@ const BoardColumn = ({
   onItemQuantityChange,
   onQuickAdd,
   onEditBoard,
-  onSuggestions,
-  onTemplates,
   onDuplicate,
   onDelete,
   onNavigate,
@@ -466,23 +464,6 @@ const BoardColumn = ({
         </div>
       ) : (
         <>
-          {/* Suggestions + Templates buttons */}
-          <div className="flex items-center gap-1.5 px-2 pt-2 flex-shrink-0">
-            <button
-              onClick={onSuggestions}
-              className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors border border-border"
-            >
-              <span>✦</span><span>Suggestions</span>
-            </button>
-            <button
-              onClick={onTemplates}
-              className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors border border-border"
-            >
-              <Icon name="FileText" className="w-3 h-3" />
-              <span>Templates</span>
-            </button>
-          </div>
-
           {/* Items — scrollable */}
           <div className="flex-1 overflow-y-auto px-2 pt-2 min-h-0">
             {filteredItems.map(item => (
