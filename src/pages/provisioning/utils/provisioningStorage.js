@@ -1031,6 +1031,29 @@ export const pushReceivedSplitsToInventory = async ({ inventoryItemId, splits, t
   }
 };
 
+// ── Vessel locations (physical storage) ──────────────────────────────────────
+/**
+ * Returns all active vessel_locations rows for a tenant.
+ * Schema: { id, name, level ('deck'|'zone'|'space'), parent_id }
+ * Parent-id based hierarchy: deck → zone → space
+ */
+export const fetchVesselLocations = async (tenantId) => {
+  if (!tenantId) return [];
+  try {
+    const { data, error } = await supabase
+      ?.from('vessel_locations')
+      ?.select('id, name, level, parent_id')
+      ?.eq('tenant_id', tenantId)
+      ?.eq('is_archived', false)
+      ?.order('sort_order', { ascending: true })
+      ?.order('name', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  } catch {
+    return [];
+  }
+};
+
 // ── Search inventory items for linking ───────────────────────────────────────
 export const searchInventoryItems = async (query, tenantId) => {
   if (!query || query.trim().length < 2 || !tenantId) return [];

@@ -9,6 +9,7 @@ import {
   createInventoryItemFromProvItem,
   searchInventoryItems,
   fetchAllInventoryLocations,
+  fetchVesselLocations,
 } from '../utils/provisioningStorage';
 import { useAuth } from '../../../contexts/AuthContext';
 import { UNIT_GROUPS } from './DetailTableCells';
@@ -99,22 +100,125 @@ const LocationPicker = ({ value, onChange, locations = [], borderColor = '#e2e8f
             {items.map(({ seg, full, hasChildren }) => (
               <div key={full} style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #f8fafc' }}>
                 <button
-                  onMouseDown={e => { e.preventDefault(); handleSelect(full); }}
-                  style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', padding: '7px 12px', cursor: 'pointer', fontSize: 12, color: '#0F172A' }}
+                  onMouseDown={e => { e.preventDefault(); hasChildren ? setPrefix(full) : handleSelect(full); }}
+                  style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', padding: '7px 12px', cursor: 'pointer', fontSize: 12, color: '#0F172A', display: 'flex', alignItems: 'center', gap: 6 }}
                   onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
                   onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                >{seg}</button>
+                >
+                  {hasChildren && <span style={{ color: '#CBD5E1', fontSize: 10, flexShrink: 0 }}>📁</span>}
+                  {seg}
+                </button>
                 {hasChildren && (
                   <button
-                    onMouseDown={e => { e.preventDefault(); e.stopPropagation(); setPrefix(full); }}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#CBD5E1', padding: '7px 10px', fontSize: 11, flexShrink: 0 }}
+                    onMouseDown={e => { e.preventDefault(); e.stopPropagation(); handleSelect(full); }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#CBD5E1', padding: '7px 10px', fontSize: 10, flexShrink: 0, whiteSpace: 'nowrap' }}
                     onMouseEnter={e => e.currentTarget.style.color = '#4A90E2'}
                     onMouseLeave={e => e.currentTarget.style.color = '#CBD5E1'}
-                    title="Expand sub-locations"
-                  >▶</button>
+                    title="Select this level"
+                  >✓</button>
                 )}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Physical storage location picker (vessel_locations table) ────────────────
+
+const VesselLocationPicker = ({ value, onChange, vesselLocations = [], borderColor = '#e2e8f0', placeholder = 'Select location…' }) => {
+  const [open, setOpen] = useState(false);
+  const [parentId, setParentId] = useState(null);   // null = root (deck level)
+  const [breadcrumb, setBreadcrumb] = useState([]);  // [{id, name}] trail
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setParentId(null); setBreadcrumb([]); } };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open]);
+
+  const currentItems = vesselLocations.filter(l => (l.parent_id ?? null) === parentId);
+
+  const handleSelect = (displayName) => {
+    const path = [...breadcrumb.map(b => b.name), displayName].join(' > ');
+    onChange(path);
+    setOpen(false);
+    setParentId(null);
+    setBreadcrumb([]);
+  };
+
+  const handleDrillIn = (loc) => {
+    setParentId(loc.id);
+    setBreadcrumb(prev => [...prev, { id: loc.id, name: loc.name }]);
+  };
+
+  const handleBack = () => {
+    const next = breadcrumb.slice(0, -1);
+    setBreadcrumb(next);
+    setParentId(next.length > 0 ? next[next.length - 1].id : null);
+  };
+
+  const breadcrumbPath = breadcrumb.map(b => b.name).join(' > ');
+
+  return (
+    <div ref={ref} style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+      <button
+        onClick={() => { setOpen(v => !v); setParentId(null); setBreadcrumb([]); }}
+        style={{
+          width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center',
+          fontSize: 12, padding: '4px 8px', border: `1px solid ${borderColor}`, borderRadius: 6,
+          background: 'white', color: value ? '#0F172A' : '#94A3B8', cursor: 'pointer', gap: 4,
+        }}
+      >
+        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value || placeholder}</span>
+        <span style={{ color: '#CBD5E1', fontSize: 10, flexShrink: 0 }}>▾</span>
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200,
+          background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 2,
+          maxHeight: 220, display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        }}>
+          {/* Breadcrumb / back header */}
+          {breadcrumb.length > 0 && (
+            <div style={{ padding: '5px 8px', borderBottom: '1px solid #f1f5f9', background: '#fafafa', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+              <button onMouseDown={e => { e.preventDefault(); handleBack(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4A90E2', fontSize: 16, lineHeight: 1, padding: '0 4px' }}>‹</button>
+              <span style={{ fontSize: 11, color: '#64748B', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{breadcrumbPath}</span>
+              <button onMouseDown={e => { e.preventDefault(); onChange(breadcrumbPath); setOpen(false); setParentId(null); setBreadcrumb([]); }} style={{ fontSize: 10, fontWeight: 700, color: '#4A90E2', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>Select ✓</button>
+            </div>
+          )}
+          <div style={{ overflowY: 'auto', flex: 1 }}>
+            {vesselLocations.length === 0 && <div style={{ padding: '12px', fontSize: 12, color: '#94A3B8', textAlign: 'center' }}>No vessel locations configured</div>}
+            {currentItems.map(loc => {
+              const hasChildren = vesselLocations.some(l => l.parent_id === loc.id);
+              return (
+                <div key={loc.id} style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #f8fafc' }}>
+                  <button
+                    onMouseDown={e => { e.preventDefault(); hasChildren ? handleDrillIn(loc) : handleSelect(loc.name); }}
+                    style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', padding: '7px 12px', cursor: 'pointer', fontSize: 12, color: '#0F172A', display: 'flex', alignItems: 'center', gap: 6 }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                  >
+                    {hasChildren && <span style={{ color: '#CBD5E1', fontSize: 10, flexShrink: 0 }}>📁</span>}
+                    {loc.name}
+                  </button>
+                  {hasChildren && (
+                    <button
+                      onMouseDown={e => { e.preventDefault(); e.stopPropagation(); handleSelect(loc.name); }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#CBD5E1', padding: '7px 10px', fontSize: 10, flexShrink: 0, whiteSpace: 'nowrap' }}
+                      onMouseEnter={e => e.currentTarget.style.color = '#4A90E2'}
+                      onMouseLeave={e => e.currentTarget.style.color = '#CBD5E1'}
+                      title="Select this level"
+                    >✓</button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -268,7 +372,7 @@ const FLD = ({ children }) => (
 const PushStep = ({
   items, receiving, matches,
   locationSplits, onSplitChange, onAddSplitLocation, onRemoveSplitLocation,
-  noMatchChoices, inlineLinks, inlineSearch, allLocations,
+  noMatchChoices, inlineLinks, inlineSearch, allLocations, vesselLocations,
   onSetNoMatchChoice, onInlineSearchChange, onInlineLink,
   onUnlinkMatch, onUnlinkInline,
   newItemForms, onInitNewItemForm, onNewItemFormChange,
@@ -295,13 +399,13 @@ const PushStep = ({
               >
                 <Icon name="Trash2" style={{ width: 12, height: 12 }} />
               </button>
-              {/* Location picker */}
-              <LocationPicker
+              {/* Physical storage location picker */}
+              <VesselLocationPicker
                 value={loc.locationName}
                 onChange={v => onSplitChange(itemId, idx, 'locationName', v)}
-                locations={allLocations}
+                vesselLocations={vesselLocations}
                 borderColor={borderCol}
-                placeholder="Select location…"
+                placeholder="Select storage location…"
               />
               {/* Current stock label */}
               <span style={{ fontSize: 10, color: '#94A3B8', whiteSpace: 'nowrap', flexShrink: 0, width: 44, textAlign: 'right' }}>
@@ -509,10 +613,10 @@ const PushStep = ({
                                 onMouseEnter={e => e.currentTarget.style.color = '#EF4444'}
                                 onMouseLeave={e => e.currentTarget.style.color = '#CBD5E1'}
                               ><Icon name="Trash2" style={{ width: 12, height: 12 }} /></button>
-                              <LocationPicker
+                              <VesselLocationPicker
                                 value={s.locationName}
                                 onChange={v => onNewItemSplitChange(item.id, idx, 'locationName', v)}
-                                locations={allLocations}
+                                vesselLocations={vesselLocations}
                                 borderColor="#FED7AA"
                                 placeholder="Select storage location…"
                               />
@@ -606,8 +710,9 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
   const [noMatchChoices, setNoMatchChoices] = useState({}); // {[id]: 'link'|'create'|'skip'|null}
   const [inlineLinks, setInlineLinks] = useState({});      // {[id]: inventoryRow}
   const [inlineSearch, setInlineSearch] = useState({});    // {[id]: {query, results, loading}}
-  const [allLocations, setAllLocations] = useState([]);
-  const [newItemForms, setNewItemForms] = useState({});    // {[id]: {name, brand, size, unit, barcode, locationName}}
+  const [allLocations, setAllLocations] = useState([]);    // inventory_locations paths (category hierarchy)
+  const [vesselLocations, setVesselLocations] = useState([]); // vessel_locations rows (physical storage)
+  const [newItemForms, setNewItemForms] = useState({});    // {[id]: {name, brand, size, unit, barcode, categoryPath, splits}}
   const [saving, setSaving] = useState(false);
   const [pushing, setPushing] = useState(false);
   const inlineSearchTimers = useRef({});
@@ -634,6 +739,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
     setInlineLinks({});
     setInlineSearch({});
     fetchAllInventoryLocations(tenantId).then(locs => setAllLocations(locs || []));
+    fetchVesselLocations(tenantId).then(locs => setVesselLocations(locs || []));
     checkedItems.forEach(item => {
       setMatches(prev => ({ ...prev, [item.id]: 'loading' }));
       const receivedQty = parseFloat(receiving[item.id]?.qty) || 0;
@@ -946,6 +1052,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
             inlineLinks={inlineLinks}
             inlineSearch={inlineSearch}
             allLocations={allLocations}
+            vesselLocations={vesselLocations}
             onSetNoMatchChoice={handleSetNoMatchChoice}
             onInlineSearchChange={handleInlineSearchChange}
             onInlineLink={handleInlineLink}
