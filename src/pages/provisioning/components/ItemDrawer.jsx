@@ -5,7 +5,7 @@ import { ITEM_STATUS_CONFIG } from './StatusBadge';
 import {
   upsertItems,
   deleteProvisioningItem,
-  fetchInventoryLocationChildren,
+  fetchAllInventoryLocations,
   searchInventoryItems,
 } from '../utils/provisioningStorage';
 import { UNIT_GROUPS } from './DetailTableCells';
@@ -78,6 +78,71 @@ const FL = ({ children }) => (
   </span>
 );
 
+// ── Progressive category picker ──────────────────────────────────────────────
+// paths: string[] of full paths like ["Bar", "Bar > Main Bar", "Bar > Main Bar > Wine"]
+// value: currently selected full path  (e.g. "Bar > Main Bar > Wine")
+// Deriving form fields: department=segments[0], category=segments[1], sub_category=segments.slice(1).join(' > ')
+const CategoryPicker = ({ paths = [], value = '', onChange, disabled = false, borderColor = '#e2e8f0' }) => {
+  const segments = value ? value.split(' > ') : [];
+
+  const getLevelOptions = (level) => {
+    const prefix = segments.slice(0, level).join(' > ');
+    const relevant = prefix
+      ? paths.filter(p => p === prefix || p.startsWith(prefix + ' > '))
+      : paths;
+    const seen = new Set();
+    const opts = [];
+    for (const path of relevant) {
+      const seg = path.split(' > ')[level];
+      if (seg && !seen.has(seg)) { seen.add(seg); opts.push(seg); }
+    }
+    return opts;
+  };
+
+  const handleChange = (level, val) => {
+    const newSegs = [...segments.slice(0, level), ...(val ? [val] : [])];
+    onChange(newSegs.join(' > '));
+  };
+
+  // Build array of dropdowns: always show one more than currently selected (if options exist)
+  const dropdowns = [];
+  for (let level = 0; ; level++) {
+    const opts = getLevelOptions(level);
+    if (opts.length === 0) break;
+    dropdowns.push({ level, opts, selected: segments[level] || '' });
+    if (!segments[level]) break; // stop until this level is filled
+  }
+
+  if (dropdowns.length === 0 && paths.length === 0) {
+    return <span style={{ fontSize: 12, color: '#CBD5E1' }}>No categories configured</span>;
+  }
+
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+      {dropdowns.map(({ level, opts, selected }) => (
+        <select
+          key={level}
+          value={selected}
+          onChange={e => handleChange(level, e.target.value)}
+          disabled={disabled}
+          style={{
+            fontSize: 12, padding: '4px 6px',
+            border: `1px solid ${disabled ? '#e2e8f0' : borderColor}`,
+            borderRadius: 6, background: 'white',
+            color: selected ? '#0F172A' : '#94A3B8',
+            cursor: disabled ? 'default' : 'pointer',
+            outline: 'none', flexShrink: 0,
+            maxWidth: 150, opacity: disabled ? 0.55 : 1,
+          }}
+        >
+          <option value="">Select…</option>
+          {opts.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+      ))}
+    </div>
+  );
+};
+
 // ── CSS for .idr-field inputs/selects/textareas ───────────────────────────────
 const FIELD_CSS = `
   .idr-field {
@@ -127,7 +192,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
   const canViewAccounting = ['COMMAND', 'CHIEF'].includes(userTier);
 
   const [form, setForm] = useState({});
-  const [locRows, setLocRows] = useState([]);
+  const [allCategoryPaths, setAllCategoryPaths] = useState([]);
   const [savedFlash, setSavedFlash] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [accountingOpen, setAccountingOpen] = useState(false);
@@ -172,13 +237,11 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
     }
   }, [item]);
 
-  // Fetch inventory location children whenever department or tenantId changes
+  // Fetch all inventory category paths once per tenant
   useEffect(() => {
-    if (!form.department || !tenantId) { setLocRows([]); return; }
-    fetchInventoryLocationChildren(tenantId, form.department)
-      .then(setLocRows)
-      .catch(() => setLocRows([]));
-  }, [form.department, tenantId]);
+    if (!tenantId) return;
+    fetchAllInventoryLocations(tenantId).then(paths => setAllCategoryPaths(paths || []));
+  }, [tenantId]);
 
   // Reset search state when item changes
   useEffect(() => {
@@ -256,28 +319,6 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
     setLinkedInvItem(null);
     saveField(updates);
   };
-
-  // ── Derived cascading options ─────────────────────────────────────────────
-  const locL2Options = locRows
-    .filter(r => !r.sub_location.includes(' > '))
-    .map(r => r.sub_location);
-
-  const locL2 = form.category || '';
-  const subParts = form.sub_category ? form.sub_category.split(' > ') : [];
-  const locL3 = subParts[1] || '';
-  const locL4 = subParts[2] || '';
-
-  const locL3Options = locL2
-    ? locRows
-        .filter(r => r.sub_location.startsWith(locL2 + ' > ') && r.sub_location.split(' > ').length === 2)
-        .map(r => r.sub_location.split(' > ')[1])
-    : [];
-
-  const locL4Options = locL2 && locL3
-    ? locRows
-        .filter(r => r.sub_location.startsWith(locL2 + ' > ' + locL3 + ' > ') && r.sub_location.split(' > ').length === 3)
-        .map(r => r.sub_location.split(' > ')[2])
-    : [];
 
   // ── Save helpers ──────────────────────────────────────────────────────────
 
@@ -635,44 +676,23 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
 
           {/* ════ SECTION 3: LOCATION ════ */}
           <Section label="Location">
-            {/* Department + Category side by side */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <Field isLight={isLight} labelCls={labelCls} label="Department">
-                <select
-                  value={form.department || ''}
-                  onChange={e => {
-                    const dept = e.target.value;
-                    setForm(prev => ({ ...prev, department: dept, category: '', sub_category: '' }));
-                    saveField({ department: dept, category: '', sub_category: '' });
-                  }}
-                  disabled={isLinked}
-                  className={inputCls}
-                  style={isLinked ? { opacity: 0.55 } : {}}
-                >
-                  <option value="">None</option>
-                  {departments.length === 0
-                    ? <option disabled value="">No departments configured</option>
-                    : departments.map(d => <option key={d} value={d}>{d}</option>)
-                  }
-                </select>
-              </Field>
-
-              <Field isLight={isLight} labelCls={labelCls} label="Category">
-                <select
-                  value={locL2}
-                  onChange={e => {
-                    const val = e.target.value;
-                    setForm(prev => ({ ...prev, category: val, sub_category: val }));
-                    saveField({ category: val, sub_category: val });
-                  }}
-                  disabled={isLinked || !form.department || locL2Options.length === 0}
-                  className={inputCls}
-                  style={(isLinked || !form.department || locL2Options.length === 0) ? { opacity: 0.55 } : {}}
-                >
-                  <option value="">{!form.department ? 'Select department first' : locL2Options.length === 0 ? 'No categories' : 'Select category…'}</option>
-                  {locL2Options.map(o => <option key={o} value={o}>{o}</option>)}
-                </select>
-              </Field>
+            {/* Progressive category picker — L1 = department, L2+ = sub-categories */}
+            <div>
+              {isLight ? <FL>Category</FL> : <label className={labelCls}>Category</label>}
+              <CategoryPicker
+                paths={allCategoryPaths}
+                value={[form.department, form.sub_category].filter(Boolean).join(' > ')}
+                onChange={fullPath => {
+                  const segs = fullPath ? fullPath.split(' > ') : [];
+                  const dept = segs[0] || '';
+                  const cat = segs[1] || '';
+                  const subCat = segs.slice(1).join(' > ');
+                  const updates = { department: dept, category: cat, sub_category: subCat };
+                  setForm(prev => ({ ...prev, ...updates }));
+                  saveField(updates);
+                }}
+                disabled={isLinked}
+              />
             </div>
 
             {/* Supplier */}
@@ -701,75 +721,6 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                 />
               </Field>
             </div>
-
-            {/* Sub-category levels (only when dept + category selected) */}
-            {form.department && (
-              <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {locL2 && locL3Options.length > 0 && (
-                  isLight ? (
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                      <span style={{ color: '#e2e8f0', fontSize: 12, flexShrink: 0, paddingTop: 18 }}>↳</span>
-                      <div style={{ flex: 1 }}>
-                        <Field isLight={isLight} labelCls={labelCls} label="Sub-category">
-                          <select
-                            value={locL3}
-                            onChange={e => {
-                              const val = e.target.value;
-                              const path = val ? `${locL2} > ${val}` : locL2;
-                              setForm(prev => ({ ...prev, sub_category: path }));
-                              saveField({ sub_category: path });
-                            }}
-                            className="idr-field"
-                          >
-                            <option value="">Select…</option>
-                            {locL3Options.map(o => <option key={o} value={o}>{o}</option>)}
-                          </select>
-                        </Field>
-                      </div>
-                    </div>
-                  ) : (
-                    <Field isLight={isLight} labelCls={labelCls} label="Sub-category">
-                      <select value={locL3} onChange={e => { const val = e.target.value; const path = val ? `${locL2} > ${val}` : locL2; setForm(prev => ({ ...prev, sub_category: path })); saveField({ sub_category: path }); }} className={inputCls}>
-                        <option value="">Select…</option>
-                        {locL3Options.map(o => <option key={o} value={o}>{o}</option>)}
-                      </select>
-                    </Field>
-                  )
-                )}
-
-                {locL3 && locL4Options.length > 0 && (
-                  isLight ? (
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                      <span style={{ color: '#e2e8f0', fontSize: 12, flexShrink: 0, paddingTop: 18 }}>↳</span>
-                      <div style={{ flex: 1 }}>
-                        <Field isLight={isLight} labelCls={labelCls} label="Sub-category 2">
-                          <select
-                            value={locL4}
-                            onChange={e => {
-                              const val = e.target.value;
-                              const path = val ? `${locL2} > ${locL3} > ${val}` : `${locL2} > ${locL3}`;
-                              setForm(prev => ({ ...prev, sub_category: path }));
-                              saveField({ sub_category: path });
-                            }}
-                            className="idr-field"
-                          >
-                            <option value="">Select…</option>
-                            {locL4Options.map(o => <option key={o} value={o}>{o}</option>)}
-                          </select>
-                        </Field>
-                      </div>
-                    </div>
-                  ) : (
-                    <Field isLight={isLight} labelCls={labelCls} label="Sub-category 2">
-                      <select value={locL4} onChange={e => { const val = e.target.value; const path = val ? `${locL2} > ${locL3} > ${val}` : `${locL2} > ${locL3}`; setForm(prev => ({ ...prev, sub_category: path })); saveField({ sub_category: path }); }} className={inputCls}>
-                        <option value="">Select…</option>
-                        {locL4Options.map(o => <option key={o} value={o}>{o}</option>)}
-                      </select>
-                    </Field>
-                  )
-                )}
-              </div>
-            )}
           </Section>
 
           {/* ════ SECTION 4: COST ════ */}
