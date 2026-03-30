@@ -143,9 +143,7 @@ const CategoryPicker = ({ paths = [], value = '', onChange, disabled = false, bo
       const seg = path.split(' > ')[level];
       if (seg && !seen.has(seg)) {
         seen.add(seg);
-        const fullPath = prefix ? `${prefix} > ${seg}` : seg;
-        const hasChildren = paths.some(p => p.startsWith(fullPath + ' > '));
-        if (hasChildren) opts.push(seg); // only show folder nodes, not leaves
+        opts.push(seg); // all entries in paths are folders; leaf folders are valid selections
       }
     }
     return opts;
