@@ -42,6 +42,16 @@ const STATUS_STYLES = {
   not_delivered: { bg: '#fef2f2', border: '#fca5a5', color: '#b91c1c' },
 };
 
+// ── Field label + child wrapper — defined at module level to avoid remount ───
+const Field = ({ isLight, labelCls, label, children }) => (
+  <div>
+    {isLight
+      ? <span style={{ display: 'block', fontSize: 10, color: '#cbd5e1', fontWeight: 500, letterSpacing: '0.04em', marginBottom: 4 }}>{label}</span>
+      : <label className={labelCls}>{label}</label>}
+    {children}
+  </div>
+);
+
 // ── Section wrapper — spacing only, no divider line ───────────────────────────
 const Section = ({ label, children }) => (
   <div style={{ paddingTop: 20 }}>
@@ -333,13 +343,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
 
   if (!open || !item) return null;
 
-  // ── Helper to wrap a label above a field ─────────────────────────────────
-  const Field = ({ label, children }) => (
-    <div>
-      {isLight ? <FL>{label}</FL> : <label className={labelCls}>{label}</label>}
-      {children}
-    </div>
-  );
+  const isLinked = !!form.inventory_item_id;
 
   return (
     <>
@@ -482,9 +486,6 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
           })()}
 
           {/* ════ SECTION 1: IDENTITY ════ */}
-          {(() => {
-            const isLinked = !!form.inventory_item_id;
-            return (
           <div>
             {/* Name — 22px/700, bottom border only */}
             <input
@@ -505,7 +506,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
             />
             {/* Brand */}
             <div style={{ marginTop: 16 }}>
-              <Field label="Brand">
+              <Field isLight={isLight} labelCls={labelCls} label="Brand">
                 <input
                   value={form.brand || ''}
                   onChange={e => !isLinked && set('brand', e.target.value)}
@@ -519,7 +520,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
             </div>
             {/* Barcode */}
             <div style={{ marginTop: 8 }}>
-              <Field label="Barcode">
+              <Field isLight={isLight} labelCls={labelCls} label="Barcode">
                 <input
                   value={form.barcode || ''}
                   onChange={e => !isLinked && set('barcode', e.target.value)}
@@ -532,13 +533,8 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
               </Field>
             </div>
           </div>
-            );
-          })()}
 
           {/* ════ SECTION 2: MEASURE ════ */}
-          {(() => {
-            const isLinked = !!form.inventory_item_id;
-            return (
           <Section label="Measure">
             {isLight ? (
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr', gap: 8 }}>
@@ -547,7 +543,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                   <input
                     value={form.size || ''} onChange={e => !isLinked && set('size', e.target.value)}
                     onBlur={() => !isLinked && saveField()} readOnly={isLinked}
-                    className="idr-field" placeholder="e.g. 500g"
+                    className="idr-field" placeholder="e.g. 500"
                     style={isLinked ? { opacity: 0.55, cursor: 'default' } : {}}
                   />
                 </div>
@@ -570,7 +566,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
               <div className="flex gap-2">
                 <div style={{ flex: 2 }}>
                   <label className={labelCls}>Size</label>
-                  <input value={form.size || ''} onChange={e => !isLinked && set('size', e.target.value)} onBlur={() => !isLinked && saveField()} readOnly={isLinked} className={inputCls} placeholder="e.g. 500g" style={isLinked ? { opacity: 0.55 } : {}} />
+                  <input value={form.size || ''} onChange={e => !isLinked && set('size', e.target.value)} onBlur={() => !isLinked && saveField()} readOnly={isLinked} className={inputCls} placeholder="e.g. 500" style={isLinked ? { opacity: 0.55 } : {}} />
                 </div>
                 <div style={{ flex: 2 }}>
                   <label className={labelCls}>Unit</label>
@@ -589,12 +585,10 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
               </div>
             )}
           </Section>
-            );
-          })()}
 
           {/* ════ SECTION 3: LOCATION ════ */}
           <Section label="Location">
-            <Field label="Department">
+            <Field isLight={isLight} labelCls={labelCls} label="Department">
               <select
                 value={form.department || ''}
                 onChange={e => {
@@ -614,7 +608,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
 
             {/* Supplier */}
             <div style={{ marginTop: 8 }}>
-              <Field label="Supplier">
+              <Field isLight={isLight} labelCls={labelCls} label="Supplier">
                 <select
                   value={form.supplier_id || ''}
                   onChange={e => setAndSave('supplier_id', e.target.value || null)}
@@ -628,7 +622,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
 
             {/* Port / Location */}
             <div style={{ marginTop: 8 }}>
-              <Field label="Port / Location">
+              <Field isLight={isLight} labelCls={labelCls} label="Port / Location">
                 <input
                   value={form.port_location || ''}
                   onChange={e => set('port_location', e.target.value)}
@@ -642,7 +636,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
             {form.department && (
               <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {locL2Options.length > 0 && (
-                  <Field label="Category">
+                  <Field isLight={isLight} labelCls={labelCls} label="Category">
                     <select
                       value={locL2}
                       onChange={e => {
@@ -663,7 +657,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                       <span style={{ color: '#e2e8f0', fontSize: 12, flexShrink: 0, paddingTop: 18 }}>↳</span>
                       <div style={{ flex: 1 }}>
-                        <Field label="Sub-category">
+                        <Field isLight={isLight} labelCls={labelCls} label="Sub-category">
                           <select
                             value={locL3}
                             onChange={e => {
@@ -681,7 +675,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                       </div>
                     </div>
                   ) : (
-                    <Field label="Sub-category">
+                    <Field isLight={isLight} labelCls={labelCls} label="Sub-category">
                       <select value={locL3} onChange={e => { const val = e.target.value; const path = val ? `${locL2} > ${val}` : locL2; setForm(prev => ({ ...prev, sub_category: path })); saveField({ sub_category: path }); }} className={inputCls}>
                         <option value="">Select…</option>
                         {locL3Options.map(o => <option key={o} value={o}>{o}</option>)}
@@ -695,7 +689,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                       <span style={{ color: '#e2e8f0', fontSize: 12, flexShrink: 0, paddingTop: 18 }}>↳</span>
                       <div style={{ flex: 1 }}>
-                        <Field label="Sub-category 2">
+                        <Field isLight={isLight} labelCls={labelCls} label="Sub-category 2">
                           <select
                             value={locL4}
                             onChange={e => {
@@ -713,7 +707,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                       </div>
                     </div>
                   ) : (
-                    <Field label="Sub-category 2">
+                    <Field isLight={isLight} labelCls={labelCls} label="Sub-category 2">
                       <select value={locL4} onChange={e => { const val = e.target.value; const path = val ? `${locL2} > ${locL3} > ${val}` : `${locL2} > ${locL3}`; setForm(prev => ({ ...prev, sub_category: path })); saveField({ sub_category: path }); }} className={inputCls}>
                         <option value="">Select…</option>
                         {locL4Options.map(o => <option key={o} value={o}>{o}</option>)}
@@ -803,7 +797,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
             {/* Quantity received — non-pending only */}
             {form.status && form.status !== 'pending' && (
               <div style={{ marginTop: 12 }}>
-                <Field label="Quantity Received">
+                <Field isLight={isLight} labelCls={labelCls} label="Quantity Received">
                   <input type="number" value={form.quantity_received ?? ''} onChange={e => set('quantity_received', e.target.value)} onBlur={() => saveField()} className={inputCls} min="0" step="0.1" />
                 </Field>
               </div>
