@@ -835,15 +835,17 @@ export const findMatchingInventoryItem = async (provItem, tenantId) => {
         ?.maybeSingle();
       if (data) return data;
     }
-    // 4. Exact name match (case-insensitive)
-    if (provItem?.name) {
+    // 4. name + brand + size — ALL three must be present and match exactly
+    if (provItem?.name && provItem?.brand && provItem?.size) {
       const { data } = await supabase
         ?.from('inventory_items')
         ?.select('id, name, brand, size, unit, cargo_item_id, barcode, stock_locations, location, sub_location, total_qty, unit_cost, currency')
-        ?.ilike('name', provItem.name)
+        ?.ilike('name', provItem.name.trim())
+        ?.ilike('brand', provItem.brand.trim())
+        ?.ilike('size', provItem.size.trim())
         ?.eq('tenant_id', tenantId)
-        ?.limit(1);
-      if (data?.[0]) return data[0];
+        ?.maybeSingle();
+      if (data) return data;
     }
     return null;
   } catch (err) {
@@ -943,6 +945,55 @@ export const createInventoryItemFromProvItem = async ({ provItem, locationName, 
   } catch (err) {
     console.error('[provisioningStorage] createInventoryItemFromProvItem error:', err.message);
     return null;
+  }
+};
+
+/**
+ * Push received qty to multiple locations in one atomic fetch+update.
+ * splits: [{ locationName: string, addQty: number }]
+ */
+export const pushReceivedSplitsToInventory = async ({ inventoryItemId, splits, tenantId }) => {
+  const activeSplits = (splits || []).filter(s => (parseFloat(s.addQty) || 0) > 0 && (s.locationName || '').trim());
+  if (!activeSplits.length || !inventoryItemId || !tenantId) return false;
+  try {
+    const { data: item, error: fetchErr } = await supabase
+      ?.from('inventory_items')
+      ?.select('stock_locations, total_qty')
+      ?.eq('id', inventoryItemId)
+      ?.eq('tenant_id', tenantId)
+      ?.single();
+    if (fetchErr) throw fetchErr;
+
+    let locs = Array.isArray(item?.stock_locations) ? [...item.stock_locations] : [];
+    let totalAdded = 0;
+
+    for (const split of activeSplits) {
+      const normName = split.locationName.trim();
+      const addQty = parseFloat(split.addQty) || 0;
+      const idx = locs.findIndex(l => (l?.locationName || l?.name || '').toLowerCase() === normName.toLowerCase());
+      if (idx >= 0) {
+        const existing = locs[idx];
+        locs[idx] = { ...existing, qty: (existing?.qty ?? existing?.quantity ?? 0) + addQty };
+      } else {
+        locs.push({ locationName: normName, locationId: '', qty: addQty });
+      }
+      totalAdded += addQty;
+    }
+
+    const { error: updateErr } = await supabase
+      ?.from('inventory_items')
+      ?.update({
+        stock_locations: locs,
+        total_qty: (item.total_qty ?? 0) + totalAdded,
+        last_provisioning_date: new Date().toISOString(),
+      })
+      ?.eq('id', inventoryItemId)
+      ?.eq('tenant_id', tenantId);
+    if (updateErr) throw updateErr;
+    return true;
+  } catch (err) {
+    console.error('[provisioningStorage] pushReceivedSplitsToInventory error:', err.message);
+    return false;
   }
 };
 
