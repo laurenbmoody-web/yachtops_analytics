@@ -932,12 +932,20 @@ export const pushReceivedQtyToLocation = async ({ inventoryItemId, locationName,
  * Create a new inventory item from provisioning data and link it.
  * Returns the created row id, or null on failure.
  */
-export const createInventoryItemFromProvItem = async ({ provItem, locationName, qty, tenantId, userId }) => {
+export const createInventoryItemFromProvItem = async ({ provItem, categoryPath, storageLocations, locationName, qty, tenantId, userId }) => {
   if (!tenantId) return null;
   try {
-    const stockLocations = locationName
-      ? [{ locationName: locationName.trim(), locationId: '', qty: qty || 0 }]
-      : [];
+    // categoryPath → inventory hierarchy (location + sub_location fields)
+    // storageLocations → physical storage with qty splits
+    const catPath = categoryPath || locationName || null;
+    const stockLocations = storageLocations?.length > 0
+      ? storageLocations
+          .filter(s => (parseFloat(s.addQty) || 0) > 0 && (s.locationName || '').trim())
+          .map(s => ({ locationName: s.locationName.trim(), locationId: '', qty: parseFloat(s.addQty) || 0 }))
+      : locationName ? [{ locationName: locationName.trim(), locationId: '', qty: qty || 0 }] : [];
+    const totalQty = storageLocations?.length > 0
+      ? stockLocations.reduce((sum, l) => sum + (l.qty || 0), 0)
+      : qty || 0;
     const { data, error } = await supabase
       ?.from('inventory_items')
       ?.insert({
@@ -947,10 +955,10 @@ export const createInventoryItemFromProvItem = async ({ provItem, locationName, 
         brand: provItem?.brand || null,
         size: provItem?.size || null,
         unit: provItem?.unit || 'each',
-        location: locationName?.split(' > ')?.[0]?.trim() || locationName || null,
-        sub_location: locationName || null,
+        location: catPath?.split(' > ')?.[0]?.trim() || catPath || null,
+        sub_location: catPath?.split(' > ')?.slice(1)?.join(' > ') || null,
         stock_locations: stockLocations,
-        total_qty: qty || 0,
+        total_qty: totalQty,
         notes: provItem?.notes || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

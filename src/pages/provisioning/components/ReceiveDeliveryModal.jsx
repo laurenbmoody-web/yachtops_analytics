@@ -270,7 +270,9 @@ const PushStep = ({
   locationSplits, onSplitChange, onAddSplitLocation, onRemoveSplitLocation,
   noMatchChoices, inlineLinks, inlineSearch, allLocations,
   onSetNoMatchChoice, onInlineSearchChange, onInlineLink,
+  onUnlinkMatch, onUnlinkInline,
   newItemForms, onInitNewItemForm, onNewItemFormChange,
+  onNewItemSplitChange, onNewItemAddSplit, onNewItemRemoveSplit,
   onPush, onBack, pushing,
 }) => {
   const receivedItems = items.filter(i => receiving[i.id]?.checked && (parseFloat(receiving[i.id]?.qty) || 0) > 0);
@@ -374,7 +376,13 @@ const PushStep = ({
                       Matched → {match.name}
                       {match.cargo_item_id && <span style={{ fontWeight: 400, color: '#4ADE80', marginLeft: 4 }}>({match.cargo_item_id})</span>}
                     </span>
-                    <span style={{ marginLeft: 'auto', fontSize: 11, color: '#6B7280', whiteSpace: 'nowrap' }}>stock: {match.total_qty ?? 0}</span>
+                    <span style={{ fontSize: 11, color: '#6B7280', whiteSpace: 'nowrap' }}>stock: {match.total_qty ?? 0}</span>
+                    <button
+                      onClick={() => onUnlinkMatch(item.id)}
+                      style={{ marginLeft: 'auto', fontSize: 11, color: '#6B7280', background: 'none', border: '1px solid #BBF7D0', cursor: 'pointer', padding: '1px 7px', borderRadius: 5, flexShrink: 0 }}
+                      onMouseEnter={e => { e.currentTarget.style.color = '#EF4444'; e.currentTarget.style.borderColor = '#FCA5A5'; }}
+                      onMouseLeave={e => { e.currentTarget.style.color = '#6B7280'; e.currentTarget.style.borderColor = '#BBF7D0'; }}
+                    >Unlink</button>
                   </div>
                   {renderSplits(item.id, qty, splits)}
                 </div>
@@ -395,7 +403,13 @@ const PushStep = ({
                       Linked → {inlineLink.name}
                       {inlineLink.cargo_item_id && <span style={{ fontWeight: 400, color: '#4ADE80', marginLeft: 4 }}>({inlineLink.cargo_item_id})</span>}
                     </span>
-                    <span style={{ marginLeft: 'auto', fontSize: 11, color: '#6B7280', whiteSpace: 'nowrap' }}>stock: {inlineLink.total_qty ?? 0}</span>
+                    <span style={{ fontSize: 11, color: '#6B7280', whiteSpace: 'nowrap' }}>stock: {inlineLink.total_qty ?? 0}</span>
+                    <button
+                      onClick={() => onUnlinkInline(item.id)}
+                      style={{ marginLeft: 'auto', fontSize: 11, color: '#6B7280', background: 'none', border: '1px solid #BBF7D0', cursor: 'pointer', padding: '1px 7px', borderRadius: 5, flexShrink: 0 }}
+                      onMouseEnter={e => { e.currentTarget.style.color = '#EF4444'; e.currentTarget.style.borderColor = '#FCA5A5'; }}
+                      onMouseLeave={e => { e.currentTarget.style.color = '#6B7280'; e.currentTarget.style.borderColor = '#BBF7D0'; }}
+                    >Unlink</button>
                   </div>
                   {renderSplits(item.id, qty, splits)}
                 </div>
@@ -445,6 +459,7 @@ const PushStep = ({
                   </div>
                   {newForm ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {/* Item details grid */}
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                         <div>
                           <FLD>Name *</FLD>
@@ -469,15 +484,60 @@ const PushStep = ({
                           <input value={newForm.barcode} onChange={e => onNewItemFormChange(item.id, 'barcode', e.target.value)} style={{ width: '100%', boxSizing: 'border-box', fontSize: 12, padding: '4px 8px', border: '1px solid #FED7AA', borderRadius: 6, outline: 'none' }} />
                         </div>
                       </div>
+
+                      {/* Inventory category (hierarchy path) */}
                       <div>
-                        <FLD>Location * (required to create)</FLD>
+                        <FLD>Inventory category *</FLD>
                         <LocationPicker
-                          value={newForm.locationName}
-                          onChange={v => onNewItemFormChange(item.id, 'locationName', v)}
+                          value={newForm.categoryPath}
+                          onChange={v => onNewItemFormChange(item.id, 'categoryPath', v)}
                           locations={allLocations}
                           borderColor="#FED7AA"
-                          placeholder="Select inventory location…"
+                          placeholder="e.g. Bar > Main Bar > Spirits…"
                         />
+                      </div>
+
+                      {/* Physical storage locations with qty splits */}
+                      <div>
+                        <FLD>Storage locations *</FLD>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {(newForm.splits || []).map((s, idx) => (
+                            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                              <button
+                                onClick={() => onNewItemRemoveSplit(item.id, idx)}
+                                style={{ ...ICON_BTN, color: '#CBD5E1', flexShrink: 0 }}
+                                onMouseEnter={e => e.currentTarget.style.color = '#EF4444'}
+                                onMouseLeave={e => e.currentTarget.style.color = '#CBD5E1'}
+                              ><Icon name="Trash2" style={{ width: 12, height: 12 }} /></button>
+                              <LocationPicker
+                                value={s.locationName}
+                                onChange={v => onNewItemSplitChange(item.id, idx, 'locationName', v)}
+                                locations={allLocations}
+                                borderColor="#FED7AA"
+                                placeholder="Select storage location…"
+                              />
+                              <SplitQtyBtn onClick={() => onNewItemSplitChange(item.id, idx, 'addQty', Math.max(0, (parseFloat(s.addQty) || 0) - 1))}>−</SplitQtyBtn>
+                              <input
+                                type="number" min="0" value={s.addQty}
+                                onChange={e => onNewItemSplitChange(item.id, idx, 'addQty', parseFloat(e.target.value) || 0)}
+                                style={{ width: 38, textAlign: 'center', fontSize: 12, padding: '3px 2px', border: '1px solid #FED7AA', borderRadius: 6, outline: 'none', flexShrink: 0 }}
+                              />
+                              <SplitQtyBtn onClick={() => onNewItemSplitChange(item.id, idx, 'addQty', (parseFloat(s.addQty) || 0) + 1)}>+</SplitQtyBtn>
+                            </div>
+                          ))}
+                        </div>
+                        {/* Add location row + total */}
+                        {(() => {
+                          const splits = newForm.splits || [];
+                          const totalAllocated = splits.reduce((sum, s) => sum + (parseFloat(s.addQty) || 0), 0);
+                          const allocOk = Math.abs(totalAllocated - qty) < 0.001;
+                          return (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+                              <button onClick={() => onNewItemAddSplit(item.id)} style={{ fontSize: 11, fontWeight: 600, color: '#EA580C', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>+ Add location</button>
+                              <span style={{ fontSize: 11, fontWeight: 600, color: allocOk ? '#16A34A' : '#EA580C' }}>{totalAllocated} of {qty} allocated{allocOk ? ' ✓' : ''}</span>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   ) : null}
@@ -698,6 +758,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
   };
 
   const handleInitNewItemForm = (itemId, provItem) => {
+    const qty = parseFloat(receiving[itemId]?.qty) || 0;
     setNewItemForms(prev => ({
       ...prev,
       [itemId]: {
@@ -706,13 +767,53 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
         size: provItem.size || '',
         unit: provItem.unit || 'bottle',
         barcode: provItem.barcode || '',
-        locationName: '',
+        categoryPath: '',                                       // inventory hierarchy
+        splits: [{ locationName: '', addQty: qty }],           // physical storage split rows
       },
     }));
   };
 
   const handleNewItemFormChange = (itemId, field, value) => {
     setNewItemForms(prev => ({ ...prev, [itemId]: { ...(prev[itemId] || {}), [field]: value } }));
+  };
+
+  const handleNewItemSplitChange = (itemId, idx, field, value) => {
+    setNewItemForms(prev => {
+      const form = { ...(prev[itemId] || {}) };
+      const splits = [...(form.splits || [])];
+      splits[idx] = { ...splits[idx], [field]: value };
+      return { ...prev, [itemId]: { ...form, splits } };
+    });
+  };
+
+  const handleNewItemAddSplit = (itemId) => {
+    setNewItemForms(prev => {
+      const form = { ...(prev[itemId] || {}) };
+      return { ...prev, [itemId]: { ...form, splits: [...(form.splits || []), { locationName: '', addQty: 0 }] } };
+    });
+  };
+
+  const handleNewItemRemoveSplit = (itemId, idx) => {
+    setNewItemForms(prev => {
+      const form = { ...(prev[itemId] || {}) };
+      const splits = [...(form.splits || [])];
+      splits.splice(idx, 1);
+      return { ...prev, [itemId]: { ...form, splits } };
+    });
+  };
+
+  // Unlink an auto-matched item → falls through to 3-option no-match panel
+  const handleUnlinkMatch = (itemId) => {
+    setMatches(prev => ({ ...prev, [itemId]: null }));
+    setLocationSplits(prev => { const n = { ...prev }; delete n[itemId]; return n; });
+    setNoMatchChoices(prev => ({ ...prev, [itemId]: null }));
+  };
+
+  // Unlink an inline-linked item → returns to search widget
+  const handleUnlinkInline = (itemId) => {
+    setInlineLinks(prev => { const n = { ...prev }; delete n[itemId]; return n; });
+    setLocationSplits(prev => { const n = { ...prev }; delete n[itemId]; return n; });
+    setNoMatchChoices(prev => ({ ...prev, [itemId]: 'link' }));  // stay in link mode but with no link selected
   };
 
   const handlePushToInventory = async () => {
@@ -755,10 +856,12 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
       // Path 3: create new inventory item
       if (choice === 'create') {
         const form = newItemForms[item.id];
-        if (form?.name && form?.locationName) {
+        const hasSplits = (form?.splits || []).some(s => (s.locationName || '').trim() && (parseFloat(s.addQty) || 0) > 0);
+        if (form?.name && (form?.categoryPath || hasSplits)) {
           const created = await createInventoryItemFromProvItem({
             provItem: { ...item, name: form.name, brand: form.brand || item.brand, size: form.size || item.size, unit: form.unit || item.unit, barcode: form.barcode || item.barcode },
-            locationName: form.locationName,
+            categoryPath: form.categoryPath || null,
+            storageLocations: form.splits || [],
             qty,
             tenantId,
             userId,
@@ -846,9 +949,14 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
             onSetNoMatchChoice={handleSetNoMatchChoice}
             onInlineSearchChange={handleInlineSearchChange}
             onInlineLink={handleInlineLink}
+            onUnlinkMatch={handleUnlinkMatch}
+            onUnlinkInline={handleUnlinkInline}
             newItemForms={newItemForms}
             onInitNewItemForm={handleInitNewItemForm}
             onNewItemFormChange={handleNewItemFormChange}
+            onNewItemSplitChange={handleNewItemSplitChange}
+            onNewItemAddSplit={handleNewItemAddSplit}
+            onNewItemRemoveSplit={handleNewItemRemoveSplit}
             onPush={handlePushToInventory}
             onBack={() => setStep(1)}
             pushing={pushing}
