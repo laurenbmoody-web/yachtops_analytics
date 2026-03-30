@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
 import { showToast } from '../../../utils/toast';
+import { supabase } from '../../../lib/supabaseClient';
 import {
-  upsertItems,
+  receiveItems,
   findMatchingInventoryItem,
   pushReceivedQtyToLocation,
   createInventoryItemFromProvItem,
@@ -378,14 +379,14 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
         const ordered = parseFloat(item.quantity_ordered) || 0;
         return {
           id: item.id,
-          list_id: item.list_id,
           quantity_received: qty,
           status: deriveStatus(qty, ordered),
         };
       });
-      await upsertItems(updates);
+      await receiveItems(updates);
       setStep(2);
-    } catch {
+    } catch (err) {
+      console.error('[ReceiveDeliveryModal] save error:', err);
       showToast('Failed to save receiving data', 'error');
     } finally {
       setSaving(false);
@@ -420,7 +421,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
         if (ok) {
           // Link provisioning item to inventory item
           try {
-            await upsertItems([{ id: item.id, list_id: item.list_id, inventory_item_id: match.id }]);
+            await supabase?.from('provisioning_items')?.update({ inventory_item_id: match.id })?.eq('id', item.id);
           } catch { /* non-fatal */ }
           pushed++;
         } else {
