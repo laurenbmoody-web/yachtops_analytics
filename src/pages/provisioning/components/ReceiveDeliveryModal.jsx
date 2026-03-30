@@ -10,6 +10,7 @@ import {
   searchInventoryItems,
   fetchAllInventoryLocations,
   fetchVesselLocations,
+  logDeliveryBatch,
 } from '../utils/provisioningStorage';
 import { useAuth } from '../../../contexts/AuthContext';
 import { UNIT_GROUPS } from './DetailTableCells';
@@ -140,7 +141,12 @@ const CategoryPicker = ({ paths = [], value = '', onChange, disabled = false, bo
     const opts = [];
     for (const path of relevant) {
       const seg = path.split(' > ')[level];
-      if (seg && !seen.has(seg)) { seen.add(seg); opts.push(seg); }
+      if (seg && !seen.has(seg)) {
+        seen.add(seg);
+        const fullPath = prefix ? `${prefix} > ${seg}` : seg;
+        const hasChildren = paths.some(p => p.startsWith(fullPath + ' > '));
+        if (hasChildren) opts.push(seg); // only show folder nodes, not leaves
+      }
     }
     return opts;
   };
@@ -853,6 +859,15 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
         };
       });
       await receiveItems(updates);
+      // Log this delivery batch (non-fatal — don't block step 2 if it fails)
+      const receivedUpdates = updates.filter(u => u.quantity_received > 0);
+      if (receivedUpdates.length > 0) {
+        const logItems = receivedUpdates.map(u => {
+          const item = items.find(i => i.id === u.id);
+          return { id: u.id, name: item?.name, quantity_received: u.quantity_received, unit: item?.unit };
+        });
+        logDeliveryBatch({ listId: list?.id, userId, tenantId, receivedItems: logItems }).catch(() => {});
+      }
       setStep(2);
     } catch (err) {
       console.error('[ReceiveDeliveryModal] save error:', err);
