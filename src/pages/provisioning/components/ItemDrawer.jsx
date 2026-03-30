@@ -43,16 +43,11 @@ const STATUS_STYLES = {
 };
 
 // ── Field label + child wrapper — defined at module level to avoid remount ───
-const Field = ({ isLight, labelCls, label, locked, children }) => (
+const Field = ({ isLight, labelCls, label, children }) => (
   <div>
     {isLight ? (
-      <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#cbd5e1', fontWeight: 500, letterSpacing: '0.04em', marginBottom: 4 }}>
+      <span style={{ display: 'block', fontSize: 10, color: '#cbd5e1', fontWeight: 500, letterSpacing: '0.04em', marginBottom: 4 }}>
         {label}
-        {locked && (
-          <span style={{ fontSize: 9, background: '#eff6ff', color: '#818cf8', borderRadius: 3, padding: '0 4px', fontWeight: 600, letterSpacing: 0, flexShrink: 0 }}>
-            from inventory
-          </span>
-        )}
       </span>
     ) : (
       <label className={labelCls}>{label}</label>
@@ -232,6 +227,10 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
       brand: invItem.brand || form.brand,
       size: invItem.size || form.size,
       unit: invItem.unit || form.unit,
+      // Pre-fill estimated cost from inventory if not already set
+      ...(invItem.unit_cost != null && !form.estimated_unit_cost
+        ? { estimated_unit_cost: invItem.unit_cost }
+        : {}),
     };
     setForm(prev => ({ ...prev, ...updates }));
     setLinkedInvItem(invItem);
@@ -408,9 +407,16 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
             {isLinked ? (
               /* ── Linked banner ── */
               (() => {
-                const locCount = (linkedInvItem?.stock_locations || []).length;
+                const stockLocs = Array.isArray(linkedInvItem?.stock_locations) ? linkedInvItem.stock_locations : [];
                 const stockQty = linkedInvItem?.total_qty ?? null;
-                const locPath = linkedInvItem?.sub_location || linkedInvItem?.location || null;
+                // Build "Location: qty" pairs for the detail line
+                const locParts = stockLocs
+                  .filter(l => (l.qty ?? l.quantity ?? 0) > 0)
+                  .map(l => {
+                    const name = l.locationName || l.name || l.location || '?';
+                    const qty = l.qty ?? l.quantity ?? 0;
+                    return `${name}: ${qty}`;
+                  });
                 return (
                   <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '10px 12px' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
@@ -427,13 +433,10 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                         </div>
                         {stockQty !== null && (
                           <p style={{ fontSize: 11, color: '#16a34a', margin: '3px 0 0' }}>
-                            Currently in stock: <strong>{stockQty}</strong>
-                            {locCount > 0 && ` across ${locCount} location${locCount !== 1 ? 's' : ''}`}
-                          </p>
-                        )}
-                        {locPath && (
-                          <p style={{ fontSize: 10, color: '#4ade80', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {locPath}
+                            In stock: <strong>{stockQty}</strong>
+                            {locParts.length > 0
+                              ? ` (${locParts.join(', ')})`
+                              : stockLocs.length > 0 ? ` across ${stockLocs.length} location${stockLocs.length !== 1 ? 's' : ''}` : ''}
                           </p>
                         )}
                       </div>
@@ -521,12 +524,6 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
 
           {/* ════ SECTION 1: IDENTITY ════ */}
           <div>
-            {/* Name — 22px/700, bottom border only */}
-            {isLight && isLinked && (
-              <span style={{ fontSize: 9, background: '#eff6ff', color: '#818cf8', borderRadius: 3, padding: '0 6px', fontWeight: 600, display: 'inline-block', marginBottom: 4 }}>
-                from inventory
-              </span>
-            )}
             <input
               value={form.name || ''}
               onChange={e => !isLinked && set('name', e.target.value)}
@@ -545,7 +542,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
             />
             {/* Brand */}
             <div style={{ marginTop: 16 }}>
-              <Field isLight={isLight} labelCls={labelCls} label="Brand" locked={isLinked}>
+              <Field isLight={isLight} labelCls={labelCls} label="Brand">
                 <input
                   value={form.brand || ''}
                   onChange={e => !isLinked && set('brand', e.target.value)}
@@ -559,7 +556,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
             </div>
             {/* Barcode */}
             <div style={{ marginTop: 8 }}>
-              <Field isLight={isLight} labelCls={labelCls} label="Barcode" locked={isLinked}>
+              <Field isLight={isLight} labelCls={labelCls} label="Barcode">
                 <input
                   value={form.barcode || ''}
                   onChange={e => !isLinked && set('barcode', e.target.value)}
@@ -578,10 +575,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
             {isLight ? (
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr', gap: 8 }}>
                 <div>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#cbd5e1', fontWeight: 500, letterSpacing: '0.04em', marginBottom: 4 }}>
-                    Size
-                    {isLinked && <span style={{ fontSize: 9, background: '#eff6ff', color: '#818cf8', borderRadius: 3, padding: '0 4px', fontWeight: 600, letterSpacing: 0 }}>from inventory</span>}
-                  </span>
+                  <FL>Size</FL>
                   <input
                     value={form.size || ''} onChange={e => !isLinked && set('size', e.target.value)}
                     onBlur={() => !isLinked && saveField()} readOnly={isLinked}
@@ -590,10 +584,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                   />
                 </div>
                 <div>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#cbd5e1', fontWeight: 500, letterSpacing: '0.04em', marginBottom: 4 }}>
-                    Unit
-                    {isLinked && <span style={{ fontSize: 9, background: '#eff6ff', color: '#818cf8', borderRadius: 3, padding: '0 4px', fontWeight: 600, letterSpacing: 0 }}>from inventory</span>}
-                  </span>
+                  <FL>Unit</FL>
                   <select value={form.unit || 'each'} onChange={e => !isLinked && setAndSave('unit', e.target.value)} disabled={isLinked} className="idr-field" style={isLinked ? { opacity: 0.55 } : {}}>
                     {UNIT_GROUPS.map(g => (
                       <optgroup key={g.label} label={g.label}>
@@ -767,6 +758,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
           {/* ════ SECTION 4: COST ════ */}
           <Section label="Cost">
             {isLight ? (
+              <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {/* Currency toggle group */}
                 <div style={{ display: 'flex', background: '#f8fafc', borderRadius: 6, flexShrink: 0 }}>
@@ -809,6 +801,21 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                   </span>
                 )}
               </div>
+              {/* "from inventory" cost hint */}
+              {(() => {
+                const invCost = linkedInvItem?.unit_cost;
+                if (!isLinked || invCost == null) return null;
+                const current = parseFloat(form.estimated_unit_cost);
+                const differs = !isNaN(current) && Math.abs(current - invCost) > 0.001;
+                return (
+                  <p style={{ fontSize: 11, color: '#94a3b8', margin: '4px 0 0' }}>
+                    {differs
+                      ? `from inventory: ${activeCurrSymbol}${parseFloat(invCost).toFixed(2)} · you've overridden this`
+                      : `from inventory: ${activeCurrSymbol}${parseFloat(invCost).toFixed(2)}`}
+                  </p>
+                );
+              })()}
+              </>
             ) : (
               /* Dark theme cost row (unchanged from previous version) */
               <div className="flex gap-3">
