@@ -123,7 +123,7 @@ const ColourPicker = ({ current, onSelect, onClose }) => {
 
 // ── Three-dot menu ───────────────────────────────────────────────────────────
 
-const BoardMenu = ({ canEdit, canCommandDelete, onEdit, onSuggestions, onTemplates, onDuplicate, onDeleteClick }) => {
+const BoardMenu = ({ canEdit, canCommandDelete, onEdit, onSuggestions, onTemplates, onDuplicate, onDeleteClick, onShare }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -162,6 +162,11 @@ const BoardMenu = ({ canEdit, canCommandDelete, onEdit, onSuggestions, onTemplat
           <button onClick={() => { setOpen(false); onDuplicate(); }} className="w-full text-left mx-1 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md flex items-center gap-2">
             <Icon name="Copy" className="w-3.5 h-3.5" /> Duplicate
           </button>
+          {onShare && (
+            <button onClick={() => { setOpen(false); onShare(); }} className="w-full text-left mx-1 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md flex items-center gap-2">
+              <Icon name="Share2" className="w-3.5 h-3.5" /> Share board
+            </button>
+          )}
           <div className="border-t border-border my-1" />
           <button
             onClick={() => { setOpen(false); onDeleteClick(); }}
@@ -402,16 +407,6 @@ const BoardColumn = ({
             >
               <Icon name="ExternalLink" className="w-3.5 h-3.5" />
             </button>
-            {onShare && (
-              <button
-                onClick={() => onShare(list)}
-                title="Share board"
-                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              >
-                <Icon name="Share2" className="w-3.5 h-3.5" />
-              </button>
-            )}
-
             {/* Palette button */}
             <div className="relative" ref={colourBtnRef}>
               <button
@@ -445,6 +440,7 @@ const BoardColumn = ({
               onTemplates={onTemplates}
               onDuplicate={onDuplicate}
               onDeleteClick={() => setConfirmDelete(true)}
+              onShare={onShare ? () => onShare(list) : undefined}
             />
           </div>
         </div>
