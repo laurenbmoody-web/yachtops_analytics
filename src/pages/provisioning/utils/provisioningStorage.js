@@ -75,6 +75,32 @@ export const PROVISION_CATEGORIES = {
  *   ALTER TABLE public.provisioning_items
  *     ADD COLUMN IF NOT EXISTS accounting_description text DEFAULT '';
  */
+/**
+ * Fetch ALL location paths for a tenant (no department filter).
+ * Returns a flat string[] of full paths like ["Bar > Main Bar", "Bar > Main Bar > Wine Fridge"].
+ * Used for the location picker in the receive delivery flow.
+ */
+export const fetchAllInventoryLocations = async (tenantId) => {
+  if (!tenantId) return [];
+  try {
+    const { data, error } = await supabase
+      ?.from('inventory_locations')
+      ?.select('location, sub_location')
+      ?.eq('tenant_id', tenantId)
+      ?.not('sub_location', 'is', null)
+      ?.neq('is_archived', true)
+      ?.order('sort_order', { ascending: true });
+    if (error) throw error;
+    // Full path = top-level `location` + ' > ' + `sub_location`
+    const paths = (data || []).map(r => `${r.location} > ${r.sub_location}`).filter(Boolean);
+    // Also include the top-level locations themselves
+    const topLevel = [...new Set((data || []).map(r => r.location).filter(Boolean))];
+    return [...new Set([...topLevel, ...paths])];
+  } catch {
+    return [];
+  }
+};
+
 export const fetchInventoryLocationChildren = async (tenantId, location) => {
   if (!tenantId || !location) return [];
   try {
