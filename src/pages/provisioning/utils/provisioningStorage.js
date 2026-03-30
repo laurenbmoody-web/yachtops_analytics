@@ -340,6 +340,32 @@ export const updateItemStatus = async (itemId, status, quantityReceived) => {
   }
 };
 
+/**
+ * Batch-update quantity_received + status for multiple items using proper UPDATEs
+ * (not upsert, to avoid the NOT NULL `name` constraint on the INSERT path).
+ */
+export const receiveItems = async (updates) => {
+  // updates: [{ id, quantity_received, status }]
+  const results = await Promise.allSettled(
+    updates.map(({ id, quantity_received, status }) =>
+      supabase
+        ?.from('provisioning_items')
+        ?.update({ quantity_received, status })
+        ?.eq('id', id)
+        ?.select()
+        ?.single()
+    )
+  );
+  const errors = results.filter(r => r.status === 'rejected' || r.value?.error);
+  if (errors.length) {
+    console.error('[provisioningStorage] receiveItems partial errors:', errors);
+    if (errors.length === updates.length) throw new Error('All receive updates failed');
+  }
+  return results
+    .filter(r => r.status === 'fulfilled' && r.value?.data)
+    .map(r => r.value.data);
+};
+
 // ── Suppliers ─────────────────────────────────────────────────────────────────
 
 export const fetchSuppliers = async (vesselId) => {
