@@ -94,7 +94,12 @@ const CategoryPicker = ({ paths = [], value = '', onChange, disabled = false, bo
     const opts = [];
     for (const path of relevant) {
       const seg = path.split(' > ')[level];
-      if (seg && !seen.has(seg)) { seen.add(seg); opts.push(seg); }
+      if (seg && !seen.has(seg)) {
+        seen.add(seg);
+        const fullPath = prefix ? `${prefix} > ${seg}` : seg;
+        const hasChildren = paths.some(p => p.startsWith(fullPath + ' > '));
+        if (hasChildren) opts.push(seg); // only show folder nodes, not leaves
+      }
     }
     return opts;
   };

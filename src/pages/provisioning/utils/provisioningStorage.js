@@ -1071,3 +1071,48 @@ export const searchInventoryItems = async (query, tenantId) => {
     return [];
   }
 };
+
+// ── Delivery batch logging ────────────────────────────────────────────────────
+
+/**
+ * Log a delivery batch after receiving items.
+ * receivedItems: array of { id, name, quantity_received, ... }
+ */
+export const logDeliveryBatch = async ({ listId, userId, tenantId, receivedItems }) => {
+  if (!tenantId || !listId) return null;
+  try {
+    const { data, error } = await supabase
+      ?.from('provisioning_deliveries')
+      ?.insert({
+        list_id: listId,
+        tenant_id: tenantId,
+        received_by: userId || null,
+        delivered_at: new Date().toISOString(),
+        parsed_data: { items: receivedItems, source: 'manual_receive' },
+      })
+      ?.select('id')
+      ?.single();
+    if (error) throw error;
+    return data?.id || null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Fetch all delivery batches for a provisioning list, newest first.
+ */
+export const fetchDeliveryBatches = async (listId) => {
+  if (!listId) return [];
+  try {
+    const { data, error } = await supabase
+      ?.from('provisioning_deliveries')
+      ?.select('id, delivered_at, received_by, parsed_data')
+      ?.eq('list_id', listId)
+      ?.order('delivered_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch {
+    return [];
+  }
+};

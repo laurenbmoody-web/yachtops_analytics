@@ -16,6 +16,7 @@ import {
   deleteProvisioningList,
   duplicateList,
   fetchVesselDepartments,
+  fetchDeliveryBatches,
   PROVISIONING_STATUS,
   PROVISION_CATEGORIES,
   PROVISION_UNITS,
@@ -143,6 +144,8 @@ const ProvisioningBoardDetail = () => {
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [itemDrawer, setItemDrawer] = useState({ open: false, item: null });
   const [activeTab, setActiveTab] = useState('items');
+  const [deliveries, setDeliveries] = useState([]);
+  const [deliveriesLoading, setDeliveriesLoading] = useState(false);
   const [hoveredRow, setHoveredRow] = useState(null);
   const menuRef = useRef(null);
   const [displayCurrency, setDisplayCurrency] = useState(null);
@@ -206,6 +209,16 @@ const ProvisioningBoardDetail = () => {
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
   }, [showMenu]);
+
+  // Load deliveries when Deliveries tab becomes active
+  useEffect(() => {
+    if (activeTab !== 'deliveries' || !list?.id) return;
+    setDeliveriesLoading(true);
+    fetchDeliveryBatches(list.id)
+      .then(data => setDeliveries(data || []))
+      .catch(() => setDeliveries([]))
+      .finally(() => setDeliveriesLoading(false));
+  }, [activeTab, list?.id]);
 
   // Fetch live FX rates once on mount (GBP base)
   useEffect(() => {
@@ -340,9 +353,12 @@ const ProvisioningBoardDetail = () => {
 
   const hasFilters = statusFilter !== 'all' || deptFilter !== 'all' || searchQuery;
 
+  const completedItems = useMemo(() => filteredItems.filter(i => i.status === 'received'), [filteredItems]);
+
   const deptGroups = useMemo(() => {
+    const pendingItems = filteredItems.filter(i => i.status !== 'received');
     const groups = {};
-    filteredItems.forEach(item => {
+    pendingItems.forEach(item => {
       const d = item.department || 'Other';
       if (!groups[d]) groups[d] = [];
       groups[d].push(item);
@@ -726,8 +742,8 @@ const ProvisioningBoardDetail = () => {
         </div>
 
         {/* ── Items area ────────────────────────────────────────────────── */}
-        <div style={{ padding: '24px 32px 48px', background: '#F8FAFC' }}>
-          {deptGroups.length === 0 && !hasFilters ? (
+        {activeTab === 'items' && <div style={{ padding: '24px 32px 48px', background: '#F8FAFC' }}>
+          {deptGroups.length === 0 && completedItems.length === 0 && !hasFilters ? (
             <div style={{ padding: '80px 0', textAlign: 'center' }}>
               <div style={{ width: 56, height: 56, background: '#F8FAFC', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
                 <Icon name="ShoppingBag" style={{ width: 28, height: 28, color: '#CBD5E1' }} />
@@ -741,7 +757,7 @@ const ProvisioningBoardDetail = () => {
                 <Icon name="Plus" style={{ width: 14, height: 14 }} /> Add first item
               </button>
             </div>
-          ) : deptGroups.length === 0 ? (
+          ) : deptGroups.length === 0 && completedItems.length === 0 ? (
             <div style={{ padding: '48px 0', textAlign: 'center', fontSize: 13, color: '#94A3B8' }}>No items match your filters.</div>
           ) : (
             <>
@@ -1033,6 +1049,42 @@ const ProvisioningBoardDetail = () => {
                 );
               })}
 
+              {/* ── Completed items ───────────────────────────────────── */}
+              {completedItems.length > 0 && (
+                <div style={{ marginTop: 32 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Received</span>
+                    <div style={{ flex: 1, height: 1, background: '#E2E8F0' }} />
+                    <span style={{ fontSize: 11, color: '#CBD5E1' }}>{completedItems.length} item{completedItems.length !== 1 ? 's' : ''}</span>
+                  </div>
+                  <div style={{ background: 'white', border: '1px solid #F1F5F9', borderRadius: 12, overflow: 'hidden', opacity: 0.7 }}>
+                    {completedItems.map((item, idx) => (
+                      <div
+                        key={item.id}
+                        onClick={() => setItemDrawer({ open: true, item })}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px',
+                          borderTop: idx > 0 ? '1px solid #F8FAFC' : 'none',
+                          cursor: 'pointer',
+                          background: 'white',
+                        }}
+                      >
+                        <Icon name="CheckCircle" style={{ width: 14, height: 14, color: '#4ADE80', flexShrink: 0 }} />
+                        <span style={{ fontSize: 13, color: '#94A3B8', textDecoration: 'line-through', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {item.name}{item.brand ? ` — ${item.brand}` : ''}{item.size ? ` ${item.size}` : ''}
+                        </span>
+                        {item.department && (
+                          <span style={{ fontSize: 10, color: '#CBD5E1', flexShrink: 0 }}>{item.department}</span>
+                        )}
+                        <span style={{ fontSize: 12, color: '#94A3B8', flexShrink: 0 }}>
+                          {parseFloat(item.quantity_received) || 0} {item.unit || ''}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Grand total row */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderTop: '2px solid #F1F5F9', marginTop: 8, flexWrap: 'wrap', gap: 12 }}>
                 <span style={{ fontSize: 12, color: '#94A3B8' }}>{items.length} item{items.length !== 1 ? 's' : ''} total</span>
@@ -1122,7 +1174,51 @@ const ProvisioningBoardDetail = () => {
               })()}
             </>
           )}
-        </div>
+        </div>}
+
+        {/* ── Deliveries tab ─────────────────────────────────────────────── */}
+        {activeTab === 'deliveries' && (
+          <div style={{ padding: '24px 32px 48px', background: '#F8FAFC' }}>
+            {deliveriesLoading ? (
+              <div style={{ padding: '48px 0', textAlign: 'center', fontSize: 13, color: '#94A3B8' }}>Loading deliveries…</div>
+            ) : deliveries.length === 0 ? (
+              <div style={{ padding: '80px 0', textAlign: 'center' }}>
+                <div style={{ width: 48, height: 48, background: '#F1F5F9', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                  <Icon name="PackageOpen" style={{ width: 22, height: 22, color: '#CBD5E1' }} />
+                </div>
+                <p style={{ fontSize: 14, fontWeight: 500, color: '#0F172A', marginBottom: 4 }}>No deliveries yet</p>
+                <p style={{ fontSize: 12, color: '#94A3B8' }}>Delivery history will appear here after you receive items.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 720 }}>
+                {deliveries.map(d => {
+                  const batchItems = d.parsed_data?.items || [];
+                  const dateStr = d.delivered_at ? new Date(d.delivered_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+                  return (
+                    <details key={d.id} style={{ background: 'white', border: '1px solid #F1F5F9', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                      <summary style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', cursor: 'pointer', listStyle: 'none', userSelect: 'none' }}>
+                        <Icon name="Package" style={{ width: 16, height: 16, color: '#4A90E2', flexShrink: 0 }} />
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>{batchItems.length} item{batchItems.length !== 1 ? 's' : ''} received</span>
+                          <span style={{ fontSize: 11, color: '#94A3B8', marginLeft: 10 }}>{dateStr}</span>
+                        </div>
+                        <Icon name="ChevronDown" style={{ width: 14, height: 14, color: '#CBD5E1' }} />
+                      </summary>
+                      <div style={{ borderTop: '1px solid #F8FAFC', padding: '0 20px 12px' }}>
+                        {batchItems.map((bi, idx) => (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: idx > 0 ? '1px solid #F8FAFC' : 'none' }}>
+                            <span style={{ fontSize: 13, color: '#0F172A', flex: 1 }}>{bi.name || '—'}</span>
+                            <span style={{ fontSize: 12, color: '#64748B' }}>{bi.quantity_received ?? '?'} {bi.unit || ''}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {showEditModal && (
@@ -1143,6 +1239,8 @@ const ProvisioningBoardDetail = () => {
             setShowReceiveModal(false);
             // Refresh items to reflect updated statuses and received quantities
             fetchListItems(id).then(updated => setItems(updated || [])).catch(() => {});
+            // Refresh delivery batches list
+            if (list?.id) fetchDeliveryBatches(list.id).then(data => setDeliveries(data || [])).catch(() => {});
             showToast('Delivery received', 'success');
           }}
         />
