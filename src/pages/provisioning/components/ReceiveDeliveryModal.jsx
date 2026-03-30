@@ -862,7 +862,20 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
       if (receivedUpdates.length > 0) {
         const logItems = receivedUpdates.map(u => {
           const item = items.find(i => i.id === u.id);
-          return { id: u.id, name: item?.name, quantity_received: u.quantity_received, unit: item?.unit };
+          return {
+            id: u.id,
+            name: item?.name,
+            brand: item?.brand,
+            size: item?.size,
+            quantity_received: u.quantity_received,
+            quantity_ordered: item?.quantity_ordered,
+            unit: item?.unit,
+            department: item?.department,
+            category: item?.category,
+            sub_category: item?.sub_category,
+            cargo_item_id: item?.cargo_item_id,
+            inventory_item_id: item?.inventory_item_id,
+          };
         });
         logDeliveryBatch({ listId: list?.id, userId, tenantId, receivedItems: logItems }).catch(() => {});
       }
