@@ -344,7 +344,7 @@ const ProvisioningBoardDetail = () => {
             }));
             setAllergenGuests(withAllergens);
           }
-        } catch { /* trip/guest load failed — non-critical */ }
+        } catch { /* trip/guest load failed - non-critical */ }
       }
     } catch (err) {
       console.error('[BoardDetail] loadAll error:', err);
@@ -604,10 +604,10 @@ const ProvisioningBoardDetail = () => {
   const statusLabel = (list?.status || '').replace(/_/g, ' ').toUpperCase();
 
   const renderTitle = (title = '') => {
-    const emIdx = title.indexOf('—');
+    const emIdx = title.indexOf('-');
     const hypIdx = title.indexOf(' - ');
     const idx = emIdx !== -1 ? emIdx : hypIdx;
-    const sep = emIdx !== -1 ? '—' : ' - ';
+    const sep = emIdx !== -1 ? '-' : ' - ';
     if (idx === -1) return <span>{title}</span>;
     return (
       <>
@@ -661,7 +661,7 @@ const ProvisioningBoardDetail = () => {
         {/* ── Hero ─────────────────────────────────────────────────────── */}
         <div style={{ background: 'white', borderBottom: '1px solid #F1F5F9' }}>
 
-          {/* Hero content — full width */}
+          {/* Hero content - full width */}
           <div style={{ padding: '20px 32px 0' }}>
               {/* Back link */}
               <button
@@ -824,7 +824,7 @@ const ProvisioningBoardDetail = () => {
             <div>
               <span className="font-semibold">Allergen alert: </span>
               {allergenGuests.map((g, i) => (
-                <span key={i}>{i > 0 && ' · '}<strong>{g.name}</strong> — {g.allergies}</span>
+                <span key={i}>{i > 0 && ' · '}<strong>{g.name}</strong> - {g.allergies}</span>
               ))}
               <span className="text-amber-600 dark:text-amber-400"> · Highlighted rows may be affected.</span>
             </div>
@@ -1051,7 +1051,7 @@ const ProvisioningBoardDetail = () => {
                                     .filter((s, i, arr) => arr.indexOf(s) === i);
                                   return segs.length > 0
                                     ? segs.join(' › ')
-                                    : <span style={{ color: '#CBD5E1' }}>—</span>;
+                                    : <span style={{ color: '#CBD5E1' }}>-</span>;
                                 })()}
                               </span>
                             </div>
@@ -1089,7 +1089,7 @@ const ProvisioningBoardDetail = () => {
                                   onDoubleClick={() => setEditingCell({ itemId: item.id, field: 'quantity_ordered' })}
                                   style={{ fontSize: 13, color: '#0F172A', cursor: 'default', minWidth: 18, textAlign: 'center', flexShrink: 0 }}
                                 >
-                                  {item.quantity_ordered ?? <span style={{ color: '#CBD5E1' }}>—</span>}
+                                  {item.quantity_ordered ?? <span style={{ color: '#CBD5E1' }}>-</span>}
                                 </span>
                               )}
                               <button
@@ -1122,7 +1122,7 @@ const ProvisioningBoardDetail = () => {
                                         </span>
                                       )}
                                     </span>
-                                  ) : <span style={{ color: '#CBD5E1' }}>—</span>}
+                                  ) : <span style={{ color: '#CBD5E1' }}>-</span>}
                                 </span>
                               )}
                             </div>
@@ -1133,7 +1133,7 @@ const ProvisioningBoardDetail = () => {
                                 const cost = parseFloat(item.estimated_unit_cost);
                                 return !isNaN(qty) && !isNaN(cost)
                                   ? <span style={{ fontSize: 13, color: '#0F172A', fontWeight: 500 }}>{dispSymbol}{(qty * convertCost(cost)).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
-                                  : <span style={{ fontSize: 13, color: '#CBD5E1' }}>—</span>;
+                                  : <span style={{ fontSize: 13, color: '#CBD5E1' }}>-</span>;
                               })()}
                             </div>
                             {/* Status badge select */}
