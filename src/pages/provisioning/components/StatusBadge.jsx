@@ -28,10 +28,12 @@ export const STATUS_CONFIG = {
 };
 
 export const ITEM_STATUS_CONFIG = {
-  pending: { label: 'Pending', dot: 'bg-slate-400' },
-  received: { label: 'Received', dot: 'bg-green-500' },
-  short_delivered: { label: 'Short', dot: 'bg-amber-500' },
-  not_delivered: { label: 'Not Delivered', dot: 'bg-red-500' },
+  draft:        { label: 'Draft',        dot: 'bg-slate-400' },
+  to_order:     { label: 'To order',     dot: 'bg-blue-500' },
+  ordered:      { label: 'Ordered',      dot: 'bg-purple-500' },
+  received:     { label: 'Received',     dot: 'bg-green-500' },
+  partial:      { label: 'Partial',      dot: 'bg-amber-500' },
+  not_received: { label: 'Not received', dot: 'bg-red-500' },
 };
 
 const StatusBadge = ({ status, size = 'sm' }) => {
