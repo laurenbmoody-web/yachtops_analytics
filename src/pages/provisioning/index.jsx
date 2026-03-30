@@ -9,6 +9,7 @@ import BoardColumn from './components/BoardColumn';
 import BoardDrawer from './components/BoardDrawer';
 import ItemDrawer from './components/ItemDrawer';
 import DeliveryModal from './components/DeliveryModal';
+import ShareModal from './components/ShareModal';
 import {
   fetchProvisioningLists,
   fetchListItems,
@@ -19,6 +20,9 @@ import {
   upsertItems,
   fetchSuppliers,
   fetchVesselDepartments,
+  fetchCrewMembers,
+  fetchCollaborators,
+  fetchSharedWithMe,
   PROVISIONING_STATUS,
 } from './utils/provisioningStorage';
 import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
@@ -175,6 +179,9 @@ const ProvisioningWorkspace = () => {
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [crewMembers, setCrewMembers] = useState([]);
+  const [collaboratorsByList, setCollaboratorsByList] = useState({});
+  const [sharedWithMe, setSharedWithMe] = useState([]);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -186,6 +193,7 @@ const ProvisioningWorkspace = () => {
   const [boardDrawer, setBoardDrawer] = useState({ open: false, listId: null, mode: 'edit' });
   const [itemDrawer, setItemDrawer] = useState({ open: false, item: null, listId: null });
   const [deliveryModal, setDeliveryModal] = useState({ open: false, list: null });
+  const [sharingList, setSharingList] = useState(null);
 
   // RBAC
   const userTier = (user?.permission_tier || user?.effectiveTier || '').toUpperCase();
@@ -222,7 +230,13 @@ const ProvisioningWorkspace = () => {
     if (!activeTenantId) return;
     loadAll();
     fetchVesselDepartments(activeTenantId).then(setDepartments);
+    fetchCrewMembers(activeTenantId).then(setCrewMembers);
   }, [activeTenantId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    fetchSharedWithMe(userId).then(setSharedWithMe);
+  }, [userId]);
 
   const loadAll = async () => {
     setLoading(true);
@@ -240,20 +254,26 @@ const ProvisioningWorkspace = () => {
       setSuppliers(fetchedSuppliers || []);
       setTrips(Array.isArray(fetchedTrips) ? fetchedTrips : []);
 
-      // Load items for all lists in parallel
+      // Load items + collaborators for all lists in parallel
       const itemsMap = {};
+      const collabMap = {};
       if (fetchedLists?.length) {
         await Promise.all(
           fetchedLists.map(async (l) => {
             try {
-              itemsMap[l.id] = await fetchListItems(l.id);
+              [itemsMap[l.id], collabMap[l.id]] = await Promise.all([
+                fetchListItems(l.id),
+                fetchCollaborators(l.id).catch(() => []),
+              ]);
             } catch {
               itemsMap[l.id] = [];
+              collabMap[l.id] = [];
             }
           })
         );
       }
       setItemsByList(itemsMap);
+      setCollaboratorsByList(collabMap);
     } catch (err) {
       console.error('[ProvisioningWorkspace] loadAll error:', err);
       setError('Could not load provisioning boards. Please try again.');
@@ -571,6 +591,29 @@ const ProvisioningWorkspace = () => {
           </div>
         )}
 
+        {/* Shared with me */}
+        {sharedWithMe.length > 0 && (
+          <div className="px-6 pt-4 pb-2">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Shared with me</h2>
+            <div className="flex gap-3 flex-wrap">
+              {sharedWithMe.map(list => (
+                <button
+                  key={list.id}
+                  onClick={() => navigate('/provisioning/' + list.id)}
+                  className="flex items-center gap-2.5 px-4 py-2.5 bg-card border border-border rounded-xl text-sm hover:bg-muted transition-colors text-left"
+                  style={{ borderTop: list.board_colour ? `3px solid ${list.board_colour}` : undefined }}
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground truncate">{list.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 capitalize">{list.myPermission || 'view'} access</p>
+                  </div>
+                  <Icon name="ChevronRight" className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Empty state — only for users who cannot create boards */}
         {!error && visibleLists.length === 0 && !showNewBoard && !canCreate && (
           <div className="flex items-center justify-center" style={{ minHeight: 'calc(100vh - 130px)' }}>
@@ -612,6 +655,8 @@ const ProvisioningWorkspace = () => {
                       hiddenCount={hasActiveFilters ? hiddenCount : 0}
                       canEdit={canEditList(list)}
                       canCommandDelete={isCommand}
+                      collaborators={collaboratorsByList[list.id] || []}
+                      onShare={() => setSharingList(list)}
                       onItemClick={(item) => openItemDrawer(item, list.id)}
                       onItemStatusChange={(item, status) => handleItemStatusChange(list.id, item, status)}
                       onItemQuantityChange={(item, qty) => handleItemQuantityChange(list.id, item, qty)}
@@ -682,6 +727,22 @@ const ProvisioningWorkspace = () => {
           items={itemsByList[deliveryModal.list.id] || []}
           onClose={() => setDeliveryModal({ open: false, list: null })}
           onComplete={() => { setDeliveryModal({ open: false, list: null }); loadAll(); }}
+        />
+      )}
+
+      {/* Share Modal */}
+      {sharingList && (
+        <ShareModal
+          list={sharingList}
+          crewMembers={crewMembers}
+          currentUserId={userId}
+          onClose={() => {
+            // Refresh collaborators for this list after closing
+            fetchCollaborators(sharingList.id).then(colls => {
+              setCollaboratorsByList(prev => ({ ...prev, [sharingList.id]: colls }));
+            });
+            setSharingList(null);
+          }}
         />
       )}
     </>
