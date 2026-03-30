@@ -17,11 +17,13 @@ import {
   duplicateList,
   fetchVesselDepartments,
   fetchDeliveryBatches,
+  updateItemPaymentStatus,
   PROVISIONING_STATUS,
   PROVISION_CATEGORIES,
   PROVISION_UNITS,
   formatCurrency,
 } from './utils/provisioningStorage';
+import InvoiceUploadModal, { PAYMENT_STATUS_OPTIONS } from './components/InvoiceUploadModal';
 import ItemDrawer from './components/ItemDrawer';
 import ReceiveDeliveryModal from './components/ReceiveDeliveryModal';
 import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
@@ -146,6 +148,9 @@ const ProvisioningBoardDetail = () => {
   const [activeTab, setActiveTab] = useState('items');
   const [deliveries, setDeliveries] = useState([]);
   const [deliveriesLoading, setDeliveriesLoading] = useState(false);
+  const [invoiceModal, setInvoiceModal] = useState(null); // { batch, batchItems }
+  // Optimistic payment_status overrides until DB column is added
+  const [paymentStatusMap, setPaymentStatusMap] = useState({});
   const [hoveredRow, setHoveredRow] = useState(null);
   const menuRef = useRef(null);
   const [displayCurrency, setDisplayCurrency] = useState(null);
@@ -1091,35 +1096,57 @@ const ProvisioningBoardDetail = () => {
 
               {/* ── Summary cards ─────────────────────────────────────── */}
               {(() => {
-                const receivedValue = convertedTotals.actual;
-                const outstandingValue = Math.max(0, convertedTotals.estimated - convertedTotals.actual);
-                const estimatedValue = convertedTotals.estimated;
+                const convItem = (i) => {
+                  const cost = parseFloat(i.estimated_unit_cost) || 0;
+                  const qty = parseFloat(i.quantity_ordered) || 0;
+                  const iCurr = i.currency || currency;
+                  return qty * ((cost / (fxRates[iCurr] || 1)) * (fxRates[dispCurr] || 1));
+                };
+                const pendingItems = items.filter(i => ['pending', 'short_delivered', 'not_delivered'].includes(i.status));
+                const pendingValue = pendingItems.reduce((acc, i) => acc + convItem(i), 0);
+
+                const effectivePS = (i) => paymentStatusMap[i.id] ?? i.payment_status;
+                const outstandingPaymentItems = items.filter(i => i.status === 'received' && !['paid', 'paid_upfront'].includes(effectivePS(i)));
+                const outstandingPaymentValue = outstandingPaymentItems.reduce((acc, i) => acc + convItem(i), 0);
+
+                const paidItems = items.filter(i => ['paid', 'paid_upfront'].includes(effectivePS(i)));
+                const paidValue = paidItems.reduce((acc, i) => acc + convItem(i), 0);
+
+                const totalValue = convertedTotals.estimated;
+
                 const summaryCards = [
                   {
-                    label: 'Received',
-                    value: `${dispSymbol}${Math.round(receivedValue).toLocaleString()}`,
-                    sub: `${items.filter(i => i.status === 'received').length} of ${items.length} items`,
-                    accent: '#4ADE80',
-                    valueColor: '#15803D',
-                  },
-                  {
-                    label: 'Outstanding',
-                    value: `${dispSymbol}${Math.round(outstandingValue).toLocaleString()}`,
-                    sub: `${items.filter(i => i.status !== 'received').length} items pending`,
+                    label: 'Left to Purchase',
+                    value: `${dispSymbol}${Math.round(pendingValue).toLocaleString()}`,
+                    sub: `${pendingItems.length} item${pendingItems.length !== 1 ? 's' : ''} not yet received`,
                     accent: '#FCD34D',
                     valueColor: '#B45309',
                   },
                   {
-                    label: 'Estimated Total',
-                    value: `${dispSymbol}${Math.round(estimatedValue).toLocaleString()}`,
-                    sub: `${items.length} item${items.length !== 1 ? 's' : ''}`,
+                    label: 'Outstanding Payments',
+                    value: `${dispSymbol}${Math.round(outstandingPaymentValue).toLocaleString()}`,
+                    sub: `${outstandingPaymentItems.length} invoice${outstandingPaymentItems.length !== 1 ? 's' : ''} due`,
+                    accent: '#F97316',
+                    valueColor: '#C2410C',
+                  },
+                  {
+                    label: 'Paid',
+                    value: `${dispSymbol}${Math.round(paidValue).toLocaleString()}`,
+                    sub: `${paidItems.length} item${paidItems.length !== 1 ? 's' : ''} paid`,
+                    accent: '#4ADE80',
+                    valueColor: '#15803D',
+                  },
+                  {
+                    label: 'Total',
+                    value: `${dispSymbol}${Math.round(totalValue).toLocaleString()}`,
+                    sub: `${items.length} item${items.length !== 1 ? 's' : ''} on board`,
                     accent: '#4A90E2',
                     valueColor: '#1E3A5F',
                   },
                 ];
                 return (
                   <>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginTop: 24 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginTop: 24 }}>
                     {summaryCards.map(card => (
                       <div key={card.label} style={{ background: 'white', border: '1px solid #F1F5F9', borderLeft: `3px solid ${card.accent}`, borderRadius: 10, padding: '18px 20px' }}>
                         <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#94A3B8', marginBottom: 8 }}>
@@ -1210,16 +1237,20 @@ const ProvisioningBoardDetail = () => {
                 <p style={{ fontSize: 12, color: '#94A3B8' }}>Received delivery history will appear here.</p>
               </div>
             ) : (
-              <div style={{ maxWidth: 800 }}>
+              <div style={{ maxWidth: 820 }}>
 
                 {/* ── Delivery batches ─────────────────────────────────── */}
                 {deliveries.map(d => {
-                  const batchItems = d.parsed_data?.items || [];
+                  const batchItemsLog = d.parsed_data?.items || [];
                   const src = d.parsed_data?.source === 'manual_receive' ? 'Manual receive'
                     : (d.parsed_data?.source || 'Manual receive');
                   const dateStr = d.delivered_at
                     ? new Date(d.delivered_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
                     : '—';
+                  // Live items matching this batch (for payment status)
+                  const liveBatchItems = batchItemsLog.map(bi => items.find(i => i.id === bi.id)).filter(Boolean);
+                  const hasCurrency = batchItemsLog.some(bi => bi.estimated_unit_cost != null);
+                  const currSym = dispSymbol;
                   return (
                     <details key={d.id} open style={{ marginBottom: 24 }}>
                       {/* ── Divider-style batch header ── */}
@@ -1228,40 +1259,66 @@ const ProvisioningBoardDetail = () => {
                           Delivery: {dateStr}
                         </span>
                         <span style={{ fontSize: 11, color: '#94A3B8', whiteSpace: 'nowrap' }}>
-                          · {batchItems.length} item{batchItems.length !== 1 ? 's' : ''} · {src}
+                          · {batchItemsLog.length} item{batchItemsLog.length !== 1 ? 's' : ''} · {src}
                         </span>
                         <div style={{ flex: 1, height: 1, background: '#E2E8F0' }} />
-                        <Icon name="ChevronDown" style={{ width: 13, height: 13, color: '#CBD5E1', flexShrink: 0, transition: 'transform 0.15s' }} />
+                        {/* Invoice upload button */}
+                        <button
+                          onClick={e => { e.preventDefault(); setInvoiceModal({ batch: d, batchItems: liveBatchItems }); }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '3px 10px', background: d.invoice_file_url ? '#ECFDF5' : 'white', border: `1px solid ${d.invoice_file_url ? '#A7F3D0' : '#E2E8F0'}`, borderRadius: 6, color: d.invoice_file_url ? '#047857' : '#64748B', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}
+                        >
+                          <Icon name={d.invoice_file_url ? 'FileCheck' : 'FileUp'} style={{ width: 11, height: 11 }} />
+                          {d.invoice_file_url ? 'Invoice ✓' : 'Upload invoice'}
+                        </button>
+                        <Icon name="ChevronDown" style={{ width: 13, height: 13, color: '#CBD5E1', flexShrink: 0 }} />
                       </summary>
 
                       {/* ── Items within batch ── */}
                       <div style={{ background: 'white', border: '1px solid #F1F5F9', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-                        {batchItems.map((bi, idx) => {
+                        {batchItemsLog.map((bi, idx) => {
                           const isPartial = bi.quantity_ordered != null && bi.quantity_received < bi.quantity_ordered;
                           const catPath = [bi.department, bi.sub_category || bi.category].filter(Boolean).join(' > ');
                           const invStatus = bi.cargo_item_id
                             ? `→ Pushed to inventory (${bi.cargo_item_id})`
-                            : bi.inventory_item_id
-                              ? '→ Linked to inventory'
-                              : '→ Skipped (not pushed to inventory)';
+                            : bi.inventory_item_id ? '→ Linked to inventory'
+                            : '→ Skipped (not pushed to inventory)';
+                          const liveItem = items.find(i => i.id === bi.id);
+                          const effectivePS = paymentStatusMap[bi.id] ?? liveItem?.payment_status ?? 'awaiting_invoice';
+                          const itemCost = bi.estimated_unit_cost != null
+                            ? (() => { const c = parseFloat(bi.estimated_unit_cost) * (parseFloat(bi.quantity_received) || 1); return c > 0 ? `· ${currSym}${c.toFixed(0)}` : ''; })()
+                            : '';
                           return (
                             <div key={idx} style={{ padding: '10px 20px', borderTop: idx > 0 ? '1px solid #F8FAFC' : 'none' }}>
-                              {/* Line 1: name · brand · size · Qty */}
+                              {/* Line 1: name · brand · size · Qty · Cost */}
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <Icon name="CheckCircle" style={{ width: 13, height: 13, color: '#4ADE80', flexShrink: 0 }} />
                                 <span style={{ fontSize: 13, color: '#94A3B8', textDecoration: 'line-through', flex: 1, minWidth: 0 }}>
                                   {[bi.name, bi.brand, bi.size].filter(Boolean).join(' · ')}
                                 </span>
-                                <span style={{ fontSize: 12, fontWeight: 600, color: isPartial ? '#B45309' : '#94A3B8', flexShrink: 0, whiteSpace: 'nowrap' }}>
-                                  Qty: {bi.quantity_received ?? '?'}
-                                  {isPartial ? ` of ${bi.quantity_ordered}` : ''}
-                                  {bi.unit ? ` ${bi.unit}` : ''}
+                                <span style={{ fontSize: 12, fontWeight: 600, color: isPartial ? '#B45309' : '#64748B', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                                  Qty: {bi.quantity_received ?? '?'}{isPartial ? ` of ${bi.quantity_ordered}` : ''}{bi.unit ? ` ${bi.unit}` : ''} {itemCost}
                                 </span>
                               </div>
                               {/* Line 2: category path · inventory status */}
                               <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 3, paddingLeft: 21 }}>
                                 {catPath && <span style={{ fontSize: 11, color: '#CBD5E1' }}>{catPath}</span>}
                                 <span style={{ fontSize: 11, color: '#94A3B8' }}>{invStatus}</span>
+                              </div>
+                              {/* Line 3: payment status */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5, paddingLeft: 21 }}>
+                                <span style={{ fontSize: 11, color: '#CBD5E1' }}>Payment:</span>
+                                <select
+                                  value={effectivePS}
+                                  onClick={e => e.stopPropagation()}
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    setPaymentStatusMap(prev => ({ ...prev, [bi.id]: val }));
+                                    if (liveItem) updateItemPaymentStatus(liveItem.id, val).catch(() => {});
+                                  }}
+                                  style={{ fontSize: 11, padding: '2px 6px', border: '1px solid #E2E8F0', borderRadius: 6, color: '#64748B', background: 'white', cursor: 'pointer' }}
+                                >
+                                  {PAYMENT_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                </select>
                               </div>
                             </div>
                           );
@@ -1275,38 +1332,57 @@ const ProvisioningBoardDetail = () => {
                 {completedItems.length > 0 && (
                   <details open style={{ marginBottom: 24 }}>
                     <summary style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', listStyle: 'none', userSelect: 'none', marginBottom: 8 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', whiteSpace: 'nowrap' }}>
-                        All received items
-                      </span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', whiteSpace: 'nowrap' }}>All received items</span>
                       <div style={{ flex: 1, height: 1, background: '#E2E8F0' }} />
                       <Icon name="ChevronDown" style={{ width: 13, height: 13, color: '#CBD5E1', flexShrink: 0 }} />
                     </summary>
                     <div style={{ background: 'white', border: '1px solid #F1F5F9', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-                      {completedItems.map((item, idx) => (
-                        <div
-                          key={item.id}
-                          onClick={() => setItemDrawer({ open: true, item })}
-                          style={{ padding: '10px 20px', borderTop: idx > 0 ? '1px solid #F8FAFC' : 'none', cursor: 'pointer' }}
-                        >
-                          {/* Line 1 */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <Icon name="CheckCircle" style={{ width: 13, height: 13, color: '#4ADE80', flexShrink: 0 }} />
-                            <span style={{ fontSize: 13, color: '#94A3B8', textDecoration: 'line-through', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {[item.name, item.brand, item.size].filter(Boolean).join(' · ')}
-                            </span>
-                            <span style={{ fontSize: 12, fontWeight: 600, color: '#94A3B8', flexShrink: 0, whiteSpace: 'nowrap' }}>
-                              Qty: {parseFloat(item.quantity_received) || 0}{item.unit ? ` ${item.unit}` : ''}
-                            </span>
+                      {completedItems.map((item, idx) => {
+                        const effectivePS = paymentStatusMap[item.id] ?? item.payment_status ?? 'awaiting_invoice';
+                        const currSym = dispSymbol;
+                        const itemCost = item.estimated_unit_cost != null
+                          ? (() => { const c = parseFloat(item.estimated_unit_cost) * (parseFloat(item.quantity_received) || 1); return c > 0 ? `· ${currSym}${c.toFixed(0)}` : ''; })()
+                          : '';
+                        return (
+                          <div key={item.id} style={{ padding: '10px 20px', borderTop: idx > 0 ? '1px solid #F8FAFC' : 'none' }}>
+                            {/* Line 1 */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <Icon name="CheckCircle" style={{ width: 13, height: 13, color: '#4ADE80', flexShrink: 0 }} />
+                              <span
+                                onClick={() => setItemDrawer({ open: true, item })}
+                                style={{ fontSize: 13, color: '#94A3B8', textDecoration: 'line-through', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}
+                              >
+                                {[item.name, item.brand, item.size].filter(Boolean).join(' · ')}
+                              </span>
+                              <span style={{ fontSize: 12, fontWeight: 600, color: '#64748B', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                                Qty: {parseFloat(item.quantity_received) || 0}{item.unit ? ` ${item.unit}` : ''} {itemCost}
+                              </span>
+                            </div>
+                            {/* Line 2 */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 3, paddingLeft: 21 }}>
+                              {item.department && <span style={{ fontSize: 11, color: '#CBD5E1' }}>{item.department}{item.category ? ` > ${item.category}` : ''}</span>}
+                              <span style={{ fontSize: 11, color: '#94A3B8' }}>
+                                {item.cargo_item_id ? `→ Pushed to inventory (${item.cargo_item_id})` : item.inventory_item_id ? '→ Linked to inventory' : '→ Skipped'}
+                              </span>
+                            </div>
+                            {/* Line 3: payment status */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5, paddingLeft: 21 }}>
+                              <span style={{ fontSize: 11, color: '#CBD5E1' }}>Payment:</span>
+                              <select
+                                value={effectivePS}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  setPaymentStatusMap(prev => ({ ...prev, [item.id]: val }));
+                                  updateItemPaymentStatus(item.id, val).catch(() => {});
+                                }}
+                                style={{ fontSize: 11, padding: '2px 6px', border: '1px solid #E2E8F0', borderRadius: 6, color: '#64748B', background: 'white', cursor: 'pointer' }}
+                              >
+                                {PAYMENT_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                              </select>
+                            </div>
                           </div>
-                          {/* Line 2 */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 3, paddingLeft: 21 }}>
-                            {item.department && <span style={{ fontSize: 11, color: '#CBD5E1' }}>{item.department}{item.category ? ` > ${item.category}` : ''}</span>}
-                            <span style={{ fontSize: 11, color: '#94A3B8' }}>
-                              {item.cargo_item_id ? `→ Pushed to inventory (${item.cargo_item_id})` : item.inventory_item_id ? '→ Linked to inventory' : '→ Skipped'}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </details>
                 )}
@@ -1338,6 +1414,19 @@ const ProvisioningBoardDetail = () => {
             // Refresh delivery batches list
             if (list?.id) fetchDeliveryBatches(list.id).then(data => setDeliveries(data || [])).catch(() => {});
             showToast('Delivery received', 'success');
+          }}
+        />
+      )}
+
+      {invoiceModal && (
+        <InvoiceUploadModal
+          batch={invoiceModal.batch}
+          batchItems={invoiceModal.batchItems}
+          onClose={() => setInvoiceModal(null)}
+          onComplete={() => {
+            setInvoiceModal(null);
+            if (list?.id) fetchDeliveryBatches(list.id).then(data => setDeliveries(data || [])).catch(() => {});
+            fetchListItems(id).then(updated => setItems(updated || [])).catch(() => {});
           }}
         />
       )}
