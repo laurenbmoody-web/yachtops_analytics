@@ -219,6 +219,13 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
   }, [invDropdownOpen]);
 
   const handleInventoryLink = (invItem) => {
+    // Derive category fields from inventory item's location/sub_location
+    // inventory_items: location = department, sub_location = "Cat > SubCat > …"
+    const subParts = invItem.sub_location ? invItem.sub_location.split(' > ') : [];
+    const invDept = invItem.location || '';
+    const invCategory = subParts[0] || '';
+    const invSubCategory = invItem.sub_location || '';  // full path used as sub_category
+
     const updates = {
       inventory_item_id: invItem.id,
       cargo_item_id: invItem.cargo_item_id || '',
@@ -227,8 +234,12 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
       brand: invItem.brand || form.brand,
       size: invItem.size || form.size,
       unit: invItem.unit || form.unit,
-      // Pre-fill estimated cost from inventory if not already set
-      ...(invItem.unit_cost != null && !form.estimated_unit_cost
+      // Category pull-through from inventory
+      ...(invDept ? { department: invDept } : {}),
+      ...(invCategory ? { category: invCategory } : {}),
+      ...(invSubCategory ? { sub_category: invSubCategory } : {}),
+      // Pre-fill estimated cost from inventory
+      ...(invItem.unit_cost != null
         ? { estimated_unit_cost: invItem.unit_cost }
         : {}),
     };
@@ -624,23 +635,45 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
 
           {/* ════ SECTION 3: LOCATION ════ */}
           <Section label="Location">
-            <Field isLight={isLight} labelCls={labelCls} label="Department">
-              <select
-                value={form.department || ''}
-                onChange={e => {
-                  const dept = e.target.value;
-                  setForm(prev => ({ ...prev, department: dept, category: '', sub_category: '' }));
-                  saveField({ department: dept, category: '', sub_category: '' });
-                }}
-                className={inputCls}
-              >
-                <option value="">None</option>
-                {departments.length === 0
-                  ? <option disabled value="">No departments configured</option>
-                  : departments.map(d => <option key={d} value={d}>{d}</option>)
-                }
-              </select>
-            </Field>
+            {/* Department + Category side by side */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <Field isLight={isLight} labelCls={labelCls} label="Department">
+                <select
+                  value={form.department || ''}
+                  onChange={e => {
+                    const dept = e.target.value;
+                    setForm(prev => ({ ...prev, department: dept, category: '', sub_category: '' }));
+                    saveField({ department: dept, category: '', sub_category: '' });
+                  }}
+                  disabled={isLinked}
+                  className={inputCls}
+                  style={isLinked ? { opacity: 0.55 } : {}}
+                >
+                  <option value="">None</option>
+                  {departments.length === 0
+                    ? <option disabled value="">No departments configured</option>
+                    : departments.map(d => <option key={d} value={d}>{d}</option>)
+                  }
+                </select>
+              </Field>
+
+              <Field isLight={isLight} labelCls={labelCls} label="Category">
+                <select
+                  value={locL2}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setForm(prev => ({ ...prev, category: val, sub_category: val }));
+                    saveField({ category: val, sub_category: val });
+                  }}
+                  disabled={isLinked || !form.department || locL2Options.length === 0}
+                  className={inputCls}
+                  style={(isLinked || !form.department || locL2Options.length === 0) ? { opacity: 0.55 } : {}}
+                >
+                  <option value="">{!form.department ? 'Select department first' : locL2Options.length === 0 ? 'No categories' : 'Select category…'}</option>
+                  {locL2Options.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </Field>
+            </div>
 
             {/* Supplier */}
             <div style={{ marginTop: 8 }}>
@@ -669,25 +702,9 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
               </Field>
             </div>
 
+            {/* Sub-category levels (only when dept + category selected) */}
             {form.department && (
               <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {locL2Options.length > 0 && (
-                  <Field isLight={isLight} labelCls={labelCls} label="Category">
-                    <select
-                      value={locL2}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setForm(prev => ({ ...prev, category: val, sub_category: val }));
-                        saveField({ category: val, sub_category: val });
-                      }}
-                      className={inputCls}
-                    >
-                      <option value="">Select category…</option>
-                      {locL2Options.map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </Field>
-                )}
-
                 {locL2 && locL3Options.length > 0 && (
                   isLight ? (
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
