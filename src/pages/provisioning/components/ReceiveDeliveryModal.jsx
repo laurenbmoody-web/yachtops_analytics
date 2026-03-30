@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Icon from '../../../components/AppIcon';
 import { showToast } from '../../../utils/toast';
 import { supabase } from '../../../lib/supabaseClient';
@@ -7,8 +7,11 @@ import {
   findMatchingInventoryItem,
   pushReceivedSplitsToInventory,
   createInventoryItemFromProvItem,
+  searchInventoryItems,
+  fetchAllInventoryLocations,
 } from '../utils/provisioningStorage';
 import { useAuth } from '../../../contexts/AuthContext';
+import { UNIT_GROUPS } from './DetailTableCells';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -27,6 +30,96 @@ const STATUS_PILL = {
 const ICON_BTN = {
   background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px',
   color: '#94A3B8', display: 'flex', alignItems: 'center',
+};
+
+// ── Hierarchical location picker ─────────────────────────────────────────────
+
+const LocationPicker = ({ value, onChange, locations = [], borderColor = '#e2e8f0', placeholder = 'Select location…' }) => {
+  const [open, setOpen] = useState(false);
+  const [prefix, setPrefix] = useState('');
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setPrefix(''); } };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open]);
+
+  // Build unique next-level segments under current prefix
+  const items = (() => {
+    const relevant = prefix ? locations.filter(p => p === prefix || p.startsWith(prefix + ' > ')) : locations;
+    const seen = new Set();
+    const out = [];
+    for (const path of relevant) {
+      const rest = prefix ? path.slice(prefix.length + 3) : path;
+      if (!rest) continue;
+      const seg = rest.split(' > ')[0];
+      if (!seg || seen.has(seg)) continue;
+      seen.add(seg);
+      const full = prefix ? `${prefix} > ${seg}` : seg;
+      const hasChildren = locations.some(p => p.startsWith(full + ' > '));
+      out.push({ seg, full, hasChildren });
+    }
+    return out;
+  })();
+
+  const handleSelect = (path) => { onChange(path); setOpen(false); setPrefix(''); };
+  const handleBack = () => { const parts = prefix.split(' > '); setPrefix(parts.slice(0, -1).join(' > ')); };
+
+  return (
+    <div ref={ref} style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+      <button
+        onClick={() => { setOpen(v => !v); setPrefix(''); }}
+        style={{
+          width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center',
+          fontSize: 12, padding: '4px 8px', border: `1px solid ${borderColor}`, borderRadius: 6,
+          background: 'white', color: value ? '#0F172A' : '#94A3B8', cursor: 'pointer', gap: 4,
+        }}
+      >
+        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value || placeholder}</span>
+        <span style={{ color: '#CBD5E1', fontSize: 10, flexShrink: 0 }}>▾</span>
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200,
+          background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 2,
+          maxHeight: 200, display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        }}>
+          {prefix && (
+            <div style={{ padding: '5px 8px', borderBottom: '1px solid #f1f5f9', background: '#fafafa', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+              <button onMouseDown={e => { e.preventDefault(); handleBack(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4A90E2', fontSize: 16, lineHeight: 1, padding: '0 4px' }}>‹</button>
+              <span style={{ fontSize: 11, color: '#64748B', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prefix}</span>
+              <button onMouseDown={e => { e.preventDefault(); handleSelect(prefix); }} style={{ fontSize: 10, fontWeight: 700, color: '#4A90E2', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>Select ✓</button>
+            </div>
+          )}
+          <div style={{ overflowY: 'auto', flex: 1 }}>
+            {locations.length === 0 && <div style={{ padding: '12px', fontSize: 12, color: '#94A3B8', textAlign: 'center' }}>No locations configured</div>}
+            {items.map(({ seg, full, hasChildren }) => (
+              <div key={full} style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #f8fafc' }}>
+                <button
+                  onMouseDown={e => { e.preventDefault(); handleSelect(full); }}
+                  style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', padding: '7px 12px', cursor: 'pointer', fontSize: 12, color: '#0F172A' }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                >{seg}</button>
+                {hasChildren && (
+                  <button
+                    onMouseDown={e => { e.preventDefault(); e.stopPropagation(); setPrefix(full); }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#CBD5E1', padding: '7px 10px', fontSize: 11, flexShrink: 0 }}
+                    onMouseEnter={e => e.currentTarget.style.color = '#4A90E2'}
+                    onMouseLeave={e => e.currentTarget.style.color = '#CBD5E1'}
+                    title="Expand sub-locations"
+                  >▶</button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 // ── Step 1 ─ Receive checklist ────────────────────────────────────────────────
@@ -167,12 +260,77 @@ const SplitQtyBtn = ({ onClick, children }) => (
   >{children}</button>
 );
 
-const PushStep = ({ items, receiving, matches, locationSplits, onSplitChange, onAddSplitLocation, onNewItemForm, newItemForms, onPush, onBack, pushing }) => {
+// Shared label style for create/link forms
+const FLD = ({ children }) => (
+  <span style={{ display: 'block', fontSize: 10, color: '#94A3B8', fontWeight: 500, marginBottom: 2 }}>{children}</span>
+);
+
+const PushStep = ({
+  items, receiving, matches,
+  locationSplits, onSplitChange, onAddSplitLocation, onRemoveSplitLocation,
+  noMatchChoices, inlineLinks, inlineSearch, allLocations,
+  onSetNoMatchChoice, onInlineSearchChange, onInlineLink,
+  newItemForms, onInitNewItemForm, onNewItemFormChange,
+  onPush, onBack, pushing,
+}) => {
   const receivedItems = items.filter(i => receiving[i.id]?.checked && (parseFloat(receiving[i.id]?.qty) || 0) > 0);
+
+  // Shared split-rows UI (used for both auto-matched and inline-linked items)
+  const renderSplits = (itemId, qty, splits, cardColor = '#F0FDF4', borderCol = '#BBF7D0') => {
+    const totalAllocated = splits.reduce((sum, s) => sum + (parseFloat(s.addQty) || 0), 0);
+    const allocOk = Math.abs(totalAllocated - qty) < 0.001;
+    return (
+      <>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          {splits.map((loc, idx) => (
+            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              {/* Trash */}
+              <button
+                onClick={() => onRemoveSplitLocation(itemId, idx)}
+                style={{ ...ICON_BTN, color: '#CBD5E1', flexShrink: 0 }}
+                onMouseEnter={e => e.currentTarget.style.color = '#EF4444'}
+                onMouseLeave={e => e.currentTarget.style.color = '#CBD5E1'}
+              >
+                <Icon name="Trash2" style={{ width: 12, height: 12 }} />
+              </button>
+              {/* Location picker */}
+              <LocationPicker
+                value={loc.locationName}
+                onChange={v => onSplitChange(itemId, idx, 'locationName', v)}
+                locations={allLocations}
+                borderColor={borderCol}
+                placeholder="Select location…"
+              />
+              {/* Current stock label */}
+              <span style={{ fontSize: 10, color: '#94A3B8', whiteSpace: 'nowrap', flexShrink: 0, width: 44, textAlign: 'right' }}>
+                {loc.currentQty > 0 ? `now: ${loc.currentQty}` : 'new'}
+              </span>
+              {/* Qty controls */}
+              <SplitQtyBtn onClick={() => onSplitChange(itemId, idx, 'addQty', Math.max(0, (parseFloat(loc.addQty) || 0) - 1))}>−</SplitQtyBtn>
+              <input
+                type="number" min="0" value={loc.addQty}
+                onChange={e => onSplitChange(itemId, idx, 'addQty', parseFloat(e.target.value) || 0)}
+                style={{ width: 38, textAlign: 'center', fontSize: 12, padding: '3px 2px', border: `1px solid ${borderCol}`, borderRadius: 6, outline: 'none', flexShrink: 0 }}
+              />
+              <SplitQtyBtn onClick={() => onSplitChange(itemId, idx, 'addQty', (parseFloat(loc.addQty) || 0) + 1)}>+</SplitQtyBtn>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
+          <button
+            onClick={() => onAddSplitLocation(itemId)}
+            style={{ fontSize: 11, fontWeight: 600, color: '#16A34A', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+          >+ Add location</button>
+          <span style={{ fontSize: 11, fontWeight: 600, color: allocOk ? '#16A34A' : '#DC2626' }}>
+            {totalAllocated} of {qty} allocated{allocOk ? ' ✓' : ''}
+          </span>
+        </div>
+      </>
+    );
+  };
 
   return (
     <>
-      {/* Sub-header */}
       <div style={{ padding: '14px 20px 10px', borderBottom: '1px solid #F1F5F9' }}>
         <p style={{ fontSize: 12, fontWeight: 700, color: '#1E3A5F', margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Step 2 of 2</p>
         <p style={{ fontSize: 11, color: '#94A3B8', margin: '2px 0 0' }}>
@@ -180,7 +338,6 @@ const PushStep = ({ items, receiving, matches, locationSplits, onSplitChange, on
         </p>
       </div>
 
-      {/* Items */}
       <div style={{ overflowY: 'auto', flex: 1, padding: '8px 0' }}>
         {receivedItems.map(item => {
           const qty = parseFloat(receiving[item.id]?.qty) || 0;
@@ -188,132 +345,165 @@ const PushStep = ({ items, receiving, matches, locationSplits, onSplitChange, on
           const isLoading = match === 'loading';
           const hasMatch = match && match !== 'loading';
           const splits = locationSplits[item.id] || [];
-          const newForm = newItemForms[item.id];
-          const totalAllocated = splits.reduce((sum, s) => sum + (parseFloat(s.addQty) || 0), 0);
-          const allocOk = Math.abs(totalAllocated - qty) < 0.001;
+          const choice = noMatchChoices[item.id] || null;
+          const inlineLink = inlineLinks[item.id] || null;
+          const search = inlineSearch[item.id] || {};
+          const newForm = newItemForms[item.id] || null;
 
           return (
             <div key={item.id} style={{ padding: '12px 20px', borderBottom: '1px solid #F8FAFC' }}>
               {/* Item header */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>{item.name}</span>
-                {(item.brand || item.size) && (
-                  <span style={{ fontSize: 11, color: '#94A3B8' }}>{[item.brand, item.size].filter(Boolean).join(' · ')}</span>
-                )}
-                <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color: '#1E3A5F' }}>
-                  +{qty} {item.unit || ''}
-                </span>
+                {(item.brand || item.size) && <span style={{ fontSize: 11, color: '#94A3B8' }}>{[item.brand, item.size].filter(Boolean).join(' · ')}</span>}
+                <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color: '#1E3A5F' }}>+{qty} {item.unit || ''}</span>
               </div>
 
-              {/* Match status */}
               {isLoading ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#94A3B8', fontSize: 12 }}>
                   <div style={{ width: 12, height: 12, border: '2px solid #CBD5E1', borderTopColor: '#4A90E2', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
                   Searching inventory…
                 </div>
+
               ) : hasMatch ? (
+                /* ── Auto-matched ── */
                 <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '8px 12px' }}>
-                  {/* Match label */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                     <Icon name="CheckCircle" style={{ width: 13, height: 13, color: '#16A34A', flexShrink: 0 }} />
                     <span style={{ fontSize: 12, fontWeight: 600, color: '#15803D' }}>
                       Matched → {match.name}
                       {match.cargo_item_id && <span style={{ fontWeight: 400, color: '#4ADE80', marginLeft: 4 }}>({match.cargo_item_id})</span>}
                     </span>
-                    <span style={{ marginLeft: 'auto', fontSize: 11, color: '#6B7280', whiteSpace: 'nowrap' }}>
-                      Total stock: {match.total_qty ?? 0}
-                    </span>
+                    <span style={{ marginLeft: 'auto', fontSize: 11, color: '#6B7280', whiteSpace: 'nowrap' }}>stock: {match.total_qty ?? 0}</span>
                   </div>
-
-                  {/* Location split rows */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    {splits.map((loc, idx) => (
-                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <input
-                          value={loc.locationName}
-                          onChange={e => onSplitChange(item.id, idx, 'locationName', e.target.value)}
-                          placeholder="Location path (e.g. Bar > Wine)"
-                          style={{ flex: 1, fontSize: 12, padding: '4px 8px', border: '1px solid #BBF7D0', borderRadius: 6, outline: 'none', background: 'white', color: '#0F172A', minWidth: 0 }}
-                        />
-                        <span style={{ fontSize: 10, color: '#94A3B8', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                          {loc.currentQty > 0 ? `now: ${loc.currentQty}` : 'new'}
-                        </span>
-                        <SplitQtyBtn onClick={() => onSplitChange(item.id, idx, 'addQty', Math.max(0, (parseFloat(loc.addQty) || 0) - 1))}>−</SplitQtyBtn>
-                        <input
-                          type="number"
-                          min="0"
-                          value={loc.addQty}
-                          onChange={e => onSplitChange(item.id, idx, 'addQty', parseFloat(e.target.value) || 0)}
-                          style={{ width: 40, textAlign: 'center', fontSize: 12, padding: '3px 4px', border: '1px solid #BBF7D0', borderRadius: 6, outline: 'none', flexShrink: 0 }}
-                        />
-                        <SplitQtyBtn onClick={() => onSplitChange(item.id, idx, 'addQty', (parseFloat(loc.addQty) || 0) + 1)}>+</SplitQtyBtn>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Add location */}
-                  <button
-                    onClick={() => onAddSplitLocation(item.id)}
-                    style={{ fontSize: 11, fontWeight: 600, color: '#16A34A', background: 'none', border: 'none', cursor: 'pointer', padding: '5px 0 2px', display: 'block' }}
-                  >
-                    + Add another location
-                  </button>
-
-                  {/* Total summary */}
-                  <div style={{ marginTop: 4, display: 'flex', justifyContent: 'flex-end' }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: allocOk ? '#16A34A' : '#DC2626' }}>
-                      Total to add: {totalAllocated}{allocOk ? ' ✓' : ` — received: ${qty}`}
-                    </span>
-                  </div>
+                  {renderSplits(item.id, qty, splits)}
                 </div>
-              ) : (
-                /* No match */
-                <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 8, padding: '8px 12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                    <Icon name="AlertCircle" style={{ width: 13, height: 13, color: '#EA580C' }} />
-                    <span style={{ fontSize: 12, fontWeight: 500, color: '#C2410C' }}>No inventory match found</span>
-                    {!newForm && (
-                      <button
-                        onClick={() => onNewItemForm(item.id, item)}
-                        style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 6, cursor: 'pointer', background: '#FFF7ED', border: '1px solid #FED7AA', color: '#EA580C' }}
-                      >
-                        + Create new item
-                      </button>
+
+              ) : choice === 'skip' ? (
+                /* ── Skipped ── */
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, padding: '7px 12px' }}>
+                  <span style={{ fontSize: 12, color: '#64748B', flex: 1 }}>Skipped — not pushed to inventory</span>
+                  <button onClick={() => onSetNoMatchChoice(item.id, null)} style={{ fontSize: 11, color: '#4A90E2', background: 'none', border: 'none', cursor: 'pointer' }}>Undo</button>
+                </div>
+
+              ) : choice === 'link' && inlineLink ? (
+                /* ── Inline-linked ── */
+                <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '8px 12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    <Icon name="Link" style={{ width: 13, height: 13, color: '#16A34A', flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#15803D' }}>
+                      Linked → {inlineLink.name}
+                      {inlineLink.cargo_item_id && <span style={{ fontWeight: 400, color: '#4ADE80', marginLeft: 4 }}>({inlineLink.cargo_item_id})</span>}
+                    </span>
+                    <span style={{ marginLeft: 'auto', fontSize: 11, color: '#6B7280', whiteSpace: 'nowrap' }}>stock: {inlineLink.total_qty ?? 0}</span>
+                  </div>
+                  {renderSplits(item.id, qty, splits)}
+                </div>
+
+              ) : choice === 'link' ? (
+                /* ── Inline search ── */
+                <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 8, padding: '8px 12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    <Icon name="Search" style={{ width: 13, height: 13, color: '#3B82F6', flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#1D4ED8' }}>Link to inventory item</span>
+                    <button onClick={() => onSetNoMatchChoice(item.id, null)} style={{ marginLeft: 'auto', fontSize: 11, color: '#64748B', background: 'none', border: 'none', cursor: 'pointer' }}>← Back</button>
+                  </div>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      value={search.query || ''}
+                      onChange={e => onInlineSearchChange(item.id, e.target.value)}
+                      placeholder="Search by name, brand, or CARGO code…"
+                      style={{ width: '100%', boxSizing: 'border-box', fontSize: 12, padding: '5px 8px', border: '1px solid #BFDBFE', borderRadius: 6, outline: 'none' }}
+                    />
+                    {search.loading && <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#94A3B8' }}>…</span>}
+                    {(search.results || []).length > 0 && (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, boxShadow: '0 8px 20px rgba(0,0,0,0.1)', marginTop: 2, maxHeight: 160, overflowY: 'auto' }}>
+                        {(search.results || []).map(inv => (
+                          <button
+                            key={inv.id}
+                            onMouseDown={e => { e.preventDefault(); onInlineLink(item.id, inv); }}
+                            style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: '7px 12px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: 1 }}
+                            onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                          >
+                            <span style={{ fontSize: 12, fontWeight: 600, color: '#0F172A' }}>{inv.name}</span>
+                            <span style={{ fontSize: 11, color: '#94A3B8' }}>{[inv.brand, inv.size, inv.cargo_item_id].filter(Boolean).join(' · ')}{inv.total_qty != null ? ` · stock: ${inv.total_qty}` : ''}</span>
+                          </button>
+                        ))}
+                      </div>
                     )}
                   </div>
-                  {newForm && (
+                </div>
+
+              ) : choice === 'create' ? (
+                /* ── Create new item form ── */
+                <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 8, padding: '8px 12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    <Icon name="PlusCircle" style={{ width: 13, height: 13, color: '#EA580C', flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#C2410C' }}>Create new inventory item</span>
+                    <button onClick={() => onSetNoMatchChoice(item.id, null)} style={{ marginLeft: 'auto', fontSize: 11, color: '#64748B', background: 'none', border: 'none', cursor: 'pointer' }}>← Back</button>
+                  </div>
+                  {newForm ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                         <div>
-                          <label style={{ fontSize: 10, color: '#94A3B8', display: 'block', marginBottom: 2 }}>Brand</label>
-                          <input
-                            value={newForm.brand || ''}
-                            onChange={e => onNewItemForm(item.id, { ...newForm, brand: e.target.value })}
-                            placeholder="Brand"
-                            style={{ width: '100%', fontSize: 12, padding: '4px 8px', border: '1px solid #FED7AA', borderRadius: 6, outline: 'none', boxSizing: 'border-box' }}
-                          />
+                          <FLD>Name *</FLD>
+                          <input value={newForm.name} onChange={e => onNewItemFormChange(item.id, 'name', e.target.value)} style={{ width: '100%', boxSizing: 'border-box', fontSize: 12, padding: '4px 8px', border: '1px solid #FED7AA', borderRadius: 6, outline: 'none' }} />
                         </div>
                         <div>
-                          <label style={{ fontSize: 10, color: '#94A3B8', display: 'block', marginBottom: 2 }}>Size</label>
-                          <input
-                            value={newForm.size || ''}
-                            onChange={e => onNewItemForm(item.id, { ...newForm, size: e.target.value })}
-                            placeholder="e.g. 750ml"
-                            style={{ width: '100%', fontSize: 12, padding: '4px 8px', border: '1px solid #FED7AA', borderRadius: 6, outline: 'none', boxSizing: 'border-box' }}
-                          />
+                          <FLD>Brand</FLD>
+                          <input value={newForm.brand} onChange={e => onNewItemFormChange(item.id, 'brand', e.target.value)} style={{ width: '100%', boxSizing: 'border-box', fontSize: 12, padding: '4px 8px', border: '1px solid #FED7AA', borderRadius: 6, outline: 'none' }} />
+                        </div>
+                        <div>
+                          <FLD>Size</FLD>
+                          <input value={newForm.size} onChange={e => onNewItemFormChange(item.id, 'size', e.target.value)} placeholder="e.g. 750ml" style={{ width: '100%', boxSizing: 'border-box', fontSize: 12, padding: '4px 8px', border: '1px solid #FED7AA', borderRadius: 6, outline: 'none' }} />
+                        </div>
+                        <div>
+                          <FLD>Unit *</FLD>
+                          <select value={newForm.unit} onChange={e => onNewItemFormChange(item.id, 'unit', e.target.value)} style={{ width: '100%', boxSizing: 'border-box', fontSize: 12, padding: '4px 8px', border: '1px solid #FED7AA', borderRadius: 6, outline: 'none', background: 'white' }}>
+                            {UNIT_GROUPS.map(g => <optgroup key={g.label} label={g.label}>{g.options.map(u => <option key={u} value={u}>{u}</option>)}</optgroup>)}
+                          </select>
+                        </div>
+                        <div>
+                          <FLD>Barcode</FLD>
+                          <input value={newForm.barcode} onChange={e => onNewItemFormChange(item.id, 'barcode', e.target.value)} style={{ width: '100%', boxSizing: 'border-box', fontSize: 12, padding: '4px 8px', border: '1px solid #FED7AA', borderRadius: 6, outline: 'none' }} />
                         </div>
                       </div>
                       <div>
-                        <label style={{ fontSize: 10, color: '#94A3B8', display: 'block', marginBottom: 2 }}>Inventory location (e.g. "Bar &gt; Spirits")</label>
-                        <input
-                          value={newForm.locationName || ''}
-                          onChange={e => onNewItemForm(item.id, { ...newForm, locationName: e.target.value })}
-                          placeholder="Bar > Spirits"
-                          style={{ width: '100%', fontSize: 12, padding: '4px 8px', border: '1px solid #FED7AA', borderRadius: 6, outline: 'none', boxSizing: 'border-box' }}
+                        <FLD>Location * (required to create)</FLD>
+                        <LocationPicker
+                          value={newForm.locationName}
+                          onChange={v => onNewItemFormChange(item.id, 'locationName', v)}
+                          locations={allLocations}
+                          borderColor="#FED7AA"
+                          placeholder="Select inventory location…"
                         />
                       </div>
                     </div>
-                  )}
+                  ) : null}
+                </div>
+
+              ) : (
+                /* ── No match — choose action ── */
+                <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 8, padding: '8px 12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    <Icon name="AlertCircle" style={{ width: 13, height: 13, color: '#EA580C' }} />
+                    <span style={{ fontSize: 12, fontWeight: 500, color: '#C2410C' }}>No inventory match found</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => onSetNoMatchChoice(item.id, 'link')}
+                      style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, cursor: 'pointer', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8' }}
+                    >🔍 Link to inventory</button>
+                    <button
+                      onClick={() => { onSetNoMatchChoice(item.id, 'create'); onInitNewItemForm(item.id, item); }}
+                      style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, cursor: 'pointer', background: '#FFF7ED', border: '1px solid #FED7AA', color: '#EA580C' }}
+                    >+ Create new item</button>
+                    <button
+                      onClick={() => onSetNoMatchChoice(item.id, 'skip')}
+                      style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#94A3B8' }}
+                    >Skip</button>
+                  </div>
                 </div>
               )}
             </div>
@@ -327,12 +517,8 @@ const PushStep = ({ items, receiving, matches, locationSplits, onSplitChange, on
         )}
       </div>
 
-      {/* Footer */}
       <div style={{ padding: '12px 20px', borderTop: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-        <button
-          onClick={onBack}
-          style={{ fontSize: 13, padding: '7px 14px', borderRadius: 8, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B', display: 'flex', alignItems: 'center', gap: 5 }}
-        >
+        <button onClick={onBack} style={{ fontSize: 13, padding: '7px 14px', borderRadius: 8, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B', display: 'flex', alignItems: 'center', gap: 5 }}>
           ← Back
         </button>
         <button
@@ -357,9 +543,14 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
   const [receiving, setReceiving] = useState({});
   const [matches, setMatches] = useState({});              // {[id]: row | 'loading' | null}
   const [locationSplits, setLocationSplits] = useState({}); // {[id]: [{locationName, currentQty, addQty}]}
-  const [newItemForms, setNewItemForms] = useState({});    // {[id]: {brand, size, locationName}}
+  const [noMatchChoices, setNoMatchChoices] = useState({}); // {[id]: 'link'|'create'|'skip'|null}
+  const [inlineLinks, setInlineLinks] = useState({});      // {[id]: inventoryRow}
+  const [inlineSearch, setInlineSearch] = useState({});    // {[id]: {query, results, loading}}
+  const [allLocations, setAllLocations] = useState([]);
+  const [newItemForms, setNewItemForms] = useState({});    // {[id]: {name, brand, size, unit, barcode, locationName}}
   const [saving, setSaving] = useState(false);
   const [pushing, setPushing] = useState(false);
+  const inlineSearchTimers = useRef({});
 
   // Initialise receiving state from current item data
   useEffect(() => {
@@ -374,11 +565,15 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
     setReceiving(init);
   }, [items]);
 
-  // When entering step 2, run matching for all checked items
+  // When entering step 2, run matching for all checked items + fetch locations
   useEffect(() => {
     if (step !== 2) return;
     const checkedItems = items.filter(i => receiving[i.id]?.checked && (parseFloat(receiving[i.id]?.qty) || 0) > 0);
     setMatches({});
+    setNoMatchChoices({});
+    setInlineLinks({});
+    setInlineSearch({});
+    fetchAllInventoryLocations(tenantId).then(locs => setAllLocations(locs || []));
     checkedItems.forEach(item => {
       setMatches(prev => ({ ...prev, [item.id]: 'loading' }));
       const receivedQty = parseFloat(receiving[item.id]?.qty) || 0;
@@ -459,16 +654,65 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
     }));
   };
 
-  const handleNewItemForm = (id, data) => {
-    if (typeof data === 'object' && !data.name) {
-      // initialise from provisioning item
-      setNewItemForms(prev => ({
-        ...prev,
-        [id]: { brand: data.brand || '', size: data.size || '', locationName: '' },
+  const handleRemoveSplitLocation = (itemId, idx) => {
+    setLocationSplits(prev => {
+      const splits = [...(prev[itemId] || [])];
+      splits.splice(idx, 1);
+      return { ...prev, [itemId]: splits };
+    });
+  };
+
+  const handleSetNoMatchChoice = (itemId, choice) => {
+    setNoMatchChoices(prev => ({ ...prev, [itemId]: choice }));
+  };
+
+  const handleInlineSearchChange = (itemId, query) => {
+    setInlineSearch(prev => ({ ...prev, [itemId]: { ...(prev[itemId] || {}), query, loading: true } }));
+    clearTimeout(inlineSearchTimers.current[itemId]);
+    if (!query.trim()) {
+      setInlineSearch(prev => ({ ...prev, [itemId]: { query, results: [], loading: false } }));
+      return;
+    }
+    inlineSearchTimers.current[itemId] = setTimeout(async () => {
+      const results = await searchInventoryItems(query, tenantId);
+      setInlineSearch(prev => ({ ...prev, [itemId]: { query, results: results || [], loading: false } }));
+    }, 300);
+  };
+
+  const handleInlineLink = (itemId, invItem) => {
+    setInlineLinks(prev => ({ ...prev, [itemId]: invItem }));
+    setNoMatchChoices(prev => ({ ...prev, [itemId]: 'link' }));
+    const receivedQty = parseFloat(receiving[itemId]?.qty) || 0;
+    const existingLocs = Array.isArray(invItem.stock_locations) ? invItem.stock_locations : [];
+    let splits;
+    if (existingLocs.length > 0) {
+      splits = existingLocs.map((loc, i) => ({
+        locationName: loc.locationName || loc.name || '',
+        currentQty: loc.qty ?? loc.quantity ?? 0,
+        addQty: i === 0 ? receivedQty : 0,
       }));
     } else {
-      setNewItemForms(prev => ({ ...prev, [id]: data }));
+      splits = [{ locationName: invItem.location || '', currentQty: 0, addQty: receivedQty }];
     }
+    setLocationSplits(prev => ({ ...prev, [itemId]: splits }));
+  };
+
+  const handleInitNewItemForm = (itemId, provItem) => {
+    setNewItemForms(prev => ({
+      ...prev,
+      [itemId]: {
+        name: provItem.name || '',
+        brand: provItem.brand || '',
+        size: provItem.size || '',
+        unit: provItem.unit || 'bottle',
+        barcode: provItem.barcode || '',
+        locationName: '',
+      },
+    }));
+  };
+
+  const handleNewItemFormChange = (itemId, field, value) => {
+    setNewItemForms(prev => ({ ...prev, [itemId]: { ...(prev[itemId] || {}), [field]: value } }));
   };
 
   const handlePushToInventory = async () => {
@@ -479,24 +723,41 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
     for (const item of receivedItems) {
       const qty = parseFloat(receiving[item.id]?.qty) || 0;
       const match = matches[item.id];
+      const choice = noMatchChoices[item.id] || null;
+      const inlineLink = inlineLinks[item.id] || null;
 
+      // Path 1: auto-matched to inventory item
       if (match && typeof match === 'object') {
-        // Push qty splits to existing inventory item
         const splits = locationSplits[item.id] || [{ locationName: match.location || '', currentQty: 0, addQty: qty }];
         const ok = await pushReceivedSplitsToInventory({ inventoryItemId: match.id, splits, tenantId });
         if (ok) {
-          try {
-            await supabase?.from('provisioning_items')?.update({ inventory_item_id: match.id })?.eq('id', item.id);
-          } catch { /* non-fatal */ }
+          try { await supabase?.from('provisioning_items')?.update({ inventory_item_id: match.id })?.eq('id', item.id); } catch { /* non-fatal */ }
           pushed++;
         } else {
           skipped++;
         }
-      } else {
+        continue;
+      }
+
+      // Path 2: user manually linked to inventory item
+      if (choice === 'link' && inlineLink) {
+        const splits = locationSplits[item.id] || [{ locationName: inlineLink.location || '', currentQty: 0, addQty: qty }];
+        const ok = await pushReceivedSplitsToInventory({ inventoryItemId: inlineLink.id, splits, tenantId });
+        if (ok) {
+          try { await supabase?.from('provisioning_items')?.update({ inventory_item_id: inlineLink.id })?.eq('id', item.id); } catch { /* non-fatal */ }
+          pushed++;
+        } else {
+          skipped++;
+        }
+        continue;
+      }
+
+      // Path 3: create new inventory item
+      if (choice === 'create') {
         const form = newItemForms[item.id];
-        if (form?.locationName) {
+        if (form?.name && form?.locationName) {
           const created = await createInventoryItemFromProvItem({
-            provItem: { ...item, brand: form.brand || item.brand, size: form.size || item.size },
+            provItem: { ...item, name: form.name, brand: form.brand || item.brand, size: form.size || item.size, unit: form.unit || item.unit, barcode: form.barcode || item.barcode },
             locationName: form.locationName,
             qty,
             tenantId,
@@ -505,14 +766,18 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
           if (created) pushed++;
           else skipped++;
         } else {
-          skipped++; // No location given — user chose not to create
+          skipped++;
         }
+        continue;
       }
+
+      // Path 4: skip
+      skipped++;
     }
 
     setPushing(false);
     if (pushed > 0) showToast(`${pushed} item${pushed > 1 ? 's' : ''} pushed to inventory`, 'success');
-    if (skipped > 0) showToast(`${skipped} item${skipped > 1 ? 's' : ''} skipped (no location set)`, 'info');
+    if (skipped > 0) showToast(`${skipped} item${skipped > 1 ? 's' : ''} skipped`, 'info');
     onComplete?.();
   };
 
@@ -573,8 +838,17 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
             locationSplits={locationSplits}
             onSplitChange={handleSplitChange}
             onAddSplitLocation={handleAddSplitLocation}
+            onRemoveSplitLocation={handleRemoveSplitLocation}
+            noMatchChoices={noMatchChoices}
+            inlineLinks={inlineLinks}
+            inlineSearch={inlineSearch}
+            allLocations={allLocations}
+            onSetNoMatchChoice={handleSetNoMatchChoice}
+            onInlineSearchChange={handleInlineSearchChange}
+            onInlineLink={handleInlineLink}
             newItemForms={newItemForms}
-            onNewItemForm={handleNewItemForm}
+            onInitNewItemForm={handleInitNewItemForm}
+            onNewItemFormChange={handleNewItemFormChange}
             onPush={handlePushToInventory}
             onBack={() => setStep(1)}
             pushing={pushing}
