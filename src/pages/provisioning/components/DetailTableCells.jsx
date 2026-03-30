@@ -17,11 +17,12 @@ export const UNIT_GROUPS = [
 
 // ── Item status config ────────────────────────────────────────────────────────
 export const ITEM_STATUS_OPTIONS = [
-  { value: 'pending',         label: 'Pending',       color: '#94A3B8', bg: 'rgba(100,116,139,0.15)' },
-  { value: 'ordered',         label: 'Ordered',       color: '#4A90E2', bg: 'rgba(74,144,226,0.15)'  },
-  { value: 'received',        label: 'Received',      color: '#22c55e', bg: 'rgba(34,197,94,0.15)'   },
-  { value: 'short_delivered', label: 'Short',         color: '#f59e0b', bg: 'rgba(245,158,11,0.15)'  },
-  { value: 'not_delivered',   label: 'Not Delivered', color: '#ef4444', bg: 'rgba(239,68,68,0.15)'   },
+  { value: 'draft',        label: 'Draft',        color: '#94A3B8', bg: 'rgba(100,116,139,0.15)' },
+  { value: 'to_order',     label: 'To order',     color: '#3B82F6', bg: 'rgba(59,130,246,0.15)'  },
+  { value: 'ordered',      label: 'Ordered',      color: '#8B5CF6', bg: 'rgba(139,92,246,0.15)'  },
+  { value: 'received',     label: 'Received',     color: '#22c55e', bg: 'rgba(34,197,94,0.15)'   },
+  { value: 'partial',      label: 'Partial',      color: '#f59e0b', bg: 'rgba(245,158,11,0.15)'  },
+  { value: 'not_received', label: 'Not received', color: '#ef4444', bg: 'rgba(239,68,68,0.15)'   },
 ];
 export const getStatusCfg = (s) => ITEM_STATUS_OPTIONS.find(o => o.value === s) || ITEM_STATUS_OPTIONS[0];
 

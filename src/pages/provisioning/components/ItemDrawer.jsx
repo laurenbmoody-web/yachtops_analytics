@@ -37,11 +37,12 @@ const CURRENCY_PILLS = [
 
 // Per-status selected pill colours
 const STATUS_STYLES = {
-  pending:       { bg: '#f1f5f9', border: '#94a3b8', color: '#475569' },
-  ordered:       { bg: '#eff6ff', border: '#93c5fd', color: '#1d4ed8' },
-  received:      { bg: '#f0fdf4', border: '#86efac', color: '#15803d' },
-  short_delivered: { bg: '#fffbeb', border: '#fcd34d', color: '#b45309' },
-  not_delivered: { bg: '#fef2f2', border: '#fca5a5', color: '#b91c1c' },
+  draft:        { bg: '#f1f5f9', border: '#cbd5e1', color: '#475569' },
+  to_order:     { bg: '#eff6ff', border: '#93c5fd', color: '#1d4ed8' },
+  ordered:      { bg: '#f5f3ff', border: '#c4b5fd', color: '#7c3aed' },
+  received:     { bg: '#f0fdf4', border: '#86efac', color: '#15803d' },
+  partial:      { bg: '#fffbeb', border: '#fcd34d', color: '#b45309' },
+  not_received: { bg: '#fef2f2', border: '#fca5a5', color: '#b91c1c' },
 };
 
 // ── Field label + child wrapper — defined at module level to avoid remount ───
@@ -226,7 +227,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
         unit: item.unit || 'each',
         estimated_unit_cost: item.estimated_unit_cost || '',
         currency: item.currency || null,
-        status: item.status || 'pending',
+        status: item.status || 'draft',
         quantity_received: item.quantity_received ?? '',
         allergen_flags: item.allergen_flags || [],
         item_notes: item.item_notes || '',
@@ -844,7 +845,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
             )}
 
             {/* Quantity received — non-pending only */}
-            {form.status && form.status !== 'pending' && (
+            {form.status && form.status !== 'draft' && (
               <div style={{ marginTop: 12 }}>
                 <Field isLight={isLight} labelCls={labelCls} label="Quantity Received">
                   <input type="number" value={form.quantity_received ?? ''} onChange={e => set('quantity_received', e.target.value)} onBlur={() => saveField()} className={inputCls} min="0" step="0.1" />

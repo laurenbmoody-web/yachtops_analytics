@@ -425,7 +425,7 @@ const ProvisioningWorkspace = () => {
         department: '',
         quantity_ordered: 1,
         unit: 'each',
-        status: 'pending',
+        status: 'draft',
         source: 'manual',
       };
       const saved = await upsertItems([newItem]);

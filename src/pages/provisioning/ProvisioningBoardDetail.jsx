@@ -425,7 +425,7 @@ const ProvisioningBoardDetail = () => {
 
   const handleAddItem = async (dept) => {
     if (!newItemName.trim()) return;
-    const payload = { list_id: id, name: newItemName.trim(), department: dept === 'Other' ? '' : dept, quantity_ordered: 1, unit: 'each', status: 'pending', source: 'manual' };
+    const payload = { list_id: id, name: newItemName.trim(), department: dept === 'Other' ? '' : dept, quantity_ordered: 1, unit: 'each', status: 'draft', source: 'manual' };
     setNewItemName('');
     setAddingToDept(null);
     try {
@@ -571,11 +571,12 @@ const ProvisioningBoardDetail = () => {
   const getDeptChip = (dept) => DEPT_CHIP_STYLES[dept] || { bg: '#F1F5F9', color: '#64748B' };
 
   const STATUS_BADGE = {
-    pending:         { bg: '#F8FAFC', color: '#94A3B8', border: '#F1F5F9', dot: '#CBD5E1', label: 'Pending' },
-    ordered:         { bg: '#EFF6FF', color: '#1D4ED8', border: '#BFDBFE', dot: '#60A5FA', label: 'Ordered' },
-    received:        { bg: '#F0FDF4', color: '#15803D', border: '#BBF7D0', dot: '#4ADE80', label: 'Received' },
-    short_delivered: { bg: '#FFFBEB', color: '#B45309', border: '#FDE68A', dot: '#FCD34D', label: 'Short' },
-    not_delivered:   { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA', dot: '#FCA5A5', label: 'Not Delivered' },
+    draft:        { bg: '#F8FAFC', color: '#94A3B8', border: '#E2E8F0', dot: '#CBD5E1', label: 'Draft' },
+    to_order:     { bg: '#EFF6FF', color: '#1D4ED8', border: '#BFDBFE', dot: '#60A5FA', label: 'To order' },
+    ordered:      { bg: '#F5F3FF', color: '#7C3AED', border: '#DDD6FE', dot: '#A78BFA', label: 'Ordered' },
+    received:     { bg: '#F0FDF4', color: '#15803D', border: '#BBF7D0', dot: '#4ADE80', label: 'Received' },
+    partial:      { bg: '#FFFBEB', color: '#B45309', border: '#FDE68A', dot: '#FCD34D', label: 'Partial' },
+    not_received: { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA', dot: '#FCA5A5', label: 'Not received' },
   };
 
   const STATUS_HERO_COLOR = {
@@ -587,7 +588,8 @@ const ProvisioningBoardDetail = () => {
     delivered:                    { dot: '#22C55E', text: '#15803D' },
   };
 
-  const TABLE_GRID = '36px minmax(200px,1.5fr) minmax(130px,0.8fr) minmax(190px,1fr) 90px 80px 120px 56px';
+  // cols: check | item | category | size | unit | qty | unit cost | total | status | actions
+  const TABLE_GRID = '36px minmax(180px,1.5fr) minmax(110px,0.8fr) 76px 70px 92px 90px 80px 120px 56px';
 
   const CURR_SYMBOLS = { GBP: '£', USD: '$', EUR: '€' };
   const currSymbol = CURR_SYMBOLS[list?.currency] || '£';
@@ -972,22 +974,16 @@ const ProvisioningBoardDetail = () => {
                             });
                           }} style={{ width: 13, height: 13, accentColor: '#4A90E2', cursor: 'pointer' }} />
                         </div>
-                        {['Item', 'Category', null, 'Unit Cost', 'Total', 'Status', ''].map((h, hi) => (
-                          <div key={hi} style={{ fontSize: 9, fontWeight: 700, color: '#CBD5E1', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '10px 8px', display: 'flex', alignItems: 'center', width: '100%' }}>
-                            {hi === 2 ? (
-                              <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: 4 }}>
-                                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#CBD5E1', flex: '0 0 auto' }}>Size</span>
-                                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#CBD5E1', flex: '1 1 auto', textAlign: 'center' }}>Unit</span>
-                                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#CBD5E1', flex: '0 0 auto', minWidth: 62, textAlign: 'center' }}>Qty</span>
-                              </div>
-                            ) : h}
+                        {['Item', 'Category', 'Size', 'Unit', 'Qty', 'Unit Cost', 'Total', 'Status', ''].map((h) => (
+                          <div key={h} style={{ fontSize: 9, fontWeight: 700, color: '#CBD5E1', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '10px 8px', display: 'flex', alignItems: 'center' }}>
+                            {h}
                           </div>
                         ))}
                       </div>
 
                       {/* Item rows */}
                       {deptItems.map((item, rowIdx) => {
-                        const badge = STATUS_BADGE[item.status] || STATUS_BADGE.pending;
+                        const badge = STATUS_BADGE[item.status] || STATUS_BADGE.draft;
                         const isHovered = hoveredRow === item.id;
                         const isEditing = editingCell?.itemId === item.id;
                         const allergen = isAllergenRisk(item);
@@ -1055,22 +1051,38 @@ const ProvisioningBoardDetail = () => {
                                 })()}
                               </span>
                             </div>
-                            {/* Size · Unit · Qty (compound) */}
-                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px', gap: 4, flexWrap: 'nowrap', overflow: 'hidden' }}>
-                              {item.size && (
-                                <>
-                                  <span style={{ fontSize: 12, color: '#64748B', flexShrink: 0 }}>{item.size}</span>
-                                  <span style={{ fontSize: 11, color: '#CBD5E1', flexShrink: 0 }}>·</span>
-                                </>
+                            {/* Size */}
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
+                              {editingCell?.itemId === item.id && editingCell?.field === 'size' ? (
+                                <input
+                                  autoFocus
+                                  defaultValue={item.size ?? ''}
+                                  onBlur={e => { handleCellSave(item, 'size', e.target.value); setEditingCell(null); }}
+                                  onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingCell(null); }}
+                                  placeholder="e.g. 750ml"
+                                  style={{ fontSize: 12, color: '#0F172A', background: '#F0F7FF', border: '1px solid #93C5FD', borderRadius: 5, padding: '2px 6px', width: '100%', outline: 'none' }}
+                                />
+                              ) : (
+                                <span
+                                  onDoubleClick={() => setEditingCell({ itemId: item.id, field: 'size' })}
+                                  style={{ fontSize: 12, color: item.size ? '#64748B' : '#E2E8F0', cursor: 'default' }}
+                                >
+                                  {item.size || '—'}
+                                </span>
                               )}
+                            </div>
+                            {/* Unit */}
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
                               <select
                                 value={item.unit || 'each'}
                                 onChange={e => handleCellSave(item, 'unit', e.target.value)}
-                                style={{ fontSize: 11, color: '#64748B', background: 'none', border: 'none', outline: 'none', cursor: 'pointer', padding: 0, minWidth: 0, flexShrink: 1 }}
+                                style={{ fontSize: 11, color: '#64748B', background: 'none', border: 'none', outline: 'none', cursor: 'pointer', padding: 0, width: '100%' }}
                               >
                                 {PROVISION_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                               </select>
-                              <span style={{ fontSize: 11, color: '#CBD5E1', flexShrink: 0 }}>·</span>
+                            </div>
+                            {/* Qty */}
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px', gap: 3 }}>
                               <button
                                 onClick={() => handleQtyStep(item, 'quantity_ordered', -1)}
                                 style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F1F5F9', border: 'none', borderRadius: 3, cursor: 'pointer', fontSize: 13, color: '#64748B', flexShrink: 0, lineHeight: 1, padding: 0 }}
@@ -1082,7 +1094,7 @@ const ProvisioningBoardDetail = () => {
                                   defaultValue={item.quantity_ordered ?? ''}
                                   onBlur={e => { handleCellSave(item, 'quantity_ordered', e.target.value); setEditingCell(null); }}
                                   onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingCell(null); }}
-                                  style={{ fontSize: 13, color: '#0F172A', background: '#F0F7FF', border: '1px solid #93C5FD', borderRadius: 5, padding: '2px 4px', width: 44, outline: 'none', textAlign: 'center', flexShrink: 0 }}
+                                  style={{ fontSize: 13, color: '#0F172A', background: '#F0F7FF', border: '1px solid #93C5FD', borderRadius: 5, padding: '2px 4px', width: 36, outline: 'none', textAlign: 'center', flexShrink: 0 }}
                                 />
                               ) : (
                                 <span
@@ -1141,7 +1153,7 @@ const ProvisioningBoardDetail = () => {
                               <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
                                 <span style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', width: 5, height: 5, borderRadius: '50%', background: badge.dot, pointerEvents: 'none', zIndex: 1 }} />
                                 <select
-                                  value={item.status || 'pending'}
+                                  value={item.status || 'draft'}
                                   onChange={e => handleStatusSave(item, 'status', e.target.value)}
                                   style={{
                                     paddingLeft: 16, paddingRight: 8, paddingTop: 3, paddingBottom: 3,
@@ -1185,12 +1197,13 @@ const ProvisioningBoardDetail = () => {
 
                       {/* Subtotal row */}
                       <div style={{ display: 'grid', gridTemplateColumns: TABLE_GRID, gap: 0, padding: '0 16px', background: '#FAFAFA', borderTop: '1px solid #F1F5F9' }}>
-                        <div style={{ gridColumn: '1 / 6', padding: '8px 8px 8px 0' }}>
+                        <div style={{ gridColumn: '1 / 7', padding: '8px 8px 8px 0' }}>
                           <span style={{ fontSize: 11, color: '#94A3B8' }}>{deptItems.length} item{deptItems.length !== 1 ? 's' : ''}</span>
                         </div>
                         <div style={{ padding: '8px 8px', display: 'flex', alignItems: 'center' }}>
                           <span style={{ fontSize: 12, fontWeight: 600, color: '#1E3A5F' }}>{dispSymbol}{deptSubtotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
                         </div>
+                        <div />{/* total col */}
                         <div />{/* status col */}
                         <div />{/* actions col */}
                       </div>

@@ -43,10 +43,12 @@ export const PROVISIONING_STATUS = {
 };
 
 export const ITEM_STATUS = {
-  PENDING: 'pending',
+  DRAFT: 'draft',
+  TO_ORDER: 'to_order',
+  ORDERED: 'ordered',
   RECEIVED: 'received',
-  SHORT_DELIVERED: 'short_delivered',
-  NOT_DELIVERED: 'not_delivered',
+  PARTIAL: 'partial',
+  NOT_RECEIVED: 'not_received',
 };
 
 export const PROVISION_DEPARTMENTS = ['Galley', 'Interior', 'Deck', 'Engineering', 'Admin'];
@@ -640,10 +642,10 @@ export const duplicateList = async (sourceListId, vesselId, userId) => {
 
 export const computeListStatusAfterDelivery = (items) => {
   if (!items?.length) return PROVISIONING_STATUS.DELIVERED;
-  const notDelivered = items.filter(i => i.status === ITEM_STATUS.NOT_DELIVERED);
-  const short = items.filter(i => i.status === ITEM_STATUS.SHORT_DELIVERED);
-  if (notDelivered.length === items.length) return PROVISIONING_STATUS.PARTIALLY_DELIVERED;
-  if (notDelivered.length > 0 || short.length > 0) return PROVISIONING_STATUS.DELIVERED_WITH_DISCREPANCIES;
+  const notReceived = items.filter(i => i.status === ITEM_STATUS.NOT_RECEIVED);
+  const partial = items.filter(i => i.status === ITEM_STATUS.PARTIAL);
+  if (notReceived.length === items.length) return PROVISIONING_STATUS.PARTIALLY_DELIVERED;
+  if (notReceived.length > 0 || partial.length > 0) return PROVISIONING_STATUS.DELIVERED_WITH_DISCREPANCIES;
   return PROVISIONING_STATUS.DELIVERED;
 };
 

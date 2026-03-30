@@ -18,15 +18,15 @@ import { UNIT_GROUPS } from './DetailTableCells';
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const deriveStatus = (qty, ordered) => {
-  if (!qty || qty <= 0) return 'not_delivered';
+  if (!qty || qty <= 0) return 'not_received';
   if (qty >= ordered) return 'received';
-  return 'short_delivered';
+  return 'partial';
 };
 
 const STATUS_PILL = {
-  received:        { label: 'Received',       bg: '#ECFDF5', color: '#047857' },
-  short_delivered: { label: 'Short',          bg: '#FEF3E2', color: '#B45309' },
-  not_delivered:   { label: 'Not delivered',  bg: '#FEF2F2', color: '#DC2626' },
+  received:     { label: 'Received',     bg: '#ECFDF5', color: '#047857' },
+  partial:      { label: 'Partial',      bg: '#FEF3E2', color: '#B45309' },
+  not_received: { label: 'Not received', bg: '#FEF2F2', color: '#DC2626' },
 };
 
 const ICON_BTN = {
