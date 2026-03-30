@@ -362,6 +362,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
   };
 
   const saveField = useCallback(async (overrides = {}) => {
+    if (form.status === 'received') return; // received items are read-only
     if (!form.name?.trim() && !overrides.name?.trim()) return;
     try {
       const saved = await upsertItems([buildPayload(overrides)]);
@@ -411,6 +412,9 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
   if (!open || !item) return null;
 
   const isLinked = !!form.inventory_item_id;
+  const isReceived = form.status === 'received';
+  // When received, all fields are read-only (layered on top of isLinked)
+  const isReadOnly = isLinked || isReceived;
 
   return (
     <>
@@ -456,6 +460,26 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
         }
       >
         <div style={{ paddingBottom: 32 }}>
+
+          {/* ════ RECEIVED BANNER ════ */}
+          {isReceived && isLight && (
+            <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: 8, padding: '10px 14px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Icon name="CheckCircle" style={{ width: 14, height: 14, color: '#34D399', flexShrink: 0 }} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#047857' }}>This item has been received</span>
+              </div>
+              {form.inventory_item_id && (
+                <a
+                  href={`/inventory/item/${form.inventory_item_id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ fontSize: 11, color: '#4A90E2', textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap', flexShrink: 0 }}
+                >
+                  View in inventory →
+                </a>
+              )}
+            </div>
+          )}
 
           {/* ════ INVENTORY LINK ════ */}
           <div style={{ marginBottom: 16 }}>
@@ -581,17 +605,17 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
           <div>
             <input
               value={form.name || ''}
-              onChange={e => !isLinked && set('name', e.target.value)}
-              onBlur={() => !isLinked && saveField()}
-              readOnly={isLinked}
+              onChange={e => !isReadOnly && set('name', e.target.value)}
+              onBlur={() => !isReadOnly && saveField()}
+              readOnly={isReadOnly}
               placeholder={isLight ? 'Untitled item' : 'Item name'}
               style={isLight ? {
                 width: '100%', fontSize: 22, fontWeight: 700,
-                color: isLinked ? '#94a3b8' : '#1E3A5F', background: 'none', border: 'none',
-                borderBottom: `2px solid ${isLinked ? '#e2e8f0' : '#4A90E2'}`, outline: 'none',
+                color: isReadOnly ? '#94a3b8' : '#1E3A5F', background: 'none', border: 'none',
+                borderBottom: `2px solid ${isReadOnly ? '#e2e8f0' : '#4A90E2'}`, outline: 'none',
                 padding: '4px 0 4px', display: 'block',
                 fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
-                cursor: isLinked ? 'default' : 'text',
+                cursor: isReadOnly ? 'default' : 'text',
               } : {}}
               className={!isLight ? 'w-full bg-transparent outline-none font-semibold pb-1.5 border-b border-white/10 text-white placeholder:text-white/25 focus:border-[#4A90E2] transition-colors' : ''}
             />
@@ -600,12 +624,12 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
               <Field isLight={isLight} labelCls={labelCls} label="Brand">
                 <input
                   value={form.brand || ''}
-                  onChange={e => !isLinked && set('brand', e.target.value)}
-                  onBlur={() => !isLinked && saveField()}
-                  readOnly={isLinked}
+                  onChange={e => !isReadOnly && set('brand', e.target.value)}
+                  onBlur={() => !isReadOnly && saveField()}
+                  readOnly={isReadOnly}
                   className={inputCls}
                   placeholder="e.g. Heinz, Maggi"
-                  style={isLinked ? { opacity: 0.55, cursor: 'default' } : {}}
+                  style={isReadOnly ? { opacity: 0.55, cursor: 'default' } : {}}
                 />
               </Field>
             </div>
@@ -614,12 +638,12 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
               <Field isLight={isLight} labelCls={labelCls} label="Barcode">
                 <input
                   value={form.barcode || ''}
-                  onChange={e => !isLinked && set('barcode', e.target.value)}
-                  onBlur={() => !isLinked && saveField()}
-                  readOnly={isLinked}
+                  onChange={e => !isReadOnly && set('barcode', e.target.value)}
+                  onBlur={() => !isReadOnly && saveField()}
+                  readOnly={isReadOnly}
                   className={inputCls}
                   placeholder="Scan or enter barcode"
-                  style={isLinked ? { opacity: 0.55, cursor: 'default' } : {}}
+                  style={isReadOnly ? { opacity: 0.55, cursor: 'default' } : {}}
                 />
               </Field>
             </div>
@@ -632,15 +656,15 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                 <div>
                   <FL>Size</FL>
                   <input
-                    value={form.size || ''} onChange={e => !isLinked && set('size', e.target.value)}
-                    onBlur={() => !isLinked && saveField()} readOnly={isLinked}
+                    value={form.size || ''} onChange={e => !isReadOnly && set('size', e.target.value)}
+                    onBlur={() => !isReadOnly && saveField()} readOnly={isReadOnly}
                     className="idr-field" placeholder="e.g. 500"
-                    style={isLinked ? { opacity: 0.55, cursor: 'default' } : {}}
+                    style={isReadOnly ? { opacity: 0.55, cursor: 'default' } : {}}
                   />
                 </div>
                 <div>
                   <FL>Unit</FL>
-                  <select value={form.unit || 'each'} onChange={e => !isLinked && setAndSave('unit', e.target.value)} disabled={isLinked} className="idr-field" style={isLinked ? { opacity: 0.55 } : {}}>
+                  <select value={form.unit || 'each'} onChange={e => !isReadOnly && setAndSave('unit', e.target.value)} disabled={isReadOnly} className="idr-field" style={isReadOnly ? { opacity: 0.55 } : {}}>
                     {UNIT_GROUPS.map(g => (
                       <optgroup key={g.label} label={g.label}>
                         {g.options.map(u => <option key={u} value={u}>{u}</option>)}
@@ -657,11 +681,11 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
               <div className="flex gap-2">
                 <div style={{ flex: 2 }}>
                   <label className={labelCls}>Size</label>
-                  <input value={form.size || ''} onChange={e => !isLinked && set('size', e.target.value)} onBlur={() => !isLinked && saveField()} readOnly={isLinked} className={inputCls} placeholder="e.g. 500" style={isLinked ? { opacity: 0.55 } : {}} />
+                  <input value={form.size || ''} onChange={e => !isReadOnly && set('size', e.target.value)} onBlur={() => !isReadOnly && saveField()} readOnly={isReadOnly} className={inputCls} placeholder="e.g. 500" style={isReadOnly ? { opacity: 0.55 } : {}} />
                 </div>
                 <div style={{ flex: 2 }}>
                   <label className={labelCls}>Unit</label>
-                  <select value={form.unit || 'each'} onChange={e => !isLinked && setAndSave('unit', e.target.value)} disabled={isLinked} className={inputCls} style={isLinked ? { opacity: 0.55 } : {}}>
+                  <select value={form.unit || 'each'} onChange={e => !isReadOnly && setAndSave('unit', e.target.value)} disabled={isReadOnly} className={inputCls} style={isReadOnly ? { opacity: 0.55 } : {}}>
                     {UNIT_GROUPS.map(g => (
                       <optgroup key={g.label} label={g.label}>
                         {g.options.map(u => <option key={u} value={u}>{u}</option>)}
@@ -694,7 +718,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                   setForm(prev => ({ ...prev, ...updates }));
                   saveField(updates);
                 }}
-                disabled={isLinked}
+                disabled={isReadOnly}
               />
             </div>
 
@@ -864,19 +888,22 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                 return isLight ? (
                   <button
                     key={val}
-                    onClick={() => setAndSave('status', val)}
+                    onClick={() => !isReceived && setAndSave('status', val)}
+                    disabled={isReceived}
                     style={{
                       padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600,
-                      cursor: 'pointer', transition: 'all 0.15s', border: '1px solid',
+                      cursor: isReceived ? 'default' : 'pointer', transition: 'all 0.15s', border: '1px solid',
                       background: isActive ? s.bg : 'transparent',
                       borderColor: isActive ? s.border : '#e2e8f0',
                       color: isActive ? s.color : '#94a3b8',
+                      opacity: isReceived && !isActive ? 0.4 : 1,
                     }}
                   >{cfg.label}</button>
                 ) : (
                   <button
                     key={val}
-                    onClick={() => setAndSave('status', val)}
+                    onClick={() => !isReceived && setAndSave('status', val)}
+                    disabled={isReceived}
                     className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${isActive ? 'bg-[#4A90E2]/20 border-[#4A90E2]/50 text-[#4A90E2]' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
                   >
                     <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />

@@ -1210,73 +1210,107 @@ const ProvisioningBoardDetail = () => {
                 <p style={{ fontSize: 12, color: '#94A3B8' }}>Received delivery history will appear here.</p>
               </div>
             ) : (
-              <div style={{ maxWidth: 720 }}>
-                {/* ── Delivery batches ─────────────────────────────────── */}
-                {deliveries.length > 0 && (
-                  <>
-                    <p style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>Delivery batches</p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 32 }}>
-                      {deliveries.map(d => {
-                        const batchItems = d.parsed_data?.items || [];
-                        const src = d.parsed_data?.source === 'manual_receive' ? 'Manual receive' : (d.parsed_data?.source || 'Unknown');
-                        const dateStr = d.delivered_at
-                          ? new Date(d.delivered_at).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-                          : '—';
-                        return (
-                          <details key={d.id} style={{ background: 'white', border: '1px solid #F1F5F9', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-                            <summary style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', cursor: 'pointer', listStyle: 'none', userSelect: 'none' }}>
-                              <Icon name="PackageCheck" style={{ width: 16, height: 16, color: '#34D399', flexShrink: 0 }} />
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <span style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>
-                                  {batchItems.length} item{batchItems.length !== 1 ? 's' : ''} received
-                                </span>
-                                <span style={{ fontSize: 11, color: '#94A3B8', marginLeft: 10 }}>{dateStr}</span>
-                                <span style={{ fontSize: 11, color: '#CBD5E1', marginLeft: 8 }}>· {src}</span>
-                              </div>
-                              <Icon name="ChevronDown" style={{ width: 14, height: 14, color: '#CBD5E1', flexShrink: 0 }} />
-                            </summary>
-                            <div style={{ borderTop: '1px solid #F8FAFC', padding: '4px 20px 12px' }}>
-                              {batchItems.map((bi, idx) => (
-                                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderTop: idx > 0 ? '1px solid #F8FAFC' : 'none' }}>
-                                  <Icon name="CheckCircle" style={{ width: 12, height: 12, color: '#4ADE80', flexShrink: 0 }} />
-                                  <span style={{ fontSize: 13, color: '#94A3B8', textDecoration: 'line-through', flex: 1 }}>{bi.name || '—'}</span>
-                                  <span style={{ fontSize: 12, color: '#94A3B8' }}>{bi.quantity_received ?? '?'} {bi.unit || ''}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </details>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
+              <div style={{ maxWidth: 800 }}>
 
-                {/* ── All received items (from current board state) ─────── */}
+                {/* ── Delivery batches ─────────────────────────────────── */}
+                {deliveries.map(d => {
+                  const batchItems = d.parsed_data?.items || [];
+                  const src = d.parsed_data?.source === 'manual_receive' ? 'Manual receive'
+                    : (d.parsed_data?.source || 'Manual receive');
+                  const dateStr = d.delivered_at
+                    ? new Date(d.delivered_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+                    : '—';
+                  return (
+                    <details key={d.id} open style={{ marginBottom: 24 }}>
+                      {/* ── Divider-style batch header ── */}
+                      <summary style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', listStyle: 'none', userSelect: 'none', marginBottom: 8 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#1E3A5F', whiteSpace: 'nowrap' }}>
+                          Delivery: {dateStr}
+                        </span>
+                        <span style={{ fontSize: 11, color: '#94A3B8', whiteSpace: 'nowrap' }}>
+                          · {batchItems.length} item{batchItems.length !== 1 ? 's' : ''} · {src}
+                        </span>
+                        <div style={{ flex: 1, height: 1, background: '#E2E8F0' }} />
+                        <Icon name="ChevronDown" style={{ width: 13, height: 13, color: '#CBD5E1', flexShrink: 0, transition: 'transform 0.15s' }} />
+                      </summary>
+
+                      {/* ── Items within batch ── */}
+                      <div style={{ background: 'white', border: '1px solid #F1F5F9', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                        {batchItems.map((bi, idx) => {
+                          const isPartial = bi.quantity_ordered != null && bi.quantity_received < bi.quantity_ordered;
+                          const catPath = [bi.department, bi.sub_category || bi.category].filter(Boolean).join(' > ');
+                          const invStatus = bi.cargo_item_id
+                            ? `→ Pushed to inventory (${bi.cargo_item_id})`
+                            : bi.inventory_item_id
+                              ? '→ Linked to inventory'
+                              : '→ Skipped (not pushed to inventory)';
+                          return (
+                            <div key={idx} style={{ padding: '10px 20px', borderTop: idx > 0 ? '1px solid #F8FAFC' : 'none' }}>
+                              {/* Line 1: name · brand · size · Qty */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <Icon name="CheckCircle" style={{ width: 13, height: 13, color: '#4ADE80', flexShrink: 0 }} />
+                                <span style={{ fontSize: 13, color: '#94A3B8', textDecoration: 'line-through', flex: 1, minWidth: 0 }}>
+                                  {[bi.name, bi.brand, bi.size].filter(Boolean).join(' · ')}
+                                </span>
+                                <span style={{ fontSize: 12, fontWeight: 600, color: isPartial ? '#B45309' : '#94A3B8', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                                  Qty: {bi.quantity_received ?? '?'}
+                                  {isPartial ? ` of ${bi.quantity_ordered}` : ''}
+                                  {bi.unit ? ` ${bi.unit}` : ''}
+                                </span>
+                              </div>
+                              {/* Line 2: category path · inventory status */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 3, paddingLeft: 21 }}>
+                                {catPath && <span style={{ fontSize: 11, color: '#CBD5E1' }}>{catPath}</span>}
+                                <span style={{ fontSize: 11, color: '#94A3B8' }}>{invStatus}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </details>
+                  );
+                })}
+
+                {/* ── Fallback: received items with no batch record ─────── */}
                 {completedItems.length > 0 && (
-                  <>
-                    <p style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>Received items on this board</p>
+                  <details open style={{ marginBottom: 24 }}>
+                    <summary style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', listStyle: 'none', userSelect: 'none', marginBottom: 8 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', whiteSpace: 'nowrap' }}>
+                        All received items
+                      </span>
+                      <div style={{ flex: 1, height: 1, background: '#E2E8F0' }} />
+                      <Icon name="ChevronDown" style={{ width: 13, height: 13, color: '#CBD5E1', flexShrink: 0 }} />
+                    </summary>
                     <div style={{ background: 'white', border: '1px solid #F1F5F9', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
                       {completedItems.map((item, idx) => (
                         <div
                           key={item.id}
                           onClick={() => setItemDrawer({ open: true, item })}
-                          style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px', borderTop: idx > 0 ? '1px solid #F8FAFC' : 'none', cursor: 'pointer' }}
+                          style={{ padding: '10px 20px', borderTop: idx > 0 ? '1px solid #F8FAFC' : 'none', cursor: 'pointer' }}
                         >
-                          <Icon name="CheckCircle" style={{ width: 14, height: 14, color: '#4ADE80', flexShrink: 0 }} />
-                          <span style={{ fontSize: 13, color: '#94A3B8', textDecoration: 'line-through', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {item.name}{item.brand ? ` — ${item.brand}` : ''}{item.size ? ` ${item.size}` : ''}
-                          </span>
-                          {item.department && (
-                            <span style={{ fontSize: 10, color: '#CBD5E1', flexShrink: 0 }}>{item.department}</span>
-                          )}
-                          <span style={{ fontSize: 12, color: '#94A3B8', flexShrink: 0 }}>
-                            {parseFloat(item.quantity_received) || 0} {item.unit || ''}
-                          </span>
+                          {/* Line 1 */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Icon name="CheckCircle" style={{ width: 13, height: 13, color: '#4ADE80', flexShrink: 0 }} />
+                            <span style={{ fontSize: 13, color: '#94A3B8', textDecoration: 'line-through', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {[item.name, item.brand, item.size].filter(Boolean).join(' · ')}
+                            </span>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: '#94A3B8', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                              Qty: {parseFloat(item.quantity_received) || 0}{item.unit ? ` ${item.unit}` : ''}
+                            </span>
+                          </div>
+                          {/* Line 2 */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 3, paddingLeft: 21 }}>
+                            {item.department && <span style={{ fontSize: 11, color: '#CBD5E1' }}>{item.department}{item.category ? ` > ${item.category}` : ''}</span>}
+                            <span style={{ fontSize: 11, color: '#94A3B8' }}>
+                              {item.cargo_item_id ? `→ Pushed to inventory (${item.cargo_item_id})` : item.inventory_item_id ? '→ Linked to inventory' : '→ Skipped'}
+                            </span>
+                          </div>
                         </div>
                       ))}
                     </div>
-                  </>
+                  </details>
                 )}
+
               </div>
             )}
           </div>
