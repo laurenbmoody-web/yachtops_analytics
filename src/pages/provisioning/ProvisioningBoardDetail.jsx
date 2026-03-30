@@ -1315,7 +1315,7 @@ const ProvisioningBoardDetail = () => {
                 <p style={{ fontSize: 12, color: '#94A3B8' }}>Received delivery history will appear here.</p>
               </div>
             ) : (
-              <div style={{ maxWidth: 820 }}>
+              <div>
 
                 {/* ── Delivery batches ─────────────────────────────────── */}
                 {deliveries.map(d => {
