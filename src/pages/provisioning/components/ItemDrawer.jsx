@@ -6,6 +6,7 @@ import {
   upsertItems,
   deleteProvisioningItem,
   fetchInventoryLocationChildren,
+  searchInventoryItems,
 } from '../utils/provisioningStorage';
 import { UNIT_GROUPS } from './DetailTableCells';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -119,6 +120,14 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
   const flashTimer = useRef(null);
   const isNew = !item?.id || String(item?.id).startsWith('new_');
 
+  // Inventory link search state
+  const [invSearchQuery, setInvSearchQuery] = useState('');
+  const [invResults, setInvResults] = useState([]);
+  const [invDropdownOpen, setInvDropdownOpen] = useState(false);
+  const [invSearchLoading, setInvSearchLoading] = useState(false);
+  const invSearchRef = useRef(null);
+  const invDebounceTimer = useRef(null);
+
   useEffect(() => {
     if (item) {
       setForm({
@@ -141,6 +150,9 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
         accounting_description: item.accounting_description || '',
         supplier_id: item.supplier_id || '',
         port_location: item.port_location || '',
+        inventory_item_id: item.inventory_item_id || null,
+        cargo_item_id: item.cargo_item_id || '',
+        barcode: item.barcode || '',
       });
     }
   }, [item]);
@@ -152,6 +164,65 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
       .then(setLocRows)
       .catch(() => setLocRows([]));
   }, [form.department, tenantId]);
+
+  // Reset search query when item changes
+  useEffect(() => {
+    setInvSearchQuery('');
+    setInvResults([]);
+    setInvDropdownOpen(false);
+  }, [item?.id]);
+
+  // Debounced inventory search
+  useEffect(() => {
+    clearTimeout(invDebounceTimer.current);
+    if (!invSearchQuery || invSearchQuery.length < 2) {
+      setInvResults([]);
+      setInvDropdownOpen(false);
+      return;
+    }
+    invDebounceTimer.current = setTimeout(async () => {
+      setInvSearchLoading(true);
+      const results = await searchInventoryItems(invSearchQuery, tenantId);
+      setInvResults(results);
+      setInvDropdownOpen(results.length > 0);
+      setInvSearchLoading(false);
+    }, 300);
+    return () => clearTimeout(invDebounceTimer.current);
+  }, [invSearchQuery, tenantId]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!invDropdownOpen) return;
+    const handler = (e) => {
+      if (invSearchRef.current && !invSearchRef.current.contains(e.target)) {
+        setInvDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [invDropdownOpen]);
+
+  const handleInventoryLink = (invItem) => {
+    const updates = {
+      inventory_item_id: invItem.id,
+      cargo_item_id: invItem.cargo_item_id || '',
+      barcode: invItem.barcode || '',
+      name: invItem.name || form.name,
+      brand: invItem.brand || form.brand,
+      size: invItem.size || form.size,
+      unit: invItem.unit || form.unit,
+    };
+    setForm(prev => ({ ...prev, ...updates }));
+    setInvSearchQuery('');
+    setInvDropdownOpen(false);
+    saveField(updates);
+  };
+
+  const handleInventoryUnlink = () => {
+    const updates = { inventory_item_id: null, cargo_item_id: '', barcode: '' };
+    setForm(prev => ({ ...prev, ...updates }));
+    saveField(updates);
+  };
 
   // ── Derived cascading options ─────────────────────────────────────────────
   const locL2Options = locRows
@@ -207,6 +278,9 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
       accounting_description: base.accounting_description || '',
       supplier_id: base.supplier_id || null,
       port_location: base.port_location || '',
+      inventory_item_id: base.inventory_item_id || null,
+      cargo_item_id: base.cargo_item_id || '',
+      barcode: base.barcode || '',
     };
   };
 
@@ -312,39 +386,174 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
       >
         <div style={{ paddingBottom: 32 }}>
 
+          {/* ════ INVENTORY LINK SEARCH ════ */}
+          {(() => {
+            const isLinked = !!form.inventory_item_id;
+            return (
+              <div style={{ marginBottom: 16 }}>
+                {isLinked ? (
+                  /* Linked banner */
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    background: '#f0fdf4', border: '1px solid #86efac',
+                    borderRadius: 8, padding: '8px 12px',
+                  }}>
+                    <span style={{ fontSize: 16 }}>🔗</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#15803d', display: 'block' }}>
+                        Linked to inventory
+                      </span>
+                      <span style={{ fontSize: 11, color: '#16a34a', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {form.name}{form.cargo_item_id ? ` · ${form.cargo_item_id}` : ''}
+                      </span>
+                    </div>
+                    <button
+                      onClick={handleInventoryUnlink}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#6b7280', padding: '2px 6px', borderRadius: 4, flexShrink: 0 }}
+                      onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                      onMouseLeave={e => e.currentTarget.style.color = '#6b7280'}
+                    >
+                      Unlink
+                    </button>
+                  </div>
+                ) : (
+                  /* Search widget */
+                  <div ref={invSearchRef} style={{ position: 'relative' }}>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        value={invSearchQuery}
+                        onChange={e => setInvSearchQuery(e.target.value)}
+                        placeholder="🔗 Link to existing inventory item…"
+                        style={{
+                          width: '100%', boxSizing: 'border-box',
+                          fontSize: 13, padding: '8px 32px 8px 10px',
+                          border: '1px solid #e2e8f0', borderRadius: 8,
+                          background: '#f8fafc', color: '#1E3A5F', outline: 'none',
+                          fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
+                        }}
+                        onFocus={e => { e.currentTarget.style.borderColor = '#4A90E2'; e.currentTarget.style.background = '#fff'; if (invResults.length > 0) setInvDropdownOpen(true); }}
+                        onBlur={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.background = '#f8fafc'; }}
+                      />
+                      {invSearchLoading && (
+                        <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#94a3b8' }}>…</span>
+                      )}
+                      {!invSearchLoading && invSearchQuery && (
+                        <button
+                          onMouseDown={e => { e.preventDefault(); setInvSearchQuery(''); setInvDropdownOpen(false); }}
+                          style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 14, padding: 2 }}
+                        >×</button>
+                      )}
+                    </div>
+                    {invDropdownOpen && invResults.length > 0 && (
+                      <div style={{
+                        position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                        background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8,
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.1)', marginTop: 4, overflow: 'hidden',
+                      }}>
+                        {invResults.map(inv => (
+                          <button
+                            key={inv.id}
+                            onMouseDown={e => { e.preventDefault(); handleInventoryLink(inv); }}
+                            style={{
+                              width: '100%', textAlign: 'left', background: 'none', border: 'none',
+                              padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9',
+                              display: 'flex', flexDirection: 'column', gap: 1,
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                          >
+                            <span style={{ fontSize: 13, fontWeight: 600, color: '#1E3A5F' }}>{inv.name}</span>
+                            <span style={{ fontSize: 11, color: '#94a3b8' }}>
+                              {[inv.brand, inv.size, inv.cargo_item_id].filter(Boolean).join(' · ')}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {invSearchQuery.length >= 2 && !invSearchLoading && invResults.length === 0 && (
+                      <div style={{ fontSize: 11, color: '#94a3b8', padding: '6px 2px', marginTop: 2 }}>
+                        No inventory items found — item will be created on receive.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* ════ SECTION 1: IDENTITY ════ */}
+          {(() => {
+            const isLinked = !!form.inventory_item_id;
+            return (
           <div>
             {/* Name — 22px/700, bottom border only */}
             <input
               value={form.name || ''}
-              onChange={e => set('name', e.target.value)}
-              onBlur={() => saveField()}
+              onChange={e => !isLinked && set('name', e.target.value)}
+              onBlur={() => !isLinked && saveField()}
+              readOnly={isLinked}
               placeholder={isLight ? 'Untitled item' : 'Item name'}
               style={isLight ? {
                 width: '100%', fontSize: 22, fontWeight: 700,
-                color: '#1E3A5F', background: 'none', border: 'none',
-                borderBottom: '2px solid #4A90E2', outline: 'none',
+                color: isLinked ? '#94a3b8' : '#1E3A5F', background: 'none', border: 'none',
+                borderBottom: `2px solid ${isLinked ? '#e2e8f0' : '#4A90E2'}`, outline: 'none',
                 padding: '16px 0 4px', display: 'block',
                 fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
+                cursor: isLinked ? 'default' : 'text',
               } : {}}
               className={!isLight ? 'w-full bg-transparent outline-none font-semibold pb-1.5 border-b border-white/10 text-white placeholder:text-white/25 focus:border-[#4A90E2] transition-colors' : ''}
             />
             {/* Brand */}
             <div style={{ marginTop: 16 }}>
               <Field label="Brand">
-                <input value={form.brand || ''} onChange={e => set('brand', e.target.value)} onBlur={() => saveField()} className={inputCls} placeholder="e.g. Heinz, Maggi" />
+                <input
+                  value={form.brand || ''}
+                  onChange={e => !isLinked && set('brand', e.target.value)}
+                  onBlur={() => !isLinked && saveField()}
+                  readOnly={isLinked}
+                  className={inputCls}
+                  placeholder="e.g. Heinz, Maggi"
+                  style={isLinked ? { opacity: 0.55, cursor: 'default' } : {}}
+                />
+              </Field>
+            </div>
+            {/* Barcode */}
+            <div style={{ marginTop: 8 }}>
+              <Field label="Barcode">
+                <input
+                  value={form.barcode || ''}
+                  onChange={e => !isLinked && set('barcode', e.target.value)}
+                  onBlur={() => !isLinked && saveField()}
+                  readOnly={isLinked}
+                  className={inputCls}
+                  placeholder="Scan or enter barcode"
+                  style={isLinked ? { opacity: 0.55, cursor: 'default' } : {}}
+                />
               </Field>
             </div>
           </div>
+            );
+          })()}
 
           {/* ════ SECTION 2: MEASURE ════ */}
+          {(() => {
+            const isLinked = !!form.inventory_item_id;
+            return (
           <Section label="Measure">
             {isLight ? (
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr', gap: 8 }}>
-                <div><FL>Size</FL><input value={form.size || ''} onChange={e => set('size', e.target.value)} onBlur={() => saveField()} className="idr-field" placeholder="e.g. 500g" /></div>
+                <div>
+                  <FL>Size</FL>
+                  <input
+                    value={form.size || ''} onChange={e => !isLinked && set('size', e.target.value)}
+                    onBlur={() => !isLinked && saveField()} readOnly={isLinked}
+                    className="idr-field" placeholder="e.g. 500g"
+                    style={isLinked ? { opacity: 0.55, cursor: 'default' } : {}}
+                  />
+                </div>
                 <div>
                   <FL>Unit</FL>
-                  <select value={form.unit || 'each'} onChange={e => setAndSave('unit', e.target.value)} className="idr-field">
+                  <select value={form.unit || 'each'} onChange={e => !isLinked && setAndSave('unit', e.target.value)} disabled={isLinked} className="idr-field" style={isLinked ? { opacity: 0.55 } : {}}>
                     {UNIT_GROUPS.map(g => (
                       <optgroup key={g.label} label={g.label}>
                         {g.options.map(u => <option key={u} value={u}>{u}</option>)}
@@ -361,11 +570,11 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
               <div className="flex gap-2">
                 <div style={{ flex: 2 }}>
                   <label className={labelCls}>Size</label>
-                  <input value={form.size || ''} onChange={e => set('size', e.target.value)} onBlur={() => saveField()} className={inputCls} placeholder="e.g. 500g" />
+                  <input value={form.size || ''} onChange={e => !isLinked && set('size', e.target.value)} onBlur={() => !isLinked && saveField()} readOnly={isLinked} className={inputCls} placeholder="e.g. 500g" style={isLinked ? { opacity: 0.55 } : {}} />
                 </div>
                 <div style={{ flex: 2 }}>
                   <label className={labelCls}>Unit</label>
-                  <select value={form.unit || 'each'} onChange={e => setAndSave('unit', e.target.value)} className={inputCls}>
+                  <select value={form.unit || 'each'} onChange={e => !isLinked && setAndSave('unit', e.target.value)} disabled={isLinked} className={inputCls} style={isLinked ? { opacity: 0.55 } : {}}>
                     {UNIT_GROUPS.map(g => (
                       <optgroup key={g.label} label={g.label}>
                         {g.options.map(u => <option key={u} value={u}>{u}</option>)}
@@ -380,6 +589,8 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
               </div>
             )}
           </Section>
+            );
+          })()}
 
           {/* ════ SECTION 3: LOCATION ════ */}
           <Section label="Location">

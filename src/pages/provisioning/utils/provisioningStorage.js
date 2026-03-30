@@ -945,3 +945,21 @@ export const createInventoryItemFromProvItem = async ({ provItem, locationName, 
     return null;
   }
 };
+
+// ── Search inventory items for linking ───────────────────────────────────────
+export const searchInventoryItems = async (query, tenantId) => {
+  if (!query || query.trim().length < 2 || !tenantId) return [];
+  const q = query.trim();
+  try {
+    const { data, error } = await supabase
+      ?.from('inventory_items')
+      ?.select('id, name, brand, size, unit, cargo_item_id, barcode')
+      ?.eq('tenant_id', tenantId)
+      ?.or(`name.ilike.%${q}%,brand.ilike.%${q}%,cargo_item_id.ilike.%${q}%,barcode.ilike.%${q}%`)
+      ?.limit(8);
+    if (error) return [];
+    return data || [];
+  } catch {
+    return [];
+  }
+};
