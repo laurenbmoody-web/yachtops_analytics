@@ -1,14 +1,22 @@
 import React, { useState, useRef, useEffect } from 'react';
 
 const STATUS_CONFIG = {
-  pending:          { label: 'Pending',       bg: 'rgba(100,116,139,0.2)', color: '#94A3B8' },
-  ordered:          { label: 'Ordered',       bg: 'rgba(74,144,226,0.2)',  color: '#4A90E2' },
-  received:         { label: 'Received',      bg: 'rgba(34,197,94,0.2)',   color: '#22c55e' },
-  short_delivered:  { label: 'Short',         bg: 'rgba(245,158,11,0.2)',  color: '#f59e0b' },
-  not_delivered:    { label: 'Not Delivered', bg: 'rgba(239,68,68,0.2)',   color: '#ef4444' },
+  pending:         { label: 'Pending',       bg: '#FEF3E2', color: '#B45309' },
+  ordered:         { label: 'Ordered',       bg: 'rgba(74,144,226,0.12)', color: '#4A90E2' },
+  received:        { label: 'Received',      bg: '#ECFDF5', color: '#047857' },
+  short_delivered: { label: 'Short',         bg: 'rgba(245,158,11,0.12)', color: '#B45309' },
+  not_delivered:   { label: 'Not delivered', bg: 'rgba(239,68,68,0.12)', color: '#ef4444' },
+  draft:           { label: 'Draft',         bg: '#F4F4F5', color: '#71717A' },
 };
 
 const STATUS_ORDER = ['pending', 'ordered', 'received', 'short_delivered', 'not_delivered'];
+
+const BTN_STYLE = {
+  width: 26, height: 26, borderRadius: '50%', cursor: 'pointer',
+  background: '#F5F4F1', border: '1px solid #E8E6E1', color: '#8C877D',
+  fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center',
+  lineHeight: 1, padding: 0, flexShrink: 0,
+};
 
 const ItemCard = ({ item, onClick, onStatusChange, onQuantityChange }) => {
   const cfg = STATUS_CONFIG[item.status] || STATUS_CONFIG.pending;
@@ -57,47 +65,26 @@ const ItemCard = ({ item, onClick, onStatusChange, onQuantityChange }) => {
         style={{ padding: '8px 10px', marginBottom: 4, borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}
       >
         {/* Name */}
-        <span
-          className="text-foreground flex-1 min-w-0 truncate"
-          style={{ fontSize: 13, fontWeight: 500 }}
-        >
+        <span className="text-foreground flex-1 min-w-0 truncate" style={{ fontSize: 13, fontWeight: 500 }}>
           {item.name || 'Untitled'}
         </span>
 
         {/* Qty controls */}
-        <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
-          <button
-            onClick={(e) => handleQty(e, -1)}
-            style={{
-              width: 20, height: 20, borderRadius: '50%', border: 'none', cursor: 'pointer',
-              background: 'rgba(239,68,68,0.15)', color: '#ef4444',
-              fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              lineHeight: 1, padding: 0,
-            }}
-          >−</button>
-          <span
-            className="text-foreground text-center"
-            style={{ fontSize: 13, fontWeight: 600, minWidth: 24 }}
-          >
+        <div className="flex items-center flex-shrink-0" style={{ gap: 10 }} onClick={e => e.stopPropagation()}>
+          <button onClick={(e) => handleQty(e, -1)} style={BTN_STYLE}>−</button>
+          <span className="text-foreground text-center" style={{ fontSize: 13, fontWeight: 600, minWidth: 20 }}>
             {item.quantity_ordered ?? 0}
           </span>
-          <button
-            onClick={(e) => handleQty(e, 1)}
-            style={{
-              width: 20, height: 20, borderRadius: '50%', border: 'none', cursor: 'pointer',
-              background: 'rgba(34,197,94,0.15)', color: '#22c55e',
-              fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              lineHeight: 1, padding: 0,
-            }}
-          >+</button>
+          <button onClick={(e) => handleQty(e, 1)} style={BTN_STYLE}>+</button>
         </div>
 
         {/* Status badge */}
         <span
-          className="flex-shrink-0 uppercase"
+          className="flex-shrink-0"
           style={{
-            fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 10,
-            background: cfg.bg, color: cfg.color,
+            fontSize: 10, fontWeight: 600, padding: '2px 8px',
+            borderRadius: 20, background: cfg.bg, color: cfg.color,
+            marginLeft: 4,
           }}
         >
           {cfg.label}

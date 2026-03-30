@@ -252,6 +252,8 @@ const BoardColumn = ({
   onNavigate,
   onTitleSave,
   onColourChange,
+  onShare,
+  collaborators,
 }) => {
   const currencySymbol = CURRENCY_SYMBOLS[list.currency] || '$';
 
@@ -302,8 +304,8 @@ const BoardColumn = ({
   const containerStyle = {
     height: 'calc(100vh - 160px)',
     opacity: isDragging ? 0.5 : 1,
-    borderLeft: colour ? `4px solid ${colour}` : undefined,
     transition: 'opacity 0.15s',
+    overflow: 'hidden',
   };
   const headerStyle = colour ? { backgroundColor: `${colour}14` } : {};
 
@@ -312,6 +314,10 @@ const BoardColumn = ({
       className="flex flex-col w-[340px] min-w-[340px] flex-shrink-0 bg-card border border-border rounded-xl shadow-sm"
       style={containerStyle}
     >
+      {/* Top accent bar */}
+      {colour && (
+        <div style={{ height: 3, background: colour, borderRadius: '10px 10px 0 0', flexShrink: 0 }} />
+      )}
       {/* Header */}
       <div
         className="px-2 pt-3 pb-2 flex-shrink-0 border-b border-border"
@@ -356,8 +362,36 @@ const BoardColumn = ({
             </div>
           </div>
 
-          {/* Right actions: count, expand, palette, menu */}
+          {/* Right actions: collaborators, count, expand, palette, share, menu */}
           <div className="flex items-center gap-0.5 flex-shrink-0">
+            {/* Collaborator avatars */}
+            {collaborators?.length > 0 && (
+              <div className="flex items-center -space-x-1.5 mr-1">
+                {collaborators.slice(0, 3).map((c, i) => (
+                  <div
+                    key={c.user_id || i}
+                    title={c.full_name || c.email || 'Collaborator'}
+                    style={{
+                      width: 20, height: 20, borderRadius: '50%',
+                      background: c.avatar_url ? 'transparent' : '#4A90E2',
+                      border: '1.5px solid var(--color-card, #fff)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 8, fontWeight: 700, color: '#fff',
+                      overflow: 'hidden', flexShrink: 0,
+                      backgroundImage: c.avatar_url ? `url(${c.avatar_url})` : undefined,
+                      backgroundSize: 'cover',
+                    }}
+                  >
+                    {!c.avatar_url && (c.full_name?.[0] || c.email?.[0] || '?').toUpperCase()}
+                  </div>
+                ))}
+                {collaborators.length > 3 && (
+                  <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#E2E8F0', border: '1.5px solid var(--color-card, #fff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700, color: '#64748B', flexShrink: 0 }}>
+                    +{collaborators.length - 3}
+                  </div>
+                )}
+              </div>
+            )}
             <span className="text-[10px] font-medium bg-muted text-muted-foreground rounded-full px-1.5 py-0.5">
               {filteredItems.length}
             </span>
@@ -368,6 +402,15 @@ const BoardColumn = ({
             >
               <Icon name="ExternalLink" className="w-3.5 h-3.5" />
             </button>
+            {onShare && (
+              <button
+                onClick={() => onShare(list)}
+                title="Share board"
+                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                <Icon name="Share2" className="w-3.5 h-3.5" />
+              </button>
+            )}
 
             {/* Palette button */}
             <div className="relative" ref={colourBtnRef}>

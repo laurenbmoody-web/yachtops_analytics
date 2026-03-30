@@ -121,26 +121,57 @@ export const fetchVesselDepartments = async (tenantId) => {
 
 // ── Lists ─────────────────────────────────────────────────────────────────────
 
-export const fetchProvisioningLists = async (vesselId) => {
+export const fetchProvisioningLists = async (vesselId, userId = null, userDeptId = null) => {
   try {
-    // Try ordering by sort_order (requires the column to exist — run the migration first)
-    const { data, error } = await supabase
+    // Build visibility filter when userId is provided (app-level backup for environments
+    // where RLS may not be fully configured). With RLS enabled this is redundant but harmless.
+    const buildQuery = async (base) => {
+      if (!userId) return base; // no filter — rely entirely on RLS
+
+      // Collect list IDs the user is a collaborator on
+      let collabListIds = [];
+      try {
+        const { data: collabData } = await supabase
+          ?.from('provisioning_list_collaborators')
+          ?.select('list_id')
+          ?.eq('user_id', userId);
+        collabListIds = (collabData || []).map(c => c.list_id);
+      } catch { /* ignore — not fatal */ }
+
+      // Build OR filter: owner OR (department visibility + same dept) OR collaborator
+      const orParts = [`owner_id.eq.${userId}`, `created_by.eq.${userId}`];
+      if (userDeptId) {
+        orParts.push(`and(visibility.eq.department,department_id.eq.${userDeptId})`);
+      }
+      if (collabListIds.length) {
+        orParts.push(`id.in.(${collabListIds.join(',')})`);
+      }
+      return base?.or(orParts.join(','));
+    };
+
+    // Try ordering by sort_order first
+    let query = supabase
       ?.from('provisioning_lists')
       ?.select('*')
       ?.eq('tenant_id', vesselId)
       ?.order('sort_order', { ascending: true, nullsFirst: false })
       ?.order('created_at', { ascending: true });
 
-    // If sort_order column doesn't exist yet (code: 42703 / PGRST204), fall back gracefully
+    query = await buildQuery(query);
+    const { data, error } = await query;
+
+    // Graceful fallback if sort_order column doesn't exist yet
     if (error) {
       const isMissingColumn = error.code === '42703' || error.code === 'PGRST204' || error.message?.includes('sort_order');
       if (isMissingColumn) {
         console.warn('[provisioningStorage] sort_order column missing — run migration. Falling back to created_at order.');
-        const { data: fallback, error: fbErr } = await supabase
+        let fbQuery = supabase
           ?.from('provisioning_lists')
           ?.select('*')
           ?.eq('tenant_id', vesselId)
           ?.order('created_at', { ascending: false });
+        fbQuery = await buildQuery(fbQuery);
+        const { data: fallback, error: fbErr } = await fbQuery;
         if (fbErr) throw fbErr;
         return fallback || [];
       }
@@ -567,4 +598,173 @@ export const computeListStatusAfterDelivery = (items) => {
 export const formatCurrency = (amount, currency = 'USD') => {
   if (!amount && amount !== 0) return '—';
   return new Intl.NumberFormat('en-US', { style: 'currency', currency, minimumFractionDigits: 0 }).format(amount);
+};
+
+// ── Share links ───────────────────────────────────────────────────────────────
+
+/** Create a shareable link for a board. Returns the new share row (with .token). */
+export const createShareLink = async (listId, permission = 'view', createdBy = null) => {
+  try {
+    const { data, error } = await supabase
+      ?.from('provisioning_list_shares')
+      ?.insert({ list_id: listId, permission, created_by: createdBy })
+      ?.select()
+      ?.single();
+    if (error) { console.error('[provisioningStorage] createShareLink error:', error.message); return null; }
+    return data;
+  } catch (err) {
+    console.error('[provisioningStorage] createShareLink exception:', err.message);
+    return null;
+  }
+};
+
+/** Fetch all active (non-revoked) share links for a board. */
+export const fetchShareLinks = async (listId) => {
+  try {
+    const { data, error } = await supabase
+      ?.from('provisioning_list_shares')
+      ?.select('id, token, permission, created_at, last_accessed_at')
+      ?.eq('list_id', listId)
+      ?.is('revoked_at', null)
+      ?.order('created_at', { ascending: false });
+    if (error) { console.error('[provisioningStorage] fetchShareLinks error:', error.message); return []; }
+    return data || [];
+  } catch (err) {
+    console.error('[provisioningStorage] fetchShareLinks exception:', err.message);
+    return [];
+  }
+};
+
+/** Revoke (soft-delete) a share link by its row id. */
+export const revokeShareLink = async (shareId) => {
+  try {
+    const { error } = await supabase
+      ?.from('provisioning_list_shares')
+      ?.update({ revoked_at: new Date().toISOString() })
+      ?.eq('id', shareId);
+    if (error) { console.error('[provisioningStorage] revokeShareLink error:', error.message); return false; }
+    return true;
+  } catch (err) {
+    console.error('[provisioningStorage] revokeShareLink exception:', err.message);
+    return false;
+  }
+};
+
+// ── Collaborators ─────────────────────────────────────────────────────────────
+
+/** Add a crew member as a collaborator. Returns the new row or null. */
+export const addCollaborator = async (listId, userId, permission = 'view', addedBy = null) => {
+  try {
+    const { data, error } = await supabase
+      ?.from('provisioning_list_collaborators')
+      ?.upsert({ list_id: listId, user_id: userId, permission, added_by: addedBy }, { onConflict: 'list_id,user_id' })
+      ?.select()
+      ?.single();
+    if (error) { console.error('[provisioningStorage] addCollaborator error:', error.message); return null; }
+    return data;
+  } catch (err) {
+    console.error('[provisioningStorage] addCollaborator exception:', err.message);
+    return null;
+  }
+};
+
+/** Update a collaborator's permission level. */
+export const updateCollaboratorPermission = async (listId, userId, permission) => {
+  try {
+    const { error } = await supabase
+      ?.from('provisioning_list_collaborators')
+      ?.update({ permission })
+      ?.eq('list_id', listId)
+      ?.eq('user_id', userId);
+    if (error) { console.error('[provisioningStorage] updateCollaboratorPermission error:', error.message); return false; }
+    return true;
+  } catch (err) {
+    console.error('[provisioningStorage] updateCollaboratorPermission exception:', err.message);
+    return false;
+  }
+};
+
+/** Remove a collaborator from a board. */
+export const removeCollaborator = async (listId, userId) => {
+  try {
+    const { error } = await supabase
+      ?.from('provisioning_list_collaborators')
+      ?.delete()
+      ?.eq('list_id', listId)
+      ?.eq('user_id', userId);
+    if (error) { console.error('[provisioningStorage] removeCollaborator error:', error.message); return false; }
+    return true;
+  } catch (err) {
+    console.error('[provisioningStorage] removeCollaborator exception:', err.message);
+    return false;
+  }
+};
+
+/**
+ * Fetch collaborators for a board, joined with profile data (name, email, avatar).
+ * Returns array of { id, user_id, permission, added_at, full_name, email, avatar_url }.
+ */
+export const fetchCollaborators = async (listId) => {
+  try {
+    const { data, error } = await supabase
+      ?.from('provisioning_list_collaborators')
+      ?.select('id, user_id, permission, added_at, profiles(full_name, email, avatar_url)')
+      ?.eq('list_id', listId)
+      ?.order('added_at', { ascending: true });
+    if (error) { console.error('[provisioningStorage] fetchCollaborators error:', error.message); return []; }
+    return (data || []).map(row => ({
+      id: row.id,
+      user_id: row.user_id,
+      permission: row.permission,
+      added_at: row.added_at,
+      full_name: row.profiles?.full_name || null,
+      email: row.profiles?.email || null,
+      avatar_url: row.profiles?.avatar_url || null,
+    }));
+  } catch (err) {
+    console.error('[provisioningStorage] fetchCollaborators exception:', err.message);
+    return [];
+  }
+};
+
+/**
+ * Fetch all boards shared with a given user (via collaborators table),
+ * including the list details. Used for "Shared with me" section.
+ */
+export const fetchCrewMembers = async (tenantId) => {
+  try {
+    const { data, error } = await supabase
+      ?.from('tenant_members')
+      ?.select('user_id, profiles!tenant_members_user_id_fkey(full_name, email, avatar_url)')
+      ?.eq('tenant_id', tenantId)
+      ?.eq('active', true);
+    if (error) { console.error('[provisioningStorage] fetchCrewMembers error:', error.message); return []; }
+    return (data || []).map(row => ({
+      id: row.user_id,
+      full_name: row.profiles?.full_name || null,
+      email: row.profiles?.email || null,
+      avatar_url: row.profiles?.avatar_url || null,
+    })).filter(m => m.id);
+  } catch (err) {
+    console.error('[provisioningStorage] fetchCrewMembers exception:', err.message);
+    return [];
+  }
+};
+
+export const fetchSharedWithMe = async (userId) => {
+  try {
+    const { data, error } = await supabase
+      ?.from('provisioning_list_collaborators')
+      ?.select('permission, provisioning_lists(id, title, status, board_colour, department, order_by_date, tenant_id, created_by)')
+      ?.eq('user_id', userId)
+      ?.not('provisioning_lists', 'is', null);
+    if (error) { console.error('[provisioningStorage] fetchSharedWithMe error:', error.message); return []; }
+    return (data || []).map(row => ({
+      ...row.provisioning_lists,
+      myPermission: row.permission,
+    }));
+  } catch (err) {
+    console.error('[provisioningStorage] fetchSharedWithMe exception:', err.message);
+    return [];
+  }
 };

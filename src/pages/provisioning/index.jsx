@@ -9,6 +9,7 @@ import BoardColumn from './components/BoardColumn';
 import BoardDrawer from './components/BoardDrawer';
 import ItemDrawer from './components/ItemDrawer';
 import DeliveryModal from './components/DeliveryModal';
+import ShareModal from './components/ShareModal';
 import {
   fetchProvisioningLists,
   fetchListItems,
@@ -19,8 +20,12 @@ import {
   upsertItems,
   fetchSuppliers,
   fetchVesselDepartments,
+  fetchCrewMembers,
+  fetchCollaborators,
+  fetchSharedWithMe,
   PROVISIONING_STATUS,
 } from './utils/provisioningStorage';
+import { supabase } from '../../lib/supabaseClient';
 import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
 import { showToast } from '../../utils/toast';
 import {
@@ -175,6 +180,10 @@ const ProvisioningWorkspace = () => {
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [crewMembers, setCrewMembers] = useState([]);
+  const [collaboratorsByList, setCollaboratorsByList] = useState({});
+  const [sharedWithMe, setSharedWithMe] = useState([]);
+  const [userDeptId, setUserDeptId] = useState(null);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -186,6 +195,7 @@ const ProvisioningWorkspace = () => {
   const [boardDrawer, setBoardDrawer] = useState({ open: false, listId: null, mode: 'edit' });
   const [itemDrawer, setItemDrawer] = useState({ open: false, item: null, listId: null });
   const [deliveryModal, setDeliveryModal] = useState({ open: false, list: null });
+  const [sharingList, setSharingList] = useState(null);
 
   // RBAC
   const userTier = (user?.permission_tier || user?.effectiveTier || '').toUpperCase();
@@ -197,22 +207,34 @@ const ProvisioningWorkspace = () => {
   // DnD
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
+  const isOwner = useCallback((list) => {
+    return list.owner_id === userId || list.created_by === userId;
+  }, [userId]);
+
   const canViewList = useCallback((list) => {
-    if (list.is_private) return list.created_by === userId || userTier === 'COMMAND';
-    return true;
-  }, [userId, userTier]);
+    // With RLS + JS-level filtering, the server already scopes what's returned.
+    // This client-side check is a belt-and-suspenders guard for any rows that
+    // slip through (e.g. legacy data without owner_id set yet).
+    if (userTier === 'COMMAND') return true;
+    if (isOwner(list)) return true;
+    if (list.visibility === 'department' && userDeptId && list.department_id === userDeptId) return true;
+    if (list.visibility === 'shared') return true; // collaborator check done server-side
+    // Legacy: boards without visibility field fall back to is_private behaviour
+    if (!list.visibility) return !list.is_private || isOwner(list);
+    return false;
+  }, [userId, userTier, userDeptId, isOwner]);
 
   const canEditList = useCallback((list) => {
-    if (list.is_private) return list.created_by === userId;
     if (userTier === 'COMMAND') return true;
+    if (isOwner(list)) return true;
     if (['CHIEF', 'HOD'].includes(userTier)) {
       const listDepts = Array.isArray(list.department)
         ? list.department.filter(Boolean)
         : (list.department ? list.department.split(',').map(d => d.trim()) : []);
-      return !listDepts.length || listDepts.some(d => d === userDept) || list.created_by === userId;
+      return !listDepts.length || listDepts.some(d => d === userDept);
     }
     return false;
-  }, [userId, userTier, userDept]);
+  }, [userId, userTier, userDept, isOwner]);
 
   const canDeleteList = canEditList;
 
@@ -220,11 +242,37 @@ const ProvisioningWorkspace = () => {
 
   useEffect(() => {
     if (!activeTenantId) return;
-    loadAll();
     fetchVesselDepartments(activeTenantId).then(setDepartments);
+    fetchCrewMembers(activeTenantId).then(setCrewMembers);
   }, [activeTenantId]);
 
-  const loadAll = async () => {
+  // Load user's department_id from tenant_members, then fetch boards
+  useEffect(() => {
+    if (!activeTenantId || !userId) return;
+    const init = async () => {
+      try {
+        const { data } = await supabase
+          ?.from('tenant_members')
+          ?.select('department_id')
+          ?.eq('tenant_id', activeTenantId)
+          ?.eq('user_id', userId)
+          ?.maybeSingle();
+        const deptId = data?.department_id || null;
+        setUserDeptId(deptId);
+        loadAll(deptId);
+      } catch {
+        loadAll(null);
+      }
+    };
+    init();
+  }, [activeTenantId, userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    fetchSharedWithMe(userId).then(setSharedWithMe);
+  }, [userId]);
+
+  const loadAll = async (deptId = userDeptId) => {
     setLoading(true);
     setError(null);
     try {
@@ -233,27 +281,33 @@ const ProvisioningWorkspace = () => {
       try { fetchedTrips = loadTrips() || []; } catch { fetchedTrips = []; }
 
       const [fetchedLists, fetchedSuppliers] = await Promise.all([
-        fetchProvisioningLists(activeTenantId),
+        fetchProvisioningLists(activeTenantId, userId, deptId),
         fetchSuppliers(activeTenantId).catch(() => []),
       ]);
       setLists(fetchedLists || []);
       setSuppliers(fetchedSuppliers || []);
       setTrips(Array.isArray(fetchedTrips) ? fetchedTrips : []);
 
-      // Load items for all lists in parallel
+      // Load items + collaborators for all lists in parallel
       const itemsMap = {};
+      const collabMap = {};
       if (fetchedLists?.length) {
         await Promise.all(
           fetchedLists.map(async (l) => {
             try {
-              itemsMap[l.id] = await fetchListItems(l.id);
+              [itemsMap[l.id], collabMap[l.id]] = await Promise.all([
+                fetchListItems(l.id),
+                fetchCollaborators(l.id).catch(() => []),
+              ]);
             } catch {
               itemsMap[l.id] = [];
+              collabMap[l.id] = [];
             }
           })
         );
       }
       setItemsByList(itemsMap);
+      setCollaboratorsByList(collabMap);
     } catch (err) {
       console.error('[ProvisioningWorkspace] loadAll error:', err);
       setError('Could not load provisioning boards. Please try again.');
@@ -274,6 +328,9 @@ const ProvisioningWorkspace = () => {
         order_by_date: order_by_date || null,
         status: PROVISIONING_STATUS.DRAFT,
         created_by: userId,
+        owner_id: userId,
+        department_id: userDeptId || null,
+        visibility: 'private',
         department: [],
         port_location: '',
         notes: '',
@@ -281,7 +338,7 @@ const ProvisioningWorkspace = () => {
         estimated_cost: null,
         actual_cost: null,
         supplier_id: null,
-        is_private: false,
+        is_private: true,
         is_template: false,
       });
       setLists(prev => [newList, ...prev]);
@@ -571,6 +628,29 @@ const ProvisioningWorkspace = () => {
           </div>
         )}
 
+        {/* Shared with me */}
+        {sharedWithMe.length > 0 && (
+          <div className="px-6 pt-4 pb-2">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Shared with me</h2>
+            <div className="flex gap-3 flex-wrap">
+              {sharedWithMe.map(list => (
+                <button
+                  key={list.id}
+                  onClick={() => navigate('/provisioning/' + list.id)}
+                  className="flex items-center gap-2.5 px-4 py-2.5 bg-card border border-border rounded-xl text-sm hover:bg-muted transition-colors text-left"
+                  style={{ borderTop: list.board_colour ? `3px solid ${list.board_colour}` : undefined }}
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground truncate">{list.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 capitalize">{list.myPermission || 'view'} access</p>
+                  </div>
+                  <Icon name="ChevronRight" className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Empty state — only for users who cannot create boards */}
         {!error && visibleLists.length === 0 && !showNewBoard && !canCreate && (
           <div className="flex items-center justify-center" style={{ minHeight: 'calc(100vh - 130px)' }}>
@@ -612,6 +692,8 @@ const ProvisioningWorkspace = () => {
                       hiddenCount={hasActiveFilters ? hiddenCount : 0}
                       canEdit={canEditList(list)}
                       canCommandDelete={isCommand}
+                      collaborators={collaboratorsByList[list.id] || []}
+                      onShare={() => setSharingList(list)}
                       onItemClick={(item) => openItemDrawer(item, list.id)}
                       onItemStatusChange={(item, status) => handleItemStatusChange(list.id, item, status)}
                       onItemQuantityChange={(item, qty) => handleItemQuantityChange(list.id, item, qty)}
@@ -682,6 +764,22 @@ const ProvisioningWorkspace = () => {
           items={itemsByList[deliveryModal.list.id] || []}
           onClose={() => setDeliveryModal({ open: false, list: null })}
           onComplete={() => { setDeliveryModal({ open: false, list: null }); loadAll(); }}
+        />
+      )}
+
+      {/* Share Modal */}
+      {sharingList && (
+        <ShareModal
+          list={sharingList}
+          crewMembers={crewMembers}
+          currentUserId={userId}
+          onClose={() => {
+            // Refresh collaborators for this list after closing
+            fetchCollaborators(sharingList.id).then(colls => {
+              setCollaboratorsByList(prev => ({ ...prev, [sharingList.id]: colls }));
+            });
+            setSharingList(null);
+          }}
         />
       )}
     </>
