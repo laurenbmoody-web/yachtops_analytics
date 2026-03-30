@@ -5,7 +5,7 @@ import { supabase } from '../../../lib/supabaseClient';
 import {
   receiveItems,
   findMatchingInventoryItem,
-  pushReceivedQtyToLocation,
+  pushReceivedSplitsToInventory,
   createInventoryItemFromProvItem,
 } from '../utils/provisioningStorage';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -160,7 +160,14 @@ const ReceiveStep = ({ items, receiving, onChange, onReceiveAll, onNext, onClose
 
 // ── Step 2 ─ Push to inventory ────────────────────────────────────────────────
 
-const PushStep = ({ items, receiving, matches, locations, onLocationChange, onNewItemForm, newItemForms, onPush, onBack, pushing }) => {
+const SplitQtyBtn = ({ onClick, children }) => (
+  <button
+    onClick={onClick}
+    style={{ width: 22, height: 22, borderRadius: '50%', cursor: 'pointer', background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#16A34A', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, padding: 0 }}
+  >{children}</button>
+);
+
+const PushStep = ({ items, receiving, matches, locationSplits, onSplitChange, onAddSplitLocation, onNewItemForm, newItemForms, onPush, onBack, pushing }) => {
   const receivedItems = items.filter(i => receiving[i.id]?.checked && (parseFloat(receiving[i.id]?.qty) || 0) > 0);
 
   return (
@@ -169,7 +176,7 @@ const PushStep = ({ items, receiving, matches, locations, onLocationChange, onNe
       <div style={{ padding: '14px 20px 10px', borderBottom: '1px solid #F1F5F9' }}>
         <p style={{ fontSize: 12, fontWeight: 700, color: '#1E3A5F', margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Step 2 of 2</p>
         <p style={{ fontSize: 11, color: '#94A3B8', margin: '2px 0 0' }}>
-          Confirm where each item goes in inventory. Matched items will have their stock updated.
+          Confirm where each item goes in inventory. Split across multiple locations if needed.
         </p>
       </div>
 
@@ -180,8 +187,10 @@ const PushStep = ({ items, receiving, matches, locations, onLocationChange, onNe
           const match = matches[item.id];
           const isLoading = match === 'loading';
           const hasMatch = match && match !== 'loading';
-          const loc = locations[item.id] || '';
+          const splits = locationSplits[item.id] || [];
           const newForm = newItemForms[item.id];
+          const totalAllocated = splits.reduce((sum, s) => sum + (parseFloat(s.addQty) || 0), 0);
+          const allocOk = Math.abs(totalAllocated - qty) < 0.001;
 
           return (
             <div key={item.id} style={{ padding: '12px 20px', borderBottom: '1px solid #F8FAFC' }}>
@@ -204,24 +213,57 @@ const PushStep = ({ items, receiving, matches, locations, onLocationChange, onNe
                 </div>
               ) : hasMatch ? (
                 <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '8px 12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                    <Icon name="CheckCircle" style={{ width: 13, height: 13, color: '#16A34A' }} />
+                  {/* Match label */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    <Icon name="CheckCircle" style={{ width: 13, height: 13, color: '#16A34A', flexShrink: 0 }} />
                     <span style={{ fontSize: 12, fontWeight: 600, color: '#15803D' }}>
                       Matched → {match.name}
-                      {match.cargo_item_id && <span style={{ fontWeight: 400, color: '#86EFAC', marginLeft: 4 }}>({match.cargo_item_id})</span>}
+                      {match.cargo_item_id && <span style={{ fontWeight: 400, color: '#4ADE80', marginLeft: 4 }}>({match.cargo_item_id})</span>}
                     </span>
-                    <span style={{ marginLeft: 'auto', fontSize: 11, color: '#94A3B8' }}>
-                      Current stock: {match.total_qty ?? 0}
+                    <span style={{ marginLeft: 'auto', fontSize: 11, color: '#6B7280', whiteSpace: 'nowrap' }}>
+                      Total stock: {match.total_qty ?? 0}
                     </span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <label style={{ fontSize: 11, color: '#64748B', flexShrink: 0 }}>Add to location:</label>
-                    <input
-                      value={loc}
-                      onChange={e => onLocationChange(item.id, e.target.value)}
-                      placeholder={match.stock_locations?.[0]?.locationName || match.location || 'e.g. Cellar > Red Wine'}
-                      style={{ flex: 1, fontSize: 12, padding: '4px 8px', border: '1px solid #BBF7D0', borderRadius: 6, outline: 'none', background: 'white', color: '#0F172A' }}
-                    />
+
+                  {/* Location split rows */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    {splits.map((loc, idx) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <input
+                          value={loc.locationName}
+                          onChange={e => onSplitChange(item.id, idx, 'locationName', e.target.value)}
+                          placeholder="Location path (e.g. Bar > Wine)"
+                          style={{ flex: 1, fontSize: 12, padding: '4px 8px', border: '1px solid #BBF7D0', borderRadius: 6, outline: 'none', background: 'white', color: '#0F172A', minWidth: 0 }}
+                        />
+                        <span style={{ fontSize: 10, color: '#94A3B8', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                          {loc.currentQty > 0 ? `now: ${loc.currentQty}` : 'new'}
+                        </span>
+                        <SplitQtyBtn onClick={() => onSplitChange(item.id, idx, 'addQty', Math.max(0, (parseFloat(loc.addQty) || 0) - 1))}>−</SplitQtyBtn>
+                        <input
+                          type="number"
+                          min="0"
+                          value={loc.addQty}
+                          onChange={e => onSplitChange(item.id, idx, 'addQty', parseFloat(e.target.value) || 0)}
+                          style={{ width: 40, textAlign: 'center', fontSize: 12, padding: '3px 4px', border: '1px solid #BBF7D0', borderRadius: 6, outline: 'none', flexShrink: 0 }}
+                        />
+                        <SplitQtyBtn onClick={() => onSplitChange(item.id, idx, 'addQty', (parseFloat(loc.addQty) || 0) + 1)}>+</SplitQtyBtn>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Add location */}
+                  <button
+                    onClick={() => onAddSplitLocation(item.id)}
+                    style={{ fontSize: 11, fontWeight: 600, color: '#16A34A', background: 'none', border: 'none', cursor: 'pointer', padding: '5px 0 2px', display: 'block' }}
+                  >
+                    + Add another location
+                  </button>
+
+                  {/* Total summary */}
+                  <div style={{ marginTop: 4, display: 'flex', justifyContent: 'flex-end' }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: allocOk ? '#16A34A' : '#DC2626' }}>
+                      Total to add: {totalAllocated}{allocOk ? ' ✓' : ` — received: ${qty}`}
+                    </span>
                   </div>
                 </div>
               ) : (
@@ -313,9 +355,9 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
 
   const [step, setStep] = useState(1);
   const [receiving, setReceiving] = useState({});
-  const [matches, setMatches] = useState({});          // {[id]: row | 'loading' | null}
-  const [locations, setLocations] = useState({});      // {[id]: string}
-  const [newItemForms, setNewItemForms] = useState({}); // {[id]: {brand, size, locationName}}
+  const [matches, setMatches] = useState({});              // {[id]: row | 'loading' | null}
+  const [locationSplits, setLocationSplits] = useState({}); // {[id]: [{locationName, currentQty, addQty}]}
+  const [newItemForms, setNewItemForms] = useState({});    // {[id]: {brand, size, locationName}}
   const [saving, setSaving] = useState(false);
   const [pushing, setPushing] = useState(false);
 
@@ -339,14 +381,23 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
     setMatches({});
     checkedItems.forEach(item => {
       setMatches(prev => ({ ...prev, [item.id]: 'loading' }));
+      const receivedQty = parseFloat(receiving[item.id]?.qty) || 0;
       findMatchingInventoryItem(item, tenantId).then(match => {
         setMatches(prev => ({ ...prev, [item.id]: match || null }));
         if (match) {
-          const defaultLoc = match.stock_locations?.[0]?.locationName
-            || match.stock_locations?.[0]?.name
-            || match.location
-            || '';
-          setLocations(prev => ({ ...prev, [item.id]: defaultLoc }));
+          // Build splits from existing stock_locations; default all qty into first location
+          const existingLocs = Array.isArray(match.stock_locations) ? match.stock_locations : [];
+          let splits;
+          if (existingLocs.length > 0) {
+            splits = existingLocs.map((loc, i) => ({
+              locationName: loc.locationName || loc.name || '',
+              currentQty: loc.qty ?? loc.quantity ?? 0,
+              addQty: i === 0 ? receivedQty : 0,
+            }));
+          } else {
+            splits = [{ locationName: match.location || '', currentQty: 0, addQty: receivedQty }];
+          }
+          setLocationSplits(prev => ({ ...prev, [item.id]: splits }));
         }
       });
     });
@@ -393,6 +444,21 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
     }
   };
 
+  const handleSplitChange = (itemId, splitIdx, field, value) => {
+    setLocationSplits(prev => {
+      const splits = [...(prev[itemId] || [])];
+      splits[splitIdx] = { ...splits[splitIdx], [field]: value };
+      return { ...prev, [itemId]: splits };
+    });
+  };
+
+  const handleAddSplitLocation = (itemId) => {
+    setLocationSplits(prev => ({
+      ...prev,
+      [itemId]: [...(prev[itemId] || []), { locationName: '', currentQty: 0, addQty: 0 }],
+    }));
+  };
+
   const handleNewItemForm = (id, data) => {
     if (typeof data === 'object' && !data.name) {
       // initialise from provisioning item
@@ -415,11 +481,10 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
       const match = matches[item.id];
 
       if (match && typeof match === 'object') {
-        // Push qty to existing inventory item
-        const locName = locations[item.id] || match.stock_locations?.[0]?.locationName || match.location || '';
-        const ok = await pushReceivedQtyToLocation({ inventoryItemId: match.id, locationName: locName, qtyToAdd: qty, tenantId });
+        // Push qty splits to existing inventory item
+        const splits = locationSplits[item.id] || [{ locationName: match.location || '', currentQty: 0, addQty: qty }];
+        const ok = await pushReceivedSplitsToInventory({ inventoryItemId: match.id, splits, tenantId });
         if (ok) {
-          // Link provisioning item to inventory item
           try {
             await supabase?.from('provisioning_items')?.update({ inventory_item_id: match.id })?.eq('id', item.id);
           } catch { /* non-fatal */ }
@@ -505,8 +570,9 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
             items={items}
             receiving={receiving}
             matches={matches}
-            locations={locations}
-            onLocationChange={(id, val) => setLocations(prev => ({ ...prev, [id]: val }))}
+            locationSplits={locationSplits}
+            onSplitChange={handleSplitChange}
+            onAddSplitLocation={handleAddSplitLocation}
             newItemForms={newItemForms}
             onNewItemForm={handleNewItemForm}
             onPush={handlePushToInventory}
