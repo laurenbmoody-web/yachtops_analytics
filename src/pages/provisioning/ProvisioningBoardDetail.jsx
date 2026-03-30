@@ -22,6 +22,7 @@ import {
   formatCurrency,
 } from './utils/provisioningStorage';
 import ItemDrawer from './components/ItemDrawer';
+import ReceiveDeliveryModal from './components/ReceiveDeliveryModal';
 import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
 import { loadGuests } from '../guest-management-dashboard/utils/guestStorage';
 import { showToast } from '../../utils/toast';
@@ -139,6 +140,7 @@ const ProvisioningBoardDetail = () => {
   const [newItemName, setNewItemName] = useState('');
   const [showMenu, setShowMenu] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [itemDrawer, setItemDrawer] = useState({ open: false, item: null });
   const [activeTab, setActiveTab] = useState('items');
   const [hoveredRow, setHoveredRow] = useState(null);
@@ -603,6 +605,12 @@ const ProvisioningBoardDetail = () => {
                 style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
               >
                 <Icon name="Printer" style={{ width: 13, height: 13 }} /> Print
+              </button>
+              <button
+                onClick={() => setShowReceiveModal(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: '#ECFDF5', border: '1px solid #A7F3D0', color: '#065F46', whiteSpace: 'nowrap' }}
+              >
+                <Icon name="PackageCheck" style={{ width: 13, height: 13 }} /> Receive Delivery
               </button>
               {isDraftOrPending && (
                 <button
@@ -1122,6 +1130,21 @@ const ProvisioningBoardDetail = () => {
           list={list}
           onSaved={(updated) => { setList(prev => ({ ...prev, ...updated })); setShowEditModal(false); showToast('Board saved', 'success'); }}
           onClose={() => setShowEditModal(false)}
+        />
+      )}
+
+      {showReceiveModal && (
+        <ReceiveDeliveryModal
+          list={list}
+          items={items}
+          tenantId={activeTenantId}
+          onClose={() => setShowReceiveModal(false)}
+          onComplete={() => {
+            setShowReceiveModal(false);
+            // Refresh items to reflect updated statuses and received quantities
+            fetchListItems(id).then(updated => setItems(updated || [])).catch(() => {});
+            showToast('Delivery received', 'success');
+          }}
         />
       )}
 

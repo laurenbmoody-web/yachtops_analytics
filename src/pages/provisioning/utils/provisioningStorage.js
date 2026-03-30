@@ -768,3 +768,154 @@ export const fetchSharedWithMe = async (userId) => {
     return [];
   }
 };
+
+// ── Receive-delivery helpers ───────────────────────────────────────────────────
+
+/**
+ * Match a provisioning item to an existing inventory_items row.
+ * Priority: inventory_item_id → cargo_item_id → barcode → exact name (case-insensitive).
+ * Returns the raw DB row or null.
+ */
+export const findMatchingInventoryItem = async (provItem, tenantId) => {
+  if (!tenantId) return null;
+  try {
+    // 1. Direct FK link (already resolved on a previous delivery)
+    if (provItem?.inventory_item_id) {
+      const { data } = await supabase
+        ?.from('inventory_items')
+        ?.select('id, name, brand, size, unit, cargo_item_id, barcode, stock_locations, location, sub_location, total_qty, unit_cost, currency')
+        ?.eq('id', provItem.inventory_item_id)
+        ?.eq('tenant_id', tenantId)
+        ?.maybeSingle();
+      if (data) return data;
+    }
+    // 2. cargo_item_id
+    if (provItem?.cargo_item_id) {
+      const { data } = await supabase
+        ?.from('inventory_items')
+        ?.select('id, name, brand, size, unit, cargo_item_id, barcode, stock_locations, location, sub_location, total_qty, unit_cost, currency')
+        ?.eq('cargo_item_id', provItem.cargo_item_id)
+        ?.eq('tenant_id', tenantId)
+        ?.maybeSingle();
+      if (data) return data;
+    }
+    // 3. barcode
+    if (provItem?.barcode) {
+      const { data } = await supabase
+        ?.from('inventory_items')
+        ?.select('id, name, brand, size, unit, cargo_item_id, barcode, stock_locations, location, sub_location, total_qty, unit_cost, currency')
+        ?.eq('barcode', provItem.barcode)
+        ?.eq('tenant_id', tenantId)
+        ?.maybeSingle();
+      if (data) return data;
+    }
+    // 4. Exact name match (case-insensitive)
+    if (provItem?.name) {
+      const { data } = await supabase
+        ?.from('inventory_items')
+        ?.select('id, name, brand, size, unit, cargo_item_id, barcode, stock_locations, location, sub_location, total_qty, unit_cost, currency')
+        ?.ilike('name', provItem.name)
+        ?.eq('tenant_id', tenantId)
+        ?.limit(1);
+      if (data?.[0]) return data[0];
+    }
+    return null;
+  } catch (err) {
+    console.error('[provisioningStorage] findMatchingInventoryItem error:', err.message);
+    return null;
+  }
+};
+
+/**
+ * Add received qty to an inventory item's stock at a named location.
+ * Creates a new location entry if no matching one exists.
+ * Also updates total_qty and last_provisioning_date.
+ */
+export const pushReceivedQtyToLocation = async ({ inventoryItemId, locationName, qtyToAdd, tenantId }) => {
+  if (!inventoryItemId || !tenantId || !qtyToAdd) return false;
+  try {
+    // Fetch current stock_locations
+    const { data: item, error: fetchErr } = await supabase
+      ?.from('inventory_items')
+      ?.select('stock_locations, total_qty')
+      ?.eq('id', inventoryItemId)
+      ?.eq('tenant_id', tenantId)
+      ?.single();
+    if (fetchErr) throw fetchErr;
+
+    let locs = Array.isArray(item?.stock_locations) ? [...item.stock_locations] : [];
+    const normName = (locationName || '').trim();
+    const idx = locs.findIndex(l =>
+      (l?.locationName || l?.name || '').toLowerCase() === normName.toLowerCase()
+    );
+    if (idx >= 0) {
+      const existing = locs[idx];
+      locs[idx] = { ...existing, qty: (existing?.qty ?? existing?.quantity ?? 0) + qtyToAdd };
+    } else {
+      locs.push({ locationName: normName, locationId: '', qty: qtyToAdd });
+    }
+    const newTotal = locs.reduce((s, l) => s + (l?.qty ?? l?.quantity ?? 0), 0);
+
+    const { error: updateErr } = await supabase
+      ?.from('inventory_items')
+      ?.update({
+        stock_locations: locs,
+        total_qty: newTotal,
+        last_provisioning_date: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      ?.eq('id', inventoryItemId)
+      ?.eq('tenant_id', tenantId);
+    if (updateErr) throw updateErr;
+    return true;
+  } catch (err) {
+    console.error('[provisioningStorage] pushReceivedQtyToLocation error:', err.message);
+    return false;
+  }
+};
+
+/**
+ * Create a new inventory item from provisioning data and link it.
+ * Returns the created row id, or null on failure.
+ */
+export const createInventoryItemFromProvItem = async ({ provItem, locationName, qty, tenantId, userId }) => {
+  if (!tenantId) return null;
+  try {
+    const stockLocations = locationName
+      ? [{ locationName: locationName.trim(), locationId: '', qty: qty || 0 }]
+      : [];
+    const { data, error } = await supabase
+      ?.from('inventory_items')
+      ?.insert({
+        tenant_id: tenantId,
+        created_by: userId || null,
+        name: provItem?.name || '',
+        brand: provItem?.brand || null,
+        size: provItem?.size || null,
+        unit: provItem?.unit || 'each',
+        location: locationName?.split(' > ')?.[0]?.trim() || locationName || null,
+        sub_location: locationName || null,
+        stock_locations: stockLocations,
+        total_qty: qty || 0,
+        notes: provItem?.notes || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        last_provisioning_date: new Date().toISOString(),
+      })
+      ?.select('id, name, cargo_item_id')
+      ?.single();
+    if (error) throw error;
+
+    // Link the provisioning item back to the new inventory item
+    if (data?.id && provItem?.id && provItem?.list_id) {
+      await supabase
+        ?.from('provisioning_items')
+        ?.update({ inventory_item_id: data.id })
+        ?.eq('id', provItem.id);
+    }
+    return data;
+  } catch (err) {
+    console.error('[provisioningStorage] createInventoryItemFromProvItem error:', err.message);
+    return null;
+  }
+};
