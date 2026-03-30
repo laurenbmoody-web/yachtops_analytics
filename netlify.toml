@@ -1,6 +1,7 @@
 [build]
   command = "npm run build"
   publish = "build"
+  functions = "netlify/functions"
 
 [build.environment]
   # These are legitimately public keys — safe to expose to the browser.

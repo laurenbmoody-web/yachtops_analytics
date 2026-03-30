@@ -23,80 +23,21 @@ const readFileAsBase64 = (file) => new Promise((res, rej) => {
 });
 
 const callClaudeInvoiceParser = async (file, batchItems) => {
-  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error('VITE_ANTHROPIC_API_KEY is not set. Add it to your .env file.');
-
   const base64 = await readFileAsBase64(file);
-  const isPdf = file.type === 'application/pdf';
-  const mediaType = isPdf ? 'application/pdf' : file.type;
+  const mediaType = file.type === 'application/pdf' ? 'application/pdf' : file.type;
 
-  const itemList = batchItems.map(i => ({
-    id: i.id,
-    name: i.name,
-    brand: i.brand || null,
-    size: i.size || null,
-    qty_received: i.quantity_received,
-    qty_ordered: i.quantity_ordered,
-    quoted_unit_cost: i.estimated_unit_cost,
-  }));
-
-  const prompt = `You are processing an invoice or receipt for a yacht provisioning order.
-
-Extract all details from this document and match line items to the provisioning order below.
-
-Provisioning order items:
-${JSON.stringify(itemList, null, 2)}
-
-Return ONLY valid JSON in this exact format (no markdown, no explanation):
-{
-  "invoice_number": "string or null",
-  "invoice_date": "YYYY-MM-DD or null",
-  "supplier_name": "string or null",
-  "total_amount": number or null,
-  "currency": "3-letter code or null",
-  "line_items": [
-    {
-      "raw_name": "exact text from invoice",
-      "quantity": number or null,
-      "unit_price": number or null,
-      "line_total": number or null,
-      "unit": "string or null",
-      "matched_item_id": "UUID matching a provisioning item id above, or null",
-      "match_confidence": "high|medium|low|none",
-      "discrepancy": "short description of any qty/price discrepancy, or null"
-    }
-  ]
-}`;
-
-  const contentBlock = isPdf
-    ? { type: 'document', source: { type: 'base64', media_type: mediaType, data: base64 } }
-    : { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } };
-
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+  const resp = await fetch('/.netlify/functions/parse-invoice', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2048,
-      messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: prompt }] }],
-    }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ base64, mediaType, batchItems }),
   });
 
   if (!resp.ok) {
-    const txt = await resp.text();
-    throw new Error(`Claude API error ${resp.status}: ${txt.slice(0, 200)}`);
+    const data = await resp.json().catch(() => ({}));
+    throw new Error(data.error || `Server error ${resp.status}`);
   }
 
-  const data = await resp.json();
-  const text = data.content?.[0]?.text || '';
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('Could not extract JSON from AI response.');
-  return JSON.parse(jsonMatch[0]);
+  return resp.json();
 };
 
 // ── Match confidence badge ────────────────────────────────────────────────────
