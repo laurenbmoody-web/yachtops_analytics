@@ -43,11 +43,20 @@ const STATUS_STYLES = {
 };
 
 // ── Field label + child wrapper — defined at module level to avoid remount ───
-const Field = ({ isLight, labelCls, label, children }) => (
+const Field = ({ isLight, labelCls, label, locked, children }) => (
   <div>
-    {isLight
-      ? <span style={{ display: 'block', fontSize: 10, color: '#cbd5e1', fontWeight: 500, letterSpacing: '0.04em', marginBottom: 4 }}>{label}</span>
-      : <label className={labelCls}>{label}</label>}
+    {isLight ? (
+      <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#cbd5e1', fontWeight: 500, letterSpacing: '0.04em', marginBottom: 4 }}>
+        {label}
+        {locked && (
+          <span style={{ fontSize: 9, background: '#eff6ff', color: '#818cf8', borderRadius: 3, padding: '0 4px', fontWeight: 600, letterSpacing: 0, flexShrink: 0 }}>
+            from inventory
+          </span>
+        )}
+      </span>
+    ) : (
+      <label className={labelCls}>{label}</label>
+    )}
     {children}
   </div>
 );
@@ -135,6 +144,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
   const [invResults, setInvResults] = useState([]);
   const [invDropdownOpen, setInvDropdownOpen] = useState(false);
   const [invSearchLoading, setInvSearchLoading] = useState(false);
+  const [linkedInvItem, setLinkedInvItem] = useState(null); // full inv row when linked this session
   const invSearchRef = useRef(null);
   const invDebounceTimer = useRef(null);
 
@@ -175,11 +185,12 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
       .catch(() => setLocRows([]));
   }, [form.department, tenantId]);
 
-  // Reset search query when item changes
+  // Reset search state when item changes
   useEffect(() => {
     setInvSearchQuery('');
     setInvResults([]);
     setInvDropdownOpen(false);
+    setLinkedInvItem(null); // clear session-linked context; banner will use form data for existing links
   }, [item?.id]);
 
   // Debounced inventory search
@@ -223,6 +234,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
       unit: invItem.unit || form.unit,
     };
     setForm(prev => ({ ...prev, ...updates }));
+    setLinkedInvItem(invItem);
     setInvSearchQuery('');
     setInvDropdownOpen(false);
     saveField(updates);
@@ -231,6 +243,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
   const handleInventoryUnlink = () => {
     const updates = { inventory_item_id: null, cargo_item_id: '', barcode: '' };
     setForm(prev => ({ ...prev, ...updates }));
+    setLinkedInvItem(null);
     saveField(updates);
   };
 
@@ -390,104 +403,130 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
       >
         <div style={{ paddingBottom: 32 }}>
 
-          {/* ════ INVENTORY LINK SEARCH ════ */}
-          {(() => {
-            const isLinked = !!form.inventory_item_id;
-            return (
-              <div style={{ marginBottom: 16 }}>
-                {isLinked ? (
-                  /* Linked banner */
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    background: '#f0fdf4', border: '1px solid #86efac',
-                    borderRadius: 8, padding: '8px 12px',
-                  }}>
-                    <span style={{ fontSize: 16 }}>🔗</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: '#15803d', display: 'block' }}>
-                        Linked to inventory
-                      </span>
-                      <span style={{ fontSize: 11, color: '#16a34a', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {form.name}{form.cargo_item_id ? ` · ${form.cargo_item_id}` : ''}
-                      </span>
-                    </div>
-                    <button
-                      onClick={handleInventoryUnlink}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#6b7280', padding: '2px 6px', borderRadius: 4, flexShrink: 0 }}
-                      onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
-                      onMouseLeave={e => e.currentTarget.style.color = '#6b7280'}
-                    >
-                      Unlink
-                    </button>
-                  </div>
-                ) : (
-                  /* Search widget */
-                  <div ref={invSearchRef} style={{ position: 'relative' }}>
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        value={invSearchQuery}
-                        onChange={e => setInvSearchQuery(e.target.value)}
-                        placeholder="🔗 Link to existing inventory item…"
-                        style={{
-                          width: '100%', boxSizing: 'border-box',
-                          fontSize: 13, padding: '8px 32px 8px 10px',
-                          border: '1px solid #e2e8f0', borderRadius: 8,
-                          background: '#f8fafc', color: '#1E3A5F', outline: 'none',
-                          fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
-                        }}
-                        onFocus={e => { e.currentTarget.style.borderColor = '#4A90E2'; e.currentTarget.style.background = '#fff'; if (invResults.length > 0) setInvDropdownOpen(true); }}
-                        onBlur={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.background = '#f8fafc'; }}
-                      />
-                      {invSearchLoading && (
-                        <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#94a3b8' }}>…</span>
-                      )}
-                      {!invSearchLoading && invSearchQuery && (
-                        <button
-                          onMouseDown={e => { e.preventDefault(); setInvSearchQuery(''); setInvDropdownOpen(false); }}
-                          style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 14, padding: 2 }}
-                        >×</button>
-                      )}
-                    </div>
-                    {invDropdownOpen && invResults.length > 0 && (
-                      <div style={{
-                        position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-                        background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8,
-                        boxShadow: '0 8px 24px rgba(0,0,0,0.1)', marginTop: 4, overflow: 'hidden',
-                      }}>
-                        {invResults.map(inv => (
-                          <button
-                            key={inv.id}
-                            onMouseDown={e => { e.preventDefault(); handleInventoryLink(inv); }}
-                            style={{
-                              width: '100%', textAlign: 'left', background: 'none', border: 'none',
-                              padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9',
-                              display: 'flex', flexDirection: 'column', gap: 1,
-                            }}
-                            onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                          >
-                            <span style={{ fontSize: 13, fontWeight: 600, color: '#1E3A5F' }}>{inv.name}</span>
-                            <span style={{ fontSize: 11, color: '#94a3b8' }}>
-                              {[inv.brand, inv.size, inv.cargo_item_id].filter(Boolean).join(' · ')}
+          {/* ════ INVENTORY LINK ════ */}
+          <div style={{ marginBottom: 16 }}>
+            {isLinked ? (
+              /* ── Linked banner ── */
+              (() => {
+                const locCount = (linkedInvItem?.stock_locations || []).length;
+                const stockQty = linkedInvItem?.total_qty ?? null;
+                const locPath = linkedInvItem?.sub_location || linkedInvItem?.location || null;
+                return (
+                  <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '10px 12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: '#15803d' }}>
+                            Linked to: {form.name}
+                          </span>
+                          {form.cargo_item_id && (
+                            <span style={{ fontSize: 11, fontWeight: 500, color: '#4ade80', background: '#dcfce7', borderRadius: 4, padding: '1px 6px' }}>
+                              {form.cargo_item_id}
                             </span>
-                          </button>
-                        ))}
+                          )}
+                        </div>
+                        {stockQty !== null && (
+                          <p style={{ fontSize: 11, color: '#16a34a', margin: '3px 0 0' }}>
+                            Currently in stock: <strong>{stockQty}</strong>
+                            {locCount > 0 && ` across ${locCount} location${locCount !== 1 ? 's' : ''}`}
+                          </p>
+                        )}
+                        {locPath && (
+                          <p style={{ fontSize: 10, color: '#4ade80', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {locPath}
+                          </p>
+                        )}
                       </div>
-                    )}
-                    {invSearchQuery.length >= 2 && !invSearchLoading && invResults.length === 0 && (
-                      <div style={{ fontSize: 11, color: '#94a3b8', padding: '6px 2px', marginTop: 2 }}>
-                        No inventory items found — item will be created on receive.
-                      </div>
-                    )}
+                      <button
+                        onClick={handleInventoryUnlink}
+                        style={{ background: 'none', border: '1px solid #86efac', cursor: 'pointer', fontSize: 11, color: '#6b7280', padding: '2px 8px', borderRadius: 5, flexShrink: 0 }}
+                        onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.borderColor = '#fca5a5'; }}
+                        onMouseLeave={e => { e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.borderColor = '#86efac'; }}
+                      >
+                        Unlink
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()
+            ) : (
+              /* ── Search widget ── */
+              <div ref={invSearchRef} style={{ position: 'relative' }}>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    value={invSearchQuery}
+                    onChange={e => setInvSearchQuery(e.target.value)}
+                    placeholder="Start typing to find inventory item..."
+                    style={{
+                      width: '100%', boxSizing: 'border-box',
+                      fontSize: 13, padding: '8px 32px 8px 10px',
+                      border: '1px solid #e2e8f0', borderRadius: 8,
+                      background: '#f8fafc', color: '#1E3A5F', outline: 'none',
+                      fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
+                    }}
+                    onFocus={e => { e.currentTarget.style.borderColor = '#4A90E2'; e.currentTarget.style.background = '#fff'; if (invResults.length > 0) setInvDropdownOpen(true); }}
+                    onBlur={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.background = '#f8fafc'; }}
+                  />
+                  {invSearchLoading && (
+                    <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#94a3b8' }}>…</span>
+                  )}
+                  {!invSearchLoading && invSearchQuery && (
+                    <button
+                      onMouseDown={e => { e.preventDefault(); setInvSearchQuery(''); setInvDropdownOpen(false); }}
+                      style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 14, padding: 2 }}
+                    >×</button>
+                  )}
+                </div>
+                {invDropdownOpen && invResults.length > 0 && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                    background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8,
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.1)', marginTop: 4, overflow: 'hidden',
+                  }}>
+                    {invResults.map(inv => (
+                      <button
+                        key={inv.id}
+                        onMouseDown={e => { e.preventDefault(); handleInventoryLink(inv); }}
+                        style={{
+                          width: '100%', textAlign: 'left', background: 'none', border: 'none',
+                          padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9',
+                          display: 'flex', flexDirection: 'column', gap: 2,
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: '#1E3A5F' }}>{inv.name}</span>
+                          {inv.cargo_item_id && (
+                            <span style={{ fontSize: 10, color: '#818cf8', background: '#eff6ff', borderRadius: 3, padding: '0 5px', fontWeight: 600 }}>{inv.cargo_item_id}</span>
+                          )}
+                        </div>
+                        <span style={{ fontSize: 11, color: '#94a3b8' }}>
+                          {[inv.brand, inv.size].filter(Boolean).join(' · ')}
+                          {inv.total_qty != null && <span style={{ marginLeft: 8, color: '#16a34a' }}>stock: {inv.total_qty}</span>}
+                        </span>
+                      </button>
+                    ))}
                   </div>
                 )}
+                {/* Status hint below search */}
+                <div style={{ fontSize: 11, color: '#94a3b8', padding: '5px 2px', marginTop: 1 }}>
+                  {invSearchQuery.length >= 2 && !invSearchLoading && invResults.length === 0
+                    ? 'No items found — will create new inventory item on receive.'
+                    : 'Not linked — will create a new inventory item on receive.'}
+                </div>
               </div>
-            );
-          })()}
+            )}
+          </div>
 
           {/* ════ SECTION 1: IDENTITY ════ */}
           <div>
             {/* Name — 22px/700, bottom border only */}
+            {isLight && isLinked && (
+              <span style={{ fontSize: 9, background: '#eff6ff', color: '#818cf8', borderRadius: 3, padding: '0 6px', fontWeight: 600, display: 'inline-block', marginBottom: 4 }}>
+                from inventory
+              </span>
+            )}
             <input
               value={form.name || ''}
               onChange={e => !isLinked && set('name', e.target.value)}
@@ -498,7 +537,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                 width: '100%', fontSize: 22, fontWeight: 700,
                 color: isLinked ? '#94a3b8' : '#1E3A5F', background: 'none', border: 'none',
                 borderBottom: `2px solid ${isLinked ? '#e2e8f0' : '#4A90E2'}`, outline: 'none',
-                padding: '16px 0 4px', display: 'block',
+                padding: '4px 0 4px', display: 'block',
                 fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
                 cursor: isLinked ? 'default' : 'text',
               } : {}}
@@ -506,7 +545,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
             />
             {/* Brand */}
             <div style={{ marginTop: 16 }}>
-              <Field isLight={isLight} labelCls={labelCls} label="Brand">
+              <Field isLight={isLight} labelCls={labelCls} label="Brand" locked={isLinked}>
                 <input
                   value={form.brand || ''}
                   onChange={e => !isLinked && set('brand', e.target.value)}
@@ -520,7 +559,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
             </div>
             {/* Barcode */}
             <div style={{ marginTop: 8 }}>
-              <Field isLight={isLight} labelCls={labelCls} label="Barcode">
+              <Field isLight={isLight} labelCls={labelCls} label="Barcode" locked={isLinked}>
                 <input
                   value={form.barcode || ''}
                   onChange={e => !isLinked && set('barcode', e.target.value)}
@@ -539,7 +578,10 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
             {isLight ? (
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr', gap: 8 }}>
                 <div>
-                  <FL>Size</FL>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#cbd5e1', fontWeight: 500, letterSpacing: '0.04em', marginBottom: 4 }}>
+                    Size
+                    {isLinked && <span style={{ fontSize: 9, background: '#eff6ff', color: '#818cf8', borderRadius: 3, padding: '0 4px', fontWeight: 600, letterSpacing: 0 }}>from inventory</span>}
+                  </span>
                   <input
                     value={form.size || ''} onChange={e => !isLinked && set('size', e.target.value)}
                     onBlur={() => !isLinked && saveField()} readOnly={isLinked}
@@ -548,7 +590,10 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                   />
                 </div>
                 <div>
-                  <FL>Unit</FL>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#cbd5e1', fontWeight: 500, letterSpacing: '0.04em', marginBottom: 4 }}>
+                    Unit
+                    {isLinked && <span style={{ fontSize: 9, background: '#eff6ff', color: '#818cf8', borderRadius: 3, padding: '0 4px', fontWeight: 600, letterSpacing: 0 }}>from inventory</span>}
+                  </span>
                   <select value={form.unit || 'each'} onChange={e => !isLinked && setAndSave('unit', e.target.value)} disabled={isLinked} className="idr-field" style={isLinked ? { opacity: 0.55 } : {}}>
                     {UNIT_GROUPS.map(g => (
                       <optgroup key={g.label} label={g.label}>
@@ -866,14 +911,26 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
 
           {/* ════ SECTION 7: NOTES ════ */}
           <Section label="Notes">
+            {isLight ? <FL>Item notes (internal)</FL> : <span className={labelCls}>Item notes (internal)</span>}
             <textarea
               value={form.item_notes || ''}
               onChange={e => set('item_notes', e.target.value)}
               onBlur={() => saveField()}
               rows={3}
               className={inputCls}
-              placeholder="Any notes about this item — storage instructions, sourcing preferences, special requirements..."
+              placeholder="Storage instructions, sourcing preferences, special requirements…"
             />
+            <div style={{ marginTop: 8 }}>
+              {isLight ? <FL>Order notes (visible to supplier)</FL> : <span className={labelCls}>Order notes (visible to supplier)</span>}
+              <textarea
+                value={form.notes || ''}
+                onChange={e => set('notes', e.target.value)}
+                onBlur={() => saveField()}
+                rows={2}
+                className={inputCls}
+                placeholder="Special delivery instructions, substitutions accepted, etc."
+              />
+            </div>
           </Section>
 
           {/* Source badge — only when non-manual */}

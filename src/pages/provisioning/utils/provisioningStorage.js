@@ -1004,7 +1004,7 @@ export const searchInventoryItems = async (query, tenantId) => {
   try {
     const { data, error } = await supabase
       ?.from('inventory_items')
-      ?.select('id, name, brand, size, unit, cargo_item_id, barcode')
+      ?.select('id, name, brand, size, unit, cargo_item_id, barcode, total_qty, stock_locations, location, sub_location')
       ?.eq('tenant_id', tenantId)
       ?.or(`name.ilike.%${q}%,brand.ilike.%${q}%,cargo_item_id.ilike.%${q}%,barcode.ilike.%${q}%`)
       ?.limit(8);
