@@ -578,7 +578,7 @@ const ProvisioningBoardDetail = () => {
               {[
                 { id: 'items', label: 'Items' },
                 { id: 'details', label: 'Board Details' },
-                { id: 'deliveries', label: 'Deliveries' },
+                { id: 'received', label: 'Received' },
                 { id: 'history', label: 'History' },
               ].map(tab => (
                 <button
@@ -743,7 +743,8 @@ const ProvisioningBoardDetail = () => {
 
         {/* ── Items area ────────────────────────────────────────────────── */}
         {activeTab === 'items' && <div style={{ padding: '24px 32px 48px', background: '#F8FAFC' }}>
-          {deptGroups.length === 0 && completedItems.length === 0 && !hasFilters ? (
+          {deptGroups.length === 0 && items.length === 0 ? (
+            /* True empty board */
             <div style={{ padding: '80px 0', textAlign: 'center' }}>
               <div style={{ width: 56, height: 56, background: '#F8FAFC', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
                 <Icon name="ShoppingBag" style={{ width: 28, height: 28, color: '#CBD5E1' }} />
@@ -757,7 +758,31 @@ const ProvisioningBoardDetail = () => {
                 <Icon name="Plus" style={{ width: 14, height: 14 }} /> Add first item
               </button>
             </div>
-          ) : deptGroups.length === 0 && completedItems.length === 0 ? (
+          ) : deptGroups.length === 0 && !hasFilters ? (
+            /* All items received */
+            <div style={{ padding: '60px 0', textAlign: 'center' }}>
+              <div style={{ width: 56, height: 56, background: '#ECFDF5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                <Icon name="CheckCircle" style={{ width: 28, height: 28, color: '#34D399' }} />
+              </div>
+              <p style={{ fontSize: 14, fontWeight: 600, color: '#0F172A', marginBottom: 4 }}>All items received ✓</p>
+              <p style={{ fontSize: 12, color: '#94A3B8', marginBottom: 20 }}>View the Received tab for delivery history.</p>
+              {addingToDept === '__global__' ? (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'white', border: '1px solid #93C5FD', borderRadius: 8 }}>
+                  <input autoFocus type="text" placeholder="Item name…" value={newItemName} onChange={e => setNewItemName(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { handleAddItem(departments[0] || 'Other'); setAddingToDept(null); } if (e.key === 'Escape') { setAddingToDept(null); setNewItemName(''); } }}
+                    style={{ fontSize: 13, background: 'transparent', border: 'none', outline: 'none', color: '#0F172A', width: 200 }} />
+                  <button onClick={() => { handleAddItem(departments[0] || 'Other'); setAddingToDept(null); }} style={{ fontSize: 12, fontWeight: 600, padding: '4px 10px', background: '#1E3A5F', border: 'none', borderRadius: 6, color: 'white', cursor: 'pointer' }}>Add</button>
+                  <button onClick={() => { setAddingToDept(null); setNewItemName(''); }} style={{ fontSize: 12, padding: '4px 8px', background: 'none', border: '1px solid #E2E8F0', borderRadius: 6, color: '#94A3B8', cursor: 'pointer' }}>Cancel</button>
+                </div>
+              ) : (
+                <button onClick={() => { setAddingToDept('__global__'); setNewItemName(''); }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: 'white', border: '1px dashed #CBD5E1', borderRadius: 8, color: '#64748B', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
+                >
+                  <Icon name="Plus" style={{ width: 14, height: 14 }} /> Add another item
+                </button>
+              )}
+            </div>
+          ) : deptGroups.length === 0 ? (
             <div style={{ padding: '48px 0', textAlign: 'center', fontSize: 13, color: '#94A3B8' }}>No items match your filters.</div>
           ) : (
             <>
@@ -1049,42 +1074,6 @@ const ProvisioningBoardDetail = () => {
                 );
               })}
 
-              {/* ── Completed items ───────────────────────────────────── */}
-              {completedItems.length > 0 && (
-                <div style={{ marginTop: 32 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Received</span>
-                    <div style={{ flex: 1, height: 1, background: '#E2E8F0' }} />
-                    <span style={{ fontSize: 11, color: '#CBD5E1' }}>{completedItems.length} item{completedItems.length !== 1 ? 's' : ''}</span>
-                  </div>
-                  <div style={{ background: 'white', border: '1px solid #F1F5F9', borderRadius: 12, overflow: 'hidden', opacity: 0.7 }}>
-                    {completedItems.map((item, idx) => (
-                      <div
-                        key={item.id}
-                        onClick={() => setItemDrawer({ open: true, item })}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px',
-                          borderTop: idx > 0 ? '1px solid #F8FAFC' : 'none',
-                          cursor: 'pointer',
-                          background: 'white',
-                        }}
-                      >
-                        <Icon name="CheckCircle" style={{ width: 14, height: 14, color: '#4ADE80', flexShrink: 0 }} />
-                        <span style={{ fontSize: 13, color: '#94A3B8', textDecoration: 'line-through', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {item.name}{item.brand ? ` — ${item.brand}` : ''}{item.size ? ` ${item.size}` : ''}
-                        </span>
-                        {item.department && (
-                          <span style={{ fontSize: 10, color: '#CBD5E1', flexShrink: 0 }}>{item.department}</span>
-                        )}
-                        <span style={{ fontSize: 12, color: '#94A3B8', flexShrink: 0 }}>
-                          {parseFloat(item.quantity_received) || 0} {item.unit || ''}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Grand total row */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderTop: '2px solid #F1F5F9', marginTop: 8, flexWrap: 'wrap', gap: 12 }}>
                 <span style={{ fontSize: 12, color: '#94A3B8' }}>{items.length} item{items.length !== 1 ? 's' : ''} total</span>
@@ -1172,49 +1161,122 @@ const ProvisioningBoardDetail = () => {
                   </>
                 );
               })()}
+
+              {/* ── Global add item ────────────────────────────────────── */}
+              <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px dashed #E2E8F0' }}>
+                {addingToDept === '__global__' ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                      autoFocus
+                      type="text"
+                      placeholder="Item name…"
+                      value={newItemName}
+                      onChange={e => setNewItemName(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') { handleAddItem(departments[0] || 'Other'); setAddingToDept(null); }
+                        if (e.key === 'Escape') { setAddingToDept(null); setNewItemName(''); }
+                      }}
+                      style={{ flex: 1, maxWidth: 320, fontSize: 13, background: 'white', border: '1px solid #93C5FD', borderRadius: 6, padding: '6px 10px', outline: 'none', color: '#0F172A' }}
+                    />
+                    <button onClick={() => { handleAddItem(departments[0] || 'Other'); setAddingToDept(null); }} style={{ fontSize: 12, fontWeight: 600, padding: '6px 14px', background: '#1E3A5F', border: 'none', borderRadius: 6, color: 'white', cursor: 'pointer' }}>Add</button>
+                    <button onClick={() => { setAddingToDept(null); setNewItemName(''); }} style={{ fontSize: 12, padding: '6px 10px', background: 'none', border: '1px solid #E2E8F0', borderRadius: 6, color: '#94A3B8', cursor: 'pointer' }}>Cancel</button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setAddingToDept('__global__'); setNewItemName(''); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                    onMouseEnter={e => { e.currentTarget.style.color = '#4A90E2'; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = '#94A3B8'; }}
+                  >
+                    <Icon name="Plus" style={{ width: 13, height: 13 }} /> Add item
+                  </button>
+                )}
+              </div>
             </>
           )}
         </div>}
 
-        {/* ── Deliveries tab ─────────────────────────────────────────────── */}
-        {activeTab === 'deliveries' && (
+        {/* ── Received tab ───────────────────────────────────────────────── */}
+        {activeTab === 'received' && (
           <div style={{ padding: '24px 32px 48px', background: '#F8FAFC' }}>
             {deliveriesLoading ? (
-              <div style={{ padding: '48px 0', textAlign: 'center', fontSize: 13, color: '#94A3B8' }}>Loading deliveries…</div>
-            ) : deliveries.length === 0 ? (
+              <div style={{ padding: '48px 0', textAlign: 'center', fontSize: 13, color: '#94A3B8' }}>Loading…</div>
+            ) : deliveries.length === 0 && completedItems.length === 0 ? (
               <div style={{ padding: '80px 0', textAlign: 'center' }}>
                 <div style={{ width: 48, height: 48, background: '#F1F5F9', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
                   <Icon name="PackageOpen" style={{ width: 22, height: 22, color: '#CBD5E1' }} />
                 </div>
-                <p style={{ fontSize: 14, fontWeight: 500, color: '#0F172A', marginBottom: 4 }}>No deliveries yet</p>
-                <p style={{ fontSize: 12, color: '#94A3B8' }}>Delivery history will appear here after you receive items.</p>
+                <p style={{ fontSize: 14, fontWeight: 500, color: '#0F172A', marginBottom: 4 }}>No received items yet</p>
+                <p style={{ fontSize: 12, color: '#94A3B8' }}>Received delivery history will appear here.</p>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 720 }}>
-                {deliveries.map(d => {
-                  const batchItems = d.parsed_data?.items || [];
-                  const dateStr = d.delivered_at ? new Date(d.delivered_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
-                  return (
-                    <details key={d.id} style={{ background: 'white', border: '1px solid #F1F5F9', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-                      <summary style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', cursor: 'pointer', listStyle: 'none', userSelect: 'none' }}>
-                        <Icon name="Package" style={{ width: 16, height: 16, color: '#4A90E2', flexShrink: 0 }} />
-                        <div style={{ flex: 1 }}>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>{batchItems.length} item{batchItems.length !== 1 ? 's' : ''} received</span>
-                          <span style={{ fontSize: 11, color: '#94A3B8', marginLeft: 10 }}>{dateStr}</span>
+              <div style={{ maxWidth: 720 }}>
+                {/* ── Delivery batches ─────────────────────────────────── */}
+                {deliveries.length > 0 && (
+                  <>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>Delivery batches</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 32 }}>
+                      {deliveries.map(d => {
+                        const batchItems = d.parsed_data?.items || [];
+                        const src = d.parsed_data?.source === 'manual_receive' ? 'Manual receive' : (d.parsed_data?.source || 'Unknown');
+                        const dateStr = d.delivered_at
+                          ? new Date(d.delivered_at).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                          : '—';
+                        return (
+                          <details key={d.id} style={{ background: 'white', border: '1px solid #F1F5F9', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                            <summary style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', cursor: 'pointer', listStyle: 'none', userSelect: 'none' }}>
+                              <Icon name="PackageCheck" style={{ width: 16, height: 16, color: '#34D399', flexShrink: 0 }} />
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <span style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>
+                                  {batchItems.length} item{batchItems.length !== 1 ? 's' : ''} received
+                                </span>
+                                <span style={{ fontSize: 11, color: '#94A3B8', marginLeft: 10 }}>{dateStr}</span>
+                                <span style={{ fontSize: 11, color: '#CBD5E1', marginLeft: 8 }}>· {src}</span>
+                              </div>
+                              <Icon name="ChevronDown" style={{ width: 14, height: 14, color: '#CBD5E1', flexShrink: 0 }} />
+                            </summary>
+                            <div style={{ borderTop: '1px solid #F8FAFC', padding: '4px 20px 12px' }}>
+                              {batchItems.map((bi, idx) => (
+                                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderTop: idx > 0 ? '1px solid #F8FAFC' : 'none' }}>
+                                  <Icon name="CheckCircle" style={{ width: 12, height: 12, color: '#4ADE80', flexShrink: 0 }} />
+                                  <span style={{ fontSize: 13, color: '#94A3B8', textDecoration: 'line-through', flex: 1 }}>{bi.name || '—'}</span>
+                                  <span style={{ fontSize: 12, color: '#94A3B8' }}>{bi.quantity_received ?? '?'} {bi.unit || ''}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </details>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+
+                {/* ── All received items (from current board state) ─────── */}
+                {completedItems.length > 0 && (
+                  <>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>Received items on this board</p>
+                    <div style={{ background: 'white', border: '1px solid #F1F5F9', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                      {completedItems.map((item, idx) => (
+                        <div
+                          key={item.id}
+                          onClick={() => setItemDrawer({ open: true, item })}
+                          style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px', borderTop: idx > 0 ? '1px solid #F8FAFC' : 'none', cursor: 'pointer' }}
+                        >
+                          <Icon name="CheckCircle" style={{ width: 14, height: 14, color: '#4ADE80', flexShrink: 0 }} />
+                          <span style={{ fontSize: 13, color: '#94A3B8', textDecoration: 'line-through', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {item.name}{item.brand ? ` — ${item.brand}` : ''}{item.size ? ` ${item.size}` : ''}
+                          </span>
+                          {item.department && (
+                            <span style={{ fontSize: 10, color: '#CBD5E1', flexShrink: 0 }}>{item.department}</span>
+                          )}
+                          <span style={{ fontSize: 12, color: '#94A3B8', flexShrink: 0 }}>
+                            {parseFloat(item.quantity_received) || 0} {item.unit || ''}
+                          </span>
                         </div>
-                        <Icon name="ChevronDown" style={{ width: 14, height: 14, color: '#CBD5E1' }} />
-                      </summary>
-                      <div style={{ borderTop: '1px solid #F8FAFC', padding: '0 20px 12px' }}>
-                        {batchItems.map((bi, idx) => (
-                          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: idx > 0 ? '1px solid #F8FAFC' : 'none' }}>
-                            <span style={{ fontSize: 13, color: '#0F172A', flex: 1 }}>{bi.name || '—'}</span>
-                            <span style={{ fontSize: 12, color: '#64748B' }}>{bi.quantity_received ?? '?'} {bi.unit || ''}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </details>
-                  );
-                })}
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>

@@ -506,6 +506,8 @@ const ProvisioningWorkspace = () => {
   const getFilteredItems = useCallback((listId) => {
     const items = itemsByList[listId] || [];
     return items.filter(item => {
+      // Received items are never shown on kanban cards
+      if (item.status === 'received') return false;
       if (statusFilter !== 'all' && item.status !== statusFilter) return false;
       if (deptFilter !== 'all' && item.department !== deptFilter) return false;
       if (searchQuery) {

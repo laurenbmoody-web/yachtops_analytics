@@ -476,8 +476,15 @@ const BoardColumn = ({
               />
             ))}
             {filteredItems.length === 0 && hiddenCount === 0 && (
-              <div className="flex items-center justify-center py-8">
-                <p className="text-xs text-muted-foreground">No items yet</p>
+              <div className="flex items-center justify-center py-8 text-center px-4">
+                {items.length > 0 && items.every(i => i.status === 'received') ? (
+                  <div>
+                    <p className="text-xs font-semibold text-green-500 mb-0.5">All items received ✓</p>
+                    <p className="text-[10px] text-muted-foreground">Open board for details</p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No items yet</p>
+                )}
               </div>
             )}
             {hiddenCount > 0 && (
