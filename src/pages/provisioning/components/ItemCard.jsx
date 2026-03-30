@@ -61,38 +61,33 @@ const ItemCard = ({ item, onClick, onStatusChange, onQuantityChange }) => {
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         onTouchMove={handleTouchEnd}
-        className="flex items-center gap-2 cursor-pointer bg-card hover:bg-muted/60 transition-colors"
-        style={{ padding: '8px 10px', marginBottom: 4, borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}
+        className="flex items-center cursor-pointer bg-card hover:bg-muted/60 transition-colors"
+        style={{ padding: '8px 10px', marginBottom: 4, borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)', gap: 8 }}
       >
-        {/* Name */}
-        <span className="text-foreground flex-1 min-w-0 truncate" style={{ fontSize: 13, fontWeight: 500 }}>
+        {/* Name — takes all remaining space, truncates with ellipsis */}
+        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13, fontWeight: 500 }}
+          className="text-foreground">
           {item.name || 'Untitled'}
         </span>
 
-        {/* Qty controls — fixed-width so all rows align vertically */}
+        {/* Qty controls — fixed width, never squished */}
         <div
-          className="flex items-center flex-shrink-0"
-          style={{ width: 86, gap: 0, justifyContent: 'space-between' }}
+          style={{ width: 96, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
           onClick={e => e.stopPropagation()}
         >
           <button onClick={(e) => handleQty(e, -1)} style={BTN_STYLE}>−</button>
-          <span className="text-foreground text-center" style={{ fontSize: 13, fontWeight: 600, width: 24 }}>
+          <span style={{ width: 24, textAlign: 'center', fontSize: 13, fontWeight: 600 }} className="text-foreground">
             {item.quantity_ordered ?? 0}
           </span>
           <button onClick={(e) => handleQty(e, 1)} style={BTN_STYLE}>+</button>
         </div>
 
-        {/* Status badge */}
-        <span
-          className="flex-shrink-0"
-          style={{
-            fontSize: 10, fontWeight: 600, padding: '2px 8px',
-            borderRadius: 20, background: cfg.bg, color: cfg.color,
-            marginLeft: 12,
-          }}
-        >
-          {cfg.label}
-        </span>
+        {/* Status badge — fixed width, right-aligned text */}
+        <div style={{ width: 76, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
+          <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: cfg.bg, color: cfg.color, whiteSpace: 'nowrap' }}>
+            {cfg.label}
+          </span>
+        </div>
       </div>
 
       {/* Status context menu */}
