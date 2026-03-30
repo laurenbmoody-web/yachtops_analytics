@@ -778,7 +778,7 @@ const ProvisioningBoardDetail = () => {
                               <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: 4 }}>
                                 <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#CBD5E1', flex: '0 0 auto' }}>Size</span>
                                 <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#CBD5E1', flex: '1 1 auto', textAlign: 'center' }}>Unit</span>
-                                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#CBD5E1', flex: '0 0 auto' }}>Qty</span>
+                                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#CBD5E1', flex: '0 0 auto', minWidth: 62, textAlign: 'center' }}>Qty</span>
                               </div>
                             ) : h}
                           </div>
