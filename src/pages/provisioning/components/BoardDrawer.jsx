@@ -30,7 +30,7 @@ const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved,
     estimated_cost: '',
     currency: 'USD',
     notes: '',
-    is_private: false,
+    visibility: 'private',
   });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -54,7 +54,7 @@ const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved,
         estimated_cost: list.estimated_cost || '',
         currency: list.currency || 'USD',
         notes: list.notes || '',
-        is_private: !!list.is_private,
+        visibility: list.visibility || (list.is_private ? 'private' : 'shared'),
       });
     }
   }, [list]);
@@ -77,7 +77,8 @@ const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved,
         estimated_cost: form.estimated_cost ? parseFloat(form.estimated_cost) : null,
         currency: form.currency,
         notes: form.notes,
-        is_private: form.is_private,
+        visibility: form.visibility,
+        is_private: form.visibility === 'private',
       });
       onSaved(updated);
     } catch {
@@ -208,20 +209,23 @@ const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved,
         <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3} className={inputCls} placeholder="Internal notes..." />
       </div>
 
-      {/* Private toggle */}
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-white">Private Board</p>
-          <p className="text-xs text-slate-500">Only visible to you and COMMAND</p>
-        </div>
-        <button
-          role="switch"
-          aria-checked={form.is_private}
-          onClick={() => set('is_private', !form.is_private)}
-          className={`w-10 h-6 rounded-full transition-colors flex items-center px-0.5 ${form.is_private ? 'bg-[#4A90E2]' : 'bg-white/20'}`}
+      {/* Visibility */}
+      <div>
+        <label className={labelCls}>Visibility</label>
+        <select
+          value={form.visibility}
+          onChange={e => set('visibility', e.target.value)}
+          className={inputCls}
         >
-          <span className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${form.is_private ? 'translate-x-4' : 'translate-x-0'}`} />
-        </button>
+          <option value="private">Private — only me</option>
+          <option value="department">My department</option>
+          <option value="shared">Shared — collaborators &amp; link holders</option>
+        </select>
+        <p className="text-xs text-slate-500 mt-1">
+          {form.visibility === 'private' && 'Only you (and COMMAND) can see this board.'}
+          {form.visibility === 'department' && 'Everyone in your department can see this board.'}
+          {form.visibility === 'shared' && 'Visible to people you invite or share a link with.'}
+        </p>
       </div>
 
       {/* Save */}

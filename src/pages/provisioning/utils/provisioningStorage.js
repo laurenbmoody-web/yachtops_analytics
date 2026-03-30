@@ -121,26 +121,57 @@ export const fetchVesselDepartments = async (tenantId) => {
 
 // ── Lists ─────────────────────────────────────────────────────────────────────
 
-export const fetchProvisioningLists = async (vesselId) => {
+export const fetchProvisioningLists = async (vesselId, userId = null, userDeptId = null) => {
   try {
-    // Try ordering by sort_order (requires the column to exist — run the migration first)
-    const { data, error } = await supabase
+    // Build visibility filter when userId is provided (app-level backup for environments
+    // where RLS may not be fully configured). With RLS enabled this is redundant but harmless.
+    const buildQuery = async (base) => {
+      if (!userId) return base; // no filter — rely entirely on RLS
+
+      // Collect list IDs the user is a collaborator on
+      let collabListIds = [];
+      try {
+        const { data: collabData } = await supabase
+          ?.from('provisioning_list_collaborators')
+          ?.select('list_id')
+          ?.eq('user_id', userId);
+        collabListIds = (collabData || []).map(c => c.list_id);
+      } catch { /* ignore — not fatal */ }
+
+      // Build OR filter: owner OR (department visibility + same dept) OR collaborator
+      const orParts = [`owner_id.eq.${userId}`, `created_by.eq.${userId}`];
+      if (userDeptId) {
+        orParts.push(`and(visibility.eq.department,department_id.eq.${userDeptId})`);
+      }
+      if (collabListIds.length) {
+        orParts.push(`id.in.(${collabListIds.join(',')})`);
+      }
+      return base?.or(orParts.join(','));
+    };
+
+    // Try ordering by sort_order first
+    let query = supabase
       ?.from('provisioning_lists')
       ?.select('*')
       ?.eq('tenant_id', vesselId)
       ?.order('sort_order', { ascending: true, nullsFirst: false })
       ?.order('created_at', { ascending: true });
 
-    // If sort_order column doesn't exist yet (code: 42703 / PGRST204), fall back gracefully
+    query = await buildQuery(query);
+    const { data, error } = await query;
+
+    // Graceful fallback if sort_order column doesn't exist yet
     if (error) {
       const isMissingColumn = error.code === '42703' || error.code === 'PGRST204' || error.message?.includes('sort_order');
       if (isMissingColumn) {
         console.warn('[provisioningStorage] sort_order column missing — run migration. Falling back to created_at order.');
-        const { data: fallback, error: fbErr } = await supabase
+        let fbQuery = supabase
           ?.from('provisioning_lists')
           ?.select('*')
           ?.eq('tenant_id', vesselId)
           ?.order('created_at', { ascending: false });
+        fbQuery = await buildQuery(fbQuery);
+        const { data: fallback, error: fbErr } = await fbQuery;
         if (fbErr) throw fbErr;
         return fallback || [];
       }
