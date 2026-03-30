@@ -321,7 +321,7 @@ const BoardColumn = ({
       {/* Header */}
       <div
         className="px-2 pt-3 pb-2 flex-shrink-0 border-b border-border"
-        style={headerStyle}
+        style={{ ...headerStyle, minHeight: 80 }}
       >
         <div className="flex items-start gap-1">
           {/* Drag handle */}
