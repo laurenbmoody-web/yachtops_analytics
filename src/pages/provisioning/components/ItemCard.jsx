@@ -69,10 +69,14 @@ const ItemCard = ({ item, onClick, onStatusChange, onQuantityChange }) => {
           {item.name || 'Untitled'}
         </span>
 
-        {/* Qty controls */}
-        <div className="flex items-center flex-shrink-0" style={{ gap: 10 }} onClick={e => e.stopPropagation()}>
+        {/* Qty controls — fixed-width so all rows align vertically */}
+        <div
+          className="flex items-center flex-shrink-0"
+          style={{ width: 86, gap: 0, justifyContent: 'space-between' }}
+          onClick={e => e.stopPropagation()}
+        >
           <button onClick={(e) => handleQty(e, -1)} style={BTN_STYLE}>−</button>
-          <span className="text-foreground text-center" style={{ fontSize: 13, fontWeight: 600, minWidth: 20 }}>
+          <span className="text-foreground text-center" style={{ fontSize: 13, fontWeight: 600, width: 24 }}>
             {item.quantity_ordered ?? 0}
           </span>
           <button onClick={(e) => handleQty(e, 1)} style={BTN_STYLE}>+</button>
@@ -84,7 +88,7 @@ const ItemCard = ({ item, onClick, onStatusChange, onQuantityChange }) => {
           style={{
             fontSize: 10, fontWeight: 600, padding: '2px 8px',
             borderRadius: 20, background: cfg.bg, color: cfg.color,
-            marginLeft: 4,
+            marginLeft: 12,
           }}
         >
           {cfg.label}
