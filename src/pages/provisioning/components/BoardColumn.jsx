@@ -123,7 +123,7 @@ const ColourPicker = ({ current, onSelect, onClose }) => {
 
 // ── Three-dot menu ───────────────────────────────────────────────────────────
 
-const BoardMenu = ({ canEdit, canCommandDelete, onEdit, onSuggestions, onTemplates, onDuplicate, onDeleteClick, onShare }) => {
+const BoardMenu = ({ canEdit, canCommandDelete, onEdit, onDuplicate, onDeleteClick, onShare }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -147,16 +147,6 @@ const BoardMenu = ({ canEdit, canCommandDelete, onEdit, onSuggestions, onTemplat
           {canEdit && (
             <button onClick={() => { setOpen(false); onEdit(); }} className="w-full text-left mx-1 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md flex items-center gap-2">
               <Icon name="Pencil" className="w-3.5 h-3.5" /> Edit board details
-            </button>
-          )}
-          {canEdit && (
-            <button onClick={() => { setOpen(false); onSuggestions(); }} className="w-full text-left mx-1 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md flex items-center gap-2">
-              <Icon name="Lightbulb" className="w-3.5 h-3.5" /> Get suggestions
-            </button>
-          )}
-          {canEdit && (
-            <button onClick={() => { setOpen(false); onTemplates(); }} className="w-full text-left mx-1 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md flex items-center gap-2">
-              <Icon name="FileText" className="w-3.5 h-3.5" /> Templates & history
             </button>
           )}
           <button onClick={() => { setOpen(false); onDuplicate(); }} className="w-full text-left mx-1 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md flex items-center gap-2">
@@ -436,8 +426,6 @@ const BoardColumn = ({
               canEdit={canEdit}
               canCommandDelete={canCommandDelete}
               onEdit={onEditBoard}
-              onSuggestions={onSuggestions}
-              onTemplates={onTemplates}
               onDuplicate={onDuplicate}
               onDeleteClick={() => setConfirmDelete(true)}
               onShare={onShare ? () => onShare(list) : undefined}
