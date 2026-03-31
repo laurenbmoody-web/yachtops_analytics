@@ -1108,17 +1108,23 @@ export const fetchInventoryItemById = async (id, tenantId) => {
 /**
  * Create a delivery batch record in provisioning_deliveries.
  * Tries progressively simpler payloads to handle schemas where optional
- * columns (tenant_id, supplier_name, received_by) may not exist yet.
- * Always returns the created row or null — never throws.
+ * columns (tenant_id, supplier_name, received_by, total_cost, port_location)
+ * may not exist yet. Always returns the created row or null — never throws.
  */
-export const createDeliveryBatch = async ({ listId, tenantId, userId, supplierName }) => {
+export const createDeliveryBatch = async ({ listId, tenantId, userId, supplierName, totalCost, portLocation }) => {
   if (!listId) return null;
   const ts = new Date().toISOString();
+  const base = {
+    list_id: listId,
+    supplier_name: supplierName || 'Manual receive',
+    received_at: ts,
+    received_by: userId || null,
+  };
   // Ordered from most complete to bare minimum
   const attempts = [
-    { list_id: listId, supplier_name: supplierName || 'Manual receive', received_at: ts, received_by: userId || null, ...(tenantId ? { tenant_id: tenantId } : {}) },
-    { list_id: listId, supplier_name: supplierName || 'Manual receive', received_at: ts, received_by: userId || null },
-    { list_id: listId, supplier_name: supplierName || 'Manual receive', received_at: ts },
+    { ...base, ...(tenantId ? { tenant_id: tenantId } : {}), ...(totalCost != null ? { total_cost: totalCost } : {}), ...(portLocation ? { port_location: portLocation } : {}) },
+    { ...base, ...(totalCost != null ? { total_cost: totalCost } : {}), ...(portLocation ? { port_location: portLocation } : {}) },
+    { ...base },
     { list_id: listId, received_at: ts },
   ];
   for (const payload of attempts) {
@@ -1198,9 +1204,9 @@ export const quickReceiveItem = async ({ item, listId, tenantId, userId }) => {
       ?.from('provisioning_deliveries')
       ?.select('id')
       ?.eq('list_id', listId)
-      ?.eq('tenant_id', tenantId)
       ?.eq('supplier_name', 'Manual receive')
-      ?.gte('received_at', today)
+      ?.gte('received_at', `${today}T00:00:00`)
+      ?.lt('received_at', `${today}T23:59:59`)
       ?.order('received_at', { ascending: false })
       ?.limit(1)
       ?.maybeSingle();
@@ -1257,13 +1263,41 @@ export const fetchDeliveryBatches = async (listId) => {
   try {
     const { data, error } = await supabase
       ?.from('provisioning_deliveries')
-      ?.select('id, supplier_name, received_at, received_by, invoice_file_url')
+      ?.select('id, supplier_name, received_at, received_by, invoice_file_url, total_cost, port_location')
       ?.eq('list_id', listId)
       ?.order('received_at', { ascending: false });
     if (error) throw error;
     return data || [];
   } catch {
     return [];
+  }
+};
+
+/**
+ * Recalculate and persist total_cost for a delivery batch from its linked items.
+ * Called after payment status changes (paid items may use actual_unit_cost).
+ */
+export const updateBatchTotal = async (batchId) => {
+  if (!batchId) return;
+  try {
+    const { data: batchItems, error: fetchErr } = await supabase
+      ?.from('provisioning_items')
+      ?.select('estimated_unit_cost, actual_unit_cost, quantity_received, payment_status')
+      ?.eq('receive_batch_id', batchId);
+    if (fetchErr || !batchItems?.length) return;
+    const total = batchItems.reduce((sum, i) => {
+      const isPaid = ['paid', 'paid_upfront'].includes(i.payment_status);
+      const cost = isPaid && i.actual_unit_cost != null
+        ? parseFloat(i.actual_unit_cost)
+        : parseFloat(i.estimated_unit_cost) || 0;
+      return sum + cost * (parseFloat(i.quantity_received) || 0);
+    }, 0);
+    await supabase
+      ?.from('provisioning_deliveries')
+      ?.update({ total_cost: total })
+      ?.eq('id', batchId);
+  } catch (err) {
+    console.warn('[provisioningStorage] updateBatchTotal failed:', err?.message);
   }
 };
 

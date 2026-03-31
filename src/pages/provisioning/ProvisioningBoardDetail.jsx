@@ -19,6 +19,7 @@ import {
   fetchDeliveryBatches,
   repairUnbatchedReceivedItems,
   updateItemPaymentStatus,
+  updateBatchTotal,
   quickReceiveItem,
   PROVISIONING_STATUS,
   PROVISION_CATEGORIES,
@@ -1315,7 +1316,9 @@ const ProvisioningBoardDetail = () => {
                                   onChange={e => {
                                     const val = e.target.value;
                                     setPaymentStatusMap(prev => ({ ...prev, [bi.id]: val }));
-                                    updateItemPaymentStatus(bi.id, val).catch(() => {});
+                                    updateItemPaymentStatus(bi.id, val)
+                                      .then(() => updateBatchTotal(d.id))
+                                      .catch(() => {});
                                   }}
                                   style={{ fontSize: 11, padding: '2px 6px', border: '1px solid #E2E8F0', borderRadius: 6, color: '#64748B', background: 'white', cursor: 'pointer' }}
                                 >
