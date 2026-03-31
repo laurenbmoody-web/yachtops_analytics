@@ -1127,25 +1127,30 @@ export const createDeliveryBatch = async ({ listId, tenantId, userId, supplierNa
     { ...base },
     { list_id: listId, received_at: ts },
   ];
-  for (const payload of attempts) {
+  const errors = [];
+  for (const [i, payload] of attempts.entries()) {
     try {
+      console.log(`[createDeliveryBatch] attempt ${i + 1}:`, JSON.stringify(payload));
       const { data, error } = await supabase
         ?.from('provisioning_deliveries')
         ?.insert(payload)
         ?.select()
         ?.single();
       if (error) {
-        console.warn('[provisioningStorage] createDeliveryBatch attempt failed:', error.message, '— trying simpler payload');
+        console.error(`[createDeliveryBatch] attempt ${i + 1} error:`, error.code, error.message, error.details, error.hint);
+        errors.push(`attempt ${i + 1}: [${error.code}] ${error.message}`);
         continue;
       }
+      console.log(`[createDeliveryBatch] attempt ${i + 1} succeeded, id:`, data?.id);
       return data || null;
     } catch (err) {
-      console.warn('[provisioningStorage] createDeliveryBatch attempt threw:', err?.message, '— trying simpler payload');
+      console.error(`[createDeliveryBatch] attempt ${i + 1} threw:`, err);
+      errors.push(`attempt ${i + 1}: ${err?.message}`);
       continue;
     }
   }
-  console.error('[provisioningStorage] createDeliveryBatch: all attempts failed for list_id:', listId);
-  return null; // Never throw — callers handle null gracefully
+  console.error('[createDeliveryBatch] ALL ATTEMPTS FAILED for list_id:', listId, '\n', errors.join('\n'));
+  return null;
 };
 
 /**
