@@ -885,7 +885,10 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
           portLocation: list?.port_location || null,
         });
         const batchId = batch?.id || null;
-        if (!batchId) console.warn('[ReceiveDeliveryModal] no batch id for supplier:', supplierName);
+        if (!batchId) {
+          console.error('[ReceiveDeliveryModal] batch creation failed for supplier:', supplierName, '— items will be received without a batch link. Check console for Supabase error details.');
+          showToast(`Batch creation failed for "${supplierName}" — check browser console for the exact error (likely RLS policy or missing column)`, 'error');
+        }
 
         await receiveItems(supplierItems.map(u => ({
           id: u.id,
