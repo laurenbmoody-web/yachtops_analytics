@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
 
-const Drawer = ({ open, onClose, title, children, width = 'max-w-[480px]', theme = 'dark' }) => {
+const Drawer = ({ open, onClose, title, children, footer, width = 'max-w-[480px]', theme = 'dark' }) => {
   const isLight = theme === 'light';
 
   useEffect(() => {
@@ -48,6 +48,17 @@ const Drawer = ({ open, onClose, title, children, width = 'max-w-[480px]', theme
           <div className="flex-1 overflow-y-auto px-6 py-5">
             {children}
           </div>
+          {/* Footer (optional) */}
+          {footer && (
+            <div
+              className="flex-shrink-0"
+              style={isLight
+                ? { borderTop: '1px solid #E2E8F0', background: '#ffffff' }
+                : { borderTop: '1px solid var(--border)', background: 'var(--card)' }}
+            >
+              {footer}
+            </div>
+          )}
         </div>
       </div>
     </>
