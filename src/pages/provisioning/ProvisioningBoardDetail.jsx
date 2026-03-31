@@ -123,6 +123,31 @@ const EditBoardModal = ({ list, onSaved, onClose }) => {
   );
 };
 
+// ── AlwaysEditCell — always-visible inline input for the board detail table ───
+const AlwaysEditCell = ({ value, placeholder, onSave, type = 'text', inputStyle = {} }) => {
+  const ref = React.useRef(null);
+  const [local, setLocal] = React.useState(value ?? '');
+  React.useEffect(() => {
+    if (document.activeElement !== ref.current) setLocal(value ?? '');
+  }, [value]);
+  const commit = () => { if (String(local) !== String(value ?? '')) onSave(local); };
+  return (
+    <input
+      ref={ref}
+      type={type}
+      value={local}
+      placeholder={placeholder}
+      onChange={e => setLocal(e.target.value)}
+      onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') { setLocal(value ?? ''); ref.current?.blur(); } }}
+      onFocus={e => { e.target.style.borderColor = '#3B82F6'; e.target.style.boxShadow = '0 0 0 2px rgba(59,130,246,0.15)'; }}
+      onBlur={e => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; commit(); }}
+      onMouseEnter={e => { if (document.activeElement !== e.target) e.target.style.borderColor = '#D1D5DB'; }}
+      onMouseLeave={e => { if (document.activeElement !== e.target) e.target.style.borderColor = '#E5E7EB'; }}
+      style={{ border: '1px solid #E5E7EB', borderRadius: 4, padding: '2px 6px', outline: 'none', background: '#ffffff', width: '100%', ...inputStyle }}
+    />
+  );
+};
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 const ProvisioningBoardDetail = () => {
@@ -957,23 +982,12 @@ const ProvisioningBoardDetail = () => {
                                   </span>
                                 )}
                               </div>
-                              {editingCell?.itemId === item.id && editingCell?.field === 'brand' ? (
-                                <input
-                                  autoFocus
-                                  defaultValue={item.brand ?? ''}
-                                  onBlur={e => { handleCellSave(item, 'brand', e.target.value); setEditingCell(null); }}
-                                  onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingCell(null); }}
-                                  placeholder="Brand…"
-                                  style={{ fontSize: 11, color: '#0F172A', background: '#F0F7FF', border: '1px solid #93C5FD', borderRadius: 5, padding: '2px 6px', width: '100%', outline: 'none' }}
-                                />
-                              ) : (
-                                <span
-                                  onDoubleClick={() => setEditingCell({ itemId: item.id, field: 'brand' })}
-                                  style={{ fontSize: 11, color: item.brand ? '#94A3B8' : '#E2E8F0', fontStyle: 'italic', paddingLeft: allergen ? 18 : 0, cursor: 'default' }}
-                                >
-                                  {item.brand || '—'}
-                                </span>
-                              )}
+                              <AlwaysEditCell
+                                value={item.brand ?? ''}
+                                placeholder="Brand…"
+                                onSave={v => handleCellSave(item, 'brand', v)}
+                                inputStyle={{ fontSize: 11, color: '#0F172A', paddingLeft: allergen ? 18 : undefined }}
+                              />
                             </div>
                             {/* Category */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
@@ -994,23 +1008,12 @@ const ProvisioningBoardDetail = () => {
                             </div>
                             {/* Size */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
-                              {editingCell?.itemId === item.id && editingCell?.field === 'size' ? (
-                                <input
-                                  autoFocus
-                                  defaultValue={item.size ?? ''}
-                                  onBlur={e => { handleCellSave(item, 'size', e.target.value); setEditingCell(null); }}
-                                  onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingCell(null); }}
-                                  placeholder="e.g. 750ml"
-                                  style={{ fontSize: 12, color: '#0F172A', background: '#F0F7FF', border: '1px solid #93C5FD', borderRadius: 5, padding: '2px 6px', width: '100%', outline: 'none' }}
-                                />
-                              ) : (
-                                <span
-                                  onDoubleClick={() => setEditingCell({ itemId: item.id, field: 'size' })}
-                                  style={{ fontSize: 12, color: item.size ? '#64748B' : '#E2E8F0', cursor: 'default' }}
-                                >
-                                  {item.size || '—'}
-                                </span>
-                              )}
+                              <AlwaysEditCell
+                                value={item.size ?? ''}
+                                placeholder="e.g. 750ml"
+                                onSave={v => handleCellSave(item, 'size', v)}
+                                inputStyle={{ fontSize: 12, color: '#0F172A' }}
+                              />
                             </div>
                             {/* Unit */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
@@ -1051,33 +1054,15 @@ const ProvisioningBoardDetail = () => {
                               >+</button>
                             </div>
                             {/* Unit Cost */}
-                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
-                              {editingCell?.itemId === item.id && editingCell?.field === 'estimated_unit_cost' ? (
-                                <input
-                                  autoFocus
-                                  type="number"
-                                  defaultValue={item.estimated_unit_cost ?? ''}
-                                  onBlur={e => { handleCellSave(item, 'estimated_unit_cost', e.target.value); setEditingCell(null); }}
-                                  onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingCell(null); }}
-                                  style={{ fontSize: 13, color: '#0F172A', background: '#F0F7FF', border: '1px solid #93C5FD', borderRadius: 5, padding: '2px 6px', width: 64, outline: 'none' }}
-                                />
-                              ) : (
-                                <span
-                                  onDoubleClick={() => setEditingCell({ itemId: item.id, field: 'estimated_unit_cost' })}
-                                  style={{ fontSize: 13, color: '#0F172A', cursor: 'default' }}
-                                >
-                                  {item.estimated_unit_cost != null ? (
-                                    <span style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                                      <span>{dispSymbol}{convertCost(item.estimated_unit_cost).toFixed(2)}</span>
-                                      {showOriginal && (
-                                        <span style={{ fontSize: 10, color: '#CBD5E1', fontStyle: 'italic' }}>
-                                          {origSymbol}{parseFloat(item.estimated_unit_cost).toFixed(2)}
-                                        </span>
-                                      )}
-                                    </span>
-                                  ) : <span style={{ color: '#CBD5E1' }}>-</span>}
-                                </span>
-                              )}
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px', gap: 3 }}>
+                              <span style={{ fontSize: 11, color: '#94A3B8', flexShrink: 0 }}>{origSymbol}</span>
+                              <AlwaysEditCell
+                                value={item.estimated_unit_cost ?? ''}
+                                placeholder="0.00"
+                                type="number"
+                                onSave={v => handleCellSave(item, 'estimated_unit_cost', v)}
+                                inputStyle={{ fontSize: 13, color: '#0F172A', textAlign: 'right' }}
+                              />
                             </div>
                             {/* Total */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
