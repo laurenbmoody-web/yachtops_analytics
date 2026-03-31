@@ -190,6 +190,11 @@ const ProvisioningWorkspace = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [deptFilter, setDeptFilter] = useState('all');
 
+  // Currency display for summary
+  const [summaryDisplayCurrency, setSummaryDisplayCurrency] = useState('GBP');
+  const [summaryFxRates, setSummaryFxRates] = useState({ GBP: 1, USD: 1.27, EUR: 1.17 });
+  const [summaryFxLabel, setSummaryFxLabel] = useState('');
+
   // UI state
   const [showNewBoard, setShowNewBoard] = useState(false);
   const [boardDrawer, setBoardDrawer] = useState({ open: false, listId: null, mode: 'edit' });
@@ -271,6 +276,20 @@ const ProvisioningWorkspace = () => {
     if (!userId) return;
     fetchSharedWithMe(userId).then(setSharedWithMe);
   }, [userId]);
+
+  // Fetch live FX rates once on mount
+  useEffect(() => {
+    fetch('https://api.frankfurter.dev/v2/rates?base=GBP&quotes=USD,EUR')
+      .then(r => r.json())
+      .then(d => {
+        if (d?.rates) {
+          setSummaryFxRates({ GBP: 1, USD: d.rates.USD || 1.27, EUR: d.rates.EUR || 1.17 });
+          const ts = d.date ? new Date(d.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
+          setSummaryFxLabel(ts ? `Rates as of ${ts}` : '');
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const loadAll = async (deptId = userDeptId) => {
     setLoading(true);
@@ -525,6 +544,43 @@ const ProvisioningWorkspace = () => {
   const visibleLists = useMemo(() => lists.filter(l => canViewList(l)), [lists, canViewList]);
   const hasActiveFilters = statusFilter !== 'all' || deptFilter !== 'all' || searchQuery;
 
+  // ── Cross-board summary totals ───────────────────────────────────────────
+  const crossBoardTotals = useMemo(() => {
+    const disp = summaryDisplayCurrency;
+    const rates = summaryFxRates;
+    const CURR_SYMBOLS = { GBP: '£', USD: '$', EUR: '€' };
+    const sym = CURR_SYMBOLS[disp] || '£';
+
+    let totalItems = 0, receivedItems = 0, pendingItems = 0;
+    let totalCost = 0, paidCost = 0, leftToPayCost = 0;
+    let boardCount = 0;
+
+    visibleLists.forEach(list => {
+      const items = itemsByList[list.id] || [];
+      if (items.length === 0) return;
+      boardCount++;
+      const listCurr = list.currency || 'GBP';
+
+      items.forEach(item => {
+        const cost = parseFloat(item.estimated_unit_cost) || 0;
+        const qty = parseFloat(item.quantity_ordered) || 0;
+        const iCurr = item.currency || listCurr;
+        const converted = qty * ((cost / (rates[iCurr] || 1)) * (rates[disp] || 1));
+
+        totalItems++;
+        if (['received', 'partial'].includes(item.status)) receivedItems++;
+        else pendingItems++;
+        totalCost += converted;
+
+        const ps = item.payment_status ?? 'awaiting_invoice';
+        if (['paid', 'paid_upfront'].includes(ps)) paidCost += converted;
+        else leftToPayCost += converted;
+      });
+    });
+
+    return { totalItems, receivedItems, pendingItems, totalCost, paidCost, leftToPayCost, boardCount, sym, disp };
+  }, [visibleLists, itemsByList, summaryDisplayCurrency, summaryFxRates]);
+
   // ── Drawer helpers ───────────────────────────────────────────────────────
 
   const openBoardDrawer = (listId, mode) => {
@@ -627,6 +683,63 @@ const ProvisioningWorkspace = () => {
           <div className="mx-6 mt-4 bg-red-500/10 border border-red-500/20 rounded-xl p-4">
             <p className="text-sm text-red-400">{error}</p>
             <button onClick={loadAll} className="text-xs text-red-400 underline mt-1">Retry</button>
+          </div>
+        )}
+
+        {/* ── Cross-board summary strip ──────────────────────────────────── */}
+        {!loading && crossBoardTotals.totalItems > 0 && (
+          <div style={{ padding: '12px 24px 0' }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: 12,
+              background: 'white',
+              border: '1px solid #F1F5F9',
+              borderRadius: 12,
+              padding: '14px 20px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            }}>
+              {/* Boards */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#CBD5E1' }}>Boards</span>
+                <span style={{ fontSize: 20, fontWeight: 700, color: '#0F172A', lineHeight: 1 }}>{crossBoardTotals.boardCount}</span>
+                <span style={{ fontSize: 11, color: '#94A3B8' }}>{crossBoardTotals.pendingItems} items pending</span>
+              </div>
+              {/* Received */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#CBD5E1' }}>Received</span>
+                <span style={{ fontSize: 20, fontWeight: 700, color: '#0F172A', lineHeight: 1 }}>{crossBoardTotals.receivedItems} <span style={{ fontSize: 13, fontWeight: 400, color: '#94A3B8' }}>of {crossBoardTotals.totalItems}</span></span>
+                <div style={{ height: 3, background: '#F1F5F9', borderRadius: 99, marginTop: 2, overflow: 'hidden', width: '80%' }}>
+                  <div style={{ height: '100%', width: `${crossBoardTotals.totalItems > 0 ? Math.round((crossBoardTotals.receivedItems / crossBoardTotals.totalItems) * 100) : 0}%`, background: 'linear-gradient(90deg, #1D9E75, #5DCAA5)', borderRadius: 99 }} />
+                </div>
+              </div>
+              {/* Total cost */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#CBD5E1' }}>Total cost</span>
+                <span style={{ fontSize: 20, fontWeight: 700, color: '#0F172A', lineHeight: 1 }}>{crossBoardTotals.sym}{Math.round(crossBoardTotals.totalCost).toLocaleString()}</span>
+                <span style={{ fontSize: 11, color: '#94A3B8' }}>{crossBoardTotals.totalItems} items across all boards</span>
+              </div>
+              {/* Payments */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#CBD5E1' }}>Payments</span>
+                  {/* Currency toggle */}
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {[{c:'GBP',s:'£'},{c:'USD',s:'$'},{c:'EUR',s:'€'}].map(p => (
+                      <button key={p.c} onClick={() => setSummaryDisplayCurrency(p.c)}
+                        style={{ fontSize: 10, fontWeight: summaryDisplayCurrency === p.c ? 700 : 400, color: summaryDisplayCurrency === p.c ? '#1E3A5F' : '#CBD5E1', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                        {p.s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <span style={{ fontSize: 20, fontWeight: 700, color: '#B45309', lineHeight: 1 }}>{crossBoardTotals.sym}{Math.round(crossBoardTotals.leftToPayCost).toLocaleString()} <span style={{ fontSize: 11, fontWeight: 400, color: '#94A3B8' }}>outstanding</span></span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: '#15803D' }}>{crossBoardTotals.sym}{Math.round(crossBoardTotals.paidCost).toLocaleString()} paid</span>
+              </div>
+            </div>
+            {summaryFxLabel && (
+              <p style={{ fontSize: 10, color: '#CBD5E1', textAlign: 'right', marginTop: 4 }}>{summaryFxLabel}</p>
+            )}
           </div>
         )}
 
