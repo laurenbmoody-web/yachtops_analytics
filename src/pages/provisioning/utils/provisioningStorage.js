@@ -1107,42 +1107,39 @@ export const fetchInventoryItemById = async (id, tenantId) => {
  */
 /**
  * Create a delivery batch record in provisioning_deliveries.
- * Returns the created batch row, or null on failure.
+ * Tries progressively simpler payloads to handle schemas where optional
+ * columns (tenant_id, supplier_name, received_by) may not exist yet.
+ * Always returns the created row or null — never throws.
  */
 export const createDeliveryBatch = async ({ listId, tenantId, userId, supplierName }) => {
   if (!listId) return null;
-  const payload = {
-    list_id: listId,
-    supplier_name: supplierName || 'Manual receive',
-    received_at: new Date().toISOString(),
-    received_by: userId || null,
-  };
-  // Try with tenant_id first (new schema); fall back without it if the column doesn't exist
-  for (const withTenant of [true, false]) {
+  const ts = new Date().toISOString();
+  // Ordered from most complete to bare minimum
+  const attempts = [
+    { list_id: listId, supplier_name: supplierName || 'Manual receive', received_at: ts, received_by: userId || null, ...(tenantId ? { tenant_id: tenantId } : {}) },
+    { list_id: listId, supplier_name: supplierName || 'Manual receive', received_at: ts, received_by: userId || null },
+    { list_id: listId, supplier_name: supplierName || 'Manual receive', received_at: ts },
+    { list_id: listId, received_at: ts },
+  ];
+  for (const payload of attempts) {
     try {
-      const row = withTenant && tenantId ? { ...payload, tenant_id: tenantId } : payload;
       const { data, error } = await supabase
         ?.from('provisioning_deliveries')
-        ?.insert(row)
+        ?.insert(payload)
         ?.select()
         ?.single();
       if (error) {
-        const msg = error?.message || '';
-        // If the error is specifically about tenant_id column, retry without it
-        if (withTenant && (msg.includes('tenant_id') || msg.includes('column'))) continue;
-        throw error;
+        console.warn('[provisioningStorage] createDeliveryBatch attempt failed:', error.message, '— trying simpler payload');
+        continue;
       }
       return data || null;
     } catch (err) {
-      if (withTenant) {
-        const msg = (err?.message || '');
-        if (msg.includes('tenant_id') || msg.includes('column')) continue;
-      }
-      console.error('[provisioningStorage] createDeliveryBatch error:', err);
-      throw err; // propagate so callers know creation failed
+      console.warn('[provisioningStorage] createDeliveryBatch attempt threw:', err?.message, '— trying simpler payload');
+      continue;
     }
   }
-  return null;
+  console.error('[provisioningStorage] createDeliveryBatch: all attempts failed for list_id:', listId);
+  return null; // Never throw — callers handle null gracefully
 };
 
 /**

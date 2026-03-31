@@ -853,20 +853,27 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
         return { id: item.id, quantity_received: qty, status: deriveStatus(qty, ordered) };
       });
 
-      // Create a batch record first, then stamp every received item with its id
+      // Attempt batch creation independently — if it fails, items still get received
+      // and repairUnbatchedReceivedItems will retroactively link them on next Received tab load
       const receivedUpdates = updates.filter(u => u.quantity_received > 0);
       let batchId = null;
       if (receivedUpdates.length > 0) {
-        const batch = await createDeliveryBatch({
-          listId: list?.id,
-          tenantId,
-          userId,
-          supplierName: list?.supplier_name || 'Manual receive',
-        });
-        batchId = batch?.id || null;
+        try {
+          const batch = await createDeliveryBatch({
+            listId: list?.id,
+            tenantId,
+            userId,
+            supplierName: list?.supplier_name || 'Manual receive',
+          });
+          batchId = batch?.id || null;
+          if (!batchId) console.warn('[ReceiveDeliveryModal] batch creation returned no id');
+        } catch (batchErr) {
+          // createDeliveryBatch never throws now, but guard just in case
+          console.error('[ReceiveDeliveryModal] batch creation threw unexpectedly:', batchErr);
+        }
       }
 
-      // Persist each item — include receive_batch_id for those with qty > 0
+      // Always persist item status/qty — batch link is best-effort
       await receiveItems(updates.map(u => ({
         ...u,
         ...(u.quantity_received > 0 && batchId ? { receive_batch_id: batchId } : {}),
