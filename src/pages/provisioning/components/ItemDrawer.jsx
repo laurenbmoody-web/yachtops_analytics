@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import Drawer from './Drawer';
@@ -392,7 +392,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
     };
   };
 
-  const saveField = useCallback(async (overrides = {}) => {
+  const saveField = async (overrides = {}) => {
     if (form.status === 'received') return; // received items are read-only
     if (!form.name?.trim() && !overrides.name?.trim()) return;
     try {
@@ -400,7 +400,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
       onSaved(listId, saved);
       showSaved();
     } catch { /* silent */ }
-  }, [form, item, listId]);
+  };
 
   const set = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
 
