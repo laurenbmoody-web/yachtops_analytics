@@ -89,14 +89,15 @@ export const fetchAllInventoryLocations = async (tenantId) => {
       ?.from('inventory_locations')
       ?.select('location, sub_location')
       ?.eq('tenant_id', tenantId)
-      ?.not('sub_location', 'is', null)
       ?.neq('is_archived', true)
       ?.order('sort_order', { ascending: true });
     if (error) throw error;
-    // Full path = top-level `location` + ' > ' + `sub_location`
-    const paths = (data || []).map(r => `${r.location} > ${r.sub_location}`).filter(Boolean);
-    // Also include the top-level locations themselves
+    // Collect all distinct top-level location names (including rows with no sub_location)
     const topLevel = [...new Set((data || []).map(r => r.location).filter(Boolean))];
+    // Sub-location paths: "Location > Sub Location"
+    const paths = (data || [])
+      .filter(r => r.sub_location)
+      .map(r => `${r.location} > ${r.sub_location}`);
     return [...new Set([...topLevel, ...paths])];
   } catch {
     return [];
@@ -1160,6 +1161,27 @@ export const quickReceiveItem = async ({ item, listId, tenantId, userId }) => {
   } catch (err) {
     console.error('[provisioningStorage] quickReceiveItem error:', err);
     return null;
+  }
+};
+
+/**
+ * Fetch distinct supplier names used in provisioning items for a tenant.
+ * Used to populate the supplier combobox suggestions.
+ */
+export const fetchDistinctSuppliers = async (tenantId) => {
+  if (!tenantId) return [];
+  try {
+    const { data, error } = await supabase
+      ?.from('provisioning_items')
+      ?.select('supplier_name')
+      ?.eq('tenant_id', tenantId)
+      ?.not('supplier_name', 'is', null)
+      ?.neq('supplier_name', '');
+    if (error) throw error;
+    const names = [...new Set((data || []).map(r => r.supplier_name).filter(Boolean))].sort();
+    return names;
+  } catch {
+    return [];
   }
 };
 

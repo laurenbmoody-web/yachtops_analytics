@@ -7,6 +7,7 @@ import {
   upsertItems,
   deleteProvisioningItem,
   fetchAllInventoryLocations,
+  fetchDistinctSuppliers,
   searchInventoryItems,
   updateItemPaymentStatus,
   PROVISION_CATEGORIES,
@@ -202,6 +203,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
 
   const [form, setForm] = useState({});
   const [allCategoryPaths, setAllCategoryPaths] = useState([]);
+  const [knownSuppliers, setKnownSuppliers] = useState([]);
   const [savedFlash, setSavedFlash] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [accountingOpen, setAccountingOpen] = useState(false);
@@ -263,6 +265,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
         setAllCategoryPaths(fallback);
       }
     });
+    fetchDistinctSuppliers(tenantId).then(names => setKnownSuppliers(names || []));
   }, [tenantId]);
 
   // Reset search state when item changes
@@ -721,30 +724,34 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
 
           {/* ════ SECTION 3: LOCATION ════ */}
           <Section label="Location">
-            {/* Progressive category picker — L1 = department, L2+ = sub-categories */}
-            <div>
-              {isLight ? <FL>Category</FL> : <label className={labelCls}>Category</label>}
-              <CategoryPicker
-                paths={allCategoryPaths}
-                value={[form.department, form.sub_category].filter(Boolean).join(' > ')}
-                onChange={fullPath => {
-                  const segs = fullPath ? fullPath.split(' > ') : [];
-                  const dept = segs[0] || '';
-                  const cat = segs[1] || '';
-                  const subCat = segs.slice(1).join(' > ');
-                  const updates = { department: dept, category: cat, sub_category: subCat };
-                  setForm(prev => ({ ...prev, ...updates }));
-                  saveField(updates);
-                }}
-                disabled={isReadOnly}
-              />
-            </div>
+            {/* Category picker — only shown when item is linked to an inventory item.
+                Stock location is assigned during the receive / push-to-inventory step. */}
+            {form.inventory_item_id && (
+              <div>
+                {isLight ? <FL>Category</FL> : <label className={labelCls}>Category</label>}
+                <CategoryPicker
+                  paths={allCategoryPaths}
+                  value={[form.department, form.sub_category].filter(Boolean).join(' > ')}
+                  onChange={fullPath => {
+                    const segs = fullPath ? fullPath.split(' > ') : [];
+                    const dept = segs[0] || '';
+                    const cat = segs[1] || '';
+                    const subCat = segs.slice(1).join(' > ');
+                    const updates = { department: dept, category: cat, sub_category: subCat };
+                    setForm(prev => ({ ...prev, ...updates }));
+                    saveField(updates);
+                  }}
+                  disabled={isReadOnly}
+                />
+              </div>
+            )}
 
             {/* Supplier */}
             <div style={{ marginTop: 8 }}>
               <Field isLight={isLight} labelCls={labelCls} label="Supplier">
                 <input
                   type="text"
+                  list="supplier-suggestions"
                   value={form.supplier_name || ''}
                   onChange={e => set('supplier_name', e.target.value)}
                   onBlur={() => saveField()}
@@ -752,6 +759,11 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                   placeholder="e.g. Metro Cash & Carry"
                   disabled={isReadOnly}
                 />
+                {knownSuppliers.length > 0 && (
+                  <datalist id="supplier-suggestions">
+                    {knownSuppliers.map(s => <option key={s} value={s} />)}
+                  </datalist>
+                )}
               </Field>
             </div>
 
