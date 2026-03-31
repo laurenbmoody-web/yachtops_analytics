@@ -74,12 +74,12 @@ export const EditCell = ({ item, field, value, type = 'text', align = 'left', pl
             if (e.key === 'Enter') e.currentTarget.blur();
             if (e.key === 'Escape') { setLocal(value ?? ''); if (!alwaysEdit) setEditingCell(null); }
           }}
-          onBlur={e => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; commit(); }}
           onFocus={e => { e.target.style.borderColor = '#3B82F6'; e.target.style.boxShadow = '0 0 0 2px rgba(59,130,246,0.15)'; }}
-          onMouseEnter={e => { if (document.activeElement !== e.target) e.target.style.borderColor = '#D1D5DB'; }}
-          onMouseLeave={e => { if (document.activeElement !== e.target) e.target.style.borderColor = '#E5E7EB'; }}
+          onBlur={e => { e.target.style.borderColor = 'transparent'; e.target.style.boxShadow = 'none'; commit(); }}
+          onMouseEnter={e => { if (document.activeElement !== e.target) e.target.style.borderColor = '#E5E7EB'; }}
+          onMouseLeave={e => { if (document.activeElement !== e.target) e.target.style.borderColor = 'transparent'; }}
           className={`w-full text-[13px] text-foreground outline-none ${align === 'right' ? 'text-right tabular-nums' : ''}`}
-          style={{ border: '1px solid #E5E7EB', borderRadius: 4, padding: '3px 6px', background: '#ffffff' }}
+          style={{ border: '1px solid transparent', borderRadius: 4, padding: '3px 6px', background: 'transparent' }}
         />
       </div>
     );
@@ -244,11 +244,11 @@ export const CostCell = ({ item, listCurrency, editingCell, setEditingCell, onSa
           if (e.key === 'Escape') { setLocal(item.estimated_unit_cost ?? ''); inputRef.current?.blur(); }
         }}
         onFocus={e => { e.target.style.borderColor = '#3B82F6'; e.target.style.boxShadow = '0 0 0 2px rgba(59,130,246,0.15)'; }}
-        onBlur={e => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; commit(); }}
-        onMouseEnter={e => { if (document.activeElement !== e.target) e.target.style.borderColor = '#D1D5DB'; }}
-        onMouseLeave={e => { if (document.activeElement !== e.target) e.target.style.borderColor = '#E5E7EB'; }}
+        onBlur={e => { e.target.style.borderColor = 'transparent'; e.target.style.boxShadow = 'none'; commit(); }}
+        onMouseEnter={e => { if (document.activeElement !== e.target) e.target.style.borderColor = '#E5E7EB'; }}
+        onMouseLeave={e => { if (document.activeElement !== e.target) e.target.style.borderColor = 'transparent'; }}
         className="w-full text-[13px] text-foreground text-right outline-none tabular-nums"
-        style={{ border: '1px solid #E5E7EB', borderRadius: 4, padding: '3px 6px', background: '#ffffff' }}
+        style={{ border: '1px solid transparent', borderRadius: 4, padding: '3px 6px', background: 'transparent' }}
       />
     </div>
   );
@@ -335,11 +335,11 @@ const CompoundMeasureCell = ({ item, editingCell, setEditingCell, onSave, onStep
           if (e.key === 'Escape') { setLocalSize(item.size ?? ''); sizeRef.current?.blur(); }
         }}
         onFocus={e => { e.target.style.borderColor = '#3B82F6'; e.target.style.boxShadow = '0 0 0 2px rgba(59,130,246,0.15)'; }}
-        onBlur={e => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; commitSize(); }}
-        onMouseEnter={e => { if (document.activeElement !== e.target) e.target.style.borderColor = '#D1D5DB'; }}
-        onMouseLeave={e => { if (document.activeElement !== e.target) e.target.style.borderColor = '#E5E7EB'; }}
+        onBlur={e => { e.target.style.borderColor = 'transparent'; e.target.style.boxShadow = 'none'; commitSize(); }}
+        onMouseEnter={e => { if (document.activeElement !== e.target) e.target.style.borderColor = '#E5E7EB'; }}
+        onMouseLeave={e => { if (document.activeElement !== e.target) e.target.style.borderColor = 'transparent'; }}
         className="text-[12px] text-foreground outline-none text-center"
-        style={{ width: 44, border: '1px solid #E5E7EB', borderRadius: 4, padding: '3px 4px', background: '#ffffff' }}
+        style={{ width: 44, border: '1px solid transparent', borderRadius: 4, padding: '3px 4px', background: 'transparent' }}
       />
 
       <span className="text-muted-foreground/30 text-[11px] flex-shrink-0 select-none">|</span>
