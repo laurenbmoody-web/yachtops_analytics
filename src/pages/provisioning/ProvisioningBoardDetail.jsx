@@ -1359,7 +1359,7 @@ const ProvisioningBoardDetail = () => {
                           const invStatus = bi.cargo_item_id
                             ? `→ Pushed to inventory (${bi.cargo_item_id})`
                             : bi.inventory_item_id ? `→ Linked to inventory`
-                            : '→ Skipped (not pushed to inventory)';
+                            : '→ Skipped';
                           const liveItem = items.find(i => i.id === bi.id);
                           const effectivePS = paymentStatusMap[bi.id] ?? liveItem?.payment_status ?? 'awaiting_invoice';
                           const isPaid = ['paid', 'paid_upfront'].includes(effectivePS);
@@ -1368,25 +1368,23 @@ const ProvisioningBoardDetail = () => {
                             : parseFloat(bi.estimated_unit_cost);
                           const costStr = !isNaN(costVal) && costVal > 0
                             ? `${currSym}${(costVal * (parseFloat(bi.quantity_received) || 1)).toFixed(0)}`
-                            : '';
+                            : '—';
                           const qtyStr = isPartial
-                            ? `Qty: ${bi.quantity_received}/${bi.quantity_ordered}`
-                            : `Qty: ${bi.quantity_received ?? '?'}`;
+                            ? `${bi.quantity_received}/${bi.quantity_ordered}`
+                            : `${bi.quantity_received ?? '?'}`;
                           const itemTitle = [bi.name, bi.brand, bi.size].filter(Boolean).join(' · ');
-                          const segments = [itemTitle, catPath ? `${catPath} ${invStatus}` : invStatus, [costStr, qtyStr].filter(Boolean).join(' · ')].filter(Boolean);
                           return (
                             <div key={idx} style={{ padding: '10px 20px', borderTop: idx > 0 ? '1px solid #F8FAFC' : 'none' }}>
-                              {/* Line 1: name · brand · size │ category → invStatus │ $cost · Qty */}
+                              {/* Line 1: 5-column grid spanning full width */}
                               <div
                                 onClick={() => liveItem && setItemDrawer({ open: true, item: liveItem })}
-                                style={{ fontSize: 13, color: '#374151', cursor: liveItem ? 'pointer' : 'default', lineHeight: 1.4 }}
+                                style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 2fr 1fr 1fr', gap: '0 16px', alignItems: 'center', width: '100%', cursor: liveItem ? 'pointer' : 'default' }}
                               >
-                                {segments.map((seg, si) => (
-                                  <React.Fragment key={si}>
-                                    {si > 0 && <span style={{ color: '#CBD5E1', margin: '0 8px' }}>│</span>}
-                                    <span style={{ color: si === 0 ? '#374151' : si === 1 ? '#94A3B8' : isPartial ? '#B45309' : '#64748B', fontSize: si === 1 ? 11 : 13 }}>{seg}</span>
-                                  </React.Fragment>
-                                ))}
+                                <span style={{ fontSize: 13, color: '#374151', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{itemTitle}</span>
+                                <span style={{ fontSize: 12, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{catPath || '—'}</span>
+                                <span style={{ fontSize: 12, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{invStatus}</span>
+                                <span style={{ fontSize: 13, color: isPartial ? '#B45309' : '#64748B', textAlign: 'right', whiteSpace: 'nowrap' }}>{costStr}</span>
+                                <span style={{ fontSize: 13, color: isPartial ? '#B45309' : '#64748B', textAlign: 'right', whiteSpace: 'nowrap' }}>Qty: {qtyStr}</span>
                               </div>
                               {/* Line 2: payment status */}
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5 }}>
@@ -1429,31 +1427,29 @@ const ProvisioningBoardDetail = () => {
                           : parseFloat(item.estimated_unit_cost);
                         const costStr = !isNaN(costVal) && costVal > 0
                           ? `${dispSymbol}${(costVal * (parseFloat(item.quantity_received) || 1)).toFixed(0)}`
-                          : '';
+                          : '—';
                         const isPartial = item.quantity_ordered != null && item.quantity_received < item.quantity_ordered;
                         const qtyStr = isPartial
-                          ? `Qty: ${item.quantity_received}/${item.quantity_ordered}`
-                          : `Qty: ${parseFloat(item.quantity_received) || 0}`;
+                          ? `${item.quantity_received}/${item.quantity_ordered}`
+                          : `${parseFloat(item.quantity_received) || 0}`;
                         const invStatus = item.cargo_item_id
                           ? `→ Pushed to inventory (${item.cargo_item_id})`
                           : item.inventory_item_id ? `→ Linked to inventory`
-                          : '→ Skipped (not pushed to inventory)';
+                          : '→ Skipped';
                         const catPath = [item.department, item.sub_category || item.category].filter(Boolean).join(' > ');
                         const itemTitle = [item.name, item.brand, item.size].filter(Boolean).join(' · ');
-                        const segments = [itemTitle, catPath ? `${catPath} ${invStatus}` : invStatus, [costStr, qtyStr].filter(Boolean).join(' · ')].filter(Boolean);
                         return (
                           <div key={item.id} style={{ padding: '10px 20px', borderTop: idx > 0 ? '1px solid #F8FAFC' : 'none' }}>
-                            {/* Line 1: name · brand · size │ category → invStatus │ $cost · Qty */}
+                            {/* Line 1: 5-column grid spanning full width */}
                             <div
                               onClick={() => setItemDrawer({ open: true, item })}
-                              style={{ fontSize: 13, color: '#374151', cursor: 'pointer', lineHeight: 1.4 }}
+                              style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 2fr 1fr 1fr', gap: '0 16px', alignItems: 'center', width: '100%', cursor: 'pointer' }}
                             >
-                              {segments.map((seg, si) => (
-                                <React.Fragment key={si}>
-                                  {si > 0 && <span style={{ color: '#CBD5E1', margin: '0 8px' }}>│</span>}
-                                  <span style={{ color: si === 0 ? '#374151' : si === 1 ? '#94A3B8' : isPartial ? '#B45309' : '#64748B', fontSize: si === 1 ? 11 : 13 }}>{seg}</span>
-                                </React.Fragment>
-                              ))}
+                              <span style={{ fontSize: 13, color: '#374151', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{itemTitle}</span>
+                              <span style={{ fontSize: 12, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{catPath || '—'}</span>
+                              <span style={{ fontSize: 12, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{invStatus}</span>
+                              <span style={{ fontSize: 13, color: isPartial ? '#B45309' : '#64748B', textAlign: 'right', whiteSpace: 'nowrap' }}>{costStr}</span>
+                              <span style={{ fontSize: 13, color: isPartial ? '#B45309' : '#64748B', textAlign: 'right', whiteSpace: 'nowrap' }}>Qty: {qtyStr}</span>
                             </div>
                             {/* Line 2: payment status */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5 }}>
