@@ -1069,7 +1069,7 @@ export const searchInventoryItems = async (query, tenantId) => {
   try {
     const { data, error } = await supabase
       ?.from('inventory_items')
-      ?.select('id, name, brand, size, unit, cargo_item_id, barcode, unit_cost, total_qty, stock_locations, location, sub_location')
+      ?.select('id, name, brand, size, unit, cargo_item_id, barcode, unit_cost, total_qty, stock_locations, location, sub_location, l1_name, l2_name, l3_name, l4_name')
       ?.eq('tenant_id', tenantId)
       ?.or(`name.ilike.%${q}%,brand.ilike.%${q}%,cargo_item_id.ilike.%${q}%,barcode.ilike.%${q}%`)
       ?.limit(8);
@@ -1077,6 +1077,25 @@ export const searchInventoryItems = async (query, tenantId) => {
     return data || [];
   } catch {
     return [];
+  }
+};
+
+/**
+ * Fetch a single inventory item by id (for reading category/taxonomy fields).
+ */
+export const fetchInventoryItemById = async (id, tenantId) => {
+  if (!id || !tenantId) return null;
+  try {
+    const { data, error } = await supabase
+      ?.from('inventory_items')
+      ?.select('id, name, l1_name, l2_name, l3_name, l4_name, location, sub_location, total_qty, stock_locations')
+      ?.eq('id', id)
+      ?.eq('tenant_id', tenantId)
+      ?.maybeSingle();
+    if (error) return null;
+    return data || null;
+  } catch {
+    return null;
   }
 };
 

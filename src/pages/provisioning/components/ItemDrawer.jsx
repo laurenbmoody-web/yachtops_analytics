@@ -9,6 +9,7 @@ import {
   fetchAllInventoryLocations,
   fetchDistinctSuppliers,
   searchInventoryItems,
+  fetchInventoryItemById,
   updateItemPaymentStatus,
   PROVISION_CATEGORIES,
 } from '../utils/provisioningStorage';
@@ -216,6 +217,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
   const [invDropdownOpen, setInvDropdownOpen] = useState(false);
   const [invSearchLoading, setInvSearchLoading] = useState(false);
   const [linkedInvItem, setLinkedInvItem] = useState(null); // full inv row when linked this session
+  const [invItemData, setInvItemData] = useState(null);    // taxonomy/category fields for the linked item
   const invSearchRef = useRef(null);
   const invDebounceTimer = useRef(null);
 
@@ -268,12 +270,16 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
     fetchDistinctSuppliers(tenantId).then(names => setKnownSuppliers(names || []));
   }, [tenantId]);
 
-  // Reset search state when item changes
+  // Reset search state when item changes; fetch inventory item data if already linked
   useEffect(() => {
     setInvSearchQuery('');
     setInvResults([]);
     setInvDropdownOpen(false);
-    setLinkedInvItem(null); // clear session-linked context; banner will use form data for existing links
+    setLinkedInvItem(null);
+    setInvItemData(null);
+    if (item?.inventory_item_id && tenantId) {
+      fetchInventoryItemById(item.inventory_item_id, tenantId).then(d => setInvItemData(d || null));
+    }
   }, [item?.id]);
 
   // Debounced inventory search
@@ -333,6 +339,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
     };
     setForm(prev => ({ ...prev, ...updates }));
     setLinkedInvItem(invItem);
+    setInvItemData(invItem);
     setInvSearchQuery('');
     setInvDropdownOpen(false);
     saveField(updates);
@@ -342,6 +349,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
     const updates = { inventory_item_id: null, cargo_item_id: '', barcode: '' };
     setForm(prev => ({ ...prev, ...updates }));
     setLinkedInvItem(null);
+    setInvItemData(null);
     saveField(updates);
   };
 
@@ -431,6 +439,18 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
   const activeCurrCode = form.currency || listCurrency || 'USD';
   const activeCurrSymbol = CURRENCY_PILLS.find(p => p.code === activeCurrCode)?.symbol || '$';
   const totalCost = (parseFloat(form.quantity_ordered) || 0) * (parseFloat(form.estimated_unit_cost) || 0);
+
+  // Dept dropdown options — from board's departments list, fallback to PROVISION_CATEGORIES keys
+  const deptOptions = departments && departments.length > 0
+    ? departments
+    : Object.keys(PROVISION_CATEGORIES);
+
+  // Inventory category path from linked item's taxonomy fields (l1_name > l2_name > ...)
+  const activeInvItem = invItemData || linkedInvItem;
+  const invCategoryPath = activeInvItem
+    ? [activeInvItem.l1_name, activeInvItem.l2_name, activeInvItem.l3_name, activeInvItem.l4_name]
+        .filter(Boolean).join(' > ')
+    : '';
 
   if (!open || !item) return null;
 
@@ -722,29 +742,22 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
             )}
           </Section>
 
-          {/* ════ SECTION 3: LOCATION ════ */}
-          <Section label="Location">
-            {/* Category picker — only shown when item is linked to an inventory item.
-                Stock location is assigned during the receive / push-to-inventory step. */}
-            {form.inventory_item_id && (
-              <div>
-                {isLight ? <FL>Category</FL> : <label className={labelCls}>Category</label>}
-                <CategoryPicker
-                  paths={allCategoryPaths}
-                  value={[form.department, form.sub_category].filter(Boolean).join(' > ')}
-                  onChange={fullPath => {
-                    const segs = fullPath ? fullPath.split(' > ') : [];
-                    const dept = segs[0] || '';
-                    const cat = segs[1] || '';
-                    const subCat = segs.slice(1).join(' > ');
-                    const updates = { department: dept, category: cat, sub_category: subCat };
-                    setForm(prev => ({ ...prev, ...updates }));
-                    saveField(updates);
-                  }}
-                  disabled={isReadOnly}
-                />
-              </div>
-            )}
+          {/* ════ SECTION 3: DEPARTMENT ════ */}
+          <Section label="Department">
+            {/* Department — always shown; determines board grouping */}
+            <div>
+              {isLight ? <FL>Department</FL> : <label className={labelCls}>Department</label>}
+              <select
+                value={form.department || ''}
+                onChange={e => { set('department', e.target.value); saveField({ department: e.target.value }); }}
+                disabled={isReadOnly}
+                className={inputCls}
+                style={{ cursor: isReadOnly ? 'default' : undefined }}
+              >
+                <option value="">— select —</option>
+                {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
 
             {/* Supplier */}
             <div style={{ marginTop: 8 }}>
@@ -780,6 +793,31 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
               </Field>
             </div>
           </Section>
+
+          {/* ════ SECTION 3b: INVENTORY CATEGORY (only when linked) ════ */}
+          {form.inventory_item_id && (
+            <Section label="Inventory">
+              {invCategoryPath ? (
+                <div style={{
+                  fontSize: 13, color: isLight ? '#1E3A5F' : '#e2e8f0',
+                  background: isLight ? '#f0fdf4' : 'rgba(29,158,117,0.1)',
+                  border: `1px solid ${isLight ? '#86efac' : 'rgba(29,158,117,0.3)'}`,
+                  borderRadius: 7, padding: '8px 12px', lineHeight: 1.5,
+                }}>
+                  {invCategoryPath.split(' > ').map((seg, i, arr) => (
+                    <React.Fragment key={i}>
+                      <span style={{ fontWeight: i === arr.length - 1 ? 600 : 400 }}>{seg}</span>
+                      {i < arr.length - 1 && (
+                        <span style={{ color: isLight ? '#86efac' : 'rgba(29,158,117,0.6)', margin: '0 5px' }}>›</span>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic' }}>Category not set on linked item</p>
+              )}
+            </Section>
+          )}
 
           {/* ════ SECTION 4: COST ════ */}
           <Section label={isReceived ? 'Quoted cost' : 'Estimated cost'}>
