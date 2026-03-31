@@ -1198,14 +1198,23 @@ export const logDeliveryBatch = createDeliveryBatch;
  * Returns the batch id (or null on failure).
  */
 export const quickReceiveItem = async ({ item, listId, tenantId, userId }) => {
-  if (!item?.id || !listId || !tenantId) return null;
+  console.log('[quickReceiveItem] called — item:', item?.id, 'listId:', listId, 'tenantId:', tenantId, 'userId:', userId);
+  if (!item?.id || !listId) {
+    console.warn('[quickReceiveItem] missing item.id or listId — aborting');
+    return null;
+  }
+  if (!tenantId) {
+    console.warn('[quickReceiveItem] tenantId is missing — will skip batch creation and still update item');
+  }
 
   const qtyReceived = item.quantity_ordered ?? 0;
   const today = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
 
   try {
+    let batchId = null;
+
     // 1. Find today's Manual receive batch for this list
-    const { data: existing } = await supabase
+    const { data: existing, error: findErr } = await supabase
       ?.from('provisioning_deliveries')
       ?.select('id')
       ?.eq('list_id', listId)
@@ -1216,25 +1225,31 @@ export const quickReceiveItem = async ({ item, listId, tenantId, userId }) => {
       ?.limit(1)
       ?.maybeSingle();
 
-    let batchId = existing?.id || null;
+    if (findErr) console.warn('[quickReceiveItem] batch lookup error:', findErr.message);
+    batchId = existing?.id || null;
+    console.log('[quickReceiveItem] existing batch today:', batchId);
 
     if (!batchId) {
       // 2. Create a new batch for today
+      console.log('[quickReceiveItem] no existing batch — creating new one');
       const newBatch = await createDeliveryBatch({ listId, tenantId, userId, supplierName: 'Manual receive' });
       batchId = newBatch?.id || null;
+      console.log('[quickReceiveItem] new batch id:', batchId);
     }
 
     // 3. Update the item
+    console.log('[quickReceiveItem] updating item', item.id, 'with receive_batch_id:', batchId);
     await updateProvisioningItem(item.id, {
       status: 'received',
       quantity_received: qtyReceived,
       payment_status: 'awaiting_invoice',
       ...(batchId ? { receive_batch_id: batchId } : {}),
     });
+    console.log('[quickReceiveItem] item updated successfully');
 
     return batchId;
   } catch (err) {
-    console.error('[provisioningStorage] quickReceiveItem error:', err);
+    console.error('[quickReceiveItem] error:', err);
     return null;
   }
 };
