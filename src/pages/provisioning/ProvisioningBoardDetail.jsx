@@ -140,10 +140,10 @@ const AlwaysEditCell = ({ value, placeholder, onSave, type = 'text', inputStyle 
       onChange={e => setLocal(e.target.value)}
       onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') { setLocal(value ?? ''); ref.current?.blur(); } }}
       onFocus={e => { e.target.style.borderColor = '#3B82F6'; e.target.style.boxShadow = '0 0 0 2px rgba(59,130,246,0.15)'; }}
-      onBlur={e => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; commit(); }}
-      onMouseEnter={e => { if (document.activeElement !== e.target) e.target.style.borderColor = '#D1D5DB'; }}
-      onMouseLeave={e => { if (document.activeElement !== e.target) e.target.style.borderColor = '#E5E7EB'; }}
-      style={{ border: '1px solid #E5E7EB', borderRadius: 4, padding: '2px 6px', outline: 'none', background: '#ffffff', width: '100%', ...inputStyle }}
+      onBlur={e => { e.target.style.borderColor = 'transparent'; e.target.style.boxShadow = 'none'; commit(); }}
+      onMouseEnter={e => { if (document.activeElement !== e.target) e.target.style.borderColor = '#E5E7EB'; }}
+      onMouseLeave={e => { if (document.activeElement !== e.target) e.target.style.borderColor = 'transparent'; }}
+      style={{ border: '1px solid transparent', borderRadius: 4, padding: '2px 6px', outline: 'none', background: 'transparent', width: '100%', ...inputStyle }}
     />
   );
 };
