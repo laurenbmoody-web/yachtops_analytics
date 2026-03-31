@@ -1252,11 +1252,8 @@ const ProvisioningBoardDetail = () => {
 
               const payColor = (ps) => ['paid', 'paid_upfront'].includes(ps) ? '#059669' : '#D97706';
 
-              const renderBatchBlock = (batchItems, supplierName, receivedAt, batchId, invoiceData, isLast) => {
+              const renderBatchBlock = (batchItems, supplierName, receivedAt, batchId, invoiceData) => {
                 const accent = accentFor(supplierName);
-                const dt = receivedAt ? new Date(receivedAt) : null;
-                const dayNum  = dt ? dt.getDate() : '—';
-                const monthAb = dt ? dt.toLocaleDateString('en-GB', { month: 'short' }).toUpperCase() : '';
 
                 const batchTotal = batchItems.reduce((sum, bi) => {
                   const effectivePS = paymentStatusMap[bi.id] ?? bi.payment_status ?? 'awaiting_invoice';
@@ -1268,16 +1265,7 @@ const ProvisioningBoardDetail = () => {
                 const batchTotalStr = batchTotal > 0 ? `${dispSymbol}${batchTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : null;
 
                 return (
-                  <React.Fragment key={batchId || supplierName + receivedAt}>
-                    <div style={{ display: 'flex', gap: 0 }}>
-                      {/* ── Date column ── */}
-                      <div style={{ width: 70, flexShrink: 0, paddingRight: 20, textAlign: 'right', paddingTop: 2 }}>
-                        <div style={{ fontSize: 22, fontWeight: 500, color: '#0F172A', lineHeight: 1 }}>{dayNum}</div>
-                        <div style={{ fontSize: 11, textTransform: 'uppercase', color: '#94A3B8', letterSpacing: '0.05em', marginTop: 3 }}>{monthAb}</div>
-                      </div>
-
-                      {/* ── Content area ── */}
-                      <div style={{ flex: 1, borderLeft: `2px solid ${accent.border}`, paddingLeft: 24, paddingBottom: 8 }}>
+                  <div key={batchId || supplierName + receivedAt} style={{ borderLeft: `2px solid ${accent.border}`, paddingLeft: 24, paddingBottom: 8 }}>
                         {/* Batch header row */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                           <span style={{ background: accent.badgeBg, color: accent.badgeText, fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 99, letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
@@ -1351,37 +1339,69 @@ const ProvisioningBoardDetail = () => {
                             </div>
                           );
                         })}
-                      </div>
-                    </div>
-
-                    {/* Batch separator */}
-                    {!isLast && <div style={{ margin: '32px 0 32px 70px', height: 1, background: '#E9EDF2' }} />}
-                  </React.Fragment>
+                  </div>
                 );
               };
 
-              // ── Build the batch list: real batches + fallback groups ──
-              const realBatches = deliveries.map((d, di) => {
-                const batchItems = items.filter(i => i.receive_batch_id === d.id);
-                if (!batchItems.length) return null;
-                const isLast = di === deliveries.length - 1 && completedItems.length === 0;
-                return renderBatchBlock(batchItems, d.supplier_name || 'Manual receive', d.received_at, d.id, { batch: d, batchItems }, isLast);
-              }).filter(Boolean);
+              // ── Build the unified batch list: real batches + fallback groups ──
+              const allBatchData = [
+                ...deliveries
+                  .map(d => {
+                    const batchItems = items.filter(i => i.receive_batch_id === d.id);
+                    return batchItems.length ? { batchItems, supplierName: d.supplier_name || 'Manual receive', receivedAt: d.received_at, batchId: d.id, invoiceData: { batch: d, batchItems } } : null;
+                  })
+                  .filter(Boolean),
+                ...(() => {
+                  const fallbackGroups = {};
+                  completedItems.forEach(item => {
+                    const ts = item.updated_at || item.created_at;
+                    const key = ts ? new Date(ts).toISOString() : '1970-01-01T00:00:00Z';
+                    if (!fallbackGroups[key]) fallbackGroups[key] = [];
+                    fallbackGroups[key].push(item);
+                  });
+                  return Object.entries(fallbackGroups)
+                    .sort(([a], [b]) => b.localeCompare(a))
+                    .map(([ts, groupItems]) => ({ batchItems: groupItems, supplierName: 'Manual receive', receivedAt: ts, batchId: `fallback-${ts}`, invoiceData: null }));
+                })(),
+              ];
 
-              // Fallback: received items with no batch, grouped by date
-              const fallbackGroups = {};
-              completedItems.forEach(item => {
-                const ts = item.updated_at || item.created_at;
-                const key = ts ? new Date(ts).toISOString() : '1970-01-01T00:00:00Z';
-                if (!fallbackGroups[key]) fallbackGroups[key] = [];
-                fallbackGroups[key].push(item);
+              // Group by calendar date (YYYY-MM-DD), descending
+              const batchesByDate = {};
+              allBatchData.forEach(b => {
+                const dateKey = b.receivedAt ? new Date(b.receivedAt).toISOString().split('T')[0] : '1970-01-01';
+                if (!batchesByDate[dateKey]) batchesByDate[dateKey] = [];
+                batchesByDate[dateKey].push(b);
               });
-              const fallbackEntries = Object.entries(fallbackGroups).sort(([a], [b]) => b.localeCompare(a));
-              const fallbackBlocks = fallbackEntries.map(([ts, groupItems], gi) =>
-                renderBatchBlock(groupItems, 'Manual receive', ts, `fallback-${ts}`, null, gi === fallbackEntries.length - 1)
-              );
+              const sortedDates = Object.keys(batchesByDate).sort((a, b) => b.localeCompare(a));
 
-              return <div>{realBatches}{fallbackBlocks}</div>;
+              return (
+                <div>
+                  {sortedDates.map((dateKey, dateIdx) => {
+                    const dateBatches = batchesByDate[dateKey];
+                    const dt = new Date(dateKey + 'T12:00:00');
+                    const dayNum  = dt.getDate();
+                    const monthAb = dt.toLocaleDateString('en-GB', { month: 'short' }).toUpperCase();
+                    const isLastDate = dateIdx === sortedDates.length - 1;
+                    return (
+                      <React.Fragment key={dateKey}>
+                        <div style={{ display: 'flex', gap: 0 }}>
+                          {/* ── Date column ── */}
+                          <div style={{ width: 70, flexShrink: 0, paddingRight: 20, textAlign: 'right', paddingTop: 2 }}>
+                            <div style={{ fontSize: 22, fontWeight: 500, color: '#0F172A', lineHeight: 1 }}>{dayNum}</div>
+                            <div style={{ fontSize: 11, textTransform: 'uppercase', color: '#94A3B8', letterSpacing: '0.05em', marginTop: 3 }}>{monthAb}</div>
+                          </div>
+                          {/* ── All batches for this date ── */}
+                          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 24 }}>
+                            {dateBatches.map(b => renderBatchBlock(b.batchItems, b.supplierName, b.receivedAt, b.batchId, b.invoiceData))}
+                          </div>
+                        </div>
+                        {/* Date separator */}
+                        {!isLastDate && <div style={{ margin: '32px 0 32px 70px', height: 1, background: '#E9EDF2' }} />}
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
+              );
             })()}
           </div>
         )}
