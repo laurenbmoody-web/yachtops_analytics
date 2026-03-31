@@ -1110,24 +1110,72 @@ export const fetchInventoryItemById = async (id, tenantId) => {
  * Returns the created batch row, or null on failure.
  */
 export const createDeliveryBatch = async ({ listId, tenantId, userId, supplierName }) => {
-  if (!tenantId || !listId) return null;
+  if (!listId) return null;
+  const payload = {
+    list_id: listId,
+    supplier_name: supplierName || 'Manual receive',
+    received_at: new Date().toISOString(),
+    received_by: userId || null,
+  };
+  // Try with tenant_id first (new schema); fall back without it if the column doesn't exist
+  for (const withTenant of [true, false]) {
+    try {
+      const row = withTenant && tenantId ? { ...payload, tenant_id: tenantId } : payload;
+      const { data, error } = await supabase
+        ?.from('provisioning_deliveries')
+        ?.insert(row)
+        ?.select()
+        ?.single();
+      if (error) {
+        const msg = error?.message || '';
+        // If the error is specifically about tenant_id column, retry without it
+        if (withTenant && (msg.includes('tenant_id') || msg.includes('column'))) continue;
+        throw error;
+      }
+      return data || null;
+    } catch (err) {
+      if (withTenant) {
+        const msg = (err?.message || '');
+        if (msg.includes('tenant_id') || msg.includes('column')) continue;
+      }
+      console.error('[provisioningStorage] createDeliveryBatch error:', err);
+      throw err; // propagate so callers know creation failed
+    }
+  }
+  return null;
+};
+
+/**
+ * Create retroactive batch records for received items that have no receive_batch_id.
+ * Called when the Received tab loads and finds batches are missing.
+ * Groups all unbatched received items into one "retroactive" batch.
+ */
+export const repairUnbatchedReceivedItems = async (listId, tenantId, userId) => {
+  if (!listId) return false;
   try {
-    const { data, error } = await supabase
-      ?.from('provisioning_deliveries')
-      ?.insert({
-        list_id: listId,
-        tenant_id: tenantId,
-        supplier_name: supplierName || 'Manual receive',
-        received_at: new Date().toISOString(),
-        received_by: userId || null,
-      })
-      ?.select()
-      ?.single();
-    if (error) throw error;
-    return data || null;
+    // Find received items with no batch link
+    const { data: unbatched, error: fetchErr } = await supabase
+      ?.from('provisioning_items')
+      ?.select('id')
+      ?.eq('list_id', listId)
+      ?.eq('status', 'received')
+      ?.is('receive_batch_id', null);
+    if (fetchErr || !unbatched?.length) return false;
+
+    // Create one retroactive batch for all of them
+    const batch = await createDeliveryBatch({ listId, tenantId, userId, supplierName: 'Manual receive' });
+    if (!batch?.id) return false;
+
+    // Stamp all unbatched received items with the new batch ID
+    const { error: updateErr } = await supabase
+      ?.from('provisioning_items')
+      ?.update({ receive_batch_id: batch.id })
+      ?.in('id', unbatched.map(r => r.id));
+    if (updateErr) throw updateErr;
+    return true;
   } catch (err) {
-    console.error('[provisioningStorage] createDeliveryBatch error:', err);
-    return null;
+    console.error('[provisioningStorage] repairUnbatchedReceivedItems error:', err);
+    return false;
   }
 };
 
