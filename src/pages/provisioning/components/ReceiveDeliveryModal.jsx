@@ -846,38 +846,64 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
   const handleSaveReceiving = async () => {
     setSaving(true);
     try {
+      // Build full update list, carrying supplier_name + cost for batch grouping
       const updates = items.map(item => {
         const r = receiving[item.id] || {};
         const qty = r.checked ? Math.max(0, parseFloat(r.qty) || 0) : 0;
         const ordered = parseFloat(item.quantity_ordered) || 0;
-        return { id: item.id, quantity_received: qty, status: deriveStatus(qty, ordered) };
+        return {
+          id: item.id,
+          quantity_received: qty,
+          status: deriveStatus(qty, ordered),
+          supplier_name: item.supplier_name || null,
+          estimated_unit_cost: item.estimated_unit_cost,
+        };
       });
 
-      // Attempt batch creation independently — if it fails, items still get received
-      // and repairUnbatchedReceivedItems will retroactively link them on next Received tab load
       const receivedUpdates = updates.filter(u => u.quantity_received > 0);
-      let batchId = null;
-      if (receivedUpdates.length > 0) {
-        try {
-          const batch = await createDeliveryBatch({
-            listId: list?.id,
-            tenantId,
-            userId,
-            supplierName: list?.supplier_name || 'Manual receive',
-          });
-          batchId = batch?.id || null;
-          if (!batchId) console.warn('[ReceiveDeliveryModal] batch creation returned no id');
-        } catch (batchErr) {
-          // createDeliveryBatch never throws now, but guard just in case
-          console.error('[ReceiveDeliveryModal] batch creation threw unexpectedly:', batchErr);
-        }
+
+      // Group received items by supplier → one batch per supplier
+      const bySupplier = {};
+      receivedUpdates.forEach(u => {
+        const key = u.supplier_name || 'Manual receive';
+        if (!bySupplier[key]) bySupplier[key] = [];
+        bySupplier[key].push(u);
+      });
+
+      // Create a batch per supplier group, then stamp each item
+      for (const [supplierName, supplierItems] of Object.entries(bySupplier)) {
+        const totalCost = supplierItems.reduce(
+          (sum, u) => sum + (parseFloat(u.estimated_unit_cost) || 0) * (u.quantity_received || 0),
+          0
+        );
+        const batch = await createDeliveryBatch({
+          listId: list?.id,
+          tenantId,
+          userId,
+          supplierName,
+          totalCost: totalCost || null,
+          portLocation: list?.port_location || null,
+        });
+        const batchId = batch?.id || null;
+        if (!batchId) console.warn('[ReceiveDeliveryModal] no batch id for supplier:', supplierName);
+
+        await receiveItems(supplierItems.map(u => ({
+          id: u.id,
+          quantity_received: u.quantity_received,
+          status: u.status,
+          ...(batchId ? { receive_batch_id: batchId } : {}),
+        })));
       }
 
-      // Always persist item status/qty — batch link is best-effort
-      await receiveItems(updates.map(u => ({
-        ...u,
-        ...(u.quantity_received > 0 && batchId ? { receive_batch_id: batchId } : {}),
-      })));
+      // Persist status for unchecked items (e.g. not_received)
+      const nonReceived = updates.filter(u => u.quantity_received === 0);
+      if (nonReceived.length > 0) {
+        await receiveItems(nonReceived.map(u => ({
+          id: u.id,
+          quantity_received: u.quantity_received,
+          status: u.status,
+        })));
+      }
 
       setStep(2);
     } catch (err) {
