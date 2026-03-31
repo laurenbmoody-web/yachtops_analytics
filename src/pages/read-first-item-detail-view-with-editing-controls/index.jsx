@@ -10,6 +10,23 @@ import AddEditItemModal from '../inventory/components/AddEditItemModal';
 import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess } from '../../utils/authStorage';
 import { canViewCost, formatCurrency } from '../../utils/costPermissions';
 
+// ── Location breadcrumb helpers ───────────────────────────────────────────────
+const SLASH_PLACEHOLDER = '__FWDSLASH__';
+const encodeSegment = (s) => encodeURIComponent(s?.replace(/\//g, SLASH_PLACEHOLDER));
+
+/** Build [{ label, url }] breadcrumb from an item's location + subLocation fields */
+const buildLocationBreadcrumb = (item) => {
+  if (!item?.location) return [];
+  const topLevel = item.location;
+  const subParts = item.subLocation ? item.subLocation.split(' > ').filter(Boolean) : [];
+  const allSegments = [topLevel, ...subParts];
+  return allSegments.map((label, idx) => {
+    const segmentsSoFar = allSegments.slice(0, idx + 1);
+    const url = '/inventory/location/' + segmentsSoFar.map(encodeSegment).join('/');
+    return { label, url };
+  });
+};
+
 const ReadFirstItemDetailView = () => {
   const { itemId } = useParams();
   const navigate = useNavigate();
@@ -111,19 +128,32 @@ const ReadFirstItemDetailView = () => {
     <div className="min-h-screen bg-gray-50 ">
       <Header />
       <div className="max-w-5xl mx-auto px-4 py-8">
-        {/* Header with Back and Edit */}
+        {/* Header with Breadcrumb and Edit */}
         <div className="flex items-center justify-between mb-6">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            <Icon name="ArrowLeft" size={20} />
-            <span className="font-medium">Back</span>
-          </button>
+          {/* Breadcrumb */}
+          <nav className="flex items-center gap-1 flex-wrap min-w-0">
+            <button
+              onClick={() => navigate('/inventory')}
+              className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline transition-colors whitespace-nowrap"
+            >
+              Inventory
+            </button>
+            {buildLocationBreadcrumb(item).map(({ label, url }) => (
+              <React.Fragment key={url}>
+                <Icon name="ChevronRight" size={14} className="text-gray-400 flex-shrink-0" />
+                <button
+                  onClick={() => navigate(url)}
+                  className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline transition-colors whitespace-nowrap"
+                >
+                  {label}
+                </button>
+              </React.Fragment>
+            ))}
+          </nav>
           {canEdit && (
             <button
               onClick={handleEditClick}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ml-4 flex-shrink-0"
             >
               <Icon name="Edit" size={18} />
               <span>Edit</span>
