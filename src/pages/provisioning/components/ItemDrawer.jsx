@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import Drawer from './Drawer';
 import { ITEM_STATUS_CONFIG } from './StatusBadge';
@@ -194,6 +195,7 @@ const FIELD_CSS = `
 
 const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', departments = [], suppliers = [], theme = 'dark', onSaved, onDeleted, onClose }) => {
   const isLight = theme === 'light';
+  const navigate = useNavigate();
   const { user } = useAuth();
   const userTier = (user?.permission_tier || user?.effectiveTier || '').toUpperCase();
   const canViewAccounting = ['COMMAND', 'CHIEF'].includes(userTier);
@@ -487,14 +489,12 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                 <span style={{ fontSize: 12, fontWeight: 600, color: '#047857' }}>This item has been received</span>
               </div>
               {form.inventory_item_id && (
-                <a
-                  href={`/inventory/item/${form.inventory_item_id}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ fontSize: 11, color: '#4A90E2', textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap', flexShrink: 0 }}
+                <button
+                  onClick={() => navigate(`/inventory/item/${form.inventory_item_id}`)}
+                  style={{ fontSize: 11, color: '#4A90E2', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap', flexShrink: 0, padding: 0 }}
                 >
                   View in inventory →
-                </a>
+                </button>
               )}
             </div>
           )}
