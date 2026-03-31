@@ -1533,7 +1533,7 @@ const ProvisioningBoardDetail = () => {
       {showReceiveModal && (
         <ReceiveDeliveryModal
           list={list}
-          items={items}
+          items={items.filter(i => i.status !== 'received')}
           tenantId={activeTenantId}
           onClose={() => setShowReceiveModal(false)}
           onComplete={() => {
