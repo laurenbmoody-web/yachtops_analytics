@@ -373,16 +373,18 @@ export const updateItemStatus = async (itemId, status, quantityReceived) => {
  * (not upsert, to avoid the NOT NULL `name` constraint on the INSERT path).
  */
 export const receiveItems = async (updates) => {
-  // updates: [{ id, quantity_received, status }]
+  // updates: [{ id, quantity_received, status, receive_batch_id? }]
   const results = await Promise.allSettled(
-    updates.map(({ id, quantity_received, status }) =>
-      supabase
+    updates.map(({ id, quantity_received, status, receive_batch_id }) => {
+      const fields = { quantity_received, status };
+      if (receive_batch_id != null) fields.receive_batch_id = receive_batch_id;
+      return supabase
         ?.from('provisioning_items')
-        ?.update({ quantity_received, status })
+        ?.update(fields)
         ?.eq('id', id)
         ?.select()
-        ?.single()
-    )
+        ?.single();
+    })
   );
   const errors = results.filter(r => r.status === 'rejected' || r.value?.error);
   if (errors.length) {
@@ -1083,7 +1085,11 @@ export const searchInventoryItems = async (query, tenantId) => {
  * Log a delivery batch after receiving items.
  * receivedItems: array of { id, name, quantity_received, ... }
  */
-export const logDeliveryBatch = async ({ listId, userId, tenantId, receivedItems }) => {
+/**
+ * Create a delivery batch record in provisioning_deliveries.
+ * Returns the created batch row, or null on failure.
+ */
+export const createDeliveryBatch = async ({ listId, tenantId, userId, supplierName }) => {
   if (!tenantId || !listId) return null;
   try {
     const { data, error } = await supabase
@@ -1091,99 +1097,68 @@ export const logDeliveryBatch = async ({ listId, userId, tenantId, receivedItems
       ?.insert({
         list_id: listId,
         tenant_id: tenantId,
+        supplier_name: supplierName || 'Manual receive',
+        received_at: new Date().toISOString(),
         received_by: userId || null,
-        delivered_at: new Date().toISOString(),
-        parsed_data: { items: receivedItems, source: 'manual_receive' },
       })
-      ?.select('id')
+      ?.select()
       ?.single();
     if (error) throw error;
-    return data?.id || null;
-  } catch {
+    return data || null;
+  } catch (err) {
+    console.error('[provisioningStorage] createDeliveryBatch error:', err);
     return null;
   }
 };
 
+/** @deprecated — kept for callers that haven't migrated yet */
+export const logDeliveryBatch = createDeliveryBatch;
+
 /**
- * Quick-receive a single item:
- *  1. Updates item: status=received, quantity_received=quantity_ordered, payment_status=awaiting_invoice
- *  2. Finds today's "Manual receive" batch for this board, or creates one.
- *  3. Appends the item to that batch's parsed_data.items.
+ * Quick-receive a single item from the Items tab checkbox:
+ *  1. Finds or creates today's "Manual receive" batch for this board.
+ *  2. Updates item: status=received, quantity_received=quantity_ordered,
+ *     payment_status=awaiting_invoice, receive_batch_id=batch.id.
  * Returns the batch id (or null on failure).
  */
 export const quickReceiveItem = async ({ item, listId, tenantId, userId }) => {
   if (!item?.id || !listId || !tenantId) return null;
 
   const qtyReceived = item.quantity_ordered ?? 0;
-
-  // 1. Update the item itself
-  await updateProvisioningItem(item.id, {
-    status: 'received',
-    quantity_received: qtyReceived,
-    payment_status: 'awaiting_invoice',
-  });
-
-  // 2. Build the log entry for the batch
-  const logItem = {
-    id: item.id,
-    name: item.name,
-    brand: item.brand || null,
-    size: item.size || null,
-    quantity_received: qtyReceived,
-    quantity_ordered: item.quantity_ordered,
-    unit: item.unit || null,
-    department: item.department || null,
-    category: item.category || null,
-    sub_category: item.sub_category || null,
-    estimated_unit_cost: item.estimated_unit_cost || null,
-    cargo_item_id: item.cargo_item_id || null,
-    inventory_item_id: item.inventory_item_id || null,
-  };
-
-  // 3. Find today's manual-receive batch for this list
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const todayEnd = new Date();
-  todayEnd.setHours(23, 59, 59, 999);
+  const today = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
 
   try {
-    const { data: todayBatches } = await supabase
+    // 1. Find today's Manual receive batch for this list
+    const { data: existing } = await supabase
       ?.from('provisioning_deliveries')
-      ?.select('id, parsed_data')
+      ?.select('id')
       ?.eq('list_id', listId)
       ?.eq('tenant_id', tenantId)
-      ?.gte('delivered_at', todayStart.toISOString())
-      ?.lte('delivered_at', todayEnd.toISOString())
-      ?.order('delivered_at', { ascending: false });
+      ?.eq('supplier_name', 'Manual receive')
+      ?.gte('received_at', today)
+      ?.order('received_at', { ascending: false })
+      ?.limit(1)
+      ?.maybeSingle();
 
-    const existing = (todayBatches || []).find(b => b.parsed_data?.source === 'manual_receive');
+    let batchId = existing?.id || null;
 
-    if (existing) {
-      // Append item (replace if already in batch)
-      const existingItems = existing.parsed_data?.items || [];
-      const updatedItems = [...existingItems.filter(i => i.id !== item.id), logItem];
-      await supabase
-        ?.from('provisioning_deliveries')
-        ?.update({ parsed_data: { ...existing.parsed_data, items: updatedItems } })
-        ?.eq('id', existing.id);
-      return existing.id;
-    } else {
-      // Create a fresh batch for today
-      const { data: newBatch } = await supabase
-        ?.from('provisioning_deliveries')
-        ?.insert({
-          list_id: listId,
-          tenant_id: tenantId,
-          received_by: userId || null,
-          delivered_at: new Date().toISOString(),
-          parsed_data: { items: [logItem], source: 'manual_receive' },
-        })
-        ?.select('id')
-        ?.single();
-      return newBatch?.id || null;
+    if (!batchId) {
+      // 2. Create a new batch for today
+      const newBatch = await createDeliveryBatch({ listId, tenantId, userId, supplierName: 'Manual receive' });
+      batchId = newBatch?.id || null;
     }
+
+    // 3. Update the item
+    await updateProvisioningItem(item.id, {
+      status: 'received',
+      quantity_received: qtyReceived,
+      payment_status: 'awaiting_invoice',
+      ...(batchId ? { receive_batch_id: batchId } : {}),
+    });
+
+    return batchId;
   } catch (err) {
-    console.error('[provisioningStorage] quickReceiveItem batch error:', err);
+    console.error('[provisioningStorage] quickReceiveItem error:', err);
     return null;
   }
 };
@@ -1196,9 +1171,9 @@ export const fetchDeliveryBatches = async (listId) => {
   try {
     const { data, error } = await supabase
       ?.from('provisioning_deliveries')
-      ?.select('id, delivered_at, received_by, parsed_data')
+      ?.select('id, supplier_name, received_at, received_by, invoice_file_url')
       ?.eq('list_id', listId)
-      ?.order('delivered_at', { ascending: false });
+      ?.order('received_at', { ascending: false });
     if (error) throw error;
     return data || [];
   } catch {

@@ -527,7 +527,11 @@ const ProvisioningBoardDetail = () => {
 
   const hasFilters = statusFilter !== 'all' || deptFilter !== 'all' || searchQuery;
 
-  const completedItems = useMemo(() => filteredItems.filter(i => i.status === 'received'), [filteredItems]);
+  // Items that are received but have no batch link — shown as a fallback group on the Received tab
+  const completedItems = useMemo(
+    () => items.filter(i => i.status === 'received' && !i.receive_batch_id),
+    [items]
+  );
 
   const deptGroups = useMemo(() => {
     const pendingItems = filteredItems.filter(i => i.status !== 'received');
@@ -1362,15 +1366,13 @@ const ProvisioningBoardDetail = () => {
 
                 {/* ── Delivery batches ─────────────────────────────────── */}
                 {deliveries.map(d => {
-                  const batchItemsLog = d.parsed_data?.items || [];
-                  const src = d.parsed_data?.source === 'manual_receive' ? 'Manual receive'
-                    : (d.parsed_data?.source || 'Manual receive');
-                  const dateStr = d.delivered_at
-                    ? new Date(d.delivered_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+                  // Items linked to this batch via receive_batch_id
+                  const batchItemsLog = items.filter(i => i.receive_batch_id === d.id);
+                  const src = d.supplier_name || 'Manual receive';
+                  const dateStr = d.received_at
+                    ? new Date(d.received_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
                     : '—';
-                  // Live items matching this batch (for payment status)
-                  const liveBatchItems = batchItemsLog.map(bi => items.find(i => i.id === bi.id)).filter(Boolean);
-                  const hasCurrency = batchItemsLog.some(bi => bi.estimated_unit_cost != null);
+                  const liveBatchItems = batchItemsLog;
                   const currSym = dispSymbol;
                   return (
                     <details key={d.id} open style={{ marginBottom: 24 }}>
@@ -1401,13 +1403,12 @@ const ProvisioningBoardDetail = () => {
                           const catPath = [bi.department, bi.sub_category || bi.category].filter(Boolean).join(' > ');
                           const invStatus = bi.cargo_item_id
                             ? `→ Pushed to inventory (${bi.cargo_item_id})`
-                            : bi.inventory_item_id ? `→ Linked to inventory`
+                            : bi.inventory_item_id ? '→ Linked to inventory'
                             : '→ Skipped';
-                          const liveItem = items.find(i => i.id === bi.id);
-                          const effectivePS = paymentStatusMap[bi.id] ?? liveItem?.payment_status ?? 'awaiting_invoice';
+                          const effectivePS = paymentStatusMap[bi.id] ?? bi.payment_status ?? 'awaiting_invoice';
                           const isPaid = ['paid', 'paid_upfront'].includes(effectivePS);
-                          const costVal = isPaid && liveItem?.actual_unit_cost != null
-                            ? parseFloat(liveItem.actual_unit_cost)
+                          const costVal = isPaid && bi.actual_unit_cost != null
+                            ? parseFloat(bi.actual_unit_cost)
                             : parseFloat(bi.estimated_unit_cost);
                           const costStr = !isNaN(costVal) && costVal > 0
                             ? `${currSym}${(costVal * (parseFloat(bi.quantity_received) || 1)).toFixed(0)}`
@@ -1417,11 +1418,11 @@ const ProvisioningBoardDetail = () => {
                             : `${bi.quantity_received ?? '?'}`;
                           const itemTitle = [bi.name, bi.brand, bi.size].filter(Boolean).join(' · ');
                           return (
-                            <div key={idx} style={{ padding: '10px 20px', borderTop: idx > 0 ? '1px solid #F8FAFC' : 'none' }}>
+                            <div key={bi.id} style={{ padding: '10px 20px', borderTop: idx > 0 ? '1px solid #F8FAFC' : 'none' }}>
                               {/* Line 1: 5-column grid spanning full width */}
                               <div
-                                onClick={() => liveItem && setItemDrawer({ open: true, item: liveItem })}
-                                style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 2fr 1fr 1fr', gap: '0 16px', alignItems: 'center', width: '100%', cursor: liveItem ? 'pointer' : 'default' }}
+                                onClick={() => setItemDrawer({ open: true, item: bi })}
+                                style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 2fr 1fr 1fr', gap: '0 16px', alignItems: 'center', width: '100%', cursor: 'pointer' }}
                               >
                                 <span style={{ fontSize: 13, color: '#374151', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{itemTitle}</span>
                                 <span style={{ fontSize: 12, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{catPath || '—'}</span>
@@ -1438,7 +1439,7 @@ const ProvisioningBoardDetail = () => {
                                   onChange={e => {
                                     const val = e.target.value;
                                     setPaymentStatusMap(prev => ({ ...prev, [bi.id]: val }));
-                                    if (liveItem) updateItemPaymentStatus(liveItem.id, val).catch(() => {});
+                                    updateItemPaymentStatus(bi.id, val).catch(() => {});
                                   }}
                                   style={{ fontSize: 11, padding: '2px 6px', border: '1px solid #E2E8F0', borderRadius: 6, color: '#64748B', background: 'white', cursor: 'pointer' }}
                                 >
