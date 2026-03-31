@@ -687,25 +687,6 @@ const ProvisioningWorkspace = () => {
           </div>
         )}
 
-        {/* ── Cross-board summary gauges ─────────────────────────────────── */}
-        {!loading && crossBoardTotals.totalItems > 0 && (
-          <div style={{ padding: '0 24px' }}>
-            <SummaryGauges
-              leftToReceive={crossBoardTotals.pendingItems}
-              totalCount={crossBoardTotals.totalItems}
-              receivedCount={crossBoardTotals.receivedItems}
-              totalValue={crossBoardTotals.totalCost}
-              costSubtext={`${crossBoardTotals.totalItems} item${crossBoardTotals.totalItems !== 1 ? 's' : ''} across all boards`}
-              leftToPayValue={crossBoardTotals.leftToPayCost}
-              paidValue={crossBoardTotals.paidCost}
-              dispSymbol={crossBoardTotals.sym}
-              dispCurr={summaryDisplayCurrency}
-              setDisplayCurrency={setSummaryDisplayCurrency}
-              fxRatesLabel={summaryFxLabel}
-            />
-          </div>
-        )}
-
         {/* Shared with me */}
         {sharedWithMe.length > 0 && (
           <div className="px-6 pt-4 pb-2">
@@ -804,6 +785,25 @@ const ProvisioningWorkspace = () => {
               )}
             </div>
           </DndContext>
+        )}
+
+        {/* ── Cross-board summary gauges — below kanban boards ─────────────── */}
+        {!loading && crossBoardTotals.totalItems > 0 && (
+          <div style={{ padding: '0 24px 32px' }}>
+            <SummaryGauges
+              leftToReceive={crossBoardTotals.pendingItems}
+              totalCount={crossBoardTotals.totalItems}
+              receivedCount={crossBoardTotals.receivedItems}
+              totalValue={crossBoardTotals.totalCost}
+              costSubtext={`${crossBoardTotals.totalItems} item${crossBoardTotals.totalItems !== 1 ? 's' : ''} across all boards`}
+              leftToPayValue={crossBoardTotals.leftToPayCost}
+              paidValue={crossBoardTotals.paidCost}
+              dispSymbol={crossBoardTotals.sym}
+              dispCurr={summaryDisplayCurrency}
+              setDisplayCurrency={setSummaryDisplayCurrency}
+              fxRatesLabel={summaryFxLabel}
+            />
+          </div>
         )}
       </div>
 
