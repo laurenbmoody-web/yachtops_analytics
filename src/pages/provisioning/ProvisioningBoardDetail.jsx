@@ -17,6 +17,7 @@ import {
   duplicateList,
   fetchVesselDepartments,
   fetchDeliveryBatches,
+  repairUnbatchedReceivedItems,
   updateItemPaymentStatus,
   quickReceiveItem,
   PROVISIONING_STATUS,
@@ -365,12 +366,28 @@ const ProvisioningBoardDetail = () => {
     return () => document.removeEventListener('mousedown', h);
   }, [showMenu]);
 
-  // Load deliveries when Received tab becomes active
+  // Load deliveries when Received tab becomes active; auto-repair unbatched items
   useEffect(() => {
     if (activeTab !== 'received' || !list?.id) return;
     setDeliveriesLoading(true);
     fetchDeliveryBatches(list.id)
-      .then(data => setDeliveries(data || []))
+      .then(async (batches) => {
+        if (batches.length === 0) {
+          // No batch records — attempt to retroactively create them for received items
+          const repaired = await repairUnbatchedReceivedItems(list.id, activeTenantId, user?.id);
+          if (repaired) {
+            // Reload both batches and items so the UI reflects the new grouping
+            const [newBatches, newItems] = await Promise.all([
+              fetchDeliveryBatches(list.id),
+              fetchListItems(list.id),
+            ]);
+            setDeliveries(newBatches || []);
+            setItems(newItems || []);
+            return;
+          }
+        }
+        setDeliveries(batches || []);
+      })
       .catch(() => setDeliveries([]))
       .finally(() => setDeliveriesLoading(false));
   }, [activeTab, list?.id]);
@@ -1454,68 +1471,83 @@ const ProvisioningBoardDetail = () => {
                   );
                 })}
 
-                {/* ── Fallback: received items with no batch record ─────── */}
-                {completedItems.length > 0 && (
-                  <details open style={{ marginBottom: 24 }}>
-                    <summary style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', listStyle: 'none', userSelect: 'none', marginBottom: 8 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', whiteSpace: 'nowrap' }}>All received items</span>
-                      <div style={{ flex: 1, height: 1, background: '#E2E8F0' }} />
-                      <Icon name="ChevronDown" style={{ width: 13, height: 13, color: '#CBD5E1', flexShrink: 0 }} />
-                    </summary>
-                    <div style={{ background: 'white', border: '1px solid #F1F5F9', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-                      {completedItems.map((item, idx) => {
-                        const effectivePS = paymentStatusMap[item.id] ?? item.payment_status ?? 'awaiting_invoice';
-                        const isPaid = ['paid', 'paid_upfront'].includes(effectivePS);
-                        const costVal = isPaid && item.actual_unit_cost != null
-                          ? parseFloat(item.actual_unit_cost)
-                          : parseFloat(item.estimated_unit_cost);
-                        const costStr = !isNaN(costVal) && costVal > 0
-                          ? `${dispSymbol}${(costVal * (parseFloat(item.quantity_received) || 1)).toFixed(0)}`
-                          : '—';
-                        const isPartial = item.quantity_ordered != null && item.quantity_received < item.quantity_ordered;
-                        const qtyStr = isPartial
-                          ? `${item.quantity_received}/${item.quantity_ordered}`
-                          : `${parseFloat(item.quantity_received) || 0}`;
-                        const invStatus = item.cargo_item_id
-                          ? `→ Pushed to inventory (${item.cargo_item_id})`
-                          : item.inventory_item_id ? `→ Linked to inventory`
-                          : '→ Skipped';
-                        const catPath = [item.department, item.sub_category || item.category].filter(Boolean).join(' > ');
-                        const itemTitle = [item.name, item.brand, item.size].filter(Boolean).join(' · ');
-                        return (
-                          <div key={item.id} style={{ padding: '10px 20px', borderTop: idx > 0 ? '1px solid #F8FAFC' : 'none' }}>
-                            {/* Line 1: 5-column grid spanning full width */}
-                            <div
-                              onClick={() => setItemDrawer({ open: true, item })}
-                              style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 2fr 1fr 1fr', gap: '0 16px', alignItems: 'center', width: '100%', cursor: 'pointer' }}
-                            >
-                              <span style={{ fontSize: 13, color: '#374151', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{itemTitle}</span>
-                              <span style={{ fontSize: 12, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{catPath || '—'}</span>
-                              <span style={{ fontSize: 12, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{invStatus}</span>
-                              <span style={{ fontSize: 13, color: isPartial ? '#B45309' : '#64748B', textAlign: 'right', whiteSpace: 'nowrap' }}>{costStr}</span>
-                              <span style={{ fontSize: 13, color: isPartial ? '#B45309' : '#64748B', textAlign: 'right', whiteSpace: 'nowrap' }}>Qty: {qtyStr}</span>
-                            </div>
-                            {/* Line 2: payment status */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5 }}>
-                              <span style={{ fontSize: 11, color: '#CBD5E1' }}>Payment:</span>
-                              <select
-                                value={effectivePS}
-                                onChange={e => {
-                                  const val = e.target.value;
-                                  setPaymentStatusMap(prev => ({ ...prev, [item.id]: val }));
-                                  updateItemPaymentStatus(item.id, val).catch(() => {});
-                                }}
-                                style={{ fontSize: 11, padding: '2px 6px', border: '1px solid #E2E8F0', borderRadius: 6, color: '#64748B', background: 'white', cursor: 'pointer' }}
+                {/* ── Fallback: received items with no batch record, grouped by date ── */}
+                {completedItems.length > 0 && (() => {
+                  // Group by approximate receive date using updated_at / created_at
+                  const groups = {};
+                  completedItems.forEach(item => {
+                    const ts = item.updated_at || item.created_at;
+                    const key = ts
+                      ? new Date(ts).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+                      : 'Previously received';
+                    if (!groups[key]) groups[key] = [];
+                    groups[key].push(item);
+                  });
+                  return Object.entries(groups).map(([dateKey, groupItems]) => (
+                    <details key={dateKey} open style={{ marginBottom: 24 }}>
+                      <summary style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', listStyle: 'none', userSelect: 'none', marginBottom: 8 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#1E3A5F', whiteSpace: 'nowrap' }}>
+                          Delivery: {dateKey}
+                        </span>
+                        <span style={{ fontSize: 11, color: '#94A3B8', whiteSpace: 'nowrap' }}>
+                          · {groupItems.length} item{groupItems.length !== 1 ? 's' : ''} · Manual receive
+                        </span>
+                        <div style={{ flex: 1, height: 1, background: '#E2E8F0' }} />
+                        <Icon name="ChevronDown" style={{ width: 13, height: 13, color: '#CBD5E1', flexShrink: 0 }} />
+                      </summary>
+                      <div style={{ background: 'white', border: '1px solid #F1F5F9', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                        {groupItems.map((item, idx) => {
+                          const effectivePS = paymentStatusMap[item.id] ?? item.payment_status ?? 'awaiting_invoice';
+                          const isPaid = ['paid', 'paid_upfront'].includes(effectivePS);
+                          const costVal = isPaid && item.actual_unit_cost != null
+                            ? parseFloat(item.actual_unit_cost)
+                            : parseFloat(item.estimated_unit_cost);
+                          const costStr = !isNaN(costVal) && costVal > 0
+                            ? `${dispSymbol}${(costVal * (parseFloat(item.quantity_received) || 1)).toFixed(0)}`
+                            : '—';
+                          const isPartial = item.quantity_ordered != null && item.quantity_received < item.quantity_ordered;
+                          const qtyStr = isPartial
+                            ? `${item.quantity_received}/${item.quantity_ordered}`
+                            : `${parseFloat(item.quantity_received) || 0}`;
+                          const invStatus = item.cargo_item_id
+                            ? `→ Pushed to inventory (${item.cargo_item_id})`
+                            : item.inventory_item_id ? '→ Linked to inventory'
+                            : '→ Skipped';
+                          const catPath = [item.department, item.sub_category || item.category].filter(Boolean).join(' > ');
+                          const itemTitle = [item.name, item.brand, item.size].filter(Boolean).join(' · ');
+                          return (
+                            <div key={item.id} style={{ padding: '10px 20px', borderTop: idx > 0 ? '1px solid #F8FAFC' : 'none' }}>
+                              <div
+                                onClick={() => setItemDrawer({ open: true, item })}
+                                style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 2fr 1fr 1fr', gap: '0 16px', alignItems: 'center', width: '100%', cursor: 'pointer' }}
                               >
-                                {PAYMENT_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                              </select>
+                                <span style={{ fontSize: 13, color: '#374151', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{itemTitle}</span>
+                                <span style={{ fontSize: 12, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{catPath || '—'}</span>
+                                <span style={{ fontSize: 12, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{invStatus}</span>
+                                <span style={{ fontSize: 13, color: isPartial ? '#B45309' : '#64748B', textAlign: 'right', whiteSpace: 'nowrap' }}>{costStr}</span>
+                                <span style={{ fontSize: 13, color: isPartial ? '#B45309' : '#64748B', textAlign: 'right', whiteSpace: 'nowrap' }}>Qty: {qtyStr}</span>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5 }}>
+                                <span style={{ fontSize: 11, color: '#CBD5E1' }}>Payment:</span>
+                                <select
+                                  value={effectivePS}
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    setPaymentStatusMap(prev => ({ ...prev, [item.id]: val }));
+                                    updateItemPaymentStatus(item.id, val).catch(() => {});
+                                  }}
+                                  style={{ fontSize: 11, padding: '2px 6px', border: '1px solid #E2E8F0', borderRadius: 6, color: '#64748B', background: 'white', cursor: 'pointer' }}
+                                >
+                                  {PAYMENT_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                </select>
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </details>
-                )}
+                          );
+                        })}
+                      </div>
+                    </details>
+                  ));
+                })()}
 
               </div>
             )}
