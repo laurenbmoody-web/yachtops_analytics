@@ -18,6 +18,7 @@ import {
   fetchVesselDepartments,
   fetchDeliveryBatches,
   updateItemPaymentStatus,
+  quickReceiveItem,
   PROVISIONING_STATUS,
   PROVISION_CATEGORIES,
   PROVISION_UNITS,
@@ -412,6 +413,25 @@ const ProvisioningBoardDetail = () => {
   const handleStatusSave = useCallback(async (item, field, newStatus) => {
     await handleCellSave(item, 'status', newStatus);
   }, [handleCellSave]);
+
+  const handleQuickReceive = useCallback(async (item) => {
+    // Optimistic update — item moves off Items tab immediately
+    const qty = item.quantity_ordered ?? 0;
+    setItems(prev => prev.map(i => i.id === item.id
+      ? { ...i, status: 'received', quantity_received: qty, payment_status: 'awaiting_invoice' }
+      : i
+    ));
+    try {
+      await quickReceiveItem({ item, listId: id, tenantId: activeTenantId, userId: user?.id });
+      // Refresh delivery batches so Received tab shows the item immediately
+      fetchDeliveryBatches(id).then(data => setDeliveries(data || [])).catch(() => {});
+      showToast(`${item.name} marked received`, 'success');
+    } catch {
+      // Revert on failure
+      setItems(prev => prev.map(i => i.id === item.id ? item : i));
+      showToast('Failed to receive item', 'error');
+    }
+  }, [id, activeTenantId, user?.id]);
 
   // ── Item CRUD ─────────────────────────────────────────────────────────────
 
@@ -967,15 +987,15 @@ const ProvisioningBoardDetail = () => {
                     <div style={{ background: 'white', border: '1px solid #F1F5F9', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
                       {/* Table header */}
                       <div style={{ display: 'grid', gridTemplateColumns: TABLE_GRID, gap: 0, padding: '0 16px', background: '#FAFAFA', borderBottom: '1px solid #F1F5F9' }}>
-                        {/* Checkbox */}
+                        {/* Receive-all checkbox for dept */}
                         <div style={{ display: 'flex', alignItems: 'center', padding: '10px 0' }}>
-                          <input type="checkbox" checked={allDeptSel} onChange={() => {
-                            setSelectedItems(prev => {
-                              const n = new Set(prev);
-                              deptItems.forEach(i => allDeptSel ? n.delete(i.id) : n.add(i.id));
-                              return n;
-                            });
-                          }} style={{ width: 13, height: 13, accentColor: '#4A90E2', cursor: 'pointer' }} />
+                          <input
+                            type="checkbox"
+                            checked={false}
+                            title="Mark all as received"
+                            onChange={() => deptItems.forEach(i => handleQuickReceive(i))}
+                            style={{ width: 13, height: 13, accentColor: '#1D9E75', cursor: 'pointer' }}
+                          />
                         </div>
                         {['Item', 'Category', 'Size', 'Unit', 'Qty', 'Unit Cost', 'Total', 'Status', ''].map((h) => (
                           <div key={h} style={{ fontSize: 9, fontWeight: 700, color: '#CBD5E1', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '10px 8px', display: 'flex', alignItems: 'center' }}>
@@ -1006,9 +1026,15 @@ const ProvisioningBoardDetail = () => {
                               transition: 'background 0.1s',
                             }}
                           >
-                            {/* Checkbox */}
+                            {/* Quick-receive checkbox */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 0' }}>
-                              <input type="checkbox" checked={selectedItems.has(item.id)} onChange={() => toggleItem(item.id)} style={{ width: 13, height: 13, accentColor: '#4A90E2', cursor: 'pointer' }} />
+                              <input
+                                type="checkbox"
+                                checked={false}
+                                title="Mark as received"
+                                onChange={() => handleQuickReceive(item)}
+                                style={{ width: 13, height: 13, accentColor: '#1D9E75', cursor: 'pointer' }}
+                              />
                             </div>
                             {/* Item (name + brand italic sub-text) */}
                             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '9px 8px', gap: 2 }}>
