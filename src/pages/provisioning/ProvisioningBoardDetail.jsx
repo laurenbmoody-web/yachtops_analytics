@@ -41,155 +41,10 @@ import {
   StatusCell,
   DeptGroup,
 } from './components/DetailTableCells';
+import SummaryGauges from './components/SummaryGauges';
 
-// ── Summary Gauges ────────────────────────────────────────────────────────────
+// ── (SummaryGauges, SemiGauge, useCountUp live in components/SummaryGauges.jsx) ─
 
-const useCountUp = (target, delay = 0) => {
-  const [val, setVal] = useState(0);
-  useEffect(() => {
-    let raf;
-    let startTs = null;
-    const duration = 900;
-    const tick = (ts) => {
-      if (!startTs) startTs = ts + delay;
-      if (ts < startTs) { raf = requestAnimationFrame(tick); return; }
-      const t = Math.min((ts - startTs) / duration, 1);
-      const eased = 1 - Math.pow(1 - t, 3);
-      setVal(eased * target);
-      if (t < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [target, delay]);
-  return val;
-};
-
-const SemiGauge = ({ pct = 0, gradientId, gradFrom, gradTo, delay = 0 }) => {
-  const animPct = useCountUp(Math.max(0, Math.min(1, pct)), delay);
-  const dashoffset = 100 * (1 - animPct);
-  return (
-    <svg viewBox="0 0 120 68" width="120" height="68" style={{ overflow: 'visible', display: 'block', margin: '0 auto' }}>
-      <defs>
-        <linearGradient id={gradientId} gradientUnits="userSpaceOnUse" x1="10" y1="0" x2="110" y2="0">
-          <stop offset="0%" stopColor={gradFrom} />
-          <stop offset="100%" stopColor={gradTo} />
-        </linearGradient>
-      </defs>
-      {/* Track */}
-      <path d="M 10,64 A 54,54 0 0,1 110,64" fill="none" stroke="#CBD5E1" strokeWidth="8"
-        strokeLinecap="round" pathLength="100" opacity="0.4" />
-      {/* Progress */}
-      <path d="M 10,64 A 54,54 0 0,1 110,64" fill="none" stroke={`url(#${gradientId})`}
-        strokeWidth="8" strokeLinecap="round" pathLength="100"
-        strokeDasharray="100" strokeDashoffset={dashoffset} />
-    </svg>
-  );
-};
-
-const CURR_PILLS = [{ code: 'GBP', symbol: '£' }, { code: 'USD', symbol: '$' }, { code: 'EUR', symbol: '€' }];
-
-const SummaryGauges = ({ items, paymentStatusMap, dispSymbol, dispCurr, fxRates, currency, convertedTotals, displayCurrency, setDisplayCurrency, fxRatesLabel }) => {
-  const convItem = (i) => {
-    const cost = parseFloat(i.estimated_unit_cost) || 0;
-    const qty = parseFloat(i.quantity_ordered) || 0;
-    const iCurr = i.currency || currency;
-    return qty * ((cost / (fxRates[iCurr] || 1)) * (fxRates[dispCurr] || 1));
-  };
-
-  // Items gauge — all items on the board
-  const totalCount = items.length;
-  const receivedCount = items.filter(i => ['received', 'partial'].includes(i.status)).length;
-  const leftToReceive = totalCount - receivedCount;
-  const itemPct = totalCount > 0 ? receivedCount / totalCount : 0;
-
-  // Total cost = all items (pending + received)
-  const totalValue = convertedTotals.estimated;
-
-  // Payments — based on payment_status across ALL items (not just received)
-  const effectivePS = (i) => paymentStatusMap[i.id] ?? i.payment_status ?? 'awaiting_invoice';
-  const paidItems = items.filter(i => ['paid', 'paid_upfront'].includes(effectivePS(i)));
-  const unpaidItems = items.filter(i => !['paid', 'paid_upfront'].includes(effectivePS(i)));
-  const paidValue = paidItems.reduce((acc, i) => acc + convItem(i), 0);
-  const leftToPayValue = unpaidItems.reduce((acc, i) => acc + convItem(i), 0);
-  const totalBoardValue = paidValue + leftToPayValue;
-  const paymentPct = totalBoardValue > 0 ? paidValue / totalBoardValue : 0;
-
-  const animItemLeft = useCountUp(leftToReceive, 0);
-  const animTotal = useCountUp(totalValue, 150);
-  const animLeftToPay = useCountUp(leftToPayValue, 300);
-  const animPaid = useCountUp(paidValue, 300);
-
-  const cardStyle = {
-    background: 'var(--color-background-secondary, white)',
-    borderRadius: 'var(--border-radius-lg, 12px)',
-    padding: '1.5rem 1.25rem',
-    textAlign: 'center',
-    border: '1px solid #F1F5F9',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-  };
-
-  return (
-    <div style={{ marginTop: 24 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-
-        {/* Card 1: Items */}
-        <div style={cardStyle}>
-          <SemiGauge pct={itemPct} gradientId="gauge-items" gradFrom="#1D9E75" gradTo="#5DCAA5" delay={0} />
-          <div style={{ marginTop: -4 }}>
-            <p style={{ fontSize: 30, fontWeight: 700, color: '#0F172A', lineHeight: 1, letterSpacing: '-0.02em', margin: 0 }}>
-              {Math.round(animItemLeft)} item{Math.round(animItemLeft) !== 1 ? 's' : ''}
-            </p>
-            <p style={{ fontSize: 12, color: '#94A3B8', margin: '4px 0 6px' }}>left to receive</p>
-            <p style={{ fontSize: 12, fontWeight: 600, color: '#1D9E75' }}>{receivedCount} of {totalCount} received</p>
-          </div>
-        </div>
-
-        {/* Card 2: Total cost (no gauge) */}
-        <div style={{ ...cardStyle, justifyContent: 'center', gap: 6 }}>
-          <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#94A3B8', margin: 0 }}>Total cost</p>
-          <p style={{ fontSize: 36, fontWeight: 700, color: '#0F172A', lineHeight: 1, letterSpacing: '-0.02em', margin: '8px 0 4px' }}>
-            {dispSymbol}{Math.round(animTotal).toLocaleString()}
-          </p>
-          <p style={{ fontSize: 12, color: '#94A3B8', margin: 0 }}>{totalCount} item{totalCount !== 1 ? 's' : ''} on board</p>
-        </div>
-
-        {/* Card 3: Payments */}
-        <div style={cardStyle}>
-          <SemiGauge pct={paymentPct} gradientId="gauge-payments" gradFrom="#BA7517" gradTo="#EF9F27" delay={300} />
-          <div style={{ marginTop: -4 }}>
-            <p style={{ fontSize: 30, fontWeight: 700, color: '#0F172A', lineHeight: 1, letterSpacing: '-0.02em', margin: 0 }}>
-              {dispSymbol}{Math.round(animLeftToPay).toLocaleString()}
-            </p>
-            <p style={{ fontSize: 12, color: '#94A3B8', margin: '4px 0 6px' }}>left to pay</p>
-            <p style={{ fontSize: 12, fontWeight: 600, color: '#15803D' }}>{dispSymbol}{Math.round(animPaid).toLocaleString()} paid</p>
-          </div>
-        </div>
-
-      </div>
-
-      {/* Currency toggle */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginTop: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          {CURR_PILLS.map((pill, idx) => {
-            const active = dispCurr === pill.code;
-            return (
-              <React.Fragment key={pill.code}>
-                {idx > 0 && <span style={{ fontSize: 11, color: '#E2E8F0', margin: '0 6px', userSelect: 'none' }}>·</span>}
-                <button onClick={() => setDisplayCurrency(pill.code)}
-                  style={{ fontSize: 11, fontWeight: active ? 700 : 400, color: active ? '#1E3A5F' : '#CBD5E1', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                  {pill.symbol} {pill.code}
-                </button>
-              </React.Fragment>
-            );
-          })}
-        </div>
-        <span style={{ fontSize: 10, color: '#CBD5E1', marginTop: 4 }}>{fxRatesLabel}</span>
-      </div>
-    </div>
-  );
-};
 
 // ── Edit Board Modal ──────────────────────────────────────────────────────────
 
@@ -583,6 +438,30 @@ const ProvisioningBoardDetail = () => {
       return { estimated: acc.estimated + qty * c, actual: acc.actual + qtyRec * c };
     }, { estimated: 0, actual: 0 });
   }, [items, displayCurrency, fxRates, list]);
+
+  // Pre-computed values passed to SummaryGauges
+  const gaugeProps = useMemo(() => {
+    const disp = displayCurrency || 'GBP';
+    const convItem = (i) => {
+      const cost = parseFloat(i.estimated_unit_cost) || 0;
+      const qty  = parseFloat(i.quantity_ordered) || 0;
+      const iCurr = i.currency || (list?.currency || 'GBP');
+      return qty * ((cost / (fxRates[iCurr] || 1)) * (fxRates[disp] || 1));
+    };
+    const effectivePS = (i) => paymentStatusMap[i.id] ?? i.payment_status ?? 'awaiting_invoice';
+    const receivedCount = items.filter(i => ['received', 'partial'].includes(i.status)).length;
+    const paidItems   = items.filter(i => ['paid', 'paid_upfront'].includes(effectivePS(i)));
+    const unpaidItems = items.filter(i => !['paid', 'paid_upfront'].includes(effectivePS(i)));
+    return {
+      leftToReceive:  items.length - receivedCount,
+      totalCount:     items.length,
+      receivedCount,
+      totalValue:     convertedTotals.estimated,
+      costSubtext:    `${items.length} item${items.length !== 1 ? 's' : ''} on board`,
+      paidValue:      paidItems.reduce((s, i) => s + convItem(i), 0),
+      leftToPayValue: unpaidItems.reduce((s, i) => s + convItem(i), 0),
+    };
+  }, [items, paymentStatusMap, convertedTotals, fxRates, displayCurrency, list]);
 
   // ── Checkboxes ────────────────────────────────────────────────────────────
 
@@ -1351,14 +1230,9 @@ const ProvisioningBoardDetail = () => {
           {/* ── Summary gauges — always visible when items exist ──────── */}
           {items.length > 0 && (
             <SummaryGauges
-              items={items}
-              paymentStatusMap={paymentStatusMap}
+              {...gaugeProps}
               dispSymbol={dispSymbol}
               dispCurr={dispCurr}
-              fxRates={fxRates}
-              currency={currency}
-              convertedTotals={convertedTotals}
-              displayCurrency={displayCurrency}
               setDisplayCurrency={setDisplayCurrency}
               fxRatesLabel={fxRatesLabel}
             />

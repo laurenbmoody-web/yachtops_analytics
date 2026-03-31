@@ -10,6 +10,7 @@ import BoardDrawer from './components/BoardDrawer';
 import ItemDrawer from './components/ItemDrawer';
 import DeliveryModal from './components/DeliveryModal';
 import ShareModal from './components/ShareModal';
+import SummaryGauges from './components/SummaryGauges';
 import {
   fetchProvisioningLists,
   fetchListItems,
@@ -686,60 +687,22 @@ const ProvisioningWorkspace = () => {
           </div>
         )}
 
-        {/* ── Cross-board summary strip ──────────────────────────────────── */}
+        {/* ── Cross-board summary gauges ─────────────────────────────────── */}
         {!loading && crossBoardTotals.totalItems > 0 && (
-          <div style={{ padding: '12px 24px 0' }}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: 12,
-              background: 'white',
-              border: '1px solid #F1F5F9',
-              borderRadius: 12,
-              padding: '14px 20px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-            }}>
-              {/* Boards */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#CBD5E1' }}>Boards</span>
-                <span style={{ fontSize: 20, fontWeight: 700, color: '#0F172A', lineHeight: 1 }}>{crossBoardTotals.boardCount}</span>
-                <span style={{ fontSize: 11, color: '#94A3B8' }}>{crossBoardTotals.pendingItems} items pending</span>
-              </div>
-              {/* Received */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#CBD5E1' }}>Received</span>
-                <span style={{ fontSize: 20, fontWeight: 700, color: '#0F172A', lineHeight: 1 }}>{crossBoardTotals.receivedItems} <span style={{ fontSize: 13, fontWeight: 400, color: '#94A3B8' }}>of {crossBoardTotals.totalItems}</span></span>
-                <div style={{ height: 3, background: '#F1F5F9', borderRadius: 99, marginTop: 2, overflow: 'hidden', width: '80%' }}>
-                  <div style={{ height: '100%', width: `${crossBoardTotals.totalItems > 0 ? Math.round((crossBoardTotals.receivedItems / crossBoardTotals.totalItems) * 100) : 0}%`, background: 'linear-gradient(90deg, #1D9E75, #5DCAA5)', borderRadius: 99 }} />
-                </div>
-              </div>
-              {/* Total cost */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#CBD5E1' }}>Total cost</span>
-                <span style={{ fontSize: 20, fontWeight: 700, color: '#0F172A', lineHeight: 1 }}>{crossBoardTotals.sym}{Math.round(crossBoardTotals.totalCost).toLocaleString()}</span>
-                <span style={{ fontSize: 11, color: '#94A3B8' }}>{crossBoardTotals.totalItems} items across all boards</span>
-              </div>
-              {/* Payments */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#CBD5E1' }}>Payments</span>
-                  {/* Currency toggle */}
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    {[{c:'GBP',s:'£'},{c:'USD',s:'$'},{c:'EUR',s:'€'}].map(p => (
-                      <button key={p.c} onClick={() => setSummaryDisplayCurrency(p.c)}
-                        style={{ fontSize: 10, fontWeight: summaryDisplayCurrency === p.c ? 700 : 400, color: summaryDisplayCurrency === p.c ? '#1E3A5F' : '#CBD5E1', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                        {p.s}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <span style={{ fontSize: 20, fontWeight: 700, color: '#B45309', lineHeight: 1 }}>{crossBoardTotals.sym}{Math.round(crossBoardTotals.leftToPayCost).toLocaleString()} <span style={{ fontSize: 11, fontWeight: 400, color: '#94A3B8' }}>outstanding</span></span>
-                <span style={{ fontSize: 11, fontWeight: 600, color: '#15803D' }}>{crossBoardTotals.sym}{Math.round(crossBoardTotals.paidCost).toLocaleString()} paid</span>
-              </div>
-            </div>
-            {summaryFxLabel && (
-              <p style={{ fontSize: 10, color: '#CBD5E1', textAlign: 'right', marginTop: 4 }}>{summaryFxLabel}</p>
-            )}
+          <div style={{ padding: '0 24px' }}>
+            <SummaryGauges
+              leftToReceive={crossBoardTotals.pendingItems}
+              totalCount={crossBoardTotals.totalItems}
+              receivedCount={crossBoardTotals.receivedItems}
+              totalValue={crossBoardTotals.totalCost}
+              costSubtext={`${crossBoardTotals.totalItems} item${crossBoardTotals.totalItems !== 1 ? 's' : ''} across all boards`}
+              leftToPayValue={crossBoardTotals.leftToPayCost}
+              paidValue={crossBoardTotals.paidCost}
+              dispSymbol={crossBoardTotals.sym}
+              dispCurr={summaryDisplayCurrency}
+              setDisplayCurrency={setSummaryDisplayCurrency}
+              fxRatesLabel={summaryFxLabel}
+            />
           </div>
         )}
 
