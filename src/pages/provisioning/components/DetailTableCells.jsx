@@ -27,42 +27,55 @@ export const ITEM_STATUS_OPTIONS = [
 export const getStatusCfg = (s) => ITEM_STATUS_OPTIONS.find(o => o.value === s) || ITEM_STATUS_OPTIONS[0];
 
 // ── EditCell — click to edit text / number cell ───────────────────────────────
-export const EditCell = ({ item, field, value, type = 'text', align = 'left', placeholder, editingCell, setEditingCell, onSave }) => {
-  const isActive = editingCell?.itemId === item.id && editingCell?.field === field;
+// alwaysEdit=true: always renders as a subtle inline input (no click-to-activate)
+export const EditCell = ({ item, field, value, type = 'text', align = 'left', placeholder, editingCell, setEditingCell, onSave, alwaysEdit = false }) => {
   const inputRef = useRef(null);
-  const [local, setLocal] = useState('');
+  const [local, setLocal] = useState(value ?? '');
+  const isActive = alwaysEdit || (editingCell?.itemId === item.id && editingCell?.field === field);
+
+  // Sync local state when value changes from outside, but only if not currently focused
+  useEffect(() => {
+    if (document.activeElement !== inputRef.current) {
+      setLocal(value ?? '');
+    }
+  }, [value]);
 
   useEffect(() => {
-    if (isActive && inputRef.current) {
+    if (!alwaysEdit && isActive && inputRef.current) {
       inputRef.current.focus();
       try { inputRef.current.select(); } catch { /* number inputs don't support select on all browsers */ }
     }
   }, [isActive]);
 
   const activate = () => {
-    setLocal(value ?? '');
-    setEditingCell({ itemId: item.id, field });
+    if (!alwaysEdit) {
+      setLocal(value ?? '');
+      setEditingCell({ itemId: item.id, field });
+    }
   };
 
   const commit = () => {
-    setEditingCell(null);
-    onSave(item, field, local);
+    if (!alwaysEdit) setEditingCell(null);
+    if (String(local) !== String(value ?? '')) {
+      onSave(item, field, local);
+    }
   };
 
   if (isActive) {
     return (
-      <div className="px-1 flex items-center min-h-[38px]">
+      <div className={`px-1 flex items-center min-h-[38px]`}>
         <input
           ref={inputRef}
           type={type}
           value={local}
+          placeholder={placeholder}
           onChange={e => setLocal(e.target.value)}
           onKeyDown={e => {
-            if (e.key === 'Enter') commit();
-            if (e.key === 'Escape') setEditingCell(null);
+            if (e.key === 'Enter') e.currentTarget.blur();
+            if (e.key === 'Escape') { setLocal(value ?? ''); if (!alwaysEdit) setEditingCell(null); }
           }}
           onBlur={commit}
-          className={`w-full bg-primary/5 border border-primary/40 rounded px-1.5 py-0.5 text-[13px] text-foreground outline-none ${align === 'right' ? 'text-right tabular-nums' : ''}`}
+          className={`w-full rounded px-1.5 py-0.5 text-[13px] text-foreground outline-none bg-transparent border border-transparent hover:border-gray-200 focus:border-blue-500 focus:bg-blue-500/[0.03] transition-colors ${align === 'right' ? 'text-right tabular-nums' : ''}`}
         />
       </div>
     );
@@ -193,58 +206,42 @@ export const QtyCell = ({ item, field, value, editingCell, setEditingCell, onSav
 const COST_CURRENCY_SYMBOLS = { GBP: '£', USD: '$', EUR: '€' };
 
 export const CostCell = ({ item, listCurrency, editingCell, setEditingCell, onSave }) => {
-  const isActive = editingCell?.itemId === item.id && editingCell?.field === 'estimated_unit_cost';
   const inputRef = useRef(null);
-  const [local, setLocal] = useState('');
   const currCode = item.currency || listCurrency || 'USD';
   const symbol = COST_CURRENCY_SYMBOLS[currCode] || currCode;
+  const [local, setLocal] = useState(item.estimated_unit_cost ?? '');
 
+  // Sync with external value changes when not focused
   useEffect(() => {
-    if (isActive && inputRef.current) {
-      inputRef.current.focus();
-      try { inputRef.current.select(); } catch {}
+    if (document.activeElement !== inputRef.current) {
+      setLocal(item.estimated_unit_cost ?? '');
     }
-  }, [isActive]);
-
-  const activate = () => {
-    setLocal(item.estimated_unit_cost ?? '');
-    setEditingCell({ itemId: item.id, field: 'estimated_unit_cost' });
-  };
+  }, [item.estimated_unit_cost]);
 
   const commit = () => {
-    setEditingCell(null);
-    onSave(item, 'estimated_unit_cost', local);
+    if (String(local) !== String(item.estimated_unit_cost ?? '')) {
+      onSave(item, 'estimated_unit_cost', local);
+    }
   };
 
-  if (isActive) {
-    return (
-      <div className="px-1 flex items-center min-h-[38px]">
-        <input
-          ref={inputRef}
-          type="number"
-          value={local}
-          onChange={e => setLocal(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === 'Enter') commit();
-            if (e.key === 'Escape') setEditingCell(null);
-          }}
-          onBlur={commit}
-          className="w-full bg-primary/5 border border-primary/40 rounded px-1.5 py-0.5 text-[13px] text-foreground text-right outline-none tabular-nums"
-          min="0"
-          step="0.01"
-        />
-      </div>
-    );
-  }
-
-  const val = item.estimated_unit_cost;
   return (
-    <div className="flex items-center justify-end px-2 min-h-[38px] cursor-text select-none" onClick={activate}>
-      {val != null && val !== '' ? (
-        <span className="text-[13px] text-foreground tabular-nums">{symbol}{parseFloat(val).toFixed(2)}</span>
-      ) : (
-        <span className="text-[12px] text-muted-foreground/25">—</span>
-      )}
+    <div className="px-1 flex items-center min-h-[38px] gap-0.5">
+      <span className="text-[12px] text-muted-foreground/60 flex-shrink-0 select-none">{symbol}</span>
+      <input
+        ref={inputRef}
+        type="number"
+        value={local}
+        min="0"
+        step="0.01"
+        placeholder="0.00"
+        onChange={e => setLocal(e.target.value)}
+        onKeyDown={e => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+          if (e.key === 'Escape') { setLocal(item.estimated_unit_cost ?? ''); inputRef.current?.blur(); }
+        }}
+        onBlur={commit}
+        className="w-full rounded px-1.5 py-0.5 text-[13px] text-foreground text-right outline-none bg-transparent border border-transparent hover:border-gray-200 focus:border-blue-500 focus:bg-blue-500/[0.03] transition-colors tabular-nums"
+      />
     </div>
   );
 };
@@ -295,42 +292,44 @@ export const StatusCell = ({ item, editingCell, setEditingCell, onSave }) => {
 
 // ── CompoundMeasureCell — Size | Unit | Qty in one cell ──────────────────────
 const CompoundMeasureCell = ({ item, editingCell, setEditingCell, onSave, onStep }) => {
-  const isSizeActive = editingCell?.itemId === item.id && editingCell?.field === 'size';
   const isQtyActive  = editingCell?.itemId === item.id && editingCell?.field === 'quantity_ordered';
   const sizeRef = useRef(null);
   const qtyRef  = useRef(null);
-  const [localSize, setLocalSize] = useState('');
+  const [localSize, setLocalSize] = useState(item.size ?? '');
   const [localQty,  setLocalQty]  = useState('');
 
+  // Sync size with external changes when not focused
   useEffect(() => {
-    if (isSizeActive && sizeRef.current) { sizeRef.current.focus(); try { sizeRef.current.select(); } catch {} }
-  }, [isSizeActive]);
+    if (document.activeElement !== sizeRef.current) {
+      setLocalSize(item.size ?? '');
+    }
+  }, [item.size]);
+
   useEffect(() => {
     if (isQtyActive && qtyRef.current) { qtyRef.current.focus(); try { qtyRef.current.select(); } catch {} }
   }, [isQtyActive]);
 
-  const commitSize = () => { setEditingCell(null); onSave(item, 'size', localSize); };
+  const commitSize = () => {
+    if (String(localSize) !== String(item.size ?? '')) onSave(item, 'size', localSize);
+  };
   const commitQty  = () => { setEditingCell(null); onSave(item, 'quantity_ordered', localQty); };
 
   return (
     <div className="flex items-center gap-1 px-2 min-h-[38px]" onClick={e => e.stopPropagation()}>
-      {/* Size */}
-      {isSizeActive ? (
-        <input ref={sizeRef} value={localSize} onChange={e => setLocalSize(e.target.value)}
-          onBlur={commitSize}
-          onKeyDown={e => { if (e.key === 'Enter') commitSize(); if (e.key === 'Escape') setEditingCell(null); }}
-          className="bg-primary/5 border border-primary/40 rounded px-1 py-0.5 text-[12px] text-foreground outline-none"
-          style={{ width: 44 }}
-        />
-      ) : (
-        <span
-          className="text-[12px] text-foreground cursor-text text-center"
-          style={{ minWidth: 24 }}
-          onClick={() => { setLocalSize(item.size ?? ''); setEditingCell({ itemId: item.id, field: 'size' }); }}
-        >
-          {item.size || '—'}
-        </span>
-      )}
+      {/* Size — always-visible inline input */}
+      <input
+        ref={sizeRef}
+        value={localSize}
+        placeholder="—"
+        onChange={e => setLocalSize(e.target.value)}
+        onBlur={commitSize}
+        onKeyDown={e => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+          if (e.key === 'Escape') { setLocalSize(item.size ?? ''); sizeRef.current?.blur(); }
+        }}
+        className="rounded px-1 py-0.5 text-[12px] text-foreground outline-none bg-transparent border border-transparent hover:border-gray-200 focus:border-blue-500 focus:bg-blue-500/[0.03] transition-colors text-center"
+        style={{ width: 44 }}
+      />
 
       <span className="text-muted-foreground/30 text-[11px] flex-shrink-0 select-none">|</span>
 
@@ -469,7 +468,7 @@ export const DeptGroup = ({
               </div>
 
               <EditCell item={item} field="name" value={item.name} editingCell={editingCell} setEditingCell={setEditingCell} onSave={onCellSave} placeholder="Item name" />
-              <EditCell item={item} field="brand" value={item.brand} editingCell={editingCell} setEditingCell={setEditingCell} onSave={onCellSave} />
+              <EditCell item={item} field="brand" value={item.brand} editingCell={editingCell} setEditingCell={setEditingCell} onSave={onCellSave} placeholder="Brand" alwaysEdit />
               {/* Category — read-only, edit via drawer */}
               <div className="flex items-center px-2 min-h-[38px]">
                 {(item.sub_category || item.category) ? (
