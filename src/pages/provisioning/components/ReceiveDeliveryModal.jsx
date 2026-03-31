@@ -10,7 +10,7 @@ import {
   searchInventoryItems,
   fetchAllInventoryLocations,
   fetchVesselLocations,
-  logDeliveryBatch,
+  createDeliveryBatch,
 } from '../utils/provisioningStorage';
 import { useAuth } from '../../../contexts/AuthContext';
 import { UNIT_GROUPS } from './DetailTableCells';
@@ -850,35 +850,28 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
         const r = receiving[item.id] || {};
         const qty = r.checked ? Math.max(0, parseFloat(r.qty) || 0) : 0;
         const ordered = parseFloat(item.quantity_ordered) || 0;
-        return {
-          id: item.id,
-          quantity_received: qty,
-          status: deriveStatus(qty, ordered),
-        };
+        return { id: item.id, quantity_received: qty, status: deriveStatus(qty, ordered) };
       });
-      await receiveItems(updates);
-      // Log this delivery batch (non-fatal — don't block step 2 if it fails)
+
+      // Create a batch record first, then stamp every received item with its id
       const receivedUpdates = updates.filter(u => u.quantity_received > 0);
+      let batchId = null;
       if (receivedUpdates.length > 0) {
-        const logItems = receivedUpdates.map(u => {
-          const item = items.find(i => i.id === u.id);
-          return {
-            id: u.id,
-            name: item?.name,
-            brand: item?.brand,
-            size: item?.size,
-            quantity_received: u.quantity_received,
-            quantity_ordered: item?.quantity_ordered,
-            unit: item?.unit,
-            department: item?.department,
-            category: item?.category,
-            sub_category: item?.sub_category,
-            cargo_item_id: item?.cargo_item_id,
-            inventory_item_id: item?.inventory_item_id,
-          };
+        const batch = await createDeliveryBatch({
+          listId: list?.id,
+          tenantId,
+          userId,
+          supplierName: list?.supplier_name || 'Manual receive',
         });
-        logDeliveryBatch({ listId: list?.id, userId, tenantId, receivedItems: logItems }).catch(() => {});
+        batchId = batch?.id || null;
       }
+
+      // Persist each item — include receive_batch_id for those with qty > 0
+      await receiveItems(updates.map(u => ({
+        ...u,
+        ...(u.quantity_received > 0 && batchId ? { receive_batch_id: batchId } : {}),
+      })));
+
       setStep(2);
     } catch (err) {
       console.error('[ReceiveDeliveryModal] save error:', err);
