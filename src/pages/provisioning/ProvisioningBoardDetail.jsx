@@ -94,20 +94,23 @@ const SummaryGauges = ({ items, paymentStatusMap, dispSymbol, dispCurr, fxRates,
     return qty * ((cost / (fxRates[iCurr] || 1)) * (fxRates[dispCurr] || 1));
   };
 
+  // Items gauge — all items on the board
   const totalCount = items.length;
-  const receivedCount = items.filter(i => i.status === 'received').length;
+  const receivedCount = items.filter(i => ['received', 'partial'].includes(i.status)).length;
   const leftToReceive = totalCount - receivedCount;
   const itemPct = totalCount > 0 ? receivedCount / totalCount : 0;
+
+  // Total cost = all items (pending + received)
   const totalValue = convertedTotals.estimated;
 
-  const effectivePS = (i) => paymentStatusMap[i.id] ?? i.payment_status;
-  const receivedItems = items.filter(i => i.status === 'received');
-  const paidItems = receivedItems.filter(i => ['paid', 'paid_upfront'].includes(effectivePS(i)));
-  const unpaidItems = receivedItems.filter(i => !['paid', 'paid_upfront'].includes(effectivePS(i)));
+  // Payments — based on payment_status across ALL items (not just received)
+  const effectivePS = (i) => paymentStatusMap[i.id] ?? i.payment_status ?? 'awaiting_invoice';
+  const paidItems = items.filter(i => ['paid', 'paid_upfront'].includes(effectivePS(i)));
+  const unpaidItems = items.filter(i => !['paid', 'paid_upfront'].includes(effectivePS(i)));
   const paidValue = paidItems.reduce((acc, i) => acc + convItem(i), 0);
   const leftToPayValue = unpaidItems.reduce((acc, i) => acc + convItem(i), 0);
-  const totalReceivedValue = paidValue + leftToPayValue;
-  const paymentPct = totalReceivedValue > 0 ? paidValue / totalReceivedValue : 0;
+  const totalBoardValue = paidValue + leftToPayValue;
+  const paymentPct = totalBoardValue > 0 ? paidValue / totalBoardValue : 0;
 
   const animItemLeft = useCountUp(leftToReceive, 0);
   const animTotal = useCountUp(totalValue, 150);
@@ -137,7 +140,7 @@ const SummaryGauges = ({ items, paymentStatusMap, dispSymbol, dispCurr, fxRates,
               {Math.round(animItemLeft)} item{Math.round(animItemLeft) !== 1 ? 's' : ''}
             </p>
             <p style={{ fontSize: 12, color: '#94A3B8', margin: '4px 0 6px' }}>left to receive</p>
-            <p style={{ fontSize: 12, fontWeight: 600, color: '#1D9E75' }}>{receivedCount} of {totalCount} completed</p>
+            <p style={{ fontSize: 12, fontWeight: 600, color: '#1D9E75' }}>{receivedCount} of {totalCount} received</p>
           </div>
         </div>
 
