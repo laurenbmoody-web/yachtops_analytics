@@ -349,7 +349,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
       unit: base.unit || 'each',
       estimated_unit_cost: base.estimated_unit_cost ? parseFloat(base.estimated_unit_cost) : null,
       currency: base.currency || null,
-      status: base.status || 'pending',
+      status: base.status || 'draft',
       quantity_received: base.quantity_received !== '' ? parseFloat(base.quantity_received) : null,
       allergen_flags: base.allergen_flags || [],
       item_notes: base.item_notes || '',
