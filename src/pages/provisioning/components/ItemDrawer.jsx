@@ -14,6 +14,7 @@ import {
   PROVISION_CATEGORIES,
 } from '../utils/provisioningStorage';
 import { PAYMENT_STATUS_OPTIONS } from './InvoiceUploadModal';
+import { showToast } from '../../../utils/toast';
 import { UNIT_GROUPS } from './DetailTableCells';
 import { useAuth } from '../../../contexts/AuthContext';
 
@@ -363,33 +364,42 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
 
   const buildPayload = (overrides = {}) => {
     const base = { ...form, ...overrides };
-    return {
+    // Core fields — always present (original schema columns)
+    const payload = {
       ...(isNew ? {} : { id: item.id }),
       list_id: listId,
+      ...(isNew && tenantId ? { tenant_id: tenantId } : {}),
       name: base.name?.trim() || '',
-      brand: base.brand || '',
-      size: base.size || '',
       department: base.department || '',
       category: base.category || '',
-      sub_category: base.sub_category || '',
       quantity_ordered: parseFloat(base.quantity_ordered) || 1,
       unit: base.unit || 'each',
-      estimated_unit_cost: base.estimated_unit_cost ? parseFloat(base.estimated_unit_cost) : null,
-      currency: base.currency || null,
       status: base.status || 'draft',
-      quantity_received: base.quantity_received !== '' ? parseFloat(base.quantity_received) : null,
       allergen_flags: base.allergen_flags || [],
-      item_notes: base.item_notes || '',
       notes: base.notes || '',
       source: base.source || 'manual',
-      accounting_description: base.accounting_description || '',
-      supplier_id: base.supplier_id || null,
-      supplier_name: base.supplier_name || null,
-      port_location: base.port_location || '',
-      inventory_item_id: base.inventory_item_id || null,
-      cargo_item_id: base.cargo_item_id || '',
-      barcode: base.barcode || '',
     };
+    // Extended fields — only included when they have a value, so a missing
+    // DB column on the field doesn't break the upsert for other fields.
+    const ext = {
+      brand:                  base.brand               || null,
+      size:                   base.size                || null,
+      sub_category:           base.sub_category        || null,
+      estimated_unit_cost:    base.estimated_unit_cost ? parseFloat(base.estimated_unit_cost) : null,
+      currency:               base.currency            || null,
+      quantity_received:      base.quantity_received !== '' ? parseFloat(base.quantity_received) : null,
+      item_notes:             base.item_notes          || null,
+      accounting_description: base.accounting_description || null,
+      supplier_id:            base.supplier_id         || null,
+      supplier_name:          base.supplier_name       || null,
+      port_location:          base.port_location       || null,
+      inventory_item_id:      base.inventory_item_id   || null,
+      cargo_item_id:          base.cargo_item_id       || null,
+      barcode:                base.barcode             || null,
+    };
+    // Include extended fields that have a non-null value
+    Object.entries(ext).forEach(([k, v]) => { if (v !== null && v !== undefined) payload[k] = v; });
+    return payload;
   };
 
   const saveField = async (overrides = {}) => {
@@ -399,7 +409,11 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
       const saved = await upsertItems([buildPayload(overrides)]);
       onSaved(listId, saved);
       showSaved();
-    } catch { /* silent */ }
+    } catch (err) {
+      console.error('[ItemDrawer] save error:', err);
+      const msg = err?.message || 'Unknown error';
+      showToast(`Save failed: ${msg}`, 'error');
+    }
   };
 
   const set = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
