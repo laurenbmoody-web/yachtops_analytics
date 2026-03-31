@@ -989,7 +989,8 @@ export const createInventoryItemFromProvItem = async ({ provItem, categoryPath, 
  * splits: [{ locationName: string, addQty: number }]
  */
 export const pushReceivedSplitsToInventory = async ({ inventoryItemId, splits, tenantId }) => {
-  const activeSplits = (splits || []).filter(s => (parseFloat(s.addQty) || 0) > 0 && (s.locationName || '').trim());
+  // Accept splits with a quantity — locationName is optional
+  const activeSplits = (splits || []).filter(s => (parseFloat(s.addQty) || 0) > 0);
   if (!activeSplits.length || !inventoryItemId || !tenantId) return false;
   try {
     const { data: item, error: fetchErr } = await supabase
@@ -1004,14 +1005,16 @@ export const pushReceivedSplitsToInventory = async ({ inventoryItemId, splits, t
     let totalAdded = 0;
 
     for (const split of activeSplits) {
-      const normName = split.locationName.trim();
+      const normName = (split.locationName || '').trim();
       const addQty = parseFloat(split.addQty) || 0;
-      const idx = locs.findIndex(l => (l?.locationName || l?.name || '').toLowerCase() === normName.toLowerCase());
-      if (idx >= 0) {
-        const existing = locs[idx];
-        locs[idx] = { ...existing, qty: (existing?.qty ?? existing?.quantity ?? 0) + addQty };
-      } else {
-        locs.push({ locationName: normName, locationId: '', qty: addQty });
+      if (normName) {
+        const idx = locs.findIndex(l => (l?.locationName || l?.name || '').toLowerCase() === normName.toLowerCase());
+        if (idx >= 0) {
+          const existing = locs[idx];
+          locs[idx] = { ...existing, qty: (existing?.qty ?? existing?.quantity ?? 0) + addQty };
+        } else {
+          locs.push({ locationName: normName, locationId: '', qty: addQty });
+        }
       }
       totalAdded += addQty;
     }

@@ -361,9 +361,9 @@ const ProvisioningBoardDetail = () => {
     return () => document.removeEventListener('mousedown', h);
   }, [showMenu]);
 
-  // Load deliveries when Deliveries tab becomes active
+  // Load deliveries when Received tab becomes active
   useEffect(() => {
-    if (activeTab !== 'deliveries' || !list?.id) return;
+    if (activeTab !== 'received' || !list?.id) return;
     setDeliveriesLoading(true);
     fetchDeliveryBatches(list.id)
       .then(data => setDeliveries(data || []))
@@ -1028,9 +1028,21 @@ const ProvisioningBoardDetail = () => {
                                   </span>
                                 )}
                               </div>
-                              {item.brand && (
-                                <span style={{ fontSize: 11, color: '#94A3B8', fontStyle: 'italic', paddingLeft: allergen ? 18 : 0 }}>
-                                  {item.brand}
+                              {editingCell?.itemId === item.id && editingCell?.field === 'brand' ? (
+                                <input
+                                  autoFocus
+                                  defaultValue={item.brand ?? ''}
+                                  onBlur={e => { handleCellSave(item, 'brand', e.target.value); setEditingCell(null); }}
+                                  onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingCell(null); }}
+                                  placeholder="Brand…"
+                                  style={{ fontSize: 11, color: '#0F172A', background: '#F0F7FF', border: '1px solid #93C5FD', borderRadius: 5, padding: '2px 6px', width: '100%', outline: 'none' }}
+                                />
+                              ) : (
+                                <span
+                                  onDoubleClick={() => setEditingCell({ itemId: item.id, field: 'brand' })}
+                                  style={{ fontSize: 11, color: item.brand ? '#94A3B8' : '#E2E8F0', fontStyle: 'italic', paddingLeft: allergen ? 18 : 0, cursor: 'default' }}
+                                >
+                                  {item.brand || '—'}
                                 </span>
                               )}
                             </div>
@@ -1253,20 +1265,6 @@ const ProvisioningBoardDetail = () => {
                 </div>
               </div>
 
-              {/* ── Summary gauges ────────────────────────────────────── */}
-              <SummaryGauges
-                items={items}
-                paymentStatusMap={paymentStatusMap}
-                dispSymbol={dispSymbol}
-                dispCurr={dispCurr}
-                fxRates={fxRates}
-                currency={currency}
-                convertedTotals={convertedTotals}
-                displayCurrency={displayCurrency}
-                setDisplayCurrency={setDisplayCurrency}
-                fxRatesLabel={fxRatesLabel}
-              />
-
               {/* ── Global add item ────────────────────────────────────── */}
               <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px dashed #E2E8F0' }}>
                 {addingToDept === '__global__' ? (
@@ -1298,6 +1296,22 @@ const ProvisioningBoardDetail = () => {
                 )}
               </div>
             </>
+          )}
+
+          {/* ── Summary gauges — always visible when items exist ──────── */}
+          {items.length > 0 && (
+            <SummaryGauges
+              items={items}
+              paymentStatusMap={paymentStatusMap}
+              dispSymbol={dispSymbol}
+              dispCurr={dispCurr}
+              fxRates={fxRates}
+              currency={currency}
+              convertedTotals={convertedTotals}
+              displayCurrency={displayCurrency}
+              setDisplayCurrency={setDisplayCurrency}
+              fxRatesLabel={fxRatesLabel}
+            />
           )}
         </div>}
 
