@@ -74,8 +74,12 @@ export const EditCell = ({ item, field, value, type = 'text', align = 'left', pl
             if (e.key === 'Enter') e.currentTarget.blur();
             if (e.key === 'Escape') { setLocal(value ?? ''); if (!alwaysEdit) setEditingCell(null); }
           }}
-          onBlur={commit}
-          className={`w-full rounded px-1.5 py-0.5 text-[13px] text-foreground outline-none bg-white border border-gray-200 hover:border-gray-300 focus:border-blue-500 focus:bg-blue-500/[0.03] focus:shadow-[0_0_0_2px_rgba(59,130,246,0.1)] transition-colors ${align === 'right' ? 'text-right tabular-nums' : ''}`}
+          onBlur={e => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; commit(); }}
+          onFocus={e => { e.target.style.borderColor = '#3B82F6'; e.target.style.boxShadow = '0 0 0 2px rgba(59,130,246,0.15)'; }}
+          onMouseEnter={e => { if (document.activeElement !== e.target) e.target.style.borderColor = '#D1D5DB'; }}
+          onMouseLeave={e => { if (document.activeElement !== e.target) e.target.style.borderColor = '#E5E7EB'; }}
+          className={`w-full text-[13px] text-foreground outline-none ${align === 'right' ? 'text-right tabular-nums' : ''}`}
+          style={{ border: '1px solid #E5E7EB', borderRadius: 4, padding: '3px 6px', background: '#ffffff' }}
         />
       </div>
     );
@@ -239,8 +243,12 @@ export const CostCell = ({ item, listCurrency, editingCell, setEditingCell, onSa
           if (e.key === 'Enter') e.currentTarget.blur();
           if (e.key === 'Escape') { setLocal(item.estimated_unit_cost ?? ''); inputRef.current?.blur(); }
         }}
-        onBlur={commit}
-        className="w-full rounded px-1.5 py-0.5 text-[13px] text-foreground text-right outline-none bg-white border border-gray-200 hover:border-gray-300 focus:border-blue-500 focus:bg-blue-500/[0.03] focus:shadow-[0_0_0_2px_rgba(59,130,246,0.1)] transition-colors tabular-nums"
+        onFocus={e => { e.target.style.borderColor = '#3B82F6'; e.target.style.boxShadow = '0 0 0 2px rgba(59,130,246,0.15)'; }}
+        onBlur={e => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; commit(); }}
+        onMouseEnter={e => { if (document.activeElement !== e.target) e.target.style.borderColor = '#D1D5DB'; }}
+        onMouseLeave={e => { if (document.activeElement !== e.target) e.target.style.borderColor = '#E5E7EB'; }}
+        className="w-full text-[13px] text-foreground text-right outline-none tabular-nums"
+        style={{ border: '1px solid #E5E7EB', borderRadius: 4, padding: '3px 6px', background: '#ffffff' }}
       />
     </div>
   );
@@ -322,13 +330,16 @@ const CompoundMeasureCell = ({ item, editingCell, setEditingCell, onSave, onStep
         value={localSize}
         placeholder="—"
         onChange={e => setLocalSize(e.target.value)}
-        onBlur={commitSize}
         onKeyDown={e => {
           if (e.key === 'Enter') e.currentTarget.blur();
           if (e.key === 'Escape') { setLocalSize(item.size ?? ''); sizeRef.current?.blur(); }
         }}
-        className="rounded px-1 py-0.5 text-[12px] text-foreground outline-none bg-white border border-gray-200 hover:border-gray-300 focus:border-blue-500 focus:bg-blue-500/[0.03] focus:shadow-[0_0_0_2px_rgba(59,130,246,0.1)] transition-colors text-center"
-        style={{ width: 44 }}
+        onFocus={e => { e.target.style.borderColor = '#3B82F6'; e.target.style.boxShadow = '0 0 0 2px rgba(59,130,246,0.15)'; }}
+        onBlur={e => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; commitSize(); }}
+        onMouseEnter={e => { if (document.activeElement !== e.target) e.target.style.borderColor = '#D1D5DB'; }}
+        onMouseLeave={e => { if (document.activeElement !== e.target) e.target.style.borderColor = '#E5E7EB'; }}
+        className="text-[12px] text-foreground outline-none text-center"
+        style={{ width: 44, border: '1px solid #E5E7EB', borderRadius: 4, padding: '3px 4px', background: '#ffffff' }}
       />
 
       <span className="text-muted-foreground/30 text-[11px] flex-shrink-0 select-none">|</span>
