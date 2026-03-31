@@ -417,6 +417,11 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
     setAndSave('allergen_flags', flags);
   };
 
+  const handleSave = async () => {
+    await saveField();
+    onClose();
+  };
+
   const handleDelete = async () => {
     if (isNew || !window.confirm('Delete this item?')) return;
     setDeleting(true);
@@ -501,8 +506,35 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
             </div>
           )
         }
+        footer={
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', padding: '14px 16px' }}>
+            <button
+              onClick={onClose}
+              style={{
+                padding: '8px 18px', fontSize: 13, fontWeight: 500, borderRadius: 8, cursor: 'pointer',
+                background: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.08)',
+                color: isLight ? '#475569' : '#94a3b8',
+                border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255,255,255,0.12)',
+              }}
+            >
+              Cancel
+            </button>
+            {!isReceived && (
+              <button
+                onClick={handleSave}
+                style={{
+                  padding: '8px 20px', fontSize: 13, fontWeight: 600, borderRadius: 8, cursor: 'pointer',
+                  background: '#1E3A5F', color: '#ffffff', border: 'none',
+                  opacity: !form.name?.trim() ? 0.45 : 1,
+                }}
+              >
+                {isNew ? 'Add item' : 'Save'}
+              </button>
+            )}
+          </div>
+        }
       >
-        <div style={{ paddingBottom: 32 }}>
+        <div style={{ paddingBottom: 8 }}>
 
           {/* ════ RECEIVED BANNER ════ */}
           {isReceived && isLight && (
