@@ -8,6 +8,7 @@ import {
   fetchAllInventoryLocations,
   searchInventoryItems,
   updateItemPaymentStatus,
+  PROVISION_CATEGORIES,
 } from '../utils/provisioningStorage';
 import { PAYMENT_STATUS_OPTIONS } from './InvoiceUploadModal';
 import { UNIT_GROUPS } from './DetailTableCells';
@@ -235,6 +236,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
         source: item.source || 'manual',
         accounting_description: item.accounting_description || '',
         supplier_id: item.supplier_id || '',
+        supplier_name: item.supplier_name || '',
         port_location: item.port_location || '',
         inventory_item_id: item.inventory_item_id || null,
         cargo_item_id: item.cargo_item_id || '',
@@ -243,10 +245,22 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
     }
   }, [item]);
 
-  // Fetch all inventory category paths once per tenant
+  // Fetch all inventory category paths once per tenant; fall back to PROVISION_CATEGORIES
   useEffect(() => {
     if (!tenantId) return;
-    fetchAllInventoryLocations(tenantId).then(paths => setAllCategoryPaths(paths || []));
+    fetchAllInventoryLocations(tenantId).then(paths => {
+      if (paths && paths.length > 0) {
+        setAllCategoryPaths(paths);
+      } else {
+        // Build paths from static provisioning categories as fallback
+        const fallback = [];
+        Object.entries(PROVISION_CATEGORIES).forEach(([dept, cats]) => {
+          fallback.push(dept);
+          cats.forEach(cat => fallback.push(`${dept} > ${cat}`));
+        });
+        setAllCategoryPaths(fallback);
+      }
+    });
   }, [tenantId]);
 
   // Reset search state when item changes
@@ -357,6 +371,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
       source: base.source || 'manual',
       accounting_description: base.accounting_description || '',
       supplier_id: base.supplier_id || null,
+      supplier_name: base.supplier_name || null,
       port_location: base.port_location || '',
       inventory_item_id: base.inventory_item_id || null,
       cargo_item_id: base.cargo_item_id || '',
@@ -728,14 +743,15 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
             {/* Supplier */}
             <div style={{ marginTop: 8 }}>
               <Field isLight={isLight} labelCls={labelCls} label="Supplier">
-                <select
-                  value={form.supplier_id || ''}
-                  onChange={e => setAndSave('supplier_id', e.target.value || null)}
+                <input
+                  type="text"
+                  value={form.supplier_name || ''}
+                  onChange={e => set('supplier_name', e.target.value)}
+                  onBlur={() => saveField()}
                   className={inputCls}
-                >
-                  <option value="">No supplier</option>
-                  {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
+                  placeholder="e.g. Metro Cash & Carry"
+                  disabled={isReadOnly}
+                />
               </Field>
             </div>
 
