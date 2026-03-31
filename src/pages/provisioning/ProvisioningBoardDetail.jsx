@@ -1227,7 +1227,7 @@ const ProvisioningBoardDetail = () => {
 
         {/* ── Received tab ───────────────────────────────────────────────── */}
         {activeTab === 'received' && (
-          <div style={{ padding: '24px 32px 48px', background: '#F8FAFC' }}>
+          <div style={{ padding: '32px 40px 64px', background: '#F8FAFC' }}>
             {deliveriesLoading ? (
               <div style={{ padding: '48px 0', textAlign: 'center', fontSize: 13, color: '#94A3B8' }}>Loading…</div>
             ) : deliveries.length === 0 && completedItems.length === 0 ? (
@@ -1238,78 +1238,101 @@ const ProvisioningBoardDetail = () => {
                 <p style={{ fontSize: 14, fontWeight: 500, color: '#0F172A', marginBottom: 4 }}>No received items yet</p>
                 <p style={{ fontSize: 12, color: '#94A3B8' }}>Received delivery history will appear here.</p>
               </div>
-            ) : (
-              <div>
+            ) : (() => {
+              // ── Helper: render one timeline batch block ────────────────
+              const ITEM_GRID = '40px 180px 140px 90px 70px 80px';
+              const COL_HDRS  = ['Qty', 'Item', 'Category', 'Inventory', 'Cost', 'Payment'];
 
-                {/* ── Delivery batches ─────────────────────────────────── */}
-                {deliveries.map(d => {
-                  // Items linked to this batch via receive_batch_id
-                  const batchItemsLog = items.filter(i => i.receive_batch_id === d.id);
-                  const src = d.supplier_name || 'Manual receive';
-                  const dateStr = d.received_at
-                    ? new Date(d.received_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
-                    : '—';
-                  const liveBatchItems = batchItemsLog;
-                  const currSym = dispSymbol;
-                  return (
-                    <details key={d.id} open style={{ marginBottom: 24 }}>
-                      {/* ── Divider-style batch header ── */}
-                      <summary style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', listStyle: 'none', userSelect: 'none', marginBottom: 8 }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#1E3A5F', whiteSpace: 'nowrap' }}>
-                          Delivery: {dateStr}
-                        </span>
-                        <span style={{ fontSize: 11, color: '#94A3B8', whiteSpace: 'nowrap' }}>
-                          · {batchItemsLog.length} item{batchItemsLog.length !== 1 ? 's' : ''} · {src}
-                        </span>
-                        <div style={{ flex: 1, height: 1, background: '#E2E8F0' }} />
-                        {/* Invoice upload button */}
-                        <button
-                          onClick={e => { e.preventDefault(); setInvoiceModal({ batch: d, batchItems: liveBatchItems }); }}
-                          style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '3px 10px', background: d.invoice_file_url ? '#ECFDF5' : 'white', border: `1px solid ${d.invoice_file_url ? '#A7F3D0' : '#E2E8F0'}`, borderRadius: 6, color: d.invoice_file_url ? '#047857' : '#64748B', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}
-                        >
-                          <Icon name={d.invoice_file_url ? 'FileCheck' : 'FileUp'} style={{ width: 11, height: 11 }} />
-                          {d.invoice_file_url ? 'Invoice ✓' : 'Upload invoice'}
-                        </button>
-                        <Icon name="ChevronDown" style={{ width: 13, height: 13, color: '#CBD5E1', flexShrink: 0 }} />
-                      </summary>
+              const accentFor = (supplierName) => supplierName && supplierName !== 'Manual receive'
+                ? { border: '#378ADD', badgeBg: '#E6F1FB', badgeText: '#185FA5' }
+                : { border: '#1D9E75', badgeBg: '#E1F5EE', badgeText: '#0F6E56' };
 
-                      {/* ── Items within batch ── */}
-                      <div style={{ background: 'white', border: '1px solid #F1F5F9', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-                        {batchItemsLog.map((bi, idx) => {
-                          const isPartial = bi.quantity_ordered != null && bi.quantity_received < bi.quantity_ordered;
-                          const catPath = [bi.department, bi.sub_category || bi.category].filter(Boolean).join(' > ');
-                          const invStatus = bi.cargo_item_id
-                            ? `→ Pushed to inventory (${bi.cargo_item_id})`
-                            : bi.inventory_item_id ? '→ Linked to inventory'
-                            : '→ Skipped';
+              const invLabel = (bi) => bi.cargo_item_id ? 'Pushed' : bi.inventory_item_id ? 'Linked' : 'Skipped';
+              const invColor = (bi) => bi.cargo_item_id ? '#059669' : bi.inventory_item_id ? '#2563EB' : '#94A3B8';
+
+              const payColor = (ps) => ['paid', 'paid_upfront'].includes(ps) ? '#059669' : '#D97706';
+
+              const renderBatchBlock = (batchItems, supplierName, receivedAt, batchId, invoiceData, isLast) => {
+                const accent = accentFor(supplierName);
+                const dt = receivedAt ? new Date(receivedAt) : null;
+                const dayNum  = dt ? dt.getDate() : '—';
+                const monthAb = dt ? dt.toLocaleDateString('en-GB', { month: 'short' }).toUpperCase() : '';
+
+                const batchTotal = batchItems.reduce((sum, bi) => {
+                  const effectivePS = paymentStatusMap[bi.id] ?? bi.payment_status ?? 'awaiting_invoice';
+                  const isPaid = ['paid', 'paid_upfront'].includes(effectivePS);
+                  const cost = isPaid && bi.actual_unit_cost != null
+                    ? parseFloat(bi.actual_unit_cost) : parseFloat(bi.estimated_unit_cost) || 0;
+                  return sum + cost * (parseFloat(bi.quantity_received) || 0);
+                }, 0);
+                const batchTotalStr = batchTotal > 0 ? `${dispSymbol}${batchTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : null;
+
+                return (
+                  <React.Fragment key={batchId || supplierName + receivedAt}>
+                    <div style={{ display: 'flex', gap: 0 }}>
+                      {/* ── Date column ── */}
+                      <div style={{ width: 70, flexShrink: 0, paddingRight: 20, textAlign: 'right', paddingTop: 2 }}>
+                        <div style={{ fontSize: 22, fontWeight: 500, color: '#0F172A', lineHeight: 1 }}>{dayNum}</div>
+                        <div style={{ fontSize: 11, textTransform: 'uppercase', color: '#94A3B8', letterSpacing: '0.05em', marginTop: 3 }}>{monthAb}</div>
+                      </div>
+
+                      {/* ── Content area ── */}
+                      <div style={{ flex: 1, borderLeft: `2px solid ${accent.border}`, paddingLeft: 24, paddingBottom: 8 }}>
+                        {/* Batch header row */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                          <span style={{ background: accent.badgeBg, color: accent.badgeText, fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 99, letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
+                            {supplierName || 'Manual receive'}
+                          </span>
+                          <span style={{ fontSize: 12, color: '#94A3B8' }}>
+                            {batchItems.length} item{batchItems.length !== 1 ? 's' : ''}
+                            {batchTotalStr ? ` · ${batchTotalStr}` : ''}
+                          </span>
+                          <div style={{ flex: 1 }} />
+                          {invoiceData && (
+                            <button
+                              onClick={() => setInvoiceModal(invoiceData)}
+                              style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '3px 10px', background: invoiceData.batch.invoice_file_url ? '#ECFDF5' : 'white', border: `1px solid ${invoiceData.batch.invoice_file_url ? '#A7F3D0' : '#E2E8F0'}`, borderRadius: 6, color: invoiceData.batch.invoice_file_url ? '#047857' : '#64748B', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                            >
+                              <Icon name={invoiceData.batch.invoice_file_url ? 'FileCheck' : 'FileUp'} style={{ width: 11, height: 11 }} />
+                              {invoiceData.batch.invoice_file_url ? 'Invoice ✓' : 'Upload invoice'}
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Column headers */}
+                        <div style={{ display: 'grid', gridTemplateColumns: ITEM_GRID, gap: 12, padding: '0 0 6px', borderBottom: '0.5px solid #E5E7EB', marginBottom: 0 }}>
+                          {COL_HDRS.map((h, i) => (
+                            <span key={h} style={{ fontSize: 10, textTransform: 'uppercase', color: '#CBD5E1', letterSpacing: '0.05em', textAlign: i >= 4 ? 'right' : 'left' }}>{h}</span>
+                          ))}
+                        </div>
+
+                        {/* Item rows */}
+                        {batchItems.map((bi, idx) => {
                           const effectivePS = paymentStatusMap[bi.id] ?? bi.payment_status ?? 'awaiting_invoice';
                           const isPaid = ['paid', 'paid_upfront'].includes(effectivePS);
                           const costVal = isPaid && bi.actual_unit_cost != null
-                            ? parseFloat(bi.actual_unit_cost)
-                            : parseFloat(bi.estimated_unit_cost);
-                          const costStr = !isNaN(costVal) && costVal > 0
-                            ? `${currSym}${(costVal * (parseFloat(bi.quantity_received) || 1)).toFixed(0)}`
-                            : '—';
-                          const qtyStr = isPartial
-                            ? `${bi.quantity_received}/${bi.quantity_ordered}`
-                            : `${bi.quantity_received ?? '?'}`;
+                            ? parseFloat(bi.actual_unit_cost) : parseFloat(bi.estimated_unit_cost);
+                          const lineTotal = !isNaN(costVal) && costVal > 0
+                            ? `${dispSymbol}${(costVal * (parseFloat(bi.quantity_received) || 1)).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '—';
+                          const isPartial = bi.quantity_ordered != null && bi.quantity_received < bi.quantity_ordered;
+                          const qtyStr = isPartial ? `${bi.quantity_received}/${bi.quantity_ordered}` : `${bi.quantity_received ?? '?'}`;
+                          const catPath = [bi.department, bi.sub_category || bi.category].filter(Boolean).join(' › ');
                           const itemTitle = [bi.name, bi.brand, bi.size].filter(Boolean).join(' · ');
                           return (
-                            <div key={bi.id} style={{ padding: '10px 20px', borderTop: idx > 0 ? '1px solid #F8FAFC' : 'none' }}>
-                              {/* Line 1: 5-column grid spanning full width */}
-                              <div
+                            <div
+                              key={bi.id}
+                              style={{ display: 'grid', gridTemplateColumns: ITEM_GRID, gap: 12, padding: '12px 0', borderBottom: idx < batchItems.length - 1 ? '0.5px solid #F1F5F9' : 'none', alignItems: 'center' }}
+                            >
+                              <span style={{ fontSize: 13, color: '#374151' }}>{qtyStr}</span>
+                              <span
                                 onClick={() => setItemDrawer({ open: true, item: bi })}
-                                style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 2fr 1fr 1fr', gap: '0 16px', alignItems: 'center', width: '100%', cursor: 'pointer' }}
-                              >
-                                <span style={{ fontSize: 13, color: '#374151', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{itemTitle}</span>
-                                <span style={{ fontSize: 12, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{catPath || '—'}</span>
-                                <span style={{ fontSize: 12, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{invStatus}</span>
-                                <span style={{ fontSize: 13, color: isPartial ? '#B45309' : '#64748B', textAlign: 'right', whiteSpace: 'nowrap' }}>{costStr}</span>
-                                <span style={{ fontSize: 13, color: isPartial ? '#B45309' : '#64748B', textAlign: 'right', whiteSpace: 'nowrap' }}>Qty: {qtyStr}</span>
-                              </div>
-                              {/* Line 2: payment status */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5 }}>
-                                <span style={{ fontSize: 11, color: '#CBD5E1' }}>Payment:</span>
+                                style={{ fontSize: 13, fontWeight: 500, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}
+                                title={itemTitle}
+                              >{itemTitle}</span>
+                              <span style={{ fontSize: 12, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={catPath}>{catPath || '—'}</span>
+                              <span style={{ fontSize: 12, color: invColor(bi) }}>{invLabel(bi)}</span>
+                              <span style={{ fontSize: 13, fontWeight: 500, color: '#0F172A', textAlign: 'right' }}>{lineTotal}</span>
+                              <div style={{ textAlign: 'right' }}>
                                 <select
                                   value={effectivePS}
                                   onClick={e => e.stopPropagation()}
@@ -1317,10 +1340,10 @@ const ProvisioningBoardDetail = () => {
                                     const val = e.target.value;
                                     setPaymentStatusMap(prev => ({ ...prev, [bi.id]: val }));
                                     updateItemPaymentStatus(bi.id, val)
-                                      .then(() => updateBatchTotal(d.id))
+                                      .then(() => batchId && updateBatchTotal(batchId))
                                       .catch(() => {});
                                   }}
-                                  style={{ fontSize: 11, padding: '2px 6px', border: '1px solid #E2E8F0', borderRadius: 6, color: '#64748B', background: 'white', cursor: 'pointer' }}
+                                  style={{ fontSize: 11, fontWeight: 500, color: payColor(effectivePS), background: 'transparent', border: 'none', outline: 'none', cursor: 'pointer', maxWidth: 80 }}
                                 >
                                   {PAYMENT_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                                 </select>
@@ -1329,90 +1352,37 @@ const ProvisioningBoardDetail = () => {
                           );
                         })}
                       </div>
-                    </details>
-                  );
-                })}
+                    </div>
 
-                {/* ── Fallback: received items with no batch record, grouped by date ── */}
-                {completedItems.length > 0 && (() => {
-                  // Group by approximate receive date using updated_at / created_at
-                  const groups = {};
-                  completedItems.forEach(item => {
-                    const ts = item.updated_at || item.created_at;
-                    const key = ts
-                      ? new Date(ts).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
-                      : 'Previously received';
-                    if (!groups[key]) groups[key] = [];
-                    groups[key].push(item);
-                  });
-                  return Object.entries(groups).map(([dateKey, groupItems]) => (
-                    <details key={dateKey} open style={{ marginBottom: 24 }}>
-                      <summary style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', listStyle: 'none', userSelect: 'none', marginBottom: 8 }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#1E3A5F', whiteSpace: 'nowrap' }}>
-                          Delivery: {dateKey}
-                        </span>
-                        <span style={{ fontSize: 11, color: '#94A3B8', whiteSpace: 'nowrap' }}>
-                          · {groupItems.length} item{groupItems.length !== 1 ? 's' : ''} · Manual receive
-                        </span>
-                        <div style={{ flex: 1, height: 1, background: '#E2E8F0' }} />
-                        <Icon name="ChevronDown" style={{ width: 13, height: 13, color: '#CBD5E1', flexShrink: 0 }} />
-                      </summary>
-                      <div style={{ background: 'white', border: '1px solid #F1F5F9', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-                        {groupItems.map((item, idx) => {
-                          const effectivePS = paymentStatusMap[item.id] ?? item.payment_status ?? 'awaiting_invoice';
-                          const isPaid = ['paid', 'paid_upfront'].includes(effectivePS);
-                          const costVal = isPaid && item.actual_unit_cost != null
-                            ? parseFloat(item.actual_unit_cost)
-                            : parseFloat(item.estimated_unit_cost);
-                          const costStr = !isNaN(costVal) && costVal > 0
-                            ? `${dispSymbol}${(costVal * (parseFloat(item.quantity_received) || 1)).toFixed(0)}`
-                            : '—';
-                          const isPartial = item.quantity_ordered != null && item.quantity_received < item.quantity_ordered;
-                          const qtyStr = isPartial
-                            ? `${item.quantity_received}/${item.quantity_ordered}`
-                            : `${parseFloat(item.quantity_received) || 0}`;
-                          const invStatus = item.cargo_item_id
-                            ? `→ Pushed to inventory (${item.cargo_item_id})`
-                            : item.inventory_item_id ? '→ Linked to inventory'
-                            : '→ Skipped';
-                          const catPath = [item.department, item.sub_category || item.category].filter(Boolean).join(' > ');
-                          const itemTitle = [item.name, item.brand, item.size].filter(Boolean).join(' · ');
-                          return (
-                            <div key={item.id} style={{ padding: '10px 20px', borderTop: idx > 0 ? '1px solid #F8FAFC' : 'none' }}>
-                              <div
-                                onClick={() => setItemDrawer({ open: true, item })}
-                                style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 2fr 1fr 1fr', gap: '0 16px', alignItems: 'center', width: '100%', cursor: 'pointer' }}
-                              >
-                                <span style={{ fontSize: 13, color: '#374151', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{itemTitle}</span>
-                                <span style={{ fontSize: 12, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{catPath || '—'}</span>
-                                <span style={{ fontSize: 12, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{invStatus}</span>
-                                <span style={{ fontSize: 13, color: isPartial ? '#B45309' : '#64748B', textAlign: 'right', whiteSpace: 'nowrap' }}>{costStr}</span>
-                                <span style={{ fontSize: 13, color: isPartial ? '#B45309' : '#64748B', textAlign: 'right', whiteSpace: 'nowrap' }}>Qty: {qtyStr}</span>
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5 }}>
-                                <span style={{ fontSize: 11, color: '#CBD5E1' }}>Payment:</span>
-                                <select
-                                  value={effectivePS}
-                                  onChange={e => {
-                                    const val = e.target.value;
-                                    setPaymentStatusMap(prev => ({ ...prev, [item.id]: val }));
-                                    updateItemPaymentStatus(item.id, val).catch(() => {});
-                                  }}
-                                  style={{ fontSize: 11, padding: '2px 6px', border: '1px solid #E2E8F0', borderRadius: 6, color: '#64748B', background: 'white', cursor: 'pointer' }}
-                                >
-                                  {PAYMENT_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                </select>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </details>
-                  ));
-                })()}
+                    {/* Batch separator */}
+                    {!isLast && <div style={{ margin: '32px 0 32px 70px', height: 1, background: '#E9EDF2' }} />}
+                  </React.Fragment>
+                );
+              };
 
-              </div>
-            )}
+              // ── Build the batch list: real batches + fallback groups ──
+              const realBatches = deliveries.map((d, di) => {
+                const batchItems = items.filter(i => i.receive_batch_id === d.id);
+                if (!batchItems.length) return null;
+                const isLast = di === deliveries.length - 1 && completedItems.length === 0;
+                return renderBatchBlock(batchItems, d.supplier_name || 'Manual receive', d.received_at, d.id, { batch: d, batchItems }, isLast);
+              }).filter(Boolean);
+
+              // Fallback: received items with no batch, grouped by date
+              const fallbackGroups = {};
+              completedItems.forEach(item => {
+                const ts = item.updated_at || item.created_at;
+                const key = ts ? new Date(ts).toISOString() : '1970-01-01T00:00:00Z';
+                if (!fallbackGroups[key]) fallbackGroups[key] = [];
+                fallbackGroups[key].push(item);
+              });
+              const fallbackEntries = Object.entries(fallbackGroups).sort(([a], [b]) => b.localeCompare(a));
+              const fallbackBlocks = fallbackEntries.map(([ts, groupItems], gi) =>
+                renderBatchBlock(groupItems, 'Manual receive', ts, `fallback-${ts}`, null, gi === fallbackEntries.length - 1)
+              );
+
+              return <div>{realBatches}{fallbackBlocks}</div>;
+            })()}
           </div>
         )}
       </div>
