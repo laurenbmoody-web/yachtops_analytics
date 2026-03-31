@@ -75,7 +75,7 @@ export const EditCell = ({ item, field, value, type = 'text', align = 'left', pl
             if (e.key === 'Escape') { setLocal(value ?? ''); if (!alwaysEdit) setEditingCell(null); }
           }}
           onBlur={commit}
-          className={`w-full rounded px-1.5 py-0.5 text-[13px] text-foreground outline-none bg-transparent border border-transparent hover:border-gray-200 focus:border-blue-500 focus:bg-blue-500/[0.03] transition-colors ${align === 'right' ? 'text-right tabular-nums' : ''}`}
+          className={`w-full rounded px-1.5 py-0.5 text-[13px] text-foreground outline-none bg-white border border-gray-200 hover:border-gray-300 focus:border-blue-500 focus:bg-blue-500/[0.03] focus:shadow-[0_0_0_2px_rgba(59,130,246,0.1)] transition-colors ${align === 'right' ? 'text-right tabular-nums' : ''}`}
         />
       </div>
     );
@@ -240,7 +240,7 @@ export const CostCell = ({ item, listCurrency, editingCell, setEditingCell, onSa
           if (e.key === 'Escape') { setLocal(item.estimated_unit_cost ?? ''); inputRef.current?.blur(); }
         }}
         onBlur={commit}
-        className="w-full rounded px-1.5 py-0.5 text-[13px] text-foreground text-right outline-none bg-transparent border border-transparent hover:border-gray-200 focus:border-blue-500 focus:bg-blue-500/[0.03] transition-colors tabular-nums"
+        className="w-full rounded px-1.5 py-0.5 text-[13px] text-foreground text-right outline-none bg-white border border-gray-200 hover:border-gray-300 focus:border-blue-500 focus:bg-blue-500/[0.03] focus:shadow-[0_0_0_2px_rgba(59,130,246,0.1)] transition-colors tabular-nums"
       />
     </div>
   );
@@ -327,7 +327,7 @@ const CompoundMeasureCell = ({ item, editingCell, setEditingCell, onSave, onStep
           if (e.key === 'Enter') e.currentTarget.blur();
           if (e.key === 'Escape') { setLocalSize(item.size ?? ''); sizeRef.current?.blur(); }
         }}
-        className="rounded px-1 py-0.5 text-[12px] text-foreground outline-none bg-transparent border border-transparent hover:border-gray-200 focus:border-blue-500 focus:bg-blue-500/[0.03] transition-colors text-center"
+        className="rounded px-1 py-0.5 text-[12px] text-foreground outline-none bg-white border border-gray-200 hover:border-gray-300 focus:border-blue-500 focus:bg-blue-500/[0.03] focus:shadow-[0_0_0_2px_rgba(59,130,246,0.1)] transition-colors text-center"
         style={{ width: 44 }}
       />
 
