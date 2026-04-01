@@ -1,7 +1,7 @@
 // Netlify Function: parse-invoice
-// Parses a delivery note image/PDF using Azure OpenAI vision and matches
-// line items to board items. PDFs are not supported by the vision API —
-// the caller should send image files (JPEG, PNG, WEBP).
+// DEPRECATED — delivery note parsing has moved to the Supabase edge function
+// supabase/functions/parseDeliveryNote/index.ts which uses the OPENAI_API_KEY
+// already configured in Supabase. This file is kept as a stub.
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {

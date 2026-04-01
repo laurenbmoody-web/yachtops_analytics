@@ -997,27 +997,19 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
         reader.readAsDataURL(file);
       });
       const allItems = [...items, ...addedItems];
-      console.log('[DeliveryNote] Sending to parse-invoice function — file:', file.name, 'type:', file.type, 'base64 chars:', base64.length, 'board items:', allItems.length);
-      const resp = await fetch('/.netlify/functions/parse-invoice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ base64, mediaType: file.type || 'image/jpeg', batchItems: allItems }),
+      console.log('[DeliveryNote] Sending to parseDeliveryNote edge function — file:', file.name, 'type:', file.type, 'base64 chars:', base64.length, 'board items:', allItems.length);
+
+      const { data: result, error: fnError } = await supabase.functions.invoke('parseDeliveryNote', {
+        body: { base64, mediaType: file.type || 'image/jpeg', batchItems: allItems },
       });
-      const rawText = await resp.text();
-      console.log('[DeliveryNote] HTTP status:', resp.status, 'body preview:', rawText.slice(0, 500));
-      if (!resp.ok) {
-        let errMsg = `HTTP ${resp.status}`;
-        try { errMsg = JSON.parse(rawText).error || errMsg; } catch { /* use status */ }
-        throw new Error(errMsg);
+
+      if (fnError) {
+        const msg = fnError?.message || fnError?.context?.errorMessage || String(fnError);
+        console.error('[DeliveryNote] Edge function error:', msg);
+        throw new Error(msg);
       }
-      let result;
-      try {
-        result = JSON.parse(rawText);
-        console.log('[DeliveryNote] Parsed result — invoice_number:', result.invoice_number, 'supplier:', result.supplier_name, 'line_items:', result.line_items?.length);
-      } catch (parseErr) {
-        console.error('[DeliveryNote] JSON parse failed:', parseErr.message, '— raw body was:', rawText.slice(0, 500));
-        throw new Error('Response was not valid JSON');
-      }
+
+      console.log('[DeliveryNote] Parsed result — invoice_number:', result?.invoice_number, 'supplier:', result?.supplier_name, 'line_items:', result?.line_items?.length);
       setParsedNote(result);
       setNoteStatus('done');
       const fills = new Set();
