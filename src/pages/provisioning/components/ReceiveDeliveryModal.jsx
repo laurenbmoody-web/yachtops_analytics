@@ -995,13 +995,23 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
         reader.readAsDataURL(file);
       });
       const allItems = [...items, ...addedItems];
+      console.log('[DeliveryNote] Sending to parse-invoice function — file:', file.name, 'type:', file.type, 'base64 chars:', base64.length, 'board items:', allItems.length);
       const resp = await fetch('/.netlify/functions/parse-invoice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ base64, mediaType: file.type || 'image/jpeg', batchItems: allItems }),
       });
-      if (!resp.ok) throw new Error(await resp.text());
-      const result = await resp.json();
+      const rawText = await resp.text();
+      console.log('[DeliveryNote] HTTP status:', resp.status, 'body preview:', rawText.slice(0, 500));
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${rawText.slice(0, 300)}`);
+      let result;
+      try {
+        result = JSON.parse(rawText);
+        console.log('[DeliveryNote] Parsed result — invoice_number:', result.invoice_number, 'supplier:', result.supplier_name, 'line_items:', result.line_items?.length);
+      } catch (parseErr) {
+        console.error('[DeliveryNote] JSON parse failed:', parseErr.message, '— raw body was:', rawText.slice(0, 500));
+        throw new Error('Response was not valid JSON');
+      }
       setParsedNote(result);
       setNoteStatus('done');
       const fills = new Set();

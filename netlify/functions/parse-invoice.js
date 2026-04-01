@@ -23,6 +23,8 @@ exports.handler = async (event) => {
   if (!base64 || !mediaType || !batchItems) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Missing required fields: base64, mediaType, batchItems.' }) };
   }
+  console.log('[parse-invoice] mediaType:', mediaType, '| base64 chars:', base64.length, '| batchItems:', batchItems.length);
+  console.log('[parse-invoice] ANTHROPIC_API_KEY configured:', !!apiKey);
 
   const isPdf = mediaType === 'application/pdf';
   const contentBlock = isPdf
@@ -82,15 +84,19 @@ Return ONLY valid JSON in this exact format (no markdown, no explanation):
       }),
     });
 
+    console.log('[parse-invoice] Anthropic response status:', resp.status);
     if (!resp.ok) {
       const txt = await resp.text();
+      console.error('[parse-invoice] Anthropic error body:', txt.slice(0, 500));
       return { statusCode: resp.status, body: JSON.stringify({ error: `Anthropic API error: ${txt.slice(0, 300)}` }) };
     }
 
     const data = await resp.json();
     const text = data.content?.[0]?.text || '';
+    console.log('[parse-invoice] Claude response text preview:', text.slice(0, 300));
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
+      console.error('[parse-invoice] No JSON found in response. Full text:', text.slice(0, 1000));
       return { statusCode: 502, body: JSON.stringify({ error: 'Could not extract JSON from AI response.' }) };
     }
 
