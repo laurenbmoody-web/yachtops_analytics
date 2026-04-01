@@ -1,15 +1,26 @@
 // Netlify Function: parse-invoice
-// Proxies invoice file + batch items to the Anthropic API server-side,
-// keeping ANTHROPIC_API_KEY out of the client bundle entirely.
+// Parses a delivery note image/PDF using Azure OpenAI vision and matches
+// line items to board items. PDFs are not supported by the vision API —
+// the caller should send image files (JPEG, PNG, WEBP).
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return { statusCode: 500, body: JSON.stringify({ error: 'ANTHROPIC_API_KEY is not configured on the server.' }) };
+  const endpoint   = process.env.AZURE_OPENAI_ENDPOINT;
+  const apiKey     = process.env.AZURE_OPENAI_KEY;
+  const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
+
+  console.log('[parse-invoice] AZURE_OPENAI_ENDPOINT configured:', !!endpoint);
+  console.log('[parse-invoice] AZURE_OPENAI_KEY configured:', !!apiKey);
+  console.log('[parse-invoice] AZURE_OPENAI_DEPLOYMENT configured:', !!deployment);
+
+  if (!endpoint || !apiKey || !deployment) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: 'Azure OpenAI is not configured. Set AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_KEY, AZURE_OPENAI_DEPLOYMENT in environment variables.' }),
+    };
   }
 
   let body;
@@ -23,20 +34,21 @@ exports.handler = async (event) => {
   if (!base64 || !mediaType || !batchItems) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Missing required fields: base64, mediaType, batchItems.' }) };
   }
-  console.log('[parse-invoice] mediaType:', mediaType, '| base64 chars:', base64.length, '| batchItems:', batchItems.length);
-  console.log('[parse-invoice] ANTHROPIC_API_KEY configured:', !!apiKey);
 
-  const isPdf = mediaType === 'application/pdf';
-  const contentBlock = isPdf
-    ? { type: 'document', source: { type: 'base64', media_type: mediaType, data: base64 } }
-    : { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } };
+  console.log('[parse-invoice] mediaType:', mediaType, '| base64 chars:', base64.length, '| batchItems:', batchItems.length);
+
+  if (mediaType === 'application/pdf') {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ error: 'PDF files are not supported by the vision API. Please upload a JPEG or PNG image of the delivery note.' }),
+    };
+  }
 
   const itemList = batchItems.map(i => ({
     id: i.id,
     name: i.name,
     brand: i.brand || null,
     size: i.size || null,
-    qty_received: i.quantity_received,
     qty_ordered: i.quantity_ordered,
     quoted_unit_cost: i.estimated_unit_cost,
   }));
@@ -69,31 +81,42 @@ Return ONLY valid JSON in this exact format (no markdown, no explanation):
   ]
 }`;
 
+  const url = `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=2024-02-15-preview`;
+  console.log('[parse-invoice] Calling Azure OpenAI:', url);
+
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    const resp = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
+        'api-key': apiKey,
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
         max_tokens: 2048,
-        messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: prompt }] }],
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              { type: 'image_url', image_url: { url: `data:${mediaType};base64,${base64}` } },
+            ],
+          },
+        ],
       }),
     });
 
-    console.log('[parse-invoice] Anthropic response status:', resp.status);
+    console.log('[parse-invoice] Azure response status:', resp.status);
+
     if (!resp.ok) {
       const txt = await resp.text();
-      console.error('[parse-invoice] Anthropic error body:', txt.slice(0, 500));
-      return { statusCode: resp.status, body: JSON.stringify({ error: `Anthropic API error: ${txt.slice(0, 300)}` }) };
+      console.error('[parse-invoice] Azure error body:', txt.slice(0, 500));
+      return { statusCode: resp.status, body: JSON.stringify({ error: `Azure OpenAI error: ${txt.slice(0, 300)}` }) };
     }
 
     const data = await resp.json();
-    const text = data.content?.[0]?.text || '';
-    console.log('[parse-invoice] Claude response text preview:', text.slice(0, 300));
+    const text = data.choices?.[0]?.message?.content || '';
+    console.log('[parse-invoice] Azure response text preview:', text.slice(0, 300));
+
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       console.error('[parse-invoice] No JSON found in response. Full text:', text.slice(0, 1000));
@@ -106,6 +129,7 @@ Return ONLY valid JSON in this exact format (no markdown, no explanation):
       body: jsonMatch[0],
     };
   } catch (err) {
+    console.error('[parse-invoice] Unexpected error:', err.message);
     return { statusCode: 500, body: JSON.stringify({ error: err.message || 'Unexpected error.' }) };
   }
 };
