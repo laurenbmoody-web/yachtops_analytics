@@ -290,17 +290,34 @@ const VesselLocationPicker = ({ value, onChange, vesselLocations = [], borderCol
 
 // ── Step 1 ─ Receive checklist ────────────────────────────────────────────────
 
-const ReceiveStep = ({ items, receiving, onChange, onReceiveAll, onNext, onClose, saving }) => {
+const ReceiveStep = ({ items, receiving, onChange, onReceiveAll, onNext, onClose, saving, splitBySupplier, onToggleSplit }) => {
   const pendingCount = items.filter(i => !receiving[i.id]?.checked).length;
 
   return (
     <>
       {/* Sub-header */}
-      <div style={{ padding: '14px 20px 10px', borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div>
+      <div style={{ padding: '14px 20px 10px', borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ flex: 1 }}>
           <p style={{ fontSize: 12, fontWeight: 700, color: '#1E3A5F', margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Step 1 of 2</p>
           <p style={{ fontSize: 11, color: '#94A3B8', margin: '2px 0 0' }}>Tick each item that arrived and enter the received quantity</p>
         </div>
+        {/* Split by supplier toggle */}
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', flexShrink: 0 }}>
+          <div
+            onClick={onToggleSplit}
+            style={{
+              width: 32, height: 18, borderRadius: 9, background: splitBySupplier ? '#1E3A5F' : '#CBD5E1',
+              position: 'relative', transition: 'background 0.15s', cursor: 'pointer', flexShrink: 0,
+            }}
+          >
+            <div style={{
+              position: 'absolute', top: 2, left: splitBySupplier ? 16 : 2,
+              width: 14, height: 14, borderRadius: '50%', background: 'white',
+              transition: 'left 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+            }} />
+          </div>
+          <span style={{ fontSize: 11, color: '#64748B', whiteSpace: 'nowrap' }}>Split by supplier</span>
+        </label>
         <button
           onClick={onReceiveAll}
           style={{ fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 7, cursor: 'pointer', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8', whiteSpace: 'nowrap' }}
@@ -766,6 +783,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
 
   const [step, setStep] = useState(1);
   const [receiving, setReceiving] = useState({});
+  const [splitBySupplier, setSplitBySupplier] = useState(true);
   const [matches, setMatches] = useState({});              // {[id]: row | 'loading' | null}
   const [locationSplits, setLocationSplits] = useState({}); // {[id]: [{locationName, currentQty, addQty}]}
   const [noMatchChoices, setNoMatchChoices] = useState({}); // {[id]: 'link'|'create'|'skip'|null}
@@ -862,10 +880,10 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
 
       const receivedUpdates = updates.filter(u => u.quantity_received > 0);
 
-      // Group received items by supplier → one batch per supplier
+      // Group by supplier (or lump everything into one batch when toggle is off)
       const bySupplier = {};
       receivedUpdates.forEach(u => {
-        const key = u.supplier_name || 'Manual receive';
+        const key = splitBySupplier ? (u.supplier_name || 'Manual receive') : 'Manual receive';
         if (!bySupplier[key]) bySupplier[key] = [];
         bySupplier[key].push(u);
       });
@@ -1150,6 +1168,8 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
             onNext={handleSaveReceiving}
             onClose={onClose}
             saving={saving}
+            splitBySupplier={splitBySupplier}
+            onToggleSplit={() => setSplitBySupplier(v => !v)}
           />
         ) : (
           <PushStep
