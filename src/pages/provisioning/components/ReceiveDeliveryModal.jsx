@@ -11,6 +11,8 @@ import {
   fetchAllInventoryLocations,
   fetchVesselLocations,
   createDeliveryBatch,
+  upsertItems,
+  uploadInvoiceFile,
 } from '../utils/provisioningStorage';
 import { useAuth } from '../../../contexts/AuthContext';
 import { UNIT_GROUPS } from './DetailTableCells';
@@ -288,8 +290,6 @@ const VesselLocationPicker = ({ value, onChange, vesselLocations = [], borderCol
   );
 };
 
-// ── Step 1 ─ Receive checklist ────────────────────────────────────────────────
-
 // ── Group checkbox (supports indeterminate state) ─────────────────────────────
 
 const GroupCheckbox = ({ state, onChange }) => {
@@ -307,8 +307,13 @@ const GroupCheckbox = ({ state, onChange }) => {
 
 // ── Step 1 ─ Receive checklist ────────────────────────────────────────────────
 
-const ReceiveStep = ({ items, receiving, onChange, onGroupChange, onReceiveAll, onNext, onClose, saving }) => {
+const ReceiveStep = ({
+  items, receiving, onChange, onGroupChange, onReceiveAll, onNext, onClose, saving,
+  deliveryNoteFile, noteStatus, parsedNote, noteAutoFills, unmatchedItems,
+  onFileSelect, onRemoveNote, onAddUnmatched, onSkipUnmatched,
+}) => {
   const [organiseBySupplier, setOrganiseBySupplier] = useState(true);
+  const [isDragging, setIsDragging] = useState(false);
 
   const supplierGroups = (() => {
     const groups = {};
@@ -320,12 +325,22 @@ const ReceiveStep = ({ items, receiving, onChange, onGroupChange, onReceiveAll, 
     return Object.entries(groups);
   })();
 
+  const matchedCount = parsedNote?.line_items?.filter(l => l.matched_item_id && l.match_confidence !== 'none').length ?? 0;
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) onFileSelect(file);
+  };
+
   const renderItemRow = (item, indented = false) => {
     const r = receiving[item.id] || { checked: false, qty: item.quantity_ordered || 0 };
     const ordered = parseFloat(item.quantity_ordered) || 0;
     const rcvQty = parseFloat(r.qty) || 0;
     const status = r.checked ? deriveStatus(rcvQty, ordered) : null;
     const pill = status ? STATUS_PILL[status] : null;
+    const fromNote = noteAutoFills?.has(item.id);
     return (
       <div
         key={item.id}
@@ -333,8 +348,8 @@ const ReceiveStep = ({ items, receiving, onChange, onGroupChange, onReceiveAll, 
           display: 'grid', gridTemplateColumns: '28px 1fr 80px 90px 56px', gap: 0,
           padding: `10px 20px 10px ${indented ? 36 : 20}px`,
           borderBottom: '1px solid #F8FAFC',
-          background: r.checked ? '#FAFCFF' : 'white', alignItems: 'center',
-          transition: 'background 0.1s',
+          background: r.checked ? (fromNote ? '#F0FDF4' : '#FAFCFF') : 'white',
+          alignItems: 'center', transition: 'background 0.1s',
         }}
       >
         <input
@@ -342,13 +357,16 @@ const ReceiveStep = ({ items, receiving, onChange, onGroupChange, onReceiveAll, 
           onChange={e => onChange(item.id, 'checked', e.target.checked)}
           style={{ width: 14, height: 14, accentColor: '#4A90E2', cursor: 'pointer', flexShrink: 0 }}
         />
-        <div style={{ minWidth: 0, paddingRight: 8 }}>
-          <p style={{ fontSize: 13, fontWeight: 500, color: '#0F172A', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</p>
-          {(item.brand || item.size) && (
-            <p style={{ fontSize: 11, color: '#94A3B8', margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {[item.brand, item.size].filter(Boolean).join(' · ')}
-            </p>
-          )}
+        <div style={{ minWidth: 0, paddingRight: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <p style={{ fontSize: 13, fontWeight: 500, color: '#0F172A', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</p>
+            {(item.brand || item.size) && (
+              <p style={{ fontSize: 11, color: '#94A3B8', margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {[item.brand, item.size].filter(Boolean).join(' · ')}
+              </p>
+            )}
+          </div>
+          {fromNote && <span title="Qty set from delivery note" style={{ fontSize: 9, background: '#DCFCE7', color: '#15803D', padding: '1px 5px', borderRadius: 4, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>📄 scan</span>}
         </div>
         <p style={{ fontSize: 13, color: '#64748B', textAlign: 'center', margin: 0 }}>
           {ordered} <span style={{ fontSize: 10, color: '#CBD5E1' }}>{item.unit || ''}</span>
@@ -383,19 +401,55 @@ const ReceiveStep = ({ items, receiving, onChange, onGroupChange, onReceiveAll, 
           <p style={{ fontSize: 12, fontWeight: 700, color: '#1E3A5F', margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Step 1 of 2</p>
           <p style={{ fontSize: 11, color: '#94A3B8', margin: '2px 0 0' }}>Tick each item that arrived and enter the received quantity</p>
         </div>
-        {/* Organise by supplier toggle */}
         <div onClick={() => setOrganiseBySupplier(v => !v)} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', flexShrink: 0 }}>
           <div style={{ width: 32, height: 18, borderRadius: 9, background: organiseBySupplier ? '#1E3A5F' : '#CBD5E1', position: 'relative', transition: 'background 0.15s' }}>
             <div style={{ position: 'absolute', top: 2, left: organiseBySupplier ? 16 : 2, width: 14, height: 14, borderRadius: '50%', background: 'white', transition: 'left 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
           </div>
           <span style={{ fontSize: 11, color: '#64748B', whiteSpace: 'nowrap' }}>Organise by supplier</span>
         </div>
-        <button
-          onClick={onReceiveAll}
-          style={{ fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 7, cursor: 'pointer', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8', whiteSpace: 'nowrap' }}
-        >
+        <button onClick={onReceiveAll} style={{ fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 7, cursor: 'pointer', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8', whiteSpace: 'nowrap' }}>
           Receive All
         </button>
+      </div>
+
+      {/* Delivery note upload */}
+      <div style={{ padding: '10px 20px', borderBottom: '1px solid #F1F5F9' }}>
+        {noteStatus === 'idle' ? (
+          <label
+            onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={handleDrop}
+            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', border: `1.5px dashed ${isDragging ? '#93C5FD' : '#E2E8F0'}`, borderRadius: 10, cursor: 'pointer', background: isDragging ? '#EFF6FF' : '#FAFBFC', transition: 'border-color 0.15s, background 0.15s' }}
+          >
+            <input type="file" accept=".jpg,.jpeg,.png,.pdf" style={{ display: 'none' }}
+              onChange={e => e.target.files?.[0] && onFileSelect(e.target.files[0])} />
+            <Icon name="FileUp" style={{ width: 16, height: 16, color: '#94A3B8', flexShrink: 0 }} />
+            <div>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: '#374151' }}>Upload delivery note <span style={{ fontWeight: 400, color: '#94A3B8' }}>(optional)</span></p>
+              <p style={{ margin: '1px 0 0', fontSize: 11, color: '#CBD5E1' }}>Drop image or PDF · max 10 MB · AI will match items automatically</p>
+            </div>
+          </label>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', border: `1px solid ${noteStatus === 'error' ? '#FECACA' : noteStatus === 'done' ? '#A7F3D0' : '#E2E8F0'}`, borderRadius: 10, background: noteStatus === 'error' ? '#FEF2F2' : noteStatus === 'done' ? '#F0FDF4' : 'white' }}>
+            <Icon
+              name={noteStatus === 'parsing' ? 'Loader' : noteStatus === 'error' ? 'AlertCircle' : 'FileCheck'}
+              style={{ width: 16, height: 16, color: noteStatus === 'error' ? '#DC2626' : noteStatus === 'parsing' ? '#94A3B8' : '#059669', flexShrink: 0 }}
+            />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deliveryNoteFile?.name}</p>
+              <p style={{ margin: '1px 0 0', fontSize: 11, color: noteStatus === 'error' ? '#DC2626' : '#64748B' }}>
+                {noteStatus === 'parsing' ? 'Extracting items with AI…'
+                  : noteStatus === 'error' ? 'Failed to parse — items unchanged'
+                  : `✓ ${matchedCount} matched · ${unmatchedItems.length} not on board`}
+              </p>
+            </div>
+            {noteStatus !== 'parsing' && (
+              <button onClick={onRemoveNote} style={{ fontSize: 11, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', flexShrink: 0 }}>
+                ✕ Remove
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Column header */}
@@ -415,7 +469,6 @@ const ReceiveStep = ({ items, receiving, onChange, onGroupChange, onReceiveAll, 
             const groupState = checkedCount === 0 ? 'none' : checkedCount === groupItems.length ? 'all' : 'some';
             return (
               <div key={supplierName}>
-                {/* Group header */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 20px', background: '#F8FAFC', borderBottom: '1px solid #EEF2F8', borderTop: '1px solid #EEF2F8' }}>
                   <GroupCheckbox state={groupState} onChange={checked => onGroupChange(groupItems.map(i => i.id), checked)} />
                   <span style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>{supplierName}</span>
@@ -434,6 +487,31 @@ const ReceiveStep = ({ items, receiving, onChange, onGroupChange, onReceiveAll, 
             <p style={{ fontSize: 14, color: '#94A3B8' }}>No items on this board.</p>
           </div>
         )}
+
+        {/* Unmatched items from delivery note */}
+        {unmatchedItems.length > 0 && (
+          <div>
+            <div style={{ padding: '7px 20px', background: '#FFFBEB', borderTop: '1px solid #F1F5F9', borderBottom: '0.5px solid #FEF3C7' }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Not on board · from delivery note</span>
+            </div>
+            {unmatchedItems.map((li, idx) => (
+              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 20px', borderBottom: '0.5px solid #F8FAFC', background: '#FFFDF7' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{li.raw_name}</p>
+                  <p style={{ margin: '1px 0 0', fontSize: 11, color: '#94A3B8' }}>
+                    {[li.quantity && `×${li.quantity}`, li.unit, li.unit_price && `$${li.unit_price}`].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+                <button onClick={() => onAddUnmatched(li, idx)} style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, cursor: 'pointer', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  + Add to board
+                </button>
+                <button onClick={() => onSkipUnmatched(idx)} style={{ fontSize: 11, color: '#CBD5E1', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px', flexShrink: 0 }}>
+                  Skip
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Footer */}
@@ -442,10 +520,7 @@ const ReceiveStep = ({ items, receiving, onChange, onGroupChange, onReceiveAll, 
           {items.filter(i => receiving[i.id]?.checked).length} of {items.length} items ticked
         </p>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            onClick={onClose}
-            style={{ fontSize: 13, padding: '7px 14px', borderRadius: 8, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
-          >
+          <button onClick={onClose} style={{ fontSize: 13, padding: '7px 14px', borderRadius: 8, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}>
             Cancel
           </button>
           <button
@@ -810,6 +885,13 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
 
   const [step, setStep] = useState(1);
   const [receiving, setReceiving] = useState({});
+  // Delivery note upload + AI parsing
+  const [deliveryNoteFile, setDeliveryNoteFile] = useState(null);
+  const [noteStatus, setNoteStatus] = useState('idle'); // 'idle'|'parsing'|'done'|'error'
+  const [parsedNote, setParsedNote] = useState(null);
+  const [noteAutoFills, setNoteAutoFills] = useState(new Set());
+  const [unmatchedItems, setUnmatchedItems] = useState([]);
+  const [addedItems, setAddedItems] = useState([]); // items added via "Add to board"
   const [matches, setMatches] = useState({});              // {[id]: row | 'loading' | null}
   const [locationSplits, setLocationSplits] = useState({}); // {[id]: [{locationName, currentQty, addQty}]}
   const [noMatchChoices, setNoMatchChoices] = useState({}); // {[id]: 'link'|'create'|'skip'|null}
@@ -891,18 +973,101 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
     setReceiving(prev => {
       const next = { ...prev };
       itemIds.forEach(id => {
-        const item = items.find(i => i.id === id);
+        const item = [...items, ...addedItems].find(i => i.id === id);
         next[id] = { ...(prev[id] || {}), checked, qty: checked ? (item?.quantity_ordered ?? 0) : 0 };
       });
       return next;
     });
   };
 
+  const handleFileSelect = async (file) => {
+    if (file.size > 10 * 1024 * 1024) { showToast('File too large (max 10 MB)', 'error'); return; }
+    setDeliveryNoteFile(file);
+    setNoteStatus('parsing');
+    setParsedNote(null);
+    setNoteAutoFills(new Set());
+    setUnmatchedItems([]);
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const allItems = [...items, ...addedItems];
+      const resp = await fetch('/.netlify/functions/parse-invoice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ base64, mediaType: file.type || 'image/jpeg', batchItems: allItems }),
+      });
+      if (!resp.ok) throw new Error(await resp.text());
+      const result = await resp.json();
+      setParsedNote(result);
+      setNoteStatus('done');
+      const fills = new Set();
+      const unmatched = [];
+      (result.line_items || []).forEach(li => {
+        if (li.matched_item_id && li.match_confidence !== 'none') {
+          fills.add(li.matched_item_id);
+          const boardItem = allItems.find(i => i.id === li.matched_item_id);
+          setReceiving(prev => ({
+            ...prev,
+            [li.matched_item_id]: {
+              ...(prev[li.matched_item_id] || {}),
+              checked: true,
+              qty: li.quantity ?? boardItem?.quantity_ordered ?? 0,
+            },
+          }));
+        } else {
+          unmatched.push(li);
+        }
+      });
+      setNoteAutoFills(fills);
+      setUnmatchedItems(unmatched);
+    } catch (err) {
+      console.error('[parseNote] error:', err);
+      setNoteStatus('error');
+    }
+  };
+
+  const handleRemoveNote = () => {
+    setDeliveryNoteFile(null);
+    setNoteStatus('idle');
+    setParsedNote(null);
+    setNoteAutoFills(new Set());
+    setUnmatchedItems([]);
+  };
+
+  const handleAddUnmatched = async (li, idx) => {
+    try {
+      const [saved] = await upsertItems([{
+        list_id: list?.id,
+        name: li.raw_name,
+        quantity_ordered: li.quantity || 1,
+        unit: li.unit || 'each',
+        estimated_unit_cost: li.unit_price || null,
+        status: 'draft',
+        source: 'manual',
+      }]);
+      if (!saved) return;
+      setAddedItems(prev => [...prev, saved]);
+      setReceiving(prev => ({ ...prev, [saved.id]: { checked: true, qty: li.quantity || 1 } }));
+      setNoteAutoFills(prev => new Set([...prev, saved.id]));
+      setUnmatchedItems(prev => prev.filter((_, i) => i !== idx));
+    } catch {
+      showToast('Failed to add item to board', 'error');
+    }
+  };
+
+  const handleSkipUnmatched = (idx) => {
+    setUnmatchedItems(prev => prev.filter((_, i) => i !== idx));
+  };
+
   const handleSaveReceiving = async () => {
     setSaving(true);
     try {
-      // Build full update list, carrying supplier_name + cost for batch grouping
-      const updates = items.map(item => {
+      // Build full update list (includes items added via "Add to board" from delivery note)
+      const updates = [...items, ...addedItems].map(item => {
         const r = receiving[item.id] || {};
         const qty = r.checked ? Math.max(0, parseFloat(r.qty) || 0) : 0;
         const ordered = parseFloat(item.quantity_ordered) || 0;
@@ -955,6 +1120,18 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
           quantity_received: u.quantity_received,
           status: u.status,
         })));
+      }
+
+      // Upload delivery note and save to batch (non-blocking)
+      if (batchId && deliveryNoteFile) {
+        try {
+          const url = await uploadInvoiceFile(deliveryNoteFile, batchId);
+          if (url) {
+            await supabase?.from('provisioning_deliveries')
+              ?.update({ invoice_file_url: url, parsed_data: parsedNote })
+              ?.eq('id', batchId);
+          }
+        } catch { /* non-fatal */ }
       }
 
       setStep(2);
@@ -1192,7 +1369,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
         {/* Step content */}
         {step === 1 ? (
           <ReceiveStep
-            items={items}
+            items={[...items, ...addedItems]}
             receiving={receiving}
             onChange={handleChange}
             onGroupChange={handleGroupChange}
@@ -1200,6 +1377,15 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
             onNext={handleSaveReceiving}
             onClose={onClose}
             saving={saving}
+            deliveryNoteFile={deliveryNoteFile}
+            noteStatus={noteStatus}
+            parsedNote={parsedNote}
+            noteAutoFills={noteAutoFills}
+            unmatchedItems={unmatchedItems}
+            onFileSelect={handleFileSelect}
+            onRemoveNote={handleRemoveNote}
+            onAddUnmatched={handleAddUnmatched}
+            onSkipUnmatched={handleSkipUnmatched}
           />
         ) : (
           <PushStep
