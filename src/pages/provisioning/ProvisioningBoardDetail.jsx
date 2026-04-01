@@ -1355,13 +1355,14 @@ const ProvisioningBoardDetail = () => {
                   const fallbackGroups = {};
                   completedItems.forEach(item => {
                     const ts = item.updated_at || item.created_at;
-                    const key = ts ? new Date(ts).toISOString() : '1970-01-01T00:00:00Z';
+                    // Group by date only so all items received on the same day merge into one block
+                    const key = ts ? new Date(ts).toISOString().split('T')[0] : '1970-01-01';
                     if (!fallbackGroups[key]) fallbackGroups[key] = [];
                     fallbackGroups[key].push(item);
                   });
                   return Object.entries(fallbackGroups)
                     .sort(([a], [b]) => b.localeCompare(a))
-                    .map(([ts, groupItems]) => ({ batchItems: groupItems, supplierName: 'Manual receive', receivedAt: ts, batchId: `fallback-${ts}`, invoiceData: null }));
+                    .map(([dateKey, groupItems]) => ({ batchItems: groupItems, supplierName: 'Manual receive', receivedAt: dateKey + 'T12:00:00Z', batchId: `fallback-${dateKey}`, invoiceData: null }));
                 })(),
               ];
 
