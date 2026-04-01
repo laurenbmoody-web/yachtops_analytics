@@ -290,8 +290,90 @@ const VesselLocationPicker = ({ value, onChange, vesselLocations = [], borderCol
 
 // ── Step 1 ─ Receive checklist ────────────────────────────────────────────────
 
-const ReceiveStep = ({ items, receiving, onChange, onReceiveAll, onNext, onClose, saving, splitBySupplier, onToggleSplit }) => {
-  const pendingCount = items.filter(i => !receiving[i.id]?.checked).length;
+// ── Group checkbox (supports indeterminate state) ─────────────────────────────
+
+const GroupCheckbox = ({ state, onChange }) => {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    ref.current.indeterminate = state === 'some';
+    ref.current.checked = state === 'all';
+  }, [state]);
+  return (
+    <input ref={ref} type="checkbox" onChange={e => onChange(e.target.checked)}
+      style={{ width: 14, height: 14, accentColor: '#4A90E2', cursor: 'pointer', flexShrink: 0 }} />
+  );
+};
+
+// ── Step 1 ─ Receive checklist ────────────────────────────────────────────────
+
+const ReceiveStep = ({ items, receiving, onChange, onGroupChange, onReceiveAll, onNext, onClose, saving }) => {
+  const [organiseBySupplier, setOrganiseBySupplier] = useState(true);
+
+  const supplierGroups = (() => {
+    const groups = {};
+    items.forEach(item => {
+      const key = item.supplier_name?.trim() || 'No supplier';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(item);
+    });
+    return Object.entries(groups);
+  })();
+
+  const renderItemRow = (item, indented = false) => {
+    const r = receiving[item.id] || { checked: false, qty: item.quantity_ordered || 0 };
+    const ordered = parseFloat(item.quantity_ordered) || 0;
+    const rcvQty = parseFloat(r.qty) || 0;
+    const status = r.checked ? deriveStatus(rcvQty, ordered) : null;
+    const pill = status ? STATUS_PILL[status] : null;
+    return (
+      <div
+        key={item.id}
+        style={{
+          display: 'grid', gridTemplateColumns: '28px 1fr 80px 90px 56px', gap: 0,
+          padding: `10px 20px 10px ${indented ? 36 : 20}px`,
+          borderBottom: '1px solid #F8FAFC',
+          background: r.checked ? '#FAFCFF' : 'white', alignItems: 'center',
+          transition: 'background 0.1s',
+        }}
+      >
+        <input
+          type="checkbox" checked={!!r.checked}
+          onChange={e => onChange(item.id, 'checked', e.target.checked)}
+          style={{ width: 14, height: 14, accentColor: '#4A90E2', cursor: 'pointer', flexShrink: 0 }}
+        />
+        <div style={{ minWidth: 0, paddingRight: 8 }}>
+          <p style={{ fontSize: 13, fontWeight: 500, color: '#0F172A', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</p>
+          {(item.brand || item.size) && (
+            <p style={{ fontSize: 11, color: '#94A3B8', margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {[item.brand, item.size].filter(Boolean).join(' · ')}
+            </p>
+          )}
+        </div>
+        <p style={{ fontSize: 13, color: '#64748B', textAlign: 'center', margin: 0 }}>
+          {ordered} <span style={{ fontSize: 10, color: '#CBD5E1' }}>{item.unit || ''}</span>
+        </p>
+        <input
+          type="number" min="0" value={r.qty} disabled={!r.checked}
+          onChange={e => onChange(item.id, 'qty', e.target.value)}
+          style={{
+            width: '100%', textAlign: 'center', fontSize: 13, fontWeight: 600,
+            padding: '4px 6px', border: '1px solid',
+            borderColor: !r.checked ? '#F1F5F9' : rcvQty < ordered ? '#FCA5A5' : '#86EFAC',
+            borderRadius: 6, outline: 'none', background: r.checked ? 'white' : '#FAFAFA',
+            color: r.checked ? '#0F172A' : '#CBD5E1',
+          }}
+        />
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          {pill && (
+            <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 20, background: pill.bg, color: pill.color, whiteSpace: 'nowrap' }}>
+              {pill.label}
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <>
@@ -301,23 +383,13 @@ const ReceiveStep = ({ items, receiving, onChange, onReceiveAll, onNext, onClose
           <p style={{ fontSize: 12, fontWeight: 700, color: '#1E3A5F', margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Step 1 of 2</p>
           <p style={{ fontSize: 11, color: '#94A3B8', margin: '2px 0 0' }}>Tick each item that arrived and enter the received quantity</p>
         </div>
-        {/* Split by supplier toggle */}
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', flexShrink: 0 }}>
-          <div
-            onClick={onToggleSplit}
-            style={{
-              width: 32, height: 18, borderRadius: 9, background: splitBySupplier ? '#1E3A5F' : '#CBD5E1',
-              position: 'relative', transition: 'background 0.15s', cursor: 'pointer', flexShrink: 0,
-            }}
-          >
-            <div style={{
-              position: 'absolute', top: 2, left: splitBySupplier ? 16 : 2,
-              width: 14, height: 14, borderRadius: '50%', background: 'white',
-              transition: 'left 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-            }} />
+        {/* Organise by supplier toggle */}
+        <div onClick={() => setOrganiseBySupplier(v => !v)} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', flexShrink: 0 }}>
+          <div style={{ width: 32, height: 18, borderRadius: 9, background: organiseBySupplier ? '#1E3A5F' : '#CBD5E1', position: 'relative', transition: 'background 0.15s' }}>
+            <div style={{ position: 'absolute', top: 2, left: organiseBySupplier ? 16 : 2, width: 14, height: 14, borderRadius: '50%', background: 'white', transition: 'left 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
           </div>
-          <span style={{ fontSize: 11, color: '#64748B', whiteSpace: 'nowrap' }}>Split by supplier</span>
-        </label>
+          <span style={{ fontSize: 11, color: '#64748B', whiteSpace: 'nowrap' }}>Organise by supplier</span>
+        </div>
         <button
           onClick={onReceiveAll}
           style={{ fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 7, cursor: 'pointer', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8', whiteSpace: 'nowrap' }}
@@ -326,81 +398,36 @@ const ReceiveStep = ({ items, receiving, onChange, onReceiveAll, onNext, onClose
         </button>
       </div>
 
+      {/* Column header */}
+      <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 80px 90px 56px', gap: 0, padding: '6px 20px', background: '#FAFAFA', borderBottom: '1px solid #F1F5F9' }}>
+        <div />
+        <p style={{ fontSize: 9, fontWeight: 700, color: '#CBD5E1', letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0 }}>Item</p>
+        <p style={{ fontSize: 9, fontWeight: 700, color: '#CBD5E1', letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0, textAlign: 'center' }}>Ordered</p>
+        <p style={{ fontSize: 9, fontWeight: 700, color: '#CBD5E1', letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0, textAlign: 'center' }}>Received</p>
+        <div />
+      </div>
+
       {/* Item rows */}
       <div style={{ overflowY: 'auto', flex: 1 }}>
-        {/* Header row */}
-        <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 80px 90px 56px', gap: 0, padding: '6px 20px', background: '#FAFAFA', borderBottom: '1px solid #F1F5F9' }}>
-          <div />
-          <p style={{ fontSize: 9, fontWeight: 700, color: '#CBD5E1', letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0 }}>Item</p>
-          <p style={{ fontSize: 9, fontWeight: 700, color: '#CBD5E1', letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0, textAlign: 'center' }}>Ordered</p>
-          <p style={{ fontSize: 9, fontWeight: 700, color: '#CBD5E1', letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0, textAlign: 'center' }}>Received</p>
-          <div />
-        </div>
-
-        {items.map(item => {
-          const r = receiving[item.id] || { checked: false, qty: item.quantity_ordered || 0 };
-          const ordered = parseFloat(item.quantity_ordered) || 0;
-          const rcvQty = parseFloat(r.qty) || 0;
-          const status = r.checked ? deriveStatus(rcvQty, ordered) : null;
-          const pill = status ? STATUS_PILL[status] : null;
-          const itemLabel = [item.name, item.brand, item.size].filter(Boolean).join(' · ');
-
-          return (
-            <div
-              key={item.id}
-              style={{
-                display: 'grid', gridTemplateColumns: '28px 1fr 80px 90px 56px', gap: 0,
-                padding: '10px 20px', borderBottom: '1px solid #F8FAFC',
-                background: r.checked ? '#FAFCFF' : 'white', alignItems: 'center',
-                transition: 'background 0.1s',
-              }}
-            >
-              {/* Checkbox */}
-              <input
-                type="checkbox"
-                checked={!!r.checked}
-                onChange={e => onChange(item.id, 'checked', e.target.checked)}
-                style={{ width: 14, height: 14, accentColor: '#4A90E2', cursor: 'pointer', flexShrink: 0 }}
-              />
-              {/* Name */}
-              <div style={{ minWidth: 0, paddingRight: 8 }}>
-                <p style={{ fontSize: 13, fontWeight: 500, color: '#0F172A', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</p>
-                {(item.brand || item.size) && (
-                  <p style={{ fontSize: 11, color: '#94A3B8', margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {[item.brand, item.size].filter(Boolean).join(' · ')}
-                  </p>
-                )}
+        {organiseBySupplier ? (
+          supplierGroups.map(([supplierName, groupItems]) => {
+            const checkedCount = groupItems.filter(i => receiving[i.id]?.checked).length;
+            const groupState = checkedCount === 0 ? 'none' : checkedCount === groupItems.length ? 'all' : 'some';
+            return (
+              <div key={supplierName}>
+                {/* Group header */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 20px', background: '#F8FAFC', borderBottom: '1px solid #EEF2F8', borderTop: '1px solid #EEF2F8' }}>
+                  <GroupCheckbox state={groupState} onChange={checked => onGroupChange(groupItems.map(i => i.id), checked)} />
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>{supplierName}</span>
+                  <span style={{ fontSize: 11, color: '#CBD5E1', marginLeft: 2 }}>{groupItems.length} item{groupItems.length !== 1 ? 's' : ''}</span>
+                </div>
+                {groupItems.map(item => renderItemRow(item, true))}
               </div>
-              {/* Ordered */}
-              <p style={{ fontSize: 13, color: '#64748B', textAlign: 'center', margin: 0 }}>
-                {ordered} <span style={{ fontSize: 10, color: '#CBD5E1' }}>{item.unit || ''}</span>
-              </p>
-              {/* Received qty input */}
-              <input
-                type="number"
-                min="0"
-                value={r.qty}
-                disabled={!r.checked}
-                onChange={e => onChange(item.id, 'qty', e.target.value)}
-                style={{
-                  width: '100%', textAlign: 'center', fontSize: 13, fontWeight: 600,
-                  padding: '4px 6px', border: '1px solid',
-                  borderColor: !r.checked ? '#F1F5F9' : rcvQty < ordered ? '#FCA5A5' : '#86EFAC',
-                  borderRadius: 6, outline: 'none', background: r.checked ? 'white' : '#FAFAFA',
-                  color: r.checked ? '#0F172A' : '#CBD5E1',
-                }}
-              />
-              {/* Status pill */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                {pill && (
-                  <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 20, background: pill.bg, color: pill.color, whiteSpace: 'nowrap' }}>
-                    {pill.label}
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })}
+            );
+          })
+        ) : (
+          items.map(item => renderItemRow(item, false))
+        )}
 
         {items.length === 0 && (
           <div style={{ padding: '40px 20px', textAlign: 'center' }}>
@@ -783,7 +810,6 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
 
   const [step, setStep] = useState(1);
   const [receiving, setReceiving] = useState({});
-  const [splitBySupplier, setSplitBySupplier] = useState(true);
   const [matches, setMatches] = useState({});              // {[id]: row | 'loading' | null}
   const [locationSplits, setLocationSplits] = useState({}); // {[id]: [{locationName, currentQty, addQty}]}
   const [noMatchChoices, setNoMatchChoices] = useState({}); // {[id]: 'link'|'create'|'skip'|null}
@@ -861,6 +887,17 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
     setReceiving(next);
   };
 
+  const handleGroupChange = (itemIds, checked) => {
+    setReceiving(prev => {
+      const next = { ...prev };
+      itemIds.forEach(id => {
+        const item = items.find(i => i.id === id);
+        next[id] = { ...(prev[id] || {}), checked, qty: checked ? (item?.quantity_ordered ?? 0) : 0 };
+      });
+      return next;
+    });
+  };
+
   const handleSaveReceiving = async () => {
     setSaving(true);
     try {
@@ -880,41 +917,35 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
 
       const receivedUpdates = updates.filter(u => u.quantity_received > 0);
 
-      // Group by supplier (or lump everything into one batch when toggle is off)
-      const bySupplier = {};
-      receivedUpdates.forEach(u => {
-        const key = splitBySupplier ? (u.supplier_name || 'Manual receive') : 'Manual receive';
-        if (!bySupplier[key]) bySupplier[key] = [];
-        bySupplier[key].push(u);
+      // Derive a single supplier name for this batch
+      const supplierNames = [...new Set(receivedUpdates.map(u => u.supplier_name).filter(Boolean))];
+      const batchSupplierName = supplierNames.length === 0 ? 'Manual receive'
+        : supplierNames.length === 1 ? supplierNames[0]
+        : 'Mixed suppliers';
+
+      const totalCost = receivedUpdates.reduce(
+        (sum, u) => sum + (parseFloat(u.estimated_unit_cost) || 0) * (u.quantity_received || 0), 0
+      );
+
+      // Create one batch for this receive session
+      const batch = await createDeliveryBatch({
+        listId: list?.id, tenantId, userId,
+        supplierName: batchSupplierName,
+        totalCost: totalCost || null,
+        portLocation: list?.port_location || null,
       });
-
-      // Create a batch per supplier group, then stamp each item
-      for (const [supplierName, supplierItems] of Object.entries(bySupplier)) {
-        const totalCost = supplierItems.reduce(
-          (sum, u) => sum + (parseFloat(u.estimated_unit_cost) || 0) * (u.quantity_received || 0),
-          0
-        );
-        const batch = await createDeliveryBatch({
-          listId: list?.id,
-          tenantId,
-          userId,
-          supplierName,
-          totalCost: totalCost || null,
-          portLocation: list?.port_location || null,
-        });
-        const batchId = batch?.id || null;
-        if (!batchId) {
-          console.error('[ReceiveDeliveryModal] batch creation failed for supplier:', supplierName, '— items will be received without a batch link. Check console for Supabase error details.');
-          showToast(`Batch creation failed for "${supplierName}" — check browser console for the exact error (likely RLS policy or missing column)`, 'error');
-        }
-
-        await receiveItems(supplierItems.map(u => ({
-          id: u.id,
-          quantity_received: u.quantity_received,
-          status: u.status,
-          ...(batchId ? { receive_batch_id: batchId } : {}),
-        })));
+      const batchId = batch?.id || null;
+      if (!batchId) {
+        console.error('[ReceiveDeliveryModal] batch creation failed — items will be received without a batch link');
+        showToast('Batch creation failed — check browser console', 'error');
       }
+
+      await receiveItems(receivedUpdates.map(u => ({
+        id: u.id,
+        quantity_received: u.quantity_received,
+        status: u.status,
+        ...(batchId ? { receive_batch_id: batchId } : {}),
+      })));
 
       // Persist status for unchecked items (e.g. not_received)
       const nonReceived = updates.filter(u => u.quantity_received === 0);
@@ -1164,12 +1195,11 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
             items={items}
             receiving={receiving}
             onChange={handleChange}
+            onGroupChange={handleGroupChange}
             onReceiveAll={handleReceiveAll}
             onNext={handleSaveReceiving}
             onClose={onClose}
             saving={saving}
-            splitBySupplier={splitBySupplier}
-            onToggleSplit={() => setSplitBySupplier(v => !v)}
           />
         ) : (
           <PushStep
