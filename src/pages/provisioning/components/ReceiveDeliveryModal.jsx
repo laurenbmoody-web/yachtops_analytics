@@ -1082,37 +1082,58 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
 
       const receivedUpdates = updates.filter(u => u.quantity_received > 0);
 
-      // Derive a single supplier name for this batch
-      const supplierNames = [...new Set(receivedUpdates.map(u => u.supplier_name).filter(Boolean))];
-      const batchSupplierName = supplierNames.length === 0 ? 'Manual receive'
-        : supplierNames.length === 1 ? supplierNames[0]
-        : 'Mixed suppliers';
-
-      const totalCost = receivedUpdates.reduce(
-        (sum, u) => sum + (parseFloat(u.estimated_unit_cost) || 0) * (u.quantity_received || 0), 0
-      );
-
-      // Create one batch for this receive session
-      const batch = await createDeliveryBatch({
-        listId: list?.id, tenantId, userId,
-        supplierName: batchSupplierName,
-        totalCost: totalCost || null,
-        portLocation: list?.port_location || null,
+      // Group by supplier → one batch per supplier, reusing existing same-day batches
+      const bySupplier = {};
+      receivedUpdates.forEach(u => {
+        const key = u.supplier_name?.trim() || 'Manual receive';
+        if (!bySupplier[key]) bySupplier[key] = [];
+        bySupplier[key].push(u);
       });
-      const batchId = batch?.id || null;
-      if (!batchId) {
-        console.error('[ReceiveDeliveryModal] batch creation failed — items will be received without a batch link');
-        showToast('Batch creation failed — check browser console', 'error');
+
+      const today = new Date().toISOString().split('T')[0];
+      let firstBatchId = null; // used for delivery note attachment
+
+      for (const [supplierName, supplierItems] of Object.entries(bySupplier)) {
+        // Reuse existing batch for same supplier + same day
+        const { data: existing } = await supabase
+          ?.from('provisioning_deliveries')
+          ?.select('id')
+          ?.eq('list_id', list?.id)
+          ?.eq('supplier_name', supplierName)
+          ?.gte('received_at', `${today}T00:00:00Z`)
+          ?.lt('received_at', `${today}T23:59:59Z`)
+          ?.limit(1)
+          ?.maybeSingle();
+
+        let batchId = existing?.id || null;
+        if (!batchId) {
+          const cost = supplierItems.reduce(
+            (sum, u) => sum + (parseFloat(u.estimated_unit_cost) || 0) * (u.quantity_received || 0), 0
+          );
+          const batch = await createDeliveryBatch({
+            listId: list?.id, tenantId, userId,
+            supplierName,
+            totalCost: cost || null,
+            portLocation: list?.port_location || null,
+          });
+          batchId = batch?.id || null;
+          if (!batchId) {
+            console.error('[ReceiveDeliveryModal] batch creation failed for supplier:', supplierName);
+            showToast(`Batch creation failed for "${supplierName}" — items saved without batch link`, 'error');
+          }
+        }
+
+        if (!firstBatchId && batchId) firstBatchId = batchId;
+
+        await receiveItems(supplierItems.map(u => ({
+          id: u.id,
+          quantity_received: u.quantity_received,
+          status: u.status,
+          ...(batchId ? { receive_batch_id: batchId } : {}),
+        })));
       }
 
-      await receiveItems(receivedUpdates.map(u => ({
-        id: u.id,
-        quantity_received: u.quantity_received,
-        status: u.status,
-        ...(batchId ? { receive_batch_id: batchId } : {}),
-      })));
-
-      // Persist status for unchecked items (e.g. not_received)
+      // Persist status for unchecked (not_received) items
       const nonReceived = updates.filter(u => u.quantity_received === 0);
       if (nonReceived.length > 0) {
         await receiveItems(nonReceived.map(u => ({
@@ -1122,14 +1143,14 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
         })));
       }
 
-      // Upload delivery note and save to batch (non-blocking)
-      if (batchId && deliveryNoteFile) {
+      // Upload delivery note to first batch (non-blocking)
+      if (firstBatchId && deliveryNoteFile) {
         try {
-          const url = await uploadInvoiceFile(deliveryNoteFile, batchId);
+          const url = await uploadInvoiceFile(deliveryNoteFile, firstBatchId);
           if (url) {
             await supabase?.from('provisioning_deliveries')
               ?.update({ invoice_file_url: url, parsed_data: parsedNote })
-              ?.eq('id', batchId);
+              ?.eq('id', firstBatchId);
           }
         } catch { /* non-fatal */ }
       }
