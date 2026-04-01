@@ -309,7 +309,7 @@ const GroupCheckbox = ({ state, onChange }) => {
 
 const ReceiveStep = ({
   items, receiving, onChange, onGroupChange, onReceiveAll, onNext, onClose, saving,
-  deliveryNoteFile, noteStatus, parsedNote, noteAutoFills, unmatchedItems,
+  deliveryNoteFile, noteStatus, noteError, parsedNote, noteAutoFills, unmatchedItems,
   onFileSelect, onRemoveNote, onAddUnmatched, onSkipUnmatched,
 }) => {
   const [organiseBySupplier, setOrganiseBySupplier] = useState(true);
@@ -439,7 +439,7 @@ const ReceiveStep = ({
               <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deliveryNoteFile?.name}</p>
               <p style={{ margin: '1px 0 0', fontSize: 11, color: noteStatus === 'error' ? '#DC2626' : '#64748B' }}>
                 {noteStatus === 'parsing' ? 'Extracting items with AI…'
-                  : noteStatus === 'error' ? 'Failed to parse — items unchanged'
+                  : noteStatus === 'error' ? (noteError || 'Failed to parse — items unchanged')
                   : `✓ ${matchedCount} matched · ${unmatchedItems.length} not on board`}
               </p>
             </div>
@@ -888,6 +888,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
   // Delivery note upload + AI parsing
   const [deliveryNoteFile, setDeliveryNoteFile] = useState(null);
   const [noteStatus, setNoteStatus] = useState('idle'); // 'idle'|'parsing'|'done'|'error'
+  const [noteError, setNoteError] = useState(null);
   const [parsedNote, setParsedNote] = useState(null);
   const [noteAutoFills, setNoteAutoFills] = useState(new Set());
   const [unmatchedItems, setUnmatchedItems] = useState([]);
@@ -984,6 +985,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
     if (file.size > 10 * 1024 * 1024) { showToast('File too large (max 10 MB)', 'error'); return; }
     setDeliveryNoteFile(file);
     setNoteStatus('parsing');
+    setNoteError(null);
     setParsedNote(null);
     setNoteAutoFills(new Set());
     setUnmatchedItems([]);
@@ -1003,7 +1005,11 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
       });
       const rawText = await resp.text();
       console.log('[DeliveryNote] HTTP status:', resp.status, 'body preview:', rawText.slice(0, 500));
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${rawText.slice(0, 300)}`);
+      if (!resp.ok) {
+        let errMsg = `HTTP ${resp.status}`;
+        try { errMsg = JSON.parse(rawText).error || errMsg; } catch { /* use status */ }
+        throw new Error(errMsg);
+      }
       let result;
       try {
         result = JSON.parse(rawText);
@@ -1036,6 +1042,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
       setUnmatchedItems(unmatched);
     } catch (err) {
       console.error('[parseNote] error:', err);
+      setNoteError(err.message || 'Unknown error');
       setNoteStatus('error');
     }
   };
@@ -1043,6 +1050,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
   const handleRemoveNote = () => {
     setDeliveryNoteFile(null);
     setNoteStatus('idle');
+    setNoteError(null);
     setParsedNote(null);
     setNoteAutoFills(new Set());
     setUnmatchedItems([]);
@@ -1413,6 +1421,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
             parsedNote={parsedNote}
             noteAutoFills={noteAutoFills}
             unmatchedItems={unmatchedItems}
+            noteError={noteError}
             onFileSelect={handleFileSelect}
             onRemoveNote={handleRemoveNote}
             onAddUnmatched={handleAddUnmatched}
