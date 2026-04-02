@@ -54,10 +54,12 @@ async function pollOperation(operationLocation: string, maxAttempts = 60, interv
 
 function matchToBoardItem(rawName: string, brand: string | null, size: string | null, boardItems: any[]) {
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
-  const words = (s: string) => norm(s).split(/\s+/).filter((w) => w.length > 2);
+  const words = (s: string) => norm(s).split(/\s+/).filter((w) => w.length > 1);
 
   const extractedNorm  = norm(rawName);
   const extractedWords = words(rawName);
+
+  console.log('[parseDeliveryNote] Trying to match:', JSON.stringify(extractedNorm), 'against board items:', boardItems.map((b) => b.name));
 
   let bestId: string | null = null;
   let bestScore = 0;
@@ -68,14 +70,20 @@ function matchToBoardItem(rawName: string, brand: string | null, size: string | 
     let score = 0;
 
     // Substring containment (handles "Wireless Network Adapter" ↔ "network adapter")
-    if (extractedNorm.includes(boardNorm) || boardNorm.includes(extractedNorm)) {
+    const containsMatch = extractedNorm.includes(boardNorm) || boardNorm.includes(extractedNorm);
+    if (containsMatch) {
       score = 80;
     } else {
       // Word overlap: count board words that appear (or partially appear) in extracted words
-      const matching = boardWords.filter((bw) =>
+      const matchingWords = boardWords.filter((bw) =>
         extractedWords.some((ew) => ew.includes(bw) || bw.includes(ew))
       );
-      if (boardWords.length > 0) score = (matching.length / boardWords.length) * 70;
+      const wordScore = boardWords.length > 0 ? matchingWords.length / boardWords.length : 0;
+      if (wordScore > 0.5) {
+        score = 60 + (wordScore * 20);
+      } else if (matchingWords.length >= 1) {
+        score = 40 + (matchingWords.length * 10);
+      }
     }
 
     // Brand bonus
@@ -90,10 +98,14 @@ function matchToBoardItem(rawName: string, brand: string | null, size: string | 
       if (norm(size) === norm(bi.size as string)) score += 10;
     }
 
+    console.log('[parseDeliveryNote]   vs', JSON.stringify(boardNorm), '→ score:', score);
+
     if (score > bestScore) { bestScore = score; bestId = bi.id; }
   }
 
-  if (bestScore >= 50) {
+  console.log('[parseDeliveryNote] Best match score:', bestScore, 'id:', bestId);
+
+  if (bestScore >= 40) {
     const conf = bestScore >= 75 ? 'high' : bestScore >= 60 ? 'medium' : 'low';
     return { id: bestId, confidence: conf };
   }
@@ -213,10 +225,6 @@ function extractLineItems(analyzeResult: any, boardItems: any[]) {
     }
     console.log('[parseDeliveryNote] tier-3 extracted', lineItems.length, 'items');
   }
-
-  return { invoiceNumber, invoiceDate, supplierName, totalAmount, currency, lineItems };
-}
-
 
   return { invoiceNumber, invoiceDate, supplierName, totalAmount, currency, lineItems };
 }
