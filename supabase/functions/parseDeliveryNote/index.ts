@@ -50,40 +50,51 @@ async function pollOperation(operationLocation: string, maxAttempts = 60, interv
   throw new Error('Azure analysis timed out');
 }
 
-// ── Simple word-overlap similarity (0–1) ─────────────────────────────────────
-
-function wordSimilarity(a: string, b: string): number {
-  const tokenise = (s: string) =>
-    s.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(Boolean);
-  const wa = new Set(tokenise(a));
-  const wb = new Set(tokenise(b));
-  if (!wa.size || !wb.size) return 0;
-  let overlap = 0;
-  wa.forEach((w) => { if (wb.has(w)) overlap++; });
-  return overlap / Math.max(wa.size, wb.size);
-}
-
 // ── Match extracted items to board items ─────────────────────────────────────
 
 function matchToBoardItem(rawName: string, brand: string | null, size: string | null, boardItems: any[]) {
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+  const words = (s: string) => norm(s).split(/\s+/).filter((w) => w.length > 2);
+
+  const extractedNorm  = norm(rawName);
+  const extractedWords = words(rawName);
+
   let bestId: string | null = null;
   let bestScore = 0;
 
   for (const bi of boardItems) {
-    let score = wordSimilarity(rawName, bi.name || '') * 60;
+    const boardNorm  = norm(bi.name || '');
+    const boardWords = words(bi.name || '');
+    let score = 0;
+
+    // Substring containment (handles "Wireless Network Adapter" ↔ "network adapter")
+    if (extractedNorm.includes(boardNorm) || boardNorm.includes(extractedNorm)) {
+      score = 80;
+    } else {
+      // Word overlap: count board words that appear (or partially appear) in extracted words
+      const matching = boardWords.filter((bw) =>
+        extractedWords.some((ew) => ew.includes(bw) || bw.includes(ew))
+      );
+      if (boardWords.length > 0) score = (matching.length / boardWords.length) * 70;
+    }
+
+    // Brand bonus
     if (brand && bi.brand) {
-      const bl = brand.toLowerCase();
-      const bil = (bi.brand as string).toLowerCase();
-      if (bl.includes(bil) || bil.includes(bl)) score += 20;
+      const bl = norm(brand);
+      const bil = norm(bi.brand as string);
+      if (bl.includes(bil) || bil.includes(bl)) score += 15;
     }
+
+    // Size bonus
     if (size && bi.size) {
-      if ((size as string).toLowerCase() === (bi.size as string).toLowerCase()) score += 20;
+      if (norm(size) === norm(bi.size as string)) score += 10;
     }
+
     if (score > bestScore) { bestScore = score; bestId = bi.id; }
   }
 
-  if (bestScore >= 40) {
-    const conf = bestScore >= 70 ? 'high' : bestScore >= 50 ? 'medium' : 'low';
+  if (bestScore >= 50) {
+    const conf = bestScore >= 75 ? 'high' : bestScore >= 60 ? 'medium' : 'low';
     return { id: bestId, confidence: conf };
   }
   return { id: null, confidence: 'none' };
