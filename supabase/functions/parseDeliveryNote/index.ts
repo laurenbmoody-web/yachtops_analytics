@@ -112,32 +112,156 @@ function matchToBoardItem(rawName: string, brand: string | null, size: string | 
   return { id: null, confidence: 'none' };
 }
 
+// ── Build a line item result object ──────────────────────────────────────────
+
+function makeLineItem(rawName: string, quantity: number | null, unitPrice: number | null, lineTotal: number | null, unit: string | null, boardItems: any[]) {
+  const match = matchToBoardItem(rawName, null, null, boardItems);
+  return { raw_name: rawName, quantity, unit_price: unitPrice, line_total: lineTotal, unit, matched_item_id: match.id, match_confidence: match.confidence, discrepancy: null };
+}
+
+// ── Table extraction with header-keyword column detection ─────────────────────
+
+function extractFromTables(tables: any[], boardItems: any[]): any[] {
+  const items: any[] = [];
+
+  for (const table of tables) {
+    if ((table.rowCount || 0) < 2) continue;
+
+    const cells: any[] = table.cells || [];
+
+    // --- Step 1: detect column roles from explicit header cells (kind === 'columnHeader')
+    let nameCol = -1, qtyCol = -1, priceCol = -1;
+    const headerCells = cells.filter((c: any) => c.kind === 'columnHeader');
+    console.log('[parseDeliveryNote] table header cells:', headerCells.map((c: any) => `col${c.columnIndex}="${c.content}"`));
+
+    for (const hc of headerCells) {
+      const h = (hc.content || '').toLowerCase();
+      if (nameCol  === -1 && /product|description|item|article|name/.test(h)) nameCol  = hc.columnIndex;
+      if (qtyCol   === -1 && /delivered|received|qty|quantity/.test(h))        qtyCol   = hc.columnIndex;
+      if (priceCol === -1 && /price|cost|each|unit/.test(h))                   priceCol = hc.columnIndex;
+    }
+
+    // --- Step 2: if no header cells, try first data row as header
+    if (nameCol === -1 && qtyCol === -1) {
+      const row0 = cells.filter((c: any) => c.rowIndex === 0).sort((a: any, b: any) => a.columnIndex - b.columnIndex);
+      console.log('[parseDeliveryNote] no header cells — using row 0 as header:', row0.map((c: any) => c.content));
+      for (const c of row0) {
+        const h = (c.content || '').toLowerCase();
+        if (nameCol  === -1 && /product|description|item|article|name/.test(h)) nameCol  = c.columnIndex;
+        if (qtyCol   === -1 && /delivered|received|qty|quantity/.test(h))        qtyCol   = c.columnIndex;
+        if (priceCol === -1 && /price|cost|each|unit/.test(h))                   priceCol = c.columnIndex;
+      }
+    }
+
+    // --- Step 3: positional fallback — longest avg text column = name; first pure-number column = qty
+    const dataStartRow = headerCells.length > 0 ? 1 : (nameCol === -1 && qtyCol === -1 ? 1 : 1);
+    if (nameCol === -1 || qtyCol === -1) {
+      const colCount = table.columnCount || 0;
+      const colTexts: string[][] = Array.from({ length: colCount }, () => []);
+      for (const c of cells) {
+        if (c.rowIndex >= dataStartRow) colTexts[c.columnIndex]?.push(c.content || '');
+      }
+      // Name column: highest average text length
+      if (nameCol === -1) {
+        let maxAvg = 0;
+        colTexts.forEach((col, i) => {
+          const avg = col.reduce((s, v) => s + v.length, 0) / (col.length || 1);
+          if (avg > maxAvg) { maxAvg = avg; nameCol = i; }
+        });
+      }
+      // Qty column: first column (other than name) whose values are all short numbers
+      if (qtyCol === -1) {
+        for (let i = 0; i < colTexts.length; i++) {
+          if (i === nameCol) continue;
+          const allNumeric = colTexts[i].length > 0 && colTexts[i].every((v) => /^\s*\d+(\.\d+)?\s*$/.test(v));
+          if (allNumeric) { qtyCol = i; break; }
+        }
+      }
+    }
+
+    console.log('[parseDeliveryNote] final col mapping — name:', nameCol, 'qty:', qtyCol, 'price:', priceCol);
+
+    // --- Step 4: extract data rows
+    const maxRow = table.rowCount;
+    for (let r = dataStartRow; r < maxRow; r++) {
+      const row: Record<number, string> = {};
+      for (const c of cells) { if (c.rowIndex === r) row[c.columnIndex] = c.content || ''; }
+
+      const rawName = nameCol >= 0 ? (row[nameCol] || '').trim() : Object.values(row).find((v) => v.trim().length > 3) || '';
+      if (!rawName || rawName === '-') continue;
+
+      const qtyStr  = qtyCol  >= 0 ? row[qtyCol]  || '' : '';
+      const priceStr = priceCol >= 0 ? row[priceCol] || '' : '';
+      const quantity  = parseFloat(qtyStr.replace(/[^0-9.]/g, '')) || null;
+      const unitPrice = parseFloat(priceStr.replace(/[^0-9.]/g, '')) || null;
+
+      items.push(makeLineItem(rawName, quantity, unitPrice, null, null, boardItems));
+    }
+
+    if (items.length > 0) {
+      console.log('[parseDeliveryNote] table extraction got', items.length, 'items');
+      break; // stop after first productive table
+    }
+  }
+
+  return items;
+}
+
+// ── Text / paragraph extraction ───────────────────────────────────────────────
+
+function extractFromText(analyzeResult: any, boardItems: any[]): any[] {
+  const items: any[] = [];
+  const lines: string[] = [];
+
+  // Collect text: paragraphs preferred, else split content
+  if (analyzeResult?.paragraphs?.length) {
+    for (const p of analyzeResult.paragraphs) lines.push(p.content || '');
+  } else if (typeof analyzeResult?.content === 'string') {
+    lines.push(...analyzeResult.content.split('\n'));
+  }
+
+  console.log('[parseDeliveryNote] text extraction — lines to scan:', lines.length);
+
+  for (const raw of lines) {
+    const text = raw.trim();
+    if (!text) continue;
+
+    // Pattern A: leading qty  — "15 x Widget Name" / "15x Widget" / "15 × Widget"
+    const leadingQty = text.match(/^(\d+)\s*[×xX]\s+(.+)/);
+    if (leadingQty) {
+      const quantity = parseInt(leadingQty[1], 10);
+      const name = leadingQty[2].replace(/\s+[\d.,]+.*$/, '').trim(); // strip trailing price
+      if (name.length >= 2) { items.push(makeLineItem(name, quantity, null, null, null, boardItems)); continue; }
+    }
+
+    // Pattern B: trailing label — "Widget Name - Qty: 15" / "Widget Name qty 15" / "Widget Name × 15"
+    const trailingQty = text.match(/^(.+?)\s*(?:[-–—]?\s*(?:qty|quantity|delivered|received|pcs|units|x|×)[:.\s]+)(\d+)\s*$/i);
+    if (trailingQty) {
+      const name = trailingQty[1].trim();
+      const quantity = parseInt(trailingQty[2], 10);
+      if (name.length >= 2) { items.push(makeLineItem(name, quantity, null, null, null, boardItems)); continue; }
+    }
+
+    // Pattern C: name then isolated number — "Widget Name ... 15" (number at end, separated by non-word)
+    const endNumber = text.match(/^(.{5,}?)\s{2,}(\d+)\s*$/);
+    if (endNumber) {
+      const name = endNumber[1].trim();
+      const quantity = parseInt(endNumber[2], 10);
+      if (name.length >= 2) { items.push(makeLineItem(name, quantity, null, null, null, boardItems)); }
+    }
+  }
+
+  console.log('[parseDeliveryNote] text extraction got', items.length, 'items');
+  return items;
+}
+
 // ── Extract line items from Azure prebuilt-invoice result ────────────────────
 
 function extractLineItems(analyzeResult: any, boardItems: any[]) {
-  // ── Tier-0: log full structure so we can see exactly what Azure returned ──
   console.log('[parseDeliveryNote] analyzeResult top-level keys:', Object.keys(analyzeResult || {}));
   console.log('[parseDeliveryNote] tables found:', analyzeResult?.tables?.length ?? 0);
   console.log('[parseDeliveryNote] paragraphs found:', analyzeResult?.paragraphs?.length ?? 0);
-  console.log('[parseDeliveryNote] keyValuePairs found:', analyzeResult?.keyValuePairs?.length ?? 0);
   console.log('[parseDeliveryNote] documents found:', analyzeResult?.documents?.length ?? 0);
-  if (analyzeResult?.documents?.length) {
-    const docFields = Object.keys(analyzeResult.documents[0]?.fields || {});
-    console.log('[parseDeliveryNote] documents[0] field keys:', docFields);
-    const itemsArr = analyzeResult.documents[0]?.fields?.Items?.valueArray;
-    console.log('[parseDeliveryNote] documents[0].fields.Items.valueArray length:', itemsArr?.length ?? 'undefined');
-    if (itemsArr?.length) {
-      console.log('[parseDeliveryNote] first raw item sample:', JSON.stringify(itemsArr[0]).slice(0, 400));
-    }
-  }
-  if (analyzeResult?.tables?.length) {
-    const t = analyzeResult.tables[0];
-    console.log('[parseDeliveryNote] table[0]:', t.rowCount, 'rows ×', t.columnCount, 'cols');
-    console.log('[parseDeliveryNote] table[0] first 3 cells:', JSON.stringify((t.cells || []).slice(0, 6)));
-  }
-  if (analyzeResult?.paragraphs?.length) {
-    console.log('[parseDeliveryNote] first 5 paragraphs:', analyzeResult.paragraphs.slice(0, 5).map((p: any) => p.content));
-  }
 
   const doc    = analyzeResult?.documents?.[0];
   const fields = doc?.fields || {};
@@ -148,14 +272,14 @@ function extractLineItems(analyzeResult: any, boardItems: any[]) {
   const totalAmount   = fields?.InvoiceTotal?.value ?? null;
   const currency      = fields?.CurrencyCode?.content || null;
 
-  // ── Tier-1: prebuilt-invoice Items field ─────────────────────────────────
+  // ── Tier-1: prebuilt-invoice structured Items field ───────────────────────
   const rawItems: any[] = fields?.Items?.valueArray || [];
   console.log('[parseDeliveryNote] tier-1 invoice items:', rawItems.length);
 
-  const lineItems: any[] = rawItems.map((item: any) => {
-    const f        = item?.valueObject || {};
-    const rawName  = f?.Description?.content || f?.ProductCode?.content || 'Unknown item';
-    const quantity = f?.Quantity?.value ?? null;
+  let lineItems: any[] = rawItems.map((item: any) => {
+    const f         = item?.valueObject || {};
+    const rawName   = f?.Description?.content || f?.ProductCode?.content || 'Unknown item';
+    const quantity  = f?.Quantity?.value ?? null;
     const unitPrice = f?.UnitPrice?.value ?? null;
     const lineTotal = f?.Amount?.value ?? null;
     const unit      = f?.Unit?.content || null;
@@ -174,56 +298,16 @@ function extractLineItems(analyzeResult: any, boardItems: any[]) {
     return { raw_name: rawName, quantity, unit_price: unitPrice, line_total: lineTotal, unit, matched_item_id: match.id, match_confidence: match.confidence, discrepancy };
   });
 
-  // ── Tier-2: table extraction ──────────────────────────────────────────────
-  if (lineItems.length === 0) {
-    console.log('[parseDeliveryNote] tier-2: trying table extraction');
-    for (const table of analyzeResult?.tables || []) {
-      if ((table.rowCount || 0) < 2) continue;
-      const grid: string[][] = Array.from({ length: table.rowCount }, () =>
-        Array.from({ length: table.columnCount }, () => '')
-      );
-      for (const cell of table.cells || []) {
-        grid[cell.rowIndex ?? 0][cell.columnIndex ?? 0] = cell.content || '';
-      }
-      console.log('[parseDeliveryNote] table grid header row:', grid[0]);
-      // Find which column looks like item name, quantity, price
-      const header = grid[0].map((h: string) => h.toLowerCase());
-      const nameCol  = header.findIndex((h: string) => /item|description|product|name/.test(h));
-      const qtyCol   = header.findIndex((h: string) => /qty|quantity|amount|count/.test(h));
-      const priceCol = header.findIndex((h: string) => /price|unit|cost|rate/.test(h));
-      console.log('[parseDeliveryNote] detected cols — name:', nameCol, 'qty:', qtyCol, 'price:', priceCol);
-
-      for (let r = 1; r < grid.length; r++) {
-        const row = grid[r];
-        // Use detected columns, fall back to positional guesses
-        const rawName = (nameCol >= 0 ? row[nameCol] : row[0] || row[1] || '').trim();
-        if (!rawName) continue;
-        const numericCells = row.map((c: string) => parseFloat(c.replace(/[^0-9.]/g, ''))).filter((_: number, i: number) => i !== (nameCol >= 0 ? nameCol : 0));
-        const quantity  = qtyCol >= 0 ? (parseFloat(row[qtyCol]) || null) : (numericCells[0] ?? null);
-        const unitPrice = priceCol >= 0 ? (parseFloat(row[priceCol].replace(/[^0-9.]/g, '')) || null) : (numericCells[1] ?? null);
-        const match = matchToBoardItem(rawName, null, null, boardItems);
-        lineItems.push({ raw_name: rawName, quantity, unit_price: unitPrice, line_total: null, unit: null, matched_item_id: match.id, match_confidence: match.confidence, discrepancy: null });
-      }
-      if (lineItems.length > 0) { console.log('[parseDeliveryNote] tier-2 extracted', lineItems.length, 'items'); break; }
-    }
+  // ── Tier-2: table extraction (header-keyword column detection) ────────────
+  if (lineItems.length === 0 && (analyzeResult?.tables?.length ?? 0) > 0) {
+    console.log('[parseDeliveryNote] tier-2: table extraction');
+    lineItems = extractFromTables(analyzeResult.tables, boardItems);
   }
 
-  // ── Tier-3: paragraph keyword extraction ─────────────────────────────────
-  // Looks for patterns like "Item name - Qty: 15" or "Item name × 4"
+  // ── Tier-3: paragraph / text pattern extraction ───────────────────────────
   if (lineItems.length === 0) {
-    console.log('[parseDeliveryNote] tier-3: trying paragraph extraction');
-    const qtyPattern = /[-:×x]\s*(?:qty[:.\s]*)?\s*(\d+)/i;
-    for (const para of analyzeResult?.paragraphs || []) {
-      const text: string = para.content || '';
-      const qtyMatch = text.match(qtyPattern);
-      if (!qtyMatch) continue;
-      const rawName = text.slice(0, qtyMatch.index).replace(/[-:×x\s]+$/, '').trim();
-      if (!rawName || rawName.length < 2) continue;
-      const quantity = parseInt(qtyMatch[1], 10);
-      const match = matchToBoardItem(rawName, null, null, boardItems);
-      lineItems.push({ raw_name: rawName, quantity, unit_price: null, line_total: null, unit: null, matched_item_id: match.id, match_confidence: match.confidence, discrepancy: null });
-    }
-    console.log('[parseDeliveryNote] tier-3 extracted', lineItems.length, 'items');
+    console.log('[parseDeliveryNote] tier-3: text extraction');
+    lineItems = extractFromText(analyzeResult, boardItems);
   }
 
   return { invoiceNumber, invoiceDate, supplierName, totalAmount, currency, lineItems };
