@@ -59,7 +59,8 @@ function matchToBoardItem(rawName: string, brand: string | null, size: string | 
   const extractedNorm  = norm(rawName);
   const extractedWords = words(rawName);
 
-  console.log('[parseDeliveryNote] Trying to match:', JSON.stringify(extractedNorm), 'against board items:', boardItems.map((b) => b.name));
+  console.log(`[parseDeliveryNote] === MATCH: "${rawName}" → normalised: "${extractedNorm}" ===`);
+  console.log('[parseDeliveryNote] Board items available:', boardItems.length, '→', boardItems.map((b) => b.name));
 
   let bestId: string | null = null;
   let bestScore = 0;
@@ -70,7 +71,9 @@ function matchToBoardItem(rawName: string, brand: string | null, size: string | 
     let score = 0;
 
     // Substring containment (handles "Wireless Network Adapter" ↔ "network adapter")
-    const containsMatch = extractedNorm.includes(boardNorm) || boardNorm.includes(extractedNorm);
+    const fwdContains = extractedNorm.includes(boardNorm);
+    const revContains = boardNorm.includes(extractedNorm);
+    const containsMatch = fwdContains || revContains;
     if (containsMatch) {
       score = 80;
     } else {
@@ -98,18 +101,16 @@ function matchToBoardItem(rawName: string, brand: string | null, size: string | 
       if (norm(size) === norm(bi.size as string)) score += 10;
     }
 
-    console.log('[parseDeliveryNote]   vs', JSON.stringify(boardNorm), '→ score:', score);
+    console.log(`[parseDeliveryNote]   vs "${bi.name}" (norm: "${boardNorm}") → fwd:${fwdContains} rev:${revContains} score:${score}`);
 
     if (score > bestScore) { bestScore = score; bestId = bi.id; }
   }
 
-  console.log('[parseDeliveryNote] Best match score:', bestScore, 'id:', bestId);
-
-  if (bestScore >= 40) {
-    const conf = bestScore >= 75 ? 'high' : bestScore >= 60 ? 'medium' : 'low';
-    return { id: bestId, confidence: conf };
-  }
-  return { id: null, confidence: 'none' };
+  const result = bestScore >= 40
+    ? { id: bestId, confidence: bestScore >= 75 ? 'high' : bestScore >= 60 ? 'medium' : 'low' }
+    : { id: null, confidence: 'none' };
+  console.log(`[parseDeliveryNote]   RESULT: score=${bestScore} confidence=${result.confidence} id=${result.id}`);
+  return result;
 }
 
 // ── Build a line item result object ──────────────────────────────────────────
@@ -262,6 +263,13 @@ function extractLineItems(analyzeResult: any, boardItems: any[]) {
   console.log('[parseDeliveryNote] tables found:', analyzeResult?.tables?.length ?? 0);
   console.log('[parseDeliveryNote] paragraphs found:', analyzeResult?.paragraphs?.length ?? 0);
   console.log('[parseDeliveryNote] documents found:', analyzeResult?.documents?.length ?? 0);
+
+  // ── Matching debug summary ────────────────────────────────────────────────
+  console.log('[parseDeliveryNote] === MATCHING DEBUG ===');
+  console.log('[parseDeliveryNote] Board items received:', boardItems.length, JSON.stringify(boardItems.map((i: any) => i.name)));
+  if (boardItems.length === 0) {
+    console.warn('[parseDeliveryNote] WARNING: no board items passed in — nothing can match');
+  }
 
   const doc    = analyzeResult?.documents?.[0];
   const fields = doc?.fields || {};
