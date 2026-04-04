@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { formatDistanceToNow } from 'date-fns';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
@@ -22,6 +23,7 @@ import {
   updateBatchTotal,
   quickReceiveItem,
   fetchPendingCrossMatches,
+  fetchCrossDeptMatchesForBoard,
   PROVISIONING_STATUS,
   PROVISION_CATEGORIES,
   PROVISION_UNITS,
@@ -191,6 +193,8 @@ const ProvisioningBoardDetail = () => {
   const [fxRates, setFxRates] = useState({ GBP: 1, USD: 1.27, EUR: 1.17 });
   const [fxRatesLabel, setFxRatesLabel] = useState('Using estimated rates');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showReceived, setShowReceived] = useState(false);
+  const [crossDeptHistory, setCrossDeptHistory] = useState([]);
 
   const userTier = (user?.permission_tier || user?.effectiveTier || '').toUpperCase();
   const userDept = (user?.department || '').trim();
@@ -269,9 +273,9 @@ const ProvisioningBoardDetail = () => {
     return () => document.removeEventListener('mousedown', h);
   }, [showMenu]);
 
-  // Load deliveries when Received tab becomes active; auto-repair unbatched items
+  // Load deliveries when Deliveries or History tab becomes active; auto-repair unbatched items
   useEffect(() => {
-    if (activeTab !== 'received' || !list?.id) return;
+    if ((activeTab !== 'deliveries' && activeTab !== 'history') || !list?.id) return;
     setDeliveriesLoading(true);
     fetchDeliveryBatches(list.id)
       .then(async (batches) => {
@@ -293,6 +297,12 @@ const ProvisioningBoardDetail = () => {
       })
       .catch(() => setDeliveries([]))
       .finally(() => setDeliveriesLoading(false));
+  }, [activeTab, list?.id]);
+
+  // Load cross-dept history when History tab becomes active
+  useEffect(() => {
+    if (activeTab !== 'history' || !list?.id) return;
+    fetchCrossDeptMatchesForBoard(list.id).then(setCrossDeptHistory).catch(() => setCrossDeptHistory([]));
   }, [activeTab, list?.id]);
 
   // Fetch live FX rates once on mount (GBP base)
@@ -454,7 +464,7 @@ const ProvisioningBoardDetail = () => {
   );
 
   const deptGroups = useMemo(() => {
-    const pendingItems = filteredItems.filter(i => i.status !== 'received');
+    const pendingItems = showReceived ? filteredItems : filteredItems.filter(i => i.status !== 'received');
     const groups = {};
     pendingItems.forEach(item => {
       const d = item.department || 'General';
@@ -466,7 +476,7 @@ const ProvisioningBoardDetail = () => {
     departments.forEach(d => { if (groups[d] !== undefined) ordered.push({ dept: d, items: groups[d] }); });
     Object.keys(groups).forEach(d => { if (!departments.includes(d)) ordered.push({ dept: d, items: groups[d] }); });
     return ordered;
-  }, [filteredItems, addingToDept, departments]);
+  }, [filteredItems, addingToDept, departments, showReceived]);
 
   const grandTotals = useMemo(() => items.reduce((acc, i) => {
     const qty = parseFloat(i.quantity_ordered) || 0;
@@ -701,8 +711,7 @@ const ProvisioningBoardDetail = () => {
             <div style={{ display: 'flex' }}>
               {[
                 { id: 'items', label: 'Items' },
-                { id: 'details', label: 'Board Details' },
-                { id: 'received', label: 'Received' },
+                { id: 'deliveries', label: 'Deliveries' },
                 { id: 'history', label: 'History' },
               ].map(tab => (
                 <button
@@ -846,6 +855,17 @@ const ProvisioningBoardDetail = () => {
                 Clear filters
               </button>
             )}
+            {/* Show received toggle */}
+            <button
+              type="button"
+              onClick={() => setShowReceived(p => !p)}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              <div style={{ width: 28, height: 16, borderRadius: 99, background: showReceived ? '#1E3A5F' : '#E2E8F0', position: 'relative', flexShrink: 0, transition: 'background 0.2s' }}>
+                <div style={{ position: 'absolute', top: 2, left: showReceived ? 14 : 2, width: 12, height: 12, borderRadius: '50%', background: 'white', boxShadow: '0 1px 2px rgba(0,0,0,0.2)', transition: 'left 0.2s' }} />
+              </div>
+              <span style={{ fontSize: 11, color: '#64748B', whiteSpace: 'nowrap' }}>Show received</span>
+            </button>
           </div>
           {/* Progress */}
           {(() => {
@@ -889,7 +909,7 @@ const ProvisioningBoardDetail = () => {
                 <Icon name="CheckCircle" style={{ width: 28, height: 28, color: '#34D399' }} />
               </div>
               <p style={{ fontSize: 14, fontWeight: 600, color: '#0F172A', marginBottom: 4 }}>All items received ✓</p>
-              <p style={{ fontSize: 12, color: '#94A3B8', marginBottom: 20 }}>View the Received tab for delivery history.</p>
+              <p style={{ fontSize: 12, color: '#94A3B8', marginBottom: 20 }}>View the Deliveries tab for delivery history.</p>
               {addingToDept === '__global__' ? (
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'white', border: '1px solid #93C5FD', borderRadius: 8 }}>
                   <input autoFocus type="text" placeholder="Item name…" value={newItemName} onChange={e => setNewItemName(e.target.value)}
@@ -972,6 +992,8 @@ const ProvisioningBoardDetail = () => {
                               background: allergen ? '#FFFBEB' : isHovered ? '#FAFCFF' : 'white',
                               borderBottom: rowIdx < deptItems.length - 1 ? '1px solid #F8FAFC' : 'none',
                               transition: 'background 0.1s',
+                              opacity: item.status === 'received' ? 0.5 : 1,
+                              textDecoration: item.status === 'received' ? 'line-through' : 'none',
                             }}
                           >
                             {/* Quick-receive checkbox */}
@@ -980,8 +1002,9 @@ const ProvisioningBoardDetail = () => {
                                 type="checkbox"
                                 checked={false}
                                 title="Mark as received"
-                                onChange={() => handleQuickReceive(item)}
-                                style={{ width: 13, height: 13, accentColor: '#1D9E75', cursor: 'pointer' }}
+                                onChange={() => item.status !== 'received' && handleQuickReceive(item)}
+                                disabled={item.status === 'received'}
+                                style={{ width: 13, height: 13, accentColor: '#1D9E75', cursor: item.status === 'received' ? 'default' : 'pointer' }}
                               />
                             </div>
                             {/* Item (name + brand italic sub-text) */}
@@ -1247,8 +1270,8 @@ const ProvisioningBoardDetail = () => {
           )}
         </div>}
 
-        {/* ── Received tab ───────────────────────────────────────────────── */}
-        {activeTab === 'received' && (
+        {/* ── Deliveries tab ─────────────────────────────────────────────── */}
+        {activeTab === 'deliveries' && (
           <div style={{ padding: '32px 40px 64px', background: '#F8FAFC' }}>
             {deliveriesLoading ? (
               <div style={{ padding: '48px 0', textAlign: 'center', fontSize: 13, color: '#94A3B8' }}>Loading…</div>
@@ -1421,6 +1444,65 @@ const ProvisioningBoardDetail = () => {
                         {/* Date separator */}
                         {!isLastDate && <div style={{ margin: '32px 0 32px 70px', height: 1, background: '#E9EDF2' }} />}
                       </React.Fragment>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* ── History tab ────────────────────────────────────────────────── */}
+        {activeTab === 'history' && (
+          <div style={{ padding: '32px 40px 64px', background: '#F8FAFC' }}>
+            {(() => {
+              // Build unified history entries from deliveries + cross-dept matches
+              const entries = [
+                ...deliveries.map(d => ({
+                  type: 'delivery',
+                  date: d.received_at ? new Date(d.received_at) : null,
+                  description: `${d.supplier_name && d.supplier_name !== 'Manual receive' ? d.supplier_name : 'Manual'} delivery received`,
+                  sub: `${items.filter(i => i.receive_batch_id === d.id).length} item(s)`,
+                  dot: '#059669',
+                })),
+                ...crossDeptHistory.map(m => ({
+                  type: 'cross_dept',
+                  date: m.confirmed_at ? new Date(m.confirmed_at) : m.scanned_at ? new Date(m.scanned_at) : null,
+                  description: `${m.raw_name}${m.confirmed_qty ? ` ×${m.confirmed_qty}` : ''} — cross-department ${m.status === 'confirmed' ? 'confirmed' : 'matched'}`,
+                  sub: m.confirmed_at ? `Confirmed` : `Pending`,
+                  dot: '#1E3A5F',
+                })),
+              ]
+                .filter(e => e.date)
+                .sort((a, b) => b.date - a.date);
+
+              if (entries.length === 0) {
+                return (
+                  <div style={{ padding: '80px 0', textAlign: 'center' }}>
+                    <Icon name="Clock" style={{ width: 32, height: 32, color: '#CBD5E1', margin: '0 auto 12px', display: 'block' }} />
+                    <p style={{ fontSize: 14, color: '#64748B' }}>No activity yet</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {entries.map((entry, idx) => {
+                    let relTime;
+                    try { relTime = formatDistanceToNow(entry.date, { addSuffix: true }); } catch { relTime = ''; }
+                    const dateStr = entry.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+                    return (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: '12px 0', borderBottom: idx < entries.length - 1 ? '1px solid #F1F5F9' : 'none' }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: entry.dot, flexShrink: 0, marginTop: 5 }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ margin: 0, fontSize: 13, color: '#0F172A', fontWeight: 500 }}>{entry.description}</p>
+                          {entry.sub && <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94A3B8' }}>{entry.sub}</p>}
+                        </div>
+                        <div style={{ flexShrink: 0, textAlign: 'right' }}>
+                          <p style={{ margin: 0, fontSize: 11, color: '#94A3B8' }}>{relTime || dateStr}</p>
+                          <p style={{ margin: '1px 0 0', fontSize: 10, color: '#CBD5E1' }}>{dateStr}</p>
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
