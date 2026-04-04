@@ -523,16 +523,23 @@ const ReceiveStep = ({
 
       {/* Footer */}
       <div style={{ padding: '12px 20px', borderTop: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-        <p style={{ fontSize: 12, color: '#94A3B8', margin: 0 }}>
-          {items.filter(i => receiving[i.id]?.checked).length} of {items.length} items ticked
-        </p>
+        <div>
+          <p style={{ fontSize: 12, color: '#94A3B8', margin: 0 }}>
+            {items.filter(i => receiving[i.id]?.checked).length} of {items.length} items ticked
+          </p>
+          {items.filter(i => receiving[i.id]?.checked).length === 0 && unmatchedItems.length > 0 && (
+            <p style={{ fontSize: 11, color: '#B45309', margin: '3px 0 0' }}>
+              No items matched your list — will check other departments on save
+            </p>
+          )}
+        </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={onClose} style={{ fontSize: 13, padding: '7px 14px', borderRadius: 8, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}>
             Cancel
           </button>
           <button
             onClick={onNext}
-            disabled={saving || items.filter(i => receiving[i.id]?.checked).length === 0}
+            disabled={saving || (items.filter(i => receiving[i.id]?.checked).length === 0 && unmatchedItems.length === 0)}
             style={{ fontSize: 13, fontWeight: 600, padding: '7px 16px', borderRadius: 8, cursor: 'pointer', background: '#1E3A5F', border: '1px solid #1E3A5F', color: 'white', opacity: saving ? 0.6 : 1 }}
           >
             {saving ? 'Saving…' : 'Save & Continue →'}
