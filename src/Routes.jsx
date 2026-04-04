@@ -51,6 +51,7 @@ import { isDevMode } from './utils/devMode';
 import ProvisioningWorkspace from './pages/provisioning';
 import ProvisioningBoardDetail from './pages/provisioning/ProvisioningBoardDetail';
 import ProvisioningSuppliers from './pages/provisioning/ProvisioningSuppliers';
+import DeliveryInbox from './pages/provisioning/DeliveryInbox';
 import TripItineraryTimeline from './pages/trip-itinerary-timeline/index';
 import InviteAcceptPage from './pages/invite-accept';
 import ForgotPasswordRequest from './pages/forgot-password-request';
@@ -916,6 +917,7 @@ const Routes = () => {
         {/* Provisioning Routes */}
         <Route path="/provisioning" element={<ProtectedRoute><ProvisioningWorkspace /></ProtectedRoute>} />
         <Route path="/provisioning/suppliers" element={<ProtectedRoute><ProvisioningSuppliers /></ProtectedRoute>} />
+        <Route path="/provisioning/inbox" element={<ProtectedRoute><DeliveryInbox /></ProtectedRoute>} />
         <Route path="/provisioning/:id" element={<ProtectedRoute><ProvisioningBoardDetail /></ProtectedRoute>} />
 
         {/* Accounts */}
