@@ -458,6 +458,8 @@ export const AuthProvider = ({ children }) => {
 
             // ── Write permission fields to currentUser so permission helpers work ──
             const existingUser = getCurrentUser() || {};
+            console.log('[AUTH DEBUG] membership raw:', JSON.stringify(membership));
+            console.log('[AUTH DEBUG] department_id:', membership?.department_id, 'departmentName:', departmentName, 'user.department will be:', departmentName || existingUser?.department || null);
             const enrichedUser = {
               ...existingUser,
               permission_tier: normalizedTier,
