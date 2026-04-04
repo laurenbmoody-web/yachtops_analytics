@@ -196,15 +196,15 @@ const ProvisioningBoardDetail = () => {
   const userDept = (user?.department || '').trim();
   const canDelete = userTier === 'COMMAND';
 
-  // Default department for new items: user's own dept from auth, then vessel config, else null (→ GLOBAL)
+  // Default department for new items: user's own dept from auth, then board's dept, then vessel config, else null (→ GLOBAL)
   const defaultDept = useMemo(() => {
     const userDept = (user?.department || '').trim();
     if (userDept) {
       const match = departments.find(d => d?.toLowerCase() === userDept.toLowerCase());
       if (match) return match;
     }
-    return departments.find(Boolean) || null;
-  }, [departments, user?.department]);
+    return deptTags[0] || departments.find(Boolean) || null;
+  }, [departments, deptTags, user?.department]);
 
   // ── Load ──────────────────────────────────────────────────────────────────
 
