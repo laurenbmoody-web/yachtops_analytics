@@ -305,12 +305,18 @@ const ProvisioningBoardDetail = () => {
       .finally(() => setDeliveriesLoading(false));
   }, [activeTab, list?.id]);
 
-  // Resolve received_by user names when deliveries list changes
+  // Resolve received_by and supplier_name UUIDs when deliveries list changes
   useEffect(() => {
     if (deliveries.length === 0) return;
-    const userIds = deliveries.map(d => d.received_by).filter(Boolean);
-    if (userIds.length === 0) return;
-    fetchUserNames(userIds).then(names => setHistoryUserNames(prev => ({ ...prev, ...names }))).catch(() => {});
+    const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+    const allUuids = [...new Set(
+      deliveries.flatMap(d => [
+        d.received_by,
+        ...(d.supplier_name?.match(uuidRegex) || []),
+      ]).filter(Boolean)
+    )];
+    if (allUuids.length === 0) return;
+    fetchUserNames(allUuids).then(names => setHistoryUserNames(prev => ({ ...prev, ...names }))).catch(() => {});
   }, [deliveries]);
 
   // Load cross-dept history + activity events + resolve user names when History tab becomes active
@@ -1304,6 +1310,11 @@ const ProvisioningBoardDetail = () => {
               const COL_HDRS  = ['Qty', 'Item', 'Category', 'Inventory', 'Cost', 'Payment'];
 
               const resolvedName = (uid) => uid ? (historyUserNames[uid] || 'Crew member') : null;
+              const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+              const resolveUuidsInText = (text) => {
+                if (!text) return text;
+                return text.replace(uuidRegex, (uuid) => historyUserNames[uuid] || uuid);
+              };
 
               const accentFor = (supplierName) => supplierName && supplierName !== 'Manual receive'
                 ? { border: '#378ADD', badgeBg: '#E6F1FB', badgeText: '#185FA5' }
@@ -1315,6 +1326,7 @@ const ProvisioningBoardDetail = () => {
               const payColor = (ps) => ['paid', 'paid_upfront'].includes(ps) ? '#059669' : '#D97706';
 
               const renderBatchBlock = (batchItems, supplierName, receivedAt, batchId, receivedBy, invoiceData) => {
+                const displaySupplier = resolveUuidsInText(supplierName) || 'Manual receive';
                 const accent = accentFor(supplierName);
                 const receivedByName = resolvedName(receivedBy);
 
@@ -1332,7 +1344,7 @@ const ProvisioningBoardDetail = () => {
                         {/* Batch header row */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: receivedByName ? 6 : 14 }}>
                           <span style={{ background: accent.badgeBg, color: accent.badgeText, fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 99, letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
-                            {supplierName || 'Manual receive'}
+                            {displaySupplier}
                           </span>
                           <span style={{ fontSize: 12, color: '#94A3B8' }}>
                             {batchItems.length} item{batchItems.length !== 1 ? 's' : ''}
