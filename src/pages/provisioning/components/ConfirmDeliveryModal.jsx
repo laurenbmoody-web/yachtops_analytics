@@ -9,6 +9,7 @@ import {
   createDeliveryBatch,
 } from '../utils/provisioningStorage';
 import { logActivity } from '../../../utils/activityStorage';
+import { supabase } from '../../../lib/supabaseClient';
 
 // ── Confidence badge ──────────────────────────────────────────────────────────
 
@@ -77,11 +78,25 @@ const ConfirmDeliveryModal = ({ userId, onClose, onConfirmed }) => {
           first.scanned_by ? `scanned by ${first.scanned_by}` : null,
           scannedAt ? `on ${scannedAt}` : null,
         ].filter(Boolean).join(' · ');
+
+        // Carry the original delivery note URL from the scanner's batch
+        let originalNoteUrl = null;
+        const originalBatchId = first.delivery_batch_id;
+        if (originalBatchId) {
+          const { data: origBatch } = await supabase
+            ?.from('provisioning_deliveries')
+            ?.select('invoice_file_url')
+            ?.eq('id', originalBatchId)
+            ?.maybeSingle();
+          originalNoteUrl = origBatch?.invoice_file_url || null;
+        }
+
         const batch = await createDeliveryBatch({
           listId: boardId,
           tenantId: first.tenant_id,
           userId,
           supplierName: first.supplier_name || noteStr,
+          invoiceFileUrl: originalNoteUrl,
         });
         console.log('[ConfirmModal] created batch for board', boardId, ':', batch?.id);
         batchByBoard[boardId] = batch?.id || null;
