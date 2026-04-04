@@ -8,6 +8,7 @@ import {
   receiveItems,
   createDeliveryBatch,
 } from '../utils/provisioningStorage';
+import { logActivity } from '../../../utils/activityStorage';
 
 // ── Confidence badge ──────────────────────────────────────────────────────────
 
@@ -111,6 +112,22 @@ const ConfirmDeliveryModal = ({ userId, onClose, onConfirmed }) => {
           console.log('[ConfirmModal] NO matched_item.id — skipping receiveItems');
         }
       }
+      // Log activity on the matched board
+      if (matches.length > 0) {
+        const firstMatch = matches[0];
+        logActivity({
+          module: 'provisioning',
+          action: 'PROVISION_CROSS_DEPT_CONFIRMED',
+          entityType: 'provisioning_list',
+          entityId: firstMatch.matched_board_id,
+          summary: `confirmed ${matches.length} cross-department item${matches.length > 1 ? 's' : ''} on "${firstMatch.matched_board?.title || 'board'}"`,
+          meta: {
+            items: matches.map(m => ({ raw_name: m.raw_name, matched_item: m.matched_item?.name, qty: qtyMap[m.id] ?? m.quantity ?? 1 })),
+            scanned_by: firstMatch.scanned_by,
+          },
+        });
+      }
+
       showToast(`${matches.length} item${matches.length > 1 ? 's' : ''} confirmed`, 'success');
       await onConfirmed?.();
       onClose();
