@@ -65,14 +65,25 @@ const ConfirmDeliveryModal = ({ userId, onClose, onConfirmed }) => {
     try {
       for (const match of matches) {
         const qty = qtyMap[match.id] ?? match.quantity ?? 1;
-        await confirmCrossMatch(match.id, qty);
+        console.log('[ConfirmModal] confirming match:', match.id, 'item:', match.matched_item?.id, 'qty:', qty);
+
+        const confirmResult = await confirmCrossMatch(match.id, qty);
+        console.log('[ConfirmModal] confirmCrossMatch result:', confirmResult);
+
         if (match.matched_item?.id) {
-          await receiveItems([{
-            id: match.matched_item.id,
-            quantity_received: qty,
-            status: qty > 0 ? 'received' : 'not_received',
-            ...(match.delivery_batch_id ? { receive_batch_id: match.delivery_batch_id } : {}),
-          }]);
+          console.log('[ConfirmModal] calling receiveItems for:', match.matched_item.id, 'qty:', qty);
+          try {
+            const receiveResult = await receiveItems([{
+              id: match.matched_item.id,
+              quantity_received: qty,
+              status: qty > 0 ? 'received' : 'not_received',
+            }]);
+            console.log('[ConfirmModal] receiveItems result:', receiveResult);
+          } catch (receiveErr) {
+            console.error('[ConfirmModal] receiveItems ERROR:', receiveErr);
+          }
+        } else {
+          console.log('[ConfirmModal] NO matched_item.id — skipping receiveItems');
         }
       }
       showToast(`${matches.length} item${matches.length > 1 ? 's' : ''} confirmed`, 'success');
