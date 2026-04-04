@@ -17,6 +17,7 @@ import {
 } from '../utils/provisioningStorage';
 import { useAuth } from '../../../contexts/AuthContext';
 import { UNIT_GROUPS } from './DetailTableCells';
+import { logActivity } from '../../../utils/activityStorage';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -1237,6 +1238,23 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
           console.error('[ReceiveDeliveryModal] cross-department match error:', err);
         }
       }
+
+      // Log activity for this delivery receive
+      logActivity({
+        module: 'provisioning',
+        action: 'PROVISION_DELIVERY_SCANNED',
+        entityType: 'provisioning_list',
+        entityId: list?.id,
+        summary: `received a delivery${parsedNote?.supplier_name ? ` from ${parsedNote.supplier_name}` : ''} on "${list?.title}"`,
+        meta: {
+          board_id: list?.id,
+          board_title: list?.title,
+          items_received: receivedUpdates.length,
+          items_unmatched: originalUnmatchedRef.current.length,
+          supplier: parsedNote?.supplier_name || null,
+          delivery_batch_id: firstBatchId,
+        },
+      });
 
       setStep(2);
     } catch (err) {

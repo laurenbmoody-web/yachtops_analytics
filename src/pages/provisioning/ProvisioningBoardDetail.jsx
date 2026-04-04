@@ -48,6 +48,7 @@ import {
   DeptGroup,
 } from './components/DetailTableCells';
 import SummaryGauges from './components/SummaryGauges';
+import { getActivityForEntity } from '../../utils/activityStorage';
 
 // ── (SummaryGauges, SemiGauge, useCountUp live in components/SummaryGauges.jsx) ─
 
@@ -198,6 +199,8 @@ const ProvisioningBoardDetail = () => {
   const [crossDeptHistory, setCrossDeptHistory] = useState([]);
   const [historyUserNames, setHistoryUserNames] = useState({});
   const [expandedHistory, setExpandedHistory] = useState(null);
+  const [activityEvents, setActivityEvents] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(false);
 
   const userTier = (user?.permission_tier || user?.effectiveTier || '').toUpperCase();
   const userDept = (user?.department || '').trim();
@@ -302,20 +305,34 @@ const ProvisioningBoardDetail = () => {
       .finally(() => setDeliveriesLoading(false));
   }, [activeTab, list?.id]);
 
-  // Load cross-dept history + resolve user names when History tab becomes active
+  // Resolve received_by user names when deliveries list changes
+  useEffect(() => {
+    if (deliveries.length === 0) return;
+    const userIds = deliveries.map(d => d.received_by).filter(Boolean);
+    if (userIds.length === 0) return;
+    fetchUserNames(userIds).then(names => setHistoryUserNames(prev => ({ ...prev, ...names }))).catch(() => {});
+  }, [deliveries]);
+
+  // Load cross-dept history + activity events + resolve user names when History tab becomes active
   useEffect(() => {
     if (activeTab !== 'history' || !list?.id) return;
-    fetchCrossDeptMatchesForBoard(list.id).then(async (matches) => {
+    setActivityLoading(true);
+    Promise.all([
+      fetchCrossDeptMatchesForBoard(list.id).catch(() => []),
+      getActivityForEntity('provisioning_list', list.id, user).catch(() => []),
+    ]).then(async ([matches, events]) => {
       setCrossDeptHistory(matches);
+      setActivityEvents(events);
       // Collect all user IDs from deliveries + cross-dept matches and resolve names
       const userIds = [
         ...deliveries.map(d => d.received_by),
         ...matches.map(m => m.scanned_by),
         ...matches.map(m => m.target_user_id),
-      ];
-      const names = await fetchUserNames(userIds);
+      ].filter(Boolean);
+      const names = await fetchUserNames(userIds).catch(() => ({}));
       setHistoryUserNames(names);
-    }).catch(() => setCrossDeptHistory([]));
+      setActivityLoading(false);
+    });
   }, [activeTab, list?.id, deliveries]);
 
   // Fetch live FX rates once on mount (GBP base)
@@ -1286,6 +1303,8 @@ const ProvisioningBoardDetail = () => {
               const ITEM_GRID = '40px 180px 140px 90px 70px 80px';
               const COL_HDRS  = ['Qty', 'Item', 'Category', 'Inventory', 'Cost', 'Payment'];
 
+              const resolvedName = (uid) => uid ? (historyUserNames[uid] || 'Crew member') : null;
+
               const accentFor = (supplierName) => supplierName && supplierName !== 'Manual receive'
                 ? { border: '#378ADD', badgeBg: '#E6F1FB', badgeText: '#185FA5' }
                 : { border: '#1D9E75', badgeBg: '#E1F5EE', badgeText: '#0F6E56' };
@@ -1295,8 +1314,9 @@ const ProvisioningBoardDetail = () => {
 
               const payColor = (ps) => ['paid', 'paid_upfront'].includes(ps) ? '#059669' : '#D97706';
 
-              const renderBatchBlock = (batchItems, supplierName, receivedAt, batchId, invoiceData) => {
+              const renderBatchBlock = (batchItems, supplierName, receivedAt, batchId, receivedBy, invoiceData) => {
                 const accent = accentFor(supplierName);
+                const receivedByName = resolvedName(receivedBy);
 
                 const batchTotal = batchItems.reduce((sum, bi) => {
                   const effectivePS = paymentStatusMap[bi.id] ?? bi.payment_status ?? 'awaiting_invoice';
@@ -1310,7 +1330,7 @@ const ProvisioningBoardDetail = () => {
                 return (
                   <div key={batchId || supplierName + receivedAt} style={{ borderLeft: `2px solid ${accent.border}`, paddingLeft: 24, paddingBottom: 8 }}>
                         {/* Batch header row */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: receivedByName ? 6 : 14 }}>
                           <span style={{ background: accent.badgeBg, color: accent.badgeText, fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 99, letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
                             {supplierName || 'Manual receive'}
                           </span>
@@ -1329,6 +1349,11 @@ const ProvisioningBoardDetail = () => {
                             </button>
                           )}
                         </div>
+                        {receivedByName && (
+                          <p style={{ margin: '0 0 12px', fontSize: 11, color: '#94A3B8' }}>
+                            Received by <span style={{ fontWeight: 600, color: '#64748B' }}>{receivedByName}</span>
+                          </p>
+                        )}
 
                         {/* Column headers */}
                         <div style={{ display: 'grid', gridTemplateColumns: ITEM_GRID, gap: 12, padding: '0 0 6px', borderBottom: '0.5px solid #E5E7EB', marginBottom: 0 }}>
@@ -1391,7 +1416,7 @@ const ProvisioningBoardDetail = () => {
                 ...deliveries
                   .map(d => {
                     const batchItems = items.filter(i => i.receive_batch_id === d.id);
-                    return batchItems.length ? { batchItems, supplierName: d.supplier_name || 'Manual receive', receivedAt: d.received_at, batchId: d.id, invoiceData: { batch: d, batchItems } } : null;
+                    return batchItems.length ? { batchItems, supplierName: d.supplier_name || 'Manual receive', receivedAt: d.received_at, batchId: d.id, receivedBy: d.received_by, invoiceData: { batch: d, batchItems } } : null;
                   })
                   .filter(Boolean),
                 ...(() => {
@@ -1405,7 +1430,7 @@ const ProvisioningBoardDetail = () => {
                   });
                   return Object.entries(fallbackGroups)
                     .sort(([a], [b]) => b.localeCompare(a))
-                    .map(([dateKey, groupItems]) => ({ batchItems: groupItems, supplierName: 'Manual receive', receivedAt: dateKey + 'T12:00:00Z', batchId: `fallback-${dateKey}`, invoiceData: null }));
+                    .map(([dateKey, groupItems]) => ({ batchItems: groupItems, supplierName: 'Manual receive', receivedAt: dateKey + 'T12:00:00Z', batchId: `fallback-${dateKey}`, receivedBy: null, invoiceData: null }));
                 })(),
               ];
 
@@ -1436,7 +1461,7 @@ const ProvisioningBoardDetail = () => {
                           </div>
                           {/* ── All batches for this date ── */}
                           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 24 }}>
-                            {dateBatches.map(b => renderBatchBlock(b.batchItems, b.supplierName, b.receivedAt, b.batchId, b.invoiceData))}
+                            {dateBatches.map(b => renderBatchBlock(b.batchItems, b.supplierName, b.receivedAt, b.batchId, b.receivedBy, b.invoiceData))}
                           </div>
                         </div>
                         {/* Date separator */}
@@ -1453,50 +1478,35 @@ const ProvisioningBoardDetail = () => {
         {/* ── History tab ────────────────────────────────────────────────── */}
         {activeTab === 'history' && (
           <div style={{ padding: '32px 40px 64px', background: '#F8FAFC' }}>
-            {(() => {
-              const userName = (id) => historyUserNames[id] || 'Crew member';
+            {activityLoading ? (
+              <div style={{ padding: '48px 0', textAlign: 'center', fontSize: 13, color: '#94A3B8' }}>Loading…</div>
+            ) : (() => {
+              // Action → dot color mapping
+              const dotColor = (action) => {
+                if (['PROVISION_ITEM_RECEIVED', 'PROVISION_DELIVERY_SCANNED', 'PROVISION_ITEM_ADDED'].includes(action)) return '#059669'; // green
+                if (['PROVISION_CROSS_DEPT_CONFIRMED'].includes(action)) return '#1E3A5F'; // navy
+                if (['PROVISION_ITEM_QTY_CHANGED', 'PROVISION_ITEM_COST_CHANGED', 'PROVISION_ITEM_UPDATED', 'PROVISION_BOARD_UPDATED', 'PROVISION_BOARD_STATUS_CHANGED'].includes(action)) return '#D97706'; // amber
+                if (['PROVISION_ITEM_DELETED'].includes(action)) return '#DC2626'; // red
+                return '#94A3B8'; // gray
+              };
 
-              // Build delivery entries (skip empty batches)
-              const deliveryEntries = deliveries
-                .map(d => {
-                  const batchItems = items.filter(i => i.receive_batch_id === d.id);
-                  if (batchItems.length === 0) return null;
-                  const hasScan = d.parsed_data?.line_items?.length > 0;
-                  const method = hasScan ? 'Delivery note scan' : 'Manual receive';
-                  return {
-                    key: d.id,
-                    type: 'delivery',
-                    date: d.received_at ? new Date(d.received_at) : null,
-                    dot: '#059669',
-                    title: `${userName(d.received_by)} received a delivery${d.supplier_name && d.supplier_name !== 'Manual receive' ? ` from ${d.supplier_name}` : ''}`,
-                    sub: `${batchItems.length} item${batchItems.length !== 1 ? 's' : ''} · ${method}`,
-                    expandData: { batchItems, supplier: d.supplier_name, method, invoiceUrl: d.invoice_file_url },
-                  };
-                })
-                .filter(Boolean);
-
-              // Build cross-dept entries
-              const crossEntries = crossDeptHistory
-                .filter(m => m.status === 'confirmed')
-                .map(m => ({
-                  key: m.id,
-                  type: 'cross_dept',
-                  date: m.confirmed_at ? new Date(m.confirmed_at) : null,
-                  dot: '#1E3A5F',
-                  title: `${userName(m.target_user_id)} confirmed a cross-department delivery`,
-                  sub: `1 item from ${userName(m.scanned_by)}'s scan`,
-                  expandData: { match: m },
-                }));
-
-              const entries = [...deliveryEntries, ...crossEntries]
-                .filter(e => e.date)
-                .sort((a, b) => b.date - a.date);
+              const entries = activityEvents.map(ev => ({
+                key: ev.id,
+                date: ev.createdAt ? new Date(ev.createdAt) : null,
+                dot: dotColor(ev.action),
+                summary: ev.summary || ev.action,
+                meta: ev.meta || {},
+                action: ev.action,
+                actorName: ev.actorName,
+                actorDepartment: ev.actorDepartment,
+              })).filter(e => e.date).sort((a, b) => b.date - a.date);
 
               if (entries.length === 0) {
                 return (
                   <div style={{ padding: '80px 0', textAlign: 'center' }}>
                     <Icon name="Clock" style={{ width: 32, height: 32, color: '#CBD5E1', margin: '0 auto 12px', display: 'block' }} />
-                    <p style={{ fontSize: 14, color: '#64748B' }}>No activity yet</p>
+                    <p style={{ fontSize: 14, color: '#64748B' }}>No activity recorded yet</p>
+                    <p style={{ fontSize: 12, color: '#94A3B8', marginTop: 4 }}>Activity will appear here as items are received and updated.</p>
                   </div>
                 );
               }
@@ -1511,67 +1521,53 @@ const ProvisioningBoardDetail = () => {
                       absTime = entry.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ', ' + entry.date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
                     } catch { absTime = ''; }
                     const isExpanded = expandedHistory === entry.key;
+                    const hasMeta = Object.keys(entry.meta).length > 0;
                     return (
                       <div key={entry.key} style={{ borderBottom: idx < entries.length - 1 ? '1px solid #F1F5F9' : 'none' }}>
                         {/* Collapsed row */}
                         <div
-                          onClick={() => setExpandedHistory(isExpanded ? null : entry.key)}
-                          style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '14px 0', cursor: 'pointer' }}
+                          onClick={() => hasMeta && setExpandedHistory(isExpanded ? null : entry.key)}
+                          style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '14px 0', cursor: hasMeta ? 'pointer' : 'default' }}
                         >
-                          <span style={{ fontSize: 10, color: '#94A3B8', marginTop: 4, flexShrink: 0 }}>{isExpanded ? '▾' : '▸'}</span>
+                          {hasMeta && <span style={{ fontSize: 10, color: '#94A3B8', marginTop: 4, flexShrink: 0 }}>{isExpanded ? '▾' : '▸'}</span>}
+                          {!hasMeta && <span style={{ width: 14, flexShrink: 0 }} />}
                           <div style={{ width: 8, height: 8, borderRadius: '50%', background: entry.dot, flexShrink: 0, marginTop: 5 }} />
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ margin: 0, fontSize: 13, color: '#0F172A', fontWeight: 500 }}>{entry.title}</p>
-                            <p style={{ margin: '3px 0 0', fontSize: 11, color: '#94A3B8' }}>{entry.sub}</p>
+                            <p style={{ margin: 0, fontSize: 13, color: '#0F172A', fontWeight: 500 }}>{entry.summary}</p>
+                            {entry.actorDepartment && (
+                              <p style={{ margin: '3px 0 0', fontSize: 11, color: '#94A3B8' }}>{entry.actorDepartment}</p>
+                            )}
                           </div>
                           <div style={{ flexShrink: 0, textAlign: 'right' }}>
                             <p style={{ margin: 0, fontSize: 11, color: '#64748B' }}>{relTime}</p>
                             <p style={{ margin: '2px 0 0', fontSize: 10, color: '#CBD5E1' }}>{absTime}</p>
                           </div>
                         </div>
-                        {/* Expanded detail */}
-                        {isExpanded && (
+                        {/* Expanded meta detail */}
+                        {isExpanded && hasMeta && (
                           <div style={{ marginLeft: 28, marginBottom: 14, background: 'white', border: '1px solid #F1F5F9', borderRadius: 10, padding: '12px 16px' }}>
-                            {entry.type === 'delivery' && (() => {
-                              const { batchItems, supplier, method, invoiceUrl } = entry.expandData;
-                              return (
-                                <>
-                                  {supplier && supplier !== 'Manual receive' && (
-                                    <p style={{ margin: '0 0 8px', fontSize: 11, color: '#64748B' }}>
-                                      <span style={{ fontWeight: 600, color: '#374151' }}>Supplier: </span>{supplier}
-                                      <span style={{ marginLeft: 12, color: '#94A3B8' }}>· {method}</span>
-                                    </p>
-                                  )}
-                                  {batchItems.map((bi, i) => (
-                                    <div key={bi.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: i < batchItems.length - 1 ? '1px solid #F8FAFC' : 'none' }}>
-                                      <span style={{ fontSize: 13, color: '#0F172A', flex: 1 }}>{[bi.name, bi.brand, bi.size].filter(Boolean).join(' · ')}</span>
-                                      <span style={{ fontSize: 12, color: '#64748B', flexShrink: 0 }}>× {bi.quantity_received ?? '?'} {bi.unit || ''}</span>
-                                    </div>
-                                  ))}
-                                  {invoiceUrl && (
-                                    <a href={invoiceUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 10, fontSize: 11, color: '#1E3A5F', fontWeight: 600, textDecoration: 'none' }}>
-                                      <Icon name="FileText" style={{ width: 12, height: 12 }} /> View delivery note
-                                    </a>
-                                  )}
-                                </>
-                              );
-                            })()}
-                            {entry.type === 'cross_dept' && (() => {
-                              const { match } = entry.expandData;
-                              const confBg = match.match_confidence === 'high' ? '#DCFCE7' : match.match_confidence === 'medium' ? '#FEF3E2' : '#FEF2F2';
-                              const confColor = match.match_confidence === 'high' ? '#15803D' : match.match_confidence === 'medium' ? '#B45309' : '#DC2626';
-                              return (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <span style={{ fontSize: 13, color: '#0F172A', flex: 1 }}>{match.raw_name}</span>
-                                  <span style={{ fontSize: 12, color: '#64748B', flexShrink: 0 }}>× {match.confirmed_qty ?? match.quantity ?? '?'}</span>
-                                  {match.match_confidence && (
-                                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: confBg, color: confColor, flexShrink: 0 }}>
-                                      {match.match_confidence.charAt(0).toUpperCase() + match.match_confidence.slice(1)} match
-                                    </span>
-                                  )}
-                                </div>
-                              );
-                            })()}
+                            {/* items_received list */}
+                            {Array.isArray(entry.meta.items) && entry.meta.items.length > 0 && (
+                              <div style={{ marginBottom: 8 }}>
+                                {entry.meta.items.map((it, i) => (
+                                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: i < entry.meta.items.length - 1 ? '1px solid #F8FAFC' : 'none' }}>
+                                    <span style={{ fontSize: 13, color: '#0F172A', flex: 1 }}>{it.raw_name || it.matched_item || it.name || '—'}</span>
+                                    {it.qty != null && <span style={{ fontSize: 12, color: '#64748B', flexShrink: 0 }}>× {it.qty}</span>}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {/* scalar meta fields */}
+                            {[
+                              entry.meta.supplier && ['Supplier', entry.meta.supplier],
+                              entry.meta.board_title && ['Board', entry.meta.board_title],
+                              entry.meta.items_received != null && ['Items received', entry.meta.items_received],
+                              entry.meta.items_unmatched != null && entry.meta.items_unmatched > 0 && ['Unmatched', entry.meta.items_unmatched],
+                            ].filter(Boolean).map(([label, val]) => (
+                              <p key={label} style={{ margin: '4px 0', fontSize: 11, color: '#64748B' }}>
+                                <span style={{ fontWeight: 600, color: '#374151' }}>{label}: </span>{val}
+                              </p>
+                            ))}
                           </div>
                         )}
                       </div>
