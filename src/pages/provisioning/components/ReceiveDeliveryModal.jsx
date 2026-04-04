@@ -493,9 +493,12 @@ const ReceiveStep = ({
         {/* Unmatched items from delivery note */}
         {unmatchedItems.length > 0 && (
           <div>
-            <div onClick={() => setUnmatchedExpanded(p => !p)} style={{ padding: '7px 20px', background: '#FFFBEB', borderTop: '1px solid #F1F5F9', borderBottom: '0.5px solid #FEF3C7', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div onClick={() => setUnmatchedExpanded(p => !p)} style={{ padding: '8px 20px', background: '#FFFBEB', borderTop: '1px solid #F1F5F9', borderBottom: '0.5px solid #FEF3C7', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 11, color: '#92400E' }}>{unmatchedExpanded ? '▾' : '▸'}</span>
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Not on board · from delivery note ({unmatchedItems.length} {unmatchedItems.length === 1 ? 'item' : 'items'})</span>
+              <div>
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Other items on this delivery ({unmatchedItems.length})</span>
+                <span style={{ display: 'block', fontSize: 10, color: '#B45309', marginTop: 1 }}>Will be checked against other departments</span>
+              </div>
             </div>
             {unmatchedExpanded && unmatchedItems.map((li, idx) => (
               <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 20px', borderBottom: '0.5px solid #F8FAFC', background: '#FFFDF7' }}>
