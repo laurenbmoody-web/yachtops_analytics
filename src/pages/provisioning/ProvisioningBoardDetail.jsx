@@ -1398,18 +1398,7 @@ const ProvisioningBoardDetail = () => {
                           </span>
                           <div style={{ flex: 1 }} />
                           {invoiceData && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                              {invoiceData.batch.invoice_file_url && (
-                                <a
-                                  href={invoiceData.batch.invoice_file_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '3px 10px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 6, color: '#1D4ED8', textDecoration: 'none', whiteSpace: 'nowrap' }}
-                                >
-                                  <Icon name="FileText" style={{ width: 11, height: 11 }} />
-                                  View doc
-                                </a>
-                              )}
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
                               <button
                                 onClick={() => setInvoiceModal(invoiceData)}
                                 style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '3px 10px', background: invoiceData.batch.invoice_file_url ? '#ECFDF5' : 'white', border: `1px solid ${invoiceData.batch.invoice_file_url ? '#A7F3D0' : '#E2E8F0'}`, borderRadius: 6, color: invoiceData.batch.invoice_file_url ? '#047857' : '#64748B', cursor: 'pointer', whiteSpace: 'nowrap' }}
@@ -1417,6 +1406,15 @@ const ProvisioningBoardDetail = () => {
                                 <Icon name={invoiceData.batch.invoice_file_url ? 'FileCheck' : 'FileUp'} style={{ width: 11, height: 11 }} />
                                 {invoiceData.batch.invoice_file_url ? 'Invoice ✓' : 'Upload invoice'}
                               </button>
+                              {invoiceData.batch.invoice_file_url && (
+                                <button
+                                  onClick={() => window.open(invoiceData.batch.invoice_file_url, '_blank')}
+                                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#185FA5', background: 'none', border: '1px solid #E2E8F0', borderRadius: 6, padding: '5px 10px', cursor: 'pointer' }}
+                                >
+                                  <Icon name="FileText" size={13} />
+                                  View document
+                                </button>
+                              )}
                             </div>
                           )}
                         </div>
