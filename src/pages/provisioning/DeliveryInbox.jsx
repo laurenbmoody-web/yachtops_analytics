@@ -10,6 +10,7 @@ import {
   claimInboxItem,
   fetchProvisioningLists,
 } from './utils/provisioningStorage';
+import { logActivity } from '../../utils/activityStorage';
 
 // ── Expiry countdown ──────────────────────────────────────────────────────────
 
@@ -24,7 +25,7 @@ const ExpiryBadge = ({ expiresAt }) => {
 
 // ── Claim dropdown ────────────────────────────────────────────────────────────
 
-const ClaimDropdown = ({ itemId, boards, userId, onClaimed }) => {
+const ClaimDropdown = ({ itemId, inboxItem, boards, userId, user, onClaimed }) => {
   const [open, setOpen] = useState(false);
   const [claiming, setClaiming] = useState(false);
 
@@ -33,6 +34,20 @@ const ClaimDropdown = ({ itemId, boards, userId, onClaimed }) => {
     setOpen(false);
     const result = await claimInboxItem(itemId, userId, boardId);
     if (result) {
+      logActivity({
+        module: 'provisioning',
+        action: 'PROVISION_INBOX_CLAIMED',
+        entityType: 'provisioning_list',
+        entityId: boardId,
+        summary: `claimed "${result.raw_name}" from Delivery Inbox`,
+        meta: {
+          inbox_item_id: itemId,
+          raw_name: result.raw_name,
+          quantity: result.quantity,
+          board_id: boardId,
+          original_scanned_by: result.scanned_by,
+        },
+      });
       showToast('Item claimed', 'success');
       onClaimed(itemId);
     } else {
@@ -201,8 +216,10 @@ const DeliveryInbox = () => {
                     <ExpiryBadge expiresAt={item.expires_at} />
                     <ClaimDropdown
                       itemId={item.id}
+                      inboxItem={item}
                       boards={boards}
                       userId={user?.id}
+                      user={user}
                       onClaimed={handleClaimed}
                     />
                   </div>

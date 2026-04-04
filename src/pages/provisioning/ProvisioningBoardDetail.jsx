@@ -1541,7 +1541,7 @@ const ProvisioningBoardDetail = () => {
             ) : (() => {
               // Action → dot color mapping
               const dotColor = (action) => {
-                if (['PROVISION_ITEM_RECEIVED', 'PROVISION_DELIVERY_SCANNED', 'PROVISION_ITEM_ADDED'].includes(action)) return '#059669'; // green
+                if (['PROVISION_ITEM_RECEIVED', 'PROVISION_DELIVERY_SCANNED', 'PROVISION_ITEM_ADDED', 'PROVISION_INBOX_CLAIMED'].includes(action)) return '#059669'; // green
                 if (['PROVISION_CROSS_DEPT_CONFIRMED'].includes(action)) return '#1E3A5F'; // navy
                 if (['PROVISION_ITEM_QTY_CHANGED', 'PROVISION_ITEM_COST_CHANGED', 'PROVISION_ITEM_UPDATED', 'PROVISION_BOARD_UPDATED', 'PROVISION_BOARD_STATUS_CHANGED'].includes(action)) return '#D97706'; // amber
                 if (['PROVISION_ITEM_DELETED'].includes(action)) return '#DC2626'; // red
