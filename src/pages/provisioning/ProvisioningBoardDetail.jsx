@@ -1459,9 +1459,7 @@ const ProvisioningBoardDetail = () => {
         <ConfirmDeliveryModal
           userId={user?.id}
           onClose={() => setShowConfirmModal(false)}
-          onConfirmed={() => {
-            fetchListItems(id).then(updated => setItems(updated || [])).catch(() => {});
-          }}
+          onConfirmed={() => fetchListItems(id).then(updated => setItems(updated || [])).catch(() => {})}
         />
       )}
 
