@@ -432,17 +432,26 @@ const ReceiveStep = ({
             </div>
           </label>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', border: `1px solid ${noteStatus === 'error' ? '#FECACA' : noteStatus === 'done' ? '#A7F3D0' : '#E2E8F0'}`, borderRadius: 10, background: noteStatus === 'error' ? '#FEF2F2' : noteStatus === 'done' ? '#F0FDF4' : 'white', marginBottom: 8 }}>
+          {(() => {
+            const noMatch = noteStatus === 'done' && matchedCount === 0;
+            const borderColor = noteStatus === 'error' ? '#FECACA' : noMatch ? '#FDE68A' : noteStatus === 'done' ? '#A7F3D0' : '#E2E8F0';
+            const bgColor = noteStatus === 'error' ? '#FEF2F2' : noMatch ? '#FFFBEB' : noteStatus === 'done' ? '#F0FDF4' : 'white';
+            const iconName = noteStatus === 'parsing' ? 'Loader' : noteStatus === 'error' ? 'AlertCircle' : noMatch ? 'Info' : 'FileCheck';
+            const iconColor = noteStatus === 'error' ? '#DC2626' : noteStatus === 'parsing' ? '#94A3B8' : noMatch ? '#B45309' : '#059669';
+            const subText = noteStatus === 'parsing' ? 'Extracting items with AI…'
+              : noteStatus === 'error' ? (noteError || 'Failed to parse — items unchanged')
+              : noMatch ? `No matches on your list · ${unmatchedItems.length} item${unmatchedItems.length !== 1 ? 's' : ''} will be routed to other departments`
+              : `✓ ${matchedCount} matched · ${unmatchedItems.length} not on board`;
+            return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', border: `1px solid ${borderColor}`, borderRadius: 10, background: bgColor, marginBottom: 8 }}>
             <Icon
-              name={noteStatus === 'parsing' ? 'Loader' : noteStatus === 'error' ? 'AlertCircle' : 'FileCheck'}
-              style={{ width: 16, height: 16, color: noteStatus === 'error' ? '#DC2626' : noteStatus === 'parsing' ? '#94A3B8' : '#059669', flexShrink: 0 }}
+              name={iconName}
+              style={{ width: 16, height: 16, color: iconColor, flexShrink: 0 }}
             />
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deliveryNoteFile?.name}</p>
-              <p style={{ margin: '1px 0 0', fontSize: 11, color: noteStatus === 'error' ? '#DC2626' : '#64748B' }}>
-                {noteStatus === 'parsing' ? 'Extracting items with AI…'
-                  : noteStatus === 'error' ? (noteError || 'Failed to parse — items unchanged')
-                  : `✓ ${matchedCount} matched · ${unmatchedItems.length} not on board`}
+              <p style={{ margin: '1px 0 0', fontSize: 11, color: noteStatus === 'error' ? '#DC2626' : noMatch ? '#B45309' : '#64748B' }}>
+                {subText}
               </p>
             </div>
             {noteStatus !== 'parsing' && (
@@ -451,6 +460,8 @@ const ReceiveStep = ({
               </button>
             )}
           </div>
+            );
+          })()}
         )}
       </div>
 
