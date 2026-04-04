@@ -315,6 +315,7 @@ const ReceiveStep = ({
 }) => {
   const [organiseBySupplier, setOrganiseBySupplier] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
+  const [unmatchedExpanded, setUnmatchedExpanded] = useState(false);
 
   const supplierGroups = (() => {
     const groups = {};
@@ -367,7 +368,7 @@ const ReceiveStep = ({
               </p>
             )}
           </div>
-          {fromNote && <span title="Qty set from delivery note" style={{ fontSize: 9, background: '#DCFCE7', color: '#15803D', padding: '1px 5px', borderRadius: 4, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>📄 scan</span>}
+          {fromNote && <span title="Qty set from delivery note" style={{ fontSize: 9, background: '#DCFCE7', color: '#15803D', padding: '1px 5px', borderRadius: 4, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>📄 match</span>}
         </div>
         <p style={{ fontSize: 13, color: '#64748B', textAlign: 'center', margin: 0 }}>
           {ordered} <span style={{ fontSize: 10, color: '#CBD5E1' }}>{item.unit || ''}</span>
@@ -492,10 +493,14 @@ const ReceiveStep = ({
         {/* Unmatched items from delivery note */}
         {unmatchedItems.length > 0 && (
           <div>
-            <div style={{ padding: '7px 20px', background: '#FFFBEB', borderTop: '1px solid #F1F5F9', borderBottom: '0.5px solid #FEF3C7' }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Not on board · from delivery note</span>
+            <div onClick={() => setUnmatchedExpanded(p => !p)} style={{ padding: '8px 20px', background: '#FFFBEB', borderTop: '1px solid #F1F5F9', borderBottom: '0.5px solid #FEF3C7', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 11, color: '#92400E' }}>{unmatchedExpanded ? '▾' : '▸'}</span>
+              <div>
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Other items on this delivery ({unmatchedItems.length})</span>
+                <span style={{ display: 'block', fontSize: 10, color: '#B45309', marginTop: 1 }}>Will be checked against other departments</span>
+              </div>
             </div>
-            {unmatchedItems.map((li, idx) => (
+            {unmatchedExpanded && unmatchedItems.map((li, idx) => (
               <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 20px', borderBottom: '0.5px solid #F8FAFC', background: '#FFFDF7' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{li.raw_name}</p>
@@ -513,6 +518,7 @@ const ReceiveStep = ({
             ))}
           </div>
         )}
+
       </div>
 
       {/* Footer */}
