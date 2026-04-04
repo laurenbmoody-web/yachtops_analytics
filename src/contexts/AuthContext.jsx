@@ -412,10 +412,10 @@ export const AuthProvider = ({ children }) => {
           
           const { data: membership, error: membershipError } = await supabase
             ?.from('tenant_members')
-            ?.select('tenant_id, permission_tier, role, department_id, active, department:departments(id, name)')
+            ?.select('tenant_id, permission_tier, role, department, active')
             ?.eq('user_id', currentUserId)
             ?.eq('tenant_id', profile?.current_tenant_id)
-            ?.neq('active', false)
+            ?.eq('active', true)
             ?.single();
           
           if (membershipError || !membership) {
@@ -435,7 +435,7 @@ export const AuthProvider = ({ children }) => {
             setLastBootstrapStep('membership_cleared');
             setBootstrapStatus('No membership found');
           } else {
-            const normalizedTier = (membership?.permission_tier || '')?.toUpperCase()?.trim() || 'CREW';
+            const normalizedTier = (membership?.permission_tier || '')?.toUpperCase()?.trim();
             console.log('BOOTSTRAP: ✅ membership ok', {
               tenant_id: membership?.tenant_id,
               permission_tier: normalizedTier
@@ -455,7 +455,7 @@ export const AuthProvider = ({ children }) => {
               ...existingUser,
               permission_tier: normalizedTier,
               role: membership?.role || existingUser?.role || null,
-              department: membership?.department?.name || existingUser?.department || null,
+              department: membership?.department || existingUser?.department || null,
             };
             setCurrentUser(enrichedUser);
             saveCurrentUser(enrichedUser);
