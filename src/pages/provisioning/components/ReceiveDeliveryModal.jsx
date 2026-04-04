@@ -893,6 +893,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
   const [parsedNote, setParsedNote] = useState(null);
   const [noteAutoFills, setNoteAutoFills] = useState(new Set());
   const [unmatchedItems, setUnmatchedItems] = useState([]);
+  const originalUnmatchedRef = React.useRef([]);
   const [addedItems, setAddedItems] = useState([]); // items added via "Add to board"
   const [matches, setMatches] = useState({});              // {[id]: row | 'loading' | null}
   const [locationSplits, setLocationSplits] = useState({}); // {[id]: [{locationName, currentQty, addQty}]}
@@ -1033,6 +1034,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
       });
       setNoteAutoFills(fills);
       setUnmatchedItems(unmatched);
+      originalUnmatchedRef.current = unmatched;
     } catch (err) {
       console.error('[parseNote] error:', err);
       setNoteError(err.message || 'Unknown error');
@@ -1047,6 +1049,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
     setParsedNote(null);
     setNoteAutoFills(new Set());
     setUnmatchedItems([]);
+    originalUnmatchedRef.current = [];
   };
 
   const handleAddUnmatched = async (li, idx) => {
@@ -1167,10 +1170,14 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
       }
 
       // ── Tier 2+3: Route unmatched items to other departments / inbox ──
-      if (unmatchedItems.length > 0) {
+      const unmatchedForRouting = originalUnmatchedRef.current.filter(li => {
+        // Exclude items the user already added to their own board
+        return !addedItems.some(added => added.name?.toLowerCase() === li.raw_name?.toLowerCase());
+      });
+      if (unmatchedForRouting.length > 0) {
         try {
           const result = await triggerCrossDepartmentMatch({
-            unmatchedItems: unmatchedItems.map(li => ({
+            unmatchedItems: unmatchedForRouting.map(li => ({
               raw_name: li.raw_name,
               quantity: li.quantity || 1,
               unit_price: li.unit_price || null,
