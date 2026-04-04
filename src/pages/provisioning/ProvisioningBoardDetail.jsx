@@ -49,6 +49,7 @@ import {
 } from './components/DetailTableCells';
 import SummaryGauges from './components/SummaryGauges';
 import { getActivityForEntity } from '../../utils/activityStorage';
+import { supabase } from '../../lib/supabaseClient';
 
 // ── (SummaryGauges, SemiGauge, useCountUp live in components/SummaryGauges.jsx) ─
 
@@ -319,27 +320,72 @@ const ProvisioningBoardDetail = () => {
     fetchUserNames(allUuids).then(names => setHistoryUserNames(prev => ({ ...prev, ...names }))).catch(() => {});
   }, [deliveries]);
 
-  // Load cross-dept history + activity events + resolve user names when History tab becomes active
+  // Load activity events + cross-dept history when History tab becomes active
+  // Queries both provisioning_list (board-level) and provisioning_item (item-level) events
   useEffect(() => {
     if (activeTab !== 'history' || !list?.id) return;
     setActivityLoading(true);
-    Promise.all([
-      fetchCrossDeptMatchesForBoard(list.id).catch(() => []),
-      getActivityForEntity('provisioning_list', list.id, user).catch(() => []),
-    ]).then(async ([matches, events]) => {
-      setCrossDeptHistory(matches);
-      setActivityEvents(events);
-      // Collect all user IDs from deliveries + cross-dept matches and resolve names
-      const userIds = [
-        ...deliveries.map(d => d.received_by),
-        ...matches.map(m => m.scanned_by),
-        ...matches.map(m => m.target_user_id),
-      ].filter(Boolean);
-      const names = await fetchUserNames(userIds).catch(() => ({}));
-      setHistoryUserNames(names);
-      setActivityLoading(false);
-    });
-  }, [activeTab, list?.id, deliveries]);
+    (async () => {
+      try {
+        const [matches] = await Promise.all([
+          fetchCrossDeptMatchesForBoard(list.id).catch(() => []),
+        ]);
+        setCrossDeptHistory(matches);
+
+        // Build OR filter: board-level events OR any item on this board
+        const itemIds = items.map(i => i.id).filter(Boolean);
+        const tenantId = activeTenantId;
+
+        // Fetch events where entity_type=provisioning_list and entity_id=board,
+        // OR entity_type=provisioning_item and entity_id in item IDs
+        let events = [];
+        if (tenantId) {
+          const listFilter = `entity_type.eq.provisioning_list,entity_id.eq.${list.id}`;
+          const itemFilter = itemIds.length > 0
+            ? `,entity_type.eq.provisioning_item,entity_id.in.(${itemIds.join(',')})`
+            : '';
+          const { data, error } = await supabase
+            ?.from('activity_events')
+            ?.select('*')
+            ?.eq('tenant_id', tenantId)
+            ?.eq('module', 'provisioning')
+            ?.or(`${listFilter}${itemFilter}`)
+            ?.order('created_at', { ascending: false })
+            ?.limit(200);
+          if (!error) {
+            events = (data || []).map(row => ({
+              id: row.id,
+              createdAt: row.created_at,
+              actorUserId: row.actor_user_id,
+              actorName: row.actor_name,
+              actorDepartment: row.actor_department,
+              action: row.action,
+              entityType: row.entity_type,
+              entityId: row.entity_id,
+              summary: row.summary,
+              meta: row.meta || {},
+            }));
+          } else {
+            console.error('[History] activity_events query error:', error.message);
+          }
+        }
+        setActivityEvents(events);
+
+        // Resolve user IDs from deliveries + cross-dept matches
+        const userIds = [
+          ...deliveries.map(d => d.received_by),
+          ...matches.map(m => m.scanned_by),
+          ...matches.map(m => m.target_user_id),
+        ].filter(Boolean);
+        const names = await fetchUserNames(userIds).catch(() => ({}));
+        setHistoryUserNames(prev => ({ ...prev, ...names }));
+      } catch (err) {
+        console.error('[History] load error:', err);
+      } finally {
+        setActivityLoading(false);
+      }
+    })();
+  }, [activeTab, list?.id, items, activeTenantId, deliveries]);
 
   // Fetch live FX rates once on mount (GBP base)
   useEffect(() => {
