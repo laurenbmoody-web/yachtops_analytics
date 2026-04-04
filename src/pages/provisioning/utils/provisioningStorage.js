@@ -1464,11 +1464,59 @@ export const fetchDeliveryInbox = async (tenantId) => {
 
 export const claimInboxItem = async (inboxItemId, claimedBy, boardId) => {
   try {
-    const { data, error } = await supabase?.from('delivery_inbox')
+    // 1. Fetch the inbox item
+    const { data: inboxItem, error: fetchErr } = await supabase
+      ?.from('delivery_inbox')?.select('*')?.eq('id', inboxItemId)?.single();
+    if (fetchErr || !inboxItem) throw fetchErr || new Error('Inbox item not found');
+
+    // 2. Mark as claimed
+    const { error: updateErr } = await supabase?.from('delivery_inbox')
       ?.update({ status: 'claimed', claimed_by: claimedBy, claimed_at: new Date().toISOString(), claimed_board_id: boardId })
-      ?.eq('id', inboxItemId)?.select()?.single();
-    if (error) throw error;
-    return data;
+      ?.eq('id', inboxItemId);
+    if (updateErr) throw updateErr;
+
+    // 3. Find matching item on the board (case-insensitive name match)
+    const { data: boardItems } = await supabase
+      ?.from('provisioning_items')?.select('id, name, quantity_ordered, quantity_received, status')
+      ?.eq('list_id', boardId);
+
+    const rawLower = (inboxItem.raw_name || '').toLowerCase().trim();
+    const match = (boardItems || []).find(bi => {
+      const biLower = (bi.name || '').toLowerCase().trim();
+      return biLower && (biLower.includes(rawLower) || rawLower.includes(biLower));
+    });
+
+    // 4. Create delivery batch for audit trail
+    const batch = await createDeliveryBatch({
+      listId: boardId,
+      tenantId: inboxItem.tenant_id,
+      userId: claimedBy,
+      supplierName: inboxItem.supplier_name || 'Delivery Inbox claim',
+    });
+
+    if (match) {
+      // Update existing item as received
+      await supabase?.from('provisioning_items')?.update({
+        quantity_received: inboxItem.quantity || match.quantity_ordered,
+        status: 'received',
+        receive_batch_id: batch?.id || null,
+      })?.eq('id', match.id);
+    } else {
+      // Create new received item on the board
+      await supabase?.from('provisioning_items')?.insert({
+        list_id: boardId,
+        name: inboxItem.raw_name,
+        quantity_ordered: inboxItem.quantity || 1,
+        quantity_received: inboxItem.quantity || 1,
+        unit: inboxItem.unit || 'each',
+        estimated_unit_cost: inboxItem.unit_price || null,
+        status: 'received',
+        source: 'delivery_inbox',
+        receive_batch_id: batch?.id || null,
+      });
+    }
+
+    return inboxItem;
   } catch (err) { console.error('[claimInboxItem]', err); return null; }
 };
 

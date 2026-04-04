@@ -158,7 +158,7 @@ const Dashboard = () => {
         return (
           <QuickActionsCenter
             onAddInventory={() => navigate('/folder-based-inventory-dashboard')}
-            onLogDelivery={() => navigate('/logs-deliveries')}
+            onLogDelivery={() => navigate('/provisioning?receive=true')}
             onReportDefect={() => setShowReportDefectModal(true)}
             onCreateJob={() => setShowCreateJobModal(true)}
           />
