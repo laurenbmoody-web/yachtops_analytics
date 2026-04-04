@@ -112,7 +112,7 @@ const ConfirmDeliveryModal = ({ userId, onClose, onConfirmed }) => {
         }
       }
       showToast(`${matches.length} item${matches.length > 1 ? 's' : ''} confirmed`, 'success');
-      onConfirmed?.();
+      await onConfirmed?.();
       onClose();
     } catch (err) {
       console.error('[ConfirmDeliveryModal]', err);

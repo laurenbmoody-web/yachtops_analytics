@@ -1199,6 +1199,16 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
       });
       if (unmatchedForRouting.length > 0) {
         try {
+          // Skip cross-dept matching if this batch already has matches (prevents duplicates on re-scan)
+          let skipCrossDept = false;
+          if (firstBatchId) {
+            const { count } = await supabase
+              ?.from('cross_department_matches')
+              ?.select('id', { count: 'exact', head: true })
+              ?.eq('delivery_batch_id', firstBatchId);
+            if (count > 0) skipCrossDept = true;
+          }
+          if (!skipCrossDept) {
           const result = await triggerCrossDepartmentMatch({
             unmatchedItems: unmatchedForRouting.map(li => ({
               raw_name: li.raw_name,
@@ -1218,6 +1228,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
           if (result.inboxed > 0) {
             showToast(`${result.inboxed} item${result.inboxed > 1 ? 's' : ''} sent to Delivery Inbox`, 'info');
           }
+          } // end if (!skipCrossDept)
         } catch (err) {
           console.error('[ReceiveDeliveryModal] cross-department match error:', err);
         }
