@@ -104,7 +104,7 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
   const [title, setTitle] = useState('');
   const [tripId, setTripId] = useState('');
   const [orderByDate, setOrderByDate] = useState('');
-  const [isPrivate, setIsPrivate] = useState(true);
+  const [isPrivate, setIsPrivate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [localError, setLocalError] = useState('');
 
