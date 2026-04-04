@@ -412,7 +412,7 @@ export const AuthProvider = ({ children }) => {
           
           const { data: membership, error: membershipError } = await supabase
             ?.from('tenant_members')
-            ?.select('tenant_id, permission_tier, role, department, active')
+            ?.select('tenant_id, permission_tier, role, department_id, active')
             ?.eq('user_id', currentUserId)
             ?.eq('tenant_id', profile?.current_tenant_id)
             ?.neq('active', false)
@@ -442,12 +442,19 @@ export const AuthProvider = ({ children }) => {
             });
             setLastBootstrapStep('membership_ok');
             setBootstrapStatus('Membership loaded');
-            
+
             setActiveTenantId(membership?.tenant_id);
             localStorage.setItem('cargo_active_tenant_id', membership?.tenant_id);
             setTenantRole(normalizedTier);
             setHasTenant(true);
             setTenantError(null);
+
+            // Resolve department name from department_id
+            let departmentName = null;
+            if (membership?.department_id) {
+              const { data: dept } = await supabase?.from('departments')?.select('name')?.eq('id', membership.department_id)?.single();
+              departmentName = dept?.name || null;
+            }
 
             // ── Write permission fields to currentUser so permission helpers work ──
             const existingUser = getCurrentUser() || {};
@@ -455,7 +462,8 @@ export const AuthProvider = ({ children }) => {
               ...existingUser,
               permission_tier: normalizedTier,
               role: membership?.role || existingUser?.role || null,
-              department: membership?.department || existingUser?.department || null,
+              department: departmentName || existingUser?.department || null,
+              department_id: membership?.department_id || existingUser?.department_id || null,
             };
             setCurrentUser(enrichedUser);
             saveCurrentUser(enrichedUser);
