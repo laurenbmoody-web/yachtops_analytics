@@ -397,7 +397,7 @@ const ProvisioningWorkspace = () => {
         estimated_cost: null,
         actual_cost: null,
         supplier_id: null,
-        is_private: true,
+        is_private: is_private,
         is_template: false,
       });
       setLists(prev => [newList, ...prev]);
