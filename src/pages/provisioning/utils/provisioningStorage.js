@@ -1389,6 +1389,18 @@ export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, sc
   } catch (err) { console.error('[triggerCrossDepartmentMatch]', err); return { crossMatched: 0, inboxed: 0 }; }
 };
 
+export const fetchUserNames = async (userIds) => {
+  // Returns { [userId]: 'Full Name' } map
+  const ids = [...new Set(userIds.filter(Boolean))];
+  if (!ids.length) return {};
+  try {
+    const { data } = await supabase?.from('profiles')?.select('id, full_name')?.in('id', ids);
+    const map = {};
+    (data || []).forEach(p => { map[p.id] = p.full_name || null; });
+    return map;
+  } catch { return {}; }
+};
+
 export const fetchCrossDeptMatchesForBoard = async (boardId) => {
   try {
     const { data, error } = await supabase

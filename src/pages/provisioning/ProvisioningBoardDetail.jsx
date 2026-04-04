@@ -24,6 +24,7 @@ import {
   quickReceiveItem,
   fetchPendingCrossMatches,
   fetchCrossDeptMatchesForBoard,
+  fetchUserNames,
   PROVISIONING_STATUS,
   PROVISION_CATEGORIES,
   PROVISION_UNITS,
@@ -195,6 +196,8 @@ const ProvisioningBoardDetail = () => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showReceived, setShowReceived] = useState(false);
   const [crossDeptHistory, setCrossDeptHistory] = useState([]);
+  const [historyUserNames, setHistoryUserNames] = useState({});
+  const [expandedHistory, setExpandedHistory] = useState(null);
 
   const userTier = (user?.permission_tier || user?.effectiveTier || '').toUpperCase();
   const userDept = (user?.department || '').trim();
@@ -299,11 +302,21 @@ const ProvisioningBoardDetail = () => {
       .finally(() => setDeliveriesLoading(false));
   }, [activeTab, list?.id]);
 
-  // Load cross-dept history when History tab becomes active
+  // Load cross-dept history + resolve user names when History tab becomes active
   useEffect(() => {
     if (activeTab !== 'history' || !list?.id) return;
-    fetchCrossDeptMatchesForBoard(list.id).then(setCrossDeptHistory).catch(() => setCrossDeptHistory([]));
-  }, [activeTab, list?.id]);
+    fetchCrossDeptMatchesForBoard(list.id).then(async (matches) => {
+      setCrossDeptHistory(matches);
+      // Collect all user IDs from deliveries + cross-dept matches and resolve names
+      const userIds = [
+        ...deliveries.map(d => d.received_by),
+        ...matches.map(m => m.scanned_by),
+        ...matches.map(m => m.target_user_id),
+      ];
+      const names = await fetchUserNames(userIds);
+      setHistoryUserNames(names);
+    }).catch(() => setCrossDeptHistory([]));
+  }, [activeTab, list?.id, deliveries]);
 
   // Fetch live FX rates once on mount (GBP base)
   useEffect(() => {
@@ -978,6 +991,8 @@ const ProvisioningBoardDetail = () => {
                         const isHovered = hoveredRow === item.id;
                         const isEditing = editingCell?.itemId === item.id;
                         const allergen = isAllergenRisk(item);
+                        const isReceived = item.status === 'received';
+                        const dim = isReceived ? '#CBD5E1' : null;
                         const itemCurr = item.currency || currency;
                         const convertCost = (amt) => (parseFloat(amt) / (fxRates[itemCurr] || 1)) * (fxRates[dispCurr] || 1);
                         const showOriginal = itemCurr !== dispCurr;
@@ -989,23 +1004,24 @@ const ProvisioningBoardDetail = () => {
                             onMouseLeave={() => setHoveredRow(null)}
                             style={{
                               display: 'grid', gridTemplateColumns: TABLE_GRID, gap: 0, padding: '0 16px',
-                              background: allergen ? '#FFFBEB' : isHovered ? '#FAFCFF' : 'white',
+                              background: item.status === 'received' ? '#F8FAFC' : allergen ? '#FFFBEB' : isHovered ? '#FAFCFF' : 'white',
                               borderBottom: rowIdx < deptItems.length - 1 ? '1px solid #F8FAFC' : 'none',
                               transition: 'background 0.1s',
-                              opacity: item.status === 'received' ? 0.5 : 1,
-                              textDecoration: item.status === 'received' ? 'line-through' : 'none',
                             }}
                           >
-                            {/* Quick-receive checkbox */}
+                            {/* Quick-receive checkbox / received checkmark */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 0' }}>
+                              {item.status === 'received' ? (
+                                <Icon name="CheckCircle" style={{ width: 13, height: 13, color: '#4ADE80' }} />
+                              ) : (
                               <input
                                 type="checkbox"
                                 checked={false}
                                 title="Mark as received"
-                                onChange={() => item.status !== 'received' && handleQuickReceive(item)}
-                                disabled={item.status === 'received'}
-                                style={{ width: 13, height: 13, accentColor: '#1D9E75', cursor: item.status === 'received' ? 'default' : 'pointer' }}
+                                onChange={() => handleQuickReceive(item)}
+                                style={{ width: 13, height: 13, accentColor: '#1D9E75', cursor: 'pointer' }}
                               />
+                              )}
                             </div>
                             {/* Item (name + brand italic sub-text) */}
                             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '9px 8px', gap: 2 }}>
@@ -1021,23 +1037,24 @@ const ProvisioningBoardDetail = () => {
                                   />
                                 ) : (
                                   <span
-                                    onDoubleClick={() => setEditingCell({ itemId: item.id, field: 'name' })}
-                                    style={{ fontSize: 13, color: '#0F172A', fontWeight: 500, cursor: 'default', lineHeight: 1.3 }}
+                                    onDoubleClick={() => !isReceived && setEditingCell({ itemId: item.id, field: 'name' })}
+                                    style={{ fontSize: 13, color: dim || '#0F172A', fontWeight: 500, cursor: 'default', lineHeight: 1.3 }}
                                   >
                                     {item.name}
                                   </span>
                                 )}
                               </div>
-                              <AlwaysEditCell
+                              {!isReceived && <AlwaysEditCell
                                 value={item.brand ?? ''}
                                 placeholder="Brand…"
                                 onSave={v => handleCellSave(item, 'brand', v)}
                                 inputStyle={{ fontSize: 11, color: '#0F172A', paddingLeft: allergen ? 18 : undefined }}
-                              />
+                              />}
+                              {isReceived && item.brand && <span style={{ fontSize: 11, color: dim, padding: '2px 6px' }}>{item.brand}</span>}
                             </div>
                             {/* Category */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
-                              <span style={{ fontSize: 12, color: '#64748B' }}>
+                              <span style={{ fontSize: 12, color: dim || '#64748B' }}>
                                 {(() => {
                                   const segs = [item.category, item.sub_category]
                                     .filter(Boolean)
@@ -1054,61 +1071,42 @@ const ProvisioningBoardDetail = () => {
                             </div>
                             {/* Size */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
-                              <AlwaysEditCell
-                                value={item.size ?? ''}
-                                placeholder="e.g. 750ml"
-                                onSave={v => handleCellSave(item, 'size', v)}
-                                inputStyle={{ fontSize: 12, color: '#0F172A' }}
-                              />
+                              {isReceived
+                                ? <span style={{ fontSize: 12, color: dim }}>{item.size || ''}</span>
+                                : <AlwaysEditCell value={item.size ?? ''} placeholder="e.g. 750ml" onSave={v => handleCellSave(item, 'size', v)} inputStyle={{ fontSize: 12, color: '#0F172A' }} />
+                              }
                             </div>
                             {/* Unit */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
-                              <select
-                                value={item.unit || 'each'}
-                                onChange={e => handleCellSave(item, 'unit', e.target.value)}
-                                style={{ fontSize: 11, color: '#64748B', background: 'none', border: 'none', outline: 'none', cursor: 'pointer', padding: 0, width: '100%' }}
-                              >
-                                {PROVISION_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                              </select>
+                              {isReceived
+                                ? <span style={{ fontSize: 11, color: dim }}>{item.unit || 'each'}</span>
+                                : <select value={item.unit || 'each'} onChange={e => handleCellSave(item, 'unit', e.target.value)} style={{ fontSize: 11, color: '#64748B', background: 'none', border: 'none', outline: 'none', cursor: 'pointer', padding: 0, width: '100%' }}>
+                                    {PROVISION_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                                  </select>
+                              }
                             </div>
                             {/* Qty */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px', gap: 3 }}>
-                              <button
-                                onClick={() => handleQtyStep(item, 'quantity_ordered', -1)}
-                                style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F1F5F9', border: 'none', borderRadius: 3, cursor: 'pointer', fontSize: 13, color: '#64748B', flexShrink: 0, lineHeight: 1, padding: 0 }}
-                              >−</button>
-                              {editingCell?.itemId === item.id && editingCell?.field === 'quantity_ordered' ? (
-                                <input
-                                  autoFocus
-                                  type="number"
-                                  defaultValue={item.quantity_ordered ?? ''}
-                                  onBlur={e => { handleCellSave(item, 'quantity_ordered', e.target.value); setEditingCell(null); }}
-                                  onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingCell(null); }}
-                                  style={{ fontSize: 13, color: '#0F172A', background: '#F0F7FF', border: '1px solid #93C5FD', borderRadius: 5, padding: '2px 4px', width: 36, outline: 'none', textAlign: 'center', flexShrink: 0 }}
-                                />
-                              ) : (
-                                <span
-                                  onDoubleClick={() => setEditingCell({ itemId: item.id, field: 'quantity_ordered' })}
-                                  style={{ fontSize: 13, color: '#0F172A', cursor: 'default', minWidth: 18, textAlign: 'center', flexShrink: 0 }}
-                                >
-                                  {item.quantity_ordered ?? <span style={{ color: '#CBD5E1' }}>-</span>}
-                                </span>
-                              )}
-                              <button
-                                onClick={() => handleQtyStep(item, 'quantity_ordered', 1)}
-                                style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F1F5F9', border: 'none', borderRadius: 3, cursor: 'pointer', fontSize: 13, color: '#64748B', flexShrink: 0, lineHeight: 1, padding: 0 }}
-                              >+</button>
+                              {isReceived
+                                ? <span style={{ fontSize: 13, color: dim, minWidth: 18, textAlign: 'center' }}>{item.quantity_ordered ?? '-'}</span>
+                                : <>
+                                    <button onClick={() => handleQtyStep(item, 'quantity_ordered', -1)} style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F1F5F9', border: 'none', borderRadius: 3, cursor: 'pointer', fontSize: 13, color: '#64748B', flexShrink: 0, lineHeight: 1, padding: 0 }}>−</button>
+                                    {editingCell?.itemId === item.id && editingCell?.field === 'quantity_ordered' ? (
+                                      <input autoFocus type="number" defaultValue={item.quantity_ordered ?? ''} onBlur={e => { handleCellSave(item, 'quantity_ordered', e.target.value); setEditingCell(null); }} onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingCell(null); }} style={{ fontSize: 13, color: '#0F172A', background: '#F0F7FF', border: '1px solid #93C5FD', borderRadius: 5, padding: '2px 4px', width: 36, outline: 'none', textAlign: 'center', flexShrink: 0 }} />
+                                    ) : (
+                                      <span onDoubleClick={() => setEditingCell({ itemId: item.id, field: 'quantity_ordered' })} style={{ fontSize: 13, color: '#0F172A', cursor: 'default', minWidth: 18, textAlign: 'center', flexShrink: 0 }}>{item.quantity_ordered ?? <span style={{ color: '#CBD5E1' }}>-</span>}</span>
+                                    )}
+                                    <button onClick={() => handleQtyStep(item, 'quantity_ordered', 1)} style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F1F5F9', border: 'none', borderRadius: 3, cursor: 'pointer', fontSize: 13, color: '#64748B', flexShrink: 0, lineHeight: 1, padding: 0 }}>+</button>
+                                  </>
+                              }
                             </div>
                             {/* Unit Cost */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px', gap: 3 }}>
-                              <span style={{ fontSize: 11, color: '#94A3B8', flexShrink: 0 }}>{origSymbol}</span>
-                              <AlwaysEditCell
-                                value={item.estimated_unit_cost ?? ''}
-                                placeholder="0.00"
-                                type="number"
-                                onSave={v => handleCellSave(item, 'estimated_unit_cost', v)}
-                                inputStyle={{ fontSize: 13, color: '#0F172A', textAlign: 'right' }}
-                              />
+                              <span style={{ fontSize: 11, color: dim || '#94A3B8', flexShrink: 0 }}>{origSymbol}</span>
+                              {isReceived
+                                ? <span style={{ fontSize: 13, color: dim }}>{item.estimated_unit_cost ?? ''}</span>
+                                : <AlwaysEditCell value={item.estimated_unit_cost ?? ''} placeholder="0.00" type="number" onSave={v => handleCellSave(item, 'estimated_unit_cost', v)} inputStyle={{ fontSize: 13, color: '#0F172A', textAlign: 'right' }} />
+                              }
                             </div>
                             {/* Total */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
@@ -1116,8 +1114,8 @@ const ProvisioningBoardDetail = () => {
                                 const qty = parseFloat(item.quantity_ordered);
                                 const cost = parseFloat(item.estimated_unit_cost);
                                 return !isNaN(qty) && !isNaN(cost)
-                                  ? <span style={{ fontSize: 13, color: '#0F172A', fontWeight: 500 }}>{dispSymbol}{(qty * convertCost(cost)).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
-                                  : <span style={{ fontSize: 13, color: '#CBD5E1' }}>-</span>;
+                                  ? <span style={{ fontSize: 13, color: dim || '#0F172A', fontWeight: 500 }}>{dispSymbol}{(qty * convertCost(cost)).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                                  : <span style={{ fontSize: 13, color: dim || '#CBD5E1' }}>-</span>;
                               })()}
                             </div>
                             {/* Status badge select */}
@@ -1456,23 +1454,41 @@ const ProvisioningBoardDetail = () => {
         {activeTab === 'history' && (
           <div style={{ padding: '32px 40px 64px', background: '#F8FAFC' }}>
             {(() => {
-              // Build unified history entries from deliveries + cross-dept matches
-              const entries = [
-                ...deliveries.map(d => ({
-                  type: 'delivery',
-                  date: d.received_at ? new Date(d.received_at) : null,
-                  description: `${d.supplier_name && d.supplier_name !== 'Manual receive' ? d.supplier_name : 'Manual'} delivery received`,
-                  sub: `${items.filter(i => i.receive_batch_id === d.id).length} item(s)`,
-                  dot: '#059669',
-                })),
-                ...crossDeptHistory.map(m => ({
+              const userName = (id) => historyUserNames[id] || 'Crew member';
+
+              // Build delivery entries (skip empty batches)
+              const deliveryEntries = deliveries
+                .map(d => {
+                  const batchItems = items.filter(i => i.receive_batch_id === d.id);
+                  if (batchItems.length === 0) return null;
+                  const hasScan = d.parsed_data?.line_items?.length > 0;
+                  const method = hasScan ? 'Delivery note scan' : 'Manual receive';
+                  return {
+                    key: d.id,
+                    type: 'delivery',
+                    date: d.received_at ? new Date(d.received_at) : null,
+                    dot: '#059669',
+                    title: `${userName(d.received_by)} received a delivery${d.supplier_name && d.supplier_name !== 'Manual receive' ? ` from ${d.supplier_name}` : ''}`,
+                    sub: `${batchItems.length} item${batchItems.length !== 1 ? 's' : ''} · ${method}`,
+                    expandData: { batchItems, supplier: d.supplier_name, method, invoiceUrl: d.invoice_file_url },
+                  };
+                })
+                .filter(Boolean);
+
+              // Build cross-dept entries
+              const crossEntries = crossDeptHistory
+                .filter(m => m.status === 'confirmed')
+                .map(m => ({
+                  key: m.id,
                   type: 'cross_dept',
-                  date: m.confirmed_at ? new Date(m.confirmed_at) : m.scanned_at ? new Date(m.scanned_at) : null,
-                  description: `${m.raw_name}${m.confirmed_qty ? ` ×${m.confirmed_qty}` : ''} — cross-department ${m.status === 'confirmed' ? 'confirmed' : 'matched'}`,
-                  sub: m.confirmed_at ? `Confirmed` : `Pending`,
+                  date: m.confirmed_at ? new Date(m.confirmed_at) : null,
                   dot: '#1E3A5F',
-                })),
-              ]
+                  title: `${userName(m.target_user_id)} confirmed a cross-department delivery`,
+                  sub: `1 item from ${userName(m.scanned_by)}'s scan`,
+                  expandData: { match: m },
+                }));
+
+              const entries = [...deliveryEntries, ...crossEntries]
                 .filter(e => e.date)
                 .sort((a, b) => b.date - a.date);
 
@@ -1486,22 +1502,78 @@ const ProvisioningBoardDetail = () => {
               }
 
               return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
                   {entries.map((entry, idx) => {
-                    let relTime;
-                    try { relTime = formatDistanceToNow(entry.date, { addSuffix: true }); } catch { relTime = ''; }
-                    const dateStr = entry.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+                    let relTime = '';
+                    let absTime = '';
+                    try {
+                      relTime = formatDistanceToNow(entry.date, { addSuffix: true });
+                      absTime = entry.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ', ' + entry.date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                    } catch { absTime = ''; }
+                    const isExpanded = expandedHistory === entry.key;
                     return (
-                      <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: '12px 0', borderBottom: idx < entries.length - 1 ? '1px solid #F1F5F9' : 'none' }}>
-                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: entry.dot, flexShrink: 0, marginTop: 5 }} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ margin: 0, fontSize: 13, color: '#0F172A', fontWeight: 500 }}>{entry.description}</p>
-                          {entry.sub && <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94A3B8' }}>{entry.sub}</p>}
+                      <div key={entry.key} style={{ borderBottom: idx < entries.length - 1 ? '1px solid #F1F5F9' : 'none' }}>
+                        {/* Collapsed row */}
+                        <div
+                          onClick={() => setExpandedHistory(isExpanded ? null : entry.key)}
+                          style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '14px 0', cursor: 'pointer' }}
+                        >
+                          <span style={{ fontSize: 10, color: '#94A3B8', marginTop: 4, flexShrink: 0 }}>{isExpanded ? '▾' : '▸'}</span>
+                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: entry.dot, flexShrink: 0, marginTop: 5 }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ margin: 0, fontSize: 13, color: '#0F172A', fontWeight: 500 }}>{entry.title}</p>
+                            <p style={{ margin: '3px 0 0', fontSize: 11, color: '#94A3B8' }}>{entry.sub}</p>
+                          </div>
+                          <div style={{ flexShrink: 0, textAlign: 'right' }}>
+                            <p style={{ margin: 0, fontSize: 11, color: '#64748B' }}>{relTime}</p>
+                            <p style={{ margin: '2px 0 0', fontSize: 10, color: '#CBD5E1' }}>{absTime}</p>
+                          </div>
                         </div>
-                        <div style={{ flexShrink: 0, textAlign: 'right' }}>
-                          <p style={{ margin: 0, fontSize: 11, color: '#94A3B8' }}>{relTime || dateStr}</p>
-                          <p style={{ margin: '1px 0 0', fontSize: 10, color: '#CBD5E1' }}>{dateStr}</p>
-                        </div>
+                        {/* Expanded detail */}
+                        {isExpanded && (
+                          <div style={{ marginLeft: 28, marginBottom: 14, background: 'white', border: '1px solid #F1F5F9', borderRadius: 10, padding: '12px 16px' }}>
+                            {entry.type === 'delivery' && (() => {
+                              const { batchItems, supplier, method, invoiceUrl } = entry.expandData;
+                              return (
+                                <>
+                                  {supplier && supplier !== 'Manual receive' && (
+                                    <p style={{ margin: '0 0 8px', fontSize: 11, color: '#64748B' }}>
+                                      <span style={{ fontWeight: 600, color: '#374151' }}>Supplier: </span>{supplier}
+                                      <span style={{ marginLeft: 12, color: '#94A3B8' }}>· {method}</span>
+                                    </p>
+                                  )}
+                                  {batchItems.map((bi, i) => (
+                                    <div key={bi.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: i < batchItems.length - 1 ? '1px solid #F8FAFC' : 'none' }}>
+                                      <span style={{ fontSize: 13, color: '#0F172A', flex: 1 }}>{[bi.name, bi.brand, bi.size].filter(Boolean).join(' · ')}</span>
+                                      <span style={{ fontSize: 12, color: '#64748B', flexShrink: 0 }}>× {bi.quantity_received ?? '?'} {bi.unit || ''}</span>
+                                    </div>
+                                  ))}
+                                  {invoiceUrl && (
+                                    <a href={invoiceUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 10, fontSize: 11, color: '#1E3A5F', fontWeight: 600, textDecoration: 'none' }}>
+                                      <Icon name="FileText" style={{ width: 12, height: 12 }} /> View delivery note
+                                    </a>
+                                  )}
+                                </>
+                              );
+                            })()}
+                            {entry.type === 'cross_dept' && (() => {
+                              const { match } = entry.expandData;
+                              const confBg = match.match_confidence === 'high' ? '#DCFCE7' : match.match_confidence === 'medium' ? '#FEF3E2' : '#FEF2F2';
+                              const confColor = match.match_confidence === 'high' ? '#15803D' : match.match_confidence === 'medium' ? '#B45309' : '#DC2626';
+                              return (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ fontSize: 13, color: '#0F172A', flex: 1 }}>{match.raw_name}</span>
+                                  <span style={{ fontSize: 12, color: '#64748B', flexShrink: 0 }}>× {match.confirmed_qty ?? match.quantity ?? '?'}</span>
+                                  {match.match_confidence && (
+                                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: confBg, color: confColor, flexShrink: 0 }}>
+                                      {match.match_confidence.charAt(0).toUpperCase() + match.match_confidence.slice(1)} match
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
