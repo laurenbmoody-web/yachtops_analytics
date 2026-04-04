@@ -13,6 +13,7 @@ import {
   createDeliveryBatch,
   upsertItems,
   uploadInvoiceFile,
+  triggerCrossDepartmentMatch,
 } from '../utils/provisioningStorage';
 import { useAuth } from '../../../contexts/AuthContext';
 import { UNIT_GROUPS } from './DetailTableCells';
@@ -1163,6 +1164,33 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
               ?.eq('id', firstBatchId);
           }
         } catch { /* non-fatal */ }
+      }
+
+      // ── Tier 2+3: Route unmatched items to other departments / inbox ──
+      if (unmatchedItems.length > 0) {
+        try {
+          const result = await triggerCrossDepartmentMatch({
+            unmatchedItems: unmatchedItems.map(li => ({
+              raw_name: li.raw_name,
+              quantity: li.quantity || 1,
+              unit_price: li.unit_price || null,
+              unit: li.unit || null,
+            })),
+            tenantId: list?.tenant_id,
+            scannedBy: user?.id,
+            scannerBoardIds: [list?.id],
+            deliveryBatchId: firstBatchId,
+            supplierName: parsedNote?.supplier_name || null,
+          });
+          if (result.crossMatched > 0) {
+            showToast(`${result.crossMatched} item${result.crossMatched > 1 ? 's' : ''} matched to other departments`, 'info');
+          }
+          if (result.inboxed > 0) {
+            showToast(`${result.inboxed} item${result.inboxed > 1 ? 's' : ''} sent to Delivery Inbox`, 'info');
+          }
+        } catch (err) {
+          console.error('[ReceiveDeliveryModal] cross-department match error:', err);
+        }
       }
 
       setStep(2);

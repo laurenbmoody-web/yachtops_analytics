@@ -81,6 +81,10 @@ const NotificationsDrawer = ({ isOpen, onClose }) => {
         return 'Package';
       case NOTIFICATION_TYPES?.HOR_REMINDER:
         return 'Clock';
+      case NOTIFICATION_TYPES?.DELIVERY_CROSS_MATCH:
+        return 'PackageCheck';
+      case NOTIFICATION_TYPES?.DELIVERY_INBOX_ITEM:
+        return 'Inbox';
       default:
         return 'Bell';
     }

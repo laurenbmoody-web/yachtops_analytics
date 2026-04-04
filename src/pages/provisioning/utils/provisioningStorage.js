@@ -1372,3 +1372,83 @@ export const uploadInvoiceFile = async (file, batchId) => {
     return null;
   }
 };
+
+// ── Smart Delivery ────────────────────────────────────────────────────────────
+
+export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, scannedBy, scannerBoardIds, deliveryBatchId = null, supplierName = null }) => {
+  try {
+    const { data, error } = await supabase.functions.invoke('matchCrossDepartment', {
+      body: { unmatchedItems, tenantId, scannedBy, scannerBoardIds, deliveryBatchId, supplierName },
+    });
+    if (error) { console.error('[triggerCrossDepartmentMatch]', error); return { crossMatched: 0, inboxed: 0 }; }
+    return data;
+  } catch (err) { console.error('[triggerCrossDepartmentMatch]', err); return { crossMatched: 0, inboxed: 0 }; }
+};
+
+export const fetchPendingCrossMatches = async (userId) => {
+  try {
+    const { data, error } = await supabase
+      ?.from('cross_department_matches')
+      ?.select('*, matched_board:provisioning_lists(id, title, department), matched_item:provisioning_items(id, name, brand, size, unit)')
+      ?.eq('target_user_id', userId)
+      ?.eq('status', 'pending')
+      ?.order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (err) { console.error('[fetchPendingCrossMatches]', err); return []; }
+};
+
+export const confirmCrossMatch = async (matchId, confirmedQty) => {
+  try {
+    const { data, error } = await supabase
+      ?.from('cross_department_matches')
+      ?.update({ status: 'confirmed', confirmed_qty: confirmedQty, confirmed_at: new Date().toISOString() })
+      ?.eq('id', matchId)?.select()?.single();
+    if (error) throw error;
+    return data;
+  } catch (err) { console.error('[confirmCrossMatch]', err); return null; }
+};
+
+export const dismissCrossMatch = async (matchId) => {
+  try {
+    const { data: match } = await supabase?.from('cross_department_matches')?.select('*')?.eq('id', matchId)?.single();
+    await supabase?.from('cross_department_matches')?.update({ status: 'dismissed' })?.eq('id', matchId);
+    if (match) {
+      await supabase?.from('delivery_inbox')?.insert({
+        tenant_id: match.tenant_id, raw_name: match.raw_name, quantity: match.quantity,
+        unit_price: match.unit_price, unit: match.unit, scanned_by: match.scanned_by,
+        delivery_batch_id: match.delivery_batch_id, status: 'pending',
+      });
+    }
+    return true;
+  } catch (err) { console.error('[dismissCrossMatch]', err); return false; }
+};
+
+export const fetchDeliveryInbox = async (tenantId) => {
+  try {
+    const { data, error } = await supabase?.from('delivery_inbox')?.select('*')
+      ?.eq('tenant_id', tenantId)?.eq('status', 'pending')?.order('scanned_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (err) { console.error('[fetchDeliveryInbox]', err); return []; }
+};
+
+export const claimInboxItem = async (inboxItemId, claimedBy, boardId) => {
+  try {
+    const { data, error } = await supabase?.from('delivery_inbox')
+      ?.update({ status: 'claimed', claimed_by: claimedBy, claimed_at: new Date().toISOString(), claimed_board_id: boardId })
+      ?.eq('id', inboxItemId)?.select()?.single();
+    if (error) throw error;
+    return data;
+  } catch (err) { console.error('[claimInboxItem]', err); return null; }
+};
+
+export const getSmartDeliveryCounts = async (userId, tenantId) => {
+  try {
+    const [crossRes, inboxRes] = await Promise.all([
+      supabase?.from('cross_department_matches')?.select('id', { count: 'exact', head: true })?.eq('target_user_id', userId)?.eq('status', 'pending'),
+      supabase?.from('delivery_inbox')?.select('id', { count: 'exact', head: true })?.eq('tenant_id', tenantId)?.eq('status', 'pending'),
+    ]);
+    return { pendingMatches: crossRes?.count || 0, inboxItems: inboxRes?.count || 0 };
+  } catch (err) { return { pendingMatches: 0, inboxItems: 0 }; }
+};

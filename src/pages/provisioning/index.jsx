@@ -24,6 +24,7 @@ import {
   fetchCrewMembers,
   fetchCollaborators,
   fetchSharedWithMe,
+  getSmartDeliveryCounts,
   PROVISIONING_STATUS,
 } from './utils/provisioningStorage';
 import { supabase } from '../../lib/supabaseClient';
@@ -196,6 +197,9 @@ const ProvisioningWorkspace = () => {
   const [summaryFxRates, setSummaryFxRates] = useState({ GBP: 1, USD: 1.27, EUR: 1.17 });
   const [summaryFxLabel, setSummaryFxLabel] = useState('');
 
+  // Smart Delivery
+  const [inboxCount, setInboxCount] = useState(0);
+
   // UI state
   const [showNewBoard, setShowNewBoard] = useState(false);
   const [boardDrawer, setBoardDrawer] = useState({ open: false, listId: null, mode: 'edit' });
@@ -277,6 +281,11 @@ const ProvisioningWorkspace = () => {
     if (!userId) return;
     fetchSharedWithMe(userId).then(setSharedWithMe);
   }, [userId]);
+
+  useEffect(() => {
+    if (!userId || !activeTenantId) return;
+    getSmartDeliveryCounts(userId, activeTenantId).then(c => setInboxCount((c.pendingMatches || 0) + (c.inboxItems || 0)));
+  }, [userId, activeTenantId]);
 
   // Fetch live FX rates once on mount
   useEffect(() => {
@@ -659,6 +668,24 @@ const ProvisioningWorkspace = () => {
               )}
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => navigate('/provisioning/inbox')}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground border border-border rounded-lg hover:bg-muted transition-colors"
+                style={{ position: 'relative' }}
+              >
+                <Icon name="Inbox" className="w-4 h-4" />
+                Delivery Inbox
+                {inboxCount > 0 && (
+                  <span style={{
+                    position: 'absolute', top: -6, right: -6,
+                    minWidth: 16, height: 16, borderRadius: 8, background: '#DC2626',
+                    color: 'white', fontSize: 9, fontWeight: 700,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px',
+                  }}>
+                    {inboxCount > 99 ? '99+' : inboxCount}
+                  </span>
+                )}
+              </button>
               <button
                 onClick={() => navigate('/provisioning/suppliers')}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground border border-border rounded-lg hover:bg-muted transition-colors"

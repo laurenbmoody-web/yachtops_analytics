@@ -21,6 +21,7 @@ import {
   updateItemPaymentStatus,
   updateBatchTotal,
   quickReceiveItem,
+  fetchPendingCrossMatches,
   PROVISIONING_STATUS,
   PROVISION_CATEGORIES,
   PROVISION_UNITS,
@@ -29,6 +30,7 @@ import {
 import InvoiceUploadModal, { PAYMENT_STATUS_OPTIONS } from './components/InvoiceUploadModal';
 import ItemDrawer from './components/ItemDrawer';
 import ReceiveDeliveryModal from './components/ReceiveDeliveryModal';
+import ConfirmDeliveryModal from './components/ConfirmDeliveryModal';
 import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
 import { loadGuests } from '../guest-management-dashboard/utils/guestStorage';
 import { showToast } from '../../utils/toast';
@@ -188,6 +190,7 @@ const ProvisioningBoardDetail = () => {
   const [displayCurrency, setDisplayCurrency] = useState(null);
   const [fxRates, setFxRates] = useState({ GBP: 1, USD: 1.27, EUR: 1.17 });
   const [fxRatesLabel, setFxRatesLabel] = useState('Using estimated rates');
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const userTier = (user?.permission_tier || user?.effectiveTier || '').toUpperCase();
   const canDelete = userTier === 'COMMAND';
@@ -198,6 +201,13 @@ const ProvisioningBoardDetail = () => {
     if (id) loadAll();
     if (activeTenantId) fetchVesselDepartments(activeTenantId).then(setDepartments);
   }, [id, activeTenantId]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    fetchPendingCrossMatches(user.id).then(matches => {
+      if (matches.length > 0) setShowConfirmModal(true);
+    });
+  }, [user?.id]);
 
   const loadAll = async () => {
     setLoading(true);
@@ -1429,6 +1439,16 @@ const ProvisioningBoardDetail = () => {
             // Refresh delivery batches list
             if (list?.id) fetchDeliveryBatches(list.id).then(data => setDeliveries(data || [])).catch(() => {});
             showToast('Delivery received', 'success');
+          }}
+        />
+      )}
+
+      {showConfirmModal && (
+        <ConfirmDeliveryModal
+          userId={user?.id}
+          onClose={() => setShowConfirmModal(false)}
+          onConfirmed={() => {
+            fetchListItems(id).then(updated => setItems(updated || [])).catch(() => {});
           }}
         />
       )}
