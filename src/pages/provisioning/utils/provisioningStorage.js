@@ -1115,7 +1115,7 @@ export const fetchInventoryItemById = async (id, tenantId) => {
  * columns (tenant_id, supplier_name, received_by, total_cost, port_location)
  * may not exist yet. Always returns the created row or null — never throws.
  */
-export const createDeliveryBatch = async ({ listId, tenantId, userId, supplierName, totalCost, portLocation }) => {
+export const createDeliveryBatch = async ({ listId, tenantId, userId, supplierName, totalCost, portLocation, invoiceFileUrl }) => {
   if (!listId) return null;
   const ts = new Date().toISOString();
   const base = {
@@ -1123,6 +1123,7 @@ export const createDeliveryBatch = async ({ listId, tenantId, userId, supplierNa
     supplier_name: supplierName || 'Manual receive',
     received_at: ts,
     received_by: userId || null,
+    ...(invoiceFileUrl ? { invoice_file_url: invoiceFileUrl } : {}),
   };
   // Ordered from most complete to bare minimum
   const attempts = [
@@ -1486,12 +1487,24 @@ export const claimInboxItem = async (inboxItemId, claimedBy, boardId) => {
       return biLower && (biLower.includes(rawLower) || rawLower.includes(biLower));
     });
 
-    // 4. Create delivery batch for audit trail
+    // 4. Fetch invoice_file_url from original delivery scan batch if present
+    let inheritedInvoiceUrl = null;
+    if (inboxItem.delivery_batch_id) {
+      const { data: origBatch } = await supabase
+        ?.from('provisioning_deliveries')
+        ?.select('invoice_file_url')
+        ?.eq('id', inboxItem.delivery_batch_id)
+        ?.maybeSingle();
+      inheritedInvoiceUrl = origBatch?.invoice_file_url || null;
+    }
+
+    // 5. Create delivery batch for audit trail (carrying through any original document)
     const batch = await createDeliveryBatch({
       listId: boardId,
       tenantId: inboxItem.tenant_id,
       userId: claimedBy,
       supplierName: inboxItem.supplier_name || 'Delivery Inbox claim',
+      invoiceFileUrl: inheritedInvoiceUrl,
     });
 
     if (match) {
