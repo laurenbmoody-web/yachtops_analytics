@@ -66,9 +66,9 @@ const ConfirmDeliveryModal = ({ userId, onClose, onConfirmed }) => {
       for (const match of matches) {
         const qty = qtyMap[match.id] ?? match.quantity ?? 1;
         await confirmCrossMatch(match.id, qty);
-        if (match.matched_item_id) {
+        if (match.matched_item?.id) {
           await receiveItems([{
-            id: match.matched_item_id,
+            id: match.matched_item.id,
             quantity_received: qty,
             status: qty > 0 ? 'received' : 'not_received',
             ...(match.delivery_batch_id ? { receive_batch_id: match.delivery_batch_id } : {}),
