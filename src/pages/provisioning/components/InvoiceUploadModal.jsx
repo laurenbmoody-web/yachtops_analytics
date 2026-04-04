@@ -2,6 +2,35 @@ import React, { useState, useRef } from 'react';
 import Icon from '../../../components/AppIcon';
 import { updateItemPaymentStatus, updateDeliveryBatch, uploadInvoiceFile } from '../utils/provisioningStorage';
 
+// ── Upload source buttons ─────────────────────────────────────────────────────
+
+const SOURCE_OPTIONS = [
+  {
+    id: 'camera',
+    label: 'Take photo',
+    icon: 'Camera',
+    desc: 'Use device camera',
+    accept: 'image/*',
+    capture: 'environment',
+  },
+  {
+    id: 'roll',
+    label: 'Camera roll',
+    icon: 'Image',
+    desc: 'Choose from photos',
+    accept: 'image/*',
+    capture: undefined,
+  },
+  {
+    id: 'file',
+    label: 'Upload file',
+    icon: 'FileUp',
+    desc: 'PDF, JPEG, PNG…',
+    accept: 'image/jpeg,image/png,image/webp,image/heic,application/pdf',
+    capture: undefined,
+  },
+];
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 export const PAYMENT_STATUS_OPTIONS = [
@@ -10,8 +39,6 @@ export const PAYMENT_STATUS_OPTIONS = [
   { value: 'paid', label: 'Paid' },
   { value: 'paid_upfront', label: 'Paid upfront' },
 ];
-
-const ACCEPT_TYPES = 'image/jpeg,image/png,image/webp,image/heic,application/pdf';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -67,7 +94,11 @@ const InvoiceUploadModal = ({ batch, batchItems = [], onClose, onComplete }) => 
   const [parsedData, setParsedData] = useState(null);
   const [matches, setMatches] = useState([]);
   const [saving, setSaving] = useState(false);
-  const fileInputRef = useRef(null);
+  const inputRefs = {
+    camera: useRef(null),
+    roll:   useRef(null),
+    file:   useRef(null),
+  };
 
   const handleFileSelect = (f) => {
     if (!f) return;
@@ -198,30 +229,72 @@ const InvoiceUploadModal = ({ batch, batchItems = [], onClose, onComplete }) => 
                   {error}
                 </div>
               )}
+
+              {/* Hidden inputs for each source */}
+              {SOURCE_OPTIONS.map(src => (
+                <input
+                  key={src.id}
+                  ref={inputRefs[src.id]}
+                  type="file"
+                  accept={src.accept}
+                  {...(src.capture ? { capture: src.capture } : {})}
+                  style={{ display: 'none' }}
+                  onChange={e => handleFileSelect(e.target.files?.[0])}
+                />
+              ))}
+
+              {/* Source option cards */}
+              {!file && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+                  {SOURCE_OPTIONS.map(src => (
+                    <button
+                      key={src.id}
+                      onClick={() => inputRefs[src.id].current?.click()}
+                      style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                        padding: '20px 12px', border: '1.5px solid #E2E8F0', borderRadius: 12,
+                        background: '#FAFAFA', cursor: 'pointer', transition: 'border-color 0.15s, background 0.15s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = '#4A90E2'; e.currentTarget.style.background = '#EFF6FF'; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.background = '#FAFAFA'; }}
+                    >
+                      <Icon name={src.icon} style={{ width: 26, height: 26, color: '#4A90E2' }} />
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#0F172A' }}>{src.label}</span>
+                      <span style={{ fontSize: 10, color: '#94A3B8', textAlign: 'center' }}>{src.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Drop zone — shown when a file is already selected, or as drag target */}
               <div
                 onDrop={handleDrop}
                 onDragOver={e => e.preventDefault()}
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => !file && inputRefs.file.current?.click()}
                 style={{
                   border: `2px dashed ${file ? '#4A90E2' : '#E2E8F0'}`,
-                  borderRadius: 12, padding: '32px 24px', textAlign: 'center',
-                  cursor: 'pointer', transition: 'border-color 0.15s',
-                  background: file ? '#EFF6FF' : '#FAFAFA',
+                  borderRadius: 12, padding: file ? '20px 24px' : '16px 24px', textAlign: 'center',
+                  cursor: file ? 'default' : 'pointer', transition: 'border-color 0.15s',
+                  background: file ? '#EFF6FF' : '#F8FAFC',
                 }}
               >
-                <input ref={fileInputRef} type="file" accept={ACCEPT_TYPES} style={{ display: 'none' }} onChange={e => handleFileSelect(e.target.files?.[0])} />
                 {filePreview ? (
                   <img src={filePreview} alt="Invoice preview" style={{ maxHeight: 200, maxWidth: '100%', borderRadius: 8, marginBottom: 8 }} />
                 ) : (
-                  <Icon name={file ? 'FileCheck' : 'FileUp'} style={{ width: 32, height: 32, color: file ? '#4A90E2' : '#CBD5E1', margin: '0 auto 10px' }} />
+                  <Icon name={file ? 'FileCheck' : 'FileUp'} style={{ width: 28, height: 28, color: file ? '#4A90E2' : '#CBD5E1', margin: '0 auto 8px' }} />
                 )}
                 {file ? (
-                  <p style={{ fontSize: 13, fontWeight: 600, color: '#0F172A', margin: 0 }}>{file.name}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: '#0F172A', margin: 0 }}>{file.name}</p>
+                    <button
+                      onClick={e => { e.stopPropagation(); setFile(null); setFilePreview(null); }}
+                      style={{ fontSize: 11, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                    >
+                      Change
+                    </button>
+                  </div>
                 ) : (
-                  <>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: '#0F172A', margin: '0 0 4px' }}>Drop file here or click to browse</p>
-                    <p style={{ fontSize: 11, color: '#94A3B8', margin: 0 }}>PDF, JPEG, PNG, WEBP supported</p>
-                  </>
+                  <p style={{ fontSize: 11, color: '#94A3B8', margin: 0 }}>or drag and drop a file here</p>
                 )}
               </div>
 
