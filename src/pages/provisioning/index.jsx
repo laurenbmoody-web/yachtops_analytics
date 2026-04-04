@@ -350,6 +350,14 @@ const ProvisioningWorkspace = () => {
   const handleCreateBoard = async ({ title, trip_id, order_by_date }) => {
     try {
       console.log('[Provisioning] createBoard — tenant_id:', activeTenantId, 'userId:', userId);
+
+      // Resolve department name from userDeptId via departments table (most reliable source)
+      let resolvedDeptName = '';
+      if (userDeptId) {
+        const { data: deptRow } = await supabase?.from('departments')?.select('name')?.eq('id', userDeptId)?.single();
+        resolvedDeptName = deptRow?.name || '';
+      }
+
       const newList = await createProvisioningList({
         tenant_id: activeTenantId,
         title,
@@ -360,7 +368,7 @@ const ProvisioningWorkspace = () => {
         owner_id: userId,
         department_id: userDeptId || null,
         visibility: 'private',
-        department: userDept ? [userDept] : [],
+        department: resolvedDeptName ? [resolvedDeptName] : [],
         port_location: '',
         notes: '',
         currency: 'USD',
