@@ -360,7 +360,7 @@ const ProvisioningWorkspace = () => {
         owner_id: userId,
         department_id: userDeptId || null,
         visibility: 'private',
-        department: [],
+        department: userDept ? [userDept] : [],
         port_location: '',
         notes: '',
         currency: 'USD',
