@@ -318,6 +318,9 @@ const ReceiveStep = ({
   const [organiseBySupplier, setOrganiseBySupplier] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const [unmatchedExpanded, setUnmatchedExpanded] = useState(false);
+  const noteCameraRef = useRef(null);
+  const noteRollRef   = useRef(null);
+  const noteFileRef   = useRef(null);
 
   const supplierGroups = (() => {
     const groups = {};
@@ -421,20 +424,37 @@ const ReceiveStep = ({
       {/* Delivery note upload */}
       <div style={{ padding: '10px 20px', borderBottom: '1px solid #F1F5F9' }}>
         {noteStatus === 'idle' ? (
-          <label
+          <div
             onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
-            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', border: `1.5px dashed ${isDragging ? '#93C5FD' : '#E2E8F0'}`, borderRadius: 10, cursor: 'pointer', background: isDragging ? '#EFF6FF' : '#FAFBFC', transition: 'border-color 0.15s, background 0.15s' }}
           >
-            <input type="file" accept=".jpg,.jpeg,.png,.pdf" style={{ display: 'none' }}
-              onChange={e => e.target.files?.[0] && onFileSelect(e.target.files[0])} />
-            <Icon name="FileUp" style={{ width: 16, height: 16, color: '#94A3B8', flexShrink: 0 }} />
-            <div>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: '#374151' }}>Upload delivery note <span style={{ fontWeight: 400, color: '#94A3B8' }}>(optional)</span></p>
-              <p style={{ margin: '1px 0 0', fontSize: 11, color: '#CBD5E1' }}>Drop image or PDF · max 10 MB · AI will match items automatically</p>
+            <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 500, color: '#64748B' }}>
+              Delivery note <span style={{ fontWeight: 400, color: '#94A3B8' }}>(optional · AI will match items)</span>
+            </p>
+            {/* Hidden file inputs — one per source */}
+            <input ref={noteCameraRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={e => e.target.files?.[0] && onFileSelect(e.target.files[0])} />
+            <input ref={noteRollRef}   type="file" accept="image/*" style={{ display: 'none' }} onChange={e => e.target.files?.[0] && onFileSelect(e.target.files[0])} />
+            <input ref={noteFileRef}   type="file" accept="image/jpeg,image/png,image/webp,image/heic,application/pdf" style={{ display: 'none' }} onChange={e => e.target.files?.[0] && onFileSelect(e.target.files[0])} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+              {[
+                { ref: noteCameraRef, label: 'Take photo',   icon: 'Camera' },
+                { ref: noteRollRef,   label: 'Camera roll',  icon: 'Image'  },
+                { ref: noteFileRef,   label: 'Upload file',  icon: 'FileUp' },
+              ].map(src => (
+                <button
+                  key={src.label}
+                  onClick={() => src.ref.current?.click()}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '10px 8px', border: `1.5px dashed ${isDragging ? '#93C5FD' : '#E2E8F0'}`, borderRadius: 8, background: isDragging ? '#EFF6FF' : '#FAFBFC', cursor: 'pointer', transition: 'border-color 0.15s' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#93C5FD'; e.currentTarget.style.background = '#EFF6FF'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.background = '#FAFBFC'; }}
+                >
+                  <Icon name={src.icon} style={{ width: 15, height: 15, color: '#4A90E2' }} />
+                  <span style={{ fontSize: 11, color: '#374151', fontWeight: 500 }}>{src.label}</span>
+                </button>
+              ))}
             </div>
-          </label>
+          </div>
         ) : (() => {
             const noMatch = noteStatus === 'done' && matchedCount === 0;
             const borderColor = noteStatus === 'error' ? '#FECACA' : noMatch ? '#FDE68A' : noteStatus === 'done' ? '#A7F3D0' : '#E2E8F0';
