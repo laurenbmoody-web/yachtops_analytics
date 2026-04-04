@@ -347,7 +347,7 @@ const BoardColumn = ({
               {savedFlash && (
                 <span className="text-[10px] text-green-400 font-semibold whitespace-nowrap flex-shrink-0">Saved ✓</span>
               )}
-              {list.is_private && <Icon name="Lock" className="w-3 h-3 text-amber-500 flex-shrink-0" />}
+              {(list.visibility === 'private' || (!list.visibility && list.is_private)) && <Icon name="Lock" className="w-3 h-3 text-amber-500 flex-shrink-0" />}
             </div>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               <StatusBadge status={list.status} size="sm" />
