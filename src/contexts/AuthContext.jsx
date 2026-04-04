@@ -415,7 +415,7 @@ export const AuthProvider = ({ children }) => {
             ?.select('tenant_id, permission_tier, role, department, active')
             ?.eq('user_id', currentUserId)
             ?.eq('tenant_id', profile?.current_tenant_id)
-            ?.eq('active', true)
+            ?.neq('active', false)
             ?.single();
           
           if (membershipError || !membership) {
