@@ -196,14 +196,11 @@ const ProvisioningBoardDetail = () => {
   const userDept = (user?.department || '').trim();
   const canDelete = userTier === 'COMMAND';
 
-  // Best-effort default department for new items:
-  // 1. user's own dept from auth  2. first non-global dept in existing board items  3. first vessel dept
+  // Default department for new items: user's own dept from auth, then vessel config, else null (→ GLOBAL)
   const defaultDept = useMemo(() => {
     if (userDept) return userDept;
-    const fromItems = items.map(i => i.department).find(d => d && d !== 'Other');
-    if (fromItems) return fromItems;
     return departments.find(Boolean) || null;
-  }, [userDept, items, departments]);
+  }, [userDept, departments]);
 
   // ── Load ──────────────────────────────────────────────────────────────────
 
@@ -366,7 +363,7 @@ const ProvisioningBoardDetail = () => {
 
   const handleAddItem = async (dept) => {
     if (!newItemName.trim()) return;
-    const payload = { list_id: id, name: newItemName.trim(), department: dept === 'Other' ? '' : dept, quantity_ordered: 1, unit: 'each', status: 'draft', source: 'manual' };
+    const payload = { list_id: id, name: newItemName.trim(), department: (dept === 'Other' || dept === 'General') ? '' : dept, quantity_ordered: 1, unit: 'each', status: 'draft', source: 'manual' };
     setNewItemName('');
     setAddingToDept(null);
     try {
@@ -455,7 +452,7 @@ const ProvisioningBoardDetail = () => {
     const pendingItems = filteredItems.filter(i => i.status !== 'received');
     const groups = {};
     pendingItems.forEach(item => {
-      const d = item.department || 'Other';
+      const d = item.department || 'General';
       if (!groups[d]) groups[d] = [];
       groups[d].push(item);
     });
@@ -874,7 +871,7 @@ const ProvisioningBoardDetail = () => {
               <p style={{ fontSize: 14, fontWeight: 500, color: '#0F172A', marginBottom: 4 }}>No items yet</p>
               <p style={{ fontSize: 12, color: '#94A3B8', marginBottom: 16 }}>Add items to track your provisioning order.</p>
               <button
-                onClick={() => { setAddingToDept(defaultDept || 'Other'); setNewItemName(''); }}
+                onClick={() => { setAddingToDept(defaultDept || 'General'); setNewItemName(''); }}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: '#1E3A5F', border: 'none', borderRadius: 8, color: 'white', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
               >
                 <Icon name="Plus" style={{ width: 14, height: 14 }} /> Add first item
@@ -891,9 +888,9 @@ const ProvisioningBoardDetail = () => {
               {addingToDept === '__global__' ? (
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'white', border: '1px solid #93C5FD', borderRadius: 8 }}>
                   <input autoFocus type="text" placeholder="Item name…" value={newItemName} onChange={e => setNewItemName(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') { handleAddItem(defaultDept || 'Other'); setAddingToDept(null); } if (e.key === 'Escape') { setAddingToDept(null); setNewItemName(''); } }}
+                    onKeyDown={e => { if (e.key === 'Enter') { handleAddItem(defaultDept || 'General'); setAddingToDept(null); } if (e.key === 'Escape') { setAddingToDept(null); setNewItemName(''); } }}
                     style={{ fontSize: 13, background: 'transparent', border: 'none', outline: 'none', color: '#0F172A', width: 200 }} />
-                  <button onClick={() => { handleAddItem(defaultDept || 'Other'); setAddingToDept(null); }} style={{ fontSize: 12, fontWeight: 600, padding: '4px 10px', background: '#1E3A5F', border: 'none', borderRadius: 6, color: 'white', cursor: 'pointer' }}>Add</button>
+                  <button onClick={() => { handleAddItem(defaultDept || 'General'); setAddingToDept(null); }} style={{ fontSize: 12, fontWeight: 600, padding: '4px 10px', background: '#1E3A5F', border: 'none', borderRadius: 6, color: 'white', cursor: 'pointer' }}>Add</button>
                   <button onClick={() => { setAddingToDept(null); setNewItemName(''); }} style={{ fontSize: 12, padding: '4px 8px', background: 'none', border: '1px solid #E2E8F0', borderRadius: 6, color: '#94A3B8', cursor: 'pointer' }}>Cancel</button>
                 </div>
               ) : (
@@ -1211,12 +1208,12 @@ const ProvisioningBoardDetail = () => {
                       value={newItemName}
                       onChange={e => setNewItemName(e.target.value)}
                       onKeyDown={e => {
-                        if (e.key === 'Enter') { handleAddItem(defaultDept || 'Other'); setAddingToDept(null); }
+                        if (e.key === 'Enter') { handleAddItem(defaultDept || 'General'); setAddingToDept(null); }
                         if (e.key === 'Escape') { setAddingToDept(null); setNewItemName(''); }
                       }}
                       style={{ flex: 1, maxWidth: 320, fontSize: 13, background: 'white', border: '1px solid #93C5FD', borderRadius: 6, padding: '6px 10px', outline: 'none', color: '#0F172A' }}
                     />
-                    <button onClick={() => { handleAddItem(defaultDept || 'Other'); setAddingToDept(null); }} style={{ fontSize: 12, fontWeight: 600, padding: '6px 14px', background: '#1E3A5F', border: 'none', borderRadius: 6, color: 'white', cursor: 'pointer' }}>Add</button>
+                    <button onClick={() => { handleAddItem(defaultDept || 'General'); setAddingToDept(null); }} style={{ fontSize: 12, fontWeight: 600, padding: '6px 14px', background: '#1E3A5F', border: 'none', borderRadius: 6, color: 'white', cursor: 'pointer' }}>Add</button>
                     <button onClick={() => { setAddingToDept(null); setNewItemName(''); }} style={{ fontSize: 12, padding: '6px 10px', background: 'none', border: '1px solid #E2E8F0', borderRadius: 6, color: '#94A3B8', cursor: 'pointer' }}>Cancel</button>
                   </div>
                 ) : (
