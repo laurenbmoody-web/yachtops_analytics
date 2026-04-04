@@ -104,6 +104,7 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
   const [title, setTitle] = useState('');
   const [tripId, setTripId] = useState('');
   const [orderByDate, setOrderByDate] = useState('');
+  const [isPrivate, setIsPrivate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [localError, setLocalError] = useState('');
 
@@ -115,7 +116,7 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
     setCreating(true);
     setLocalError('');
     try {
-      await onCreated({ title: title.trim(), trip_id: tripId || null, order_by_date: orderByDate || null });
+      await onCreated({ title: title.trim(), trip_id: tripId || null, order_by_date: orderByDate || null, is_private: isPrivate });
     } catch (err) {
       setLocalError(err?.message || 'Failed to create board');
       setCreating(false);
@@ -148,6 +149,27 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
           className={inputCls}
         />
       </div>
+      <button
+        type="button"
+        onClick={() => setIsPrivate(p => !p)}
+        className="flex items-center justify-between w-full px-3 py-2 rounded-lg border border-border bg-muted hover:bg-muted/70 transition-colors"
+      >
+        <span className="flex items-center gap-2 text-sm text-foreground">
+          <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {isPrivate
+              ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+            }
+          </svg>
+          {isPrivate ? 'Private' : 'Department'}
+        </span>
+        <div className={`w-9 h-5 rounded-full transition-colors relative ${isPrivate ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
+          <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${isPrivate ? 'translate-x-4' : 'translate-x-0.5'}`} />
+        </div>
+      </button>
+      <p className="text-[11px] text-muted-foreground -mt-1 px-1">
+        {isPrivate ? 'Only you can see this board.' : 'Visible to your department.'}
+      </p>
       {localError && (
         <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{localError}</p>
       )}
@@ -347,7 +369,7 @@ const ProvisioningWorkspace = () => {
 
   // ── Board actions ────────────────────────────────────────────────────────
 
-  const handleCreateBoard = async ({ title, trip_id, order_by_date }) => {
+  const handleCreateBoard = async ({ title, trip_id, order_by_date, is_private = true }) => {
     try {
       console.log('[Provisioning] createBoard — tenant_id:', activeTenantId, 'userId:', userId);
 
@@ -367,7 +389,7 @@ const ProvisioningWorkspace = () => {
         created_by: userId,
         owner_id: userId,
         department_id: userDeptId || null,
-        visibility: 'private',
+        visibility: is_private ? 'private' : 'department',
         department: resolvedDeptName ? [resolvedDeptName] : [],
         port_location: '',
         notes: '',
