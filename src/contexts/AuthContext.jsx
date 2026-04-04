@@ -412,7 +412,7 @@ export const AuthProvider = ({ children }) => {
           
           const { data: membership, error: membershipError } = await supabase
             ?.from('tenant_members')
-            ?.select('tenant_id, permission_tier, role, department, active')
+            ?.select('tenant_id, permission_tier, role, department_id, active')
             ?.eq('user_id', currentUserId)
             ?.eq('tenant_id', profile?.current_tenant_id)
             ?.neq('active', false)
@@ -455,7 +455,7 @@ export const AuthProvider = ({ children }) => {
               ...existingUser,
               permission_tier: normalizedTier,
               role: membership?.role || existingUser?.role || null,
-              department: membership?.department || existingUser?.department || null,
+              department: existingUser?.department || null,
             };
             setCurrentUser(enrichedUser);
             saveCurrentUser(enrichedUser);
