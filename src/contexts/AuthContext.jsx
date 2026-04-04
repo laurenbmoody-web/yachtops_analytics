@@ -435,7 +435,7 @@ export const AuthProvider = ({ children }) => {
             setLastBootstrapStep('membership_cleared');
             setBootstrapStatus('No membership found');
           } else {
-            const normalizedTier = (membership?.permission_tier || '')?.toUpperCase()?.trim();
+            const normalizedTier = (membership?.permission_tier || '')?.toUpperCase()?.trim() || 'CREW';
             console.log('BOOTSTRAP: ✅ membership ok', {
               tenant_id: membership?.tenant_id,
               permission_tier: normalizedTier
