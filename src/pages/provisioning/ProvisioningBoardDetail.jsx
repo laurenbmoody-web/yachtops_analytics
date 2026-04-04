@@ -203,8 +203,9 @@ const ProvisioningBoardDetail = () => {
       const match = departments.find(d => d?.toLowerCase() === userDept.toLowerCase());
       if (match) return match;
     }
-    return deptTags[0] || departments.find(Boolean) || null;
-  }, [departments, deptTags, user?.department]);
+    return (Array.isArray(list?.department) ? list.department.filter(Boolean) : (list?.department || '').split(',').map(d => d.trim()).filter(Boolean))[0]
+      || departments.find(Boolean) || null;
+  }, [departments, list?.department, user?.department]);
 
   // ── Load ──────────────────────────────────────────────────────────────────
 
