@@ -6,6 +6,7 @@ import {
   confirmCrossMatch,
   dismissCrossMatch,
   receiveItems,
+  createDeliveryBatch,
 } from '../utils/provisioningStorage';
 
 // ── Confidence badge ──────────────────────────────────────────────────────────
@@ -63,6 +64,28 @@ const ConfirmDeliveryModal = ({ userId, onClose, onConfirmed }) => {
     if (matches.length === 0) { onClose(); return; }
     setSaving(true);
     try {
+      // Create one delivery batch per matched board for traceability
+      const batchByBoard = {};
+      const boardIds = [...new Set(matches.map(m => m.matched_board_id).filter(Boolean))];
+      for (const boardId of boardIds) {
+        const boardMatches = matches.filter(m => m.matched_board_id === boardId);
+        const first = boardMatches[0];
+        const scannedAt = first.scanned_at ? new Date(first.scanned_at).toLocaleDateString() : null;
+        const noteStr = [
+          'Cross-department delivery',
+          first.scanned_by ? `scanned by ${first.scanned_by}` : null,
+          scannedAt ? `on ${scannedAt}` : null,
+        ].filter(Boolean).join(' · ');
+        const batch = await createDeliveryBatch({
+          listId: boardId,
+          tenantId: first.tenant_id,
+          userId,
+          supplierName: first.supplier_name || noteStr,
+        });
+        console.log('[ConfirmModal] created batch for board', boardId, ':', batch?.id);
+        batchByBoard[boardId] = batch?.id || null;
+      }
+
       for (const match of matches) {
         const qty = qtyMap[match.id] ?? match.quantity ?? 1;
         console.log('[ConfirmModal] confirming match:', match.id, 'item:', match.matched_item?.id, 'qty:', qty);
@@ -71,12 +94,14 @@ const ConfirmDeliveryModal = ({ userId, onClose, onConfirmed }) => {
         console.log('[ConfirmModal] confirmCrossMatch result:', confirmResult);
 
         if (match.matched_item?.id) {
-          console.log('[ConfirmModal] calling receiveItems for:', match.matched_item.id, 'qty:', qty);
+          const batchId = batchByBoard[match.matched_board_id] || null;
+          console.log('[ConfirmModal] calling receiveItems for:', match.matched_item.id, 'qty:', qty, 'batchId:', batchId);
           try {
             const receiveResult = await receiveItems([{
               id: match.matched_item.id,
               quantity_received: qty,
               status: qty > 0 ? 'received' : 'not_received',
+              ...(batchId ? { receive_batch_id: batchId } : {}),
             }]);
             console.log('[ConfirmModal] receiveItems result:', receiveResult);
           } catch (receiveErr) {
