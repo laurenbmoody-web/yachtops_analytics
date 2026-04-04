@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import { useAuth } from '../../contexts/AuthContext';
@@ -9,6 +9,7 @@ import BoardColumn from './components/BoardColumn';
 import BoardDrawer from './components/BoardDrawer';
 import ItemDrawer from './components/ItemDrawer';
 import DeliveryModal from './components/DeliveryModal';
+import ReceiveDeliveryModal from './components/ReceiveDeliveryModal';
 import ShareModal from './components/ShareModal';
 import SummaryGauges from './components/SummaryGauges';
 import {
@@ -193,6 +194,7 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
 
 const ProvisioningWorkspace = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { activeTenantId } = useTenant();
 
@@ -228,6 +230,11 @@ const ProvisioningWorkspace = () => {
   const [itemDrawer, setItemDrawer] = useState({ open: false, item: null, listId: null });
   const [deliveryModal, setDeliveryModal] = useState({ open: false, list: null });
   const [sharingList, setSharingList] = useState(null);
+
+  // Workspace-level receive delivery
+  const [showWorkspaceReceiveModal, setShowWorkspaceReceiveModal] = useState(false);
+  const [workspaceItems, setWorkspaceItems] = useState([]);
+  const [workspaceItemsLoading, setWorkspaceItemsLoading] = useState(false);
 
   // RBAC
   const userTier = (user?.permission_tier || user?.effectiveTier || '').toUpperCase();
@@ -364,6 +371,38 @@ const ProvisioningWorkspace = () => {
       setError('Could not load provisioning boards. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Auto-open workspace receive modal from URL param (?receive=true)
+  useEffect(() => {
+    if (searchParams.get('receive') === 'true') {
+      window.history.replaceState({}, '', '/provisioning');
+      // Wait for lists to load before opening
+      if (!loading) handleOpenWorkspaceReceive();
+    }
+  }, [searchParams, loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Collect all non-completed, non-template board items for workspace-level scan
+  const handleOpenWorkspaceReceive = async () => {
+    setWorkspaceItemsLoading(true);
+    try {
+      const activeBoards = lists.filter(l => l.status !== 'completed' && !l.is_template && canViewList(l));
+      const allItems = [];
+      await Promise.all(activeBoards.map(async (board) => {
+        const boardItems = itemsByList[board.id] || await fetchListItems(board.id).catch(() => []);
+        boardItems.forEach(item => {
+          if (item.status !== 'received') {
+            allItems.push({ ...item, _boardId: board.id, _boardTitle: board.title });
+          }
+        });
+      }));
+      setWorkspaceItems(allItems);
+      setShowWorkspaceReceiveModal(true);
+    } catch {
+      showToast('Failed to load items', 'error');
+    } finally {
+      setWorkspaceItemsLoading(false);
     }
   };
 
@@ -723,6 +762,17 @@ const ProvisioningWorkspace = () => {
                 <Icon name="Users" className="w-4 h-4" />
                 Suppliers
               </button>
+              <button
+                onClick={handleOpenWorkspaceReceive}
+                disabled={workspaceItemsLoading || loading}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors"
+                style={{ border: '1px solid #1D9E75', color: '#1D9E75', background: 'transparent' }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#F0FDF4'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+              >
+                <Icon name="PackageOpen" className="w-4 h-4" />
+                {workspaceItemsLoading ? 'Loading…' : 'Receive Delivery'}
+              </button>
               {canCreate && (
                 <button
                   onClick={() => setShowNewBoard(true)}
@@ -899,6 +949,23 @@ const ProvisioningWorkspace = () => {
           items={itemsByList[deliveryModal.list.id] || []}
           onClose={() => setDeliveryModal({ open: false, list: null })}
           onComplete={() => { setDeliveryModal({ open: false, list: null }); loadAll(); }}
+        />
+      )}
+
+      {/* Workspace-level Receive Delivery modal */}
+      {showWorkspaceReceiveModal && (
+        <ReceiveDeliveryModal
+          list={null}
+          items={workspaceItems}
+          tenantId={activeTenantId}
+          multiBoard={true}
+          boards={lists.filter(l => l.status !== 'completed' && !l.is_template && canViewList(l))}
+          onClose={() => setShowWorkspaceReceiveModal(false)}
+          onComplete={() => {
+            setShowWorkspaceReceiveModal(false);
+            loadAll();
+            showToast('Delivery received', 'success');
+          }}
         />
       )}
 

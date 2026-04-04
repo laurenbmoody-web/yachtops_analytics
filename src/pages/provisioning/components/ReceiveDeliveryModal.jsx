@@ -313,6 +313,7 @@ const ReceiveStep = ({
   items, receiving, onChange, onGroupChange, onReceiveAll, onNext, onClose, saving,
   deliveryNoteFile, noteStatus, noteError, parsedNote, noteAutoFills, unmatchedItems,
   onFileSelect, onRemoveNote, onAddUnmatched, onSkipUnmatched,
+  multiBoard,
 }) => {
   const [organiseBySupplier, setOrganiseBySupplier] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
@@ -321,7 +322,9 @@ const ReceiveStep = ({
   const supplierGroups = (() => {
     const groups = {};
     items.forEach(item => {
-      const key = item.supplier_name?.trim() || 'No supplier';
+      const key = multiBoard
+        ? (item._boardTitle || 'Unknown board')
+        : (item.supplier_name?.trim() || 'No supplier');
       if (!groups[key]) groups[key] = [];
       groups[key].push(item);
     });
@@ -408,7 +411,7 @@ const ReceiveStep = ({
           <div style={{ width: 32, height: 18, borderRadius: 9, background: organiseBySupplier ? '#1E3A5F' : '#CBD5E1', position: 'relative', transition: 'background 0.15s' }}>
             <div style={{ position: 'absolute', top: 2, left: organiseBySupplier ? 16 : 2, width: 14, height: 14, borderRadius: '50%', background: 'white', transition: 'left 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
           </div>
-          <span style={{ fontSize: 11, color: '#64748B', whiteSpace: 'nowrap' }}>Organise by supplier</span>
+          <span style={{ fontSize: 11, color: '#64748B', whiteSpace: 'nowrap' }}>{multiBoard ? 'Organise by board' : 'Organise by supplier'}</span>
         </div>
         <button onClick={onReceiveAll} style={{ fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 7, cursor: 'pointer', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8', whiteSpace: 'nowrap' }}>
           Receive All
@@ -440,8 +443,14 @@ const ReceiveStep = ({
             const iconColor = noteStatus === 'error' ? '#DC2626' : noteStatus === 'parsing' ? '#94A3B8' : noMatch ? '#B45309' : '#059669';
             const subText = noteStatus === 'parsing' ? 'Extracting items with AI…'
               : noteStatus === 'error' ? (noteError || 'Failed to parse — items unchanged')
-              : noMatch ? `No matches on your list · ${unmatchedItems.length} item${unmatchedItems.length !== 1 ? 's' : ''} will be routed to other departments`
-              : `✓ ${matchedCount} matched · ${unmatchedItems.length} not on board`;
+              : noMatch ? `No matches${multiBoard ? ' on any board' : ' on your list'} · ${unmatchedItems.length} item${unmatchedItems.length !== 1 ? 's' : ''} will be routed to other departments`
+              : (() => {
+                  if (multiBoard) {
+                    const matchedBoardIds = new Set((parsedNote?.line_items || []).filter(l => l.matched_item_id && l.match_confidence !== 'none').map(l => items.find(i => i.id === l.matched_item_id)?._boardId).filter(Boolean));
+                    return `✓ ${matchedCount} matched across ${matchedBoardIds.size || 1} board${matchedBoardIds.size !== 1 ? 's' : ''} · ${unmatchedItems.length} not on any board`;
+                  }
+                  return `✓ ${matchedCount} matched · ${unmatchedItems.length} not on board`;
+                })();
             return (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', border: `1px solid ${borderColor}`, borderRadius: 10, background: bgColor, marginBottom: 8 }}>
                 <Icon name={iconName} style={{ width: 16, height: 16, color: iconColor, flexShrink: 0 }} />
@@ -513,9 +522,11 @@ const ReceiveStep = ({
                     {[li.quantity && `×${li.quantity}`, li.unit, li.unit_price && `$${li.unit_price}`].filter(Boolean).join(' · ')}
                   </p>
                 </div>
-                <button onClick={() => onAddUnmatched(li, idx)} style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, cursor: 'pointer', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  + Add to board
-                </button>
+                {!multiBoard && (
+                  <button onClick={() => onAddUnmatched(li, idx)} style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, cursor: 'pointer', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                    + Add to board
+                  </button>
+                )}
                 <button onClick={() => onSkipUnmatched(idx)} style={{ fontSize: 11, color: '#CBD5E1', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px', flexShrink: 0 }}>
                   Skip
                 </button>
@@ -531,7 +542,7 @@ const ReceiveStep = ({
         <div>
           {items.filter(i => receiving[i.id]?.checked).length === 0 && unmatchedItems.length > 0 ? (
             <p style={{ fontSize: 11, color: '#B45309', margin: 0 }}>
-              No items matched your list — will check other departments on save
+              No items matched {multiBoard ? 'any board' : 'your list'} — will check other departments on save
             </p>
           ) : (
             <p style={{ fontSize: 12, color: '#94A3B8', margin: 0 }}>
@@ -908,7 +919,7 @@ const PushStep = ({
 
 // ── Main modal ────────────────────────────────────────────────────────────────
 
-const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) => {
+const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, multiBoard = false, boards = [] }) => {
   const { user } = useAuth();
   const userId = user?.id;
 
@@ -1119,60 +1130,97 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
           status: deriveStatus(qty, ordered),
           supplier_name: item.supplier_name || null,
           estimated_unit_cost: item.estimated_unit_cost,
+          _boardId: item._boardId || list?.id || null,
         };
       });
 
       const receivedUpdates = updates.filter(u => u.quantity_received > 0);
 
-      // Group by supplier → one batch per supplier, reusing existing same-day batches
-      const bySupplier = {};
-      receivedUpdates.forEach(u => {
-        const key = u.supplier_name?.trim() || 'Manual receive';
-        if (!bySupplier[key]) bySupplier[key] = [];
-        bySupplier[key].push(u);
-      });
-
       const today = new Date().toISOString().split('T')[0];
       let firstBatchId = null; // used for delivery note attachment
 
-      for (const [supplierName, supplierItems] of Object.entries(bySupplier)) {
-        // Reuse existing batch for same supplier + same day
-        const { data: existing } = await supabase
-          ?.from('provisioning_deliveries')
-          ?.select('id')
-          ?.eq('list_id', list?.id)
-          ?.eq('supplier_name', supplierName)
-          ?.gte('received_at', `${today}T00:00:00Z`)
-          ?.lt('received_at', `${today}T23:59:59Z`)
-          ?.limit(1)
-          ?.maybeSingle();
+      if (multiBoard) {
+        // Multi-board mode: one batch per board
+        const byBoard = {};
+        receivedUpdates.forEach(u => {
+          const key = u._boardId || 'unknown';
+          if (!byBoard[key]) byBoard[key] = [];
+          byBoard[key].push(u);
+        });
 
-        let batchId = existing?.id || null;
-        if (!batchId) {
-          const cost = supplierItems.reduce(
+        for (const [boardId, boardItems] of Object.entries(byBoard)) {
+          if (boardId === 'unknown') continue;
+          const cost = boardItems.reduce(
             (sum, u) => sum + (parseFloat(u.estimated_unit_cost) || 0) * (u.quantity_received || 0), 0
           );
+          const supplierName = parsedNote?.supplier_name || null;
           const batch = await createDeliveryBatch({
-            listId: list?.id, tenantId, userId,
+            listId: boardId, tenantId, userId,
             supplierName,
             totalCost: cost || null,
-            portLocation: list?.port_location || null,
+            portLocation: null,
           });
-          batchId = batch?.id || null;
+          const batchId = batch?.id || null;
           if (!batchId) {
-            console.error('[ReceiveDeliveryModal] batch creation failed for supplier:', supplierName);
-            showToast(`Batch creation failed for "${supplierName}" — items saved without batch link`, 'error');
+            console.error('[ReceiveDeliveryModal] batch creation failed for board:', boardId);
           }
+          if (!firstBatchId && batchId) firstBatchId = batchId;
+
+          await receiveItems(boardItems.map(u => ({
+            id: u.id,
+            quantity_received: u.quantity_received,
+            status: u.status,
+            ...(batchId ? { receive_batch_id: batchId } : {}),
+          })));
         }
+      } else {
+        // Single-board mode: group by supplier, reusing existing same-day batches
+        const bySupplier = {};
+        receivedUpdates.forEach(u => {
+          const key = u.supplier_name?.trim() || 'Manual receive';
+          if (!bySupplier[key]) bySupplier[key] = [];
+          bySupplier[key].push(u);
+        });
 
-        if (!firstBatchId && batchId) firstBatchId = batchId;
+        for (const [supplierName, supplierItems] of Object.entries(bySupplier)) {
+          // Reuse existing batch for same supplier + same day
+          const { data: existing } = await supabase
+            ?.from('provisioning_deliveries')
+            ?.select('id')
+            ?.eq('list_id', list?.id)
+            ?.eq('supplier_name', supplierName)
+            ?.gte('received_at', `${today}T00:00:00Z`)
+            ?.lt('received_at', `${today}T23:59:59Z`)
+            ?.limit(1)
+            ?.maybeSingle();
 
-        await receiveItems(supplierItems.map(u => ({
-          id: u.id,
-          quantity_received: u.quantity_received,
-          status: u.status,
-          ...(batchId ? { receive_batch_id: batchId } : {}),
-        })));
+          let batchId = existing?.id || null;
+          if (!batchId) {
+            const cost = supplierItems.reduce(
+              (sum, u) => sum + (parseFloat(u.estimated_unit_cost) || 0) * (u.quantity_received || 0), 0
+            );
+            const batch = await createDeliveryBatch({
+              listId: list?.id, tenantId, userId,
+              supplierName,
+              totalCost: cost || null,
+              portLocation: list?.port_location || null,
+            });
+            batchId = batch?.id || null;
+            if (!batchId) {
+              console.error('[ReceiveDeliveryModal] batch creation failed for supplier:', supplierName);
+              showToast(`Batch creation failed for "${supplierName}" — items saved without batch link`, 'error');
+            }
+          }
+
+          if (!firstBatchId && batchId) firstBatchId = batchId;
+
+          await receiveItems(supplierItems.map(u => ({
+            id: u.id,
+            quantity_received: u.quantity_received,
+            status: u.status,
+            ...(batchId ? { receive_batch_id: batchId } : {}),
+          })));
+        }
       }
 
       // Persist status for unchecked (not_received) items
@@ -1221,9 +1269,11 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
               unit_price: li.unit_price || null,
               unit: li.unit || null,
             })),
-            tenantId: list?.tenant_id,
+            tenantId: tenantId || list?.tenant_id,
             scannedBy: user?.id,
-            scannerBoardIds: [list?.id],
+            scannerBoardIds: multiBoard
+              ? [...new Set(items.map(i => i._boardId).filter(Boolean))]
+              : [list?.id],
             deliveryBatchId: firstBatchId,
             supplierName: parsedNote?.supplier_name || null,
           });
@@ -1244,11 +1294,12 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
         module: 'provisioning',
         action: 'PROVISION_DELIVERY_SCANNED',
         entityType: 'provisioning_list',
-        entityId: list?.id,
-        summary: `received a delivery${parsedNote?.supplier_name ? ` from ${parsedNote.supplier_name}` : ''} on "${list?.title}"`,
+        entityId: multiBoard ? (boards[0]?.id || null) : list?.id,
+        summary: `received a delivery${parsedNote?.supplier_name ? ` from ${parsedNote.supplier_name}` : ''} on "${multiBoard ? 'all boards' : list?.title}"`,
         meta: {
-          board_id: list?.id,
-          board_title: list?.title,
+          board_id: multiBoard ? null : list?.id,
+          board_title: multiBoard ? 'all boards' : list?.title,
+          boards_count: multiBoard ? boards.length : 1,
           items_received: receivedUpdates.length,
           items_unmatched: originalUnmatchedRef.current.length,
           supplier: parsedNote?.supplier_name || null,
@@ -1465,7 +1516,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
         <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
             <h2 style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', margin: 0 }}>Receive Delivery</h2>
-            <p style={{ fontSize: 12, color: '#94A3B8', margin: '3px 0 0' }}>{list?.title}</p>
+            <p style={{ fontSize: 12, color: '#94A3B8', margin: '3px 0 0' }}>{multiBoard ? `All boards · ${items.length} items` : list?.title}</p>
           </div>
           {/* Step indicator */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginRight: 'auto', marginLeft: 24 }}>
@@ -1509,6 +1560,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
             onRemoveNote={handleRemoveNote}
             onAddUnmatched={handleAddUnmatched}
             onSkipUnmatched={handleSkipUnmatched}
+            multiBoard={multiBoard}
           />
         ) : (
           <PushStep
