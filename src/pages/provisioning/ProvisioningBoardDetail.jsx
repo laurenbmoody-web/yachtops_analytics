@@ -198,9 +198,13 @@ const ProvisioningBoardDetail = () => {
 
   // Default department for new items: user's own dept from auth, then vessel config, else null (→ GLOBAL)
   const defaultDept = useMemo(() => {
-    if (userDept) return userDept;
+    const userDept = (user?.department || '').trim();
+    if (userDept) {
+      const match = departments.find(d => d?.toLowerCase() === userDept.toLowerCase());
+      if (match) return match;
+    }
     return departments.find(Boolean) || null;
-  }, [userDept, departments]);
+  }, [departments, user?.department]);
 
   // ── Load ──────────────────────────────────────────────────────────────────
 
