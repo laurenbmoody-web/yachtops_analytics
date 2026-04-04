@@ -432,7 +432,7 @@ const ReceiveStep = ({
             </div>
           </label>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', border: `1px solid ${noteStatus === 'error' ? '#FECACA' : noteStatus === 'done' ? '#A7F3D0' : '#E2E8F0'}`, borderRadius: 10, background: noteStatus === 'error' ? '#FEF2F2' : noteStatus === 'done' ? '#F0FDF4' : 'white' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', border: `1px solid ${noteStatus === 'error' ? '#FECACA' : noteStatus === 'done' ? '#A7F3D0' : '#E2E8F0'}`, borderRadius: 10, background: noteStatus === 'error' ? '#FEF2F2' : noteStatus === 'done' ? '#F0FDF4' : 'white', marginBottom: 8 }}>
             <Icon
               name={noteStatus === 'parsing' ? 'Loader' : noteStatus === 'error' ? 'AlertCircle' : 'FileCheck'}
               style={{ width: 16, height: 16, color: noteStatus === 'error' ? '#DC2626' : noteStatus === 'parsing' ? '#94A3B8' : '#059669', flexShrink: 0 }}
@@ -524,12 +524,13 @@ const ReceiveStep = ({
       {/* Footer */}
       <div style={{ padding: '12px 20px', borderTop: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
         <div>
-          <p style={{ fontSize: 12, color: '#94A3B8', margin: 0 }}>
-            {items.filter(i => receiving[i.id]?.checked).length} of {items.length} items ticked
-          </p>
-          {items.filter(i => receiving[i.id]?.checked).length === 0 && unmatchedItems.length > 0 && (
-            <p style={{ fontSize: 11, color: '#B45309', margin: '3px 0 0' }}>
+          {items.filter(i => receiving[i.id]?.checked).length === 0 && unmatchedItems.length > 0 ? (
+            <p style={{ fontSize: 11, color: '#B45309', margin: 0 }}>
               No items matched your list — will check other departments on save
+            </p>
+          ) : (
+            <p style={{ fontSize: 12, color: '#94A3B8', margin: 0 }}>
+              {items.filter(i => receiving[i.id]?.checked).length} of {items.length} items ticked
             </p>
           )}
         </div>
@@ -572,7 +573,7 @@ const PushStep = ({
   onUnlinkMatch, onUnlinkInline,
   newItemForms, onInitNewItemForm, onNewItemFormChange,
   onNewItemSplitChange, onNewItemAddSplit, onNewItemRemoveSplit,
-  onPush, onBack, pushing,
+  onPush, onBack, onComplete, pushing,
 }) => {
   const receivedItems = items.filter(i => receiving[i.id]?.checked && (parseFloat(receiving[i.id]?.qty) || 0) > 0);
 
@@ -870,7 +871,7 @@ const PushStep = ({
 
         {receivedItems.length === 0 && (
           <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-            <p style={{ fontSize: 14, color: '#94A3B8' }}>No received items to push.</p>
+            <p style={{ fontSize: 14, color: '#94A3B8' }}>No items to push to inventory</p>
           </div>
         )}
       </div>
@@ -879,13 +880,22 @@ const PushStep = ({
         <button onClick={onBack} style={{ fontSize: 13, padding: '7px 14px', borderRadius: 8, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B', display: 'flex', alignItems: 'center', gap: 5 }}>
           ← Back
         </button>
-        <button
-          onClick={onPush}
-          disabled={pushing || receivedItems.length === 0}
-          style={{ fontSize: 13, fontWeight: 600, padding: '7px 16px', borderRadius: 8, cursor: 'pointer', background: '#15803D', border: '1px solid #15803D', color: 'white', opacity: pushing ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 6 }}
-        >
-          {pushing ? 'Pushing…' : `Push to Inventory (${receivedItems.length})`}
-        </button>
+        {receivedItems.length === 0 ? (
+          <button
+            onClick={onComplete}
+            style={{ fontSize: 13, fontWeight: 600, padding: '7px 16px', borderRadius: 8, cursor: 'pointer', background: '#1E3A5F', border: '1px solid #1E3A5F', color: 'white' }}
+          >
+            Done
+          </button>
+        ) : (
+          <button
+            onClick={onPush}
+            disabled={pushing}
+            style={{ fontSize: 13, fontWeight: 600, padding: '7px 16px', borderRadius: 8, cursor: 'pointer', background: '#15803D', border: '1px solid #15803D', color: 'white', opacity: pushing ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            {pushing ? 'Pushing…' : `Push to Inventory (${receivedItems.length})`}
+          </button>
+        )}
       </div>
     </>
   );
@@ -1494,6 +1504,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete }) =>
             onNewItemRemoveSplit={handleNewItemRemoveSplit}
             onPush={handlePushToInventory}
             onBack={() => setStep(1)}
+            onComplete={onComplete}
             pushing={pushing}
           />
         )}
