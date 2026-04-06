@@ -121,7 +121,7 @@ const NotificationsDrawer = ({ isOpen, onClose }) => {
       />
       
       {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-full sm:w-96 bg-card border-l border-border z-50 flex flex-col shadow-2xl">
+      <div className="fixed right-0 top-16 h-[calc(100vh-4rem)] w-full sm:w-96 bg-card border-l border-border z-50 flex flex-col shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h2 className="text-lg font-semibold text-foreground">Notifications</h2>
