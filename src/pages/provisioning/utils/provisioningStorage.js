@@ -1474,6 +1474,19 @@ export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, sc
             if (!insertErr) {
               matchedRawNames.add(extracted.raw_name);
               crossMatched++;
+              // Notify the board owner immediately
+              const boardOwnerId = board.created_by;
+              console.log('[Tier2] Board owner ID:', boardOwnerId);
+              if (boardOwnerId) {
+                sendNotification([boardOwnerId], {
+                  type: NOTIFICATION_TYPES.DELIVERY_CROSS_MATCH,
+                  title: 'Delivery items for your board',
+                  message: `${extracted.quantity || 1}× ${extracted.raw_name} from a delivery matches your "${board.title}" board`,
+                  severity: SEVERITY.INFO,
+                  actionUrl: `/provisioning/${board.id}`,
+                });
+                console.log('[Tier2] Notification sent to board owner:', boardOwnerId);
+              }
             } else {
               console.error('[Tier2] insert cross_department_matches error:', insertErr);
             }
