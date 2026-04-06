@@ -18,6 +18,7 @@ import {
 import { useAuth } from '../../../contexts/AuthContext';
 import { UNIT_GROUPS } from './DetailTableCells';
 import { logActivity } from '../../../utils/activityStorage';
+import { sendNotification, NOTIFICATION_TYPES, SEVERITY } from '../../team-jobs-management/utils/notifications';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -1299,9 +1300,53 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
           });
           if (result.crossMatched > 0) {
             showToast(`${result.crossMatched} item${result.crossMatched > 1 ? 's' : ''} matched to other departments`, 'info');
+            // Notify each matched board's target user
+            try {
+              const { data: newMatches } = await supabase
+                ?.from('cross_department_matches')
+                ?.select('target_user_id, matched_board_id, matched_board:provisioning_lists(id, title)')
+                ?.eq('delivery_batch_id', firstBatchId)
+                ?.eq('status', 'pending');
+              const byBoard = {};
+              (newMatches || []).forEach(m => {
+                const bid = m.matched_board_id;
+                if (!bid) return;
+                if (!byBoard[bid]) byBoard[bid] = { title: m.matched_board?.title || 'a board', userIds: new Set() };
+                if (m.target_user_id) byBoard[bid].userIds.add(m.target_user_id);
+              });
+              for (const [boardId, { title, userIds }] of Object.entries(byBoard)) {
+                const ids = [...userIds];
+                if (ids.length > 0) {
+                  sendNotification(ids, {
+                    type: NOTIFICATION_TYPES.DELIVERY_CROSS_MATCH,
+                    title: 'Delivery items matched your board',
+                    message: `${(newMatches || []).filter(m => m.matched_board_id === boardId).length} item${(newMatches || []).filter(m => m.matched_board_id === boardId).length !== 1 ? 's' : ''} from a scanned delivery match your "${title}" board`,
+                    severity: SEVERITY.INFO,
+                    actionUrl: `/provisioning/${boardId}`,
+                  });
+                }
+              }
+            } catch { /* non-fatal */ }
           }
           if (result.inboxed > 0) {
             showToast(`${result.inboxed} item${result.inboxed > 1 ? 's' : ''} sent to Delivery Inbox`, 'info');
+            // Notify all tenant users about unclaimed inbox items
+            try {
+              const currentTenantId = tenantId || list?.tenant_id;
+              if (currentTenantId) {
+                const { data: profiles } = await supabase?.from('profiles')?.select('id')?.eq('tenant_id', currentTenantId);
+                const userIds = (profiles || []).map(p => p.id).filter(Boolean);
+                if (userIds.length > 0) {
+                  sendNotification(userIds, {
+                    type: NOTIFICATION_TYPES.DELIVERY_INBOX_ITEM,
+                    title: 'Unclaimed delivery items',
+                    message: `${result.inboxed} item${result.inboxed !== 1 ? 's' : ''} from a scanned delivery couldn't be matched to any board`,
+                    severity: SEVERITY.WARN,
+                    actionUrl: '/provisioning/inbox',
+                  });
+                }
+              }
+            } catch { /* non-fatal */ }
           }
           } // end if (!skipCrossDept)
         } catch (err) {
