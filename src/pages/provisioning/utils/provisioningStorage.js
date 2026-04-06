@@ -1395,7 +1395,7 @@ export const uploadInvoiceFile = async (file, batchId) => {
  *   3. Insert unmatched items into delivery_inbox
  * Returns { crossMatched, inboxed }.
  */
-export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, scannedBy, scannerBoardIds, deliveryBatchId = null, supplierName = null }) => {
+export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, scannedBy, scannerBoardIds, deliveryBatchId = null, supplierName = null, deliveryNoteUrl = null, deliveryNoteRef = null }) => {
   if (!tenantId || !unmatchedItems?.length) return { crossMatched: 0, inboxed: 0 };
   try {
     console.log('========== TIER 2 DEBUG START ==========');
@@ -1469,6 +1469,8 @@ export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, sc
               delivery_batch_id: deliveryBatchId,
               supplier_name: supplierName,
               target_item_qty_needed: targetQtyNeeded || null,
+              delivery_note_url: deliveryNoteUrl || null,
+              delivery_note_ref: deliveryNoteRef || null,
             });
 
             if (!insertErr) {
@@ -1507,10 +1509,13 @@ export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, sc
         quantity: item.quantity || 1,
         unit_price: item.unit_price || null,
         unit: item.unit || null,
+        line_total: item.line_total || null,
         scanned_by: scannedBy,
         scanned_at: now,
         delivery_batch_id: deliveryBatchId,
         supplier_name: supplierName,
+        delivery_note_url: deliveryNoteUrl || null,
+        delivery_note_ref: deliveryNoteRef || null,
         status: 'pending',
         expires_at: expiresAt,
       });
