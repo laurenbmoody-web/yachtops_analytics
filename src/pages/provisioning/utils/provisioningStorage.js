@@ -1365,15 +1365,21 @@ export const uploadInvoiceFile = async (file, batchId) => {
   try {
     const ext = file.name.split('.').pop() || 'pdf';
     const path = `${batchId}/${Date.now()}.${ext}`;
+    console.log('[uploadInvoiceFile] uploading', file.name, 'size:', file.size, 'to path:', path);
     const { error } = await supabase?.storage
       ?.from('provisioning-invoices')
       ?.upload(path, file, { upsert: true });
-    if (error) return null;
+    if (error) {
+      console.error('[uploadInvoiceFile] upload error:', error.message, error);
+      return null;
+    }
     const { data } = await supabase?.storage
       ?.from('provisioning-invoices')
       ?.getPublicUrl(path);
+    console.log('[uploadInvoiceFile] public URL:', data?.publicUrl);
     return data?.publicUrl || null;
-  } catch {
+  } catch (err) {
+    console.error('[uploadInvoiceFile] threw:', err);
     return null;
   }
 };
