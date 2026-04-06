@@ -7,6 +7,7 @@ import {
   dismissCrossMatch,
   receiveItems,
   createDeliveryBatch,
+  triggerCrossDepartmentMatch,
 } from '../utils/provisioningStorage';
 import { logActivity } from '../../../utils/activityStorage';
 import { supabase } from '../../../lib/supabaseClient';
@@ -53,7 +54,15 @@ const ConfirmDeliveryModal = ({ userId, onClose, onConfirmed }) => {
       stale.forEach(m => dismissCrossMatch(m.id));
       setMatches(open);
       const initial = {};
-      open.forEach(m => { initial[m.id] = m.quantity ?? 1; });
+      open.forEach(m => {
+        // Default take-qty = min(available from delivery, what the board still needs)
+        const available = m.quantity ?? 1;
+        const needed = Math.max(0,
+          (m.matched_item?.quantity_ordered ?? m.target_item_qty_needed ?? available)
+          - (m.matched_item?.quantity_received ?? 0)
+        );
+        initial[m.id] = Math.max(1, Math.min(available, needed > 0 ? needed : available));
+      });
       setQtyMap(initial);
       setLoading(false);
     });
@@ -115,7 +124,9 @@ const ConfirmDeliveryModal = ({ userId, onClose, onConfirmed }) => {
 
       for (const match of matches) {
         const qty = qtyMap[match.id] ?? match.quantity ?? 1;
-        console.log('[ConfirmModal] confirming match:', match.id, 'item:', match.matched_item?.id, 'qty:', qty);
+        const available = match.quantity ?? 1;
+        const remainder = available - qty;
+        console.log('[ConfirmModal] confirming match:', match.id, 'item:', match.matched_item?.id, 'qty:', qty, 'remainder:', remainder);
 
         const confirmResult = await confirmCrossMatch(match.id, qty);
         console.log('[ConfirmModal] confirmCrossMatch result:', confirmResult);
@@ -136,6 +147,30 @@ const ConfirmDeliveryModal = ({ userId, onClose, onConfirmed }) => {
           }
         } else {
           console.log('[ConfirmModal] NO matched_item.id — skipping receiveItems');
+        }
+
+        // Route any unconfirmed remainder through Tier 2 → inbox
+        if (remainder > 0) {
+          console.log('[ConfirmModal] Routing remainder', remainder, 'of', match.raw_name, 'through Tier 2');
+          try {
+            await triggerCrossDepartmentMatch({
+              unmatchedItems: [{
+                raw_name: match.raw_name,
+                quantity: remainder,
+                unit_price: match.unit_price || null,
+                unit: match.unit || null,
+              }],
+              tenantId: match.tenant_id,
+              scannedBy: match.scanned_by,
+              // Exclude the board that just confirmed so it doesn't get re-matched there
+              scannerBoardIds: [match.matched_board_id].filter(Boolean),
+              deliveryBatchId: match.delivery_batch_id || null,
+              supplierName: match.supplier_name || null,
+            });
+            console.log('[ConfirmModal] Remainder routed successfully');
+          } catch (err) {
+            console.error('[ConfirmModal] remainder routing error:', err);
+          }
         }
       }
       // Log activity on the matched board
@@ -207,54 +242,81 @@ const ConfirmDeliveryModal = ({ userId, onClose, onConfirmed }) => {
                 <p style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   {boardTitle}
                 </p>
-                {boardMatches.map(match => (
-                  <div key={match.id} style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '10px 12px', borderRadius: 8, border: '1px solid #F1F5F9',
-                    marginBottom: 6, background: '#FAFAFA',
-                  }}>
-                    {/* Dismiss */}
-                    <button
-                      onClick={() => handleDismiss(match.id)}
-                      title="Move to Delivery Inbox"
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#CBD5E1', padding: 2, flexShrink: 0 }}
-                    >
-                      <Icon name="X" size={14} />
-                    </button>
+                {boardMatches.map(match => {
+                  const available = match.quantity ?? 1;
+                  const needed = Math.max(0,
+                    (match.matched_item?.quantity_ordered ?? match.target_item_qty_needed ?? available)
+                    - (match.matched_item?.quantity_received ?? 0)
+                  );
+                  const takeQty = qtyMap[match.id] ?? available;
+                  const remainder = available - takeQty;
+                  return (
+                    <div key={match.id} style={{
+                      padding: '10px 12px', borderRadius: 8, border: '1px solid #F1F5F9',
+                      marginBottom: 6, background: '#FAFAFA',
+                    }}>
+                      {/* Top row: dismiss + names + confidence */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <button
+                          onClick={() => handleDismiss(match.id)}
+                          title="Move to Delivery Inbox"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#CBD5E1', padding: 2, flexShrink: 0 }}
+                        >
+                          <Icon name="X" size={14} />
+                        </button>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {match.raw_name}
+                          </p>
+                          {match.matched_item && (
+                            <p style={{ margin: '1px 0 0', fontSize: 11, color: '#64748B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              → {match.matched_item.name}
+                              {match.matched_item.brand ? ` · ${match.matched_item.brand}` : ''}
+                              {match.matched_item.size ? ` · ${match.matched_item.size}` : ''}
+                            </p>
+                          )}
+                        </div>
+                        <ConfBadge confidence={match.match_confidence} />
+                      </div>
 
-                    {/* Names */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {match.raw_name}
-                      </p>
-                      {match.matched_item && (
-                        <p style={{ margin: '1px 0 0', fontSize: 11, color: '#64748B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          → {match.matched_item.name}
-                          {match.matched_item.brand ? ` · ${match.matched_item.brand}` : ''}
-                          {match.matched_item.size ? ` · ${match.matched_item.size}` : ''}
-                        </p>
-                      )}
+                      {/* Bottom row: available / needed / take input */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8, paddingLeft: 26, flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ fontSize: 10, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Available</span>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>{available}</span>
+                        </div>
+                        <div style={{ width: 1, height: 14, background: '#E2E8F0', flexShrink: 0 }} />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ fontSize: 10, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Board needs</span>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: needed > 0 ? '#15803D' : '#94A3B8' }}>{needed > 0 ? needed : '—'}</span>
+                        </div>
+                        <div style={{ flex: 1 }} />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                          <span style={{ fontSize: 11, color: '#64748B' }}>Take</span>
+                          <input
+                            type="number"
+                            min="0"
+                            max={available}
+                            value={takeQty}
+                            onChange={e => setQtyMap(prev => ({ ...prev, [match.id]: parseInt(e.target.value, 10) || 0 }))}
+                            style={{
+                              width: 52, padding: '4px 6px', border: '1px solid #E2E8F0',
+                              borderRadius: 6, fontSize: 13, textAlign: 'center', outline: 'none',
+                            }}
+                          />
+                          {available > 1 && (
+                            <span style={{ fontSize: 11, color: '#94A3B8' }}>of {available}</span>
+                          )}
+                        </div>
+                        {remainder > 0 && (
+                          <span style={{ fontSize: 10, color: '#B45309', background: '#FEF3E2', padding: '2px 7px', borderRadius: 10, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                            {remainder} → inbox
+                          </span>
+                        )}
+                      </div>
                     </div>
-
-                    {/* Confidence */}
-                    <ConfBadge confidence={match.match_confidence} />
-
-                    {/* Qty input */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                      <span style={{ fontSize: 11, color: '#94A3B8' }}>Qty</span>
-                      <input
-                        type="number"
-                        min="0"
-                        value={qtyMap[match.id] ?? match.quantity ?? 1}
-                        onChange={e => setQtyMap(prev => ({ ...prev, [match.id]: parseInt(e.target.value, 10) || 0 }))}
-                        style={{
-                          width: 52, padding: '4px 6px', border: '1px solid #E2E8F0',
-                          borderRadius: 6, fontSize: 13, textAlign: 'center', outline: 'none',
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ))
           )}
