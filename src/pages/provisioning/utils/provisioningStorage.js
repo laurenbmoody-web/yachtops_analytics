@@ -1654,14 +1654,59 @@ export const dismissInboxItem = async (itemId, userId) => {
   } catch (err) { console.error('[dismissInboxItem]', err); return false; }
 };
 
-/** Archive an inbox item as "returned to supplier". */
-export const returnInboxItem = async (itemId) => {
+/** Mark delivery_inbox item as "returned to supplier" — moves to pending_return queue. */
+export const returnInboxItem = async (itemId, requestedBy = null) => {
   try {
     const { error } = await supabase?.from('delivery_inbox')
-      ?.update({ status: 'archived', archive_reason: 'returned' })?.eq('id', itemId);
+      ?.update({
+        status: 'pending_return',
+        archive_reason: 'returned',
+        return_requested_by: requestedBy,
+        return_requested_at: new Date().toISOString(),
+      })?.eq('id', itemId);
     if (error) throw error;
     return true;
   } catch (err) { console.error('[returnInboxItem]', err); return false; }
+};
+
+/** Fetch items queued for supplier return. */
+export const fetchPendingReturns = async (tenantId) => {
+  if (!tenantId) return [];
+  try {
+    const { data, error } = await supabase?.from('delivery_inbox')
+      ?.select('*')?.eq('tenant_id', tenantId)?.eq('status', 'pending_return')
+      ?.order('supplier_name', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  } catch (err) { console.error('[fetchPendingReturns]', err); return []; }
+};
+
+/** Confirm items have been physically returned — archives them. */
+export const confirmReturned = async (itemIds, confirmedBy = null) => {
+  if (!itemIds?.length) return false;
+  try {
+    const { error } = await supabase?.from('delivery_inbox')
+      ?.update({
+        status: 'archived',
+        archive_reason: 'returned',
+        return_confirmed_by: confirmedBy,
+        return_confirmed_at: new Date().toISOString(),
+      })?.in('id', itemIds);
+    if (error) throw error;
+    return true;
+  } catch (err) { console.error('[confirmReturned]', err); return false; }
+};
+
+/** Move items from pending_return back to inbox. */
+export const cancelReturns = async (itemIds) => {
+  if (!itemIds?.length) return false;
+  try {
+    const { error } = await supabase?.from('delivery_inbox')
+      ?.update({ status: 'pending', archive_reason: null, return_requested_by: null, return_requested_at: null })
+      ?.in('id', itemIds);
+    if (error) throw error;
+    return true;
+  } catch (err) { console.error('[cancelReturns]', err); return false; }
 };
 
 export const claimInboxItem = async (inboxItemId, claimedBy, boardId, claimQty = null) => {
