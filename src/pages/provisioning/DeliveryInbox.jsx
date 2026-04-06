@@ -8,6 +8,8 @@ import { showToast } from '../../utils/toast';
 import {
   fetchDeliveryInbox,
   claimInboxItem,
+  dismissInboxItem,
+  returnInboxItem,
   fetchProvisioningLists,
 } from './utils/provisioningStorage';
 import { logActivity } from '../../utils/activityStorage';
@@ -36,17 +38,22 @@ const ExpiryBadge = ({ expiresAt }) => {
 
 // ── Inline board pill claim ───────────────────────────────────────────────────
 
-const ClaimInline = ({ item, boards, userId, onClaimed, onPartialClaim }) => {
+const ClaimInline = ({ item, boards, userId, onClaimed, onPartialClaim, onExpandChange }) => {
   // step: 'idle' | 'boards' | 'qty'
   const [step, setStep] = useState('idle');
   const [selectedBoard, setSelectedBoard] = useState(null);
   const [claimQty, setClaimQty] = useState(item.quantity ?? 1);
   const [claiming, setClaiming] = useState(false);
 
+  const goToStep = (s) => {
+    setStep(s);
+    onExpandChange?.(s !== 'idle');
+  };
+
   const handleBoardSelect = (board) => {
     setSelectedBoard(board);
     setClaimQty(item.quantity ?? 1);
-    setStep('qty');
+    goToStep('qty');
   };
 
   const handleConfirm = async () => {
@@ -86,7 +93,7 @@ const ClaimInline = ({ item, boards, userId, onClaimed, onPartialClaim }) => {
   if (step === 'idle') {
     return (
       <button
-        onClick={() => setStep('boards')}
+        onClick={() => goToStep('boards')}
         style={{
           padding: '5px 14px', borderRadius: 7,
           border: '1.5px solid #1E3A5F', background: 'transparent',
@@ -123,7 +130,7 @@ const ClaimInline = ({ item, boards, userId, onClaimed, onPartialClaim }) => {
           </button>
         ))}
         <button
-          onClick={() => setStep('idle')}
+          onClick={() => goToStep('idle')}
           style={{ fontSize: 12, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px', flexShrink: 0 }}
         >
           Cancel
@@ -166,7 +173,7 @@ const ClaimInline = ({ item, boards, userId, onClaimed, onPartialClaim }) => {
         Confirm
       </button>
       <button
-        onClick={() => setStep('boards')}
+        onClick={() => goToStep('boards')}
         style={{ fontSize: 12, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px', flexShrink: 0 }}
       >
         Back
@@ -177,8 +184,11 @@ const ClaimInline = ({ item, boards, userId, onClaimed, onPartialClaim }) => {
 
 // ── Item row ──────────────────────────────────────────────────────────────────
 
-const ItemRow = ({ item, boards, userId, isLast, selected, onToggle, onClaimed, onPartialClaim, bulkFading, docUrl, archived }) => {
+const ItemRow = ({ item, boards, userId, isLast, selected, onToggle, onClaimed, onPartialClaim, onDismiss, onReturn, bulkFading, docUrl, archived }) => {
   const [indivFading, setIndivFading] = useState(false);
+  const [claimExpanded, setClaimExpanded] = useState(false);
+  const [returning, setReturning] = useState(false);
+  const [dismissing, setDismissing] = useState(false);
   const opacity = (bulkFading || indivFading) ? 0 : 1;
 
   const handleClaimed = (id) => {
@@ -186,9 +196,22 @@ const ItemRow = ({ item, boards, userId, isLast, selected, onToggle, onClaimed, 
     setTimeout(() => onClaimed(id), 320);
   };
 
+  const handleReturn = async () => {
+    setReturning(true);
+    const ok = await onReturn(item.id);
+    if (!ok) setReturning(false);
+    // on success, parent removes item from list
+  };
+
+  const handleDismiss = async () => {
+    setDismissing(true);
+    const ok = await onDismiss(item.id);
+    if (!ok) setDismissing(false);
+  };
+
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: 12,
+      display: 'flex', alignItems: 'flex-start', gap: 12,
       padding: '14px 20px',
       borderBottom: isLast ? 'none' : '1px solid #F1F5F9',
       opacity, transition: 'opacity 0.3s ease',
@@ -196,13 +219,13 @@ const ItemRow = ({ item, boards, userId, isLast, selected, onToggle, onClaimed, 
     }}>
       {/* Checkbox — hidden for archived items */}
       {archived ? (
-        <div style={{ width: 15, flexShrink: 0 }} />
+        <div style={{ width: 15, flexShrink: 0, marginTop: 2 }} />
       ) : (
         <input
           type="checkbox"
           checked={selected}
           onChange={onToggle}
-          style={{ width: 15, height: 15, accentColor: '#1E3A5F', cursor: 'pointer', flexShrink: 0 }}
+          style={{ width: 15, height: 15, accentColor: '#1E3A5F', cursor: 'pointer', flexShrink: 0, marginTop: 2 }}
         />
       )}
 
@@ -233,17 +256,70 @@ const ItemRow = ({ item, boards, userId, isLast, selected, onToggle, onClaimed, 
         </p>
       </div>
 
-      {/* Expiry / Archived badge */}
-      {archived ? (
-        <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 12, background: '#F1F5F9', color: '#94A3B8', whiteSpace: 'nowrap', flexShrink: 0 }}>
-          Archived
-        </span>
-      ) : (
-        <ExpiryBadge expiresAt={item.expires_at} />
-      )}
+      {/* Right-side: badge + actions */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
+        {/* Expiry / Archived / Returning badge */}
+        {archived ? (
+          <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 12, background: '#F1F5F9', color: '#94A3B8', whiteSpace: 'nowrap' }}>
+            {item.archive_reason === 'returned' ? 'Return to supplier' : 'Archived'}
+          </span>
+        ) : (
+          <ExpiryBadge expiresAt={item.expires_at} />
+        )}
 
-      {/* Individual claim — hidden for archived items */}
-      {!archived && <ClaimInline item={item} boards={boards} userId={userId} onClaimed={handleClaimed} onPartialClaim={onPartialClaim} />}
+        {/* Action row — hidden for archived */}
+        {!archived && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {/* Claim flow */}
+            <ClaimInline
+              item={item}
+              boards={boards}
+              userId={userId}
+              onClaimed={handleClaimed}
+              onPartialClaim={onPartialClaim}
+              onExpandChange={setClaimExpanded}
+            />
+
+            {/* Secondary actions — hidden while claim flow is open */}
+            {!claimExpanded && (
+              <>
+                <div style={{ width: 1, height: 16, background: '#E2E8F0', flexShrink: 0 }} />
+                <button
+                  onClick={handleReturn}
+                  disabled={returning}
+                  title="Flag for return to supplier"
+                  style={{
+                    padding: '4px 10px', borderRadius: 7,
+                    border: '1px solid #E2E8F0', background: 'white',
+                    color: '#64748B', fontSize: 11, fontWeight: 500,
+                    cursor: returning ? 'default' : 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                    opacity: returning ? 0.5 : 1,
+                  }}
+                  onMouseEnter={e => { if (!returning) e.currentTarget.style.borderColor = '#CBD5E1'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                >
+                  {returning ? 'Returning…' : 'Return to supplier'}
+                </button>
+                <button
+                  onClick={handleDismiss}
+                  disabled={dismissing}
+                  title="Not relevant to me — stays visible for others"
+                  style={{
+                    padding: '4px 8px', borderRadius: 7, border: 'none',
+                    background: 'none', color: '#94A3B8', fontSize: 11, fontWeight: 500,
+                    cursor: dismissing ? 'default' : 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                    opacity: dismissing ? 0.5 : 1,
+                  }}
+                  onMouseEnter={e => { if (!dismissing) e.currentTarget.style.color = '#64748B'; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = '#94A3B8'; }}
+                >
+                  {dismissing ? 'Dismissing…' : 'Not my order'}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -339,7 +415,7 @@ const DeliveryInbox = () => {
     if (!activeTenantId) return;
     setLoading(true);
     const [inboxItems, userBoards] = await Promise.all([
-      fetchDeliveryInbox(activeTenantId, showArchived),
+      fetchDeliveryInbox(activeTenantId, showArchived, user?.id),
       fetchProvisioningLists(activeTenantId, user?.id).catch(() => []),
     ]);
     setItems(inboxItems || []);
@@ -373,6 +449,30 @@ const DeliveryInbox = () => {
   const handleClaimed = (itemId) => {
     setItems(prev => prev.filter(i => i.id !== itemId));
     setSelectedIds(prev => { const next = new Set(prev); next.delete(itemId); return next; });
+  };
+
+  const handleDismiss = async (itemId) => {
+    const ok = await dismissInboxItem(itemId, user?.id);
+    if (ok) {
+      setItems(prev => prev.filter(i => i.id !== itemId));
+      setSelectedIds(prev => { const next = new Set(prev); next.delete(itemId); return next; });
+      showToast('Item hidden from your inbox', 'info');
+    } else {
+      showToast('Failed to dismiss item', 'error');
+    }
+    return ok;
+  };
+
+  const handleReturn = async (itemId) => {
+    const ok = await returnInboxItem(itemId);
+    if (ok) {
+      setItems(prev => prev.filter(i => i.id !== itemId));
+      setSelectedIds(prev => { const next = new Set(prev); next.delete(itemId); return next; });
+      showToast('Marked for return to supplier', 'info');
+    } else {
+      showToast('Failed to mark for return', 'error');
+    }
+    return ok;
   };
 
   const handleToggleSelect = (itemId) => {
@@ -540,6 +640,8 @@ const DeliveryInbox = () => {
                         onToggle={() => handleToggleSelect(item.id)}
                         onClaimed={handleClaimed}
                         onPartialClaim={load}
+                        onDismiss={handleDismiss}
+                        onReturn={handleReturn}
                         bulkFading={bulkFadingIds.has(item.id)}
                         docUrl={item.delivery_batch_id ? batchDocUrls[item.delivery_batch_id] : null}
                         archived={item.status === 'archived'}
