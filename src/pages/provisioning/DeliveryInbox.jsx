@@ -581,26 +581,19 @@ const ReturnsView = ({ tenantId, userId, tenantName, userFullName }) => {
     });
   };
 
-  const handleGenerateSlip = async () => {
+  const handleGenerateSlip = () => {
     const selected = returnItems.filter(i => selectedIds.has(i.id));
-    const grouped = selected.reduce((acc, item) => {
+    // Group by supplier — open one tab per supplier
+    const bySupplier = selected.reduce((acc, item) => {
       const s = item.supplier_name || 'Unknown supplier';
       if (!acc[s]) acc[s] = [];
       acc[s].push(item);
       return acc;
     }, {});
-    let vessel = null;
-    try {
-      const { data } = await supabase
-        ?.from('vessels')
-        ?.select('vessel_type_label, imo_number, flag, port_of_registry, official_number, loa_m, gt')
-        ?.eq('tenant_id', tenantId)
-        ?.single();
-      vessel = data;
-    } catch { /* non-fatal */ }
-    const html = generateReturnSlipHTML(grouped, tenantName, userFullName, vessel);
-    const win = window.open('', '_blank');
-    if (win) { win.document.write(html); win.document.close(); }
+    for (const items of Object.values(bySupplier)) {
+      const params = new URLSearchParams({ items: items.map(i => i.id).join(',') });
+      window.open(`/provisioning/return-slip?${params.toString()}`, '_blank');
+    }
   };
 
   const handleConfirmReturned = async () => {
