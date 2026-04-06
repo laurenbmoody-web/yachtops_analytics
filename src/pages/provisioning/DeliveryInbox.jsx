@@ -36,30 +36,45 @@ const ExpiryBadge = ({ expiresAt }) => {
 
 // ── Inline board pill claim ───────────────────────────────────────────────────
 
-const ClaimInline = ({ item, boards, userId, onClaimed }) => {
-  const [expanded, setExpanded] = useState(false);
+const ClaimInline = ({ item, boards, userId, onClaimed, onPartialClaim }) => {
+  // step: 'idle' | 'boards' | 'qty'
+  const [step, setStep] = useState('idle');
+  const [selectedBoard, setSelectedBoard] = useState(null);
+  const [claimQty, setClaimQty] = useState(item.quantity ?? 1);
   const [claiming, setClaiming] = useState(false);
 
-  const handleClaim = async (board) => {
+  const handleBoardSelect = (board) => {
+    setSelectedBoard(board);
+    setClaimQty(item.quantity ?? 1);
+    setStep('qty');
+  };
+
+  const handleConfirm = async () => {
     setClaiming(true);
-    const result = await claimInboxItem(item.id, userId, board.id);
+    const result = await claimInboxItem(item.id, userId, selectedBoard.id, claimQty);
     if (result) {
       logActivity({
         module: 'provisioning',
         action: 'PROVISION_INBOX_CLAIMED',
         entityType: 'provisioning_list',
-        entityId: board.id,
-        summary: `claimed "${result.raw_name}" from Delivery Inbox`,
+        entityId: selectedBoard.id,
+        summary: `claimed ${claimQty} × "${result.raw_name}" from Delivery Inbox`,
         meta: {
           inbox_item_id: item.id,
           raw_name: result.raw_name,
-          quantity: result.quantity,
-          board_id: board.id,
+          quantity_claimed: claimQty,
+          remainder: result._remainder,
+          board_id: selectedBoard.id,
           original_scanned_by: result.scanned_by,
         },
       });
-      showToast(`"${result.raw_name}" claimed to ${board.title}`, 'success');
-      onClaimed(item.id);
+      if (result._partial) {
+        showToast(`${claimQty} × "${result.raw_name}" claimed to ${selectedBoard.title} · ${result._remainder} remaining`, 'success');
+        onPartialClaim?.();
+      } else {
+        showToast(`"${result.raw_name}" claimed to ${selectedBoard.title}`, 'success');
+        onClaimed(item.id);
+      }
     } else {
       showToast('Failed to claim item', 'error');
       setClaiming(false);
@@ -68,10 +83,10 @@ const ClaimInline = ({ item, boards, userId, onClaimed }) => {
 
   if (claiming) return <span style={{ fontSize: 12, color: '#94A3B8' }}>Claiming…</span>;
 
-  if (!expanded) {
+  if (step === 'idle') {
     return (
       <button
-        onClick={() => setExpanded(true)}
+        onClick={() => setStep('boards')}
         style={{
           padding: '5px 14px', borderRadius: 7,
           border: '1.5px solid #1E3A5F', background: 'transparent',
@@ -86,31 +101,75 @@ const ClaimInline = ({ item, boards, userId, onClaimed }) => {
     );
   }
 
+  if (step === 'boards') {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        {boards.length === 0 ? (
+          <span style={{ fontSize: 12, color: '#94A3B8' }}>No boards</span>
+        ) : boards.map(b => (
+          <button
+            key={b.id}
+            onClick={() => handleBoardSelect(b)}
+            style={{
+              padding: '4px 12px', borderRadius: 20,
+              background: '#F1F5F9', border: '1px solid #E2E8F0',
+              color: '#334155', fontSize: 12, fontWeight: 500,
+              cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#E2E8F0'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#F1F5F9'; }}
+          >
+            {b.title}
+          </button>
+        ))}
+        <button
+          onClick={() => setStep('idle')}
+          style={{ fontSize: 12, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px', flexShrink: 0 }}
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
+  // step === 'qty'
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-      {boards.length === 0 ? (
-        <span style={{ fontSize: 12, color: '#94A3B8' }}>No boards</span>
-      ) : boards.map(b => (
-        <button
-          key={b.id}
-          onClick={() => handleClaim(b)}
+      <span style={{ fontSize: 11, color: '#64748B', whiteSpace: 'nowrap', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        → {selectedBoard?.title}
+      </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+        <span style={{ fontSize: 11, color: '#94A3B8' }}>Qty</span>
+        <input
+          type="number"
+          min={1}
+          max={item.quantity ?? undefined}
+          value={claimQty}
+          onChange={e => setClaimQty(Math.max(1, parseInt(e.target.value, 10) || 1))}
           style={{
-            padding: '4px 12px', borderRadius: 20,
-            background: '#F1F5F9', border: '1px solid #E2E8F0',
-            color: '#334155', fontSize: 12, fontWeight: 500,
-            cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+            width: 52, padding: '3px 6px', border: '1px solid #CBD5E1',
+            borderRadius: 6, fontSize: 13, textAlign: 'center', outline: 'none',
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = '#E2E8F0'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = '#F1F5F9'; }}
-        >
-          {b.title}
-        </button>
-      ))}
+        />
+        {(item.quantity ?? 1) > 1 && (
+          <span style={{ fontSize: 11, color: '#94A3B8', whiteSpace: 'nowrap' }}>of {item.quantity}</span>
+        )}
+      </div>
       <button
-        onClick={() => setExpanded(false)}
+        onClick={handleConfirm}
+        style={{
+          padding: '4px 12px', borderRadius: 7, border: 'none',
+          background: '#1E3A5F', color: 'white',
+          fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+        }}
+      >
+        Confirm
+      </button>
+      <button
+        onClick={() => setStep('boards')}
         style={{ fontSize: 12, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px', flexShrink: 0 }}
       >
-        Cancel
+        Back
       </button>
     </div>
   );
@@ -118,7 +177,7 @@ const ClaimInline = ({ item, boards, userId, onClaimed }) => {
 
 // ── Item row ──────────────────────────────────────────────────────────────────
 
-const ItemRow = ({ item, boards, userId, isLast, selected, onToggle, onClaimed, bulkFading, docUrl, archived }) => {
+const ItemRow = ({ item, boards, userId, isLast, selected, onToggle, onClaimed, onPartialClaim, bulkFading, docUrl, archived }) => {
   const [indivFading, setIndivFading] = useState(false);
   const opacity = (bulkFading || indivFading) ? 0 : 1;
 
@@ -184,7 +243,7 @@ const ItemRow = ({ item, boards, userId, isLast, selected, onToggle, onClaimed, 
       )}
 
       {/* Individual claim — hidden for archived items */}
-      {!archived && <ClaimInline item={item} boards={boards} userId={userId} onClaimed={handleClaimed} />}
+      {!archived && <ClaimInline item={item} boards={boards} userId={userId} onClaimed={handleClaimed} onPartialClaim={onPartialClaim} />}
     </div>
   );
 };
@@ -480,6 +539,7 @@ const DeliveryInbox = () => {
                         selected={selectedIds.has(item.id)}
                         onToggle={() => handleToggleSelect(item.id)}
                         onClaimed={handleClaimed}
+                        onPartialClaim={load}
                         bulkFading={bulkFadingIds.has(item.id)}
                         docUrl={item.delivery_batch_id ? batchDocUrls[item.delivery_batch_id] : null}
                         archived={item.status === 'archived'}

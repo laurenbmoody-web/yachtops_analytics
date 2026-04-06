@@ -1618,18 +1618,31 @@ export const fetchDeliveryInbox = async (tenantId, includeArchived = false) => {
   } catch (err) { console.error('[fetchDeliveryInbox]', err); return []; }
 };
 
-export const claimInboxItem = async (inboxItemId, claimedBy, boardId) => {
+export const claimInboxItem = async (inboxItemId, claimedBy, boardId, claimQty = null) => {
   try {
     // 1. Fetch the inbox item
     const { data: inboxItem, error: fetchErr } = await supabase
       ?.from('delivery_inbox')?.select('*')?.eq('id', inboxItemId)?.single();
     if (fetchErr || !inboxItem) throw fetchErr || new Error('Inbox item not found');
 
-    // 2. Mark as claimed
-    const { error: updateErr } = await supabase?.from('delivery_inbox')
-      ?.update({ status: 'claimed', claimed_by: claimedBy, claimed_at: new Date().toISOString(), claimed_board_id: boardId })
-      ?.eq('id', inboxItemId);
-    if (updateErr) throw updateErr;
+    const totalQty = inboxItem.quantity || 1;
+    const qty = claimQty !== null ? Math.min(Math.max(1, claimQty), totalQty) : totalQty;
+    const remainder = totalQty - qty;
+    const isPartial = remainder > 0;
+
+    // 2. Mark as claimed (or reduce qty for partial claim)
+    if (isPartial) {
+      // Keep item in inbox with reduced quantity for others to claim
+      const { error: updateErr } = await supabase?.from('delivery_inbox')
+        ?.update({ quantity: remainder })
+        ?.eq('id', inboxItemId);
+      if (updateErr) throw updateErr;
+    } else {
+      const { error: updateErr } = await supabase?.from('delivery_inbox')
+        ?.update({ status: 'claimed', claimed_by: claimedBy, claimed_at: new Date().toISOString(), claimed_board_id: boardId })
+        ?.eq('id', inboxItemId);
+      if (updateErr) throw updateErr;
+    }
 
     // 3. Find matching item on the board (case-insensitive name match)
     const { data: boardItems } = await supabase
@@ -1665,7 +1678,7 @@ export const claimInboxItem = async (inboxItemId, claimedBy, boardId) => {
     if (match) {
       // Update existing item as received
       await supabase?.from('provisioning_items')?.update({
-        quantity_received: inboxItem.quantity || match.quantity_ordered,
+        quantity_received: qty,
         status: 'received',
         receive_batch_id: batch?.id || null,
       })?.eq('id', match.id);
@@ -1674,8 +1687,8 @@ export const claimInboxItem = async (inboxItemId, claimedBy, boardId) => {
       await supabase?.from('provisioning_items')?.insert({
         list_id: boardId,
         name: inboxItem.raw_name,
-        quantity_ordered: inboxItem.quantity || 1,
-        quantity_received: inboxItem.quantity || 1,
+        quantity_ordered: qty,
+        quantity_received: qty,
         unit: inboxItem.unit || 'each',
         estimated_unit_cost: inboxItem.unit_price || null,
         status: 'received',
@@ -1684,7 +1697,7 @@ export const claimInboxItem = async (inboxItemId, claimedBy, boardId) => {
       });
     }
 
-    return inboxItem;
+    return { ...inboxItem, _claimedQty: qty, _remainder: remainder, _partial: isPartial };
   } catch (err) { console.error('[claimInboxItem]', err); return null; }
 };
 
