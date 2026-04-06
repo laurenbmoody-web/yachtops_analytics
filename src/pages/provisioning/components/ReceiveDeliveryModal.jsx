@@ -1288,7 +1288,9 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
           const result = await triggerCrossDepartmentMatch({
             unmatchedItems: unmatchedForRouting.map(li => ({
               raw_name: li.raw_name,
+              item_reference: li.item_reference || null,
               quantity: li.quantity || 1,
+              ordered_qty: li.ordered_qty || null,
               unit_price: li.unit_price || null,
               unit: li.unit || null,
               line_total: li.line_total || null,
@@ -1300,6 +1302,11 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
               : [list?.id],
             deliveryBatchId: firstBatchId,
             supplierName: parsedNote?.supplier_name || null,
+            supplierPhone: parsedNote?.supplier_phone || null,
+            supplierEmail: parsedNote?.supplier_email || null,
+            supplierAddress: parsedNote?.supplier_address || null,
+            orderRef: parsedNote?.order_ref || null,
+            orderDate: parsedNote?.order_date || null,
             deliveryNoteUrl: uploadedNoteUrl,
             deliveryNoteRef: parsedNote?.invoice_number || null,
           });
@@ -1371,7 +1378,9 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
           if (extractedQty > 0 && receivedQty < extractedQty) {
             remainderItems.push({
               raw_name: li.raw_name || li.description || li.name || 'Unknown item',
+              item_reference: li.item_reference || null,
               quantity: extractedQty - receivedQty,
+              ordered_qty: li.ordered_qty || null,
               unit_price: li.unit_price || null,
               unit: li.unit || null,
               line_total: li.line_total || null,
@@ -1389,6 +1398,11 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
                 : [list?.id],
               deliveryBatchId: firstBatchId,
               supplierName: parsedNote?.supplier_name || null,
+              supplierPhone: parsedNote?.supplier_phone || null,
+              supplierEmail: parsedNote?.supplier_email || null,
+              supplierAddress: parsedNote?.supplier_address || null,
+              orderRef: parsedNote?.order_ref || null,
+              orderDate: parsedNote?.order_date || null,
               deliveryNoteUrl: uploadedNoteUrl,
               deliveryNoteRef: parsedNote?.invoice_number || null,
             });

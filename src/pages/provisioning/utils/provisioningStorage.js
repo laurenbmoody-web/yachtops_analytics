@@ -1395,7 +1395,7 @@ export const uploadInvoiceFile = async (file, batchId) => {
  *   3. Insert unmatched items into delivery_inbox
  * Returns { crossMatched, inboxed }.
  */
-export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, scannedBy, scannerBoardIds, deliveryBatchId = null, supplierName = null, deliveryNoteUrl = null, deliveryNoteRef = null }) => {
+export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, scannedBy, scannerBoardIds, deliveryBatchId = null, supplierName = null, supplierPhone = null, supplierEmail = null, supplierAddress = null, orderRef = null, orderDate = null, deliveryNoteUrl = null, deliveryNoteRef = null }) => {
   if (!tenantId || !unmatchedItems?.length) return { crossMatched: 0, inboxed: 0 };
   try {
     console.log('========== TIER 2 DEBUG START ==========');
@@ -1456,8 +1456,11 @@ export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, sc
             const { error: insertErr } = await supabase?.from('cross_department_matches')?.insert({
               tenant_id: tenantId,
               raw_name: extracted.raw_name,
+              item_reference: extracted.item_reference || null,
               quantity: extracted.quantity || 1,
+              ordered_qty: extracted.ordered_qty || null,
               unit_price: extracted.unit_price || null,
+              line_total: extracted.line_total || null,
               unit: extracted.unit || null,
               scanned_by: scannedBy,
               scanned_at: now,
@@ -1468,6 +1471,11 @@ export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, sc
               status: 'pending',
               delivery_batch_id: deliveryBatchId,
               supplier_name: supplierName,
+              supplier_phone: supplierPhone || null,
+              supplier_email: supplierEmail || null,
+              supplier_address: supplierAddress || null,
+              order_ref: orderRef || null,
+              order_date: orderDate || null,
               target_item_qty_needed: targetQtyNeeded || null,
               delivery_note_url: deliveryNoteUrl || null,
               delivery_note_ref: deliveryNoteRef || null,
@@ -1505,17 +1513,26 @@ export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, sc
     for (const item of unmatched) {
       console.log('[Inbox Insert] Data:', {
         raw_name: item.raw_name,
+        item_reference: item.item_reference,
         quantity: item.quantity,
+        ordered_qty: item.ordered_qty,
         unit_price: item.unit_price,
         line_total: item.line_total,
         supplier_name: supplierName,
+        supplier_phone: supplierPhone,
+        supplier_email: supplierEmail,
+        supplier_address: supplierAddress,
+        order_ref: orderRef,
+        order_date: orderDate,
         delivery_note_url: deliveryNoteUrl,
         delivery_note_ref: deliveryNoteRef,
       });
       const { error: inboxErr } = await supabase?.from('delivery_inbox')?.insert({
         tenant_id: tenantId,
         raw_name: item.raw_name,
+        item_reference: item.item_reference || null,
         quantity: item.quantity || 1,
+        ordered_qty: item.ordered_qty || null,
         unit_price: item.unit_price || null,
         unit: item.unit || null,
         line_total: item.line_total || null,
@@ -1523,6 +1540,11 @@ export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, sc
         scanned_at: now,
         delivery_batch_id: deliveryBatchId,
         supplier_name: supplierName,
+        supplier_phone: supplierPhone || null,
+        supplier_email: supplierEmail || null,
+        supplier_address: supplierAddress || null,
+        order_ref: orderRef || null,
+        order_date: orderDate || null,
         delivery_note_url: deliveryNoteUrl || null,
         delivery_note_ref: deliveryNoteRef || null,
         status: 'pending',
@@ -1598,11 +1620,18 @@ export const dismissCrossMatch = async (matchId) => {
       await supabase?.from('delivery_inbox')?.insert({
         tenant_id: match.tenant_id,
         raw_name: match.raw_name,
+        item_reference: match.item_reference || null,
         quantity: match.quantity,
+        ordered_qty: match.ordered_qty || null,
         unit_price: match.unit_price || null,
         line_total: match.line_total || null,
         unit: match.unit || null,
         supplier_name: match.supplier_name || null,
+        supplier_phone: match.supplier_phone || null,
+        supplier_email: match.supplier_email || null,
+        supplier_address: match.supplier_address || null,
+        order_ref: match.order_ref || null,
+        order_date: match.order_date || null,
         delivery_note_url: match.delivery_note_url || null,
         delivery_note_ref: match.delivery_note_ref || null,
         delivery_batch_id: match.delivery_batch_id || null,
