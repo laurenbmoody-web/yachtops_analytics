@@ -118,7 +118,7 @@ const ClaimInline = ({ item, boards, userId, onClaimed }) => {
 
 // ── Item row ──────────────────────────────────────────────────────────────────
 
-const ItemRow = ({ item, boards, userId, isLast, selected, onToggle, onClaimed, bulkFading, docUrl }) => {
+const ItemRow = ({ item, boards, userId, isLast, selected, onToggle, onClaimed, bulkFading, docUrl, archived }) => {
   const [indivFading, setIndivFading] = useState(false);
   const opacity = (bulkFading || indivFading) ? 0 : 1;
 
@@ -133,15 +133,19 @@ const ItemRow = ({ item, boards, userId, isLast, selected, onToggle, onClaimed, 
       padding: '14px 20px',
       borderBottom: isLast ? 'none' : '1px solid #F1F5F9',
       opacity, transition: 'opacity 0.3s ease',
-      background: selected ? '#F0F6FF' : 'transparent',
+      background: archived ? '#FAFAFA' : selected ? '#F0F6FF' : 'transparent',
     }}>
-      {/* Checkbox */}
-      <input
-        type="checkbox"
-        checked={selected}
-        onChange={onToggle}
-        style={{ width: 15, height: 15, accentColor: '#1E3A5F', cursor: 'pointer', flexShrink: 0 }}
-      />
+      {/* Checkbox — hidden for archived items */}
+      {archived ? (
+        <div style={{ width: 15, flexShrink: 0 }} />
+      ) : (
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={onToggle}
+          style={{ width: 15, height: 15, accentColor: '#1E3A5F', cursor: 'pointer', flexShrink: 0 }}
+        />
+      )}
 
       {/* Name + qty */}
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -170,11 +174,17 @@ const ItemRow = ({ item, boards, userId, isLast, selected, onToggle, onClaimed, 
         </p>
       </div>
 
-      {/* Expiry */}
-      <ExpiryBadge expiresAt={item.expires_at} />
+      {/* Expiry / Archived badge */}
+      {archived ? (
+        <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 12, background: '#F1F5F9', color: '#94A3B8', whiteSpace: 'nowrap', flexShrink: 0 }}>
+          Archived
+        </span>
+      ) : (
+        <ExpiryBadge expiresAt={item.expires_at} />
+      )}
 
-      {/* Individual claim */}
-      <ClaimInline item={item} boards={boards} userId={userId} onClaimed={handleClaimed} />
+      {/* Individual claim — hidden for archived items */}
+      {!archived && <ClaimInline item={item} boards={boards} userId={userId} onClaimed={handleClaimed} />}
     </div>
   );
 };
@@ -264,12 +274,13 @@ const DeliveryInbox = () => {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkFadingIds, setBulkFadingIds] = useState(new Set());
   const [bulkClaiming, setBulkClaiming] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   const load = useCallback(async () => {
     if (!activeTenantId) return;
     setLoading(true);
     const [inboxItems, userBoards] = await Promise.all([
-      fetchDeliveryInbox(activeTenantId),
+      fetchDeliveryInbox(activeTenantId, showArchived),
       fetchProvisioningLists(activeTenantId, user?.id).catch(() => []),
     ]);
     setItems(inboxItems || []);
@@ -296,7 +307,7 @@ const DeliveryInbox = () => {
     }
 
     setLoading(false);
-  }, [activeTenantId, user?.id]);
+  }, [activeTenantId, user?.id, showArchived]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -387,11 +398,21 @@ const DeliveryInbox = () => {
             </button>
             <span style={{ color: '#CBD5E1', fontSize: 13 }}>›</span>
             <span style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>Delivery Inbox</span>
-            {items.length > 0 && (
+            {items.filter(i => i.status === 'pending').length > 0 && (
               <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: '#FEF3E2', color: '#B45309' }}>
-                {items.length}
+                {items.filter(i => i.status === 'pending').length}
               </span>
             )}
+            <div style={{ flex: 1 }} />
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#64748B', cursor: 'pointer', userSelect: 'none' }}>
+              <input
+                type="checkbox"
+                checked={showArchived}
+                onChange={e => setShowArchived(e.target.checked)}
+                style={{ width: 13, height: 13, accentColor: '#64748B', cursor: 'pointer' }}
+              />
+              Show archived
+            </label>
           </div>
           <p style={{ margin: 0, fontSize: 12, color: '#94A3B8' }}>
             Items from scanned delivery notes that haven't been matched to any board
@@ -412,8 +433,9 @@ const DeliveryInbox = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {sortedGroups.map(group => {
                 const groupKey = `${group.scannedBy || 'unknown'}__${group.date}`;
-                const groupSelectedCount = group.items.filter(i => selectedIds.has(i.id)).length;
-                const allSelected = groupSelectedCount === group.items.length;
+                const claimableItems = group.items.filter(i => i.status !== 'archived');
+                const groupSelectedCount = claimableItems.filter(i => selectedIds.has(i.id)).length;
+                const allSelected = claimableItems.length > 0 && groupSelectedCount === claimableItems.length;
 
                 return (
                   <div key={groupKey} style={{
@@ -427,11 +449,11 @@ const DeliveryInbox = () => {
                       {/* Select-all for this group */}
                       <input
                         type="checkbox"
-                        checked={allSelected && group.items.length > 0}
+                        checked={allSelected}
                         onChange={() => {
                           setSelectedIds(prev => {
                             const next = new Set(prev);
-                            group.items.forEach(i => allSelected ? next.delete(i.id) : next.add(i.id));
+                            claimableItems.forEach(i => allSelected ? next.delete(i.id) : next.add(i.id));
                             return next;
                           });
                         }}
@@ -460,6 +482,7 @@ const DeliveryInbox = () => {
                         onClaimed={handleClaimed}
                         bulkFading={bulkFadingIds.has(item.id)}
                         docUrl={item.delivery_batch_id ? batchDocUrls[item.delivery_batch_id] : null}
+                        archived={item.status === 'archived'}
                       />
                     ))}
                   </div>

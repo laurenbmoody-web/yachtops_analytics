@@ -30,6 +30,7 @@
  */
 
 import { supabase } from '../../../lib/supabaseClient';
+import { sendNotification, NOTIFICATION_TYPES, SEVERITY } from '../../team-jobs-management/utils/notifications';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -1455,15 +1456,48 @@ export const dismissCrossMatch = async (matchId) => {
         unit_price: match.unit_price, unit: match.unit, scanned_by: match.scanned_by,
         delivery_batch_id: match.delivery_batch_id, status: 'pending',
       });
+      // Notify all tenant users that an item landed in the inbox
+      try {
+        const { data: profiles } = await supabase?.from('profiles')?.select('id')?.eq('tenant_id', match.tenant_id);
+        const userIds = (profiles || []).map(p => p.id).filter(Boolean);
+        if (userIds.length > 0) {
+          sendNotification(userIds, {
+            type: NOTIFICATION_TYPES.DELIVERY_INBOX_ITEM,
+            title: 'Item moved to Delivery Inbox',
+            message: `"${match.raw_name}" was dismissed and moved to the Delivery Inbox`,
+            severity: SEVERITY.INFO,
+            actionUrl: '/provisioning/inbox',
+          });
+        }
+      } catch { /* non-fatal */ }
     }
     return true;
   } catch (err) { console.error('[dismissCrossMatch]', err); return false; }
 };
 
-export const fetchDeliveryInbox = async (tenantId) => {
+export const archiveExpiredInboxItems = async (tenantId) => {
+  if (!tenantId) return;
   try {
-    const { data, error } = await supabase?.from('delivery_inbox')?.select('*')
-      ?.eq('tenant_id', tenantId)?.eq('status', 'pending')?.order('scanned_at', { ascending: false });
+    const now = new Date().toISOString();
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    // Archive items where expires_at has passed
+    await supabase?.from('delivery_inbox')?.update({ status: 'archived' })
+      ?.eq('tenant_id', tenantId)?.eq('status', 'pending')?.lt('expires_at', now);
+    // Archive items with no expires_at older than 7 days
+    await supabase?.from('delivery_inbox')?.update({ status: 'archived' })
+      ?.eq('tenant_id', tenantId)?.eq('status', 'pending')?.is('expires_at', null)?.lt('scanned_at', sevenDaysAgo);
+  } catch { /* non-fatal */ }
+};
+
+export const fetchDeliveryInbox = async (tenantId, includeArchived = false) => {
+  if (!tenantId) return [];
+  await archiveExpiredInboxItems(tenantId);
+  try {
+    let query = supabase?.from('delivery_inbox')?.select('*')?.eq('tenant_id', tenantId);
+    query = includeArchived
+      ? query?.in('status', ['pending', 'archived'])
+      : query?.eq('status', 'pending');
+    const { data, error } = await query?.order('scanned_at', { ascending: false });
     if (error) throw error;
     return data || [];
   } catch (err) { console.error('[fetchDeliveryInbox]', err); return []; }
