@@ -1398,7 +1398,10 @@ export const uploadInvoiceFile = async (file, batchId) => {
 export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, scannedBy, scannerBoardIds, deliveryBatchId = null, supplierName = null }) => {
   if (!tenantId || !unmatchedItems?.length) return { crossMatched: 0, inboxed: 0 };
   try {
-    console.log('[Tier2] Starting cross-department scan for', unmatchedItems.length, 'item(s):', unmatchedItems.map(i => i.raw_name));
+    console.log('========== TIER 2 DEBUG START ==========');
+    console.log('[Tier2] Tenant ID:', tenantId);
+    console.log('[Tier2] Scanner board IDs:', scannerBoardIds);
+    console.log('[Tier2] Items to match:', unmatchedItems.map(i => i.raw_name));
 
     // Fetch all boards in this tenant except the scanner's own board(s)
     let boardQuery = supabase
@@ -1410,8 +1413,10 @@ export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, sc
     if (scannerBoardIds?.length) {
       boardQuery = boardQuery?.not('id', 'in', `(${scannerBoardIds.join(',')})`);
     }
-    const { data: otherBoards } = await boardQuery;
-    console.log('[Tier2] Other boards found:', otherBoards?.length || 0, otherBoards?.map(b => b.title));
+    const { data: otherBoards, error: boardsError } = await boardQuery;
+    console.log('[Tier2] Boards query error:', boardsError);
+    console.log('[Tier2] Other boards found:', otherBoards?.length || 0);
+    console.log('[Tier2] Other boards:', otherBoards?.map(b => ({ id: b.id, title: b.title })));
 
     const matchedRawNames = new Set();
     let crossMatched = 0;
@@ -1420,14 +1425,17 @@ export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, sc
 
     for (const board of otherBoards || []) {
       // Only open items that haven't already been received
-      const { data: boardItems } = await supabase
+      const { data: boardItems, error: itemsError } = await supabase
         ?.from('provisioning_items')
         ?.select('id, name, status, receive_batch_id')
         ?.eq('list_id', board.id)
         ?.in('status', ['draft', 'pending', 'to_order', 'ordered'])
         ?.is('receive_batch_id', null);
 
-      console.log(`[Tier2] Board "${board.title}": ${boardItems?.length || 0} open item(s)`);
+      console.log(`[Tier2] Board "${board.title}" (${board.id}):`);
+      console.log(`[Tier2]   - Query error:`, itemsError);
+      console.log(`[Tier2]   - Items found:`, boardItems?.length || 0);
+      console.log(`[Tier2]   - Item names:`, boardItems?.map(i => `${i.name} (${i.status})`));
 
       for (const extracted of unmatchedItems) {
         if (matchedRawNames.has(extracted.raw_name)) continue; // already matched earlier
@@ -1437,9 +1445,12 @@ export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, sc
           const boardLower = (boardItem.name || '').toLowerCase().trim();
           if (!extLower || !boardLower) continue;
 
-          if (extLower.includes(boardLower) || boardLower.includes(extLower)) {
+          const containsMatch = extLower.includes(boardLower) || boardLower.includes(extLower);
+          console.log(`[Tier2]   - Comparing "${extLower}" vs "${boardLower}" = ${containsMatch}`);
+
+          if (containsMatch) {
             const confidence = extLower === boardLower ? 'high' : 'medium';
-            console.log(`[Tier2] ✓ MATCH (${confidence}): "${extracted.raw_name}" → "${boardItem.name}" on "${board.title}"`);
+            console.log(`[Tier2] ✓✓✓ MATCH (${confidence}): "${extracted.raw_name}" → "${boardItem.name}" on "${board.title}"`);
 
             const { error: insertErr } = await supabase?.from('cross_department_matches')?.insert({
               tenant_id: tenantId,
@@ -1472,6 +1483,7 @@ export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, sc
 
     // Items with no match on any board → Delivery Inbox
     const unmatched = unmatchedItems.filter(i => !matchedRawNames.has(i.raw_name));
+    console.log('[Tier2] Unmatched items going to inbox:', unmatched.map(i => i.raw_name));
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     for (const item of unmatched) {
       const { error: inboxErr } = await supabase?.from('delivery_inbox')?.insert({
@@ -1492,6 +1504,7 @@ export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, sc
     }
 
     console.log(`[Tier2] Done — crossMatched: ${crossMatched}, inboxed: ${inboxed}`);
+    console.log('========== TIER 2 DEBUG END ==========');
     return { crossMatched, inboxed };
   } catch (err) {
     console.error('[triggerCrossDepartmentMatch]', err);
