@@ -1387,14 +1387,116 @@ export const uploadInvoiceFile = async (file, batchId) => {
 
 // ── Smart Delivery ────────────────────────────────────────────────────────────
 
+/**
+ * Tier 2 cross-department matching — client-side implementation.
+ * For each unmatched item from a delivery note scan:
+ *   1. Search all OTHER boards in the tenant for open items with a matching name
+ *   2. Insert a cross_department_match row for any match found
+ *   3. Insert unmatched items into delivery_inbox
+ * Returns { crossMatched, inboxed }.
+ */
 export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, scannedBy, scannerBoardIds, deliveryBatchId = null, supplierName = null }) => {
+  if (!tenantId || !unmatchedItems?.length) return { crossMatched: 0, inboxed: 0 };
   try {
-    const { data, error } = await supabase.functions.invoke('matchCrossDepartment', {
-      body: { unmatchedItems, tenantId, scannedBy, scannerBoardIds, deliveryBatchId, supplierName },
-    });
-    if (error) { console.error('[triggerCrossDepartmentMatch]', error); return { crossMatched: 0, inboxed: 0 }; }
-    return data;
-  } catch (err) { console.error('[triggerCrossDepartmentMatch]', err); return { crossMatched: 0, inboxed: 0 }; }
+    console.log('[Tier2] Starting cross-department scan for', unmatchedItems.length, 'item(s):', unmatchedItems.map(i => i.raw_name));
+
+    // Fetch all boards in this tenant except the scanner's own board(s)
+    let boardQuery = supabase
+      ?.from('provisioning_lists')
+      ?.select('id, title, created_by')
+      ?.eq('tenant_id', tenantId)
+      ?.eq('is_template', false)
+      ?.neq('status', 'completed');
+    if (scannerBoardIds?.length) {
+      boardQuery = boardQuery?.not('id', 'in', `(${scannerBoardIds.join(',')})`);
+    }
+    const { data: otherBoards } = await boardQuery;
+    console.log('[Tier2] Other boards found:', otherBoards?.length || 0, otherBoards?.map(b => b.title));
+
+    const matchedRawNames = new Set();
+    let crossMatched = 0;
+    let inboxed = 0;
+    const now = new Date().toISOString();
+
+    for (const board of otherBoards || []) {
+      // Only open items that haven't already been received
+      const { data: boardItems } = await supabase
+        ?.from('provisioning_items')
+        ?.select('id, name, status, receive_batch_id')
+        ?.eq('list_id', board.id)
+        ?.in('status', ['draft', 'pending', 'to_order', 'ordered'])
+        ?.is('receive_batch_id', null);
+
+      console.log(`[Tier2] Board "${board.title}": ${boardItems?.length || 0} open item(s)`);
+
+      for (const extracted of unmatchedItems) {
+        if (matchedRawNames.has(extracted.raw_name)) continue; // already matched earlier
+        const extLower = (extracted.raw_name || '').toLowerCase().trim();
+
+        for (const boardItem of boardItems || []) {
+          const boardLower = (boardItem.name || '').toLowerCase().trim();
+          if (!extLower || !boardLower) continue;
+
+          if (extLower.includes(boardLower) || boardLower.includes(extLower)) {
+            const confidence = extLower === boardLower ? 'high' : 'medium';
+            console.log(`[Tier2] ✓ MATCH (${confidence}): "${extracted.raw_name}" → "${boardItem.name}" on "${board.title}"`);
+
+            const { error: insertErr } = await supabase?.from('cross_department_matches')?.insert({
+              tenant_id: tenantId,
+              raw_name: extracted.raw_name,
+              quantity: extracted.quantity || 1,
+              unit_price: extracted.unit_price || null,
+              unit: extracted.unit || null,
+              scanned_by: scannedBy,
+              scanned_at: now,
+              matched_board_id: board.id,
+              matched_item_id: boardItem.id,
+              match_confidence: confidence,
+              target_user_id: board.created_by,
+              status: 'pending',
+              delivery_batch_id: deliveryBatchId,
+              supplier_name: supplierName,
+            });
+
+            if (!insertErr) {
+              matchedRawNames.add(extracted.raw_name);
+              crossMatched++;
+            } else {
+              console.error('[Tier2] insert cross_department_matches error:', insertErr);
+            }
+            break; // one board match per extracted item
+          }
+        }
+      }
+    }
+
+    // Items with no match on any board → Delivery Inbox
+    const unmatched = unmatchedItems.filter(i => !matchedRawNames.has(i.raw_name));
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    for (const item of unmatched) {
+      const { error: inboxErr } = await supabase?.from('delivery_inbox')?.insert({
+        tenant_id: tenantId,
+        raw_name: item.raw_name,
+        quantity: item.quantity || 1,
+        unit_price: item.unit_price || null,
+        unit: item.unit || null,
+        scanned_by: scannedBy,
+        scanned_at: now,
+        delivery_batch_id: deliveryBatchId,
+        supplier_name: supplierName,
+        status: 'pending',
+        expires_at: expiresAt,
+      });
+      if (!inboxErr) inboxed++;
+      else console.error('[Tier2] insert delivery_inbox error:', inboxErr);
+    }
+
+    console.log(`[Tier2] Done — crossMatched: ${crossMatched}, inboxed: ${inboxed}`);
+    return { crossMatched, inboxed };
+  } catch (err) {
+    console.error('[triggerCrossDepartmentMatch]', err);
+    return { crossMatched: 0, inboxed: 0 };
+  }
 };
 
 export const fetchUserNames = async (userIds) => {
