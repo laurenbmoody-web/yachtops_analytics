@@ -1299,7 +1299,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
             supplierName: parsedNote?.supplier_name || null,
           });
           if (result.crossMatched > 0) {
-            showToast(`${result.crossMatched} item${result.crossMatched > 1 ? 's' : ''} matched to other departments`, 'info');
+            showToast(`${result.crossMatched} item${result.crossMatched > 1 ? 's' : ''} matched other departments — HODs notified`, 'info');
             // Notify each matched board's target user
             try {
               const { data: newMatches } = await supabase
@@ -1329,7 +1329,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
             } catch { /* non-fatal */ }
           }
           if (result.inboxed > 0) {
-            showToast(`${result.inboxed} item${result.inboxed > 1 ? 's' : ''} sent to Delivery Inbox`, 'info');
+            showToast(`${result.inboxed} item${result.inboxed > 1 ? 's' : ''} unmatched — sent to Delivery Inbox`, 'warning');
             // Notify all tenant users about unclaimed inbox items
             try {
               const currentTenantId = tenantId || list?.tenant_id;
