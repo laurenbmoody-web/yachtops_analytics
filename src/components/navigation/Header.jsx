@@ -149,13 +149,15 @@ const Header = () => {
     }
   };
 
-  // Update unread count
+  // Update unread count — use Supabase auth UUID (authUser?.id) so it matches
+  // the userId stored in notifications by sendNotification (which uses board.created_by,
+  // also a Supabase UUID). currentUser?.id is a legacy localStorage ID that won't match.
   useEffect(() => {
-    if (currentUser?.id) {
-      const count = getUnreadCount(currentUser?.id);
+    if (authUser?.id) {
+      const count = getUnreadCount(authUser?.id);
       setUnreadCount(count);
     }
-  }, [currentUser, notificationsOpen]);
+  }, [authUser, notificationsOpen]);
 
   // Close menus when clicking outside
   useEffect(() => {
