@@ -1503,6 +1503,15 @@ export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, sc
     console.log('[Tier2] Unmatched items going to inbox:', unmatched.map(i => i.raw_name));
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     for (const item of unmatched) {
+      console.log('[Inbox Insert] Data:', {
+        raw_name: item.raw_name,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        line_total: item.line_total,
+        supplier_name: supplierName,
+        delivery_note_url: deliveryNoteUrl,
+        delivery_note_ref: deliveryNoteRef,
+      });
       const { error: inboxErr } = await supabase?.from('delivery_inbox')?.insert({
         tenant_id: tenantId,
         raw_name: item.raw_name,
@@ -1587,9 +1596,20 @@ export const dismissCrossMatch = async (matchId) => {
     await supabase?.from('cross_department_matches')?.update({ status: 'dismissed' })?.eq('id', matchId);
     if (match) {
       await supabase?.from('delivery_inbox')?.insert({
-        tenant_id: match.tenant_id, raw_name: match.raw_name, quantity: match.quantity,
-        unit_price: match.unit_price, unit: match.unit, scanned_by: match.scanned_by,
-        delivery_batch_id: match.delivery_batch_id, status: 'pending',
+        tenant_id: match.tenant_id,
+        raw_name: match.raw_name,
+        quantity: match.quantity,
+        unit_price: match.unit_price || null,
+        line_total: match.line_total || null,
+        unit: match.unit || null,
+        supplier_name: match.supplier_name || null,
+        delivery_note_url: match.delivery_note_url || null,
+        delivery_note_ref: match.delivery_note_ref || null,
+        delivery_batch_id: match.delivery_batch_id || null,
+        scanned_by: match.scanned_by,
+        scanned_at: match.scanned_at || new Date().toISOString(),
+        status: 'pending',
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       });
       // Notify all tenant users that an item landed in the inbox
       try {

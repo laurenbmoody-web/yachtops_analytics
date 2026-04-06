@@ -405,7 +405,7 @@ const fmtCurrency = (val) => {
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
 };
 
-const generateReturnSlipHTML = (bySupplier, tenantName, generatedBy) => {
+const generateReturnSlipHTML = (bySupplier, tenantName, generatedBy, vessel = null) => {
   const rows = Object.entries(bySupplier).map(([supplier, items]) => {
     // Collect unique delivery note refs/urls for this supplier
     const noteRefs = [...new Set(items.map(i => i.delivery_note_ref).filter(Boolean))];
@@ -473,20 +473,39 @@ const generateReturnSlipHTML = (bySupplier, tenantName, generatedBy) => {
   </style>
 </head>
 <body>
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px">
     <div>
       <h1 style="margin:0;font-size:22px;font-weight:700;color:#1E3A5F">Return Slip</h1>
-      <p style="margin:4px 0 0;font-size:13px;color:#64748B">${tenantName || 'Vessel'}</p>
+      <p style="margin:4px 0 0;font-size:13px;color:#64748B">${vessel?.vessel_type_label || tenantName || 'Vessel'}${vessel?.imo_number ? ` &nbsp;·&nbsp; IMO: ${vessel.imo_number}` : ''}</p>
     </div>
     <div style="text-align:right;font-size:12px;color:#64748B">
       <p style="margin:0">Date: ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
       <p style="margin:4px 0 0">Prepared by: ${generatedBy || 'Unknown'}</p>
     </div>
   </div>
+  ${vessel ? `
+  <div style="margin-bottom:24px;padding:14px 16px;background:#F8FAFC;border-radius:8px;font-size:12px;color:#334155">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 24px">
+      <div><span style="color:#94A3B8">Flag:</span> ${vessel.flag || '—'}</div>
+      <div><span style="color:#94A3B8">Official Number:</span> ${vessel.official_number || '—'}</div>
+      <div><span style="color:#94A3B8">Port of Registry:</span> ${vessel.port_of_registry || '—'}</div>
+      <div><span style="color:#94A3B8">LOA:</span> ${vessel.loa_m ? vessel.loa_m + 'm' : '—'}</div>
+      <div><span style="color:#94A3B8">IMO Number:</span> ${vessel.imo_number || '—'}</div>
+      <div><span style="color:#94A3B8">Gross Tonnage:</span> ${vessel.gt || '—'}</div>
+    </div>
+  </div>` : ''}
   ${rows}
   <div style="margin-top:40px;padding-top:16px;border-top:1px solid #E2E8F0;display:flex;gap:60px;font-size:12px;color:#64748B">
-    <div><p style="margin:0">Vessel authorisation signature</p><div style="margin-top:28px;border-top:1px solid #CBD5E1;width:200px"></div></div>
-    <div><p style="margin:0">Supplier acknowledgement</p><div style="margin-top:28px;border-top:1px solid #CBD5E1;width:200px"></div></div>
+    <div>
+      <div style="margin-bottom:28px;border-bottom:1px solid #CBD5E1;width:200px"></div>
+      <p style="margin:0 0 2px">Vessel authorisation signature</p>
+      <p style="margin:0;color:#94A3B8">Name &amp; date</p>
+    </div>
+    <div>
+      <div style="margin-bottom:28px;border-bottom:1px solid #CBD5E1;width:200px"></div>
+      <p style="margin:0 0 2px">Supplier acknowledgement</p>
+      <p style="margin:0;color:#94A3B8">Name &amp; date</p>
+    </div>
   </div>
   <div style="text-align:center;margin-top:20px">
     <button onclick="window.print()" style="padding:10px 24px;background:#1E3A5F;color:white;border:none;border-radius:8px;font-size:14px;cursor:pointer">
@@ -545,7 +564,7 @@ const ReturnsView = ({ tenantId, userId, tenantName, userFullName }) => {
     });
   };
 
-  const handleGenerateSlip = () => {
+  const handleGenerateSlip = async () => {
     const selected = returnItems.filter(i => selectedIds.has(i.id));
     const grouped = selected.reduce((acc, item) => {
       const s = item.supplier_name || 'Unknown supplier';
@@ -553,7 +572,16 @@ const ReturnsView = ({ tenantId, userId, tenantName, userFullName }) => {
       acc[s].push(item);
       return acc;
     }, {});
-    const html = generateReturnSlipHTML(grouped, tenantName, userFullName);
+    let vessel = null;
+    try {
+      const { data } = await supabase
+        ?.from('vessels')
+        ?.select('vessel_type_label, imo_number, flag, port_of_registry, official_number, loa_m, gt')
+        ?.eq('tenant_id', tenantId)
+        ?.single();
+      vessel = data;
+    } catch { /* non-fatal */ }
+    const html = generateReturnSlipHTML(grouped, tenantName, userFullName, vessel);
     const win = window.open('', '_blank');
     if (win) { win.document.write(html); win.document.close(); }
   };
