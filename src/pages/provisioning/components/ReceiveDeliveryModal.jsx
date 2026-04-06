@@ -1354,6 +1354,47 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
         }
       }
 
+      // ── Tier 2+3: Route partial-receive remainders (received < extracted qty) ──
+      if (parsedNote?.line_items?.length > 0) {
+        const remainderItems = [];
+        for (const li of parsedNote.line_items) {
+          if (!li.matched_item_id || li.match_confidence === 'none') continue;
+          const receivedUpdate = receivedUpdates.find(u => u.id === li.matched_item_id);
+          if (!receivedUpdate) continue;
+          const extractedQty = parseFloat(li.quantity) || 0;
+          const receivedQty = receivedUpdate.quantity_received || 0;
+          if (extractedQty > 0 && receivedQty < extractedQty) {
+            remainderItems.push({
+              raw_name: li.raw_name || li.description || li.name || 'Unknown item',
+              quantity: extractedQty - receivedQty,
+              unit_price: li.unit_price || null,
+              unit: li.unit || null,
+            });
+          }
+        }
+        if (remainderItems.length > 0) {
+          try {
+            const remainderResult = await triggerCrossDepartmentMatch({
+              unmatchedItems: remainderItems,
+              tenantId: tenantId || list?.tenant_id,
+              scannedBy: user?.id,
+              scannerBoardIds: multiBoard
+                ? [...new Set(items.map(i => i._boardId).filter(Boolean))]
+                : [list?.id],
+              deliveryBatchId: firstBatchId,
+              supplierName: parsedNote?.supplier_name || null,
+            });
+            if (remainderResult.crossMatched > 0) {
+              showToast(`${remainderResult.crossMatched} partial shortfall${remainderResult.crossMatched !== 1 ? 's' : ''} routed to other departments`, 'info');
+            } else if (remainderResult.inboxed > 0) {
+              showToast(`${remainderResult.inboxed} partial shortfall${remainderResult.inboxed !== 1 ? 's' : ''} sent to Delivery Inbox`, 'warning');
+            }
+          } catch (err) {
+            console.error('[ReceiveDeliveryModal] partial remainder routing error:', err);
+          }
+        }
+      }
+
       // Log activity for this delivery receive
       logActivity({
         module: 'provisioning',
