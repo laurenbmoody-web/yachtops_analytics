@@ -1427,7 +1427,7 @@ export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, sc
       // Only open items that haven't already been received
       const { data: boardItems, error: itemsError } = await supabase
         ?.from('provisioning_items')
-        ?.select('id, name, status, receive_batch_id')
+        ?.select('id, name, status, receive_batch_id, quantity_ordered, quantity_received')
         ?.eq('list_id', board.id)
         ?.in('status', ['draft', 'pending', 'to_order', 'ordered'])
         ?.is('receive_batch_id', null);
@@ -1452,6 +1452,7 @@ export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, sc
             const confidence = extLower === boardLower ? 'high' : 'medium';
             console.log(`[Tier2] ✓✓✓ MATCH (${confidence}): "${extracted.raw_name}" → "${boardItem.name}" on "${board.title}"`);
 
+            const targetQtyNeeded = Math.max(0, (boardItem.quantity_ordered || 0) - (boardItem.quantity_received || 0));
             const { error: insertErr } = await supabase?.from('cross_department_matches')?.insert({
               tenant_id: tenantId,
               raw_name: extracted.raw_name,
@@ -1467,6 +1468,7 @@ export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, sc
               status: 'pending',
               delivery_batch_id: deliveryBatchId,
               supplier_name: supplierName,
+              target_item_qty_needed: targetQtyNeeded || null,
             });
 
             if (!insertErr) {
@@ -1541,7 +1543,7 @@ export const fetchPendingCrossMatches = async (userId) => {
   try {
     const { data, error } = await supabase
       ?.from('cross_department_matches')
-      ?.select('*, matched_board:provisioning_lists(id, title, department), matched_item:provisioning_items(id, name, brand, size, unit, status, receive_batch_id)')
+      ?.select('*, matched_board:provisioning_lists(id, title, department), matched_item:provisioning_items(id, name, brand, size, unit, status, receive_batch_id, quantity_ordered, quantity_received)')
       ?.eq('target_user_id', userId)
       ?.eq('status', 'pending')
       ?.order('created_at', { ascending: false });
