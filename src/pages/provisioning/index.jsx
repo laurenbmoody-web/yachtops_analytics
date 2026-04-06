@@ -20,6 +20,7 @@ import {
   updateProvisioningList,
   duplicateList,
   upsertItems,
+  updateProvisioningItem,
   fetchSuppliers,
   fetchVesselDepartments,
   fetchCrewMembers,
@@ -565,7 +566,8 @@ const ProvisioningWorkspace = () => {
       [listId]: (prevMap[listId] || []).map(i => i.id === item.id ? { ...i, quantity_ordered: newQty } : i),
     }));
     try {
-      await upsertItems([{ id: item.id, list_id: listId, quantity_ordered: newQty }]);
+      // Use plain UPDATE (not upsert) — upsert fires INSERT first which fails on partial payload
+      await updateProvisioningItem(item.id, { quantity_ordered: newQty });
     } catch {
       // Revert on failure
       setItemsByList(prevMap => ({
@@ -937,6 +939,7 @@ const ProvisioningWorkspace = () => {
         tenantId={activeTenantId}
         departments={departments}
         suppliers={suppliers}
+        theme="light"
         onSaved={handleItemSaved}
         onDeleted={handleItemDeleted}
         onClose={() => setItemDrawer({ open: false, item: null, listId: null })}
