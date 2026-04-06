@@ -2,39 +2,32 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../AppIcon';
 import Button from '../ui/Button';
-import { 
-  getUserNotifications, 
-  markNotificationRead, 
+import {
+  getUserNotifications,
+  markNotificationRead,
   markAllNotificationsRead,
   clearReadNotifications,
   NOTIFICATION_TYPES,
   SEVERITY
 } from '../../pages/team-jobs-management/utils/notifications';
-import { getCurrentUser } from '../../utils/authStorage';
+import { useAuth } from '../../contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 
 const NotificationsDrawer = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
-  const [currentUser, setCurrentUser] = useState(null);
+  const { user: authUser } = useAuth();
+  const userId = authUser?.id;
   const [activeTab, setActiveTab] = useState('unread');
   const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
-    const user = getCurrentUser();
-    setCurrentUser(user);
-  }, []);
-
-  useEffect(() => {
-    if (currentUser?.id) {
-      loadNotifications();
-    }
-  }, [currentUser, activeTab]);
+    if (userId) loadNotifications();
+  }, [userId, activeTab]);
 
   const loadNotifications = () => {
-    if (!currentUser?.id) return;
-    
+    if (!userId) return;
     const unreadOnly = activeTab === 'unread';
-    const userNotifications = getUserNotifications(currentUser?.id, unreadOnly);
+    const userNotifications = getUserNotifications(userId, unreadOnly);
     setNotifications(userNotifications);
   };
 
@@ -52,14 +45,14 @@ const NotificationsDrawer = ({ isOpen, onClose }) => {
   };
 
   const handleMarkAllRead = () => {
-    if (!currentUser?.id) return;
-    markAllNotificationsRead(currentUser?.id);
+    if (!userId) return;
+    markAllNotificationsRead(userId);
     loadNotifications();
   };
 
   const handleClearRead = () => {
-    if (!currentUser?.id) return;
-    clearReadNotifications(currentUser?.id);
+    if (!userId) return;
+    clearReadNotifications(userId);
     loadNotifications();
   };
 
