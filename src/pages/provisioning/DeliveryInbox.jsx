@@ -407,53 +407,70 @@ const fmtCurrency = (val) => {
 
 const generateReturnSlipHTML = (bySupplier, tenantName, generatedBy, vessel = null) => {
   const rows = Object.entries(bySupplier).map(([supplier, items]) => {
-    // Collect unique delivery note refs/urls for this supplier
-    const noteRefs = [...new Set(items.map(i => i.delivery_note_ref).filter(Boolean))];
-    const noteUrls = [...new Set(items.map(i => i.delivery_note_url).filter(Boolean))];
-    const hasNoteInfo = noteRefs.length > 0 || noteUrls.length > 0;
-
-    const noteInfoHTML = hasNoteInfo ? `
-      <p style="margin:4px 0 8px;font-size:11px;color:#475569">
-        ${noteRefs.length > 0 ? `Delivery ref: <strong>${noteRefs.join(', ')}</strong>` : ''}
-        ${noteRefs.length > 0 && noteUrls.length > 0 ? ' &nbsp;·&nbsp; ' : ''}
-        ${noteUrls.length > 0 ? noteUrls.map(u => `<a href="${u}" style="color:#1E3A5F">View delivery note ↗</a>`).join(', ') : ''}
-      </p>` : '';
+    // Collect unique supplier contact / order metadata from items
+    const first = items[0] || {};
+    const supplierAddress = first.supplier_address || null;
+    const supplierPhone   = first.supplier_phone   || null;
+    const supplierEmail   = first.supplier_email   || null;
+    const orderRefs  = [...new Set(items.map(i => i.order_ref).filter(Boolean))];
+    const orderDates = [...new Set(items.map(i => i.order_date).filter(Boolean))];
+    const noteRefs   = [...new Set(items.map(i => i.delivery_note_ref).filter(Boolean))];
+    const noteUrls   = [...new Set(items.map(i => i.delivery_note_url).filter(Boolean))];
 
     const supplierTotal = items.reduce((sum, i) => {
       const n = parseFloat(i.line_total);
       return sum + (isNaN(n) ? 0 : n);
     }, 0);
-    const showTotal = items.some(i => i.unit_price || i.line_total);
+    const showPricing = items.some(i => i.unit_price || i.line_total);
+    const showRef     = items.some(i => i.item_reference);
+    const showOrdered = items.some(i => i.ordered_qty != null);
+    // col span for subtotal row: ref? + item + ordered? + delivered + pricing(2)? + reason
+    const colCount = (showRef ? 1 : 0) + 1 + (showOrdered ? 1 : 0) + 1 + (showPricing ? 2 : 0) + 1;
 
     return `
-    <div style="margin-bottom:28px">
-      <h3 style="margin:0 0 2px;font-size:13px;font-weight:700;color:#1E3A5F;border-bottom:1px solid #E2E8F0;padding-bottom:6px">
-        ${supplier}
-      </h3>
-      ${noteInfoHTML}
+    <div style="margin-bottom:32px">
+      <div style="border-bottom:2px solid #1E3A5F;padding-bottom:8px;margin-bottom:10px">
+        <h3 style="margin:0 0 2px;font-size:14px;font-weight:700;color:#1E3A5F">${supplier}</h3>
+        ${supplierAddress ? `<p style="margin:2px 0;font-size:11px;color:#475569">${supplierAddress}</p>` : ''}
+        <div style="display:flex;gap:20px;margin-top:4px;font-size:11px;color:#475569">
+          ${supplierPhone ? `<span>Tel: ${supplierPhone}</span>` : ''}
+          ${supplierEmail ? `<span>Email: ${supplierEmail}</span>` : ''}
+        </div>
+      </div>
+      ${orderRefs.length > 0 || orderDates.length > 0 || noteRefs.length > 0 || noteUrls.length > 0 ? `
+      <div style="display:flex;gap:24px;margin-bottom:10px;font-size:11px;color:#475569;flex-wrap:wrap">
+        ${orderRefs.length  > 0 ? `<span><strong>Order ref:</strong> ${orderRefs.join(', ')}</span>`           : ''}
+        ${orderDates.length > 0 ? `<span><strong>Order date:</strong> ${orderDates.join(', ')}</span>`         : ''}
+        ${noteRefs.length   > 0 ? `<span><strong>Delivery note ref:</strong> ${noteRefs.join(', ')}</span>`    : ''}
+        ${noteUrls.length   > 0 ? noteUrls.map(u => `<a href="${u}" style="color:#1E3A5F">View delivery note ↗</a>`).join(' ') : ''}
+      </div>` : ''}
       <table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead>
           <tr style="background:#F8FAFC">
-            <th style="text-align:left;padding:6px 8px;font-weight:600">Item</th>
-            <th style="text-align:center;padding:6px 8px;font-weight:600;width:70px">Qty</th>
-            ${showTotal ? `<th style="text-align:right;padding:6px 8px;font-weight:600;width:80px">Unit price</th>
-            <th style="text-align:right;padding:6px 8px;font-weight:600;width:80px">Line total</th>` : ''}
+            ${showRef     ? `<th style="text-align:left;padding:6px 8px;font-weight:600;width:80px;color:#64748B">Ref</th>` : ''}
+            <th style="text-align:left;padding:6px 8px;font-weight:600">Description</th>
+            ${showOrdered ? `<th style="text-align:center;padding:6px 8px;font-weight:600;width:65px">Ordered</th>` : ''}
+            <th style="text-align:center;padding:6px 8px;font-weight:600;width:70px">Delivered</th>
+            ${showPricing ? `<th style="text-align:right;padding:6px 8px;font-weight:600;width:80px">Unit price</th>
+            <th style="text-align:right;padding:6px 8px;font-weight:600;width:80px">Total</th>` : ''}
             <th style="text-align:left;padding:6px 8px;font-weight:600">Reason</th>
           </tr>
         </thead>
         <tbody>
           ${items.map(i => `
             <tr style="border-top:1px solid #F1F5F9">
+              ${showRef     ? `<td style="padding:7px 8px;color:#94A3B8;font-size:11px">${i.item_reference || '—'}</td>` : ''}
               <td style="padding:7px 8px">${i.raw_name}</td>
+              ${showOrdered ? `<td style="padding:7px 8px;text-align:center;color:#64748B">${i.ordered_qty ?? '—'}</td>` : ''}
               <td style="padding:7px 8px;text-align:center">${i.quantity ?? '—'}${i.unit ? ' ' + i.unit : ''}</td>
-              ${showTotal ? `<td style="padding:7px 8px;text-align:right;color:#475569">${fmtCurrency(i.unit_price)}</td>
+              ${showPricing ? `<td style="padding:7px 8px;text-align:right;color:#475569">${fmtCurrency(i.unit_price)}</td>
               <td style="padding:7px 8px;text-align:right;font-weight:500">${fmtCurrency(i.line_total)}</td>` : ''}
               <td style="padding:7px 8px;color:#64748B">Not ordered / Overage</td>
             </tr>
           `).join('')}
-          ${showTotal && supplierTotal > 0 ? `
+          ${showPricing && supplierTotal > 0 ? `
           <tr style="border-top:2px solid #E2E8F0;background:#F8FAFC">
-            <td colspan="${showTotal ? 3 : 2}" style="padding:7px 8px;font-weight:600;text-align:right">Supplier subtotal</td>
+            <td colspan="${colCount - 2}" style="padding:7px 8px;font-weight:600;text-align:right">Supplier subtotal</td>
             <td style="padding:7px 8px;text-align:right;font-weight:700">${fmtCurrency(supplierTotal)}</td>
             <td></td>
           </tr>` : ''}

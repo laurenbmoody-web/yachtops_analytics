@@ -130,13 +130,17 @@ function extractLineItems(analyzeResult: any, boardItems: any[]) {
     const cells: any[] = table.cells || [];
 
     // Step 1: column detection from explicit header cells
-    let nameCol = -1, qtyCol = -1, priceCol = -1;
+    let refCol = -1, nameCol = -1, orderedQtyCol = -1, qtyCol = -1, unitCol = -1, priceCol = -1, totalCol = -1;
     const headerCells = cells.filter((c: any) => c.kind === 'columnHeader');
     for (const hc of headerCells) {
       const h = (hc.content || '').toLowerCase();
-      if (nameCol  === -1 && /product|description|item|article|name/.test(h)) nameCol  = hc.columnIndex;
-      if (qtyCol   === -1 && /deliver|receiv|qty|quantity|amount/.test(h))     qtyCol   = hc.columnIndex;
-      if (priceCol === -1 && /price|cost|each|unit\s*price/.test(h))           priceCol = hc.columnIndex;
+      if (refCol        === -1 && /\b(ref|code|sku|article\s*no|item\s*no|part\s*no)\b/.test(h))         refCol        = hc.columnIndex;
+      if (nameCol       === -1 && /product|description|item|article|name/.test(h))                        nameCol       = hc.columnIndex;
+      if (orderedQtyCol === -1 && /order(ed)?|requir|request/.test(h))                                    orderedQtyCol = hc.columnIndex;
+      if (qtyCol        === -1 && /deliver|receiv|dispatch|qty|quantity|amount/.test(h))                   qtyCol        = hc.columnIndex;
+      if (unitCol       === -1 && /\b(unit|uom|each|measure)\b/.test(h))                                  unitCol       = hc.columnIndex;
+      if (priceCol      === -1 && /unit\s*price|unit\s*cost|price\s*each/.test(h))                        priceCol      = hc.columnIndex;
+      if (totalCol      === -1 && /\b(total|amount|value|line\s*total|ext)\b/.test(h))                    totalCol      = hc.columnIndex;
     }
     console.log('[parseDeliveryNote] header cells:', headerCells.map((c: any) => `col${c.columnIndex}="${c.content}"`));
 
@@ -144,16 +148,20 @@ function extractLineItems(analyzeResult: any, boardItems: any[]) {
     if (nameCol === -1 && qtyCol === -1) {
       for (const c of cells.filter((c: any) => c.rowIndex === 0)) {
         const h = (c.content || '').toLowerCase();
-        if (nameCol  === -1 && /product|description|item|article|name/.test(h)) nameCol  = c.columnIndex;
-        if (qtyCol   === -1 && /deliver|receiv|qty|quantity|amount/.test(h))     qtyCol   = c.columnIndex;
-        if (priceCol === -1 && /price|cost|each|unit\s*price/.test(h))           priceCol = c.columnIndex;
+        if (refCol        === -1 && /\b(ref|code|sku|article\s*no|item\s*no|part\s*no)\b/.test(h))         refCol        = c.columnIndex;
+        if (nameCol       === -1 && /product|description|item|article|name/.test(h))                        nameCol       = c.columnIndex;
+        if (orderedQtyCol === -1 && /order(ed)?|requir|request/.test(h))                                    orderedQtyCol = c.columnIndex;
+        if (qtyCol        === -1 && /deliver|receiv|dispatch|qty|quantity|amount/.test(h))                   qtyCol        = c.columnIndex;
+        if (unitCol       === -1 && /\b(unit|uom|each|measure)\b/.test(h))                                  unitCol       = c.columnIndex;
+        if (priceCol      === -1 && /unit\s*price|unit\s*cost|price\s*each/.test(h))                        priceCol      = c.columnIndex;
+        if (totalCol      === -1 && /\b(total|amount|value|line\s*total|ext)\b/.test(h))                    totalCol      = c.columnIndex;
       }
     }
 
     // Step 3: positional defaults if still undetected
     if (nameCol === -1) nameCol = 1;  // typically 2nd column
     if (qtyCol  === -1) qtyCol  = 3;  // typically 4th column (DELIVERED QTY)
-    console.log('[parseDeliveryNote] Table columns — name:', nameCol, 'qty:', qtyCol, 'price:', priceCol);
+    console.log('[parseDeliveryNote] Table columns — ref:', refCol, 'name:', nameCol, 'orderedQty:', orderedQtyCol, 'qty:', qtyCol, 'unit:', unitCol, 'price:', priceCol, 'total:', totalCol);
 
     // Step 4: group cells by row, skip header rows
     const dataStartRow = headerCells.length > 0 ? 1 : 1;
@@ -166,17 +174,25 @@ function extractLineItems(analyzeResult: any, boardItems: any[]) {
 
     for (const rowIdx of Object.keys(rows).map(Number).filter((n) => n >= dataStartRow).sort((a, b) => a - b)) {
       const row = rows[rowIdx];
-      const rawName  = (row[nameCol]  || '').trim();
-      const qtyStr   = (row[qtyCol]   || '').trim();
-      const priceStr = priceCol >= 0 ? (row[priceCol] || '').trim() : '';
+      const rawName    = (row[nameCol]  || '').trim();
+      const qtyStr     = (row[qtyCol]   || '').trim();
+      const priceStr   = priceCol  >= 0 ? (row[priceCol]  || '').trim() : '';
+      const totalStr   = totalCol  >= 0 ? (row[totalCol]  || '').trim() : '';
+      const unitStr    = unitCol   >= 0 ? (row[unitCol]   || '').trim() : '';
+      const refStr     = refCol    >= 0 ? (row[refCol]    || '').trim() : '';
+      const ordQtyStr  = orderedQtyCol >= 0 ? (row[orderedQtyCol] || '').trim() : '';
 
       if (!rawName || rawName === '-') continue;
 
-      const quantity  = parseInt(qtyStr.replace(/[^0-9]/g, ''), 10) || null;
-      const unitPrice = priceStr ? (parseFloat(priceStr.replace(/[^0-9.]/g, '')) || null) : null;
-      const match     = matchToBoardItem(rawName, null, null, boardItems);
+      const quantity    = parseInt(qtyStr.replace(/[^0-9]/g, ''), 10) || null;
+      const orderedQty  = ordQtyStr ? (parseInt(ordQtyStr.replace(/[^0-9]/g, ''), 10) || null) : null;
+      const unitPrice   = priceStr  ? (parseFloat(priceStr.replace(/[^0-9.]/g, ''))   || null) : null;
+      const lineTotal   = totalStr  ? (parseFloat(totalStr.replace(/[^0-9.]/g, ''))   || null) : null;
+      const unit        = unitStr   || null;
+      const itemRef     = refStr    || null;
+      const match       = matchToBoardItem(rawName, null, null, boardItems);
 
-      lineItems.push({ raw_name: rawName, quantity, unit_price: unitPrice, line_total: null, unit: null, matched_item_id: match.id, match_confidence: match.confidence, discrepancy: null });
+      lineItems.push({ raw_name: rawName, item_reference: itemRef, quantity, ordered_qty: orderedQty, unit_price: unitPrice, line_total: lineTotal, unit, matched_item_id: match.id, match_confidence: match.confidence, discrepancy: null });
     }
 
     if (lineItems.length > 0) break;
@@ -200,7 +216,7 @@ function extractLineItems(analyzeResult: any, boardItems: any[]) {
         const name = leadingQty[2].replace(/\s+[\d.,]+.*$/, '').trim();
         if (name.length >= 2) {
           const match = matchToBoardItem(name, null, null, boardItems);
-          lineItems.push({ raw_name: name, quantity: parseInt(leadingQty[1], 10), unit_price: null, line_total: null, unit: null, matched_item_id: match.id, match_confidence: match.confidence, discrepancy: null });
+          lineItems.push({ raw_name: name, item_reference: null, quantity: parseInt(leadingQty[1], 10), ordered_qty: null, unit_price: null, line_total: null, unit: null, matched_item_id: match.id, match_confidence: match.confidence, discrepancy: null });
           continue;
         }
       }
@@ -210,7 +226,7 @@ function extractLineItems(analyzeResult: any, boardItems: any[]) {
         const name = trailingQty[1].trim();
         if (name.length >= 2) {
           const match = matchToBoardItem(name, null, null, boardItems);
-          lineItems.push({ raw_name: name, quantity: parseInt(trailingQty[2], 10), unit_price: null, line_total: null, unit: null, matched_item_id: match.id, match_confidence: match.confidence, discrepancy: null });
+          lineItems.push({ raw_name: name, item_reference: null, quantity: parseInt(trailingQty[2], 10), ordered_qty: null, unit_price: null, line_total: null, unit: null, matched_item_id: match.id, match_confidence: match.confidence, discrepancy: null });
           continue;
         }
       }
@@ -220,7 +236,7 @@ function extractLineItems(analyzeResult: any, boardItems: any[]) {
         const name = endNumber[1].trim();
         if (name.length >= 2) {
           const match = matchToBoardItem(name, null, null, boardItems);
-          lineItems.push({ raw_name: name, quantity: parseInt(endNumber[2], 10), unit_price: null, line_total: null, unit: null, matched_item_id: match.id, match_confidence: match.confidence, discrepancy: null });
+          lineItems.push({ raw_name: name, item_reference: null, quantity: parseInt(endNumber[2], 10), ordered_qty: null, unit_price: null, line_total: null, unit: null, matched_item_id: match.id, match_confidence: match.confidence, discrepancy: null });
         }
       }
     }
@@ -229,15 +245,34 @@ function extractLineItems(analyzeResult: any, boardItems: any[]) {
 
   // ── Metadata from key-value pairs ────────────────────────────────────────
   let supplierName: string | null = null;
+  let supplierPhone: string | null = null;
+  let supplierEmail: string | null = null;
+  let supplierAddress: string | null = null;
+  let invoiceNumber: string | null = null;
   let invoiceDate: string | null = null;
+  let orderRef: string | null = null;
+  let orderDate: string | null = null;
+
   for (const kv of analyzeResult?.keyValuePairs || []) {
     const key   = (kv.key?.content || '').toLowerCase();
-    const value = kv.value?.content || '';
-    if (!supplierName && /supplier|vendor|from/.test(key)) supplierName = value;
-    if (!invoiceDate  && /date|dispatch/.test(key))         invoiceDate  = value;
+    const value = (kv.value?.content || '').trim();
+    if (!value) continue;
+
+    if (!supplierName    && /organization|supplier|vendor|company|from/.test(key))            supplierName    = value;
+    if (!invoiceNumber   && /invoice\s*(no|num|number|id|ref)/.test(key))                     invoiceNumber   = value;
+    if (!invoiceDate     && /invoice\s*date/.test(key))                                       invoiceDate     = value;
+    if (!orderRef        && /order\s*(id|ref|number|no)|reference|delivery\s*(ref|no)/.test(key)) orderRef   = value;
+    if (!orderDate       && /order\s*date|dispatch\s*date|delivery\s*date/.test(key))         orderDate       = value;
+    if (!supplierPhone   && /phone|tel/.test(key))                                            supplierPhone   = value;
+    if (!supplierEmail   && /email/.test(key))                                                supplierEmail   = value;
+    if (!supplierAddress && /address/.test(key))                                              supplierAddress = value;
+    // Fallback: generic "date" only if nothing more specific matched yet
+    if (!invoiceDate     && /\bdate\b/.test(key))                                             invoiceDate     = value;
   }
 
-  return { invoiceNumber: null, invoiceDate, supplierName, totalAmount: null, currency: null, lineItems };
+  console.log('[parseDeliveryNote] Extracted metadata:', { supplierName, supplierPhone, supplierEmail, supplierAddress, invoiceNumber, invoiceDate, orderRef, orderDate });
+
+  return { invoiceNumber, invoiceDate, supplierName, supplierPhone, supplierEmail, supplierAddress, orderRef, orderDate, totalAmount: null, currency: null, lineItems };
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
@@ -317,16 +352,21 @@ Deno.serve(async (req: Request) => {
     console.log('[parseDeliveryNote] Polling operation:', operationLocation.slice(0, 80), '...');
     const analyzeResult = await pollOperation(operationLocation);
 
-    const { invoiceNumber, invoiceDate, supplierName, totalAmount, currency, lineItems } = extractLineItems(analyzeResult, batchItems);
+    const { invoiceNumber, invoiceDate, supplierName, supplierPhone, supplierEmail, supplierAddress, orderRef, orderDate, totalAmount, currency, lineItems } = extractLineItems(analyzeResult, batchItems);
     console.log('[parseDeliveryNote] Extracted', lineItems.length, 'line items; matched:', lineItems.filter((l: any) => l.matched_item_id).length);
 
     const response = {
-      invoice_number: invoiceNumber,
-      invoice_date:   invoiceDate,
-      supplier_name:  supplierName,
-      total_amount:   totalAmount,
+      invoice_number:   invoiceNumber,
+      invoice_date:     invoiceDate,
+      supplier_name:    supplierName,
+      supplier_phone:   supplierPhone,
+      supplier_email:   supplierEmail,
+      supplier_address: supplierAddress,
+      order_ref:        orderRef,
+      order_date:       orderDate,
+      total_amount:     totalAmount,
       currency,
-      line_items:     lineItems,
+      line_items:       lineItems,
     };
 
     return new Response(JSON.stringify(response), {
