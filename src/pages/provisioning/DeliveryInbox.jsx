@@ -10,6 +10,9 @@ import {
   claimInboxItem,
   dismissInboxItem,
   returnInboxItem,
+  fetchPendingReturns,
+  confirmReturned,
+  cancelReturns,
   fetchProvisioningLists,
 } from './utils/provisioningStorage';
 import { logActivity } from '../../utils/activityStorage';
@@ -394,6 +397,276 @@ const BulkBar = ({ count, boards, onClaimAll, onClear, claiming }) => {
   );
 };
 
+// ── Returns view ─────────────────────────────────────────────────────────────
+
+const generateReturnSlipHTML = (bySupplier, tenantName, generatedBy) => {
+  const rows = Object.entries(bySupplier).map(([supplier, items]) => `
+    <div style="margin-bottom:28px">
+      <h3 style="margin:0 0 6px;font-size:13px;font-weight:700;color:#1E3A5F;border-bottom:1px solid #E2E8F0;padding-bottom:6px">
+        ${supplier}
+      </h3>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="background:#F8FAFC">
+            <th style="text-align:left;padding:6px 8px;font-weight:600">Item</th>
+            <th style="text-align:center;padding:6px 8px;font-weight:600;width:80px">Qty</th>
+            <th style="text-align:left;padding:6px 8px;font-weight:600">Reason</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.map(i => `
+            <tr style="border-top:1px solid #F1F5F9">
+              <td style="padding:7px 8px">${i.raw_name}</td>
+              <td style="padding:7px 8px;text-align:center">${i.quantity ?? '—'}${i.unit ? ' ' + i.unit : ''}</td>
+              <td style="padding:7px 8px;color:#64748B">Not ordered / Overage</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `).join('');
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Return Slip</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 40px; color: #0F172A; max-width: 700px; margin: 0 auto; }
+    @media print { body { padding: 20px; } button { display: none; } }
+  </style>
+</head>
+<body>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px">
+    <div>
+      <h1 style="margin:0;font-size:22px;font-weight:700;color:#1E3A5F">Return Slip</h1>
+      <p style="margin:4px 0 0;font-size:13px;color:#64748B">${tenantName || 'Vessel'}</p>
+    </div>
+    <div style="text-align:right;font-size:12px;color:#64748B">
+      <p style="margin:0">Date: ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+      <p style="margin:4px 0 0">Prepared by: ${generatedBy || 'Unknown'}</p>
+    </div>
+  </div>
+  ${rows}
+  <div style="margin-top:40px;padding-top:16px;border-top:1px solid #E2E8F0;display:flex;gap:60px;font-size:12px;color:#64748B">
+    <div><p style="margin:0">Vessel authorisation signature</p><div style="margin-top:28px;border-top:1px solid #CBD5E1;width:200px"></div></div>
+    <div><p style="margin:0">Supplier acknowledgement</p><div style="margin-top:28px;border-top:1px solid #CBD5E1;width:200px"></div></div>
+  </div>
+  <div style="text-align:center;margin-top:20px">
+    <button onclick="window.print()" style="padding:10px 24px;background:#1E3A5F;color:white;border:none;border-radius:8px;font-size:14px;cursor:pointer">
+      Print / Save PDF
+    </button>
+  </div>
+</body>
+</html>`;
+};
+
+const ReturnsView = ({ tenantId, userId, tenantName, userFullName }) => {
+  const [returnItems, setReturnItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [acting, setActing] = useState(false);
+  const [requesterNames, setRequesterNames] = useState({});
+
+  const load = useCallback(async () => {
+    if (!tenantId) return;
+    setLoading(true);
+    const items = await fetchPendingReturns(tenantId);
+    setReturnItems(items);
+
+    // Resolve return_requested_by UUIDs → names
+    const reqIds = [...new Set(items.map(i => i.return_requested_by).filter(Boolean))];
+    if (reqIds.length > 0) {
+      const { data: profiles } = await supabase
+        ?.from('profiles')?.select('id, full_name')?.in('id', reqIds);
+      const map = {};
+      (profiles || []).forEach(p => { map[p.id] = p.full_name; });
+      setRequesterNames(map);
+    }
+    setLoading(false);
+  }, [tenantId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const bySupplier = returnItems.reduce((acc, item) => {
+    const s = item.supplier_name || 'Unknown supplier';
+    if (!acc[s]) acc[s] = [];
+    acc[s].push(item);
+    return acc;
+  }, {});
+
+  const toggleItem = (id) => setSelectedIds(prev => {
+    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
+  });
+
+  const toggleSupplier = (items) => {
+    const allIds = items.map(i => i.id);
+    const allSel = allIds.every(id => selectedIds.has(id));
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      allIds.forEach(id => allSel ? next.delete(id) : next.add(id));
+      return next;
+    });
+  };
+
+  const handleGenerateSlip = () => {
+    const selected = returnItems.filter(i => selectedIds.has(i.id));
+    const grouped = selected.reduce((acc, item) => {
+      const s = item.supplier_name || 'Unknown supplier';
+      if (!acc[s]) acc[s] = [];
+      acc[s].push(item);
+      return acc;
+    }, {});
+    const html = generateReturnSlipHTML(grouped, tenantName, userFullName);
+    const win = window.open('', '_blank');
+    if (win) { win.document.write(html); win.document.close(); }
+  };
+
+  const handleConfirmReturned = async () => {
+    setActing(true);
+    const ok = await confirmReturned([...selectedIds], userId);
+    if (ok) {
+      showToast(`${selectedIds.size} item${selectedIds.size !== 1 ? 's' : ''} marked as returned`, 'success');
+      setSelectedIds(new Set());
+      await load();
+    } else {
+      showToast('Failed to confirm returns', 'error');
+    }
+    setActing(false);
+  };
+
+  const handleCancelReturns = async () => {
+    setActing(true);
+    const ok = await cancelReturns([...selectedIds]);
+    if (ok) {
+      showToast('Items moved back to inbox', 'info');
+      setSelectedIds(new Set());
+      await load();
+    } else {
+      showToast('Failed to cancel returns', 'error');
+    }
+    setActing(false);
+  };
+
+  const formatDate = (iso) => {
+    try { return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); }
+    catch { return '—'; }
+  };
+
+  if (loading) return <div style={{ textAlign: 'center', padding: '60px 0', color: '#94A3B8', fontSize: 14 }}>Loading…</div>;
+
+  if (returnItems.length === 0) return (
+    <div style={{ textAlign: 'center', padding: '80px 0' }}>
+      <Icon name="PackageX" style={{ width: 40, height: 40, color: '#CBD5E1', display: 'block', margin: '0 auto 16px' }} />
+      <p style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#0F172A' }}>No pending returns</p>
+      <p style={{ margin: '6px 0 0', fontSize: 13, color: '#94A3B8' }}>Items flagged for return will appear here</p>
+    </div>
+  );
+
+  return (
+    <div style={{ paddingBottom: selectedIds.size > 0 ? 100 : 24 }}>
+      {Object.entries(bySupplier).map(([supplier, items]) => {
+        const allSel = items.every(i => selectedIds.has(i.id));
+        return (
+          <div key={supplier} style={{
+            background: 'white', borderRadius: 12, border: '1px solid #E2E8F0',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden', marginBottom: 16,
+          }}>
+            {/* Supplier header */}
+            <div style={{ padding: '10px 20px', background: '#F8FAFC', borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <input
+                type="checkbox"
+                checked={allSel}
+                onChange={() => toggleSupplier(items)}
+                style={{ width: 13, height: 13, accentColor: '#1E3A5F', cursor: 'pointer', flexShrink: 0 }}
+              />
+              <Icon name="Truck" style={{ width: 13, height: 13, color: '#94A3B8', flexShrink: 0 }} />
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#0F172A', flex: 1 }}>{supplier}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: '#FEF2F2', color: '#DC2626', flexShrink: 0 }}>
+                {items.length} item{items.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+
+            {/* Items */}
+            {items.map((item, idx) => {
+              const requesterName = requesterNames[item.return_requested_by] || null;
+              return (
+                <div key={item.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  padding: '12px 20px',
+                  borderBottom: idx < items.length - 1 ? '1px solid #F1F5F9' : 'none',
+                  background: selectedIds.has(item.id) ? '#FFF5F5' : 'transparent',
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(item.id)}
+                    onChange={() => toggleItem(item.id)}
+                    style={{ width: 13, height: 13, accentColor: '#DC2626', cursor: 'pointer', flexShrink: 0 }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#0F172A' }}>{item.raw_name}</p>
+                    <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94A3B8' }}>
+                      Qty: {item.quantity ?? '—'}{item.unit ? ` ${item.unit}` : ''}
+                      {requesterName ? ` · Requested by ${requesterName}` : ''}
+                      {item.return_requested_at ? ` · ${formatDate(item.return_requested_at)}` : ''}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+
+      {/* Sticky action bar */}
+      {selectedIds.size > 0 && (
+        <div style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0,
+          background: 'white', borderTop: '1px solid #E2E8F0',
+          padding: '12px 24px', display: 'flex', alignItems: 'center', gap: 10,
+          zIndex: 100, boxShadow: '0 -4px 16px rgba(0,0,0,0.06)',
+        }}>
+          <span style={{ fontSize: 12, color: '#64748B', fontWeight: 500, flexShrink: 0 }}>
+            {selectedIds.size} item{selectedIds.size !== 1 ? 's' : ''} selected
+          </span>
+          <div style={{ flex: 1 }} />
+          <button
+            onClick={handleGenerateSlip}
+            style={{
+              padding: '8px 16px', borderRadius: 8, border: 'none',
+              background: '#1E3A5F', color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+            }}
+          >
+            Return slip ({selectedIds.size})
+          </button>
+          <button
+            onClick={handleConfirmReturned}
+            disabled={acting}
+            style={{
+              padding: '8px 14px', borderRadius: 8, border: '1px solid #E2E8F0',
+              background: 'white', color: '#0F172A', fontSize: 12, fontWeight: 500,
+              cursor: acting ? 'default' : 'pointer', flexShrink: 0, opacity: acting ? 0.6 : 1,
+            }}
+          >
+            Mark as returned
+          </button>
+          <button
+            onClick={handleCancelReturns}
+            disabled={acting}
+            style={{
+              padding: '8px 14px', borderRadius: 8, border: 'none',
+              background: 'none', color: '#94A3B8', fontSize: 12, fontWeight: 500,
+              cursor: acting ? 'default' : 'pointer', flexShrink: 0, opacity: acting ? 0.6 : 1,
+            }}
+          >
+            Cancel returns
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 const DeliveryInbox = () => {
@@ -401,7 +674,9 @@ const DeliveryInbox = () => {
   const { user } = useAuth();
   const { activeTenantId } = useTenant();
 
+  const [activeTab, setActiveTab] = useState('inbox'); // 'inbox' | 'returns'
   const [items, setItems] = useState([]);
+  const [returnsCount, setReturnsCount] = useState(0);
   const [boards, setBoards] = useState([]);
   const [scannerNames, setScannerNames] = useState({});
   const [batchDocUrls, setBatchDocUrls] = useState({}); // { delivery_batch_id: invoice_file_url }
@@ -410,16 +685,25 @@ const DeliveryInbox = () => {
   const [bulkFadingIds, setBulkFadingIds] = useState(new Set());
   const [bulkClaiming, setBulkClaiming] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [userFullName, setUserFullName] = useState('');
 
   const load = useCallback(async () => {
     if (!activeTenantId) return;
     setLoading(true);
-    const [inboxItems, userBoards] = await Promise.all([
+    const [inboxItems, userBoards, pendingReturns] = await Promise.all([
       fetchDeliveryInbox(activeTenantId, showArchived, user?.id),
       fetchProvisioningLists(activeTenantId, user?.id).catch(() => []),
+      fetchPendingReturns(activeTenantId),
     ]);
     setItems(inboxItems || []);
     setBoards(userBoards || []);
+    setReturnsCount((pendingReturns || []).length);
+
+    // Resolve current user's full name for return slips
+    if (user?.id && !userFullName) {
+      const { data: profile } = await supabase?.from('profiles')?.select('full_name')?.eq('id', user.id)?.maybeSingle();
+      if (profile?.full_name) setUserFullName(profile.full_name);
+    }
 
     // Resolve scanner UUIDs → full names
     const scannerIds = [...new Set((inboxItems || []).map(i => i.scanned_by).filter(Boolean))];
@@ -464,11 +748,12 @@ const DeliveryInbox = () => {
   };
 
   const handleReturn = async (itemId) => {
-    const ok = await returnInboxItem(itemId);
+    const ok = await returnInboxItem(itemId, user?.id);
     if (ok) {
       setItems(prev => prev.filter(i => i.id !== itemId));
       setSelectedIds(prev => { const next = new Set(prev); next.delete(itemId); return next; });
-      showToast('Marked for return to supplier', 'info');
+      setReturnsCount(c => c + 1);
+      showToast('Marked for return — see Returns tab', 'info');
     } else {
       showToast('Failed to mark for return', 'error');
     }
@@ -546,8 +831,9 @@ const DeliveryInbox = () => {
       <div style={{ minHeight: '100vh', background: '#F8FAFC' }}>
 
         {/* Page header */}
-        <div style={{ background: 'white', borderBottom: '1px solid #F1F5F9', padding: '14px 24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+        <div style={{ background: 'white', borderBottom: '1px solid #F1F5F9', padding: '14px 24px 0' }}>
+          {/* Breadcrumb row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
             <button
               onClick={() => navigate('/provisioning')}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B', padding: 0, display: 'flex', alignItems: 'center', gap: 3, fontSize: 13 }}
@@ -557,30 +843,59 @@ const DeliveryInbox = () => {
             </button>
             <span style={{ color: '#CBD5E1', fontSize: 13 }}>›</span>
             <span style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>Delivery Inbox</span>
-            {items.filter(i => i.status === 'pending').length > 0 && (
-              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: '#FEF3E2', color: '#B45309' }}>
-                {items.filter(i => i.status === 'pending').length}
-              </span>
-            )}
             <div style={{ flex: 1 }} />
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#64748B', cursor: 'pointer', userSelect: 'none' }}>
-              <input
-                type="checkbox"
-                checked={showArchived}
-                onChange={e => setShowArchived(e.target.checked)}
-                style={{ width: 13, height: 13, accentColor: '#64748B', cursor: 'pointer' }}
-              />
-              Show archived
-            </label>
+            {activeTab === 'inbox' && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#64748B', cursor: 'pointer', userSelect: 'none' }}>
+                <input
+                  type="checkbox"
+                  checked={showArchived}
+                  onChange={e => setShowArchived(e.target.checked)}
+                  style={{ width: 13, height: 13, accentColor: '#64748B', cursor: 'pointer' }}
+                />
+                Show archived
+              </label>
+            )}
           </div>
-          <p style={{ margin: 0, fontSize: 12, color: '#94A3B8' }}>
-            Items from scanned delivery notes that haven't been matched to any board
-          </p>
+
+          {/* Tabs */}
+          <div style={{ display: 'flex', gap: 0 }}>
+            {[
+              { key: 'inbox', label: 'Inbox', count: items.filter(i => i.status === 'pending').length, countStyle: { background: '#FEF3E2', color: '#B45309' } },
+              { key: 'returns', label: 'Returns', count: returnsCount, countStyle: { background: '#FEF2F2', color: '#DC2626' } },
+            ].map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                style={{
+                  padding: '8px 16px', border: 'none', background: 'none', cursor: 'pointer',
+                  fontSize: 13, fontWeight: activeTab === tab.key ? 600 : 400,
+                  color: activeTab === tab.key ? '#0F172A' : '#64748B',
+                  borderBottom: activeTab === tab.key ? '2px solid #1E3A5F' : '2px solid transparent',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  transition: 'color 0.15s',
+                }}
+              >
+                {tab.label}
+                {tab.count > 0 && (
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 20, ...tab.countStyle }}>
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Content */}
         <div style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px', paddingBottom: selectedIds.size > 0 ? 96 : 24 }}>
-          {loading ? (
+          {activeTab === 'returns' ? (
+            <ReturnsView
+              tenantId={activeTenantId}
+              userId={user?.id}
+              tenantName={null}
+              userFullName={userFullName}
+            />
+          ) : loading ? (
             <div style={{ textAlign: 'center', padding: '60px 0', color: '#94A3B8', fontSize: 14 }}>Loading…</div>
           ) : items.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '80px 0' }}>
