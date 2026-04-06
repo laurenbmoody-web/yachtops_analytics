@@ -1611,15 +1611,15 @@ export const archiveExpiredInboxItems = async (tenantId) => {
     const now = new Date().toISOString();
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     // Archive items where expires_at has passed
-    await supabase?.from('delivery_inbox')?.update({ status: 'archived' })
+    await supabase?.from('delivery_inbox')?.update({ status: 'archived', archive_reason: 'expired' })
       ?.eq('tenant_id', tenantId)?.eq('status', 'pending')?.lt('expires_at', now);
     // Archive items with no expires_at older than 7 days
-    await supabase?.from('delivery_inbox')?.update({ status: 'archived' })
+    await supabase?.from('delivery_inbox')?.update({ status: 'archived', archive_reason: 'expired' })
       ?.eq('tenant_id', tenantId)?.eq('status', 'pending')?.is('expires_at', null)?.lt('scanned_at', sevenDaysAgo);
   } catch { /* non-fatal */ }
 };
 
-export const fetchDeliveryInbox = async (tenantId, includeArchived = false) => {
+export const fetchDeliveryInbox = async (tenantId, includeArchived = false, currentUserId = null) => {
   if (!tenantId) return [];
   await archiveExpiredInboxItems(tenantId);
   try {
@@ -1629,8 +1629,39 @@ export const fetchDeliveryInbox = async (tenantId, includeArchived = false) => {
       : query?.eq('status', 'pending');
     const { data, error } = await query?.order('scanned_at', { ascending: false });
     if (error) throw error;
-    return data || [];
+    // Filter out items this user has personally dismissed
+    const rows = data || [];
+    if (currentUserId) {
+      return rows.filter(item => !(item.dismissed_by || []).includes(currentUserId));
+    }
+    return rows;
   } catch (err) { console.error('[fetchDeliveryInbox]', err); return []; }
+};
+
+/** Mark delivery_inbox item as "not my order" for this user — stays visible to others. */
+export const dismissInboxItem = async (itemId, userId) => {
+  try {
+    // Fetch current dismissed_by array then append (array-append not natively supported in PostgREST)
+    const { data: item, error: fetchErr } = await supabase
+      ?.from('delivery_inbox')?.select('dismissed_by')?.eq('id', itemId)?.single();
+    if (fetchErr) throw fetchErr;
+    const existing = item?.dismissed_by || [];
+    if (existing.includes(userId)) return true; // already dismissed
+    const { error: updateErr } = await supabase?.from('delivery_inbox')
+      ?.update({ dismissed_by: [...existing, userId] })?.eq('id', itemId);
+    if (updateErr) throw updateErr;
+    return true;
+  } catch (err) { console.error('[dismissInboxItem]', err); return false; }
+};
+
+/** Archive an inbox item as "returned to supplier". */
+export const returnInboxItem = async (itemId) => {
+  try {
+    const { error } = await supabase?.from('delivery_inbox')
+      ?.update({ status: 'archived', archive_reason: 'returned' })?.eq('id', itemId);
+    if (error) throw error;
+    return true;
+  } catch (err) { console.error('[returnInboxItem]', err); return false; }
 };
 
 export const claimInboxItem = async (inboxItemId, claimedBy, boardId, claimQty = null) => {
