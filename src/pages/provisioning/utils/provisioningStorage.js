@@ -1426,7 +1426,7 @@ export const fetchPendingCrossMatches = async (userId) => {
   try {
     const { data, error } = await supabase
       ?.from('cross_department_matches')
-      ?.select('*, matched_board:provisioning_lists(id, title, department), matched_item:provisioning_items(id, name, brand, size, unit)')
+      ?.select('*, matched_board:provisioning_lists(id, title, department), matched_item:provisioning_items(id, name, brand, size, unit, status, receive_batch_id)')
       ?.eq('target_user_id', userId)
       ?.eq('status', 'pending')
       ?.order('created_at', { ascending: false });

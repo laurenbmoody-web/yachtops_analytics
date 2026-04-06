@@ -39,10 +39,21 @@ const ConfirmDeliveryModal = ({ userId, onClose, onConfirmed }) => {
 
   useEffect(() => {
     if (!userId) return;
-    fetchPendingCrossMatches(userId).then(data => {
-      setMatches(data);
+    fetchPendingCrossMatches(userId).then(async (data) => {
+      // Auto-dismiss matches whose item is already received or already batched —
+      // the Edge Function matched against all items including completed ones.
+      const CLOSED = ['received', 'partial'];
+      const stale = data.filter(m =>
+        CLOSED.includes(m.matched_item?.status) || m.matched_item?.receive_batch_id
+      );
+      const open = data.filter(m =>
+        !CLOSED.includes(m.matched_item?.status) && !m.matched_item?.receive_batch_id
+      );
+      // Fire-and-forget: dismiss stale matches so they route to inbox
+      stale.forEach(m => dismissCrossMatch(m.id));
+      setMatches(open);
       const initial = {};
-      data.forEach(m => { initial[m.id] = m.quantity ?? 1; });
+      open.forEach(m => { initial[m.id] = m.quantity ?? 1; });
       setQtyMap(initial);
       setLoading(false);
     });
