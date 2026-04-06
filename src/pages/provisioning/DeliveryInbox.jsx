@@ -399,17 +399,45 @@ const BulkBar = ({ count, boards, onClaimAll, onClear, claiming }) => {
 
 // ── Returns view ─────────────────────────────────────────────────────────────
 
+const fmtCurrency = (val) => {
+  const n = parseFloat(val);
+  if (isNaN(n)) return '—';
+  return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
+};
+
 const generateReturnSlipHTML = (bySupplier, tenantName, generatedBy) => {
-  const rows = Object.entries(bySupplier).map(([supplier, items]) => `
+  const rows = Object.entries(bySupplier).map(([supplier, items]) => {
+    // Collect unique delivery note refs/urls for this supplier
+    const noteRefs = [...new Set(items.map(i => i.delivery_note_ref).filter(Boolean))];
+    const noteUrls = [...new Set(items.map(i => i.delivery_note_url).filter(Boolean))];
+    const hasNoteInfo = noteRefs.length > 0 || noteUrls.length > 0;
+
+    const noteInfoHTML = hasNoteInfo ? `
+      <p style="margin:4px 0 8px;font-size:11px;color:#475569">
+        ${noteRefs.length > 0 ? `Delivery ref: <strong>${noteRefs.join(', ')}</strong>` : ''}
+        ${noteRefs.length > 0 && noteUrls.length > 0 ? ' &nbsp;·&nbsp; ' : ''}
+        ${noteUrls.length > 0 ? noteUrls.map(u => `<a href="${u}" style="color:#1E3A5F">View delivery note ↗</a>`).join(', ') : ''}
+      </p>` : '';
+
+    const supplierTotal = items.reduce((sum, i) => {
+      const n = parseFloat(i.line_total);
+      return sum + (isNaN(n) ? 0 : n);
+    }, 0);
+    const showTotal = items.some(i => i.unit_price || i.line_total);
+
+    return `
     <div style="margin-bottom:28px">
-      <h3 style="margin:0 0 6px;font-size:13px;font-weight:700;color:#1E3A5F;border-bottom:1px solid #E2E8F0;padding-bottom:6px">
+      <h3 style="margin:0 0 2px;font-size:13px;font-weight:700;color:#1E3A5F;border-bottom:1px solid #E2E8F0;padding-bottom:6px">
         ${supplier}
       </h3>
+      ${noteInfoHTML}
       <table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead>
           <tr style="background:#F8FAFC">
             <th style="text-align:left;padding:6px 8px;font-weight:600">Item</th>
-            <th style="text-align:center;padding:6px 8px;font-weight:600;width:80px">Qty</th>
+            <th style="text-align:center;padding:6px 8px;font-weight:600;width:70px">Qty</th>
+            ${showTotal ? `<th style="text-align:right;padding:6px 8px;font-weight:600;width:80px">Unit price</th>
+            <th style="text-align:right;padding:6px 8px;font-weight:600;width:80px">Line total</th>` : ''}
             <th style="text-align:left;padding:6px 8px;font-weight:600">Reason</th>
           </tr>
         </thead>
@@ -418,13 +446,21 @@ const generateReturnSlipHTML = (bySupplier, tenantName, generatedBy) => {
             <tr style="border-top:1px solid #F1F5F9">
               <td style="padding:7px 8px">${i.raw_name}</td>
               <td style="padding:7px 8px;text-align:center">${i.quantity ?? '—'}${i.unit ? ' ' + i.unit : ''}</td>
+              ${showTotal ? `<td style="padding:7px 8px;text-align:right;color:#475569">${fmtCurrency(i.unit_price)}</td>
+              <td style="padding:7px 8px;text-align:right;font-weight:500">${fmtCurrency(i.line_total)}</td>` : ''}
               <td style="padding:7px 8px;color:#64748B">Not ordered / Overage</td>
             </tr>
           `).join('')}
+          ${showTotal && supplierTotal > 0 ? `
+          <tr style="border-top:2px solid #E2E8F0;background:#F8FAFC">
+            <td colspan="${showTotal ? 3 : 2}" style="padding:7px 8px;font-weight:600;text-align:right">Supplier subtotal</td>
+            <td style="padding:7px 8px;text-align:right;font-weight:700">${fmtCurrency(supplierTotal)}</td>
+            <td></td>
+          </tr>` : ''}
         </tbody>
       </table>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 
   return `<!DOCTYPE html>
 <html>
@@ -432,7 +468,7 @@ const generateReturnSlipHTML = (bySupplier, tenantName, generatedBy) => {
   <meta charset="utf-8"/>
   <title>Return Slip</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 40px; color: #0F172A; max-width: 700px; margin: 0 auto; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 40px; color: #0F172A; max-width: 740px; margin: 0 auto; }
     @media print { body { padding: 20px; } button { display: none; } }
   </style>
 </head>

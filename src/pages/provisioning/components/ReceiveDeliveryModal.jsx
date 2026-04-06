@@ -1255,10 +1255,12 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
       }
 
       // Upload delivery note to first batch (non-blocking)
+      let uploadedNoteUrl = null;
       if (firstBatchId && deliveryNoteFile) {
         try {
           const url = await uploadInvoiceFile(deliveryNoteFile, firstBatchId);
           if (url) {
+            uploadedNoteUrl = url;
             await supabase?.from('provisioning_deliveries')
               ?.update({ invoice_file_url: url, parsed_data: parsedNote })
               ?.eq('id', firstBatchId);
@@ -1289,6 +1291,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
               quantity: li.quantity || 1,
               unit_price: li.unit_price || null,
               unit: li.unit || null,
+              line_total: li.line_total || null,
             })),
             tenantId: tenantId || list?.tenant_id,
             scannedBy: user?.id,
@@ -1297,6 +1300,8 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
               : [list?.id],
             deliveryBatchId: firstBatchId,
             supplierName: parsedNote?.supplier_name || null,
+            deliveryNoteUrl: uploadedNoteUrl,
+            deliveryNoteRef: parsedNote?.invoice_number || null,
           });
           if (result.crossMatched > 0) {
             showToast(`${result.crossMatched} item${result.crossMatched > 1 ? 's' : ''} matched other departments — HODs notified`, 'info');
@@ -1369,6 +1374,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
               quantity: extractedQty - receivedQty,
               unit_price: li.unit_price || null,
               unit: li.unit || null,
+              line_total: li.line_total || null,
             });
           }
         }
@@ -1383,6 +1389,8 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
                 : [list?.id],
               deliveryBatchId: firstBatchId,
               supplierName: parsedNote?.supplier_name || null,
+              deliveryNoteUrl: uploadedNoteUrl,
+              deliveryNoteRef: parsedNote?.invoice_number || null,
             });
             if (remainderResult.crossMatched > 0) {
               showToast(`${remainderResult.crossMatched} partial shortfall${remainderResult.crossMatched !== 1 ? 's' : ''} routed to other departments`, 'info');
