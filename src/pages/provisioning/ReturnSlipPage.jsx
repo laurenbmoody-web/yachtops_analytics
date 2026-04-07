@@ -152,8 +152,9 @@ const SignaturePad = ({ label, sublabel, onSign }) => {
 };
 
 export default function ReturnSlipPage() {
-  const { authUser } = useAuth();
-  const { tenantId } = useTenant();
+  const { user: authUser, activeTenantId } = useAuth();
+  const { tenantId: ctxTenantId } = useTenant();
+  const tenantId = ctxTenantId || activeTenantId;
 
   const [loading, setLoading] = useState(true);
   const [vessel, setVessel] = useState(null);
