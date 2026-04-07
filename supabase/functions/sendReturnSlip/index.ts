@@ -65,9 +65,11 @@ function buildEmailHtml(b: any): string {
       <td colspan="2" style="background:#F8FAFC;border-top:2px solid #E2E8F0"></td>
     </tr>` : '';
 
+  // Data URIs are stripped by most email clients (Gmail, Outlook).
+  // Show a "Signed digitally" badge instead — always reliable.
   const sigBlock = b.vesselSignature
-    ? `<img src="${b.vesselSignature}" style="max-height:60px;max-width:240px;display:block;margin-bottom:4px" alt="Vessel signature" />`
-    : `<div style="height:60px"></div>`;
+    ? `<div style="display:inline-block;padding:6px 12px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:6px;font-size:12px;color:#1E40AF;margin-bottom:6px">✓ Signed digitally</div>`
+    : `<div style="height:32px"></div>`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -164,6 +166,7 @@ function buildEmailHtml(b: any): string {
           ${sigBlock}
           <div style="border-bottom:1px solid #CBD5E1;margin-bottom:6px"></div>
           <div style="font-size:12px;color:#64748B">Vessel authorisation</div>
+          ${b.signerRole ? `<div style="font-size:12px;color:#1E3A5F;font-weight:600;margin-top:2px">${b.signerRole}</div>` : ''}
           <div style="font-size:11px;color:#94A3B8">Name, signature &amp; date</div>
         </td>
         <td width="4%"></td>
