@@ -152,8 +152,9 @@ const SignaturePad = ({ label, sublabel, onSign }) => {
 };
 
 export default function ReturnSlipPage() {
-  const { authUser } = useAuth();
+  const { authUser, currentUser } = useAuth();
   const { tenantId } = useTenant();
+  const signerRole = currentUser?.role || '';
 
   const [loading, setLoading] = useState(true);
   const [vessel, setVessel] = useState(null);
@@ -317,6 +318,7 @@ export default function ReturnSlipPage() {
             unit:          i.unit,
           })),
           vesselSignature: vesselSig,
+          signerRole,
         },
       });
       if (error) throw error;
@@ -514,7 +516,7 @@ export default function ReturnSlipPage() {
         <div style={{ display: 'flex', gap: 60, marginTop: 48, paddingTop: 16, borderTop: '1px solid #E2E8F0' }}>
           <SignaturePad
             label="Vessel authorisation"
-            sublabel="Name, signature & date"
+            sublabel={signerRole ? `${signerRole} · Name, signature & date` : 'Name, signature & date'}
             onSign={(dataUrl) => { setVesselSig(dataUrl); setDirty(true); setSaveStatus(null); }}
           />
           <div style={{ flex: 1, maxWidth: 280 }}>
