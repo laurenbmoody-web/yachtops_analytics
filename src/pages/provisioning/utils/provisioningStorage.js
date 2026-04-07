@@ -1735,13 +1735,17 @@ export const returnInboxItem = async (itemId, requestedBy = null) => {
   } catch (err) { console.error('[returnInboxItem]', err); return false; }
 };
 
-/** Fetch items queued for supplier return. */
-export const fetchPendingReturns = async (tenantId) => {
+/** Fetch items queued for supplier return. Pass includeArchived=true to also show archived returns. */
+export const fetchPendingReturns = async (tenantId, includeArchived = false) => {
   if (!tenantId) return [];
   try {
-    const { data, error } = await supabase?.from('delivery_inbox')
-      ?.select('*')?.eq('tenant_id', tenantId)?.eq('status', 'pending_return')
-      ?.order('supplier_name', { ascending: true });
+    let query = supabase?.from('delivery_inbox')?.select('*')?.eq('tenant_id', tenantId);
+    if (includeArchived) {
+      query = query?.or('status.eq.pending_return,and(status.eq.archived,archive_reason.eq.returned)');
+    } else {
+      query = query?.eq('status', 'pending_return');
+    }
+    const { data, error } = await query?.order('supplier_name', { ascending: true });
     if (error) throw error;
     return data || [];
   } catch (err) { console.error('[fetchPendingReturns]', err); return []; }

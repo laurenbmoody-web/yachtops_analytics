@@ -693,7 +693,7 @@ const generateReturnSlipHTML = (bySupplier, tenantName, generatedBy, vessel = nu
 </html>`;
 };
 
-const ReturnsView = ({ tenantId, userId, tenantName, userFullName }) => {
+const ReturnsView = ({ tenantId, userId, tenantName, userFullName, showArchived = false }) => {
   const navigate = useNavigate();
   const [returnItems, setReturnItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -704,7 +704,7 @@ const ReturnsView = ({ tenantId, userId, tenantName, userFullName }) => {
   const load = useCallback(async () => {
     if (!tenantId) return;
     setLoading(true);
-    const items = await fetchPendingReturns(tenantId);
+    const items = await fetchPendingReturns(tenantId, showArchived);
     setReturnItems(items);
 
     // Resolve return_requested_by UUIDs → names
@@ -717,7 +717,7 @@ const ReturnsView = ({ tenantId, userId, tenantName, userFullName }) => {
       setRequesterNames(map);
     }
     setLoading(false);
-  }, [tenantId]);
+  }, [tenantId, showArchived]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -835,37 +835,52 @@ const ReturnsView = ({ tenantId, userId, tenantName, userFullName }) => {
             {/* Items */}
             {items.map((item, idx) => {
               const requesterName = requesterNames[item.return_requested_by] || null;
+              const isArchived = item.status === 'archived';
+              const isConfirmed = !!item.supplier_confirmed_at;
+              const isClickable = (isConfirmed || isArchived) && item.return_slip_token;
               return (
                 <div key={item.id} style={{
                   display: 'flex', alignItems: 'center', gap: 12,
                   padding: '12px 20px',
                   borderBottom: idx < items.length - 1 ? '1px solid #F1F5F9' : 'none',
-                  background: selectedIds.has(item.id) ? '#FFF5F5' : 'transparent',
+                  background: isArchived ? '#FAFAFA' : selectedIds.has(item.id) ? '#FFF5F5' : 'transparent',
                 }}>
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(item.id)}
-                    onChange={() => toggleItem(item.id)}
-                    style={{ width: 13, height: 13, accentColor: '#DC2626', cursor: 'pointer', flexShrink: 0 }}
-                  />
+                  {isArchived ? (
+                    <div style={{ width: 13, flexShrink: 0 }} />
+                  ) : (
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(item.id)}
+                      onChange={() => toggleItem(item.id)}
+                      style={{ width: 13, height: 13, accentColor: '#DC2626', cursor: 'pointer', flexShrink: 0 }}
+                    />
+                  )}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      {item.supplier_confirmed_at && item.return_slip_token ? (
+                      {isClickable ? (
                         <p
-                          style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#1E3A5F', cursor: 'pointer', textDecoration: 'underline' }}
+                          style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#1E3A5F', cursor: 'pointer', textDecoration: 'underline', opacity: isArchived ? 0.6 : 1 }}
                           onClick={() => {
                             const ids = tokenGroups[item.return_slip_token] || [item.id];
                             navigate(`/provisioning/return-slip?items=${ids.join(',')}`);
                           }}
-                          onMouseEnter={e => { e.currentTarget.style.opacity = '0.75'; }}
-                          onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+                          onMouseEnter={e => { e.currentTarget.style.opacity = '0.5'; }}
+                          onMouseLeave={e => { e.currentTarget.style.opacity = isArchived ? '0.6' : '1'; }}
                         >
                           {item.raw_name}
                         </p>
                       ) : (
                         <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#0F172A' }}>{item.raw_name}</p>
                       )}
-                      {item.supplier_confirmed_at && (
+                      {isArchived ? (
+                        <span style={{
+                          fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20,
+                          background: '#F1F5F9', color: '#94A3B8', border: '1px solid #E2E8F0',
+                          flexShrink: 0,
+                        }}>
+                          Completed
+                        </span>
+                      ) : isConfirmed && (
                         <span style={{
                           fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20,
                           background: '#F0FDF4', color: '#059669', border: '1px solid #BBF7D0',
@@ -875,7 +890,7 @@ const ReturnsView = ({ tenantId, userId, tenantName, userFullName }) => {
                         </span>
                       )}
                     </div>
-                    <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94A3B8' }}>
+                    <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94A3B8', opacity: isArchived ? 0.7 : 1 }}>
                       Qty: {item.quantity ?? '—'}{item.unit ? ` ${item.unit}` : ''}
                       {requesterName ? ` · Requested by ${requesterName}` : ''}
                       {item.return_requested_at ? ` · ${formatDate(item.return_requested_at)}` : ''}
@@ -1150,17 +1165,15 @@ const DeliveryInbox = () => {
             <span style={{ color: '#CBD5E1', fontSize: 13 }}>›</span>
             <span style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>Delivery Inbox</span>
             <div style={{ flex: 1 }} />
-            {activeTab === 'inbox' && (
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#64748B', cursor: 'pointer', userSelect: 'none' }}>
-                <input
-                  type="checkbox"
-                  checked={showArchived}
-                  onChange={e => setShowArchived(e.target.checked)}
-                  style={{ width: 13, height: 13, accentColor: '#64748B', cursor: 'pointer' }}
-                />
-                Show archived
-              </label>
-            )}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#64748B', cursor: 'pointer', userSelect: 'none' }}>
+              <input
+                type="checkbox"
+                checked={showArchived}
+                onChange={e => setShowArchived(e.target.checked)}
+                style={{ width: 13, height: 13, accentColor: '#64748B', cursor: 'pointer' }}
+              />
+              Show archived
+            </label>
           </div>
 
           {/* Tabs */}
@@ -1200,6 +1213,7 @@ const DeliveryInbox = () => {
               userId={user?.id}
               tenantName={null}
               userFullName={userFullName}
+              showArchived={showArchived}
             />
           ) : loading ? (
             <div style={{ textAlign: 'center', padding: '60px 0', color: '#94A3B8', fontSize: 14 }}>Loading…</div>
