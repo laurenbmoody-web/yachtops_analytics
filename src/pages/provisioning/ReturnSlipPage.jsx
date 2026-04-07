@@ -52,6 +52,8 @@ export default function ReturnSlipPage() {
   const { tenantId } = useTenant();
 
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [vessel, setVessel] = useState(null);
   const [items, setItems] = useState([]);
   const [supplierInfo, setSupplierInfo] = useState({ name: '', phone: '', email: '', address: '' });
@@ -84,12 +86,14 @@ export default function ReturnSlipPage() {
           noteUrl: first.delivery_note_url  || '',
           noteRef: first.delivery_note_ref  || '',
         });
+        // Pre-populate from saved DB values when reopening a slip
         setItems(rows.map(item => ({
           ...item,
-          return_qty:    item.quantity ?? 1,
-          return_reason: 'Not ordered',
-          return_notes:  '',
+          return_qty:    item.return_qty    ?? item.quantity ?? 1,
+          return_reason: item.return_reason ?? 'Not ordered',
+          return_notes:  item.return_notes  ?? '',
         })));
+        setSaved(rows.some(i => i.return_slip_generated_at != null));
       }
 
       // Fetch vessel
@@ -117,8 +121,32 @@ export default function ReturnSlipPage() {
     })();
   }, [authUser?.id, tenantId]);
 
-  const updateItem = (id, field, value) =>
+  const updateItem = (id, field, value) => {
     setItems(prev => prev.map(i => (i.id === id ? { ...i, [field]: value } : i)));
+    setSaved(false);
+  };
+
+  const saveChanges = async () => {
+    setSaving(true);
+    const now = new Date().toISOString();
+    const userId = authUser?.id || null;
+    await Promise.all(items.map(item =>
+      supabase?.from('delivery_inbox')?.update({
+        return_qty:                  item.return_qty,
+        return_reason:               item.return_reason,
+        return_notes:                item.return_notes || null,
+        return_slip_generated_at:    now,
+        return_slip_generated_by:    userId,
+      })?.eq('id', item.id)
+    ));
+    setSaving(false);
+    setSaved(true);
+  };
+
+  const handlePrint = async () => {
+    await saveChanges();
+    window.print();
+  };
 
   const total = items.reduce((sum, i) => sum + (parseFloat(i.line_total) || 0), 0);
   const showPricing = items.some(i => i.unit_price || i.line_total);
@@ -311,16 +339,29 @@ export default function ReturnSlipPage() {
           ))}
         </div>
 
-        {/* ── Print button ─────────────────────────────────────────────── */}
-        <div className="no-print" style={{ textAlign: 'center', marginTop: 32 }}>
+        {/* ── Action buttons ───────────────────────────────────────────── */}
+        <div className="no-print" style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 32 }}>
           <button
-            onClick={() => window.print()}
+            onClick={saveChanges}
+            disabled={saving}
             style={{
-              padding: '10px 28px', background: '#1E3A5F', color: 'white',
-              border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer',
+              padding: '10px 24px', background: 'white', color: '#0F172A',
+              border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 14, fontWeight: 500,
+              cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.6 : 1,
             }}
           >
-            Print / Save PDF
+            {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save Changes'}
+          </button>
+          <button
+            onClick={handlePrint}
+            disabled={saving}
+            style={{
+              padding: '10px 28px', background: '#1E3A5F', color: 'white',
+              border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600,
+              cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.6 : 1,
+            }}
+          >
+            {saving ? 'Saving…' : 'Save & Print'}
           </button>
         </div>
 
