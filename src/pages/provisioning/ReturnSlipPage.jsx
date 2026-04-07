@@ -230,11 +230,13 @@ export default function ReturnSlipPage() {
         setVesselName(tenant?.name || '');
       }
 
-      // Fetch user name + role title
-      if (authUser?.id && tid) {
+      // Prepared by + role
+      if (authUser?.id) {
         const [{ data: profile }, { data: memberRow }] = await Promise.all([
           supabase?.from('profiles')?.select('full_name')?.eq('id', authUser.id)?.single(),
-          supabase?.from('tenant_members')?.select('role_id, roles(name)')?.eq('user_id', authUser.id)?.eq('tenant_id', tid)?.single(),
+          tid
+            ? supabase?.from('tenant_members')?.select('role_id, roles(name)')?.eq('user_id', authUser.id)?.eq('tenant_id', tid)?.single()
+            : Promise.resolve({ data: null }),
         ]);
         setPreparedBy(profile?.full_name || '');
         setSignerJobTitle(memberRow?.roles?.name || '');
