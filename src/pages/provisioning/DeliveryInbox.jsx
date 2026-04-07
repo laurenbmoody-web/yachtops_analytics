@@ -890,12 +890,36 @@ const ReturnsView = ({ tenantId, userId, tenantName, userFullName, showArchived 
                         </span>
                       )}
                     </div>
-                    <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94A3B8', opacity: isArchived ? 0.7 : 1 }}>
-                      Qty: {item.quantity ?? '—'}{item.unit ? ` ${item.unit}` : ''}
-                      {requesterName ? ` · Requested by ${requesterName}` : ''}
-                      {item.return_requested_at ? ` · ${formatDate(item.return_requested_at)}` : ''}
-                      {item.supplier_confirmed_at ? ` · Confirmed by ${item.supplier_signer_name || 'supplier'} ${formatDate(item.supplier_confirmed_at)}` : ''}
-                    </p>
+                    {isArchived ? (
+                      <p style={{ margin: '3px 0 0', fontSize: 11, color: '#94A3B8' }}>
+                        {item.supplier_confirmed_at && <>
+                          Confirmed by {item.supplier_signer_name || 'supplier'} · {formatDate(item.supplier_confirmed_at)}
+                          {item.return_slip_token && (
+                            <>
+                              {' · '}
+                              <span
+                                style={{ color: '#1E3A5F', textDecoration: 'none', cursor: 'pointer' }}
+                                onClick={() => {
+                                  const ids = tokenGroups[item.return_slip_token] || [item.id];
+                                  navigate(`/provisioning/return-slip?items=${ids.join(',')}`);
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.textDecoration = 'underline'; }}
+                                onMouseLeave={e => { e.currentTarget.style.textDecoration = 'none'; }}
+                              >
+                                View return slip →
+                              </span>
+                            </>
+                          )}
+                        </>}
+                      </p>
+                    ) : (
+                      <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94A3B8' }}>
+                        Qty: {item.quantity ?? '—'}{item.unit ? ` ${item.unit}` : ''}
+                        {requesterName ? ` · Requested by ${requesterName}` : ''}
+                        {item.return_requested_at ? ` · ${formatDate(item.return_requested_at)}` : ''}
+                        {item.supplier_confirmed_at ? ` · Confirmed by ${item.supplier_signer_name || 'supplier'} ${formatDate(item.supplier_confirmed_at)}` : ''}
+                      </p>
+                    )}
                   </div>
                 </div>
               );
