@@ -158,6 +158,7 @@ export default function ReturnSlipPage() {
 
   const [loading, setLoading] = useState(true);
   const [vessel, setVessel] = useState(null);
+  const [vesselName, setVesselName] = useState('');
   const [items, setItems] = useState([]);
   const [supplierInfo, setSupplierInfo] = useState({ name: '', phone: '', email: '', address: '' });
   const [orderMeta, setOrderMeta] = useState({ ref: '', date: '', noteUrl: '', noteRef: '' });
@@ -212,15 +213,15 @@ export default function ReturnSlipPage() {
         if (lastGen) setLastSavedAt(new Date(lastGen));
       }
 
-      // Fetch vessel
+      // Fetch vessel + tenant name
       const tid = tenantId || rows?.[0]?.tenant_id;
       if (tid) {
-        const { data: v } = await supabase
-          ?.from('vessels')
-          ?.select('vessel_type_label, imo_number, flag, port_of_registry, official_number, loa_m, gt')
-          ?.eq('tenant_id', tid)
-          ?.single();
+        const [{ data: v }, { data: tenant }] = await Promise.all([
+          supabase?.from('vessels')?.select('imo_number, flag')?.eq('tenant_id', tid)?.single(),
+          supabase?.from('tenants')?.select('name')?.eq('id', tid)?.single(),
+        ]);
         setVessel(v);
+        setVesselName(tenant?.name || '');
       }
 
       // Prepared by
@@ -291,13 +292,9 @@ export default function ReturnSlipPage() {
           to:                   supplierInfo.email,
           replyTo:              authUser?.email || '',
           supplierName:         supplierInfo.name,
-          vesselName:           vessel?.vessel_type_label || 'Vessel',
-          imoNumber:            vessel?.imo_number || '',
-          vesselFlag:           vessel?.flag || '',
-          vesselPortOfRegistry: vessel?.port_of_registry || '',
-          vesselOfficialNumber: vessel?.official_number || '',
-          vesselLoa:            vessel?.loa_m ? `${vessel.loa_m}m` : '',
-          vesselGt:             vessel?.gt || '',
+          vesselName:  vesselName || 'Vessel',
+          imoNumber:   vessel?.imo_number || '',
+          vesselFlag:  vessel?.flag || '',
           preparedBy,
           date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
           supplierPhone:   supplierInfo.phone,
@@ -377,8 +374,9 @@ export default function ReturnSlipPage() {
           <div>
             <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#1E3A5F' }}>Return Slip</h1>
             <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748B' }}>
-              {vessel?.vessel_type_label || 'Vessel'}
+              {vesselName || 'Vessel'}
               {vessel?.imo_number ? ` · IMO: ${vessel.imo_number}` : ''}
+              {vessel?.flag ? ` · ${vessel.flag}` : ''}
             </p>
           </div>
           <div style={{ textAlign: 'right', fontSize: 12, color: '#64748B' }}>
@@ -386,18 +384,6 @@ export default function ReturnSlipPage() {
             {preparedBy && <p style={{ margin: '4px 0 0' }}>Prepared by: {preparedBy}</p>}
           </div>
         </div>
-
-        {/* ── Vessel info (read-only) ──────────────────────────────────── */}
-        {vessel && (
-          <div style={{ ...card, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 24px', fontSize: 12, color: '#334155' }}>
-            <div><span style={{ color: '#94A3B8' }}>Flag: </span>{vessel.flag || '—'}</div>
-            <div><span style={{ color: '#94A3B8' }}>Official Number: </span>{vessel.official_number || '—'}</div>
-            <div><span style={{ color: '#94A3B8' }}>Port of Registry: </span>{vessel.port_of_registry || '—'}</div>
-            <div><span style={{ color: '#94A3B8' }}>LOA: </span>{vessel.loa_m ? `${vessel.loa_m}m` : '—'}</div>
-            <div><span style={{ color: '#94A3B8' }}>IMO Number: </span>{vessel.imo_number || '—'}</div>
-            <div><span style={{ color: '#94A3B8' }}>Gross Tonnage: </span>{vessel.gt || '—'}</div>
-          </div>
-        )}
 
         {/* ── Supplier info (editable) ─────────────────────────────────── */}
         <div style={{ border: '1px solid #E2E8F0', borderRadius: 8, padding: '14px 16px', marginBottom: 20 }}>
