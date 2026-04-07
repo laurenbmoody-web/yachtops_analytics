@@ -13,6 +13,7 @@ import {
   createDeliveryBatch,
   upsertItems,
   uploadInvoiceFile,
+  createLedgerEntry,
   triggerCrossDepartmentMatch,
 } from '../utils/provisioningStorage';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -1297,6 +1298,49 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
         } catch { /* non-fatal */ }
       }
 
+      // ── Write to permanent delivery ledger (fire-and-forget) ──────────────
+      createLedgerEntry({
+        tenantId,
+        sourceType:       parsedNote?.document_type === 'receipt' ? 'receipt' : 'delivery',
+        sourceBoardId:    multiBoard ? null : list?.id,
+        sourceBatchId:    firstBatchId,
+        supplierName:     parsedNote?.supplier_name || null,
+        supplierPhone:    parsedNote?.supplier_phone || null,
+        supplierEmail:    parsedNote?.supplier_email || null,
+        supplierAddress:  parsedNote?.supplier_address || null,
+        orderRef:         parsedNote?.order_ref || null,
+        orderDate:        parsedNote?.order_date || null,
+        invoiceNumber:    parsedNote?.invoice_number || null,
+        deliveryNoteRef:  parsedNote?.invoice_number || null,
+        documentUrl:      uploadedNoteUrl,
+        documentType:     parsedNote?.document_type || null,
+        totalAmount:      parsedNote?.total_amount || null,
+        currency:         parsedNote?.currency || null,
+        receivedBy:       user?.id,
+        items: [
+          ...receivedUpdates.map(u => ({
+            raw_name:         u.name,
+            quantity:         u.quantity_received,
+            ordered_qty:      u.quantity_ordered ?? null,
+            unit:             u.unit ?? null,
+            unit_price:       u.estimated_unit_cost ?? null,
+            claimed_board_id: u._boardId || list?.id || null,
+            claimed_item_id:  u.id,
+            match_confidence: 'high',
+          })),
+          ...(originalUnmatchedRef.current || []).map(li => ({
+            raw_name:        li.raw_name,
+            original_name:   li.original_name || null,
+            item_reference:  li.item_reference || null,
+            quantity:        li.quantity || 1,
+            unit_price:      li.unit_price || null,
+            line_total:      li.line_total || null,
+            unit:            li.unit || null,
+            match_confidence: 'none',
+          })),
+        ],
+      }).catch(err => console.error('[ReceiveDeliveryModal] ledger write error:', err));
+
       // ── Tier 2+3: Route unmatched items to other departments / inbox ──
       const unmatchedForRouting = originalUnmatchedRef.current.filter(li => {
         // Exclude items the user already added to their own board
@@ -1307,6 +1351,37 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
       const isReceipt = parsedNote?.document_type === 'receipt';
       if (unmatchedForRouting.length > 0 && isReceipt) {
         console.log('[ReceiveDeliveryModal] Receipt mode — skipping cross-dept for', unmatchedForRouting.length, 'unmatched items');
+        // Send to Delivery Inbox so the user can claim receipt items to their board
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+        const now = new Date().toISOString();
+        const insertions = unmatchedForRouting.map(li =>
+          supabase?.from('delivery_inbox')?.insert({
+            tenant_id:       tenantId || list?.tenant_id,
+            raw_name:        li.raw_name,
+            item_reference:  li.item_reference  || null,
+            quantity:        li.quantity         || 1,
+            ordered_qty:     li.ordered_qty      || null,
+            unit_price:      li.unit_price       || null,
+            unit:            li.unit             || null,
+            line_total:      li.line_total       || null,
+            scanned_by:      user?.id,
+            scanned_at:      now,
+            delivery_batch_id: firstBatchId      || null,
+            supplier_name:   parsedNote?.supplier_name    || null,
+            supplier_phone:  parsedNote?.supplier_phone   || null,
+            supplier_email:  parsedNote?.supplier_email   || null,
+            supplier_address: parsedNote?.supplier_address || null,
+            order_ref:       parsedNote?.order_ref        || null,
+            order_date:      parsedNote?.order_date       || null,
+            status:          'pending',
+            expires_at:      expiresAt,
+          })
+        );
+        Promise.all(insertions).then(() => {
+          if (unmatchedForRouting.length > 0) {
+            showToast(`${unmatchedForRouting.length} receipt item${unmatchedForRouting.length !== 1 ? 's' : ''} sent to Delivery Inbox`, 'info');
+          }
+        }).catch(err => console.error('[ReceiveDeliveryModal] receipt inbox insert error:', err));
       }
 
       if (unmatchedForRouting.length > 0 && !isReceipt) {

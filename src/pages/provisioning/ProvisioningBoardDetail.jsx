@@ -1645,6 +1645,14 @@ const ProvisioningBoardDetail = () => {
                 </div>
               );
             })()}
+            <div style={{ marginTop: 32, textAlign: 'center' }}>
+              <button
+                onClick={() => navigate(`/provisioning/ledger?board=${list?.id}`)}
+                style={{ fontSize: 13, color: '#1E3A5F', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                View full delivery history →
+              </button>
+            </div>
           </div>
         )}
       </div>

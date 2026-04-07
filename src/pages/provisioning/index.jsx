@@ -758,6 +758,13 @@ const ProvisioningWorkspace = () => {
                 )}
               </button>
               <button
+                onClick={() => navigate('/provisioning/ledger')}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground border border-border rounded-lg hover:bg-muted transition-colors"
+              >
+                <Icon name="BookOpen" className="w-4 h-4" />
+                Delivery Ledger
+              </button>
+              <button
                 onClick={() => navigate('/provisioning/suppliers')}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground border border-border rounded-lg hover:bg-muted transition-colors"
               >
