@@ -53,6 +53,7 @@ import ProvisioningBoardDetail from './pages/provisioning/ProvisioningBoardDetai
 import ProvisioningSuppliers from './pages/provisioning/ProvisioningSuppliers';
 import DeliveryInbox from './pages/provisioning/DeliveryInbox';
 import ReturnSlipPage from './pages/provisioning/ReturnSlipPage';
+import ReturnConfirmPage from './pages/provisioning/ReturnConfirmPage';
 import TripItineraryTimeline from './pages/trip-itinerary-timeline/index';
 import InviteAcceptPage from './pages/invite-accept';
 import ForgotPasswordRequest from './pages/forgot-password-request';
@@ -828,6 +829,7 @@ const Routes = () => {
         <Route path="/reset-password" element={<ResetPassword />} />
         
         {/* Invite Routes - PUBLIC (no ProtectedRoute wrapper) */}
+        <Route path="/return-confirm" element={<ReturnConfirmPage />} />
         <Route path="/invite-accept" element={<InviteAcceptPage />} />
         <Route path="/invite" element={<InviteRedirect />} />
         <Route path="/accept-invite" element={<InviteRedirect />} />
