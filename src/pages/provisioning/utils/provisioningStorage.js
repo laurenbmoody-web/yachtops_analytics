@@ -26,7 +26,11 @@
  *   id uuid pk, list_id uuid fk provisioning_lists,
  *   delivered_at timestamptz, delivery_note_url text,
  *   delivery_note_type text, parsed_data jsonb,
- *   discrepancies jsonb, received_by uuid
+ *   discrepancies jsonb, received_by uuid,
+ *   supplier_name text, supplier_phone text, supplier_email text,
+ *   supplier_address text, order_ref text, order_date text,
+ *   delivery_note_ref text, tenant_id uuid, received_at timestamptz,
+ *   invoice_file_url text, total_cost numeric, port_location text
  */
 
 import { supabase } from '../../../lib/supabaseClient';
@@ -1116,7 +1120,7 @@ export const fetchInventoryItemById = async (id, tenantId) => {
  * columns (tenant_id, supplier_name, received_by, total_cost, port_location)
  * may not exist yet. Always returns the created row or null — never throws.
  */
-export const createDeliveryBatch = async ({ listId, tenantId, userId, supplierName, totalCost, portLocation, invoiceFileUrl }) => {
+export const createDeliveryBatch = async ({ listId, tenantId, userId, supplierName, totalCost, portLocation, invoiceFileUrl, supplierPhone, supplierEmail, supplierAddress, orderRef, orderDate, deliveryNoteRef }) => {
   if (!listId) return null;
   const ts = new Date().toISOString();
   const base = {
@@ -1126,9 +1130,17 @@ export const createDeliveryBatch = async ({ listId, tenantId, userId, supplierNa
     received_by: userId || null,
     ...(invoiceFileUrl ? { invoice_file_url: invoiceFileUrl } : {}),
   };
+  // Optional metadata fields — include only if truthy so missing columns don't break inserts
+  const meta = {};
+  if (supplierPhone)    meta.supplier_phone   = supplierPhone;
+  if (supplierEmail)    meta.supplier_email   = supplierEmail;
+  if (supplierAddress)  meta.supplier_address = supplierAddress;
+  if (orderRef)         meta.order_ref        = orderRef;
+  if (orderDate)        meta.order_date       = orderDate;
+  if (deliveryNoteRef)  meta.delivery_note_ref = deliveryNoteRef;
   // Ordered from most complete to bare minimum
   const attempts = [
-    { ...base, ...(tenantId ? { tenant_id: tenantId } : {}), ...(totalCost != null ? { total_cost: totalCost } : {}), ...(portLocation ? { port_location: portLocation } : {}) },
+    { ...base, ...meta, ...(tenantId ? { tenant_id: tenantId } : {}), ...(totalCost != null ? { total_cost: totalCost } : {}), ...(portLocation ? { port_location: portLocation } : {}) },
     { ...base, ...(totalCost != null ? { total_cost: totalCost } : {}), ...(portLocation ? { port_location: portLocation } : {}) },
     { ...base },
     { list_id: listId, received_at: ts },
@@ -1289,7 +1301,7 @@ export const fetchDeliveryBatches = async (listId) => {
   try {
     const { data, error } = await supabase
       ?.from('provisioning_deliveries')
-      ?.select('id, supplier_name, received_at, received_by, invoice_file_url, total_cost, port_location')
+      ?.select('id, supplier_name, received_at, received_by, invoice_file_url, total_cost, port_location, supplier_phone, supplier_email, supplier_address, order_ref, order_date, delivery_note_ref')
       ?.eq('list_id', listId)
       ?.order('received_at', { ascending: false });
     if (error) throw error;
