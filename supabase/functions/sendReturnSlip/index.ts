@@ -86,7 +86,7 @@ function buildEmailHtml(b: any): string {
         <tr>
           <td>
             <div style="font-size:22px;font-weight:700;color:#FFFFFF;letter-spacing:-0.3px">RETURN SLIP</div>
-            <div style="font-size:13px;color:#93C5FD;margin-top:4px">${b.vesselName}${b.imoNumber ? ' &nbsp;·&nbsp; IMO: ' + b.imoNumber : ''}</div>
+            <div style="font-size:13px;color:#93C5FD;margin-top:4px">${b.vesselName}${b.imoNumber ? ' &nbsp;·&nbsp; IMO: ' + b.imoNumber : ''}${b.vesselFlag ? ' &nbsp;·&nbsp; ' + b.vesselFlag : ''}</div>
           </td>
           <td align="right" style="vertical-align:top">
             <div style="font-size:12px;color:#CBD5E1">${b.date}</div>
@@ -99,25 +99,6 @@ function buildEmailHtml(b: any): string {
 
   <tr><td style="padding:24px 28px">
 
-    <!-- ── Vessel info ── -->
-    <table width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC;border-radius:8px;margin-bottom:20px">
-      <tr><td style="padding:14px 16px">
-        <table width="100%" cellpadding="0" cellspacing="0">
-          <tr>
-            ${cell('Flag', b.vesselFlag)}
-            ${cell('Official Number', b.vesselOfficialNumber)}
-          </tr>
-          <tr>
-            ${cell('Port of Registry', b.vesselPortOfRegistry)}
-            ${cell('LOA', b.vesselLoa)}
-          </tr>
-          <tr>
-            ${cell('IMO Number', b.imoNumber)}
-            ${cell('Gross Tonnage', b.vesselGt)}
-          </tr>
-        </table>
-      </td></tr>
-    </table>
 
     <!-- ── Supplier details ── -->
     <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E2E8F0;border-radius:8px;margin-bottom:20px">
