@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -46,6 +46,110 @@ const Field = ({ label, value, onChange, type = 'text', multiline = false }) => 
     )}
   </div>
 );
+
+// ── Signature pad (draw-to-sign canvas) ──────────────────────────────────────
+
+const SignaturePad = ({ label, sublabel, onSign }) => {
+  const canvasRef = useRef(null);
+  const [drawing, setDrawing] = useState(false);
+  const [hasStrokes, setHasStrokes] = useState(false);
+
+  const getPos = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    const touch = e.touches?.[0];
+    const clientX = touch ? touch.clientX : e.clientX;
+    const clientY = touch ? touch.clientY : e.clientY;
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  };
+
+  const startDraw = useCallback((e) => {
+    e.preventDefault();
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return;
+    const { x, y } = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    setDrawing(true);
+  }, []);
+
+  const draw = useCallback((e) => {
+    if (!drawing) return;
+    e.preventDefault();
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return;
+    const { x, y } = getPos(e);
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = '#1E3A5F';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    setHasStrokes(true);
+  }, [drawing]);
+
+  const endDraw = useCallback(() => {
+    setDrawing(false);
+    if (hasStrokes && canvasRef.current) {
+      onSign?.(canvasRef.current.toDataURL('image/png'));
+    }
+  }, [hasStrokes, onSign]);
+
+  const clear = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasStrokes(false);
+    onSign?.(null);
+  };
+
+  return (
+    <div style={{ flex: 1, maxWidth: 280 }}>
+      <div style={{ position: 'relative' }}>
+        <canvas
+          ref={canvasRef}
+          width={280}
+          height={80}
+          style={{
+            width: '100%', height: 80, borderBottom: '1px solid #CBD5E1',
+            cursor: 'crosshair', touchAction: 'none',
+          }}
+          onMouseDown={startDraw}
+          onMouseMove={draw}
+          onMouseUp={endDraw}
+          onMouseLeave={endDraw}
+          onTouchStart={startDraw}
+          onTouchMove={draw}
+          onTouchEnd={endDraw}
+        />
+        {!hasStrokes && (
+          <span style={{
+            position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+            fontSize: 11, color: '#CBD5E1', pointerEvents: 'none', userSelect: 'none',
+          }}>
+            Sign here
+          </span>
+        )}
+        {hasStrokes && (
+          <button
+            className="no-print"
+            onClick={clear}
+            style={{
+              position: 'absolute', top: 4, right: 4, background: 'none', border: 'none',
+              fontSize: 10, color: '#94A3B8', cursor: 'pointer', padding: '2px 6px',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#DC2626'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = '#94A3B8'; }}
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      <p style={{ margin: '8px 0 0', fontSize: 12, color: '#64748B' }}>{label}</p>
+      <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94A3B8' }}>{sublabel}</p>
+    </div>
+  );
+};
 
 export default function ReturnSlipPage() {
   const { authUser } = useAuth();
@@ -351,15 +455,18 @@ export default function ReturnSlipPage() {
           </tbody>
         </table>
 
-        {/* ── Signature lines ──────────────────────────────────────────── */}
+        {/* ── Signature pads ──────────────────────────────────────────── */}
         <div style={{ display: 'flex', gap: 60, marginTop: 48, paddingTop: 16, borderTop: '1px solid #E2E8F0' }}>
-          {[['Vessel authorisation', 'Name, signature & date'], ['Supplier acknowledgement', 'Name, signature & date']].map(([label, sub]) => (
-            <div key={label} style={{ flex: 1, maxWidth: 220 }}>
-              <div style={{ height: 48, borderBottom: '1px solid #CBD5E1', marginBottom: 8 }} />
-              <p style={{ margin: 0, fontSize: 12, color: '#64748B' }}>{label}</p>
-              <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94A3B8' }}>{sub}</p>
-            </div>
-          ))}
+          <SignaturePad
+            label="Vessel authorisation"
+            sublabel="Name, signature & date"
+            onSign={() => { setDirty(true); setSaveStatus(null); }}
+          />
+          <SignaturePad
+            label="Supplier acknowledgement"
+            sublabel="Name, signature & date"
+            onSign={() => { setDirty(true); setSaveStatus(null); }}
+          />
         </div>
 
         {/* ── Action bar ──────────────────────────────────────────────── */}
