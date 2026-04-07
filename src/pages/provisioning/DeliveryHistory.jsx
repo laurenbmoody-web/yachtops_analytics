@@ -187,7 +187,7 @@ const LedgerEntry = ({ entry, userNames, boardNames, expanded, onToggle }) => {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export default function DeliveryLedger() {
+export default function DeliveryHistory() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { activeTenantId } = useTenant();
@@ -221,7 +221,7 @@ export default function DeliveryLedger() {
     if (boardParam) query = query?.eq('source_board_id', boardParam);
 
     const { data, error } = await query;
-    if (error) { console.error('[DeliveryLedger] fetch error:', error); setLoading(false); return; }
+    if (error) { console.error('[DeliveryHistory] fetch error:', error); setLoading(false); return; }
 
     const rows = (data || []).map(e => ({
       ...e,
@@ -302,14 +302,14 @@ export default function DeliveryLedger() {
             </button>
             <span style={{ color: '#CBD5E1', fontSize: 13 }}>›</span>
             <span style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>
-              Delivery Ledger{boardParam && boardNames[boardParam] ? ` — ${boardNames[boardParam]}` : ''}
+              Delivery History{boardParam && boardNames[boardParam] ? ` — ${boardNames[boardParam]}` : ''}
             </span>
           </div>
 
           {/* Title + summary */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0 16px' }}>
             <div>
-              <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Delivery Ledger</h1>
+              <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Delivery History</h1>
               <p style={{ margin: '2px 0 0', fontSize: 12, color: '#94A3B8' }}>
                 Permanent vessel-wide record of all deliveries and purchases
               </p>

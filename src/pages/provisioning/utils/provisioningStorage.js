@@ -1879,7 +1879,8 @@ export const createLedgerEntry = async ({
   orderRef, orderDate, invoiceNumber, deliveryNoteRef, documentUrl,
   documentType, totalAmount, currency, receivedBy, items,
 }) => {
-  if (!tenantId) return null;
+  console.log('[createLedgerEntry] Writing to ledger:', { tenantId, sourceType, items: items?.length });
+  if (!tenantId) { console.warn('[createLedgerEntry] Aborted — no tenantId'); return null; }
   try {
     const { data: ledger, error: ledgerErr } = await supabase
       ?.from('delivery_ledger')
@@ -1905,7 +1906,7 @@ export const createLedgerEntry = async ({
       ?.select()
       ?.single();
 
-    if (ledgerErr) { console.error('[createLedgerEntry] header error:', ledgerErr); return null; }
+    if (ledgerErr) throw ledgerErr;
 
     if (items?.length && ledger?.id) {
       const rows = items.map(item => ({
@@ -1924,12 +1925,13 @@ export const createLedgerEntry = async ({
         match_confidence: item.match_confidence || 'none',
       }));
       const { error: itemsErr } = await supabase?.from('delivery_ledger_items')?.insert(rows);
-      if (itemsErr) console.error('[createLedgerEntry] items error:', itemsErr);
+      if (itemsErr) throw itemsErr;
     }
 
+    console.log('[createLedgerEntry] Success — ledger id:', ledger?.id);
     return ledger;
   } catch (err) {
-    console.error('[createLedgerEntry]', err);
-    return null;
+    console.error('[createLedgerEntry] FAILED:', err);
+    throw err;
   }
 };

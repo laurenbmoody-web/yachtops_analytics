@@ -52,7 +52,7 @@ import ProvisioningWorkspace from './pages/provisioning';
 import ProvisioningBoardDetail from './pages/provisioning/ProvisioningBoardDetail';
 import ProvisioningSuppliers from './pages/provisioning/ProvisioningSuppliers';
 import DeliveryInbox from './pages/provisioning/DeliveryInbox';
-import DeliveryLedger from './pages/provisioning/DeliveryLedger';
+import DeliveryHistory from './pages/provisioning/DeliveryHistory';
 import ReturnSlipPage from './pages/provisioning/ReturnSlipPage';
 import ReturnConfirmPage from './pages/provisioning/ReturnConfirmPage';
 import TripItineraryTimeline from './pages/trip-itinerary-timeline/index';
@@ -922,7 +922,7 @@ const Routes = () => {
         <Route path="/provisioning" element={<ProtectedRoute><ProvisioningWorkspace /></ProtectedRoute>} />
         <Route path="/provisioning/suppliers" element={<ProtectedRoute><ProvisioningSuppliers /></ProtectedRoute>} />
         <Route path="/provisioning/inbox" element={<ProtectedRoute><DeliveryInbox /></ProtectedRoute>} />
-        <Route path="/provisioning/ledger" element={<ProtectedRoute><DeliveryLedger /></ProtectedRoute>} />
+        <Route path="/provisioning/history" element={<ProtectedRoute><DeliveryHistory /></ProtectedRoute>} />
         <Route path="/provisioning/return-slip" element={<ProtectedRoute><ReturnSlipPage /></ProtectedRoute>} />
         <Route path="/provisioning/:id" element={<ProtectedRoute><ProvisioningBoardDetail /></ProtectedRoute>} />
 
