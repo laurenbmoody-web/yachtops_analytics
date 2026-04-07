@@ -269,13 +269,13 @@ Deno.serve(async (req: Request) => {
   // Attach vessel signature as an inline CID image so email clients render it.
   // Strip the data URI prefix — Resend expects raw base64.
   if (body.vesselSignature) {
-    const base64 = (body.vesselSignature as string).replace(/^data:image\/\w+;base64,/, '');
+    const base64Data = (body.vesselSignature as string).replace(/^data:image\/\w+;base64,/, '');
     emailPayload.attachments = [{
-      filename:    'vessel-signature.png',
-      content:     base64,
-      type:        'image/png',
-      disposition: 'inline',
-      content_id:  'vessel-signature',
+      filename:     'signature.png',
+      content:      base64Data,
+      content_type: 'image/png',
+      disposition:  'inline',
+      content_id:   'vessel-signature',
     }];
   }
 
