@@ -85,8 +85,8 @@ function buildEmailHtml(b: any): string {
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:32px 16px">
 <tr><td align="center">
 
-  <!-- ── Email intro ── -->
-  <table width="600" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border-radius:12px 12px 0 0;padding:32px 32px 0">
+  <!-- Email intro -->
+  <table width="600" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border-radius:12px 12px 0 0">
     <tr><td style="padding:32px 32px 28px">
       <p style="margin:0 0 16px;font-size:14px;color:#334155;line-height:1.6">Dear ${b.supplierName || 'Supplier'},</p>
       <p style="margin:0 0 16px;font-size:14px;color:#334155;line-height:1.6">
@@ -94,7 +94,8 @@ function buildEmailHtml(b: any): string {
         The return slip is detailed below.
       </p>
       <p style="margin:0 0 24px;font-size:14px;color:#334155;line-height:1.6">
-        Please confirm receipt of the returned items by replying to ${replyContact ? `<strong>${replyContact}</strong> on` : ''} this email.
+        Please review the items and confirm receipt by clicking the button below.
+        For any queries relating to this return, please reply to this email which will be directed to ${replyContact ? `<strong>${replyContact}</strong>` : 'the vessel'}.
       </p>
       <p style="margin:0;font-size:14px;color:#334155;line-height:1.8">
         Kind regards,<br>
