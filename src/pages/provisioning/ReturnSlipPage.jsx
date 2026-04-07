@@ -516,11 +516,11 @@ export default function ReturnSlipPage() {
             sublabel="Name, signature & date"
             onSign={() => { setDirty(true); setSaveStatus(null); }}
           />
-          <SignaturePad
-            label="Supplier acknowledgement"
-            sublabel="Name, signature & date"
-            onSign={() => { setDirty(true); setSaveStatus(null); }}
-          />
+          <div style={{ flex: 1, maxWidth: 280 }}>
+            <div style={{ height: 80, borderBottom: '1px solid #CBD5E1', marginBottom: 8 }} />
+            <p style={{ margin: 0, fontSize: 12, color: '#64748B' }}>Supplier acknowledgement</p>
+            <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94A3B8' }}>Name, signature &amp; date</p>
+          </div>
         </div>
 
         {/* ── Action bar ──────────────────────────────────────────────── */}
