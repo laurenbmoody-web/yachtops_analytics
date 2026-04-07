@@ -840,11 +840,23 @@ const ReturnsView = ({ tenantId, userId, tenantName, userFullName }) => {
                     style={{ width: 13, height: 13, accentColor: '#DC2626', cursor: 'pointer', flexShrink: 0 }}
                   />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#0F172A' }}>{item.raw_name}</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#0F172A' }}>{item.raw_name}</p>
+                      {item.supplier_confirmed_at && (
+                        <span style={{
+                          fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20,
+                          background: '#F0FDF4', color: '#059669', border: '1px solid #BBF7D0',
+                          flexShrink: 0,
+                        }}>
+                          Confirmed
+                        </span>
+                      )}
+                    </div>
                     <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94A3B8' }}>
                       Qty: {item.quantity ?? '—'}{item.unit ? ` ${item.unit}` : ''}
                       {requesterName ? ` · Requested by ${requesterName}` : ''}
                       {item.return_requested_at ? ` · ${formatDate(item.return_requested_at)}` : ''}
+                      {item.supplier_confirmed_at ? ` · Confirmed by ${item.supplier_signer_name || 'supplier'} ${formatDate(item.supplier_confirmed_at)}` : ''}
                     </p>
                   </div>
                 </div>
