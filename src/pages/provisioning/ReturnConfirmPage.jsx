@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 
+const CheckIcon = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, display: 'block' }}>
+    <circle cx="8" cy="8" r="8" fill="#059669"/>
+    <path d="M5 8l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
 // ── Signature pad ─────────────────────────────────────────────────────────────
 
 const SignaturePad = ({ onSign }) => {
@@ -286,7 +293,7 @@ export default function ReturnConfirmPage() {
       <CardHeader vesselName={vesselName} orderRef={orderRef} supplierName={supplierName} />
       <div style={{ padding: '24px 24px 0' }}>
         <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, padding: '20px 24px', textAlign: 'center', marginBottom: 20 }}>
-          <div style={{ fontSize: 36, marginBottom: 8 }}>✅</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><CheckIcon size={40} /></div>
           <p style={{ margin: 0, fontSize: 14, color: '#047857', lineHeight: 1.6 }}>
             This return has already been confirmed by{' '}
             <strong>{confirmedBy}</strong> on{' '}
@@ -304,7 +311,7 @@ export default function ReturnConfirmPage() {
     <Page>
       <CardHeader vesselName={vesselName} orderRef={orderRef} supplierName={supplierName} />
       <div style={{ padding: '48px 24px 40px', textAlign: 'center' }}>
-        <div style={{ animation: 'pulse 1.8s ease-in-out 3', fontSize: 56, lineHeight: 1, marginBottom: 20 }}>✅</div>
+        <div style={{ animation: 'pulse 1.8s ease-in-out 3', display: 'flex', justifyContent: 'center', marginBottom: 20 }}><CheckIcon size={56} /></div>
         <h2 style={{ margin: '0 0 10px', fontSize: 22, fontWeight: 700, color: '#065F46' }}>Receipt confirmed</h2>
         <p style={{ margin: 0, fontSize: 15, color: '#047857', lineHeight: 1.6, maxWidth: 400, marginLeft: 'auto', marginRight: 'auto' }}>
           Your confirmation has been sent to {vesselName || 'the vessel'}. You can close this page.

@@ -1,7 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
+
+const CheckIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+    <circle cx="8" cy="8" r="8" fill="#059669"/>
+    <path d="M5 8l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
 
 const REASON_OPTIONS = [
   'Not ordered',
@@ -18,7 +26,7 @@ const fmtCurrency = (val) => {
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
 };
 
-const Field = ({ label, value, onChange, type = 'text', multiline = false }) => (
+const Field = ({ label, value, onChange, type = 'text', multiline = false, disabled = false }) => (
   <div>
     <label style={{ display: 'block', fontSize: 11, color: '#94A3B8', marginBottom: 4 }}>{label}</label>
     {multiline ? (
@@ -26,10 +34,12 @@ const Field = ({ label, value, onChange, type = 'text', multiline = false }) => 
         value={value}
         onChange={e => onChange(e.target.value)}
         rows={2}
+        disabled={disabled}
         style={{
           width: '100%', border: '1px solid #E2E8F0', borderRadius: 6,
           padding: '6px 10px', fontSize: 13, color: '#0F172A', resize: 'vertical',
           fontFamily: 'inherit', boxSizing: 'border-box',
+          background: disabled ? '#F8FAFC' : 'white',
         }}
       />
     ) : (
@@ -37,10 +47,12 @@ const Field = ({ label, value, onChange, type = 'text', multiline = false }) => 
         type={type}
         value={value}
         onChange={e => onChange(e.target.value)}
+        disabled={disabled}
         style={{
           width: '100%', border: '1px solid #E2E8F0', borderRadius: 6,
           padding: '6px 10px', fontSize: 13, color: '#0F172A',
           fontFamily: 'inherit', boxSizing: 'border-box',
+          background: disabled ? '#F8FAFC' : 'white',
         }}
       />
     )}
@@ -378,6 +390,16 @@ export default function ReturnSlipPage() {
     }
   };
 
+  const isLocked = !!supplierConfirmed;
+
+  const markComplete = async () => {
+    const { error } = await supabase
+      ?.from('delivery_inbox')
+      ?.update({ status: 'archived' })
+      ?.in('id', items.map(i => i.id));
+    if (!error) navigate('/provisioning/inbox');
+  };
+
   const total = items.reduce((sum, i) => sum + (parseFloat(i.line_total) || 0), 0);
   const showPricing = items.some(i => i.unit_price || i.line_total);
   const showRef     = items.some(i => i.item_reference);
@@ -440,10 +462,10 @@ export default function ReturnSlipPage() {
             Supplier Details
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Field label="Company Name" value={supplierInfo.name}    onChange={v => setSupplierInfo(p => ({ ...p, name: v }))} />
-            <Field label="Phone"        value={supplierInfo.phone}   onChange={v => setSupplierInfo(p => ({ ...p, phone: v }))} />
-            <Field label="Email"        value={supplierInfo.email}   onChange={v => setSupplierInfo(p => ({ ...p, email: v }))} />
-            <Field label="Address"      value={supplierInfo.address} onChange={v => setSupplierInfo(p => ({ ...p, address: v }))} />
+            <Field label="Company Name" value={supplierInfo.name}    onChange={v => setSupplierInfo(p => ({ ...p, name: v }))}    disabled={isLocked} />
+            <Field label="Phone"        value={supplierInfo.phone}   onChange={v => setSupplierInfo(p => ({ ...p, phone: v }))}   disabled={isLocked} />
+            <Field label="Email"        value={supplierInfo.email}   onChange={v => setSupplierInfo(p => ({ ...p, email: v }))}   disabled={isLocked} />
+            <Field label="Address"      value={supplierInfo.address} onChange={v => setSupplierInfo(p => ({ ...p, address: v }))} disabled={isLocked} />
           </div>
         </div>
 
@@ -496,9 +518,11 @@ export default function ReturnSlipPage() {
                     onChange={e => updateItem(item.id, 'return_qty', Math.max(1, Math.min(item.quantity, parseInt(e.target.value) || 1)))}
                     min={1}
                     max={item.quantity}
+                    disabled={isLocked}
                     style={{
                       width: 60, border: '1px solid #E2E8F0', borderRadius: 6,
                       padding: '4px 6px', textAlign: 'center', fontSize: 13,
+                      background: isLocked ? '#F8FAFC' : 'white',
                     }}
                   />
                 </td>
@@ -509,9 +533,11 @@ export default function ReturnSlipPage() {
                     className="print-val"
                     value={item.return_reason}
                     onChange={e => updateItem(item.id, 'return_reason', e.target.value)}
+                    disabled={isLocked}
                     style={{
                       width: '100%', border: '1px solid #E2E8F0', borderRadius: 6,
-                      padding: '4px 8px', fontSize: 12, background: 'white',
+                      padding: '4px 8px', fontSize: 12,
+                      background: isLocked ? '#F8FAFC' : 'white',
                     }}
                   >
                     {REASON_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
@@ -524,9 +550,11 @@ export default function ReturnSlipPage() {
                     value={item.return_notes}
                     onChange={e => updateItem(item.id, 'return_notes', e.target.value)}
                     placeholder="Optional…"
+                    disabled={isLocked}
                     style={{
                       width: '100%', border: '1px solid #E2E8F0', borderRadius: 6,
                       padding: '4px 8px', fontSize: 12, boxSizing: 'border-box',
+                      background: isLocked ? '#F8FAFC' : 'white',
                     }}
                   />
                 </td>
@@ -554,7 +582,7 @@ export default function ReturnSlipPage() {
             background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8,
             padding: '8px 14px', marginBottom: 20, fontSize: 13, color: '#065F46',
           }}>
-            <span style={{ fontSize: 16 }}>✅</span>
+            <CheckIcon />
             <span>
               <strong>{supplierConfirmed.name}</strong> confirmed receipt ·{' '}
               {supplierConfirmed.at.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
@@ -564,11 +592,25 @@ export default function ReturnSlipPage() {
 
         {/* ── Signature pads ──────────────────────────────────────────── */}
         <div style={{ display: 'flex', gap: 60, marginTop: 48, paddingTop: 16, borderTop: '1px solid #E2E8F0' }}>
-          <SignaturePad
-            label="Vessel authorisation"
-            sublabel={[preparedBy, signerJobTitle, slipDate].filter(Boolean).join(' · ')}
-            onSign={(dataUrl) => { setVesselSig(dataUrl); setDirty(true); setSaveStatus(null); }}
-          />
+          {isLocked ? (
+            <div style={{ flex: 1, maxWidth: 280 }}>
+              {vesselSig ? (
+                <img src={vesselSig} alt="Vessel signature" style={{ width: '100%', height: 80, objectFit: 'contain', borderBottom: '1px solid #CBD5E1', display: 'block' }} />
+              ) : (
+                <div style={{ height: 80, borderBottom: '1px solid #CBD5E1', marginBottom: 8 }} />
+              )}
+              <p style={{ margin: '8px 0 0', fontSize: 12, color: '#64748B' }}>Vessel authorisation</p>
+              <p style={{ margin: '2px 0 0', fontSize: 11, color: '#334155', fontStyle: 'italic' }}>
+                {[preparedBy, signerJobTitle, slipDate].filter(Boolean).join(' · ')}
+              </p>
+            </div>
+          ) : (
+            <SignaturePad
+              label="Vessel authorisation"
+              sublabel={[preparedBy, signerJobTitle, slipDate].filter(Boolean).join(' · ')}
+              onSign={(dataUrl) => { setVesselSig(dataUrl); setDirty(true); setSaveStatus(null); }}
+            />
+          )}
           <div style={{ flex: 1, maxWidth: 280 }}>
             {supplierConfirmed?.signature ? (
               <>
@@ -593,81 +635,119 @@ export default function ReturnSlipPage() {
         </div>
 
         {/* ── Action bar ──────────────────────────────────────────────── */}
-        <div className="no-print" style={{ textAlign: 'center', marginTop: 32, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <button
-              onClick={saveChanges}
-              disabled={saving || (!dirty && saveStatus === 'saved')}
-              style={{
-                padding: '10px 24px', background: 'white', color: '#1E3A5F',
-                border: '1.5px solid #1E3A5F', borderRadius: 8, fontSize: 14, fontWeight: 600,
-                cursor: saving || (!dirty && saveStatus === 'saved') ? 'default' : 'pointer',
-                opacity: saving || (!dirty && saveStatus === 'saved') ? 0.5 : 1,
-                transition: 'opacity 0.2s',
-              }}
-            >
-              {saving ? 'Saving…' : !dirty && saveStatus === 'saved' ? 'Saved ✓' : 'Save Changes'}
-            </button>
-            <button
-              onClick={handleSaveAndPrint}
-              disabled={saving}
-              style={{
-                padding: '10px 28px', background: '#1E3A5F', color: 'white',
-                border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600,
-                cursor: saving ? 'default' : 'pointer',
-                opacity: saving ? 0.7 : 1,
-              }}
-            >
-              {saving ? 'Saving…' : 'Save & Print'}
-            </button>
-            <div style={{ width: 1, height: 32, background: '#E2E8F0', margin: '0 4px' }} />
-            {supplierInfo.email ? (
+        {isLocked ? (
+          <div className="no-print" style={{ marginTop: 32, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+            {/* Locked banner */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8,
+              padding: '12px 20px', fontSize: 14, color: '#065F46', width: '100%', maxWidth: 560, boxSizing: 'border-box',
+            }}>
+              <CheckIcon />
+              <span>
+                This return has been confirmed by <strong>{supplierConfirmed.name}</strong> on{' '}
+                {supplierConfirmed.at.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}.
+                The slip is now read-only.
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
               <button
-                onClick={handleSubmitToSupplier}
-                disabled={submitting || submitted}
+                onClick={() => window.print()}
                 style={{
-                  padding: '10px 24px',
-                  background: submitted ? '#059669' : '#C65A1A',
-                  color: 'white', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600,
-                  cursor: submitting || submitted ? 'default' : 'pointer',
-                  opacity: submitting ? 0.7 : 1,
-                  transition: 'background 0.2s',
-                  maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  padding: '10px 28px', background: '#1E3A5F', color: 'white',
+                  border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer',
                 }}
-                title={`Send to ${supplierInfo.email}`}
               >
-                {submitting ? 'Sending…' : submitted ? 'Sent ✓' : `Email to ${supplierInfo.email}`}
+                Print
               </button>
-            ) : (
-              <button disabled style={{
-                padding: '10px 24px', background: '#E2E8F0', color: '#94A3B8',
-                border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'default',
-              }}>
-                No supplier email
+              <button
+                onClick={markComplete}
+                style={{
+                  padding: '10px 24px', background: 'white', color: '#1E3A5F',
+                  border: '1.5px solid #1E3A5F', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                Mark as Complete &amp; Archive
               </button>
+            </div>
+          </div>
+        ) : (
+          <div className="no-print" style={{ textAlign: 'center', marginTop: 32, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <button
+                onClick={saveChanges}
+                disabled={saving || (!dirty && saveStatus === 'saved')}
+                style={{
+                  padding: '10px 24px', background: 'white', color: '#1E3A5F',
+                  border: '1.5px solid #1E3A5F', borderRadius: 8, fontSize: 14, fontWeight: 600,
+                  cursor: saving || (!dirty && saveStatus === 'saved') ? 'default' : 'pointer',
+                  opacity: saving || (!dirty && saveStatus === 'saved') ? 0.5 : 1,
+                  transition: 'opacity 0.2s',
+                }}
+              >
+                {saving ? 'Saving…' : !dirty && saveStatus === 'saved' ? 'Saved ✓' : 'Save Changes'}
+              </button>
+              <button
+                onClick={handleSaveAndPrint}
+                disabled={saving}
+                style={{
+                  padding: '10px 28px', background: '#1E3A5F', color: 'white',
+                  border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600,
+                  cursor: saving ? 'default' : 'pointer',
+                  opacity: saving ? 0.7 : 1,
+                }}
+              >
+                {saving ? 'Saving…' : 'Save & Print'}
+              </button>
+              <div style={{ width: 1, height: 32, background: '#E2E8F0', margin: '0 4px' }} />
+              {supplierInfo.email ? (
+                <button
+                  onClick={handleSubmitToSupplier}
+                  disabled={submitting || submitted}
+                  style={{
+                    padding: '10px 24px',
+                    background: submitted ? '#059669' : '#C65A1A',
+                    color: 'white', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600,
+                    cursor: submitting || submitted ? 'default' : 'pointer',
+                    opacity: submitting ? 0.7 : 1,
+                    transition: 'background 0.2s',
+                    maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}
+                  title={`Send to ${supplierInfo.email}`}
+                >
+                  {submitting ? 'Sending…' : submitted ? 'Sent ✓' : `Email to ${supplierInfo.email}`}
+                </button>
+              ) : (
+                <button disabled style={{
+                  padding: '10px 24px', background: '#E2E8F0', color: '#94A3B8',
+                  border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'default',
+                }}>
+                  No supplier email
+                </button>
+              )}
+            </div>
+            {/* Status lines */}
+            {saveStatus === 'error' && (
+              <p style={{ margin: 0, fontSize: 12, color: '#DC2626' }}>
+                Some items failed to save. Check your connection and try again.
+              </p>
+            )}
+            {submitError && (
+              <p style={{ margin: 0, fontSize: 12, color: '#DC2626' }}>{submitError}</p>
+            )}
+            {submitted && (
+              <p style={{ margin: 0, fontSize: 12, color: '#059669' }}>
+                Return slip sent to {supplierInfo.email} — replies will come to your email
+              </p>
+            )}
+            {lastSavedAt && (
+              <p style={{ margin: 0, fontSize: 11, color: '#94A3B8' }}>
+                Last saved: {lastSavedAt.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                {dirty && ' · unsaved changes'}
+              </p>
             )}
           </div>
-          {/* Status lines */}
-          {saveStatus === 'error' && (
-            <p style={{ margin: 0, fontSize: 12, color: '#DC2626' }}>
-              Some items failed to save. Check your connection and try again.
-            </p>
-          )}
-          {submitError && (
-            <p style={{ margin: 0, fontSize: 12, color: '#DC2626' }}>{submitError}</p>
-          )}
-          {submitted && (
-            <p style={{ margin: 0, fontSize: 12, color: '#059669' }}>
-              Return slip sent to {supplierInfo.email} — replies will come to your email
-            </p>
-          )}
-          {lastSavedAt && (
-            <p style={{ margin: 0, fontSize: 11, color: '#94A3B8' }}>
-              Last saved: {lastSavedAt.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-              {dirty && ' · unsaved changes'}
-            </p>
-          )}
-        </div>
+        )}
 
       </div>
     </>
