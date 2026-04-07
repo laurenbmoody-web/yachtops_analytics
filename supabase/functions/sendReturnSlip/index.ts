@@ -68,11 +68,12 @@ function buildEmailHtml(b: any): string {
   // Data URIs are stripped by most email clients (Gmail, Outlook).
   // Show a text-based "Signed digitally" indicator instead — always reliable.
   const sigBlock = b.vesselSignature
-    ? `<div style="margin-bottom:6px">
-         <span style="font-style:italic;font-size:13px;color:#1E40AF">Signed digitally by ${b.signerName || 'crew member'}</span>
-         ${b.signerJobTitle ? `<div style="font-size:11px;color:#64748B;margin-top:2px">${b.signerJobTitle}</div>` : ''}
-       </div>`
+    ? `<div style="padding:4px 10px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:4px;font-size:11px;color:#1E40AF;display:inline-block;margin-bottom:6px">✓ Signed</div>`
     : `<div style="height:32px"></div>`;
+
+  const vesselSigLine = b.vesselSignature && b.signerName
+    ? `<div style="font-size:11px;font-style:italic;color:#334155;margin-top:2px">Signed by ${[b.signerName, b.signerJobTitle].filter(Boolean).join(' · ')}</div>`
+    : `<div style="font-size:11px;color:#94A3B8">Name, signature &amp; date</div>`;
 
   const orderRefText = b.orderRef ? `delivery ${b.orderRef}` : 'the referenced order';
   const replyContact = [b.signerName, b.signerJobTitle].filter(Boolean).join(', ');
@@ -179,7 +180,7 @@ function buildEmailHtml(b: any): string {
           ${sigBlock}
           <div style="border-bottom:1px solid #CBD5E1;margin-bottom:6px"></div>
           <div style="font-size:12px;color:#64748B">Vessel authorisation</div>
-          <div style="font-size:11px;color:#94A3B8">Name, signature &amp; date</div>
+          ${vesselSigLine}
         </td>
         <td width="4%"></td>
         <td width="48%" style="padding-left:16px">
