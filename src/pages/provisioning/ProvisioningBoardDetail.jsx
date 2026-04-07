@@ -841,7 +841,7 @@ const ProvisioningBoardDetail = () => {
                 onClick={() => setShowReceiveModal(true)}
                 style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: '#ECFDF5', border: '1px solid #A7F3D0', color: '#065F46', whiteSpace: 'nowrap' }}
               >
-                <Icon name="PackageCheck" style={{ width: 13, height: 13 }} /> Receive Delivery
+                <Icon name="PackageCheck" style={{ width: 13, height: 13 }} /> Receive Items
               </button>
               {isDraftOrPending && (
                 <button

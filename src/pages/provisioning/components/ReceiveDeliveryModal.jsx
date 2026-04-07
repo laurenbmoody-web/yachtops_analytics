@@ -376,7 +376,7 @@ const ReceiveStep = ({
               </p>
             )}
           </div>
-          {fromNote && <span title="Qty set from delivery note" style={{ fontSize: 9, background: '#DCFCE7', color: '#15803D', padding: '1px 5px', borderRadius: 4, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>📄 match</span>}
+          {fromNote && <span title="Qty set from document" style={{ fontSize: 9, background: '#DCFCE7', color: '#15803D', padding: '1px 5px', borderRadius: 4, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>📄 match</span>}
         </div>
         <p style={{ fontSize: 13, color: '#64748B', textAlign: 'center', margin: 0 }}>
           {ordered} <span style={{ fontSize: 10, color: '#CBD5E1' }}>{item.unit || ''}</span>
@@ -409,7 +409,7 @@ const ReceiveStep = ({
       <div style={{ padding: '14px 20px 10px', borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{ flex: 1 }}>
           <p style={{ fontSize: 12, fontWeight: 700, color: '#1E3A5F', margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Step 1 of 2</p>
-          <p style={{ fontSize: 11, color: '#94A3B8', margin: '2px 0 0' }}>Tick each item that arrived and enter the received quantity</p>
+          <p style={{ fontSize: 11, color: '#94A3B8', margin: '2px 0 0' }}>Tick each item received and enter the quantity</p>
         </div>
         <div onClick={() => setOrganiseBySupplier(v => !v)} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', flexShrink: 0 }}>
           <div style={{ width: 32, height: 18, borderRadius: 9, background: organiseBySupplier ? '#1E3A5F' : '#CBD5E1', position: 'relative', transition: 'background 0.15s' }}>
@@ -464,7 +464,9 @@ const ReceiveStep = ({
             const iconColor = noteStatus === 'error' ? '#DC2626' : noteStatus === 'parsing' ? '#94A3B8' : noMatch ? '#B45309' : '#059669';
             const subText = noteStatus === 'parsing' ? 'Extracting items with AI…'
               : noteStatus === 'error' ? (noteError || 'Failed to parse — items unchanged')
-              : noMatch ? `No matches${multiBoard ? ' on any board' : ' on your list'} · ${unmatchedItems.length} item${unmatchedItems.length !== 1 ? 's' : ''} will be routed to other departments`
+              : noMatch ? (parsedNote?.document_type === 'receipt'
+                  ? `No items matched your list — review items below to add or skip`
+                  : `No matches${multiBoard ? ' on any board' : ' on your list'} · ${unmatchedItems.length} item${unmatchedItems.length !== 1 ? 's' : ''} will be routed to other departments`)
               : (() => {
                   if (multiBoard) {
                     const matchedBoardIds = new Set((parsedNote?.line_items || []).filter(l => l.matched_item_id && l.match_confidence !== 'none').map(l => items.find(i => i.id === l.matched_item_id)?._boardId).filter(Boolean));
@@ -531,14 +533,27 @@ const ReceiveStep = ({
             <div onClick={() => setUnmatchedExpanded(p => !p)} style={{ padding: '8px 20px', background: '#FFFBEB', borderTop: '1px solid #F1F5F9', borderBottom: '0.5px solid #FEF3C7', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 11, color: '#92400E' }}>{unmatchedExpanded ? '▾' : '▸'}</span>
               <div>
-                <span style={{ fontSize: 10, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Other items on this delivery ({unmatchedItems.length})</span>
-                <span style={{ display: 'block', fontSize: 10, color: '#B45309', marginTop: 1 }}>Will be checked against other departments</span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  {parsedNote?.document_type === 'receipt'
+                    ? `Other items on this receipt (${unmatchedItems.length})`
+                    : `Other items on this document (${unmatchedItems.length})`}
+                </span>
+                <span style={{ display: 'block', fontSize: 10, color: '#B45309', marginTop: 1 }}>
+                  {parsedNote?.document_type === 'receipt'
+                    ? 'Items to review — add to your board or skip'
+                    : 'Will be checked against other departments on save'}
+                </span>
               </div>
             </div>
             {unmatchedExpanded && unmatchedItems.map((li, idx) => (
               <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 20px', borderBottom: '0.5px solid #F8FAFC', background: '#FFFDF7' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{li.raw_name}</p>
+                  {li.original_name && (
+                    <p style={{ margin: '1px 0 0', fontSize: 10, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      Receipt: {li.original_name}
+                    </p>
+                  )}
                   <p style={{ margin: '1px 0 0', fontSize: 11, color: '#94A3B8' }}>
                     {[li.quantity && `×${li.quantity}`, li.unit, li.unit_price && `$${li.unit_price}`].filter(Boolean).join(' · ')}
                   </p>
@@ -563,7 +578,9 @@ const ReceiveStep = ({
         <div>
           {items.filter(i => receiving[i.id]?.checked).length === 0 && unmatchedItems.length > 0 ? (
             <p style={{ fontSize: 11, color: '#B45309', margin: 0 }}>
-              No items matched {multiBoard ? 'any board' : 'your list'} — will check other departments on save
+              {parsedNote?.document_type === 'receipt'
+                ? 'No items matched your list — review items below to add or skip'
+                : `No items matched ${multiBoard ? 'any board' : 'your list'} — will check other departments on save`}
             </p>
           ) : (
             <p style={{ fontSize: 12, color: '#94A3B8', margin: 0 }}>
@@ -1285,7 +1302,14 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
         // Exclude items the user already added to their own board
         return !addedItems.some(added => added.name?.toLowerCase() === li.raw_name?.toLowerCase());
       });
-      if (unmatchedForRouting.length > 0) {
+
+      // Skip cross-department routing for receipts — items stay with scanning user
+      const isReceipt = parsedNote?.document_type === 'receipt';
+      if (unmatchedForRouting.length > 0 && isReceipt) {
+        console.log('[ReceiveDeliveryModal] Receipt mode — skipping cross-dept for', unmatchedForRouting.length, 'unmatched items');
+      }
+
+      if (unmatchedForRouting.length > 0 && !isReceipt) {
         try {
           // Skip cross-dept matching if this batch already has matches (prevents duplicates on re-scan)
           let skipCrossDept = false;
@@ -1655,7 +1679,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
         {/* Modal header */}
         <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', margin: 0 }}>Receive Delivery</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', margin: 0 }}>Receive Items</h2>
             <p style={{ fontSize: 12, color: '#94A3B8', margin: '3px 0 0' }}>{multiBoard ? `All boards · ${items.length} items` : list?.title}</p>
           </div>
           {/* Step indicator */}

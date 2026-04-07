@@ -236,7 +236,7 @@ const DeliveryModal = ({ list, items, onClose, onComplete }) => {
                       {file ? file.name : `Click to select ${uploadTab === 'pdf' ? 'PDF' : uploadTab === 'photo' ? 'image' : 'CSV'}`}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {uploadTab === 'pdf' && 'PDF delivery notes will be read automatically'}
+                      {uploadTab === 'pdf' && 'Delivery notes and shopping receipts will be read automatically'}
                       {uploadTab === 'photo' && 'JPG, PNG or HEIC — Azure will extract item details'}
                       {uploadTab === 'csv' && 'Export from your supplier system and upload here'}
                     </p>

@@ -1,16 +1,22 @@
 // Supabase Edge Function: parseDeliveryNote
 //
 // Uses Azure Document Intelligence (prebuilt-document model) to extract
-// line items from a delivery note image or PDF, then fuzzy-matches them
-// against provisioning board items.
+// line items from a delivery note or shopping receipt, then fuzzy-matches
+// them against provisioning board items.
+//
+// For receipts: auto-detects document type, extracts items from price-per-line
+// format, calls Anthropic Claude to expand abbreviations / translate foreign
+// language item names to English, then matches expanded names against board items.
 //
 // Uses the same AZURE_DOC_INTELLIGENCE_* env vars as azureDocumentParser.
+// Receipt AI expansion requires ANTHROPIC_API_KEY env var.
 //
 // Request body: { base64: string, mediaType: string, batchItems: ProvItem[] }
-// Response: same JSON shape as the original parse-invoice Netlify function:
-//   { invoice_number, invoice_date, supplier_name, total_amount, currency,
-//     line_items: [{ raw_name, quantity, unit_price, line_total, unit,
-//                    matched_item_id, match_confidence, discrepancy }] }
+// Response: { document_type, invoice_number, invoice_date, supplier_name,
+//             total_amount, currency,
+//             line_items: [{ raw_name, original_name?, quantity, unit_price,
+//                            line_total, unit, matched_item_id,
+//                            match_confidence, discrepancy }] }
 
 declare const Deno: {
   serve: (handler: (req: Request) => Promise<Response>) => void;
@@ -28,6 +34,225 @@ const corsHeaders = {
 const AZURE_ENDPOINT  = Deno.env.get('AZURE_DOC_INTELLIGENCE_ENDPOINT') || '';
 const AZURE_KEY       = Deno.env.get('AZURE_DOC_INTELLIGENCE_KEY') || '';
 const AZURE_API_VER   = Deno.env.get('AZURE_DOC_INTELLIGENCE_API_VERSION') || '2024-02-29-preview';
+
+// ── Document type detection ───────────────────────────────────────────────────
+
+function detectDocumentType(analyzeResult: any): 'receipt' | 'delivery_note' {
+  const content = (analyzeResult?.content || '').toLowerCase();
+
+  const receiptSignals = [
+    /\btotal\b.*[€$£¥]?\s*\d/i.test(content),
+    /\bsubtotal\b/i.test(content),
+    /\bchange\b.*\d/i.test(content),
+    /\bcard\b.*\bpayment\b|\bvisa\b|\bmastercard\b/i.test(content),
+    /\breceipt\b|\breçu\b|\bticket\b|\bbon\b/i.test(content),
+    /\btva\b|\bvat\b|\biva\b|\bmwst\b/i.test(content),
+    /\bcash\b|\bpaid\b|\bpayé\b/i.test(content),
+  ];
+
+  const deliverySignals = [
+    /deliver(ed|y)?\s*qty/i.test(content),
+    /order(ed)?\s*qty/i.test(content),
+    /item\s*ref/i.test(content),
+    /dispatch|shipment|consignment/i.test(content),
+    /outstanding/i.test(content),
+    /delivery\s*note|packing\s*list|dispatch\s*note/i.test(content),
+  ];
+
+  const receiptScore  = receiptSignals.filter(Boolean).length;
+  const deliveryScore = deliverySignals.filter(Boolean).length;
+
+  console.log('[parseDeliveryNote] Document type detection — receipt signals:', receiptScore, 'delivery signals:', deliveryScore);
+
+  return receiptScore > deliveryScore ? 'receipt' : 'delivery_note';
+}
+
+// ── Receipt item extraction ───────────────────────────────────────────────────
+
+function extractReceiptItems(analyzeResult: any, boardItems: any[]) {
+  const lineItems: any[] = [];
+
+  // Try table extraction first (some receipt OCR returns item | price columns)
+  for (const table of analyzeResult?.tables || []) {
+    if (table.columnCount < 2 || table.rowCount < 2) continue;
+    const cells = table.cells || [];
+
+    for (let r = 0; r < table.rowCount; r++) {
+      const rowCells = cells.filter((c: any) => c.rowIndex === r);
+      if (rowCells.length < 2) continue;
+
+      const nameCell  = rowCells[0]?.content?.trim() || '';
+      const priceCell = rowCells[rowCells.length - 1]?.content?.trim() || '';
+      if (!nameCell || nameCell.length < 2) continue;
+
+      const lower = nameCell.toLowerCase();
+      if (/^(total|subtotal|tax|tva|vat|iva|change|cash|card|visa|mastercard|paid|payment|receipt|merci|thank)/i.test(lower)) continue;
+
+      const priceMatch = priceCell.match(/[€$£¥]?\s*(\d+[.,]\d{2})/);
+      const unitPrice  = priceMatch ? parseFloat(priceMatch[1].replace(',', '.')) : null;
+
+      let quantity = 1;
+      let cleanName = nameCell;
+      const leadQty  = nameCell.match(/^(\d+)\s*[xX×]\s+(.+)/);
+      const trailQty = nameCell.match(/^(.+?)\s*[xX×]\s*(\d+)\s*$/);
+      if (leadQty)       { quantity = parseInt(leadQty[1], 10);  cleanName = leadQty[2]; }
+      else if (trailQty) { quantity = parseInt(trailQty[2], 10); cleanName = trailQty[1]; }
+
+      const match = matchToBoardItem(cleanName, null, null, boardItems);
+      lineItems.push({
+        raw_name: cleanName, item_reference: null, quantity,
+        ordered_qty: null, unit_price: unitPrice,
+        line_total: unitPrice ? unitPrice * quantity : null,
+        unit: null, matched_item_id: match.id, match_confidence: match.confidence, discrepancy: null,
+      });
+    }
+    if (lineItems.length > 0) break;
+  }
+
+  // Fallback: parse raw text lines looking for "ITEM NAME    €2.49" pattern
+  if (lineItems.length === 0 && analyzeResult?.content) {
+    const lines = analyzeResult.content.split('\n').map((l: string) => l.trim()).filter(Boolean);
+
+    for (const line of lines) {
+      if (line.length < 4) continue;
+      if (/^(total|subtotal|sous.total|tax|tva|vat|iva|mwst|change|cash|card|visa|mc|paid|payment|receipt|reçu|ticket|bon|merci|thank|gracias|danke|tel|adr|siret|siren|www\.|http)/i.test(line)) continue;
+      if (/^\d{2}[\/\-.]\d{2}[\/\-.]\d{2,4}/.test(line)) continue;
+      if (/^\*+$/.test(line) || /^[-=]+$/.test(line)) continue;
+
+      const priceAtEnd = line.match(/^(.{3,}?)\s{2,}[€$£¥]?\s*(\d+[.,]\d{2})\s*[€$£¥A-Z]?\s*$/);
+      if (!priceAtEnd) continue;
+
+      let itemName = priceAtEnd[1].trim();
+      const price  = parseFloat(priceAtEnd[2].replace(',', '.'));
+
+      let qty = 1;
+      const qtyPrefix = itemName.match(/^(\d+)\s*[xX×]\s+(.+)/);
+      const qtySuffix = itemName.match(/^(.+?)\s*[xX×]\s*(\d+)\s*$/);
+      if (qtyPrefix)      { qty = parseInt(qtyPrefix[1], 10); itemName = qtyPrefix[2]; }
+      else if (qtySuffix) { qty = parseInt(qtySuffix[2], 10); itemName = qtySuffix[1]; }
+
+      const match = matchToBoardItem(itemName, null, null, boardItems);
+      lineItems.push({
+        raw_name: itemName, item_reference: null, quantity: qty,
+        ordered_qty: null, unit_price: price, line_total: price * qty,
+        unit: null, matched_item_id: match.id, match_confidence: match.confidence, discrepancy: null,
+      });
+    }
+  }
+
+  return lineItems;
+}
+
+// ── Receipt metadata extraction ───────────────────────────────────────────────
+
+function extractReceiptMetadata(content: string) {
+  let supplierName: string | null    = null;
+  let supplierPhone: string | null   = null;
+  let totalAmount: number | null     = null;
+  let currency: string | null        = null;
+  let invoiceDate: string | null     = null;
+
+  if (!content) return { supplierName, supplierPhone, totalAmount, currency, invoiceDate };
+
+  const lines = content.split('\n').map((l: string) => l.trim()).filter(Boolean);
+
+  // Store name: first short non-numeric non-header line near the top
+  for (let i = 0; i < Math.min(5, lines.length); i++) {
+    const line = lines[i];
+    if (line.length < 3) continue;
+    if (/^\d/.test(line)) continue;
+    if (/^(tel|fax|www|http|siret|siren)/i.test(line)) continue;
+    if (!supplierName) { supplierName = line; break; }
+  }
+
+  // Phone
+  for (const line of lines) {
+    const phone = line.match(/(?:tel|phone|tél)[.:\s]*([+\d\s().-]{8,})/i) || line.match(/\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/);
+    if (phone && !supplierPhone) { supplierPhone = (phone[1] || phone[0]).trim(); break; }
+  }
+
+  // Total (scan from bottom)
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const m = lines[i].match(/(?:total|à payer|te betalen|zu zahlen|a pagar)\s*[:\s]*[€$£¥]?\s*(\d+[.,]\d{2})/i);
+    if (m) { totalAmount = parseFloat(m[1].replace(',', '.')); break; }
+  }
+
+  // Currency
+  if (/€/.test(content))       currency = 'EUR';
+  else if (/£/.test(content))  currency = 'GBP';
+  else if (/\$/.test(content)) currency = 'USD';
+
+  // Date
+  const dateMatch = content.match(/(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4})/);
+  if (dateMatch) invoiceDate = dateMatch[1];
+
+  return { supplierName, supplierPhone, totalAmount, currency, invoiceDate };
+}
+
+// ── AI expansion of abbreviated / foreign-language receipt names ──────────────
+
+async function expandReceiptItems(items: any[]): Promise<any[]> {
+  if (!items.length) return items;
+
+  const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY') || '';
+  if (!ANTHROPIC_API_KEY) {
+    console.log('[parseDeliveryNote] No ANTHROPIC_API_KEY — skipping item expansion');
+    return items;
+  }
+
+  const itemNames = items.map((i: any) => i.raw_name);
+  console.log('[parseDeliveryNote] Expanding', itemNames.length, 'receipt items via Claude');
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1024,
+        messages: [{
+          role: 'user',
+          content: `These are item names from a shopping receipt. They may be abbreviated, in a foreign language, or both. For each item, return the full English product name. Keep brand names if recognisable. Return ONLY a JSON array of strings in the same order, nothing else. No markdown, no backticks.
+
+Items:
+${itemNames.map((n: string, i: number) => `${i + 1}. ${n}`).join('\n')}
+
+Example input: ["BRD WHL SLCD", "LAIT DM-ECR 1L", "ACEITE OLIVA VRG", "EVIAN 1.5L X6"]
+Example output: ["Wholemeal Sliced Bread", "Semi-Skimmed Milk 1L", "Extra Virgin Olive Oil", "Evian Water 1.5L x6"]`,
+        }],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('[parseDeliveryNote] Anthropic API error:', response.status);
+      return items;
+    }
+
+    const data = await response.json();
+    const text = data.content?.[0]?.text || '';
+    console.log('[parseDeliveryNote] Anthropic response:', text.slice(0, 300));
+
+    const expanded = JSON.parse(text.replace(/```json|```/g, '').trim());
+    if (Array.isArray(expanded) && expanded.length === items.length) {
+      console.log('[parseDeliveryNote] Expanded names:', expanded);
+      return items.map((item: any, i: number) => ({
+        ...item,
+        raw_name:      expanded[i] || item.raw_name,
+        original_name: item.raw_name,
+      }));
+    }
+
+    console.warn('[parseDeliveryNote] Expanded array length mismatch — using originals');
+    return items;
+  } catch (e: any) {
+    console.error('[parseDeliveryNote] AI expansion failed:', e?.message);
+    return items;
+  }
+}
 
 // ── Poll until Azure operation completes ──────────────────────────────────────
 
@@ -110,7 +335,38 @@ function matchToBoardItem(rawName: string, brand: string | null, size: string | 
 
 // ── Extract line items from Azure prebuilt-document result ───────────────────
 
-function extractLineItems(analyzeResult: any, boardItems: any[]) {
+async function extractLineItems(analyzeResult: any, boardItems: any[], documentType: 'receipt' | 'delivery_note') {
+
+  // ── Receipt path ──────────────────────────────────────────────────────────
+  if (documentType === 'receipt') {
+    console.log('[parseDeliveryNote] Receipt mode — using receipt extractor');
+    let receiptItems = extractReceiptItems(analyzeResult, boardItems);
+    console.log('[parseDeliveryNote] Receipt raw items:', receiptItems.length);
+
+    // Expand abbreviations / translate to English, then re-match board items
+    receiptItems = await expandReceiptItems(receiptItems);
+
+    // Re-run board matching on expanded English names
+    receiptItems = receiptItems.map((item: any) => {
+      const match = matchToBoardItem(item.raw_name, null, null, boardItems);
+      return { ...item, matched_item_id: match.id, match_confidence: match.confidence };
+    });
+
+    const { supplierName, supplierPhone, totalAmount, currency, invoiceDate } =
+      extractReceiptMetadata(analyzeResult?.content || '');
+
+    console.log('[parseDeliveryNote] Receipt extracted', receiptItems.length, 'items; metadata:', { supplierName, totalAmount, currency });
+
+    return {
+      invoiceNumber: null, invoiceDate, supplierName, supplierPhone,
+      supplierEmail: null, supplierAddress: null,
+      orderRef: null, orderDate: null,
+      totalAmount, currency,
+      lineItems: receiptItems,
+    };
+  }
+
+  // ── Delivery note path (original logic — unchanged) ───────────────────────
   console.log('[parseDeliveryNote] analyzeResult keys:', Object.keys(analyzeResult || {}));
   console.log('[parseDeliveryNote] tables:', analyzeResult?.tables?.length ?? 0,
     '| paragraphs:', analyzeResult?.paragraphs?.length ?? 0,
@@ -273,7 +529,7 @@ function extractLineItems(analyzeResult: any, boardItems: any[]) {
   console.log('[parseDeliveryNote] Extracted metadata:', { supplierName, supplierPhone, supplierEmail, supplierAddress, invoiceNumber, invoiceDate, orderRef, orderDate });
 
   return { invoiceNumber, invoiceDate, supplierName, supplierPhone, supplierEmail, supplierAddress, orderRef, orderDate, totalAmount: null, currency: null, lineItems };
-}
+} // end extractLineItems
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 
@@ -352,10 +608,14 @@ Deno.serve(async (req: Request) => {
     console.log('[parseDeliveryNote] Polling operation:', operationLocation.slice(0, 80), '...');
     const analyzeResult = await pollOperation(operationLocation);
 
-    const { invoiceNumber, invoiceDate, supplierName, supplierPhone, supplierEmail, supplierAddress, orderRef, orderDate, totalAmount, currency, lineItems } = extractLineItems(analyzeResult, batchItems);
+    const documentType = detectDocumentType(analyzeResult);
+    console.log('[parseDeliveryNote] Detected document type:', documentType);
+
+    const { invoiceNumber, invoiceDate, supplierName, supplierPhone, supplierEmail, supplierAddress, orderRef, orderDate, totalAmount, currency, lineItems } = await extractLineItems(analyzeResult, batchItems, documentType);
     console.log('[parseDeliveryNote] Extracted', lineItems.length, 'line items; matched:', lineItems.filter((l: any) => l.matched_item_id).length);
 
     const response = {
+      document_type:    documentType,
       invoice_number:   invoiceNumber,
       invoice_date:     invoiceDate,
       supplier_name:    supplierName,
