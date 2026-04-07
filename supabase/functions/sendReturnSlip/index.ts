@@ -74,13 +74,42 @@ function buildEmailHtml(b: any): string {
        </div>`
     : `<div style="height:32px"></div>`;
 
+  const orderRefText = b.orderRef ? `delivery ${b.orderRef}` : 'the referenced order';
+  const replyContact = [b.signerName, b.signerJobTitle].filter(Boolean).join(', ');
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#F1F5F9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:32px 16px">
 <tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08)">
+
+  <!-- ── Email intro ── -->
+  <table width="600" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border-radius:12px 12px 0 0;padding:32px 32px 0">
+    <tr><td style="padding:32px 32px 28px">
+      <p style="margin:0 0 16px;font-size:14px;color:#334155;line-height:1.6">Dear ${b.supplierName || 'Supplier'},</p>
+      <p style="margin:0 0 16px;font-size:14px;color:#334155;line-height:1.6">
+        <strong>${b.vesselName || 'The vessel'}</strong> has submitted a return for ${orderRefText}.
+        The return slip is detailed below.
+      </p>
+      <p style="margin:0 0 24px;font-size:14px;color:#334155;line-height:1.6">
+        Please confirm receipt of the returned items by replying to ${replyContact ? `<strong>${replyContact}</strong> on` : ''} this email.
+      </p>
+      <p style="margin:0;font-size:14px;color:#334155;line-height:1.8">
+        Kind regards,<br>
+        <strong>Cargo</strong><br>
+        <span style="color:#64748B;font-size:13px">on behalf of ${b.vesselName || 'the vessel'}</span>
+      </p>
+    </td></tr>
+  </table>
+
+  <!-- ── Divider ── -->
+  <table width="600" cellpadding="0" cellspacing="0" style="background:#FFFFFF">
+    <tr><td style="padding:0 32px"><div style="border-top:1px solid #E2E8F0"></div></td></tr>
+  </table>
+
+  <!-- ── Return slip document ── -->
+<table width="600" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border-radius:0 0 12px 12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08)">
 
   <!-- ── Header ── -->
   <tr>
@@ -162,16 +191,11 @@ function buildEmailHtml(b: any): string {
       </tr>
     </table>
 
-    <!-- ── Action note ── -->
-    <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:6px;padding:12px 14px;margin-bottom:24px">
-      <p style="margin:0;font-size:12px;color:#9A3412">Please confirm receipt of the returned items by replying to this email.</p>
-    </div>
-
   </td></tr>
 
   <!-- ── Footer ── -->
   <tr>
-    <td style="background:#F8FAFC;padding:14px 28px;border-top:1px solid #E2E8F0">
+    <td style="background:#F8FAFC;padding:14px 28px;border-top:1px solid #E2E8F0;border-radius:0 0 12px 12px">
       <p style="margin:0;font-size:11px;color:#94A3B8;text-align:center">This return slip was sent via Cargo (cargotechnology.app)</p>
     </td>
   </tr>
