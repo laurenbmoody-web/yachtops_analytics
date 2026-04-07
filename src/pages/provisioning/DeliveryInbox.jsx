@@ -455,7 +455,7 @@ const ItemRow = ({ item, boards, userId, isLast, selected, onToggle, onClaimed, 
 
 // ── Bulk action bar ───────────────────────────────────────────────────────────
 
-const BulkBar = ({ count, boards, onClaimAll, onReturnAll, onClear, claiming }) => {
+const BulkBar = ({ count, boards, onClaimAll, onReturnAll, onDismissAll, onClear, claiming }) => {
   const [boardsOpen, setBoardsOpen] = useState(false);
 
   return (
@@ -527,6 +527,22 @@ const BulkBar = ({ count, boards, onClaimAll, onReturnAll, onClear, claiming }) 
         onMouseLeave={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.18)'; e.currentTarget.style.color = '#FCA5A5'; }}
       >
         Return to supplier
+      </button>
+
+      {/* Not my order */}
+      <button
+        onClick={onDismissAll}
+        disabled={claiming}
+        style={{
+          padding: '6px 14px', borderRadius: 7,
+          background: 'none', border: 'none',
+          color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: 500,
+          cursor: claiming ? 'default' : 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+        }}
+        onMouseEnter={e => { if (!claiming) e.currentTarget.style.color = 'rgba(255,255,255,0.85)'; }}
+        onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; }}
+      >
+        Not my order
       </button>
 
       <button
@@ -988,21 +1004,50 @@ const DeliveryInbox = () => {
     });
   };
 
-  const handleBulkReturn = () => {
+  const handleBulkReturn = async () => {
     const selected = items.filter(i => selectedIds.has(i.id));
     if (!selected.length) return;
-    // Group by supplier — one tab per supplier
-    const bySupplier = selected.reduce((acc, item) => {
+
+    // Move all items to the returns queue first
+    const results = await Promise.allSettled(selected.map(item => returnInboxItem(item.id, user?.id)));
+    const succeededItems = selected.filter((_, i) => results[i].status === 'fulfilled' && results[i].value);
+    const succeededIds = new Set(succeededItems.map(i => i.id));
+
+    if (succeededItems.length > 0) {
+      setItems(prev => prev.filter(i => !succeededIds.has(i.id)));
+      setSelectedIds(new Set());
+      setReturnsCount(c => c + succeededItems.length);
+    }
+    if (succeededItems.length < selected.length) {
+      showToast(`${selected.length - succeededItems.length} item${selected.length - succeededItems.length !== 1 ? 's' : ''} failed to queue`, 'error');
+    }
+    if (!succeededItems.length) return;
+
+    // Open return slip tabs grouped by supplier
+    const bySupplier = succeededItems.reduce((acc, item) => {
       const key = item.supplier_name || '__unknown__';
       if (!acc[key]) acc[key] = [];
       acc[key].push(item);
       return acc;
     }, {});
     Object.values(bySupplier).forEach(group => {
-      const ids = group.map(i => i.id).join(',');
-      window.open(`/provisioning/return-slip?items=${ids}`, '_blank');
+      window.open(`/provisioning/return-slip?items=${group.map(i => i.id).join(',')}`, '_blank');
     });
-    setSelectedIds(new Set());
+  };
+
+  const handleBulkDismiss = async () => {
+    const ids = [...selectedIds];
+    if (!ids.length) return;
+    const results = await Promise.allSettled(ids.map(id => dismissInboxItem(id, user?.id)));
+    const succeededIds = ids.filter((_, i) => results[i].status === 'fulfilled' && results[i].value);
+    if (succeededIds.length > 0) {
+      setItems(prev => prev.filter(i => !succeededIds.includes(i.id)));
+      setSelectedIds(new Set());
+      showToast(`${succeededIds.length} item${succeededIds.length !== 1 ? 's' : ''} hidden from your inbox`, 'info');
+    }
+    if (succeededIds.length < ids.length) {
+      showToast(`${ids.length - succeededIds.length} item${ids.length - succeededIds.length !== 1 ? 's' : ''} failed`, 'error');
+    }
   };
 
   const handleBulkClaim = async (board) => {
@@ -1214,6 +1259,7 @@ const DeliveryInbox = () => {
           boards={boards}
           onClaimAll={handleBulkClaim}
           onReturnAll={handleBulkReturn}
+          onDismissAll={handleBulkDismiss}
           onClear={() => setSelectedIds(new Set())}
           claiming={bulkClaiming}
         />
