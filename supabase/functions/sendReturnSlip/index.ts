@@ -239,7 +239,7 @@ Deno.serve(async (req: Request) => {
   console.log('[sendReturnSlip] Sending to:', body.to, '| subject:', subject, '| items:', body.items?.length);
 
   const emailPayload: any = {
-    from:     'Cargo Returns <onboarding@resend.dev>',
+    from:     'Cargo Returns <returns@cargotechnology.co.uk>',
     to:       [body.to],
     subject,
     html:     buildEmailHtml(body),
