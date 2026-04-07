@@ -182,16 +182,19 @@ export default function ReturnConfirmPage() {
       if (error) throw error;
 
       // Notify the crew member who generated the slip
+      // (best-effort — fails silently if notifications table doesn't exist)
       const crewUserId = items[0]?.return_slip_generated_by;
       if (crewUserId) {
         await supabase.from('notifications').insert({
           user_id:    crewUserId,
           type:       'RETURN_CONFIRMED',
-          title:      'Return slip confirmed by supplier',
-          message:    `${signerName.trim()} has confirmed receipt of ${items.length} returned item${items.length !== 1 ? 's' : ''}`,
+          title:      'Return confirmed by supplier',
+          message:    `${signerName.trim()} from ${items[0]?.supplier_name || 'the supplier'} has confirmed receipt of ${items.length} returned item${items.length !== 1 ? 's' : ''}`,
           severity:   'INFO',
           action_url: '/provisioning/inbox',
-        });
+          read:       false,
+          created_at: now,
+        }).then(() => {}).catch(() => {}); // ignore — notifications may be localStorage-only
       }
 
       setStatus('confirmed');

@@ -169,6 +169,7 @@ export default function ReturnSlipPage() {
   const [dirty, setDirty] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState(null);
   const [vesselSig, setVesselSig] = useState(null);
+  const [supplierConfirmed, setSupplierConfirmed] = useState(null); // { at, name, signature }
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState(null);
@@ -205,6 +206,16 @@ export default function ReturnSlipPage() {
           return_reason: item.return_reason ?? 'Not ordered',
           return_notes:  item.return_notes  ?? '',
         })));
+
+        // Supplier confirmation (use first confirmed row)
+        const confirmedRow = rows.find(r => r.supplier_confirmed_at);
+        if (confirmedRow) {
+          setSupplierConfirmed({
+            at:        new Date(confirmedRow.supplier_confirmed_at),
+            name:      confirmedRow.supplier_signer_name || '',
+            signature: confirmedRow.supplier_signature   || null,
+          });
+        }
 
         // Derive slip date from return_requested_at of first item, fall back to today
         const rawDate = first.return_requested_at ? new Date(first.return_requested_at) : new Date();
@@ -515,6 +526,21 @@ export default function ReturnSlipPage() {
           </tbody>
         </table>
 
+        {/* ── Supplier confirmed badge ─────────────────────────────────── */}
+        {supplierConfirmed && (
+          <div className="no-print" style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8,
+            padding: '8px 14px', marginBottom: 20, fontSize: 13, color: '#065F46',
+          }}>
+            <span style={{ fontSize: 16 }}>✅</span>
+            <span>
+              <strong>{supplierConfirmed.name}</strong> confirmed receipt ·{' '}
+              {supplierConfirmed.at.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </span>
+          </div>
+        )}
+
         {/* ── Signature pads ──────────────────────────────────────────── */}
         <div style={{ display: 'flex', gap: 60, marginTop: 48, paddingTop: 16, borderTop: '1px solid #E2E8F0' }}>
           <SignaturePad
@@ -523,9 +549,25 @@ export default function ReturnSlipPage() {
             onSign={(dataUrl) => { setVesselSig(dataUrl); setDirty(true); setSaveStatus(null); }}
           />
           <div style={{ flex: 1, maxWidth: 280 }}>
-            <div style={{ height: 80, borderBottom: '1px solid #CBD5E1', marginBottom: 8 }} />
-            <p style={{ margin: 0, fontSize: 12, color: '#64748B' }}>Supplier acknowledgement</p>
-            <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94A3B8' }}>Name, signature &amp; date</p>
+            {supplierConfirmed?.signature ? (
+              <>
+                <img
+                  src={supplierConfirmed.signature}
+                  alt="Supplier signature"
+                  style={{ width: '100%', height: 80, objectFit: 'contain', borderBottom: '1px solid #CBD5E1', display: 'block' }}
+                />
+                <p style={{ margin: '8px 0 0', fontSize: 12, color: '#64748B' }}>Supplier acknowledgement</p>
+                <p style={{ margin: '2px 0 0', fontSize: 11, color: '#334155', fontStyle: 'italic' }}>
+                  {[supplierConfirmed.name, supplierConfirmed.at.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })].filter(Boolean).join(' · ')}
+                </p>
+              </>
+            ) : (
+              <>
+                <div style={{ height: 80, borderBottom: '1px solid #CBD5E1', marginBottom: 8 }} />
+                <p style={{ margin: 0, fontSize: 12, color: '#64748B' }}>Supplier acknowledgement</p>
+                <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94A3B8' }}>Name, signature &amp; date</p>
+              </>
+            )}
           </div>
         </div>
 
