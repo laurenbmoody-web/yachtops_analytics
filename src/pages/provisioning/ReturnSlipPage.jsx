@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -47,18 +47,124 @@ const Field = ({ label, value, onChange, type = 'text', multiline = false }) => 
   </div>
 );
 
+// ── Signature pad (draw-to-sign canvas) ──────────────────────────────────────
+
+const SignaturePad = ({ label, sublabel, onSign }) => {
+  const canvasRef = useRef(null);
+  const [drawing, setDrawing] = useState(false);
+  const [hasStrokes, setHasStrokes] = useState(false);
+
+  const getPos = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    const touch = e.touches?.[0];
+    const clientX = touch ? touch.clientX : e.clientX;
+    const clientY = touch ? touch.clientY : e.clientY;
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  };
+
+  const startDraw = useCallback((e) => {
+    e.preventDefault();
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return;
+    const { x, y } = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    setDrawing(true);
+  }, []);
+
+  const draw = useCallback((e) => {
+    if (!drawing) return;
+    e.preventDefault();
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return;
+    const { x, y } = getPos(e);
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = '#1E3A5F';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    setHasStrokes(true);
+  }, [drawing]);
+
+  const endDraw = useCallback(() => {
+    setDrawing(false);
+    if (hasStrokes && canvasRef.current) {
+      onSign?.(canvasRef.current.toDataURL('image/png'));
+    }
+  }, [hasStrokes, onSign]);
+
+  const clear = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasStrokes(false);
+    onSign?.(null);
+  };
+
+  return (
+    <div style={{ flex: 1, maxWidth: 280 }}>
+      <div style={{ position: 'relative' }}>
+        <canvas
+          ref={canvasRef}
+          width={280}
+          height={80}
+          style={{
+            width: '100%', height: 80, borderBottom: '1px solid #CBD5E1',
+            cursor: 'crosshair', touchAction: 'none',
+          }}
+          onMouseDown={startDraw}
+          onMouseMove={draw}
+          onMouseUp={endDraw}
+          onMouseLeave={endDraw}
+          onTouchStart={startDraw}
+          onTouchMove={draw}
+          onTouchEnd={endDraw}
+        />
+        {!hasStrokes && (
+          <span style={{
+            position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+            fontSize: 11, color: '#CBD5E1', pointerEvents: 'none', userSelect: 'none',
+          }}>
+            Sign here
+          </span>
+        )}
+        {hasStrokes && (
+          <button
+            className="no-print"
+            onClick={clear}
+            style={{
+              position: 'absolute', top: 4, right: 4, background: 'none', border: 'none',
+              fontSize: 10, color: '#94A3B8', cursor: 'pointer', padding: '2px 6px',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#DC2626'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = '#94A3B8'; }}
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      <p style={{ margin: '8px 0 0', fontSize: 12, color: '#64748B' }}>{label}</p>
+      <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94A3B8' }}>{sublabel}</p>
+    </div>
+  );
+};
+
 export default function ReturnSlipPage() {
   const { authUser } = useAuth();
   const { tenantId } = useTenant();
 
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [vessel, setVessel] = useState(null);
   const [items, setItems] = useState([]);
   const [supplierInfo, setSupplierInfo] = useState({ name: '', phone: '', email: '', address: '' });
   const [orderMeta, setOrderMeta] = useState({ ref: '', date: '', noteUrl: '', noteRef: '' });
   const [preparedBy, setPreparedBy] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState(null); // null | 'saved' | 'error'
+  const [dirty, setDirty] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -86,14 +192,19 @@ export default function ReturnSlipPage() {
           noteUrl: first.delivery_note_url  || '',
           noteRef: first.delivery_note_ref  || '',
         });
-        // Pre-populate from saved DB values when reopening a slip
         setItems(rows.map(item => ({
           ...item,
           return_qty:    item.return_qty    ?? item.quantity ?? 1,
           return_reason: item.return_reason ?? 'Not ordered',
           return_notes:  item.return_notes  ?? '',
         })));
-        setSaved(rows.some(i => i.return_slip_generated_at != null));
+        // If any item already has saved return slip data, show last-saved indicator
+        const lastGen = rows
+          .map(r => r.return_slip_generated_at)
+          .filter(Boolean)
+          .sort()
+          .pop();
+        if (lastGen) setLastSavedAt(new Date(lastGen));
       }
 
       // Fetch vessel
@@ -123,29 +234,45 @@ export default function ReturnSlipPage() {
 
   const updateItem = (id, field, value) => {
     setItems(prev => prev.map(i => (i.id === id ? { ...i, [field]: value } : i)));
-    setSaved(false);
+    setDirty(true);
+    setSaveStatus(null);
   };
 
   const saveChanges = async () => {
     setSaving(true);
+    setSaveStatus(null);
     const now = new Date().toISOString();
-    const userId = authUser?.id || null;
-    await Promise.all(items.map(item =>
-      supabase?.from('delivery_inbox')?.update({
-        return_qty:                  item.return_qty,
-        return_reason:               item.return_reason,
-        return_notes:                item.return_notes || null,
-        return_slip_generated_at:    now,
-        return_slip_generated_by:    userId,
-      })?.eq('id', item.id)
-    ));
+    let failed = 0;
+    for (const item of items) {
+      const { error } = await supabase
+        ?.from('delivery_inbox')
+        ?.update({
+          return_qty:               item.return_qty,
+          return_reason:            item.return_reason,
+          return_notes:             item.return_notes || null,
+          return_slip_generated_at: now,
+          return_slip_generated_by: authUser?.id || null,
+        })
+        ?.eq('id', item.id);
+      if (error) {
+        console.error('[ReturnSlip] save error for', item.id, error);
+        failed++;
+      }
+    }
     setSaving(false);
-    setSaved(true);
+    if (failed === 0) {
+      setSaveStatus('saved');
+      setDirty(false);
+      setLastSavedAt(new Date(now));
+    } else {
+      setSaveStatus('error');
+    }
   };
 
-  const handlePrint = async () => {
+  const handleSaveAndPrint = async () => {
     await saveChanges();
-    window.print();
+    // Small delay so the save status renders before print dialog
+    setTimeout(() => window.print(), 200);
   };
 
   const handleSubmitToSupplier = async () => {
@@ -382,63 +509,60 @@ export default function ReturnSlipPage() {
           </tbody>
         </table>
 
-        {/* ── Signature lines ──────────────────────────────────────────── */}
+        {/* ── Signature pads ──────────────────────────────────────────── */}
         <div style={{ display: 'flex', gap: 60, marginTop: 48, paddingTop: 16, borderTop: '1px solid #E2E8F0' }}>
-          {[['Vessel authorisation', 'Name, signature & date'], ['Supplier acknowledgement', 'Name, signature & date']].map(([label, sub]) => (
-            <div key={label} style={{ flex: 1, maxWidth: 220 }}>
-              <div style={{ height: 48, borderBottom: '1px solid #CBD5E1', marginBottom: 8 }} />
-              <p style={{ margin: 0, fontSize: 12, color: '#64748B' }}>{label}</p>
-              <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94A3B8' }}>{sub}</p>
-            </div>
-          ))}
+          <SignaturePad
+            label="Vessel authorisation"
+            sublabel="Name, signature & date"
+            onSign={() => { setDirty(true); setSaveStatus(null); }}
+          />
+          <SignaturePad
+            label="Supplier acknowledgement"
+            sublabel="Name, signature & date"
+            onSign={() => { setDirty(true); setSaveStatus(null); }}
+          />
         </div>
 
-        {/* ── Action buttons ───────────────────────────────────────────── */}
-        <div className="no-print" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, marginTop: 32, flexWrap: 'wrap' }}>
-          <button
-            onClick={saveChanges}
-            disabled={saving}
-            style={{
-              padding: '10px 24px', background: 'white', color: '#0F172A',
-              border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 14, fontWeight: 500,
-              cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.6 : 1,
-            }}
-          >
-            {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save Changes'}
-          </button>
-          <button
-            onClick={handlePrint}
-            disabled={saving}
-            style={{
-              padding: '10px 28px', background: '#1E3A5F', color: 'white',
-              border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600,
-              cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.6 : 1,
-            }}
-          >
-            {saving ? 'Saving…' : 'Save & Print'}
-          </button>
-          <div style={{ width: 1, height: 32, background: '#E2E8F0', margin: '0 4px' }} />
-          {supplierInfo.email ? (
+        {/* ── Action bar ──────────────────────────────────────────────── */}
+        <div className="no-print" style={{ textAlign: 'center', marginTop: 32, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <button
-              onClick={handleSubmitToSupplier}
+              onClick={saveChanges}
+              disabled={saving || (!dirty && saveStatus === 'saved')}
+              style={{
+                padding: '10px 24px', background: 'white', color: '#1E3A5F',
+                border: '1.5px solid #1E3A5F', borderRadius: 8, fontSize: 14, fontWeight: 600,
+                cursor: saving || (!dirty && saveStatus === 'saved') ? 'default' : 'pointer',
+                opacity: saving || (!dirty && saveStatus === 'saved') ? 0.5 : 1,
+                transition: 'opacity 0.2s',
+              }}
+            >
+              {saving ? 'Saving…' : !dirty && saveStatus === 'saved' ? 'Saved ✓' : 'Save Changes'}
+            </button>
+            <button
+              onClick={handleSaveAndPrint}
               disabled={saving}
               style={{
-                padding: '10px 20px', background: '#C65A1A', color: 'white',
+                padding: '10px 28px', background: '#1E3A5F', color: 'white',
                 border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600,
-                cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.6 : 1,
-                maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                cursor: saving ? 'default' : 'pointer',
+                opacity: saving ? 0.7 : 1,
               }}
-              title={`Send to ${supplierInfo.email}`}
             >
-              Email to {supplierInfo.email}
+              {saving ? 'Saving…' : 'Save & Print'}
             </button>
-          ) : (
-            <button disabled style={{
-              padding: '10px 20px', background: 'white', color: '#94A3B8',
-              border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 14, cursor: 'default',
-            }}>
-              No supplier email
-            </button>
+          </div>
+          {/* Status line */}
+          {saveStatus === 'error' && (
+            <p style={{ margin: 0, fontSize: 12, color: '#DC2626' }}>
+              Some items failed to save. Check your connection and try again.
+            </p>
+          )}
+          {lastSavedAt && (
+            <p style={{ margin: 0, fontSize: 11, color: '#94A3B8' }}>
+              Last saved: {lastSavedAt.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              {dirty && ' · unsaved changes'}
+            </p>
           )}
         </div>
 

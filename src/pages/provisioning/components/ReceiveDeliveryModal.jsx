@@ -1180,6 +1180,12 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
             supplierName,
             totalCost: cost || null,
             portLocation: null,
+            supplierPhone: parsedNote?.supplier_phone || null,
+            supplierEmail: parsedNote?.supplier_email || null,
+            supplierAddress: parsedNote?.supplier_address || null,
+            orderRef: parsedNote?.order_ref || null,
+            orderDate: parsedNote?.order_date || null,
+            deliveryNoteRef: parsedNote?.invoice_number || null,
           });
           const batchId = batch?.id || null;
           if (!batchId) {
@@ -1225,6 +1231,12 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
               supplierName,
               totalCost: cost || null,
               portLocation: list?.port_location || null,
+              supplierPhone: parsedNote?.supplier_phone || null,
+              supplierEmail: parsedNote?.supplier_email || null,
+              supplierAddress: parsedNote?.supplier_address || null,
+              orderRef: parsedNote?.order_ref || null,
+              orderDate: parsedNote?.order_date || null,
+              deliveryNoteRef: parsedNote?.invoice_number || null,
             });
             batchId = batch?.id || null;
             if (!batchId) {
