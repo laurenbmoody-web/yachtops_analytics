@@ -219,27 +219,45 @@ export default function ReturnSlipPage() {
         if (lastGen) setLastSavedAt(new Date(lastGen));
       }
 
-      // Fetch vessel + tenant name
+      // Fetch vessel (now has its own name column) + tenant fallback
       const tid = tenantId || rows?.[0]?.tenant_id;
       if (tid) {
-        const [{ data: v }, { data: tenant }] = await Promise.all([
-          supabase?.from('vessels')?.select('imo_number, flag')?.eq('tenant_id', tid)?.single(),
-          supabase?.from('tenants')?.select('name')?.eq('id', tid)?.single(),
-        ]);
+        const { data: v } = await supabase
+          ?.from('vessels')
+          ?.select('name, imo_number, flag')
+          ?.eq('tenant_id', tid)
+          ?.single();
         setVessel(v);
-        setVesselName(tenant?.name || '');
+        // Vessel name: prefer vessels.name, fall back to tenants.name
+        if (v?.name) {
+          setVesselName(v.name);
+        } else {
+          const { data: tenant } = await supabase?.from('tenants')?.select('name')?.eq('id', tid)?.single();
+          setVesselName(tenant?.name || '');
+        }
       }
 
       // Prepared by + role
       if (authUser?.id) {
-        const [{ data: profile }, { data: memberRow }] = await Promise.all([
-          supabase?.from('profiles')?.select('full_name')?.eq('id', authUser.id)?.single(),
-          tid
-            ? supabase?.from('tenant_members')?.select('role_id, roles(name)')?.eq('user_id', authUser.id)?.eq('tenant_id', tid)?.single()
-            : Promise.resolve({ data: null }),
-        ]);
-        setPreparedBy(profile?.full_name || '');
-        setSignerJobTitle(memberRow?.roles?.name || '');
+        const { data: profile } = await supabase
+          ?.from('profiles')
+          ?.select('full_name, first_name, last_name')
+          ?.eq('id', authUser.id)
+          ?.single();
+        // Prefer first_name + last_name, fall back to full_name
+        const name = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || profile?.full_name || '';
+        setPreparedBy(name);
+
+        // Get role name via tenant_members -> roles
+        if (tid) {
+          const { data: member } = await supabase
+            ?.from('tenant_members')?.select('role_id')?.eq('user_id', authUser.id)?.eq('tenant_id', tid)?.single();
+          if (member?.role_id) {
+            const { data: role } = await supabase
+              ?.from('roles')?.select('name')?.eq('id', member.role_id)?.single();
+            setSignerJobTitle(role?.name || '');
+          }
+        }
       }
 
       setLoading(false);
