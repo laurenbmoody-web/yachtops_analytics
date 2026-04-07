@@ -152,9 +152,8 @@ const SignaturePad = ({ label, sublabel, onSign }) => {
 };
 
 export default function ReturnSlipPage() {
-  const { authUser, currentUser } = useAuth();
+  const { authUser } = useAuth();
   const { tenantId } = useTenant();
-  const signerRole = currentUser?.role || '';
 
   const [loading, setLoading] = useState(true);
   const [vessel, setVessel] = useState(null);
@@ -163,6 +162,8 @@ export default function ReturnSlipPage() {
   const [supplierInfo, setSupplierInfo] = useState({ name: '', phone: '', email: '', address: '' });
   const [orderMeta, setOrderMeta] = useState({ ref: '', date: '', noteUrl: '', noteRef: '' });
   const [preparedBy, setPreparedBy] = useState('');
+  const [signerJobTitle, setSignerJobTitle] = useState('');
+  const [slipDate, setSlipDate] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null); // null | 'saved' | 'error'
   const [dirty, setDirty] = useState(false);
@@ -204,6 +205,11 @@ export default function ReturnSlipPage() {
           return_reason: item.return_reason ?? 'Not ordered',
           return_notes:  item.return_notes  ?? '',
         })));
+
+        // Derive slip date from return_requested_at of first item, fall back to today
+        const rawDate = first.return_requested_at ? new Date(first.return_requested_at) : new Date();
+        setSlipDate(rawDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }));
+
         // If any item already has saved return slip data, show last-saved indicator
         const lastGen = rows
           .map(r => r.return_slip_generated_at)
@@ -228,10 +234,11 @@ export default function ReturnSlipPage() {
       if (authUser?.id) {
         const { data: profile } = await supabase
           ?.from('profiles')
-          ?.select('full_name')
+          ?.select('full_name, job_title')
           ?.eq('id', authUser.id)
           ?.single();
         setPreparedBy(profile?.full_name || '');
+        setSignerJobTitle(profile?.job_title || '');
       }
 
       setLoading(false);
@@ -296,7 +303,9 @@ export default function ReturnSlipPage() {
           imoNumber:   vessel?.imo_number || '',
           vesselFlag:  vessel?.flag || '',
           preparedBy,
-          date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+          signerName:     preparedBy,
+          signerJobTitle,
+          date:           slipDate,
           supplierPhone:   supplierInfo.phone,
           supplierEmail:   supplierInfo.email,
           supplierAddress: supplierInfo.address,
@@ -315,7 +324,6 @@ export default function ReturnSlipPage() {
             unit:          i.unit,
           })),
           vesselSignature: vesselSig,
-          signerRole,
         },
       });
       if (error) throw error;
@@ -380,7 +388,7 @@ export default function ReturnSlipPage() {
             </p>
           </div>
           <div style={{ textAlign: 'right', fontSize: 12, color: '#64748B' }}>
-            <p style={{ margin: 0 }}>Date: {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+            <p style={{ margin: 0 }}>Date: {slipDate}</p>
             {preparedBy && <p style={{ margin: '4px 0 0' }}>Prepared by: {preparedBy}</p>}
           </div>
         </div>
@@ -502,7 +510,7 @@ export default function ReturnSlipPage() {
         <div style={{ display: 'flex', gap: 60, marginTop: 48, paddingTop: 16, borderTop: '1px solid #E2E8F0' }}>
           <SignaturePad
             label="Vessel authorisation"
-            sublabel={signerRole ? `${signerRole} · Name, signature & date` : 'Name, signature & date'}
+            sublabel={[preparedBy, signerJobTitle, slipDate].filter(Boolean).join(' · ')}
             onSign={(dataUrl) => { setVesselSig(dataUrl); setDirty(true); setSaveStatus(null); }}
           />
           <div style={{ flex: 1, maxWidth: 280 }}>
