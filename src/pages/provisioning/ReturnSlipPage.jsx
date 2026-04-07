@@ -5,7 +5,7 @@ import { useTenant } from '../../contexts/TenantContext';
 
 const REASON_OPTIONS = [
   'Not ordered',
-  'Overage',
+  'Oversupply',
   'Damaged',
   'Wrong item',
   'Incorrect specification',
@@ -516,11 +516,11 @@ export default function ReturnSlipPage() {
             sublabel="Name, signature & date"
             onSign={() => { setDirty(true); setSaveStatus(null); }}
           />
-          <SignaturePad
-            label="Supplier acknowledgement"
-            sublabel="Name, signature & date"
-            onSign={() => { setDirty(true); setSaveStatus(null); }}
-          />
+          <div style={{ flex: 1, maxWidth: 280 }}>
+            <div style={{ height: 80, borderBottom: '1px solid #CBD5E1', marginBottom: 8 }} />
+            <p style={{ margin: 0, fontSize: 12, color: '#64748B' }}>Supplier acknowledgement</p>
+            <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94A3B8' }}>Name, signature &amp; date</p>
+          </div>
         </div>
 
         {/* ── Action bar ──────────────────────────────────────────────── */}
@@ -551,6 +551,29 @@ export default function ReturnSlipPage() {
             >
               {saving ? 'Saving…' : 'Save & Print'}
             </button>
+            <div style={{ width: 1, height: 32, background: '#E2E8F0', margin: '0 4px' }} />
+            {supplierInfo.email ? (
+              <button
+                onClick={handleSubmitToSupplier}
+                disabled={saving}
+                style={{
+                  padding: '10px 20px', background: '#C65A1A', color: 'white',
+                  border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600,
+                  cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.6 : 1,
+                  maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}
+                title={`Send to ${supplierInfo.email}`}
+              >
+                Email to {supplierInfo.email}
+              </button>
+            ) : (
+              <button disabled style={{
+                padding: '10px 20px', background: 'white', color: '#94A3B8',
+                border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 14, cursor: 'default',
+              }}>
+                No supplier email
+              </button>
+            )}
           </div>
           {/* Status line */}
           {saveStatus === 'error' && (
