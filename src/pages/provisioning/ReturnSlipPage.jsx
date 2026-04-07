@@ -52,13 +52,15 @@ export default function ReturnSlipPage() {
   const { tenantId } = useTenant();
 
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [vessel, setVessel] = useState(null);
   const [items, setItems] = useState([]);
   const [supplierInfo, setSupplierInfo] = useState({ name: '', phone: '', email: '', address: '' });
   const [orderMeta, setOrderMeta] = useState({ ref: '', date: '', noteUrl: '', noteRef: '' });
   const [preparedBy, setPreparedBy] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState(null); // null | 'saved' | 'error'
+  const [dirty, setDirty] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -86,14 +88,19 @@ export default function ReturnSlipPage() {
           noteUrl: first.delivery_note_url  || '',
           noteRef: first.delivery_note_ref  || '',
         });
-        // Pre-populate from saved DB values when reopening a slip
         setItems(rows.map(item => ({
           ...item,
           return_qty:    item.return_qty    ?? item.quantity ?? 1,
           return_reason: item.return_reason ?? 'Not ordered',
           return_notes:  item.return_notes  ?? '',
         })));
-        setSaved(rows.some(i => i.return_slip_generated_at != null));
+        // If any item already has saved return slip data, show last-saved indicator
+        const lastGen = rows
+          .map(r => r.return_slip_generated_at)
+          .filter(Boolean)
+          .sort()
+          .pop();
+        if (lastGen) setLastSavedAt(new Date(lastGen));
       }
 
       // Fetch vessel
@@ -123,29 +130,45 @@ export default function ReturnSlipPage() {
 
   const updateItem = (id, field, value) => {
     setItems(prev => prev.map(i => (i.id === id ? { ...i, [field]: value } : i)));
-    setSaved(false);
+    setDirty(true);
+    setSaveStatus(null);
   };
 
   const saveChanges = async () => {
     setSaving(true);
+    setSaveStatus(null);
     const now = new Date().toISOString();
-    const userId = authUser?.id || null;
-    await Promise.all(items.map(item =>
-      supabase?.from('delivery_inbox')?.update({
-        return_qty:                  item.return_qty,
-        return_reason:               item.return_reason,
-        return_notes:                item.return_notes || null,
-        return_slip_generated_at:    now,
-        return_slip_generated_by:    userId,
-      })?.eq('id', item.id)
-    ));
+    let failed = 0;
+    for (const item of items) {
+      const { error } = await supabase
+        ?.from('delivery_inbox')
+        ?.update({
+          return_qty:               item.return_qty,
+          return_reason:            item.return_reason,
+          return_notes:             item.return_notes || null,
+          return_slip_generated_at: now,
+          return_slip_generated_by: authUser?.id || null,
+        })
+        ?.eq('id', item.id);
+      if (error) {
+        console.error('[ReturnSlip] save error for', item.id, error);
+        failed++;
+      }
+    }
     setSaving(false);
-    setSaved(true);
+    if (failed === 0) {
+      setSaveStatus('saved');
+      setDirty(false);
+      setLastSavedAt(new Date(now));
+    } else {
+      setSaveStatus('error');
+    }
   };
 
-  const handlePrint = async () => {
+  const handleSaveAndPrint = async () => {
     await saveChanges();
-    window.print();
+    // Small delay so the save status renders before print dialog
+    setTimeout(() => window.print(), 200);
   };
 
   const total = items.reduce((sum, i) => sum + (parseFloat(i.line_total) || 0), 0);
@@ -339,30 +362,47 @@ export default function ReturnSlipPage() {
           ))}
         </div>
 
-        {/* ── Action buttons ───────────────────────────────────────────── */}
-        <div className="no-print" style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 32 }}>
-          <button
-            onClick={saveChanges}
-            disabled={saving}
-            style={{
-              padding: '10px 24px', background: 'white', color: '#0F172A',
-              border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 14, fontWeight: 500,
-              cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.6 : 1,
-            }}
-          >
-            {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save Changes'}
-          </button>
-          <button
-            onClick={handlePrint}
-            disabled={saving}
-            style={{
-              padding: '10px 28px', background: '#1E3A5F', color: 'white',
-              border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600,
-              cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.6 : 1,
-            }}
-          >
-            {saving ? 'Saving…' : 'Save & Print'}
-          </button>
+        {/* ── Action bar ──────────────────────────────────────────────── */}
+        <div className="no-print" style={{ textAlign: 'center', marginTop: 32, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <button
+              onClick={saveChanges}
+              disabled={saving || (!dirty && saveStatus === 'saved')}
+              style={{
+                padding: '10px 24px', background: 'white', color: '#1E3A5F',
+                border: '1.5px solid #1E3A5F', borderRadius: 8, fontSize: 14, fontWeight: 600,
+                cursor: saving || (!dirty && saveStatus === 'saved') ? 'default' : 'pointer',
+                opacity: saving || (!dirty && saveStatus === 'saved') ? 0.5 : 1,
+                transition: 'opacity 0.2s',
+              }}
+            >
+              {saving ? 'Saving…' : !dirty && saveStatus === 'saved' ? 'Saved ✓' : 'Save Changes'}
+            </button>
+            <button
+              onClick={handleSaveAndPrint}
+              disabled={saving}
+              style={{
+                padding: '10px 28px', background: '#1E3A5F', color: 'white',
+                border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600,
+                cursor: saving ? 'default' : 'pointer',
+                opacity: saving ? 0.7 : 1,
+              }}
+            >
+              {saving ? 'Saving…' : 'Save & Print'}
+            </button>
+          </div>
+          {/* Status line */}
+          {saveStatus === 'error' && (
+            <p style={{ margin: 0, fontSize: 12, color: '#DC2626' }}>
+              Some items failed to save. Check your connection and try again.
+            </p>
+          )}
+          {lastSavedAt && (
+            <p style={{ margin: 0, fontSize: 11, color: '#94A3B8' }}>
+              Last saved: {lastSavedAt.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              {dirty && ' · unsaved changes'}
+            </p>
+          )}
         </div>
 
       </div>
