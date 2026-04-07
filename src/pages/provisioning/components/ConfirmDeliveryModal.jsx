@@ -117,6 +117,12 @@ const ConfirmDeliveryModal = ({ userId, onClose, onConfirmed }) => {
           userId,
           supplierName: first.supplier_name || noteStr,
           invoiceFileUrl: originalNoteUrl,
+          supplierPhone: first.supplier_phone || null,
+          supplierEmail: first.supplier_email || null,
+          supplierAddress: first.supplier_address || null,
+          orderRef: first.order_ref || null,
+          orderDate: first.order_date || null,
+          deliveryNoteRef: first.delivery_note_ref || null,
         });
         console.log('[ConfirmModal] created batch for board', boardId, ':', batch?.id);
         batchByBoard[boardId] = batch?.id || null;
