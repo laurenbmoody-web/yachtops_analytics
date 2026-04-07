@@ -68,7 +68,7 @@ function buildEmailHtml(b: any): string {
   // Data URIs are stripped by most email clients (Gmail, Outlook).
   // Show a text-based "Signed digitally" indicator instead — always reliable.
   const sigBlock = b.vesselSignature
-    ? `<div style="padding:4px 10px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:4px;font-size:11px;color:#1E40AF;display:inline-block;margin-bottom:6px">✓ Signed</div>`
+    ? `<img src="cid:vessel-signature" alt="Vessel signature" style="height:60px;max-width:240px;display:block;margin-bottom:6px">`
     : `<div style="height:32px"></div>`;
 
   const vesselSigLine = b.vesselSignature && b.signerName
@@ -265,6 +265,19 @@ Deno.serve(async (req: Request) => {
     html:     buildEmailHtml(body),
   };
   if (body.replyTo) emailPayload.reply_to = body.replyTo;
+
+  // Attach vessel signature as an inline CID image so email clients render it.
+  // Strip the data URI prefix — Resend expects raw base64.
+  if (body.vesselSignature) {
+    const base64 = (body.vesselSignature as string).replace(/^data:image\/\w+;base64,/, '');
+    emailPayload.attachments = [{
+      filename:    'vessel-signature.png',
+      content:     base64,
+      type:        'image/png',
+      disposition: 'inline',
+      content_id:  'vessel-signature',
+    }];
+  }
 
   const resendRes = await fetch('https://api.resend.com/emails', {
     method:  'POST',
