@@ -576,21 +576,6 @@ export default function ReturnSlipPage() {
           </tbody>
         </table>
 
-        {/* ── Supplier confirmed badge ─────────────────────────────────── */}
-        {supplierConfirmed && (
-          <div className="no-print" style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8,
-            padding: '8px 14px', marginBottom: 20, fontSize: 13, color: '#065F46',
-          }}>
-            <CheckIcon />
-            <span>
-              <strong>{supplierConfirmed.name}</strong> confirmed receipt ·{' '}
-              {supplierConfirmed.at.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-            </span>
-          </div>
-        )}
-
         {/* ── Signature pads ──────────────────────────────────────────── */}
         <div style={{ display: 'flex', gap: 60, marginTop: 48, paddingTop: 16, borderTop: '1px solid #E2E8F0' }}>
           {isLocked ? (
