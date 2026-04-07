@@ -1871,3 +1871,65 @@ export const getSmartDeliveryCounts = async (userId, tenantId) => {
     return { pendingMatches: crossRes?.count || 0, inboxItems: inboxRes?.count || 0 };
   } catch (err) { return { pendingMatches: 0, inboxItems: 0 }; }
 };
+
+/** Write a permanent delivery/receipt record to the vessel-wide delivery ledger. */
+export const createLedgerEntry = async ({
+  tenantId, sourceType, sourceBoardId, sourceBatchId,
+  supplierName, supplierPhone, supplierEmail, supplierAddress,
+  orderRef, orderDate, invoiceNumber, deliveryNoteRef, documentUrl,
+  documentType, totalAmount, currency, receivedBy, items,
+}) => {
+  if (!tenantId) return null;
+  try {
+    const { data: ledger, error: ledgerErr } = await supabase
+      ?.from('delivery_ledger')
+      ?.insert({
+        tenant_id:        tenantId,
+        source_type:      sourceType || 'delivery',
+        source_board_id:  sourceBoardId  || null,
+        source_batch_id:  sourceBatchId  || null,
+        supplier_name:    supplierName   || null,
+        supplier_phone:   supplierPhone  || null,
+        supplier_email:   supplierEmail  || null,
+        supplier_address: supplierAddress || null,
+        order_ref:        orderRef        || null,
+        order_date:       orderDate       || null,
+        invoice_number:   invoiceNumber   || null,
+        delivery_note_ref: deliveryNoteRef || null,
+        document_url:     documentUrl     || null,
+        document_type:    documentType    || null,
+        total_amount:     totalAmount     || null,
+        currency:         currency        || null,
+        received_by:      receivedBy      || null,
+      })
+      ?.select()
+      ?.single();
+
+    if (ledgerErr) { console.error('[createLedgerEntry] header error:', ledgerErr); return null; }
+
+    if (items?.length && ledger?.id) {
+      const rows = items.map(item => ({
+        ledger_id:        ledger.id,
+        name:             item.raw_name || item.name || 'Unknown item',
+        original_name:    item.original_name   || null,
+        item_reference:   item.item_reference  || null,
+        quantity:         item.quantity         ?? 1,
+        ordered_qty:      item.ordered_qty      || null,
+        unit:             item.unit             || null,
+        unit_price:       item.unit_price       || null,
+        line_total:       item.line_total       || null,
+        claimed_board_id: item.claimed_board_id || null,
+        claimed_item_id:  item.claimed_item_id  || null,
+        claim_status:     item.claimed_board_id ? 'claimed' : 'unclaimed',
+        match_confidence: item.match_confidence || 'none',
+      }));
+      const { error: itemsErr } = await supabase?.from('delivery_ledger_items')?.insert(rows);
+      if (itemsErr) console.error('[createLedgerEntry] items error:', itemsErr);
+    }
+
+    return ledger;
+  } catch (err) {
+    console.error('[createLedgerEntry]', err);
+    return null;
+  }
+};
