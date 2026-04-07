@@ -1008,7 +1008,6 @@ const DeliveryInbox = () => {
     const selected = items.filter(i => selectedIds.has(i.id));
     if (!selected.length) return;
 
-    // Move all items to the returns queue first
     const results = await Promise.allSettled(selected.map(item => returnInboxItem(item.id, user?.id)));
     const succeededItems = selected.filter((_, i) => results[i].status === 'fulfilled' && results[i].value);
     const succeededIds = new Set(succeededItems.map(i => i.id));
@@ -1017,22 +1016,12 @@ const DeliveryInbox = () => {
       setItems(prev => prev.filter(i => !succeededIds.has(i.id)));
       setSelectedIds(new Set());
       setReturnsCount(c => c + succeededItems.length);
+      setActiveTab('returns');
+      showToast(`${succeededItems.length} item${succeededItems.length !== 1 ? 's' : ''} queued for return`, 'info');
     }
     if (succeededItems.length < selected.length) {
       showToast(`${selected.length - succeededItems.length} item${selected.length - succeededItems.length !== 1 ? 's' : ''} failed to queue`, 'error');
     }
-    if (!succeededItems.length) return;
-
-    // Open return slip tabs grouped by supplier
-    const bySupplier = succeededItems.reduce((acc, item) => {
-      const key = item.supplier_name || '__unknown__';
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(item);
-      return acc;
-    }, {});
-    Object.values(bySupplier).forEach(group => {
-      window.open(`/provisioning/return-slip?items=${group.map(i => i.id).join(',')}`, '_blank');
-    });
   };
 
   const handleBulkDismiss = async () => {
