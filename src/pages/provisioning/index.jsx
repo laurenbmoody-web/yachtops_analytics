@@ -773,7 +773,7 @@ const ProvisioningWorkspace = () => {
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
               >
                 <Icon name="PackageOpen" className="w-4 h-4" />
-                {workspaceItemsLoading ? 'Loading…' : 'Receive Delivery'}
+                {workspaceItemsLoading ? 'Loading…' : 'Receive Items'}
               </button>
               {canCreate && (
                 <button
