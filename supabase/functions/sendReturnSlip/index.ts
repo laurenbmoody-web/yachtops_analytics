@@ -173,6 +173,16 @@ function buildEmailHtml(b: any): string {
       ${totalRow}
     </table>
 
+    <!-- ── Confirm & Sign button ── -->
+    ${b.confirmationToken ? `
+    <div style="text-align:center;margin:24px 0">
+      <a href="https://cargotechnology.netlify.app/return-confirm?token=${b.confirmationToken}"
+         style="display:inline-block;padding:14px 32px;background:#059669;color:#FFFFFF;font-size:14px;font-weight:600;text-decoration:none;border-radius:8px">
+        Confirm Receipt &amp; Sign
+      </a>
+      <p style="margin:8px 0 0;font-size:11px;color:#94A3B8">Click to confirm you have received the returned items</p>
+    </div>` : ''}
+
     <!-- ── Signature blocks ── -->
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px">
       <tr valign="top">

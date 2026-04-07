@@ -314,6 +314,15 @@ export default function ReturnSlipPage() {
     setSubmitting(true);
     setSubmitError(null);
     try {
+      // Generate a unique token for supplier confirmation and persist it to all items
+      const token = crypto.randomUUID();
+      for (const item of items) {
+        await supabase
+          ?.from('delivery_inbox')
+          ?.update({ return_slip_token: token })
+          ?.eq('id', item.id);
+      }
+
       const { data, error } = await supabase.functions.invoke('sendReturnSlip', {
         body: {
           to:                   supplierInfo.email,
@@ -331,6 +340,7 @@ export default function ReturnSlipPage() {
           supplierAddress: supplierInfo.address,
           orderRef:  orderMeta.ref,
           orderDate: orderMeta.date,
+          confirmationToken: token,
           items: items.map(i => ({
             raw_name:      i.raw_name,
             item_reference: i.item_reference,
