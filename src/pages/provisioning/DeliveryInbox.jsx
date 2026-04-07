@@ -187,9 +187,111 @@ const ClaimInline = ({ item, boards, userId, onClaimed, onPartialClaim, onExpand
 
 // ── Item row ──────────────────────────────────────────────────────────────────
 
+// ── Detail field helper ───────────────────────────────────────────────────────
+
+const DetailField = ({ label, value }) => {
+  if (!value) return null;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+      <span style={{ fontSize: 10, fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
+      <span style={{ fontSize: 12, fontWeight: 500, color: '#334155' }}>{value}</span>
+    </div>
+  );
+};
+
+// ── Expandable detail panel ──────────────────────────────────────────────────
+
+const ItemDetailPanel = ({ item, docUrl }) => {
+  const hasSupplierInfo = item.supplier_name || item.supplier_phone || item.supplier_email || item.supplier_address;
+  const hasOrderInfo = item.order_ref || item.order_date || item.item_reference || item.delivery_note_ref;
+  const hasPricing = item.unit_price || item.line_total || item.ordered_qty;
+
+  return (
+    <div style={{
+      padding: '0 20px 14px 47px',
+      overflow: 'hidden',
+      animation: 'detailSlideIn 0.2s ease-out',
+    }}>
+      <style>{`
+        @keyframes detailSlideIn {
+          from { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; }
+          to   { opacity: 1; max-height: 300px; padding-top: 0; padding-bottom: 14px; }
+        }
+      `}</style>
+      <div style={{
+        background: '#F8FAFC', borderRadius: 8, padding: '12px 16px',
+        border: '1px solid #F1F5F9',
+        display: 'flex', flexDirection: 'column', gap: 10,
+      }}>
+        {/* Supplier row */}
+        {hasSupplierInfo && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, rowGap: 8 }}>
+            <DetailField label="Supplier" value={item.supplier_name} />
+            <DetailField label="Phone" value={item.supplier_phone} />
+            <DetailField label="Email" value={item.supplier_email} />
+            {item.supplier_address && !item.supplier_name && (
+              <DetailField label="Address" value={item.supplier_address} />
+            )}
+          </div>
+        )}
+
+        {/* Pricing row */}
+        {hasPricing && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, rowGap: 8 }}>
+            <DetailField label="Unit price" value={item.unit_price ? `£${item.unit_price}` : null} />
+            <DetailField label="Line total" value={item.line_total ? `£${item.line_total}` : null} />
+            <DetailField label="Ordered qty" value={item.ordered_qty} />
+            <DetailField label="Unit" value={item.unit} />
+          </div>
+        )}
+
+        {/* Reference row */}
+        {hasOrderInfo && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, rowGap: 8 }}>
+            <DetailField label="Item ref" value={item.item_reference} />
+            <DetailField label="Order ref" value={item.order_ref} />
+            <DetailField label="Order date" value={item.order_date} />
+            <DetailField label="Delivery note ref" value={item.delivery_note_ref} />
+          </div>
+        )}
+
+        {/* Supplier address — own row if other supplier info exists */}
+        {item.supplier_address && hasSupplierInfo && item.supplier_name && (
+          <DetailField label="Supplier address" value={item.supplier_address} />
+        )}
+
+        {/* Doc link inside detail panel too */}
+        {docUrl && (
+          <a
+            href={docUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 500, color: '#2563EB', textDecoration: 'none', marginTop: 2 }}
+            onMouseEnter={e => { e.currentTarget.style.textDecoration = 'underline'; }}
+            onMouseLeave={e => { e.currentTarget.style.textDecoration = 'none'; }}
+          >
+            <Icon name="FileText" style={{ width: 11, height: 11 }} />
+            View original document
+          </a>
+        )}
+
+        {/* Empty state — nothing extra was parsed */}
+        {!hasSupplierInfo && !hasOrderInfo && !hasPricing && !docUrl && (
+          <p style={{ margin: 0, fontSize: 12, color: '#94A3B8', fontStyle: 'italic' }}>
+            No additional details were parsed for this item.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ── Item row ──────────────────────────────────────────────────────────────────
+
 const ItemRow = ({ item, boards, userId, isLast, selected, onToggle, onClaimed, onPartialClaim, onDismiss, onReturn, bulkFading, docUrl, archived }) => {
   const [indivFading, setIndivFading] = useState(false);
   const [claimExpanded, setClaimExpanded] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [returning, setReturning] = useState(false);
   const [dismissing, setDismissing] = useState(false);
   const opacity = (bulkFading || indivFading) ? 0 : 1;
@@ -214,115 +316,139 @@ const ItemRow = ({ item, boards, userId, isLast, selected, onToggle, onClaimed, 
 
   return (
     <div style={{
-      display: 'flex', alignItems: 'flex-start', gap: 12,
-      padding: '14px 20px',
       borderBottom: isLast ? 'none' : '1px solid #F1F5F9',
       opacity, transition: 'opacity 0.3s ease',
       background: archived ? '#FAFAFA' : selected ? '#F0F6FF' : 'transparent',
     }}>
-      {/* Checkbox — hidden for archived items */}
-      {archived ? (
-        <div style={{ width: 15, flexShrink: 0, marginTop: 2 }} />
-      ) : (
-        <input
-          type="checkbox"
-          checked={selected}
-          onChange={onToggle}
-          style={{ width: 15, height: 15, accentColor: '#1E3A5F', cursor: 'pointer', flexShrink: 0, marginTop: 2 }}
-        />
-      )}
-
-      {/* Name + qty */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {item.raw_name}
-          </p>
-          {docUrl && (
-            <a
-              href={docUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={e => e.stopPropagation()}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 500, color: '#2563EB', textDecoration: 'none', flexShrink: 0 }}
-              onMouseEnter={e => { e.currentTarget.style.textDecoration = 'underline'; }}
-              onMouseLeave={e => { e.currentTarget.style.textDecoration = 'none'; }}
-            >
-              <Icon name="FileText" style={{ width: 11, height: 11 }} />
-              View doc
-            </a>
-          )}
-        </div>
-        <p style={{ margin: '3px 0 0', fontSize: 12, color: '#64748B' }}>
-          Qty: {item.quantity ?? '—'}{item.unit ? ` ${item.unit}` : ''}
-          {item.unit_price ? ` · £${item.unit_price}` : ''}
-        </p>
-      </div>
-
-      {/* Right-side: badge + actions */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
-        {/* Expiry / Archived / Returning badge */}
+      <div style={{
+        display: 'flex', alignItems: 'flex-start', gap: 12,
+        padding: '14px 20px',
+      }}>
+        {/* Checkbox — hidden for archived items */}
         {archived ? (
-          <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 12, background: '#F1F5F9', color: '#94A3B8', whiteSpace: 'nowrap' }}>
-            {item.archive_reason === 'returned' ? 'Return to supplier' : 'Archived'}
-          </span>
+          <div style={{ width: 15, flexShrink: 0, marginTop: 2 }} />
         ) : (
-          <ExpiryBadge expiresAt={item.expires_at} />
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggle}
+            style={{ width: 15, height: 15, accentColor: '#1E3A5F', cursor: 'pointer', flexShrink: 0, marginTop: 2 }}
+          />
         )}
 
-        {/* Action row — hidden for archived */}
-        {!archived && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            {/* Claim flow */}
-            <ClaimInline
-              item={item}
-              boards={boards}
-              userId={userId}
-              onClaimed={handleClaimed}
-              onPartialClaim={onPartialClaim}
-              onExpandChange={setClaimExpanded}
-            />
-
-            {/* Secondary actions — hidden while claim flow is open */}
-            {!claimExpanded && (
-              <>
-                <div style={{ width: 1, height: 16, background: '#E2E8F0', flexShrink: 0 }} />
-                <button
-                  onClick={handleReturn}
-                  disabled={returning}
-                  title="Flag for return to supplier"
-                  style={{
-                    padding: '4px 10px', borderRadius: 7,
-                    border: '1px solid #E2E8F0', background: 'white',
-                    color: '#64748B', fontSize: 11, fontWeight: 500,
-                    cursor: returning ? 'default' : 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
-                    opacity: returning ? 0.5 : 1,
-                  }}
-                  onMouseEnter={e => { if (!returning) e.currentTarget.style.borderColor = '#CBD5E1'; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0'; }}
-                >
-                  {returning ? 'Returning…' : 'Return to supplier'}
-                </button>
-                <button
-                  onClick={handleDismiss}
-                  disabled={dismissing}
-                  title="Not relevant to me — stays visible for others"
-                  style={{
-                    padding: '4px 8px', borderRadius: 7, border: 'none',
-                    background: 'none', color: '#94A3B8', fontSize: 11, fontWeight: 500,
-                    cursor: dismissing ? 'default' : 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
-                    opacity: dismissing ? 0.5 : 1,
-                  }}
-                  onMouseEnter={e => { if (!dismissing) e.currentTarget.style.color = '#64748B'; }}
-                  onMouseLeave={e => { e.currentTarget.style.color = '#94A3B8'; }}
-                >
-                  {dismissing ? 'Dismissing…' : 'Not my order'}
-                </button>
-              </>
+        {/* Name + qty — name is now clickable */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setDetailOpen(v => !v)}
+              style={{
+                margin: 0, padding: 0, border: 'none', background: 'none',
+                fontSize: 14, fontWeight: 600, color: '#0F172A',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                cursor: 'pointer', textAlign: 'left', maxWidth: '100%',
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                transition: 'color 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#C65A1A'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = '#0F172A'; }}
+              title="Click to view parsed details"
+            >
+              {item.raw_name}
+              <Icon
+                name={detailOpen ? 'ChevronUp' : 'ChevronDown'}
+                style={{ width: 12, height: 12, color: '#94A3B8', flexShrink: 0, transition: 'transform 0.2s' }}
+              />
+            </button>
+            {docUrl && !detailOpen && (
+              <a
+                href={docUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 500, color: '#2563EB', textDecoration: 'none', flexShrink: 0 }}
+                onMouseEnter={e => { e.currentTarget.style.textDecoration = 'underline'; }}
+                onMouseLeave={e => { e.currentTarget.style.textDecoration = 'none'; }}
+              >
+                <Icon name="FileText" style={{ width: 11, height: 11 }} />
+                View doc
+              </a>
             )}
           </div>
-        )}
+          <p style={{ margin: '3px 0 0', fontSize: 12, color: '#64748B' }}>
+            Qty: {item.quantity ?? '—'}{item.unit ? ` ${item.unit}` : ''}
+            {item.unit_price ? ` · £${item.unit_price}` : ''}
+            {item.supplier_name ? ` · ${item.supplier_name}` : ''}
+          </p>
+        </div>
+
+        {/* Right-side: badge + actions */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
+          {/* Expiry / Archived / Returning badge */}
+          {archived ? (
+            <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 12, background: '#F1F5F9', color: '#94A3B8', whiteSpace: 'nowrap' }}>
+              {item.archive_reason === 'returned' ? 'Return to supplier' : 'Archived'}
+            </span>
+          ) : (
+            <ExpiryBadge expiresAt={item.expires_at} />
+          )}
+
+          {/* Action row — hidden for archived */}
+          {!archived && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {/* Claim flow */}
+              <ClaimInline
+                item={item}
+                boards={boards}
+                userId={userId}
+                onClaimed={handleClaimed}
+                onPartialClaim={onPartialClaim}
+                onExpandChange={setClaimExpanded}
+              />
+
+              {/* Secondary actions — hidden while claim flow is open */}
+              {!claimExpanded && (
+                <>
+                  <div style={{ width: 1, height: 16, background: '#E2E8F0', flexShrink: 0 }} />
+                  <button
+                    onClick={handleReturn}
+                    disabled={returning}
+                    title="Flag for return to supplier"
+                    style={{
+                      padding: '4px 10px', borderRadius: 7,
+                      border: '1px solid #E2E8F0', background: 'white',
+                      color: '#64748B', fontSize: 11, fontWeight: 500,
+                      cursor: returning ? 'default' : 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                      opacity: returning ? 0.5 : 1,
+                    }}
+                    onMouseEnter={e => { if (!returning) e.currentTarget.style.borderColor = '#CBD5E1'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                  >
+                    {returning ? 'Returning…' : 'Return to supplier'}
+                  </button>
+                  <button
+                    onClick={handleDismiss}
+                    disabled={dismissing}
+                    title="Not relevant to me — stays visible for others"
+                    style={{
+                      padding: '4px 8px', borderRadius: 7, border: 'none',
+                      background: 'none', color: '#94A3B8', fontSize: 11, fontWeight: 500,
+                      cursor: dismissing ? 'default' : 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                      opacity: dismissing ? 0.5 : 1,
+                    }}
+                    onMouseEnter={e => { if (!dismissing) e.currentTarget.style.color = '#64748B'; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = '#94A3B8'; }}
+                  >
+                    {dismissing ? 'Dismissing…' : 'Not my order'}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Expandable detail panel */}
+      {detailOpen && <ItemDetailPanel item={item} docUrl={docUrl} />}
     </div>
   );
 };
