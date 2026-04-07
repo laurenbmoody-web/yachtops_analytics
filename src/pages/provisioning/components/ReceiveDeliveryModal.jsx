@@ -1347,42 +1347,8 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
         return !addedItems.some(added => added.name?.toLowerCase() === li.raw_name?.toLowerCase());
       });
 
-      // Skip cross-department routing for receipts — items stay with scanning user
+      // Skip cross-department routing for receipts — already logged in delivery history
       const isReceipt = parsedNote?.document_type === 'receipt';
-      if (unmatchedForRouting.length > 0 && isReceipt) {
-        console.log('[ReceiveDeliveryModal] Receipt mode — skipping cross-dept for', unmatchedForRouting.length, 'unmatched items');
-        // Send to Delivery Inbox so the user can claim receipt items to their board
-        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-        const now = new Date().toISOString();
-        const insertions = unmatchedForRouting.map(li =>
-          supabase?.from('delivery_inbox')?.insert({
-            tenant_id:       tenantId || list?.tenant_id,
-            raw_name:        li.raw_name,
-            item_reference:  li.item_reference  || null,
-            quantity:        li.quantity         || 1,
-            ordered_qty:     li.ordered_qty      || null,
-            unit_price:      li.unit_price       || null,
-            unit:            li.unit             || null,
-            line_total:      li.line_total       || null,
-            scanned_by:      user?.id,
-            scanned_at:      now,
-            delivery_batch_id: firstBatchId      || null,
-            supplier_name:   parsedNote?.supplier_name    || null,
-            supplier_phone:  parsedNote?.supplier_phone   || null,
-            supplier_email:  parsedNote?.supplier_email   || null,
-            supplier_address: parsedNote?.supplier_address || null,
-            order_ref:       parsedNote?.order_ref        || null,
-            order_date:      parsedNote?.order_date       || null,
-            status:          'pending',
-            expires_at:      expiresAt,
-          })
-        );
-        Promise.all(insertions).then(() => {
-          if (unmatchedForRouting.length > 0) {
-            showToast(`${unmatchedForRouting.length} receipt item${unmatchedForRouting.length !== 1 ? 's' : ''} sent to Delivery Inbox`, 'info');
-          }
-        }).catch(err => console.error('[ReceiveDeliveryModal] receipt inbox insert error:', err));
-      }
 
       if (unmatchedForRouting.length > 0 && !isReceipt) {
         try {
