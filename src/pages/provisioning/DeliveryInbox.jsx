@@ -728,6 +728,15 @@ const ReturnsView = ({ tenantId, userId, tenantName, userFullName }) => {
     return acc;
   }, {});
 
+  // Map return_slip_token → all sibling item IDs (for confirmed-item links)
+  const tokenGroups = returnItems.reduce((acc, item) => {
+    if (item.return_slip_token) {
+      if (!acc[item.return_slip_token]) acc[item.return_slip_token] = [];
+      acc[item.return_slip_token].push(item.id);
+    }
+    return acc;
+  }, {});
+
   const toggleItem = (id) => setSelectedIds(prev => {
     const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
   });
@@ -841,7 +850,21 @@ const ReturnsView = ({ tenantId, userId, tenantName, userFullName }) => {
                   />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#0F172A' }}>{item.raw_name}</p>
+                      {item.supplier_confirmed_at && item.return_slip_token ? (
+                        <p
+                          style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#1E3A5F', cursor: 'pointer', textDecoration: 'underline' }}
+                          onClick={() => {
+                            const ids = tokenGroups[item.return_slip_token] || [item.id];
+                            navigate(`/provisioning/return-slip?items=${ids.join(',')}`);
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.opacity = '0.75'; }}
+                          onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+                        >
+                          {item.raw_name}
+                        </p>
+                      ) : (
+                        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#0F172A' }}>{item.raw_name}</p>
+                      )}
                       {item.supplier_confirmed_at && (
                         <span style={{
                           fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20,
