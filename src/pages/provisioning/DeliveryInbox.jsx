@@ -660,6 +660,7 @@ const generateReturnSlipHTML = (bySupplier, tenantName, generatedBy, vessel = nu
 };
 
 const ReturnsView = ({ tenantId, userId, tenantName, userFullName }) => {
+  const navigate = useNavigate();
   const [returnItems, setReturnItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -709,17 +710,18 @@ const ReturnsView = ({ tenantId, userId, tenantName, userFullName }) => {
 
   const handleGenerateSlip = () => {
     const selected = returnItems.filter(i => selectedIds.has(i.id));
-    // Group by supplier — open one tab per supplier
+    // Group by supplier
     const bySupplier = selected.reduce((acc, item) => {
       const s = item.supplier_name || 'Unknown supplier';
       if (!acc[s]) acc[s] = [];
       acc[s].push(item);
       return acc;
     }, {});
-    for (const items of Object.values(bySupplier)) {
-      const params = new URLSearchParams({ items: items.map(i => i.id).join(',') });
-      window.open(`/provisioning/return-slip?${params.toString()}`, '_blank');
-    }
+    const groups = Object.values(bySupplier);
+    // Navigate to first supplier's slip (keeps auth session in SPA)
+    const firstItems = groups[0];
+    const params = new URLSearchParams({ items: firstItems.map(i => i.id).join(',') });
+    navigate(`/provisioning/return-slip?${params.toString()}`);
   };
 
   const handleConfirmReturned = async () => {
