@@ -455,7 +455,7 @@ const ItemRow = ({ item, boards, userId, isLast, selected, onToggle, onClaimed, 
 
 // ── Bulk action bar ───────────────────────────────────────────────────────────
 
-const BulkBar = ({ count, boards, onClaimAll, onClear, claiming }) => {
+const BulkBar = ({ count, boards, onClaimAll, onReturnAll, onClear, claiming }) => {
   const [boardsOpen, setBoardsOpen] = useState(false);
 
   return (
@@ -463,7 +463,7 @@ const BulkBar = ({ count, boards, onClaimAll, onClear, claiming }) => {
       position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
       background: '#1E3A5F', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
       padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12,
-      zIndex: 100, minWidth: 360, maxWidth: 560,
+      zIndex: 100, minWidth: 360, maxWidth: 620,
     }}>
       <span style={{ fontSize: 13, fontWeight: 600, color: 'white', whiteSpace: 'nowrap', flexShrink: 0 }}>
         {count} item{count !== 1 ? 's' : ''} selected
@@ -510,6 +510,24 @@ const BulkBar = ({ count, boards, onClaimAll, onClear, claiming }) => {
           </div>
         )}
       </div>
+
+      <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.2)', flexShrink: 0 }} />
+
+      {/* Return to supplier */}
+      <button
+        onClick={onReturnAll}
+        disabled={claiming}
+        style={{
+          padding: '6px 14px', borderRadius: 7,
+          background: 'rgba(220,38,38,0.18)', border: '1px solid rgba(220,38,38,0.4)',
+          color: '#FCA5A5', fontSize: 12, fontWeight: 600, cursor: claiming ? 'default' : 'pointer',
+          whiteSpace: 'nowrap', flexShrink: 0,
+        }}
+        onMouseEnter={e => { if (!claiming) { e.currentTarget.style.background = 'rgba(220,38,38,0.28)'; e.currentTarget.style.color = '#FECACA'; } }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.18)'; e.currentTarget.style.color = '#FCA5A5'; }}
+      >
+        Return to supplier
+      </button>
 
       <button
         onClick={onClear}
@@ -970,6 +988,23 @@ const DeliveryInbox = () => {
     });
   };
 
+  const handleBulkReturn = () => {
+    const selected = items.filter(i => selectedIds.has(i.id));
+    if (!selected.length) return;
+    // Group by supplier — one tab per supplier
+    const bySupplier = selected.reduce((acc, item) => {
+      const key = item.supplier_name || '__unknown__';
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(item);
+      return acc;
+    }, {});
+    Object.values(bySupplier).forEach(group => {
+      const ids = group.map(i => i.id).join(',');
+      window.open(`/provisioning/return-slip?items=${ids}`, '_blank');
+    });
+    setSelectedIds(new Set());
+  };
+
   const handleBulkClaim = async (board) => {
     setBulkClaiming(true);
     const ids = [...selectedIds];
@@ -1178,6 +1213,7 @@ const DeliveryInbox = () => {
           count={selectedIds.size}
           boards={boards}
           onClaimAll={handleBulkClaim}
+          onReturnAll={handleBulkReturn}
           onClear={() => setSelectedIds(new Set())}
           claiming={bulkClaiming}
         />
