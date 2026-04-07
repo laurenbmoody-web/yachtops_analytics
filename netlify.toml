@@ -7,3 +7,9 @@
   # These are legitimately public keys — safe to expose to the browser.
   # Whitelisted to suppress Netlify secrets-scanner false positives.
   SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_ANON_KEY,VITE_SUPABASE_URL,VITE_STRIPE_PUBLISHABLE_KEY,VITE_GOOGLE_ANALYTICS_ID"
+
+# SPA: serve index.html for all routes so React Router handles them
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
