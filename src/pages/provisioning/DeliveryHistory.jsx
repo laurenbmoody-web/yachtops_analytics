@@ -550,17 +550,28 @@ export default function DeliveryHistory() {
                   {summaryIsConverted && <span style={{ fontSize: 10, fontWeight: 400, color: '#94A3B8', marginLeft: 4 }}>(converted)</span>}
                 </p>
                 <div style={{ marginTop: 3, display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <select
-                    value={convCurrency}
-                    onChange={e => handleConvCurrencyChange(e.target.value)}
-                    disabled={fxLoading}
-                    style={{ border: 'none', background: 'none', fontSize: 11, color: '#94A3B8', cursor: 'pointer', padding: 0, outline: 'none', appearance: 'auto' }}
-                  >
-                    <option value="original">Original</option>
-                    <option value="USD">Convert to USD</option>
-                    <option value="EUR">Convert to EUR</option>
-                    <option value="GBP">Convert to GBP</option>
-                  </select>
+                  <div style={{ display: 'inline-flex', background: '#F1F5F9', borderRadius: 20, padding: 2 }}>
+                    {['Original', 'EUR', 'USD', 'GBP'].map(opt => {
+                      const val = opt === 'Original' ? 'original' : opt;
+                      const active = convCurrency === val;
+                      return (
+                        <button
+                          key={opt}
+                          onClick={() => !fxLoading && handleConvCurrencyChange(val)}
+                          style={{
+                            padding: '3px 12px', borderRadius: 18, border: 'none',
+                            fontSize: 11, fontWeight: 600, cursor: fxLoading ? 'default' : 'pointer',
+                            background: active ? '#1E3A5F' : 'transparent',
+                            color: active ? 'white' : '#94A3B8',
+                            transition: 'all 0.15s',
+                            opacity: fxLoading && !active ? 0.5 : 1,
+                          }}
+                        >
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
                   {fxLoading && <span style={{ fontSize: 10, color: '#CBD5E1' }}>Loading…</span>}
                 </div>
               </div>
