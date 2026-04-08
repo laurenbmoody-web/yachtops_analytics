@@ -360,7 +360,7 @@ export const deleteProvisioningItem = async (itemId) => {
   }
 };
 
-export const updateItemStatus = async (itemId, status, quantityReceived) => {
+export const updateItemStatus = async (itemId, status, quantityReceived, ledgerCtx = null) => {
   try {
     const updates = { status };
     if (quantityReceived !== undefined) updates.quantity_received = quantityReceived;
@@ -371,6 +371,26 @@ export const updateItemStatus = async (itemId, status, quantityReceived) => {
       ?.select()
       ?.single();
     if (error) throw error;
+
+    // Write to ledger when marked received and caller supplies context
+    if (status === 'received' && ledgerCtx?.tenantId && data) {
+      createLedgerEntry({
+        tenantId:      ledgerCtx.tenantId,
+        sourceType:    'manual',
+        sourceBoardId: data.list_id || ledgerCtx.boardId || null,
+        receivedBy:    ledgerCtx.userId || null,
+        items: [{
+          raw_name:        data.name || 'Unknown item',
+          quantity:        quantityReceived ?? data.quantity_ordered ?? 1,
+          unit:            data.unit || null,
+          unit_price:      data.estimated_unit_cost || null,
+          claimed_board_id: data.list_id || ledgerCtx.boardId || null,
+          claimed_item_id:  itemId,
+          match_confidence: 'high',
+        }],
+      }).catch(err => console.error('[updateItemStatus] ledger write error:', err));
+    }
+
     return data;
   } catch (err) {
     console.error('[provisioningStorage] updateItemStatus error:', err);
@@ -1264,6 +1284,27 @@ export const quickReceiveItem = async ({ item, listId, tenantId, userId }) => {
       ...(batchId ? { receive_batch_id: batchId } : {}),
     });
     console.log('[quickReceiveItem] item updated successfully');
+
+    // 4. Write to permanent delivery ledger (fire-and-forget)
+    if (tenantId) {
+      createLedgerEntry({
+        tenantId,
+        sourceType:      'manual',
+        sourceBoardId:   listId,
+        sourceBatchId:   batchId,
+        supplierName:    'Manual receive',
+        receivedBy:      userId,
+        items: [{
+          raw_name:        item.name,
+          quantity:        qtyReceived,
+          unit:            item.unit || null,
+          unit_price:      item.estimated_unit_cost || null,
+          claimed_board_id: listId,
+          claimed_item_id:  item.id,
+          match_confidence: 'high',
+        }],
+      }).catch(err => console.error('[quickReceiveItem] ledger write error:', err));
+    }
 
     return batchId;
   } catch (err) {

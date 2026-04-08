@@ -1301,7 +1301,9 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
       // ── Write to permanent delivery ledger (fire-and-forget) ──────────────
       createLedgerEntry({
         tenantId,
-        sourceType:       parsedNote?.document_type === 'receipt' ? 'receipt' : 'delivery',
+        sourceType:       parsedNote
+          ? (parsedNote.document_type === 'receipt' ? 'receipt' : 'delivery')
+          : 'manual',
         sourceBoardId:    multiBoard ? null : list?.id,
         sourceBatchId:    firstBatchId,
         supplierName:     parsedNote?.supplier_name || null,
