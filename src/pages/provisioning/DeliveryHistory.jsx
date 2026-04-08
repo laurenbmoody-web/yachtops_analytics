@@ -42,14 +42,20 @@ const CLAIM_LABELS = {
   returned:  { label: 'Returned',  color: '#DC2626' },
 };
 
-// Frankfurter API: fetch rates where 1 toCurrency = X fromCurrency.
-// To convert amount FROM entryCurrency TO toCurrency: amount / rates[entryCurrency]
+// Frankfurter v2 returns an array of {base, quote, rate} objects.
+// Convert to a simple { QUOTE: rate } map, with rates[toCurrency] = 1 (self).
 const fetchFxRates = async (toCurrency) => {
   const res = await fetch(`https://api.frankfurter.dev/v2/rates?base=${toCurrency}&quotes=USD,EUR,GBP`);
   if (!res.ok) throw new Error(`FX fetch failed: ${res.status}`);
   const json = await res.json();
-  console.log('[DeliveryHistory] FX rates response:', JSON.stringify(json));
-  return json.rates || {};
+  const rates = {};
+  if (Array.isArray(json)) {
+    json.forEach(r => { if (r.quote) rates[r.quote] = r.rate; });
+  } else if (json?.rates && typeof json.rates === 'object') {
+    Object.assign(rates, json.rates); // fallback: old object shape
+  }
+  rates[toCurrency] = 1;
+  return rates;
 };
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -74,64 +80,46 @@ const ClaimBadge = ({ status }) => {
   );
 };
 
-const LedgerItemRow = ({ item, currency, convFn, convCurrCode }) => {
-  const convUnit  = convFn ? convFn(item.unit_price)  : null;
-  const convTotal = convFn ? convFn(item.total_price) : null;
-  const isConverted = convUnit != null || convTotal != null;
-  const displayCurr = isConverted ? convCurrCode : (currency || 'USD');
-
-  return (
-    <div style={{
-      display: 'grid', gridTemplateColumns: '1fr 60px 80px 80px 90px',
-      gap: 8, padding: '7px 0',
-      borderBottom: '1px solid #F8FAFC', alignItems: 'start',
-    }}>
-      <div style={{ minWidth: 0 }}>
-        <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {item.name}
+const LedgerItemRow = ({ item, currency }) => (
+  <div style={{
+    display: 'grid', gridTemplateColumns: '1fr 60px 80px 80px 90px',
+    gap: 8, padding: '7px 0',
+    borderBottom: '1px solid #F8FAFC', alignItems: 'start',
+  }}>
+    <div style={{ minWidth: 0 }}>
+      <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {item.name}
+      </p>
+      {item.original_name && item.original_name !== item.name && (
+        <p style={{ margin: '1px 0 0', fontSize: 10, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {item.original_name}
         </p>
-        {item.original_name && item.original_name !== item.name && (
-          <p style={{ margin: '1px 0 0', fontSize: 10, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {item.original_name}
-          </p>
-        )}
-        {item.item_reference && (
-          <p style={{ margin: '1px 0 0', fontSize: 10, color: '#CBD5E1' }}>Ref: {item.item_reference}</p>
-        )}
-      </div>
-      <p style={{ margin: 0, fontSize: 12, color: '#475569', textAlign: 'center' }}>
-        {item.quantity ?? '—'}{item.unit ? ` ${item.unit}` : ''}
-      </p>
-      <p style={{ margin: 0, fontSize: 12, color: '#475569', textAlign: 'right' }}>
-        {convUnit != null
-          ? <>{fmtMoney(convUnit, displayCurr)} <span style={{ fontSize: 9, color: '#CBD5E1' }}>(conv)</span></>
-          : (fmtMoney(item.unit_price, displayCurr) || '—')
-        }
-      </p>
-      <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: '#0F172A', textAlign: 'right' }}>
-        {convTotal != null
-          ? <>{fmtMoney(convTotal, displayCurr)} <span style={{ fontSize: 9, color: '#CBD5E1' }}>(conv)</span></>
-          : (fmtMoney(item.total_price, displayCurr) || '—')
-        }
-      </p>
-      <div style={{ textAlign: 'right' }}>
-        <ClaimBadge status={item.claim_status} />
-      </div>
+      )}
+      {item.item_reference && (
+        <p style={{ margin: '1px 0 0', fontSize: 10, color: '#CBD5E1' }}>Ref: {item.item_reference}</p>
+      )}
     </div>
-  );
-};
+    <p style={{ margin: 0, fontSize: 12, color: '#475569', textAlign: 'center' }}>
+      {item.quantity ?? '—'}{item.unit ? ` ${item.unit}` : ''}
+    </p>
+    <p style={{ margin: 0, fontSize: 12, color: '#475569', textAlign: 'right' }}>
+      {fmtMoney(item.unit_price, currency || 'USD') || '—'}
+    </p>
+    <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: '#0F172A', textAlign: 'right' }}>
+      {fmtMoney(item.total_price, currency || 'USD') || '—'}
+    </p>
+    <div style={{ textAlign: 'right' }}>
+      <ClaimBadge status={item.claim_status} />
+    </div>
+  </div>
+);
 
-const LedgerEntry = ({ entry, userNames, boardNames, expanded, onToggle, onDelete, onNavigate, convFn, convCurrCode }) => {
+const LedgerEntry = ({ entry, userNames, boardNames, expanded, onToggle, onDelete, onNavigate }) => {
   const receivedByName = userNames[entry.received_by] || null;
   const sourceCfg = SOURCE_LABELS[entry.source_type] || SOURCE_LABELS.manual;
   const currency = entry.currency || 'USD';
   const boardName = entry.source_board_id ? boardNames[entry.source_board_id] : null;
-
-  // Compute converted total for display in header
-  const convTotal = convFn ? convFn(entry.total_amount) : null;
-  const displayTotal = convTotal != null
-    ? fmtMoney(convTotal, convCurrCode)
-    : fmtMoney(entry.total_amount, currency);
+  const displayTotal = fmtMoney(entry.total_amount, currency);
 
   return (
     <div style={{
@@ -183,7 +171,6 @@ const LedgerEntry = ({ entry, userNames, boardNames, expanded, onToggle, onDelet
             {displayTotal && (
               <p style={{ margin: '1px 0 0', fontSize: 12, fontWeight: 600, color: '#0F172A' }}>
                 {displayTotal}
-                {convTotal != null && <span style={{ fontSize: 9, color: '#CBD5E1', marginLeft: 3 }}>(conv)</span>}
               </p>
             )}
           </div>
@@ -236,8 +223,6 @@ const LedgerEntry = ({ entry, userNames, boardNames, expanded, onToggle, onDelet
                   key={item.id}
                   item={item}
                   currency={currency}
-                  convFn={convFn}
-                  convCurrCode={convCurrCode}
                 />
               ))
             : <p style={{ margin: '12px 0', fontSize: 12, color: '#94A3B8', textAlign: 'center' }}>No items recorded</p>
@@ -409,9 +394,20 @@ export default function DeliveryHistory() {
   });
 
   // ── Summary (always reflects current filtered results) ────────────────────
-  const summaryCount    = filtered.length;
-  const summarySpend    = filtered.reduce((s, e) => s + (parseFloat(e.total_amount) || 0), 0);
-  const summaryCurrency = filtered.find(e => e.currency)?.currency || 'USD';
+  const summaryCount = filtered.length;
+
+  // Convert each entry's total to the selected currency (if rates available), then sum.
+  // Falls back to original amount if the rate for that entry's currency is missing.
+  const rates = convCurrency !== 'original' ? (fxCacheRef.current[convCurrency] || null) : null;
+  const summarySpend = filtered.reduce((s, e) => {
+    const amt = parseFloat(e.total_amount) || 0;
+    if (!rates) return s + amt;
+    const fromCurr = e.currency || 'USD';
+    const rate = rates[fromCurr];
+    return s + (rate ? amt / rate : amt);
+  }, 0);
+  const summaryCurrency = convCurrency !== 'original' ? convCurrency : (filtered.find(e => e.currency)?.currency || 'USD');
+  const summaryIsConverted = convCurrency !== 'original' && rates != null;
   const supplierTotals  = {};
   filtered.forEach(e => {
     const n = e.supplier_name || 'Manual receive';
@@ -545,8 +541,8 @@ export default function DeliveryHistory() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
             {[
               {
-                label: 'Total spend',
-                value: summarySpend > 0 ? fmtMoney(summarySpend, summaryCurrency) : '—',
+                label: summaryIsConverted ? `Total spend (${summaryCurrency})` : 'Total spend',
+                value: summarySpend > 0 ? `${fmtMoney(summarySpend, summaryCurrency)}${summaryIsConverted ? ' (converted)' : ''}` : '—',
                 icon: 'TrendingUp',
                 color: '#185FA5',
                 bg: '#E6F1FB',
@@ -618,8 +614,6 @@ export default function DeliveryHistory() {
                   onToggle={() => toggleEntry(entry.id)}
                   onDelete={handleDelete}
                   onNavigate={(boardId) => navigate(`/provisioning/${boardId}`)}
-                  convFn={makeConvFn(entry.currency)}
-                  convCurrCode={convCurrency !== 'original' ? convCurrency : null}
                 />
               ))}
             </div>
