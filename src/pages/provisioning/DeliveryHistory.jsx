@@ -234,7 +234,7 @@ const LedgerEntry = ({ entry, userNames, boardNames, expanded, onToggle, onDelet
   );
 };
 
-// ── Gauge summary cards ───────────────────────────────────────────────────────
+// ── Summary cards ────────────────────────────────────────────────────────────
 
 const CARD = {
   background: 'white',
@@ -245,20 +245,38 @@ const CARD = {
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
+  justifyContent: 'center',
 };
 
 function SummaryCards({
   summarySpendDisplay, summaryIsConverted, spendGaugePct,
-  summaryCount, deliveryGaugePct, typeBreakdownText,
-  topSupplier, topSupplierSpend, topSupplierItems, supplierGaugePct,
+  summaryCount, typeBreakdownText,
+  topSupplier, topSupplierSpend, topSupplierItems,
   convCurrency, fxLoading, onConvChange,
 }) {
+  const [pillOpen, setPillOpen] = useState(false);
   const animCount = useCountUp(summaryCount, 150);
 
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 28 }}>
+  const activeSym = convCurrency === 'EUR' ? '€'
+    : convCurrency === 'GBP' ? '£'
+    : convCurrency === 'USD' ? '$'
+    : '~';
 
-      {/* Card 1 — Total Spend */}
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.25fr 1fr', gap: 16, marginBottom: 28 }}>
+
+      {/* Card 1 — Deliveries (no gauge) */}
+      <div style={CARD}>
+        <p style={{ fontSize: 24, fontWeight: 700, color: '#0F172A', lineHeight: 1, letterSpacing: '-0.02em', margin: 0 }}>
+          {Math.round(animCount)}
+        </p>
+        <p style={{ fontSize: 12, color: '#94A3B8', margin: '4px 0 6px' }}>deliveries</p>
+        {typeBreakdownText && (
+          <p style={{ fontSize: 11, fontWeight: 600, color: '#1D9E75', margin: 0 }}>{typeBreakdownText}</p>
+        )}
+      </div>
+
+      {/* Card 2 — Total Spend (hero, with gauge) */}
       <div style={CARD}>
         <SemiGauge pct={spendGaugePct} gradientId="gauge-spend" gradFrom="#185FA5" gradTo="#60A5FA" delay={0} />
         <div style={{ marginTop: -4, width: '100%' }}>
@@ -267,63 +285,59 @@ function SummaryCards({
             {summarySpendDisplay}
             {summaryIsConverted && <span style={{ fontSize: 11, fontWeight: 400, color: '#94A3B8', marginLeft: 5 }}>(converted)</span>}
           </p>
-          {/* Currency pill toggle */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
-            <div style={{ display: 'inline-flex', background: '#F1F5F9', borderRadius: 20, padding: 2 }}>
-              {['Original', 'EUR', 'USD', 'GBP'].map(opt => {
-                const val = opt === 'Original' ? 'original' : opt;
-                const active = convCurrency === val;
-                return (
-                  <button key={opt} onClick={() => !fxLoading && onConvChange(val)} style={{
-                    padding: '3px 10px', borderRadius: 18, border: 'none',
-                    fontSize: 11, fontWeight: 600, cursor: fxLoading ? 'default' : 'pointer',
-                    background: active ? '#1E3A5F' : 'transparent',
-                    color: active ? 'white' : '#94A3B8',
-                    transition: 'all 0.15s',
-                    opacity: fxLoading && !active ? 0.5 : 1,
-                  }}>{opt}</button>
-                );
-              })}
-            </div>
-            {fxLoading && <span style={{ fontSize: 10, color: '#CBD5E1', marginLeft: 6, alignSelf: 'center' }}>Loading…</span>}
+
+          {/* Currency toggle — collapsed = single symbol pill, expanded = full row */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8, minHeight: 26 }}>
+            {pillOpen ? (
+              <div style={{ display: 'inline-flex', background: '#F1F5F9', borderRadius: 20, padding: 2 }}>
+                {['Original', 'EUR', 'USD', 'GBP'].map(opt => {
+                  const val = opt === 'Original' ? 'original' : opt;
+                  const active = convCurrency === val;
+                  return (
+                    <button key={opt} onClick={() => { if (!fxLoading) { onConvChange(val); setPillOpen(false); } }} style={{
+                      padding: '3px 10px', borderRadius: 18, border: 'none',
+                      fontSize: 11, fontWeight: 600, cursor: fxLoading ? 'default' : 'pointer',
+                      background: active ? '#1E3A5F' : 'transparent',
+                      color: active ? 'white' : '#94A3B8',
+                      transition: 'all 0.15s',
+                      opacity: fxLoading && !active ? 0.5 : 1,
+                    }}>{opt}</button>
+                  );
+                })}
+              </div>
+            ) : (
+              <button onClick={() => setPillOpen(true)} title="Change currency" style={{
+                fontSize: 13, fontWeight: 700, color: '#94A3B8',
+                background: '#F1F5F9', border: 'none', borderRadius: 12,
+                padding: '2px 12px', cursor: 'pointer', lineHeight: '20px',
+              }}>
+                {activeSym}
+                {fxLoading && <span style={{ fontSize: 10, marginLeft: 4 }}>…</span>}
+              </button>
+            )}
           </div>
+
           <p style={{ fontSize: 12, color: '#94A3B8', margin: '6px 0 0' }}>total spend</p>
         </div>
       </div>
 
-      {/* Card 2 — Deliveries */}
+      {/* Card 3 — Top Supplier (no gauge) */}
       <div style={CARD}>
-        <SemiGauge pct={deliveryGaugePct} gradientId="gauge-deliveries" gradFrom="#1D9E75" gradTo="#5DCAA5" delay={150} />
-        <div style={{ marginTop: -4 }}>
-          <p style={{ fontSize: 30, fontWeight: 700, color: '#0F172A', lineHeight: 1, letterSpacing: '-0.02em', margin: 0 }}>
-            {Math.round(animCount)}
+        <p style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 6px' }}>
+          Top supplier
+        </p>
+        <p style={{
+          fontSize: 16, fontWeight: 600, color: '#0F172A', lineHeight: 1.3,
+          margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%',
+        }} title={topSupplier || '—'}>
+          {topSupplier || '—'}
+        </p>
+        {topSupplierSpend > 0 && (
+          <p style={{ fontSize: 11, fontWeight: 600, color: '#B45309', margin: '6px 0 0' }}>
+            {fmtMoney(topSupplierSpend, 'USD')}
+            {topSupplierItems > 0 && ` · ${topSupplierItems} item${topSupplierItems !== 1 ? 's' : ''}`}
           </p>
-          <p style={{ fontSize: 12, color: '#94A3B8', margin: '4px 0 6px' }}>deliveries</p>
-          {typeBreakdownText && (
-            <p style={{ fontSize: 11, fontWeight: 600, color: '#1D9E75' }}>{typeBreakdownText}</p>
-          )}
-        </div>
-      </div>
-
-      {/* Card 3 — Top Supplier */}
-      <div style={CARD}>
-        <SemiGauge pct={supplierGaugePct} gradientId="gauge-supplier" gradFrom="#BA7517" gradTo="#EF9F27" delay={300} />
-        <div style={{ marginTop: -4, width: '100%' }}>
-          <p style={{
-            fontSize: topSupplier && topSupplier.length > 14 ? 16 : 22,
-            fontWeight: 700, color: '#0F172A', lineHeight: 1.2, letterSpacing: '-0.01em',
-            margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }} title={topSupplier || '—'}>
-            {topSupplier || '—'}
-          </p>
-          <p style={{ fontSize: 12, color: '#94A3B8', margin: '4px 0 6px' }}>top supplier</p>
-          {topSupplierSpend > 0 && (
-            <p style={{ fontSize: 11, fontWeight: 600, color: '#B45309' }}>
-              {fmtMoney(topSupplierSpend, 'USD')}
-              {topSupplierItems > 0 && ` · ${topSupplierItems} item${topSupplierItems !== 1 ? 's' : ''}`}
-            </p>
-          )}
-        </div>
+        )}
       </div>
 
     </div>
@@ -661,12 +675,10 @@ export default function DeliveryHistory() {
             summaryIsConverted={summaryIsConverted}
             spendGaugePct={spendGaugePct}
             summaryCount={summaryCount}
-            deliveryGaugePct={deliveryGaugePct}
             typeBreakdownText={typeBreakdownText}
             topSupplier={topSupplier}
             topSupplierSpend={topSupplierSpend}
             topSupplierItems={topSupplierItems}
-            supplierGaugePct={supplierGaugePct}
             convCurrency={convCurrency}
             fxLoading={fxLoading}
             onConvChange={handleConvCurrencyChange}
