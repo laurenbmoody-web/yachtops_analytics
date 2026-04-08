@@ -1326,6 +1326,9 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
             ordered_qty:      u.quantity_ordered ?? null,
             unit:             u.unit ?? null,
             unit_price:       u.estimated_unit_cost ?? null,
+            line_total:       (u.estimated_unit_cost && u.quantity_received)
+                                ? parseFloat(u.estimated_unit_cost) * parseFloat(u.quantity_received)
+                                : null,
             claimed_board_id: u._boardId || list?.id || null,
             claimed_item_id:  u.id,
             match_confidence: 'high',
