@@ -45,7 +45,7 @@ const CLAIM_LABELS = {
 // Frankfurter API: fetch rates where 1 toCurrency = X fromCurrency.
 // To convert amount FROM entryCurrency TO toCurrency: amount / rates[entryCurrency]
 const fetchFxRates = async (toCurrency) => {
-  const res = await fetch(`https://api.frankfurter.app/latest?from=${toCurrency}`);
+  const res = await fetch(`https://api.frankfurter.dev/v2/rates?base=${toCurrency}`);
   if (!res.ok) throw new Error(`FX fetch failed: ${res.status}`);
   const json = await res.json();
   return json.rates || {};
@@ -355,8 +355,15 @@ export default function DeliveryHistory() {
 
   // ── Delete empty entry ────────────────────────────────────────────────────
   const handleDelete = async (id) => {
-    const { error } = await supabase?.from('delivery_ledger')?.delete()?.eq('id', id);
+    const { error, count } = await supabase
+      ?.from('delivery_ledger')
+      ?.delete({ count: 'exact' })
+      ?.eq('id', id);
     if (error) { console.error('[DeliveryHistory] delete error:', error); return; }
+    if (count === 0) {
+      console.warn('[DeliveryHistory] delete blocked — check RLS policy. Run: CREATE POLICY "tenant members can delete delivery_ledger" ON delivery_ledger FOR DELETE USING (tenant_id IN (SELECT tenant_id FROM tenant_members WHERE user_id = auth.uid()));');
+      return;
+    }
     setEntries(prev => prev.filter(e => e.id !== id));
   };
 
@@ -391,23 +398,6 @@ export default function DeliveryHistory() {
     URL.revokeObjectURL(url);
   };
 
-  // ── Monthly summary (always uses all entries, not filtered) ────────────────
-  const now = new Date();
-  const thisMonth = entries.filter(e => {
-    if (!e.created_at) return false;
-    const d = new Date(e.created_at);
-    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-  });
-  const monthlyCount  = thisMonth.length;
-  const monthlySpend  = thisMonth.reduce((s, e) => s + (parseFloat(e.total_amount) || 0), 0);
-  const monthCurrency = thisMonth.find(e => e.currency)?.currency || 'USD';
-  const supplierTotals = {};
-  thisMonth.forEach(e => {
-    const n = e.supplier_name || 'Manual receive';
-    supplierTotals[n] = (supplierTotals[n] || 0) + (parseFloat(e.total_amount) || 0);
-  });
-  const topSupplier = Object.entries(supplierTotals).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
-
   // ── Filtering + grouping ──────────────────────────────────────────────────
   const filtered = entries.filter(e => {
     if (typeFilter !== 'all' && e.source_type !== typeFilter) return false;
@@ -416,6 +406,17 @@ export default function DeliveryHistory() {
     if (dateTo   && e.created_at > `${dateTo}T23:59:59`)   return false;
     return true;
   });
+
+  // ── Summary (always reflects current filtered results) ────────────────────
+  const summaryCount    = filtered.length;
+  const summarySpend    = filtered.reduce((s, e) => s + (parseFloat(e.total_amount) || 0), 0);
+  const summaryCurrency = filtered.find(e => e.currency)?.currency || 'USD';
+  const supplierTotals  = {};
+  filtered.forEach(e => {
+    const n = e.supplier_name || 'Manual receive';
+    supplierTotals[n] = (supplierTotals[n] || 0) + (parseFloat(e.total_amount) || 0);
+  });
+  const topSupplier = Object.entries(supplierTotals).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
 
   const grouped = filtered.reduce((acc, e) => {
     const key = dayKey(e.created_at);
@@ -538,20 +539,20 @@ export default function DeliveryHistory() {
 
       <div style={{ maxWidth: 860, margin: '0 auto', padding: '20px 24px 48px' }}>
 
-        {/* ── Monthly summary cards ── */}
-        {!loading && monthlyCount > 0 && (
+        {/* ── Summary cards (reflect current filter) ── */}
+        {!loading && summaryCount > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
             {[
               {
-                label: 'This month spend',
-                value: monthlySpend > 0 ? fmtMoney(monthlySpend, monthCurrency) : '—',
+                label: 'Total spend',
+                value: summarySpend > 0 ? fmtMoney(summarySpend, summaryCurrency) : '—',
                 icon: 'TrendingUp',
                 color: '#185FA5',
                 bg: '#E6F1FB',
               },
               {
-                label: 'Deliveries this month',
-                value: String(monthlyCount),
+                label: 'Deliveries',
+                value: String(summaryCount),
                 icon: 'Package',
                 color: '#065F46',
                 bg: '#F0FDF4',
