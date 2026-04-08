@@ -90,7 +90,7 @@ const LedgerItemRow = ({ item }) => (
       {fmtMoney(item.unit_price, null) || '—'}
     </p>
     <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: '#0F172A', textAlign: 'right' }}>
-      {fmtMoney(item.line_total, null) || '—'}
+      {fmtMoney(item.total_price, null) || '—'}
     </p>
     <div style={{ textAlign: 'right' }}>
       <ClaimBadge status={item.claim_status} />
@@ -127,7 +127,7 @@ const LedgerEntry = ({ entry, userNames, boardNames, expanded, onToggle }) => {
             <SourceBadge type={entry.source_type} />
           </div>
           <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94A3B8' }}>
-            {fmtTime(entry.received_at)}
+            {fmtTime(entry.created_at)}
             {entry.order_ref ? ` · Ref: ${entry.order_ref}` : ''}
             {receivedByName ? ` · ${receivedByName}` : ''}
             {entry.source_board_id && boardNames[entry.source_board_id] ? ` · ${boardNames[entry.source_board_id]}` : ''}
@@ -216,7 +216,7 @@ export default function DeliveryHistory() {
       ?.from('delivery_ledger')
       ?.select('*, delivery_ledger_items(*)')
       ?.eq('tenant_id', activeTenantId)
-      ?.order('received_at', { ascending: false });
+      ?.order('created_at', { ascending: false });
 
     if (boardParam) query = query?.eq('source_board_id', boardParam);
 
@@ -264,15 +264,15 @@ export default function DeliveryHistory() {
   const filtered = entries.filter(e => {
     if (typeFilter !== 'all' && e.source_type !== typeFilter) return false;
     if (search && !(e.supplier_name || '').toLowerCase().includes(search.toLowerCase())) return false;
-    if (dateFrom && e.received_at < `${dateFrom}T00:00:00`) return false;
-    if (dateTo   && e.received_at > `${dateTo}T23:59:59`)   return false;
+    if (dateFrom && e.created_at < `${dateFrom}T00:00:00`) return false;
+    if (dateTo   && e.created_at > `${dateTo}T23:59:59`)   return false;
     return true;
   });
 
   // Group by day
   const grouped = filtered.reduce((acc, e) => {
-    const key = dayKey(e.received_at);
-    if (!acc[key]) acc[key] = { label: fmtDate(e.received_at), entries: [] };
+    const key = dayKey(e.created_at);
+    if (!acc[key]) acc[key] = { label: fmtDate(e.created_at), entries: [] };
     acc[key].entries.push(e);
     return acc;
   }, {});

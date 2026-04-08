@@ -1918,7 +1918,7 @@ export const createLedgerEntry = async ({
         ordered_qty:      item.ordered_qty      || null,
         unit:             item.unit             || null,
         unit_price:       item.unit_price       || null,
-        line_total:       item.line_total       || null,
+        total_price:      item.line_total       || null,
         claimed_board_id: item.claimed_board_id || null,
         claimed_item_id:  item.claimed_item_id  || null,
         claim_status:     item.claimed_board_id ? 'claimed' : 'unclaimed',
