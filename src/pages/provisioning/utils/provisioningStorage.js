@@ -1923,6 +1923,12 @@ export const createLedgerEntry = async ({
   console.log('[createLedgerEntry] Writing to ledger:', { tenantId, sourceType, items: items?.length });
   if (!tenantId) { console.warn('[createLedgerEntry] Aborted — no tenantId'); return null; }
   try {
+    // Calculate total from items if not explicitly provided
+    const calculatedTotal = totalAmount || items?.reduce((sum, item) => {
+      const lt = item.line_total || (item.unit_price && item.quantity ? parseFloat(item.unit_price) * parseFloat(item.quantity) : 0);
+      return sum + (lt || 0);
+    }, 0) || null;
+
     const { data: ledger, error: ledgerErr } = await supabase
       ?.from('delivery_ledger')
       ?.insert({
@@ -1940,7 +1946,7 @@ export const createLedgerEntry = async ({
         delivery_note_ref: deliveryNoteRef || null,
         document_url:     documentUrl     || null,
         document_type:    documentType    || null,
-        total_amount:     totalAmount     || null,
+        total_amount:     calculatedTotal  || null,
         currency:         currency        || null,
         received_by:      receivedBy      || null,
       })

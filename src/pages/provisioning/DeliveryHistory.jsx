@@ -396,18 +396,32 @@ export default function DeliveryHistory() {
   // ── Summary (always reflects current filtered results) ────────────────────
   const summaryCount = filtered.length;
 
-  // Convert each entry's total to the selected currency (if rates available), then sum.
-  // Falls back to original amount if the rate for that entry's currency is missing.
-  const rates = convCurrency !== 'original' ? (fxCacheRef.current[convCurrency] || null) : null;
-  const summarySpend = filtered.reduce((s, e) => {
+  // Per-currency totals for Original display (e.g. "€59.80 · $45.00")
+  const perCurrencyTotals = {};
+  filtered.forEach(e => {
+    const curr = e.currency || 'USD';
     const amt = parseFloat(e.total_amount) || 0;
-    if (!rates) return s + amt;
+    if (amt > 0) perCurrencyTotals[curr] = (perCurrencyTotals[curr] || 0) + amt;
+  });
+
+  // Converted total: sum each entry converted to the target currency
+  const convRates = convCurrency !== 'original' ? (fxCacheRef.current[convCurrency] || null) : null;
+  const summaryIsConverted = convCurrency !== 'original' && convRates != null;
+  const summarySpendConverted = filtered.reduce((s, e) => {
+    const amt = parseFloat(e.total_amount) || 0;
+    if (!convRates) return s + amt;
     const fromCurr = e.currency || 'USD';
-    const rate = rates[fromCurr];
+    const rate = convRates[fromCurr];
     return s + (rate ? amt / rate : amt);
   }, 0);
-  const summaryCurrency = convCurrency !== 'original' ? convCurrency : (filtered.find(e => e.currency)?.currency || 'USD');
-  const summaryIsConverted = convCurrency !== 'original' && rates != null;
+
+  // What to display in the Total Spend card
+  const summarySpendDisplay = convCurrency !== 'original'
+    ? (summarySpendConverted > 0 ? fmtMoney(summarySpendConverted, convCurrency) : '—')
+    : (Object.entries(perCurrencyTotals)
+        .sort((a, b) => b[1] - a[1])
+        .map(([curr, amt]) => fmtMoney(amt, curr))
+        .join(' · ') || '—');
   const supplierTotals  = {};
   filtered.forEach(e => {
     const n = e.supplier_name || 'Manual receive';
@@ -505,23 +519,6 @@ export default function DeliveryHistory() {
             <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} title="To date"
               style={{ padding: '7px 10px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12, color: '#475569', background: 'white' }} />
 
-            {/* Currency converter */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Icon name="RefreshCw" style={{ width: 12, height: 12, color: '#94A3B8' }} />
-              <select
-                value={convCurrency}
-                onChange={e => handleConvCurrencyChange(e.target.value)}
-                disabled={fxLoading}
-                style={{ padding: '7px 10px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12, color: '#475569', background: 'white', cursor: 'pointer' }}
-              >
-                <option value="original">Original</option>
-                <option value="USD">USD ($)</option>
-                <option value="EUR">EUR (€)</option>
-                <option value="GBP">GBP (£)</option>
-              </select>
-              {fxLoading && <span style={{ fontSize: 10, color: '#94A3B8' }}>Loading rates…</span>}
-            </div>
-
             {(search || typeFilter !== 'all' || dateFrom || dateTo) && (
               <button
                 onClick={() => { setSearch(''); setTypeFilter('all'); setDateFrom(''); setDateTo(''); }}
@@ -539,44 +536,49 @@ export default function DeliveryHistory() {
         {/* ── Summary cards (reflect current filter) ── */}
         {!loading && summaryCount > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
+
+            {/* Total Spend — custom card with inline currency selector */}
+            <div style={{ background: 'white', borderRadius: 10, border: '1px solid #E2E8F0', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: '#E6F1FB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Icon name="TrendingUp" style={{ width: 16, height: 16, color: '#185FA5' }} />
+              </div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <p style={{ margin: 0, fontSize: 10, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Total spend</p>
+                <p style={{ margin: '2px 0 0', fontWeight: 700, color: '#0F172A', fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                   title={summarySpendDisplay}>
+                  {summarySpendDisplay}
+                  {summaryIsConverted && <span style={{ fontSize: 10, fontWeight: 400, color: '#94A3B8', marginLeft: 4 }}>(converted)</span>}
+                </p>
+                <div style={{ marginTop: 3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <select
+                    value={convCurrency}
+                    onChange={e => handleConvCurrencyChange(e.target.value)}
+                    disabled={fxLoading}
+                    style={{ border: 'none', background: 'none', fontSize: 11, color: '#94A3B8', cursor: 'pointer', padding: 0, outline: 'none', appearance: 'auto' }}
+                  >
+                    <option value="original">Original</option>
+                    <option value="USD">Convert to USD</option>
+                    <option value="EUR">Convert to EUR</option>
+                    <option value="GBP">Convert to GBP</option>
+                  </select>
+                  {fxLoading && <span style={{ fontSize: 10, color: '#CBD5E1' }}>Loading…</span>}
+                </div>
+              </div>
+            </div>
+
+            {/* Deliveries + Top supplier */}
             {[
-              {
-                label: summaryIsConverted ? `Total spend (${summaryCurrency})` : 'Total spend',
-                value: summarySpend > 0 ? `${fmtMoney(summarySpend, summaryCurrency)}${summaryIsConverted ? ' (converted)' : ''}` : '—',
-                icon: 'TrendingUp',
-                color: '#185FA5',
-                bg: '#E6F1FB',
-              },
-              {
-                label: 'Deliveries',
-                value: String(summaryCount),
-                icon: 'Package',
-                color: '#065F46',
-                bg: '#F0FDF4',
-              },
-              {
-                label: 'Top supplier',
-                value: topSupplier || '—',
-                icon: 'Star',
-                color: '#B45309',
-                bg: '#FEF3E2',
-                small: true,
-              },
+              { label: 'Deliveries',    value: String(summaryCount), icon: 'Package', color: '#065F46', bg: '#F0FDF4' },
+              { label: 'Top supplier',  value: topSupplier || '—',   icon: 'Star',    color: '#B45309', bg: '#FEF3E2', small: true },
             ].map(card => (
-              <div key={card.label} style={{
-                background: 'white', borderRadius: 10, border: '1px solid #E2E8F0',
-                padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12,
-              }}>
+              <div key={card.label} style={{ background: 'white', borderRadius: 10, border: '1px solid #E2E8F0', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 8, background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Icon name={card.icon} style={{ width: 16, height: 16, color: card.color }} />
                 </div>
                 <div style={{ minWidth: 0 }}>
                   <p style={{ margin: 0, fontSize: 10, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>{card.label}</p>
-                  <p style={{
-                    margin: '2px 0 0', fontWeight: 700, color: '#0F172A',
-                    fontSize: card.small ? 13 : 16,
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }} title={card.value}>{card.value}</p>
+                  <p style={{ margin: '2px 0 0', fontWeight: 700, color: '#0F172A', fontSize: card.small ? 13 : 16, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                     title={card.value}>{card.value}</p>
                 </div>
               </div>
             ))}
