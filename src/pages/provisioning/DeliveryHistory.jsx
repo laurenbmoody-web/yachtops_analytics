@@ -544,7 +544,7 @@ export default function DeliveryHistory() {
               </div>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <p style={{ margin: 0, fontSize: 10, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Total spend</p>
-                <p style={{ margin: '2px 0 0', fontWeight: 700, color: '#0F172A', fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                <p style={{ margin: '2px 0 0', fontWeight: 700, color: '#0F172A', fontSize: 28, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                    title={summarySpendDisplay}>
                   {summarySpendDisplay}
                   {summaryIsConverted && <span style={{ fontSize: 10, fontWeight: 400, color: '#94A3B8', marginLeft: 4 }}>(converted)</span>}
