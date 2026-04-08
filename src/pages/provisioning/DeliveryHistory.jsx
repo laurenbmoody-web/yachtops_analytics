@@ -45,9 +45,10 @@ const CLAIM_LABELS = {
 // Frankfurter API: fetch rates where 1 toCurrency = X fromCurrency.
 // To convert amount FROM entryCurrency TO toCurrency: amount / rates[entryCurrency]
 const fetchFxRates = async (toCurrency) => {
-  const res = await fetch(`https://api.frankfurter.dev/v2/rates?base=${toCurrency}`);
+  const res = await fetch(`https://api.frankfurter.dev/v2/rates?base=${toCurrency}&quotes=USD,EUR,GBP`);
   if (!res.ok) throw new Error(`FX fetch failed: ${res.status}`);
   const json = await res.json();
+  console.log('[DeliveryHistory] FX rates response:', JSON.stringify(json));
   return json.rates || {};
 };
 
