@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
@@ -42,6 +42,15 @@ const CLAIM_LABELS = {
   returned:  { label: 'Returned',  color: '#DC2626' },
 };
 
+// Frankfurter API: fetch rates where 1 toCurrency = X fromCurrency.
+// To convert amount FROM entryCurrency TO toCurrency: amount / rates[entryCurrency]
+const fetchFxRates = async (toCurrency) => {
+  const res = await fetch(`https://api.frankfurter.app/latest?from=${toCurrency}`);
+  if (!res.ok) throw new Error(`FX fetch failed: ${res.status}`);
+  const json = await res.json();
+  return json.rates || {};
+};
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 const SourceBadge = ({ type }) => {
@@ -64,43 +73,64 @@ const ClaimBadge = ({ status }) => {
   );
 };
 
-const LedgerItemRow = ({ item }) => (
-  <div style={{
-    display: 'grid', gridTemplateColumns: '1fr 60px 80px 80px 90px',
-    gap: 8, padding: '7px 0',
-    borderBottom: '1px solid #F8FAFC', alignItems: 'start',
-  }}>
-    <div style={{ minWidth: 0 }}>
-      <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {item.name}
-      </p>
-      {item.original_name && item.original_name !== item.name && (
-        <p style={{ margin: '1px 0 0', fontSize: 10, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {item.original_name}
-        </p>
-      )}
-      {item.item_reference && (
-        <p style={{ margin: '1px 0 0', fontSize: 10, color: '#CBD5E1' }}>Ref: {item.item_reference}</p>
-      )}
-    </div>
-    <p style={{ margin: 0, fontSize: 12, color: '#475569', textAlign: 'center' }}>
-      {item.quantity ?? '—'}{item.unit ? ` ${item.unit}` : ''}
-    </p>
-    <p style={{ margin: 0, fontSize: 12, color: '#475569', textAlign: 'right' }}>
-      {fmtMoney(item.unit_price, null) || '—'}
-    </p>
-    <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: '#0F172A', textAlign: 'right' }}>
-      {fmtMoney(item.total_price, null) || '—'}
-    </p>
-    <div style={{ textAlign: 'right' }}>
-      <ClaimBadge status={item.claim_status} />
-    </div>
-  </div>
-);
+const LedgerItemRow = ({ item, currency, convFn, convCurrCode }) => {
+  const convUnit  = convFn ? convFn(item.unit_price)  : null;
+  const convTotal = convFn ? convFn(item.total_price) : null;
+  const isConverted = convUnit != null || convTotal != null;
+  const displayCurr = isConverted ? convCurrCode : (currency || 'USD');
 
-const LedgerEntry = ({ entry, userNames, boardNames, expanded, onToggle }) => {
+  return (
+    <div style={{
+      display: 'grid', gridTemplateColumns: '1fr 60px 80px 80px 90px',
+      gap: 8, padding: '7px 0',
+      borderBottom: '1px solid #F8FAFC', alignItems: 'start',
+    }}>
+      <div style={{ minWidth: 0 }}>
+        <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {item.name}
+        </p>
+        {item.original_name && item.original_name !== item.name && (
+          <p style={{ margin: '1px 0 0', fontSize: 10, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {item.original_name}
+          </p>
+        )}
+        {item.item_reference && (
+          <p style={{ margin: '1px 0 0', fontSize: 10, color: '#CBD5E1' }}>Ref: {item.item_reference}</p>
+        )}
+      </div>
+      <p style={{ margin: 0, fontSize: 12, color: '#475569', textAlign: 'center' }}>
+        {item.quantity ?? '—'}{item.unit ? ` ${item.unit}` : ''}
+      </p>
+      <p style={{ margin: 0, fontSize: 12, color: '#475569', textAlign: 'right' }}>
+        {convUnit != null
+          ? <>{fmtMoney(convUnit, displayCurr)} <span style={{ fontSize: 9, color: '#CBD5E1' }}>(conv)</span></>
+          : (fmtMoney(item.unit_price, displayCurr) || '—')
+        }
+      </p>
+      <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: '#0F172A', textAlign: 'right' }}>
+        {convTotal != null
+          ? <>{fmtMoney(convTotal, displayCurr)} <span style={{ fontSize: 9, color: '#CBD5E1' }}>(conv)</span></>
+          : (fmtMoney(item.total_price, displayCurr) || '—')
+        }
+      </p>
+      <div style={{ textAlign: 'right' }}>
+        <ClaimBadge status={item.claim_status} />
+      </div>
+    </div>
+  );
+};
+
+const LedgerEntry = ({ entry, userNames, boardNames, expanded, onToggle, onDelete, onNavigate, convFn, convCurrCode }) => {
   const receivedByName = userNames[entry.received_by] || null;
   const sourceCfg = SOURCE_LABELS[entry.source_type] || SOURCE_LABELS.manual;
+  const currency = entry.currency || 'USD';
+  const boardName = entry.source_board_id ? boardNames[entry.source_board_id] : null;
+
+  // Compute converted total for display in header
+  const convTotal = convFn ? convFn(entry.total_amount) : null;
+  const displayTotal = convTotal != null
+    ? fmtMoney(convTotal, convCurrCode)
+    : fmtMoney(entry.total_amount, currency);
 
   return (
     <div style={{
@@ -126,25 +156,37 @@ const LedgerEntry = ({ entry, userNames, boardNames, expanded, onToggle }) => {
             </p>
             <SourceBadge type={entry.source_type} />
           </div>
-          <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94A3B8' }}>
-            {fmtTime(entry.created_at)}
-            {entry.order_ref ? ` · Ref: ${entry.order_ref}` : ''}
-            {receivedByName ? ` · ${receivedByName}` : ''}
-            {entry.source_board_id && boardNames[entry.source_board_id] ? ` · ${boardNames[entry.source_board_id]}` : ''}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
+            <p style={{ margin: 0, fontSize: 11, color: '#94A3B8' }}>
+              {fmtTime(entry.created_at)}
+              {entry.order_ref ? ` · Ref: ${entry.order_ref}` : ''}
+              {receivedByName ? ` · ${receivedByName}` : ''}
+              {boardName ? ` · ${boardName}` : ''}
+            </p>
+            {entry.source_board_id && (
+              <button
+                onClick={e => { e.stopPropagation(); onNavigate(entry.source_board_id); }}
+                style={{ fontSize: 11, color: '#1E3A5F', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline', flexShrink: 0 }}
+              >
+                View board →
+              </button>
+            )}
+          </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
           <div style={{ textAlign: 'right' }}>
             <p style={{ margin: 0, fontSize: 12, color: '#475569' }}>
               {entry._itemCount ?? 0} item{(entry._itemCount ?? 0) !== 1 ? 's' : ''}
             </p>
-            {entry.total_amount && (
+            {displayTotal && (
               <p style={{ margin: '1px 0 0', fontSize: 12, fontWeight: 600, color: '#0F172A' }}>
-                {fmtMoney(entry.total_amount, entry.currency)}
+                {displayTotal}
+                {convTotal != null && <span style={{ fontSize: 9, color: '#CBD5E1', marginLeft: 3 }}>(conv)</span>}
               </p>
             )}
           </div>
+
           {entry.document_url && (
             <a
               href={entry.document_url}
@@ -157,13 +199,25 @@ const LedgerEntry = ({ entry, userNames, boardNames, expanded, onToggle }) => {
               <Icon name="FileText" style={{ width: 14, height: 14 }} />
             </a>
           )}
+
+          {/* Delete only shown on 0-item entries */}
+          {(entry._itemCount ?? 0) === 0 && (
+            <button
+              onClick={e => { e.stopPropagation(); onDelete(entry.id); }}
+              title="Delete empty entry"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#CBD5E1', padding: '2px 4px', flexShrink: 0, lineHeight: 1 }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#EF4444'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = '#CBD5E1'; }}
+            >
+              <Icon name="Trash2" style={{ width: 13, height: 13 }} />
+            </button>
+          )}
         </div>
       </div>
 
       {/* Expanded: line items */}
       {expanded && (
         <div style={{ borderTop: '1px solid #F1F5F9', padding: '0 16px 12px' }}>
-          {/* Column headers */}
           <div style={{
             display: 'grid', gridTemplateColumns: '1fr 60px 80px 80px 90px',
             gap: 8, padding: '8px 0 4px',
@@ -176,7 +230,15 @@ const LedgerEntry = ({ entry, userNames, boardNames, expanded, onToggle }) => {
           </div>
 
           {entry._items?.length > 0
-            ? entry._items.map(item => <LedgerItemRow key={item.id} item={item} />)
+            ? entry._items.map(item => (
+                <LedgerItemRow
+                  key={item.id}
+                  item={item}
+                  currency={currency}
+                  convFn={convFn}
+                  convCurrCode={convCurrCode}
+                />
+              ))
             : <p style={{ margin: '12px 0', fontSize: 12, color: '#94A3B8', textAlign: 'center' }}>No items recorded</p>
           }
         </div>
@@ -192,7 +254,6 @@ export default function DeliveryHistory() {
   const { user } = useAuth();
   const { activeTenantId } = useTenant();
 
-  // Read ?board= from URL for pre-filter
   const params = new URLSearchParams(window.location.search);
   const boardParam = params.get('board') || '';
 
@@ -203,10 +264,15 @@ export default function DeliveryHistory() {
   const [boardNames, setBoardNames]   = useState({});
 
   // Filters
-  const [search, setSearch]       = useState('');
+  const [search, setSearch]         = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
-  const [dateFrom, setDateFrom]   = useState('');
-  const [dateTo, setDateTo]       = useState('');
+  const [dateFrom, setDateFrom]     = useState('');
+  const [dateTo, setDateTo]         = useState('');
+
+  // Currency conversion
+  const [convCurrency, setConvCurrency] = useState('original');
+  const [fxLoading, setFxLoading]       = useState(false);
+  const fxCacheRef = useRef({}); // { 'USD': { EUR: 0.92, GBP: 0.79 }, ... }
 
   const load = useCallback(async () => {
     if (!activeTenantId) return;
@@ -231,7 +297,6 @@ export default function DeliveryHistory() {
 
     setEntries(rows);
 
-    // Resolve user names
     const uids = [...new Set(rows.map(e => e.received_by).filter(Boolean))];
     if (uids.length > 0) {
       const { data: profiles } = await supabase?.from('profiles')?.select('id, full_name')?.in('id', uids);
@@ -240,7 +305,6 @@ export default function DeliveryHistory() {
       setUserNames(map);
     }
 
-    // Resolve board names
     const bids = [...new Set(rows.map(e => e.source_board_id).filter(Boolean))];
     if (bids.length > 0) {
       const { data: boards } = await supabase?.from('provisioning_lists')?.select('id, title')?.in('id', bids);
@@ -260,7 +324,91 @@ export default function DeliveryHistory() {
     return next;
   });
 
-  // Client-side filtering
+  // ── Currency conversion ────────────────────────────────────────────────────
+  const handleConvCurrencyChange = async (toCurrency) => {
+    setConvCurrency(toCurrency);
+    if (toCurrency === 'original' || fxCacheRef.current[toCurrency]) return;
+    setFxLoading(true);
+    try {
+      const rates = await fetchFxRates(toCurrency);
+      fxCacheRef.current[toCurrency] = rates;
+    } catch (err) {
+      console.error('[DeliveryHistory] FX fetch error:', err);
+    } finally {
+      setFxLoading(false);
+    }
+  };
+
+  // Returns a conversion function for a given entry's currency, or null if no conversion needed.
+  const makeConvFn = (entryCurrency) => {
+    if (convCurrency === 'original') return null;
+    const from = entryCurrency || 'USD';
+    if (from === convCurrency) return null;
+    const rates = fxCacheRef.current[convCurrency];
+    if (!rates) return null;
+    const rate = rates[from];
+    if (!rate) return null;
+    return (amount) => (amount != null && !isNaN(parseFloat(amount)))
+      ? parseFloat(amount) / rate
+      : null;
+  };
+
+  // ── Delete empty entry ────────────────────────────────────────────────────
+  const handleDelete = async (id) => {
+    const { error } = await supabase?.from('delivery_ledger')?.delete()?.eq('id', id);
+    if (error) { console.error('[DeliveryHistory] delete error:', error); return; }
+    setEntries(prev => prev.filter(e => e.id !== id));
+  };
+
+  // ── Export CSV ────────────────────────────────────────────────────────────
+  const exportCSV = () => {
+    const COLS = ['Date', 'Time', 'Supplier', 'Type', 'Item Name', 'Original Name', 'Qty', 'Unit', 'Unit Price', 'Total Price', 'Currency', 'Claim Status', 'Received By'];
+    const rows = [COLS];
+    for (const entry of filtered) {
+      const date      = entry.created_at ? new Date(entry.created_at).toLocaleDateString('en-GB') : '';
+      const time      = fmtTime(entry.created_at);
+      const supplier  = entry.supplier_name || 'Manual receive';
+      const type      = SOURCE_LABELS[entry.source_type]?.label || entry.source_type || '';
+      const currency  = entry.currency || 'USD';
+      const recvBy    = userNames[entry.received_by] || '';
+      if (entry._items?.length > 0) {
+        for (const item of entry._items) {
+          rows.push([date, time, supplier, type, item.name || '', item.original_name || '',
+            item.quantity ?? '', item.unit || '', item.unit_price ?? '', item.total_price ?? '',
+            currency, item.claim_status || '', recvBy]);
+        }
+      } else {
+        rows.push([date, time, supplier, type, '', '', '', '', '', '', currency, '', recvBy]);
+      }
+    }
+    const csv = rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `delivery-history-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // ── Monthly summary (always uses all entries, not filtered) ────────────────
+  const now = new Date();
+  const thisMonth = entries.filter(e => {
+    if (!e.created_at) return false;
+    const d = new Date(e.created_at);
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  });
+  const monthlyCount  = thisMonth.length;
+  const monthlySpend  = thisMonth.reduce((s, e) => s + (parseFloat(e.total_amount) || 0), 0);
+  const monthCurrency = thisMonth.find(e => e.currency)?.currency || 'USD';
+  const supplierTotals = {};
+  thisMonth.forEach(e => {
+    const n = e.supplier_name || 'Manual receive';
+    supplierTotals[n] = (supplierTotals[n] || 0) + (parseFloat(e.total_amount) || 0);
+  });
+  const topSupplier = Object.entries(supplierTotals).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+
+  // ── Filtering + grouping ──────────────────────────────────────────────────
   const filtered = entries.filter(e => {
     if (typeFilter !== 'all' && e.source_type !== typeFilter) return false;
     if (search && !(e.supplier_name || '').toLowerCase().includes(search.toLowerCase())) return false;
@@ -269,27 +417,24 @@ export default function DeliveryHistory() {
     return true;
   });
 
-  // Group by day
   const grouped = filtered.reduce((acc, e) => {
     const key = dayKey(e.created_at);
     if (!acc[key]) acc[key] = { label: fmtDate(e.created_at), entries: [] };
     acc[key].entries.push(e);
     return acc;
   }, {});
-
   const days = Object.entries(grouped).sort((a, b) => b[0].localeCompare(a[0]));
 
-  const totalItems    = filtered.reduce((s, e) => s + (e._itemCount || 0), 0);
-  const totalSpend    = filtered.reduce((s, e) => s + (parseFloat(e.total_amount) || 0), 0);
+  const totalItems = filtered.reduce((s, e) => s + (e._itemCount || 0), 0);
 
   return (
     <div style={{
       minHeight: '100vh', background: '#F8FAFC',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', color: '#0F172A',
     }}>
-      {/* Top bar */}
+      {/* ── Top bar ── */}
       <div style={{ background: 'white', borderBottom: '1px solid #E2E8F0', padding: '0 24px' }}>
-        <div style={{ maxWidth: 800, margin: '0 auto' }}>
+        <div style={{ maxWidth: 860, margin: '0 auto' }}>
 
           {/* Breadcrumb */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 0 0' }}>
@@ -306,8 +451,8 @@ export default function DeliveryHistory() {
             </span>
           </div>
 
-          {/* Title + summary */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0 16px' }}>
+          {/* Title + Export */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0 14px' }}>
             <div>
               <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Delivery History</h1>
               <p style={{ margin: '2px 0 0', fontSize: 12, color: '#94A3B8' }}>
@@ -315,30 +460,33 @@ export default function DeliveryHistory() {
               </p>
             </div>
             {!loading && filtered.length > 0 && (
-              <div style={{ textAlign: 'right' }}>
-                <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#0F172A' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <p style={{ margin: 0, fontSize: 12, color: '#94A3B8' }}>
                   {filtered.length} {filtered.length === 1 ? 'delivery' : 'deliveries'} · {totalItems} items
                 </p>
-                {totalSpend > 0 && (
-                  <p style={{ margin: '2px 0 0', fontSize: 12, color: '#64748B' }}>${totalSpend.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} total</p>
-                )}
+                <button
+                  onClick={exportCSV}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12, color: '#475569', background: 'white', cursor: 'pointer' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#F8FAFC'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
+                >
+                  <Icon name="Download" style={{ width: 13, height: 13 }} />
+                  Export CSV
+                </button>
               </div>
             )}
           </div>
 
           {/* Filter bar */}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', paddingBottom: 14 }}>
-            <div style={{ position: 'relative', flex: '1 1 180px', minWidth: 140 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingBottom: 14 }}>
+            <div style={{ position: 'relative', flex: '1 1 160px', minWidth: 130 }}>
               <Icon name="Search" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', width: 13, height: 13, color: '#CBD5E1', pointerEvents: 'none' }} />
               <input
                 type="text"
                 placeholder="Search supplier…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                style={{
-                  width: '100%', padding: '7px 10px 7px 30px', border: '1px solid #E2E8F0',
-                  borderRadius: 8, fontSize: 12, color: '#0F172A', boxSizing: 'border-box',
-                }}
+                style={{ width: '100%', padding: '7px 10px 7px 30px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12, color: '#0F172A', boxSizing: 'border-box' }}
               />
             </div>
 
@@ -354,20 +502,27 @@ export default function DeliveryHistory() {
               <option value="manual">Manual</option>
             </select>
 
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={e => setDateFrom(e.target.value)}
-              title="From date"
-              style={{ padding: '7px 10px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12, color: '#475569', background: 'white' }}
-            />
-            <input
-              type="date"
-              value={dateTo}
-              onChange={e => setDateTo(e.target.value)}
-              title="To date"
-              style={{ padding: '7px 10px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12, color: '#475569', background: 'white' }}
-            />
+            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} title="From date"
+              style={{ padding: '7px 10px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12, color: '#475569', background: 'white' }} />
+            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} title="To date"
+              style={{ padding: '7px 10px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12, color: '#475569', background: 'white' }} />
+
+            {/* Currency converter */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="RefreshCw" style={{ width: 12, height: 12, color: '#94A3B8' }} />
+              <select
+                value={convCurrency}
+                onChange={e => handleConvCurrencyChange(e.target.value)}
+                disabled={fxLoading}
+                style={{ padding: '7px 10px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12, color: '#475569', background: 'white', cursor: 'pointer' }}
+              >
+                <option value="original">Original</option>
+                <option value="USD">USD ($)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="GBP">GBP (£)</option>
+              </select>
+              {fxLoading && <span style={{ fontSize: 10, color: '#94A3B8' }}>Loading rates…</span>}
+            </div>
 
             {(search || typeFilter !== 'all' || dateFrom || dateTo) && (
               <button
@@ -381,8 +536,56 @@ export default function DeliveryHistory() {
         </div>
       </div>
 
-      {/* Content */}
-      <div style={{ maxWidth: 800, margin: '0 auto', padding: '20px 24px 48px' }}>
+      <div style={{ maxWidth: 860, margin: '0 auto', padding: '20px 24px 48px' }}>
+
+        {/* ── Monthly summary cards ── */}
+        {!loading && monthlyCount > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
+            {[
+              {
+                label: 'This month spend',
+                value: monthlySpend > 0 ? fmtMoney(monthlySpend, monthCurrency) : '—',
+                icon: 'TrendingUp',
+                color: '#185FA5',
+                bg: '#E6F1FB',
+              },
+              {
+                label: 'Deliveries this month',
+                value: String(monthlyCount),
+                icon: 'Package',
+                color: '#065F46',
+                bg: '#F0FDF4',
+              },
+              {
+                label: 'Top supplier',
+                value: topSupplier || '—',
+                icon: 'Star',
+                color: '#B45309',
+                bg: '#FEF3E2',
+                small: true,
+              },
+            ].map(card => (
+              <div key={card.label} style={{
+                background: 'white', borderRadius: 10, border: '1px solid #E2E8F0',
+                padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12,
+              }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon name={card.icon} style={{ width: 16, height: 16, color: card.color }} />
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 10, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>{card.label}</p>
+                  <p style={{
+                    margin: '2px 0 0', fontWeight: 700, color: '#0F172A',
+                    fontSize: card.small ? 13 : 16,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }} title={card.value}>{card.value}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── Entry list ── */}
         {loading ? (
           <div style={{ textAlign: 'center', padding: '80px 0', color: '#94A3B8', fontSize: 14 }}>Loading…</div>
         ) : filtered.length === 0 ? (
@@ -411,6 +614,10 @@ export default function DeliveryHistory() {
                   boardNames={boardNames}
                   expanded={expandedIds.has(entry.id)}
                   onToggle={() => toggleEntry(entry.id)}
+                  onDelete={handleDelete}
+                  onNavigate={(boardId) => navigate(`/provisioning/${boardId}`)}
+                  convFn={makeConvFn(entry.currency)}
+                  convCurrCode={convCurrency !== 'original' ? convCurrency : null}
                 />
               ))}
             </div>
