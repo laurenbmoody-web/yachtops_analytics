@@ -125,10 +125,13 @@ const PricingPage = () => {
   const [contactPhone, setContactPhone] = useState('');
   const [pricingTier, setPricingTier] = useState(null);
   const [usedManual, setUsedManual] = useState(false);
+  const [verifyError, setVerifyError] = useState(null);
 
   // Step 1 submit — verify IMO or go to manual
   const handleStep1 = useCallback(async () => {
     if (!vesselName.trim()) return;
+    setVerifyError(null);
+
     if (noImo) {
       setUsedManual(true);
       setStep(2.5); // manual entry
@@ -144,11 +147,18 @@ const PricingPage = () => {
         body: { imo: imo.trim() },
       });
 
-      if (error || !data?.found) {
-        // Fall back to manual
-        setUsedManual(true);
+      if (error) {
+        console.error('verifyVessel error:', error);
+        setVerifyError('Verification failed — check your IMO number or try again.');
         setLoading(false);
-        setStep(2.5);
+        setStep(1);
+        return;
+      }
+
+      if (!data?.found) {
+        setVerifyError('We couldn\u2019t find a vessel with that IMO number. Check the number or enter details manually.');
+        setLoading(false);
+        setStep(1);
         return;
       }
 
@@ -156,10 +166,11 @@ const PricingPage = () => {
       setPricingTier(data.pricing_tier);
       setLoading(false);
       setStep(2);
-    } catch {
-      setUsedManual(true);
+    } catch (err) {
+      console.error('verifyVessel exception:', err);
+      setVerifyError('Something went wrong verifying your vessel. Please try again.');
       setLoading(false);
-      setStep(2.5);
+      setStep(1);
     }
   }, [vesselName, imo, noImo]);
 
@@ -233,11 +244,20 @@ const PricingPage = () => {
                 </div>
 
                 <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 12 }}>
-                  <input type="checkbox" checked={noImo} onChange={e => { setNoImo(e.target.checked); if (e.target.checked) setImo(''); }} style={{ width: 18, height: 18, accentColor: '#1E3A5F' }} />
+                  <input type="checkbox" checked={noImo} onChange={e => { setNoImo(e.target.checked); if (e.target.checked) { setImo(''); setVerifyError(null); } }} style={{ width: 18, height: 18, accentColor: '#1E3A5F' }} />
                   <span className="mkt-dmsans" style={{ fontSize: 13, color: '#64748B' }}>My vessel doesn't have an IMO number</span>
                 </label>
 
-                <PrimaryBtn onClick={handleStep1} disabled={!vesselName.trim() || (!noImo && imo.trim().length !== 7)}>Continue</PrimaryBtn>
+                {verifyError && (
+                  <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '12px 16px', marginBottom: 12 }}>
+                    <p className="mkt-dmsans" style={{ fontSize: 13, color: '#DC2626', lineHeight: 1.5 }}>{verifyError}</p>
+                    {!noImo && (
+                      <button onClick={() => { setUsedManual(true); setVerifyError(null); setStep(2.5); }} className="mkt-dmsans" style={{ fontSize: 12, color: '#4A90E2', background: 'none', border: 'none', cursor: 'pointer', marginTop: 6, textDecoration: 'underline' }}>Enter details manually instead</button>
+                    )}
+                  </div>
+                )}
+
+                <PrimaryBtn onClick={handleStep1} disabled={!vesselName.trim() || (!noImo && imo.trim().length !== 7)}>Verify &amp; Continue</PrimaryBtn>
               </div>
             )}
 
