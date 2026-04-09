@@ -288,7 +288,7 @@ const ItemDetailPanel = ({ item, docUrl }) => {
 
 // ── Item row ──────────────────────────────────────────────────────────────────
 
-const ItemRow = ({ item, boards, userId, isLast, selected, onToggle, onClaimed, onPartialClaim, onDismiss, onReturn, bulkFading, docUrl, archived }) => {
+const ItemRow = ({ item, boards, userId, isLast, selected, onToggle, onClaimed, onPartialClaim, onDismiss, onReturn, canReturn, bulkFading, docUrl, archived }) => {
   const [indivFading, setIndivFading] = useState(false);
   const [claimExpanded, setClaimExpanded] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -408,23 +408,27 @@ const ItemRow = ({ item, boards, userId, isLast, selected, onToggle, onClaimed, 
               {/* Secondary actions — hidden while claim flow is open */}
               {!claimExpanded && (
                 <>
-                  <div style={{ width: 1, height: 16, background: '#E2E8F0', flexShrink: 0 }} />
-                  <button
-                    onClick={handleReturn}
-                    disabled={returning}
-                    title="Flag for return to supplier"
-                    style={{
-                      padding: '4px 10px', borderRadius: 7,
-                      border: '1px solid #E2E8F0', background: 'white',
-                      color: '#64748B', fontSize: 11, fontWeight: 500,
-                      cursor: returning ? 'default' : 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
-                      opacity: returning ? 0.5 : 1,
-                    }}
-                    onMouseEnter={e => { if (!returning) e.currentTarget.style.borderColor = '#CBD5E1'; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0'; }}
-                  >
-                    {returning ? 'Returning…' : 'Return to supplier'}
-                  </button>
+                  {canReturn && (
+                    <>
+                      <div style={{ width: 1, height: 16, background: '#E2E8F0', flexShrink: 0 }} />
+                      <button
+                        onClick={handleReturn}
+                        disabled={returning}
+                        title="Flag for return to supplier"
+                        style={{
+                          padding: '4px 10px', borderRadius: 7,
+                          border: '1px solid #E2E8F0', background: 'white',
+                          color: '#64748B', fontSize: 11, fontWeight: 500,
+                          cursor: returning ? 'default' : 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                          opacity: returning ? 0.5 : 1,
+                        }}
+                        onMouseEnter={e => { if (!returning) e.currentTarget.style.borderColor = '#CBD5E1'; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                      >
+                        {returning ? 'Returning…' : 'Return to supplier'}
+                      </button>
+                    </>
+                  )}
                   <button
                     onClick={handleDismiss}
                     disabled={dismissing}
@@ -984,6 +988,12 @@ const DeliveryInbox = () => {
   const { user } = useAuth();
   const { activeTenantId } = useTenant();
 
+  const userTier = (user?.permission_tier || user?.effectiveTier || '').toUpperCase();
+  const userDept = (user?.department || '').trim();
+  const isCrew = userTier === 'CREW';
+  // COMMAND + CHIEF can initiate returns; HOD + CREW cannot
+  const canReturn = userTier === 'COMMAND' || userTier === 'CHIEF';
+
   const [activeTab, setActiveTab] = useState('inbox'); // 'inbox' | 'returns'
   const [items, setItems] = useState([]);
   const [returnsCount, setReturnsCount] = useState(0);
@@ -1147,8 +1157,31 @@ const DeliveryInbox = () => {
     setBulkClaiming(false);
   };
 
+  // CREW: access denied — render after all hooks
+  if (isCrew) {
+    return (
+      <>
+        <Header />
+        <div style={{ minHeight: '100vh', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ fontSize: 15, color: '#0F172A', fontWeight: 500, margin: '0 0 8px' }}>You don't have permission to view the Delivery Inbox.</p>
+            <p style={{ fontSize: 13, color: '#94A3B8', margin: '0 0 20px' }}>The Delivery Inbox is available to Command, Chief, and HOD officers.</p>
+            <button onClick={() => navigate('/provisioning')} style={{ fontSize: 13, color: '#1E3A5F', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+              ← Back to Provisioning
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // CHIEF/HOD: filter to own scans + department items only
+  const visibleItems = ['CHIEF', 'HOD'].includes(userTier)
+    ? items.filter(i => i.scanned_by === user?.id || (userDept && i.department === userDept))
+    : items;
+
   // Group by scanned_by + date
-  const groups = items.reduce((acc, item) => {
+  const groups = visibleItems.reduce((acc, item) => {
     const date = item.scanned_at ? new Date(item.scanned_at).toISOString().split('T')[0] : '1970-01-01';
     const key = `${item.scanned_by || 'unknown'}__${date}`;
     if (!acc[key]) acc[key] = { date, scannedBy: item.scanned_by, supplierName: item.supplier_name, items: [] };
@@ -1301,6 +1334,7 @@ const DeliveryInbox = () => {
                         onPartialClaim={load}
                         onDismiss={handleDismiss}
                         onReturn={handleReturn}
+                        canReturn={canReturn}
                         bulkFading={bulkFadingIds.has(item.id)}
                         docUrl={item.delivery_batch_id ? batchDocUrls[item.delivery_batch_id] : null}
                         archived={item.status === 'archived'}

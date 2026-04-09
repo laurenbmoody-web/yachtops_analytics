@@ -740,7 +740,7 @@ const ProvisioningWorkspace = () => {
               )}
             </div>
             <div className="flex items-center gap-2">
-              <button
+              {userTier !== 'CREW' && <button
                 onClick={() => navigate('/provisioning/inbox')}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground border border-border rounded-lg hover:bg-muted transition-colors"
                 style={{ position: 'relative' }}
@@ -757,7 +757,7 @@ const ProvisioningWorkspace = () => {
                     {inboxCount > 99 ? '99+' : inboxCount}
                   </span>
                 )}
-              </button>
+              </button>}
               {canViewDeliveryHistory && (
                 <button
                   onClick={() => navigate('/provisioning/history')}

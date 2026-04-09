@@ -205,7 +205,17 @@ const ProvisioningBoardDetail = () => {
 
   const userTier = (user?.permission_tier || user?.effectiveTier || '').toUpperCase();
   const userDept = (user?.department || '').trim();
-  const canDelete = userTier === 'COMMAND';
+  const userId = user?.id;
+  // Ownership: matches index.jsx isOwner logic
+  const isOwner = userId && (list?.owner_id === userId || list?.created_by === userId);
+  const listDepts = Array.isArray(list?.department)
+    ? list.department.filter(Boolean)
+    : (list?.department ? list.department.split(',').map(d => d.trim()) : []);
+  // COMMAND: any board | CHIEF/HOD: own + dept boards | CREW: own boards only
+  const canEdit = userTier === 'COMMAND'
+    || !!isOwner
+    || (['CHIEF', 'HOD'].includes(userTier) && (!listDepts.length || listDepts.some(d => d === userDept)));
+  const canDelete = canEdit;
 
   // Default department for new items: user's own dept from auth, then board's dept, then vessel config, else null (→ GLOBAL)
   const defaultDept = useMemo(() => {
@@ -860,9 +870,11 @@ const ProvisioningBoardDetail = () => {
                 </button>
                 {showMenu && (
                   <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[185px] z-50">
-                    <button onClick={() => { setShowMenu(false); setShowEditModal(true); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
-                      <Icon name="Pencil" className="w-4 h-4" /> Edit Board
-                    </button>
+                    {canEdit && (
+                      <button onClick={() => { setShowMenu(false); setShowEditModal(true); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
+                        <Icon name="Pencil" className="w-4 h-4" /> Edit Board
+                      </button>
+                    )}
                     <button onClick={handleDuplicate} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
                       <Icon name="Copy" className="w-4 h-4" /> Duplicate
                     </button>

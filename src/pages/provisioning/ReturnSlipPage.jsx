@@ -393,6 +393,23 @@ export default function ReturnSlipPage() {
 
   const isLocked = !!supplierConfirmed;
 
+  const userTier = (authUser?.permission_tier || authUser?.effectiveTier || '').toUpperCase();
+  const canReturnSupplier = userTier === 'COMMAND' || userTier === 'CHIEF';
+
+  if (!canReturnSupplier) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ fontSize: 15, color: '#0F172A', fontWeight: 500, margin: '0 0 8px' }}>You don't have permission to view this page.</p>
+          <p style={{ fontSize: 13, color: '#94A3B8', margin: '0 0 20px' }}>Return slips are available to Command and Chief officers only.</p>
+          <button onClick={() => navigate('/provisioning/inbox')} style={{ fontSize: 13, color: '#1E3A5F', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+            ← Back to Delivery Inbox
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const markComplete = async () => {
     const { error } = await supabase
       ?.from('delivery_inbox')
