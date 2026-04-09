@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import MarketingLayout from '../MarketingLayout';
 import useScrollAnimations from '../../hooks/useScrollAnimations';
-import { supabase } from '../../lib/supabaseClient';
+// Vessel verification via Netlify function (same-origin, no CORS issues)
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 
@@ -143,13 +143,17 @@ const PricingPage = () => {
     setStep(1.5); // loading state
 
     try {
-      const { data, error } = await supabase.functions.invoke('verifyVessel', {
-        body: { imo: imo.trim() },
+      const res = await fetch('/api/verify-vessel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imo: imo.trim() }),
       });
 
-      if (error) {
-        console.error('verifyVessel error:', error);
-        setVerifyError('Verification failed — check your IMO number or try again.');
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.error('verify-vessel error:', data);
+        setVerifyError(data?.error || 'Verification failed — check your IMO number or try again.');
         setLoading(false);
         setStep(1);
         return;
