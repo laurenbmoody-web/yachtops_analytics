@@ -260,7 +260,16 @@ function SummaryCards({
   const activeSym = convCurrency === 'EUR' ? '€'
     : convCurrency === 'GBP' ? '£'
     : convCurrency === 'USD' ? '$'
-    : '~';
+    : null;
+
+  const ExchangeIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 10l-4 4 4 4" />
+      <path d="M3 14h18" />
+      <path d="M17 4l4 4-4 4" />
+      <path d="M21 8H3" />
+    </svg>
+  );
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.25fr 1fr', gap: 16, marginBottom: 28 }}>
@@ -311,7 +320,7 @@ function SummaryCards({
                 background: '#F1F5F9', border: 'none', borderRadius: 12,
                 padding: '2px 12px', cursor: 'pointer', lineHeight: '20px',
               }}>
-                {activeSym}
+                {activeSym ?? <ExchangeIcon />}
                 {fxLoading && <span style={{ fontSize: 10, marginLeft: 4 }}>…</span>}
               </button>
             )}
