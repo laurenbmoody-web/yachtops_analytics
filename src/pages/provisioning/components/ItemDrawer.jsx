@@ -199,8 +199,8 @@ const FIELD_CSS = `
 const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', departments = [], suppliers = [], theme = 'dark', onSaved, onDeleted, onClose }) => {
   const isLight = theme === 'light';
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const userTier = (user?.permission_tier || user?.effectiveTier || '').toUpperCase();
+  const { user, tenantRole } = useAuth();
+  const userTier = (tenantRole || '').toUpperCase();
   const canViewAccounting = ['COMMAND', 'CHIEF'].includes(userTier);
 
   const [form, setForm] = useState({});

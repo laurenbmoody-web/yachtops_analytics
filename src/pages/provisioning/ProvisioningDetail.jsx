@@ -20,7 +20,7 @@ import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
 const ProvisioningDetail = () => {
   const navigate = useNavigate();
   const { listId } = useParams();
-  const { user } = useAuth();
+  const { user, tenantRole } = useAuth();
   const { activeTenantId } = useTenant();
 
   const [list, setList] = useState(null);
@@ -32,7 +32,7 @@ const ProvisioningDetail = () => {
   const [showDelivery, setShowDelivery] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const userTier = (user?.permission_tier || user?.effectiveTier || '').toUpperCase();
+  const userTier = (tenantRole || '').toUpperCase();
   const isCommandChief = ['COMMAND', 'CHIEF'].includes(userTier);
   const isCommand = userTier === 'COMMAND';
 

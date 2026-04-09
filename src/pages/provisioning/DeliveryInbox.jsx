@@ -985,10 +985,10 @@ const ReturnsView = ({ tenantId, userId, tenantName, userFullName, showArchived 
 
 const DeliveryInbox = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, tenantRole } = useAuth();
   const { activeTenantId } = useTenant();
 
-  const userTier = (user?.permission_tier || user?.effectiveTier || '').toUpperCase();
+  const userTier = (tenantRole || '').toUpperCase();
   const userDept = (user?.department || '').trim();
   const isCrew = userTier === 'CREW';
   // COMMAND + CHIEF can initiate returns; HOD + CREW cannot

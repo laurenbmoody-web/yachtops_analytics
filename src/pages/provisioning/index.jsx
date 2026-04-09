@@ -196,7 +196,7 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
 const ProvisioningWorkspace = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
+  const { user, tenantRole } = useAuth();
   const { activeTenantId } = useTenant();
 
   // Data
@@ -238,7 +238,7 @@ const ProvisioningWorkspace = () => {
   const [workspaceItemsLoading, setWorkspaceItemsLoading] = useState(false);
 
   // RBAC
-  const userTier = (user?.permission_tier || user?.effectiveTier || '').toUpperCase();
+  const userTier = (tenantRole || '').toUpperCase();
   const userDept = (user?.department || '').trim();
   const userId = user?.id;
   const canCreate = userTier !== 'VIEW_ONLY';

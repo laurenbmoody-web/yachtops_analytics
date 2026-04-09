@@ -164,7 +164,7 @@ const SignaturePad = ({ label, sublabel, onSign }) => {
 };
 
 export default function ReturnSlipPage() {
-  const { user: authUser, activeTenantId } = useAuth();
+  const { user: authUser, activeTenantId, tenantRole } = useAuth();
   const { tenantId: ctxTenantId } = useTenant();
   const tenantId = ctxTenantId || activeTenantId;
   const navigate = useNavigate();
@@ -393,7 +393,7 @@ export default function ReturnSlipPage() {
 
   const isLocked = !!supplierConfirmed;
 
-  const userTier = (authUser?.permission_tier || authUser?.effectiveTier || '').toUpperCase();
+  const userTier = (tenantRole || '').toUpperCase();
   const canReturnSupplier = userTier === 'COMMAND' || userTier === 'CHIEF';
 
   if (!canReturnSupplier) {

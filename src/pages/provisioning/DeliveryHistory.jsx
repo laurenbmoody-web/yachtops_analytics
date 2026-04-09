@@ -5,7 +5,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 import Icon from '../../components/AppIcon';
 import { useCountUp } from './components/SummaryGauges';
-import { getCurrentUser, hasCommandAccess, hasChiefAccess } from '../../utils/authStorage';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -315,32 +314,16 @@ function SummaryCards({
 
 export default function DeliveryHistory() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, tenantRole } = useAuth();
   const { activeTenantId } = useTenant();
 
-  const currentUser = getCurrentUser();
-  const hasAccess = hasCommandAccess(currentUser) || hasChiefAccess(currentUser);
-
-  if (!hasAccess) {
-    return (
-      <div style={{ minHeight: '100vh', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
-        <div style={{ textAlign: 'center' }}>
-          <p style={{ fontSize: 15, color: '#0F172A', fontWeight: 500, margin: '0 0 8px' }}>You don't have permission to view this page.</p>
-          <p style={{ fontSize: 13, color: '#94A3B8', margin: '0 0 20px' }}>Delivery History is available to Command and Chief officers only.</p>
-          <button
-            onClick={() => navigate('/provisioning')}
-            style={{ fontSize: 13, color: '#1E3A5F', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
-          >
-            ← Back to Provisioning
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const userTier = (tenantRole || '').toUpperCase();
+  const hasAccess = userTier === 'COMMAND' || userTier === 'CHIEF';
 
   const params = new URLSearchParams(window.location.search);
   const boardParam = params.get('board') || '';
 
+  // All hooks must be called unconditionally before any early return
   const [entries, setEntries]         = useState([]);
   const [loading, setLoading]         = useState(true);
   const [expandedIds, setExpandedIds] = useState(new Set());
@@ -401,6 +384,21 @@ export default function DeliveryHistory() {
   }, [activeTenantId, boardParam]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Permission check after all hooks
+  if (!hasAccess) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ fontSize: 15, color: '#0F172A', fontWeight: 500, margin: '0 0 8px' }}>You don't have permission to view this page.</p>
+          <p style={{ fontSize: 13, color: '#94A3B8', margin: '0 0 20px' }}>Delivery History is available to Command and Chief officers only.</p>
+          <button onClick={() => navigate('/provisioning')} style={{ fontSize: 13, color: '#1E3A5F', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+            ← Back to Provisioning
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const toggleEntry = (id) => setExpandedIds(prev => {
     const next = new Set(prev);

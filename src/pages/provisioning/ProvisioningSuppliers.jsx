@@ -16,7 +16,7 @@ const EMPTY_FORM = { name: '', email: '', phone: '', port_location: '', departme
 
 const ProvisioningSuppliers = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, tenantRole } = useAuth();
   const { activeTenantId } = useTenant();
 
   const [suppliers, setSuppliers] = useState([]);
@@ -28,7 +28,7 @@ const ProvisioningSuppliers = () => {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
-  const userTier = (user?.permission_tier || user?.effectiveTier || '').toUpperCase();
+  const userTier = (tenantRole || '').toUpperCase();
   const canEdit = ['COMMAND', 'CHIEF'].includes(userTier);
 
   useEffect(() => {

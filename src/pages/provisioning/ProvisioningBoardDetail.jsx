@@ -161,7 +161,7 @@ const AlwaysEditCell = ({ value, placeholder, onSave, type = 'text', inputStyle 
 const ProvisioningBoardDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, tenantRole } = useAuth();
   const { activeTenantId } = useTenant();
 
   const [list, setList] = useState(null);
@@ -203,7 +203,7 @@ const ProvisioningBoardDetail = () => {
   const [activityEvents, setActivityEvents] = useState([]);
   const [activityLoading, setActivityLoading] = useState(false);
 
-  const userTier = (user?.permission_tier || user?.effectiveTier || '').toUpperCase();
+  const userTier = (tenantRole || '').toUpperCase();
   const userDept = (user?.department || '').trim();
   const userId = user?.id;
   // Ownership: matches index.jsx isOwner logic
