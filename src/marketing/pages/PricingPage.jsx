@@ -152,7 +152,7 @@ const PricingPage = () => {
       const data = await res.json();
 
       if (!res.ok) {
-        console.error('verify-vessel error:', data);
+        console.error('verify-vessel error:', data, 'debug:', data?.debug);
         setVerifyError(data?.error || 'Verification failed — check your IMO number or try again.');
         setLoading(false);
         setStep(1);

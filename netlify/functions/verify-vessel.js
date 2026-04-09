@@ -128,7 +128,7 @@ Rules:
   if (!response.ok) {
     const errorBody = await response.text();
     console.error('Anthropic API error:', response.status, errorBody);
-    throw new Error(`Anthropic API returned ${response.status}`);
+    throw new Error(`Anthropic API ${response.status}: ${errorBody.slice(0, 300)}`);
   }
 
   const data = await response.json();
@@ -257,12 +257,13 @@ exports.handler = async (event) => {
     };
 
   } catch (err) {
-    console.error('verify-vessel error:', err);
+    console.error('verify-vessel error:', err?.message || err);
     return {
       statusCode: 500,
       body: JSON.stringify({
         found: false,
         error: 'Vessel lookup failed. Please try again or enter details manually.',
+        debug: err?.message || String(err),
       }),
     };
   }
