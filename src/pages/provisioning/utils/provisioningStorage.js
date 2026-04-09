@@ -35,6 +35,7 @@
 
 import { supabase } from '../../../lib/supabaseClient';
 import { sendNotification, NOTIFICATION_TYPES, SEVERITY } from '../../team-jobs-management/utils/notifications';
+import { loadTrips } from '../../trips-management-dashboard/utils/tripStorage';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -1980,5 +1981,68 @@ export const createLedgerEntry = async ({
   } catch (err) {
     console.error('[createLedgerEntry] FAILED:', err);
     throw err;
+  }
+};
+
+// ── Order history for AI suggestions ─────────────────────────────────────────
+
+/**
+ * Fetch recent delivery ledger entries and build an order history array
+ * suitable for passing to the suggestItems Edge Function.
+ * Returns: Array<{ tripType, guestCount, items: Array<{ name, qty, unit }> }>
+ */
+export const fetchOrderHistory = async (tenantId, department, limit = 10) => {
+  if (!tenantId) return [];
+  try {
+    const { data: ledgerEntries, error } = await supabase
+      ?.from('delivery_ledger')
+      ?.select('id, source_type, source_board_id, total_amount, currency, created_at')
+      ?.eq('tenant_id', tenantId)
+      ?.order('created_at', { ascending: false })
+      ?.limit(limit);
+
+    if (error || !ledgerEntries?.length) return [];
+
+    const trips = loadTrips() || [];
+    const history = [];
+
+    for (const entry of ledgerEntries) {
+      const { data: ledgerItems } = await supabase
+        ?.from('delivery_ledger_items')
+        ?.select('name, quantity, unit, unit_price')
+        ?.eq('ledger_id', entry.id);
+
+      let tripInfo = null;
+      if (entry.source_board_id) {
+        const { data: board } = await supabase
+          ?.from('provisioning_lists')
+          ?.select('trip_id, board_type, department')
+          ?.eq('id', entry.source_board_id)
+          ?.maybeSingle();
+
+        if (board?.trip_id) {
+          const trip = trips.find(t => t.id === board.trip_id);
+          if (trip) {
+            tripInfo = {
+              tripType:   trip.tripType,
+              guestCount: trip.guests?.filter(g => g.isActive)?.length || trip.guests?.length || 0,
+              startDate:  trip.startDate,
+              endDate:    trip.endDate,
+            };
+          }
+        }
+      }
+
+      history.push({
+        tripType:   tripInfo?.tripType  || 'Unknown',
+        guestCount: tripInfo?.guestCount || 0,
+        items: (ledgerItems || []).map(i => ({ name: i.name, qty: i.quantity, unit: i.unit })),
+      });
+    }
+
+    return history;
+  } catch (err) {
+    console.error('[fetchOrderHistory]', err);
+    return [];
   }
 };

@@ -12,6 +12,8 @@ import DeliveryModal from './components/DeliveryModal';
 import ReceiveDeliveryModal from './components/ReceiveDeliveryModal';
 import ShareModal from './components/ShareModal';
 import SummaryGauges from './components/SummaryGauges';
+import TemplatePicker from './components/TemplatePicker';
+import CopyBoardPicker from './components/CopyBoardPicker';
 import {
   fetchProvisioningLists,
   fetchListItems,
@@ -29,6 +31,7 @@ import {
   getSmartDeliveryCounts,
   PROVISIONING_STATUS,
 } from './utils/provisioningStorage';
+import { BOARD_TYPES, TRIP_TYPE_TO_BOARD_TYPE } from './data/templates';
 import { supabase } from '../../lib/supabaseClient';
 import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
 import { showToast } from '../../utils/toast';
@@ -103,90 +106,243 @@ const GhostBoardColumn = ({ onClick }) => {
 // ── New Board inline form ────────────────────────────────────────────────────
 
 const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
+  const [step, setStep] = useState(1);            // 1 = basics, 2 = start-from
   const [title, setTitle] = useState('');
+  const [boardType, setBoardType] = useState('');
   const [tripId, setTripId] = useState('');
-  const [orderByDate, setOrderByDate] = useState('');
-  const [isPrivate, setIsPrivate] = useState(false);
-  const [creating, setCreating] = useState(false);
+  const [isPrivate, setIsPrivate] = useState(true);
   const [localError, setLocalError] = useState('');
+  const [showTemplate, setShowTemplate] = useState(false);
+  const [showCopy, setShowCopy] = useState(false);
+  const [creating, setCreating] = useState(false);
 
-  const inputCls = 'w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary transition-colors';
+  const selectedTrip = (trips || []).find(t => t.id === tripId) || null;
+  const guestCount = selectedTrip?.guests
+    ? (selectedTrip.guests.filter(g => g.isActive).length || selectedTrip.guests.length)
+    : 0;
 
-  const handleCreate = async () => {
-    if (!title.trim()) return;
+  // Auto-set board type from trip type when not yet chosen
+  const handleTripChange = (id) => {
+    setTripId(id);
+    if (!boardType) {
+      const trip = (trips || []).find(t => t.id === id);
+      if (trip?.tripType) {
+        const mapped = TRIP_TYPE_TO_BOARD_TYPE[trip.tripType];
+        if (mapped) setBoardType(mapped);
+      }
+    }
+  };
+
+  const triggerCreate = async (startFrom, extraItems = []) => {
     if (!tenantId) { setLocalError('No vessel selected — cannot create board.'); return; }
     setCreating(true);
     setLocalError('');
     try {
-      await onCreated({ title: title.trim(), trip_id: tripId || null, order_by_date: orderByDate || null, is_private: isPrivate });
+      await onCreated({
+        title: title.trim(),
+        board_type: boardType || null,
+        trip_id: tripId || null,
+        is_private: isPrivate,
+        startFrom,
+        preloadedItems: extraItems,
+      });
     } catch (err) {
       setLocalError(err?.message || 'Failed to create board');
       setCreating(false);
     }
   };
 
-  return (
-    <div className="flex flex-col w-[340px] min-w-[340px] flex-shrink-0 bg-card border-2 border-dashed border-border rounded-xl p-4 space-y-3">
-      <h3 className="text-sm font-bold text-foreground">New Board</h3>
-      <input
-        autoFocus
-        value={title}
-        onChange={e => setTitle(e.target.value)}
-        onKeyDown={e => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') onCancel(); }}
-        placeholder="Board name *"
-        className={inputCls}
-      />
-      <select value={tripId} onChange={e => setTripId(e.target.value)} className={inputCls}>
-        <option value="">Link to trip (optional)</option>
-        {(trips || []).map(t => <option key={t.id} value={t.id}>{t.title || t.name}</option>)}
-      </select>
-      <div>
-        <label className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-          Order by date
-        </label>
-        <input
-          type="date"
-          value={orderByDate}
-          onChange={e => setOrderByDate(e.target.value)}
-          className={inputCls}
+  const inputStyle = {
+    width: '100%', padding: '7px 10px', border: '1px solid var(--border, #E2E8F0)',
+    borderRadius: 8, fontSize: 13, color: 'var(--foreground, #0F172A)',
+    background: 'var(--muted, #F8FAFC)', outline: 'none', boxSizing: 'border-box',
+  };
+
+  const tripDateRange = selectedTrip?.startDate && selectedTrip?.endDate
+    ? `${new Date(selectedTrip.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – ${new Date(selectedTrip.endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+    : null;
+
+  // ── Render sub-pickers (overlaid inside the card) ─────────────────────────
+  if (showTemplate) {
+    return (
+      <div style={{ width: 340, minWidth: 340, flexShrink: 0, background: 'var(--card, white)', border: '2px dashed var(--border, #E2E8F0)', borderRadius: 14, padding: 16, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', minHeight: 420 }}>
+        <TemplatePicker
+          boardType={boardType}
+          guestCount={guestCount}
+          onUse={(items) => { setShowTemplate(false); triggerCreate('template', items); }}
+          onBack={() => setShowTemplate(false)}
         />
       </div>
-      <button
-        type="button"
-        onClick={() => setIsPrivate(p => !p)}
-        className="flex items-center justify-between w-full px-3 py-2 rounded-lg border border-border bg-muted hover:bg-muted/70 transition-colors"
-      >
-        <span className="flex items-center gap-2 text-sm text-foreground">
-          <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            {isPrivate
-              ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
-            }
-          </svg>
-          {isPrivate ? 'Private' : 'Department'}
-        </span>
-        <div className={`w-9 h-5 rounded-full transition-colors relative ${isPrivate ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
-          <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${isPrivate ? 'translate-x-4' : 'translate-x-0.5'}`} />
-        </div>
-      </button>
-      <p className="text-[11px] text-muted-foreground -mt-1 px-1">
-        {isPrivate ? 'Only you can see this board.' : 'Visible to your department.'}
-      </p>
-      {localError && (
-        <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{localError}</p>
-      )}
-      <div className="flex gap-2">
-        <button
-          onClick={handleCreate}
-          disabled={!title.trim() || creating}
-          className="flex-1 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/80 disabled:opacity-40 transition-colors"
-        >
-          {creating ? 'Creating...' : 'Create'}
-        </button>
-        <button onClick={onCancel} className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-          Cancel
-        </button>
+    );
+  }
+
+  if (showCopy) {
+    return (
+      <div style={{ width: 340, minWidth: 340, flexShrink: 0, background: 'var(--card, white)', border: '2px dashed var(--border, #E2E8F0)', borderRadius: 14, padding: 16, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', minHeight: 420 }}>
+        <CopyBoardPicker
+          tenantId={tenantId}
+          department={null}
+          newGuestCount={guestCount}
+          onUse={(items) => { setShowCopy(false); triggerCreate('copy', items); }}
+          onBack={() => setShowCopy(false)}
+        />
       </div>
+    );
+  }
+
+  return (
+    <div style={{ width: 340, minWidth: 340, flexShrink: 0, background: 'var(--card, white)', border: '2px dashed var(--border, #E2E8F0)', borderRadius: 14, padding: 16, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+      {/* ── Step 1: Board basics ────────────────────────────────────────── */}
+      {step === 1 && (
+        <>
+          <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--foreground, #0F172A)' }}>New Board</h3>
+
+          {/* Board name */}
+          <input
+            autoFocus
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Escape') onCancel(); }}
+            placeholder="Board name *"
+            style={inputStyle}
+          />
+
+          {/* Board type pills */}
+          <div>
+            <p style={{ margin: '0 0 6px', fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Board type</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+              {BOARD_TYPES.map(bt => (
+                <button
+                  key={bt.value}
+                  onClick={() => setBoardType(prev => prev === bt.value ? '' : bt.value)}
+                  style={{
+                    padding: '4px 10px', borderRadius: 20, border: 'none', cursor: 'pointer',
+                    fontSize: 11, fontWeight: 600,
+                    background: boardType === bt.value ? '#1E3A5F' : '#F1F5F9',
+                    color: boardType === bt.value ? 'white' : '#64748B',
+                    transition: 'all 0.12s',
+                  }}
+                >
+                  {bt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Link to trip */}
+          <div>
+            <p style={{ margin: '0 0 6px', fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Link to trip</p>
+            <select
+              value={tripId}
+              onChange={e => handleTripChange(e.target.value)}
+              style={{ ...inputStyle, background: 'var(--muted, #F8FAFC)' }}
+            >
+              <option value="">No trip linked</option>
+              {(trips || []).map(t => (
+                <option key={t.id} value={t.id}>{t.name || t.title}</option>
+              ))}
+            </select>
+
+            {/* Trip details inline */}
+            {selectedTrip && (
+              <div style={{ marginTop: 8, padding: '7px 10px', background: '#EFF6FF', borderRadius: 8, border: '1px solid #BFDBFE', fontSize: 11, color: '#1E3A5F' }}>
+                {tripDateRange && <span>{tripDateRange}</span>}
+                {guestCount > 0 && <span style={{ marginLeft: 8 }}>· {guestCount} guests</span>}
+                {selectedTrip.tripType && <span style={{ marginLeft: 8 }}>· {selectedTrip.tripType}</span>}
+              </div>
+            )}
+          </div>
+
+          {/* Privacy toggle */}
+          <button
+            type="button"
+            onClick={() => setIsPrivate(p => !p)}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border, #E2E8F0)', background: 'var(--muted, #F8FAFC)', cursor: 'pointer' }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--foreground, #0F172A)' }}>
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: '#94A3B8' }}>
+                {isPrivate
+                  ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                }
+              </svg>
+              {isPrivate ? 'Private board' : 'Department board'}
+            </span>
+            <div style={{ width: 36, height: 20, borderRadius: 10, background: isPrivate ? '#1E3A5F' : '#CBD5E1', position: 'relative', transition: 'background 0.15s' }}>
+              <div style={{ position: 'absolute', top: 2, left: isPrivate ? 18 : 2, width: 16, height: 16, borderRadius: '50%', background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.15s' }} />
+            </div>
+          </button>
+
+          {localError && <p style={{ margin: 0, fontSize: 11, color: '#EF4444', background: '#FEF2F2', borderRadius: 6, padding: '6px 10px' }}>{localError}</p>}
+
+          {/* Step 1 CTAs */}
+          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+            <button
+              onClick={() => { if (title.trim()) setStep(2); }}
+              disabled={!title.trim()}
+              style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: 'none', cursor: title.trim() ? 'pointer' : 'default', background: title.trim() ? '#1E3A5F' : '#E2E8F0', color: title.trim() ? 'white' : '#94A3B8', fontSize: 13, fontWeight: 600 }}
+            >
+              Next →
+            </button>
+            <button onClick={onCancel} style={{ padding: '8px 12px', borderRadius: 8, border: 'none', background: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: 13 }}>
+              Cancel
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* ── Step 2: Start from ──────────────────────────────────────────── */}
+      {step === 2 && !creating && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button onClick={() => setStep(1)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B', padding: '2px 4px', fontSize: 13 }}>←</button>
+            <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--foreground, #0F172A)' }}>Start from</h3>
+          </div>
+          <p style={{ margin: 0, fontSize: 11, color: '#94A3B8' }}>
+            Creating: <strong style={{ color: '#1E3A5F' }}>{title}</strong>
+            {boardType && <span> · {BOARD_TYPES.find(b => b.value === boardType)?.label}</span>}
+          </p>
+
+          {/* 3-card grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+            {[
+              { key: 'template', icon: '📋', title: 'Template',    desc: 'Pre-built lists' },
+              { key: 'copy',     icon: '📂', title: 'Copy Board',  desc: 'From previous' },
+              { key: 'blank',    icon: '✦',  title: 'Blank',       desc: 'Start empty' },
+            ].map(opt => (
+              <button
+                key={opt.key}
+                onClick={() => {
+                  if (opt.key === 'template') setShowTemplate(true);
+                  else if (opt.key === 'copy') setShowCopy(true);
+                  else triggerCreate('blank', []);
+                }}
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  padding: '14px 8px', borderRadius: 10, border: '1px solid #E2E8F0',
+                  background: 'white', cursor: 'pointer', gap: 4,
+                  transition: 'all 0.12s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#1E3A5F'; e.currentTarget.style.background = '#F8FAFF'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.background = 'white'; }}
+              >
+                <span style={{ fontSize: 18, lineHeight: 1 }}>{opt.icon}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#0F172A' }}>{opt.title}</span>
+                <span style={{ fontSize: 10, color: '#94A3B8' }}>{opt.desc}</span>
+              </button>
+            ))}
+          </div>
+
+          {localError && <p style={{ margin: 0, fontSize: 11, color: '#EF4444', background: '#FEF2F2', borderRadius: 6, padding: '6px 10px' }}>{localError}</p>}
+        </>
+      )}
+
+      {creating && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 0' }}>
+          <p style={{ fontSize: 13, color: '#94A3B8' }}>Creating board…</p>
+        </div>
+      )}
     </div>
   );
 };
@@ -410,7 +566,7 @@ const ProvisioningWorkspace = () => {
 
   // ── Board actions ────────────────────────────────────────────────────────
 
-  const handleCreateBoard = async ({ title, trip_id, order_by_date, is_private = true }) => {
+  const handleCreateBoard = async ({ title, board_type, trip_id, order_by_date, is_private = true, preloadedItems = [] }) => {
     try {
       console.log('[Provisioning] createBoard — tenant_id:', activeTenantId, 'userId:', userId);
 
@@ -424,6 +580,7 @@ const ProvisioningWorkspace = () => {
       const newList = await createProvisioningList({
         tenant_id: activeTenantId,
         title,
+        board_type: board_type || null,
         trip_id: trip_id || null,
         order_by_date: order_by_date || null,
         status: PROVISIONING_STATUS.DRAFT,
@@ -441,10 +598,27 @@ const ProvisioningWorkspace = () => {
         is_private: is_private,
         is_template: false,
       });
+
+      let initialItems = [];
+      if (preloadedItems.length > 0) {
+        const itemPayload = preloadedItems.map(item => ({
+          ...item,
+          list_id: newList.id,
+          tenant_id: activeTenantId,
+          status: item.status || 'pending',
+        }));
+        initialItems = await upsertItems(itemPayload);
+      }
+
       setLists(prev => [newList, ...prev]);
-      setItemsByList(prev => ({ ...prev, [newList.id]: [] }));
+      setItemsByList(prev => ({ ...prev, [newList.id]: initialItems }));
       setShowNewBoard(false);
-      showToast('Board created', 'success');
+      showToast(
+        preloadedItems.length > 0
+          ? `Board created with ${initialItems.length} items`
+          : 'Board created',
+        'success'
+      );
     } catch (err) {
       console.error('[Provisioning] createBoard error:', err);
       throw err; // re-throw so NewBoardColumn can display it inline

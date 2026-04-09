@@ -25,6 +25,7 @@ import {
   fetchPendingCrossMatches,
   fetchCrossDeptMatchesForBoard,
   fetchUserNames,
+  fetchOrderHistory,
   PROVISIONING_STATUS,
   PROVISION_CATEGORIES,
   PROVISION_UNITS,
@@ -202,6 +203,13 @@ const ProvisioningBoardDetail = () => {
   const [expandedHistory, setExpandedHistory] = useState(null);
   const [activityEvents, setActivityEvents] = useState([]);
   const [activityLoading, setActivityLoading] = useState(false);
+
+  // ── Smart Suggestions ─────────────────────────────────────────────────────
+  const [suggestions, setSuggestions] = useState([]);      // [{ name, category, quantity, unit, reasoning, source, confidence }]
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [skippedSuggestions, setSkippedSuggestions] = useState(new Set()); // names of skipped items
+  const [addedSuggestions, setAddedSuggestions] = useState(new Set());     // names of added items
 
   const userTier = (tenantRole || '').toUpperCase();
   const userDept = (user?.department || '').trim();
@@ -515,6 +523,90 @@ const ProvisioningBoardDetail = () => {
     } catch { showToast('Failed to duplicate', 'error'); }
   };
 
+  // ── Smart Suggestions ─────────────────────────────────────────────────────
+
+  const handleGetSuggestions = async () => {
+    if (suggestionsLoading) return;
+    setShowSuggestions(true);
+    setSuggestionsLoading(true);
+    setSkippedSuggestions(new Set());
+    setAddedSuggestions(new Set());
+    try {
+      const orderHistory = await fetchOrderHistory(activeTenantId, null, 5);
+      const existingNames = items.map(i => i.name).filter(Boolean);
+
+      const { data, error } = await supabase.functions.invoke('suggestItems', {
+        body: {
+          boardType:    list?.board_type || 'general',
+          tripType:     trip?.tripType || trip?.type || null,
+          guestCount:   trip?.guests?.filter(g => g.isActive)?.length || trip?.guests?.length || 0,
+          duration:     trip?.duration || null,
+          season:       null, // could derive from trip dates if available
+          region:       list?.port_location || null,
+          department:   (user?.department || '').trim() || null,
+          existingItems: existingNames,
+          orderHistory,
+        },
+      });
+
+      if (error) throw error;
+      setSuggestions((data?.suggestions || []).filter(s => !existingNames.some(n => n.toLowerCase() === s.name.toLowerCase())));
+    } catch (err) {
+      console.error('[ProvisioningBoardDetail] suggestItems error:', err);
+      showToast('Failed to load suggestions', 'error');
+      setShowSuggestions(false);
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  };
+
+  const handleAddSuggestion = async (suggestion) => {
+    try {
+      const newItem = {
+        list_id:          id,
+        tenant_id:        activeTenantId,
+        name:             suggestion.name,
+        category:         suggestion.category || null,
+        quantity_ordered: suggestion.quantity || 1,
+        unit:             suggestion.unit || null,
+        status:           'pending',
+        department:       (user?.department || '').trim() || null,
+      };
+      const [saved] = await upsertItems([newItem]);
+      if (saved) {
+        setItems(prev => [...prev, saved]);
+        setAddedSuggestions(prev => new Set([...prev, suggestion.name]));
+      }
+    } catch (err) {
+      console.error('[ProvisioningBoardDetail] addSuggestion error:', err);
+      showToast('Failed to add item', 'error');
+    }
+  };
+
+  const handleAddAllSuggestions = async () => {
+    const visible = suggestions.filter(s => !skippedSuggestions.has(s.name) && !addedSuggestions.has(s.name));
+    if (!visible.length) return;
+    try {
+      const payload = visible.map(s => ({
+        list_id:          id,
+        tenant_id:        activeTenantId,
+        name:             s.name,
+        category:         s.category || null,
+        quantity_ordered: s.quantity || 1,
+        unit:             s.unit || null,
+        status:           'pending',
+        department:       (user?.department || '').trim() || null,
+      }));
+      const saved = await upsertItems(payload);
+      setItems(prev => [...prev, ...saved]);
+      setAddedSuggestions(prev => new Set([...prev, ...visible.map(s => s.name)]));
+      showToast(`Added ${saved.length} items`, 'success');
+    } catch (err) {
+      console.error('[ProvisioningBoardDetail] addAllSuggestions error:', err);
+      showToast('Failed to add items', 'error');
+    }
+  };
+
   const handleDeleteBoard = async () => {
     setShowMenu(false);
     if (!window.confirm(`Delete "${list?.title}"? This cannot be undone.`)) return;
@@ -824,10 +916,11 @@ const ProvisioningBoardDetail = () => {
             {/* Actions right */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap' }}>
               <button
-                onClick={() => showToast('Smart Suggestions coming soon', 'success')}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8' }}
+                onClick={showSuggestions ? () => setShowSuggestions(false) : handleGetSuggestions}
+                disabled={suggestionsLoading}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: showSuggestions ? '#1D4ED8' : '#EFF6FF', border: '1px solid #BFDBFE', color: showSuggestions ? 'white' : '#1D4ED8', opacity: suggestionsLoading ? 0.7 : 1 }}
               >
-                ✦ Suggestions
+                {suggestionsLoading ? '…' : '✦'} Suggestions
               </button>
               <button
                 onClick={() => showToast('Templates coming soon', 'success')}
@@ -892,6 +985,117 @@ const ProvisioningBoardDetail = () => {
             </div>
           </div>
         </div>
+
+        {/* ── Smart Suggestions panel ──────────────────────────────────── */}
+        {showSuggestions && (
+          <div style={{ margin: '0 24px 0', borderBottom: '1px solid #E2E8F0' }}>
+            <div style={{ background: '#F0F7FF', border: '1px solid #BFDBFE', borderRadius: 12, padding: '16px 20px', margin: '12px 0' }}>
+              {/* Panel header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#1E3A5F' }}>✦ Smart Suggestions</span>
+                  {suggestionsLoading && (
+                    <span style={{ fontSize: 11, color: '#64748B' }}>Analysing your history…</span>
+                  )}
+                  {!suggestionsLoading && suggestions.length > 0 && (
+                    <span style={{ fontSize: 11, color: '#64748B' }}>{suggestions.filter(s => !skippedSuggestions.has(s.name) && !addedSuggestions.has(s.name)).length} suggestions</span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {!suggestionsLoading && suggestions.filter(s => !skippedSuggestions.has(s.name) && !addedSuggestions.has(s.name)).length > 1 && (
+                    <button
+                      onClick={handleAddAllSuggestions}
+                      style={{ fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 6, cursor: 'pointer', background: '#1E3A5F', border: 'none', color: 'white' }}
+                    >
+                      Add All
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowSuggestions(false)}
+                    style={{ fontSize: 11, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
+                  >
+                    ✕ Close
+                  </button>
+                </div>
+              </div>
+
+              {/* Loading skeleton */}
+              {suggestionsLoading && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {[1, 2, 3].map(n => (
+                    <div key={n} style={{ height: 52, borderRadius: 8, background: '#E0ECFF', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                  ))}
+                </div>
+              )}
+
+              {/* Empty state */}
+              {!suggestionsLoading && suggestions.length === 0 && (
+                <p style={{ fontSize: 12, color: '#64748B', textAlign: 'center', padding: '12px 0', margin: 0 }}>
+                  No new suggestions — your board looks well-stocked!
+                </p>
+              )}
+
+              {/* Suggestion cards */}
+              {!suggestionsLoading && suggestions.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {suggestions.map(s => {
+                    const isAdded   = addedSuggestions.has(s.name);
+                    const isSkipped = skippedSuggestions.has(s.name);
+                    if (isSkipped) return null;
+                    return (
+                      <div
+                        key={s.name}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          background: isAdded ? '#ECFDF5' : 'white',
+                          border: `1px solid ${isAdded ? '#A7F3D0' : '#DBEAFE'}`,
+                          borderRadius: 8, padding: '9px 12px', gap: 12,
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: isAdded ? '#065F46' : '#0F172A' }}>{s.name}</span>
+                            <span style={{ fontSize: 10, color: '#94A3B8', background: '#F1F5F9', borderRadius: 4, padding: '1px 6px' }}>{s.category}</span>
+                            {s.source === 'history' && (
+                              <span style={{ fontSize: 10, color: '#7C3AED', background: '#F5F3FF', borderRadius: 4, padding: '1px 6px' }}>from history</span>
+                            )}
+                            {s.confidence === 'high' && s.source !== 'history' && (
+                              <span style={{ fontSize: 10, color: '#065F46', background: '#ECFDF5', borderRadius: 4, padding: '1px 6px' }}>high confidence</span>
+                            )}
+                          </div>
+                          <p style={{ margin: '3px 0 0', fontSize: 11, color: '#64748B', lineHeight: 1.4 }}>
+                            {s.quantity} {s.unit} · {s.reasoning}
+                          </p>
+                        </div>
+                        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                          {isAdded ? (
+                            <span style={{ fontSize: 11, color: '#065F46', fontWeight: 600 }}>✓ Added</span>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => setSkippedSuggestions(prev => new Set([...prev, s.name]))}
+                                style={{ fontSize: 11, padding: '4px 10px', borderRadius: 5, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#94A3B8' }}
+                              >
+                                Skip
+                              </button>
+                              <button
+                                onClick={() => handleAddSuggestion(s)}
+                                style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 5, cursor: 'pointer', background: '#1E3A5F', border: 'none', color: 'white' }}
+                              >
+                                + Add
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ── Allergen banner ───────────────────────────────────────────── */}
         {allergenGuests.length > 0 && (
