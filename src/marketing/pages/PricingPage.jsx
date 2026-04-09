@@ -110,7 +110,7 @@ const selectStyle = { ...inputStyle, appearance: 'none', backgroundImage: "url(\
 const PricingPage = () => {
   useScrollAnimations();
 
-  const [step, setStep] = useState(0); // 0 = intro, 1-4 = questionnaire steps
+  const [step, setStep] = useState(1); // starts on vessel details
   const [vesselName, setVesselName] = useState('');
   const [imo, setImo] = useState('');
   const [noImo, setNoImo] = useState(false);
@@ -196,118 +196,23 @@ const PricingPage = () => {
 
   return (
     <MarketingLayout>
-      {/* ── Intro: the landing state before questionnaire ── */}
-      {step === 0 && (
-        <>
-          {/* Hero */}
-          <section style={{ paddingTop: 96, paddingBottom: 56, borderBottom: '1px solid #E2E8F0', textAlign: 'center' }}>
-            <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 32px' }}>
-              <p data-animate-hero="fade-up" data-delay="0" className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>Pricing</p>
-              <h1 data-animate-hero="fade-up" data-delay="0.12" className="mkt-archivo" style={{ fontWeight: 900, fontSize: 38, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1.05, marginBottom: 14 }}>
-                Every feature. Every vessel.
-              </h1>
-              <p data-animate-hero="fade-up" data-delay="0.24" className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 15, color: '#64748B', maxWidth: 480, margin: '0 auto', lineHeight: 1.7 }}>
-                All modules included. Unlimited crew. No per-seat fees. No add-ons. Pricing is based on your vessel size.
-              </p>
-            </div>
-          </section>
-
-          {/* How it works */}
-          <section style={{ padding: '72px 32px', borderBottom: '1px solid #E2E8F0' }}>
-            <div data-animate="stagger" style={{ maxWidth: 800, margin: '0 auto', display: 'grid', gap: 24 }} className="md:grid-cols-3">
-              {[
-                { n: '01', title: 'Tell us about your vessel', body: 'Enter your vessel name and IMO number. We verify the details automatically.' },
-                { n: '02', title: 'See your plan', body: 'Your pricing is based on vessel size. Every plan includes every feature — no modules locked.' },
-                { n: '03', title: 'Book your demo', body: "We'll walk you through Cargo with your actual vessel setup before you commit." },
-              ].map(({ n, title, body }) => (
-                <div key={n} className="bg-white rounded-xl p-6" style={{ border: '2px solid #E2E8F0' }}>
-                  <p className="mkt-archivo" style={{ fontWeight: 900, fontSize: 18, color: '#4A90E2', marginBottom: 8 }}>{n}</p>
-                  <h3 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#1E3A5F', marginBottom: 6 }}>{title}</h3>
-                  <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 12, color: '#64748B', lineHeight: 1.6 }}>{body}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* What's included */}
-          <section style={{ padding: '72px 32px', borderBottom: '1px solid #E2E8F0', backgroundColor: 'white' }}>
-            <div data-animate="fade-up" style={{ maxWidth: 620, margin: '0 auto', textAlign: 'center' }}>
-              <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>What's included</p>
-              <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 22, color: '#1E3A5F', lineHeight: 1.2, marginBottom: 24 }}>
-                Every plan. Every feature.
-              </h2>
-              <div style={{ display: 'grid', gap: 10, textAlign: 'left', maxWidth: 400, margin: '0 auto' }} className="sm:grid-cols-1">
-                {FEATURES.map(f => (
-                  <div key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    <Check />
-                    <span className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 13, color: '#475569', lineHeight: 1.5 }}>{f}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          {/* Why vessel size */}
-          <section style={{ padding: '56px 32px', borderBottom: '1px solid #E2E8F0', textAlign: 'center' }}>
-            <div data-animate="fade-up" style={{ maxWidth: 620, margin: '0 auto' }}>
-              <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 22, color: '#1E3A5F', lineHeight: 1.2, marginBottom: 10 }}>
-                Why every vessel gets every feature
-              </h2>
-              <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 14, color: '#64748B', lineHeight: 1.75 }}>
-                Cargo exists to replace the four or five separate systems most vessels run on. If we gate provisioning or guest profiles behind a higher tier, a vessel on the lower plan is back to using spreadsheets alongside Cargo. That defeats the entire purpose. A larger vessel simply has more crew, more guests, more inventory, and more provisioning complexity — the pricing reflects that.
-              </p>
-            </div>
-          </section>
-
-          {/* Founding vessel */}
-          <section style={{ padding: '48px 32px', borderBottom: '1px solid #E2E8F0' }}>
-            <div data-animate="fade-up" style={{ maxWidth: 680, margin: '0 auto', background: '#FFFBF5', border: '2px solid #FDBA74', borderRadius: 14, padding: '24px 28px', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-              <span style={{ fontSize: 22, flexShrink: 0, marginTop: 2 }}>🚢</span>
-              <div>
-                <p className="mkt-archivo" style={{ fontWeight: 900, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#9A3412', marginBottom: 4 }}>Founding vessel rates</p>
-                <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 13, color: '#78350F', lineHeight: 1.65 }}>
-                  Join during the build phase and your rate is locked in. Early operators also get direct input into the Cargo roadmap — the features you need get prioritised.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* FAQ */}
-          <section style={{ padding: '72px 32px', borderBottom: '1px solid #E2E8F0' }}>
-            <div style={{ maxWidth: 680, margin: '0 auto' }}>
-              <p data-animate="fade-up" className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10, textAlign: 'center' }}>Pricing FAQ</p>
-              <h2 data-animate="fade-up" className="mkt-archivo" style={{ fontWeight: 900, fontSize: 22, color: '#1E3A5F', lineHeight: 1.15, marginBottom: 24, textAlign: 'center' }}>Common questions</h2>
-              <div data-animate="stagger" data-stagger="0.1">
-                {PRICING_FAQ.map(item => <FAQItem key={item.q} {...item} />)}
-              </div>
-            </div>
-          </section>
-
-          {/* CTA */}
-          <section style={{ padding: '72px 32px' }}>
-            <div data-animate="fade-up" className="text-center" style={{ maxWidth: 560, margin: '0 auto' }}>
-              <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>Get started</p>
-              <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 26, color: '#1E3A5F', lineHeight: 1.15, marginBottom: 10 }}>Ready to see your plan?</h2>
-              <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 14, color: '#64748B', marginBottom: 28, lineHeight: 1.65 }}>
-                Tell us about your vessel. It takes less than a minute.
-              </p>
-              <button
-                onClick={() => { setStep(1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                className="mkt-archivo transition-colors duration-150"
-                style={{ fontWeight: 900, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'white', backgroundColor: '#1E3A5F', borderRadius: 50, padding: '14px 32px', border: 'none', cursor: 'pointer', textDecoration: 'none' }}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#141D2E')}
-                onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#1E3A5F')}
-              >Get Started</button>
-            </div>
-          </section>
-        </>
-      )}
+      {/* ── Compact hero ── */}
+      <section style={{ paddingTop: 80, paddingBottom: 40, textAlign: 'center' }}>
+        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 32px' }}>
+          <p data-animate-hero="fade-up" data-delay="0" className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>Pricing</p>
+          <h1 data-animate-hero="fade-up" data-delay="0.12" className="mkt-archivo" style={{ fontWeight: 900, fontSize: 38, textTransform: 'uppercase', color: '#1E3A5F', lineHeight: 1.05, marginBottom: 14 }}>
+            Every feature. Every vessel.
+          </h1>
+          <p data-animate-hero="fade-up" data-delay="0.24" className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 15, color: '#64748B', maxWidth: 480, margin: '0 auto', lineHeight: 1.7 }}>
+            All modules included. Unlimited crew. No per-seat fees. No add-ons.<br />Tell us about your vessel to see your plan.
+          </p>
+        </div>
+      </section>
 
       {/* ── Questionnaire steps ── */}
-      {step > 0 && (
-        <section style={{ paddingTop: 72, paddingBottom: 80, minHeight: '70vh' }}>
-          <div style={{ maxWidth: 520, margin: '0 auto', padding: '0 24px' }}>
-            {step < 5 && <ProgressBar current={step <= 2.5 ? 1 : step === 3 ? 3 : 4} />}
+      <section style={{ paddingTop: 24, paddingBottom: 80, minHeight: step < 5 ? '50vh' : 'auto' }}>
+        <div style={{ maxWidth: 520, margin: '0 auto', padding: '0 24px' }}>
+          {step < 5 && <ProgressBar current={step <= 2.5 ? 1 : step === 3 ? 3 : 4} />}
 
             {/* Step 1: Vessel details */}
             {step === 1 && (
@@ -524,6 +429,64 @@ const PricingPage = () => {
             )}
           </div>
         </section>
+
+      {/* ── Supporting content — always visible below questionnaire ── */}
+      {step < 5 && (
+        <>
+          {/* What's included */}
+          <section style={{ padding: '72px 32px', borderTop: '1px solid #E2E8F0', borderBottom: '1px solid #E2E8F0', backgroundColor: 'white' }}>
+            <div data-animate="fade-up" style={{ maxWidth: 620, margin: '0 auto', textAlign: 'center' }}>
+              <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>What's included</p>
+              <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 22, color: '#1E3A5F', lineHeight: 1.2, marginBottom: 24 }}>
+                Every plan. Every feature.
+              </h2>
+              <div style={{ display: 'grid', gap: 10, textAlign: 'left', maxWidth: 400, margin: '0 auto' }} className="sm:grid-cols-1">
+                {FEATURES.map(f => (
+                  <div key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <Check />
+                    <span className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 13, color: '#475569', lineHeight: 1.5 }}>{f}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Why vessel size */}
+          <section style={{ padding: '56px 32px', borderBottom: '1px solid #E2E8F0', textAlign: 'center' }}>
+            <div data-animate="fade-up" style={{ maxWidth: 620, margin: '0 auto' }}>
+              <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 22, color: '#1E3A5F', lineHeight: 1.2, marginBottom: 10 }}>
+                Why every vessel gets every feature
+              </h2>
+              <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 14, color: '#64748B', lineHeight: 1.75 }}>
+                Cargo exists to replace the four or five separate systems most vessels run on. If we gate provisioning or guest profiles behind a higher tier, a vessel on the lower plan is back to using spreadsheets alongside Cargo. That defeats the entire purpose. A larger vessel simply has more crew, more guests, more inventory, and more provisioning complexity — the pricing reflects that.
+              </p>
+            </div>
+          </section>
+
+          {/* Founding vessel */}
+          <section style={{ padding: '48px 32px', borderBottom: '1px solid #E2E8F0' }}>
+            <div data-animate="fade-up" style={{ maxWidth: 680, margin: '0 auto', background: '#FFFBF5', border: '2px solid #FDBA74', borderRadius: 14, padding: '24px 28px', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+              <span style={{ fontSize: 22, flexShrink: 0, marginTop: 2 }}>🚢</span>
+              <div>
+                <p className="mkt-archivo" style={{ fontWeight: 900, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#9A3412', marginBottom: 4 }}>Founding vessel rates</p>
+                <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 13, color: '#78350F', lineHeight: 1.65 }}>
+                  Join during the build phase and your rate is locked in. Early operators also get direct input into the Cargo roadmap — the features you need get prioritised.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* FAQ */}
+          <section style={{ padding: '72px 32px' }}>
+            <div style={{ maxWidth: 680, margin: '0 auto' }}>
+              <p data-animate="fade-up" className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10, textAlign: 'center' }}>Pricing FAQ</p>
+              <h2 data-animate="fade-up" className="mkt-archivo" style={{ fontWeight: 900, fontSize: 22, color: '#1E3A5F', lineHeight: 1.15, marginBottom: 24, textAlign: 'center' }}>Common questions</h2>
+              <div data-animate="stagger" data-stagger="0.1">
+                {PRICING_FAQ.map(item => <FAQItem key={item.q} {...item} />)}
+              </div>
+            </div>
+          </section>
+        </>
       )}
     </MarketingLayout>
   );
