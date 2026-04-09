@@ -234,17 +234,7 @@ const LedgerEntry = ({ entry, userNames, boardNames, expanded, onToggle, onDelet
   );
 };
 
-// ── Summary cards ────────────────────────────────────────────────────────────
-
-const CARD_BASE = {
-  borderRadius: 14,
-  padding: '1.25rem 1rem',
-  textAlign: 'center',
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
-};
+// ── Summary banner ────────────────────────────────────────────────────────────
 
 function SummaryCards({
   summarySpendDisplay,
@@ -254,35 +244,29 @@ function SummaryCards({
   const animCount = useCountUp(summaryCount, 150);
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '0.7fr 1.6fr 1fr', gap: 16, marginBottom: 28 }}>
+    <div style={{
+      background: '#1E3A5F', borderRadius: 16, padding: '28px 32px',
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      marginBottom: 28,
+    }}>
 
-      {/* Card 1 — Received count */}
-      <div style={{ ...CARD_BASE, background: 'white', border: '0.5px solid #E2E8F0' }}>
-        <p style={{ fontSize: 40, fontWeight: 500, color: '#1E3A5F', lineHeight: 1, margin: 0 }}>
-          {Math.round(animCount)}
-        </p>
-        <p style={{ fontSize: 12, color: '#94A3B8', margin: '6px 0 0' }}>received</p>
-      </div>
-
-      {/* Card 2 — Total Spend (navy hero) */}
-      <div style={{ ...CARD_BASE, background: '#1E3A5F' }}>
-        <p style={{ fontSize: 11, color: '#93C5FD', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 8px', fontWeight: 500 }}>
+      {/* Left — Total Spend */}
+      <div>
+        <p style={{ margin: '0 0 6px', fontSize: 11, color: '#93C5FD', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500 }}>
           Total spend
         </p>
-        <p style={{ fontSize: 28, fontWeight: 500, color: 'white', lineHeight: 1.1, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}
-           title={summarySpendDisplay}>
+        <p style={{ margin: 0, fontSize: 36, fontWeight: 500, color: 'white', letterSpacing: '-1px', lineHeight: 1 }}>
           {summarySpendDisplay}
         </p>
-
-        {/* Currency pill toggle — always visible */}
-        <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.12)', borderRadius: 20, padding: 2, marginTop: 12 }}>
+        <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.1)', borderRadius: 20, padding: 2, marginTop: 14 }}>
           {['Original', 'EUR', 'USD', 'GBP'].map(opt => {
             const val = opt === 'Original' ? 'original' : opt;
             const active = convCurrency === val;
             return (
               <button key={opt} onClick={() => { if (!fxLoading) onConvChange(val); }} style={{
-                padding: '3px 10px', borderRadius: 18, border: 'none',
-                fontSize: 11, fontWeight: 600, cursor: fxLoading ? 'default' : 'pointer',
+                padding: '5px 16px', borderRadius: 18, border: 'none',
+                fontSize: 11, fontWeight: active ? 600 : 500,
+                cursor: fxLoading ? 'default' : 'pointer',
                 background: active ? 'white' : 'transparent',
                 color: active ? '#1E3A5F' : '#93C5FD',
                 transition: 'all 0.15s',
@@ -293,25 +277,35 @@ function SummaryCards({
         </div>
       </div>
 
-      {/* Card 3 — Top Supplier */}
-      <div style={{ ...CARD_BASE, background: 'white', border: '0.5px solid #E2E8F0' }}>
-        <p style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 6px' }}>
-          Top supplier
-        </p>
-        <p style={{
-          fontSize: 15, fontWeight: 500, color: '#0F172A', lineHeight: 1.3,
-          margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%',
-        }} title={topSupplier || '—'}>
-          {topSupplier || '—'}
-        </p>
-        {topSupplierSpend > 0 && (
-          <p style={{ fontSize: 12, color: '#C65A1A', margin: '6px 0 0' }}>
-            {fmtMoney(topSupplierSpend, 'USD')}
-            {topSupplierItems > 0 && ` · ${topSupplierItems} item${topSupplierItems !== 1 ? 's' : ''}`}
-          </p>
-        )}
-      </div>
+      {/* Right — stats row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
 
+        {/* Received count */}
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ margin: 0, fontSize: 32, fontWeight: 500, color: 'white', lineHeight: 1 }}>
+            {Math.round(animCount)}
+          </p>
+          <p style={{ margin: '5px 0 0', fontSize: 11, color: '#93C5FD' }}>received</p>
+        </div>
+
+        {/* Divider */}
+        <div style={{ width: 1, background: 'rgba(255,255,255,0.15)', alignSelf: 'stretch' }} />
+
+        {/* Top supplier */}
+        <div style={{ textAlign: 'right' }}>
+          <p style={{ margin: '0 0 4px', fontSize: 11, color: '#93C5FD' }}>Top supplier</p>
+          <p style={{ margin: 0, fontSize: 15, fontWeight: 500, color: 'white', lineHeight: 1.2 }}>
+            {topSupplier || '—'}
+          </p>
+          {topSupplierSpend > 0 && (
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#C65A1A' }}>
+              {fmtMoney(topSupplierSpend, 'USD')}
+              {topSupplierItems > 0 && ` · ${topSupplierItems} item${topSupplierItems !== 1 ? 's' : ''}`}
+            </p>
+          )}
+        </div>
+
+      </div>
     </div>
   );
 }
