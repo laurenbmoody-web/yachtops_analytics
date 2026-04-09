@@ -44,7 +44,7 @@ export default function TemplatePicker({ boardType, guestCount = 0, onUse, onBac
         category:         item.category,
         unit:             item.unit || null,
         quantity_ordered: qty,
-        status:           'pending',
+        status:           'draft',
         department:       tpl.department,
       };
     });

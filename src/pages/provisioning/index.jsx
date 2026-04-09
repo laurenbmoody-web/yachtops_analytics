@@ -604,7 +604,7 @@ const ProvisioningWorkspace = () => {
         const itemPayload = preloadedItems.map(({ tenant_id: _drop, ...item }) => ({
           ...item,
           list_id: newList.id,
-          status: item.status || 'pending',
+          status: 'draft',
         }));
         initialItems = await upsertItems(itemPayload);
       }

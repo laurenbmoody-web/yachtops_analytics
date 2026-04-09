@@ -568,7 +568,7 @@ const ProvisioningBoardDetail = () => {
         category:         suggestion.category || null,
         quantity_ordered: suggestion.quantity || 1,
         unit:             suggestion.unit || null,
-        status:           'pending',
+        status:           'draft',
         department:       (user?.department || '').trim() || null,
       };
       const [saved] = await upsertItems([newItem]);
@@ -592,7 +592,7 @@ const ProvisioningBoardDetail = () => {
         category:         s.category || null,
         quantity_ordered: s.quantity || 1,
         unit:             s.unit || null,
-        status:           'pending',
+        status:           'draft',
         department:       (user?.department || '').trim() || null,
       }));
       const saved = await upsertItems(payload);
