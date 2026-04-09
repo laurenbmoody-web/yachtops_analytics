@@ -83,8 +83,9 @@ const FAQ_GROUPS = [
   {
     heading: 'Pricing',
     items: [
-      { q: "How is pricing structured?", a: "Cargo is priced per vessel across three tiers depending on what you need. Every plan includes unlimited crew accounts — no per-seat charges. See the pricing page for details." },
+      { q: "How is pricing structured?", a: "Cargo is priced per vessel based on size — under 40m, 40–60m, and over 60m. Every plan includes every feature and unlimited crew accounts. No modules are gated, no per-seat charges. The only difference between plans is the level of onboarding and support." },
       { q: "Is there a trial?", a: "Yes. We offer a guided trial so you can see how Cargo works with your actual vessel setup before committing." },
+      { q: "Do all plans include every feature?", a: "Yes. Every vessel gets full access to every module — inventory, provisioning, guest profiles, trips, crew management, AI document scanning, the lot. Cargo exists to replace multiple systems, and that only works if every vessel has the full picture." },
     ],
   },
 ];
