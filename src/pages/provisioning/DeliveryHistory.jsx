@@ -279,10 +279,7 @@ function SummaryCards({
         <p style={{ fontSize: 24, fontWeight: 700, color: '#0F172A', lineHeight: 1, letterSpacing: '-0.02em', margin: 0 }}>
           {Math.round(animCount)}
         </p>
-        <p style={{ fontSize: 12, color: '#94A3B8', margin: '4px 0 6px' }}>deliveries</p>
-        {typeBreakdownText && (
-          <p style={{ fontSize: 11, fontWeight: 600, color: '#1D9E75', margin: 0 }}>{typeBreakdownText}</p>
-        )}
+        <p style={{ fontSize: 12, color: '#94A3B8', margin: '4px 0 0' }}>received</p>
       </div>
 
       {/* Card 2 — Total Spend (hero, with gauge) */}
