@@ -93,7 +93,7 @@ export default function CopyBoardPicker({ tenantId, department, newGuestCount = 
         estimated_unit_cost: item.estimated_unit_cost || null,
         allergen_flags:   item.allergen_flags || null,
         notes:            item.notes || null,
-        status:           'pending',
+        status:           'draft',
       }));
 
       onUse(items);
