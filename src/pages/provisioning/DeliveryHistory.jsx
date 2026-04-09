@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 import Icon from '../../components/AppIcon';
-import { SemiGauge, useCountUp } from './components/SummaryGauges';
+import { useCountUp } from './components/SummaryGauges';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -236,12 +236,10 @@ const LedgerEntry = ({ entry, userNames, boardNames, expanded, onToggle, onDelet
 
 // ── Summary cards ────────────────────────────────────────────────────────────
 
-const CARD = {
-  background: 'white',
-  borderRadius: 12,
-  padding: '1.5rem 1.25rem',
+const CARD_BASE = {
+  borderRadius: 14,
+  padding: '1.25rem 1rem',
   textAlign: 'center',
-  border: '1px solid #F1F5F9',
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
@@ -249,97 +247,65 @@ const CARD = {
 };
 
 function SummaryCards({
-  summarySpendDisplay, summaryIsConverted, spendGaugePct,
-  summaryCount, typeBreakdownText,
-  topSupplier, topSupplierSpend, topSupplierItems,
+  summarySpendDisplay,
+  summaryCount, topSupplier, topSupplierSpend, topSupplierItems,
   convCurrency, fxLoading, onConvChange,
 }) {
-  const [pillOpen, setPillOpen] = useState(false);
   const animCount = useCountUp(summaryCount, 150);
 
-  const activeSym = convCurrency === 'EUR' ? '€'
-    : convCurrency === 'GBP' ? '£'
-    : convCurrency === 'USD' ? '$'
-    : null;
-
-  const ExchangeIcon = () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M7 10l-4 4 4 4" />
-      <path d="M3 14h18" />
-      <path d="M17 4l4 4-4 4" />
-      <path d="M21 8H3" />
-    </svg>
-  );
-
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.25fr 1fr', gap: 16, marginBottom: 28 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '0.7fr 1.6fr 1fr', gap: 16, marginBottom: 28 }}>
 
-      {/* Card 1 — Deliveries (no gauge) */}
-      <div style={CARD}>
-        <p style={{ fontSize: 24, fontWeight: 700, color: '#0F172A', lineHeight: 1, letterSpacing: '-0.02em', margin: 0 }}>
+      {/* Card 1 — Received count */}
+      <div style={{ ...CARD_BASE, background: 'white', border: '0.5px solid #E2E8F0' }}>
+        <p style={{ fontSize: 40, fontWeight: 500, color: '#1E3A5F', lineHeight: 1, margin: 0 }}>
           {Math.round(animCount)}
         </p>
-        <p style={{ fontSize: 12, color: '#94A3B8', margin: '4px 0 0' }}>received</p>
+        <p style={{ fontSize: 12, color: '#94A3B8', margin: '6px 0 0' }}>received</p>
       </div>
 
-      {/* Card 2 — Total Spend (hero, with gauge) */}
-      <div style={CARD}>
-        <SemiGauge pct={spendGaugePct} gradientId="gauge-spend" gradFrom="#185FA5" gradTo="#60A5FA" delay={0} />
-        <div style={{ marginTop: -4, width: '100%' }}>
-          <p style={{ fontSize: 28, fontWeight: 700, color: '#0F172A', lineHeight: 1.1, letterSpacing: '-0.02em', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-             title={summarySpendDisplay}>
-            {summarySpendDisplay}
-            {summaryIsConverted && <span style={{ fontSize: 11, fontWeight: 400, color: '#94A3B8', marginLeft: 5 }}>(converted)</span>}
-          </p>
+      {/* Card 2 — Total Spend (navy hero) */}
+      <div style={{ ...CARD_BASE, background: '#1E3A5F' }}>
+        <p style={{ fontSize: 11, color: '#93C5FD', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 8px', fontWeight: 500 }}>
+          Total spend
+        </p>
+        <p style={{ fontSize: 28, fontWeight: 500, color: 'white', lineHeight: 1.1, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}
+           title={summarySpendDisplay}>
+          {summarySpendDisplay}
+        </p>
 
-          {/* Currency toggle — collapsed = single symbol pill, expanded = full row */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8, minHeight: 26 }}>
-            {pillOpen ? (
-              <div style={{ display: 'inline-flex', background: '#F1F5F9', borderRadius: 20, padding: 2 }}>
-                {['Original', 'EUR', 'USD', 'GBP'].map(opt => {
-                  const val = opt === 'Original' ? 'original' : opt;
-                  const active = convCurrency === val;
-                  return (
-                    <button key={opt} onClick={() => { if (!fxLoading) { onConvChange(val); setPillOpen(false); } }} style={{
-                      padding: '3px 10px', borderRadius: 18, border: 'none',
-                      fontSize: 11, fontWeight: 600, cursor: fxLoading ? 'default' : 'pointer',
-                      background: active ? '#1E3A5F' : 'transparent',
-                      color: active ? 'white' : '#94A3B8',
-                      transition: 'all 0.15s',
-                      opacity: fxLoading && !active ? 0.5 : 1,
-                    }}>{opt}</button>
-                  );
-                })}
-              </div>
-            ) : (
-              <button onClick={() => setPillOpen(true)} title="Change currency" style={{
-                fontSize: 13, fontWeight: 700, color: '#94A3B8',
-                background: '#F1F5F9', border: 'none', borderRadius: 12,
-                padding: '2px 12px', cursor: 'pointer', lineHeight: '20px',
-              }}>
-                {activeSym ?? <ExchangeIcon />}
-                {fxLoading && <span style={{ fontSize: 10, marginLeft: 4 }}>…</span>}
-              </button>
-            )}
-          </div>
-
-          <p style={{ fontSize: 12, color: '#94A3B8', margin: '6px 0 0' }}>total spend</p>
+        {/* Currency pill toggle — always visible */}
+        <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.12)', borderRadius: 20, padding: 2, marginTop: 12 }}>
+          {['Original', 'EUR', 'USD', 'GBP'].map(opt => {
+            const val = opt === 'Original' ? 'original' : opt;
+            const active = convCurrency === val;
+            return (
+              <button key={opt} onClick={() => { if (!fxLoading) onConvChange(val); }} style={{
+                padding: '3px 10px', borderRadius: 18, border: 'none',
+                fontSize: 11, fontWeight: 600, cursor: fxLoading ? 'default' : 'pointer',
+                background: active ? 'white' : 'transparent',
+                color: active ? '#1E3A5F' : '#93C5FD',
+                transition: 'all 0.15s',
+                opacity: fxLoading && !active ? 0.5 : 1,
+              }}>{opt}</button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Card 3 — Top Supplier (no gauge) */}
-      <div style={CARD}>
+      {/* Card 3 — Top Supplier */}
+      <div style={{ ...CARD_BASE, background: 'white', border: '0.5px solid #E2E8F0' }}>
         <p style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 6px' }}>
           Top supplier
         </p>
         <p style={{
-          fontSize: 16, fontWeight: 600, color: '#0F172A', lineHeight: 1.3,
+          fontSize: 15, fontWeight: 500, color: '#0F172A', lineHeight: 1.3,
           margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%',
         }} title={topSupplier || '—'}>
           {topSupplier || '—'}
         </p>
         {topSupplierSpend > 0 && (
-          <p style={{ fontSize: 11, fontWeight: 600, color: '#B45309', margin: '6px 0 0' }}>
+          <p style={{ fontSize: 12, color: '#C65A1A', margin: '6px 0 0' }}>
             {fmtMoney(topSupplierSpend, 'USD')}
             {topSupplierItems > 0 && ` · ${topSupplierItems} item${topSupplierItems !== 1 ? 's' : ''}`}
           </p>
@@ -442,19 +408,6 @@ export default function DeliveryHistory() {
     }
   };
 
-  // Returns a conversion function for a given entry's currency, or null if no conversion needed.
-  const makeConvFn = (entryCurrency) => {
-    if (convCurrency === 'original') return null;
-    const from = entryCurrency || 'USD';
-    if (from === convCurrency) return null;
-    const rates = fxCacheRef.current[convCurrency];
-    if (!rates) return null;
-    const rate = rates[from];
-    if (!rate) return null;
-    return (amount) => (amount != null && !isNaN(parseFloat(amount)))
-      ? parseFloat(amount) / rate
-      : null;
-  };
 
   // ── Delete empty entry ────────────────────────────────────────────────────
   const handleDelete = async (id) => {
@@ -523,7 +476,6 @@ export default function DeliveryHistory() {
 
   // Converted total: sum each entry converted to the target currency
   const convRates = convCurrency !== 'original' ? (fxCacheRef.current[convCurrency] || null) : null;
-  const summaryIsConverted = convCurrency !== 'original' && convRates != null;
   const summarySpendConverted = filtered.reduce((s, e) => {
     const amt = parseFloat(e.total_amount) || 0;
     if (!convRates) return s + amt;
@@ -551,24 +503,6 @@ export default function DeliveryHistory() {
   const topSupplierSpend = topSupplier ? (supplierTotals[topSupplier] || 0) : 0;
   const topSupplierItems = topSupplier ? (supplierItemCounts[topSupplier] || 0) : 0;
 
-  // Type breakdown for Card 2 subtitle
-  const typeCounts = {};
-  filtered.forEach(e => { typeCounts[e.source_type || 'manual'] = (typeCounts[e.source_type || 'manual'] || 0) + 1; });
-  const typeBreakdownText = [
-    typeCounts.delivery    && `${typeCounts.delivery} deliveries`,
-    typeCounts.receipt     && `${typeCounts.receipt} receipts`,
-    typeCounts.manual      && `${typeCounts.manual} manual`,
-    typeCounts.shopping_trip && `${typeCounts.shopping_trip} shopping`,
-  ].filter(Boolean).join(' · ');
-
-  // Raw total (currency-agnostic) for gauge proportions
-  const totalRawSpend = filtered.reduce((s, e) => s + (parseFloat(e.total_amount) || 0), 0);
-
-  // Gauge percentages
-  const spendGaugePct     = summaryCount > 0
-    ? filtered.filter(e => parseFloat(e.total_amount) > 0).length / summaryCount : 0;
-  const deliveryGaugePct  = summaryCount > 0 ? (typeCounts.delivery || 0) / summaryCount : 0;
-  const supplierGaugePct  = totalRawSpend > 0 ? Math.min(1, topSupplierSpend / totalRawSpend) : 0;
 
   const grouped = filtered.reduce((acc, e) => {
     const key = dayKey(e.created_at);
@@ -678,10 +612,7 @@ export default function DeliveryHistory() {
         {!loading && summaryCount > 0 && (
           <SummaryCards
             summarySpendDisplay={summarySpendDisplay}
-            summaryIsConverted={summaryIsConverted}
-            spendGaugePct={spendGaugePct}
             summaryCount={summaryCount}
-            typeBreakdownText={typeBreakdownText}
             topSupplier={topSupplier}
             topSupplierSpend={topSupplierSpend}
             topSupplierItems={topSupplierItems}
