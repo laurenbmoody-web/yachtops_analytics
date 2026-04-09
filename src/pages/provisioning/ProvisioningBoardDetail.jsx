@@ -564,7 +564,6 @@ const ProvisioningBoardDetail = () => {
     try {
       const newItem = {
         list_id:          id,
-        tenant_id:        activeTenantId,
         name:             suggestion.name,
         category:         suggestion.category || null,
         quantity_ordered: suggestion.quantity || 1,
@@ -589,7 +588,6 @@ const ProvisioningBoardDetail = () => {
     try {
       const payload = visible.map(s => ({
         list_id:          id,
-        tenant_id:        activeTenantId,
         name:             s.name,
         category:         s.category || null,
         quantity_ordered: s.quantity || 1,
