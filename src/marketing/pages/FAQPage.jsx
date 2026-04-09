@@ -49,36 +49,42 @@ const FAQ_GROUPS = [
   {
     heading: 'Getting started',
     items: [
-      { q: "How long does it take to get set up?", a: "Most vessels are fully operational within a few days. The setup flow walks you through vessel configuration, crew onboarding, and inventory structure. We also offer a guided onboarding session for vessels with complex setups." },
-      { q: "Can I import our existing inventory from a spreadsheet?", a: "Yes. Cargo's smart import engine accepts CSV files and automatically assigns categories and locations based on item names. You review and confirm the mapping before anything is committed." },
-      { q: "What do I need to get started?", a: "Just your vessel details and crew email addresses. We'll walk you through the rest. No hardware, no IT setup, no on-site installation required." },
-      { q: "Do you offer training?", a: "Yes. Every new account gets access to onboarding documentation and video walkthroughs. For larger vessels we offer live training sessions for department heads." },
+      { q: "How long before my crew can actually use it?", a: "Most vessels are up and running within a day. You set up your vessel profile, invite your crew, and start adding inventory. We offer a guided onboarding session to get your locations, departments, and categories set up properly from the start." },
+      { q: "Can I bring across our existing inventory or do we start from scratch?", a: "Yes, you can import your existing inventory. Upload a spreadsheet or PDF of your current inventory and Cargo will map items to the right departments and locations. You review everything before it goes live — nothing gets committed without your sign-off." },
+      { q: "Will my crew actually use it?", a: "That's the question, isn't it? Cargo is designed to be easier than the spreadsheet or WhatsApp thread it replaces. Crew see only what's relevant to their department and role — no clutter, less printing. If it's harder than what they're already doing, we've failed." },
+      { q: "Do we need to install anything?", a: "No. Cargo runs in the browser on any device — phones, tablets, laptops. No app store download (just yet), no IT department, no special hardware." },
     ],
   },
   {
-    heading: 'Platform & access',
+    heading: 'Using Cargo',
     items: [
-      { q: "How does role-based access work?", a: "Cargo has three access tiers: COMMAND (full access, typically Captain/Purser), CHIEF (department head access with elevated permissions in their area), and standard CREW. You assign roles when inviting crew, and they can be updated at any time." },
-      { q: "Can crew access Cargo on mobile?", a: "Yes. Cargo is fully responsive and works on phones and tablets. No app download required — it runs in the browser on any device." },
-      { q: "What happens when crew rotate off?", a: "You can deactivate a crew member's account instantly. Their history remains in the system for auditing purposes, but they lose access immediately. New crew can be invited at any time." },
-      { q: "Is data shared between vessels?", a: "No. Each vessel has its own isolated data environment. A crew member on two vessels can switch between them, but the data is never mixed." },
+      { q: "What happens when crew leave?", a: "When they're removed from the crew list they lose vessel-based access immediately (they will get to keep personal access and view things such as HOR and sea time). Everything they logged for the vessel — jobs completed, inventory changes, delivery receipts — stays as history and with the vessel so long as you hold an active membership. When new crew join, they walk into a full operational picture instead of starting from zero." },
+      { q: "Can different departments see each other's stuff?", a: "By default, crew see their own department's work. Department heads (Chiefs) have broader access within their area, and Command-level users (Captain, Purser) can see everything. You control who sees what through role assignments." },
+      { q: "Does it work on a slow marina Wi-Fi?", a: "Cargo is a lightweight web app, not a heavy desktop application. It works well on typical marina and 4G connections. We're conscious that connectivity at sea varies, and we design with that in mind." },
+      { q: "Can I use Cargo for charter guest preferences?", a: "Yes — this is one of Cargo's strongest areas. Each guest has a detailed preference profile covering allergies, food and drink, service style, personality, and more. Preferences carry across trips, so returning guests don't have to re-explain themselves and your crew has the full picture before anyone boards." },
     ],
   },
   {
-    heading: 'Features & modules',
+    heading: 'Provisioning & deliveries',
     items: [
-      { q: "Which modules are included?", a: "All modules are included: Inventory, Crew Management, Trips, Guest Profiles, Defect Tracking, Laundry, Ops Calendar, Duty Sets, Activity Feed, Vessel Blueprint, Locations, and Logs & Deliveries. There are no add-ons or tiers." },
-      { q: "Can we customise the inventory category structure?", a: "Yes. You can define your own category taxonomy through the Inventory Category Settings, and the four-level location hierarchy can be named to match your vessel layout exactly." },
-      { q: "Does Cargo integrate with other systems?", a: "We're building integrations on a needs-driven basis. If your vessel has a specific integration requirement, let us know — early operators have direct input into our roadmap." },
-      { q: "Can we track defects through to maintenance records?", a: "Yes. Each defect has a full lifecycle from initial report through to close-out, with crew assignment, notes, and date history. Defects can be linked to vessel areas on the blueprint view." },
+      { q: "How does the provisioning system work?", a: "Create a board for each trip or event, add items by department, and track what's been ordered, received, and what's still outstanding. When deliveries arrive, you can scan the delivery note or receipt and Cargo matches items to your board automatically. Everything flows into a delivery history with cost tracking." },
+      { q: "Can I photograph a receipt and have Cargo read it?", a: "Yes. Take a photo of a receipt or delivery note — even in a foreign language — and Cargo extracts the items, quantities, and prices using AI document scanning. It matches them to your provisioning board and logs them to delivery history." },
+      { q: "What about returns and wrong deliveries?", a: "Cargo has a return slip workflow. Flag items, generate a return slip, and send it to the supplier by email directly from the system. The supplier gets a confirmation page." },
     ],
   },
   {
-    heading: 'Pricing & plans',
+    heading: 'Account & data',
     items: [
-      { q: "How is Cargo priced?", a: "Pricing is per vessel and includes all modules and unlimited crew accounts. We offer an early-operator rate for vessels onboarding now. Contact us for current pricing." },
-      { q: "Is there a free trial?", a: "Yes. We offer a guided trial for qualified vessels. Book a demo and we'll discuss whether a trial makes sense for your operation." },
-      { q: "Are there limits on crew accounts or data storage?", a: "No. There are no per-seat charges and no data caps. Add as many crew as you need." },
+      { q: "Is our guest and crew data secure?", a: "Each vessel's data is completely isolated — there's no cross-vessel access. Crew who leave lose access instantly. Access is controlled at the database level, not just the interface, so there's no way to accidentally see another vessel's information." },
+      { q: "Can management companies see across multiple vessels?", a: "Fleet-level visibility is on the roadmap. Right now, each vessel operates independently. A crew member who works on multiple vessels can switch between them, but the data is always separate." },
+      { q: "What if we want to cancel?", a: "Your data is yours. We'll export everything for you in a standard format. No lock-in, no penalties." },
+    ],
+  },
+  {
+    heading: 'Pricing',
+    items: [
+      { q: "How is pricing structured?", a: "Cargo is priced per vessel across three tiers depending on what you need. Every plan includes unlimited crew accounts — no per-seat charges. See the pricing page for details." },
+      { q: "Is there a trial?", a: "Yes. We offer a guided trial so you can see how Cargo works with your actual vessel setup before committing." },
     ],
   },
 ];

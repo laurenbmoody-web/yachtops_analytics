@@ -7,7 +7,7 @@ const VALUES = [
   { n: '01', title: 'Vessel-first thinking', body: "Every feature decision starts with one question: does this match how vessels actually operate? If a workflow doesn't reflect reality on deck, it doesn't ship." },
   { n: '02', title: 'Respect for crew time', body: 'Crew are busy. The system should stay out of the way and surface what matters. Dense dashboards and feature bloat are the enemy.' },
   { n: '03', title: 'Depth over breadth', body: "We'd rather do ten things exceptionally well than fifty things poorly. Every module in Cargo is built to handle the edge cases real operations throw at it." },
-  { n: '04', title: 'Information stays on the vessel', body: 'Guest preferences, inventory data, and crew details are sensitive. We build with data ownership and privacy in mind at every layer.' },
+  { n: '04', title: 'Information stays on the vessel', body: "Every vessel on Cargo operates in complete isolation. Your inventory, guest preferences, crew records, and delivery history are separated at the database level — not just behind a login screen. When crew leave, their access is cut immediately, but every job they completed, every delivery they logged, every inventory change they made stays with the vessel." },
 ];
 
 const AboutPage = () => {
@@ -42,7 +42,7 @@ const AboutPage = () => {
             <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 13, color: '#64748B', fontStyle: 'italic', lineHeight: 1.65 }}>
               "We didn't want to build another tool that crew have to work around. We wanted to build the thing they'd actually reach for."
             </p>
-            <p className="mkt-dmsans" style={{ fontWeight: 500, fontSize: 12, color: '#94A3B8', marginTop: 6 }}>— The Cargo team</p>
+            <p className="mkt-dmsans" style={{ fontWeight: 500, fontSize: 12, color: '#94A3B8', marginTop: 6 }}>— Lauren Moody, Founder and Chief Stewardess</p>
           </div>
         </div>
       </div>
@@ -58,10 +58,10 @@ const AboutPage = () => {
               Make professional vessel operations genuinely manageable
             </h2>
             <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 14, color: '#64748B', lineHeight: 1.75, marginBottom: 14 }}>
-              We're building the system that vessel operations teams actually deserve — one where the software does the heavy lifting, crew have the context they need, and nothing falls through the cracks between departments.
+              Cargo already covers the operational core — inventory tracking with full location mapping, a provisioning system that handles boards, deliveries, receipts, and returns, detailed guest preference profiles, crew management with role-based access, trip coordination, defect logging, job management, and laundry tracking. The provisioning workflow alone replaces what most vessels currently manage across four or five spreadsheets, a shared inbox, and someone's notes app.
             </p>
             <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 14, color: '#64748B', lineHeight: 1.75 }}>
-              Not a MVP. Not a pivot. A focused, deliberate platform for people who take their work seriously.
+              This isn't a roadmap slide. It's live, it's being used, and it's being built alongside the crews who rely on it.
             </p>
           </div>
           <div data-animate="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -79,13 +79,34 @@ const AboutPage = () => {
       </div>
     </section>
 
+    {/* Founder */}
+    <section style={{ padding: '72px 32px', borderBottom: '1px solid #E2E8F0' }}>
+      <div data-animate="fade-up" style={{ maxWidth: 760, margin: '0 auto' }}>
+        <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>Who's behind it</p>
+        <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 28, color: '#1E3A5F', lineHeight: 1.15, marginBottom: 16 }}>
+          Built by crew, for crew
+        </h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 14, color: '#64748B', lineHeight: 1.75 }}>
+            Lauren spent years as a Chief Stewardess on superyachts — managing inventory across departments, coordinating provisioning in foreign ports, onboarding new crew mid-season, and doing most of it on spreadsheets and WhatsApp threads.
+          </p>
+          <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 14, color: '#64748B', lineHeight: 1.75 }}>
+            Cargo exists because she got tired of watching good crews waste time on bad systems. Every feature in Cargo comes from real operational problems on real vessels — not guesswork from a software company that's never stepped on board.
+          </p>
+          <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 14, color: '#64748B', lineHeight: 1.75 }}>
+            She's building Cargo alongside working crew, shaping it around how departments actually operate day to day. If something doesn't save you time or make your job clearer, it doesn't ship.
+          </p>
+        </div>
+      </div>
+    </section>
+
     {/* CTA */}
     <section style={{ padding: '72px 32px' }}>
       <div data-animate="fade-up" className="text-center" style={{ maxWidth: 560, margin: '0 auto' }}>
         <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 10 }}>Get involved</p>
         <h2 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 26, color: '#1E3A5F', lineHeight: 1.15, marginBottom: 10 }}>Want to be part of it?</h2>
         <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 14, color: '#64748B', marginBottom: 28, lineHeight: 1.65 }}>
-          We're building with a small group of early operators. If you want to shape how Cargo develops, now's the time.
+          We're building with a small group of early operators. All modules included, no per-seat charges, direct input into the roadmap, and early-access pricing. If you want to shape how Cargo develops, now's the time.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <Link to="/contact" className="mkt-archivo transition-colors duration-150"
