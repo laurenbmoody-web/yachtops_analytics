@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import MarketingLayout from '../MarketingLayout';
 import useScrollAnimations from '../../hooks/useScrollAnimations';
 // Vessel verification via Netlify function (same-origin, no CORS issues)
@@ -109,6 +109,7 @@ const selectStyle = { ...inputStyle, appearance: 'none', backgroundImage: "url(\
 
 const PricingPage = () => {
   useScrollAnimations();
+  const navigate = useNavigate();
 
   const [step, setStep] = useState(1); // starts on vessel details
   const [vesselName, setVesselName] = useState('');
@@ -126,6 +127,7 @@ const PricingPage = () => {
   const [pricingTier, setPricingTier] = useState(null);
   const [usedManual, setUsedManual] = useState(false);
   const [verifyError, setVerifyError] = useState(null);
+  const [existingTenantVessel, setExistingTenantVessel] = useState(null);
 
   // Step 1 submit — verify IMO or go to manual
   const handleStep1 = useCallback(async () => {
@@ -163,6 +165,15 @@ const PricingPage = () => {
         setVerifyError('We couldn\u2019t find a vessel with that IMO number. Check the number or enter details manually.');
         setLoading(false);
         setStep(1);
+        return;
+      }
+
+      // Existing-tenant short-circuit: this IMO already belongs to a live
+      // Cargo tenant. Don't progress through pricing — push them to log in.
+      if (data?.already_tenant) {
+        setExistingTenantVessel(data.vessel);
+        setLoading(false);
+        setStep(1.75);
         return;
       }
 
@@ -276,6 +287,33 @@ const PricingPage = () => {
                   <span className="mkt-dmsans" style={{ fontSize: 14, color: '#64748B' }}>Looking up IMO <strong style={{ color: '#1E3A5F' }}>{imo}</strong></span>
                 </div>
                 <style>{`@keyframes cargo-spin { to { transform: rotate(360deg); } }`}</style>
+              </div>
+            )}
+
+            {/* Step 1.75: Already a tenant — short-circuit to login */}
+            {step === 1.75 && existingTenantVessel && (
+              <div>
+                <StepLabel n={1} />
+                <h1 className="mkt-archivo" style={{ fontWeight: 900, fontSize: 26, color: '#1E3A5F', lineHeight: 1.15, marginBottom: 8 }}>This vessel is already on Cargo</h1>
+                <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 14, color: '#64748B', lineHeight: 1.6, marginBottom: 24 }}>
+                  It looks like <strong style={{ color: '#1E3A5F' }}>{existingTenantVessel.name}</strong> is already registered. Log in to continue, or get in touch if you think this is a mistake.
+                </p>
+
+                <div className="bg-white rounded-xl" style={{ border: '2px solid #1E3A5F', padding: 24, marginBottom: 24 }}>
+                  <p className="mkt-archivo" style={{ fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4A90E2', marginBottom: 12 }}>Existing Cargo vessel</p>
+                  <p className="mkt-archivo" style={{ fontWeight: 900, fontSize: 20, color: '#1E3A5F', marginBottom: 4 }}>{existingTenantVessel.name}</p>
+                  <p className="mkt-dmsans" style={{ fontSize: 13, color: '#64748B' }}>IMO {existingTenantVessel.imo}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 16, paddingTop: 16, borderTop: '1px solid #E2E8F0' }}>
+                    <span style={{ width: 24, height: 24, backgroundColor: '#ECFDF5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    </span>
+                    <span className="mkt-dmsans" style={{ fontSize: 13, color: '#059669', fontWeight: 500 }}>Already a Cargo customer</span>
+                  </div>
+                </div>
+
+                <PrimaryBtn onClick={() => navigate('/login-authentication')}>Log in to Cargo</PrimaryBtn>
+                <SecondaryBtn onClick={() => navigate('/contact')}>Contact support</SecondaryBtn>
+                <BackBtn onClick={() => { setExistingTenantVessel(null); setStep(1); }} />
               </div>
             )}
 
