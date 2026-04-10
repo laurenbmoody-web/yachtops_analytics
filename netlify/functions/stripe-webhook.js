@@ -220,54 +220,70 @@ async function markRegistrationConverted(registrationId, tenantId) {
 }
 
 async function inviteUser(email, fullName) {
-  // Uses Supabase's built-in invite flow. This creates an auth.users row if
-  // one doesn't exist and sends an invite email via the SMTP configured in
-  // Supabase (or Supabase's default sender in dev). The recipient clicks the
-  // link to set their password and land in the app.
-  const res = await supaAuth('admin/users', {
+  // Uses the canonical Supabase admin invite endpoint which BOTH creates
+  // the auth.users row AND sends the invite email via the configured SMTP
+  // in one call. This is `supabase.auth.admin.inviteUserByEmail()` in the
+  // JS SDK. The previous implementation called `admin/users` with
+  // `email_confirm: true` followed by `admin/generate_link` — neither of
+  // those reliably send an email (admin/users with email_confirm bypasses
+  // email entirely, and generate_link's email-send behaviour depends on
+  // Supabase version + SMTP config), which is why invites silently
+  // disappeared during testing.
+  console.log(`[invite] attempting admin/invite for ${email}`);
+  const res = await supaAuth('admin/invite', {
     method: 'POST',
     body: JSON.stringify({
       email,
-      email_confirm: true,
-      user_metadata: { full_name: fullName, invited_by: 'stripe-webhook' },
+      data: { full_name: fullName, invited_by: 'stripe-webhook' },
+      redirect_to: `${SITE_URL}/welcome`,
     }),
   });
 
-  // If the user already exists Supabase returns 422; in that case we look up
-  // their ID and proceed without sending a second invite.
+  // If the user already exists, admin/invite returns 422 "user already
+  // registered". Fall back to generate_link which re-sends a magic link
+  // to the existing user so re-tests (same plus-addressed email) still
+  // receive an email instead of silently succeeding.
   if (res.status === 422) {
+    console.log(`[invite] user ${email} already exists — falling back to magic link`);
     const lookup = await supaAuth(`admin/users?email=${encodeURIComponent(email)}`, { method: 'GET' });
-    if (!lookup.ok) throw new Error(`user lookup failed: ${lookup.status}`);
-    const data = await lookup.json();
-    const user = Array.isArray(data?.users) ? data.users[0] : data?.users;
+    if (!lookup.ok) {
+      const body = await lookup.text();
+      throw new Error(`user lookup failed: ${lookup.status} ${body.slice(0, 200)}`);
+    }
+    const lookupData = await lookup.json();
+    const user = Array.isArray(lookupData?.users) ? lookupData.users[0] : lookupData?.users;
     if (!user?.id) throw new Error('Existing user has no id');
+
+    // Send a magic link so they can still reach /welcome. generate_link
+    // with type=magiclink actually sends via SMTP in current Supabase.
+    const linkRes = await supaAuth('admin/generate_link', {
+      method: 'POST',
+      body: JSON.stringify({
+        type: 'magiclink',
+        email,
+        options: { redirectTo: `${SITE_URL}/welcome` },
+      }),
+    });
+    if (!linkRes.ok) {
+      const body = await linkRes.text();
+      console.error(`[invite] generate_link fallback failed: ${linkRes.status} ${body.slice(0, 300)}`);
+      // Non-fatal — the user can use /welcome's resend button.
+    } else {
+      console.log(`[invite] magic link re-sent to existing user ${email}`);
+    }
     return { id: user.id, created: false };
   }
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`admin/users create failed: ${res.status} ${body.slice(0, 300)}`);
+    throw new Error(`admin/invite failed: ${res.status} ${body.slice(0, 300)}`);
   }
+
   const data = await res.json();
+  // admin/invite returns the user object directly (not wrapped in .user)
   const userId = data?.id || data?.user?.id;
-  if (!userId) throw new Error('Created user has no id');
-
-  // Send the invite email (separate call so we can differentiate "user
-  // already exists" from "new user needs email").
-  const inviteRes = await supaAuth('admin/generate_link', {
-    method: 'POST',
-    body: JSON.stringify({
-      type: 'invite',
-      email,
-      options: { redirectTo: `${SITE_URL}/welcome` },
-    }),
-  });
-  if (!inviteRes.ok) {
-    const body = await inviteRes.text();
-    console.error(`generate_link failed: ${inviteRes.status} ${body.slice(0, 300)}`);
-    // Non-fatal — the user was created, Lauren can resend the invite manually.
-  }
-
+  if (!userId) throw new Error(`admin/invite returned no user id: ${JSON.stringify(data).slice(0, 200)}`);
+  console.log(`[invite] created and invited ${email} as user ${userId}`);
   return { id: userId, created: true };
 }
 
@@ -294,40 +310,59 @@ async function handleCheckoutCompleted(session) {
   const registrationId =
     session.client_reference_id || session.metadata?.vessel_registration_id;
   if (!registrationId) {
-    console.error('checkout.session.completed missing vessel_registration_id');
+    console.error('[checkout] missing vessel_registration_id', {
+      client_reference_id: session.client_reference_id,
+      metadata: session.metadata,
+    });
     return;
   }
+
+  console.log(`[checkout] processing session ${session.id} for registration ${registrationId}`);
 
   const registration = await fetchRegistration(registrationId);
   if (!registration) {
-    console.error(`Registration ${registrationId} not found`);
+    console.error(`[checkout] registration ${registrationId} not found`);
     return;
   }
 
+  console.log(`[checkout] registration loaded`, {
+    id: registration.id,
+    vessel_name: registration.vessel_name,
+    imo_number: registration.imo_number,
+    contact_email: registration.contact_email,
+    converted_at: registration.converted_at,
+    tenant_id: registration.tenant_id,
+  });
+
   // Idempotency — if this registration already converted, no-op.
   if (registration.converted_at || registration.tenant_id) {
-    console.log(`Registration ${registrationId} already converted, skipping`);
+    console.log(`[checkout] registration ${registrationId} already converted, skipping`);
     return;
   }
 
   // Defence in depth — if a tenant with this IMO already exists, something
   // raced past the /pricing guard. Don't double-create. Cancel the dup sub.
-  if (await tenantExistsByImo(registration.imo_number)) {
+  // Note: manual-entry registrations have imo_number=null and tenantExistsByImo
+  // correctly returns false on null, so manual entries never trigger this.
+  if (registration.imo_number && await tenantExistsByImo(registration.imo_number)) {
     console.error(
-      `Tenant with IMO ${registration.imo_number} already exists. Cancelling duplicate subscription ${session.subscription}.`
+      `[checkout] tenant with IMO ${registration.imo_number} already exists. Cancelling duplicate subscription ${session.subscription}.`
     );
     await cancelSubscription(session.subscription);
     return;
   }
 
   // 1. Create the tenant
+  console.log(`[checkout] creating tenant for ${registration.vessel_name}`);
   const tenant = await createTenantRow(registration, session);
+  console.log(`[checkout] tenant ${tenant.id} created`);
 
   // 2. Invite the user (creates auth user + sends email)
-  const { id: userId } = await inviteUser(
+  const { id: userId, created } = await inviteUser(
     registration.contact_email,
     registration.contact_name || ''
   );
+  console.log(`[checkout] invite result`, { userId, created, email: registration.contact_email });
 
   // 3. Upsert profile and link to tenant
   await upsertProfile(userId, registration);
@@ -339,7 +374,7 @@ async function handleCheckoutCompleted(session) {
   // 5. Mark the registration row converted
   await markRegistrationConverted(registration.id, tenant.id);
 
-  console.log(`Provisioned tenant ${tenant.id} for registration ${registration.id}`);
+  console.log(`[checkout] provisioned tenant ${tenant.id} for registration ${registration.id} — invite sent to ${registration.contact_email}`);
 }
 
 async function handleSubscriptionDeleted(subscription) {
