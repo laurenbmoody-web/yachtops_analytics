@@ -101,6 +101,44 @@ async function getExistingTenantByImo(imo) {
   return match || null;
 }
 
+// Normalise a vessel name for fuzzy comparison: lowercase, strip common
+// prefixes like "M/Y", "S/Y", "MY", punctuation and whitespace. This lets
+// us match "Belongers", "M/Y Belongers", "m/y  belongers!" and so on.
+function normaliseVesselName(name) {
+  if (!name) return '';
+  return String(name)
+    .toLowerCase()
+    .replace(/^(m\/?y|s\/?y|m\/?v|y\/?t)[\s.]+/i, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+// Fallback tenant check: find a tenant whose name matches the canonical
+// vessel name. Tenants ALWAYS have a name (required at signup), but
+// imo_number is only populated if the user filled out vessel-settings,
+// so many live tenants won't match on IMO alone.
+async function getExistingTenantByName(vesselName) {
+  const normalised = normaliseVesselName(vesselName);
+  if (!normalised || normalised.length < 3) return null;
+
+  // Pull all VESSEL-type tenants and filter locally. This table is small
+  // (one row per customer vessel) so we can afford a full scan.
+  const res = await supabaseQuery(
+    `tenants?type=eq.VESSEL&select=id,name,imo_number&limit=500`,
+    { method: 'GET' }
+  );
+  if (!res || !res.ok) {
+    console.error(`tenant name lookup failed: ${res ? res.status : 'no-response'}`);
+    return null;
+  }
+  const rows = await res.json();
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+
+  const match = rows.find(
+    (row) => normaliseVesselName(row.name) === normalised
+  );
+  return match || null;
+}
+
 async function cacheVesselResult(vessel, pricingTier) {
   await supabaseQuery('vessel_registrations', {
     method: 'POST',
@@ -216,39 +254,72 @@ exports.handler = async (event) => {
 
     const cleanIMO = imo.trim();
 
-    // 0. Existing-tenant short-circuit.
-    // If this IMO already belongs to a live tenant, don't push the user further
-    // through the pricing flow — they're already a Cargo customer and should
-    // log in instead. We do this before the cache/Anthropic lookup so existing
-    // customers never hit those code paths (no wasted API spend, no duplicate
-    // vessel_registrations rows).
+    // Diagnostics we surface in the response body under `debug` so we can
+    // see what the tenant check did without having to hunt through Netlify
+    // function logs (logs have been unreliable — empty when they shouldn't
+    // be). Each step appends a note describing what was checked and why it
+    // hit or missed.
+    const debug = { steps: [] };
+
+    // Helper: build a consistent "already on Cargo" response.
+    const alreadyTenantResponse = (tenant, matchedVia) => {
+      debug.steps.push(`matched tenant "${tenant.name}" via ${matchedVia}`);
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          found: true,
+          already_tenant: true,
+          vessel: { name: tenant.name, imo: cleanIMO },
+          debug,
+        }),
+      };
+    };
+
+    // 0a. Existing-tenant short-circuit by IMO.
+    // Most accurate check but only works if the customer set imo_number in
+    // vessel-settings — many live tenants will NOT have this populated,
+    // which is why we also check by name below after we have the canonical
+    // vessel name from cache or Anthropic.
     try {
-      const existingTenant = await getExistingTenantByImo(cleanIMO);
-      console.log(
-        `existing-tenant check for IMO ${cleanIMO}: ${existingTenant ? `matched tenant "${existingTenant.name}" (stored as "${existingTenant.imo_number}")` : 'no match'}`
+      const tenantByImo = await getExistingTenantByImo(cleanIMO);
+      debug.steps.push(
+        tenantByImo
+          ? `imo check: matched tenant "${tenantByImo.name}" (stored imo "${tenantByImo.imo_number}")`
+          : `imo check: no tenant has imo_number matching ${cleanIMO}`
       );
-      if (existingTenant) {
-        return {
-          statusCode: 200,
-          body: JSON.stringify({
-            found: true,
-            already_tenant: true,
-            vessel: {
-              name: existingTenant.name,
-              imo: cleanIMO,
-            },
-          }),
-        };
-      }
+      if (tenantByImo) return alreadyTenantResponse(tenantByImo, 'imo_match');
     } catch (tenantErr) {
-      // Don't fail the request if the tenant check errors — fall through to
-      // the normal verification path so the user can still sign up.
-      console.error('Existing-tenant check failed:', tenantErr);
+      debug.steps.push(`imo check errored: ${tenantErr?.message || tenantErr}`);
+      console.error('Existing-tenant (imo) check failed:', tenantErr);
     }
 
-    // 1. Check cache first
+    // Helper: name-based tenant check used after we have the canonical
+    // vessel name. Tenants always have a name (required at signup) so this
+    // is the reliable path for customers who never filled in vessel
+    // identity in settings.
+    const checkTenantByName = async (name, source) => {
+      try {
+        const tenantByName = await getExistingTenantByName(name);
+        debug.steps.push(
+          tenantByName
+            ? `name check (${source}="${name}"): matched tenant "${tenantByName.name}"`
+            : `name check (${source}="${name}"): no tenant matched`
+        );
+        return tenantByName;
+      } catch (err) {
+        debug.steps.push(`name check (${source}) errored: ${err?.message || err}`);
+        console.error(`Existing-tenant (name) check failed for ${source}:`, err);
+        return null;
+      }
+    };
+
+    // 1. Check cache
     const cached = await getCachedVessel(cleanIMO);
     if (cached) {
+      // Re-run the tenant check using the canonical cached vessel name.
+      const tenantByName = await checkTenantByName(cached.vessel_name, 'cache');
+      if (tenantByName) return alreadyTenantResponse(tenantByName, 'name_match_cache');
+
       const tier = cached.pricing_tier || getPricingTier(cached.loa_metres);
       return {
         statusCode: 200,
@@ -266,9 +337,11 @@ exports.handler = async (event) => {
           pricing_tier: tier,
           pricing_tier_label: getTierLabel(tier),
           cached: true,
+          debug,
         }),
       };
     }
+    debug.steps.push('cache: miss');
 
     // 2. Look up via Anthropic API with web search
     const vesselData = await lookupVessel(cleanIMO);
@@ -276,8 +349,14 @@ exports.handler = async (event) => {
     if (!vesselData.found) {
       return {
         statusCode: 200,
-        body: JSON.stringify({ found: false }),
+        body: JSON.stringify({ found: false, debug }),
       };
+    }
+
+    // 2b. Name-based tenant check using the canonical name from Anthropic.
+    {
+      const tenantByName = await checkTenantByName(vesselData.name, 'anthropic');
+      if (tenantByName) return alreadyTenantResponse(tenantByName, 'name_match_anthropic');
     }
 
     // 3. Validate we got a LOA
@@ -289,6 +368,7 @@ exports.handler = async (event) => {
           vessel: vesselData,
           pricing_tier: null,
           error: 'Could not determine vessel length. Please enter manually.',
+          debug,
         }),
       };
     }
@@ -320,6 +400,7 @@ exports.handler = async (event) => {
         pricing_tier: pricingTier,
         pricing_tier_label: getTierLabel(pricingTier),
         cached: false,
+        debug,
       }),
     };
 
