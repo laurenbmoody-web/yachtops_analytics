@@ -312,7 +312,15 @@ const PricingPage = () => {
                 </div>
 
                 <PrimaryBtn onClick={() => navigate('/login-authentication')}>Log in to Cargo</PrimaryBtn>
-                <SecondaryBtn onClick={() => navigate('/contact')}>Contact support</SecondaryBtn>
+                <SecondaryBtn
+                  onClick={() =>
+                    navigate(
+                      `/contact?intent=support&vessel=${encodeURIComponent(existingTenantVessel.name || '')}`
+                    )
+                  }
+                >
+                  Contact support
+                </SecondaryBtn>
                 <BackBtn onClick={() => { setExistingTenantVessel(null); setStep(1); }} />
               </div>
             )}
