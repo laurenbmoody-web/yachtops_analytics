@@ -220,17 +220,19 @@ async function markRegistrationConverted(registrationId, tenantId) {
 }
 
 async function inviteUser(email, fullName) {
-  // Uses the canonical Supabase admin invite endpoint which BOTH creates
-  // the auth.users row AND sends the invite email via the configured SMTP
-  // in one call. This is `supabase.auth.admin.inviteUserByEmail()` in the
-  // JS SDK. The previous implementation called `admin/users` with
+  // Uses the canonical Supabase invite endpoint which BOTH creates the
+  // auth.users row AND sends the invite email via the configured SMTP in
+  // a single call. This is `supabase.auth.admin.inviteUserByEmail()` in
+  // the JS SDK — note the endpoint path is `/auth/v1/invite` (NOT
+  // `/auth/v1/admin/invite`) even though it requires the service role
+  // key. The previous implementation called `admin/users` with
   // `email_confirm: true` followed by `admin/generate_link` — neither of
   // those reliably send an email (admin/users with email_confirm bypasses
   // email entirely, and generate_link's email-send behaviour depends on
   // Supabase version + SMTP config), which is why invites silently
   // disappeared during testing.
-  console.log(`[invite] attempting admin/invite for ${email}`);
-  const res = await supaAuth('admin/invite', {
+  console.log(`[invite] POST /auth/v1/invite for ${email}`);
+  const res = await supaAuth('invite', {
     method: 'POST',
     body: JSON.stringify({
       email,
@@ -276,13 +278,13 @@ async function inviteUser(email, fullName) {
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`admin/invite failed: ${res.status} ${body.slice(0, 300)}`);
+    throw new Error(`invite failed: ${res.status} ${body.slice(0, 300)}`);
   }
 
   const data = await res.json();
-  // admin/invite returns the user object directly (not wrapped in .user)
+  // /invite returns the user object directly (not wrapped in .user)
   const userId = data?.id || data?.user?.id;
-  if (!userId) throw new Error(`admin/invite returned no user id: ${JSON.stringify(data).slice(0, 200)}`);
+  if (!userId) throw new Error(`invite returned no user id: ${JSON.stringify(data).slice(0, 200)}`);
   console.log(`[invite] created and invited ${email} as user ${userId}`);
   return { id: userId, created: true };
 }
