@@ -172,6 +172,25 @@ async function cacheVesselResult(vessel, pricingTier) {
 
 /* ─── Anthropic API call with web search ──────────────────────────────── */
 
+// Tagged errors so the main handler can distinguish "try again in a minute"
+// (rate limit) and "we couldn't parse the model's response" (prose instead
+// of JSON) from generic 5xx crashes. Both should surface as 200 responses
+// with a friendly message, not 500s — otherwise the frontend shows a scary
+// red banner and the user can't progress.
+class RateLimitError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'RateLimitError';
+  }
+}
+class VesselLookupParseError extends Error {
+  constructor(message, raw) {
+    super(message);
+    this.name = 'VesselLookupParseError';
+    this.raw = raw;
+  }
+}
+
 async function lookupVessel(imo) {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -215,6 +234,13 @@ Rules:
   if (!response.ok) {
     const errorBody = await response.text();
     console.error('Anthropic API error:', response.status, errorBody);
+    // 429 = rate limit, 529 = overloaded. Both are transient and should
+    // tell the user "wait a minute and try again" instead of crashing.
+    if (response.status === 429 || response.status === 529) {
+      throw new RateLimitError(
+        `Anthropic API ${response.status}: ${errorBody.slice(0, 200)}`
+      );
+    }
     throw new Error(`Anthropic API ${response.status}: ${errorBody.slice(0, 300)}`);
   }
 
@@ -223,7 +249,7 @@ Rules:
   // Find the text block in the response content
   const textBlock = data.content?.find((block) => block.type === 'text');
   if (!textBlock?.text) {
-    throw new Error('No text response from Anthropic API');
+    throw new VesselLookupParseError('No text response from Anthropic API', '');
   }
 
   // Parse JSON — handle potential markdown code fences
@@ -232,7 +258,20 @@ Rules:
     jsonText = jsonText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
   }
 
-  return JSON.parse(jsonText);
+  // If the model returned prose instead of JSON (e.g. "Based on my search,
+  // there is no public record of a vessel with IMO 1234567...") we don't
+  // want to bubble a JSON.parse SyntaxError up to the user. Treat it the
+  // same as "vessel not found" and surface the raw text in debug so we can
+  // see what the model actually said.
+  try {
+    return JSON.parse(jsonText);
+  } catch (parseErr) {
+    console.error('vessel lookup JSON parse failed:', parseErr?.message, jsonText.slice(0, 200));
+    throw new VesselLookupParseError(
+      `Model returned non-JSON response: ${parseErr?.message || 'parse failed'}`,
+      jsonText.slice(0, 300)
+    );
+  }
 }
 
 /* ─── Main handler ────────────────────────────────────────────────────── */
@@ -429,6 +468,39 @@ exports.handler = async (event) => {
 
   } catch (err) {
     console.error('verify-vessel error:', err?.message || err);
+
+    // Rate limit / overloaded: return 200 with a user-friendly message so the
+    // frontend can show a calm "try again" notice instead of a red 500 banner.
+    // This is a transient condition — the user did nothing wrong and should
+    // just wait a minute.
+    if (err instanceof RateLimitError) {
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          found: false,
+          rate_limited: true,
+          error:
+            'Our vessel lookup service is temporarily busy. Please wait a minute and try again, or enter your vessel details manually.',
+          debug: err?.message || String(err),
+        }),
+      };
+    }
+
+    // Prose-instead-of-JSON: almost always means the model couldn't find the
+    // vessel and replied in English. Surface as "not found" rather than a 500
+    // so the user can correct the IMO or enter details manually.
+    if (err instanceof VesselLookupParseError) {
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          found: false,
+          error:
+            'We couldn\u2019t find a vessel with that IMO number. Please double-check the number, or enter your vessel details manually.',
+          debug: { message: err?.message, raw: err?.raw || '' },
+        }),
+      };
+    }
+
     return {
       statusCode: 500,
       body: JSON.stringify({
