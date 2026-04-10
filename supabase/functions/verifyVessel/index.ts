@@ -77,14 +77,39 @@ async function getCachedVessel(imo: string) {
 // Check whether an IMO is already linked to a live Cargo tenant. If so, we
 // short-circuit the pricing flow and tell the user to log in instead of
 // taking them through the sign-up path a second time.
+//
+// Robustness note: the vessel-settings form lets users type the IMO freely,
+// and its placeholder is "e.g., IMO 1234567" — so existing tenant rows in
+// production store values like "IMO 9740677", "9740677", "imo9740677",
+// "IMO# 9740677", etc. An `eq` query against the raw 7-digit string misses
+// all of those. Instead we pull any tenant whose imo_number *contains* the
+// digits and then post-filter by exact-digit match on the server side.
 async function getExistingTenantByImo(imo: string) {
+  if (!imo) return null;
+  const digits = String(imo).replace(/\D/g, '');
+  if (digits.length !== 7) return null;
+
+  // PostgREST converts `*` → SQL `%`. `ilike.*9740677*` matches any stored
+  // value that contains those 7 digits anywhere in the string.
   const res = await supabaseQuery(
-    `tenants?imo_number=eq.${imo}&select=id,name&limit=1`,
+    `tenants?imo_number=ilike.*${digits}*&select=id,name,imo_number&limit=25`,
     { method: 'GET' }
   );
-  if (!res.ok) return null;
+  if (!res.ok) {
+    console.error(`tenant imo lookup failed: ${res.status}`);
+    return null;
+  }
   const rows = await res.json();
-  return rows.length > 0 ? rows[0] : null;
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+
+  // Guard against substring false positives — "19740677" would match the
+  // ilike filter above, so we require the stored value to reduce to the
+  // exact same 7 digits we queried for.
+  const match = rows.find(
+    (row: { imo_number?: string }) =>
+      String(row.imo_number || '').replace(/\D/g, '') === digits
+  );
+  return match || null;
 }
 
 async function cacheVesselResult(vessel: Record<string, unknown>, pricingTier: string) {
