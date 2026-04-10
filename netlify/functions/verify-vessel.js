@@ -140,8 +140,13 @@ async function getExistingTenantByName(vesselName) {
 }
 
 async function cacheVesselResult(vessel, pricingTier) {
-  await supabaseQuery('vessel_registrations', {
+  // Override the default `return=minimal` Prefer header so we get the newly
+  // inserted row back — the checkout flow needs the registration id.
+  const res = await supabaseQuery('vessel_registrations', {
     method: 'POST',
+    headers: {
+      'Prefer': 'resolution=merge-duplicates,return=representation',
+    },
     body: JSON.stringify({
       imo_number: vessel.imo,
       vessel_name: vessel.name,
@@ -156,6 +161,13 @@ async function cacheVesselResult(vessel, pricingTier) {
       verified_at: new Date().toISOString(),
     }),
   });
+  if (!res || !res.ok) return null;
+  try {
+    const rows = await res.json();
+    return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+  } catch {
+    return null;
+  }
 }
 
 /* ─── Anthropic API call with web search ──────────────────────────────── */
@@ -325,6 +337,7 @@ exports.handler = async (event) => {
         statusCode: 200,
         body: JSON.stringify({
           found: true,
+          registration_id: cached.id,
           vessel: {
             name: cached.vessel_name,
             imo: cached.imo_number,
@@ -376,10 +389,19 @@ exports.handler = async (event) => {
     // 4. Compute pricing tier
     const pricingTier = getPricingTier(vesselData.loa_metres);
 
-    // 5. Cache the result
+    // 5. Cache the result — capture the id so the checkout flow can refer
+    //    back to this registration row without a second round-trip.
+    let registrationId = null;
     try {
-      await cacheVesselResult(vesselData, pricingTier);
+      const inserted = await cacheVesselResult(vesselData, pricingTier);
+      registrationId = inserted?.id || null;
+      debug.steps.push(
+        registrationId
+          ? `cache write: inserted registration ${registrationId}`
+          : 'cache write: ok (no id returned)'
+      );
     } catch (cacheErr) {
+      debug.steps.push(`cache write errored: ${cacheErr?.message || cacheErr}`);
       console.error('Cache write failed:', cacheErr);
     }
 
@@ -388,6 +410,7 @@ exports.handler = async (event) => {
       statusCode: 200,
       body: JSON.stringify({
         found: true,
+        registration_id: registrationId,
         vessel: {
           name: vesselData.name,
           imo: cleanIMO,

@@ -128,6 +128,11 @@ const PricingPage = () => {
   const [usedManual, setUsedManual] = useState(false);
   const [verifyError, setVerifyError] = useState(null);
   const [existingTenantVessel, setExistingTenantVessel] = useState(null);
+  // registrationId ties the lead row to the Stripe checkout session. It's
+  // only populated on the verified-IMO path (verify-vessel persists the row
+  // and returns the id) — manual-entry leads don't have one yet, so they
+  // still fall back to the waitlist CTA on step 4.
+  const [registrationId, setRegistrationId] = useState(null);
 
   // Step 1 submit — verify IMO or go to manual
   const handleStep1 = useCallback(async () => {
@@ -179,6 +184,7 @@ const PricingPage = () => {
 
       setVerifiedVessel(data.vessel);
       setPricingTier(data.pricing_tier);
+      setRegistrationId(data.registration_id || null);
       setLoading(false);
       setStep(2);
     } catch (err) {
@@ -215,8 +221,30 @@ const PricingPage = () => {
     setStep(4);
   };
 
-  // Final CTA
-  const handleBookDemo = () => setStep(5);
+  // Final CTA — verified-IMO leads go to the Stripe checkout flow. Manual
+  // entries (no registrationId yet) fall back to the waitlist "you're on the
+  // list" screen exactly as before.
+  const handleContinueToCheckout = () => {
+    if (!registrationId) {
+      setStep(5);
+      return;
+    }
+    navigate('/checkout', {
+      state: {
+        vesselRegistrationId: registrationId,
+        verifiedVessel,
+        pricingTier,
+        contact: {
+          name: contactName.trim(),
+          role: contactRole,
+          email: contactEmail.trim(),
+          phone: contactPhone.trim(),
+        },
+      },
+    });
+  };
+
+  const handleJoinWaitlist = () => setStep(5);
 
   const tierInfo = pricingTier ? TIER_INFO[pricingTier] : null;
 
@@ -479,8 +507,10 @@ const PricingPage = () => {
                   </div>
                 </div>
 
-                <PrimaryBtn onClick={handleBookDemo}>Book Your Demo</PrimaryBtn>
-                <SecondaryBtn onClick={handleBookDemo}>Join the Waitlist</SecondaryBtn>
+                <PrimaryBtn onClick={handleContinueToCheckout}>
+                  {registrationId ? 'Continue to checkout' : 'Book Your Demo'}
+                </PrimaryBtn>
+                <SecondaryBtn onClick={handleJoinWaitlist}>Join the Waitlist</SecondaryBtn>
               </div>
             )}
 
