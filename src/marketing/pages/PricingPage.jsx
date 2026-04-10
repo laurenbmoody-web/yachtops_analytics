@@ -128,11 +128,15 @@ const PricingPage = () => {
   const [usedManual, setUsedManual] = useState(false);
   const [verifyError, setVerifyError] = useState(null);
   const [existingTenantVessel, setExistingTenantVessel] = useState(null);
-  // registrationId ties the lead row to the Stripe checkout session. It's
-  // only populated on the verified-IMO path (verify-vessel persists the row
-  // and returns the id) — manual-entry leads don't have one yet, so they
-  // still fall back to the waitlist CTA on step 4.
+  // registrationId ties the lead row to the Stripe checkout session. It is
+  // set in two places: verify-vessel returns it after a successful IMO
+  // lookup, and save-manual-registration returns it after the manual entry
+  // form. Either way, downstream code only cares that it's non-null when
+  // the user reaches the final CTA — both paths now reach self-serve
+  // checkout instead of falling back to the waitlist.
   const [registrationId, setRegistrationId] = useState(null);
+  const [manualSubmitting, setManualSubmitting] = useState(false);
+  const [manualError, setManualError] = useState(null);
 
   // Step 1 submit — verify IMO or go to manual
   const handleStep1 = useCallback(async () => {
@@ -200,19 +204,65 @@ const PricingPage = () => {
     setStep(3);
   };
 
-  // Submit manual entry
-  const handleManualSubmit = () => {
-    if (!manualLoa) return;
+  // Submit manual entry — persist a vessel_registrations row via
+  // save-manual-registration so we have a registration_id to thread through
+  // the Stripe checkout flow, exactly like the verified-IMO path. If the
+  // persist fails we fall back to the local-only behaviour (no
+  // registrationId), which still lets the user progress to the waitlist
+  // screen rather than getting stuck.
+  const handleManualSubmit = async () => {
+    if (!manualLoa || manualSubmitting) return;
     const loa = parseFloat(manualLoa);
-    setVerifiedVessel({
+    if (!Number.isFinite(loa) || loa <= 0) return;
+
+    setManualError(null);
+    setManualSubmitting(true);
+
+    const localVessel = {
       name: vesselName.trim(),
       loa_metres: loa,
-      type: manualType,
+      type: manualType || null,
       flag: null,
       year_built: null,
-    });
-    setPricingTier(getPricingTier(loa));
-    setStep(3);
+    };
+    const localTier = getPricingTier(loa);
+
+    try {
+      const res = await fetch('/api/save-manual-registration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vessel_name: localVessel.name,
+          loa_metres: loa,
+          vessel_type: manualType || null,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data?.registration_id) {
+        // Non-fatal: log, then fall through to the local-only path so the
+        // user can still see their plan and join the waitlist.
+        console.error('save-manual-registration failed:', res.status, data);
+        setRegistrationId(null);
+      } else {
+        setRegistrationId(data.registration_id);
+      }
+
+      setVerifiedVessel(localVessel);
+      setPricingTier(data?.pricing_tier || localTier);
+      setStep(3);
+    } catch (err) {
+      console.error('save-manual-registration exception:', err);
+      // Same fallback: keep the flow moving, but without a registration_id
+      // they'll hit the waitlist path at the end.
+      setVerifiedVessel(localVessel);
+      setPricingTier(localTier);
+      setRegistrationId(null);
+      setStep(3);
+    } finally {
+      setManualSubmitting(false);
+    }
   };
 
   // Submit contact details → show pricing
@@ -425,7 +475,14 @@ const PricingPage = () => {
                   <input style={inputStyle} type="text" placeholder="e.g. Antibes" value={manualPort} onChange={e => setManualPort(e.target.value)} onFocus={e => (e.target.style.borderColor = '#4A90E2')} onBlur={e => (e.target.style.borderColor = '#E2E8F0')} />
                 </div>
 
-                <PrimaryBtn onClick={handleManualSubmit} disabled={!manualLoa || !vesselName.trim()}>Continue</PrimaryBtn>
+                {manualError && (
+                  <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '12px 16px', marginBottom: 12 }}>
+                    <p className="mkt-dmsans" style={{ fontSize: 13, color: '#DC2626', lineHeight: 1.5, margin: 0 }}>{manualError}</p>
+                  </div>
+                )}
+                <PrimaryBtn onClick={handleManualSubmit} disabled={!manualLoa || !vesselName.trim() || manualSubmitting}>
+                  {manualSubmitting ? 'Saving…' : 'Continue'}
+                </PrimaryBtn>
                 <BackBtn onClick={() => setStep(1)} />
               </div>
             )}
