@@ -1,7 +1,15 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import MarketingLayout from '../MarketingLayout';
 import useScrollAnimations from '../../hooks/useScrollAnimations';
+
+// How long to wait before enabling the "Resend email" button. Gives the
+// Stripe webhook + Supabase invite pipeline a chance to deliver the
+// first email before the user starts clicking resend.
+const RESEND_ENABLE_AFTER_SECONDS = 30;
+// Cooldown between resend clicks once the button is enabled. Same reason
+// — prevents hammering Supabase's invite rate limits.
+const RESEND_COOLDOWN_SECONDS = 30;
 
 /* ─── What happens next ─────────────────────────────────────────────────── */
 
@@ -29,14 +37,77 @@ const WelcomePage = () => {
   useScrollAnimations();
   const location = useLocation();
 
-  // Stripe bounces back to /welcome?session_id={CHECKOUT_SESSION_ID}. We
-  // don't need the id for anything client-side (provisioning happens in the
-  // webhook), but reading it lets us show a mildly more specific message if
-  // we ever wire in a polling "setup in progress" state.
+  // Stripe bounces back to /welcome?session_id={CHECKOUT_SESSION_ID}. The
+  // id is what the resend endpoint uses to look up the registration and
+  // re-trigger the invite email, so we thread it through state.
   const sessionId = useMemo(
     () => new URLSearchParams(location.search).get('session_id'),
     [location.search]
   );
+
+  // Resend email state machine. The button starts disabled and shows a
+  // countdown; once it enables, clicking fires POST /api/resend-welcome-email.
+  // Responses land in `resendStatus` for inline feedback.
+  const [secondsLeft, setSecondsLeft] = useState(RESEND_ENABLE_AFTER_SECONDS);
+  const [resendSubmitting, setResendSubmitting] = useState(false);
+  // { kind: 'success' | 'error' | 'pending', message: string } | null
+  const [resendStatus, setResendStatus] = useState(null);
+
+  // Tick the countdown down to 0. Using a single interval so an unmount
+  // cleans it up cleanly without leaving phantom setState calls.
+  useEffect(() => {
+    if (secondsLeft <= 0) return undefined;
+    const t = setInterval(() => {
+      setSecondsLeft((s) => (s > 0 ? s - 1 : 0));
+    }, 1000);
+    return () => clearInterval(t);
+  }, [secondsLeft]);
+
+  const canResend = secondsLeft <= 0 && !resendSubmitting && !!sessionId;
+
+  const handleResend = async () => {
+    if (!canResend) return;
+    setResendSubmitting(true);
+    setResendStatus(null);
+    try {
+      const res = await fetch('/api/resend-welcome-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setResendStatus({
+          kind: data?.webhook_pending ? 'pending' : 'error',
+          message:
+            data?.error ||
+            'Something went wrong resending the email. Please contact support.',
+        });
+        setResendSubmitting(false);
+        // Give the user a short cooldown even on error, to avoid them
+        // hammering the endpoint while the webhook catches up.
+        setSecondsLeft(RESEND_COOLDOWN_SECONDS);
+        return;
+      }
+      setResendStatus({
+        kind: 'success',
+        message:
+          data?.kind === 'magiclink'
+            ? "We've sent a fresh magic-link email. Check your inbox."
+            : "We've resent your invite email. Check your inbox.",
+      });
+      setResendSubmitting(false);
+      setSecondsLeft(RESEND_COOLDOWN_SECONDS);
+    } catch (err) {
+      console.error('resend-welcome-email exception:', err);
+      setResendStatus({
+        kind: 'error',
+        message: 'Network error — please check your connection and try again.',
+      });
+      setResendSubmitting(false);
+      setSecondsLeft(RESEND_COOLDOWN_SECONDS);
+    }
+  };
 
   return (
     <MarketingLayout>
@@ -185,23 +256,117 @@ const WelcomePage = () => {
             >
               <p
                 className="mkt-dmsans"
-                style={{ fontSize: 13, color: '#64748B', lineHeight: 1.6, marginBottom: 12 }}
+                style={{ fontSize: 13, color: '#64748B', lineHeight: 1.6, marginBottom: 14 }}
               >
-                Didn't get the email? Check your spam folder, or{' '}
+                Didn't get the email? Check your spam folder first, then resend below.
+              </p>
+
+              {/* Inline status message (success / error / pending). Rendered
+                  before the button so it's the first thing the user sees after
+                  an action. */}
+              {resendStatus && (
+                <div
+                  role="status"
+                  style={{
+                    background:
+                      resendStatus.kind === 'success'
+                        ? '#ECFDF5'
+                        : resendStatus.kind === 'pending'
+                        ? '#FFFBEB'
+                        : '#FEF2F2',
+                    border: `1px solid ${
+                      resendStatus.kind === 'success'
+                        ? '#A7F3D0'
+                        : resendStatus.kind === 'pending'
+                        ? '#FDE68A'
+                        : '#FECACA'
+                    }`,
+                    borderRadius: 10,
+                    padding: '12px 16px',
+                    marginBottom: 14,
+                    textAlign: 'left',
+                  }}
+                >
+                  <p
+                    className="mkt-dmsans"
+                    style={{
+                      fontSize: 13,
+                      lineHeight: 1.55,
+                      color:
+                        resendStatus.kind === 'success'
+                          ? '#065F46'
+                          : resendStatus.kind === 'pending'
+                          ? '#92400E'
+                          : '#991B1B',
+                    }}
+                  >
+                    {resendStatus.message}
+                  </p>
+                </div>
+              )}
+
+              <button
+                onClick={handleResend}
+                disabled={!canResend}
+                className="mkt-archivo transition-colors duration-150"
+                style={{
+                  fontWeight: 900,
+                  fontSize: 11,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  color: canResend ? '#1E3A5F' : '#94A3B8',
+                  background: 'none',
+                  border: `2px solid ${canResend ? '#1E3A5F' : '#E2E8F0'}`,
+                  borderRadius: 50,
+                  padding: '12px 28px',
+                  cursor: canResend ? 'pointer' : 'not-allowed',
+                  marginBottom: 12,
+                }}
+                onMouseEnter={(e) => {
+                  if (canResend) {
+                    e.currentTarget.style.backgroundColor = '#1E3A5F';
+                    e.currentTarget.style.color = 'white';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (canResend) {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = '#1E3A5F';
+                  }
+                }}
+              >
+                {resendSubmitting
+                  ? 'Sending…'
+                  : secondsLeft > 0
+                  ? `Resend email in ${secondsLeft}s`
+                  : 'Resend email'}
+              </button>
+
+              <p
+                className="mkt-dmsans"
+                style={{
+                  fontSize: 12,
+                  color: '#94A3B8',
+                  lineHeight: 1.6,
+                  marginBottom: 14,
+                }}
+              >
+                Still nothing after resending?{' '}
                 <Link
                   to="/contact?intent=support"
                   style={{ color: '#4A90E2', textDecoration: 'underline' }}
                 >
-                  contact support
+                  Contact support
                 </Link>
                 .
               </p>
+
               <Link
                 to="/login-authentication"
                 className="mkt-archivo"
                 style={{
                   display: 'inline-block',
-                  marginTop: 8,
+                  marginTop: 4,
                   fontWeight: 900,
                   fontSize: 11,
                   letterSpacing: '0.06em',
