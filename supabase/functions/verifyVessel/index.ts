@@ -74,6 +74,19 @@ async function getCachedVessel(imo: string) {
   return rows.length > 0 ? rows[0] : null;
 }
 
+// Check whether an IMO is already linked to a live Cargo tenant. If so, we
+// short-circuit the pricing flow and tell the user to log in instead of
+// taking them through the sign-up path a second time.
+async function getExistingTenantByImo(imo: string) {
+  const res = await supabaseQuery(
+    `tenants?imo_number=eq.${imo}&select=id,name&limit=1`,
+    { method: 'GET' }
+  );
+  if (!res.ok) return null;
+  const rows = await res.json();
+  return rows.length > 0 ? rows[0] : null;
+}
+
 async function cacheVesselResult(vessel: Record<string, unknown>, pricingTier: string) {
   await supabaseQuery('vessel_registrations', {
     method: 'POST',
@@ -181,6 +194,33 @@ Deno.serve(async (req: Request) => {
     }
 
     const cleanIMO = imo.trim();
+
+    // 0. Existing-tenant short-circuit.
+    // If this IMO already belongs to a live tenant, don't push the user further
+    // through the pricing flow — they're already a Cargo customer and should
+    // log in instead. We do this before the cache/Anthropic lookup so existing
+    // customers never hit those code paths (no wasted API spend, no duplicate
+    // vessel_registrations rows).
+    try {
+      const existingTenant = await getExistingTenantByImo(cleanIMO);
+      if (existingTenant) {
+        return new Response(
+          JSON.stringify({
+            found: true,
+            already_tenant: true,
+            vessel: {
+              name: existingTenant.name,
+              imo: cleanIMO,
+            },
+          }),
+          { headers: corsHeaders }
+        );
+      }
+    } catch (tenantErr) {
+      // Don't fail the request if the tenant check errors — fall through to
+      // the normal verification path so the user can still sign up.
+      console.error('Existing-tenant check failed:', tenantErr);
+    }
 
     // 1. Check cache first
     const cached = await getCachedVessel(cleanIMO);
