@@ -39,6 +39,8 @@ import WhoItsForPage from './marketing/pages/WhoItsForPage';
 import AboutPage from './marketing/pages/AboutPage';
 import FAQPage from './marketing/pages/FAQPage';
 import PricingPage from './marketing/pages/PricingPage';
+import CheckoutPage from './marketing/pages/CheckoutPage';
+import WelcomePage from './marketing/pages/WelcomePage';
 import ContactPage from './marketing/pages/ContactPage';
 import VesselSignupFlowStep1 from './pages/vessel-signup-flow-step-1';
 import VesselSettings from './pages/vessel-settings';
@@ -820,6 +822,8 @@ const Routes = () => {
         <Route path="/about" element={<AboutPage />} />
         <Route path="/faq" element={<FAQPage />} />
         <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/checkout" element={<CheckoutPage />} />
+        <Route path="/welcome" element={<WelcomePage />} />
         <Route path="/contact" element={<ContactPage />} />
 
         {/* Public Routes */}
