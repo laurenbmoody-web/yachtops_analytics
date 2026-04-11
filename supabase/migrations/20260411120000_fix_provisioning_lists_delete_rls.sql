@@ -1,13 +1,9 @@
--- Fix provisioning_lists DELETE and UPDATE RLS so that COMMAND and CHIEF
--- can delete/edit any board, not just their own.
+-- Fix provisioning_lists DELETE and UPDATE RLS.
 --
--- Previous policies only allowed owner_id = auth.uid(), which blocked CHIEF
--- users from deleting boards they did not personally create.
---
--- New rule:
---   COMMAND or CHIEF  - any board in their tenant
---   Owner (any tier)  - their own board
---   HOD               - boards they own only (dept-scoped edits stay in the app layer)
+-- Correct rules:
+--   Any tier  - can delete/update their own board (owner_id = auth.uid())
+--   COMMAND   - can delete/update any board in the tenant
+--   CHIEF     - can delete/update boards belonging to their department
 
 DROP POLICY IF EXISTS "Owners can delete provisioning lists" ON provisioning_lists;
 DROP POLICY IF EXISTS "Owners can update provisioning lists" ON provisioning_lists;
@@ -19,8 +15,17 @@ FOR DELETE USING (
     SELECT 1 FROM tenant_members
     WHERE user_id = auth.uid()
       AND active = true
-      AND permission_tier IN ('COMMAND', 'CHIEF')
+      AND permission_tier = 'COMMAND'
       AND tenant_id = provisioning_lists.tenant_id
+  )
+  OR EXISTS (
+    SELECT 1 FROM tenant_members
+    WHERE user_id = auth.uid()
+      AND active = true
+      AND permission_tier = 'CHIEF'
+      AND tenant_id = provisioning_lists.tenant_id
+      AND department_id = provisioning_lists.department_id
+      AND provisioning_lists.department_id IS NOT NULL
   )
 );
 
@@ -31,7 +36,16 @@ FOR UPDATE USING (
     SELECT 1 FROM tenant_members
     WHERE user_id = auth.uid()
       AND active = true
-      AND permission_tier IN ('COMMAND', 'CHIEF')
+      AND permission_tier = 'COMMAND'
       AND tenant_id = provisioning_lists.tenant_id
+  )
+  OR EXISTS (
+    SELECT 1 FROM tenant_members
+    WHERE user_id = auth.uid()
+      AND active = true
+      AND permission_tier = 'CHIEF'
+      AND tenant_id = provisioning_lists.tenant_id
+      AND department_id = provisioning_lists.department_id
+      AND provisioning_lists.department_id IS NOT NULL
   )
 );
