@@ -214,16 +214,19 @@ const ProvisioningBoardDetail = () => {
   const userTier = (tenantRole || '').toUpperCase();
   const userDept = (user?.department || '').trim();
   const userId = user?.id;
-  // Ownership: matches index.jsx isOwner logic
   const isOwner = userId && (list?.owner_id === userId || list?.created_by === userId);
   const listDepts = Array.isArray(list?.department)
     ? list.department.filter(Boolean)
     : (list?.department ? list.department.split(',').map(d => d.trim()) : []);
-  // COMMAND: any board | CHIEF/HOD: own + dept boards | CREW: own boards only
-  const canEdit = userTier === 'COMMAND'
-    || !!isOwner
-    || (['CHIEF', 'HOD'].includes(userTier) && (!listDepts.length || listDepts.some(d => d === userDept)));
-  const canDelete = canEdit;
+  const inSameDept = !listDepts.length || listDepts.some(d => d?.toLowerCase() === userDept.toLowerCase());
+
+  // Edit board metadata + add items: owner / COMMAND / CHIEF / HOD  (not CREW)
+  const canEdit = !!isOwner || userTier === 'COMMAND' || (['CHIEF', 'HOD'].includes(userTier) && inSameDept);
+  const canAddItems = canEdit;
+  // Delete the board: owner / COMMAND / CHIEF  (HOD and CREW cannot delete boards)
+  const canDelete = !!isOwner || userTier === 'COMMAND' || (userTier === 'CHIEF' && inSameDept);
+  // Delete individual items: owner / COMMAND / CHIEF / HOD  (not CREW)
+  const canDeleteItem = !!isOwner || userTier === 'COMMAND' || (['CHIEF', 'HOD'].includes(userTier) && inSameDept);
 
   // Default department for new items: user's own dept from auth, then board's dept, then vessel config, else null (→ GLOBAL)
   const defaultDept = useMemo(() => {
@@ -1191,12 +1194,14 @@ const ProvisioningBoardDetail = () => {
               </div>
               <p style={{ fontSize: 14, fontWeight: 500, color: '#0F172A', marginBottom: 4 }}>No items yet</p>
               <p style={{ fontSize: 12, color: '#94A3B8', marginBottom: 16 }}>Add items to track your provisioning order.</p>
-              <button
-                onClick={() => { setAddingToDept(defaultDept || 'General'); setNewItemName(''); }}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: '#1E3A5F', border: 'none', borderRadius: 8, color: 'white', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
-              >
-                <Icon name="Plus" style={{ width: 14, height: 14 }} /> Add first item
-              </button>
+              {canAddItems && (
+                <button
+                  onClick={() => { setAddingToDept(defaultDept || 'General'); setNewItemName(''); }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: '#1E3A5F', border: 'none', borderRadius: 8, color: 'white', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
+                >
+                  <Icon name="Plus" style={{ width: 14, height: 14 }} /> Add first item
+                </button>
+              )}
             </div>
           ) : deptGroups.length === 0 && !hasFilters ? (
             /* All items received */
@@ -1214,13 +1219,13 @@ const ProvisioningBoardDetail = () => {
                   <button onClick={() => { handleAddItem(defaultDept || 'General'); setAddingToDept(null); }} style={{ fontSize: 12, fontWeight: 600, padding: '4px 10px', background: '#1E3A5F', border: 'none', borderRadius: 6, color: 'white', cursor: 'pointer' }}>Add</button>
                   <button onClick={() => { setAddingToDept(null); setNewItemName(''); }} style={{ fontSize: 12, padding: '4px 8px', background: 'none', border: '1px solid #E2E8F0', borderRadius: 6, color: '#94A3B8', cursor: 'pointer' }}>Cancel</button>
                 </div>
-              ) : (
+              ) : canAddItems ? (
                 <button onClick={() => { setAddingToDept(defaultDept || '__global__'); setNewItemName(''); }}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: 'white', border: '1px dashed #CBD5E1', borderRadius: 8, color: '#64748B', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
                 >
                   <Icon name="Plus" style={{ width: 14, height: 14 }} /> Add another item
                 </button>
-              )}
+              ) : null}
             </div>
           ) : deptGroups.length === 0 ? (
             <div style={{ padding: '48px 0', textAlign: 'center', fontSize: 13, color: '#94A3B8' }}>No items match your filters.</div>
@@ -1432,15 +1437,17 @@ const ProvisioningBoardDetail = () => {
                                   >
                                     <Icon name="Pencil" style={{ width: 12, height: 12 }} />
                                   </button>
-                                  <button
-                                    onClick={() => handleDeleteItem(item.id)}
-                                    title="Delete"
-                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, background: 'none', border: 'none', borderRadius: 5, cursor: 'pointer', color: '#94A3B8' }}
-                                    onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.color = '#EF4444'; }}
-                                    onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#94A3B8'; }}
-                                  >
-                                    <Icon name="Trash2" style={{ width: 12, height: 12 }} />
-                                  </button>
+                                  {canDeleteItem && (
+                                    <button
+                                      onClick={() => handleDeleteItem(item.id)}
+                                      title="Delete"
+                                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, background: 'none', border: 'none', borderRadius: 5, cursor: 'pointer', color: '#94A3B8' }}
+                                      onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.color = '#EF4444'; }}
+                                      onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#94A3B8'; }}
+                                    >
+                                      <Icon name="Trash2" style={{ width: 12, height: 12 }} />
+                                    </button>
+                                  )}
                                 </>
                               )}
                             </div>
@@ -1476,7 +1483,7 @@ const ProvisioningBoardDetail = () => {
                           <button onClick={() => handleAddItem(dept)} style={{ fontSize: 12, fontWeight: 600, padding: '5px 12px', background: '#1E3A5F', border: 'none', borderRadius: 6, color: 'white', cursor: 'pointer' }}>Add</button>
                           <button onClick={() => { setAddingToDept(null); setNewItemName(''); }} style={{ fontSize: 12, padding: '5px 10px', background: 'none', border: '1px solid #E2E8F0', borderRadius: 6, color: '#94A3B8', cursor: 'pointer' }}>Cancel</button>
                         </div>
-                      ) : (
+                      ) : canAddItems ? (
                         <button
                           onClick={() => { setAddingToDept(dept); setNewItemName(''); }}
                           style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '9px 16px', background: 'none', border: 'none', borderTop: '1px dashed #F1F5F9', cursor: 'pointer', fontSize: 12, color: '#CBD5E1', textAlign: 'left' }}
@@ -1485,7 +1492,7 @@ const ProvisioningBoardDetail = () => {
                         >
                           <Icon name="Plus" style={{ width: 13, height: 13 }} /> Add item to {dept}
                         </button>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 );
@@ -1525,7 +1532,7 @@ const ProvisioningBoardDetail = () => {
                     <button onClick={() => { handleAddItem(defaultDept || 'General'); setAddingToDept(null); }} style={{ fontSize: 12, fontWeight: 600, padding: '6px 14px', background: '#1E3A5F', border: 'none', borderRadius: 6, color: 'white', cursor: 'pointer' }}>Add</button>
                     <button onClick={() => { setAddingToDept(null); setNewItemName(''); }} style={{ fontSize: 12, padding: '6px 10px', background: 'none', border: '1px solid #E2E8F0', borderRadius: 6, color: '#94A3B8', cursor: 'pointer' }}>Cancel</button>
                   </div>
-                ) : (
+                ) : canAddItems ? (
                   <button
                     onClick={() => { setAddingToDept(defaultDept || '__global__'); setNewItemName(''); }}
                     style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
@@ -1534,7 +1541,7 @@ const ProvisioningBoardDetail = () => {
                   >
                     <Icon name="Plus" style={{ width: 13, height: 13 }} /> Add item
                   </button>
-                )}
+                ) : null}
               </div>
             </>
           )}

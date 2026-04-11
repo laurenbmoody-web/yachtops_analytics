@@ -156,7 +156,7 @@ export const fetchVesselDepartments = async (tenantId) => {
 
 // ── Lists ─────────────────────────────────────────────────────────────────────
 
-export const fetchProvisioningLists = async (vesselId, userId = null, userDeptId = null) => {
+export const fetchProvisioningLists = async (vesselId, userId = null, userDeptId = null, userTier = null) => {
   try {
     // Build visibility filter when userId is provided (app-level backup for environments
     // where RLS may not be fully configured). With RLS enabled this is redundant but harmless.
@@ -173,9 +173,14 @@ export const fetchProvisioningLists = async (vesselId, userId = null, userDeptId
         collabListIds = (collabData || []).map(c => c.list_id);
       } catch { /* ignore — not fatal */ }
 
-      // Build OR filter: owner OR (department visibility + same dept) OR collaborator
+      // Build OR filter: owner OR dept-visibility OR collaborator
       const orParts = [`owner_id.eq.${userId}`, `created_by.eq.${userId}`];
-      if (userDeptId) {
+      const tier = (userTier || '').toUpperCase();
+      if (tier === 'COMMAND') {
+        // COMMAND sees all department boards in the tenant
+        orParts.push('visibility.eq.department');
+      } else if (userDeptId) {
+        // Other tiers see only their own department's boards
         orParts.push(`and(visibility.eq.department,department_id.eq.${userDeptId})`);
       }
       if (collabListIds.length) {
