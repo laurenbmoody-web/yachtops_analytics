@@ -18,6 +18,10 @@ DROP POLICY IF EXISTS "Users can view provisioning lists"    ON provisioning_lis
 DROP POLICY IF EXISTS "Users can insert provisioning lists"  ON provisioning_lists;
 DROP POLICY IF EXISTS "Owners can update provisioning lists" ON provisioning_lists;
 DROP POLICY IF EXISTS "Owners can delete provisioning lists" ON provisioning_lists;
+DROP POLICY IF EXISTS "provisioning_lists_select"            ON provisioning_lists;
+DROP POLICY IF EXISTS "provisioning_lists_insert"            ON provisioning_lists;
+DROP POLICY IF EXISTS "provisioning_lists_update"            ON provisioning_lists;
+DROP POLICY IF EXISTS "provisioning_lists_delete"            ON provisioning_lists;
 
 -- SELECT
 CREATE POLICY "provisioning_lists_select" ON provisioning_lists
