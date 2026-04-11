@@ -497,7 +497,7 @@ const ProvisioningWorkspace = () => {
       try { fetchedTrips = loadTrips() || []; } catch { fetchedTrips = []; }
 
       const [fetchedLists, fetchedSuppliers] = await Promise.all([
-        fetchProvisioningLists(activeTenantId, userId, deptId),
+        fetchProvisioningLists(activeTenantId, userId, deptId, userTier),
         fetchSuppliers(activeTenantId).catch(() => []),
       ]);
       setLists(fetchedLists || []);
