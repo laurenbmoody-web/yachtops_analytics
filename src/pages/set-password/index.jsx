@@ -229,30 +229,13 @@ const SetPassword = () => {
         console.warn('SET_PASSWORD: profile update failed (non-fatal)', profileError);
       }
 
-      // Work out where the user should land. If they already have a
-      // tenant membership (stripe-webhook writes this right after
-      // checkout succeeds), send them to the dashboard. Otherwise,
-      // send them to /welcome which is the onboarding landing page.
-      let destination = '/welcome';
-      try {
-        const { data: memberships, error: memberErr } = await supabase
-          ?.from('tenant_members')
-          ?.select('tenant_id, active, status')
-          ?.eq('user_id', user?.id)
-          ?.limit(1);
-
-        if (memberErr) {
-          console.warn(
-            'SET_PASSWORD: tenant_members lookup failed, defaulting to /welcome',
-            memberErr
-          );
-        } else if (Array.isArray(memberships) && memberships.length > 0) {
-          destination = '/dashboard';
-        }
-      } catch (err) {
-        console.warn('SET_PASSWORD: membership check threw, defaulting to /welcome', err);
-      }
-
+      // Always route to /dashboard. The AuthContext bootstrap will
+      // resolve the tenant membership and ProtectedRoute handles the
+      // rest. We previously tried querying tenant_members here, but
+      // RLS policies on a freshly-invited user block that read —
+      // AuthContext's bootstrap is the canonical place for tenant
+      // resolution and already handles this edge case correctly.
+      const destination = '/dashboard';
       console.log('SET_PASSWORD: routing to', destination);
       setSuccess(true);
       showToast('Password set successfully', 'success');
