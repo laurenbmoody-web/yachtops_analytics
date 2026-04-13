@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { BrowserRouter, Routes as RouterRoutes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes as RouterRoutes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import ScrollToTop from 'components/ScrollToTop';
 import ErrorBoundary from 'components/ErrorBoundary';
 
@@ -70,6 +70,47 @@ import NotFound from './pages/NotFound';
 
 // DEV_MODE constant for debugging
 const DEV_MODE = import.meta.env?.DEV;
+
+// ─── Invite-hash redirect guard ──────────────────────────────────────
+// Supabase invite emails redirect the user to whatever `redirect_to` was
+// baked into the email link at send time. If an invite was sent BEFORE
+// we deployed /set-password (or via the resend function that still
+// pointed at /welcome), the user will land on the wrong page — but with
+// valid #access_token=…&type=invite hash tokens that detectSessionInUrl
+// can process. This guard captures the hash at MODULE LOAD time (before
+// the Supabase client strips it), and then a component below redirects
+// the user to /set-password if they landed anywhere else with an invite
+// hash. This makes the flow resilient to any redirect_to value.
+const INITIAL_URL_HASH =
+  typeof window !== 'undefined' && window.location
+    ? window.location.hash || ''
+    : '';
+const INVITE_HASH_PRESENT = /(^|[#&])type=invite(&|$)/.test(INITIAL_URL_HASH);
+
+// Component that runs inside BrowserRouter. If the page loaded with
+// #type=invite in the hash but we're NOT on /set-password, navigate
+// there immediately. The Supabase session will already be in
+// localStorage (detectSessionInUrl fires during client init) so the
+// SetPassword component can pick it up via getSession().
+const InviteHashRedirectGuard = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const redirected = useRef(false);
+
+  useEffect(() => {
+    if (
+      INVITE_HASH_PRESENT &&
+      !redirected.current &&
+      location.pathname !== '/set-password'
+    ) {
+      console.log('[INVITE_GUARD] Detected #type=invite on', location.pathname, '→ redirecting to /set-password');
+      redirected.current = true;
+      navigate('/set-password', { replace: true });
+    }
+  }, [location.pathname, navigate]);
+
+  return null;
+};
 
 // Dev Mode Banner Component
 const DevModeBanner = () => {
@@ -812,6 +853,7 @@ const Routes = () => {
   return (
     <BrowserRouter>
       <ErrorBoundary>
+      <InviteHashRedirectGuard />
       <RouteChangeLogger />
       <ScrollToTop />
       <RouterRoutes>

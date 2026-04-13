@@ -59,16 +59,29 @@ const SetPassword = () => {
         inviteHashDetected: INVITE_HASH_DETECTED,
       });
 
-      // Give the Supabase client a moment to finish processing the hash
-      // tokens via detectSessionInUrl. In practice this is already done
-      // by the time the component mounts, but a microtask yield avoids
-      // a race on slow devices.
-      await Promise.resolve();
+      // The Supabase client's detectSessionInUrl processes hash-fragment
+      // tokens asynchronously during client init. If the user was
+      // redirected here by InviteHashRedirectGuard (e.g. they landed on
+      // /welcome first), the session might already be in localStorage.
+      // But if they arrived directly at /set-password with the hash, the
+      // client might still be processing. We poll getSession() with a
+      // short back-off to handle both cases robustly.
+      let session = null;
+      let sessionError = null;
+      const MAX_ATTEMPTS = 6; // Up to ~3 seconds total
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        const { data, error } = await supabase?.auth?.getSession();
+        session = data?.session;
+        sessionError = error;
 
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase?.auth?.getSession();
+        if (session || sessionError) break; // Got something, stop polling
+
+        // No session yet — wait and retry. detectSessionInUrl is async
+        // and may still be exchanging the hash tokens for a session.
+        const delayMs = attempt <= 2 ? 200 : 500;
+        console.log(`SET_PASSWORD: No session yet (attempt ${attempt}/${MAX_ATTEMPTS}), waiting ${delayMs}ms`);
+        await new Promise(r => setTimeout(r, delayMs));
+      }
 
       if (sessionError) {
         console.error('SET_PASSWORD: getSession error', sessionError);
