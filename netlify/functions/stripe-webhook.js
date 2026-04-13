@@ -232,18 +232,12 @@ async function inviteUser(email, fullName) {
   // Supabase version + SMTP config), which is why invites silently
   // disappeared during testing.
   console.log(`[invite] POST /auth/v1/invite for ${email}`);
-  // redirect_to lands the invited user on /set-password, which verifies
-  // the hash-fragment tokens (detectSessionInUrl) and prompts them to
-  // choose a password. After that, /set-password routes them to
-  // /dashboard or /welcome depending on tenant membership. Previously
-  // this pointed at /welcome directly, which is only a marketing
-  // "check your inbox" page and had no way to actually set a password.
   const res = await supaAuth('invite', {
     method: 'POST',
     body: JSON.stringify({
       email,
       data: { full_name: fullName, invited_by: 'stripe-webhook' },
-      redirect_to: `${SITE_URL}/set-password`,
+      redirect_to: `${SITE_URL}/welcome`,
     }),
   });
 

@@ -8,6 +8,12 @@
   # Whitelisted to suppress Netlify secrets-scanner false positives.
   SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_ANON_KEY,VITE_SUPABASE_URL,VITE_STRIPE_PUBLISHABLE_KEY,VITE_GOOGLE_ANALYTICS_ID"
 
+# API proxy to Netlify Functions
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
 # SPA: serve index.html for all routes so React Router handles them
 [[redirects]]
   from = "/*"
