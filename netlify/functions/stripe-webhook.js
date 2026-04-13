@@ -156,7 +156,7 @@ async function upsertProfile(userId, registration) {
       full_name: registration.contact_name || '',
       email: registration.contact_email,
       account_type: 'VESSEL_ADMIN',
-      current_tenant_id: null, // set below after we have tenant_id
+      last_active_tenant_id: null, // set below after we have tenant_id
     }),
   });
   if (!res.ok) {
@@ -169,7 +169,7 @@ async function setProfileTenant(userId, tenantId) {
   const res = await supaRest(`profiles?id=eq.${encodeURIComponent(userId)}`, {
     method: 'PATCH',
     headers: { 'Prefer': 'return=minimal' },
-    body: JSON.stringify({ current_tenant_id: tenantId }),
+    body: JSON.stringify({ last_active_tenant_id: tenantId }),
   });
   if (!res.ok) {
     const body = await res.text();
