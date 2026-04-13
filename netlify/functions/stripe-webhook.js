@@ -178,11 +178,16 @@ async function setProfileTenant(userId, tenantId) {
 }
 
 async function createTenantMember(userId, tenantId) {
-  // Mirror the existing vessel-signup-flow-step-1 pattern: use the `role`
-  // string column for COMMAND. The role_id column exists on tenant_members
-  // (added 2026-02-17) but the active signup path still writes the string
-  // role, so we do the same for consistency. If Lauren migrates the signup
-  // flow to role_id, this function should be updated in lockstep.
+  // Mirror accept_crew_invite_v3 (migration 20260227161000) which is the
+  // canonical, currently-working path for creating tenant_members rows.
+  // Columns required / expected:
+  //   - role             (text)   — legacy role string
+  //   - role_legacy      (text)   — mirror of role for backwards compat
+  //   - permission_tier  (text)   — NOT NULL in current schema; without
+  //                                 this the insert returns 400 from PostgREST
+  //   - active           (bool)
+  //   - status           (text)
+  // role_id and department_id are nullable and unused for the admin path.
   const res = await supaRest('tenant_members', {
     method: 'POST',
     headers: { 'Prefer': 'return=minimal' },
@@ -190,6 +195,8 @@ async function createTenantMember(userId, tenantId) {
       tenant_id: tenantId,
       user_id: userId,
       role: 'COMMAND',
+      role_legacy: 'COMMAND',
+      permission_tier: 'COMMAND',
       active: true,
       status: 'ACTIVE',
     }),
