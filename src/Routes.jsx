@@ -59,6 +59,7 @@ import TripItineraryTimeline from './pages/trip-itinerary-timeline/index';
 import InviteAcceptPage from './pages/invite-accept';
 import ForgotPasswordRequest from './pages/forgot-password-request';
 import ResetPassword from './pages/reset-password';
+import SetPassword from './pages/set-password';
 import { supabase } from './lib/supabaseClient';
 import { useAuth, RouteChangeLogger } from './contexts/AuthContext';
 import TodayDetailPage from './pages/today-detail/index';
@@ -228,7 +229,7 @@ const ProtectedRoute = ({ children, requiresTenant = true, requiredRoles = null 
   // STEP 2: After loading completes - check session
   // EXCEPTION: Allow /reset-password and /forgot-password to be accessed without session (public routes)
   // If no session => redirect to /login-authentication (ONLY ALLOWED REDIRECT)
-  const publicRoutes = ['/reset-password', '/forgot-password'];
+  const publicRoutes = ['/reset-password', '/forgot-password', '/set-password'];
   if (!session && !publicRoutes?.includes(currentPath)) {
     return <Navigate to="/login-authentication" replace />;
   }
@@ -828,6 +829,7 @@ const Routes = () => {
         {/* Password Reset Routes - PUBLIC */}
         <Route path="/forgot-password" element={<ForgotPasswordRequest />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/set-password" element={<SetPassword />} />
         
         {/* Invite Routes - PUBLIC (no ProtectedRoute wrapper) */}
         <Route path="/return-confirm" element={<ReturnConfirmPage />} />
