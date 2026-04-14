@@ -151,6 +151,16 @@ async function createTenantRow(registration, session) {
     subscription_status: 'active',
     plan_tier: registration.pricing_tier,
     billing_period: session.metadata?.billing_period || 'monthly',
+    // Locked design 2026-04-14: the checkout form asks "will you be the
+    // vessel admin?" and passes the answer through as metadata.
+    // registration.will_be_admin is the canonical source if the column
+    // exists on vessel_registrations; otherwise fall back to Stripe
+    // session metadata. Default to false (no reminder) only if the
+    // answer was explicitly Yes — treat missing as Yes so we don't spam
+    // legacy signups with reminders.
+    admin_transfer_reminder_active:
+      registration.will_be_admin === false ||
+      session.metadata?.will_be_admin === 'false',
   };
   const res = await supaRest('tenants', {
     method: 'POST',

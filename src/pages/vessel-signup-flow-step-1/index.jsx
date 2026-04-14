@@ -27,6 +27,8 @@ const VesselSignupFlowStep1 = () => {
 
   // Step 2 fields
   const [vesselName, setVesselName] = useState('');
+  const [willBeAdmin, setWillBeAdmin] = useState(true); // Locked design: default Yes
+  const [showAdminTip, setShowAdminTip] = useState(false);
 
   // Temporary storage for user data between steps
   const [userData, setUserData] = useState(null);
@@ -103,7 +105,11 @@ const VesselSignupFlowStep1 = () => {
       const { data: tenantData, error: tenantError } = await supabase?.from('tenants')?.insert({
           name: vesselName?.trim(),
           type: 'VESSEL',
-          status: 'TRIAL'
+          status: 'TRIAL',
+          // Locked design 2026-04-14: if the signer-up said they won't be
+          // the vessel admin, flag the tenant so the reminder banner + the
+          // onboarding "transfer admin" step surface until resolved.
+          admin_transfer_reminder_active: !willBeAdmin,
         })?.select()?.single();
 
       if (tenantError) {
@@ -292,18 +298,62 @@ const VesselSignupFlowStep1 = () => {
                 disabled={loading}
               />
 
-              {/* Admin Transfer Info Note */}
-              <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  <Icon name="Info" size={18} className="text-primary mt-0.5 flex-shrink-0" />
-                  <div className="text-sm text-foreground">
-                    <p className="font-medium mb-1">Admin Access Note</p>
-                    <p className="text-muted-foreground">
-                      Ideally the Captain or designated Vessel Admin should create this account.
-                      If you are setting this up on their behalf, admin access can be transferred later.
-                    </p>
+              {/* Vessel Admin Y/N (locked design 2026-04-14) */}
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <label className="text-sm font-medium text-foreground">
+                    Will you be Cargo's vessel administrator?
+                  </label>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onMouseEnter={() => setShowAdminTip(true)}
+                      onMouseLeave={() => setShowAdminTip(false)}
+                      onFocus={() => setShowAdminTip(true)}
+                      onBlur={() => setShowAdminTip(false)}
+                      className="w-4 h-4 rounded-full border border-muted-foreground/50 text-muted-foreground text-[10px] flex items-center justify-center hover:bg-muted"
+                      aria-label="What is the vessel admin?"
+                    >
+                      ?
+                    </button>
+                    {showAdminTip && (
+                      <div className="absolute z-10 left-6 top-0 w-60 p-2 text-xs bg-popover text-popover-foreground border border-border rounded shadow-md">
+                        The vessel admin handles invites, billing, and vessel-level settings.
+                      </div>
+                    )}
                   </div>
                 </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setWillBeAdmin(true)}
+                    disabled={loading}
+                    className={`flex-1 py-2 px-4 rounded-lg border text-sm font-medium transition-colors ${
+                      willBeAdmin
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-card text-foreground border-border hover:bg-muted'
+                    }`}
+                  >
+                    Yes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWillBeAdmin(false)}
+                    disabled={loading}
+                    className={`flex-1 py-2 px-4 rounded-lg border text-sm font-medium transition-colors ${
+                      !willBeAdmin
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-card text-foreground border-border hover:bg-muted'
+                    }`}
+                  >
+                    No
+                  </button>
+                </div>
+                {!willBeAdmin && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    No problem — you'll be set as admin to get started, and we'll remind you to transfer it to the right person.
+                  </p>
+                )}
               </div>
 
               {/* Error Message */}

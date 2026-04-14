@@ -247,12 +247,14 @@ const SetPassword = () => {
       setSuccess(true);
       showToast('Password set successfully', 'success');
 
-      // Force AuthContext to re-bootstrap. Bootstrap almost always runs
-      // BEFORE the Stripe webhook finishes inserting tenant_members, so
-      // currentTenantId gets cached as null. Kicking retryBootstrap here
-      // (during the 1.5s success pause) lets /onboarding land with a
-      // resolved tenantId on first render.
-      try { retryBootstrap?.(); } catch (e) { console.warn('retryBootstrap failed', e); }
+      // NOTE: do NOT call retryBootstrap here — AuthContext is usually
+      // already bootstrapped with a resolved tenantId by the time the
+      // user reaches this success path (set-password takes > the webhook
+      // round-trip for all but the very unluckiest timing). Calling
+      // retryBootstrap flips auth loading back on mid-nav and causes a
+      // flicker between the auth loading gate and onboarding's own
+      // loader. OnboardingPage has its own tenant_members poll as a
+      // safety net for the genuine race case.
 
       // Brief pause so the success state is readable, then hand off.
       setTimeout(() => {
