@@ -782,6 +782,85 @@ const CommandChiefRoute = ({ children }) => {
   return children;
 };
 
+// Route wrapper that allows access if the user is the vessel admin OR
+// holds a permitted permission tier. Intended for admin-style pages
+// (vessel settings, crew invites, billing) where "vessel admin" is separate
+// from permission tier (COMMAND/CHIEF/HOD/CREW).
+const VesselAdminRoute = ({ children, allowedTiers = ['COMMAND', 'CHIEF'] }) => {
+  if (isDevMode()) {
+    console.log('[VesselAdminRoute] 🔧 DEV MODE: Bypassing admin/tier check');
+    return (
+      <>
+        <DevModeBanner />
+        {children}
+      </>
+    );
+  }
+
+  const {
+    session,
+    loading: authLoading,
+    tenantLoading: contextLoading,
+    bootstrapComplete,
+    activeTenantId: tenant_id,
+    tenantRole: role,
+    isVesselAdmin,
+  } = useAuth();
+
+  const isContextLoading = contextLoading || !bootstrapComplete ||
+    (role === null || role === undefined || tenant_id === null || tenant_id === undefined);
+
+  if (authLoading || isContextLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 p-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="text-center">
+          <p className="text-lg font-medium text-foreground mb-1">Loading your vessel access…</p>
+          <p className="text-sm text-muted-foreground">Checking permissions</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <Navigate to="/login-authentication" replace />;
+  }
+
+  if (!tenant_id) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6 p-4">
+        <div className="text-center max-w-md">
+          <h2 className="text-xl font-semibold text-foreground mb-2">No active vessel access</h2>
+          <p className="text-muted-foreground mb-6">You're logged in but not linked to a vessel yet.</p>
+          <a href="/dashboard" className="inline-block px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">Back to Dashboard</a>
+        </div>
+      </div>
+    );
+  }
+
+  const normalizedRole = (role || '')?.toUpperCase()?.trim();
+  const tierAllowed = allowedTiers?.map(t => t?.toUpperCase())?.includes(normalizedRole);
+
+  if (!isVesselAdmin && !tierAllowed) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6 p-4">
+        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+          <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+        <div className="text-center max-w-md">
+          <h2 className="text-xl font-semibold text-foreground mb-2">Access Restricted</h2>
+          <p className="text-muted-foreground mb-6">This page is limited to the vessel admin or senior crew.</p>
+          <a href="/dashboard" className="inline-block px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">Back to Dashboard</a>
+        </div>
+      </div>
+    );
+  }
+
+  return children;
+};
+
 // My Profile redirect component with profile creation
 const MyProfileRedirect = () => {
   const { session, loading: authLoading } = useAuth();
@@ -916,7 +995,7 @@ const Routes = () => {
         <Route path="/locations-settings" element={<CommandChiefRoute><LocationsManagementSettings /></CommandChiefRoute>} />
         
         {/* Vessel Settings - Command/Chief Only (granular role check inside component) */}
-        <Route path="/settings/vessel" element={<CommandChiefRoute><VesselSettings /></CommandChiefRoute>} />
+        <Route path="/settings/vessel" element={<VesselAdminRoute><VesselSettings /></VesselAdminRoute>} />
         
         {/* Settings Page - Protected Route */}
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
