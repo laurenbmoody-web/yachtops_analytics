@@ -783,9 +783,16 @@ const OnboardingPage = () => {
   useEffect(() => {
     if (!bootstrapComplete) return;
     if (!currentTenantId) {
-      // No tenant yet — the bootstrap hasn't resolved one. Send them to
-      // dashboard and let ProtectedRoute handle the failure path.
-      navigate('/dashboard', { replace: true });
+      // Bootstrap finished but didn't find a tenant for this user. This
+      // is almost always a webhook failure (tenant_members insert never
+      // happened), NOT an "onboarding complete" state. Bouncing to
+      // /dashboard here would just hit the same "no active vessel access"
+      // error. Surface it clearly instead so we know to fix the webhook.
+      setLoadError(
+        'We could not find your vessel membership. This usually means the signup webhook did not complete. ' +
+        'Please contact support or try again in a few minutes — your account is safe.'
+      );
+      setLoading(false);
       return;
     }
     (async () => {
