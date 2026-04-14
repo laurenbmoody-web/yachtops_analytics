@@ -10,7 +10,6 @@ import TransferAdminModal from './TransferAdminModal';
 import { loadRoles, createRole, updateRole, Department, PermissionTier, getDepartmentDisplayName, getTierDisplayName, hasCommandAccess, getCurrentUser } from '../../../utils/authStorage';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../contexts/AuthContext';
-import TransferAdminModal from './TransferAdminModal';
 
 const RoleManagement = () => {
   const navigate = useNavigate();
