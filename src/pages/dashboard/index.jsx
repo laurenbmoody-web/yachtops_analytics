@@ -10,7 +10,7 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
-import { Settings2, Anchor, Sparkles, X, Check, MapPin, FolderTree, Upload, ArrowRight, Wrench, Briefcase } from 'lucide-react';
+import { Settings2, Anchor, Sparkles, X, Check, MapPin, FolderTree, Upload, ArrowRight, Wrench, Briefcase, ChevronRight } from 'lucide-react';
 
 import ErrorBoundary from '../../components/ErrorBoundary';
 import Header from '../../components/navigation/Header';
@@ -211,6 +211,41 @@ const WelcomeToast = ({ onDismiss }) => (
     <button onClick={onDismiss} style={{ color: '#94A3B8' }}><X size={16} /></button>
   </div>
 );
+
+// Collapsible panel used inside the tutorial hero banner
+const CollapsiblePanel = ({ title, badge, defaultOpen = false, children }) => {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="mt-4" style={{ borderTop: '1px solid #E2E8F0' }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between py-4"
+      >
+        <div className="flex items-center gap-2">
+          <span className="uppercase" style={{ fontFamily: PILL_FONT, fontSize: 11, fontWeight: 900, letterSpacing: '0.10em', color: '#94A3B8' }}>
+            {title}
+          </span>
+          {!open && badge && (
+            <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: NAVY, color: 'white', fontFamily: PILL_FONT, fontWeight: 700 }}>
+              {badge}
+            </span>
+          )}
+        </div>
+        <ChevronRight
+          size={16}
+          color="#94A3B8"
+          style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 200ms ease' }}
+        />
+      </button>
+      {open && (
+        <div className="pb-2 cg-anim-enter">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const CHARTER_ACCOUNT = {
   percentage: 68, spent: 34000, total: 50000, remaining: 16000, trend: -12, color: 'bg-primary',
@@ -468,73 +503,80 @@ const Dashboard = () => {
 
         <div className="max-w-[1600px] mx-auto p-6">
           {/* Onboarding tutorial — shown for 30 days after completing onboarding */}
-          {showOnboardingTutorial && (
-            <div className="mb-10">
-              {/* Hero card — 4px bottom border */}
-              <div
-                className="rounded-2xl px-8 py-8 flex gap-6 items-start mb-8"
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  borderTop: `1px solid ${NAVY}`,
-                  borderLeft: `1px solid ${NAVY}`,
-                  borderRight: `1px solid ${NAVY}`,
-                  borderBottom: `4px solid ${NAVY}`,
-                }}
-              >
-                <div className="flex-shrink-0">
-                  <AnchorChainProgress percent={percent} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h1 style={{ fontFamily: HEADING_FONT, fontSize: 26, fontWeight: 700, color: CHARCOAL, letterSpacing: '-0.02em' }}>
-                    {vesselName ? `Welcome aboard ${vesselName}` : 'Welcome, Captain'}
-                  </h1>
-                  <div className="mt-4 flex items-baseline gap-3">
-                    <span className="uppercase" style={{ fontFamily: PILL_FONT, fontSize: 22, fontWeight: 900, letterSpacing: '0.10em', color: NAVY }}>
-                      Onboarding
-                    </span>
-                    <span style={{ fontFamily: HEADING_FONT, fontSize: 22, fontWeight: 700, color: CHARCOAL }}>
-                      <LivePercent percent={percent} />%
-                    </span>
+          {showOnboardingTutorial && (() => {
+            const remaining = TUTORIAL_ITEMS.filter((item) => !tutorialState[item.id]).length;
+            return (
+              <div className="mb-10">
+                <div
+                  className="rounded-2xl px-8 py-8"
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    borderTop: `1px solid ${NAVY}`,
+                    borderLeft: `1px solid ${NAVY}`,
+                    borderRight: `1px solid ${NAVY}`,
+                    borderBottom: `4px solid ${NAVY}`,
+                  }}
+                >
+                  {/* Top row: chain + heading + percent */}
+                  <div className="flex gap-6 items-start">
+                    <div className="flex-shrink-0">
+                      <AnchorChainProgress percent={percent} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h1 style={{ fontFamily: HEADING_FONT, fontSize: 26, fontWeight: 700, color: CHARCOAL, letterSpacing: '-0.02em' }}>
+                        {vesselName ? `Welcome aboard ${vesselName}` : 'Welcome, Captain'}
+                      </h1>
+                      <div className="mt-4 flex items-baseline gap-3">
+                        <span className="uppercase" style={{ fontFamily: PILL_FONT, fontSize: 22, fontWeight: 900, letterSpacing: '0.10em', color: NAVY }}>
+                          Onboarding
+                        </span>
+                        <span style={{ fontFamily: HEADING_FONT, fontSize: 22, fontWeight: 700, color: CHARCOAL }}>
+                          <LivePercent percent={percent} />%
+                        </span>
+                      </div>
+                      <p className="text-xs mt-1" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
+                        {percent === 100 ? 'Fully anchored.' : 'Only a few more shackles to go…'}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleDismissTutorial}
+                        className="mt-4 text-xs underline underline-offset-2"
+                        style={{ color: '#94A3B8', fontFamily: BODY_FONT }}
+                      >
+                        Hide this section
+                      </button>
+                    </div>
                   </div>
-                  <p className="text-xs mt-1" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
-                    {percent === 100 ? 'Fully anchored.' : 'Only a few more shackles to go…'}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleDismissTutorial}
-                    className="mt-4 text-xs underline underline-offset-2"
-                    style={{ color: '#94A3B8', fontFamily: BODY_FONT }}
+
+                  {/* Collapsible: Finish setting up — open by default */}
+                  <CollapsiblePanel
+                    title="Finish setting up"
+                    badge={remaining > 0 ? `${remaining} left` : null}
+                    defaultOpen
                   >
-                    Hide this section
-                  </button>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 cg-stagger">
+                      {TUTORIAL_ITEMS.map((item, i) => (
+                        <div key={item.id} className="cg-anim-enter" style={{ '--i': i + 1 }}>
+                          <TutorialCard item={item} done={!!tutorialState[item.id]} onStart={() => handleTutorialStart(item)} />
+                        </div>
+                      ))}
+                    </div>
+                  </CollapsiblePanel>
+
+                  {/* Collapsible: What else is in Cargo — collapsed by default */}
+                  <CollapsiblePanel title="What else is in Cargo" defaultOpen={false}>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 cg-stagger">
+                      {CARGO_FEATURES.map((f, i) => (
+                        <div key={f.name} className="cg-anim-enter" style={{ '--i': i + 4 }}>
+                          <FeatureTile feature={f} />
+                        </div>
+                      ))}
+                    </div>
+                  </CollapsiblePanel>
                 </div>
               </div>
-
-              {/* Tutorial cards */}
-              <p className="uppercase text-xs mb-4" style={{ fontFamily: PILL_FONT, fontWeight: 900, letterSpacing: '0.10em', color: '#94A3B8' }}>
-                Finish setting up
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 cg-stagger mb-8">
-                {TUTORIAL_ITEMS.map((item, i) => (
-                  <div key={item.id} className="cg-anim-enter" style={{ '--i': i + 1 }}>
-                    <TutorialCard item={item} done={!!tutorialState[item.id]} onStart={() => handleTutorialStart(item)} />
-                  </div>
-                ))}
-              </div>
-
-              {/* Feature tiles */}
-              <p className="uppercase text-xs mb-4" style={{ fontFamily: PILL_FONT, fontWeight: 900, letterSpacing: '0.10em', color: '#94A3B8' }}>
-                What else is in Cargo
-              </p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 cg-stagger">
-                {CARGO_FEATURES.map((f, i) => (
-                  <div key={f.name} className="cg-anim-enter" style={{ '--i': i + 4 }}>
-                    <FeatureTile feature={f} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* 3-Column Grid with DnD */}
           <DndContext
