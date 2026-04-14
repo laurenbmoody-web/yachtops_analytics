@@ -771,23 +771,49 @@ const StepPill = ({ label, index, current, done }) => (
 const OnboardingPage = () => {
   const navigate = useNavigate();
   const { theme } = useTheme();
-  const { user, currentTenantId, bootstrapComplete } = useAuth();
+  const { user, currentTenantId, bootstrapComplete, retryBootstrap } = useAuth();
 
   const [tenant, setTenant] = useState(null);
   const [step, setStep] = useState('vessel'); // vessel | departments | crew
   const [deptChoice, setDeptChoice] = useState({ baseSelected: [], customDepts: [] });
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [membershipRetries, setMembershipRetries] = useState(0);
+
+  // Race-condition fix: if bootstrap completed BEFORE the Stripe webhook
+  // finished inserting the tenant_members row, currentTenantId will be
+  // null even though the DB now has the membership. Poll tenant_members
+  // directly up to 5x (every 1.5s) and re-bootstrap when we find it.
+  useEffect(() => {
+    if (!bootstrapComplete) return;
+    if (currentTenantId) return;
+    if (!user?.id) return;
+    if (membershipRetries >= 5) return;
+
+    const t = setTimeout(async () => {
+      console.log('[onboarding] tenantId null after bootstrap, polling tenant_members', { attempt: membershipRetries + 1 });
+      const { data, error } = await supabase
+        .from('tenant_members')
+        .select('tenant_id')
+        .eq('user_id', user.id)
+        .limit(1);
+      if (!error && data && data.length > 0) {
+        console.log('[onboarding] found membership, retrying bootstrap', data[0].tenant_id);
+        retryBootstrap?.();
+      } else {
+        setMembershipRetries((n) => n + 1);
+      }
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [bootstrapComplete, currentTenantId, user?.id, membershipRetries, retryBootstrap]);
 
   // Load the tenant row for pre-fill
   useEffect(() => {
     if (!bootstrapComplete) return;
     if (!currentTenantId) {
-      // Bootstrap finished but didn't find a tenant for this user. This
-      // is almost always a webhook failure (tenant_members insert never
-      // happened), NOT an "onboarding complete" state. Bouncing to
-      // /dashboard here would just hit the same "no active vessel access"
-      // error. Surface it clearly instead so we know to fix the webhook.
+      // Still give the membership-poll effect a chance before surfacing
+      // the webhook-failure error.
+      if (membershipRetries < 5) return;
       setLoadError(
         'We could not find your vessel membership. This usually means the signup webhook did not complete. ' +
         'Please contact support or try again in a few minutes — your account is safe.'
@@ -815,7 +841,7 @@ const OnboardingPage = () => {
       setTenant(data);
       setLoading(false);
     })();
-  }, [bootstrapComplete, currentTenantId, navigate]);
+  }, [bootstrapComplete, currentTenantId, navigate, membershipRetries]);
 
   const logoSrc =
     theme === 'dark'
