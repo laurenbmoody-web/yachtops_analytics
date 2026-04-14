@@ -73,8 +73,75 @@ const ROLES_BY_DEPT = {
 
 // ── Vessel data constants (VesselSettingsStep) ────────────────────
 const VESSEL_TYPES        = ['Motor Yacht', 'Sailing Yacht', 'Catamaran', 'Explorer', 'Sport Yacht', 'Superyacht'];
-const COMMERCIAL_STATUSES = ['Private', 'Commercial', 'Charter', 'Dual'];
+const COMMERCIAL_STATUSES = ['Private', 'Charter', 'Dual-use'];
 const AREAS_OF_OPERATION  = ['Coastal', 'Near Coastal', 'Unlimited'];
+
+// ── Operating regions — ISO 3166-1 alpha-2 ────────────────────────
+const REGION_GROUPS = [
+  { id: 'caribbean',       label: 'Caribbean',       codes: ['AG','AI','AW','BB','BL','BS','CU','CW','DM','DO','GD','GP','HT','JM','KN','KY','LC','MF','MQ','MS','PR','SX','TC','TT','VC','VG','VI'] },
+  { id: 'mediterranean',   label: 'Mediterranean',   codes: ['AL','BA','CY','DZ','EG','ES','FR','GR','HR','IL','IT','LB','LY','MA','MC','ME','MT','RS','SI','SM','TN','TR'] },
+  { id: 'northern_europe', label: 'Northern Europe', codes: ['BE','DE','DK','EE','FI','FO','GB','GG','IE','IM','IS','JE','LT','LV','NL','NO','PL','SE'] },
+  { id: 'atlantic',        label: 'Atlantic',        codes: ['BM','BR','CV','GH','GL','MR','NA','PM','PT','SH','SN','US'] },
+  { id: 'pacific',         label: 'Pacific',         codes: ['AU','CK','FJ','FM','GU','KI','MH','NC','NR','NZ','PF','PG','PW','SB','TO','TV','VU','WS'] },
+  { id: 'indian_ocean',    label: 'Indian Ocean',    codes: ['BH','DJ','IN','KE','KM','LK','MG','MU','MV','MZ','OM','PK','QA','RE','SA','SC','SO','TZ','YE','ZA'] },
+];
+
+const ALL_COUNTRIES = [
+  { code: 'AD', name: 'Andorra' }, { code: 'AE', name: 'United Arab Emirates' }, { code: 'AG', name: 'Antigua & Barbuda' },
+  { code: 'AI', name: 'Anguilla' }, { code: 'AL', name: 'Albania' }, { code: 'AO', name: 'Angola' },
+  { code: 'AR', name: 'Argentina' }, { code: 'AU', name: 'Australia' }, { code: 'AW', name: 'Aruba' },
+  { code: 'BA', name: 'Bosnia & Herzegovina' }, { code: 'BB', name: 'Barbados' }, { code: 'BE', name: 'Belgium' },
+  { code: 'BH', name: 'Bahrain' }, { code: 'BL', name: 'St Barthélemy' }, { code: 'BM', name: 'Bermuda' },
+  { code: 'BR', name: 'Brazil' }, { code: 'BS', name: 'Bahamas' }, { code: 'CA', name: 'Canada' },
+  { code: 'CK', name: 'Cook Islands' }, { code: 'CU', name: 'Cuba' }, { code: 'CV', name: 'Cape Verde' },
+  { code: 'CW', name: 'Curaçao' }, { code: 'CY', name: 'Cyprus' }, { code: 'DE', name: 'Germany' },
+  { code: 'DJ', name: 'Djibouti' }, { code: 'DK', name: 'Denmark' }, { code: 'DM', name: 'Dominica' },
+  { code: 'DO', name: 'Dominican Republic' }, { code: 'DZ', name: 'Algeria' }, { code: 'EE', name: 'Estonia' },
+  { code: 'EG', name: 'Egypt' }, { code: 'ES', name: 'Spain' }, { code: 'FI', name: 'Finland' },
+  { code: 'FJ', name: 'Fiji' }, { code: 'FM', name: 'Micronesia' }, { code: 'FO', name: 'Faroe Islands' },
+  { code: 'FR', name: 'France' }, { code: 'GB', name: 'United Kingdom' }, { code: 'GD', name: 'Grenada' },
+  { code: 'GG', name: 'Guernsey' }, { code: 'GH', name: 'Ghana' }, { code: 'GL', name: 'Greenland' },
+  { code: 'GP', name: 'Guadeloupe' }, { code: 'GR', name: 'Greece' }, { code: 'GU', name: 'Guam' },
+  { code: 'HR', name: 'Croatia' }, { code: 'HT', name: 'Haiti' }, { code: 'IE', name: 'Ireland' },
+  { code: 'IL', name: 'Israel' }, { code: 'IM', name: 'Isle of Man' }, { code: 'IN', name: 'India' },
+  { code: 'IS', name: 'Iceland' }, { code: 'IT', name: 'Italy' }, { code: 'JE', name: 'Jersey' },
+  { code: 'JM', name: 'Jamaica' }, { code: 'JP', name: 'Japan' }, { code: 'KE', name: 'Kenya' },
+  { code: 'KI', name: 'Kiribati' }, { code: 'KM', name: 'Comoros' }, { code: 'KN', name: 'St Kitts & Nevis' },
+  { code: 'KY', name: 'Cayman Islands' }, { code: 'LB', name: 'Lebanon' }, { code: 'LC', name: 'St Lucia' },
+  { code: 'LK', name: 'Sri Lanka' }, { code: 'LT', name: 'Lithuania' }, { code: 'LV', name: 'Latvia' },
+  { code: 'LY', name: 'Libya' }, { code: 'MA', name: 'Morocco' }, { code: 'MC', name: 'Monaco' },
+  { code: 'ME', name: 'Montenegro' }, { code: 'MF', name: 'St Martin (French)' }, { code: 'MG', name: 'Madagascar' },
+  { code: 'MH', name: 'Marshall Islands' }, { code: 'MQ', name: 'Martinique' }, { code: 'MR', name: 'Mauritania' },
+  { code: 'MS', name: 'Montserrat' }, { code: 'MT', name: 'Malta' }, { code: 'MU', name: 'Mauritius' },
+  { code: 'MV', name: 'Maldives' }, { code: 'MX', name: 'Mexico' }, { code: 'MZ', name: 'Mozambique' },
+  { code: 'NA', name: 'Namibia' }, { code: 'NC', name: 'New Caledonia' }, { code: 'NL', name: 'Netherlands' },
+  { code: 'NO', name: 'Norway' }, { code: 'NR', name: 'Nauru' }, { code: 'NZ', name: 'New Zealand' },
+  { code: 'OM', name: 'Oman' }, { code: 'PF', name: 'French Polynesia' }, { code: 'PG', name: 'Papua New Guinea' },
+  { code: 'PH', name: 'Philippines' }, { code: 'PK', name: 'Pakistan' }, { code: 'PL', name: 'Poland' },
+  { code: 'PM', name: 'St Pierre & Miquelon' }, { code: 'PR', name: 'Puerto Rico' }, { code: 'PT', name: 'Portugal' },
+  { code: 'PW', name: 'Palau' }, { code: 'QA', name: 'Qatar' }, { code: 'RE', name: 'Réunion' },
+  { code: 'RS', name: 'Serbia' }, { code: 'SA', name: 'Saudi Arabia' }, { code: 'SB', name: 'Solomon Islands' },
+  { code: 'SC', name: 'Seychelles' }, { code: 'SE', name: 'Sweden' }, { code: 'SH', name: 'St Helena' },
+  { code: 'SI', name: 'Slovenia' }, { code: 'SM', name: 'San Marino' }, { code: 'SN', name: 'Senegal' },
+  { code: 'SO', name: 'Somalia' }, { code: 'SX', name: 'Sint Maarten' }, { code: 'TC', name: 'Turks & Caicos' },
+  { code: 'TN', name: 'Tunisia' }, { code: 'TO', name: 'Tonga' }, { code: 'TR', name: 'Turkey' },
+  { code: 'TT', name: 'Trinidad & Tobago' }, { code: 'TV', name: 'Tuvalu' }, { code: 'TZ', name: 'Tanzania' },
+  { code: 'US', name: 'United States' }, { code: 'VC', name: 'St Vincent & Grenadines' }, { code: 'VG', name: 'British Virgin Islands' },
+  { code: 'VI', name: 'US Virgin Islands' }, { code: 'VN', name: 'Vietnam' }, { code: 'VU', name: 'Vanuatu' },
+  { code: 'WS', name: 'Samoa' }, { code: 'YE', name: 'Yemen' }, { code: 'ZA', name: 'South Africa' },
+];
+
+// ── Department icon map (keyed by icon_key from departments table) ──
+const DEPT_ICON_MAP = {
+  anchor:    Anchor,
+  ship:      Ship,
+  users:     Users,
+  building2: Building2,
+  building:  Building2,
+  utensils:  Utensils,
+  briefcase: Briefcase,
+  clipboard: ClipboardList,
+};
 
 // ── Shared UI atoms ───────────────────────────────────────────────
 
@@ -297,6 +364,114 @@ const CollapsedSection = ({ title, summary, onEdit }) => (
   </div>
 );
 
+// ── Operating regions searchable combobox ─────────────────────────
+const RegionsCombobox = ({ value, onChange }) => {
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const toggle = (code) =>
+    onChange(value.includes(code) ? value.filter((c) => c !== code) : [...value, code]);
+  const toggleGroup = (group) => {
+    const allIn = group.codes.every((c) => value.includes(c));
+    onChange(allIn ? value.filter((c) => !group.codes.includes(c)) : [...new Set([...value, ...group.codes])]);
+  };
+
+  const q = query.toLowerCase();
+  const filteredGroups    = REGION_GROUPS.filter((g) => !q || g.label.toLowerCase().includes(q));
+  const filteredCountries = ALL_COUNTRIES.filter((c) => !q || c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q));
+  const selectedCountries = ALL_COUNTRIES.filter((c) => value.includes(c.code));
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        style={{ ...inputStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', textAlign: 'left' }}
+      >
+        <span style={{ color: value.length ? CHARCOAL : '#94A3B8' }}>
+          {value.length ? `${value.length} region${value.length !== 1 ? 's' : ''} selected` : 'Select regions…'}
+        </span>
+        <ChevronRight size={14} color="#94A3B8" style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 150ms ease', flexShrink: 0 }} />
+      </button>
+
+      {open && (
+        <div
+          className="absolute z-30 w-full mt-1 rounded-xl"
+          style={{ backgroundColor: CARD, border: '1px solid #CBD5E1', boxShadow: '0 10px 30px rgba(30,58,95,0.15)', maxHeight: 300, overflowY: 'auto' }}
+        >
+          <div className="sticky top-0 p-2" style={{ backgroundColor: CARD, borderBottom: '1px solid #E2E8F0' }}>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search regions or countries…"
+              autoFocus
+              style={{ ...inputStyle, padding: '6px 10px', fontSize: 13 }}
+            />
+          </div>
+          {filteredGroups.length > 0 && (
+            <div className="p-2" style={{ borderBottom: '1px solid #F1F5F9' }}>
+              <div className="px-2 pb-1 text-[10px] uppercase" style={{ fontFamily: PILL_FONT, fontWeight: 900, letterSpacing: '0.10em', color: '#94A3B8' }}>Regions</div>
+              {filteredGroups.map((group) => {
+                const allIn = group.codes.every((c) => value.includes(c));
+                const someIn = !allIn && group.codes.some((c) => value.includes(c));
+                return (
+                  <button key={group.id} type="button" onClick={() => toggleGroup(group)}
+                    className="w-full text-left px-2 py-1.5 rounded-lg text-sm flex items-center justify-between"
+                    style={{ fontFamily: BODY_FONT, backgroundColor: allIn ? '#EFF6FF' : 'transparent', color: CHARCOAL }}
+                  >
+                    <span>{group.label}</span>
+                    {allIn && <Check size={13} color={NAVY} />}
+                    {someIn && <span className="text-xs" style={{ color: '#94A3B8' }}>{group.codes.filter((c) => value.includes(c)).length}/{group.codes.length}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <div className="p-2">
+            <div className="px-2 pb-1 text-[10px] uppercase" style={{ fontFamily: PILL_FONT, fontWeight: 900, letterSpacing: '0.10em', color: '#94A3B8' }}>Countries</div>
+            {filteredCountries.map((country) => (
+              <button key={country.code} type="button" onClick={() => toggle(country.code)}
+                className="w-full text-left px-2 py-1 rounded-lg text-sm flex items-center justify-between"
+                style={{ fontFamily: BODY_FONT, backgroundColor: value.includes(country.code) ? '#EFF6FF' : 'transparent', color: CHARCOAL }}
+              >
+                <span>{country.name}</span>
+                {value.includes(country.code) && <Check size={12} color={NAVY} />}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {selectedCountries.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {selectedCountries.slice(0, 5).map((c) => (
+            <span key={c.code} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs"
+              style={{ backgroundColor: '#E0F2FE', color: NAVY, fontFamily: BODY_FONT, fontWeight: 600 }}
+            >
+              {c.name}
+              <button type="button" onClick={() => toggle(c.code)} style={{ color: NAVY, lineHeight: 1, marginLeft: 2 }}>×</button>
+            </span>
+          ))}
+          {selectedCountries.length > 5 && (
+            <span className="text-xs" style={{ color: '#64748B', fontFamily: BODY_FONT, alignSelf: 'center' }}>
+              +{selectedCountries.length - 5} more
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Step 1: Vessel settings — progressive disclosure ──────────────
 // Three sub-sections: identity → specs → profile.
 // Only the active section renders as a full Card; confirmed sections
@@ -319,8 +494,7 @@ const VesselSettingsStep = ({ tenant, onSaved }) => {
     commercial_status:    tenant?.commercial_status    || '',
     certified_commercial: tenant?.certified_commercial ?? false,
     area_of_operation:    tenant?.area_of_operation    || '',
-    operating_regions:    tenant?.operating_regions    || '',
-    seasonal_pattern:     tenant?.seasonal_pattern     || '',
+    operating_regions:    Array.isArray(tenant?.operating_regions) ? tenant.operating_regions : [],
     typical_guest_count:  tenant?.typical_guest_count  ?? '',
     typical_crew_count:   tenant?.typical_crew_count   ?? '',
   });
@@ -352,8 +526,7 @@ const VesselSettingsStep = ({ tenant, onSaved }) => {
         commercial_status:  data.commercial_status  || null,
         certified_commercial: Boolean(data.certified_commercial),
         area_of_operation:  data.area_of_operation  || null,
-        operating_regions:  data.operating_regions  || null,
-        seasonal_pattern:   data.seasonal_pattern   || null,
+        operating_regions:  data.operating_regions.length > 0 ? data.operating_regions : null,
         typical_guest_count:
           data.typical_guest_count === '' ? null : Number(data.typical_guest_count),
         typical_crew_count:
@@ -468,56 +641,93 @@ const VesselSettingsStep = ({ tenant, onSaved }) => {
       )}
 
       {/* ── Section 3: Operational Profile ── */}
-      {section === 'profile' && (
-        <div className="mt-6 cg-anim-enter">
-          <Card>
-            <SectionHeading>How does she operate?</SectionHeading>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <Field label="Commercial Status" tooltip="Private, Commercial, Charter, or Dual use. Changes which compliance workflows are active.">
-                <SelectInput value={data.commercial_status} onChange={(e) => set('commercial_status', e.target.value)} options={COMMERCIAL_STATUSES} />
-              </Field>
-              <div className="flex items-center pt-6">
-                <Checkbox
-                  checked={!!data.certified_commercial}
-                  onChange={(e) => set('certified_commercial', e.target.checked)}
-                  label="Certified Commercial"
-                />
+      {section === 'profile' && (() => {
+        const profileValid =
+          Number(data.typical_guest_count) >= 1 &&
+          Number(data.typical_crew_count) >= 1;
+        return (
+          <div className="mt-6 cg-anim-enter">
+            <Card>
+              <SectionHeading>How does she operate?</SectionHeading>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Commercial Status + Certified Commercial stacked in one column */}
+                <div>
+                  <Field label="Commercial Status" tooltip="How the vessel is operated — affects which compliance workflows are active.">
+                    <select
+                      value={data.commercial_status}
+                      onChange={(e) => set('commercial_status', e.target.value)}
+                      style={{ ...inputStyle, appearance: 'auto' }}
+                    >
+                      <option value="">Select…</option>
+                      <option value="Private">Private</option>
+                      <option value="Charter">Charter</option>
+                      <option value="Dual-use">Dual-use</option>
+                    </select>
+                  </Field>
+                  <div className="mt-3">
+                    <Checkbox
+                      checked={!!data.certified_commercial}
+                      onChange={(e) => set('certified_commercial', e.target.checked)}
+                      label="Certified Commercial"
+                    />
+                    <p className="text-xs mt-1 ml-6" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
+                      Vessel holds MCA or flag-state commercial certification.
+                    </p>
+                  </div>
+                </div>
+
+                <Field label="Area of Operation" tooltip="Coastal / Near Coastal / Unlimited — matches what's on your Safe Manning document.">
+                  <SelectInput value={data.area_of_operation} onChange={(e) => set('area_of_operation', e.target.value)} options={AREAS_OF_OPERATION} />
+                </Field>
+
+                <div className="md:col-span-2">
+                  <Field label="Operating Regions" tooltip="Select countries or use regional shortcuts. Stored as ISO-3166-1 alpha-2 codes.">
+                    <RegionsCombobox
+                      value={data.operating_regions}
+                      onChange={(codes) => set('operating_regions', codes)}
+                    />
+                  </Field>
+                </div>
+
+                <Field label="Typical Guest Count" required tooltip="Minimum 1. Used for crew-to-guest ratio calculations.">
+                  <TextInput
+                    type="number"
+                    min="1"
+                    value={data.typical_guest_count}
+                    placeholder="e.g., 12"
+                    onChange={field('typical_guest_count')}
+                  />
+                </Field>
+                <Field label="Typical Crew Count" required tooltip="Minimum 1. Used for Safe Manning and MLC compliance checks.">
+                  <TextInput
+                    type="number"
+                    min="1"
+                    value={data.typical_crew_count}
+                    placeholder="e.g., 15"
+                    onChange={field('typical_crew_count')}
+                  />
+                </Field>
               </div>
-              <Field label="Area of Operation" tooltip="Coastal / Near Coastal / Unlimited — matches what's on your Safe Manning document.">
-                <SelectInput value={data.area_of_operation} onChange={(e) => set('area_of_operation', e.target.value)} options={AREAS_OF_OPERATION} />
-              </Field>
-              <Field label="Operating Regions">
-                <TextInput value={data.operating_regions} placeholder="e.g., Mediterranean, Caribbean" onChange={field('operating_regions')} />
-              </Field>
-              <Field label="Seasonal Pattern">
-                <TextInput value={data.seasonal_pattern} placeholder="e.g., Summer Med, Winter Caribbean" onChange={field('seasonal_pattern')} />
-              </Field>
-              <Field label="Typical Guest Count">
-                <TextInput type="number" value={data.typical_guest_count} placeholder="e.g., 12" onChange={field('typical_guest_count')} />
-              </Field>
-              <Field label="Typical Crew Count">
-                <TextInput type="number" value={data.typical_crew_count} placeholder="e.g., 15" onChange={field('typical_crew_count')} />
-              </Field>
-            </div>
-            <p className="text-xs mt-4" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
-              Compliance fields (ISM, ISPS, MLC) and vessel hero image can be filled in later from Vessel Settings.
-            </p>
-            {error && (
-              <div className="mt-4 text-sm px-3 py-2 rounded" style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
-                {error}
+              <p className="text-xs mt-4" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
+                Compliance fields (ISM, ISPS, MLC) and vessel hero image can be filled in later from Vessel Settings.
+              </p>
+              {error && (
+                <div className="mt-4 text-sm px-3 py-2 rounded" style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
+                  {error}
+                </div>
+              )}
+              <div className="flex items-center justify-between mt-6">
+                <LinkButton onClick={() => setSection('specs')}>
+                  <ChevronLeft size={14} /> Back
+                </LinkButton>
+                <PillPrimary onClick={handleSave} disabled={saving || !profileValid}>
+                  {saving ? 'Saving…' : 'Continue'}
+                </PillPrimary>
               </div>
-            )}
-            <div className="flex items-center justify-between mt-6">
-              <LinkButton onClick={() => setSection('specs')}>
-                <ChevronLeft size={14} /> Back
-              </LinkButton>
-              <PillPrimary onClick={handleSave} disabled={saving}>
-                {saving ? 'Saving…' : 'Continue'}
-              </PillPrimary>
-            </div>
-          </Card>
-        </div>
-      )}
+            </Card>
+          </div>
+        );
+      })()}
     </div>
   );
 };
@@ -525,96 +735,81 @@ const VesselSettingsStep = ({ tenant, onSaved }) => {
 // ─── Step 2: Departments ───────────────────────────────────────────
 
 const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
-  const [selected, setSelected] = useState(() => {
-    const raw = tenant?.departments_in_use || '';
-    if (!raw) return BASE_DEPARTMENTS.map((d) => d.id);
-    return raw.split(',').map((s) => s.trim()).filter(Boolean);
-  });
-  const [customDepts, setCustomDepts] = useState([]);
-  const [newDept, setNewDept] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [depts, setDepts]         = useState([]);
+  const [loadError, setLoadError] = useState('');
+  const [loading, setLoading]     = useState(true);
+  const [selected, setSelected]   = useState([]);
+  const [saving, setSaving]       = useState(false);
+  const [saveError, setSaveError] = useState('');
 
-  // Pre-fill custom departments from profile (preserves mid-onboarding progress)
+  const loadDepts = async () => {
+    setLoading(true);
+    setLoadError('');
+    const { data, error } = await supabase
+      .from('departments')
+      .select('id, name, icon_key')
+      .eq('tenant_id', tenant.id)
+      .order('name', { ascending: true });
+    if (error) {
+      setLoadError(error.message || 'Could not load departments.');
+      setLoading(false);
+      return;
+    }
+    const rows = data || [];
+    setDepts(rows);
+    // Pre-select all returned departments by default (first load only)
+    setSelected((prev) => (prev.length ? prev : rows.map((d) => d.id)));
+    setLoading(false);
+  };
+
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !tenant?.id) return;
+    // Restore prior selection from profile if user has been here before
     supabase
       .from('profiles')
       .select('custom_departments')
       .eq('id', userId)
       .single()
-      .then(({ data }) => {
-        const saved = data?.custom_departments;
-        if (Array.isArray(saved) && saved.length > 0) {
-          setCustomDepts(saved);
-          setSelected((prev) => [
-            ...prev,
-            ...saved.map((d) => d.id).filter((id) => !prev.includes(id)),
-          ]);
+      .then(({ data: profile }) => {
+        const saved = profile?.custom_departments;
+        // New format: array of ID strings (not objects)
+        if (Array.isArray(saved) && saved.length > 0 && typeof saved[0] === 'string') {
+          setSelected(saved);
         }
       });
-  }, [userId]);
+    loadDepts();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, tenant?.id]);
 
   const toggle = (id) =>
-    setSelected((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-
-  const addCustom = () => {
-    const name = newDept.trim();
-    if (!name) return;
-    const id = `CUSTOM_${Date.now()}`;
-    setCustomDepts((prev) => [...prev, { id, name }]);
-    setSelected((prev) => [...prev, id]);
-    setNewDept('');
-  };
-
-  const removeCustom = (id) => {
-    setCustomDepts((prev) => prev.filter((d) => d.id !== id));
-    setSelected((prev) => prev.filter((x) => x !== id));
-  };
+    setSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
 
   const handleContinue = async () => {
     setSaving(true);
-    setError('');
+    setSaveError('');
     try {
-      const baseSelected = selected.filter((id) =>
-        BASE_DEPARTMENTS.some((d) => d.id === id)
-      );
-      const { error: tErr } = await supabase
-        .from('tenants')
-        .update({ departments_in_use: baseSelected.join(',') })
-        .eq('id', tenant.id);
-      if (tErr) throw tErr;
+      // Persist selected dept IDs to profiles.custom_departments
+      const { error: pErr } = await supabase
+        .from('profiles')
+        .update({ custom_departments: selected })
+        .eq('id', userId);
+      if (pErr) throw pErr;
 
-      // Custom departments → profiles.custom_departments only — NEVER tenant-wide
-      if (customDepts.length > 0) {
-        const { error: pErr } = await supabase
-          .from('profiles')
-          .update({ custom_departments: customDepts })
-          .eq('id', userId);
-        if (pErr) throw pErr;
-      }
-
-      onComplete({ baseSelected, customDepts });
+      const selectedDepts = depts.filter((d) => selected.includes(d.id));
+      onComplete({ baseSelected: selected, customDepts: [], departments: selectedDepts });
     } catch (err) {
       console.error('[onboarding] departments save failed', err);
-      setError(err?.message || 'Could not save departments. Try again.');
+      setSaveError(err?.message || 'Could not save departments. Try again.');
     } finally {
       setSaving(false);
     }
   };
 
-  const merged = [...BASE_DEPARTMENTS, ...customDepts];
-
   return (
     <div className="cg-step-enter">
       {/* Hero */}
       <div className="flex items-start gap-4 mb-2">
-        <div
-          className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: NAVY }}
-        >
+        <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: NAVY }}>
           <Building2 size={20} color="white" />
         </div>
         <div>
@@ -628,118 +823,68 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
       </div>
 
       <Card className="mt-8">
-        {/* Chip-style tile grid — NOT raised Cargo border, that's the outer Card */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 cg-stagger">
-          {merged.map((d, i) => {
-            const DIcon = d.icon || Briefcase;
-            const isSelected = selected.includes(d.id);
-            const isCustom = !BASE_DEPARTMENTS.some((bd) => bd.id === d.id);
-            return (
-              <button
-                key={d.id}
-                type="button"
-                onClick={() => toggle(d.id)}
-                className="relative rounded-xl p-4 text-left transition-all cg-anim-enter cg-hover-lift"
-                style={{
-                  '--i': i,
-                  backgroundColor: isSelected ? NAVY : 'white',
-                  border: `1px solid ${isSelected ? NAVY : '#E2E8F0'}`,
-                  color: isSelected ? 'white' : CHARCOAL,
-                }}
-              >
-                {/* Icon tile */}
-                <div
-                  className="w-9 h-9 rounded-lg flex items-center justify-center mb-3"
-                  style={{
-                    backgroundColor: isSelected ? 'rgba(255,255,255,0.12)' : '#F1F5F9',
-                    color: isSelected ? 'white' : NAVY,
-                  }}
-                >
-                  <DIcon size={18} />
-                </div>
-
-                {/* Name */}
-                <div className="text-sm" style={{ fontFamily: BODY_FONT, fontWeight: 600 }}>
-                  {d.name}
-                </div>
-
-                {/* Custom pill */}
-                {isCustom && (
-                  <div
-                    className="inline-block mt-1 text-[10px] uppercase px-1.5 py-0.5 rounded"
-                    style={{
-                      fontFamily: PILL_FONT,
-                      letterSpacing: '0.06em',
-                      fontWeight: 700,
-                      color: isSelected ? 'white' : '#64748B',
-                      backgroundColor: isSelected ? 'rgba(255,255,255,0.14)' : '#F1F5F9',
-                    }}
-                  >
-                    Custom · only you
-                  </div>
-                )}
-
-                {/* Selected tick badge — springs in with cg-tick-pop */}
-                {isSelected && (
-                  <div
-                    key={`tick-${d.id}`}
-                    className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center cg-tick-pop"
-                    style={{ backgroundColor: ACCENT }}
-                  >
-                    <Check size={12} color="white" />
-                  </div>
-                )}
-
-                {/* Custom trash — stopPropagation so tile doesn't also toggle */}
-                {isCustom && (
-                  <span
-                    onClick={(e) => { e.stopPropagation(); removeCustom(d.id); }}
-                    role="button"
-                    aria-label="Remove custom department"
-                    className="absolute bottom-2 right-2 p-1 rounded"
-                    style={{ color: isSelected ? 'rgba(255,255,255,0.7)' : '#94A3B8' }}
-                  >
-                    <Trash2 size={12} />
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Add custom dept — divider + input, inside the Card */}
-        <div className="mt-5 pt-5" style={{ borderTop: '1px solid #E2E8F0' }}>
-          <div className="flex items-center gap-2">
-            <TextInput
-              value={newDept}
-              placeholder="Add a department (e.g., Dive, Toys, Wellness)"
-              onChange={(e) => setNewDept(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
-            />
-            <PillSecondary onClick={addCustom} disabled={!newDept.trim()}>
-              <span className="inline-flex items-center gap-1.5"><Plus size={14} /> Add</span>
-            </PillSecondary>
+        {loading ? (
+          <div className="flex items-center justify-center py-10">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2" style={{ borderColor: NAVY }} />
           </div>
-        </div>
-
-        {/* Helper count */}
-        <p className="text-xs mt-4" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
-          {selected.length} selected. Add or remove departments later in Role Management.
-        </p>
-
-        {error && (
-          <div className="mt-4 text-sm px-3 py-2 rounded" style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
-            {error}
+        ) : loadError ? (
+          <div className="text-center py-6">
+            <p className="text-sm px-3 py-2 rounded mb-4" style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
+              {loadError}
+            </p>
+            <PillSecondary onClick={loadDepts}>Retry</PillSecondary>
           </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 cg-stagger">
+              {depts.map((d, i) => {
+                const DIcon = DEPT_ICON_MAP[d.icon_key] || Briefcase;
+                const isSelected = selected.includes(d.id);
+                return (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => toggle(d.id)}
+                    className="relative rounded-xl p-4 text-left transition-all cg-anim-enter cg-hover-lift"
+                    style={{ '--i': i, backgroundColor: isSelected ? NAVY : 'white', border: `1px solid ${isSelected ? NAVY : '#E2E8F0'}`, color: isSelected ? 'white' : CHARCOAL }}
+                  >
+                    <div
+                      className="w-9 h-9 rounded-lg flex items-center justify-center mb-3"
+                      style={{ backgroundColor: isSelected ? 'rgba(255,255,255,0.12)' : '#F1F5F9', color: isSelected ? 'white' : NAVY }}
+                    >
+                      <DIcon size={18} />
+                    </div>
+                    <div className="text-sm" style={{ fontFamily: BODY_FONT, fontWeight: 600 }}>{d.name}</div>
+                    {isSelected && (
+                      <div
+                        key={`tick-${d.id}`}
+                        className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center cg-tick-pop"
+                        style={{ backgroundColor: ACCENT }}
+                      >
+                        <Check size={12} color="white" />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            <p className="text-xs mt-4" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
+              {selected.length} department{selected.length !== 1 ? 's' : ''} selected. Add or remove departments later in Role Management.
+            </p>
+
+            {saveError && (
+              <div className="mt-4 text-sm px-3 py-2 rounded" style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
+                {saveError}
+              </div>
+            )}
+          </>
         )}
       </Card>
 
-      {/* Back / Continue — outside the Card */}
       <div className="flex items-center justify-between mt-8">
-        <LinkButton onClick={onBack}>
-          <ChevronLeft size={14} /> Back
-        </LinkButton>
-        <PillPrimary onClick={handleContinue} disabled={saving || selected.length === 0}>
+        <LinkButton onClick={onBack}><ChevronLeft size={14} /> Back</LinkButton>
+        <PillPrimary onClick={handleContinue} disabled={saving || loading || !!loadError || selected.length === 0}>
           {saving ? 'Saving…' : 'Continue'}
         </PillPrimary>
       </div>
@@ -749,13 +894,12 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
 
 // ─── Step 3: Invite crew ───────────────────────────────────────────
 
-const InviteCrewStep = ({ tenant, departments, customDepts, onBack, onFinish }) => {
+const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, onFinish }) => {
   const allDepts = useMemo(
-    () => [
-      ...BASE_DEPARTMENTS.filter((d) => departments.includes(d.id)),
-      ...customDepts,
-    ],
-    [departments, customDepts]
+    () => deptObjs
+      ? deptObjs.filter((d) => departments.includes(d.id))
+      : [...BASE_DEPARTMENTS.filter((d) => departments.includes(d.id)), ...customDepts],
+    [departments, customDepts, deptObjs]
   );
 
   const [rows, setRows] = useState([{ email: '', department_id: '', role: '' }]);
@@ -1224,6 +1368,7 @@ const OnboardingPage = () => {
             tenant={tenant}
             departments={deptChoice.baseSelected}
             customDepts={deptChoice.customDepts}
+            deptObjs={deptChoice.departments}
             onBack={() => setStep('departments')}
             onFinish={() => navigate('/dashboard', { replace: true })}
           />
