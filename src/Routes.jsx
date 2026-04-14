@@ -969,8 +969,10 @@ const Routes = () => {
         <Route path="/crew-invite-acceptance-page" element={<InviteRedirect />} />
         <Route path="/lightweight-invite-acceptance-page" element={<InviteRedirect />} />
         
-        {/* Post-signup onboarding — 3-step flow between /set-password and /dashboard */}
-        <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
+        {/* Post-signup onboarding — 3-step flow between /set-password and /dashboard.
+            requiresTenant={false}: brand-new vessel admins have no tenant_member yet when
+            they arrive here; the page itself polls until the webhook creates membership. */}
+        <Route path="/onboarding" element={<ProtectedRoute requiresTenant={false}><OnboardingPage /></ProtectedRoute>} />
 
         {/* Protected Routes */}
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
