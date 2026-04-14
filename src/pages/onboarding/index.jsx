@@ -771,7 +771,7 @@ const StepPill = ({ label, index, current, done }) => (
 const OnboardingPage = () => {
   const navigate = useNavigate();
   const { theme } = useTheme();
-  const { user, currentTenantId, bootstrapComplete, retryBootstrap } = useAuth();
+  const { user, activeTenantId, bootstrapComplete, retryBootstrap } = useAuth();
 
   const [tenant, setTenant] = useState(null);
   const [step, setStep] = useState('vessel'); // vessel | departments | crew
@@ -782,16 +782,20 @@ const OnboardingPage = () => {
   const retriedRef = useRef(false); // guard: only call retryBootstrap once
 
   // Race-condition fix: if bootstrap completed BEFORE the Stripe webhook
-  // finished inserting the tenant_members row, currentTenantId will be
+  // finished inserting the tenant_members row, activeTenantId will be
   // null even though the DB now has the membership. Poll tenant_members
   // directly up to 5x (every 1.5s) and re-bootstrap ONCE when we find it.
   // Without the one-shot guard, every bootstrap completion re-runs this
   // effect → polls again → calls retryBootstrap again → AuthContext
   // loading flips back on → ProtectedRoute shows "Loading your vessel
   // access…" forever.
+  //
+  // Note: we use activeTenantId (not currentTenantId) because bootstrap
+  // writes to activeTenantId; currentTenantId is a separate legacy field
+  // that is only updated by setCurrentTenant() explicit calls.
   useEffect(() => {
     if (!bootstrapComplete) return;
-    if (currentTenantId) return;
+    if (activeTenantId) return;
     if (!user?.id) return;
     if (retriedRef.current) return;
     if (membershipRetries >= 5) return;
@@ -812,12 +816,12 @@ const OnboardingPage = () => {
       }
     }, 1500);
     return () => clearTimeout(t);
-  }, [bootstrapComplete, currentTenantId, user?.id, membershipRetries, retryBootstrap]);
+  }, [bootstrapComplete, activeTenantId, user?.id, membershipRetries, retryBootstrap]);
 
   // Load the tenant row for pre-fill
   useEffect(() => {
     if (!bootstrapComplete) return;
-    if (!currentTenantId) {
+    if (!activeTenantId) {
       // Still give the membership-poll effect a chance before surfacing
       // the webhook-failure error.
       if (membershipRetries < 5) return;
@@ -832,7 +836,7 @@ const OnboardingPage = () => {
       const { data, error } = await supabase
         .from('tenants')
         .select('*')
-        .eq('id', currentTenantId)
+        .eq('id', activeTenantId)
         .single();
       if (error) {
         console.error('[onboarding] failed to load tenant', error);
@@ -848,7 +852,7 @@ const OnboardingPage = () => {
       setTenant(data);
       setLoading(false);
     })();
-  }, [bootstrapComplete, currentTenantId, navigate, membershipRetries]);
+  }, [bootstrapComplete, activeTenantId, navigate, membershipRetries]);
 
   const logoSrc =
     theme === 'dark'
