@@ -6,6 +6,7 @@ import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import { supabase } from '../../lib/supabaseClient';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { showToast } from '../../utils/toast';
 
 // Capture the URL hash at module-load time, BEFORE the Supabase client's
@@ -31,6 +32,7 @@ const FRESH_INVITE_WINDOW_MS = 10 * 60 * 1000;
 const SetPassword = () => {
   const navigate = useNavigate();
   const { theme } = useTheme();
+  const { retryBootstrap } = useAuth();
 
   const [firstName, setFirstName] = useState('');
   const [surname, setSurname] = useState('');
@@ -244,6 +246,13 @@ const SetPassword = () => {
       console.log('SET_PASSWORD: routing to', destination);
       setSuccess(true);
       showToast('Password set successfully', 'success');
+
+      // Force AuthContext to re-bootstrap. Bootstrap almost always runs
+      // BEFORE the Stripe webhook finishes inserting tenant_members, so
+      // currentTenantId gets cached as null. Kicking retryBootstrap here
+      // (during the 1.5s success pause) lets /onboarding land with a
+      // resolved tenantId on first render.
+      try { retryBootstrap?.(); } catch (e) { console.warn('retryBootstrap failed', e); }
 
       // Brief pause so the success state is readable, then hand off.
       setTimeout(() => {
