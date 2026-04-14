@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Anchor, Check, Trash2, Plus, ChevronRight, ChevronLeft, Ship, Users, Building2, Utensils, Briefcase } from 'lucide-react';
+import { Anchor, Check, Trash2, Plus, ChevronRight, ChevronLeft, Ship, Users, Building2, Utensils, Briefcase, ClipboardList } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import Image from '../../components/AppImage';
@@ -749,7 +749,7 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
 
 // ─── Step 3: Invite crew ───────────────────────────────────────────
 
-const InviteCrewStep = ({ tenant, departments, customDepts, onFinish }) => {
+const InviteCrewStep = ({ tenant, departments, customDepts, onBack, onFinish }) => {
   const allDepts = useMemo(
     () => [
       ...BASE_DEPARTMENTS.filter((d) => departments.includes(d.id)),
@@ -807,9 +807,6 @@ const InviteCrewStep = ({ tenant, departments, customDepts, onFinish }) => {
       if (sendInvites) {
         const toInvite = rows.filter((r) => r.email && r.department_id && r.role);
         if (toInvite.length > 0) {
-          // Best-effort send via the existing crew invite RPC if it exists.
-          // If not available, stash them in a log for now — the primary path
-          // ("Do this later") is the recommended one per locked design.
           try {
             await Promise.all(
               toInvite.map(async (r) => {
@@ -825,13 +822,11 @@ const InviteCrewStep = ({ tenant, departments, customDepts, onFinish }) => {
               })
             );
           } catch (err) {
-            // Non-fatal — onboarding completes regardless.
             console.warn('[onboarding] some invites failed to send', err);
           }
         }
       }
 
-      // Mark onboarding complete on the tenant
       const { error: completeErr } = await supabase
         .from('tenants')
         .update({ onboarding_completed_at: new Date().toISOString() })
@@ -848,145 +843,181 @@ const InviteCrewStep = ({ tenant, departments, customDepts, onFinish }) => {
   };
 
   return (
-    <div className="p-7" style={CARD_STYLE}>
-      <h2
-        style={{
-          fontFamily: 'Outfit, sans-serif',
-          fontSize: 24,
-          fontWeight: 700,
-          color: CHARCOAL,
-          letterSpacing: '-0.01em',
-        }}
-      >
-        {tenant?.name ? `Bring your crew aboard ${tenant.name}` : 'Invite your crew'}
-      </h2>
-      <p className="text-sm mt-1 mb-6" style={{ color: '#64748B' }}>
-        Invite the crew you work with. You can always come back to this later.
-      </p>
-
-      {rows.map((r, i) => {
-        const dept = allDepts.find((d) => d.id === r.department_id);
-        const isCustom = dept && !BASE_DEPARTMENTS.some((bd) => bd.id === dept.id);
-        const roleOptions = dept && !isCustom ? ROLES_BY_DEPT[dept.id] || [] : [];
-        return (
-          <div key={i} className="grid grid-cols-12 gap-2 mb-2 items-end">
-            <div className="col-span-5">
-              <TextInput
-                placeholder="email@vessel.com"
-                value={r.email}
-                onChange={(e) => updateRow(i, 'email', e.target.value)}
-              />
-            </div>
-            <div className="col-span-3">
-              <select
-                value={r.department_id}
-                onChange={(e) => updateRow(i, 'department_id', e.target.value)}
-                className="w-full px-2 py-2 text-sm outline-none"
-                style={{ backgroundColor: CARD, border: '1px solid #CBD5E1', borderRadius: 6, color: CHARCOAL }}
-              >
-                <option value="">Department</option>
-                {allDepts.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="col-span-3">
-              {isCustom ? (
-                <TextInput
-                  placeholder="Role"
-                  value={r.role}
-                  onChange={(e) => updateRow(i, 'role', e.target.value)}
-                />
-              ) : (
-                <select
-                  value={r.role}
-                  onChange={(e) => updateRow(i, 'role', e.target.value)}
-                  className="w-full px-2 py-2 text-sm outline-none"
-                  style={{ backgroundColor: CARD, border: '1px solid #CBD5E1', borderRadius: 6, color: CHARCOAL }}
-                >
-                  <option value="">Role</option>
-                  {roleOptions.map((role) => (
-                    <option key={role} value={role}>
-                      {role}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-            <div className="col-span-1 flex justify-end">
-              {rows.length > 1 && (
-                <button type="button" onClick={() => removeRow(i)} className="p-2">
-                  <Trash2 size={16} color="#94A3B8" />
-                </button>
-              )}
-            </div>
-          </div>
-        );
-      })}
-
-      <div className="mb-5 mt-1">
-        <button
-          type="button"
-          onClick={addRow}
-          className="text-sm inline-flex items-center gap-1"
-          style={{ color: NAVY, fontWeight: 600 }}
+    <div className="cg-step-enter">
+      {/* Hero tile */}
+      <div className="flex items-start gap-5 mb-8">
+        <div
+          className="flex-shrink-0 w-14 h-14 rounded-xl flex items-center justify-center"
+          style={{ backgroundColor: NAVY }}
         >
-          <Plus size={14} /> Add another
-        </button>
+          <Users size={26} color="white" />
+        </div>
+        <div>
+          <h2
+            style={{
+              fontFamily: HEADING_FONT,
+              fontSize: 24,
+              fontWeight: 700,
+              color: CHARCOAL,
+              letterSpacing: '-0.01em',
+            }}
+          >
+            {tenant?.name ? `Bring your crew aboard ${tenant.name}` : 'Invite your crew'}
+          </h2>
+          <p className="text-sm mt-1" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
+            Add teammates by email — assign a department and role. Most captains do this after exploring the dashboard.
+          </p>
+        </div>
       </div>
 
-      <div className="mb-6">
+      {/* Paste-from-spreadsheet block — above the rows */}
+      <div className="mb-5">
         <button
           type="button"
           onClick={() => setShowPaste((v) => !v)}
-          className="text-xs uppercase tracking-widest"
-          style={{ color: NAVY, fontFamily: 'Archivo, sans-serif', fontWeight: 900, letterSpacing: '0.08em' }}
+          className="inline-flex items-center gap-2 text-xs uppercase"
+          style={{ color: NAVY, fontFamily: PILL_FONT, fontWeight: 900, letterSpacing: '0.08em' }}
         >
+          <ClipboardList size={14} />
           {showPaste ? '− Hide paste from spreadsheet' : '+ Paste from spreadsheet'}
         </button>
         {showPaste && (
-          <div className="mt-3">
+          <Card className="mt-3">
+            <p className="text-xs mb-2" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
+              One row per line — <span style={{ fontFamily: 'monospace' }}>email, department, role</span>
+            </p>
             <textarea
               value={pasteText}
               onChange={(e) => setPasteText(e.target.value)}
-              placeholder="email, department, role (one per line)"
+              placeholder="janet@vessel.com, Bridge, First Officer"
               rows={4}
-              className="w-full px-3 py-2 text-sm outline-none"
-              style={{ backgroundColor: CARD, border: '1px solid #CBD5E1', borderRadius: 6, color: CHARCOAL }}
+              className="w-full px-3 py-2 text-sm outline-none resize-none"
+              style={{
+                backgroundColor: '#F8FAFC',
+                border: '1px solid #CBD5E1',
+                borderRadius: 8,
+                color: CHARCOAL,
+                fontFamily: 'monospace',
+                fontSize: 13,
+              }}
             />
-            <div className="flex items-center gap-3 mt-2">
+            <div className="flex items-center gap-3 mt-3">
               <PillSecondary onClick={parsePaste} disabled={!pasteText.trim()}>
-                Parse rows
+                Add rows
               </PillSecondary>
               {pasteResult && (
-                <span className="text-xs" style={{ color: '#64748B' }}>{pasteResult}</span>
+                <span className="text-xs" style={{ color: '#64748B', fontFamily: BODY_FONT }}>{pasteResult}</span>
               )}
             </div>
-          </div>
+          </Card>
         )}
       </div>
 
+      {/* Invite rows — inside a raised Cargo card */}
+      <Card>
+        {rows.map((r, i) => {
+          const dept = allDepts.find((d) => d.id === r.department_id);
+          const isCustom = dept && !BASE_DEPARTMENTS.some((bd) => bd.id === dept.id);
+          const roleOptions = dept && !isCustom ? ROLES_BY_DEPT[dept.id] || [] : [];
+          return (
+            <div key={i} className="grid grid-cols-12 gap-2 mb-2 items-end">
+              <div className="col-span-12 md:col-span-5">
+                <TextInput
+                  placeholder="email@vessel.com"
+                  value={r.email}
+                  onChange={(e) => updateRow(i, 'email', e.target.value)}
+                />
+              </div>
+              <div className="col-span-6 md:col-span-3">
+                <select
+                  value={r.department_id}
+                  onChange={(e) => updateRow(i, 'department_id', e.target.value)}
+                  className="w-full px-2 py-2 text-sm outline-none"
+                  style={{ backgroundColor: CARD, border: '1px solid #CBD5E1', borderRadius: 6, color: CHARCOAL, fontFamily: BODY_FONT }}
+                >
+                  <option value="">Department</option>
+                  {allDepts.map((d) => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-span-5 md:col-span-3">
+                {isCustom ? (
+                  <TextInput
+                    placeholder="Role"
+                    value={r.role}
+                    onChange={(e) => updateRow(i, 'role', e.target.value)}
+                  />
+                ) : (
+                  <select
+                    value={r.role}
+                    onChange={(e) => updateRow(i, 'role', e.target.value)}
+                    className="w-full px-2 py-2 text-sm outline-none"
+                    style={{ backgroundColor: CARD, border: '1px solid #CBD5E1', borderRadius: 6, color: CHARCOAL, fontFamily: BODY_FONT }}
+                  >
+                    <option value="">Role</option>
+                    {roleOptions.map((role) => (
+                      <option key={role} value={role}>{role}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              <div className="col-span-1 flex justify-end">
+                {rows.length > 1 && (
+                  <button type="button" onClick={() => removeRow(i)} className="p-2">
+                    <Trash2 size={16} color="#94A3B8" />
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Add another — text link */}
+        <div className="mt-2">
+          <button
+            type="button"
+            onClick={addRow}
+            className="text-sm"
+            style={{ color: NAVY, fontFamily: BODY_FONT, fontWeight: 600 }}
+          >
+            + Add another
+          </button>
+        </div>
+
+        {/* Permission helper */}
+        <p className="text-xs mt-3" style={{ color: '#94A3B8', fontFamily: BODY_FONT }}>
+          Permission tier auto-populates from the selected role.
+        </p>
+      </Card>
+
       {error && (
-        <div className="mb-4 text-sm px-3 py-2 rounded" style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
+        <div className="mt-4 text-sm px-3 py-2 rounded" style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
           {error}
         </div>
       )}
 
-      <div className="flex items-center justify-between mt-4">
-        <p className="text-xs" style={{ color: '#64748B' }}>
-          Most captains start solo and invite crew once they've had a look around.
-        </p>
-        <div className="flex gap-3">
+      {/* Footer — Back + dual CTAs */}
+      <div className="flex items-center justify-between mt-8">
+        <LinkButton onClick={onBack}>
+          <ChevronLeft size={14} /> Back
+        </LinkButton>
+        <div className="flex items-center gap-3">
           <PillSecondary onClick={() => finishAndGo(true)} disabled={saving}>
             Send invites
           </PillSecondary>
           <PillPrimary onClick={() => finishAndGo(false)} disabled={saving}>
-            {saving ? 'Finishing…' : (<span className="inline-flex items-center gap-2">Do this later <ChevronRight size={14} /></span>)}
+            {saving ? 'Finishing…' : (
+              <span className="inline-flex items-center gap-2">Do this later <ChevronRight size={14} /></span>
+            )}
           </PillPrimary>
         </div>
       </div>
+
+      {/* Caption */}
+      <p className="text-right text-xs mt-3" style={{ color: '#94A3B8', fontFamily: BODY_FONT }}>
+        Most captains start solo and invite crew once they've had a look around.
+      </p>
     </div>
   );
 };
@@ -1193,6 +1224,7 @@ const OnboardingPage = () => {
             tenant={tenant}
             departments={deptChoice.baseSelected}
             customDepts={deptChoice.customDepts}
+            onBack={() => setStep('departments')}
             onFinish={() => navigate('/dashboard', { replace: true })}
           />
         )}
