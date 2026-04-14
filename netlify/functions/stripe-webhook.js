@@ -119,6 +119,24 @@ async function tenantExistsByImo(imo) {
   return rows.length > 0;
 }
 
+// Primary idempotency key. Stripe will re-deliver a webhook if our handler
+// errors late (or simply times out), and vessel_registrations.converted_at
+// isn't set until step 5, so checking only the registration row lets dupes
+// through. Looking up by subscription id is the one thing that's unique per
+// real checkout — if we find a tenant for this sub, the first delivery
+// already succeeded (at least far enough to create the tenant) and we must
+// no-op instead of inserting a second row.
+async function findTenantBySubscription(subscriptionId) {
+  if (!subscriptionId) return null;
+  const res = await supaRest(
+    `tenants?stripe_subscription_id=eq.${encodeURIComponent(subscriptionId)}&select=id&limit=1`,
+    { method: 'GET' }
+  );
+  if (!res.ok) return null;
+  const rows = await res.json();
+  return rows[0] || null;
+}
+
 async function createTenantRow(registration, session) {
   const payload = {
     name: registration.vessel_name,
@@ -177,17 +195,43 @@ async function setProfileTenant(userId, tenantId) {
   }
 }
 
+// Resolve the Captain role id from public.roles. A trigger
+// (sync_tenant_member_permission_tier) now raises on tenant_members inserts
+// with a null role_id, so we must look up the right role UUID before
+// inserting. The role is seeded in the Supabase dashboard (no migration
+// exists in-repo) so we can't hardcode the id — we look it up by
+// name='Captain' AND default_permission_tier='COMMAND'.
+async function fetchCaptainRole() {
+  const res = await supaRest(
+    `roles?name=eq.Captain&default_permission_tier=eq.COMMAND&select=id,department_id&limit=1`,
+    { method: 'GET' }
+  );
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`roles lookup failed: ${res.status} ${body.slice(0, 300)}`);
+  }
+  const rows = await res.json();
+  if (!rows[0]) {
+    throw new Error(`No Captain/COMMAND role found in public.roles. Seed one before onboarding any vessels.`);
+  }
+  return rows[0];
+}
+
 async function createTenantMember(userId, tenantId) {
   // Mirror accept_crew_invite_v3 (migration 20260227161000) which is the
   // canonical, currently-working path for creating tenant_members rows.
   // Columns required / expected:
   //   - role             (text)   — legacy role string
   //   - role_legacy      (text)   — mirror of role for backwards compat
-  //   - permission_tier  (text)   — NOT NULL in current schema; without
-  //                                 this the insert returns 400 from PostgREST
+  //   - permission_tier  (text)   — NOT NULL in current schema
+  //   - role_id          (uuid)   — enforced non-null by the
+  //                                 sync_tenant_member_permission_tier trigger
+  //                                 (fails with P0001 if omitted)
+  //   - department_id    (uuid)   — set to the Captain role's dept so RLS
+  //                                 policies that scope by department work
   //   - active           (bool)
   //   - status           (text)
-  // role_id and department_id are nullable and unused for the admin path.
+  const captain = await fetchCaptainRole();
   const res = await supaRest('tenant_members', {
     method: 'POST',
     headers: { 'Prefer': 'return=minimal' },
@@ -197,6 +241,8 @@ async function createTenantMember(userId, tenantId) {
       role: 'COMMAND',
       role_legacy: 'COMMAND',
       permission_tier: 'COMMAND',
+      role_id: captain.id,
+      department_id: captain.department_id,
       active: true,
       status: 'ACTIVE',
     }),
@@ -346,6 +392,42 @@ async function handleCheckoutCompleted(session) {
   // Idempotency — if this registration already converted, no-op.
   if (registration.converted_at || registration.tenant_id) {
     console.log(`[checkout] registration ${registrationId} already converted, skipping`);
+    return;
+  }
+
+  // Primary idempotency guard — if we already created a tenant for this
+  // Stripe subscription, the first webhook delivery succeeded at least as
+  // far as tenants.insert. Any second delivery is a Stripe retry caused by
+  // a late-step failure (profile upsert, tenant_members insert, or
+  // markRegistrationConverted) and MUST NOT create a second tenant.
+  // Without this check we were seeing duplicate tenant rows with identical
+  // stripe_customer_id / stripe_subscription_id — which then broke the
+  // dashboard with "no active vessel access" because profile.last_active_
+  // tenant_id and the tenant_members row pointed at different tenants.
+  const existingTenant = await findTenantBySubscription(session.subscription);
+  if (existingTenant) {
+    console.log(
+      `[checkout] tenant ${existingTenant.id} already exists for subscription ${session.subscription}. ` +
+      `Retry — reconciling downstream state instead of creating a new tenant.`
+    );
+    // Backfill anything the previous attempt might have skipped, all idempotent.
+    try {
+      const { id: userId } = await inviteUser(
+        registration.contact_email,
+        registration.contact_name || ''
+      );
+      await upsertProfile(userId, registration);
+      await setProfileTenant(userId, existingTenant.id);
+      await createTenantMember(userId, existingTenant.id).catch((err) => {
+        // Likely a unique-violation because the member row already exists.
+        // Log and continue — nothing to fix.
+        console.log(`[checkout] tenant_members insert no-op on retry: ${err?.message || err}`);
+      });
+      await markRegistrationConverted(registration.id, existingTenant.id);
+    } catch (err) {
+      console.error(`[checkout] retry reconciliation failed: ${err?.message || err}`);
+      throw err;
+    }
     return;
   }
 
