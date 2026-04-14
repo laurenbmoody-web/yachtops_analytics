@@ -38,6 +38,7 @@ export const AuthProvider = ({ children }) => {
   const [hasTenant, setHasTenant] = useState(false); // Track if user has tenant membership
   const [bootstrapComplete, setBootstrapComplete] = useState(false); // Track bootstrap completion
   const [bootstrapStatus, setBootstrapStatus] = useState(''); // UI status message
+  const [isVesselAdmin, setIsVesselAdmin] = useState(false); // Is the current user the vessel admin for their active tenant
   
   // Bootstrap tracking to prevent loops
   const lastBootstrappedUserId = useRef(null);
@@ -152,6 +153,7 @@ export const AuthProvider = ({ children }) => {
         setSession(null);
         setUser(null);
         setTenantRole(null);
+        setIsVesselAdmin(false);
         setTenantError(null);
         lastBootstrappedUserId.current = null;
         bootstrapInProgress.current = false;
@@ -370,6 +372,7 @@ export const AuthProvider = ({ children }) => {
           setBootstrapStatus('');
           setActiveTenantId(null);
           setTenantRole(null);
+          setIsVesselAdmin(false);
           setHasTenant(false);
           setBootstrapComplete(true); // CRITICAL: Set to true to stop spinner
           setTenantLoading(false);
@@ -385,6 +388,7 @@ export const AuthProvider = ({ children }) => {
           setBootstrapStatus('');
           setActiveTenantId(null);
           setTenantRole(null);
+          setIsVesselAdmin(false);
           setHasTenant(false);
           setBootstrapComplete(true); // CRITICAL: Set to true to stop spinner
           setTenantLoading(false);
@@ -429,6 +433,7 @@ export const AuthProvider = ({ children }) => {
             setActiveTenantId(null);
             localStorage.removeItem('cargo_active_tenant_id');
             setTenantRole(null);
+            setIsVesselAdmin(false);
             setHasTenant(false);
             setTenantError(null);
             console.log('BOOTSTRAP: ✅ membership ok (none found, cleared)');
@@ -448,6 +453,19 @@ export const AuthProvider = ({ children }) => {
             setTenantRole(normalizedTier);
             setHasTenant(true);
             setTenantError(null);
+
+            // Determine vessel admin status (source of truth: tenants.current_admin_user_id)
+            try {
+              const { data: tenantRow } = await supabase
+                ?.from('tenants')
+                ?.select('current_admin_user_id')
+                ?.eq('id', membership?.tenant_id)
+                ?.single();
+              setIsVesselAdmin(tenantRow?.current_admin_user_id === currentUserId);
+            } catch (adminErr) {
+              console.warn('BOOTSTRAP: could not resolve vessel admin status', adminErr);
+              setIsVesselAdmin(false);
+            }
 
             // Resolve department name from department_id
             let departmentName = null;
@@ -531,6 +549,20 @@ export const AuthProvider = ({ children }) => {
             setTenantRole(normalizedRole);
             setHasTenant(true);
             setTenantError(null);
+
+            // Determine vessel admin status (source of truth: tenants.current_admin_user_id)
+            try {
+              const { data: tenantRow } = await supabase
+                ?.from('tenants')
+                ?.select('current_admin_user_id')
+                ?.eq('id', tenantId)
+                ?.single();
+              setIsVesselAdmin(tenantRow?.current_admin_user_id === currentUserId);
+            } catch (adminErr) {
+              console.warn('BOOTSTRAP: could not resolve vessel admin status', adminErr);
+              setIsVesselAdmin(false);
+            }
+
             console.log('BOOTSTRAP: ✅ tenant set');
             setLastBootstrapStep('tenant_set');
             setBootstrapStatus('Tenant context set');
@@ -540,6 +572,7 @@ export const AuthProvider = ({ children }) => {
             setActiveTenantId(null);
             localStorage.removeItem('cargo_active_tenant_id');
             setTenantRole(null);
+            setIsVesselAdmin(false);
             setHasTenant(false);
             setTenantError(null);
             console.log('BOOTSTRAP: ✅ membership ok (none found)');
@@ -564,6 +597,7 @@ export const AuthProvider = ({ children }) => {
         // Set safe defaults on error
         setActiveTenantId(null);
         setTenantRole(null);
+        setIsVesselAdmin(false);
         setHasTenant(false);
         lastBootstrappedUserId.current = currentUserId;
       } finally {
@@ -674,6 +708,7 @@ export const AuthProvider = ({ children }) => {
     tenantLoading,
     hasTenant,
     tenantRole,
+    isVesselAdmin,
     tenantError,
     bootstrapComplete,
     bootstrapStatus,
@@ -727,6 +762,7 @@ export const AuthProvider = ({ children }) => {
         user,
         loading,
         tenantRole,
+        isVesselAdmin,
         tenantError,
         tenantLoading,
         hasTenant,

@@ -13,6 +13,7 @@ const TransferAdminModal = ({ onClose, onSuccess }) => {
   const [selectedUserId, setSelectedUserId] = useState('');
   const [selectedUserName, setSelectedUserName] = useState('');
   const [currentUserName, setCurrentUserName] = useState('');
+  const [tenantId, setTenantId] = useState(null);
 
   useEffect(() => {
     fetchVesselMembers();
@@ -21,28 +22,39 @@ const TransferAdminModal = ({ onClose, onSuccess }) => {
   const fetchVesselMembers = async () => {
     try {
       // Get current user's profile to find active tenant
-      const { data: profile, error: profileError } = await supabase?.from('profiles')?.select('last_active_tenant_id, full_name')?.eq('id', user?.id)?.single();
+      const { data: profile, error: profileError } = await supabase
+        ?.from('profiles')
+        ?.select('last_active_tenant_id, full_name')
+        ?.eq('id', user?.id)
+        ?.single();
 
       if (profileError) throw profileError;
 
       setCurrentUserName(profile?.full_name || 'Current Admin');
 
-      const tenantId = profile?.last_active_tenant_id;
-      if (!tenantId) {
+      const activeTenantId = profile?.last_active_tenant_id;
+      if (!activeTenantId) {
         setError('No active vessel found');
         return;
       }
+      setTenantId(activeTenantId);
 
-      // Fetch all active vessel members except current user and those with COMMAND role
-      const { data: members, error: membersError } = await supabase?.from('tenant_members')?.select(`
+      // Fetch all active vessel members except the current user.
+      // Any member can be promoted to vessel admin; permission tier does not
+      // restrict eligibility (admin is tracked on tenants.current_admin_user_id).
+      const { data: members, error: membersError } = await supabase
+        ?.from('tenant_members')
+        ?.select(`
           user_id,
-          role,
           profiles:user_id (
             id,
             full_name,
             email
           )
-        `)?.eq('tenant_id', tenantId)?.eq('active', true)?.neq('user_id', user?.id)?.neq('role', 'COMMAND');
+        `)
+        ?.eq('tenant_id', activeTenantId)
+        ?.eq('active', true)
+        ?.neq('user_id', user?.id);
 
       if (membersError) throw membersError;
 
@@ -58,53 +70,29 @@ const TransferAdminModal = ({ onClose, onSuccess }) => {
       setError('Please select a user to transfer admin access to');
       return;
     }
+    if (!tenantId) {
+      setError('No active vessel found');
+      return;
+    }
 
     setLoading(true);
     setError('');
 
     try {
-      // Get current user's profile to find active tenant
-      const { data: profile, error: profileError } = await supabase?.from('profiles')?.select('last_active_tenant_id')?.eq('id', user?.id)?.single();
+      // Single atomic RPC call performs all authorization checks server-side
+      // and swaps vessel admin immediately. No proposal / acceptance step.
+      const { error: rpcError } = await supabase.rpc('transfer_vessel_admin', {
+        p_tenant_id: tenantId,
+        p_to_user_id: selectedUserId,
+      });
 
-      if (profileError) throw profileError;
-
-      const tenantId = profile?.last_active_tenant_id;
-      if (!tenantId) throw new Error('No active vessel found');
-
-      // Check if there's already a pending transfer
-      const { data: existingTransfer, error: checkError } = await supabase?.from('admin_transfer_requests')?.select('id')?.eq('tenant_id', tenantId)?.eq('status', 'PENDING')?.maybeSingle();
-
-      // Handle 406 or no rows found as normal (not an error)
-      if (checkError) {
-        // 406 means no rows found, which is fine - no existing transfer
-        if (checkError?.code === 'PGRST116' || checkError?.status === 406 || checkError?.message?.includes('0 rows')) {
-          console.log('No existing transfer found (expected)');
-          // Continue to create new transfer
-        } else {
-          // Real error, throw it
-          throw checkError;
-        }
-      } else if (existingTransfer) {
-        setError('There is already a pending admin transfer');
-        setLoading(false);
-        return;
-      }
-
-      // Create transfer request
-      const { error: insertError } = await supabase?.from('admin_transfer_requests')?.insert({
-          tenant_id: tenantId,
-          from_user_id: user?.id,
-          to_user_id: selectedUserId,
-          status: 'PENDING'
-        });
-
-      if (insertError) throw insertError;
+      if (rpcError) throw rpcError;
 
       onSuccess?.();
       onClose();
     } catch (err) {
-      console.error('Error creating transfer request:', err);
-      setError(err?.message || 'Failed to initiate admin transfer');
+      console.error('Error transferring vessel admin:', err);
+      setError(err?.message || 'Failed to transfer admin access');
     } finally {
       setLoading(false);
     }
@@ -138,8 +126,8 @@ const TransferAdminModal = ({ onClose, onSuccess }) => {
               <div className="text-sm text-amber-900 dark:text-amber-100">
                 <p className="font-medium mb-1">Important</p>
                 <p className="text-amber-700 dark:text-amber-300">
-                  This will transfer vessel admin access to another crew member. 
-                  You will remain on the vessel with your current access level.
+                  This will immediately transfer vessel admin access to the selected crew member.
+                  You will remain on the vessel with your current permission tier.
                 </p>
               </div>
             </div>
