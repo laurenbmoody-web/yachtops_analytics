@@ -195,17 +195,43 @@ async function setProfileTenant(userId, tenantId) {
   }
 }
 
+// Resolve the Captain role id from public.roles. A trigger
+// (sync_tenant_member_permission_tier) now raises on tenant_members inserts
+// with a null role_id, so we must look up the right role UUID before
+// inserting. The role is seeded in the Supabase dashboard (no migration
+// exists in-repo) so we can't hardcode the id — we look it up by
+// name='Captain' AND default_permission_tier='COMMAND'.
+async function fetchCaptainRole() {
+  const res = await supaRest(
+    `roles?name=eq.Captain&default_permission_tier=eq.COMMAND&select=id,department_id&limit=1`,
+    { method: 'GET' }
+  );
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`roles lookup failed: ${res.status} ${body.slice(0, 300)}`);
+  }
+  const rows = await res.json();
+  if (!rows[0]) {
+    throw new Error(`No Captain/COMMAND role found in public.roles. Seed one before onboarding any vessels.`);
+  }
+  return rows[0];
+}
+
 async function createTenantMember(userId, tenantId) {
   // Mirror accept_crew_invite_v3 (migration 20260227161000) which is the
   // canonical, currently-working path for creating tenant_members rows.
   // Columns required / expected:
   //   - role             (text)   — legacy role string
   //   - role_legacy      (text)   — mirror of role for backwards compat
-  //   - permission_tier  (text)   — NOT NULL in current schema; without
-  //                                 this the insert returns 400 from PostgREST
+  //   - permission_tier  (text)   — NOT NULL in current schema
+  //   - role_id          (uuid)   — enforced non-null by the
+  //                                 sync_tenant_member_permission_tier trigger
+  //                                 (fails with P0001 if omitted)
+  //   - department_id    (uuid)   — set to the Captain role's dept so RLS
+  //                                 policies that scope by department work
   //   - active           (bool)
   //   - status           (text)
-  // role_id and department_id are nullable and unused for the admin path.
+  const captain = await fetchCaptainRole();
   const res = await supaRest('tenant_members', {
     method: 'POST',
     headers: { 'Prefer': 'return=minimal' },
@@ -215,6 +241,8 @@ async function createTenantMember(userId, tenantId) {
       role: 'COMMAND',
       role_legacy: 'COMMAND',
       permission_tier: 'COMMAND',
+      role_id: captain.id,
+      department_id: captain.department_id,
       active: true,
       status: 'ACTIVE',
     }),

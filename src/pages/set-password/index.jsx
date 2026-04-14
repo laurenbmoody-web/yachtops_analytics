@@ -229,13 +229,18 @@ const SetPassword = () => {
         console.warn('SET_PASSWORD: profile update failed (non-fatal)', profileError);
       }
 
-      // Always route to /dashboard. The AuthContext bootstrap will
-      // resolve the tenant membership and ProtectedRoute handles the
-      // rest. We previously tried querying tenant_members here, but
-      // RLS policies on a freshly-invited user block that read —
-      // AuthContext's bootstrap is the canonical place for tenant
-      // resolution and already handles this edge case correctly.
-      const destination = '/dashboard';
+      // Route brand-new vessel admins to /onboarding so they go through
+      // the 3-step setup flow (vessel → departments → crew) before
+      // landing on the dashboard. Everyone else (e.g. crew members,
+      // returning users somehow reaching this page) goes to /dashboard.
+      //
+      // We detect "brand-new" via user.app_metadata.provider flags are
+      // unreliable — instead, ask the OnboardingRoute guard to redirect
+      // if the tenant's onboarding_completed_at is already set. For
+      // that, we just route to /onboarding unconditionally for invited
+      // users and let the guard bounce them to /dashboard if they've
+      // been through it already.
+      const destination = '/onboarding';
       console.log('SET_PASSWORD: routing to', destination);
       setSuccess(true);
       showToast('Password set successfully', 'success');

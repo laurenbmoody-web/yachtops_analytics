@@ -63,6 +63,7 @@ import InviteAcceptPage from './pages/invite-accept';
 import ForgotPasswordRequest from './pages/forgot-password-request';
 import ResetPassword from './pages/reset-password';
 import SetPassword from './pages/set-password';
+import OnboardingPage from './pages/onboarding';
 import { supabase } from './lib/supabaseClient';
 import { useAuth, RouteChangeLogger } from './contexts/AuthContext';
 import TodayDetailPage from './pages/today-detail/index';
@@ -968,6 +969,9 @@ const Routes = () => {
         <Route path="/crew-invite-acceptance-page" element={<InviteRedirect />} />
         <Route path="/lightweight-invite-acceptance-page" element={<InviteRedirect />} />
         
+        {/* Post-signup onboarding — 3-step flow between /set-password and /dashboard */}
+        <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
+
         {/* Protected Routes */}
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/safe-dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
