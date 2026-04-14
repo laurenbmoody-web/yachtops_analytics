@@ -10,6 +10,7 @@ import TransferAdminModal from './TransferAdminModal';
 import { loadRoles, createRole, updateRole, Department, PermissionTier, getDepartmentDisplayName, getTierDisplayName, hasCommandAccess, getCurrentUser } from '../../../utils/authStorage';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../contexts/AuthContext';
+import TransferAdminModal from './TransferAdminModal';
 
 const RoleManagement = () => {
   const navigate = useNavigate();
@@ -555,6 +556,14 @@ const RoleManagement = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Transfer Admin Modal */}
+      {showTransferModal && (
+        <TransferAdminModal
+          onClose={() => setShowTransferModal(false)}
+          onSuccess={fetchPendingTransfer}
+        />
       )}
     </div>
   );
