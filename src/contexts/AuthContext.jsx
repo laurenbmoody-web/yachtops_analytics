@@ -43,6 +43,9 @@ export const AuthProvider = ({ children }) => {
   // Bootstrap tracking to prevent loops
   const lastBootstrappedUserId = useRef(null);
   const bootstrapInProgress = useRef(false);
+  // When true, the current bootstrap run is a background retry — skip the
+  // tenantLoading/bootstrapComplete state flips that would unmount children.
+  const isRetryingBootstrap = useRef(false);
   
   // Failsafe timeout state
   const [showFailsafeDebug, setShowFailsafeDebug] = useState(false);
@@ -270,8 +273,15 @@ export const AuthProvider = ({ children }) => {
       }
       
       bootstrapInProgress.current = true;
-      setTenantLoading(true);
-      setBootstrapComplete(false);
+      // During a background retry (isRetryingBootstrap=true) we must NOT flip
+      // bootstrapComplete→false or tenantLoading→true, because that would make
+      // ProtectedRoute's isContextLoading become true, unmounting the children
+      // (e.g. the onboarding page). That unmount resets the page's retriedRef,
+      // which triggers another retry — producing the infinite flicker loop.
+      if (!isRetryingBootstrap.current) {
+        setTenantLoading(true);
+        setBootstrapComplete(false);
+      }
       console.log('BOOTSTRAP: starting for user:', currentUserId);
       setLastBootstrapStep('bootstrap_start');
       setBootstrapStatus('Initializing...');
@@ -603,6 +613,7 @@ export const AuthProvider = ({ children }) => {
       } finally {
         // CRITICAL: Always complete bootstrap
         bootstrapInProgress.current = false;
+        isRetryingBootstrap.current = false; // Always clear retry flag
         setTenantLoading(false);
         setBootstrapComplete(true); // CRITICAL: Always set to true
         setLoading(false);
@@ -618,7 +629,11 @@ export const AuthProvider = ({ children }) => {
     };
 
     bootstrapTenant();
-  }, [session, loading]); // Depend on session and loading
+  }, [session]); // Only session — adding `loading` caused double-runs: setLoading(false)
+               // at bootstrap end re-triggered the effect, and retryBootstrap's
+               // setLoading(true) would trigger it a second time before the
+               // session-change trigger already did. Silent retries use
+               // setSession(prev => ({...prev})) as the sole trigger.
 
   // Reload user from localStorage on mount and when storage changes
   useEffect(() => {
@@ -657,19 +672,20 @@ export const AuthProvider = ({ children }) => {
     }
   };
   
-  // Retry bootstrap function
+  // Retry bootstrap function — silent background refresh.
+  // Does NOT flip bootstrapComplete→false or loading→true so ProtectedRoute
+  // keeps rendering children. This prevents the child component (e.g. the
+  // onboarding page) from unmounting and losing its "already retried" ref,
+  // which was the cause of the infinite-flicker loop.
   const retryBootstrap = () => {
     console.log('[AUTH] 🔄 Retry bootstrap requested');
-    setShowFailsafeDebug(false);
-    setLoading(true);
-    setTenantError(null);
+    isRetryingBootstrap.current = true;
     lastBootstrappedUserId.current = null;
     bootstrapInProgress.current = false;
-    setBootstrapComplete(false); // Reset completion flag
-    setLastBootstrapStep('retry_requested');
-    
-    // Trigger bootstrap by updating session reference
-    setSession(prev => ({ ...prev }));
+    setTenantError(null);
+    // Trigger the bootstrap effect by producing a new session object reference.
+    // The effect only depends on [session] now, so this is the sole trigger.
+    setSession(prev => (prev ? { ...prev } : prev));
   };
 
   // Add this function declaration
@@ -688,51 +704,6 @@ export const AuthProvider = ({ children }) => {
   const isChiefStew = currentUser?.roleId === 'role-8';
   const isCrew = currentUser?.tier === 'CREW';
 
-  const value = { 
-    currentUser,
-    setCurrentUser,
-    currentTenantId,
-    setCurrentTenantId,
-    activeTenantId,
-    setActiveTenantId: (id) => {
-      setActiveTenantId(id);
-      localStorage.setItem('cargo_active_tenant_id', id);
-    },
-    updateActiveTenantId: (id) => {
-      setActiveTenantId(id);
-      localStorage.setItem('cargo_active_tenant_id', id);
-    },
-    session,
-    user,
-    loading,
-    tenantLoading,
-    hasTenant,
-    tenantRole,
-    isVesselAdmin,
-    tenantError,
-    bootstrapComplete,
-    bootstrapStatus,
-    refreshUser,
-    setCurrentTenant,
-    isCommand,
-    isChief,
-    isHOD,
-    isChiefStew,
-    isCrew,
-    retryBootstrap: () => {
-      console.log('[AUTH] Manual retry triggered');
-      lastBootstrappedUserId.current = null;
-      bootstrapInProgress.current = false;
-      setBootstrapComplete(false);
-      setTenantError(null);
-      setLoading(true); // Triggers [session, loading] bootstrap effect
-    },
-    signOut: async () => {
-      await supabase?.auth?.signOut();
-      clearCurrentUser();
-    }
-  };
-  
   // Log context value on every render (for debugging)
   console.log('[AUTH] 📊 Current auth context:', {
     hasSession: !!session,
