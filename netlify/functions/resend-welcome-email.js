@@ -83,12 +83,14 @@ async function fetchRegistration(id) {
 // `generate_link` endpoint with type=invite which triggers Supabase to
 // re-send the email (same behaviour as the original webhook path).
 async function resendInvite(email) {
+  // Land on /set-password so the user can actually choose a password.
+  // Previously this pointed at /welcome which is just a marketing page.
   const res = await supaAuth('admin/generate_link', {
     method: 'POST',
     body: JSON.stringify({
       type: 'invite',
       email,
-      options: { redirectTo: `${SITE_URL}/welcome` },
+      options: { redirectTo: `${SITE_URL}/set-password` },
     }),
   });
   if (!res.ok) {

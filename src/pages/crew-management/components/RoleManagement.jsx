@@ -5,6 +5,7 @@ import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import Select from '../../../components/ui/Select';
+import TransferAdminModal from './TransferAdminModal';
 
 import { loadRoles, createRole, updateRole, Department, PermissionTier, getDepartmentDisplayName, getTierDisplayName, hasCommandAccess, getCurrentUser } from '../../../utils/authStorage';
 import { supabase } from '../../../lib/supabaseClient';
@@ -21,10 +22,8 @@ const RoleManagement = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
   const [showTransferModal, setShowTransferModal] = useState(false);
-  const [pendingTransfer, setPendingTransfer] = useState(null);
-  const [auditLogs, setAuditLogs] = useState([]);
-  const [vesselMembers, setVesselMembers] = useState([]);
-  const [isCommandUser, setIsCommandUser] = useState(false);
+  const [isVesselAdmin, setIsVesselAdmin] = useState(false);
+  const [currentAdminProfile, setCurrentAdminProfile] = useState(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -37,16 +36,16 @@ const RoleManagement = () => {
 
   // Check authentication and authorization
   useEffect(() => {
-    const user = getCurrentUser();
-    if (!user) {
+    const u = getCurrentUser();
+    if (!u) {
       // DO NOT redirect here - ProtectedRoute handles this
       return;
     }
-    if (!hasCommandAccess(user)) {
+    if (!hasCommandAccess(u)) {
       navigate('/dashboard');
       return;
     }
-    setCurrentUser(user);
+    setCurrentUser(u);
   }, [navigate]);
 
   // Load roles
@@ -54,17 +53,14 @@ const RoleManagement = () => {
     setRoles(loadRoles());
   }, []);
 
-  // Check if current user is COMMAND and fetch transfer data
+  // Determine whether the current user is the vessel admin for their active tenant.
   useEffect(() => {
     if (user?.id) {
-      checkCommandStatus();
-      fetchPendingTransfer();
-      fetchAuditLogs();
-      fetchVesselMembers();
+      checkVesselAdminStatus();
     }
   }, [user]);
 
-  const checkCommandStatus = async () => {
+  const checkVesselAdminStatus = async () => {
     try {
       const { data: profile, error: profileError } = await supabase
         ?.from('profiles')
@@ -77,196 +73,33 @@ const RoleManagement = () => {
       const tenantId = profile?.last_active_tenant_id;
       if (!tenantId) return;
 
-      const { data: membership, error: membershipError } = await supabase
-        ?.from('tenant_members')
-        ?.select('role')
-        ?.eq('tenant_id', tenantId)
-        ?.eq('user_id', user?.id)
-        ?.eq('active', true)
-        ?.single();
-
-      if (membershipError) throw membershipError;
-
-      const role = membership?.role?.toUpperCase();
-      setIsCommandUser(role === 'COMMAND');
-    } catch (err) {
-      console.error('Error checking command status:', err);
-    }
-  };
-
-  const fetchPendingTransfer = async (retries = 2) => {
-    try {
-      const { data: profile, error: profileError } = await supabase
-        ?.from('profiles')
-        ?.select('last_active_tenant_id')
-        ?.eq('id', user?.id)
-        ?.single();
-
-      if (profileError) {
-        // Handle AbortError specifically
-        if (profileError?.name === 'AbortError' || profileError?.message?.includes('aborted')) {
-          console.warn('[TRANSFER] Query aborted (timeout or cancellation)');
-          if (retries > 0) {
-            console.warn(`[TRANSFER] Retrying... (${retries} attempts left)`);
-            await new Promise(resolve => setTimeout(resolve, 500));
-            return fetchPendingTransfer(retries - 1);
-          }
-          console.warn('[TRANSFER] AbortError after all retries. Treating as no pending transfer.');
-          setPendingTransfer(null);
-          return;
-        }
-        throw profileError;
-      }
-
-      const tenantId = profile?.last_active_tenant_id;
-      if (!tenantId) return;
-
-      const { data: transfer, error: transferError } = await supabase
-        ?.from('admin_transfer_requests')
+      // Source of truth: tenants.current_admin_user_id. Permission tier is
+      // separate from "am I the vessel admin".
+      const { data: tenant, error: tenantError } = await supabase
+        ?.from('tenants')
         ?.select(`
-          id,
-          from_user_id,
-          to_user_id,
-          status,
-          created_at,
-          from_profile:from_user_id (full_name),
-          to_profile:to_user_id (full_name)
-        `)
-        ?.eq('tenant_id', tenantId)
-        ?.eq('status', 'PENDING')
-        ?.maybeSingle();
-
-      // Handle 406 or no rows found as normal (not an error)
-      if (transferError) {
-        // Handle AbortError specifically
-        if (transferError?.name === 'AbortError' || transferError?.message?.includes('aborted')) {
-          console.warn('[TRANSFER] Transfer query aborted (timeout or cancellation)');
-          if (retries > 0) {
-            console.warn(`[TRANSFER] Retrying transfer query... (${retries} attempts left)`);
-            await new Promise(resolve => setTimeout(resolve, 500));
-            return fetchPendingTransfer(retries - 1);
-          }
-          console.warn('[TRANSFER] AbortError after all retries. Treating as no pending transfer.');
-          setPendingTransfer(null);
-          return;
-        }
-        
-        // PGRST116 or 406 means no rows found - this is EXPECTED when there's no pending transfer
-        // Do NOT log as error - just set null and return
-        if (transferError?.code === 'PGRST116' || transferError?.status === 406 || transferError?.message?.includes('0 rows')) {
-          setPendingTransfer(null);
-          return;
-        }
-        // Only throw for real errors
-        throw transferError;
-      }
-
-      setPendingTransfer(transfer || null);
-    } catch (err) {
-      // Handle TypeError: Load failed (network errors)
-      if (err instanceof TypeError && err?.message?.includes('Load failed')) {
-        console.warn('[TRANSFER] Network error (Load failed) - treating as no pending transfer');
-        if (retries > 0) {
-          console.warn(`[TRANSFER] Retrying after network error... (${retries} attempts left)`);
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          return fetchPendingTransfer(retries - 1);
-        }
-        console.warn('[TRANSFER] Network error after all retries. No pending transfer.');
-        setPendingTransfer(null);
-        return;
-      }
-      
-      // Handle AbortError at top level
-      if (err?.name === 'AbortError' || err?.message?.includes('aborted')) {
-        console.warn('[TRANSFER] Operation aborted (timeout or cancellation)');
-        if (retries > 0) {
-          console.warn(`[TRANSFER] Retrying after abort... (${retries} attempts left)`);
-          await new Promise(resolve => setTimeout(resolve, 500));
-          return fetchPendingTransfer(retries - 1);
-        }
-        console.warn('[TRANSFER] AbortError after all retries. No pending transfer.');
-        setPendingTransfer(null);
-        return;
-      }
-      
-      // PGRST116 at top level - treat as expected (no pending transfer)
-      if (err?.code === 'PGRST116' || err?.status === 406 || err?.message?.includes('0 rows')) {
-        setPendingTransfer(null);
-        return;
-      }
-      
-      // Only log actual errors (not expected "no rows" scenarios or network errors)
-      console.error('[TRANSFER] Error fetching pending transfer:', err);
-      setPendingTransfer(null);
-    }
-  };
-
-  const fetchAuditLogs = async () => {
-    try {
-      const { data: profile, error: profileError } = await supabase
-        ?.from('profiles')
-        ?.select('last_active_tenant_id')
-        ?.eq('id', user?.id)
-        ?.single();
-
-      if (profileError) throw profileError;
-
-      const tenantId = profile?.last_active_tenant_id;
-      if (!tenantId) return;
-
-      const { data: logs, error: logsError } = await supabase
-        ?.from('admin_transfer_audit')
-        ?.select('*')
-        ?.eq('tenant_id', tenantId)
-        ?.order('transferred_at', { ascending: false })
-        ?.limit(10);
-
-      if (logsError) throw logsError;
-
-      setAuditLogs(logs || []);
-    } catch (err) {
-      console.error('Error fetching audit logs:', err);
-    }
-  };
-
-  const fetchVesselMembers = async () => {
-    try {
-      const { data: profile, error: profileError } = await supabase
-        ?.from('profiles')
-        ?.select('last_active_tenant_id')
-        ?.eq('id', user?.id)
-        ?.single();
-
-      if (profileError) throw profileError;
-
-      const tenantId = profile?.last_active_tenant_id;
-      if (!tenantId) return;
-
-      const { data: members, error: membersError } = await supabase
-        ?.from('tenant_members')
-        ?.select(`
-          user_id,
-          role,
-          profiles:user_id (
+          current_admin_user_id,
+          current_admin:current_admin_user_id (
             id,
             full_name,
             email
           )
         `)
-        ?.eq('tenant_id', tenantId)
-        ?.eq('active', true);
+        ?.eq('id', tenantId)
+        ?.single();
 
-      if (membersError) throw membersError;
+      if (tenantError) throw tenantError;
 
-      setVesselMembers(members || []);
+      setIsVesselAdmin(tenant?.current_admin_user_id === user?.id);
+      setCurrentAdminProfile(tenant?.current_admin || null);
     } catch (err) {
-      console.error('Error fetching vessel members:', err);
+      console.error('Error checking vessel admin status:', err);
     }
   };
 
   const handleTransferSuccess = () => {
-    fetchPendingTransfer();
-    fetchAuditLogs();
+    // Re-check admin status — the caller just handed off the role.
+    checkVesselAdminStatus();
   };
 
   // Handle form input changes
@@ -310,12 +143,12 @@ const RoleManagement = () => {
       setFormError('Role Title is required');
       return;
     }
-    
+
     if (!formData?.department) {
       setFormError('Department is required');
       return;
     }
-    
+
     if (!formData?.permissionTier) {
       setFormError('Permission Tier is required');
       return;
@@ -381,8 +214,8 @@ const RoleManagement = () => {
     } else if (sortConfig?.key === 'department') {
       aValue = getDepartmentDisplayName(a?.department) || '';
       bValue = getDepartmentDisplayName(b?.department) || '';
-      return sortConfig?.direction === 'asc' 
-        ? aValue?.localeCompare(bValue) 
+      return sortConfig?.direction === 'asc'
+        ? aValue?.localeCompare(bValue)
         : bValue?.localeCompare(aValue);
     } else if (sortConfig?.key === 'tier') {
       aValue = getTierDisplayName(a?.permissionTier || a?.tier)?.toLowerCase() || '';
@@ -401,29 +234,10 @@ const RoleManagement = () => {
     return null;
   }
 
-  const commandMembers = vesselMembers?.filter(m => m?.role?.toUpperCase() === 'COMMAND');
-
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
       <Header />
       <main className="p-6 max-w-[1800px] mx-auto">
-        {/* Pending Transfer Banner for Current COMMAND */}
-        {isCommandUser && pendingTransfer && pendingTransfer?.from_user_id === user?.id && (
-          <div className="mb-6 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-4">
-            <div className="flex items-start gap-3">
-              <Icon name="Clock" size={20} className="text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                  Admin transfer pending acceptance by {pendingTransfer?.to_profile?.full_name}
-                </p>
-                <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                  You cannot initiate another transfer until this one is resolved.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -436,71 +250,36 @@ const RoleManagement = () => {
           </Button>
         </div>
 
-        {/* Transfer Admin Section - Only for COMMAND users */}
-        {isCommandUser && commandMembers?.length > 0 && (
+        {/* Vessel Admin Transfer Section — only the current vessel admin sees the transfer button */}
+        {currentAdminProfile && (
           <div className="bg-card border border-border rounded-2xl p-6 mb-6">
-            <div className="flex items-start justify-between">
+            <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
-                <h2 className="text-lg font-semibold text-foreground mb-2">Vessel Admin Transfer</h2>
+                <h2 className="text-lg font-semibold text-foreground mb-2">Vessel Admin</h2>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Transfer vessel admin access to another crew member. You will remain on the vessel with your current access level.
+                  The vessel admin is responsible for invites, billing, and vessel-level settings. Permission tier (COMMAND, CHIEF, HOD, CREW) is separate from admin status.
                 </p>
-                <div className="space-y-2">
-                  {commandMembers?.map(member => (
-                    <div key={member?.user_id} className="flex items-center gap-3">
-                      <div className="flex items-center gap-2 flex-1">
-                        <Icon name="Shield" size={16} className="text-red-600" />
-                        <span className="text-sm font-medium text-foreground">
-                          {member?.profiles?.full_name}
-                        </span>
-                        <span className="text-xs text-muted-foreground">({member?.profiles?.email})</span>
-                        {member?.user_id === user?.id && (
-                          <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">You</span>
-                        )}
-                      </div>
-                      {member?.user_id === user?.id && !pendingTransfer && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setShowTransferModal(true)}
-                        >
-                          <Icon name="UserCheck" size={16} />
-                          Transfer Admin
-                        </Button>
-                      )}
-                    </div>
-                  ))}
+                <div className="flex items-center gap-3">
+                  <Icon name="Shield" size={16} className="text-red-600" />
+                  <span className="text-sm font-medium text-foreground">
+                    {currentAdminProfile?.full_name}
+                  </span>
+                  <span className="text-xs text-muted-foreground">({currentAdminProfile?.email})</span>
+                  {isVesselAdmin && (
+                    <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">You</span>
+                  )}
                 </div>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Audit Log Section - Only for COMMAND users */}
-        {isCommandUser && auditLogs?.length > 0 && (
-          <div className="bg-card border border-border rounded-2xl p-6 mb-6">
-            <h2 className="text-lg font-semibold text-foreground mb-4">Admin Transfer History</h2>
-            <div className="space-y-3">
-              {auditLogs?.map(log => (
-                <div key={log?.id} className="flex items-start gap-3 text-sm">
-                  <Icon name="ArrowRightLeft" size={16} className="text-muted-foreground mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-foreground">
-                      Vessel Admin transferred from <span className="font-medium">{log?.from_user_name}</span> to{' '}
-                      <span className="font-medium">{log?.to_user_name}</span>
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {new Date(log?.transferred_at)?.toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </p>
-                  </div>
-                </div>
-              ))}
+              {isVesselAdmin && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowTransferModal(true)}
+                >
+                  <Icon name="UserCheck" size={16} />
+                  Transfer Admin
+                </Button>
+              )}
             </div>
           </div>
         )}
@@ -528,82 +307,82 @@ const RoleManagement = () => {
                 <table className="w-full">
                   <thead className="bg-muted/10 border-b border-border">
                     <tr>
-                      <th 
+                      <th
                         className="text-left p-4 text-sm font-medium text-foreground cursor-pointer hover:bg-muted/20 transition-smooth"
                         onClick={() => handleSort('title')}
                       >
                         <div className="flex items-center gap-2">
                           Role Title
                           <div className="flex flex-col">
-                            <Icon 
-                              name="ChevronUp" 
-                              size={12} 
-                              className={sortConfig?.key === 'title' && sortConfig?.direction === 'asc' ? 'text-primary' : 'text-muted-foreground'} 
+                            <Icon
+                              name="ChevronUp"
+                              size={12}
+                              className={sortConfig?.key === 'title' && sortConfig?.direction === 'asc' ? 'text-primary' : 'text-muted-foreground'}
                             />
-                            <Icon 
-                              name="ChevronDown" 
-                              size={12} 
-                              className={sortConfig?.key === 'title' && sortConfig?.direction === 'desc' ? 'text-primary' : 'text-muted-foreground'} 
+                            <Icon
+                              name="ChevronDown"
+                              size={12}
+                              className={sortConfig?.key === 'title' && sortConfig?.direction === 'desc' ? 'text-primary' : 'text-muted-foreground'}
                             />
                           </div>
                         </div>
                       </th>
-                      <th 
+                      <th
                         className="text-left p-4 text-sm font-medium text-foreground cursor-pointer hover:bg-muted/20 transition-smooth"
                         onClick={() => handleSort('department')}
                       >
                         <div className="flex items-center gap-2">
                           Department
                           <div className="flex flex-col">
-                            <Icon 
-                              name="ChevronUp" 
-                              size={12} 
-                              className={sortConfig?.key === 'department' && sortConfig?.direction === 'asc' ? 'text-primary' : 'text-muted-foreground'} 
+                            <Icon
+                              name="ChevronUp"
+                              size={12}
+                              className={sortConfig?.key === 'department' && sortConfig?.direction === 'asc' ? 'text-primary' : 'text-muted-foreground'}
                             />
-                            <Icon 
-                              name="ChevronDown" 
-                              size={12} 
-                              className={sortConfig?.key === 'department' && sortConfig?.direction === 'desc' ? 'text-primary' : 'text-muted-foreground'} 
+                            <Icon
+                              name="ChevronDown"
+                              size={12}
+                              className={sortConfig?.key === 'department' && sortConfig?.direction === 'desc' ? 'text-primary' : 'text-muted-foreground'}
                             />
                           </div>
                         </div>
                       </th>
-                      <th 
+                      <th
                         className="text-left p-4 text-sm font-medium text-foreground cursor-pointer hover:bg-muted/20 transition-smooth"
                         onClick={() => handleSort('tier')}
                       >
                         <div className="flex items-center gap-2">
                           Permission Tier
                           <div className="flex flex-col">
-                            <Icon 
-                              name="ChevronUp" 
-                              size={12} 
-                              className={sortConfig?.key === 'tier' && sortConfig?.direction === 'asc' ? 'text-primary' : 'text-muted-foreground'} 
+                            <Icon
+                              name="ChevronUp"
+                              size={12}
+                              className={sortConfig?.key === 'tier' && sortConfig?.direction === 'asc' ? 'text-primary' : 'text-muted-foreground'}
                             />
-                            <Icon 
-                              name="ChevronDown" 
-                              size={12} 
-                              className={sortConfig?.key === 'tier' && sortConfig?.direction === 'desc' ? 'text-primary' : 'text-muted-foreground'} 
+                            <Icon
+                              name="ChevronDown"
+                              size={12}
+                              className={sortConfig?.key === 'tier' && sortConfig?.direction === 'desc' ? 'text-primary' : 'text-muted-foreground'}
                             />
                           </div>
                         </div>
                       </th>
-                      <th 
+                      <th
                         className="text-left p-4 text-sm font-medium text-foreground cursor-pointer hover:bg-muted/20 transition-smooth"
                         onClick={() => handleSort('status')}
                       >
                         <div className="flex items-center gap-2">
                           Status
                           <div className="flex flex-col">
-                            <Icon 
-                              name="ChevronUp" 
-                              size={12} 
-                              className={sortConfig?.key === 'status' && sortConfig?.direction === 'asc' ? 'text-primary' : 'text-muted-foreground'} 
+                            <Icon
+                              name="ChevronUp"
+                              size={12}
+                              className={sortConfig?.key === 'status' && sortConfig?.direction === 'asc' ? 'text-primary' : 'text-muted-foreground'}
                             />
-                            <Icon 
-                              name="ChevronDown" 
-                              size={12} 
-                              className={sortConfig?.key === 'status' && sortConfig?.direction === 'desc' ? 'text-primary' : 'text-muted-foreground'} 
+                            <Icon
+                              name="ChevronDown"
+                              size={12}
+                              className={sortConfig?.key === 'status' && sortConfig?.direction === 'desc' ? 'text-primary' : 'text-muted-foreground'}
                             />
                           </div>
                         </div>
@@ -663,7 +442,16 @@ const RoleManagement = () => {
           )}
         </div>
       </main>
-      {/* Add/Edit Modal */}
+
+      {/* Transfer Admin Modal */}
+      {showTransferModal && (
+        <TransferAdminModal
+          onClose={() => setShowTransferModal(false)}
+          onSuccess={handleTransferSuccess}
+        />
+      )}
+
+      {/* Add/Edit Role Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
           <div className="bg-card border border-border rounded-2xl w-full max-w-lg">
