@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Anchor, Check, Trash2, Plus, ChevronRight } from 'lucide-react';
+import { Anchor, Check, Trash2, Plus, ChevronRight, ChevronLeft, Ship } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import Image from '../../components/AppImage';
@@ -25,11 +25,18 @@ import { useTheme } from '../../contexts/ThemeContext';
   1px navy top/sides, 3px navy bottom.
 */
 
-const NAVY = '#1E3A5F';
-const ACCENT = '#00A8CC';
-const CARD = '#FFFFFF';
-const CHARCOAL = '#1A202C';
+// ── Brand tokens ─────────────────────────────────────────────────
+const NAVY      = '#1E3A5F';
+const NAVY_DARK = '#141D2E';
+const ACCENT    = '#00A8CC';
+const CHARCOAL  = '#1A202C';
+const CARD      = '#FFFFFF';
 
+const HEADING_FONT = "'Outfit', system-ui, sans-serif";
+const BODY_FONT    = "'Plus Jakarta Sans', system-ui, sans-serif";
+const PILL_FONT    = "'Archivo', system-ui, sans-serif";
+
+// Legacy card style — used by DepartmentsStep + InviteCrewStep (do not remove)
 const CARD_STYLE = {
   backgroundColor: CARD,
   borderTop: `1px solid ${NAVY}`,
@@ -39,41 +46,167 @@ const CARD_STYLE = {
   borderRadius: 14,
 };
 
+// ── Department data (Departments + InviteCrewStep) ────────────────
 const BASE_DEPARTMENTS = [
-  { id: 'BRIDGE', name: 'Bridge' },
-  { id: 'INTERIOR', name: 'Interior' },
-  { id: 'DECK', name: 'Deck' },
+  { id: 'BRIDGE',      name: 'Bridge' },
+  { id: 'INTERIOR',    name: 'Interior' },
+  { id: 'DECK',        name: 'Deck' },
   { id: 'ENGINEERING', name: 'Engineering' },
-  { id: 'GALLEY', name: 'Galley' },
+  { id: 'GALLEY',      name: 'Galley' },
 ];
 
 const ROLES_BY_DEPT = {
-  BRIDGE: ['Captain', 'Chief Officer', 'Second Officer', 'Third Officer'],
-  INTERIOR: ['Chief Stew', 'Second Stew', 'Stew', 'Junior Stew'],
-  DECK: ['Bosun', 'Lead Deckhand', 'Deckhand'],
+  BRIDGE:      ['Captain', 'Chief Officer', 'Second Officer', 'Third Officer'],
+  INTERIOR:    ['Chief Stew', 'Second Stew', 'Stew', 'Junior Stew'],
+  DECK:        ['Bosun', 'Lead Deckhand', 'Deckhand'],
   ENGINEERING: ['Chief Engineer', 'Second Engineer', 'Engineer', 'ETO'],
-  GALLEY: ['Head Chef', 'Sous Chef', 'Crew Chef'],
+  GALLEY:      ['Head Chef', 'Sous Chef', 'Crew Chef'],
 };
 
-// ─── Shared UI bits ─────────────────────────────────────────────────
+// ── Vessel data constants (VesselSettingsStep) ────────────────────
+const VESSEL_TYPES        = ['Motor Yacht', 'Sailing Yacht', 'Catamaran', 'Explorer', 'Sport Yacht', 'Superyacht'];
+const COMMERCIAL_STATUSES = ['Private', 'Commercial', 'Charter', 'Dual'];
+const AREAS_OF_OPERATION  = ['Coastal', 'Near Coastal', 'Unlimited'];
+
+// ── Shared UI atoms ───────────────────────────────────────────────
+
+// ? pill tooltip — NAVY background, white text, keyboard-accessible via :focus-within
+const Tooltip = ({ text }) => (
+  <span className="relative inline-flex items-center group" tabIndex={0}>
+    <span
+      className="ml-1.5 w-4 h-4 rounded-full inline-flex items-center justify-center text-[10px] cursor-help"
+      style={{ backgroundColor: '#E2E8F0', color: '#475569', fontFamily: BODY_FONT, fontWeight: 700 }}
+    >
+      ?
+    </span>
+    <span
+      className="pointer-events-none absolute left-6 top-0 z-20 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150"
+      style={{
+        backgroundColor: NAVY,
+        color: 'white',
+        fontFamily: BODY_FONT,
+        fontSize: 11,
+        lineHeight: 1.4,
+        padding: '6px 10px',
+        borderRadius: 6,
+        width: 220,
+        boxShadow: '0 6px 20px rgba(30,58,95,0.25)',
+      }}
+    >
+      {text}
+    </span>
+  </span>
+);
+
+// Raised "Cargo border" card (1px navy sides, 3px navy bottom)
+const Card = ({ children, className = '' }) => (
+  <div
+    className={`rounded-2xl p-6 ${className}`}
+    style={{
+      backgroundColor: CARD,
+      borderTop: `1px solid ${NAVY}`,
+      borderLeft: `1px solid ${NAVY}`,
+      borderRight: `1px solid ${NAVY}`,
+      borderBottom: `3px solid ${NAVY}`,
+    }}
+  >
+    {children}
+  </div>
+);
+
+// Uppercase Archivo section label
+const SectionHeading = ({ children }) => (
+  <h2
+    className="mb-4"
+    style={{
+      fontFamily: PILL_FONT,
+      fontSize: 11,
+      fontWeight: 900,
+      letterSpacing: '0.14em',
+      textTransform: 'uppercase',
+      color: NAVY,
+    }}
+  >
+    {children}
+  </h2>
+);
+
+// Field wrapper — label + optional required asterisk + tooltip + input slot
+const Field = ({ label, required, tooltip, children }) => (
+  <div>
+    <label
+      className="flex items-center text-sm mb-1.5"
+      style={{ color: CHARCOAL, fontFamily: BODY_FONT, fontWeight: 600 }}
+    >
+      <span>
+        {label}
+        {required && <span style={{ color: '#DC2626' }}> *</span>}
+      </span>
+      {tooltip && <Tooltip text={tooltip} />}
+    </label>
+    {children}
+  </div>
+);
+
+const inputStyle = {
+  fontFamily: BODY_FONT,
+  color: CHARCOAL,
+  backgroundColor: 'white',
+  border: '1px solid #CBD5E1',
+  borderRadius: 10,
+  padding: '9px 12px',
+  fontSize: 14,
+  width: '100%',
+  outline: 'none',
+};
+
+const TextInput = (props) => (
+  <input {...props} style={{ ...inputStyle, ...(props.style || {}) }} />
+);
+
+const SelectInput = ({ options, ...props }) => (
+  <select {...props} style={{ ...inputStyle, appearance: 'auto', ...(props.style || {}) }}>
+    <option value="">Select…</option>
+    {options.map((o) => (
+      <option key={o} value={o}>{o}</option>
+    ))}
+  </select>
+);
+
+const Checkbox = ({ checked, onChange, label }) => (
+  <label className="inline-flex items-center gap-2 cursor-pointer" style={{ fontFamily: BODY_FONT }}>
+    <input
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      className="w-4 h-4 rounded"
+      style={{ accentColor: NAVY }}
+    />
+    <span className="text-sm" style={{ color: CHARCOAL }}>{label}</span>
+  </label>
+);
 
 const PillPrimary = ({ children, onClick, disabled, type = 'button' }) => (
   <button
     type={type}
     onClick={onClick}
     disabled={disabled}
-    className="uppercase tracking-widest text-xs transition-opacity"
+    className={`inline-flex items-center justify-center gap-2 transition-colors ${disabled ? '' : 'cg-breath'}`}
     style={{
       backgroundColor: NAVY,
       color: 'white',
-      fontFamily: 'Archivo, sans-serif',
-      fontWeight: 900,
-      letterSpacing: '0.08em',
-      padding: '12px 26px',
       borderRadius: 50,
+      fontFamily: PILL_FONT,
+      fontWeight: 900,
+      fontSize: 11,
+      letterSpacing: '0.08em',
+      textTransform: 'uppercase',
+      padding: '12px 26px',
       opacity: disabled ? 0.4 : 1,
       cursor: disabled ? 'not-allowed' : 'pointer',
     }}
+    onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.backgroundColor = NAVY_DARK; }}
+    onMouseLeave={(e) => { if (!disabled) e.currentTarget.style.backgroundColor = NAVY; }}
   >
     {children}
   </button>
@@ -84,120 +217,139 @@ const PillSecondary = ({ children, onClick, disabled, type = 'button' }) => (
     type={type}
     onClick={onClick}
     disabled={disabled}
-    className="uppercase tracking-widest text-xs transition-opacity"
+    className="inline-flex items-center justify-center gap-2 transition-colors"
     style={{
       backgroundColor: 'transparent',
       color: NAVY,
-      fontFamily: 'Archivo, sans-serif',
-      fontWeight: 900,
-      letterSpacing: '0.08em',
-      padding: '11px 24px',
+      border: `2px solid ${NAVY}`,
       borderRadius: 50,
-      border: `1.5px solid ${NAVY}`,
+      fontFamily: PILL_FONT,
+      fontWeight: 700,
+      fontSize: 11,
+      letterSpacing: '0.08em',
+      textTransform: 'uppercase',
+      padding: '11px 24px',
       opacity: disabled ? 0.4 : 1,
       cursor: disabled ? 'not-allowed' : 'pointer',
     }}
+    onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.backgroundColor = NAVY; e.currentTarget.style.color = 'white'; } }}
+    onMouseLeave={(e) => { if (!disabled) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = NAVY; } }}
   >
     {children}
   </button>
 );
 
-const Field = ({ label, children }) => (
-  <label className="block mb-4">
-    <span
-      className="block text-sm mb-1.5"
-      style={{ color: CHARCOAL, fontWeight: 600 }}
-    >
-      {label}
-    </span>
-    {children}
-  </label>
-);
-
-const TextInput = (props) => (
-  <input
-    {...props}
-    className="w-full px-3 py-2 text-sm outline-none"
-    style={{
-      backgroundColor: CARD,
-      border: `1px solid #CBD5E1`,
-      borderRadius: 6,
-      color: CHARCOAL,
-      ...(props.style || {}),
-    }}
-  />
-);
-
-const SelectInput = ({ options, ...props }) => (
-  <select
-    {...props}
-    className="w-full px-3 py-2 text-sm outline-none"
-    style={{
-      backgroundColor: CARD,
-      border: `1px solid #CBD5E1`,
-      borderRadius: 6,
-      color: CHARCOAL,
-    }}
+const LinkButton = ({ children, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="inline-flex items-center gap-1.5 text-sm"
+    style={{ color: NAVY, fontFamily: BODY_FONT }}
   >
-    <option value="">Select…</option>
-    {options.map((o) => (
-      <option key={o} value={o}>
-        {o}
-      </option>
-    ))}
-  </select>
+    {children}
+  </button>
 );
 
-// ─── Step 1: Vessel settings ───────────────────────────────────────
+// ─── Collapsed section summary row ────────────────────────────────
+// Raised Cargo border + animated ACCENT tick + EDIT affordance.
+const CollapsedSection = ({ title, summary, onEdit }) => (
+  <div className="mt-6 cg-anim-enter">
+    <button
+      type="button"
+      onClick={onEdit}
+      className="w-full flex items-center justify-between rounded-xl px-5 py-4 text-left cg-hover-lift"
+      style={{
+        backgroundColor: CARD,
+        borderTop: `1px solid ${NAVY}`,
+        borderLeft: `1px solid ${NAVY}`,
+        borderRight: `1px solid ${NAVY}`,
+        borderBottom: `3px solid ${NAVY}`,
+        fontFamily: BODY_FONT,
+      }}
+    >
+      <div className="flex items-center gap-3">
+        <div
+          className="w-7 h-7 rounded-full flex items-center justify-center cg-tick-pop"
+          style={{ backgroundColor: ACCENT }}
+        >
+          <Check size={15} color="white" strokeWidth={3} />
+        </div>
+        <div>
+          <div style={{ fontFamily: HEADING_FONT, fontWeight: 700, fontSize: 15, color: CHARCOAL }}>{title}</div>
+          <div className="text-xs" style={{ color: '#64748B' }}>{summary}</div>
+        </div>
+      </div>
+      <span
+        className="text-xs uppercase"
+        style={{ fontFamily: PILL_FONT, color: NAVY, letterSpacing: '0.08em', fontWeight: 900 }}
+      >
+        Edit
+      </span>
+    </button>
+  </div>
+);
+
+// ─── Step 1: Vessel settings — progressive disclosure ──────────────
+// Three sub-sections: identity → specs → profile.
+// Only the active section renders as a full Card; confirmed sections
+// collapse to a CollapsedSection summary row. Clicking a collapsed row
+// reopens that section.
 
 const VesselSettingsStep = ({ tenant, onSaved }) => {
+  const [section, setSection] = useState('identity'); // 'identity' | 'specs' | 'profile'
   const [data, setData] = useState({
-    name: tenant?.name || '',
-    vessel_type_label: tenant?.vessel_type_label || '',
-    flag: tenant?.flag || '',
-    port_of_registry: tenant?.port_of_registry || '',
-    imo_number: tenant?.imo_number || '',
-    official_number: tenant?.official_number || '',
-    loa_m: tenant?.loa_m ?? '',
-    gt: tenant?.gt ?? '',
-    year_built: tenant?.year_built ?? '',
-    year_refit: tenant?.year_refit ?? '',
-    commercial_status: tenant?.commercial_status || '',
-    area_of_operation: tenant?.area_of_operation || '',
-    operating_regions: tenant?.operating_regions || '',
-    seasonal_pattern: tenant?.seasonal_pattern || '',
-    typical_guest_count: tenant?.typical_guest_count ?? '',
-    typical_crew_count: tenant?.typical_crew_count ?? '',
+    vessel_name:          tenant?.name              || '',
+    vessel_type_label:    tenant?.vessel_type_label  || '',
+    flag:                 tenant?.flag               || '',
+    port_of_registry:     tenant?.port_of_registry   || '',
+    imo_number:           tenant?.imo_number          || '',
+    official_number:      tenant?.official_number     || '',
+    loa_m:                tenant?.loa_m     ?? '',
+    gt:                   tenant?.gt        ?? '',
+    year_built:           tenant?.year_built ?? '',
+    year_refit:           tenant?.year_refit ?? '',
+    commercial_status:    tenant?.commercial_status    || '',
+    certified_commercial: tenant?.certified_commercial ?? false,
+    area_of_operation:    tenant?.area_of_operation    || '',
+    operating_regions:    tenant?.operating_regions    || '',
+    seasonal_pattern:     tenant?.seasonal_pattern     || '',
+    typical_guest_count:  tenant?.typical_guest_count  ?? '',
+    typical_crew_count:   tenant?.typical_crew_count   ?? '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const update = (k) => (e) =>
-    setData((prev) => ({ ...prev, [k]: e.target.value }));
+  const set   = (k, v) => setData((prev) => ({ ...prev, [k]: v }));
+  const field = (k)    => (e)  => set(k, e.target.value);
 
-  const handleContinue = async () => {
+  const identityDone = section !== 'identity';
+  const specsDone    = section === 'profile';
+  const heroTitle    = data.vessel_name ? `Welcome aboard ${data.vessel_name}` : 'Welcome aboard';
+
+  const handleSave = async () => {
     setError('');
     setSaving(true);
     try {
       const payload = {
-        name: data.name || tenant?.name,
-        vessel_type_label: data.vessel_type_label || null,
-        flag: data.flag || null,
-        port_of_registry: data.port_of_registry || null,
-        imo_number: data.imo_number || tenant?.imo_number || null,
-        official_number: data.official_number || null,
-        loa_m: data.loa_m === '' ? null : Number(data.loa_m),
-        gt: data.gt === '' ? null : Number(data.gt),
-        year_built: data.year_built === '' ? null : Number(data.year_built),
-        year_refit: data.year_refit === '' ? null : Number(data.year_refit),
-        commercial_status: data.commercial_status || null,
-        area_of_operation: data.area_of_operation || null,
-        operating_regions: data.operating_regions || null,
-        seasonal_pattern: data.seasonal_pattern || null,
+        name:               data.vessel_name      || tenant?.name || null,
+        vessel_type_label:  data.vessel_type_label || null,
+        flag:               data.flag              || null,
+        port_of_registry:   data.port_of_registry  || null,
+        imo_number:         data.imo_number         || tenant?.imo_number || null,
+        official_number:    data.official_number    || null,
+        loa_m:              data.loa_m     === '' ? null : Number(data.loa_m),
+        gt:                 data.gt        === '' ? null : Number(data.gt),
+        year_built:         data.year_built === '' ? null : Number(data.year_built),
+        year_refit:         data.year_refit === '' ? null : Number(data.year_refit),
+        commercial_status:  data.commercial_status  || null,
+        certified_commercial: Boolean(data.certified_commercial),
+        area_of_operation:  data.area_of_operation  || null,
+        operating_regions:  data.operating_regions  || null,
+        seasonal_pattern:   data.seasonal_pattern   || null,
         typical_guest_count:
           data.typical_guest_count === '' ? null : Number(data.typical_guest_count),
         typical_crew_count:
-          data.typical_crew_count === '' ? null : Number(data.typical_crew_count),
+          data.typical_crew_count  === '' ? null : Number(data.typical_crew_count),
       };
       const { error: updateError } = await supabase
         .from('tenants')
@@ -214,115 +366,150 @@ const VesselSettingsStep = ({ tenant, onSaved }) => {
   };
 
   return (
-    <div className="p-7" style={CARD_STYLE}>
-      <h2
-        style={{
-          fontFamily: 'Outfit, sans-serif',
-          fontSize: 24,
-          fontWeight: 700,
-          color: CHARCOAL,
-          letterSpacing: '-0.01em',
-        }}
-      >
-        {data.name ? `Welcome aboard ${data.name}` : 'Welcome aboard'}
-      </h2>
-      <p className="text-sm mt-1 mb-6" style={{ color: '#64748B' }}>
-        Let's set up your vessel. Most of this is already filled in from checkout — double-check and continue.
-      </p>
-
-      <section className="mb-5">
-        <h3 className="uppercase text-xs mb-3" style={{ color: NAVY, fontWeight: 800, letterSpacing: '0.12em' }}>
-          Who is your boat?
-        </h3>
-        <Field label="Vessel name">
-          <TextInput value={data.name} onChange={update('name')} />
-        </Field>
-        <Field label="Vessel type">
-          <SelectInput
-            value={data.vessel_type_label}
-            onChange={update('vessel_type_label')}
-            options={['Motor Yacht', 'Sailing Yacht', 'Catamaran', 'Expedition', 'Support']}
-          />
-        </Field>
-        <Field label="Flag state">
-          <TextInput value={data.flag} onChange={update('flag')} placeholder="e.g. Cayman Islands" />
-        </Field>
-        <Field label="Port of registry">
-          <TextInput value={data.port_of_registry} onChange={update('port_of_registry')} placeholder="e.g. George Town" />
-        </Field>
-      </section>
-
-      <section className="mb-5">
-        <h3 className="uppercase text-xs mb-3" style={{ color: NAVY, fontWeight: 800, letterSpacing: '0.12em' }}>
-          Her specs
-        </h3>
-        <Field label="IMO number">
-          <TextInput value={data.imo_number} onChange={update('imo_number')} placeholder="Pre-filled from your vessel verification at checkout" />
-        </Field>
-        <Field label="Official number">
-          <TextInput value={data.official_number} onChange={update('official_number')} />
-        </Field>
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="LOA (metres)">
-            <TextInput type="number" value={data.loa_m} onChange={update('loa_m')} />
-          </Field>
-          <Field label="Gross tonnage">
-            <TextInput type="number" value={data.gt} onChange={update('gt')} />
-          </Field>
-          <Field label="Year built">
-            <TextInput type="number" value={data.year_built} onChange={update('year_built')} />
-          </Field>
-          <Field label="Year refit">
-            <TextInput type="number" value={data.year_refit} onChange={update('year_refit')} />
-          </Field>
+    <div className="cg-step-enter">
+      {/* Hero */}
+      <div className="flex items-start gap-4 mb-2">
+        <div
+          className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: NAVY }}
+        >
+          <Ship size={20} color="white" />
         </div>
-      </section>
-
-      <section className="mb-6">
-        <h3 className="uppercase text-xs mb-3" style={{ color: NAVY, fontWeight: 800, letterSpacing: '0.12em' }}>
-          How does she operate?
-        </h3>
-        <Field label="Commercial status">
-          <SelectInput
-            value={data.commercial_status}
-            onChange={update('commercial_status')}
-            options={['Private', 'Commercial', 'Charter', 'Dual']}
-          />
-        </Field>
-        <Field label="Area of operation">
-          <SelectInput
-            value={data.area_of_operation}
-            onChange={update('area_of_operation')}
-            options={['Coastal', 'Near Coastal', 'Unlimited']}
-          />
-        </Field>
-        <Field label="Operating regions">
-          <TextInput value={data.operating_regions} onChange={update('operating_regions')} placeholder="e.g. Mediterranean, Caribbean" />
-        </Field>
-        <Field label="Seasonal pattern">
-          <TextInput value={data.seasonal_pattern} onChange={update('seasonal_pattern')} placeholder="e.g. Med summer / Caribbean winter" />
-        </Field>
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Typical guest count">
-            <TextInput type="number" value={data.typical_guest_count} onChange={update('typical_guest_count')} />
-          </Field>
-          <Field label="Typical crew count">
-            <TextInput type="number" value={data.typical_crew_count} onChange={update('typical_crew_count')} />
-          </Field>
+        <div>
+          <h1 style={{ fontFamily: HEADING_FONT, fontSize: 28, fontWeight: 700, color: CHARCOAL, letterSpacing: '-0.02em' }}>
+            {heroTitle}
+          </h1>
+          <p className="text-sm mt-0.5" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
+            Three quick sections. Everything here is editable later in Vessel Settings.
+          </p>
         </div>
-      </section>
+      </div>
 
-      {error && (
-        <div className="mb-4 text-sm px-3 py-2 rounded" style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
-          {error}
+      {/* ── Section 1: Identity ── */}
+      {section === 'identity' ? (
+        <div className="mt-8 cg-anim-enter">
+          <Card>
+            <SectionHeading>Who is your boat?</SectionHeading>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <Field label="Vessel name" required tooltip="Used across Cargo and on crew-facing screens.">
+                <TextInput value={data.vessel_name} placeholder="M/Y Belongers" onChange={field('vessel_name')} />
+              </Field>
+              <Field label="Vessel Type" required tooltip="Drives which default compliance modules show (sail vs motor vs commercial).">
+                <SelectInput value={data.vessel_type_label} onChange={(e) => set('vessel_type_label', e.target.value)} options={VESSEL_TYPES} />
+              </Field>
+              <Field label="Flag" required tooltip="Determines which flag-state rules apply — REG, MCA, Marshall, etc.">
+                <TextInput value={data.flag} placeholder="e.g., Cayman Islands" onChange={field('flag')} />
+              </Field>
+              <Field label="Port of Registry" required tooltip="Shown on official documents. Usually matches the port stamped on your certificate of registry.">
+                <TextInput value={data.port_of_registry} placeholder="e.g., George Town" onChange={field('port_of_registry')} />
+              </Field>
+            </div>
+            <div className="flex items-center justify-end mt-6">
+              <PillPrimary onClick={() => setSection('specs')}>Continue</PillPrimary>
+            </div>
+          </Card>
         </div>
+      ) : (
+        <CollapsedSection
+          title="Who is your boat?"
+          summary={`${data.vessel_name || '—'} · ${data.vessel_type_label || '—'} · ${data.flag || '—'}`}
+          onEdit={() => setSection('identity')}
+        />
       )}
 
-      <div className="flex justify-end">
-        <PillPrimary onClick={handleContinue} disabled={saving}>
-          {saving ? 'Saving…' : 'Continue'}
-        </PillPrimary>
-      </div>
+      {/* ── Section 2: Specs ── */}
+      {section === 'specs' && (
+        <div className="mt-6 cg-anim-enter">
+          <Card>
+            <SectionHeading>Her specs</SectionHeading>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <Field label="IMO Number" tooltip="Pre-filled from your vessel verification at checkout. Can be corrected here.">
+                <TextInput value={data.imo_number} placeholder="IMO 1234567" onChange={field('imo_number')} />
+              </Field>
+              <Field label="Official Number" tooltip="The flag-state assigned number on your certificate of registry. Optional.">
+                <TextInput value={data.official_number} placeholder="e.g., 123456" onChange={field('official_number')} />
+              </Field>
+              <Field label="LOA (meters)" required tooltip="Length overall. Drives MLC watchkeeping ratios and berth planning.">
+                <TextInput type="number" value={data.loa_m} placeholder="e.g., 50.5" onChange={field('loa_m')} />
+              </Field>
+              <Field label="Gross Tonnage (GT)" required tooltip="Used to determine tier of certification required for officers and engineers.">
+                <TextInput type="number" value={data.gt} placeholder="e.g., 500" onChange={field('gt')} />
+              </Field>
+              <Field label="Year Built">
+                <TextInput type="number" value={data.year_built} placeholder="e.g., 2015" onChange={field('year_built')} />
+              </Field>
+              <Field label="Year Refit">
+                <TextInput type="number" value={data.year_refit} placeholder="e.g., 2020" onChange={field('year_refit')} />
+              </Field>
+            </div>
+            <div className="flex items-center justify-between mt-6">
+              <LinkButton onClick={() => setSection('identity')}>
+                <ChevronLeft size={14} /> Back
+              </LinkButton>
+              <PillPrimary onClick={() => setSection('profile')}>Continue</PillPrimary>
+            </div>
+          </Card>
+        </div>
+      )}
+      {specsDone && (
+        <CollapsedSection
+          title="Her specs"
+          summary={`${data.loa_m ? `LOA ${data.loa_m}m` : '—'} · ${data.gt ? `GT ${data.gt}` : '—'} · ${data.year_built || '—'}`}
+          onEdit={() => setSection('specs')}
+        />
+      )}
+
+      {/* ── Section 3: Operational Profile ── */}
+      {section === 'profile' && (
+        <div className="mt-6 cg-anim-enter">
+          <Card>
+            <SectionHeading>How does she operate?</SectionHeading>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <Field label="Commercial Status" tooltip="Private, Commercial, Charter, or Dual use. Changes which compliance workflows are active.">
+                <SelectInput value={data.commercial_status} onChange={(e) => set('commercial_status', e.target.value)} options={COMMERCIAL_STATUSES} />
+              </Field>
+              <div className="flex items-center pt-6">
+                <Checkbox
+                  checked={!!data.certified_commercial}
+                  onChange={(e) => set('certified_commercial', e.target.checked)}
+                  label="Certified Commercial"
+                />
+              </div>
+              <Field label="Area of Operation" tooltip="Coastal / Near Coastal / Unlimited — matches what's on your Safe Manning document.">
+                <SelectInput value={data.area_of_operation} onChange={(e) => set('area_of_operation', e.target.value)} options={AREAS_OF_OPERATION} />
+              </Field>
+              <Field label="Operating Regions">
+                <TextInput value={data.operating_regions} placeholder="e.g., Mediterranean, Caribbean" onChange={field('operating_regions')} />
+              </Field>
+              <Field label="Seasonal Pattern">
+                <TextInput value={data.seasonal_pattern} placeholder="e.g., Summer Med, Winter Caribbean" onChange={field('seasonal_pattern')} />
+              </Field>
+              <Field label="Typical Guest Count">
+                <TextInput type="number" value={data.typical_guest_count} placeholder="e.g., 12" onChange={field('typical_guest_count')} />
+              </Field>
+              <Field label="Typical Crew Count">
+                <TextInput type="number" value={data.typical_crew_count} placeholder="e.g., 15" onChange={field('typical_crew_count')} />
+              </Field>
+            </div>
+            <p className="text-xs mt-4" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
+              Compliance fields (ISM, ISPS, MLC) and vessel hero image can be filled in later from Vessel Settings.
+            </p>
+            {error && (
+              <div className="mt-4 text-sm px-3 py-2 rounded" style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
+                {error}
+              </div>
+            )}
+            <div className="flex items-center justify-between mt-6">
+              <LinkButton onClick={() => setSection('specs')}>
+                <ChevronLeft size={14} /> Back
+              </LinkButton>
+              <PillPrimary onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving…' : 'Continue'}
+              </PillPrimary>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };
@@ -780,6 +967,28 @@ const OnboardingPage = () => {
   const [loadError, setLoadError] = useState('');
   const [membershipRetries, setMembershipRetries] = useState(0);
   const retriedRef = useRef(false); // guard: only call retryBootstrap once
+
+  // Inject Cargo animation keyframes once per page load
+  useEffect(() => {
+    const styleId = 'cargo-onboarding-anim';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = `
+        @keyframes cgFadeSlideUp { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes cgTickPop { 0% { transform: scale(0); opacity: 0; } 55% { transform: scale(1.35); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes cgStepIn { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes cgBreath { 0%,100% { box-shadow: 0 0 0 0 rgba(0,168,204,0.35); } 50% { box-shadow: 0 0 0 10px rgba(0,168,204,0); } }
+        .cg-anim-enter { animation: cgFadeSlideUp 520ms cubic-bezier(.2,.7,.2,1) both; }
+        .cg-step-enter { animation: cgStepIn 420ms cubic-bezier(.2,.7,.2,1) both; }
+        .cg-tick-pop   { animation: cgTickPop 420ms cubic-bezier(.34,1.56,.64,1) both; }
+        .cg-breath     { animation: cgBreath 2400ms ease-in-out infinite; }
+        .cg-hover-lift { transition: transform 200ms ease, box-shadow 200ms ease; }
+        .cg-hover-lift:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(30,58,95,0.12); }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
 
   // Race-condition fix: if bootstrap completed BEFORE the Stripe webhook
   // finished inserting the tenant_members row, activeTenantId will be
