@@ -26,30 +26,46 @@ Do NOT start coding until steps 0.1–0.5 are done.
 
 ## Step 1 — Schema investigation (mandatory, no code yet)
 
-Before writing any migration, inventory what already exists:
+**Pre-confirmed facts (do NOT re-derive, do NOT duplicate):**
 
-1. `tenants` table — list every column. Confirm whether fields like `vessel_name`, `imo_number`, `loa_m`, `gt`, `vessel_type_label`, `flag`, `port_of_registry`, `commercial_status`, `area_of_operation`, `operating_regions`, `seasonal_pattern`, `typical_guest_count`, `typical_crew_count` live on `tenants` directly or in a separate `vessel_settings` or similar. The Stripe webhook likely wrote `vessel_name`, `imo_number`, and tier — check what it actually wrote.
-2. `departments` table — does it exist? What columns? Is it seeded per-tenant or globally? If per-tenant, how does `tenants_departments` (or equivalent) express which departments are active for a tenant?
-3. `profiles` table — is there an existing `custom_departments jsonb` or similar? If not, we'll need to add one.
-4. `tenants.onboarding_completed_at timestamp` — does it exist? We need a flag that gates `/onboarding` access so signed-in users can't re-enter the flow.
-5. Existing Supabase RPCs for vessel settings updates — is there one like `update_vessel_settings(p_tenant_id, p_data jsonb)`? If yes, reuse it. If no, decide whether to add one or do a direct RLS-scoped update via `supabase.from('tenants').update(...)`.
-6. Existing invite path — the HANDOFF says invites go through `inviteUserByEmail`. Find the current caller and reuse it; do NOT re-implement.
+- Every vessel-settings field the onboarding step 1 collects ALREADY exists on `public.tenants`. See `supabase/migrations/20260124161000_add_vessel_settings_fields.sql` and `20260124164700_add_vessel_type_label.sql`. Columns present: `flag`, `port_of_registry`, `imo_number`, `official_number`, `loa_m`, `gt`, `year_built`, `year_refit`, `vessel_type_label`, `commercial_status`, `certified_commercial`, `area_of_operation`, `operating_regions`, `seasonal_pattern`, `typical_guest_count`, `typical_crew_count` (plus `ism_applicable`, `isps_applicable`, `departments_in_use`, `bonded_stores_enabled`, `multi_location_storage`). `tenants.name` IS the vessel name. Stripe fields (`stripe_customer_id`, `stripe_subscription_id`, `subscription_status`, `plan_tier`, `billing_period`) exist from `20260410120000_add_stripe_billing_fields.sql`. **Do NOT add any of these columns again.**
+- Step 1 of onboarding saves back to `public.tenants`. Match the save path used by `src/pages/vessel-settings/index.jsx` (direct RLS-scoped update or existing RPC — reuse, don't re-invent).
 
-Write a short note in the PR body documenting what you found. That's our source of truth when we refactor later.
+**Still to inventory (this IS the investigation to do):**
+
+1. `departments` — does a real table exist, or are departments enum-only in code? `tenants.departments_in_use text` already exists; check if there's also a proper `departments` table + join, or if we read/write the enum list straight into that text column. Whatever the repo currently does, reuse it.
+2. `profiles` — confirm there are NO existing `custom_departments`, `dashboard_tutorial_dismissed_at`, or `onboarding_tutorial_state` columns.
+3. Confirm `tenants.onboarding_completed_at` does NOT yet exist.
+4. Invite path — the HANDOFF says invites go through `inviteUserByEmail`. Find the current caller (likely a Supabase edge function or server action) and reuse it.
+
+Write a short note in the PR body documenting what you found on points 1–4.
 
 ---
 
-## Step 2 — Migrations (only if step 1 shows gaps)
+## Step 2 — Migrations (exact, minimal set)
 
-Write a single SQL migration file covering ONLY what's missing. Likely candidates:
+Write ONE SQL migration file with exactly these four columns — nothing else. Vessel-settings columns on `tenants` already exist (see Step 1); do NOT re-add them.
 
-- `alter table tenants add column if not exists onboarding_completed_at timestamptz`
-- `alter table profiles add column if not exists custom_departments jsonb default '[]'::jsonb not null` — this is where each user's private "Other" departments live. Per the locked design: custom departments are user-local, NOT tenant-wide, and never write to the shared `departments` table.
-- If `tenants` is missing any operational-profile columns the mockup captures, add them. Match existing naming.
+```sql
+-- tenants: onboarding completion flag
+alter table public.tenants
+  add column if not exists onboarding_completed_at timestamptz;
 
-RLS on `profiles.custom_departments` stays the same as the rest of `profiles` (user can read/write their own row only).
+-- profiles: per-user custom departments (NEVER tenant-wide)
+alter table public.profiles
+  add column if not exists custom_departments jsonb not null default '[]'::jsonb;
 
-**Commit 1:** `feat(schema): add onboarding completion flag and per-user custom departments`
+-- profiles: dashboard welcome-tutorial state
+alter table public.profiles
+  add column if not exists dashboard_tutorial_dismissed_at timestamptz,
+  add column if not exists onboarding_tutorial_state jsonb not null default '{}'::jsonb;
+```
+
+RLS on the new `profiles` columns inherits whatever the rest of `profiles` uses (user reads/writes their own row only) — no new policies needed. If existing `profiles` policies are column-scoped rather than row-scoped, widen them to cover the new columns.
+
+Locked design rule: custom departments live on `profiles.custom_departments` per user and MUST NEVER be written to a tenant-wide `departments` table or to `tenants.departments_in_use`.
+
+**Commit 1:** `feat(schema): onboarding completion flag + per-user custom departments and tutorial state`
 
 ---
 
