@@ -131,30 +131,15 @@ const ALL_COUNTRIES = [
   { code: 'WS', name: 'Samoa' }, { code: 'YE', name: 'Yemen' }, { code: 'ZA', name: 'South Africa' },
 ];
 
-// ── Department icon map (keyed by normalized department name) ──
+// ── Department icon map (keyed by normalized department name substring) ──
 const DEPT_ICON_MAP = {
-  deck:         Anchor,
-  bridge:       Ship,
-  engineering:  Ship,
-  engine:       Ship,
-  interior:     Users,
-  service:      Users,
-  stew:         Users,
-  housekeeping: Users,
-  galley:       Utensils,
-  culinary:     Utensils,
-  chef:         Utensils,
-  kitchen:      Utensils,
-  purser:       Briefcase,
-  admin:        Briefcase,
-  management:   Briefcase,
-  office:       Briefcase,
-  operations:   ClipboardList,
-  ops:          ClipboardList,
-  logistics:    ClipboardList,
-  security:     Building2,
-  spa:          Building2,
-  wellness:     Building2,
+  deck: Anchor,
+  bridge: Ship, engineering: Ship, engine: Ship,
+  interior: Users, service: Users, stew: Users, housekeeping: Users,
+  galley: Utensils, culinary: Utensils, chef: Utensils, kitchen: Utensils,
+  purser: Briefcase, admin: Briefcase, management: Briefcase, office: Briefcase,
+  operations: ClipboardList, ops: ClipboardList, logistics: ClipboardList,
+  security: Building2, spa: Building2, wellness: Building2,
 };
 
 function iconForDept(name) {
