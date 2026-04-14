@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Anchor, Check, Trash2, Plus, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
@@ -779,15 +779,21 @@ const OnboardingPage = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [membershipRetries, setMembershipRetries] = useState(0);
+  const retriedRef = useRef(false); // guard: only call retryBootstrap once
 
   // Race-condition fix: if bootstrap completed BEFORE the Stripe webhook
   // finished inserting the tenant_members row, currentTenantId will be
   // null even though the DB now has the membership. Poll tenant_members
-  // directly up to 5x (every 1.5s) and re-bootstrap when we find it.
+  // directly up to 5x (every 1.5s) and re-bootstrap ONCE when we find it.
+  // Without the one-shot guard, every bootstrap completion re-runs this
+  // effect → polls again → calls retryBootstrap again → AuthContext
+  // loading flips back on → ProtectedRoute shows "Loading your vessel
+  // access…" forever.
   useEffect(() => {
     if (!bootstrapComplete) return;
     if (currentTenantId) return;
     if (!user?.id) return;
+    if (retriedRef.current) return;
     if (membershipRetries >= 5) return;
 
     const t = setTimeout(async () => {
@@ -797,8 +803,9 @@ const OnboardingPage = () => {
         .select('tenant_id')
         .eq('user_id', user.id)
         .limit(1);
-      if (!error && data && data.length > 0) {
-        console.log('[onboarding] found membership, retrying bootstrap', data[0].tenant_id);
+      if (!error && data && data.length > 0 && !retriedRef.current) {
+        console.log('[onboarding] found membership, retrying bootstrap ONCE', data[0].tenant_id);
+        retriedRef.current = true;
         retryBootstrap?.();
       } else {
         setMembershipRetries((n) => n + 1);
