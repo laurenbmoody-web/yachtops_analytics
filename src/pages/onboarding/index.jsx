@@ -756,7 +756,6 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
     const { data, error } = await supabase
       .from('departments')
       .select('id, name')
-      .eq('tenant_id', tenant.id)
       .order('name', { ascending: true });
     if (error) {
       setLoadError(error.message || 'Could not load departments.');
@@ -771,7 +770,7 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
   };
 
   useEffect(() => {
-    if (!userId || !tenant?.id) return;
+    if (!userId) return;
     // Restore prior selection from profile if user has been here before
     supabase
       .from('profiles')
