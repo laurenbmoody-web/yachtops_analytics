@@ -124,6 +124,8 @@ const PricingPage = () => {
   const [contactRole, setContactRole] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
+  const [willBeAdmin, setWillBeAdmin] = useState(true); // Locked design 2026-04-14: default Yes
+  const [showAdminTip, setShowAdminTip] = useState(false);
   const [pricingTier, setPricingTier] = useState(null);
   const [usedManual, setUsedManual] = useState(false);
   const [verifyError, setVerifyError] = useState(null);
@@ -290,6 +292,7 @@ const PricingPage = () => {
           email: contactEmail.trim(),
           phone: contactPhone.trim(),
         },
+        willBeAdmin,
       },
     });
   };
@@ -510,6 +513,59 @@ const PricingPage = () => {
                     <option>Other</option>
                   </select>
                 </div>
+
+                {/* Locked design 2026-04-14: admin Y/N, directly under role */}
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                    <label className="mkt-archivo" style={{ fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#1E3A5F' }}>
+                      Will you be Cargo's vessel administrator?
+                    </label>
+                    <span
+                      onMouseEnter={() => setShowAdminTip(true)}
+                      onMouseLeave={() => setShowAdminTip(false)}
+                      style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, borderRadius: '50%', border: '1px solid #94A3B8', color: '#94A3B8', fontSize: 10, cursor: 'help', fontFamily: "'DM Sans', sans-serif" }}
+                    >
+                      ?
+                      {showAdminTip && (
+                        <span style={{ position: 'absolute', left: 22, top: -4, width: 220, padding: '8px 10px', fontSize: 12, fontWeight: 400, color: '#1E3A5F', background: 'white', border: '1px solid #E2E8F0', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.08)', textTransform: 'none', letterSpacing: 0, lineHeight: 1.5, zIndex: 10 }}>
+                          The vessel admin handles invites, billing, and vessel-level settings.
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {[{ v: true, label: 'Yes' }, { v: false, label: 'No' }].map(({ v, label }) => (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => setWillBeAdmin(v)}
+                        className="mkt-archivo"
+                        style={{
+                          flex: 1,
+                          padding: '12px 16px',
+                          border: willBeAdmin === v ? '2px solid #1E3A5F' : '2px solid #E2E8F0',
+                          borderRadius: 10,
+                          background: willBeAdmin === v ? '#1E3A5F' : 'white',
+                          color: willBeAdmin === v ? 'white' : '#1E3A5F',
+                          fontWeight: 700,
+                          fontSize: 13,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.06em',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {!willBeAdmin && (
+                    <p className="mkt-dmsans" style={{ fontSize: 12, color: '#64748B', marginTop: 8, lineHeight: 1.5 }}>
+                      No problem — you'll be set as admin to get started, and we'll remind you to transfer it to the right person.
+                    </p>
+                  )}
+                </div>
+
                 <div style={{ marginBottom: 20 }}>
                   <FieldLabel>Email Address</FieldLabel>
                   <input style={inputStyle} type="email" placeholder="e.g. sarah@vessel.com" value={contactEmail} onChange={e => setContactEmail(e.target.value)} onFocus={e => (e.target.style.borderColor = '#4A90E2')} onBlur={e => (e.target.style.borderColor = '#E2E8F0')} />
