@@ -119,6 +119,24 @@ async function tenantExistsByImo(imo) {
   return rows.length > 0;
 }
 
+// Primary idempotency key. Stripe will re-deliver a webhook if our handler
+// errors late (or simply times out), and vessel_registrations.converted_at
+// isn't set until step 5, so checking only the registration row lets dupes
+// through. Looking up by subscription id is the one thing that's unique per
+// real checkout — if we find a tenant for this sub, the first delivery
+// already succeeded (at least far enough to create the tenant) and we must
+// no-op instead of inserting a second row.
+async function findTenantBySubscription(subscriptionId) {
+  if (!subscriptionId) return null;
+  const res = await supaRest(
+    `tenants?stripe_subscription_id=eq.${encodeURIComponent(subscriptionId)}&select=id&limit=1`,
+    { method: 'GET' }
+  );
+  if (!res.ok) return null;
+  const rows = await res.json();
+  return rows[0] || null;
+}
+
 async function createTenantRow(registration, session) {
   const payload = {
     name: registration.vessel_name,
@@ -346,6 +364,42 @@ async function handleCheckoutCompleted(session) {
   // Idempotency — if this registration already converted, no-op.
   if (registration.converted_at || registration.tenant_id) {
     console.log(`[checkout] registration ${registrationId} already converted, skipping`);
+    return;
+  }
+
+  // Primary idempotency guard — if we already created a tenant for this
+  // Stripe subscription, the first webhook delivery succeeded at least as
+  // far as tenants.insert. Any second delivery is a Stripe retry caused by
+  // a late-step failure (profile upsert, tenant_members insert, or
+  // markRegistrationConverted) and MUST NOT create a second tenant.
+  // Without this check we were seeing duplicate tenant rows with identical
+  // stripe_customer_id / stripe_subscription_id — which then broke the
+  // dashboard with "no active vessel access" because profile.last_active_
+  // tenant_id and the tenant_members row pointed at different tenants.
+  const existingTenant = await findTenantBySubscription(session.subscription);
+  if (existingTenant) {
+    console.log(
+      `[checkout] tenant ${existingTenant.id} already exists for subscription ${session.subscription}. ` +
+      `Retry — reconciling downstream state instead of creating a new tenant.`
+    );
+    // Backfill anything the previous attempt might have skipped, all idempotent.
+    try {
+      const { id: userId } = await inviteUser(
+        registration.contact_email,
+        registration.contact_name || ''
+      );
+      await upsertProfile(userId, registration);
+      await setProfileTenant(userId, existingTenant.id);
+      await createTenantMember(userId, existingTenant.id).catch((err) => {
+        // Likely a unique-violation because the member row already exists.
+        // Log and continue — nothing to fix.
+        console.log(`[checkout] tenant_members insert no-op on retry: ${err?.message || err}`);
+      });
+      await markRegistrationConverted(registration.id, existingTenant.id);
+    } catch (err) {
+      console.error(`[checkout] retry reconciliation failed: ${err?.message || err}`);
+      throw err;
+    }
     return;
   }
 
