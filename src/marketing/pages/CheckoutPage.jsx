@@ -110,6 +110,7 @@ const CheckoutPage = () => {
     verifiedVessel,
     pricingTier,
     contact,
+    willBeAdmin,
   } = state;
 
   const cancelled = useMemo(
@@ -176,6 +177,7 @@ const CheckoutPage = () => {
           vessel_registration_id: vesselRegistrationId,
           billing_period: billingPeriod,
           contact: contact || undefined,
+          will_be_admin: willBeAdmin !== false, // default true if unset
         }),
       });
       const data = await res.json();

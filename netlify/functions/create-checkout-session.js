@@ -157,7 +157,7 @@ exports.handler = async (event) => {
     return { statusCode: 400, body: JSON.stringify({ error: 'Invalid JSON body' }) };
   }
 
-  const { vessel_registration_id, billing_period, contact } = body;
+  const { vessel_registration_id, billing_period, contact, will_be_admin } = body;
 
   if (!vessel_registration_id || typeof vessel_registration_id !== 'string') {
     return { statusCode: 400, body: JSON.stringify({ error: 'vessel_registration_id is required' }) };
@@ -250,8 +250,12 @@ exports.handler = async (event) => {
       'metadata[billing_period]': billing_period,
       'metadata[contact_name]': registration.contact_name || '',
       'metadata[contact_role]': registration.contact_role || '',
+      // Locked design 2026-04-14 — "will you be the vessel admin?" Y/N.
+      // Default true if the caller didn't send it (older clients).
+      'metadata[will_be_admin]': will_be_admin === false ? 'false' : 'true',
       'subscription_data[metadata][vessel_registration_id]': registration.id,
       'subscription_data[metadata][imo]': registration.imo_number || '',
+      'subscription_data[metadata][will_be_admin]': will_be_admin === false ? 'false' : 'true',
     });
 
     return {
