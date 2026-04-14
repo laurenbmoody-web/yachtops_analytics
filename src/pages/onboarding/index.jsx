@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Anchor, Check, Trash2, Plus, ChevronRight, ChevronLeft, Ship } from 'lucide-react';
+import { Anchor, Check, Trash2, Plus, ChevronRight, ChevronLeft, Ship, Users, Building2, Utensils, Briefcase } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import Image from '../../components/AppImage';
@@ -47,12 +47,20 @@ const CARD_STYLE = {
 };
 
 // ── Department data (Departments + InviteCrewStep) ────────────────
+const DEPARTMENT_ICONS = {
+  BRIDGE:      Anchor,
+  INTERIOR:    Users,
+  DECK:        Ship,
+  ENGINEERING: Building2,
+  GALLEY:      Utensils,
+};
+
 const BASE_DEPARTMENTS = [
-  { id: 'BRIDGE',      name: 'Bridge' },
-  { id: 'INTERIOR',    name: 'Interior' },
-  { id: 'DECK',        name: 'Deck' },
-  { id: 'ENGINEERING', name: 'Engineering' },
-  { id: 'GALLEY',      name: 'Galley' },
+  { id: 'BRIDGE',      name: 'Bridge',      icon: Anchor    },
+  { id: 'INTERIOR',    name: 'Interior',    icon: Users     },
+  { id: 'DECK',        name: 'Deck',        icon: Ship      },
+  { id: 'ENGINEERING', name: 'Engineering', icon: Building2 },
+  { id: 'GALLEY',      name: 'Galley',      icon: Utensils  },
 ];
 
 const ROLES_BY_DEPT = {
@@ -516,20 +524,36 @@ const VesselSettingsStep = ({ tenant, onSaved }) => {
 
 // ─── Step 2: Departments ───────────────────────────────────────────
 
-const DepartmentsStep = ({ tenant, userId, onComplete }) => {
+const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
   const [selected, setSelected] = useState(() => {
     const raw = tenant?.departments_in_use || '';
     if (!raw) return BASE_DEPARTMENTS.map((d) => d.id);
-    // Stored as comma-separated text
-    return raw
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
+    return raw.split(',').map((s) => s.trim()).filter(Boolean);
   });
   const [customDepts, setCustomDepts] = useState([]);
   const [newDept, setNewDept] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  // Pre-fill custom departments from profile (preserves mid-onboarding progress)
+  useEffect(() => {
+    if (!userId) return;
+    supabase
+      .from('profiles')
+      .select('custom_departments')
+      .eq('id', userId)
+      .single()
+      .then(({ data }) => {
+        const saved = data?.custom_departments;
+        if (Array.isArray(saved) && saved.length > 0) {
+          setCustomDepts(saved);
+          setSelected((prev) => [
+            ...prev,
+            ...saved.map((d) => d.id).filter((id) => !prev.includes(id)),
+          ]);
+        }
+      });
+  }, [userId]);
 
   const toggle = (id) =>
     setSelected((prev) =>
@@ -554,7 +578,6 @@ const DepartmentsStep = ({ tenant, userId, onComplete }) => {
     setSaving(true);
     setError('');
     try {
-      // Base departments selected → tenants.departments_in_use (existing text col)
       const baseSelected = selected.filter((id) =>
         BASE_DEPARTMENTS.some((d) => d.id === id)
       );
@@ -564,7 +587,7 @@ const DepartmentsStep = ({ tenant, userId, onComplete }) => {
         .eq('id', tenant.id);
       if (tErr) throw tErr;
 
-      // Custom departments → profiles.custom_departments (user-local only)
+      // Custom departments → profiles.custom_departments only — NEVER tenant-wide
       if (customDepts.length > 0) {
         const { error: pErr } = await supabase
           .from('profiles')
@@ -585,95 +608,137 @@ const DepartmentsStep = ({ tenant, userId, onComplete }) => {
   const merged = [...BASE_DEPARTMENTS, ...customDepts];
 
   return (
-    <div className="p-7" style={CARD_STYLE}>
-      <h2
-        style={{
-          fontFamily: 'Outfit, sans-serif',
-          fontSize: 24,
-          fontWeight: 700,
-          color: CHARCOAL,
-          letterSpacing: '-0.01em',
-        }}
-      >
-        {tenant?.name ? `Which departments run on ${tenant.name}?` : 'Which departments are onboard?'}
-      </h2>
-      <p className="text-sm mt-1 mb-6" style={{ color: '#64748B' }}>
-        Tap to toggle. Add any extra departments specific to your boat with the field below.
-      </p>
+    <div className="cg-step-enter">
+      {/* Hero */}
+      <div className="flex items-start gap-4 mb-2">
+        <div
+          className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: NAVY }}
+        >
+          <Building2 size={20} color="white" />
+        </div>
+        <div>
+          <h1 style={{ fontFamily: HEADING_FONT, fontSize: 28, fontWeight: 700, color: CHARCOAL, letterSpacing: '-0.02em' }}>
+            {tenant?.name ? `Which departments run on ${tenant.name}?` : 'Which departments are onboard?'}
+          </h1>
+          <p className="text-sm mt-0.5" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
+            Pick the ones your vessel runs — Cargo tailors visibility and boards to match.
+          </p>
+        </div>
+      </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        {merged.map((d) => {
-          const isSelected = selected.includes(d.id);
-          const isCustom = !BASE_DEPARTMENTS.some((bd) => bd.id === d.id);
-          return (
-            <button
-              key={d.id}
-              type="button"
-              onClick={() => toggle(d.id)}
-              className="flex items-center justify-between px-4 py-3 text-left transition-all"
-              style={{
-                backgroundColor: isSelected ? '#F0F9FB' : CARD,
-                borderTop: `1px solid ${NAVY}`,
-                borderLeft: `1px solid ${NAVY}`,
-                borderRight: `1px solid ${NAVY}`,
-                borderBottom: `3px solid ${isSelected ? ACCENT : NAVY}`,
-                borderRadius: 10,
-              }}
-            >
-              <span>
-                <span className="text-sm block" style={{ color: CHARCOAL, fontWeight: 600 }}>
+      <Card className="mt-8">
+        {/* Chip-style tile grid — NOT raised Cargo border, that's the outer Card */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 cg-stagger">
+          {merged.map((d, i) => {
+            const DIcon = d.icon || Briefcase;
+            const isSelected = selected.includes(d.id);
+            const isCustom = !BASE_DEPARTMENTS.some((bd) => bd.id === d.id);
+            return (
+              <button
+                key={d.id}
+                type="button"
+                onClick={() => toggle(d.id)}
+                className="relative rounded-xl p-4 text-left transition-all cg-anim-enter cg-hover-lift"
+                style={{
+                  '--i': i,
+                  backgroundColor: isSelected ? NAVY : 'white',
+                  border: `1px solid ${isSelected ? NAVY : '#E2E8F0'}`,
+                  color: isSelected ? 'white' : CHARCOAL,
+                }}
+              >
+                {/* Icon tile */}
+                <div
+                  className="w-9 h-9 rounded-lg flex items-center justify-center mb-3"
+                  style={{
+                    backgroundColor: isSelected ? 'rgba(255,255,255,0.12)' : '#F1F5F9',
+                    color: isSelected ? 'white' : NAVY,
+                  }}
+                >
+                  <DIcon size={18} />
+                </div>
+
+                {/* Name */}
+                <div className="text-sm" style={{ fontFamily: BODY_FONT, fontWeight: 600 }}>
                   {d.name}
-                </span>
+                </div>
+
+                {/* Custom pill */}
                 {isCustom && (
-                  <span className="text-[10px] uppercase" style={{ color: '#64748B', letterSpacing: '0.08em' }}>
+                  <div
+                    className="inline-block mt-1 text-[10px] uppercase px-1.5 py-0.5 rounded"
+                    style={{
+                      fontFamily: PILL_FONT,
+                      letterSpacing: '0.06em',
+                      fontWeight: 700,
+                      color: isSelected ? 'white' : '#64748B',
+                      backgroundColor: isSelected ? 'rgba(255,255,255,0.14)' : '#F1F5F9',
+                    }}
+                  >
                     Custom · only you
-                  </span>
+                  </div>
                 )}
-              </span>
-              <span className="flex items-center gap-2">
-                {isSelected && <Check size={16} color={ACCENT} strokeWidth={3} />}
+
+                {/* Selected tick badge — springs in with cg-tick-pop */}
+                {isSelected && (
+                  <div
+                    key={`tick-${d.id}`}
+                    className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center cg-tick-pop"
+                    style={{ backgroundColor: ACCENT }}
+                  >
+                    <Check size={12} color="white" />
+                  </div>
+                )}
+
+                {/* Custom trash — stopPropagation so tile doesn't also toggle */}
                 {isCustom && (
                   <span
+                    onClick={(e) => { e.stopPropagation(); removeCustom(d.id); }}
                     role="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeCustom(d.id);
-                    }}
-                    className="p-1 rounded hover:bg-slate-100"
+                    aria-label="Remove custom department"
+                    className="absolute bottom-2 right-2 p-1 rounded"
+                    style={{ color: isSelected ? 'rgba(255,255,255,0.7)' : '#94A3B8' }}
                   >
-                    <Trash2 size={14} color="#94A3B8" />
+                    <Trash2 size={12} />
                   </span>
                 )}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="flex gap-2 mb-6">
-        <TextInput
-          value={newDept}
-          onChange={(e) => setNewDept(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              addCustom();
-            }
-          }}
-          placeholder="Add another department (e.g. Dive, Spa)"
-        />
-        <PillSecondary onClick={addCustom} disabled={!newDept.trim()}>
-          <span className="inline-flex items-center gap-1.5"><Plus size={12} /> Add</span>
-        </PillSecondary>
-      </div>
-
-      {error && (
-        <div className="mb-4 text-sm px-3 py-2 rounded" style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
-          {error}
+              </button>
+            );
+          })}
         </div>
-      )}
 
-      <div className="flex justify-end">
+        {/* Add custom dept — divider + input, inside the Card */}
+        <div className="mt-5 pt-5" style={{ borderTop: '1px solid #E2E8F0' }}>
+          <div className="flex items-center gap-2">
+            <TextInput
+              value={newDept}
+              placeholder="Add a department (e.g., Dive, Toys, Wellness)"
+              onChange={(e) => setNewDept(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
+            />
+            <PillSecondary onClick={addCustom} disabled={!newDept.trim()}>
+              <span className="inline-flex items-center gap-1.5"><Plus size={14} /> Add</span>
+            </PillSecondary>
+          </div>
+        </div>
+
+        {/* Helper count */}
+        <p className="text-xs mt-4" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
+          {selected.length} selected. Add or remove departments later in Role Management.
+        </p>
+
+        {error && (
+          <div className="mt-4 text-sm px-3 py-2 rounded" style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
+            {error}
+          </div>
+        )}
+      </Card>
+
+      {/* Back / Continue — outside the Card */}
+      <div className="flex items-center justify-between mt-8">
+        <LinkButton onClick={onBack}>
+          <ChevronLeft size={14} /> Back
+        </LinkButton>
         <PillPrimary onClick={handleContinue} disabled={saving || selected.length === 0}>
           {saving ? 'Saving…' : 'Continue'}
         </PillPrimary>
@@ -985,6 +1050,7 @@ const OnboardingPage = () => {
         .cg-breath     { animation: cgBreath 2400ms ease-in-out infinite; }
         .cg-hover-lift { transition: transform 200ms ease, box-shadow 200ms ease; }
         .cg-hover-lift:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(30,58,95,0.12); }
+        .cg-stagger > * { animation-delay: calc(var(--i, 0) * 40ms); }
       `;
       document.head.appendChild(style);
     }
@@ -1115,6 +1181,7 @@ const OnboardingPage = () => {
           <DepartmentsStep
             tenant={tenant}
             userId={user?.id}
+            onBack={() => setStep('vessel')}
             onComplete={(choice) => {
               setDeptChoice(choice);
               setStep('crew');
