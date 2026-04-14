@@ -131,17 +131,40 @@ const ALL_COUNTRIES = [
   { code: 'WS', name: 'Samoa' }, { code: 'YE', name: 'Yemen' }, { code: 'ZA', name: 'South Africa' },
 ];
 
-// ── Department icon map (keyed by icon_key from departments table) ──
+// ── Department icon map (keyed by normalized department name) ──
 const DEPT_ICON_MAP = {
-  anchor:    Anchor,
-  ship:      Ship,
-  users:     Users,
-  building2: Building2,
-  building:  Building2,
-  utensils:  Utensils,
-  briefcase: Briefcase,
-  clipboard: ClipboardList,
+  deck:         Anchor,
+  bridge:       Ship,
+  engineering:  Ship,
+  engine:       Ship,
+  interior:     Users,
+  service:      Users,
+  stew:         Users,
+  housekeeping: Users,
+  galley:       Utensils,
+  culinary:     Utensils,
+  chef:         Utensils,
+  kitchen:      Utensils,
+  purser:       Briefcase,
+  admin:        Briefcase,
+  management:   Briefcase,
+  office:       Briefcase,
+  operations:   ClipboardList,
+  ops:          ClipboardList,
+  logistics:    ClipboardList,
+  security:     Building2,
+  spa:          Building2,
+  wellness:     Building2,
 };
+
+function iconForDept(name) {
+  if (!name) return Briefcase;
+  const n = String(name).toLowerCase();
+  for (const key of Object.keys(DEPT_ICON_MAP)) {
+    if (n.includes(key)) return DEPT_ICON_MAP[key];
+  }
+  return Briefcase;
+}
 
 // ── Shared UI atoms ───────────────────────────────────────────────
 
@@ -747,7 +770,7 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
     setLoadError('');
     const { data, error } = await supabase
       .from('departments')
-      .select('id, name, icon_key')
+      .select('id, name')
       .eq('tenant_id', tenant.id)
       .order('name', { ascending: true });
     if (error) {
@@ -838,7 +861,7 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
           <>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 cg-stagger">
               {depts.map((d, i) => {
-                const DIcon = DEPT_ICON_MAP[d.icon_key] || Briefcase;
+                const DIcon = iconForDept(d.name);
                 const isSelected = selected.includes(d.id);
                 return (
                   <button
