@@ -341,16 +341,27 @@ const Dashboard = () => {
     } catch (err) {
       console.warn('[dashboard] task counts load failed', err);
     }
+    // skipped_invite_crew is fetched separately so a missing column (pre-migration)
+    // never breaks the counts query or the hero visibility logic above.
+    try {
+      const { data: tenantFlags } = await supabase
+        .from('tenants')
+        .select('skipped_invite_crew')
+        .eq('id', tenantId)
+        .maybeSingle();
+      if (tenantFlags?.skipped_invite_crew) setSkippedInviteCrew(true);
+    } catch {
+      // Column not yet present in remote DB — invite card stays hidden, non-fatal
+    }
   };
 
   const loadTutorialData = async (userId, tenantId) => {
     try {
       const [{ data: profile }, { data: tenant }] = await Promise.all([
         supabase.from('profiles').select('dashboard_tutorial_dismissed_at').eq('id', userId).maybeSingle(),
-        supabase.from('tenants').select('onboarding_completed_at, name, skipped_invite_crew').eq('id', tenantId).maybeSingle(),
+        supabase.from('tenants').select('onboarding_completed_at, name').eq('id', tenantId).maybeSingle(),
       ]);
       if (tenant?.name) setVesselName(tenant.name);
-      if (tenant?.skipped_invite_crew) setSkippedInviteCrew(true);
       if (tenant?.onboarding_completed_at) {
         const msAgo = Date.now() - new Date(tenant.onboarding_completed_at).getTime();
         const within30days = msAgo < 30 * 24 * 60 * 60 * 1000;
