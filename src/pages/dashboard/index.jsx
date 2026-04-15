@@ -552,7 +552,7 @@ const Dashboard = () => {
             return (
               <div className="mb-10">
                 <div
-                  className="rounded-2xl px-8 py-8"
+                  className="rounded-2xl px-7 py-5"
                   style={{
                     position: 'relative',
                     overflow: 'visible',
@@ -567,7 +567,7 @@ const Dashboard = () => {
                   {/* Top row: chain + heading + percent */}
                   <div className="flex gap-6 items-start">
                     <div className="flex-shrink-0">
-                      <AnchorChainProgress percent={percent} width={140} height={340} />
+                      <AnchorChainProgress percent={percent} width={80} height={180} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <h1 style={{ fontFamily: HEADING_FONT, fontSize: 26, fontWeight: 700, color: CHARCOAL, letterSpacing: '-0.02em' }}>
