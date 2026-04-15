@@ -12,7 +12,10 @@ import anchorChainSvg from '../../assets/anchor-chain.svg?raw';
  * SVG ships at src/assets/anchor-chain.svg. The ?raw Vite suffix imports
  * file contents as a string.
  */
-const MAX_DROP = 140; // viewBox units — tune to taste
+// Viewport-height-equivalent offsets in viewBox units (viewBox is 0 0 309 988).
+// At 0% the rig is translated UP by HIDDEN_OFFSET so only a few top links poke in.
+// At 100% the rig sits at drop=0 (its natural Figma position with anchor at seabed).
+const HIDDEN_OFFSET = 720; // viewBox units — tune so ~2 links visible at 0%
 
 function prepare(raw) {
   const styleBlock = `<style>
@@ -51,7 +54,7 @@ const PREPARED = prepare(anchorChainSvg);
 
 const AnchorChainProgress = ({ percent = 0, width = 100, height = 240 }) => {
   const p = Math.max(0, Math.min(100, percent));
-  const drop = (p / 100) * MAX_DROP;
+  const drop = -HIDDEN_OFFSET + (p / 100) * HIDDEN_OFFSET;
 
   return (
     <div
