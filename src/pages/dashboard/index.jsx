@@ -31,7 +31,6 @@ import AnchorChainProgress from '../../components/onboarding/AnchorChainProgress
 
 import { useDashboardLayout } from './useDashboardLayout';
 import { supabase } from '../../lib/supabaseClient';
-import { markTutorialStep } from '../../utils/tutorialState';
 
 // ── Brand tokens (match onboarding Cargo palette) ────────────────────────────
 const NAVY      = '#1E3A5F';
@@ -245,11 +244,17 @@ const Dashboard = () => {
   const [tutorialPillHidden, setTutorialPillHidden] = useState(
     () => localStorage.getItem('cg_tutorial_pill_hidden') === '1'
   );
-  const [tutorialState, setTutorialState] = useState({});
+  const [taskCounts, setTaskCounts] = useState({ locations: 0, inventoryFolders: 0, inventoryItems: 0 });
   const [showToast, setShowToast] = useState(true);
 
-  const completed = TUTORIAL_ITEMS.filter((item) => tutorialState[item.id]).length;
-  const percent = Math.round(((3 + completed) / (3 + TUTORIAL_ITEMS.length)) * 100);
+  // Derive task completion from real Supabase counts, not from click state
+  const doneMap = {
+    locations_done: taskCounts.locations > 0,
+    inventory_done: taskCounts.inventoryFolders > 0,
+    import_done: taskCounts.inventoryItems > 0,
+  };
+  const completed = TUTORIAL_ITEMS.filter((item) => doneMap[item.id]).length;
+  const percent = Math.round((completed / TUTORIAL_ITEMS.length) * 100);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -280,10 +285,28 @@ const Dashboard = () => {
     }
   }, []);
 
+  const loadTaskCounts = async (tenantId) => {
+    if (!tenantId) return;
+    try {
+      const [{ count: locCount }, { count: folderCount }, { count: itemCount }] = await Promise.all([
+        supabase.from('vessel_locations').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('is_archived', false),
+        supabase.from('inventory_locations').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('is_archived', false),
+        supabase.from('inventory_items').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId),
+      ]);
+      setTaskCounts({
+        locations: locCount ?? 0,
+        inventoryFolders: folderCount ?? 0,
+        inventoryItems: itemCount ?? 0,
+      });
+    } catch (err) {
+      console.warn('[dashboard] task counts load failed', err);
+    }
+  };
+
   const loadTutorialData = async (userId, tenantId) => {
     try {
       const [{ data: profile }, { data: tenant }] = await Promise.all([
-        supabase.from('profiles').select('onboarding_tutorial_state, dashboard_tutorial_dismissed_at').eq('id', userId).maybeSingle(),
+        supabase.from('profiles').select('dashboard_tutorial_dismissed_at').eq('id', userId).maybeSingle(),
         supabase.from('tenants').select('onboarding_completed_at, name').eq('id', tenantId).maybeSingle(),
       ]);
       if (tenant?.name) setVesselName(tenant.name);
@@ -294,19 +317,12 @@ const Dashboard = () => {
         setTutorialDismissed(within30days && dismissed);
         setShowOnboardingTutorial(within30days && !dismissed);
       }
-      setTutorialState(profile?.onboarding_tutorial_state || {});
     } catch (err) {
       console.warn('[dashboard] tutorial data load failed', err);
     }
   };
 
   const handleTutorialStart = (item) => {
-    // Optimistic local update
-    setTutorialState((prev) => ({ ...prev, [item.id]: true }));
-    // Persist via shared utility (fire-and-forget)
-    markTutorialStep(session?.user?.id, item.id).catch((err) => {
-      console.warn('[dashboard] tutorial state save failed', err);
-    });
     navigate(item.route);
   };
 
@@ -343,8 +359,11 @@ const Dashboard = () => {
       const tenantId = localStorage.getItem('cargo_active_tenant_id');
       setActiveTenantId(tenantId);
       await loadTenantMemberRole(currentSession?.user?.id, tenantId);
-      await loadVesselData(tenantId);
-      await loadTutorialData(currentSession?.user?.id, tenantId);
+      await Promise.all([
+        loadVesselData(tenantId),
+        loadTutorialData(currentSession?.user?.id, tenantId),
+        loadTaskCounts(tenantId),
+      ]);
       setLoading(false);
     } catch (err) {
       console.error('Session check error:', err);
@@ -507,7 +526,7 @@ const Dashboard = () => {
 
           {/* Onboarding tutorial — shown for 30 days after completing onboarding */}
           {showOnboardingTutorial && (() => {
-            const remaining = TUTORIAL_ITEMS.filter((item) => !tutorialState[item.id]).length;
+            const remaining = TUTORIAL_ITEMS.filter((item) => !doneMap[item.id]).length;
             return (
               <div className="mb-10">
                 <div
@@ -526,7 +545,7 @@ const Dashboard = () => {
                   {/* Top row: chain + heading + percent */}
                   <div className="flex gap-6 items-start">
                     <div className="flex-shrink-0">
-                      <AnchorChainProgress percent={percent} />
+                      <AnchorChainProgress percent={percent} width={140} height={340} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <h1 style={{ fontFamily: HEADING_FONT, fontSize: 26, fontWeight: 700, color: CHARCOAL, letterSpacing: '-0.02em' }}>
@@ -564,7 +583,7 @@ const Dashboard = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 cg-stagger">
                       {TUTORIAL_ITEMS.map((item, i) => (
                         <div key={item.id} className="cg-anim-enter" style={{ '--i': i + 1 }}>
-                          <TutorialCard item={item} done={!!tutorialState[item.id]} onStart={() => handleTutorialStart(item)} />
+                          <TutorialCard item={item} done={doneMap[item.id]} onStart={() => handleTutorialStart(item)} />
                         </div>
                       ))}
                     </div>
