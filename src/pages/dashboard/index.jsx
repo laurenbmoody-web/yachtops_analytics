@@ -27,7 +27,7 @@ import ComprehensiveJobModal from '../team-jobs-management/components/Comprehens
 import SortableWidget from './components/SortableWidget';
 import DashboardEditBar from './components/DashboardEditBar';
 import ProvisioningWidget from './components/ProvisioningWidget';
-import AnchorChainProgress from './components/AnchorChainProgress';
+import AnchorChainProgress from '../../components/onboarding/AnchorChainProgress';
 
 import { useDashboardLayout } from './useDashboardLayout';
 import { supabase } from '../../lib/supabaseClient';
