@@ -1351,8 +1351,8 @@ const OnboardingPage = () => {
           <StepPill label="Crew" index={3} current={step === 'crew'} done={false} />
           <AnchorChainProgress
             percent={((step === 'vessel' ? 1 : step === 'departments' ? 2 : 3) / 3) * 100}
-            width={80}
-            height={180}
+            width={120}
+            height={290}
           />
         </div>
 
