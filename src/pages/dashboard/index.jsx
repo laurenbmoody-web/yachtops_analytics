@@ -98,6 +98,17 @@ const LivePercent = ({ percent }) => {
 };
 
 
+const StatTile = ({ label, value }) => (
+  <div style={{ backgroundColor: '#F1F5F9', borderRadius: 10, padding: '12px 14px' }}>
+    <div style={{ fontFamily: HEADING_FONT, fontSize: 22, fontWeight: 900, color: NAVY, letterSpacing: '-0.02em', lineHeight: 1 }}>
+      {value}
+    </div>
+    <div style={{ fontFamily: PILL_FONT, fontSize: 10, fontWeight: 800, color: '#64748B', letterSpacing: '0.14em', textTransform: 'uppercase', marginTop: 4 }}>
+      {label}
+    </div>
+  </div>
+);
+
 const TutorialCard = ({ item, done, onStart }) => {
   const ItemIcon = item.icon;
   return (
@@ -244,7 +255,7 @@ const Dashboard = () => {
   const [tutorialPillHidden, setTutorialPillHidden] = useState(
     () => localStorage.getItem('cg_tutorial_pill_hidden') === '1'
   );
-  const [taskCounts, setTaskCounts] = useState({ locations: 0, inventoryFolders: 0, inventoryItems: 0 });
+  const [taskCounts, setTaskCounts] = useState({ locations: 0, inventoryFolders: 0, inventoryItems: 0, crew: 0, openTasks: 0 });
   const [showToast, setShowToast] = useState(true);
 
   // Derive task completion from real Supabase counts, not from click state
@@ -288,15 +299,26 @@ const Dashboard = () => {
   const loadTaskCounts = async (tenantId) => {
     if (!tenantId) return;
     try {
-      const [{ count: locCount }, { count: folderCount }, { count: itemCount }] = await Promise.all([
+      const [
+        { count: locCount },
+        { count: folderCount },
+        { count: itemCount },
+        { count: crewCount },
+        { count: jobCount },
+      ] = await Promise.all([
         supabase.from('vessel_locations').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('is_archived', false),
         supabase.from('inventory_locations').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('is_archived', false),
         supabase.from('inventory_items').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId),
+        supabase.from('tenant_members').select('user_id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('active', true),
+        // team_jobs — status values from TodaySnapshotWidget: 'OPEN' | 'open' | 'Open'
+        supabase.from('team_jobs').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).in('status', ['OPEN', 'open', 'Open']),
       ]);
       setTaskCounts({
         locations: locCount ?? 0,
         inventoryFolders: folderCount ?? 0,
         inventoryItems: itemCount ?? 0,
+        crew: crewCount ?? 0,
+        openTasks: jobCount ?? 0,
       });
     } catch (err) {
       console.warn('[dashboard] task counts load failed', err);
@@ -562,10 +584,17 @@ const Dashboard = () => {
                       <p className="text-xs mt-1" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
                         {percent === 100 ? 'Fully anchored.' : 'Only a few more shackles to go…'}
                       </p>
+                      {/* At-a-glance stats — 4 cols desktop, 2 cols mobile */}
+                      <div className="mt-4 grid grid-cols-2 md:grid-cols-4" style={{ gap: 10 }}>
+                        <StatTile label="Crew" value={taskCounts.crew} />
+                        <StatTile label="Locations" value={taskCounts.locations} />
+                        <StatTile label="Inventory" value={taskCounts.inventoryItems} />
+                        <StatTile label="Open Tasks" value={taskCounts.openTasks} />
+                      </div>
                       <button
                         type="button"
                         onClick={handleDismissTutorial}
-                        className="mt-4 text-xs underline underline-offset-2"
+                        className="mt-3 text-xs underline underline-offset-2"
                         style={{ color: '#94A3B8', fontFamily: BODY_FONT }}
                       >
                         Hide for now
