@@ -325,10 +325,10 @@ const Dashboard = () => {
         { count: jobCount },
       ] = await Promise.all([
         supabase.from('vessel_locations').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('is_archived', false),
-        // Only count root-level folders (sub_location IS NULL) — sub-location rows exist
-        // without a visible parent when items are imported, so counting all rows produces
-        // false-positives and hides the card even when the user sees "no folders" in the UI.
-        supabase.from('inventory_locations').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('is_archived', false).is('sub_location', null),
+        // Exclude auto-seeded department root folders (is_department_root = true) which are
+        // created by ensureDepartmentFolders() on every /inventory visit and are invisible
+        // to the user. Only count manually-created root-level folders (sub_location IS NULL).
+        supabase.from('inventory_locations').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('is_archived', false).is('sub_location', null).eq('is_department_root', false),
         supabase.from('inventory_items').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId),
         supabase.from('tenant_members').select('user_id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('active', true),
         // team_jobs — status values from TodaySnapshotWidget: 'OPEN' | 'open' | 'Open'
@@ -353,8 +353,8 @@ const Dashboard = () => {
         .eq('id', tenantId)
         .maybeSingle();
       if (tenantFlags?.skipped_invite_crew) setSkippedInviteCrew(true);
-    } catch {
-      // Column not yet present in remote DB — invite card stays hidden, non-fatal
+    } catch (err) {
+      console.warn('[dashboard] skipped_invite_crew fetch threw:', err);
     }
   };
 
