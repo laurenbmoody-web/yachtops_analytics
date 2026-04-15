@@ -97,40 +97,53 @@ const LivePercent = ({ percent }) => {
 };
 
 const AnchorChainProgress = ({ percent }) => {
-  const height = 180;
-  const [dropped, setDropped] = useState(0);
+  const TOTAL_H   = 180;
+  const CLEAT_H   = 10;
+  const LINK_H    = 10;
+  const ANCHOR_H  = 36; // visual space reserved at bottom for the anchor icon
+  const chainH    = TOTAL_H - CLEAT_H - ANCHOR_H; // 134px of usable chain
+  const totalLinks = Math.floor(chainH / LINK_H);  // 13 links
+
+  const [animPercent, setAnimPercent] = useState(0);
   useEffect(() => {
-    const t = setTimeout(() => setDropped(percent), 120);
+    const t = setTimeout(() => setAnimPercent(percent), 120);
     return () => clearTimeout(t);
   }, [percent]);
-  const anchorTop = Math.max(0, Math.min(100, dropped)) / 100 * (height - 40);
-  const linkCount = Math.max(0, Math.floor(anchorTop / 10));
-  const chainH = linkCount * 10;
+  const filledLinks = Math.round((animPercent / 100) * totalLinks);
+
   return (
-    <div className="relative" style={{ width: 48, height }}>
+    <div className="relative flex-shrink-0" style={{ width: 48, height: TOTAL_H }}>
+      {/* Cleat */}
       <div
         className="absolute left-1/2 -translate-x-1/2 top-0 rounded-[3px]"
-        style={{ width: 22, height: 10, backgroundColor: NAVY }}
+        style={{ width: 22, height: CLEAT_H, backgroundColor: NAVY }}
       />
+      {/* Chain — fills fixed height; link colour encodes progress */}
       <svg
         className="absolute left-1/2 -translate-x-1/2"
-        style={{ top: 10, width: 14, height: chainH, transition: 'height 1400ms cubic-bezier(.34,1.2,.64,1)' }}
-        viewBox={`0 0 14 ${Math.max(chainH, 1)}`}
-        preserveAspectRatio="none"
+        style={{ top: CLEAT_H, width: 14, height: totalLinks * LINK_H }}
+        viewBox={`0 0 14 ${totalLinks * LINK_H}`}
       >
-        {Array.from({ length: linkCount }).map((_, i) => (
-          <ellipse key={i} cx="7" cy={i * 10 + 5} rx="4" ry="5" fill="none" stroke={NAVY} strokeWidth="1.6" />
-        ))}
+        {Array.from({ length: totalLinks }).map((_, i) => {
+          const filled = i < filledLinks;
+          return (
+            <ellipse
+              key={i}
+              cx="7" cy={i * LINK_H + 5} rx="3.6" ry="4.4"
+              style={{
+                fill: filled ? NAVY : 'none',
+                stroke: filled ? NAVY : '#CBD5E1',
+                strokeWidth: 1.4,
+                transition: `fill 500ms ease ${i * 25}ms, stroke 500ms ease ${i * 25}ms`,
+              }}
+            />
+          );
+        })}
       </svg>
+      {/* Anchor — always flush to the chain floor */}
       <div
-        className="absolute left-1/2 -translate-x-1/2 cg-anchor-sway flex items-start justify-center"
-        style={{
-          top: 10 + chainH,
-          width: 40,
-          height: 40,
-          transition: 'top 1400ms cubic-bezier(.34,1.2,.64,1)',
-          transformOrigin: 'top center',
-        }}
+        className="absolute left-1/2 -translate-x-1/2 cg-anchor-sway flex items-center justify-center"
+        style={{ bottom: 0, width: 40, height: ANCHOR_H, transformOrigin: 'top center' }}
       >
         <Anchor size={32} color={NAVY} strokeWidth={2.25} />
       </div>
@@ -216,23 +229,26 @@ const CollapsiblePanel = ({ title, badge, defaultOpen = false, pulse = false, ch
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`w-full flex items-center justify-between py-4 rounded-lg${!open && pulse ? ' cg-attention-pulse' : ''}`}
+        className="w-full flex items-center py-4"
       >
-        <div className="flex items-center gap-2">
-          <span className="uppercase" style={{ fontFamily: PILL_FONT, fontSize: 11, fontWeight: 900, letterSpacing: '0.10em', color: '#94A3B8' }}>
-            {title}
-          </span>
-          {!open && badge && (
-            <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: NAVY, color: 'white', fontFamily: PILL_FONT, fontWeight: 700 }}>
-              {badge}
+        {/* Pulse applied only to the header row content — negative margin keeps tint from crossing divider */}
+        <div className={`flex items-center justify-between w-full${!open && pulse ? ' cg-attention-pulse' : ''}`}>
+          <div className="flex items-center gap-2">
+            <span className="uppercase" style={{ fontFamily: PILL_FONT, fontSize: 11, fontWeight: 900, letterSpacing: '0.10em', color: '#94A3B8' }}>
+              {title}
             </span>
-          )}
+            {!open && badge && (
+              <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: NAVY, color: 'white', fontFamily: PILL_FONT, fontWeight: 700 }}>
+                {badge}
+              </span>
+            )}
+          </div>
+          <ChevronRight
+            size={16}
+            color="#94A3B8"
+            style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 200ms ease' }}
+          />
         </div>
-        <ChevronRight
-          size={16}
-          color="#94A3B8"
-          style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 200ms ease' }}
-        />
       </button>
       {open && (
         <div className="pb-2 cg-anim-enter">
@@ -277,6 +293,10 @@ const Dashboard = () => {
 
   const [vesselName, setVesselName] = useState('');
   const [showOnboardingTutorial, setShowOnboardingTutorial] = useState(false);
+  const [tutorialDismissed, setTutorialDismissed] = useState(false);
+  const [tutorialPillHidden, setTutorialPillHidden] = useState(
+    () => localStorage.getItem('cg_tutorial_pill_hidden') === '1'
+  );
   const [tutorialState, setTutorialState] = useState({});
   const [showToast, setShowToast] = useState(true);
 
@@ -305,8 +325,10 @@ const Dashboard = () => {
         .cg-toast-in { animation: cgToastIn 350ms cubic-bezier(.2,.7,.2,1) both; }
         .cg-anim-enter { animation: cgFadeSlideUp 520ms cubic-bezier(.2,.7,.2,1) both; }
         .cg-stagger > * { animation-delay: calc(var(--i, 0) * 40ms); }
-        @keyframes cgAttentionPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(30,58,95,0); } 50% { box-shadow: 0 0 0 6px rgba(30,58,95,0.18); } }
-        .cg-attention-pulse { animation: cgAttentionPulse 2200ms ease-in-out infinite; }
+        @keyframes cgAttentionPulse { 0%,100% { background-color: rgba(0,168,204,0); } 50% { background-color: rgba(0,168,204,0.08); } }
+        .cg-attention-pulse { animation: cgAttentionPulse 2400ms ease-in-out infinite; border-radius: 8px; padding: 6px 10px; margin: -6px -10px; transition: background-color 0.3s; }
+        .cg-restore-pill { transition: background-color 150ms ease, color 150ms ease; }
+        .cg-restore-pill:hover { background-color: #1E3A5F !important; color: white !important; }
       `;
       document.head.appendChild(style);
     }
@@ -323,6 +345,7 @@ const Dashboard = () => {
         const msAgo = Date.now() - new Date(tenant.onboarding_completed_at).getTime();
         const within30days = msAgo < 30 * 24 * 60 * 60 * 1000;
         const dismissed = !!profile?.dashboard_tutorial_dismissed_at;
+        setTutorialDismissed(within30days && dismissed);
         setShowOnboardingTutorial(within30days && !dismissed);
       }
       setTutorialState(profile?.onboarding_tutorial_state || {});
@@ -344,10 +367,23 @@ const Dashboard = () => {
 
   const handleDismissTutorial = async () => {
     setShowOnboardingTutorial(false);
+    setTutorialDismissed(true);
+    setTutorialPillHidden(false);
+    localStorage.removeItem('cg_tutorial_pill_hidden');
     try {
       await supabase.from('profiles').update({ dashboard_tutorial_dismissed_at: new Date().toISOString() }).eq('id', session?.user?.id);
     } catch (err) {
       console.warn('[dashboard] tutorial dismiss save failed', err);
+    }
+  };
+
+  const handleRestoreTutorial = async () => {
+    setTutorialDismissed(false);
+    setShowOnboardingTutorial(true);
+    try {
+      await supabase.from('profiles').update({ dashboard_tutorial_dismissed_at: null }).eq('id', session?.user?.id);
+    } catch (err) {
+      console.warn('[dashboard] tutorial restore failed', err);
     }
   };
 
@@ -500,6 +536,30 @@ const Dashboard = () => {
         <Header />
 
         <div className="max-w-[1600px] mx-auto p-6">
+          {/* Restore pill — shown when tutorial was dismissed (within 30-day window) */}
+          {tutorialDismissed && !tutorialPillHidden && (
+            <div className="flex justify-end mb-4">
+              <div className="inline-flex items-center gap-0.5">
+                <button
+                  type="button"
+                  onClick={handleRestoreTutorial}
+                  className="cg-restore-pill inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border"
+                  style={{ borderColor: NAVY, color: NAVY, fontFamily: PILL_FONT, fontWeight: 900, fontSize: 11, letterSpacing: '0.10em', textTransform: 'uppercase' }}
+                >
+                  <Anchor size={11} /> Show onboarding tour
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setTutorialPillHidden(true); localStorage.setItem('cg_tutorial_pill_hidden', '1'); }}
+                  className="p-1 rounded-full hover:bg-slate-100 ml-0.5"
+                  style={{ color: '#94A3B8' }}
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Onboarding tutorial — shown for 30 days after completing onboarding */}
           {showOnboardingTutorial && (() => {
             const remaining = TUTORIAL_ITEMS.filter((item) => !tutorialState[item.id]).length;
@@ -544,7 +604,7 @@ const Dashboard = () => {
                         className="mt-4 text-xs underline underline-offset-2"
                         style={{ color: '#94A3B8', fontFamily: BODY_FONT }}
                       >
-                        Hide this section
+                        Hide for now
                       </button>
                     </div>
                   </div>

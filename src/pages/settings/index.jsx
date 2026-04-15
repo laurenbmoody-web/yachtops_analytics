@@ -5,6 +5,7 @@ import Button from '../../components/ui/Button';
 import Header from '../../components/navigation/Header';
 import { getCurrentUser } from '../../utils/authStorage';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabaseClient';
 
 const SettingsPage = () => {
   const navigate = useNavigate();
@@ -233,6 +234,31 @@ const SettingsPage = () => {
                   variant="outline"
                 >
                   Manage Plan
+                </Button>
+              </div>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-medium text-foreground">Onboarding tour</h3>
+                  <p className="text-sm text-muted-foreground mt-1">Restore the setup guide on your dashboard</p>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      await supabase
+                        .from('profiles')
+                        .update({ dashboard_tutorial_dismissed_at: null })
+                        .eq('id', session?.user?.id);
+                      localStorage.removeItem('cg_tutorial_pill_hidden');
+                      navigate('/dashboard');
+                    } catch (err) {
+                      console.warn('[settings] restore tutorial failed', err);
+                    }
+                  }}
+                >
+                  Show again
                 </Button>
               </div>
             </div>
