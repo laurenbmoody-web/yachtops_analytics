@@ -19,6 +19,7 @@ import Button from '../../components/ui/Button';
 import Icon from '../../components/AppIcon';
 import { useAuth } from '../../contexts/AuthContext';
 import { getCurrentUser, hasCommandAccess, hasChiefAccess } from '../../utils/authStorage';
+import { markTutorialStep } from '../../utils/tutorialState';
 import {
   getAllDecks,
   createDeck,
@@ -287,6 +288,7 @@ const LocationsManagementSettings = ({ embedded = false }) => {
         await createSpace(selectedZone?.id, trimmedValue);
         await loadSpaces(selectedZone?.id);
       }
+      markTutorialStep(session?.user?.id, 'locations_done').catch(() => {});
       cancelAdding();
     } catch (err) {
       setAddError(err?.message || 'Failed to create — try again');

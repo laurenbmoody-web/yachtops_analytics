@@ -42,7 +42,7 @@ const PILL_FONT    = "'Archivo', system-ui, sans-serif";
 // ── Tutorial data ─────────────────────────────────────────────────────────────
 const TUTORIAL_ITEMS = [
   {
-    id: 'locations',
+    id: 'locations_done',
     title: 'Set up vessel locations',
     desc: 'Map out your vessel — decks, cabins, storage rooms, lockers. Nest locations as needed. Everything in inventory sits under a location.',
     icon: MapPin,
@@ -50,7 +50,7 @@ const TUTORIAL_ITEMS = [
     route: '/vessel-settings',
   },
   {
-    id: 'folders',
+    id: 'inventory_done',
     title: 'Build your inventory folders',
     desc: 'Organise inventory into folders that mirror how your crew works — by department, usage, or physical zone.',
     icon: FolderTree,
@@ -58,7 +58,7 @@ const TUTORIAL_ITEMS = [
     route: '/folder-based-inventory-dashboard',
   },
   {
-    id: 'upload',
+    id: 'import_done',
     title: 'Upload your first inventory file',
     desc: "Got a spreadsheet from the last handover? Drop it in and Cargo will parse, de-dup, and auto-assign items into folders.",
     icon: Upload,
@@ -104,32 +104,28 @@ const AnchorChainProgress = ({ percent }) => {
     return () => clearTimeout(t);
   }, [percent]);
   const anchorTop = Math.max(0, Math.min(100, dropped)) / 100 * (height - 40);
+  const linkCount = Math.max(0, Math.floor(anchorTop / 10));
+  const chainH = linkCount * 10;
   return (
     <div className="relative" style={{ width: 48, height }}>
       <div
         className="absolute left-1/2 -translate-x-1/2 top-0 rounded-[3px]"
         style={{ width: 22, height: 10, backgroundColor: NAVY }}
       />
-      {(() => {
-        const linkCount = Math.max(0, Math.floor(anchorTop / 10));
-        const chainH = linkCount * 10;
-        return (
-          <svg
-            className="absolute left-1/2 -translate-x-1/2"
-            style={{ top: 10, width: 14, height: chainH, transition: 'height 1400ms cubic-bezier(.34,1.2,.64,1)' }}
-            viewBox={`0 0 14 ${Math.max(chainH, 1)}`}
-            preserveAspectRatio="none"
-          >
-            {Array.from({ length: linkCount }).map((_, i) => (
-              <ellipse key={i} cx="7" cy={i * 10 + 5} rx="4" ry="5" fill="none" stroke={NAVY} strokeWidth="1.6" />
-            ))}
-          </svg>
-        );
-      })()}
+      <svg
+        className="absolute left-1/2 -translate-x-1/2"
+        style={{ top: 10, width: 14, height: chainH, transition: 'height 1400ms cubic-bezier(.34,1.2,.64,1)' }}
+        viewBox={`0 0 14 ${Math.max(chainH, 1)}`}
+        preserveAspectRatio="none"
+      >
+        {Array.from({ length: linkCount }).map((_, i) => (
+          <ellipse key={i} cx="7" cy={i * 10 + 5} rx="4" ry="5" fill="none" stroke={NAVY} strokeWidth="1.6" />
+        ))}
+      </svg>
       <div
         className="absolute left-1/2 -translate-x-1/2 cg-anchor-sway flex items-start justify-center"
         style={{
-          top: Math.max(0, Math.floor(anchorTop / 10) * 10) + 4,
+          top: 10 + chainH,
           width: 40,
           height: 40,
           transition: 'top 1400ms cubic-bezier(.34,1.2,.64,1)',
@@ -157,7 +153,7 @@ const TutorialCard = ({ item, done, onStart }) => {
           {done ? <Check size={20} color="white" /> : <ItemIcon size={20} color="white" />}
         </div>
         <div className="flex-1 min-w-0">
-          <h3 style={{ fontFamily: HEADING_FONT, fontSize: 16, fontWeight: 700, color: CHARCOAL }}>{item.title}</h3>
+          <h3 style={{ fontFamily: HEADING_FONT, fontSize: 16, fontWeight: 700, color: CHARCOAL, textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.6 : 1 }}>{item.title}</h3>
           <p className="text-sm mt-1" style={{ color: '#64748B', fontFamily: BODY_FONT, lineHeight: 1.5 }}>{item.desc}</p>
           {!done && (
             <div className="mt-3">
@@ -172,12 +168,12 @@ const TutorialCard = ({ item, done, onStart }) => {
             </div>
           )}
           {done && (
-            <p
-              className="mt-3 inline-flex items-center gap-1.5 text-xs"
-              style={{ color: '#047857', fontFamily: PILL_FONT, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}
+            <span
+              className="mt-3 inline-flex items-center gap-1 text-xs px-3 py-1 rounded-full"
+              style={{ backgroundColor: '#D1FAE5', color: '#065F46', fontFamily: PILL_FONT, fontWeight: 700, letterSpacing: '0.06em' }}
             >
-              <Check size={12} /> Done
-            </p>
+              <Check size={11} /> Done
+            </span>
           )}
         </div>
       </div>
@@ -200,7 +196,7 @@ const FeatureTile = ({ feature }) => {
 
 const WelcomeToast = ({ onDismiss }) => (
   <div
-    className="fixed top-4 right-4 max-w-sm rounded-xl p-4 flex items-start gap-3 z-50 cg-toast-in"
+    className="absolute top-4 right-4 max-w-sm rounded-xl p-4 flex items-start gap-3 z-10 cg-toast-in"
     style={{ backgroundColor: NAVY, color: 'white', boxShadow: '0 10px 40px rgba(30,58,95,0.35)' }}
   >
     <Sparkles size={18} color="#FDE68A" className="flex-shrink-0 mt-0.5" />
@@ -213,14 +209,14 @@ const WelcomeToast = ({ onDismiss }) => (
 );
 
 // Collapsible panel used inside the tutorial hero banner
-const CollapsiblePanel = ({ title, badge, defaultOpen = false, children }) => {
+const CollapsiblePanel = ({ title, badge, defaultOpen = false, pulse = false, children }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="mt-4" style={{ borderTop: '1px solid #E2E8F0' }}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between py-4"
+        className={`w-full flex items-center justify-between py-4 rounded-lg${!open && pulse ? ' cg-attention-pulse' : ''}`}
       >
         <div className="flex items-center gap-2">
           <span className="uppercase" style={{ fontFamily: PILL_FONT, fontSize: 11, fontWeight: 900, letterSpacing: '0.10em', color: '#94A3B8' }}>
@@ -284,8 +280,8 @@ const Dashboard = () => {
   const [tutorialState, setTutorialState] = useState({});
   const [showToast, setShowToast] = useState(true);
 
-  const completed = Object.values(tutorialState).filter(Boolean).length;
-  const percent = Math.round(((3 + completed) / 6) * 100);
+  const completed = TUTORIAL_ITEMS.filter((item) => tutorialState[item.id]).length;
+  const percent = Math.round(((3 + completed) / (3 + TUTORIAL_ITEMS.length)) * 100);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -309,6 +305,8 @@ const Dashboard = () => {
         .cg-toast-in { animation: cgToastIn 350ms cubic-bezier(.2,.7,.2,1) both; }
         .cg-anim-enter { animation: cgFadeSlideUp 520ms cubic-bezier(.2,.7,.2,1) both; }
         .cg-stagger > * { animation-delay: calc(var(--i, 0) * 40ms); }
+        @keyframes cgAttentionPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(30,58,95,0); } 50% { box-shadow: 0 0 0 6px rgba(30,58,95,0.18); } }
+        .cg-attention-pulse { animation: cgAttentionPulse 2200ms ease-in-out infinite; }
       `;
       document.head.appendChild(style);
     }
@@ -510,6 +508,8 @@ const Dashboard = () => {
                 <div
                   className="rounded-2xl px-8 py-8"
                   style={{
+                    position: 'relative',
+                    overflow: 'visible',
                     backgroundColor: '#FFFFFF',
                     borderTop: `1px solid ${NAVY}`,
                     borderLeft: `1px solid ${NAVY}`,
@@ -517,6 +517,7 @@ const Dashboard = () => {
                     borderBottom: `4px solid ${NAVY}`,
                   }}
                 >
+                  {showToast && <WelcomeToast onDismiss={() => setShowToast(false)} />}
                   {/* Top row: chain + heading + percent */}
                   <div className="flex gap-6 items-start">
                     <div className="flex-shrink-0">
@@ -553,6 +554,7 @@ const Dashboard = () => {
                     title="Finish setting up"
                     badge={remaining > 0 ? `${remaining} left` : null}
                     defaultOpen
+                    pulse={remaining > 0}
                   >
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 cg-stagger">
                       {TUTORIAL_ITEMS.map((item, i) => (
@@ -564,7 +566,7 @@ const Dashboard = () => {
                   </CollapsiblePanel>
 
                   {/* Collapsible: What else is in Cargo — collapsed by default */}
-                  <CollapsiblePanel title="What else is in Cargo" defaultOpen={false}>
+                  <CollapsiblePanel title="What else is in Cargo" defaultOpen={false} pulse>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 cg-stagger">
                       {CARGO_FEATURES.map((f, i) => (
                         <div key={f.name} className="cg-anim-enter" style={{ '--i': i + 4 }}>
@@ -625,11 +627,6 @@ const Dashboard = () => {
             onReset={resetLayout}
             onDone={() => setIsEditing(false)}
           />
-        )}
-
-        {/* Welcome toast */}
-        {showOnboardingTutorial && showToast && (
-          <WelcomeToast onDismiss={() => setShowToast(false)} />
         )}
 
         {/* Modals */}
