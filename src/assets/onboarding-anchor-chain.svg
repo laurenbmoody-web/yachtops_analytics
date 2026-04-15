@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 240" width="80" height="240">
+  <style>
+    #rig { transform: translate(0, var(--drop, 0px)); transition: transform 900ms cubic-bezier(0.25, 0.8, 0.3, 1); }
+    #anchor-grp { transform-origin: 40px 157px; animation: anchorSway 4s ease-in-out infinite; }
+    @keyframes anchorSway { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+  </style>
+
+  <g id="rig">
+    <!-- Cleat (top mount point) -->
+    <rect x="29" y="0" width="22" height="8" rx="3" fill="#1E3A5F"/>
+
+    <!-- Chain: 8 interlocking elliptical links, alternating 90° rotation -->
+    <!-- NAVY stroke only here; React component drives fill based on progress -->
+    <g id="chain" fill="none" stroke="#1E3A5F" stroke-width="2">
+      <!-- Link 0: vertical -->
+      <ellipse cx="40" cy="17"  rx="6" ry="9"/>
+      <!-- Link 1: horizontal (90° rotated) -->
+      <ellipse cx="40" cy="35"  rx="9" ry="6"/>
+      <!-- Link 2: vertical -->
+      <ellipse cx="40" cy="53"  rx="6" ry="9"/>
+      <!-- Link 3: horizontal -->
+      <ellipse cx="40" cy="71"  rx="9" ry="6"/>
+      <!-- Link 4: vertical -->
+      <ellipse cx="40" cy="89"  rx="6" ry="9"/>
+      <!-- Link 5: horizontal -->
+      <ellipse cx="40" cy="107" rx="9" ry="6"/>
+      <!-- Link 6: vertical -->
+      <ellipse cx="40" cy="125" rx="6" ry="9"/>
+      <!-- Link 7: horizontal (last, connects to anchor ring) -->
+      <ellipse cx="40" cy="143" rx="9" ry="6"/>
+    </g>
+
+    <!-- Anchor: admiralty silhouette, ring flush below last link -->
+    <g id="anchor-grp">
+      <!-- Ring (open circle, stroke only) -->
+      <circle cx="40" cy="157" r="5.5" fill="none" stroke="#1E3A5F" stroke-width="2.2"/>
+      <!-- Shank (vertical bar) -->
+      <rect x="38.5" y="161" width="3" height="40" rx="1.5" fill="#1E3A5F"/>
+      <!-- Stock (horizontal bar, ~1/4 from top of shank) -->
+      <rect x="20" y="165" width="40" height="4" rx="2" fill="#1E3A5F"/>
+      <!-- Crown (bottom cross-piece) -->
+      <rect x="27" y="199" width="26" height="4" rx="2" fill="#1E3A5F"/>
+      <!-- Left fluke -->
+      <path d="M27,201 L20,201 Q14,201 14,208 Q14,215 20,215 Q25,215 27,210 L33,204 Z" fill="#1E3A5F"/>
+      <!-- Right fluke -->
+      <path d="M53,201 L60,201 Q66,201 66,208 Q66,215 60,215 Q55,215 53,210 L47,204 Z" fill="#1E3A5F"/>
+    </g>
+  </g>
+</svg>

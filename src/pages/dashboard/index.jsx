@@ -27,9 +27,11 @@ import ComprehensiveJobModal from '../team-jobs-management/components/Comprehens
 import SortableWidget from './components/SortableWidget';
 import DashboardEditBar from './components/DashboardEditBar';
 import ProvisioningWidget from './components/ProvisioningWidget';
+import AnchorChainProgress from './components/AnchorChainProgress';
 
 import { useDashboardLayout } from './useDashboardLayout';
 import { supabase } from '../../lib/supabaseClient';
+import { markTutorialStep } from '../../utils/tutorialState';
 
 // ── Brand tokens (match onboarding Cargo palette) ────────────────────────────
 const NAVY      = '#1E3A5F';
@@ -47,7 +49,7 @@ const TUTORIAL_ITEMS = [
     desc: 'Map out your vessel — decks, cabins, storage rooms, lockers. Nest locations as needed. Everything in inventory sits under a location.',
     icon: MapPin,
     cta: 'Open Locations',
-    route: '/vessel-settings',
+    route: '/locations-settings',
   },
   {
     id: 'inventory_done',
@@ -55,7 +57,7 @@ const TUTORIAL_ITEMS = [
     desc: 'Organise inventory into folders that mirror how your crew works — by department, usage, or physical zone.',
     icon: FolderTree,
     cta: 'Open Inventory',
-    route: '/folder-based-inventory-dashboard',
+    route: '/inventory',
   },
   {
     id: 'import_done',
@@ -63,7 +65,7 @@ const TUTORIAL_ITEMS = [
     desc: "Got a spreadsheet from the last handover? Drop it in and Cargo will parse, de-dup, and auto-assign items into folders.",
     icon: Upload,
     cta: 'Import items',
-    route: '/folder-based-inventory-dashboard',
+    route: '/smart-import-with-auto-assignment-engine',
   },
 ];
 
@@ -96,60 +98,6 @@ const LivePercent = ({ percent }) => {
   return <>{count}</>;
 };
 
-const AnchorChainProgress = ({ percent }) => {
-  const TOTAL_H   = 180;
-  const CLEAT_H   = 10;
-  const LINK_H    = 10;
-  const ANCHOR_H  = 36; // visual space reserved at bottom for the anchor icon
-  const chainH    = TOTAL_H - CLEAT_H - ANCHOR_H; // 134px of usable chain
-  const totalLinks = Math.floor(chainH / LINK_H);  // 13 links
-
-  const [animPercent, setAnimPercent] = useState(0);
-  useEffect(() => {
-    const t = setTimeout(() => setAnimPercent(percent), 120);
-    return () => clearTimeout(t);
-  }, [percent]);
-  const filledLinks = Math.round((animPercent / 100) * totalLinks);
-
-  return (
-    <div className="relative flex-shrink-0" style={{ width: 48, height: TOTAL_H }}>
-      {/* Cleat */}
-      <div
-        className="absolute left-1/2 -translate-x-1/2 top-0 rounded-[3px]"
-        style={{ width: 22, height: CLEAT_H, backgroundColor: NAVY }}
-      />
-      {/* Chain — fills fixed height; link colour encodes progress */}
-      <svg
-        className="absolute left-1/2 -translate-x-1/2"
-        style={{ top: CLEAT_H, width: 14, height: totalLinks * LINK_H }}
-        viewBox={`0 0 14 ${totalLinks * LINK_H}`}
-      >
-        {Array.from({ length: totalLinks }).map((_, i) => {
-          const filled = i < filledLinks;
-          return (
-            <ellipse
-              key={i}
-              cx="7" cy={i * LINK_H + 5} rx="3.6" ry="4.4"
-              style={{
-                fill: filled ? NAVY : 'none',
-                stroke: filled ? NAVY : '#CBD5E1',
-                strokeWidth: 1.4,
-                transition: `fill 500ms ease ${i * 25}ms, stroke 500ms ease ${i * 25}ms`,
-              }}
-            />
-          );
-        })}
-      </svg>
-      {/* Anchor — always flush to the chain floor */}
-      <div
-        className="absolute left-1/2 -translate-x-1/2 cg-anchor-sway flex items-center justify-center"
-        style={{ bottom: 0, width: 40, height: ANCHOR_H, transformOrigin: 'top center' }}
-      >
-        <Anchor size={32} color={NAVY} strokeWidth={2.25} />
-      </div>
-    </div>
-  );
-};
 
 const TutorialCard = ({ item, done, onStart }) => {
   const ItemIcon = item.icon;
@@ -354,14 +302,13 @@ const Dashboard = () => {
     }
   };
 
-  const handleTutorialStart = async (item) => {
-    const newState = { ...tutorialState, [item.id]: true };
-    setTutorialState(newState);
-    try {
-      await supabase.from('profiles').update({ onboarding_tutorial_state: newState }).eq('id', session?.user?.id);
-    } catch (err) {
+  const handleTutorialStart = (item) => {
+    // Optimistic local update
+    setTutorialState((prev) => ({ ...prev, [item.id]: true }));
+    // Persist via shared utility (fire-and-forget)
+    markTutorialStep(session?.user?.id, item.id).catch((err) => {
       console.warn('[dashboard] tutorial state save failed', err);
-    }
+    });
     navigate(item.route);
   };
 
