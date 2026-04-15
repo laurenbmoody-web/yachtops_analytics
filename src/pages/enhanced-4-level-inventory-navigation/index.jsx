@@ -11,6 +11,7 @@ import AddEditItemModal from '../inventory/components/AddEditItemModal';
 import ItemQuickViewPanel from '../inventory/components/ItemQuickViewPanel';
 import PartialBottleModal from '../inventory/components/PartialBottleModal';
 import { supabase } from '../../lib/supabaseClient';
+import { markTutorialStep } from '../../utils/tutorialState';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -2726,6 +2727,11 @@ const LocationFirstInventory = () => {
     loadData();
   };
 
+  const handleItemSaved = () => {
+    markTutorialStep(session?.user?.id, 'inventory_done').catch(() => {});
+    handleModalClose();
+  };
+
   const handleAddFolder = async ({ name, icon, color }) => {
     await createFolder(pathSegments, name, icon, color);
     setShowAddFolderModal(false);
@@ -3545,7 +3551,7 @@ const LocationFirstInventory = () => {
           defaultLocation={currentStorageFields?.location}
           defaultSubLocation={currentStorageFields?.subLocation}
           onClose={handleModalClose}
-          onSave={handleModalClose}
+          onSave={handleItemSaved}
         />
       )}
       {showAddFolderModal && (
@@ -3640,7 +3646,7 @@ const LocationFirstInventory = () => {
           isOpen={showAzureImportModal}
           onClose={() => { setShowAzureImportModal(false); loadData(); }}
           currentPathSegments={pathSegments}
-          onImportComplete={() => { setShowAzureImportModal(false); loadData(); }}
+          onImportComplete={() => { markTutorialStep(session?.user?.id, 'import_done').catch(() => {}); setShowAzureImportModal(false); loadData(); }}
         />
       )}
       {showBulkMoveModal && (

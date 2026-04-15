@@ -42,7 +42,7 @@ const PILL_FONT    = "'Archivo', system-ui, sans-serif";
 // ── Tutorial data ─────────────────────────────────────────────────────────────
 const TUTORIAL_ITEMS = [
   {
-    id: 'locations',
+    id: 'locations_done',
     title: 'Set up vessel locations',
     desc: 'Map out your vessel — decks, cabins, storage rooms, lockers. Nest locations as needed. Everything in inventory sits under a location.',
     icon: MapPin,
@@ -50,7 +50,7 @@ const TUTORIAL_ITEMS = [
     route: '/vessel-settings',
   },
   {
-    id: 'folders',
+    id: 'inventory_done',
     title: 'Build your inventory folders',
     desc: 'Organise inventory into folders that mirror how your crew works — by department, usage, or physical zone.',
     icon: FolderTree,
@@ -58,7 +58,7 @@ const TUTORIAL_ITEMS = [
     route: '/folder-based-inventory-dashboard',
   },
   {
-    id: 'upload',
+    id: 'import_done',
     title: 'Upload your first inventory file',
     desc: "Got a spreadsheet from the last handover? Drop it in and Cargo will parse, de-dup, and auto-assign items into folders.",
     icon: Upload,
@@ -280,8 +280,8 @@ const Dashboard = () => {
   const [tutorialState, setTutorialState] = useState({});
   const [showToast, setShowToast] = useState(true);
 
-  const completed = Object.values(tutorialState).filter(Boolean).length;
-  const percent = Math.round(((3 + completed) / 6) * 100);
+  const completed = TUTORIAL_ITEMS.filter((item) => tutorialState[item.id]).length;
+  const percent = Math.round(((3 + completed) / (3 + TUTORIAL_ITEMS.length)) * 100);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
