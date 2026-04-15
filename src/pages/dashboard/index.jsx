@@ -341,20 +341,26 @@ const Dashboard = () => {
         crew: crewCount ?? 0,
         openTasks: jobCount ?? 0,
       });
+      // DIAGNOSTIC — remove once counts are verified correct
+      console.log('[dashboard] loadTaskCounts raw counts:', {
+        locCount, folderCount, itemCount, crewCount, jobCount,
+      });
     } catch (err) {
       console.warn('[dashboard] task counts load failed', err);
     }
     // skipped_invite_crew is fetched separately so a missing column (pre-migration)
     // never breaks the counts query or the hero visibility logic above.
     try {
-      const { data: tenantFlags } = await supabase
+      const { data: tenantFlags, error: flagErr } = await supabase
         .from('tenants')
         .select('skipped_invite_crew')
         .eq('id', tenantId)
         .maybeSingle();
+      // DIAGNOSTIC — remove once invite card is verified
+      console.log('[dashboard] skipped_invite_crew fetch:', { tenantFlags, flagErr });
       if (tenantFlags?.skipped_invite_crew) setSkippedInviteCrew(true);
-    } catch {
-      // Column not yet present in remote DB — invite card stays hidden, non-fatal
+    } catch (err) {
+      console.warn('[dashboard] skipped_invite_crew fetch threw:', err);
     }
   };
 
