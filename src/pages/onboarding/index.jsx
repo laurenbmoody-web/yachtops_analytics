@@ -981,7 +981,11 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
 
       const { error: completeErr } = await supabase
         .from('tenants')
-        .update({ onboarding_completed_at: new Date().toISOString() })
+        .update({
+          onboarding_completed_at: new Date().toISOString(),
+          // Track skip so the dashboard can surface the "Invite your crew" card
+          skipped_invite_crew: !sendInvites,
+        })
         .eq('id', tenant.id);
       if (completeErr) throw completeErr;
 

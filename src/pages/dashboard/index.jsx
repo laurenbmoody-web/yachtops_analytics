@@ -10,7 +10,7 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
-import { Settings2, Anchor, Sparkles, X, Check, MapPin, FolderTree, Upload, ArrowRight, Wrench, Briefcase, ChevronRight } from 'lucide-react';
+import { Settings2, Anchor, Sparkles, X, Check, MapPin, FolderTree, Upload, ArrowRight, Wrench, Briefcase, ChevronRight, Users } from 'lucide-react';
 
 import ErrorBoundary from '../../components/ErrorBoundary';
 import Header from '../../components/navigation/Header';
@@ -67,6 +67,16 @@ const TUTORIAL_ITEMS = [
     route: '/smart-import-with-auto-assignment-engine',
   },
 ];
+
+// Shown only when skipped_invite_crew=true AND crew count ≤ 1 (admin only)
+const INVITE_ITEM = {
+  id: 'invite_crew',
+  title: 'Invite your crew',
+  desc: "Your team can view locations, log jobs, and keep inventory up to date. Send an invite when you're ready.",
+  icon: Users,
+  cta: 'Invite crew',
+  route: '/crew-management',
+};
 
 const CARGO_FEATURES = [
   { icon: Wrench,    name: 'Defect Log',   blurb: 'Log issues before they snowball into costly repairs.' },
@@ -256,6 +266,7 @@ const Dashboard = () => {
     () => localStorage.getItem('cg_tutorial_pill_hidden') === '1'
   );
   const [taskCounts, setTaskCounts] = useState({ locations: 0, inventoryFolders: 0, inventoryItems: 0, crew: 0, openTasks: 0 });
+  const [skippedInviteCrew, setSkippedInviteCrew] = useState(false);
   const [showToast, setShowToast] = useState(true);
 
   // Derive task completion from real Supabase counts, not from click state
@@ -266,6 +277,13 @@ const Dashboard = () => {
   };
   const completed = TUTORIAL_ITEMS.filter((item) => doneMap[item.id]).length;
   const percent = Math.round((completed / TUTORIAL_ITEMS.length) * 100);
+
+  // Pending setup cards — only undone core tasks + invite card if applicable
+  const showInviteCard = skippedInviteCrew && taskCounts.crew <= 1;
+  const allPendingItems = [
+    ...TUTORIAL_ITEMS.filter((item) => !doneMap[item.id]),
+    ...(showInviteCard ? [INVITE_ITEM] : []),
+  ];
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -329,9 +347,10 @@ const Dashboard = () => {
     try {
       const [{ data: profile }, { data: tenant }] = await Promise.all([
         supabase.from('profiles').select('dashboard_tutorial_dismissed_at').eq('id', userId).maybeSingle(),
-        supabase.from('tenants').select('onboarding_completed_at, name').eq('id', tenantId).maybeSingle(),
+        supabase.from('tenants').select('onboarding_completed_at, name, skipped_invite_crew').eq('id', tenantId).maybeSingle(),
       ]);
       if (tenant?.name) setVesselName(tenant.name);
+      if (tenant?.skipped_invite_crew) setSkippedInviteCrew(true);
       if (tenant?.onboarding_completed_at) {
         const msAgo = Date.now() - new Date(tenant.onboarding_completed_at).getTime();
         const within30days = msAgo < 30 * 24 * 60 * 60 * 1000;
@@ -548,7 +567,6 @@ const Dashboard = () => {
 
           {/* Onboarding tutorial — shown for 30 days after completing onboarding */}
           {showOnboardingTutorial && (() => {
-            const remaining = TUTORIAL_ITEMS.filter((item) => !doneMap[item.id]).length;
             return (
               <div className="mb-10">
                 <div
@@ -602,21 +620,23 @@ const Dashboard = () => {
                     </div>
                   </div>
 
-                  {/* Collapsible: Finish setting up — open by default */}
-                  <CollapsiblePanel
-                    title="Finish setting up"
-                    badge={remaining > 0 ? `${remaining} left` : null}
-                    defaultOpen
-                    pulse={remaining > 0}
-                  >
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 cg-stagger">
-                      {TUTORIAL_ITEMS.map((item, i) => (
-                        <div key={item.id} className="cg-anim-enter" style={{ '--i': i + 1 }}>
-                          <TutorialCard item={item} done={doneMap[item.id]} onStart={() => handleTutorialStart(item)} />
-                        </div>
-                      ))}
-                    </div>
-                  </CollapsiblePanel>
+                  {/* Collapsible: Finish setting up — only shown while tasks remain */}
+                  {allPendingItems.length > 0 && (
+                    <CollapsiblePanel
+                      title="Finish setting up"
+                      badge={`${allPendingItems.length} left`}
+                      defaultOpen
+                      pulse
+                    >
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 cg-stagger">
+                        {allPendingItems.map((item, i) => (
+                          <div key={item.id} className="cg-anim-enter" style={{ '--i': i + 1 }}>
+                            <TutorialCard item={item} done={false} onStart={() => handleTutorialStart(item)} />
+                          </div>
+                        ))}
+                      </div>
+                    </CollapsiblePanel>
+                  )}
 
                   {/* Collapsible: What else is in Cargo — collapsed by default */}
                   <CollapsiblePanel title="What else is in Cargo" defaultOpen={false} pulse>
