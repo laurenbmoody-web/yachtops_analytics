@@ -325,10 +325,10 @@ const Dashboard = () => {
         { count: jobCount },
       ] = await Promise.all([
         supabase.from('vessel_locations').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('is_archived', false),
-        // Only count root-level folders (sub_location IS NULL) — sub-location rows exist
-        // without a visible parent when items are imported, so counting all rows produces
-        // false-positives and hides the card even when the user sees "no folders" in the UI.
-        supabase.from('inventory_locations').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('is_archived', false).is('sub_location', null),
+        // Exclude auto-seeded department root folders (is_department_root = true) which are
+        // created by ensureDepartmentFolders() on every /inventory visit and are invisible
+        // to the user. Only count manually-created root-level folders (sub_location IS NULL).
+        supabase.from('inventory_locations').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('is_archived', false).is('sub_location', null).eq('is_department_root', false),
         supabase.from('inventory_items').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId),
         supabase.from('tenant_members').select('user_id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('active', true),
         // team_jobs — status values from TodaySnapshotWidget: 'OPEN' | 'open' | 'Open'
@@ -341,23 +341,17 @@ const Dashboard = () => {
         crew: crewCount ?? 0,
         openTasks: jobCount ?? 0,
       });
-      // DIAGNOSTIC — remove once counts are verified correct
-      console.log('[dashboard] loadTaskCounts raw counts:', {
-        locCount, folderCount, itemCount, crewCount, jobCount,
-      });
     } catch (err) {
       console.warn('[dashboard] task counts load failed', err);
     }
     // skipped_invite_crew is fetched separately so a missing column (pre-migration)
     // never breaks the counts query or the hero visibility logic above.
     try {
-      const { data: tenantFlags, error: flagErr } = await supabase
+      const { data: tenantFlags } = await supabase
         .from('tenants')
         .select('skipped_invite_crew')
         .eq('id', tenantId)
         .maybeSingle();
-      // DIAGNOSTIC — remove once invite card is verified
-      console.log('[dashboard] skipped_invite_crew fetch:', { tenantFlags, flagErr });
       if (tenantFlags?.skipped_invite_crew) setSkippedInviteCrew(true);
     } catch (err) {
       console.warn('[dashboard] skipped_invite_crew fetch threw:', err);

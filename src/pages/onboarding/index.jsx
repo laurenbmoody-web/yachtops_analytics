@@ -5,7 +5,6 @@ import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import Image from '../../components/AppImage';
 import { useTheme } from '../../contexts/ThemeContext';
-import AnchorChainProgress from '../../components/onboarding/AnchorChainProgress';
 
 /*
   Post-signup onboarding flow.
@@ -744,12 +743,16 @@ const VesselSettingsStep = ({ tenant, onSaved }) => {
 // ─── Step 2: Departments ───────────────────────────────────────────
 
 const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
-  const [depts, setDepts]         = useState([]);
-  const [loadError, setLoadError] = useState('');
-  const [loading, setLoading]     = useState(true);
-  const [selected, setSelected]   = useState([]);
-  const [saving, setSaving]       = useState(false);
-  const [saveError, setSaveError] = useState('');
+  const [depts, setDepts]               = useState([]);
+  const [loadError, setLoadError]       = useState('');
+  const [loading, setLoading]           = useState(true);
+  const [selected, setSelected]         = useState([]);
+  const [saving, setSaving]             = useState(false);
+  const [saveError, setSaveError]       = useState('');
+  const [customDeptList, setCustomDeptList] = useState([]);
+  const [customInput, setCustomInput]   = useState('');
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const customInputRef = useRef(null);
 
   const loadDepts = async () => {
     setLoading(true);
@@ -803,8 +806,9 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
         .eq('id', userId);
       if (pErr) throw pErr;
 
-      const selectedDepts = depts.filter((d) => selected.includes(d.id));
-      onComplete({ baseSelected: selected, customDepts: [], departments: selectedDepts });
+      const allDeptObjects = [...depts, ...customDeptList];
+      const selectedDepts = allDeptObjects.filter((d) => selected.includes(d.id));
+      onComplete({ baseSelected: selected, customDepts: customDeptList, departments: selectedDepts });
     } catch (err) {
       console.error('[onboarding] departments save failed', err);
       setSaveError(err?.message || 'Could not save departments. Try again.');
@@ -875,6 +879,108 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
                   </button>
                 );
               })}
+
+              {/* Custom (Other) department tiles */}
+              {customDeptList.map((d) => {
+                const isSelected = selected.includes(d.id);
+                return (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => toggle(d.id)}
+                    className="relative rounded-xl p-4 text-left transition-all cg-hover-lift"
+                    style={{ backgroundColor: isSelected ? NAVY : 'white', border: `1px dashed ${isSelected ? NAVY : '#94A3B8'}`, color: isSelected ? 'white' : CHARCOAL }}
+                  >
+                    <div
+                      className="w-9 h-9 rounded-lg flex items-center justify-center mb-3"
+                      style={{ backgroundColor: isSelected ? 'rgba(255,255,255,0.12)' : '#F1F5F9', color: isSelected ? 'white' : NAVY }}
+                    >
+                      <Briefcase size={18} />
+                    </div>
+                    <div className="text-sm" style={{ fontFamily: BODY_FONT, fontWeight: 600 }}>{d.name}</div>
+                    {isSelected && (
+                      <div className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center cg-tick-pop" style={{ backgroundColor: ACCENT }}>
+                        <Check size={12} color="white" />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+
+              {/* "+ Other" tile */}
+              {showCustomInput ? (
+                <div
+                  className="rounded-xl p-4"
+                  style={{ border: `1px dashed ${ACCENT}`, backgroundColor: '#F0FBFF' }}
+                >
+                  <input
+                    ref={customInputRef}
+                    type="text"
+                    value={customInput}
+                    onChange={(e) => setCustomInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const name = customInput.trim();
+                        if (!name) return;
+                        const newDept = { id: `custom-${Date.now()}`, name };
+                        setCustomDeptList((prev) => [...prev, newDept]);
+                        setSelected((prev) => [...prev, newDept.id]);
+                        setCustomInput('');
+                        setShowCustomInput(false);
+                      } else if (e.key === 'Escape') {
+                        setCustomInput('');
+                        setShowCustomInput(false);
+                      }
+                    }}
+                    placeholder="Department name"
+                    autoFocus
+                    className="w-full text-sm outline-none bg-transparent"
+                    style={{ fontFamily: BODY_FONT, color: CHARCOAL }}
+                  />
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const name = customInput.trim();
+                        if (!name) return;
+                        const newDept = { id: `custom-${Date.now()}`, name };
+                        setCustomDeptList((prev) => [...prev, newDept]);
+                        setSelected((prev) => [...prev, newDept.id]);
+                        setCustomInput('');
+                        setShowCustomInput(false);
+                      }}
+                      className="text-xs px-2 py-1 rounded"
+                      style={{ backgroundColor: NAVY, color: 'white', fontFamily: PILL_FONT, fontWeight: 700 }}
+                    >
+                      Add
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setCustomInput(''); setShowCustomInput(false); }}
+                      className="text-xs px-2 py-1 rounded"
+                      style={{ backgroundColor: '#E2E8F0', color: CHARCOAL, fontFamily: PILL_FONT, fontWeight: 700 }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCustomInput(true);
+                    setTimeout(() => customInputRef.current?.focus(), 0);
+                  }}
+                  className="rounded-xl p-4 text-left cg-hover-lift"
+                  style={{ border: `1px dashed #CBD5E1`, backgroundColor: 'white', color: '#64748B' }}
+                >
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: '#F1F5F9', color: '#94A3B8' }}>
+                    <Plus size={18} />
+                  </div>
+                  <div className="text-sm" style={{ fontFamily: BODY_FONT, fontWeight: 600 }}>+ Other</div>
+                </button>
+              )}
             </div>
 
             <p className="text-xs mt-4" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
@@ -902,7 +1008,16 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
 
 // ─── Step 3: Invite crew ───────────────────────────────────────────
 
+const generateToken = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  const arr = new Uint8Array(24);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, (b) => b.toString(16).padStart(2, '0')).join('');
+};
+
 const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, onFinish }) => {
+  const { user } = useAuth();
+
   const allDepts = useMemo(
     () => deptObjs
       ? deptObjs.filter((d) => departments.includes(d.id))
@@ -910,7 +1025,30 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
     [departments, customDepts, deptObjs]
   );
 
-  const [rows, setRows] = useState([{ email: '', department_id: '', role: '' }]);
+  // Map of deptId → [{id, name, default_permission_tier}] loaded from roles table
+  const [deptRoles, setDeptRoles] = useState({});
+
+  useEffect(() => {
+    const dbDeptIds = allDepts.map((d) => d.id).filter((id) => !String(id).startsWith('custom-'));
+    if (!dbDeptIds.length) return;
+    supabase
+      .from('roles')
+      .select('id, name, department_id, default_permission_tier')
+      .in('department_id', dbDeptIds)
+      .order('name', { ascending: true })
+      .then(({ data }) => {
+        if (!data) return;
+        const map = {};
+        for (const role of data) {
+          if (!map[role.department_id]) map[role.department_id] = [];
+          map[role.department_id].push(role);
+        }
+        setDeptRoles(map);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allDepts.length]);
+
+  const [rows, setRows] = useState([{ email: '', department_id: '', role: '', roleIsOther: false }]);
   const [showPaste, setShowPaste] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const [pasteResult, setPasteResult] = useState('');
@@ -920,7 +1058,7 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
   const updateRow = (i, key, val) =>
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, [key]: val } : r)));
   const addRow = () =>
-    setRows((prev) => [...prev, { email: '', department_id: '', role: '' }]);
+    setRows((prev) => [...prev, { email: '', department_id: '', role: '', roleIsOther: false }]);
   const removeRow = (i) =>
     setRows((prev) => prev.filter((_, idx) => idx !== i));
 
@@ -959,23 +1097,26 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
       if (sendInvites) {
         const toInvite = rows.filter((r) => r.email && r.department_id && r.role);
         if (toInvite.length > 0) {
-          try {
-            await Promise.all(
-              toInvite.map(async (r) => {
-                const { error: rpcErr } = await supabase.rpc('invite_crew_member', {
-                  p_tenant_id: tenant.id,
-                  p_email: r.email,
-                  p_department_id: r.department_id,
-                  p_role_label: r.role,
-                });
-                if (rpcErr) {
-                  console.warn('[onboarding] invite_crew_member failed for', r.email, rpcErr);
-                }
-              })
-            );
-          } catch (err) {
-            console.warn('[onboarding] some invites failed to send', err);
-          }
+          const deptLookup = Object.fromEntries(allDepts.map((d) => [d.id, d.name]));
+          await Promise.allSettled(
+            toInvite.map((r) => {
+              const deptLabel = deptLookup[r.department_id] || '';
+              return supabase.from('crew_invites').insert({
+                email: r.email.toLowerCase().trim(),
+                tenant_id: tenant.id,
+                department_id: r.department_id,
+                role_id: null,
+                department_label: deptLabel,
+                role_label: r.role,
+                permission_tier: 'CREW',
+                status: 'PENDING',
+                invited_role: r.role,
+                token: generateToken(),
+                invited_by: user?.id,
+                expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+              });
+            })
+          );
         }
       }
 
@@ -983,18 +1124,21 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
         .from('tenants')
         .update({
           onboarding_completed_at: new Date().toISOString(),
-          // Track skip so the dashboard can surface the "Invite your crew" card
           skipped_invite_crew: !sendInvites,
         })
         .eq('id', tenant.id);
-      if (completeErr) throw completeErr;
-
-      onFinish();
+      if (completeErr) {
+        console.error('[onboarding] tenants update failed', completeErr);
+        setError(completeErr.message || 'Could not finish onboarding. Try again.');
+      }
     } catch (err) {
       console.error('[onboarding] finish failed', err);
       setError(err?.message || 'Could not finish onboarding. Try again.');
     } finally {
       setSaving(false);
+      // Always advance — even if the tenants update had a non-critical error
+      // the user should not be trapped on this screen.
+      onFinish();
     }
   };
 
@@ -1073,8 +1217,9 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
       <Card>
         {rows.map((r, i) => {
           const dept = allDepts.find((d) => d.id === r.department_id);
-          const isCustom = dept && !BASE_DEPARTMENTS.some((bd) => bd.id === dept.id);
-          const roleOptions = dept && !isCustom ? ROLES_BY_DEPT[dept.id] || [] : [];
+          const isCustomDept = dept && String(dept.id).startsWith('custom-');
+          const dbRoles = (dept && !isCustomDept) ? (deptRoles[dept.id] || []) : [];
+          const showRoleText = isCustomDept || r.roleIsOther;
           return (
             <div key={i} className="grid grid-cols-12 gap-2 mb-2 items-end">
               <div className="col-span-12 md:col-span-5">
@@ -1087,7 +1232,11 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
               <div className="col-span-6 md:col-span-3">
                 <select
                   value={r.department_id}
-                  onChange={(e) => updateRow(i, 'department_id', e.target.value)}
+                  onChange={(e) => {
+                    setRows((prev) => prev.map((row, idx) =>
+                      idx === i ? { ...row, department_id: e.target.value, role: '', roleIsOther: false } : row
+                    ));
+                  }}
                   className="w-full px-2 py-2 text-sm outline-none"
                   style={{ backgroundColor: CARD, border: '1px solid #CBD5E1', borderRadius: 6, color: CHARCOAL, fontFamily: BODY_FONT }}
                 >
@@ -1098,7 +1247,7 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
                 </select>
               </div>
               <div className="col-span-5 md:col-span-3">
-                {isCustom ? (
+                {showRoleText ? (
                   <TextInput
                     placeholder="Role"
                     value={r.role}
@@ -1107,14 +1256,24 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
                 ) : (
                   <select
                     value={r.role}
-                    onChange={(e) => updateRow(i, 'role', e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '__other__') {
+                        setRows((prev) => prev.map((row, idx) =>
+                          idx === i ? { ...row, roleIsOther: true, role: '' } : row
+                        ));
+                      } else {
+                        updateRow(i, 'role', val);
+                      }
+                    }}
                     className="w-full px-2 py-2 text-sm outline-none"
                     style={{ backgroundColor: CARD, border: '1px solid #CBD5E1', borderRadius: 6, color: CHARCOAL, fontFamily: BODY_FONT }}
                   >
                     <option value="">Role</option>
-                    {roleOptions.map((role) => (
-                      <option key={role} value={role}>{role}</option>
+                    {dbRoles.map((role) => (
+                      <option key={role.id} value={role.name}>{role.name}</option>
                     ))}
+                    {dept && <option value="__other__">Other…</option>}
                   </select>
                 )}
               </div>
@@ -1353,11 +1512,6 @@ const OnboardingPage = () => {
           <StepPill label="Departments" index={2} current={step === 'departments'} done={step === 'crew'} />
           <div className="w-10 h-px" style={{ backgroundColor: '#CBD5E1' }} />
           <StepPill label="Crew" index={3} current={step === 'crew'} done={false} />
-          <AnchorChainProgress
-            percent={((step === 'vessel' ? 1 : step === 'departments' ? 2 : 3) / 3) * 100}
-            width={120}
-            height={290}
-          />
         </div>
 
         {step === 'vessel' && (
