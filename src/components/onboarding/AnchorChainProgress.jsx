@@ -1,5 +1,5 @@
 import React from 'react';
-import anchorChainSvg from '../../../assets/anchor-chain.svg?raw';
+import anchorChainSvg from '../../assets/anchor-chain.svg?raw';
 
 /**
  * AnchorChainProgress — pure SVG, no video.
