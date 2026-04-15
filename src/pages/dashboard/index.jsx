@@ -259,17 +259,15 @@ const Dashboard = () => {
     checkSession();
   }, []);
 
-  // Inject Cargo animation keyframes once (sway + toast-in)
+  // Inject Cargo animation keyframes once
   useEffect(() => {
     const styleId = 'cargo-dashboard-anim';
     if (!document.getElementById(styleId)) {
       const style = document.createElement('style');
       style.id = styleId;
       style.textContent = `
-        @keyframes cgSway { 0%,100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
         @keyframes cgToastIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
         @keyframes cgFadeSlideUp { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
-        .cg-anchor-sway { animation: cgSway 2800ms ease-in-out infinite; }
         .cg-toast-in { animation: cgToastIn 350ms cubic-bezier(.2,.7,.2,1) both; }
         .cg-anim-enter { animation: cgFadeSlideUp 520ms cubic-bezier(.2,.7,.2,1) both; }
         .cg-stagger > * { animation-delay: calc(var(--i, 0) * 40ms); }
