@@ -293,6 +293,10 @@ const Dashboard = () => {
 
   const [vesselName, setVesselName] = useState('');
   const [showOnboardingTutorial, setShowOnboardingTutorial] = useState(false);
+  const [tutorialDismissed, setTutorialDismissed] = useState(false);
+  const [tutorialPillHidden, setTutorialPillHidden] = useState(
+    () => localStorage.getItem('cg_tutorial_pill_hidden') === '1'
+  );
   const [tutorialState, setTutorialState] = useState({});
   const [showToast, setShowToast] = useState(true);
 
@@ -341,6 +345,7 @@ const Dashboard = () => {
         const msAgo = Date.now() - new Date(tenant.onboarding_completed_at).getTime();
         const within30days = msAgo < 30 * 24 * 60 * 60 * 1000;
         const dismissed = !!profile?.dashboard_tutorial_dismissed_at;
+        setTutorialDismissed(within30days && dismissed);
         setShowOnboardingTutorial(within30days && !dismissed);
       }
       setTutorialState(profile?.onboarding_tutorial_state || {});
@@ -362,10 +367,23 @@ const Dashboard = () => {
 
   const handleDismissTutorial = async () => {
     setShowOnboardingTutorial(false);
+    setTutorialDismissed(true);
+    setTutorialPillHidden(false);
+    localStorage.removeItem('cg_tutorial_pill_hidden');
     try {
       await supabase.from('profiles').update({ dashboard_tutorial_dismissed_at: new Date().toISOString() }).eq('id', session?.user?.id);
     } catch (err) {
       console.warn('[dashboard] tutorial dismiss save failed', err);
+    }
+  };
+
+  const handleRestoreTutorial = async () => {
+    setTutorialDismissed(false);
+    setShowOnboardingTutorial(true);
+    try {
+      await supabase.from('profiles').update({ dashboard_tutorial_dismissed_at: null }).eq('id', session?.user?.id);
+    } catch (err) {
+      console.warn('[dashboard] tutorial restore failed', err);
     }
   };
 
@@ -518,6 +536,30 @@ const Dashboard = () => {
         <Header />
 
         <div className="max-w-[1600px] mx-auto p-6">
+          {/* Restore pill — shown when tutorial was dismissed (within 30-day window) */}
+          {tutorialDismissed && !tutorialPillHidden && (
+            <div className="flex justify-end mb-4">
+              <div className="inline-flex items-center gap-0.5">
+                <button
+                  type="button"
+                  onClick={handleRestoreTutorial}
+                  className="cg-restore-pill inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border"
+                  style={{ borderColor: NAVY, color: NAVY, fontFamily: PILL_FONT, fontWeight: 900, fontSize: 11, letterSpacing: '0.10em', textTransform: 'uppercase' }}
+                >
+                  <Anchor size={11} /> Show onboarding tour
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setTutorialPillHidden(true); localStorage.setItem('cg_tutorial_pill_hidden', '1'); }}
+                  className="p-1 rounded-full hover:bg-slate-100 ml-0.5"
+                  style={{ color: '#94A3B8' }}
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Onboarding tutorial — shown for 30 days after completing onboarding */}
           {showOnboardingTutorial && (() => {
             const remaining = TUTORIAL_ITEMS.filter((item) => !tutorialState[item.id]).length;
@@ -562,7 +604,7 @@ const Dashboard = () => {
                         className="mt-4 text-xs underline underline-offset-2"
                         style={{ color: '#94A3B8', fontFamily: BODY_FONT }}
                       >
-                        Hide this section
+                        Hide for now
                       </button>
                     </div>
                   </div>
