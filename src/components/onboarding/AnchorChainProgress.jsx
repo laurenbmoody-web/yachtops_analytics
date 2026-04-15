@@ -16,7 +16,6 @@ const MAX_DROP = 140; // viewBox units — tune to taste
 
 function prepare(raw) {
   const styleBlock = `<style>
-    svg { width: 100%; height: 100%; display: block; }
     #Rig {
       transform: translateY(var(--cg-drop, 0));
       transition: transform 1400ms cubic-bezier(0.22, 1.2, 0.36, 1);
@@ -41,7 +40,10 @@ function prepare(raw) {
     @keyframes cg-link-sway { 0%,100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
     @keyframes cg-anchor-sway { 0%,100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
   </style>`;
-  const stripped = raw.replace(/<svg[^>]*>/, '<svg viewBox="0 0 309 988" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMin meet">');
+  const stripped = raw.replace(
+    /<svg[^>]*>/,
+    '<svg viewBox="0 0 309 988" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMin meet" style="width:100%;height:100%;display:block;">'
+  );
   return stripped.replace(/<svg([^>]*)>/, `<svg$1>${styleBlock}`);
 }
 
