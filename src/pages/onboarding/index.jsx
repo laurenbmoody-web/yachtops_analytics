@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import Image from '../../components/AppImage';
 import { useTheme } from '../../contexts/ThemeContext';
+import AnchorChainProgress from '../../components/onboarding/AnchorChainProgress';
 
 /*
   Post-signup onboarding flow.
@@ -1348,6 +1349,11 @@ const OnboardingPage = () => {
           <StepPill label="Departments" index={2} current={step === 'departments'} done={step === 'crew'} />
           <div className="w-10 h-px" style={{ backgroundColor: '#CBD5E1' }} />
           <StepPill label="Crew" index={3} current={step === 'crew'} done={false} />
+          <AnchorChainProgress
+            percent={((step === 'vessel' ? 1 : step === 'departments' ? 2 : 3) / 3) * 100}
+            width={80}
+            height={180}
+          />
         </div>
 
         {step === 'vessel' && (
