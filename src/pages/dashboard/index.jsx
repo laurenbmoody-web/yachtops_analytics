@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   DndContext,
   DragOverlay,
@@ -10,7 +10,7 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
-import { Settings2, Anchor, Sparkles, X, Check, MapPin, FolderTree, Upload, ArrowRight, Wrench, Briefcase, ChevronRight, Users } from 'lucide-react';
+import { Settings2, Anchor, Sparkles, X, Check, MapPin, Upload, Wrench, Briefcase, ChevronRight } from 'lucide-react';
 
 import ErrorBoundary from '../../components/ErrorBoundary';
 import Header from '../../components/navigation/Header';
@@ -31,6 +31,7 @@ import AnchorChainProgress from '../../components/onboarding/AnchorChainProgress
 
 import { useDashboardLayout } from './useDashboardLayout';
 import { supabase } from '../../lib/supabaseClient';
+import { getNextTask, getProgress } from './onboardingTasks';
 
 // ── Brand tokens (match onboarding Cargo palette) ────────────────────────────
 const NAVY      = '#1E3A5F';
@@ -40,43 +41,8 @@ const HEADING_FONT = "'Outfit', system-ui, sans-serif";
 const BODY_FONT    = "'Plus Jakarta Sans', system-ui, sans-serif";
 const PILL_FONT    = "'Archivo', system-ui, sans-serif";
 
-// ── Tutorial data ─────────────────────────────────────────────────────────────
-const TUTORIAL_ITEMS = [
-  {
-    id: 'locations_done',
-    title: 'Set up vessel locations',
-    desc: 'Map out your vessel — decks, cabins, storage rooms, lockers. Nest locations as needed. Everything in inventory sits under a location.',
-    icon: MapPin,
-    cta: 'Open Locations',
-    route: '/locations-settings',
-  },
-  {
-    id: 'inventory_done',
-    title: 'Build your inventory folders',
-    desc: 'Organise inventory into folders that mirror how your crew works — by department, usage, or physical zone.',
-    icon: FolderTree,
-    cta: 'Open Inventory',
-    route: '/inventory',
-  },
-  {
-    id: 'import_done',
-    title: 'Upload your first inventory file',
-    desc: "Got a spreadsheet from the last handover? Drop it in and Cargo will parse, de-dup, and auto-assign items into folders.",
-    icon: Upload,
-    cta: 'Import items',
-    route: '/smart-import-with-auto-assignment-engine',
-  },
-];
-
-// Shown only when skipped_invite_crew=true AND crew count ≤ 1 (admin only)
-const INVITE_ITEM = {
-  id: 'invite_crew',
-  title: 'Invite your crew',
-  desc: "Your team can view locations, log jobs, and keep inventory up to date. Send an invite when you're ready.",
-  icon: Users,
-  cta: 'Invite crew',
-  route: '/crew-management',
-};
+// ── Onboarding panel brand constants ─────────────────────────────────────────
+const BRAND = { navy: '#1E3A5F', accent: '#00A8CC', mute: '#64748B' };
 
 const CARGO_FEATURES = [
   { icon: Wrench,    name: 'Defect Log',   blurb: 'Log issues before they snowball into costly repairs.' },
@@ -119,45 +85,105 @@ const StatTile = ({ label, value }) => (
   </div>
 );
 
-const TutorialCard = ({ item, done, onStart }) => {
-  const ItemIcon = item.icon;
+// ── NextUp card — soft-blue wash (Option B) ───────────────────────────────────
+const NextUp = ({ ctx, tenant, done, total, onSkip }) => {
+  const next = getNextTask(ctx, tenant);
+  if (!next) return null;
+  const Icon = next.icon;
+  const hasDismissed = (tenant?.dismissed_tasks?.length ?? 0) > 0;
+
   return (
-    <div
-      className="relative rounded-2xl p-5 transition-all"
-      style={{ backgroundColor: done ? '#ECFDF5' : 'white', border: `1px solid ${done ? '#A7F3D0' : '#E2E8F0'}` }}
-    >
-      <div className="flex items-start gap-4">
+    <div style={{ marginTop: 18 }}>
+      <div
+        style={{
+          padding: '18px 22px',
+          borderRadius: 12,
+          background: 'linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%)',
+          border: '1px solid #BAE6FD',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16,
+        }}
+      >
         <div
-          className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: done ? '#10B981' : NAVY }}
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 10,
+            background: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
+          }}
         >
-          {done ? <Check size={20} color="white" /> : <ItemIcon size={20} color="white" />}
+          <Icon size={22} color={BRAND.navy} strokeWidth={2.2} />
         </div>
-        <div className="flex-1 min-w-0">
-          <h3 style={{ fontFamily: HEADING_FONT, fontSize: 16, fontWeight: 700, color: CHARCOAL, textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.6 : 1 }}>{item.title}</h3>
-          <p className="text-sm mt-1" style={{ color: '#64748B', fontFamily: BODY_FONT, lineHeight: 1.5 }}>{item.desc}</p>
-          {!done && (
-            <div className="mt-3">
-              <button
-                type="button"
-                onClick={onStart}
-                className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-full border transition-colors"
-                style={{ borderColor: NAVY, color: NAVY, fontFamily: BODY_FONT, fontWeight: 600 }}
-              >
-                {item.cta} <ArrowRight size={12} />
-              </button>
-            </div>
-          )}
-          {done && (
-            <span
-              className="mt-3 inline-flex items-center gap-1 text-xs px-3 py-1 rounded-full"
-              style={{ backgroundColor: '#D1FAE5', color: '#065F46', fontFamily: PILL_FONT, fontWeight: 700, letterSpacing: '0.06em' }}
-            >
-              <Check size={11} /> Done
-            </span>
-          )}
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: 10,
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+              color: BRAND.mute,
+              fontFamily: PILL_FONT,
+              fontWeight: 800,
+              marginBottom: 2,
+            }}
+          >
+            Next up &middot; {done}/{total}
+          </div>
+          <div style={{ fontSize: 16, fontWeight: 900, color: BRAND.navy, letterSpacing: '-0.01em', fontFamily: HEADING_FONT }}>
+            {next.title}
+          </div>
         </div>
+
+        <Link
+          to={next.href}
+          style={{
+            background: BRAND.navy,
+            color: 'white',
+            padding: '10px 18px',
+            borderRadius: 8,
+            fontSize: 13,
+            fontWeight: 800,
+            textDecoration: 'none',
+            whiteSpace: 'nowrap',
+            fontFamily: PILL_FONT,
+          }}
+        >
+          {next.key === 'invite_crew' ? 'Invite' : 'Start'} &rarr;
+        </Link>
+
+        <button
+          type="button"
+          onClick={() => onSkip(next.key)}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: BRAND.mute,
+            fontSize: 12,
+            textDecoration: 'underline',
+            cursor: 'pointer',
+            fontFamily: BODY_FONT,
+            flexShrink: 0,
+          }}
+        >
+          Skip
+        </button>
       </div>
+
+      {hasDismissed && (
+        <button
+          type="button"
+          onClick={() => onSkip('__clear__')}
+          style={{ marginTop: 8, background: 'none', border: 'none', color: BRAND.mute, fontSize: 11, textDecoration: 'underline', cursor: 'pointer', fontFamily: BODY_FONT }}
+        >
+          Show all tasks
+        </button>
+      )}
     </div>
   );
 };
@@ -266,24 +292,18 @@ const Dashboard = () => {
     () => localStorage.getItem('cg_tutorial_pill_hidden') === '1'
   );
   const [taskCounts, setTaskCounts] = useState({ locations: 0, inventoryFolders: 0, inventoryItems: 0, crew: 0, openTasks: 0 });
-  const [skippedInviteCrew, setSkippedInviteCrew] = useState(false);
+  const [tenant, setTenant] = useState(null);
   const [showToast, setShowToast] = useState(true);
 
-  // Derive task completion from real Supabase counts, not from click state
-  const doneMap = {
-    locations_done: taskCounts.locations > 0,
-    inventory_done: taskCounts.inventoryFolders > 0,
-    import_done: taskCounts.inventoryItems > 0,
+  // ctx passed to onboardingTasks helpers — mirrors column names in ONBOARDING_TASKS.isDone
+  const ctx = {
+    locationsCount:     taskCounts.locations,
+    foldersCount:       taskCounts.inventoryFolders,
+    inventoryItemsCount: taskCounts.inventoryItems,
+    crewCount:          taskCounts.crew,
   };
-  const completed = TUTORIAL_ITEMS.filter((item) => doneMap[item.id]).length;
-  const percent = Math.round((completed / TUTORIAL_ITEMS.length) * 100);
-
-  // Pending setup cards — only undone core tasks + invite card if applicable
-  const showInviteCard = skippedInviteCrew && taskCounts.crew <= 1;
-  const allPendingItems = [
-    ...TUTORIAL_ITEMS.filter((item) => !doneMap[item.id]),
-    ...(showInviteCard ? [INVITE_ITEM] : []),
-  ];
+  const { done: tasksDone, total: tasksTotal } = getProgress(ctx);
+  const percent = Math.round((tasksDone / tasksTotal) * 100);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -344,29 +364,20 @@ const Dashboard = () => {
     } catch (err) {
       console.warn('[dashboard] task counts load failed', err);
     }
-    // skipped_invite_crew is fetched separately so a missing column (pre-migration)
-    // never breaks the counts query or the hero visibility logic above.
-    try {
-      const { data: tenantFlags } = await supabase
-        .from('tenants')
-        .select('skipped_invite_crew')
-        .eq('id', tenantId)
-        .maybeSingle();
-      if (tenantFlags?.skipped_invite_crew) setSkippedInviteCrew(true);
-    } catch (err) {
-      console.warn('[dashboard] skipped_invite_crew fetch threw:', err);
-    }
   };
 
   const loadTutorialData = async (userId, tenantId) => {
     try {
-      const [{ data: profile }, { data: tenant }] = await Promise.all([
+      const [{ data: profile }, { data: tenantRow }] = await Promise.all([
         supabase.from('profiles').select('dashboard_tutorial_dismissed_at').eq('id', userId).maybeSingle(),
-        supabase.from('tenants').select('onboarding_completed_at, name').eq('id', tenantId).maybeSingle(),
+        // dismissed_tasks may not exist in older DBs — pre-migration resilience: if the column
+        // is absent the query still succeeds and dismissed_tasks will be undefined (treated as []).
+        supabase.from('tenants').select('onboarding_completed_at, name, dismissed_tasks').eq('id', tenantId).maybeSingle(),
       ]);
-      if (tenant?.name) setVesselName(tenant.name);
-      if (tenant?.onboarding_completed_at) {
-        const msAgo = Date.now() - new Date(tenant.onboarding_completed_at).getTime();
+      if (tenantRow?.name) setVesselName(tenantRow.name);
+      setTenant(tenantRow ?? null);
+      if (tenantRow?.onboarding_completed_at) {
+        const msAgo = Date.now() - new Date(tenantRow.onboarding_completed_at).getTime();
         const within30days = msAgo < 30 * 24 * 60 * 60 * 1000;
         const dismissed = !!profile?.dashboard_tutorial_dismissed_at;
         setTutorialDismissed(within30days && dismissed);
@@ -375,10 +386,6 @@ const Dashboard = () => {
     } catch (err) {
       console.warn('[dashboard] tutorial data load failed', err);
     }
-  };
-
-  const handleTutorialStart = (item) => {
-    navigate(item.route);
   };
 
   const handleDismissTutorial = async () => {
@@ -400,6 +407,23 @@ const Dashboard = () => {
       await supabase.from('profiles').update({ dashboard_tutorial_dismissed_at: null }).eq('id', session?.user?.id);
     } catch (err) {
       console.warn('[dashboard] tutorial restore failed', err);
+    }
+  };
+
+  // Handles both "Skip" (key = task key) and "Show all tasks" (key = '__clear__')
+  const handleSkipTask = async (key) => {
+    const newList = key === '__clear__'
+      ? []
+      : [...(tenant?.dismissed_tasks ?? []), key];
+    // Optimistic update
+    setTenant((prev) => ({ ...prev, dismissed_tasks: newList }));
+    try {
+      await supabase
+        .from('tenants')
+        .update({ dismissed_tasks: newList })
+        .eq('id', activeTenantId);
+    } catch (err) {
+      console.warn('[dashboard] dismissed_tasks update failed', err);
     }
   };
 
@@ -634,23 +658,14 @@ const Dashboard = () => {
                     </div>
                   </div>
 
-                  {/* Collapsible: Finish setting up — only shown while tasks remain */}
-                  {allPendingItems.length > 0 && (
-                    <CollapsiblePanel
-                      title="Finish setting up"
-                      badge={`${allPendingItems.length} left`}
-                      defaultOpen
-                      pulse
-                    >
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 cg-stagger">
-                        {allPendingItems.map((item, i) => (
-                          <div key={item.id} className="cg-anim-enter" style={{ '--i': i + 1 }}>
-                            <TutorialCard item={item} done={false} onStart={() => handleTutorialStart(item)} />
-                          </div>
-                        ))}
-                      </div>
-                    </CollapsiblePanel>
-                  )}
+                  {/* Next up — single soft-blue card for the first incomplete task */}
+                  <NextUp
+                    ctx={ctx}
+                    tenant={tenant}
+                    done={tasksDone}
+                    total={tasksTotal}
+                    onSkip={handleSkipTask}
+                  />
 
                   {/* Collapsible: What else is in Cargo — collapsed by default */}
                   <CollapsiblePanel title="What else is in Cargo" defaultOpen={false} pulse>
