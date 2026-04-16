@@ -16,7 +16,7 @@ const WASH_CONTAINER = {
   border: '1px solid #BAE6FD',
 };
 
-// Shared row renderer — icon tile + eyebrow + title + CTA. Matches NextUp layout.
+// Shared row renderer — icon tile + optional eyebrow + title + CTA. Matches NextUp layout.
 const HybridRow = ({ icon: Icon, eyebrow, title, subtitle, ctaLabel, ctaHref }) => (
   <div style={{ ...WASH_CONTAINER, display: 'flex', alignItems: 'center', gap: 16 }}>
     <div
@@ -35,19 +35,21 @@ const HybridRow = ({ icon: Icon, eyebrow, title, subtitle, ctaLabel, ctaHref }) 
       <Icon size={22} color={BRAND.navy} strokeWidth={2.2} />
     </div>
     <div style={{ flex: 1, minWidth: 0 }}>
-      <div
-        style={{
-          fontSize: 10,
-          letterSpacing: '0.18em',
-          textTransform: 'uppercase',
-          color: BRAND.mute,
-          fontFamily: PILL_FONT,
-          fontWeight: 800,
-          marginBottom: 2,
-        }}
-      >
-        {eyebrow}
-      </div>
+      {eyebrow && (
+        <div
+          style={{
+            fontSize: 10,
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            color: BRAND.mute,
+            fontFamily: PILL_FONT,
+            fontWeight: 800,
+            marginBottom: 2,
+          }}
+        >
+          {eyebrow}
+        </div>
+      )}
       <div style={{ fontSize: 16, fontWeight: 900, color: BRAND.navy, letterSpacing: '-0.01em', fontFamily: HEADING_FONT }}>
         {title}
       </div>
@@ -136,7 +138,6 @@ const CrewDashboardCard = ({ userId, tenantId }) => {
       {showProfile && (
         <HybridRow
           icon={User}
-          eyebrow="Static task"
           title="Complete your profile"
           subtitle="Add your name and a photo so your crew recognises you"
           ctaLabel="Start →"
@@ -147,7 +148,6 @@ const CrewDashboardCard = ({ userId, tenantId }) => {
       {showJobs && (
         <HybridRow
           icon={Briefcase}
-          eyebrow="Your activity"
           title={`${jobsCount} ${jobsCount === 1 ? 'job' : 'jobs'} assigned to you`}
           ctaLabel="View →"
           ctaHref="/team-jobs-management"
