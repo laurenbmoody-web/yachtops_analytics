@@ -93,3 +93,13 @@ export async function createCrewInvite({
     return { data: null, inviteLink: null, error: err };
   }
 }
+
+/**
+ * Trigger the sendCrewInvite edge function to send an invitation email via Resend.
+ * Returns { data, error } — same shape as supabase.functions.invoke.
+ *
+ * @param {string} crewInviteId - UUID of the crew_invites row
+ */
+export async function sendCrewInvite(crewInviteId) {
+  return supabase.functions.invoke('sendCrewInvite', { body: { crewInviteId } });
+}

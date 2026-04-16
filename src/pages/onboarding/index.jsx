@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import Image from '../../components/AppImage';
 import { useTheme } from '../../contexts/ThemeContext';
 import { showToast } from '../../utils/toast';
-import { createCrewInvite } from '../../utils/crewInvites';
+import { createCrewInvite, sendCrewInvite } from '../../utils/crewInvites';
 
 /*
   Post-signup onboarding flow.
@@ -1141,11 +1141,31 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
             const firstErr =
               failed[0].status === 'rejected' ? failed[0].reason : failed[0].value?.error;
             console.error('[onboarding] some crew_invites inserts failed', firstErr, { failed: failed.length, succeeded: succeeded.length });
-            showToast(`${succeeded.length} invite${succeeded.length === 1 ? '' : 's'} sent; ${failed.length} failed — check the console for details.`, 'warning');
-          } else {
-            // All succeeded.
-            showToast(`Invited ${succeeded.length} crew member${succeeded.length === 1 ? '' : 's'}.`, 'success');
           }
+
+          // Send invitation emails for all successfully inserted rows.
+          const insertedIds = succeeded.map((r) => r.value?.data?.id).filter(Boolean);
+          let emailFailCount = 0;
+          if (insertedIds.length > 0) {
+            const emailResults = await Promise.allSettled(
+              insertedIds.map((id) => sendCrewInvite(id))
+            );
+            emailFailCount = emailResults.filter(
+              (r) => r.status === 'rejected' || r.value?.error
+            ).length;
+            if (emailFailCount > 0) {
+              console.warn('[onboarding] some invite emails failed to send', { emailFailCount });
+            }
+          }
+
+          // Build toast — always mention how many invites were created.
+          const insertNote = failed.length > 0
+            ? `${succeeded.length} invite${succeeded.length === 1 ? '' : 's'} sent (${failed.length} row${failed.length === 1 ? '' : 's'} failed — check the console).`
+            : `Invited ${succeeded.length} crew member${succeeded.length === 1 ? '' : 's'}.`;
+          const emailNote = emailFailCount > 0
+            ? ` (${emailFailCount} email${emailFailCount === 1 ? '' : 's'} failed — you can resend from the crew page)`
+            : '';
+          showToast(insertNote + emailNote, emailFailCount > 0 || failed.length > 0 ? 'warning' : 'success');
         }
       }
 

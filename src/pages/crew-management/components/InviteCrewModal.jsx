@@ -7,36 +7,7 @@ import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useTenant } from '../../../contexts/TenantContext';
 import { showToast } from '../../../utils/toast';
-import { createCrewInvite } from '../../../utils/crewInvites';
-
-// Helper function to build invite email with mailto: URL
-function buildInviteEmail({ inviteeEmail, inviteLink, vesselName, inviteeName }) {
-  const name = inviteeName?.trim() ? inviteeName?.trim() : "there";
-  const vessel = vesselName?.trim() ? vesselName?.trim() : "your vessel";
-  const subject = `Cargo Invite — M/Y ${vessel}`;
-  const body =
-`Hi ${name},
-
-You've been invited to join Cargo for M/Y ${vessel}.
-
-Cargo is the vessel's shared operational platform used to manage inventory visibility, crew information, provisioning records, and departmental workflows across the vessel.
-
-Please use the link below to create your account and access the vessel workspace:
-
-Join Cargo → ${inviteLink}
-
-Once logged in, please complete your crew profile and review the relevant sections for your department.
-
-If you experience any access issues, please contact the vessel.
-
-Kind regards,
-
-M/Y ${vessel}
-
-`;
-  const mailto = `mailto:${encodeURIComponent(inviteeEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  return mailto;
-}
+import { createCrewInvite, sendCrewInvite } from '../../../utils/crewInvites';
 
 const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
   const { session } = useAuth();
@@ -50,9 +21,8 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
   const [createdInviteId, setCreatedInviteId] = useState(null);
   const [createdInviteToken, setCreatedInviteToken] = useState(null);
   const [createdInviteEmail, setCreatedInviteEmail] = useState('');
-  const [vesselName, setVesselName] = useState('');
+  const [sendingEmail, setSendingEmail] = useState(false);
 
-  // NEW STATE as per requirements
   const [departments, setDepartments] = useState([]);
   const [roles, setRoles] = useState([]);
   const [formData, setFormData] = useState({
@@ -60,19 +30,6 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
     role_id: '',
     permission_tier: ''
   });
-
-  // Fetch vessel name from tenants table
-  useEffect(() => {
-    if (!isOpen || !activeTenantId) return;
-    (async () => {
-      const { data, error } = await supabase?.from('tenants')?.select('name')?.eq('id', activeTenantId)?.single();
-      if (error) {
-        console.error('Error fetching vessel name:', error);
-      } else {
-        setVesselName(data?.name || '');
-      }
-    })();
-  }, [isOpen, activeTenantId]);
 
   // A) Fetch departments catalog on modal open
   useEffect(() => {
@@ -204,6 +161,7 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
     setCreatedInviteId(null);
     setCreatedInviteToken(null);
     setCreatedInviteEmail('');
+    setSendingEmail(false);
     setDepartments([]);
     setRoles([]);
     onClose();
@@ -213,12 +171,24 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
     handleCloseModal();
   };
 
+  const handleSendEmail = async () => {
+    if (!createdInviteId) return;
+    setSendingEmail(true);
+    const { error: sendError } = await sendCrewInvite(createdInviteId);
+    if (sendError) {
+      showToast(sendError?.message || 'Failed to send invite email', 'error');
+    } else {
+      showToast('Invite email sent', 'success');
+    }
+    setSendingEmail(false);
+  };
+
   // B) Build Select options in correct shape
   const departmentOptions = (departments || [])?.map(d => ({
     label: d?.name,
     value: d?.id
   }));
-  
+
   // C) Role dropdown options - stores role.id (uuid), not role name text
   const roleOptions = (roles || [])?.map(r => ({
     label: r?.name,
@@ -227,32 +197,6 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
 
   // If showing success confirmation panel
   if (showSuccess) {
-    // Build mailto URL for the anchor link
-    const name = undefined; // Not collected, will use "there" as fallback
-    const vessel = vesselName?.trim() ? vesselName?.trim() : "your vessel";
-    const subject = `Cargo Invite — M/Y ${vessel}`;
-    const body =
-`Hi ${name?.trim() ? name?.trim() : "there"},
-
-You've been invited to join Cargo for M/Y ${vessel}.
-
-Cargo is the vessel's shared operational platform used to manage inventory visibility, crew information, provisioning records, and departmental workflows across the vessel.
-
-Please use the link below to create your account and access the vessel workspace:
-
-Join Cargo → ${inviteLink}
-
-Once logged in, please complete your crew profile and review the relevant sections for your department.
-
-If you experience any access issues, please contact the vessel.
-
-Kind regards,
-
-M/Y ${vessel}
-
-`;
-    const mailtoUrl = `mailto:${encodeURIComponent(createdInviteEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" style={{ pointerEvents: 'auto' }}>
         <div className="bg-card border border-border rounded-2xl shadow-xl max-w-md w-full p-6" style={{ zIndex: 60 }}>
@@ -301,27 +245,15 @@ M/Y ${vessel}
                 <Icon name="Copy" size={16} className="mr-2" />
                 Copy Link
               </Button>
-              {inviteLink ? (
-                <a
-                  href={mailtoUrl}
-                  target="_self"
-                  rel="noreferrer"
-                  className="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-smooth border border-border bg-background text-foreground hover:bg-accent hover:text-accent-foreground w-full"
-                  style={{ pointerEvents: 'auto', zIndex: 70 }}
-                >
-                  <Icon name="Mail" size={16} className="mr-2" />
-                  Compose Email
-                </a>
-              ) : (
-                <button
-                  disabled
-                  className="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-smooth border border-border bg-background text-foreground opacity-50 cursor-not-allowed w-full"
-                  onClick={() => alert('Invite link not available yet.')}
-                >
-                  <Icon name="Mail" size={16} className="mr-2" />
-                  Compose Email
-                </button>
-              )}
+              <Button
+                onClick={handleSendEmail}
+                disabled={!createdInviteId || sendingEmail}
+                variant="outline"
+                className="w-full"
+              >
+                <Icon name={sendingEmail ? 'Loader2' : 'Mail'} size={16} className={`mr-2${sendingEmail ? ' animate-spin' : ''}`} />
+                {sendingEmail ? 'Sending…' : 'Send invite'}
+              </Button>
               <Button
                 onClick={handleDone}
                 className="w-full"
