@@ -775,13 +775,17 @@ const Dashboard = () => {
                           </span>
                         </div>
                       )}
-                      {/* At-a-glance stats — 4 cols desktop, 2 cols mobile */}
-                      <div className="mt-4 grid grid-cols-2 md:grid-cols-4" style={{ gap: 10 }}>
-                        <StatTile label="Crew" value={taskCounts.crew} />
-                        <StatTile label="Locations" value={taskCounts.locations} />
-                        <StatTile label="Inventory" value={taskCounts.inventoryItems} />
-                        <StatTile label="Open Tasks" value={taskCounts.openTasks} />
-                      </div>
+                      {/* At-a-glance stats — admin only. Crew sees their own
+                           activity card below; vessel-wide counts aren't useful
+                           to them in this banner. */}
+                      {isVesselAdmin && (
+                        <div className="mt-4 grid grid-cols-2 md:grid-cols-4" style={{ gap: 10 }}>
+                          <StatTile label="Crew" value={taskCounts.crew} />
+                          <StatTile label="Locations" value={taskCounts.locations} />
+                          <StatTile label="Inventory" value={taskCounts.inventoryItems} />
+                          <StatTile label="Open Tasks" value={taskCounts.openTasks} />
+                        </div>
+                      )}
                       <button
                         type="button"
                         onClick={handleDismissTutorial}

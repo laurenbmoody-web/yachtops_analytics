@@ -140,7 +140,7 @@ const CrewDashboardCard = ({ userId, tenantId }) => {
           title="Complete your profile"
           subtitle="Add your name and a photo so your crew recognises you"
           ctaLabel="Start →"
-          ctaHref="/my-profile-management"
+          ctaHref={`/profile/${userId}`}
         />
       )}
 
