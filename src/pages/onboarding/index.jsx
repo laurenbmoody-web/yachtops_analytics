@@ -1042,28 +1042,43 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
     [dbDepts, departments, customDepts]
   );
 
-  // Map of deptId (UUID) → [{id, name, default_permission_tier}] from roles table
+  // Map of deptId (UUID) → [{id, name, department_id, default_permission_tier, source}]
+  // Merges the global roles catalog with this tenant's custom roles so "Other"-
+  // created roles from prior sessions show up alongside the seeded ones.
   const [deptRoles, setDeptRoles] = useState({});
 
   useEffect(() => {
     const dbDeptIds = allDepts.map((d) => d.id).filter((id) => !String(id).startsWith('custom-'));
     if (!dbDeptIds.length) return;
-    supabase
-      .from('roles')
-      .select('id, name, department_id, default_permission_tier')
-      .in('department_id', dbDeptIds)
-      .order('name', { ascending: true })
-      .then(({ data }) => {
-        if (!data) return;
-        const map = {};
-        for (const role of data) {
-          if (!map[role.department_id]) map[role.department_id] = [];
-          map[role.department_id].push(role);
-        }
-        setDeptRoles(map);
-      });
+    (async () => {
+      const [{ data: globalData }, { data: customData }] = await Promise.all([
+        supabase
+          .from('roles')
+          .select('id, name, department_id, default_permission_tier')
+          .in('department_id', dbDeptIds)
+          .order('name', { ascending: true }),
+        tenant?.id
+          ? supabase
+              .from('tenant_custom_roles')
+              .select('id, name, department_id, default_permission_tier')
+              .eq('tenant_id', tenant.id)
+              .in('department_id', dbDeptIds)
+              .order('name', { ascending: true })
+          : Promise.resolve({ data: [] }),
+      ]);
+      const map = {};
+      for (const role of (globalData || [])) {
+        if (!map[role.department_id]) map[role.department_id] = [];
+        map[role.department_id].push({ ...role, source: 'global' });
+      }
+      for (const role of (customData || [])) {
+        if (!map[role.department_id]) map[role.department_id] = [];
+        map[role.department_id].push({ ...role, source: 'custom' });
+      }
+      setDeptRoles(map);
+    })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allDepts.length]);
+  }, [allDepts.length, tenant?.id]);
 
   const [rows, setRows] = useState([{ name: '', email: '', department_id: '', role: '', roleIsOther: false }]);
   const [showPaste, setShowPaste] = useState(false);
@@ -1117,20 +1132,53 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
           const deptLookup = Object.fromEntries(allDepts.map((d) => [d.id, d.name]));
 
           const results = await Promise.allSettled(
-            toInvite.map((r) => {
+            toInvite.map(async (r) => {
               const deptLabel = deptLookup[r.department_id] || '';
               // Custom "Other" departments use a 'custom-*' pseudo-ID, not a
               // real DB UUID.  Pass null for department_id so the UUID FK column
               // in crew_invites stays clean; keep the label for display.
               const isCustomDept = String(r.department_id).startsWith('custom-');
               const departmentId = isCustomDept ? null : r.department_id;
-              // Look up roleId from the roles catalog.  Custom depts have no
-              // catalog entries; free-text "Other" roles won't match — both
-              // correctly fall back to null (column is nullable after Fix A).
+
+              // Resolve role to either a global roles.id, a tenant_custom_roles.id,
+              // or (for a free-text "Other" role on a real department) upsert a new
+              // tenant_custom_roles row and use its id. Free-text roles on custom
+              // departments can't have a UUID, so both ids stay null.
               const deptRoleList = isCustomDept ? [] : (deptRoles[r.department_id] || []);
               const matchedRole = deptRoleList.find((ro) => ro.name === r.role);
-              const roleId = matchedRole?.id ?? null;
-              const permissionTier = matchedRole?.default_permission_tier ?? 'CREW';
+
+              let roleId = null;
+              let customRoleId = null;
+              let permissionTier = 'CREW';
+
+              if (matchedRole) {
+                permissionTier = matchedRole.default_permission_tier || 'CREW';
+                if (matchedRole.source === 'custom') {
+                  customRoleId = matchedRole.id;
+                } else {
+                  roleId = matchedRole.id;
+                }
+              } else if (!isCustomDept && r.roleIsOther && r.role?.trim()) {
+                // Free-text role on a real department — upsert into tenant_custom_roles
+                const { data: upserted, error: upsertErr } = await supabase
+                  .from('tenant_custom_roles')
+                  .upsert(
+                    {
+                      tenant_id: tenant.id,
+                      department_id: r.department_id,
+                      name: r.role.trim(),
+                      default_permission_tier: 'CREW',
+                      created_by: user?.id,
+                    },
+                    { onConflict: 'tenant_id,department_id,name' }
+                  )
+                  .select('id, default_permission_tier')
+                  .single();
+                if (upsertErr) throw upsertErr;
+                customRoleId = upserted?.id;
+                permissionTier = upserted?.default_permission_tier || 'CREW';
+              }
+
               return createCrewInvite({
                 email: r.email,
                 tenantId: tenant.id,
@@ -1138,6 +1186,7 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
                 departmentId,
                 departmentLabel: deptLabel,
                 roleId,
+                customRoleId,
                 roleLabel: r.role,
                 permissionTier,
                 firstName: r.name?.trim() || null,

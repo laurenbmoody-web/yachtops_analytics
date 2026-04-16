@@ -5,7 +5,7 @@ import Icon from '../../components/AppIcon';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 
-import { loadRoles, Department, UserStatus, getTierDisplayName, hasCommandAccess, getCurrentUser } from '../../utils/authStorage';
+import { Department, UserStatus, getTierDisplayName, hasCommandAccess, getCurrentUser } from '../../utils/authStorage';
 import InviteCrewModal from './components/InviteCrewModal';
 import PendingInvitesSection from './components/PendingInvitesSection';
 import EditCrewModal from './components/EditCrewModal';
@@ -35,7 +35,6 @@ const CrewManagement = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [currentUserRole, setCurrentUserRole] = useState(null); // NEW: Store tenant_members.permission_tier
   const [users, setUsers] = useState([]);
-  const [roles, setRoles] = useState([]);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
@@ -156,11 +155,14 @@ const CrewManagement = () => {
       // Query tenant_members as base table filtered by tenant_id
       // Join profiles for display fields (email, full_name)
       // Join departments for department name
-      // Join roles for role title
+      // Join both roles and tenant_custom_roles — exactly one of role_id /
+      // custom_role_id is populated on any given row, so roleTitle falls back
+      // from the global role to the custom role below.
       const { data, error: fetchError } = await supabase?.from('tenant_members')?.select(`
           user_id,
           role,
           role_id,
+          custom_role_id,
           permission_tier_override,
           status,
           active,
@@ -168,6 +170,7 @@ const CrewManagement = () => {
           department_id,
           departments (name),
           roles (name),
+          custom_role:tenant_custom_roles!tenant_members_custom_role_id_fkey (name),
           profiles!tenant_members_user_id_fkey (email, full_name)
         `)?.eq('tenant_id', activeTenantId)?.order('joined_at', { ascending: false });
       
@@ -216,7 +219,7 @@ const CrewManagement = () => {
           fullName: tm?.profiles?.full_name || null,
           full_name: tm?.profiles?.full_name || null,
           department: tm?.departments?.name || (tm?.department_id ? `Dept ${tm?.department_id?.substring(0, 8)}` : '—'),
-          roleTitle: tm?.roles?.name || tm?.role || tm?.role_legacy || '—',
+          roleTitle: tm?.roles?.name || tm?.custom_role?.name || tm?.role || tm?.role_legacy || '—',
         };
       });
 
@@ -239,7 +242,6 @@ const CrewManagement = () => {
   useEffect(() => {
     if (activeTenantId || DEV_MODE) {
       fetchCrewData();
-      setRoles(loadRoles());
     }
   }, [activeTenantId, inviteRefreshTrigger]);
 
