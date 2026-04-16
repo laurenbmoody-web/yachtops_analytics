@@ -1013,14 +1013,36 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
 const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, onFinish }) => {
   const { user } = useAuth();
 
+  // Fetch departments from DB to get real UUID IDs — mirrors InviteCrewModal.
+  // allDepts is derived from DB objects so dropdown option values and the
+  // crew_invites department_id column always receive valid UUIDs, never the
+  // BASE_DEPARTMENTS string keys ('BRIDGE', 'GALLEY', …).
+  // deptObjs prop is used as an instant initial value so the UI renders
+  // immediately while the fetch is in flight.
+  const [dbDepts, setDbDepts] = useState(() =>
+    (deptObjs || []).filter((d) => !String(d.id).startsWith('custom-'))
+  );
+  useEffect(() => {
+    const dbIds = departments.filter((id) => !String(id).startsWith('custom-'));
+    if (!dbIds.length) return;
+    supabase
+      .from('departments')
+      .select('id, name')
+      .in('id', dbIds)
+      .order('name', { ascending: true })
+      .then(({ data }) => { if (data) setDbDepts(data); });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const allDepts = useMemo(
-    () => deptObjs
-      ? deptObjs.filter((d) => departments.includes(d.id))
-      : [...BASE_DEPARTMENTS.filter((d) => departments.includes(d.id)), ...customDepts],
-    [departments, customDepts, deptObjs]
+    () => [
+      ...dbDepts.filter((d) => departments.includes(d.id)),
+      ...customDepts.filter((d) => departments.includes(d.id)),
+    ],
+    [dbDepts, departments, customDepts]
   );
 
-  // Map of deptId → [{id, name, default_permission_tier}] loaded from roles table
+  // Map of deptId (UUID) → [{id, name, default_permission_tier}] from roles table
   const [deptRoles, setDeptRoles] = useState({});
 
   useEffect(() => {
@@ -1097,8 +1119,15 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
           const results = await Promise.allSettled(
             toInvite.map((r) => {
               const deptLabel = deptLookup[r.department_id] || '';
-              // Look up roleId and permissionTier from the roles loaded for this department.
-              const deptRoleList = deptRoles[r.department_id] || [];
+              // Custom "Other" departments use a 'custom-*' pseudo-ID, not a
+              // real DB UUID.  Pass null for department_id so the UUID FK column
+              // in crew_invites stays clean; keep the label for display.
+              const isCustomDept = String(r.department_id).startsWith('custom-');
+              const departmentId = isCustomDept ? null : r.department_id;
+              // Look up roleId from the roles catalog.  Custom depts have no
+              // catalog entries; free-text "Other" roles won't match — both
+              // correctly fall back to null (column is nullable after Fix A).
+              const deptRoleList = isCustomDept ? [] : (deptRoles[r.department_id] || []);
               const matchedRole = deptRoleList.find((ro) => ro.name === r.role);
               const roleId = matchedRole?.id ?? null;
               const permissionTier = matchedRole?.default_permission_tier ?? 'CREW';
@@ -1106,7 +1135,7 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
                 email: r.email,
                 tenantId: tenant.id,
                 invitedBy: user?.id,
-                departmentId: r.department_id,
+                departmentId,
                 departmentLabel: deptLabel,
                 roleId,
                 roleLabel: r.role,
