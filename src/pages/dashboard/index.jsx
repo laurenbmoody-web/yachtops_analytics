@@ -754,7 +754,7 @@ const Dashboard = () => {
                       <h1 style={{ fontFamily: HEADING_FONT, fontSize: 26, fontWeight: 700, color: CHARCOAL, letterSpacing: '-0.02em' }}>
                         {vesselName ? `Welcome aboard ${displayVesselName(vesselName)}` : 'Welcome, Captain'}
                       </h1>
-                      {isVesselAdmin ? (
+                      {isVesselAdmin && (
                         <>
                           <div className="mt-4 flex items-baseline gap-3">
                             <span className="uppercase" style={{ fontFamily: PILL_FONT, fontSize: 22, fontWeight: 900, letterSpacing: '0.10em', color: NAVY }}>
@@ -768,12 +768,6 @@ const Dashboard = () => {
                             {percent === 100 ? 'Fully anchored.' : 'Only a few more shackles to go…'}
                           </p>
                         </>
-                      ) : (
-                        <div className="mt-4">
-                          <span className="uppercase" style={{ fontFamily: PILL_FONT, fontSize: 22, fontWeight: 900, letterSpacing: '0.10em', color: NAVY }}>
-                            Your activity
-                          </span>
-                        </div>
                       )}
                       {/* At-a-glance stats — admin only. Crew sees their own
                            activity card below; vessel-wide counts aren't useful
@@ -794,21 +788,25 @@ const Dashboard = () => {
                       >
                         Hide for now
                       </button>
+                      {/* Crew activity card sits inside the right column so it
+                           tucks directly under Welcome + Hide-for-now instead of
+                           leaving a large gap beside the anchor chain. */}
+                      {!isVesselAdmin && (
+                        <CrewDashboardCard
+                          userId={session?.user?.id}
+                          tenantId={activeTenantId}
+                        />
+                      )}
                     </div>
                   </div>
 
-                  {/* Admin: next onboarding step stepper. Crew: hybrid activity card. */}
-                  {isVesselAdmin ? (
+                  {/* Admin-only: NextUp stepper sits below the chain/heading row. */}
+                  {isVesselAdmin && (
                     <NextUp
                       ctx={ctx}
                       tenant={tenant}
                       onSkip={handleSkipTask}
                       onUnskip={handleUnskipTask}
-                    />
-                  ) : (
-                    <CrewDashboardCard
-                      userId={session?.user?.id}
-                      tenantId={activeTenantId}
                     />
                   )}
 
