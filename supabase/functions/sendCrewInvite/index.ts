@@ -43,97 +43,120 @@ async function sbFetch(path: string, init?: RequestInit): Promise<Response> {
   });
 }
 
-// ── HTML email template ───────────────────────────────────────────────────────
+// ── Email templates ───────────────────────────────────────────────────────────
 
-function buildEmailHtml(params: {
+interface EmailParams {
   firstName: string;
   vesselName: string;
-  departmentLabel: string;
-  roleLabel: string;
-  inviteLink: string;
-}): string {
-  const { firstName, vesselName, departmentLabel, roleLabel, inviteLink } = params;
+  department: string;
+  role: string;
+  inviteUrl: string;
+}
+
+function buildEmailHtml({ firstName, vesselName, department, role, inviteUrl }: EmailParams): string {
   return `<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#F1F5F9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:32px 16px">
-<tr><td align="center">
-
-  <table width="600" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08)">
-
-    <!-- Navy header -->
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>You've been invited to ${vesselName}</title>
+</head>
+<body style="margin:0; padding:0; background:#F8FAFC; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color:#0F172A;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F8FAFC; padding:40px 16px;">
     <tr>
-      <td style="background:#1E3A5F;padding:28px 32px">
-        <div style="font-size:22px;font-weight:700;color:#FFFFFF;letter-spacing:-0.3px">You've been invited to join Cargo</div>
-        <div style="font-size:13px;color:#93C5FD;margin-top:6px">${vesselName}</div>
-      </td>
-    </tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px; background:#FFFFFF; border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(15,23,42,0.06);">
 
-    <!-- Body -->
-    <tr>
-      <td style="padding:32px 32px 24px">
-        <p style="margin:0 0 16px;font-size:14px;color:#334155;line-height:1.6">Hi ${firstName},</p>
-        <p style="margin:0 0 16px;font-size:14px;color:#334155;line-height:1.6">
-          You've been invited to join <strong>${vesselName}</strong> on Cargo — the vessel's shared operational platform for inventory, crew information, and departmental workflows.
-        </p>
-
-        <!-- Role card -->
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;border:1px solid #E2E8F0;border-radius:8px">
+          <!-- Header -->
           <tr>
-            <td style="padding:16px 20px">
-              <table width="100%" cellpadding="0" cellspacing="4">
+            <td style="padding:32px 40px 24px; border-bottom:1px solid #E2E8F0;">
+              <div style="font-size:22px; font-weight:900; letter-spacing:-0.02em; color:#1E3A5F;">Cargo</div>
+            </td>
+          </tr>
+
+          <!-- Hero -->
+          <tr>
+            <td style="padding:40px 40px 8px;">
+              <div style="font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:#64748B; font-weight:700; margin-bottom:10px;">You're joining the crew</div>
+              <div style="font-size:28px; font-weight:900; letter-spacing:-0.01em; color:#1E3A5F; line-height:1.2;">${vesselName}</div>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:20px 40px 8px; font-size:15px; line-height:1.6; color:#334155;">
+              <p style="margin:0 0 16px;">Hi ${firstName},</p>
+              <p style="margin:0 0 16px;">You've been invited to join <strong>${vesselName}</strong> on Cargo — the operational platform the vessel uses for inventory, crew, and day-to-day ops.</p>
+              <p style="margin:0;">Here's what's waiting for you:</p>
+            </td>
+          </tr>
+
+          <!-- Role card -->
+          <tr>
+            <td style="padding:16px 40px 8px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F0F9FF; border:1px solid #BAE6FD; border-radius:10px;">
                 <tr>
-                  <td width="50%" style="font-size:12px;color:#64748B">Department</td>
-                  <td width="50%" style="font-size:12px;color:#64748B">Role</td>
-                </tr>
-                <tr>
-                  <td style="font-size:14px;font-weight:600;color:#0F172A">${departmentLabel || '—'}</td>
-                  <td style="font-size:14px;font-weight:600;color:#0F172A">${roleLabel || '—'}</td>
+                  <td style="padding:18px 22px;">
+                    <div style="font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:#64748B; font-weight:700; margin-bottom:4px;">Department</div>
+                    <div style="font-size:16px; font-weight:800; color:#1E3A5F; margin-bottom:14px;">${department || '—'}</div>
+                    <div style="font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:#64748B; font-weight:700; margin-bottom:4px;">Role</div>
+                    <div style="font-size:16px; font-weight:800; color:#1E3A5F;">${role || '—'}</div>
+                  </td>
                 </tr>
               </table>
             </td>
           </tr>
-        </table>
 
-        <!-- CTA button -->
-        <table cellpadding="0" cellspacing="0" style="margin:24px 0">
+          <!-- CTA -->
           <tr>
-            <td>
-              <a href="${inviteLink}"
-                 style="display:inline-block;padding:14px 32px;background:#1E3A5F;color:#FFFFFF;font-size:14px;font-weight:600;text-decoration:none;border-radius:8px">
-                Accept Invitation
-              </a>
+            <td align="center" style="padding:32px 40px 12px;">
+              <a href="${inviteUrl}" style="display:inline-block; background:#1E3A5F; color:#FFFFFF; font-size:15px; font-weight:800; text-decoration:none; padding:14px 32px; border-radius:8px; letter-spacing:0.01em;">Accept invitation →</a>
             </td>
           </tr>
+
+          <!-- Fine print -->
+          <tr>
+            <td style="padding:0 40px 32px; font-size:12px; color:#94A3B8; line-height:1.6;">
+              <p style="margin:0 0 8px;">This link is unique to you and expires in 30 days.</p>
+              <p style="margin:0;">Can't click the button? Copy and paste this URL into your browser:<br>
+                <a href="${inviteUrl}" style="color:#00A8CC; word-break:break-all;">${inviteUrl}</a>
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:20px 40px; border-top:1px solid #E2E8F0; background:#F8FAFC; font-size:12px; color:#64748B;">
+              <div style="font-weight:800; color:#1E3A5F; margin-bottom:4px;">Cargo</div>
+              <div>The operational platform for yachts. <a href="https://cargotechnology.co.uk" style="color:#00A8CC; text-decoration:none;">cargotechnology.co.uk</a></div>
+            </td>
+          </tr>
+
         </table>
-
-        <p style="margin:0 0 6px;font-size:13px;color:#64748B;line-height:1.5">
-          Or copy this link into your browser:
-        </p>
-        <p style="margin:0;font-size:12px;color:#00A8CC;word-break:break-all">${inviteLink}</p>
-
-        <p style="margin:24px 0 0;font-size:13px;color:#94A3B8;line-height:1.5">
-          This invite expires in 14 days. If you have any questions, please contact the vessel directly.
-        </p>
       </td>
     </tr>
-
-    <!-- Footer -->
-    <tr>
-      <td style="background:#F8FAFC;padding:14px 28px;border-top:1px solid #E2E8F0;border-radius:0 0 12px 12px">
-        <p style="margin:0;font-size:11px;color:#94A3B8;text-align:center">
-          This invitation was sent via Cargo (cargotechnology.app)
-        </p>
-      </td>
-    </tr>
-
   </table>
-
-</td></tr>
-</table>
 </body>
 </html>`;
+}
+
+function buildEmailText({ firstName, vesselName, department, role, inviteUrl }: EmailParams): string {
+  return `You've been invited to join ${vesselName} on Cargo
+
+Hi ${firstName},
+
+You've been invited to join ${vesselName} on Cargo — the operational platform the vessel uses for inventory, crew, and day-to-day ops.
+
+Department: ${department || '—'}
+Role: ${role || '—'}
+
+Accept your invitation here:
+${inviteUrl}
+
+This link is unique to you and expires in 30 days.
+
+—
+Cargo · cargotechnology.co.uk`;
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
@@ -182,7 +205,7 @@ Deno.serve(async (req: Request) => {
 
   // 1. Fetch crew invite (service-role bypasses RLS)
   const inviteRes = await sbFetch(
-    `/crew_invites?id=eq.${crewInviteId}&select=email,invitee_name,department_label,role_label,token,tenant_id&limit=1`
+    `/crew_invites?id=eq.${crewInviteId}&select=email,first_name,department_label,role_label,token,tenant_id&limit=1`
   );
   if (!inviteRes.ok) {
     const errText = await inviteRes.text();
@@ -209,23 +232,19 @@ Deno.serve(async (req: Request) => {
     vesselName = tenants?.[0]?.name || '';
   }
 
-  // 3. Build invite URL and derive first name
-  const inviteLink = `${SITE_URL}/invite-accept?token=${invite.token}`;
-  const firstName = invite.invitee_name?.trim()?.split(' ')?.[0]
-    || invite.email?.split('@')?.[0]
-    || 'there';
+  // 3. Build invite URL and resolve first name
+  const inviteUrl = `${SITE_URL}/invite-accept?token=${invite.token}`;
+  const firstName: string = invite.first_name?.trim() || 'there';
+  const department: string = invite.department_label || '';
+  const role: string = invite.role_label || '';
+  const vessel: string = vesselName || 'your vessel';
 
-  const html = buildEmailHtml({
-    firstName,
-    vesselName: vesselName || 'your vessel',
-    departmentLabel: invite.department_label || '',
-    roleLabel: invite.role_label || '',
-    inviteLink,
-  });
+  const html = buildEmailHtml({ firstName, vesselName: vessel, department, role, inviteUrl });
+  const text = buildEmailText({ firstName, vesselName: vessel, department, role, inviteUrl });
 
   // 4. Send via Resend
-  const subject = `You've been invited to join ${vesselName || 'your vessel'} on Cargo`;
-  console.log('[sendCrewInvite] Sending to:', invite.email, '| vessel:', vesselName);
+  const subject = `You've been invited to join ${vessel} on Cargo`;
+  console.log('[sendCrewInvite] Sending to:', invite.email, '| vessel:', vessel);
 
   const resendRes = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -238,6 +257,7 @@ Deno.serve(async (req: Request) => {
       to: [invite.email],
       subject,
       html,
+      text,
     }),
   });
 
