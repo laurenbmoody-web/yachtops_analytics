@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import Header from '../../../components/navigation/Header';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
@@ -16,6 +16,9 @@ import { useTenant } from '../../../contexts/TenantContext';
 //   public.roles               — app-wide catalog, read-only here, source='global'
 //   public.tenant_custom_roles — this tenant's custom roles, CRUD here, source='custom'
 // Both are keyed by department_id → public.departments(id).
+// This component is embedded inside vessel-settings (which owns the page chrome
+// — Header, min-h-screen wrapper, etc.). It deliberately renders no layout of
+// its own so vessel-settings doesn't get a duplicate navbar.
 
 const RoleManagement = () => {
   const navigate = useNavigate();
@@ -232,9 +235,6 @@ const RoleManagement = () => {
     } else if (sortConfig?.key === 'tier') {
       aValue = (getTierDisplayName(a?.default_permission_tier) || '').toLowerCase();
       bValue = (getTierDisplayName(b?.default_permission_tier) || '').toLowerCase();
-    } else if (sortConfig?.key === 'source') {
-      aValue = a?.source || '';
-      bValue = b?.source || '';
     }
     if (aValue < bValue) return sortConfig?.direction === 'asc' ? -1 : 1;
     if (aValue > bValue) return sortConfig?.direction === 'asc' ? 1 : -1;
@@ -247,19 +247,17 @@ const RoleManagement = () => {
   const tierOptions = Object.values(PermissionTier).map(t => ({ label: getTierDisplayName(t), value: t }));
 
   return (
-    <div className="min-h-screen bg-background transition-colors duration-300">
-      <Header />
-      <main className="p-6 max-w-[1800px] mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-semibold text-foreground mb-1">Role Management</h1>
-            <p className="text-sm text-muted-foreground">Global roles plus any custom roles created for this vessel</p>
-          </div>
-          <Button onClick={handleAddClick} disabled={!activeTenantId}>
-            <Icon name="Plus" size={18} />
-            Add Role
-          </Button>
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground mb-1">Role Management</h1>
+          <p className="text-sm text-muted-foreground">Global roles plus any custom roles created for this vessel</p>
         </div>
+        <Button onClick={handleAddClick} disabled={!activeTenantId}>
+          <Icon name="Plus" size={18} />
+          Add Role
+        </Button>
+      </div>
 
         {currentAdminProfile && (
           <div className="bg-card border border-border rounded-2xl p-6 mb-6">
@@ -349,12 +347,6 @@ const RoleManagement = () => {
                           </div>
                         </div>
                       </th>
-                      <th
-                        className="text-left p-4 text-sm font-medium text-foreground cursor-pointer hover:bg-muted/20 transition-smooth"
-                        onClick={() => handleSort('source')}
-                      >
-                        Source
-                      </th>
                       <th className="text-right p-4 text-sm font-medium text-foreground">Actions</th>
                     </tr>
                   </thead>
@@ -379,15 +371,6 @@ const RoleManagement = () => {
                               {getTierDisplayName(role?.default_permission_tier)}
                             </span>
                           </td>
-                          <td className="p-4">
-                            {isCustom ? (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                                Custom
-                              </span>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">Global</span>
-                            )}
-                          </td>
                           <td className="p-4 text-right">
                             <Button
                               variant="ghost"
@@ -409,7 +392,6 @@ const RoleManagement = () => {
             </div>
           )}
         </div>
-      </main>
 
       {showTransferModal && (
         <TransferAdminModal
@@ -418,8 +400,12 @@ const RoleManagement = () => {
         />
       )}
 
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
+      {/* Render the add/edit modal into document.body so the viewport-centered
+           "fixed inset-0" layout isn't hijacked by any transformed ancestor in
+           vessel-settings or its sidebar. Matches the standalone modals used
+           elsewhere in the app (e.g. InviteCrewModal). */}
+      {showAddModal && createPortal(
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-2xl w-full max-w-lg">
             <div className="border-b border-border p-6 flex items-center justify-between">
               <h2 className="text-xl font-semibold text-foreground">
@@ -489,7 +475,8 @@ const RoleManagement = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
