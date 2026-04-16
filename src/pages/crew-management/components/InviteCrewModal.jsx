@@ -7,6 +7,7 @@ import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useTenant } from '../../../contexts/TenantContext';
 import { showToast } from '../../../utils/toast';
+import { createCrewInvite } from '../../../utils/crewInvites';
 
 // Helper function to build invite email with mailto: URL
 function buildInviteEmail({ inviteeEmail, inviteLink, vesselName, inviteeName }) {
@@ -124,137 +125,58 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
 
   if (!isOpen) return null;
 
-  const generateToken = () => {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-      return crypto.randomUUID();
-    }
-    const array = new Uint8Array(24);
-    crypto.getRandomValues(array);
-    return Array.from(array, byte => byte?.toString(16)?.padStart(2, '0'))?.join('');
-  };
-
   const handleSubmit = async (e) => {
     e?.preventDefault();
     setError('');
     setExistingInvite(null);
     setLoading(true);
 
-    console.log('Creating invite...');
-
     try {
-      // Validate inputs
       if (!email || !formData?.department_id || !formData?.role_id) {
         throw new Error('Please fill in all required fields');
       }
 
-      // Validate email format
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex?.test(email)) {
         throw new Error('Please enter a valid email address');
       }
 
-      // Get current user
       const user = session?.user;
-      if (!user) {
-        throw new Error('Not authenticated');
-      }
+      if (!user) throw new Error('Not authenticated');
+      if (!activeTenantId) throw new Error('No active tenant found');
 
-      if (!activeTenantId) {
-        throw new Error('No active tenant found');
-      }
-
-      // Check for existing pending invite with same email
-      const { data: existingInvites, error: checkError } = await supabase
-        ?.from('crew_invites')
-        ?.select('*')
-        ?.eq('tenant_id', activeTenantId)
-        ?.eq('email', email?.toLowerCase()?.trim())
-        ?.eq('status', 'PENDING');
-
-      if (checkError) {
-        console.error('Error checking existing invites:', checkError);
-        throw new Error('Failed to check existing invites: ' + (checkError?.message || 'Unknown error'));
-      }
-
-      if (existingInvites && existingInvites?.length > 0) {
-        setExistingInvite(existingInvites?.[0]);
-        throw new Error(`An invite for ${email} is already pending.`);
-      }
-
-      // Generate secure token
-      const token = generateToken();
-
-      // Derive invited_role from permission tier for backward compatibility
-      let invitedRole = 'CREW'; // Default
-      if (formData?.permission_tier === 'COMMAND') {
-        invitedRole = 'CHIEF'; // COMMAND can't be invited, use CHIEF
-      } else if (formData?.permission_tier === 'CHIEF') {
-        invitedRole = 'CHIEF';
-      } else if (formData?.permission_tier === 'HOD') {
-        invitedRole = 'HOD';
-      } else {
-        invitedRole = 'CREW';
-      }
-
-      // Find selected department and role objects to get labels
       const selectedDepartment = departments?.find(d => d?.id === formData?.department_id);
       const selectedRole = roles?.find(r => r?.id === formData?.role_id);
-
       if (!selectedDepartment || !selectedRole) {
         throw new Error('Selected department or role not found');
       }
 
-      // Insert into crew_invites table with ALL required fields including labels
-      const { data: inviteData, error: insertError } = await supabase
-        ?.from('crew_invites')
-        ?.insert({
-          email: email?.toLowerCase()?.trim(),
-          tenant_id: activeTenantId,
-          department_id: formData?.department_id, // uuid
-          role_id: formData?.role_id, // uuid
-          department_label: selectedDepartment?.name, // text label
-          role_label: selectedRole?.name, // text label
-          permission_tier: formData?.permission_tier, // text (COMMAND/CHIEF/HOD/CREW)
-          status: 'PENDING',
-          invited_role: invitedRole, // For backward compatibility
-          token: token,
-          invited_by: user?.id,
-          expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)?.toISOString(),
-        })
-        ?.select()
-        ?.single();
+      const { data: inviteData, inviteLink: link, error: inviteError, existingInvite: dup } =
+        await createCrewInvite({
+          email,
+          tenantId: activeTenantId,
+          invitedBy: user?.id,
+          departmentId: formData?.department_id,
+          departmentLabel: selectedDepartment?.name,
+          roleId: formData?.role_id,
+          roleLabel: selectedRole?.name,
+          permissionTier: formData?.permission_tier || 'CREW',
+        });
 
-      if (insertError) {
-        console.error('Error creating invite:', insertError);
-        // Display the real Supabase error message
-        throw new Error(insertError?.message || 'Failed to create invite');
-      }
+      if (dup) setExistingInvite(dup);
+      if (inviteError) throw new Error(inviteError?.message || 'Failed to create invite');
 
       console.log('Invite created', inviteData?.id);
-
-      // Store invite details for confirmation panel
       setCreatedInviteId(inviteData?.id);
       setCreatedInviteToken(inviteData?.token);
       setCreatedInviteEmail(email?.toLowerCase()?.trim());
-      
-      // Generate invite link
-      const baseUrl = window?.location?.origin;
-      const link = `${baseUrl}/invite-accept?token=${token}`;
       setInviteLink(link);
 
-      // Show success toast
       showToast('Invite created', 'success');
-
-      // Show success confirmation panel
       setShowSuccess(true);
-
-      // Call onSuccess to refresh parent list (Pending Invites)
-      if (onSuccess) {
-        onSuccess();
-      }
+      if (onSuccess) onSuccess();
     } catch (err) {
       console.error('Error in handleSubmit:', err);
-      // Display the real error message inside the modal
       setError(err?.message || 'Failed to send invite');
     } finally {
       setLoading(false);

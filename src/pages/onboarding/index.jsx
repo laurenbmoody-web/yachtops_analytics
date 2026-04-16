@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import Image from '../../components/AppImage';
 import { useTheme } from '../../contexts/ThemeContext';
 import { showToast } from '../../utils/toast';
+import { createCrewInvite } from '../../utils/crewInvites';
 
 /*
   Post-signup onboarding flow.
@@ -1009,13 +1010,6 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete }) => {
 
 // ─── Step 3: Invite crew ───────────────────────────────────────────
 
-const generateToken = () => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-  const arr = new Uint8Array(24);
-  crypto.getRandomValues(arr);
-  return Array.from(arr, (b) => b.toString(16).padStart(2, '0')).join('');
-};
-
 const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, onFinish }) => {
   const { user } = useAuth();
 
@@ -1103,19 +1097,20 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
           const results = await Promise.allSettled(
             toInvite.map((r) => {
               const deptLabel = deptLookup[r.department_id] || '';
-              return supabase.from('crew_invites').insert({
-                email: r.email.toLowerCase().trim(),
-                tenant_id: tenant.id,
-                department_id: r.department_id,
-                role_id: null,
-                department_label: deptLabel,
-                role_label: r.role,
-                permission_tier: 'CREW',
-                status: 'PENDING',
-                invited_role: r.role,
-                token: generateToken(),
-                invited_by: user?.id,
-                expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+              // Look up roleId and permissionTier from the roles loaded for this department.
+              const deptRoleList = deptRoles[r.department_id] || [];
+              const matchedRole = deptRoleList.find((ro) => ro.name === r.role);
+              const roleId = matchedRole?.id ?? null;
+              const permissionTier = matchedRole?.default_permission_tier ?? 'CREW';
+              return createCrewInvite({
+                email: r.email,
+                tenantId: tenant.id,
+                invitedBy: user?.id,
+                departmentId: r.department_id,
+                departmentLabel: deptLabel,
+                roleId,
+                roleLabel: r.role,
+                permissionTier,
               });
             })
           );
