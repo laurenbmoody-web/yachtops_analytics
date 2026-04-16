@@ -12,6 +12,7 @@ import { createCrewInvite, sendCrewInvite } from '../../../utils/crewInvites';
 const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
   const { session } = useAuth();
   const { activeTenantId } = useTenant();
+  const [inviteeName, setInviteeName] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -89,7 +90,7 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
     setLoading(true);
 
     try {
-      if (!email || !formData?.department_id || !formData?.role_id) {
+      if (!inviteeName || !email || !formData?.department_id || !formData?.role_id) {
         throw new Error('Please fill in all required fields');
       }
 
@@ -118,6 +119,7 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
           roleId: formData?.role_id,
           roleLabel: selectedRole?.name,
           permissionTier: formData?.permission_tier || 'CREW',
+          firstName: inviteeName.trim() || null,
         });
 
       if (dup) setExistingInvite(dup);
@@ -148,6 +150,7 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
 
   const handleCloseModal = () => {
     // Reset all state
+    setInviteeName('');
     setEmail('');
     setFormData({
       department_id: '',
@@ -289,6 +292,20 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Invitee name */}
+          <div>
+            <label className="text-sm font-medium text-foreground mb-1 block">
+              Invitee name <span className="text-error">*</span>
+            </label>
+            <Input
+              type="text"
+              value={inviteeName}
+              onChange={(e) => setInviteeName(e?.target?.value)}
+              placeholder="Jane Smith"
+              required
+            />
+          </div>
+
           {/* Email */}
           <div>
             <label className="text-sm font-medium text-foreground mb-1 block">
@@ -372,7 +389,7 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
             </Button>
             <Button
               type="submit"
-              disabled={loading || !email || !formData?.department_id || !formData?.role_id}
+              disabled={loading || !inviteeName || !email || !formData?.department_id || !formData?.role_id}
               className="flex-1"
             >
               {loading ? 'Creating...' : 'Create Invite'}
