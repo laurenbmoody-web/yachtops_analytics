@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import Image from '../../components/AppImage';
 import { useTheme } from '../../contexts/ThemeContext';
+import { showToast } from '../../utils/toast';
 
 /*
   Post-signup onboarding flow.
@@ -1098,7 +1099,8 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
         const toInvite = rows.filter((r) => r.email && r.department_id && r.role);
         if (toInvite.length > 0) {
           const deptLookup = Object.fromEntries(allDepts.map((d) => [d.id, d.name]));
-          await Promise.allSettled(
+
+          const results = await Promise.allSettled(
             toInvite.map((r) => {
               const deptLabel = deptLookup[r.department_id] || '';
               return supabase.from('crew_invites').insert({
@@ -1117,9 +1119,44 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
               });
             })
           );
+
+          // allSettled never throws — inspect each result explicitly.
+          // Supabase JS v2 returns { data, error } (never throws), so a failed
+          // insert comes back as status='fulfilled' with value.error set.
+          const succeeded = results.filter(
+            (r) => r.status === 'fulfilled' && !r.value?.error
+          );
+          const failed = results.filter(
+            (r) => r.status === 'rejected' || r.value?.error
+          );
+
+          if (succeeded.length === 0 && failed.length > 0) {
+            // Every insert failed — surface the first error and stay on the form.
+            const firstErr =
+              failed[0].status === 'rejected' ? failed[0].reason : failed[0].value?.error;
+            console.error('[onboarding] crew_invites insert failed', firstErr);
+            const msg = firstErr?.message || 'Could not send invites. Check your permissions and try again.';
+            showToast(msg, 'error');
+            setError(msg);
+            return; // do NOT navigate
+          }
+
+          if (failed.length > 0) {
+            // Partial failure — some rows went through, report the ones that didn't.
+            const firstErr =
+              failed[0].status === 'rejected' ? failed[0].reason : failed[0].value?.error;
+            console.error('[onboarding] some crew_invites inserts failed', firstErr, { failed: failed.length, succeeded: succeeded.length });
+            showToast(`${succeeded.length} invite${succeeded.length === 1 ? '' : 's'} sent; ${failed.length} failed — check the console for details.`, 'warning');
+          } else {
+            // All succeeded.
+            showToast(`Invited ${succeeded.length} crew member${succeeded.length === 1 ? '' : 's'}.`, 'success');
+          }
         }
       }
 
+      // Mark onboarding complete. This is non-blocking for navigation — even if it
+      // fails the user should proceed to the dashboard (they can re-run onboarding
+      // via admin settings if needed).
       const { error: completeErr } = await supabase
         .from('tenants')
         .update({
@@ -1129,16 +1166,18 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
         .eq('id', tenant.id);
       if (completeErr) {
         console.error('[onboarding] tenants update failed', completeErr);
-        setError(completeErr.message || 'Could not finish onboarding. Try again.');
+        // Non-fatal — show a warning but still navigate.
+        showToast('Onboarding marked complete locally — could not save to server. Contact support if this persists.', 'warning');
       }
+
+      onFinish();
     } catch (err) {
       console.error('[onboarding] finish failed', err);
-      setError(err?.message || 'Could not finish onboarding. Try again.');
+      const msg = err?.message || 'Could not finish onboarding. Try again.';
+      showToast(msg, 'error');
+      setError(msg);
     } finally {
       setSaving(false);
-      // Always advance — even if the tenants update had a non-critical error
-      // the user should not be trapped on this screen.
-      onFinish();
     }
   };
 
