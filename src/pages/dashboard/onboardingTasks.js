@@ -47,8 +47,9 @@ export function getNextTask(ctx, tenant) {
   );
 }
 
-export function getProgress(ctx) {
+export function getCurrentStep(currentTask) {
   const total = ONBOARDING_TASKS.length;
-  const done = ONBOARDING_TASKS.filter((t) => t.isDone(ctx)).length;
-  return { done, total };
+  if (!currentTask) return { step: total, total };
+  const idx = ONBOARDING_TASKS.findIndex((t) => t.key === currentTask.key);
+  return { step: idx + 1, total };
 }
