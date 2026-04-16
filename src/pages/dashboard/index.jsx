@@ -31,7 +31,7 @@ import AnchorChainProgress from '../../components/onboarding/AnchorChainProgress
 
 import { useDashboardLayout } from './useDashboardLayout';
 import { supabase } from '../../lib/supabaseClient';
-import { getNextTask, getProgress } from './onboardingTasks';
+import { ONBOARDING_TASKS, getNextTask, getCurrentStep } from './onboardingTasks';
 
 // ── Brand tokens (match onboarding Cargo palette) ────────────────────────────
 const NAVY      = '#1E3A5F';
@@ -85,26 +85,128 @@ const StatTile = ({ label, value }) => (
   </div>
 );
 
+// ── StatusPill ────────────────────────────────────────────────────────────────
+const STATUS_STYLES = {
+  done:    { background: '#DCFCE7', color: '#166534', label: 'Done' },
+  skipped: { background: '#F1F5F9', color: '#64748B', label: 'Skipped' },
+  todo:    { background: '#E0F2FE', color: '#0369A1', label: 'To do' },
+};
+
+const StatusPill = ({ status }) => {
+  const s = STATUS_STYLES[status];
+  return (
+    <span
+      style={{
+        background: s.background,
+        color: s.color,
+        fontSize: 11,
+        fontWeight: 700,
+        fontFamily: PILL_FONT,
+        letterSpacing: '0.06em',
+        padding: '3px 9px',
+        borderRadius: 99,
+        whiteSpace: 'nowrap',
+        flexShrink: 0,
+      }}
+    >
+      {s.label}
+    </span>
+  );
+};
+
 // ── NextUp card — soft-blue wash (Option B) ───────────────────────────────────
-const NextUp = ({ ctx, tenant, done, total, onSkip }) => {
+const WASH_CONTAINER = {
+  padding: '18px 22px',
+  borderRadius: 12,
+  background: 'linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%)',
+  border: '1px solid #BAE6FD',
+};
+
+const NextUp = ({ ctx, tenant, onSkip, onUnskip }) => {
+  const [showAll, setShowAll] = useState(false);
   const next = getNextTask(ctx, tenant);
+
+  // Expanded list view
+  if (showAll) {
+    return (
+      <div style={{ marginTop: 18, ...WASH_CONTAINER }}>
+        <div
+          style={{
+            fontSize: 10,
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            color: BRAND.mute,
+            fontFamily: PILL_FONT,
+            fontWeight: 800,
+            marginBottom: 12,
+          }}
+        >
+          All onboarding tasks
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {ONBOARDING_TASKS.map((t) => {
+            const Icon = t.icon;
+            const isDone = t.isDone(ctx);
+            const isSkipped = (tenant?.dismissed_tasks ?? []).includes(t.key);
+            const status = isDone ? 'done' : isSkipped ? 'skipped' : 'todo';
+            return (
+              <div
+                key={t.key}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '10px 12px',
+                  background: 'white',
+                  borderRadius: 8,
+                }}
+              >
+                <Icon size={18} color={BRAND.navy} strokeWidth={2} />
+                <div style={{ flex: 1, fontSize: 14, fontWeight: 700, color: BRAND.navy, fontFamily: HEADING_FONT, minWidth: 0 }}>
+                  {t.title}
+                </div>
+                <StatusPill status={status} />
+                {status === 'todo' && (
+                  <Link
+                    to={t.href}
+                    style={{ fontSize: 12, color: BRAND.accent, fontWeight: 700, textDecoration: 'none', fontFamily: PILL_FONT, flexShrink: 0 }}
+                  >
+                    Start &rarr;
+                  </Link>
+                )}
+                {status === 'skipped' && (
+                  <button
+                    type="button"
+                    onClick={() => onUnskip(t.key)}
+                    style={{ fontSize: 12, color: BRAND.mute, background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer', fontFamily: BODY_FONT, flexShrink: 0 }}
+                  >
+                    Bring back
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowAll(false)}
+          style={{ marginTop: 12, background: 'none', border: 'none', color: BRAND.mute, fontSize: 12, textDecoration: 'underline', cursor: 'pointer', fontFamily: BODY_FONT }}
+        >
+          Focus next up
+        </button>
+      </div>
+    );
+  }
+
+  // Nothing left to do — all tasks done or dismissed, and not showing expanded
   if (!next) return null;
+
   const Icon = next.icon;
-  const hasDismissed = (tenant?.dismissed_tasks?.length ?? 0) > 0;
+  const { step, total } = getCurrentStep(next);
 
   return (
     <div style={{ marginTop: 18 }}>
-      <div
-        style={{
-          padding: '18px 22px',
-          borderRadius: 12,
-          background: 'linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%)',
-          border: '1px solid #BAE6FD',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 16,
-        }}
-      >
+      <div style={{ ...WASH_CONTAINER, display: 'flex', alignItems: 'center', gap: 16 }}>
         <div
           style={{
             width: 44,
@@ -133,7 +235,7 @@ const NextUp = ({ ctx, tenant, done, total, onSkip }) => {
               marginBottom: 2,
             }}
           >
-            Next up &middot; {done}/{total}
+            Next up &middot; {step}/{total}
           </div>
           <div style={{ fontSize: 16, fontWeight: 900, color: BRAND.navy, letterSpacing: '-0.01em', fontFamily: HEADING_FONT }}>
             {next.title}
@@ -175,15 +277,13 @@ const NextUp = ({ ctx, tenant, done, total, onSkip }) => {
         </button>
       </div>
 
-      {hasDismissed && (
-        <button
-          type="button"
-          onClick={() => onSkip('__clear__')}
-          style={{ marginTop: 8, background: 'none', border: 'none', color: BRAND.mute, fontSize: 11, textDecoration: 'underline', cursor: 'pointer', fontFamily: BODY_FONT }}
-        >
-          Show all tasks
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={() => setShowAll(true)}
+        style={{ marginTop: 8, background: 'none', border: 'none', color: BRAND.mute, fontSize: 11, textDecoration: 'underline', cursor: 'pointer', fontFamily: BODY_FONT }}
+      >
+        Show all tasks
+      </button>
     </div>
   );
 };
@@ -297,13 +397,14 @@ const Dashboard = () => {
 
   // ctx passed to onboardingTasks helpers — mirrors column names in ONBOARDING_TASKS.isDone
   const ctx = {
-    locationsCount:     taskCounts.locations,
-    foldersCount:       taskCounts.inventoryFolders,
+    locationsCount:      taskCounts.locations,
+    foldersCount:        taskCounts.inventoryFolders,
     inventoryItemsCount: taskCounts.inventoryItems,
-    crewCount:          taskCounts.crew,
+    crewCount:           taskCounts.crew,
   };
-  const { done: tasksDone, total: tasksTotal } = getProgress(ctx);
-  const percent = Math.round((tasksDone / tasksTotal) * 100);
+  // Percent for the anchor chain uses how many tasks are genuinely done
+  const doneTasks = ONBOARDING_TASKS.filter((t) => t.isDone(ctx)).length;
+  const percent = Math.round((doneTasks / ONBOARDING_TASKS.length) * 100);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -410,18 +511,21 @@ const Dashboard = () => {
     }
   };
 
-  // Handles both "Skip" (key = task key) and "Show all tasks" (key = '__clear__')
   const handleSkipTask = async (key) => {
-    const newList = key === '__clear__'
-      ? []
-      : [...(tenant?.dismissed_tasks ?? []), key];
-    // Optimistic update
+    const newList = [...(tenant?.dismissed_tasks ?? []), key];
     setTenant((prev) => ({ ...prev, dismissed_tasks: newList }));
     try {
-      await supabase
-        .from('tenants')
-        .update({ dismissed_tasks: newList })
-        .eq('id', activeTenantId);
+      await supabase.from('tenants').update({ dismissed_tasks: newList }).eq('id', activeTenantId);
+    } catch (err) {
+      console.warn('[dashboard] dismissed_tasks update failed', err);
+    }
+  };
+
+  const handleUnskipTask = async (key) => {
+    const newList = (tenant?.dismissed_tasks ?? []).filter((k) => k !== key);
+    setTenant((prev) => ({ ...prev, dismissed_tasks: newList }));
+    try {
+      await supabase.from('tenants').update({ dismissed_tasks: newList }).eq('id', activeTenantId);
     } catch (err) {
       console.warn('[dashboard] dismissed_tasks update failed', err);
     }
@@ -662,9 +766,8 @@ const Dashboard = () => {
                   <NextUp
                     ctx={ctx}
                     tenant={tenant}
-                    done={tasksDone}
-                    total={tasksTotal}
                     onSkip={handleSkipTask}
+                    onUnskip={handleUnskipTask}
                   />
 
                   {/* Collapsible: What else is in Cargo — collapsed by default */}
