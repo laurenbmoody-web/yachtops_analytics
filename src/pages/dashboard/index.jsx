@@ -32,6 +32,8 @@ import AnchorChainProgress from '../../components/onboarding/AnchorChainProgress
 import { useDashboardLayout } from './useDashboardLayout';
 import { supabase } from '../../lib/supabaseClient';
 import { ONBOARDING_TASKS, getNextTask, getCurrentStep } from './onboardingTasks';
+import { useAuth } from '../../contexts/AuthContext';
+import CrewDashboardCard from './components/CrewDashboardCard';
 
 // ── Brand tokens (match onboarding Cargo palette) ────────────────────────────
 const NAVY      = '#1E3A5F';
@@ -370,8 +372,16 @@ const DroppableColumn = ({ columnId, children, className }) => {
   );
 };
 
+// Capitalise the first letter of the vessel name, lowercasing the rest.
+// Tenant names are often stored all-uppercase ("MADAME") — display as "Madame".
+const displayVesselName = (name) => {
+  if (!name) return '';
+  return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+};
+
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { isVesselAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
   const [vesselData, setVesselData] = useState(null);
@@ -388,6 +398,9 @@ const Dashboard = () => {
   const [vesselName, setVesselName] = useState('');
   const [showOnboardingTutorial, setShowOnboardingTutorial] = useState(false);
   const [tutorialDismissed, setTutorialDismissed] = useState(false);
+  // Admin tutorial auto-hides 30 days after tenant onboarding completes.
+  // Crew dismissal has no time window.
+  const [adminTutorialWindowOpen, setAdminTutorialWindowOpen] = useState(false);
   const [tutorialPillHidden, setTutorialPillHidden] = useState(
     () => localStorage.getItem('cg_tutorial_pill_hidden') === '1'
   );
@@ -477,11 +490,14 @@ const Dashboard = () => {
       ]);
       if (tenantRow?.name) setVesselName(tenantRow.name);
       setTenant(tenantRow ?? null);
+      // The admin onboarding card auto-hides after 30 days; crew dismissal is
+      // sticky forever. Track both signals separately.
+      const dismissed = !!profile?.dashboard_tutorial_dismissed_at;
+      setTutorialDismissed(dismissed);
       if (tenantRow?.onboarding_completed_at) {
         const msAgo = Date.now() - new Date(tenantRow.onboarding_completed_at).getTime();
         const within30days = msAgo < 30 * 24 * 60 * 60 * 1000;
-        const dismissed = !!profile?.dashboard_tutorial_dismissed_at;
-        setTutorialDismissed(within30days && dismissed);
+        setAdminTutorialWindowOpen(within30days);
         setShowOnboardingTutorial(within30days && !dismissed);
       }
     } catch (err) {
@@ -683,8 +699,9 @@ const Dashboard = () => {
         <Header />
 
         <div className="max-w-[1600px] mx-auto p-6">
-          {/* Restore pill — shown when tutorial was dismissed (within 30-day window) */}
-          {tutorialDismissed && !tutorialPillHidden && (
+          {/* Restore pill — shown when tutorial was dismissed AND restore will
+               actually bring it back (admin: 30-day window; crew: always). */}
+          {tutorialDismissed && !tutorialPillHidden && (isVesselAdmin ? adminTutorialWindowOpen : true) && (
             <div className="flex justify-end mb-4">
               <div className="inline-flex items-center gap-0.5">
                 <button
@@ -707,8 +724,12 @@ const Dashboard = () => {
             </div>
           )}
 
-          {/* Onboarding tutorial — shown for 30 days after completing onboarding */}
-          {showOnboardingTutorial && (() => {
+          {/* Tutorial banner — admin sees it for 30 days after onboarding;
+               crew sees it until they explicitly dismiss ("Hide for now"). */}
+          {(isVesselAdmin ? showOnboardingTutorial : !tutorialDismissed) && (() => {
+            // Anchor chain is tied to admin onboarding progress; for crew it's
+            // purely decorative, so pin it at 100% ("fully anchored").
+            const chainPercent = isVesselAdmin ? percent : 100;
             return (
               <div className="mb-10">
                 <div
@@ -723,27 +744,37 @@ const Dashboard = () => {
                     borderBottom: `4px solid ${NAVY}`,
                   }}
                 >
-                  {showToast && <WelcomeToast onDismiss={() => setShowToast(false)} />}
-                  {/* Top row: chain + heading + percent */}
+                  {isVesselAdmin && showToast && <WelcomeToast onDismiss={() => setShowToast(false)} />}
+                  {/* Top row: chain + heading + progress/activity label */}
                   <div className="flex gap-6 items-start">
                     <div className="flex-shrink-0">
-                      <AnchorChainProgress percent={percent} width={80} height={180} />
+                      <AnchorChainProgress percent={chainPercent} width={80} height={180} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <h1 style={{ fontFamily: HEADING_FONT, fontSize: 26, fontWeight: 700, color: CHARCOAL, letterSpacing: '-0.02em' }}>
-                        {vesselName ? `Welcome aboard ${vesselName}` : 'Welcome, Captain'}
+                        {vesselName ? `Welcome aboard ${displayVesselName(vesselName)}` : 'Welcome, Captain'}
                       </h1>
-                      <div className="mt-4 flex items-baseline gap-3">
-                        <span className="uppercase" style={{ fontFamily: PILL_FONT, fontSize: 22, fontWeight: 900, letterSpacing: '0.10em', color: NAVY }}>
-                          Onboarding
-                        </span>
-                        <span style={{ fontFamily: HEADING_FONT, fontSize: 22, fontWeight: 700, color: CHARCOAL }}>
-                          <LivePercent percent={percent} />%
-                        </span>
-                      </div>
-                      <p className="text-xs mt-1" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
-                        {percent === 100 ? 'Fully anchored.' : 'Only a few more shackles to go…'}
-                      </p>
+                      {isVesselAdmin ? (
+                        <>
+                          <div className="mt-4 flex items-baseline gap-3">
+                            <span className="uppercase" style={{ fontFamily: PILL_FONT, fontSize: 22, fontWeight: 900, letterSpacing: '0.10em', color: NAVY }}>
+                              Onboarding
+                            </span>
+                            <span style={{ fontFamily: HEADING_FONT, fontSize: 22, fontWeight: 700, color: CHARCOAL }}>
+                              <LivePercent percent={percent} />%
+                            </span>
+                          </div>
+                          <p className="text-xs mt-1" style={{ color: '#64748B', fontFamily: BODY_FONT }}>
+                            {percent === 100 ? 'Fully anchored.' : 'Only a few more shackles to go…'}
+                          </p>
+                        </>
+                      ) : (
+                        <div className="mt-4">
+                          <span className="uppercase" style={{ fontFamily: PILL_FONT, fontSize: 22, fontWeight: 900, letterSpacing: '0.10em', color: NAVY }}>
+                            Your activity
+                          </span>
+                        </div>
+                      )}
                       {/* At-a-glance stats — 4 cols desktop, 2 cols mobile */}
                       <div className="mt-4 grid grid-cols-2 md:grid-cols-4" style={{ gap: 10 }}>
                         <StatTile label="Crew" value={taskCounts.crew} />
@@ -762,13 +793,20 @@ const Dashboard = () => {
                     </div>
                   </div>
 
-                  {/* Next up — single soft-blue card for the first incomplete task */}
-                  <NextUp
-                    ctx={ctx}
-                    tenant={tenant}
-                    onSkip={handleSkipTask}
-                    onUnskip={handleUnskipTask}
-                  />
+                  {/* Admin: next onboarding step stepper. Crew: hybrid activity card. */}
+                  {isVesselAdmin ? (
+                    <NextUp
+                      ctx={ctx}
+                      tenant={tenant}
+                      onSkip={handleSkipTask}
+                      onUnskip={handleUnskipTask}
+                    />
+                  ) : (
+                    <CrewDashboardCard
+                      userId={session?.user?.id}
+                      tenantId={activeTenantId}
+                    />
+                  )}
 
                   {/* Collapsible: What else is in Cargo — collapsed by default */}
                   <CollapsiblePanel title="What else is in Cargo" defaultOpen={false} pulse>

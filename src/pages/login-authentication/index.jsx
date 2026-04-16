@@ -4,7 +4,6 @@ import Icon from '../../components/AppIcon';
 import Image from '../../components/AppImage';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import { initializeRoles } from '../../utils/authStorage';
 import { useTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../lib/supabaseClient';
 import { ensureProfileExists } from '../../utils/profileHelpers';
@@ -17,11 +16,6 @@ const LoginAuthentication = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
-
-  // Initialize roles on component mount
-  React.useEffect(() => {
-    initializeRoles();
-  }, []);
 
   // Check if user is already logged in — redirect straight to dashboard if so
   useEffect(() => {

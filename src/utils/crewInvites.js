@@ -19,7 +19,8 @@ function generateToken() {
  * @param {string} params.invitedBy          - user.id of the inviter
  * @param {string} params.departmentId       - UUID of the department
  * @param {string} params.departmentLabel    - human-readable department name
- * @param {string|null} [params.roleId]      - UUID from roles table (null for custom/other roles)
+ * @param {string|null} [params.roleId]      - UUID from the global roles catalog (null for custom/other roles)
+ * @param {string|null} [params.customRoleId] - UUID from tenant_custom_roles (null when roleId is set)
  * @param {string} params.roleLabel          - human-readable role name
  * @param {string} [params.permissionTier]   - COMMAND | CHIEF | HOD | CREW (default: CREW)
  * @param {string|null} [params.firstName]  - invitee's name written to invitee_name for the greeting email
@@ -31,6 +32,7 @@ export async function createCrewInvite({
   departmentId,
   departmentLabel,
   roleId = null,
+  customRoleId = null,
   roleLabel,
   permissionTier = 'CREW',
   firstName = null,
@@ -74,6 +76,7 @@ export async function createCrewInvite({
         tenant_id: tenantId,
         department_id: departmentId,
         role_id: roleId,
+        custom_role_id: customRoleId,
         department_label: departmentLabel,
         role_label: roleLabel,
         permission_tier: permissionTier,

@@ -64,6 +64,7 @@ const PendingInvitesSection = ({ refreshTrigger }) => {
         ?.select(`
           *,
           role:role_id(name),
+          custom_role:custom_role_id(name),
           department:departments(name)
         `)
         ?.eq('tenant_id', activeTenantId)
@@ -223,9 +224,14 @@ const PendingInvitesSection = ({ refreshTrigger }) => {
                 <tr key={invite?.id} className="border-b border-border hover:bg-muted/20 transition-smooth">
                   <td className="p-4 text-sm text-foreground">{invite?.email}</td>
                   <td className="p-4 text-sm text-foreground">
-                    {invite?.role?.name || invite?.department?.name
-                      ? `${invite?.role?.name || '—'} (${invite?.department?.name || '—'})`
-                      : invite?.job_title_label || invite?.invited_role || '—'}
+                    {(() => {
+                      const roleName = invite?.role?.name || invite?.custom_role?.name || invite?.role_label;
+                      const deptName = invite?.department?.name || invite?.department_label;
+                      if (roleName || deptName) {
+                        return `${roleName || '—'} (${deptName || '—'})`;
+                      }
+                      return invite?.job_title_label || invite?.invited_role || '—';
+                    })()}
                   </td>
                   <td className="p-4 text-sm text-muted-foreground">
                     {formatDate(invite?.created_at)}

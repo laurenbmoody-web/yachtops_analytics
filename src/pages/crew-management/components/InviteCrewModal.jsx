@@ -26,6 +26,7 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
 
   const [departments, setDepartments] = useState([]);
   const [roles, setRoles] = useState([]);
+  const [customRoleName, setCustomRoleName] = useState('');
   const [formData, setFormData] = useState({
     department_id: '',
     role_id: '',
@@ -47,32 +48,54 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
     })();
   }, [isOpen]);
 
-  // C) Fetch roles when department selected
+  // C) Fetch roles when department selected — UNION of global roles and
+  //    this tenant's custom roles. Each entry is tagged with source so the
+  //    submit handler knows which column (role_id vs custom_role_id) to write.
   useEffect(() => {
-    if (!isOpen || !formData?.department_id) {
+    if (!isOpen || !formData?.department_id || !activeTenantId) {
       setRoles([]);
       return;
     }
     (async () => {
-      const { data: rolesData, error } = await supabase?.from('roles')?.select('id,name,department_id,default_permission_tier')?.eq('department_id', formData?.department_id)?.order('name', { ascending: true });
+      const [{ data: globalRoles, error: globalErr }, { data: customRoles, error: customErr }] =
+        await Promise.all([
+          supabase
+            .from('roles')
+            .select('id,name,default_permission_tier')
+            .eq('department_id', formData?.department_id)
+            .order('name', { ascending: true }),
+          supabase
+            .from('tenant_custom_roles')
+            .select('id,name,default_permission_tier')
+            .eq('tenant_id', activeTenantId)
+            .eq('department_id', formData?.department_id)
+            .order('name', { ascending: true }),
+        ]);
 
-      console.log('roles query returned', rolesData?.length || 0, 'results for department_id:', formData?.department_id);
-      if (error) {
-        console.error('roles query error:', error);
-        setError(`Unable to load roles. Check roles table schema. Error: ${error?.message}`);
+      if (globalErr || customErr) {
+        console.error('roles query error:', globalErr || customErr);
+        setError(`Unable to load roles. Error: ${(globalErr || customErr)?.message}`);
         setRoles([]);
         return;
       }
-      setRoles(rolesData || []);
+      const merged = [
+        ...(globalRoles || []).map(r => ({ ...r, source: 'global' })),
+        ...(customRoles || []).map(r => ({ ...r, source: 'custom' })),
+      ];
+      setRoles(merged);
     })();
-  }, [isOpen, formData?.department_id]);
+  }, [isOpen, formData?.department_id, activeTenantId]);
 
-  // Update permission tier when role changes - auto-populate from roles.default_permission_tier
+  // Update permission tier when role changes - auto-populate from role's
+  // default_permission_tier. "Other" free-text roles default to CREW.
   useEffect(() => {
+    if (formData?.role_id === '__other__') {
+      setFormData(prev => ({ ...prev, permission_tier: 'CREW' }));
+      return;
+    }
     if (formData?.role_id) {
       const selectedRole = roles?.find(r => r?.id === formData?.role_id);
       if (selectedRole) {
-        // Use default_permission_tier from role
         const tier = selectedRole?.default_permission_tier || 'CREW';
         setFormData(prev => ({ ...prev, permission_tier: tier }));
       }
@@ -93,6 +116,9 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
       if (!inviteeName || !email || !formData?.department_id || !formData?.role_id) {
         throw new Error('Please fill in all required fields');
       }
+      if (formData?.role_id === '__other__' && !customRoleName.trim()) {
+        throw new Error('Please enter a role name');
+      }
 
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex?.test(email)) {
@@ -104,9 +130,45 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
       if (!activeTenantId) throw new Error('No active tenant found');
 
       const selectedDepartment = departments?.find(d => d?.id === formData?.department_id);
-      const selectedRole = roles?.find(r => r?.id === formData?.role_id);
-      if (!selectedDepartment || !selectedRole) {
-        throw new Error('Selected department or role not found');
+      if (!selectedDepartment) {
+        throw new Error('Selected department not found');
+      }
+
+      // Resolve role: existing global, existing custom, or new "Other" → upsert into tenant_custom_roles
+      let resolvedRoleId = null;
+      let resolvedCustomRoleId = null;
+      let resolvedRoleLabel = '';
+      let resolvedTier = formData?.permission_tier || 'CREW';
+
+      if (formData?.role_id === '__other__') {
+        const trimmedName = customRoleName.trim();
+        const { data: upsertedRole, error: upsertErr } = await supabase
+          .from('tenant_custom_roles')
+          .upsert(
+            {
+              tenant_id: activeTenantId,
+              department_id: formData?.department_id,
+              name: trimmedName,
+              default_permission_tier: 'CREW',
+              created_by: user?.id,
+            },
+            { onConflict: 'tenant_id,department_id,name' }
+          )
+          .select('id, name, default_permission_tier')
+          .single();
+        if (upsertErr) throw new Error(upsertErr?.message || 'Failed to create custom role');
+        resolvedCustomRoleId = upsertedRole?.id;
+        resolvedRoleLabel = upsertedRole?.name;
+        resolvedTier = upsertedRole?.default_permission_tier || 'CREW';
+      } else {
+        const selectedRole = roles?.find(r => r?.id === formData?.role_id);
+        if (!selectedRole) throw new Error('Selected role not found');
+        resolvedRoleLabel = selectedRole?.name;
+        if (selectedRole?.source === 'custom') {
+          resolvedCustomRoleId = selectedRole?.id;
+        } else {
+          resolvedRoleId = selectedRole?.id;
+        }
       }
 
       const { data: inviteData, inviteLink: link, error: inviteError, existingInvite: dup } =
@@ -116,9 +178,10 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
           invitedBy: user?.id,
           departmentId: formData?.department_id,
           departmentLabel: selectedDepartment?.name,
-          roleId: formData?.role_id,
-          roleLabel: selectedRole?.name,
-          permissionTier: formData?.permission_tier || 'CREW',
+          roleId: resolvedRoleId,
+          customRoleId: resolvedCustomRoleId,
+          roleLabel: resolvedRoleLabel,
+          permissionTier: resolvedTier,
           firstName: inviteeName.trim() || null,
         });
 
@@ -152,6 +215,7 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
     // Reset all state
     setInviteeName('');
     setEmail('');
+    setCustomRoleName('');
     setFormData({
       department_id: '',
       role_id: '',
@@ -192,11 +256,15 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
     value: d?.id
   }));
 
-  // C) Role dropdown options - stores role.id (uuid), not role name text
-  const roleOptions = (roles || [])?.map(r => ({
-    label: r?.name,
-    value: r?.id // uuid value
-  }));
+  // C) Role dropdown options — global + custom + "Other…" sentinel.
+  //    Custom roles get a "(Custom)" suffix so the user can tell them apart.
+  const roleOptions = [
+    ...((roles || []).map(r => ({
+      label: r?.source === 'custom' ? `${r?.name} (Custom)` : r?.name,
+      value: r?.id,
+    }))),
+    { label: 'Other…', value: '__other__' },
+  ];
 
   // If showing success confirmation panel
   if (showSuccess) {
@@ -350,17 +418,24 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
               label="Role"
               options={roleOptions}
               value={formData?.role_id}
-              onChange={(value) =>
-                setFormData(prev => ({ ...prev, role_id: value }))
-              }
+              onChange={(value) => {
+                setFormData(prev => ({ ...prev, role_id: value }));
+                if (value !== '__other__') setCustomRoleName('');
+              }}
               searchable
               placeholder="Select role"
               required
               disabled={!formData?.department_id}
             />
-            {formData?.department_id && roles?.length === 0 && (
-              <div className="mt-2 p-2 bg-warning/10 border border-warning/20 rounded text-xs text-warning">
-                ⚠️ No roles found for selected department. Check console for errors.
+            {formData?.role_id === '__other__' && (
+              <div className="mt-2">
+                <Input
+                  type="text"
+                  value={customRoleName}
+                  onChange={(e) => setCustomRoleName(e?.target?.value)}
+                  placeholder="Custom role name"
+                  required
+                />
               </div>
             )}
           </div>
@@ -389,7 +464,7 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
             </Button>
             <Button
               type="submit"
-              disabled={loading || !inviteeName || !email || !formData?.department_id || !formData?.role_id}
+              disabled={loading || !inviteeName || !email || !formData?.department_id || !formData?.role_id || (formData?.role_id === '__other__' && !customRoleName.trim())}
               className="flex-1"
             >
               {loading ? 'Creating...' : 'Create Invite'}

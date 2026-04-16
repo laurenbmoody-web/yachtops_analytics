@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../../components/navigation/Header';
 import Icon from '../../../components/AppIcon';
@@ -7,15 +7,24 @@ import Input from '../../../components/ui/Input';
 import Select from '../../../components/ui/Select';
 import TransferAdminModal from './TransferAdminModal';
 
-import { loadRoles, createRole, updateRole, Department, PermissionTier, getDepartmentDisplayName, getTierDisplayName, hasCommandAccess, getCurrentUser } from '../../../utils/authStorage';
+import { PermissionTier, getTierDisplayName, hasCommandAccess, getCurrentUser } from '../../../utils/authStorage';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useTenant } from '../../../contexts/TenantContext';
+
+// Roles live in two tables:
+//   public.roles               — app-wide catalog, read-only here, source='global'
+//   public.tenant_custom_roles — this tenant's custom roles, CRUD here, source='custom'
+// Both are keyed by department_id → public.departments(id).
 
 const RoleManagement = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { activeTenantId } = useTenant();
   const [currentUser, setCurrentUser] = useState(null);
+  const [departments, setDepartments] = useState([]);
   const [roles, setRoles] = useState([]);
+  const [loadingRoles, setLoadingRoles] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingRole, setEditingRole] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -24,22 +33,18 @@ const RoleManagement = () => {
   const [isVesselAdmin, setIsVesselAdmin] = useState(false);
   const [currentAdminProfile, setCurrentAdminProfile] = useState(null);
 
-  // Form state
   const [formData, setFormData] = useState({
-    title: '',
-    department: '',
-    permissionTier: '',
-    status: 'ACTIVE'
+    name: '',
+    department_id: '',
+    default_permission_tier: '',
   });
   const [formError, setFormError] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  // Check authentication and authorization
+  // Auth / authz — ProtectedRoute handles redirect; this is just belt-and-braces.
   useEffect(() => {
     const u = getCurrentUser();
-    if (!u) {
-      // DO NOT redirect here - ProtectedRoute handles this
-      return;
-    }
+    if (!u) return;
     if (!hasCommandAccess(u)) {
       navigate('/dashboard');
       return;
@@ -47,16 +52,40 @@ const RoleManagement = () => {
     setCurrentUser(u);
   }, [navigate]);
 
-  // Load roles
-  useEffect(() => {
-    setRoles(loadRoles());
-  }, []);
-
-  // Determine whether the current user is the vessel admin for their active tenant.
-  useEffect(() => {
-    if (user?.id) {
-      checkVesselAdminStatus();
+  // Load departments + roles (global + this tenant's custom) from the DB.
+  const loadData = async () => {
+    if (!activeTenantId) return;
+    setLoadingRoles(true);
+    try {
+      const [{ data: deptsData }, { data: globalData }, { data: customData }] = await Promise.all([
+        supabase.from('departments').select('id, name').order('name', { ascending: true }),
+        supabase.from('roles').select('id, name, department_id, default_permission_tier').order('name', { ascending: true }),
+        supabase
+          .from('tenant_custom_roles')
+          .select('id, name, department_id, default_permission_tier, created_by')
+          .eq('tenant_id', activeTenantId)
+          .order('name', { ascending: true }),
+      ]);
+      setDepartments(deptsData || []);
+      setRoles([
+        ...((globalData || []).map(r => ({ ...r, source: 'global' }))),
+        ...((customData || []).map(r => ({ ...r, source: 'custom' }))),
+      ]);
+    } catch (err) {
+      console.error('[RoleManagement] loadData failed', err);
+    } finally {
+      setLoadingRoles(false);
     }
+  };
+
+  useEffect(() => {
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTenantId]);
+
+  // Vessel admin lookup (unchanged from prior version).
+  useEffect(() => {
+    if (user?.id) checkVesselAdminStatus();
   }, [user]);
 
   const checkVesselAdminStatus = async () => {
@@ -66,14 +95,9 @@ const RoleManagement = () => {
         ?.select('last_active_tenant_id')
         ?.eq('id', user?.id)
         ?.single();
-
       if (profileError) throw profileError;
-
       const tenantId = profile?.last_active_tenant_id;
       if (!tenantId) return;
-
-      // Source of truth: tenants.current_admin_user_id. Permission tier is
-      // separate from "am I the vessel admin".
       const { data: tenant, error: tenantError } = await supabase
         ?.from('tenants')
         ?.select(`
@@ -86,9 +110,7 @@ const RoleManagement = () => {
         `)
         ?.eq('id', tenantId)
         ?.single();
-
       if (tenantError) throw tenantError;
-
       setIsVesselAdmin(tenant?.current_admin_user_id === user?.id);
       setCurrentAdminProfile(tenant?.current_admin || null);
     } catch (err) {
@@ -96,160 +118,149 @@ const RoleManagement = () => {
     }
   };
 
-  const handleTransferSuccess = () => {
-    // Re-check admin status — the caller just handed off the role.
-    checkVesselAdminStatus();
-  };
+  const handleTransferSuccess = () => checkVesselAdminStatus();
 
-  // Handle form input changes
+  const departmentLookup = useMemo(
+    () => Object.fromEntries((departments || []).map(d => [d?.id, d?.name])),
+    [departments]
+  );
+
   const handleFormChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  // Open add modal
   const handleAddClick = () => {
-    setFormData({
-      title: '',
-      department: '',
-      permissionTier: '',
-      status: 'ACTIVE'
-    });
+    setFormData({ name: '', department_id: '', default_permission_tier: '' });
     setFormError('');
     setEditingRole(null);
     setShowAddModal(true);
   };
 
-  // Open edit modal
   const handleEditClick = (role) => {
+    if (role?.source !== 'custom') return; // global roles are read-only here
     setFormData({
-      title: role?.title,
-      department: role?.department,
-      permissionTier: role?.permissionTier || role?.tier,
-      status: role?.status || (role?.isActive ? 'ACTIVE' : 'INACTIVE')
+      name: role?.name || '',
+      department_id: role?.department_id || '',
+      default_permission_tier: role?.default_permission_tier || '',
     });
     setFormError('');
     setEditingRole(role);
     setShowAddModal(true);
   };
 
-  // Submit form
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e?.preventDefault();
     setFormError('');
 
-    // Validation
-    if (!formData?.title?.trim()) {
-      setFormError('Role Title is required');
-      return;
-    }
+    if (!formData?.name?.trim()) return setFormError('Role name is required');
+    if (!formData?.department_id) return setFormError('Department is required');
+    if (!formData?.default_permission_tier) return setFormError('Permission tier is required');
+    if (!activeTenantId) return setFormError('No active tenant');
 
-    if (!formData?.department) {
-      setFormError('Department is required');
-      return;
-    }
-
-    if (!formData?.permissionTier) {
-      setFormError('Permission Tier is required');
-      return;
-    }
-
+    setSaving(true);
     try {
       if (editingRole) {
-        // Update existing role
-        updateRole(editingRole?.id, formData);
+        const { error } = await supabase
+          .from('tenant_custom_roles')
+          .update({
+            name: formData.name.trim(),
+            department_id: formData.department_id,
+            default_permission_tier: formData.default_permission_tier,
+          })
+          .eq('id', editingRole.id)
+          .eq('tenant_id', activeTenantId);
+        if (error) throw error;
       } else {
-        // Create new role
-        createRole(formData);
+        const { error } = await supabase
+          .from('tenant_custom_roles')
+          .insert({
+            tenant_id: activeTenantId,
+            department_id: formData.department_id,
+            name: formData.name.trim(),
+            default_permission_tier: formData.default_permission_tier,
+            created_by: user?.id,
+          });
+        if (error) {
+          if (error.code === '23505') {
+            throw new Error('A role with this name already exists in this department');
+          }
+          throw error;
+        }
       }
-
-      // Reload roles immediately
-      setRoles(loadRoles());
+      await loadData();
       setShowAddModal(false);
-    } catch (error) {
-      setFormError(error?.message || 'An error occurred');
+    } catch (err) {
+      setFormError(err?.message || 'Failed to save role');
+    } finally {
+      setSaving(false);
     }
   };
 
-  // Toggle role active status
-  const handleToggleActive = (role) => {
-    const newStatus = role?.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
-    updateRole(role?.id, { status: newStatus });
-    setRoles(loadRoles());
-  };
-
-  // Enhanced search filter
-  const filteredRoles = roles?.filter(role => {
+  // Filter + sort
+  const filteredRoles = (roles || []).filter(role => {
     if (!searchQuery) return true;
-    const query = searchQuery?.toLowerCase();
-    const title = role?.title?.toLowerCase() || '';
-    const department = getDepartmentDisplayName(role?.department)?.toLowerCase() || '';
-    const tier = getTierDisplayName(role?.tier)?.toLowerCase() || '';
-    const status = (role?.isActive ? 'active' : 'inactive')?.toLowerCase();
-    return title?.includes(query) || department?.includes(query) || tier?.includes(query) || status?.includes(query);
+    const q = searchQuery.toLowerCase();
+    const name = role?.name?.toLowerCase() || '';
+    const dept = (departmentLookup[role?.department_id] || '').toLowerCase();
+    const tier = (getTierDisplayName(role?.default_permission_tier) || '').toLowerCase();
+    return name.includes(q) || dept.includes(q) || tier.includes(q);
   });
 
-  // Handle column sorting
   const handleSort = (key) => {
     let direction = 'asc';
     let newKey = key;
-    if (sortConfig?.key === key && sortConfig?.direction === 'asc') {
-      direction = 'desc';
-    } else if (sortConfig?.key === key && sortConfig?.direction === 'desc') {
-      direction = null;
-      newKey = null;
-    }
+    if (sortConfig?.key === key && sortConfig?.direction === 'asc') direction = 'desc';
+    else if (sortConfig?.key === key && sortConfig?.direction === 'desc') { direction = null; newKey = null; }
     setSortConfig({ key: newKey, direction });
   };
 
-  // Apply sorting
-  const sortedRoles = [...filteredRoles]?.sort((a, b) => {
-    if (!sortConfig?.key || !sortConfig?.direction) return 0;
-
-    let aValue, bValue;
-
-    if (sortConfig?.key === 'title') {
-      aValue = a?.title?.toLowerCase() || '';
-      bValue = b?.title?.toLowerCase() || '';
-    } else if (sortConfig?.key === 'department') {
-      aValue = getDepartmentDisplayName(a?.department) || '';
-      bValue = getDepartmentDisplayName(b?.department) || '';
-      return sortConfig?.direction === 'asc'
-        ? aValue?.localeCompare(bValue)
-        : bValue?.localeCompare(aValue);
-    } else if (sortConfig?.key === 'tier') {
-      aValue = getTierDisplayName(a?.permissionTier || a?.tier)?.toLowerCase() || '';
-      bValue = getTierDisplayName(b?.permissionTier || b?.tier)?.toLowerCase() || '';
-    } else if (sortConfig?.key === 'status') {
-      aValue = (a?.status || (a?.isActive ? 'ACTIVE' : 'INACTIVE'));
-      bValue = (b?.status || (b?.isActive ? 'ACTIVE' : 'INACTIVE'));
+  const sortedRoles = [...filteredRoles].sort((a, b) => {
+    // Default sort: department, then name
+    if (!sortConfig?.key || !sortConfig?.direction) {
+      const deptA = (departmentLookup[a?.department_id] || '').toLowerCase();
+      const deptB = (departmentLookup[b?.department_id] || '').toLowerCase();
+      if (deptA !== deptB) return deptA.localeCompare(deptB);
+      return (a?.name || '').localeCompare(b?.name || '');
     }
-
+    let aValue, bValue;
+    if (sortConfig?.key === 'name') {
+      aValue = a?.name?.toLowerCase() || '';
+      bValue = b?.name?.toLowerCase() || '';
+    } else if (sortConfig?.key === 'department') {
+      aValue = (departmentLookup[a?.department_id] || '').toLowerCase();
+      bValue = (departmentLookup[b?.department_id] || '').toLowerCase();
+    } else if (sortConfig?.key === 'tier') {
+      aValue = (getTierDisplayName(a?.default_permission_tier) || '').toLowerCase();
+      bValue = (getTierDisplayName(b?.default_permission_tier) || '').toLowerCase();
+    } else if (sortConfig?.key === 'source') {
+      aValue = a?.source || '';
+      bValue = b?.source || '';
+    }
     if (aValue < bValue) return sortConfig?.direction === 'asc' ? -1 : 1;
     if (aValue > bValue) return sortConfig?.direction === 'asc' ? 1 : -1;
     return 0;
   });
 
-  if (!currentUser) {
-    return null;
-  }
+  if (!currentUser) return null;
+
+  const departmentOptions = (departments || []).map(d => ({ label: d?.name, value: d?.id }));
+  const tierOptions = Object.values(PermissionTier).map(t => ({ label: getTierDisplayName(t), value: t }));
 
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
       <Header />
       <main className="p-6 max-w-[1800px] mx-auto">
-        {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-semibold text-foreground mb-1">Role Management</h1>
-            <p className="text-sm text-muted-foreground">Manage job titles, departments, and permission tiers</p>
+            <p className="text-sm text-muted-foreground">Global roles plus any custom roles created for this vessel</p>
           </div>
-          <Button onClick={handleAddClick}>
+          <Button onClick={handleAddClick} disabled={!activeTenantId}>
             <Icon name="Plus" size={18} />
             Add Role
           </Button>
         </div>
 
-        {/* Vessel Admin Transfer Section — only the current vessel admin sees the transfer button */}
         {currentAdminProfile && (
           <div className="bg-card border border-border rounded-2xl p-6 mb-6">
             <div className="flex items-start justify-between gap-4">
@@ -260,9 +271,7 @@ const RoleManagement = () => {
                 </p>
                 <div className="flex items-center gap-3">
                   <Icon name="Shield" size={16} className="text-red-600" />
-                  <span className="text-sm font-medium text-foreground">
-                    {currentAdminProfile?.full_name}
-                  </span>
+                  <span className="text-sm font-medium text-foreground">{currentAdminProfile?.full_name}</span>
                   <span className="text-xs text-muted-foreground">({currentAdminProfile?.email})</span>
                   {isVesselAdmin && (
                     <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">You</span>
@@ -270,11 +279,7 @@ const RoleManagement = () => {
                 </div>
               </div>
               {isVesselAdmin && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowTransferModal(true)}
-                >
+                <Button size="sm" variant="outline" onClick={() => setShowTransferModal(true)}>
                   <Icon name="UserCheck" size={16} />
                   Transfer Admin
                 </Button>
@@ -283,19 +288,21 @@ const RoleManagement = () => {
           </div>
         )}
 
-        {/* Search Filter */}
         <div className="bg-card border border-border rounded-2xl p-4 mb-6">
           <Input
-            placeholder="Search roles by title, department, tier, or status..."
+            placeholder="Search roles by name, department, or tier..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e?.target?.value)}
             icon="Search"
           />
         </div>
 
-        {/* Roles by Department */}
         <div className="space-y-6">
-          {sortedRoles?.length === 0 ? (
+          {loadingRoles ? (
+            <div className="bg-card border border-border rounded-2xl p-8 text-center text-muted-foreground">
+              Loading roles…
+            </div>
+          ) : sortedRoles?.length === 0 ? (
             <div className="bg-card border border-border rounded-2xl p-8 text-center">
               <Icon name="Users" size={48} className="text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">No roles found</p>
@@ -308,21 +315,13 @@ const RoleManagement = () => {
                     <tr>
                       <th
                         className="text-left p-4 text-sm font-medium text-foreground cursor-pointer hover:bg-muted/20 transition-smooth"
-                        onClick={() => handleSort('title')}
+                        onClick={() => handleSort('name')}
                       >
                         <div className="flex items-center gap-2">
-                          Role Title
+                          Role Name
                           <div className="flex flex-col">
-                            <Icon
-                              name="ChevronUp"
-                              size={12}
-                              className={sortConfig?.key === 'title' && sortConfig?.direction === 'asc' ? 'text-primary' : 'text-muted-foreground'}
-                            />
-                            <Icon
-                              name="ChevronDown"
-                              size={12}
-                              className={sortConfig?.key === 'title' && sortConfig?.direction === 'desc' ? 'text-primary' : 'text-muted-foreground'}
-                            />
+                            <Icon name="ChevronUp" size={12} className={sortConfig?.key === 'name' && sortConfig?.direction === 'asc' ? 'text-primary' : 'text-muted-foreground'} />
+                            <Icon name="ChevronDown" size={12} className={sortConfig?.key === 'name' && sortConfig?.direction === 'desc' ? 'text-primary' : 'text-muted-foreground'} />
                           </div>
                         </div>
                       </th>
@@ -333,16 +332,8 @@ const RoleManagement = () => {
                         <div className="flex items-center gap-2">
                           Department
                           <div className="flex flex-col">
-                            <Icon
-                              name="ChevronUp"
-                              size={12}
-                              className={sortConfig?.key === 'department' && sortConfig?.direction === 'asc' ? 'text-primary' : 'text-muted-foreground'}
-                            />
-                            <Icon
-                              name="ChevronDown"
-                              size={12}
-                              className={sortConfig?.key === 'department' && sortConfig?.direction === 'desc' ? 'text-primary' : 'text-muted-foreground'}
-                            />
+                            <Icon name="ChevronUp" size={12} className={sortConfig?.key === 'department' && sortConfig?.direction === 'asc' ? 'text-primary' : 'text-muted-foreground'} />
+                            <Icon name="ChevronDown" size={12} className={sortConfig?.key === 'department' && sortConfig?.direction === 'desc' ? 'text-primary' : 'text-muted-foreground'} />
                           </div>
                         </div>
                       </th>
@@ -353,87 +344,65 @@ const RoleManagement = () => {
                         <div className="flex items-center gap-2">
                           Permission Tier
                           <div className="flex flex-col">
-                            <Icon
-                              name="ChevronUp"
-                              size={12}
-                              className={sortConfig?.key === 'tier' && sortConfig?.direction === 'asc' ? 'text-primary' : 'text-muted-foreground'}
-                            />
-                            <Icon
-                              name="ChevronDown"
-                              size={12}
-                              className={sortConfig?.key === 'tier' && sortConfig?.direction === 'desc' ? 'text-primary' : 'text-muted-foreground'}
-                            />
+                            <Icon name="ChevronUp" size={12} className={sortConfig?.key === 'tier' && sortConfig?.direction === 'asc' ? 'text-primary' : 'text-muted-foreground'} />
+                            <Icon name="ChevronDown" size={12} className={sortConfig?.key === 'tier' && sortConfig?.direction === 'desc' ? 'text-primary' : 'text-muted-foreground'} />
                           </div>
                         </div>
                       </th>
                       <th
                         className="text-left p-4 text-sm font-medium text-foreground cursor-pointer hover:bg-muted/20 transition-smooth"
-                        onClick={() => handleSort('status')}
+                        onClick={() => handleSort('source')}
                       >
-                        <div className="flex items-center gap-2">
-                          Status
-                          <div className="flex flex-col">
-                            <Icon
-                              name="ChevronUp"
-                              size={12}
-                              className={sortConfig?.key === 'status' && sortConfig?.direction === 'asc' ? 'text-primary' : 'text-muted-foreground'}
-                            />
-                            <Icon
-                              name="ChevronDown"
-                              size={12}
-                              className={sortConfig?.key === 'status' && sortConfig?.direction === 'desc' ? 'text-primary' : 'text-muted-foreground'}
-                            />
-                          </div>
-                        </div>
+                        Source
                       </th>
                       <th className="text-right p-4 text-sm font-medium text-foreground">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedRoles?.map(role => (
-                      <tr key={role?.id} className="border-b border-border hover:bg-muted/20 transition-smooth">
-                        <td className="p-4">
-                          <span className="text-sm font-medium text-foreground">{role?.title}</span>
-                        </td>
-                        <td className="p-4">
-                          <span className="text-sm text-foreground">{getDepartmentDisplayName(role?.department)}</span>
-                        </td>
-                        <td className="p-4">
-                          <span className={`text-sm font-medium ${
-                            (role?.permissionTier || role?.tier) === 'COMMAND' ? 'text-red-600' :
-                            (role?.permissionTier || role?.tier) === 'CHIEF' ? 'text-blue-600' :
-                            (role?.permissionTier || role?.tier) === 'HOD' ? 'text-amber-600' :
-                            (role?.permissionTier || role?.tier) === 'CREW' ? 'text-gray-600' : 'text-gray-400'
-                          }`}>
-                            {getTierDisplayName(role?.permissionTier || role?.tier)}
-                          </span>
-                        </td>
-                        <td className="p-4">
-                          <button
-                            onClick={() => handleToggleActive(role)}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-smooth ${
-                              (role?.status === 'ACTIVE' || role?.isActive)
-                                ? 'bg-success/10 text-success hover:bg-success/20' :'bg-muted text-muted-foreground hover:bg-muted/80'
-                            }`}
-                          >
-                            <span className={`w-1.5 h-1.5 rounded-full ${
-                              (role?.status === 'ACTIVE' || role?.isActive) ? 'bg-success' : 'bg-muted-foreground'
-                            }`} />
-                            {(role?.status === 'ACTIVE' || role?.isActive) ? 'Active' : 'Inactive'}
-                          </button>
-                        </td>
-                        <td className="p-4 text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditClick(role)}
-                          >
-                            <Icon name="Edit2" size={16} />
-                            Edit
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
+                    {sortedRoles.map(role => {
+                      const isCustom = role?.source === 'custom';
+                      return (
+                        <tr key={role?.id} className="border-b border-border hover:bg-muted/20 transition-smooth">
+                          <td className="p-4">
+                            <span className="text-sm font-medium text-foreground">{role?.name}</span>
+                          </td>
+                          <td className="p-4">
+                            <span className="text-sm text-foreground">{departmentLookup[role?.department_id] || '—'}</span>
+                          </td>
+                          <td className="p-4">
+                            <span className={`text-sm font-medium ${
+                              role?.default_permission_tier === 'COMMAND' ? 'text-red-600' :
+                              role?.default_permission_tier === 'CHIEF' ? 'text-blue-600' :
+                              role?.default_permission_tier === 'HOD' ? 'text-amber-600' :
+                              role?.default_permission_tier === 'CREW' ? 'text-gray-600' : 'text-gray-400'
+                            }`}>
+                              {getTierDisplayName(role?.default_permission_tier)}
+                            </span>
+                          </td>
+                          <td className="p-4">
+                            {isCustom ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                                Custom
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Global</span>
+                            )}
+                          </td>
+                          <td className="p-4 text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditClick(role)}
+                              disabled={!isCustom}
+                              title={isCustom ? 'Edit custom role' : 'Global roles are read-only'}
+                            >
+                              <Icon name="Edit2" size={16} />
+                              Edit
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -442,7 +411,6 @@ const RoleManagement = () => {
         </div>
       </main>
 
-      {/* Transfer Admin Modal */}
       {showTransferModal && (
         <TransferAdminModal
           onClose={() => setShowTransferModal(false)}
@@ -450,88 +418,60 @@ const RoleManagement = () => {
         />
       )}
 
-      {/* Add/Edit Role Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
           <div className="bg-card border border-border rounded-2xl w-full max-w-lg">
             <div className="border-b border-border p-6 flex items-center justify-between">
               <h2 className="text-xl font-semibold text-foreground">
-                {editingRole ? 'Edit Role' : 'Add New Role'}
+                {editingRole ? 'Edit Custom Role' : 'Add Custom Role'}
               </h2>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="p-2 hover:bg-muted rounded-lg transition-smooth"
-              >
+              <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-muted rounded-lg transition-smooth">
                 <Icon name="X" size={20} className="text-muted-foreground" />
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
-              {/* Role Title */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  Role Title <span className="text-error">*</span>
+                  Role Name <span className="text-error">*</span>
                 </label>
                 <Input
-                  value={formData?.title}
-                  onChange={(e) => handleFormChange('title', e?.target?.value)}
-                  placeholder="e.g., Chief Stewardess"
+                  value={formData?.name}
+                  onChange={(e) => handleFormChange('name', e?.target?.value)}
+                  placeholder="e.g., Second Stewardess"
                   required
                 />
               </div>
 
-              {/* Department */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Department <span className="text-error">*</span>
                 </label>
                 <Select
-                  value={formData?.department}
-                  onChange={(value) => handleFormChange('department', value)}
-                  options={Object.values(Department)?.map(dept => ({
-                    label: getDepartmentDisplayName(dept),
-                    value: dept
-                  }))}
+                  value={formData?.department_id}
+                  onChange={(value) => handleFormChange('department_id', value)}
+                  options={departmentOptions}
                   placeholder="Select a department"
                   required
                 />
               </div>
 
-              {/* Permission Tier */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Permission Tier <span className="text-error">*</span>
                 </label>
                 <Select
-                  value={formData?.permissionTier}
-                  onChange={(value) => handleFormChange('permissionTier', value)}
-                  options={Object.values(PermissionTier)?.map(tier => ({
-                    label: getTierDisplayName(tier),
-                    value: tier
-                  }))}
+                  value={formData?.default_permission_tier}
+                  onChange={(value) => handleFormChange('default_permission_tier', value)}
+                  options={tierOptions}
                   placeholder="Select a permission tier"
                   required
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Determines access level and widget visibility
+                  Default access level for anyone assigned this role
                 </p>
               </div>
 
-              {/* Active Status */}
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="isActive"
-                  checked={formData?.status === 'ACTIVE'}
-                  onChange={(e) => handleFormChange('status', e?.target?.checked ? 'ACTIVE' : 'INACTIVE')}
-                  className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
-                />
-                <label htmlFor="isActive" className="text-sm font-medium text-foreground">
-                  Active (available for assignment)
-                </label>
-              </div>
-
-              {/* Error Message */}
               {formError && (
                 <div className="bg-error/10 border border-error/20 rounded-lg p-3 flex items-start gap-2">
                   <Icon name="AlertCircle" size={18} className="text-error mt-0.5 flex-shrink-0" />
@@ -539,30 +479,17 @@ const RoleManagement = () => {
                 </div>
               )}
 
-              {/* Actions */}
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setShowAddModal(false)}
-                >
+                <Button type="button" variant="ghost" onClick={() => setShowAddModal(false)} disabled={saving}>
                   Cancel
                 </Button>
-                <Button type="submit">
-                  {editingRole ? 'Save Changes' : 'Add Role'}
+                <Button type="submit" disabled={saving}>
+                  {saving ? 'Saving…' : (editingRole ? 'Save Changes' : 'Add Role')}
                 </Button>
               </div>
             </form>
           </div>
         </div>
-      )}
-
-      {/* Transfer Admin Modal */}
-      {showTransferModal && (
-        <TransferAdminModal
-          onClose={() => setShowTransferModal(false)}
-          onSuccess={fetchPendingTransfer}
-        />
       )}
     </div>
   );
