@@ -22,6 +22,7 @@ function generateToken() {
  * @param {string|null} [params.roleId]      - UUID from roles table (null for custom/other roles)
  * @param {string} params.roleLabel          - human-readable role name
  * @param {string} [params.permissionTier]   - COMMAND | CHIEF | HOD | CREW (default: CREW)
+ * @param {string|null} [params.firstName]  - invitee's first name for the greeting email
  */
 export async function createCrewInvite({
   email,
@@ -32,6 +33,7 @@ export async function createCrewInvite({
   roleId = null,
   roleLabel,
   permissionTier = 'CREW',
+  firstName = null,
 }) {
   try {
     const normalizedEmail = email.toLowerCase().trim();
@@ -68,6 +70,7 @@ export async function createCrewInvite({
       .from('crew_invites')
       .insert({
         email: normalizedEmail,
+        first_name: firstName ? firstName.trim() || null : null,
         tenant_id: tenantId,
         department_id: departmentId,
         role_id: roleId,

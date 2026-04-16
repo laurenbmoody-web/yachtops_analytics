@@ -1065,7 +1065,7 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allDepts.length]);
 
-  const [rows, setRows] = useState([{ email: '', department_id: '', role: '', roleIsOther: false }]);
+  const [rows, setRows] = useState([{ name: '', email: '', department_id: '', role: '', roleIsOther: false }]);
   const [showPaste, setShowPaste] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const [pasteResult, setPasteResult] = useState('');
@@ -1075,7 +1075,7 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
   const updateRow = (i, key, val) =>
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, [key]: val } : r)));
   const addRow = () =>
-    setRows((prev) => [...prev, { email: '', department_id: '', role: '', roleIsOther: false }]);
+    setRows((prev) => [...prev, { name: '', email: '', department_id: '', role: '', roleIsOther: false }]);
   const removeRow = (i) =>
     setRows((prev) => prev.filter((_, idx) => idx !== i));
 
@@ -1140,6 +1140,7 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
                 roleId,
                 roleLabel: r.role,
                 permissionTier,
+                firstName: r.name?.trim() || null,
               });
             })
           );
@@ -1305,7 +1306,14 @@ const InviteCrewStep = ({ tenant, departments, customDepts, deptObjs, onBack, on
           const showRoleText = isCustomDept || r.roleIsOther;
           return (
             <div key={i} className="grid grid-cols-12 gap-2 mb-2 items-end">
-              <div className="col-span-12 md:col-span-5">
+              <div className="col-span-12 md:col-span-2">
+                <TextInput
+                  placeholder="Name"
+                  value={r.name}
+                  onChange={(e) => updateRow(i, 'name', e.target.value)}
+                />
+              </div>
+              <div className="col-span-12 md:col-span-3">
                 <TextInput
                   placeholder="email@vessel.com"
                   value={r.email}
