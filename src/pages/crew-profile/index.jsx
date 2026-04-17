@@ -715,12 +715,13 @@ const canEdit = (() => {
 
   const canEditStatus = isVesselAdmin || currentUserPermissionTier === 'COMMAND';
 
-  const handleProfileStatusChange = async (newStatus, notes, effectiveDate) => {
+  const handleProfileStatusChange = async (newStatus, notes, effectiveDate, effectiveTime = '00:00') => {
     if (!activeTenantId || !crewId) return;
     setStatusChangeSaving(true);
 
     const [ey, em, ed] = effectiveDate.split('-').map(Number);
-    const changedAt = new Date(ey, em - 1, ed).toISOString();
+    const [eh, emin] = (effectiveTime || '00:00').split(':').map(Number);
+    const changedAt = new Date(ey, em - 1, ed, eh, emin).toISOString();
     const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0);
     const isEffectiveNow = new Date(ey, em - 1, ed) <= todayMidnight;
 

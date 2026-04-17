@@ -486,14 +486,15 @@ const CrewManagement = () => {
     }
   };
 
-  const handleStatusChange = async (newStatus, notes, effectiveDate) => {
+  const handleStatusChange = async (newStatus, notes, effectiveDate, effectiveTime = '00:00') => {
     if (!statusChangeTarget) return;
     const { userId, currentStatus: oldStatus } = statusChangeTarget;
     setStatusChangeSaving(true);
 
-    // Convert date string → local midnight timestamp for changed_at
+    // Convert date+time → local timestamp for changed_at
     const [ey, em, ed] = effectiveDate.split('-').map(Number);
-    const changedAt = new Date(ey, em - 1, ed).toISOString();
+    const [eh, emin] = (effectiveTime || '00:00').split(':').map(Number);
+    const changedAt = new Date(ey, em - 1, ed, eh, emin).toISOString();
 
     // Past/today = apply immediately; future = schedule only
     const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0);
