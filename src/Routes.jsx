@@ -58,6 +58,7 @@ import DeliveryInbox from './pages/provisioning/DeliveryInbox';
 import DeliveryHistory from './pages/provisioning/DeliveryHistory';
 import ReturnSlipPage from './pages/provisioning/ReturnSlipPage';
 import ReturnConfirmPage from './pages/provisioning/ReturnConfirmPage';
+import SupplierConfirmOrder from './pages/provisioning/SupplierConfirmOrder';
 import TripItineraryTimeline from './pages/trip-itinerary-timeline/index';
 import InviteAcceptPage from './pages/invite-accept';
 import ForgotPasswordRequest from './pages/forgot-password-request';
@@ -961,6 +962,7 @@ const Routes = () => {
         
         {/* Invite Routes - PUBLIC (no ProtectedRoute wrapper) */}
         <Route path="/return-confirm" element={<ReturnConfirmPage />} />
+        <Route path="/order/confirm/:token" element={<SupplierConfirmOrder />} />
         <Route path="/invite-accept" element={<InviteAcceptPage />} />
         <Route path="/invite" element={<InviteRedirect />} />
         <Route path="/accept-invite" element={<InviteRedirect />} />

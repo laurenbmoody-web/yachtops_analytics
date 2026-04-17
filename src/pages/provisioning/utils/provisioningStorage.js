@@ -2051,3 +2051,112 @@ export const fetchOrderHistory = async (tenantId, department, limit = 10) => {
     return [];
   }
 };
+
+// ── Supplier Orders ───────────────────────────────────────────────────────────
+
+export const SUPPLIER_ORDER_STATUS = {
+  DRAFT:                'draft',
+  SENT:                 'sent',
+  CONFIRMED:            'confirmed',
+  PARTIALLY_CONFIRMED:  'partially_confirmed',
+};
+
+export const createSupplierOrder = async ({
+  tenantId, listId, supplierName, supplierEmail, supplierPhone,
+  deliveryPort, deliveryDate, deliveryTime, deliveryContact,
+  specialInstructions, currency = 'USD', items = [], createdBy,
+}) => {
+  const { data: order, error: orderErr } = await supabase
+    .from('supplier_orders')
+    .insert({
+      tenant_id: tenantId, list_id: listId,
+      supplier_name: supplierName, supplier_email: supplierEmail,
+      supplier_phone: supplierPhone, delivery_port: deliveryPort,
+      delivery_date: deliveryDate || null, delivery_time: deliveryTime || null,
+      delivery_contact: deliveryContact, special_instructions: specialInstructions,
+      currency, created_by: createdBy,
+    })
+    .select()
+    .single();
+
+  if (orderErr) throw orderErr;
+
+  if (items.length > 0) {
+    const rows = items.map(it => ({
+      order_id:  order.id,
+      item_name: it.name || it.item_name,
+      quantity:  it.quantity ?? it.qty,
+      unit:      it.unit || null,
+      notes:     it.notes || null,
+    }));
+    const { error: itemsErr } = await supabase.from('supplier_order_items').insert(rows);
+    if (itemsErr) throw itemsErr;
+  }
+
+  return order;
+};
+
+export const markOrderSent = async (orderId) => {
+  const { data, error } = await supabase
+    .from('supplier_orders')
+    .update({ status: 'sent', sent_at: new Date().toISOString() })
+    .eq('id', orderId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const fetchSupplierOrders = async (listId) => {
+  const { data, error } = await supabase
+    .from('supplier_orders')
+    .select('*, supplier_order_items(*)')
+    .eq('list_id', listId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+};
+
+export const fetchOrderByToken = async (token) => {
+  const { data, error } = await supabase
+    .from('supplier_orders')
+    .select('*, supplier_order_items(*)')
+    .eq('public_token', token)
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const updateOrderItemStatus = async (itemId, updates) => {
+  const { data, error } = await supabase
+    .from('supplier_order_items')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', itemId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const confirmSupplierOrder = async (orderId, supplierNotes = '') => {
+  const { data: items } = await supabase
+    .from('supplier_order_items')
+    .select('status')
+    .eq('order_id', orderId);
+
+  const statuses = (items || []).map(i => i.status);
+  const allConfirmed = statuses.every(s => s === 'confirmed');
+  const anyConfirmed = statuses.some(s => s === 'confirmed' || s === 'substituted');
+  const newStatus = allConfirmed ? 'confirmed'
+    : anyConfirmed ? 'partially_confirmed'
+    : 'confirmed';
+
+  const { data, error } = await supabase
+    .from('supplier_orders')
+    .update({ status: newStatus, confirmed_at: new Date().toISOString(), supplier_notes: supplierNotes })
+    .eq('id', orderId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
