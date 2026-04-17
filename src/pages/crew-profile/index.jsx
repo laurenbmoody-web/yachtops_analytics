@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -27,11 +27,12 @@ import { useAuth } from '../../contexts/AuthContext';
 const CrewProfile = () => {
   const navigate = useNavigate();
   const { crewId } = useParams();
+  const [searchParams] = useSearchParams();
   const { activeTenantId } = useTenant();
   const { session, loading: authLoading, isVesselAdmin } = useAuth();
   const [currentUser, setCurrentUser] = useState(null);
   const [crewMember, setCrewMember] = useState(null);
-  const [activeSection, setActiveSection] = useState('personal');
+  const [activeSection, setActiveSection] = useState(() => searchParams.get('tab') || 'personal');
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
   const [sameAsEmergency, setSameAsEmergency] = useState(false);

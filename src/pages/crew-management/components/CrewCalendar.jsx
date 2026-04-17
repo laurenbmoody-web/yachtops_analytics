@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../../../lib/supabaseClient';
 import { getStatusCellClass, getStatusLabel, buildStatusPeriods, getStatusForDay, CREW_STATUSES } from '../../../utils/crewStatus';
 
@@ -11,7 +12,7 @@ function daysInMonth(year, month) {
   return new Date(year, month + 1, 0).getDate();
 }
 
-const CrewCalendar = ({ members, tenantId, refreshToken }) => {
+const CrewCalendar = ({ members, tenantId, refreshToken, canNavigate }) => {
   const today = new Date();
   const [calYear,  setCalYear]  = useState(today.getFullYear());
   const [calMonth, setCalMonth] = useState(today.getMonth());
@@ -124,12 +125,22 @@ const CrewCalendar = ({ members, tenantId, refreshToken }) => {
               return (
                 <div key={member.user_id} className="flex items-center gap-0.5 mb-1">
                   {/* Member name */}
-                  <div
-                    className="w-[146px] flex-shrink-0 text-xs font-medium text-foreground truncate pr-1 mr-1"
-                    title={member.fullName}
-                  >
-                    {member.fullName || '—'}
-                  </div>
+                  {canNavigate ? (
+                    <Link
+                      to={`/profile/${member.user_id}?tab=history`}
+                      className="w-[146px] flex-shrink-0 text-xs font-medium text-primary hover:underline truncate pr-1 mr-1"
+                      title={`${member.fullName} — view status history`}
+                    >
+                      {member.fullName || '—'}
+                    </Link>
+                  ) : (
+                    <div
+                      className="w-[146px] flex-shrink-0 text-xs font-medium text-foreground truncate pr-1 mr-1"
+                      title={member.fullName}
+                    >
+                      {member.fullName || '—'}
+                    </div>
+                  )}
 
                   {/* Day cells */}
                   {Array.from({ length: totalDays }, (_, i) => {
