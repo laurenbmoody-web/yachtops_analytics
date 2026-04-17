@@ -169,8 +169,8 @@ const CrewManagement = () => {
           joined_at,
           department_id,
           departments (name),
-          roles (name),
-          custom_role:tenant_custom_roles(name),
+          roles (name, default_permission_tier),
+          custom_role:tenant_custom_roles(name, default_permission_tier),
           profiles!tenant_members_user_id_fkey (email, full_name)
         `)?.eq('tenant_id', activeTenantId)?.order('joined_at', { ascending: false });
       
@@ -210,8 +210,8 @@ const CrewManagement = () => {
           id: tm?.user_id,
           user_id: tm?.user_id,
           role: tm?.role || tm?.role_legacy, // Base role from tenant_members
-          tier: tm?.permission_tier_override || tm?.permission_tier || tm?.role_legacy || null,
-          effectiveTier: tm?.permission_tier_override || tm?.permission_tier || tm?.role_legacy || null,
+          tier: tm?.roles?.default_permission_tier || tm?.custom_role?.default_permission_tier || tm?.permission_tier_override || tm?.permission_tier || null,
+          effectiveTier: tm?.roles?.default_permission_tier || tm?.custom_role?.default_permission_tier || tm?.permission_tier_override || tm?.permission_tier || null,
           status: tm?.status,
           active: tm?.active,
           joined_at: tm?.joined_at,
