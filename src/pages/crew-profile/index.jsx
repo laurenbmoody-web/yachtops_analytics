@@ -8,6 +8,7 @@ import Icon from '../../components/AppIcon';
 import QuickEntryModal from './components/QuickEntryModal';
 import BreachNotesModal from './components/BreachNotesModal';
 import { getCurrentUser, getDepartmentDisplayName } from '../../utils/authStorage';
+import { getStatusLabel, getStatusBadgeClasses, getStatusDotClass } from '../../utils/crewStatus';
 import { showToast } from '../../utils/toast';
 import { addWorkEntries, getComplianceStatus, getMonthCalendarData, detectBreaches, getCrewWorkEntries, deleteWorkEntriesForDate, runAllHORTests, confirmMonth, getMonthStatus, isMonthEditable, detectBreachedDatesAfterSave, hasBreachNoteForDate } from './utils/horStorage';
 import { useRole } from '../../contexts/RoleContext';
@@ -25,7 +26,7 @@ const CrewProfile = () => {
   const navigate = useNavigate();
   const { crewId } = useParams();
   const { activeTenantId } = useTenant();
-  const { session, loading: authLoading } = useAuth();
+  const { session, loading: authLoading, isVesselAdmin } = useAuth();
   const [currentUser, setCurrentUser] = useState(null);
   const [crewMember, setCrewMember] = useState(null);
   const [activeSection, setActiveSection] = useState('personal');
@@ -48,6 +49,7 @@ const CrewProfile = () => {
   const [profileError, setProfileError] = useState(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [tenantMemberRole, setTenantMemberRole] = useState(null);
+  const [currentUserPermissionTier, setCurrentUserPermissionTier] = useState(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const fileInputRef = React.useRef(null);
@@ -60,14 +62,15 @@ const CrewProfile = () => {
       try {
         const { data, error } = await supabase
           ?.from('tenant_members')
-          ?.select('role')
+          ?.select('role, permission_tier')
           ?.eq('user_id', session?.user?.id)
           ?.eq('tenant_id', activeTenantId)
           ?.eq('active', true)
           ?.single();
-        
+
         if (!error && data) {
           setTenantMemberRole(data?.role);
+          setCurrentUserPermissionTier(data?.permission_tier);
         }
       } catch (err) {
         console.error('Error fetching tenant member role:', err);
@@ -136,6 +139,25 @@ const CrewProfile = () => {
           return;
         }
 
+        // Fetch tenant_members row for this crew member to get role, dept, status
+        let membershipData = null;
+        if (activeTenantId) {
+          const { data: tmData } = await supabase
+            ?.from('tenant_members')
+            ?.select(`
+              status,
+              department_id,
+              role:roles!role_id(name),
+              custom_role:tenant_custom_roles!custom_role_id(name),
+              departments(name)
+            `)
+            ?.eq('user_id', crewId)
+            ?.eq('tenant_id', activeTenantId)
+            ?.eq('active', true)
+            ?.maybeSingle();
+          membershipData = tmData;
+        }
+
         console.log('PROFILE data loaded:', profileData);
 
         // Convert Supabase profile to crew member format for compatibility
@@ -146,6 +168,9 @@ const CrewProfile = () => {
           firstName: profileData?.full_name?.split(' ')?.[0] || '',
           lastName: profileData?.full_name?.split(' ')?.slice(1)?.join(' ') || '',
           avatarUrl: profileData?.avatar_url || null,
+          status: membershipData?.status || null,
+          roleTitle: membershipData?.role?.name || membershipData?.custom_role?.name || null,
+          department: membershipData?.departments?.name || null,
           // Initialize empty fields for sections that may not have data yet
           dateOfBirth: '',
           nationality: '',
@@ -675,10 +700,21 @@ const canEdit = (() => {
     { key: 'seatime', label: 'Sea Time Tracker', icon: 'Ship' }
   ];
 
+  const canEditStatus = isVesselAdmin || currentUserPermissionTier === 'COMMAND';
+
+  const handleProfileStatusChange = async (newStatus) => {
+    if (!activeTenantId || !crewId) return;
+    const { error } = await supabase
+      ?.from('tenant_members')
+      ?.update({ status: newStatus })
+      ?.eq('user_id', crewId)
+      ?.eq('tenant_id', activeTenantId);
+    if (error) { showToast(error?.message || 'Failed to update status', 'error'); return; }
+    setCrewMember(prev => ({ ...prev, status: newStatus }));
+  };
+
   const renderHeader = () => {
     if (!crewMember) return null;
-
-    const statusBadgeColor = crewMember?.status === 'ACTIVE' ?'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
 
     return (
       <div className="bg-card border border-border rounded-2xl p-6 mb-6">
@@ -721,16 +757,40 @@ const canEdit = (() => {
               </h2>
               <div className="flex flex-wrap gap-3 mb-2">
                 <span className="text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">Role:</span> {crewMember?.roleTitle}
+                  <span className="font-medium text-foreground">Role:</span>{' '}
+                  {crewMember?.roleTitle || 'No role assigned'}
                 </span>
                 <span className="text-sm text-muted-foreground">•</span>
                 <span className="text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">Department:</span> {getDepartmentDisplayName(crewMember?.department)}
+                  <span className="font-medium text-foreground">Department:</span>{' '}
+                  {crewMember?.department || 'No department assigned'}
                 </span>
               </div>
-              <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${statusBadgeColor}`}>
-                {crewMember?.status === 'ACTIVE' ? 'Active' : 'On Leave'}
-              </span>
+              {crewMember?.status ? (
+                canEditStatus ? (
+                  <select
+                    value={crewMember?.status}
+                    onChange={e => handleProfileStatusChange(e.target.value)}
+                    className={`text-xs font-medium px-3 py-1 rounded-full border-0 cursor-pointer ${getStatusBadgeClasses(crewMember?.status)}`}
+                  >
+                    {[
+                      { value: 'active', label: 'Active' },
+                      { value: 'on_leave', label: 'On Leave' },
+                      { value: 'rotational_leave', label: 'On Rotational Leave' },
+                      { value: 'medical_leave', label: 'Medical Leave' },
+                      { value: 'training', label: 'Training' },
+                      { value: 'invited', label: 'Invited' },
+                    ].map(s => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeClasses(crewMember?.status)}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotClass(crewMember?.status)}`} />
+                    {getStatusLabel(crewMember?.status)}
+                  </span>
+                )
+              ) : null}
             </div>
           </div>
 
@@ -1870,14 +1930,15 @@ const canEdit = (() => {
     <div className="min-h-screen bg-background transition-colors duration-300">
       <Header />
 
-      {/* DEBUG INFO - Temporary for troubleshooting */}
-      <div className="bg-yellow-100 dark:bg-yellow-900/30 border-b border-yellow-300 dark:border-yellow-700 px-6 py-3">
-        <div className="max-w-[1800px] mx-auto">
-          <p className="text-sm font-mono text-yellow-900 dark:text-yellow-200">
-            <strong>DEBUG:</strong> authLoading={String(authLoading)} | session.user.id={session?.user?.id || 'null'} | crewId={crewId || 'null'}
-          </p>
+      {import.meta.env.DEV && (
+        <div className="bg-yellow-100 dark:bg-yellow-900/30 border-b border-yellow-300 dark:border-yellow-700 px-6 py-3">
+          <div className="max-w-[1800px] mx-auto">
+            <p className="text-sm font-mono text-yellow-900 dark:text-yellow-200">
+              <strong>DEBUG:</strong> authLoading={String(authLoading)} | session.user.id={session?.user?.id || 'null'} | crewId={crewId || 'null'}
+            </p>
+          </div>
         </div>
-      </div>
+      )}
       
       {/* Auth Loading State */}
       {authLoading && (

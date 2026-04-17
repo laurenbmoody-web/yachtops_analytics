@@ -24,6 +24,7 @@ function generateToken() {
  * @param {string} params.roleLabel          - human-readable role name
  * @param {string} [params.permissionTier]   - COMMAND | CHIEF | HOD | CREW (default: CREW)
  * @param {string|null} [params.firstName]  - invitee's name written to invitee_name for the greeting email
+ * @param {string|null} [params.startDate]  - ISO date string (YYYY-MM-DD); sets status='invited' until that date
  */
 export async function createCrewInvite({
   email,
@@ -36,6 +37,7 @@ export async function createCrewInvite({
   roleLabel,
   permissionTier = 'CREW',
   firstName = null,
+  startDate = null,
 }) {
   try {
     const normalizedEmail = email.toLowerCase().trim();
@@ -85,6 +87,7 @@ export async function createCrewInvite({
         token,
         invited_by: invitedBy,
         expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        start_date: startDate || null,
       })
       .select()
       .single();
