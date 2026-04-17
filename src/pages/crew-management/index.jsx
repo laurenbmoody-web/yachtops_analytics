@@ -837,7 +837,12 @@ const CrewManagement = () => {
 
             {/* Calendar view */}
             {showCalendar && !showArchived && (
-              <CrewCalendar members={users} tenantId={activeTenantId} refreshToken={calendarRefresh} />
+              <CrewCalendar
+                members={users}
+                tenantId={activeTenantId}
+                refreshToken={calendarRefresh}
+                canNavigate={isVesselAdmin || currentUserRole === 'COMMAND'}
+              />
             )}
 
             {/* Crew Table — hidden when calendar view is active */}
