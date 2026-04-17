@@ -170,7 +170,7 @@ const CrewManagement = () => {
           department_id,
           departments (name),
           roles (name),
-          custom_role:tenant_custom_roles!tenant_members_custom_role_id_fkey (name),
+          custom_role:tenant_custom_roles(name),
           profiles!tenant_members_user_id_fkey (email, full_name)
         `)?.eq('tenant_id', activeTenantId)?.order('joined_at', { ascending: false });
       
@@ -210,8 +210,8 @@ const CrewManagement = () => {
           id: tm?.user_id,
           user_id: tm?.user_id,
           role: tm?.role || tm?.role_legacy, // Base role from tenant_members
-          tier: tm?.permission_tier_override || tm?.permission_tier || tm?.role_legacy || 'Default', // Use permission_tier_override first, then permission_tier, then role_legacy
-          effectiveTier: tm?.permission_tier_override || tm?.permission_tier || tm?.role_legacy || 'Default',
+          tier: tm?.permission_tier_override || tm?.permission_tier || tm?.role_legacy || null,
+          effectiveTier: tm?.permission_tier_override || tm?.permission_tier || tm?.role_legacy || null,
           status: tm?.status,
           active: tm?.active,
           joined_at: tm?.joined_at,
@@ -219,7 +219,7 @@ const CrewManagement = () => {
           fullName: tm?.profiles?.full_name || null,
           full_name: tm?.profiles?.full_name || null,
           department: tm?.departments?.name || (tm?.department_id ? `Dept ${tm?.department_id?.substring(0, 8)}` : '—'),
-          roleTitle: tm?.roles?.name || tm?.custom_role?.name || tm?.role || tm?.role_legacy || '—',
+          roleTitle: tm?.roles?.name || tm?.custom_role?.name || 'No role',
         };
       });
 
@@ -430,7 +430,7 @@ const CrewManagement = () => {
 
   // Get effective tier display
   const getEffectiveTierDisplay = (user) => {
-    return getTierDisplayName(user?.effectiveTier || user?.tier);
+    return getTierDisplayName(user?.effectiveTier || user?.tier) || '—';
   };
 
   // Enhanced search filter - searches across all fields
@@ -736,7 +736,7 @@ const CrewManagement = () => {
                           onClick={() => handleSort('tier')}
                         >
                           <div className="flex items-center">
-                            Tier
+                            Permission
                             {renderSortIcon('tier')}
                           </div>
                         </th>
