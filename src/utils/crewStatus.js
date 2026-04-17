@@ -36,13 +36,13 @@ export function getStatusCellClass(status) {
   return (STATUS_CONFIG[status] || FALLBACK).cell;
 }
 
-// Derive calendar periods from a history array (newest-first).
-// Each period runs from entry.changed_at until the previous entry's changed_at (or now).
+// Derive calendar periods from a history array (oldest-first / ascending changed_at).
+// Each row marks the START of a new status, running until the next row's changed_at (or now).
 export function buildStatusPeriods(history) {
   return history.map((entry, i) => ({
     status:    entry.new_status,
     start:     new Date(entry.changed_at),
-    end:       i === 0 ? new Date() : new Date(history[i - 1].changed_at),
+    end:       i === history.length - 1 ? new Date() : new Date(history[i + 1].changed_at),
     notes:     entry.notes,
     changedBy: entry.changed_by_name,
   }));
