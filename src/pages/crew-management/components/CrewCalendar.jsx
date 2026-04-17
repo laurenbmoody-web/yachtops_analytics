@@ -21,26 +21,23 @@ const CrewCalendar = ({ members, tenantId }) => {
   const totalDays = daysInMonth(calYear, calMonth);
   const memberIds = members.map(m => m.user_id).filter(Boolean);
 
-  // Fetch all history up to end of this month for all active members
   useEffect(() => {
     if (!tenantId || memberIds.length === 0) return;
     let cancelled = false;
 
     (async () => {
       setLoading(true);
-      const monthEnd = new Date(calYear, calMonth + 1, 0, 23, 59, 59).toISOString();
 
       const { data, error } = await supabase
         .from('crew_status_history')
         .select('user_id, new_status, old_status, changed_at, notes')
         .eq('tenant_id', tenantId)
         .in('user_id', memberIds)
-        .lte('changed_at', monthEnd)
-        .order('changed_at', { ascending: false });
+        .order('changed_at', { ascending: true });
 
       if (!cancelled) {
         if (!error) {
-          // Group by user_id (history is already newest-first)
+          // Group by user_id — rows are oldest-first, matching buildStatusPeriods expectation
           const grouped = {};
           for (const row of (data || [])) {
             if (!grouped[row.user_id]) grouped[row.user_id] = [];
@@ -53,7 +50,7 @@ const CrewCalendar = ({ members, tenantId }) => {
     })();
 
     return () => { cancelled = true; };
-  }, [tenantId, calYear, calMonth, memberIds.join(',')]);
+  }, [tenantId, memberIds.join(',')]);
 
   const prev = () => {
     if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }

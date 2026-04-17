@@ -128,7 +128,7 @@ const StatusHistoryTab = ({ userId, tenantId }) => {
         .select('*')
         .eq('user_id', userId)
         .eq('tenant_id', tenantId)
-        .order('changed_at', { ascending: false });
+        .order('changed_at', { ascending: true });
 
       if (!cancelled) {
         if (!error) setHistory(data || []);
@@ -188,7 +188,7 @@ const StatusHistoryTab = ({ userId, tenantId }) => {
               <div className="absolute left-[9px] top-2 bottom-2 w-px bg-border" />
 
               <div className="space-y-6">
-                {history.map((entry, i) => (
+                {[...history].reverse().map((entry, i) => (
                   <div key={entry.id} className="flex gap-4">
                     {/* Dot */}
                     <div className="relative flex-shrink-0 mt-1">
