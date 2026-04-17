@@ -365,9 +365,10 @@ export const getTierDisplayName = (tier) => {
   const names = {
     [PermissionTier?.COMMAND]: 'Command',
     [PermissionTier?.CHIEF]: 'Chief',
-    [PermissionTier?.HOD]: 'Head of Department',
+    [PermissionTier?.HOD]: 'Head of Dept',
     [PermissionTier?.CREW]: 'Crew',
-    [PermissionTier?.OPTIONAL_CREW]: 'Optional Crew'
+    [PermissionTier?.OPTIONAL_CREW]: 'Optional Crew',
+    VIEW_ONLY: 'View Only',
   };
   return names?.[tier] || tier;
 };
