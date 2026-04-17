@@ -11,7 +11,7 @@ function daysInMonth(year, month) {
   return new Date(year, month + 1, 0).getDate();
 }
 
-const CrewCalendar = ({ members, tenantId }) => {
+const CrewCalendar = ({ members, tenantId, refreshToken }) => {
   const today = new Date();
   const [calYear,  setCalYear]  = useState(today.getFullYear());
   const [calMonth, setCalMonth] = useState(today.getMonth());
@@ -56,7 +56,7 @@ const CrewCalendar = ({ members, tenantId }) => {
     })();
 
     return () => { cancelled = true; };
-  }, [tenantId, memberIds.join(',')]);
+  }, [tenantId, memberIds.join(','), refreshToken]);
 
   const prev = () => {
     if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }
