@@ -725,7 +725,6 @@ const canEdit = (() => {
         old_status: crewMember?.status,
         new_status: newStatus,
         changed_by: session?.user?.id,
-        changed_by_name: myProfile?.full_name || null,
         notes: notes || null,
       });
       const { error } = await supabase

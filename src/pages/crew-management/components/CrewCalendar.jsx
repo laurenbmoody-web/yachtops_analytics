@@ -28,6 +28,8 @@ const CrewCalendar = ({ members, tenantId }) => {
     (async () => {
       setLoading(true);
 
+      console.log('[CrewCalendar] querying crew_status_history', { tenantId, memberIds });
+
       const { data, error } = await supabase
         .from('crew_status_history')
         .select('user_id, new_status, old_status, changed_at, notes')
@@ -35,14 +37,18 @@ const CrewCalendar = ({ members, tenantId }) => {
         .in('user_id', memberIds)
         .order('changed_at', { ascending: true });
 
+      console.log('[CrewCalendar] result', { rows: data?.length ?? 0, error });
+
       if (!cancelled) {
-        if (!error) {
-          // Group by user_id — rows are oldest-first, matching buildStatusPeriods expectation
+        if (error) {
+          console.error('[CrewCalendar] Supabase error:', error);
+        } else {
           const grouped = {};
           for (const row of (data || [])) {
             if (!grouped[row.user_id]) grouped[row.user_id] = [];
             grouped[row.user_id].push(row);
           }
+          console.log('[CrewCalendar] grouped users with history:', Object.keys(grouped).length);
           setHistoryByUser(grouped);
         }
         setLoading(false);

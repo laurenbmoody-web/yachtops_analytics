@@ -456,13 +456,12 @@ const CrewManagement = () => {
       const { error: histErr } = await supabase
         .from('crew_status_history')
         .insert({
-          tenant_id:        activeTenantId,
-          user_id:          userId,
-          old_status:       oldStatus,
-          new_status:       newStatus,
-          changed_by:       session?.user?.id,
-          changed_by_name:  myProfile?.full_name || 'Admin',
-          notes:            notes?.trim() || null,
+          tenant_id:  activeTenantId,
+          user_id:    userId,
+          old_status: oldStatus,
+          new_status: newStatus,
+          changed_by: session?.user?.id,
+          notes:      notes?.trim() || null,
         });
       if (histErr) throw histErr;
 
