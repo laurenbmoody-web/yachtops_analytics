@@ -715,25 +715,36 @@ const canEdit = (() => {
 
   const canEditStatus = isVesselAdmin || currentUserPermissionTier === 'COMMAND';
 
-  const handleProfileStatusChange = async (newStatus, notes) => {
+  const handleProfileStatusChange = async (newStatus, notes, effectiveDate) => {
     if (!activeTenantId || !crewId) return;
     setStatusChangeSaving(true);
+
+    const [ey, em, ed] = effectiveDate.split('-').map(Number);
+    const changedAt = new Date(ey, em - 1, ed).toISOString();
+    const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0);
+    const isEffectiveNow = new Date(ey, em - 1, ed) <= todayMidnight;
+
     try {
-      await supabase.from('crew_status_history').insert({
-        tenant_id: activeTenantId,
-        user_id: crewId,
+      const { error: histErr } = await supabase.from('crew_status_history').insert({
+        tenant_id:  activeTenantId,
+        user_id:    crewId,
         old_status: crewMember?.status,
         new_status: newStatus,
         changed_by: session?.user?.id,
-        notes: notes || null,
+        changed_at: changedAt,
+        notes:      notes || null,
       });
-      const { error } = await supabase
-        .from('tenant_members')
-        .update({ status: newStatus })
-        .eq('user_id', crewId)
-        .eq('tenant_id', activeTenantId);
-      if (error) { showToast(error?.message || 'Failed to update status', 'error'); return; }
-      setCrewMember(prev => ({ ...prev, status: newStatus }));
+      if (histErr) { showToast(histErr.message || 'Failed to log status', 'error'); return; }
+
+      if (isEffectiveNow) {
+        const { error } = await supabase
+          .from('tenant_members')
+          .update({ status: newStatus })
+          .eq('user_id', crewId)
+          .eq('tenant_id', activeTenantId);
+        if (error) { showToast(error?.message || 'Failed to update status', 'error'); return; }
+        setCrewMember(prev => ({ ...prev, status: newStatus }));
+      }
       setStatusChangeModalOpen(false);
     } finally {
       setStatusChangeSaving(false);
