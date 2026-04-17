@@ -59,6 +59,7 @@ const CrewManagement = () => {
   const [showCalendar, setShowCalendar] = useState(false);
   const [statusChangeTarget, setStatusChangeTarget] = useState(null); // { userId, currentStatus, name }
   const [statusChangeSaving, setStatusChangeSaving] = useState(false);
+  const [calendarRefresh, setCalendarRefresh] = useState(0);
   const [myProfile, setMyProfile] = useState(null);
 
   useEffect(() => {
@@ -475,6 +476,7 @@ const CrewManagement = () => {
 
       setUsers(prev => prev.map(u => u.user_id === userId ? { ...u, status: newStatus } : u));
       setStatusChangeTarget(null);
+      setCalendarRefresh(n => n + 1);
     } catch (err) {
       console.error('[CREW] status update failed', err);
       alert(err?.message || 'Failed to update status');
@@ -785,7 +787,7 @@ const CrewManagement = () => {
 
             {/* Calendar view */}
             {showCalendar && !showArchived && (
-              <CrewCalendar members={users} tenantId={activeTenantId} />
+              <CrewCalendar members={users} tenantId={activeTenantId} refreshToken={calendarRefresh} />
             )}
 
             {/* Crew Table — hidden when calendar view is active */}
