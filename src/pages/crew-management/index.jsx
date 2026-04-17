@@ -6,6 +6,7 @@ import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 
 import { Department, UserStatus, getTierDisplayName, hasCommandAccess, getCurrentUser } from '../../utils/authStorage';
+import { CREW_STATUSES, getStatusLabel, getStatusDotClass, getStatusBadgeClasses } from '../../utils/crewStatus';
 import InviteCrewModal from './components/InviteCrewModal';
 import PendingInvitesSection from './components/PendingInvitesSection';
 import EditCrewModal from './components/EditCrewModal';
@@ -30,7 +31,7 @@ const showToast = (message, type = 'info') => {
 const CrewManagement = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { session } = useAuth();
+  const { session, isVesselAdmin } = useAuth();
   const { activeTenantId } = useTenant();
   const [currentUser, setCurrentUser] = useState(null);
   const [currentUserRole, setCurrentUserRole] = useState(null); // NEW: Store tenant_members.permission_tier
@@ -52,6 +53,15 @@ const CrewManagement = () => {
   const timeoutRef = useRef(null);
   const [showEditEmploymentModal, setShowEditEmploymentModal] = useState(false);
   const [editingEmploymentMember, setEditingEmploymentMember] = useState(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const [statusDropdownUserId, setStatusDropdownUserId] = useState(null);
+  // Close status dropdown on any outside click
+  useEffect(() => {
+    if (!statusDropdownUserId) return;
+    const close = () => setStatusDropdownUserId(null);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [statusDropdownUserId]);
 
   // DEBUG: Log when component mounts
   useEffect(() => {
@@ -121,7 +131,7 @@ const CrewManagement = () => {
     };
   }, []);
 
-  const fetchCrewData = async () => {
+  const fetchCrewData = async (archived = false) => {
     console.log('[CREW] start fetch');
     setLoading(true);
     setTimedOut(false);
@@ -166,13 +176,14 @@ const CrewManagement = () => {
           permission_tier_override,
           status,
           active,
+          start_date,
           joined_at,
           department_id,
           role:roles!role_id(name, default_permission_tier),
           custom_role:tenant_custom_roles!custom_role_id(name, default_permission_tier),
           departments(name),
           profiles!tenant_members_user_id_fkey(email, full_name)
-        `)?.eq('tenant_id', activeTenantId)?.order('joined_at', { ascending: false });
+        `)?.eq('tenant_id', activeTenantId)?.eq('active', !archived)?.order('joined_at', { ascending: false });
       
       if (fetchError) {
         // Handle AbortError specifically - this is normal when component unmounts or user navigates
@@ -213,6 +224,7 @@ const CrewManagement = () => {
           effectiveTier: tm?.role?.default_permission_tier || tm?.custom_role?.default_permission_tier || tm?.permission_tier_override || tm?.permission_tier || null,
           status: tm?.status,
           active: tm?.active,
+          start_date: tm?.start_date || null,
           joined_at: tm?.joined_at,
           email: tm?.profiles?.email || null,
           fullName: tm?.profiles?.full_name || null,
@@ -221,6 +233,21 @@ const CrewManagement = () => {
           roleTitle: tm?.role?.name || tm?.custom_role?.name || 'No role',
         };
       });
+
+      // Auto-transition: invited members whose start_date has arrived → active
+      const today = new Date().toISOString().slice(0, 10);
+      const toActivate = transformedData.filter(
+        m => m.status === 'invited' && m.start_date && m.start_date <= today
+      );
+      if (toActivate.length > 0) {
+        await Promise.all(toActivate.map(m =>
+          supabase.from('tenant_members')
+            .update({ status: 'active' })
+            .eq('tenant_id', activeTenantId)
+            .eq('user_id', m.user_id)
+        ));
+        toActivate.forEach(m => { m.status = 'active'; });
+      }
 
       setUsers(transformedData);
     } catch (err) {
@@ -237,12 +264,12 @@ const CrewManagement = () => {
     }
   };
 
-  // Load data - runs when activeTenantId changes or inviteRefreshTrigger changes
+  // Load data - runs when activeTenantId, showArchived, or inviteRefreshTrigger changes
   useEffect(() => {
     if (activeTenantId || DEV_MODE) {
-      fetchCrewData();
+      fetchCrewData(showArchived);
     }
-  }, [activeTenantId, inviteRefreshTrigger]);
+  }, [activeTenantId, inviteRefreshTrigger, showArchived]);
 
   const handleInviteSuccess = () => {
     // Trigger refresh of pending invites section AND crew list
@@ -382,14 +409,9 @@ const CrewManagement = () => {
 
       console.log('ARCHIVE tenant_id', tenantId, 'user_id', userId);
 
-      // Archive the crew member: set active = false and status = 'INACTIVE'
-      // Note: status constraint only allows INVITED/ACTIVE/INACTIVE, not ARCHIVED
       const { error: archiveError } = await supabase
         ?.from('tenant_members')
-        ?.update({ 
-          active: false,
-          status: 'INACTIVE'
-        })
+        ?.update({ active: false })
         ?.eq('tenant_id', tenantId)
         ?.eq('user_id', userId);
 
@@ -419,6 +441,34 @@ const CrewManagement = () => {
       console.error('Full error object:', JSON.stringify(err, null, 2));
       alert(err?.message || 'Failed to archive crew member');
     }
+  };
+
+  const handleStatusChange = async (userId, newStatus) => {
+    setStatusDropdownUserId(null);
+    const { error } = await supabase
+      ?.from('tenant_members')
+      ?.update({ status: newStatus })
+      ?.eq('tenant_id', activeTenantId)
+      ?.eq('user_id', userId);
+    if (error) {
+      console.error('[CREW] status update failed', error);
+      alert(error?.message || 'Failed to update status');
+      return;
+    }
+    setUsers(prev => prev.map(u => u.user_id === userId ? { ...u, status: newStatus } : u));
+  };
+
+  const handleRestoreCrew = async (userId) => {
+    const { error } = await supabase
+      ?.from('tenant_members')
+      ?.update({ active: true, status: 'active' })
+      ?.eq('tenant_id', activeTenantId)
+      ?.eq('user_id', userId);
+    if (error) {
+      alert(error?.message || 'Failed to restore crew member');
+      return;
+    }
+    fetchCrewData(true); // refresh archived list
   };
 
   // Get role title
@@ -553,8 +603,7 @@ const CrewManagement = () => {
   // Check if user can invite (COMMAND or CHIEF)
   const canInvite = currentUser && (currentUser?.tier === 'COMMAND' || currentUser?.tier === 'CHIEF' || hasCommandAccess(currentUser));
 
-  // NEW: Check if current user has Command or Management role
-  const hasEditPermission = currentUserRole === 'COMMAND' || currentUserRole === 'MANAGEMENT';
+  const hasEditPermission = isVesselAdmin || currentUserRole === 'COMMAND';
 
   // DEBUG: Log button render state
   useEffect(() => {
@@ -667,6 +716,26 @@ const CrewManagement = () => {
               refreshTrigger={inviteRefreshTrigger}
             />
 
+            {/* Active / Archived toggle */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowArchived(false)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  !showArchived ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'
+                }`}
+              >
+                Active Crew
+              </button>
+              <button
+                onClick={() => setShowArchived(true)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  showArchived ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'
+                }`}
+              >
+                Archived Crew
+              </button>
+            </div>
+
             {/* Search and Filters */}
             <div className="flex items-center gap-4">
               <div className="flex-1">
@@ -771,15 +840,42 @@ const CrewManagement = () => {
                             </span>
                           </td>
                           <td className="p-4">
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-                              user?.status === UserStatus?.ACTIVE 
-                                ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
-                            }`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${
-                                user?.status === UserStatus?.ACTIVE ? 'bg-success' : 'bg-muted-foreground'
-                              }`} />
-                              {user?.status}
-                            </span>
+                            {hasEditPermission ? (
+                              <div
+                                className="relative inline-block"
+                                onClick={e => e.stopPropagation()}
+                              >
+                                <button
+                                  onClick={() => setStatusDropdownUserId(
+                                    statusDropdownUserId === user?.id ? null : user?.id
+                                  )}
+                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer ${getStatusBadgeClasses(user?.status)}`}
+                                >
+                                  <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotClass(user?.status)}`} />
+                                  {getStatusLabel(user?.status)}
+                                  <Icon name="ChevronDown" size={10} className="ml-0.5" />
+                                </button>
+                                {statusDropdownUserId === user?.id && (
+                                  <div className="absolute z-20 top-full left-0 mt-1 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[180px]">
+                                    {CREW_STATUSES.map(s => (
+                                      <button
+                                        key={s.value}
+                                        onClick={() => handleStatusChange(user?.id, s.value)}
+                                        className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2 transition-colors"
+                                      >
+                                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${getStatusDotClass(s.value)}`} />
+                                        {s.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${getStatusBadgeClasses(user?.status)}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotClass(user?.status)}`} />
+                                {getStatusLabel(user?.status)}
+                              </span>
+                            )}
                           </td>
                           <td className="p-4 text-right">
                             <div className="flex items-center justify-end gap-2">
@@ -791,8 +887,8 @@ const CrewManagement = () => {
                               >
                                 <Icon name="Eye" size={16} />
                               </Button>
-                              
-                              {hasEditPermission && (
+
+                              {hasEditPermission && !showArchived && (
                                 <>
                                   <Button
                                     variant="ghost"
@@ -802,7 +898,7 @@ const CrewManagement = () => {
                                   >
                                     <Icon name="Edit" size={16} />
                                   </Button>
-                                  
+
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -812,6 +908,17 @@ const CrewManagement = () => {
                                     <Icon name="Archive" size={16} />
                                   </Button>
                                 </>
+                              )}
+
+                              {showArchived && hasEditPermission && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleRestoreCrew(user?.id)}
+                                  title="Restore"
+                                >
+                                  <Icon name="RotateCcw" size={16} />
+                                </Button>
                               )}
                             </div>
                           </td>

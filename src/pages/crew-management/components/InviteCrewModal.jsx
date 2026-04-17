@@ -24,6 +24,7 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
   const [createdInviteEmail, setCreatedInviteEmail] = useState('');
   const [sendingEmail, setSendingEmail] = useState(false);
 
+  const [startDate, setStartDate] = useState('');
   const [departments, setDepartments] = useState([]);
   const [roles, setRoles] = useState([]);
   const [customRoleName, setCustomRoleName] = useState('');
@@ -183,6 +184,7 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
           roleLabel: resolvedRoleLabel,
           permissionTier: resolvedTier,
           firstName: inviteeName.trim() || null,
+          startDate: startDate || null,
         });
 
       if (dup) setExistingInvite(dup);
@@ -216,6 +218,7 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
     setInviteeName('');
     setEmail('');
     setCustomRoleName('');
+    setStartDate('');
     setFormData({
       department_id: '',
       role_id: '',
@@ -451,6 +454,21 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
               </div>
             </div>
           )}
+
+          {/* Start Date */}
+          <div>
+            <label className="text-sm font-medium text-foreground mb-1 block">
+              Start Date <span className="text-muted-foreground font-normal">(optional)</span>
+            </label>
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e?.target?.value)}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              If set to a future date, the crew member will show as &quot;Invited&quot; until that date.
+            </p>
+          </div>
 
           {/* Buttons */}
           <div className="flex gap-3 pt-4">
