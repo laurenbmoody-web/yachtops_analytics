@@ -4,18 +4,27 @@ import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import { CREW_STATUSES, getStatusDotClass } from '../../../utils/crewStatus';
 
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 const StatusChangeModal = ({ isOpen, onClose, onConfirm, memberName, currentStatus, saving }) => {
   const [selectedStatus, setSelectedStatus] = useState(currentStatus || 'active');
   const [notes, setNotes] = useState('');
+  const [effectiveDate, setEffectiveDate] = useState(todayStr());
 
   useEffect(() => {
     if (isOpen) {
       setSelectedStatus(currentStatus || 'active');
       setNotes('');
+      setEffectiveDate(todayStr());
     }
   }, [isOpen, currentStatus]);
 
   if (!isOpen) return null;
+
+  const isFuture = effectiveDate > todayStr();
 
   const modal = (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -62,6 +71,24 @@ const StatusChangeModal = ({ isOpen, onClose, onConfirm, memberName, currentStat
             </div>
           </div>
 
+          {/* Effective date */}
+          <div>
+            <label className="text-sm font-medium text-foreground mb-1 block">
+              Effective from
+            </label>
+            <input
+              type="date"
+              value={effectiveDate}
+              onChange={e => setEffectiveDate(e.target.value)}
+              className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+            />
+            {isFuture && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                Scheduled — current status unchanged until this date
+              </p>
+            )}
+          </div>
+
           {/* Notes */}
           <div>
             <label className="text-sm font-medium text-foreground mb-1 block">
@@ -88,11 +115,11 @@ const StatusChangeModal = ({ isOpen, onClose, onConfirm, memberName, currentStat
             Cancel
           </Button>
           <Button
-            onClick={() => onConfirm(selectedStatus, notes)}
-            disabled={saving || selectedStatus === currentStatus}
+            onClick={() => onConfirm(selectedStatus, notes, effectiveDate)}
+            disabled={saving || (selectedStatus === currentStatus && !isFuture)}
             className="flex-1"
           >
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? 'Saving…' : isFuture ? 'Schedule' : 'Save'}
           </Button>
         </div>
       </div>

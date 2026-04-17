@@ -36,21 +36,26 @@ export function getStatusCellClass(status) {
   return (STATUS_CONFIG[status] || FALLBACK).cell;
 }
 
+function floorToDay(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
 // Derive calendar periods from a history array (oldest-first / ascending changed_at).
-// Each row marks the START of a new status, running until the next row's changed_at (or now).
+// Starts are floored to local midnight so a mid-day change colours the full day.
+// The final period extends to far-future so upcoming days render the expected colour.
 export function buildStatusPeriods(history) {
-  return history.map((entry, i) => ({
-    status:    entry.new_status,
-    start:     new Date(entry.changed_at),
-    end:       i === history.length - 1 ? new Date() : new Date(history[i + 1].changed_at),
-    notes:     entry.notes,
-    changedBy: entry.changed_by_name,
-  }));
+  return history.map((entry, i) => {
+    const start = floorToDay(new Date(entry.changed_at));
+    const end = i === history.length - 1
+      ? new Date(9999, 0, 1)
+      : floorToDay(new Date(history[i + 1].changed_at));
+    return { status: entry.new_status, start, end, notes: entry.notes, changedBy: entry.changed_by_name };
+  });
 }
 
 // Return the status active on a given Date, given a periods array from buildStatusPeriods.
 export function getStatusForDay(periods, day) {
-  const d = new Date(day);
+  const d = floorToDay(day instanceof Date ? day : new Date(day));
   for (const p of periods) {
     if (p.start <= d && d < p.end) return p.status;
   }

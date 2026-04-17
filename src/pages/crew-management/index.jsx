@@ -254,6 +254,44 @@ const CrewManagement = () => {
         toActivate.forEach(m => { m.status = 'active'; });
       }
 
+      // Auto-transition: apply any future-dated status changes whose effective date has now arrived.
+      // We find the most recent crew_status_history entry per member with changed_at <= now.
+      // If that entry's new_status differs from tenant_members.status, the member has a pending
+      // scheduled change that needs to be applied.
+      const activatedIds = new Set(toActivate.map(m => m.user_id));
+      const memberIds = transformedData.map(m => m.user_id).filter(Boolean);
+      if (memberIds.length > 0) {
+        const nowIso = new Date().toISOString();
+        const { data: dueHistory } = await supabase
+          .from('crew_status_history')
+          .select('user_id, new_status')
+          .eq('tenant_id', activeTenantId)
+          .in('user_id', memberIds)
+          .lte('changed_at', nowIso)
+          .order('changed_at', { ascending: false });
+
+        // Most recent due entry per user
+        const mostRecentDue = {};
+        for (const row of (dueHistory || [])) {
+          if (!mostRecentDue[row.user_id]) mostRecentDue[row.user_id] = row;
+        }
+
+        const toApply = transformedData.filter(m =>
+          !activatedIds.has(m.user_id) &&
+          mostRecentDue[m.user_id] &&
+          mostRecentDue[m.user_id].new_status !== m.status
+        );
+        if (toApply.length > 0) {
+          await Promise.all(toApply.map(m =>
+            supabase.from('tenant_members')
+              .update({ status: mostRecentDue[m.user_id].new_status })
+              .eq('tenant_id', activeTenantId)
+              .eq('user_id', m.user_id)
+          ));
+          toApply.forEach(m => { m.status = mostRecentDue[m.user_id].new_status; });
+        }
+      }
+
       setUsers(transformedData);
     } catch (err) {
       console.error('[CREW] load failed', err);
@@ -448,12 +486,21 @@ const CrewManagement = () => {
     }
   };
 
-  const handleStatusChange = async (newStatus, notes) => {
+  const handleStatusChange = async (newStatus, notes, effectiveDate) => {
     if (!statusChangeTarget) return;
     const { userId, currentStatus: oldStatus } = statusChangeTarget;
     setStatusChangeSaving(true);
+
+    // Convert date string → local midnight timestamp for changed_at
+    const [ey, em, ed] = effectiveDate.split('-').map(Number);
+    const changedAt = new Date(ey, em - 1, ed).toISOString();
+
+    // Past/today = apply immediately; future = schedule only
+    const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0);
+    const effectiveMidnight = new Date(ey, em - 1, ed);
+    const isEffectiveNow = effectiveMidnight <= todayMidnight;
+
     try {
-      // 1. Log to history (app-side insert — no UPDATE trigger to avoid duplicates)
       const { error: histErr } = await supabase
         .from('crew_status_history')
         .insert({
@@ -462,19 +509,21 @@ const CrewManagement = () => {
           old_status: oldStatus,
           new_status: newStatus,
           changed_by: session?.user?.id,
+          changed_at: changedAt,
           notes:      notes?.trim() || null,
         });
       if (histErr) throw histErr;
 
-      // 2. Update tenant_members
-      const { error: updErr } = await supabase
-        .from('tenant_members')
-        .update({ status: newStatus })
-        .eq('tenant_id', activeTenantId)
-        .eq('user_id', userId);
-      if (updErr) throw updErr;
+      if (isEffectiveNow) {
+        const { error: updErr } = await supabase
+          .from('tenant_members')
+          .update({ status: newStatus })
+          .eq('tenant_id', activeTenantId)
+          .eq('user_id', userId);
+        if (updErr) throw updErr;
+        setUsers(prev => prev.map(u => u.user_id === userId ? { ...u, status: newStatus } : u));
+      }
 
-      setUsers(prev => prev.map(u => u.user_id === userId ? { ...u, status: newStatus } : u));
       setStatusChangeTarget(null);
       setCalendarRefresh(n => n + 1);
     } catch (err) {
