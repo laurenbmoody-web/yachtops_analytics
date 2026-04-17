@@ -159,9 +159,17 @@ const CrewManagement = () => {
       // custom_role_id is populated on any given row, so roleTitle falls back
       // from the global role to the custom role below.
       const { data, error: fetchError } = await supabase?.from('tenant_members')?.select(`
-          *,
-          role:roles(name, default_permission_tier),
-          custom_role:tenant_custom_roles(name, default_permission_tier),
+          user_id,
+          role_id,
+          custom_role_id,
+          permission_tier,
+          permission_tier_override,
+          status,
+          active,
+          joined_at,
+          department_id,
+          role:roles!role_id(name, default_permission_tier),
+          custom_role:tenant_custom_roles!custom_role_id(name, default_permission_tier),
           departments(name),
           profiles!tenant_members_user_id_fkey(email, full_name)
         `)?.eq('tenant_id', activeTenantId)?.order('joined_at', { ascending: false });
