@@ -6,6 +6,7 @@ export const CREW_STATUSES = [
   { value: 'rotational_leave', label: 'On Rotational Leave' },
   { value: 'medical_leave',    label: 'Medical Leave' },
   { value: 'training',         label: 'Training' },
+  { value: 'travelling',       label: 'Travelling' },
   { value: 'invited',          label: 'Invited' },
 ];
 
@@ -15,6 +16,7 @@ const STATUS_CONFIG = {
   rotational_leave: { label: 'On Rotational Leave', dot: 'bg-purple-500', badge: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',  cell: 'bg-purple-300 dark:bg-purple-700' },
   medical_leave:    { label: 'Medical Leave',       dot: 'bg-red-500',    badge: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',            cell: 'bg-red-300 dark:bg-red-700' },
   training:         { label: 'Training',            dot: 'bg-blue-500',   badge: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',        cell: 'bg-blue-300 dark:bg-blue-700' },
+  travelling:       { label: 'Travelling',          dot: 'bg-teal-500',   badge: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400',        cell: 'bg-teal-300 dark:bg-teal-700' },
   invited:          { label: 'Invited',             dot: 'bg-gray-400',   badge: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',           cell: 'bg-gray-300 dark:bg-gray-600' },
 };
 

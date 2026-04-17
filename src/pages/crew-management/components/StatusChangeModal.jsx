@@ -13,12 +13,14 @@ const StatusChangeModal = ({ isOpen, onClose, onConfirm, memberName, currentStat
   const [selectedStatus, setSelectedStatus] = useState(currentStatus || 'active');
   const [notes, setNotes] = useState('');
   const [effectiveDate, setEffectiveDate] = useState(todayStr());
+  const [effectiveTime, setEffectiveTime] = useState('00:00');
 
   useEffect(() => {
     if (isOpen) {
       setSelectedStatus(currentStatus || 'active');
       setNotes('');
       setEffectiveDate(todayStr());
+      setEffectiveTime('00:00');
     }
   }, [isOpen, currentStatus]);
 
@@ -71,17 +73,27 @@ const StatusChangeModal = ({ isOpen, onClose, onConfirm, memberName, currentStat
             </div>
           </div>
 
-          {/* Effective date */}
+          {/* Effective date (+ time for Travelling) */}
           <div>
             <label className="text-sm font-medium text-foreground mb-1 block">
               Effective from
             </label>
-            <input
-              type="date"
-              value={effectiveDate}
-              onChange={e => setEffectiveDate(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
+            <div className={`flex gap-2 ${selectedStatus === 'travelling' ? '' : ''}`}>
+              <input
+                type="date"
+                value={effectiveDate}
+                onChange={e => setEffectiveDate(e.target.value)}
+                className={`px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary ${selectedStatus === 'travelling' ? 'flex-1' : 'w-full'}`}
+              />
+              {selectedStatus === 'travelling' && (
+                <input
+                  type="time"
+                  value={effectiveTime}
+                  onChange={e => setEffectiveTime(e.target.value)}
+                  className="w-28 px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                />
+              )}
+            </div>
             {isFuture && (
               <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
                 Scheduled — current status unchanged until this date
@@ -115,7 +127,7 @@ const StatusChangeModal = ({ isOpen, onClose, onConfirm, memberName, currentStat
             Cancel
           </Button>
           <Button
-            onClick={() => onConfirm(selectedStatus, notes, effectiveDate)}
+            onClick={() => onConfirm(selectedStatus, notes, effectiveDate, selectedStatus === 'travelling' ? effectiveTime : '00:00')}
             disabled={saving || (selectedStatus === currentStatus && !isFuture)}
             className="flex-1"
           >
