@@ -7,6 +7,8 @@ import Select from '../../components/ui/Select';
 import Icon from '../../components/AppIcon';
 import QuickEntryModal from './components/QuickEntryModal';
 import BreachNotesModal from './components/BreachNotesModal';
+import StatusHistoryTab from './components/StatusHistoryTab';
+import StatusChangeModal from '../crew-management/components/StatusChangeModal';
 import { getCurrentUser, getDepartmentDisplayName } from '../../utils/authStorage';
 import { getStatusLabel, getStatusBadgeClasses, getStatusDotClass } from '../../utils/crewStatus';
 import { showToast } from '../../utils/toast';
@@ -53,6 +55,9 @@ const CrewProfile = () => {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const fileInputRef = React.useRef(null);
+  const [myProfile, setMyProfile] = useState(null);
+  const [statusChangeModalOpen, setStatusChangeModalOpen] = useState(false);
+  const [statusChangeSaving, setStatusChangeSaving] = useState(false);
 
   // Fetch tenant member role for permission checks
   useEffect(() => {
@@ -79,6 +84,13 @@ const CrewProfile = () => {
     
     fetchTenantMemberRole();
   }, [session, activeTenantId]);
+
+  // Fetch current user's profile for changed_by_name in history inserts
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    supabase?.from('profiles')?.select('id, full_name')?.eq('id', session.user.id)?.single()
+      .then(({ data }) => { if (data) setMyProfile(data); });
+  }, [session?.user?.id]);
 
   // Check authentication - no longer using getCurrentUser()
   useEffect(() => {
@@ -697,20 +709,36 @@ const canEdit = (() => {
     { key: 'banking', label: 'Banking', icon: 'CreditCard' },
     { key: 'preferences', label: 'Preferences', icon: 'Utensils' },
     { key: 'hor', label: 'Hours of Rest (HOR)', icon: 'Clock' },
-    { key: 'seatime', label: 'Sea Time Tracker', icon: 'Ship' }
+    { key: 'seatime', label: 'Sea Time Tracker', icon: 'Ship' },
+    { key: 'history', label: 'Status History', icon: 'Activity' }
   ];
 
   const canEditStatus = isVesselAdmin || currentUserPermissionTier === 'COMMAND';
 
-  const handleProfileStatusChange = async (newStatus) => {
+  const handleProfileStatusChange = async (newStatus, notes) => {
     if (!activeTenantId || !crewId) return;
-    const { error } = await supabase
-      ?.from('tenant_members')
-      ?.update({ status: newStatus })
-      ?.eq('user_id', crewId)
-      ?.eq('tenant_id', activeTenantId);
-    if (error) { showToast(error?.message || 'Failed to update status', 'error'); return; }
-    setCrewMember(prev => ({ ...prev, status: newStatus }));
+    setStatusChangeSaving(true);
+    try {
+      await supabase.from('crew_status_history').insert({
+        tenant_id: activeTenantId,
+        user_id: crewId,
+        old_status: crewMember?.status,
+        new_status: newStatus,
+        changed_by: session?.user?.id,
+        changed_by_name: myProfile?.full_name || null,
+        notes: notes || null,
+      });
+      const { error } = await supabase
+        .from('tenant_members')
+        .update({ status: newStatus })
+        .eq('user_id', crewId)
+        .eq('tenant_id', activeTenantId);
+      if (error) { showToast(error?.message || 'Failed to update status', 'error'); return; }
+      setCrewMember(prev => ({ ...prev, status: newStatus }));
+      setStatusChangeModalOpen(false);
+    } finally {
+      setStatusChangeSaving(false);
+    }
   };
 
   const renderHeader = () => {
@@ -768,22 +796,14 @@ const canEdit = (() => {
               </div>
               {crewMember?.status ? (
                 canEditStatus ? (
-                  <select
-                    value={crewMember?.status}
-                    onChange={e => handleProfileStatusChange(e.target.value)}
-                    className={`text-xs font-medium px-3 py-1 rounded-full border-0 cursor-pointer ${getStatusBadgeClasses(crewMember?.status)}`}
+                  <button
+                    onClick={() => setStatusChangeModalOpen(true)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity ${getStatusBadgeClasses(crewMember?.status)}`}
                   >
-                    {[
-                      { value: 'active', label: 'Active' },
-                      { value: 'on_leave', label: 'On Leave' },
-                      { value: 'rotational_leave', label: 'On Rotational Leave' },
-                      { value: 'medical_leave', label: 'Medical Leave' },
-                      { value: 'training', label: 'Training' },
-                      { value: 'invited', label: 'Invited' },
-                    ].map(s => (
-                      <option key={s.value} value={s.value}>{s.label}</option>
-                    ))}
-                  </select>
+                    <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotClass(crewMember?.status)}`} />
+                    {getStatusLabel(crewMember?.status)}
+                    <Icon name="ChevronDown" size={10} />
+                  </button>
                 ) : (
                   <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeClasses(crewMember?.status)}`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotClass(crewMember?.status)}`} />
@@ -1921,6 +1941,8 @@ const canEdit = (() => {
         return renderHOR();
       case 'seatime':
         return renderSeaTime();
+      case 'history':
+        return <StatusHistoryTab userId={crewId} tenantId={activeTenantId} />;
       default:
         return renderPersonalDetails();
     }
@@ -2123,6 +2145,15 @@ const canEdit = (() => {
               currentUserId={currentUser?.id}
             />
           )}
+
+          <StatusChangeModal
+            isOpen={statusChangeModalOpen}
+            onClose={() => setStatusChangeModalOpen(false)}
+            onConfirm={handleProfileStatusChange}
+            memberName={crewMember?.fullName}
+            currentStatus={crewMember?.status}
+            saving={statusChangeSaving}
+          />
         </main>
       )}
     </div>

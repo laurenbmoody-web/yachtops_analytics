@@ -13,6 +13,8 @@ import EditCrewModal from './components/EditCrewModal';
 import ViewProfileModal from './components/ViewProfileModal';
 import EditAssignmentModal from './components/EditAssignmentModal';
 import EditEmploymentModal from './components/EditEmploymentModal';
+import StatusChangeModal from './components/StatusChangeModal';
+import CrewCalendar from './components/CrewCalendar';
 import { supabase } from '../../lib/supabaseClient';
 import { getMyContext } from '../../utils/authHelpers';
 import { useAuth } from '../../contexts/AuthContext';
@@ -54,14 +56,16 @@ const CrewManagement = () => {
   const [showEditEmploymentModal, setShowEditEmploymentModal] = useState(false);
   const [editingEmploymentMember, setEditingEmploymentMember] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
-  const [statusDropdownUserId, setStatusDropdownUserId] = useState(null);
-  // Close status dropdown on any outside click
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [statusChangeTarget, setStatusChangeTarget] = useState(null); // { userId, currentStatus, name }
+  const [statusChangeSaving, setStatusChangeSaving] = useState(false);
+  const [myProfile, setMyProfile] = useState(null);
+
   useEffect(() => {
-    if (!statusDropdownUserId) return;
-    const close = () => setStatusDropdownUserId(null);
-    document.addEventListener('click', close);
-    return () => document.removeEventListener('click', close);
-  }, [statusDropdownUserId]);
+    if (!session?.user?.id) return;
+    supabase.from('profiles').select('full_name').eq('id', session.user.id).single()
+      .then(({ data }) => setMyProfile(data));
+  }, [session?.user?.id]);
 
   // DEBUG: Log when component mounts
   useEffect(() => {
@@ -443,19 +447,41 @@ const CrewManagement = () => {
     }
   };
 
-  const handleStatusChange = async (userId, newStatus) => {
-    setStatusDropdownUserId(null);
-    const { error } = await supabase
-      ?.from('tenant_members')
-      ?.update({ status: newStatus })
-      ?.eq('tenant_id', activeTenantId)
-      ?.eq('user_id', userId);
-    if (error) {
-      console.error('[CREW] status update failed', error);
-      alert(error?.message || 'Failed to update status');
-      return;
+  const handleStatusChange = async (newStatus, notes) => {
+    if (!statusChangeTarget) return;
+    const { userId, currentStatus: oldStatus } = statusChangeTarget;
+    setStatusChangeSaving(true);
+    try {
+      // 1. Log to history (app-side insert — no UPDATE trigger to avoid duplicates)
+      const { error: histErr } = await supabase
+        .from('crew_status_history')
+        .insert({
+          tenant_id:        activeTenantId,
+          user_id:          userId,
+          old_status:       oldStatus,
+          new_status:       newStatus,
+          changed_by:       session?.user?.id,
+          changed_by_name:  myProfile?.full_name || 'Admin',
+          notes:            notes?.trim() || null,
+        });
+      if (histErr) throw histErr;
+
+      // 2. Update tenant_members
+      const { error: updErr } = await supabase
+        .from('tenant_members')
+        .update({ status: newStatus })
+        .eq('tenant_id', activeTenantId)
+        .eq('user_id', userId);
+      if (updErr) throw updErr;
+
+      setUsers(prev => prev.map(u => u.user_id === userId ? { ...u, status: newStatus } : u));
+      setStatusChangeTarget(null);
+    } catch (err) {
+      console.error('[CREW] status update failed', err);
+      alert(err?.message || 'Failed to update status');
+    } finally {
+      setStatusChangeSaving(false);
     }
-    setUsers(prev => prev.map(u => u.user_id === userId ? { ...u, status: newStatus } : u));
   };
 
   const handleRestoreCrew = async (userId) => {
@@ -716,23 +742,33 @@ const CrewManagement = () => {
               refreshTrigger={inviteRefreshTrigger}
             />
 
-            {/* Active / Archived toggle */}
+            {/* Active / Archived / Calendar toggles */}
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setShowArchived(false)}
+                onClick={() => { setShowArchived(false); setShowCalendar(false); }}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  !showArchived ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'
+                  !showArchived && !showCalendar ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'
                 }`}
               >
                 Active Crew
               </button>
               <button
-                onClick={() => setShowArchived(true)}
+                onClick={() => { setShowArchived(true); setShowCalendar(false); }}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   showArchived ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'
                 }`}
               >
                 Archived Crew
+              </button>
+              <button
+                onClick={() => { setShowArchived(false); setShowCalendar(true); }}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                  showCalendar ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'
+                }`}
+                title="Crew availability calendar"
+              >
+                <Icon name="CalendarDays" size={14} />
+                Calendar
               </button>
             </div>
 
@@ -748,8 +784,13 @@ const CrewManagement = () => {
               </div>
             </div>
 
-            {/* Crew Table */}
-            {filteredAndSortedUsers?.length === 0 ? (
+            {/* Calendar view */}
+            {showCalendar && !showArchived && (
+              <CrewCalendar members={users} tenantId={activeTenantId} />
+            )}
+
+            {/* Crew Table — hidden when calendar view is active */}
+            {!showCalendar && (filteredAndSortedUsers?.length === 0 ? (
               <div className="text-center py-12">
                 <Icon name="Users" size={48} className="mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-lg font-semibold text-foreground mb-2">No crew members found</h3>
@@ -841,35 +882,18 @@ const CrewManagement = () => {
                           </td>
                           <td className="p-4">
                             {hasEditPermission ? (
-                              <div
-                                className="relative inline-block"
-                                onClick={e => e.stopPropagation()}
+                              <button
+                                onClick={() => setStatusChangeTarget({
+                                  userId:        user?.id,
+                                  currentStatus: user?.status,
+                                  name:          user?.fullName,
+                                })}
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity ${getStatusBadgeClasses(user?.status)}`}
                               >
-                                <button
-                                  onClick={() => setStatusDropdownUserId(
-                                    statusDropdownUserId === user?.id ? null : user?.id
-                                  )}
-                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer ${getStatusBadgeClasses(user?.status)}`}
-                                >
-                                  <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotClass(user?.status)}`} />
-                                  {getStatusLabel(user?.status)}
-                                  <Icon name="ChevronDown" size={10} className="ml-0.5" />
-                                </button>
-                                {statusDropdownUserId === user?.id && (
-                                  <div className="absolute z-20 top-full left-0 mt-1 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[180px]">
-                                    {CREW_STATUSES.map(s => (
-                                      <button
-                                        key={s.value}
-                                        onClick={() => handleStatusChange(user?.id, s.value)}
-                                        className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2 transition-colors"
-                                      >
-                                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${getStatusDotClass(s.value)}`} />
-                                        {s.label}
-                                      </button>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
+                                <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotClass(user?.status)}`} />
+                                {getStatusLabel(user?.status)}
+                                <Icon name="ChevronDown" size={10} className="ml-0.5" />
+                              </button>
                             ) : (
                               <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${getStatusBadgeClasses(user?.status)}`}>
                                 <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotClass(user?.status)}`} />
@@ -928,7 +952,7 @@ const CrewManagement = () => {
                   </table>
                 </div>
               </div>
-            )}
+            ))}
           </>
         )}
       </div>
@@ -940,6 +964,15 @@ const CrewManagement = () => {
           onSuccess={handleInviteSuccess}
         />
       )}
+      {/* Status Change Modal */}
+      <StatusChangeModal
+        isOpen={!!statusChangeTarget}
+        onClose={() => setStatusChangeTarget(null)}
+        onConfirm={handleStatusChange}
+        memberName={statusChangeTarget?.name}
+        currentStatus={statusChangeTarget?.currentStatus}
+        saving={statusChangeSaving}
+      />
       {/* Edit Crew Modal */}
       <EditCrewModal
         isOpen={showEditModal}
