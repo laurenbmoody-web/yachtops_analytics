@@ -26,11 +26,14 @@ import {
   fetchCrossDeptMatchesForBoard,
   fetchUserNames,
   fetchOrderHistory,
+  fetchSupplierOrders,
   PROVISIONING_STATUS,
   PROVISION_CATEGORIES,
   PROVISION_UNITS,
+  SUPPLIER_ORDER_STATUS,
   formatCurrency,
 } from './utils/provisioningStorage';
+import SendToSupplierModal from './components/SendToSupplierModal';
 import InvoiceUploadModal, { PAYMENT_STATUS_OPTIONS } from './components/InvoiceUploadModal';
 import ItemDrawer from './components/ItemDrawer';
 import ReceiveDeliveryModal from './components/ReceiveDeliveryModal';
@@ -203,6 +206,12 @@ const ProvisioningBoardDetail = () => {
   const [expandedHistory, setExpandedHistory] = useState(null);
   const [activityEvents, setActivityEvents] = useState([]);
   const [activityLoading, setActivityLoading] = useState(false);
+
+  // ── Supplier Orders ──────────────────────────────────────────────────────
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [supplierOrders, setSupplierOrders] = useState([]);
+  const [supplierOrdersLoading, setSupplierOrdersLoading] = useState(false);
+  const [expandedOrder, setExpandedOrder] = useState(null);
 
   // ── Smart Suggestions ─────────────────────────────────────────────────────
   const [suggestions, setSuggestions] = useState([]);      // [{ name, category, quantity, unit, reasoning, source, confidence }]
@@ -407,6 +416,18 @@ const ProvisioningBoardDetail = () => {
       }
     })();
   }, [activeTab, list?.id, items, activeTenantId, deliveries]);
+
+  // Load supplier orders when Orders tab is active
+  useEffect(() => {
+    if (activeTab !== 'orders' || !list?.id) return;
+    let cancelled = false;
+    setSupplierOrdersLoading(true);
+    fetchSupplierOrders(list.id)
+      .then(data => { if (!cancelled) setSupplierOrders(data || []); })
+      .catch(err => console.error('[ProvisioningBoardDetail] fetchSupplierOrders:', err))
+      .finally(() => { if (!cancelled) setSupplierOrdersLoading(false); });
+    return () => { cancelled = true; };
+  }, [activeTab, list?.id]);
 
   // Fetch live FX rates once on mount (GBP base)
   useEffect(() => {
@@ -897,6 +918,7 @@ const ProvisioningBoardDetail = () => {
               {[
                 { id: 'items', label: 'Items' },
                 { id: 'deliveries', label: 'Deliveries' },
+                { id: 'orders', label: 'Orders' },
                 { id: 'history', label: 'History' },
               ].map(tab => (
                 <button
@@ -946,6 +968,12 @@ const ProvisioningBoardDetail = () => {
                 style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: '#ECFDF5', border: '1px solid #A7F3D0', color: '#065F46', whiteSpace: 'nowrap' }}
               >
                 <Icon name="PackageCheck" style={{ width: 13, height: 13 }} /> Receive Items
+              </button>
+              <button
+                onClick={() => setShowSendModal(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: '#00A8CC', border: '1px solid #0098BB', color: 'white', whiteSpace: 'nowrap' }}
+              >
+                <Icon name="Send" style={{ width: 13, height: 13 }} /> Send to Supplier
               </button>
               {isDraftOrPending && (
                 <button
@@ -1876,6 +1904,100 @@ const ProvisioningBoardDetail = () => {
             </div>
           </div>
         )}
+
+        {/* ── Orders tab ─────────────────────────────────────────────────────── */}
+        {activeTab === 'orders' && (
+          <div style={{ padding: '32px 40px 64px', background: '#F8FAFC' }}>
+            {supplierOrdersLoading ? (
+              <div style={{ padding: '48px 0', textAlign: 'center', fontSize: 13, color: '#94A3B8' }}>Loading…</div>
+            ) : supplierOrders.length === 0 ? (
+              <div style={{ padding: '80px 0', textAlign: 'center' }}>
+                <div style={{ width: 48, height: 48, background: '#F0FDFA', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                  <Icon name="Send" style={{ width: 22, height: 22, color: '#0D9488' }} />
+                </div>
+                <p style={{ fontSize: 14, fontWeight: 500, color: '#0F172A', marginBottom: 4 }}>No orders sent yet</p>
+                <p style={{ fontSize: 12, color: '#94A3B8', marginBottom: 20 }}>Use "Send to Supplier" to create and send your first order.</p>
+                <button
+                  onClick={() => setShowSendModal(true)}
+                  style={{ fontSize: 13, fontWeight: 600, padding: '8px 20px', borderRadius: 8, cursor: 'pointer', background: '#00A8CC', border: 'none', color: 'white' }}
+                >
+                  Send to Supplier
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {supplierOrders.map(order => {
+                  const isExpanded = expandedOrder === order.id;
+                  const statusColor = order.status === 'confirmed' ? { bg: '#D1FAE5', text: '#065F46' }
+                    : order.status === 'partially_confirmed' ? { bg: '#FEF3C7', text: '#92400E' }
+                    : order.status === 'sent' ? { bg: '#DBEAFE', text: '#1E40AF' }
+                    : { bg: '#F1F5F9', text: '#475569' };
+                  const orderItems = order.supplier_order_items || [];
+                  return (
+                    <div key={order.id} style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: 12, overflow: 'hidden' }}>
+                      <div
+                        onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
+                        style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px', cursor: 'pointer' }}
+                      >
+                        <span style={{ fontSize: 10, color: '#CBD5E1', flexShrink: 0 }}>{isExpanded ? '▾' : '▸'}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#0F172A' }}>{order.supplier_name}</p>
+                          <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94A3B8' }}>
+                            {orderItems.length} item{orderItems.length !== 1 ? 's' : ''}
+                            {order.delivery_port ? ` · ${order.delivery_port}` : ''}
+                            {order.delivery_date ? ` · ${order.delivery_date}` : ''}
+                          </p>
+                        </div>
+                        <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20, background: statusColor.bg, color: statusColor.text, flexShrink: 0 }}>
+                          {order.status === 'partially_confirmed' ? 'Partial' : order.status?.charAt(0).toUpperCase() + order.status?.slice(1)}
+                        </span>
+                        {order.sent_at && (
+                          <p style={{ margin: 0, fontSize: 11, color: '#CBD5E1', flexShrink: 0 }}>
+                            {new Date(order.sent_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                          </p>
+                        )}
+                      </div>
+                      {isExpanded && (
+                        <div style={{ padding: '0 18px 16px', borderTop: '1px solid #F1F5F9' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 12 }}>
+                            <thead>
+                              <tr style={{ background: '#F8FAFC' }}>
+                                <th style={{ padding: '7px 10px', fontSize: 11, fontWeight: 600, color: '#94A3B8', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Item</th>
+                                <th style={{ padding: '7px 10px', fontSize: 11, fontWeight: 600, color: '#94A3B8', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Qty</th>
+                                <th style={{ padding: '7px 10px', fontSize: 11, fontWeight: 600, color: '#94A3B8', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {orderItems.map((it, i) => {
+                                const itColor = it.status === 'confirmed' ? '#059669'
+                                  : it.status === 'unavailable' ? '#DC2626'
+                                  : it.status === 'substituted' ? '#D97706'
+                                  : '#94A3B8';
+                                return (
+                                  <tr key={it.id} style={{ borderBottom: i < orderItems.length - 1 ? '1px solid #F8FAFC' : 'none' }}>
+                                    <td style={{ padding: '7px 10px', fontSize: 13, color: '#0F172A' }}>
+                                      {it.item_name}
+                                      {it.substitute_description && <span style={{ marginLeft: 6, fontSize: 11, color: '#D97706' }}>→ {it.substitute_description}</span>}
+                                    </td>
+                                    <td style={{ padding: '7px 10px', fontSize: 13, color: '#475569', textAlign: 'center' }}>{it.quantity} {it.unit || ''}</td>
+                                    <td style={{ padding: '7px 10px', fontSize: 11, fontWeight: 600, color: itColor, textTransform: 'capitalize' }}>{it.status}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                          {order.supplier_notes && (
+                            <p style={{ margin: '12px 0 0', fontSize: 12, color: '#64748B', fontStyle: 'italic' }}>"{order.supplier_notes}"</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {showEditModal && (
@@ -1921,6 +2043,26 @@ const ProvisioningBoardDetail = () => {
             if (list?.id) fetchDeliveryBatches(list.id).then(data => setDeliveries(data || [])).catch(() => {});
             fetchListItems(id).then(updated => setItems(updated || [])).catch(() => {});
           }}
+        />
+      )}
+
+      {showSendModal && (
+        <SendToSupplierModal
+          isOpen={showSendModal}
+          onClose={() => setShowSendModal(false)}
+          onSent={(order) => {
+            setSupplierOrders(prev => [order, ...prev]);
+            setActiveTab('orders');
+            showToast('Order sent to supplier', 'success');
+          }}
+          tenantId={activeTenantId}
+          listId={id}
+          items={items.filter(i => i.status !== 'received').map(i => ({
+            name: i.name, quantity: i.quantity, unit: i.unit, notes: i.notes,
+          }))}
+          vesselName={list?.title}
+          orderRef={list?.port_location}
+          createdBy={user?.id}
         />
       )}
 
