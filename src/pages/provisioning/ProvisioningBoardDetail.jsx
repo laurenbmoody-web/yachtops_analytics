@@ -234,6 +234,8 @@ const ProvisioningBoardDetail = () => {
   const canAddItems = canEdit;
   // Delete the board: owner / COMMAND / CHIEF  (HOD and CREW cannot delete boards)
   const canDelete = !!isOwner || userTier === 'COMMAND' || (userTier === 'CHIEF' && inSameDept);
+  // Send to supplier: COMMAND and CHIEF only
+  const canSendToSupplier = !!isOwner || userTier === 'COMMAND' || userTier === 'CHIEF';
   // Delete individual items: owner / COMMAND / CHIEF / HOD  (not CREW)
   const canDeleteItem = !!isOwner || userTier === 'COMMAND' || (['CHIEF', 'HOD'].includes(userTier) && inSameDept);
 
@@ -428,6 +430,28 @@ const ProvisioningBoardDetail = () => {
       .finally(() => { if (!cancelled) setSupplierOrdersLoading(false); });
     return () => { cancelled = true; };
   }, [activeTab, list?.id]);
+
+  // Realtime: refresh supplier orders when supplier confirms on public page
+  useEffect(() => {
+    if (!list?.id) return;
+    const channel = supabase
+      .channel(`supplier-orders-${list.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'supplier_orders',
+        filter: `list_id=eq.${list.id}`,
+      }, (payload) => {
+        fetchSupplierOrders(list.id)
+          .then(data => setSupplierOrders(data || []))
+          .catch(() => {});
+        if (payload.new?.status === 'confirmed') {
+          showToast(`${payload.new?.supplier_name || 'Supplier'} confirmed your order!`, 'success');
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [list?.id]);
 
   // Fetch live FX rates once on mount (GBP base)
   useEffect(() => {
@@ -969,12 +993,14 @@ const ProvisioningBoardDetail = () => {
               >
                 <Icon name="PackageCheck" style={{ width: 13, height: 13 }} /> Receive Items
               </button>
-              <button
-                onClick={() => setShowSendModal(true)}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: '#00A8CC', border: '1px solid #0098BB', color: 'white', whiteSpace: 'nowrap' }}
-              >
-                <Icon name="Send" style={{ width: 13, height: 13 }} /> Send to Supplier
-              </button>
+              {canSendToSupplier && (
+                <button
+                  onClick={() => setShowSendModal(true)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: '#00A8CC', border: '1px solid #0098BB', color: 'white', whiteSpace: 'nowrap' }}
+                >
+                  <Icon name="Send" style={{ width: 13, height: 13 }} /> Send to Supplier
+                </button>
+              )}
               {isDraftOrPending && (
                 <button
                   onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)}
@@ -1917,12 +1943,14 @@ const ProvisioningBoardDetail = () => {
                 </div>
                 <p style={{ fontSize: 14, fontWeight: 500, color: '#0F172A', marginBottom: 4 }}>No orders sent yet</p>
                 <p style={{ fontSize: 12, color: '#94A3B8', marginBottom: 20 }}>Use "Send to Supplier" to create and send your first order.</p>
-                <button
-                  onClick={() => setShowSendModal(true)}
-                  style={{ fontSize: 13, fontWeight: 600, padding: '8px 20px', borderRadius: 8, cursor: 'pointer', background: '#00A8CC', border: 'none', color: 'white' }}
-                >
-                  Send to Supplier
-                </button>
+                {canSendToSupplier && (
+                  <button
+                    onClick={() => setShowSendModal(true)}
+                    style={{ fontSize: 13, fontWeight: 600, padding: '8px 20px', borderRadius: 8, cursor: 'pointer', background: '#00A8CC', border: 'none', color: 'white' }}
+                  >
+                    Send to Supplier
+                  </button>
+                )}
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1951,6 +1979,11 @@ const ProvisioningBoardDetail = () => {
                         <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20, background: statusColor.bg, color: statusColor.text, flexShrink: 0 }}>
                           {order.status === 'partially_confirmed' ? 'Partial' : order.status?.charAt(0).toUpperCase() + order.status?.slice(1)}
                         </span>
+                        {order.sent_via && (
+                          <span style={{ fontSize: 10, fontWeight: 500, padding: '2px 7px', borderRadius: 20, background: order.sent_via === 'whatsapp' ? '#D1FAE5' : '#EFF6FF', color: order.sent_via === 'whatsapp' ? '#065F46' : '#1E40AF', flexShrink: 0 }}>
+                            {order.sent_via === 'whatsapp' ? 'WhatsApp' : order.sent_via === 'email' ? 'Email' : order.sent_via}
+                          </span>
+                        )}
                         {order.sent_at && (
                           <p style={{ margin: 0, fontSize: 11, color: '#CBD5E1', flexShrink: 0 }}>
                             {new Date(order.sent_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
@@ -2052,8 +2085,9 @@ const ProvisioningBoardDetail = () => {
           onClose={() => setShowSendModal(false)}
           onSent={(order) => {
             setSupplierOrders(prev => [order, ...prev]);
+            setList(prev => ({ ...prev, status: 'sent_to_supplier' }));
             setActiveTab('orders');
-            showToast('Order sent to supplier', 'success');
+            showToast(`Order sent to ${order.supplier_name || 'supplier'}`, 'success');
           }}
           tenantId={activeTenantId}
           listId={id}

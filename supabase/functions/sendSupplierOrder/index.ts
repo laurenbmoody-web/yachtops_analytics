@@ -19,126 +19,143 @@ const corsHeaders = {
 };
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') || '';
-const SITE_URL = Deno.env.get('SITE_URL') || 'https://app.cargotechnology.co.uk';
+const SITE_URL = Deno.env.get('SITE_URL') || 'https://cargotechnology.netlify.app';
+const LOGO_BEIGE = 'https://cargotechnology.netlify.app/assets/images/Cargo_20logo_20solid_20beige-1767558154320.svg';
+const LOGO_NAVY  = 'https://cargotechnology.netlify.app/assets/images/Cargo_20logo_20solid_20navy-1767558047979.svg';
 
 // ── HTML email builder ────────────────────────────────────────────────────────
 
-function infoRow(label: string, value: string): string {
-  if (!value) return '';
-  return `<tr>
-    <td style="padding:4px 12px 4px 0;font-size:13px;color:#64748B;white-space:nowrap;vertical-align:top">${label}</td>
-    <td style="padding:4px 0;font-size:13px;color:#0F172A;vertical-align:top">${value}</td>
-  </tr>`;
-}
-
-function itemRow(item: any, index: number): string {
-  const bg = index % 2 === 0 ? '#F8FAFC' : '#FFFFFF';
-  return `<tr style="background:${bg}">
-    <td style="padding:8px 12px;font-size:13px;color:#0F172A;border-bottom:1px solid #E2E8F0">${item.name || item.item_name || '—'}</td>
-    <td style="padding:8px 12px;font-size:13px;color:#0F172A;text-align:center;border-bottom:1px solid #E2E8F0">${item.quantity ?? item.qty ?? '—'}</td>
-    <td style="padding:8px 12px;font-size:13px;color:#64748B;border-bottom:1px solid #E2E8F0">${item.unit || '—'}</td>
-    <td style="padding:8px 12px;font-size:13px;color:#64748B;border-bottom:1px solid #E2E8F0">${item.notes || ''}</td>
-  </tr>`;
-}
-
 function buildEmailHtml(b: any): string {
-  const confirmUrl = `${SITE_URL}/order/confirm/${b.publicToken}`;
   const items: any[] = b.items || [];
 
-  const deliveryRows = [
-    infoRow('Port / Location', b.deliveryPort),
-    infoRow('Date', b.deliveryDate),
-    infoRow('Time', b.deliveryTime),
-    infoRow('Contact', b.deliveryContact),
-  ].filter(Boolean).join('');
+  const currSymbol = b.currency === 'GBP' ? '£' : b.currency === 'USD' ? '$' : b.currency === 'EUR' ? '€' : (b.currency || '') + ' ';
+  const fmtPrice = (v: any) => {
+    const n = parseFloat(v);
+    return isNaN(n) ? '—' : `${currSymbol}${n.toFixed(2)}`;
+  };
+
+  const hasPrices = items.some((i: any) => i.estimatedPrice != null && i.estimatedPrice !== '');
+  const totalEstimated = items.reduce((sum: number, i: any) =>
+    sum + ((parseFloat(i.estimatedPrice) || 0) * (parseFloat(i.quantity) || 0)), 0);
+
+  const itemRows = items.map((i: any) => `
+    <tr>
+      <td style="padding:10px 14px;font-size:13px;color:#0F172A;border-bottom:1px solid #F1F5F9">${i.name || i.item_name || '—'}</td>
+      <td style="padding:10px 14px;font-size:13px;color:#0F172A;text-align:center;border-bottom:1px solid #F1F5F9">${i.quantity ?? i.qty ?? '—'}</td>
+      <td style="padding:10px 14px;font-size:13px;color:#64748B;border-bottom:1px solid #F1F5F9">${i.unit || '—'}</td>
+      ${hasPrices ? `<td style="padding:10px 14px;font-size:13px;color:#0F172A;text-align:right;border-bottom:1px solid #F1F5F9">${(i.estimatedPrice != null && i.estimatedPrice !== '') ? fmtPrice(i.estimatedPrice) : '—'}</td>` : ''}
+    </tr>
+  `).join('');
+
+  const totalRow = (hasPrices && totalEstimated > 0) ? `
+    <tr style="background:#F8FAFC">
+      <td colspan="${hasPrices ? 3 : 2}" style="padding:12px 14px;font-size:13px;font-weight:700;color:#0F172A;text-align:right;border-top:2px solid #E2E8F0">Estimated Total</td>
+      <td style="padding:12px 14px;font-size:14px;font-weight:700;color:#0F172A;text-align:right;border-top:2px solid #E2E8F0">${fmtPrice(totalEstimated)}</td>
+    </tr>` : '';
 
   const specialBlock = b.specialInstructions ? `
-    <div style="margin:24px 0;padding:12px 16px;background:#FFFBEB;border-left:4px solid #F59E0B;border-radius:4px">
-      <p style="margin:0 0 4px;font-size:11px;font-weight:600;color:#92400E;text-transform:uppercase;letter-spacing:.05em">Special Instructions</p>
-      <p style="margin:0;font-size:13px;color:#78350F;line-height:1.5">${b.specialInstructions}</p>
+    <div style="background:#FEF3C7;border-radius:8px;padding:14px 18px;margin-bottom:28px;border:1px solid #FDE68A">
+      <div style="font-size:11px;font-weight:600;color:#92400E;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Special Instructions</div>
+      <p style="font-size:13px;color:#78350F;line-height:1.5;margin:0">${b.specialInstructions}</p>
     </div>` : '';
 
-  const itemsTable = items.length > 0 ? `
-    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #E2E8F0;border-radius:6px;overflow:hidden;margin-top:8px">
-      <thead>
-        <tr style="background:#0F172A">
-          <th style="padding:10px 12px;font-size:11px;font-weight:600;color:#94A3B8;text-align:left;text-transform:uppercase;letter-spacing:.05em">Item</th>
-          <th style="padding:10px 12px;font-size:11px;font-weight:600;color:#94A3B8;text-align:center;text-transform:uppercase;letter-spacing:.05em">Qty</th>
-          <th style="padding:10px 12px;font-size:11px;font-weight:600;color:#94A3B8;text-align:left;text-transform:uppercase;letter-spacing:.05em">Unit</th>
-          <th style="padding:10px 12px;font-size:11px;font-weight:600;color:#94A3B8;text-align:left;text-transform:uppercase;letter-spacing:.05em">Notes</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${items.map((item, i) => itemRow(item, i)).join('')}
-      </tbody>
-    </table>` : '<p style="color:#64748B;font-size:13px">No items included.</p>';
+  const itemCount = items.length;
+  const confirmUrl = `${SITE_URL}/order/confirm/${b.publicToken}`;
 
   return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Order Request</title></head>
-<body style="margin:0;padding:0;background:#F1F5F9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#F1F5F9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:32px 16px">
 <tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1)">
+  <table width="600" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08)">
 
-  <!-- Header -->
-  <tr>
-    <td style="background:#0F172A;padding:28px 32px">
-      <p style="margin:0;font-size:11px;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:.08em">Order Request</p>
-      <h1 style="margin:6px 0 0;font-size:22px;font-weight:700;color:#FFFFFF">${b.vesselName || 'Vessel Order'}</h1>
-      ${b.orderRef ? `<p style="margin:4px 0 0;font-size:13px;color:#64748B">${b.orderRef}</p>` : ''}
-    </td>
-  </tr>
+    <!-- Navy header -->
+    <tr><td style="background:#1E3A5F;padding:28px 32px">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td><img src="${LOGO_BEIGE}" alt="Cargo" style="height:28px;display:block" /></td>
+          <td align="right" style="vertical-align:bottom">
+            <div style="font-size:11px;color:#93C5FD;text-transform:uppercase;letter-spacing:1.5px;font-weight:600">Provisioning Order</div>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
 
-  <!-- Body -->
-  <tr>
-    <td style="padding:32px">
-
-      <p style="margin:0 0 20px;font-size:14px;color:#475569;line-height:1.6">
-        Dear ${b.supplierName || 'Supplier'},<br><br>
-        Please find below our order request. Kindly confirm availability and pricing at your earliest convenience.
+    <!-- Body -->
+    <tr><td style="padding:32px">
+      <p style="font-size:15px;color:#334155;line-height:1.6;margin:0 0 20px">
+        Hi ${b.supplierName || 'there'},
+      </p>
+      <p style="font-size:15px;color:#334155;line-height:1.6;margin:0 0 28px">
+        You have a new provisioning order from <strong>${b.vesselName || 'the vessel'}</strong>. Please review the details below and confirm availability.
       </p>
 
-      <!-- Delivery details -->
-      ${deliveryRows ? `
-      <div style="padding:16px;background:#F0FDFA;border-left:4px solid #0D9488;border-radius:4px;margin-bottom:24px">
-        <p style="margin:0 0 10px;font-size:11px;font-weight:600;color:#0F766E;text-transform:uppercase;letter-spacing:.05em">Delivery Details</p>
-        <table cellpadding="0" cellspacing="0">
-          ${deliveryRows}
+      <!-- Delivery details card -->
+      <div style="background:#F8FAFC;border-left:4px solid #00A8CC;border-radius:0 8px 8px 0;padding:20px 24px;margin-bottom:28px">
+        <div style="font-size:11px;font-weight:600;color:#00A8CC;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:14px">Delivery Details</div>
+        <table cellpadding="0" cellspacing="0" width="100%">
+          <tr>
+            <td width="50%" style="padding:4px 0;font-size:13px;color:#334155;vertical-align:top">
+              <span style="color:#94A3B8;font-size:12px">Port</span><br><strong>${b.deliveryPort || '—'}</strong>
+            </td>
+            <td width="50%" style="padding:4px 0;font-size:13px;color:#334155;vertical-align:top">
+              <span style="color:#94A3B8;font-size:12px">Date</span><br><strong>${b.deliveryDate || '—'}</strong>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:8px 0 0;font-size:13px;color:#334155;vertical-align:top">
+              <span style="color:#94A3B8;font-size:12px">Time</span><br><strong>${b.deliveryTime || '—'}</strong>
+            </td>
+            <td style="padding:8px 0 0;font-size:13px;color:#334155;vertical-align:top">
+              <span style="color:#94A3B8;font-size:12px">Contact on Board</span><br><strong>${b.deliveryContact || '—'}</strong>
+            </td>
+          </tr>
         </table>
-      </div>` : ''}
+      </div>
 
       ${specialBlock}
 
-      <!-- Items -->
-      <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#0F172A;text-transform:uppercase;letter-spacing:.05em">Order Items (${items.length})</p>
-      ${itemsTable}
+      <!-- Items table -->
+      <div style="font-size:11px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px">Order Items</div>
+      <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E2E8F0;border-radius:8px;overflow:hidden;margin-bottom:8px">
+        <tr>
+          <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:#475569;background:#F8FAFC;border-bottom:2px solid #E2E8F0">Item</th>
+          <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:600;color:#475569;background:#F8FAFC;border-bottom:2px solid #E2E8F0">Qty</th>
+          <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:#475569;background:#F8FAFC;border-bottom:2px solid #E2E8F0">Unit</th>
+          ${hasPrices ? `<th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:600;color:#475569;background:#F8FAFC;border-bottom:2px solid #E2E8F0">Est. Price</th>` : ''}
+        </tr>
+        ${itemRows}
+        ${totalRow}
+      </table>
+      <p style="font-size:11px;color:#94A3B8;margin-bottom:28px">${itemCount} item${itemCount !== 1 ? 's' : ''}${hasPrices ? ' · Prices are estimates and may be adjusted when you confirm.' : ''}</p>
 
-      <!-- CTA -->
-      <div style="text-align:center;margin:32px 0 8px">
-        <a href="${confirmUrl}"
-           style="display:inline-block;padding:14px 32px;background:#0D9488;color:#FFFFFF;font-size:15px;font-weight:600;text-decoration:none;border-radius:8px;letter-spacing:.01em">
-          Confirm Order Online
+      <!-- CTA Button -->
+      <div style="text-align:center;margin-bottom:28px">
+        <a href="${confirmUrl}" style="display:inline-block;padding:16px 48px;background:#00A8CC;color:#FFFFFF;font-size:15px;font-weight:700;text-decoration:none;border-radius:10px;letter-spacing:0.2px">
+          View &amp; Confirm Order
         </a>
-        <p style="margin:12px 0 0;font-size:12px;color:#94A3B8">
-          Or copy this link: <a href="${confirmUrl}" style="color:#0D9488">${confirmUrl}</a>
-        </p>
+        <p style="font-size:12px;color:#94A3B8;margin-top:10px">No account needed — confirm directly from the link above</p>
       </div>
 
-    </td>
-  </tr>
+      <div style="border-top:1px solid #E2E8F0;margin-bottom:20px"></div>
 
-  <!-- Footer -->
-  <tr>
-    <td style="background:#F8FAFC;padding:20px 32px;border-top:1px solid #E2E8F0">
-      <p style="margin:0;font-size:11px;color:#94A3B8;text-align:center">
-        This order was sent via <strong style="color:#64748B">Cargo Technology</strong> — yacht provisioning &amp; logistics platform.<br>
-        Questions? Reply to this email and we'll get back to you.
+      <p style="font-size:13px;color:#64748B;line-height:1.6;margin:0">
+        If you have any questions about this order, reply to this email — it will go directly to <strong style="color:#334155">${b.senderName || 'the crew'}</strong> on board ${b.vesselName || 'the vessel'}.
       </p>
-    </td>
-  </tr>
+    </td></tr>
 
-</table>
+    <!-- Footer -->
+    <tr><td style="background:#F8FAFC;padding:20px 32px;border-top:1px solid #E2E8F0">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td><img src="${LOGO_NAVY}" alt="Cargo" style="height:16px;display:block;opacity:0.4" /></td>
+          <td align="right"><span style="font-size:11px;color:#94A3B8">Provisioning management for superyachts</span></td>
+        </tr>
+      </table>
+    </td></tr>
+
+  </table>
 </td></tr>
 </table>
 </body>
@@ -182,12 +199,11 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  const subject = [
-    'Order Request',
-    body.vesselName || 'Vessel',
-    body.deliveryPort || null,
-    body.deliveryDate || null,
-  ].filter(Boolean).join(' — ');
+  // Subject: vessel name is the most important identifier for the supplier
+  const vesselName = body.vesselName || 'Vessel';
+  const datePart   = body.deliveryDate ? `delivery ${body.deliveryDate}` : null;
+  const portPart   = body.deliveryPort ? `at ${body.deliveryPort}` : null;
+  const subject    = ['New order from ' + vesselName, datePart, portPart].filter(Boolean).join(' — ');
 
   console.log('[sendSupplierOrder] Sending to:', body.to, '| subject:', subject, '| items:', body.items?.length);
 
@@ -198,10 +214,11 @@ Deno.serve(async (req: Request) => {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from:    'Cargo Orders <orders@cargotechnology.co.uk>',
-      to:      [body.to],
+      from:     'Cargo Orders <orders@cargotechnology.co.uk>',
+      to:       [body.to],
       subject,
-      html:    buildEmailHtml(body),
+      html:     buildEmailHtml(body),
+      // reply_to goes to the crew member who sent the order, not a Cargo address
       ...(body.replyTo ? { reply_to: body.replyTo } : {}),
     }),
   });

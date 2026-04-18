@@ -150,6 +150,20 @@ const SendToSupplierModal = ({
     setStep(s => s + 1);
   };
 
+  const saveNewSupplierToDirectory = async () => {
+    if (supplierMode !== 'new' || !supplierName) return;
+    try {
+      await supabase.from('provisioning_suppliers').insert({
+        tenant_id: tenantId,
+        name: supplierName,
+        email: supplierEmail || null,
+        phone: supplierPhone || null,
+      });
+    } catch (err) {
+      console.warn('[SendToSupplierModal] supplier directory save failed (non-fatal):', err);
+    }
+  };
+
   const handleSendEmail = async () => {
     if (!supplierEmail || !supplierEmail.includes('@')) {
       showToast('Please enter a valid supplier email', 'error');
@@ -161,22 +175,34 @@ const SendToSupplierModal = ({
         tenantId, listId, supplierName, supplierEmail, supplierPhone,
         deliveryPort, deliveryDate: deliveryDate || null, deliveryTime: deliveryTime || null,
         deliveryContact, specialInstructions, currency, items, createdBy,
-        sentVia: 'email',
+        sentVia: 'email', vesselName,
       });
 
       const { error: fnError } = await supabase.functions.invoke('sendSupplierOrder', {
         body: {
           to: supplierEmail,
           publicToken: order.public_token,
+          replyTo: user?.email || null,
+          senderName: user?.user_metadata?.full_name || user?.email || null,
           ...orderPayload,
           items: items.map(it => ({
             name: it.name, quantity: it.quantity, unit: it.unit, notes: it.notes,
+            estimatedPrice: it.estimated_price ?? null,
           })),
         },
       });
 
       if (fnError) throw fnError;
       await markOrderSent(order.id, 'email');
+
+      // Update provisioning list status to sent_to_supplier
+      await supabase.from('provisioning_lists')
+        .update({ status: 'sent_to_supplier' })
+        .eq('id', listId);
+
+      // Save new supplier to directory for future use
+      await saveNewSupplierToDirectory();
+
       onSent && onSent(order);
       onClose();
     } catch (err) {
@@ -200,9 +226,16 @@ const SendToSupplierModal = ({
           tenantId, listId, supplierName, supplierEmail, supplierPhone,
           deliveryPort, deliveryDate: deliveryDate || null, deliveryTime: deliveryTime || null,
           deliveryContact, specialInstructions, currency, items, createdBy,
-          sentVia: 'whatsapp',
+          sentVia: 'whatsapp', vesselName,
         });
         await markOrderSent(order.id, 'whatsapp');
+
+        // Update provisioning list status to sent_to_supplier
+        await supabase.from('provisioning_lists')
+          .update({ status: 'sent_to_supplier' })
+          .eq('id', listId);
+
+        await saveNewSupplierToDirectory();
         onSent && onSent(order);
       } catch (orderErr) {
         console.warn('[SendToSupplierModal] WhatsApp order record failed (non-fatal):', orderErr);
