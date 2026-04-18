@@ -136,8 +136,9 @@ const VesselSignupFlowStep1 = () => {
           tenant_id: tenantId,
           user_id: userId,
           role: 'COMMAND',
+          permission_tier: 'COMMAND',
           active: true,
-          status: 'ACTIVE'
+          status: 'active',
         });
 
       if (memberError) {
