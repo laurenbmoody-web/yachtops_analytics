@@ -231,30 +231,54 @@ const SetPassword = () => {
         console.warn('SET_PASSWORD: profile update failed (non-fatal)', profileError);
       }
 
-      // Route brand-new vessel admins to /onboarding so they go through
-      // the 3-step setup flow (vessel → departments → crew) before
-      // landing on the dashboard. Everyone else (e.g. crew members,
-      // returning users somehow reaching this page) goes to /dashboard.
-      //
-      // We detect "brand-new" via user.app_metadata.provider flags are
-      // unreliable — instead, ask the OnboardingRoute guard to redirect
-      // if the tenant's onboarding_completed_at is already set. For
-      // that, we just route to /onboarding unconditionally for invited
-      // users and let the guard bounce them to /dashboard if they've
-      // been through it already.
-      const destination = '/onboarding';
+      // Detect whether this is an invited crew member or a vessel admin.
+      // Invite emails are sent via Supabase admin inviteUserByEmail, which
+      // routes to /set-password. But accept_crew_invite_v3 (which creates
+      // the tenant_members row) was never called — so we must do it here.
+      // If there is a PENDING crew_invites row for this email, auto-accept
+      // it and send the user to /dashboard. If there is none, they are a
+      // vessel admin and should go through /onboarding.
+      let destination = '/onboarding';
+
+      try {
+        const { data: pendingInvite } = await supabase
+          ?.from('crew_invites')
+          ?.select('token, tenant_id')
+          ?.eq('email', user?.email?.toLowerCase()?.trim())
+          ?.eq('status', 'PENDING')
+          ?.limit(1)
+          ?.maybeSingle();
+
+        if (pendingInvite?.token) {
+          console.log('SET_PASSWORD: found pending crew invite, auto-accepting');
+          const { data: acceptData, error: acceptError } = await supabase?.rpc(
+            'accept_crew_invite_v3',
+            { p_token: pendingInvite.token, p_full_name: fullName }
+          );
+
+          if (acceptError) {
+            console.warn('SET_PASSWORD: accept_crew_invite_v3 failed (non-fatal)', acceptError);
+          }
+
+          const tenantId = acceptData?.[0]?.tenant_id || pendingInvite?.tenant_id;
+          if (tenantId) {
+            await supabase
+              ?.from('profiles')
+              ?.update({ last_active_tenant_id: tenantId })
+              ?.eq('id', user?.id);
+          }
+
+          destination = '/dashboard';
+          console.log('SET_PASSWORD: crew invite accepted, routing to /dashboard');
+        }
+      } catch (inviteErr) {
+        // Non-fatal — worst case they land on /onboarding and see the normal error
+        console.warn('SET_PASSWORD: crew invite check failed (non-fatal)', inviteErr);
+      }
+
       console.log('SET_PASSWORD: routing to', destination);
       setSuccess(true);
       showToast('Password set successfully', 'success');
-
-      // NOTE: do NOT call retryBootstrap here — AuthContext is usually
-      // already bootstrapped with a resolved tenantId by the time the
-      // user reaches this success path (set-password takes > the webhook
-      // round-trip for all but the very unluckiest timing). Calling
-      // retryBootstrap flips auth loading back on mid-nav and causes a
-      // flicker between the auth loading gate and onboarding's own
-      // loader. OnboardingPage has its own tenant_members poll as a
-      // safety net for the genuine race case.
 
       // Brief pause so the success state is readable, then hand off.
       setTimeout(() => {
