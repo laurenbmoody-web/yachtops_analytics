@@ -158,16 +158,18 @@ const CrewProfile = () => {
           const { data: tmData } = await supabase
             ?.from('tenant_members')
             ?.select(`
-              status,
+              role_id,
+              custom_role_id,
               department_id,
-              role:roles!role_id(name),
-              custom_role:tenant_custom_roles!custom_role_id(name),
-              departments(name)
+              status,
+              permission_tier_override,
+              departments(name),
+              roles!tenant_members_role_id_fkey(name),
+              custom_role:tenant_custom_roles(name)
             `)
             ?.eq('user_id', crewId)
             ?.eq('tenant_id', activeTenantId)
-            ?.eq('active', true)
-            ?.maybeSingle();
+            ?.single();
           membershipData = tmData;
         }
 
@@ -182,8 +184,12 @@ const CrewProfile = () => {
           lastName: profileData?.full_name?.split(' ')?.slice(1)?.join(' ') || '',
           avatarUrl: profileData?.avatar_url || null,
           status: membershipData?.status || null,
-          roleTitle: membershipData?.role?.name || membershipData?.custom_role?.name || null,
+          roleTitle: membershipData?.custom_role?.name || membershipData?.roles?.name || null,
           department: membershipData?.departments?.name || null,
+          department_id: membershipData?.department_id || null,
+          role_id: membershipData?.role_id || null,
+          custom_role_id: membershipData?.custom_role_id || null,
+          effectiveTier: membershipData?.permission_tier_override || null,
           // Initialize empty fields for sections that may not have data yet
           dateOfBirth: '',
           nationality: '',

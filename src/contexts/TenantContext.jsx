@@ -51,21 +51,43 @@ const VesselChooserModal = ({ options, onSelect }) => (
 );
 
 // ─── No Vessel Access UI ─────────────────────────────────────────────────────
-const NoVesselAccessScreen = () => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-50 p-4">
-    <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8 text-center">
-      <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-        <svg className="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-        </svg>
+const NoVesselAccessScreen = () => {
+  const handleSignOut = async () => {
+    try {
+      localStorage.removeItem('activeTenantId');
+      localStorage.removeItem('currentTenantId');
+      localStorage.removeItem('last_active_tenant_id');
+      localStorage.removeItem('tenantId');
+      await supabase.auth.signOut();
+      window.location.href = '/login-authentication';
+    } catch (err) {
+      console.error('[TENANT] Sign out error:', err);
+      window.location.href = '/login-authentication';
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8 text-center">
+        <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg className="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+          </svg>
+        </div>
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">No Active Vessel Access</h2>
+        <p className="text-sm text-gray-500 leading-relaxed mb-6">
+          You don't have an active membership on any vessel. Please contact your vessel administrator to be added.
+        </p>
+        <button
+          onClick={handleSignOut}
+          className="px-5 py-2.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/80 transition-colors"
+        >
+          Sign Out
+        </button>
       </div>
-      <h2 className="text-xl font-semibold text-gray-900 mb-2">No Active Vessel Access</h2>
-      <p className="text-sm text-gray-500 leading-relaxed">
-        You don't have an active membership on any vessel. Please contact your vessel administrator to be added.
-      </p>
     </div>
-  </div>
-);
+  );
+};
 
 // ─── Exported helper so AuthContext can render fallback UI ───────────────────
 export const VesselFallbackUI = () => {
