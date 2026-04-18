@@ -2058,7 +2058,11 @@ const ProvisioningBoardDetail = () => {
           tenantId={activeTenantId}
           listId={id}
           items={items.filter(i => i.status !== 'received').map(i => ({
-            name: i.name, quantity: i.quantity, unit: i.unit, notes: i.notes,
+            name: i.name,
+            quantity: i.quantity_ordered,
+            unit: i.unit,
+            notes: i.notes,
+            estimated_price: i.estimated_unit_cost || null,
           }))}
           vesselName={list?.title}
           orderRef={list?.port_location}

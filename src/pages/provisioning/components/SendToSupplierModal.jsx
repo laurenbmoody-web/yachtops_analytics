@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient';
 import { createSupplierOrder, markOrderSent } from '../utils/provisioningStorage';
+import { useAuth } from '../../../contexts/AuthContext';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
+import { showToast } from '../../../utils/toast';
 
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'AED', 'CHF', 'SGD', 'AUD'];
 
@@ -21,7 +23,7 @@ const WHATSAPP_TEMPLATE = (order, items) => {
     '',
     '*Items*',
     ...items.map((it, i) =>
-      `${i + 1}. ${it.name || it.item_name} — ${it.quantity ?? it.qty} ${it.unit || ''} ${it.notes ? `(${it.notes})` : ''}`.trim()
+      `${i + 1}. ${it.name || it.item_name} — ${it.quantity ?? it.qty ?? '?'} ${it.unit || ''}${it.notes ? ` (${it.notes})` : ''}`.trim()
     ),
   ];
   return lines.filter(l => l !== null).join('\n');
@@ -64,6 +66,8 @@ const SendToSupplierModal = ({
   tenantId, listId, items = [],
   vesselName, orderRef, createdBy,
 }) => {
+  const { user } = useAuth();
+
   const [step, setStep] = useState(0);
   const [sending, setSending] = useState(false);
   const [whatsappCopied, setWhatsappCopied] = useState(false);
@@ -71,7 +75,7 @@ const SendToSupplierModal = ({
   const [suppliersLoading, setSuppliersLoading] = useState(false);
 
   // Step 0 — supplier
-  const [supplierMode, setSupplierMode] = useState('existing'); // 'existing' | 'new'
+  const [supplierMode, setSupplierMode] = useState('existing');
   const [selectedSupplierId, setSelectedSupplierId] = useState('');
   const [newName,  setNewName]  = useState('');
   const [newEmail, setNewEmail] = useState('');
@@ -85,6 +89,7 @@ const SendToSupplierModal = ({
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [currency, setCurrency] = useState('USD');
 
+  // Reset all state when modal opens; default contact to current user's name
   useEffect(() => {
     if (!isOpen) return;
     setStep(0);
@@ -94,7 +99,14 @@ const SendToSupplierModal = ({
     setSelectedSupplierId('');
     setNewName(''); setNewEmail(''); setNewPhone('');
     setDeliveryPort(''); setDeliveryDate(''); setDeliveryTime('');
-    setDeliveryContact(''); setSpecialInstructions(''); setCurrency('USD');
+    const defaultContact =
+      user?.user_metadata?.full_name ||
+      user?.user_metadata?.first_name ||
+      user?.email ||
+      '';
+    setDeliveryContact(defaultContact);
+    setSpecialInstructions('');
+    setCurrency('USD');
   }, [isOpen]);
 
   useEffect(() => {
@@ -109,15 +121,16 @@ const SendToSupplierModal = ({
 
   if (!isOpen) return null;
 
-  // Resolve supplier details for review step
+  // Resolve supplier details
   const selectedSupplier = suppliers.find(s => s.id === selectedSupplierId);
   const supplierName  = supplierMode === 'existing' ? (selectedSupplier?.name  || '') : newName;
   const supplierEmail = supplierMode === 'existing' ? (selectedSupplier?.email || '') : newEmail;
   const supplierPhone = supplierMode === 'existing' ? (selectedSupplier?.phone || '') : newPhone;
 
+  // Step 0 is valid when: existing supplier selected, OR manual entry has name + valid email
   const step0Valid = supplierMode === 'existing'
     ? Boolean(selectedSupplierId)
-    : Boolean(newName.trim());
+    : Boolean(newName.trim()) && Boolean(newEmail.trim()) && newEmail.includes('@');
 
   const orderPayload = {
     vesselName, orderRef, supplierName, supplierEmail, supplierPhone,
@@ -125,14 +138,30 @@ const SendToSupplierModal = ({
     specialInstructions, currency,
   };
 
+  // Advance step with validation gate on step 0 → 1 transition
+  const handleNext = () => {
+    if (step === 0) {
+      if (!step0Valid) return;
+      // For existing suppliers without email, warn but allow through
+      if (supplierMode === 'existing' && !supplierEmail) {
+        showToast('No email on file for this supplier — you can still copy via WhatsApp', 'error');
+      }
+    }
+    setStep(s => s + 1);
+  };
+
   const handleSendEmail = async () => {
-    if (!supplierEmail) return;
+    if (!supplierEmail || !supplierEmail.includes('@')) {
+      showToast('Please enter a valid supplier email', 'error');
+      return;
+    }
     setSending(true);
     try {
       const order = await createSupplierOrder({
         tenantId, listId, supplierName, supplierEmail, supplierPhone,
         deliveryPort, deliveryDate: deliveryDate || null, deliveryTime: deliveryTime || null,
         deliveryContact, specialInstructions, currency, items, createdBy,
+        sentVia: 'email',
       });
 
       const { error: fnError } = await supabase.functions.invoke('sendSupplierOrder', {
@@ -147,12 +176,12 @@ const SendToSupplierModal = ({
       });
 
       if (fnError) throw fnError;
-      await markOrderSent(order.id);
+      await markOrderSent(order.id, 'email');
       onSent && onSent(order);
       onClose();
     } catch (err) {
       console.error('[SendToSupplierModal] send error:', err);
-      alert(`Failed to send order: ${err.message || err}`);
+      showToast(`Failed to send order: ${err.message || err}`, 'error');
     } finally {
       setSending(false);
     }
@@ -164,10 +193,30 @@ const SendToSupplierModal = ({
       await navigator.clipboard.writeText(text);
       setWhatsappCopied(true);
       setTimeout(() => setWhatsappCopied(false), 2500);
+
+      // Record the order as sent via WhatsApp (non-blocking)
+      try {
+        const order = await createSupplierOrder({
+          tenantId, listId, supplierName, supplierEmail, supplierPhone,
+          deliveryPort, deliveryDate: deliveryDate || null, deliveryTime: deliveryTime || null,
+          deliveryContact, specialInstructions, currency, items, createdBy,
+          sentVia: 'whatsapp',
+        });
+        await markOrderSent(order.id, 'whatsapp');
+        onSent && onSent(order);
+      } catch (orderErr) {
+        console.warn('[SendToSupplierModal] WhatsApp order record failed (non-fatal):', orderErr);
+      }
     } catch {
-      alert('Could not copy to clipboard.');
+      showToast('Could not copy to clipboard.', 'error');
     }
   };
+
+  // Price helpers for review table
+  const hasAnyPrices = items.some(it => it.estimated_price != null && it.estimated_price > 0);
+  const estimatedTotal = items.reduce((sum, it) => {
+    return sum + (Number(it.estimated_price || 0) * Number(it.quantity || 0));
+  }, 0);
 
   // ── Render steps ─────────────────────────────────────────────────────────
 
@@ -239,7 +288,7 @@ const SendToSupplierModal = ({
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-foreground mb-1 block">Email</label>
+            <label className="text-xs font-medium text-foreground mb-1 block">Email <span className="text-destructive">*</span></label>
             <input
               type="email"
               value={newEmail}
@@ -306,7 +355,7 @@ const SendToSupplierModal = ({
         </div>
       </div>
       <div>
-        <label className="text-xs font-medium text-foreground mb-1 block">Delivery Contact</label>
+        <label className="text-xs font-medium text-foreground mb-1 block">Contact on board</label>
         <input
           value={deliveryContact}
           onChange={e => setDeliveryContact(e.target.value)}
@@ -350,24 +399,40 @@ const SendToSupplierModal = ({
       {/* Items table */}
       <div>
         <p className="text-xs font-semibold text-foreground mb-2">Items ({items.length})</p>
-        <div className="border border-border rounded-lg overflow-hidden max-h-40 overflow-y-auto">
+        <div className="border border-border rounded-lg overflow-hidden max-h-48 overflow-y-auto">
           <table className="w-full text-xs">
-            <thead className="bg-muted/60">
+            <thead className="bg-muted/60 sticky top-0">
               <tr>
                 <th className="px-3 py-2 text-left font-medium text-muted-foreground">Item</th>
                 <th className="px-3 py-2 text-center font-medium text-muted-foreground">Qty</th>
                 <th className="px-3 py-2 text-left font-medium text-muted-foreground">Unit</th>
+                {hasAnyPrices && <th className="px-3 py-2 text-right font-medium text-muted-foreground">Est. Price</th>}
               </tr>
             </thead>
             <tbody>
               {items.map((it, i) => (
                 <tr key={i} className={i % 2 === 0 ? 'bg-background' : 'bg-muted/20'}>
                   <td className="px-3 py-1.5 text-foreground">{it.name}</td>
-                  <td className="px-3 py-1.5 text-center text-foreground">{it.quantity}</td>
+                  <td className="px-3 py-1.5 text-center text-foreground">{it.quantity ?? '—'}</td>
                   <td className="px-3 py-1.5 text-muted-foreground">{it.unit || '—'}</td>
+                  {hasAnyPrices && (
+                    <td className="px-3 py-1.5 text-right text-foreground">
+                      {it.estimated_price ? `${currency} ${Number(it.estimated_price).toFixed(2)}` : '—'}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
+            {hasAnyPrices && estimatedTotal > 0 && (
+              <tfoot>
+                <tr className="border-t-2 border-border bg-muted/30">
+                  <td colSpan={3} className="px-3 py-2 text-xs font-semibold text-foreground text-right">Estimated Total</td>
+                  <td className="px-3 py-2 text-xs font-semibold text-foreground text-right">
+                    {currency} {estimatedTotal.toFixed(2)}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>
@@ -445,7 +510,7 @@ const SendToSupplierModal = ({
               </Button>
             )}
             <Button
-              onClick={() => setStep(s => s + 1)}
+              onClick={handleNext}
               disabled={step === 0 && !step0Valid}
               className="flex-1"
             >
