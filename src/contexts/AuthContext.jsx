@@ -515,7 +515,7 @@ export const AuthProvider = ({ children }) => {
           
           const { data: memberships, error: membershipError } = await supabase
             ?.from('tenant_members')
-            ?.select('tenant_id, role, active')
+            ?.select('tenant_id, permission_tier, role, department_id, active')
             ?.eq('user_id', currentUserId)
             ?.eq('active', true)
             ?.order('joined_at', { ascending: false })
@@ -531,34 +531,57 @@ export const AuthProvider = ({ children }) => {
             // Membership found, update profile.last_active_tenant_id
             const membership = memberships?.[0];
             const tenantId = membership?.tenant_id;
-            const normalizedRole = (membership?.role || '')?.toUpperCase()?.trim();
-            
+            const normalizedTier = ((membership?.permission_tier || membership?.role) || '')?.toUpperCase()?.trim();
+
             console.log('BOOTSTRAP: ✅ membership ok', {
               tenant_id: tenantId,
-              role: normalizedRole
+              permission_tier: normalizedTier
             });
             setLastBootstrapStep('membership_ok');
             setBootstrapStatus('Membership found');
-            
+
             // Update profile with tenant_id
             console.log('BOOTSTRAP: updating profile.last_active_tenant_id');
             const { error: updateError } = await supabase
               ?.from('profiles')
               ?.update({ last_active_tenant_id: tenantId })
               ?.eq('id', currentUserId);
-            
+
             if (updateError) {
               console.error('BOOTSTRAP: ⚠️ failed to update profile.last_active_tenant_id:', updateError);
-              // Continue anyway, set tenant context
             } else {
               console.log('BOOTSTRAP: ✅ profile.last_active_tenant_id updated');
             }
-            
+
             setActiveTenantId(tenantId);
             localStorage.setItem('cargo_active_tenant_id', tenantId);
-            setTenantRole(normalizedRole);
+            setTenantRole(normalizedTier);
             setHasTenant(true);
             setTenantError(null);
+
+            // Resolve department name
+            let departmentName = null;
+            if (membership?.department_id) {
+              const { data: dept } = await supabase?.from('departments')?.select('name')?.eq('id', membership.department_id)?.single();
+              departmentName = dept?.name || null;
+            }
+
+            // Enrich currentUser with live permission data (same as Path A)
+            const existingUser = getCurrentUser() || {};
+            const enrichedUser = {
+              ...existingUser,
+              permission_tier: normalizedTier,
+              role: membership?.role || existingUser?.role || null,
+              department: departmentName || existingUser?.department || null,
+              department_id: membership?.department_id || existingUser?.department_id || null,
+            };
+            setCurrentUser(enrichedUser);
+            saveCurrentUser(enrichedUser);
+            console.log('[BOOTSTRAP] ✅ currentUser enriched (Path B):', {
+              permission_tier: enrichedUser?.permission_tier,
+              role: enrichedUser?.role,
+              department: enrichedUser?.department,
+            });
 
             // Determine vessel admin status (source of truth: tenants.current_admin_user_id)
             try {
