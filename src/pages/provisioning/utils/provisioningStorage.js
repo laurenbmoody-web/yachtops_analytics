@@ -2065,6 +2065,7 @@ export const createSupplierOrder = async ({
   tenantId, listId, supplierName, supplierEmail, supplierPhone,
   deliveryPort, deliveryDate, deliveryTime, deliveryContact,
   specialInstructions, currency = 'USD', items = [], createdBy,
+  sentVia = 'email',
 }) => {
   const { data: order, error: orderErr } = await supabase
     .from('supplier_orders')
@@ -2074,7 +2075,7 @@ export const createSupplierOrder = async ({
       supplier_phone: supplierPhone, delivery_port: deliveryPort,
       delivery_date: deliveryDate || null, delivery_time: deliveryTime || null,
       delivery_contact: deliveryContact, special_instructions: specialInstructions,
-      currency, created_by: createdBy,
+      currency, created_by: createdBy, sent_via: sentVia,
     })
     .select()
     .single();
@@ -2096,10 +2097,10 @@ export const createSupplierOrder = async ({
   return order;
 };
 
-export const markOrderSent = async (orderId) => {
+export const markOrderSent = async (orderId, sentVia = 'email') => {
   const { data, error } = await supabase
     .from('supplier_orders')
-    .update({ status: 'sent', sent_at: new Date().toISOString() })
+    .update({ status: 'sent', sent_at: new Date().toISOString(), sent_via: sentVia })
     .eq('id', orderId)
     .select()
     .single();
