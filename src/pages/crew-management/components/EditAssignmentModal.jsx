@@ -143,7 +143,6 @@ const EditAssignmentModal = ({ isOpen, onClose, member, onSuccess }) => {
       const payload = {
         role: permissionRole,
         permission_tier: permissionRole,
-        status: status,
         active: status === 'ACTIVE',
         department_id: departmentId || null,
         role_id: roleId || null,
