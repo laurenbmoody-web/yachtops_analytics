@@ -88,7 +88,7 @@ function buildEmailHtml(b: any): string {
         Hi ${b.supplierName || 'there'},
       </p>
       <p style="font-size:15px;color:#334155;line-height:1.6;margin:0 0 28px">
-        You have a new provisioning order from <strong>${b.vesselName || 'the vessel'}</strong>. Please review the details below and confirm availability.
+        You have a new provisioning order from <strong>${b.vesselTypeLabel ? `${b.vesselTypeLabel} ` : ''}${b.vesselName || 'the vessel'}</strong>. Please review the details below and confirm availability.
       </p>
 
       <!-- Delivery details card -->
@@ -199,11 +199,14 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  // Subject: vessel name is the most important identifier for the supplier
-  const vesselName = body.vesselName || 'Vessel';
-  const datePart   = body.deliveryDate ? `delivery ${body.deliveryDate}` : null;
-  const portPart   = body.deliveryPort ? `at ${body.deliveryPort}` : null;
-  const subject    = ['New order from ' + vesselName, datePart, portPart].filter(Boolean).join(' — ');
+  // Subject: vessel name is the most important identifier for the supplier.
+  // Prefix with M/Y or S/Y from the vessel type label stored on the tenant row.
+  const vesselName    = body.vesselName || 'Vessel';
+  const vesselPrefix  = body.vesselTypeLabel ? `${body.vesselTypeLabel} ` : 'M/Y ';
+  const fullVessel    = `${vesselPrefix}${vesselName}`;
+  const datePart      = body.deliveryDate ? `delivery ${body.deliveryDate}` : null;
+  const portPart      = body.deliveryPort ? `at ${body.deliveryPort}` : null;
+  const subject       = ['New order from ' + fullVessel, datePart, portPart].filter(Boolean).join(' — ');
 
   console.log('[sendSupplierOrder] Sending to:', body.to, '| subject:', subject, '| items:', body.items?.length);
 

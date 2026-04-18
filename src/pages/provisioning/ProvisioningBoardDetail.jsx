@@ -212,6 +212,8 @@ const ProvisioningBoardDetail = () => {
   const [supplierOrders, setSupplierOrders] = useState([]);
   const [supplierOrdersLoading, setSupplierOrdersLoading] = useState(false);
   const [expandedOrder, setExpandedOrder] = useState(null);
+  const [tenantVesselName, setTenantVesselName] = useState('');
+  const [tenantVesselTypeLabel, setTenantVesselTypeLabel] = useState('');
 
   // ── Smart Suggestions ─────────────────────────────────────────────────────
   const [suggestions, setSuggestions] = useState([]);      // [{ name, category, quantity, unit, reasoning, source, confidence }]
@@ -234,8 +236,9 @@ const ProvisioningBoardDetail = () => {
   const canAddItems = canEdit;
   // Delete the board: owner / COMMAND / CHIEF  (HOD and CREW cannot delete boards)
   const canDelete = !!isOwner || userTier === 'COMMAND' || (userTier === 'CHIEF' && inSameDept);
-  // Send to supplier: COMMAND and CHIEF only
-  const canSendToSupplier = !!isOwner || userTier === 'COMMAND' || userTier === 'CHIEF';
+  // Send to supplier: COMMAND and CHIEF only — isOwner intentionally excluded
+  // so a CREW member who created a board cannot bypass the tier restriction.
+  const canSendToSupplier = userTier === 'COMMAND' || userTier === 'CHIEF';
   // Delete individual items: owner / COMMAND / CHIEF / HOD  (not CREW)
   const canDeleteItem = !!isOwner || userTier === 'COMMAND' || (['CHIEF', 'HOD'].includes(userTier) && inSameDept);
 
@@ -256,6 +259,18 @@ const ProvisioningBoardDetail = () => {
     if (id) loadAll();
     if (activeTenantId) fetchVesselDepartments(activeTenantId).then(setDepartments);
   }, [id, activeTenantId]);
+
+  // Fetch vessel name + type from tenants table so emails use the real vessel
+  // name rather than the provisioning board title.
+  useEffect(() => {
+    if (!activeTenantId) return;
+    supabase.from('tenants').select('name, vessel_type_label').eq('id', activeTenantId).single()
+      .then(({ data }) => {
+        if (data?.name) setTenantVesselName(data.name);
+        if (data?.vessel_type_label) setTenantVesselTypeLabel(data.vessel_type_label);
+      })
+      .catch(() => {});
+  }, [activeTenantId]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -431,13 +446,14 @@ const ProvisioningBoardDetail = () => {
     return () => { cancelled = true; };
   }, [activeTab, list?.id]);
 
-  // Realtime: refresh supplier orders when supplier confirms on public page
+  // Realtime: refresh supplier orders when supplier confirms on public page.
+  // Requires supplier_orders to be added to supabase_realtime publication.
   useEffect(() => {
     if (!list?.id) return;
     const channel = supabase
       .channel(`supplier-orders-${list.id}`)
       .on('postgres_changes', {
-        event: 'UPDATE',
+        event: '*',
         schema: 'public',
         table: 'supplier_orders',
         filter: `list_id=eq.${list.id}`,
@@ -445,11 +461,13 @@ const ProvisioningBoardDetail = () => {
         fetchSupplierOrders(list.id)
           .then(data => setSupplierOrders(data || []))
           .catch(() => {});
-        if (payload.new?.status === 'confirmed') {
+        if (payload.eventType === 'UPDATE' && payload.new?.status === 'confirmed') {
           showToast(`${payload.new?.supplier_name || 'Supplier'} confirmed your order!`, 'success');
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[ProvisioningBoardDetail] realtime status:', status);
+      });
     return () => { supabase.removeChannel(channel); };
   }, [list?.id]);
 
@@ -569,6 +587,15 @@ const ProvisioningBoardDetail = () => {
       showToast('Board duplicated', 'success');
       navigate('/provisioning/' + newList.id);
     } catch { showToast('Failed to duplicate', 'error'); }
+  };
+
+  const handleSendToSupplier = () => {
+    const sendableItems = items.filter(i => i.status !== 'received' && i.name?.trim());
+    if (sendableItems.length === 0) {
+      showToast('Add items to the board before sending to a supplier.', 'warning');
+      return;
+    }
+    setShowSendModal(true);
   };
 
   // ── Smart Suggestions ─────────────────────────────────────────────────────
@@ -995,7 +1022,7 @@ const ProvisioningBoardDetail = () => {
               </button>
               {canSendToSupplier && (
                 <button
-                  onClick={() => setShowSendModal(true)}
+                  onClick={handleSendToSupplier}
                   style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: '#00A8CC', border: '1px solid #0098BB', color: 'white', whiteSpace: 'nowrap' }}
                 >
                   <Icon name="Send" style={{ width: 13, height: 13 }} /> Send to Supplier
@@ -1945,7 +1972,7 @@ const ProvisioningBoardDetail = () => {
                 <p style={{ fontSize: 12, color: '#94A3B8', marginBottom: 20 }}>Use "Send to Supplier" to create and send your first order.</p>
                 {canSendToSupplier && (
                   <button
-                    onClick={() => setShowSendModal(true)}
+                    onClick={handleSendToSupplier}
                     style={{ fontSize: 13, fontWeight: 600, padding: '8px 20px', borderRadius: 8, cursor: 'pointer', background: '#00A8CC', border: 'none', color: 'white' }}
                   >
                     Send to Supplier
@@ -1980,9 +2007,16 @@ const ProvisioningBoardDetail = () => {
                           {order.status === 'partially_confirmed' ? 'Partial' : order.status?.charAt(0).toUpperCase() + order.status?.slice(1)}
                         </span>
                         {order.sent_via && (
-                          <span style={{ fontSize: 10, fontWeight: 500, padding: '2px 7px', borderRadius: 20, background: order.sent_via === 'whatsapp' ? '#D1FAE5' : '#EFF6FF', color: order.sent_via === 'whatsapp' ? '#065F46' : '#1E40AF', flexShrink: 0 }}>
-                            {order.sent_via === 'whatsapp' ? 'WhatsApp' : order.sent_via === 'email' ? 'Email' : order.sent_via}
-                          </span>
+                          order.sent_via === 'both' ? (
+                            <>
+                              <span style={{ fontSize: 10, fontWeight: 500, padding: '2px 7px', borderRadius: 20, background: '#EFF6FF', color: '#1E40AF', flexShrink: 0 }}>Email</span>
+                              <span style={{ fontSize: 10, fontWeight: 500, padding: '2px 7px', borderRadius: 20, background: '#D1FAE5', color: '#065F46', flexShrink: 0 }}>WhatsApp</span>
+                            </>
+                          ) : (
+                            <span style={{ fontSize: 10, fontWeight: 500, padding: '2px 7px', borderRadius: 20, background: order.sent_via === 'whatsapp' ? '#D1FAE5' : '#EFF6FF', color: order.sent_via === 'whatsapp' ? '#065F46' : '#1E40AF', flexShrink: 0 }}>
+                              {order.sent_via === 'whatsapp' ? 'WhatsApp' : order.sent_via === 'email' ? 'Email' : order.sent_via}
+                            </span>
+                          )
                         )}
                         {order.sent_at && (
                           <p style={{ margin: 0, fontSize: 11, color: '#CBD5E1', flexShrink: 0 }}>
@@ -2098,7 +2132,8 @@ const ProvisioningBoardDetail = () => {
             notes: i.notes,
             estimated_price: i.estimated_unit_cost || null,
           }))}
-          vesselName={list?.title}
+          vesselName={tenantVesselName || list?.title}
+          vesselTypeLabel={tenantVesselTypeLabel}
           orderRef={list?.port_location}
           createdBy={user?.id}
         />

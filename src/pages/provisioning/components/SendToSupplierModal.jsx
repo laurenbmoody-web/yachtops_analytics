@@ -64,7 +64,7 @@ function StepBar({ current }) {
 const SendToSupplierModal = ({
   isOpen, onClose, onSent,
   tenantId, listId, items = [],
-  vesselName, orderRef, createdBy,
+  vesselName, vesselTypeLabel, orderRef, createdBy,
 }) => {
   const { user } = useAuth();
 
@@ -150,6 +150,32 @@ const SendToSupplierModal = ({
     setStep(s => s + 1);
   };
 
+  // If an order already exists for this list + supplier, update sent_via to
+  // 'both' instead of creating a duplicate row. Returns the existing order
+  // if found (updated), or null if a new order should be created.
+  const dedupeOrCreateOrder = async (newSentVia) => {
+    if (supplierEmail) {
+      const { data: existing } = await supabase
+        .from('supplier_orders')
+        .select('id, sent_via')
+        .eq('list_id', listId)
+        .eq('supplier_email', supplierEmail)
+        .in('status', ['sent', 'draft'])
+        .maybeSingle();
+      if (existing?.id) {
+        const mergedVia = existing.sent_via === newSentVia ? newSentVia : 'both';
+        const { data: updated } = await supabase
+          .from('supplier_orders')
+          .update({ sent_via: mergedVia })
+          .eq('id', existing.id)
+          .select()
+          .single();
+        return updated || existing;
+      }
+    }
+    return null;
+  };
+
   const saveNewSupplierToDirectory = async () => {
     if (supplierMode !== 'new' || !supplierName) return;
     try {
@@ -171,12 +197,16 @@ const SendToSupplierModal = ({
     }
     setSending(true);
     try {
-      const order = await createSupplierOrder({
-        tenantId, listId, supplierName, supplierEmail, supplierPhone,
-        deliveryPort, deliveryDate: deliveryDate || null, deliveryTime: deliveryTime || null,
-        deliveryContact, specialInstructions, currency, items, createdBy,
-        sentVia: 'email', vesselName,
-      });
+      // Use existing order if one was already created for this supplier (dedup)
+      let order = await dedupeOrCreateOrder('email');
+      if (!order) {
+        order = await createSupplierOrder({
+          tenantId, listId, supplierName, supplierEmail, supplierPhone,
+          deliveryPort, deliveryDate: deliveryDate || null, deliveryTime: deliveryTime || null,
+          deliveryContact, specialInstructions, currency, items, createdBy,
+          sentVia: 'email', vesselName,
+        });
+      }
 
       const { error: fnError } = await supabase.functions.invoke('sendSupplierOrder', {
         body: {
@@ -184,6 +214,7 @@ const SendToSupplierModal = ({
           publicToken: order.public_token,
           replyTo: user?.email || null,
           senderName: user?.user_metadata?.full_name || user?.email || null,
+          vesselTypeLabel: vesselTypeLabel || null,
           ...orderPayload,
           items: items.map(it => ({
             name: it.name, quantity: it.quantity, unit: it.unit, notes: it.notes,
@@ -195,12 +226,7 @@ const SendToSupplierModal = ({
       if (fnError) throw fnError;
       await markOrderSent(order.id, 'email');
 
-      // Update provisioning list status to sent_to_supplier
-      await supabase.from('provisioning_lists')
-        .update({ status: 'sent_to_supplier' })
-        .eq('id', listId);
-
-      // Save new supplier to directory for future use
+      await supabase.from('provisioning_lists').update({ status: 'sent_to_supplier' }).eq('id', listId);
       await saveNewSupplierToDirectory();
 
       onSent && onSent(order);
@@ -222,13 +248,16 @@ const SendToSupplierModal = ({
 
       // Record the order as sent via WhatsApp (non-blocking)
       try {
-        const order = await createSupplierOrder({
-          tenantId, listId, supplierName, supplierEmail, supplierPhone,
-          deliveryPort, deliveryDate: deliveryDate || null, deliveryTime: deliveryTime || null,
-          deliveryContact, specialInstructions, currency, items, createdBy,
-          sentVia: 'whatsapp', vesselName,
-        });
-        await markOrderSent(order.id, 'whatsapp');
+        let order = await dedupeOrCreateOrder('whatsapp');
+        if (!order) {
+          order = await createSupplierOrder({
+            tenantId, listId, supplierName, supplierEmail, supplierPhone,
+            deliveryPort, deliveryDate: deliveryDate || null, deliveryTime: deliveryTime || null,
+            deliveryContact, specialInstructions, currency, items, createdBy,
+            sentVia: 'whatsapp', vesselName,
+          });
+        }
+        await markOrderSent(order.id, order.sent_via || 'whatsapp');
 
         // Update provisioning list status to sent_to_supplier
         await supabase.from('provisioning_lists')
