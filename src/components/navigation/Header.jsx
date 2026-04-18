@@ -110,7 +110,7 @@ const Header = () => {
       // Fetch tenant membership data (role, tenant_id)
       const { data: tenantMember, error: tenantMemberError } = await supabase
         ?.from('tenant_members')
-        ?.select('id, tenant_id, role, active')
+        ?.select('id, tenant_id, permission_tier, role, active')
         ?.eq('user_id', authUser?.id)
         ?.eq('active', true)
         ?.limit(1)
@@ -392,7 +392,7 @@ const Header = () => {
 
   // Normalize role to uppercase for consistent comparison
   // Use real data from tenantMemberData if available, fallback to sessionStorage
-  const rawRole = tenantMemberData?.role || tenantMemberRole;
+  const rawRole = tenantMemberData?.permission_tier || tenantMemberData?.role || tenantMemberRole;
   const role = rawRole ? rawRole?.toUpperCase() : null;
   
   console.log('[HEADER] Role normalization:', {

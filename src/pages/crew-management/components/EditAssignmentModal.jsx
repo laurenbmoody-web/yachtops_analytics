@@ -142,11 +142,12 @@ const EditAssignmentModal = ({ isOpen, onClose, member, onSuccess }) => {
       // Prepare update payload with NULL-safe values
       const payload = {
         role: permissionRole,
+        permission_tier: permissionRole,
         status: status,
         active: status === 'ACTIVE',
         department_id: departmentId || null,
         role_id: roleId || null,
-        tenant_id: tenantId // Always save tenant_id
+        tenant_id: tenantId
       };
 
       console.log('EDIT ASSIGNMENT payload:', payload);
