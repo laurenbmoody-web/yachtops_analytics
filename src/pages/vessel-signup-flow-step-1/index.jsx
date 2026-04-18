@@ -137,6 +137,7 @@ const VesselSignupFlowStep1 = () => {
           user_id: userId,
           role: 'COMMAND',
           permission_tier: 'COMMAND',
+          role_legacy: 'COMMAND',
           active: true,
           status: 'active',
         });
