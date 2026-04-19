@@ -127,10 +127,10 @@ exports.handler = async (event) => {
       }
     }
 
-    // Strategy C: unconverted registration → look up tenant by IMO number
+    // Strategies C + D: unconverted registration → look up tenant by IMO or vessel name
     if (!tenantId) {
       const anyRegRes = await supaRest(
-        `vessel_registrations?contact_email=eq.${encodeURIComponent(email)}&order=created_at.desc&limit=1&select=imo_number,contact_name`,
+        `vessel_registrations?contact_email=eq.${encodeURIComponent(email)}&order=created_at.desc&limit=1&select=imo_number,vessel_name,contact_name`,
         { method: 'GET' }
       );
       if (anyRegRes.ok) {
@@ -138,7 +138,10 @@ exports.handler = async (event) => {
         if (anyRegs?.[0]) {
           fullName = anyRegs[0].contact_name || '';
           const imoNumber = anyRegs[0].imo_number;
-          if (imoNumber) {
+          const vesselName = anyRegs[0].vessel_name;
+
+          // Strategy C: match by IMO number
+          if (imoNumber && !tenantId) {
             const tenantByImoRes = await supaRest(
               `tenants?imo_number=eq.${encodeURIComponent(imoNumber)}&order=created_at.desc&limit=1&select=id`,
               { method: 'GET' }
@@ -146,6 +149,18 @@ exports.handler = async (event) => {
             if (tenantByImoRes.ok) {
               const imoTenants = await tenantByImoRes.json();
               if (imoTenants?.[0]?.id) tenantId = imoTenants[0].id;
+            }
+          }
+
+          // Strategy D: match by vessel name (covers vessels with no IMO)
+          if (vesselName && !tenantId) {
+            const tenantByNameRes = await supaRest(
+              `tenants?name=eq.${encodeURIComponent(vesselName)}&type=eq.VESSEL&order=created_at.desc&limit=1&select=id`,
+              { method: 'GET' }
+            );
+            if (tenantByNameRes.ok) {
+              const nameTenants = await tenantByNameRes.json();
+              if (nameTenants?.[0]?.id) tenantId = nameTenants[0].id;
             }
           }
         }
