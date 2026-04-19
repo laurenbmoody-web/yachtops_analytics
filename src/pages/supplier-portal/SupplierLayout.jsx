@@ -1,29 +1,45 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, ShoppingBag, Truck, FileText, BookOpen,
-  Users, MessageSquare, RotateCcw, Settings, LogOut, Bell, Search,
-  ChevronDown,
+  LayoutDashboard, ShoppingBag, Truck, FileText, BookOpen, Tag,
+  Users, MessageSquare, RotateCcw, Settings, LogOut,
+  Bell, Search, HelpCircle,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useSupplier } from '../../contexts/SupplierContext';
 import './supplier-portal.css';
 
-const NAV = [
-  { to: '/supplier/overview',   icon: LayoutDashboard, label: 'Overview' },
-  { to: '/supplier/orders',     icon: ShoppingBag,     label: 'Orders' },
-  { to: '/supplier/deliveries', icon: Truck,           label: 'Deliveries' },
-  { to: '/supplier/invoices',   icon: FileText,        label: 'Invoices' },
-  { to: '/supplier/products',   icon: BookOpen,        label: 'Products' },
-  { to: '/supplier/clients',    icon: Users,           label: 'Clients' },
-  { to: '/supplier/messages',   icon: MessageSquare,   label: 'Messages' },
-  { to: '/supplier/returns',    icon: RotateCcw,       label: 'Returns' },
+const NAV_GROUPS = [
+  {
+    label: 'Work',
+    items: [
+      { to: '/supplier/overview',   icon: LayoutDashboard, label: 'Overview' },
+      { to: '/supplier/orders',     icon: ShoppingBag,     label: 'Orders' },
+      { to: '/supplier/deliveries', icon: Truck,           label: 'Deliveries' },
+      { to: '/supplier/invoices',   icon: FileText,        label: 'Invoices' },
+    ],
+  },
+  {
+    label: 'Catalogue',
+    items: [
+      { to: '/supplier/products',    icon: BookOpen, label: 'Products' },
+      { to: '/supplier/price-lists', icon: Tag,      label: 'Price lists' },
+    ],
+  },
+  {
+    label: 'Relationships',
+    items: [
+      { to: '/supplier/clients',  icon: Users,         label: 'Yacht clients' },
+      { to: '/supplier/messages', icon: MessageSquare, label: 'Messages' },
+      { to: '/supplier/returns',  icon: RotateCcw,     label: 'Returns' },
+      { to: '/supplier/settings', icon: Settings,      label: 'Settings' },
+    ],
+  },
 ];
 
 const SupplierLayout = () => {
   const navigate = useNavigate();
   const { supplier, contact } = useSupplier();
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -32,6 +48,7 @@ const SupplierLayout = () => {
 
   const displayName = contact?.name ?? supplier?.name ?? 'Supplier';
   const initials = displayName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const tenantMark = (supplier?.name ?? 'SU').slice(0, 2).toUpperCase();
 
   return (
     <div id="sp-root">
@@ -39,131 +56,71 @@ const SupplierLayout = () => {
         {/* Sidebar */}
         <aside className="sp-sidebar">
           <div className="sp-sidebar-logo">
-            <img src="/assets/images/cargo_merged_originalmark_syne800_true.png" alt="Cargo" style={{ height: 26 }} />
-            <span style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: 13, color: 'var(--navy)', letterSpacing: '-0.02em' }}>Suppliers</span>
+            <img src="/assets/images/cargo_merged_originalmark_syne800_true.png" alt="Cargo" />
           </div>
 
-          {supplier && (
-            <div className="sp-sidebar-who">
-              <div style={{
-                width: 32, height: 32, borderRadius: 9,
-                background: 'var(--navy)', color: '#fff',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: 'Outfit', fontWeight: 800, fontSize: 12, flexShrink: 0,
-              }}>
-                {(supplier.name ?? '?').slice(0, 2).toUpperCase()}
+          <div className="sp-sidebar-who">
+            <div className="sp-tenant-mark">{tenantMark}</div>
+            <div style={{ minWidth: 0 }}>
+              <div className="sp-tenant-name" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {supplier?.name ?? 'Supplier'}
               </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 12.5, color: 'var(--fg)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{supplier.name}</div>
-                <div style={{ fontSize: 11, color: 'var(--muted-s)' }}>Supplier portal</div>
-              </div>
+              <div className="sp-tenant-sub">Supplier workspace</div>
             </div>
-          )}
+          </div>
 
           <nav className="sp-sidebar-nav">
-            <div className="sp-nav-group-label">Workspace</div>
-            {NAV.map(({ to, icon: Icon, label }) => (
-              <NavLink
-                key={to}
-                to={to}
-                className={({ isActive }) => `sp-nav-item${isActive ? ' active' : ''}`}
-              >
-                <Icon size={15} />
-                {label}
-              </NavLink>
+            {NAV_GROUPS.map((group) => (
+              <div key={group.label} className="sp-nav-group">
+                <div className="sp-nav-group-label">{group.label}</div>
+                {group.items.map(({ to, icon: Icon, label }) => (
+                  <NavLink
+                    key={to}
+                    to={to}
+                    className={({ isActive }) => `sp-nav-item${isActive ? ' active' : ''}`}
+                  >
+                    <Icon />
+                    <span>{label}</span>
+                  </NavLink>
+                ))}
+              </div>
             ))}
           </nav>
 
-          <div style={{ marginTop: 'auto', padding: '0 8px 12px' }}>
-            <NavLink
-              to="/supplier/settings"
-              className={({ isActive }) => `sp-nav-item${isActive ? ' active' : ''}`}
-            >
-              <Settings size={15} />
-              Settings
-            </NavLink>
+          <div className="sp-sidebar-foot">
+            <div className="sp-avatar">{initials}</div>
+            <div style={{ minWidth: 0 }}>
+              <div className="sp-who-name" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {displayName}
+              </div>
+              <div className="sp-who-role">Account</div>
+            </div>
+            <button onClick={handleLogout} title="Log out" aria-label="Log out">
+              <LogOut size={14} />
+            </button>
           </div>
         </aside>
 
         {/* Main area */}
         <div className="sp-main">
-          {/* Topbar */}
           <header className="sp-topbar">
             <div className="sp-topbar-search">
-              <Search size={13} style={{ color: 'var(--muted-s)' }} />
-              <input placeholder="Search orders, products…" />
+              <Search />
+              <input placeholder="Search orders, products, clients…" />
+              <span className="sp-kbd">⌘K</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
-              <span style={{
-                background: '#FEF3C7', color: '#92400E',
-                fontFamily: 'Outfit', fontWeight: 700, fontSize: 10.5,
-                padding: '3px 8px', borderRadius: 5, letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-              }}>Sandbox</span>
-              <button className="sp-icon-btn" style={{ position: 'relative' }}>
-                <Bell size={14} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
+              <span className="sp-env-badge">Sandbox</span>
+              <button className="sp-icon-btn" aria-label="Help">
+                <HelpCircle />
               </button>
-
-              {/* User menu */}
-              <div style={{ position: 'relative' }}>
-                <button
-                  onClick={() => setUserMenuOpen(o => !o)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 7,
-                    padding: '5px 10px', borderRadius: 8,
-                    border: '1px solid var(--line)', background: 'var(--card)',
-                    cursor: 'pointer', fontSize: 13,
-                  }}
-                >
-                  <div style={{
-                    width: 26, height: 26, borderRadius: '50%',
-                    background: 'var(--navy)', color: '#fff',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontWeight: 800, fontSize: 10, flexShrink: 0,
-                  }}>{initials}</div>
-                  <span style={{ fontWeight: 600, fontSize: 12.5, color: 'var(--fg)' }}>{displayName}</span>
-                  <ChevronDown size={12} style={{ color: 'var(--muted-s)' }} />
-                </button>
-
-                {userMenuOpen && (
-                  <>
-                    <div
-                      onClick={() => setUserMenuOpen(false)}
-                      style={{ position: 'fixed', inset: 0, zIndex: 99 }}
-                    />
-                    <div style={{
-                      position: 'absolute', top: 'calc(100% + 6px)', right: 0,
-                      background: 'var(--card)', border: '1px solid var(--line)',
-                      borderRadius: 10, padding: '6px', minWidth: 180,
-                      boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 100,
-                    }}>
-                      <NavLink
-                        to="/supplier/settings"
-                        onClick={() => setUserMenuOpen(false)}
-                        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 7, fontSize: 13, color: 'var(--fg)', textDecoration: 'none' }}
-                      >
-                        <Settings size={13} /> Settings
-                      </NavLink>
-                      <div style={{ borderTop: '1px solid var(--line)', margin: '4px 0' }} />
-                      <button
-                        onClick={() => { setUserMenuOpen(false); handleLogout(); }}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 8,
-                          width: '100%', padding: '8px 10px', borderRadius: 7,
-                          fontSize: 13, color: 'var(--red)', background: 'transparent',
-                          border: 'none', cursor: 'pointer', textAlign: 'left',
-                        }}
-                      >
-                        <LogOut size={13} /> Log out
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
+              <button className="sp-icon-btn" aria-label="Notifications">
+                <Bell />
+                <span className="sp-notify-dot" />
+              </button>
             </div>
           </header>
 
-          {/* Page content */}
           <div className="sp-content">
             <Outlet />
           </div>
