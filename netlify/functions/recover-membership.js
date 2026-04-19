@@ -204,7 +204,7 @@ exports.handler = async (event) => {
         role_id: captain.id,
         department_id: captain.department_id,
         active: true,
-        status: 'ACTIVE',
+        status: 'active',
       }),
     });
     if (!memberRes.ok) {
