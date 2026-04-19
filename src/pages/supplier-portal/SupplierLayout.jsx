@@ -110,8 +110,7 @@ const SupplierLayout = () => {
               <span className="sp-kbd">⌘K</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
-              <span className="sp-env-badge">Sandbox</span>
-              <button className="sp-icon-btn" aria-label="Help">
+<button className="sp-icon-btn" aria-label="Help">
                 <HelpCircle />
               </button>
               <button className="sp-icon-btn" aria-label="Notifications">
