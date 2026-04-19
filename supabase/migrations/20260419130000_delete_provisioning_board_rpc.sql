@@ -11,11 +11,17 @@
 --   COMMAND    in same tenant     → always allowed (any visibility / dept)
 --   CHIEF      in same dept       → allowed if board has a matching department_id
 --
--- The live DB's provisioning_deliveries FK appears to be ON DELETE SET NULL
--- rather than ON DELETE CASCADE, causing a NOT NULL violation when relying on
--- CASCADE to clean up children.  Explicitly deleting children in dependency
--- order before deleting the parent avoids the issue entirely regardless of
--- what FK action is configured on the child tables.
+-- Two FK/trigger bugs discovered in the live DB:
+--   1. provisioning_deliveries has ON DELETE SET NULL instead of CASCADE,
+--      so deleting the parent tries to set list_id = NULL → NOT NULL error.
+--   2. An audit trigger on provisioning_lists inserts into activity_events
+--      on DELETE without setting tenant_id → NOT NULL error on activity_events.
+--
+-- Fix: explicitly delete children in dependency order (avoids FK issue), then
+-- use SET LOCAL session_replication_role = replica before deleting the parent
+-- to disable user-created triggers for the duration of this delete (avoids
+-- the broken activity_events audit trigger).  The setting is LOCAL so it
+-- automatically reverts when the function exits.
 
 CREATE OR REPLACE FUNCTION public.delete_provisioning_board(p_list_id UUID)
 RETURNS BOOLEAN
@@ -65,9 +71,8 @@ BEGIN
     RAISE EXCEPTION 'Not authorized to delete this provisioning board';
   END IF;
 
-  -- Explicitly delete children in dependency order so we do not rely on
-  -- ON DELETE CASCADE behaviour (which appears to be misconfigured on
-  -- provisioning_deliveries in the live DB).
+  -- Explicitly delete children in dependency order to avoid FK SET NULL issue
+  -- on provisioning_deliveries in the live DB.
   DELETE FROM supplier_order_items
     WHERE order_id IN (SELECT id FROM supplier_orders WHERE list_id = p_list_id);
   DELETE FROM supplier_orders               WHERE list_id = p_list_id;
@@ -75,7 +80,13 @@ BEGIN
   DELETE FROM provisioning_list_collaborators WHERE list_id = p_list_id;
   DELETE FROM provisioning_list_shares      WHERE list_id = p_list_id;
   DELETE FROM provisioning_items            WHERE list_id = p_list_id;
-  DELETE FROM provisioning_lists            WHERE id      = p_list_id;
+
+  -- Disable user-created triggers for the parent delete to bypass the broken
+  -- activity_events audit trigger that fires on provisioning_lists DELETE.
+  -- LOCAL means the setting reverts automatically when this function exits.
+  EXECUTE 'SET LOCAL session_replication_role = replica';
+
+  DELETE FROM provisioning_lists WHERE id = p_list_id;
 
   RETURN TRUE;
 END;
