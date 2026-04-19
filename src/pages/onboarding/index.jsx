@@ -1540,8 +1540,11 @@ const OnboardingPage = () => {
         return;
       }
       // Row created — re-run bootstrap so activeTenantId gets set.
+      // Set loading=true first so VesselSettingsStep doesn't mount with null
+      // tenant; the tenant loading effect will set it false once data arrives.
       retriedRef.current = false;
       setMembershipRetries(0);
+      setLoading(true);
       setLoadError('');
       retryBootstrap?.();
     } catch (err) {
