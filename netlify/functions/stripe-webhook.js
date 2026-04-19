@@ -355,7 +355,7 @@ async function inviteUser(email, fullName) {
       body: JSON.stringify({
         type: 'magiclink',
         email,
-        options: { redirectTo: `${SITE_URL}/welcome` },
+        options: { redirectTo: `${SITE_URL}/set-password` },
       }),
     });
     if (!linkRes.ok) {
@@ -457,11 +457,22 @@ async function handleCheckoutCompleted(session) {
       );
       await upsertProfile(userId, registration);
       await setProfileTenant(userId, existingTenant.id);
-      await createTenantMember(userId, existingTenant.id).catch((err) => {
-        // Likely a unique-violation because the member row already exists.
-        // Log and continue — nothing to fix.
-        console.log(`[checkout] tenant_members insert no-op on retry: ${err?.message || err}`);
-      });
+      try {
+        await createTenantMember(userId, existingTenant.id);
+      } catch (memberErr) {
+        // Only ignore genuine duplicate-key (409) errors — member already exists.
+        // Any other failure (e.g. Captain role missing) must propagate so Stripe retries.
+        if (!/409|duplicate|already exists/i.test(memberErr?.message || '')) {
+          throw memberErr;
+        }
+        console.log(`[checkout] tenant_members insert no-op on retry (duplicate): ${memberErr?.message || memberErr}`);
+      }
+      // Vessel row — best-effort on retry, vessel-settings auto-creates if missing.
+      try {
+        await createVesselRow(existingTenant.id, registration);
+      } catch (vesselErr) {
+        console.error(`[checkout] retry vessel row creation failed (non-fatal): ${vesselErr?.message || vesselErr}`);
+      }
       await markRegistrationConverted(registration.id, existingTenant.id);
     } catch (err) {
       console.error(`[checkout] retry reconciliation failed: ${err?.message || err}`);
@@ -487,9 +498,14 @@ async function handleCheckoutCompleted(session) {
   const tenant = await createTenantRow(registration, session);
   console.log(`[checkout] tenant ${tenant.id} created`);
 
-  // 1b. Create the vessel row, copying registration data across
-  const vessel = await createVesselRow(tenant.id, registration);
-  console.log(`[checkout] vessel ${vessel.id} created for tenant ${tenant.id}`);
+  // 1b. Create the vessel row — non-fatal. If this fails, vessel-settings
+  // auto-creates the row on first visit. Never block tenant_members creation.
+  try {
+    const vessel = await createVesselRow(tenant.id, registration);
+    console.log(`[checkout] vessel ${vessel.id} created for tenant ${tenant.id}`);
+  } catch (vesselErr) {
+    console.error(`[checkout] vessel row creation failed (non-fatal): ${vesselErr?.message || vesselErr}`);
+  }
 
   // 2. Invite the user (creates auth user + sends email)
   const { id: userId, created } = await inviteUser(
