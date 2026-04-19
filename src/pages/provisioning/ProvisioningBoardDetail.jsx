@@ -265,7 +265,7 @@ const ProvisioningBoardDetail = () => {
     .filter(i => i.status !== 'received' && i.name?.trim())
     .some(i => {
       const oi = itemStatusMap[(i.name || '').toLowerCase().trim()];
-      return !oi || oi.status === 'pending';
+      return !oi;
     });
   // Delete individual items: owner / COMMAND / CHIEF / HOD  (not CREW)
   const canDeleteItem = !!isOwner || userTier === 'COMMAND' || (['CHIEF', 'HOD'].includes(userTier) && inSameDept);
@@ -627,7 +627,7 @@ const ProvisioningBoardDetail = () => {
     }
     const unsentItems = sendableItems.filter(i => {
       const oi = itemStatusMap[(i.name || '').toLowerCase().trim()];
-      return !oi || oi.status === 'pending';
+      return !oi;
     });
     if (unsentItems.length === 0) {
       showToast('All items on this board have already been sent to a supplier.', 'info');
@@ -2231,7 +2231,7 @@ const ProvisioningBoardDetail = () => {
             .filter(i => i.status !== 'received' && i.name?.trim())
             .filter(i => {
               const oi = itemStatusMap[(i.name || '').toLowerCase().trim()];
-              return !oi || oi.status === 'pending';
+              return !oi;
             })
             .map(i => ({
               name: i.name,
