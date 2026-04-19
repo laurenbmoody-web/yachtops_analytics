@@ -175,6 +175,35 @@ async function createTenantRow(registration, session) {
   return rows[0];
 }
 
+async function createVesselRow(tenantId, registration) {
+  const typeRaw = (registration.vessel_type || '').toLowerCase();
+  const vesselTypeLabel = typeRaw.includes('sail') ? 'Sailing Yacht' : 'Motor Yacht';
+
+  const payload = {
+    tenant_id: tenantId,
+    vessel_type_label: vesselTypeLabel,
+    imo_number: registration.imo_number || null,
+    loa_m: registration.loa_metres ? parseFloat(registration.loa_metres) : null,
+    gt: registration.gross_tonnage ? parseInt(registration.gross_tonnage, 10) : null,
+    year_built: registration.year_built ? parseInt(registration.year_built, 10) : null,
+    flag: registration.flag_state || null,
+    port_of_registry: registration.home_port || null,
+    onboarding_status: 'SETUP_REQUIRED',
+  };
+
+  const res = await supaRest('vessels', {
+    method: 'POST',
+    headers: { 'Prefer': 'return=representation' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`vessels insert failed: ${res.status} ${body.slice(0, 300)}`);
+  }
+  const rows = await res.json();
+  return rows[0];
+}
+
 async function upsertProfile(userId, registration) {
   const res = await supaRest('profiles', {
     method: 'POST',
@@ -457,6 +486,10 @@ async function handleCheckoutCompleted(session) {
   console.log(`[checkout] creating tenant for ${registration.vessel_name}`);
   const tenant = await createTenantRow(registration, session);
   console.log(`[checkout] tenant ${tenant.id} created`);
+
+  // 1b. Create the vessel row, copying registration data across
+  const vessel = await createVesselRow(tenant.id, registration);
+  console.log(`[checkout] vessel ${vessel.id} created for tenant ${tenant.id}`);
 
   // 2. Invite the user (creates auth user + sends email)
   const { id: userId, created } = await inviteUser(
