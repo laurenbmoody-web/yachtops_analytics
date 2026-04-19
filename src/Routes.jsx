@@ -62,6 +62,7 @@ import SupplierConfirmOrder from './pages/provisioning/SupplierConfirmOrder';
 import SupplierLogin from './pages/supplier-login';
 import SupplierSignup from './pages/supplier-signup';
 import SupplierProtectedRoute from './components/SupplierProtectedRoute';
+import SupplierRoleGuard from './components/SupplierRoleGuard';
 import SupplierPortal from './pages/supplier-portal';
 import SupplierLayout from './pages/supplier-portal/SupplierLayout';
 import { SupplierProvider } from './contexts/SupplierContext';
@@ -131,6 +132,17 @@ const InviteHashRedirectGuard = () => {
 
   return null;
 };
+
+// Inline placeholder for supplier routes not yet built (billing, audit)
+const SupplierPlaceholder = ({ title }) => (
+  <div className="sp-page">
+    <div style={{ textAlign: 'center', padding: '80px 24px', color: 'var(--muted)' }}>
+      <div style={{ fontSize: 32, marginBottom: 12 }}>⚙</div>
+      <div style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: 16, color: 'var(--fg)', marginBottom: 6 }}>{title}</div>
+      <div style={{ fontSize: 13 }}>Coming in a future update.</div>
+    </div>
+  </div>
+);
 
 // Supplier portal placeholder — replaced by the real portal in Sprint 2
 const SupplierDashboardPlaceholder = () => (
@@ -1110,18 +1122,35 @@ const Routes = () => {
           }
         >
           <Route index element={<Navigate to="overview" replace />} />
-          <Route path="overview"   element={<SupplierOverview />} />
-          <Route path="orders"     element={<SupplierOrders />} />
+          <Route path="overview"        element={<SupplierOverview />} />
+          <Route path="orders"          element={<SupplierOrders />} />
           <Route path="orders/:orderId" element={<SupplierOrderDetail />} />
-          <Route path="deliveries" element={<SupplierDeliveries />} />
-          <Route path="invoices"   element={<SupplierInvoices />} />
-          <Route path="products"   element={<SupplierProducts />} />
-          <Route path="clients"    element={<SupplierClients />} />
-          <Route path="messages"   element={<SupplierMessages />} />
-          <Route path="returns"    element={<SupplierReturns />} />
-          <Route path="settings"   element={<SupplierSettings />} />
+          <Route path="deliveries"      element={<SupplierDeliveries />} />
+          <Route path="invoices"        element={<SupplierInvoices />} />
+          <Route path="products"        element={<SupplierProducts />} />
+          <Route path="clients"         element={<SupplierClients />} />
+          <Route path="messages"        element={<SupplierMessages />} />
+          <Route path="returns"         element={<SupplierReturns />} />
+
+          {/* Settings — bare /supplier/settings redirects to company tab */}
+          <Route path="settings" element={<Navigate to="/supplier/settings/company" replace />} />
+          <Route path="settings/company"       element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
+          <Route path="settings/team"          element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
+          <Route path="settings/zones"         element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
+          <Route path="settings/payment"       element={<SupplierRoleGuard minTier="admin"><SupplierSettings /></SupplierRoleGuard>} />
+          <Route path="settings/tax"           element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
+          <Route path="settings/integrations"  element={<SupplierRoleGuard minTier="admin"><SupplierSettings /></SupplierRoleGuard>} />
+          <Route path="settings/notifications" element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
+
+          {/* Profile (personal) */}
+          <Route path="profile" element={<SupplierSettings />} />
+
+          {/* Operations — admin only: billing; admin+manager: audit */}
+          <Route path="billing" element={<SupplierRoleGuard minTier="admin"><SupplierPlaceholder title="Billing & subscription" /></SupplierRoleGuard>} />
+          <Route path="audit"   element={<SupplierRoleGuard minTier="manager"><SupplierPlaceholder title="Audit log" /></SupplierRoleGuard>} />
+
           {/* Legacy: redirect /supplier/dashboard to /supplier/overview */}
-          <Route path="dashboard"  element={<Navigate to="/supplier/overview" replace />} />
+          <Route path="dashboard" element={<Navigate to="/supplier/overview" replace />} />
         </Route>
 
         {/* Provisioning Routes */}
