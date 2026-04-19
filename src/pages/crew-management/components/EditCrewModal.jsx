@@ -83,7 +83,7 @@ const EditCrewModal = ({ isOpen, onClose, member, onSuccess }) => {
     setLoadingRoles(true);
     try {
       console.log('Loading roles from public.roles...');
-      const { data, error } = await supabase?.from('roles')?.select('id, name, department_id')?.order('name', { ascending: true });
+      const { data, error } = await supabase?.from('roles')?.select('id, name, department_id, default_permission_tier')?.order('name', { ascending: true });
 
       if (error) {
         console.error('Error loading roles:', error);
@@ -129,13 +129,18 @@ const EditCrewModal = ({ isOpen, onClose, member, onSuccess }) => {
       const tenantId = contextData?.[0]?.tenant_id;
       const userId = member?.id;
 
-      // Prepare update data
+      // Resolve the permission tier from the selected role
+      const selectedRole = roles?.find(r => r?.id === roleId);
+      const newTier = (selectedRole?.default_permission_tier || 'CREW').toUpperCase().trim();
+
+      // Prepare update data — always sync permission_tier so auth bootstrap reads correctly
       const payload = {
         department_id: departmentId,
-        role_id: roleId
+        role_id: roleId,
+        permission_tier: newTier,
       };
 
-      // Only add role if override is enabled
+      // Only add legacy role if override is enabled
       if (overrideEnabled && overrideRole) {
         payload.role = overrideRole;
       }

@@ -11,7 +11,7 @@ const CURRENCIES = ['USD', 'EUR', 'GBP', 'AED', 'CHF', 'SGD', 'AUD'];
 
 const WHATSAPP_TEMPLATE = (order, items) => {
   const lines = [
-    `*Order Request — ${order.vesselName || 'Vessel'}*`,
+    `*Order Request — ${order.prefixedVesselName || order.vesselName || 'Vessel'}*`,
     order.orderRef ? `Ref: ${order.orderRef}` : null,
     '',
     '*Delivery Details*',
@@ -123,6 +123,11 @@ const SendToSupplierModal = ({
 
   if (!isOpen) return null;
 
+  // Derive vessel type abbreviation (M/Y or S/Y) from the raw DB label
+  const rawVesselType     = (vesselTypeLabel || '').toLowerCase().trim();
+  const vesselPfx         = rawVesselType.includes('sail') ? 'S/Y' : 'M/Y';
+  const prefixedVesselName = `${vesselPfx} ${vesselName || 'Vessel'}`;
+
   // Resolve supplier details
   const selectedSupplier = suppliers.find(s => s.id === selectedSupplierId);
   const supplierName  = supplierMode === 'existing' ? (selectedSupplier?.name  || '') : newName;
@@ -135,7 +140,7 @@ const SendToSupplierModal = ({
     : Boolean(newName.trim()) && Boolean(newEmail.trim()) && newEmail.includes('@');
 
   const orderPayload = {
-    vesselName, orderRef, supplierName, supplierEmail, supplierPhone,
+    vesselName, prefixedVesselName, orderRef, supplierName, supplierEmail, supplierPhone,
     deliveryPort, deliveryDate, deliveryTime, deliveryContact,
     specialInstructions, currency,
   };
@@ -206,7 +211,7 @@ const SendToSupplierModal = ({
           tenantId, listId, supplierName, supplierEmail, supplierPhone,
           deliveryPort, deliveryDate: deliveryDate || null, deliveryTime: deliveryTime || null,
           deliveryContact, specialInstructions, currency, items, createdBy,
-          sentVia: 'email', vesselName,
+          sentVia: 'email', vesselName: prefixedVesselName,
         });
       }
 
@@ -257,7 +262,7 @@ const SendToSupplierModal = ({
             tenantId, listId, supplierName, supplierEmail, supplierPhone,
             deliveryPort, deliveryDate: deliveryDate || null, deliveryTime: deliveryTime || null,
             deliveryContact, specialInstructions, currency, items, createdBy,
-            sentVia: 'whatsapp', vesselName,
+            sentVia: 'whatsapp', vesselName: prefixedVesselName,
           });
         }
         await markOrderSent(order.id, order.sent_via || 'whatsapp');
