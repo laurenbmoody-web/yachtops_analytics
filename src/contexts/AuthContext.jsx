@@ -531,7 +531,7 @@ export const AuthProvider = ({ children }) => {
             // Membership found, update profile.last_active_tenant_id
             const membership = memberships?.[0];
             const tenantId = membership?.tenant_id;
-            const normalizedTier = ((membership?.permission_tier || membership?.role) || '')?.toUpperCase()?.trim();
+            const normalizedTier = (membership?.permission_tier || '')?.toUpperCase()?.trim();
 
             console.log('BOOTSTRAP: ✅ membership ok', {
               tenant_id: tenantId,
