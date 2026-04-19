@@ -132,11 +132,22 @@ export const fetchInventoryLocationChildren = async (tenantId, location) => {
 // ── Vessel departments ────────────────────────────────────────────────────────
 
 /**
- * Fetch active departments for this vessel from vessels.departments_in_use.
- * Returns a string[] of department names, or [] on failure / missing config.
+ * Fetch active departments for this tenant via the get_tenant_departments RPC.
+ * Falls back to vessels.departments_in_use if the RPC fails.
+ * Returns a string[] of department names.
  */
 export const fetchVesselDepartments = async (tenantId) => {
   if (!tenantId) return [];
+  try {
+    // Preferred: use the RPC which returns all departments from the shared table
+    const { data: rpcData, error: rpcErr } = await supabase
+      ?.rpc('get_tenant_departments', { p_tenant_id: tenantId });
+    if (!rpcErr && Array.isArray(rpcData) && rpcData.length > 0) {
+      return rpcData.map(d => d.name).filter(Boolean).sort();
+    }
+  } catch { /* fall through to legacy approach */ }
+
+  // Legacy fallback: read departments_in_use JSON from vessels table
   try {
     const { data, error } = await supabase
       ?.from('vessels')
@@ -800,7 +811,7 @@ export const fetchCollaborators = async (listId) => {
   try {
     const { data, error } = await supabase
       ?.from('provisioning_list_collaborators')
-      ?.select('id, user_id, permission, added_at, profiles(full_name, email, avatar_url)')
+      ?.select('id, user_id, permission, added_at, profiles!provisioning_list_collaborators_user_id_fkey(full_name, email, avatar_url)')
       ?.eq('list_id', listId)
       ?.order('added_at', { ascending: true });
     if (error) { console.error('[provisioningStorage] fetchCollaborators error:', error.message); return []; }

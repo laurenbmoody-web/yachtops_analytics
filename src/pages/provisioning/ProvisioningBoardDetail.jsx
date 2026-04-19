@@ -239,12 +239,6 @@ const ProvisioningBoardDetail = () => {
   // Send to supplier: COMMAND and CHIEF only — isOwner intentionally excluded
   // so a CREW member who created a board cannot bypass the tier restriction.
   const canSendToSupplier = userTier === 'COMMAND' || userTier === 'CHIEF';
-  const hasSendableItems = items
-    .filter(i => i.status !== 'received' && i.name?.trim())
-    .some(i => {
-      const oi = itemStatusMap[(i.name || '').toLowerCase().trim()];
-      return !oi || oi.status === 'pending';
-    });
 
   // Item-locking: once an order has been sent, board items that appear in any
   // supplier_order_items row become read-only until the board is back to draft.
@@ -265,6 +259,14 @@ const ProvisioningBoardDetail = () => {
     });
     return map;
   }, [supplierOrders]);
+
+  // itemStatusMap must be declared before hasSendableItems and canDeleteItem
+  const hasSendableItems = items
+    .filter(i => i.status !== 'received' && i.name?.trim())
+    .some(i => {
+      const oi = itemStatusMap[(i.name || '').toLowerCase().trim()];
+      return !oi || oi.status === 'pending';
+    });
   // Delete individual items: owner / COMMAND / CHIEF / HOD  (not CREW)
   const canDeleteItem = !!isOwner || userTier === 'COMMAND' || (['CHIEF', 'HOD'].includes(userTier) && inSameDept);
 
