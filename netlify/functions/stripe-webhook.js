@@ -329,7 +329,7 @@ async function inviteUser(email, fullName) {
     body: JSON.stringify({
       email,
       data: { full_name: fullName, invited_by: 'stripe-webhook' },
-      redirect_to: `${SITE_URL}/welcome`,
+      redirect_to: `${SITE_URL}/set-password`,
     }),
   });
 
