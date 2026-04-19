@@ -63,6 +63,20 @@ import SupplierLogin from './pages/supplier-login';
 import SupplierSignup from './pages/supplier-signup';
 import SupplierProtectedRoute from './components/SupplierProtectedRoute';
 import SupplierPortal from './pages/supplier-portal';
+import SupplierLayout from './pages/supplier-portal/SupplierLayout';
+import { SupplierProvider } from './contexts/SupplierContext';
+
+// Lazy supplier views — loaded only when the supplier portal is accessed
+const SupplierOverview   = React.lazy(() => import('./pages/supplier-portal/views/SupplierOverview'));
+const SupplierOrders     = React.lazy(() => import('./pages/supplier-portal/views/SupplierOrders'));
+const SupplierOrderDetail = React.lazy(() => import('./pages/supplier-portal/views/SupplierOrderDetail'));
+const SupplierProducts   = React.lazy(() => import('./pages/supplier-portal/views/SupplierProducts'));
+const SupplierSettings   = React.lazy(() => import('./pages/supplier-portal/views/SupplierSettings'));
+const SupplierDeliveries = React.lazy(() => import('./pages/supplier-portal/views/SupplierDeliveries'));
+const SupplierInvoices   = React.lazy(() => import('./pages/supplier-portal/views/SupplierInvoices'));
+const SupplierClients    = React.lazy(() => import('./pages/supplier-portal/views/SupplierClients'));
+const SupplierMessages   = React.lazy(() => import('./pages/supplier-portal/views/SupplierMessages'));
+const SupplierReturns    = React.lazy(() => import('./pages/supplier-portal/views/SupplierReturns'));
 import TripItineraryTimeline from './pages/trip-itinerary-timeline/index';
 import InviteAcceptPage from './pages/invite-accept';
 import ForgotPasswordRequest from './pages/forgot-password-request';
@@ -1082,17 +1096,33 @@ const Routes = () => {
         <Route path="/supplier/login" element={<SupplierLogin />} />
         <Route path="/supplier/signup" element={<SupplierSignup />} />
 
-        {/* Supplier Protected Routes */}
-        <Route path="/supplier/dashboard" element={
-          <SupplierProtectedRoute>
-            <SupplierPortal />
-          </SupplierProtectedRoute>
-        } />
-        <Route path="/supplier/*" element={
-          <SupplierProtectedRoute>
-            <SupplierPortal />
-          </SupplierProtectedRoute>
-        } />
+        {/* Supplier nested routes */}
+        <Route
+          path="/supplier"
+          element={
+            <SupplierProtectedRoute>
+              <SupplierProvider>
+                <React.Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>}>
+                  <SupplierLayout />
+                </React.Suspense>
+              </SupplierProvider>
+            </SupplierProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="overview" replace />} />
+          <Route path="overview"   element={<SupplierOverview />} />
+          <Route path="orders"     element={<SupplierOrders />} />
+          <Route path="orders/:orderId" element={<SupplierOrderDetail />} />
+          <Route path="deliveries" element={<SupplierDeliveries />} />
+          <Route path="invoices"   element={<SupplierInvoices />} />
+          <Route path="products"   element={<SupplierProducts />} />
+          <Route path="clients"    element={<SupplierClients />} />
+          <Route path="messages"   element={<SupplierMessages />} />
+          <Route path="returns"    element={<SupplierReturns />} />
+          <Route path="settings"   element={<SupplierSettings />} />
+          {/* Legacy: redirect /supplier/dashboard to /supplier/overview */}
+          <Route path="dashboard"  element={<Navigate to="/supplier/overview" replace />} />
+        </Route>
 
         {/* Provisioning Routes */}
         <Route path="/provisioning" element={<ProtectedRoute><ProvisioningWorkspace /></ProtectedRoute>} />
