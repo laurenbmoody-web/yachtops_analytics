@@ -88,7 +88,7 @@ function buildEmailHtml(b: any): string {
         Hi ${b.supplierName || 'there'},
       </p>
       <p style="font-size:15px;color:#334155;line-height:1.6;margin:0 0 28px">
-        You have a new provisioning order from <strong>${b.vesselTypeLabel ? `${b.vesselTypeLabel} ` : ''}${b.vesselName || 'the vessel'}</strong>. Please review the details below and confirm availability.
+        You have a new provisioning order from <strong>${b.vesselName || 'the vessel'}</strong>. Please review the details below and confirm availability.
       </p>
 
       <!-- Delivery details card -->
@@ -199,13 +199,12 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  // Normalize vessel type to M/Y or S/Y regardless of how it's stored in the DB.
-  const rawVesselType  = (body.vesselTypeLabel || '').toLowerCase().trim();
-  const vesselTypeAbbr = rawVesselType.includes('sail') ? 'S/Y' : 'M/Y';
-  body.vesselTypeLabel = vesselTypeAbbr; // propagate normalized value to email body
-
-  const vesselName  = body.vesselName || 'Vessel';
-  const fullVessel  = `${vesselTypeAbbr} ${vesselName}`;
+  // vesselName is sent pre-prefixed from the frontend (e.g. "M/Y Test Laurence").
+  // Use it directly — don't re-derive a prefix to avoid double-prefixing.
+  const vesselName = body.vesselName || 'Vessel';
+  const fullVessel = vesselName;
+  // Propagate so buildEmailHtml can use b.vesselName directly
+  body.vesselTypeLabel = '';
   const datePart      = body.deliveryDate ? `delivery ${body.deliveryDate}` : null;
   const portPart      = body.deliveryPort ? `at ${body.deliveryPort}` : null;
   const subject       = ['New order from ' + fullVessel, datePart, portPart].filter(Boolean).join(' — ');

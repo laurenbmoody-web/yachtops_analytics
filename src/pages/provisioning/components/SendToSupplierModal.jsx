@@ -221,8 +221,8 @@ const SendToSupplierModal = ({
           publicToken: order.public_token,
           replyTo: user?.email || null,
           senderName: user?.user_metadata?.full_name || user?.email || null,
-          vesselTypeLabel: vesselTypeLabel || null,
           ...orderPayload,
+          vesselName: prefixedVesselName,  // always send the pre-prefixed name
           items: items.map(it => ({
             name: it.name, quantity: it.quantity, unit: it.unit, notes: it.notes,
             estimatedPrice: it.estimated_price ?? null,
@@ -231,7 +231,8 @@ const SendToSupplierModal = ({
       });
 
       if (fnError) throw fnError;
-      await markOrderSent(order.id, 'email');
+      // Use order.sent_via so a deduped 'both' order isn't overwritten with 'email'
+      await markOrderSent(order.id, order.sent_via || 'email');
 
       await supabase.from('provisioning_lists').update({ status: 'sent_to_supplier' }).eq('id', listId);
       await saveNewSupplierToDirectory();
