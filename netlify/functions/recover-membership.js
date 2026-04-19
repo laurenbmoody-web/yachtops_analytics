@@ -95,26 +95,71 @@ exports.handler = async (event) => {
       }
     }
 
-    // 3. Look up vessel_registrations by email to find the converted tenant.
+    // 3. Find the tenant for this user. Three lookup strategies in order:
+    //    a) vessel_registrations by email with tenant_id set (normal case)
+    //    b) tenants.current_admin_user_id = userId (set by webhook step 2b)
+    //    c) vessel_registrations by email without tenant_id filter + tenants by imo_number
+    let tenantId = null;
+    let fullName = '';
+
+    // Strategy A: registration has been converted
     const regRes = await supaRest(
       `vessel_registrations?contact_email=eq.${encodeURIComponent(email)}&tenant_id=not.is.null&order=converted_at.desc&limit=1&select=tenant_id,contact_name`,
       { method: 'GET' }
     );
-    if (!regRes.ok) {
-      const body = await regRes.text();
-      throw new Error(`registration lookup failed: ${regRes.status} ${body.slice(0, 200)}`);
+    if (regRes.ok) {
+      const regs = await regRes.json();
+      if (regs?.[0]?.tenant_id) {
+        tenantId = regs[0].tenant_id;
+        fullName = regs[0].contact_name || '';
+      }
     }
-    const regs = await regRes.json();
-    if (!regs?.length || !regs[0]?.tenant_id) {
+
+    // Strategy B: tenant stamped with current_admin_user_id (set by webhook after inviteUser)
+    if (!tenantId) {
+      const tenantByAdminRes = await supaRest(
+        `tenants?current_admin_user_id=eq.${encodeURIComponent(userId)}&status=eq.ACTIVE&order=created_at.desc&limit=1&select=id`,
+        { method: 'GET' }
+      );
+      if (tenantByAdminRes.ok) {
+        const tenants = await tenantByAdminRes.json();
+        if (tenants?.[0]?.id) tenantId = tenants[0].id;
+      }
+    }
+
+    // Strategy C: unconverted registration → look up tenant by IMO number
+    if (!tenantId) {
+      const anyRegRes = await supaRest(
+        `vessel_registrations?contact_email=eq.${encodeURIComponent(email)}&order=created_at.desc&limit=1&select=imo_number,contact_name`,
+        { method: 'GET' }
+      );
+      if (anyRegRes.ok) {
+        const anyRegs = await anyRegRes.json();
+        if (anyRegs?.[0]) {
+          fullName = anyRegs[0].contact_name || '';
+          const imoNumber = anyRegs[0].imo_number;
+          if (imoNumber) {
+            const tenantByImoRes = await supaRest(
+              `tenants?imo_number=eq.${encodeURIComponent(imoNumber)}&order=created_at.desc&limit=1&select=id`,
+              { method: 'GET' }
+            );
+            if (tenantByImoRes.ok) {
+              const imoTenants = await tenantByImoRes.json();
+              if (imoTenants?.[0]?.id) tenantId = imoTenants[0].id;
+            }
+          }
+        }
+      }
+    }
+
+    if (!tenantId) {
       return {
         statusCode: 404,
         body: JSON.stringify({
-          error: 'No converted registration found for your email. The signup webhook may not have completed. Please contact support.',
+          error: 'Could not locate your vessel account. The signup webhook may not have completed. Please contact support.',
         }),
       };
     }
-    const tenantId = regs[0].tenant_id;
-    const fullName = regs[0].contact_name || '';
 
     // 4. Look up Captain/COMMAND role (same as stripe-webhook createTenantMember).
     const roleRes = await supaRest(
