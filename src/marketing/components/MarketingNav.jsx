@@ -62,6 +62,23 @@ const MarketingNav = () => {
         {/* Right */}
         <div className="flex items-center" style={{ gap: 4 }}>
           <Link
+            to="/supplier/login"
+            className="mkt-archivo transition-colors duration-150"
+            style={{
+              fontWeight: 700,
+              fontSize: 10,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: '#94A3B8',
+              textDecoration: 'none',
+              padding: '0 10px',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#1E3A5F')}
+            onMouseLeave={e => (e.currentTarget.style.color = '#94A3B8')}
+          >
+            Suppliers
+          </Link>
+          <Link
             to="/login-authentication"
             className="mkt-archivo transition-colors duration-150"
             style={{

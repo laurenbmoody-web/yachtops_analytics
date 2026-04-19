@@ -59,6 +59,9 @@ import DeliveryHistory from './pages/provisioning/DeliveryHistory';
 import ReturnSlipPage from './pages/provisioning/ReturnSlipPage';
 import ReturnConfirmPage from './pages/provisioning/ReturnConfirmPage';
 import SupplierConfirmOrder from './pages/provisioning/SupplierConfirmOrder';
+import SupplierLogin from './pages/supplier-login';
+import SupplierSignup from './pages/supplier-signup';
+import SupplierProtectedRoute from './components/SupplierProtectedRoute';
 import TripItineraryTimeline from './pages/trip-itinerary-timeline/index';
 import InviteAcceptPage from './pages/invite-accept';
 import ForgotPasswordRequest from './pages/forgot-password-request';
@@ -113,6 +116,25 @@ const InviteHashRedirectGuard = () => {
 
   return null;
 };
+
+// Supplier portal placeholder — replaced by the real portal in Sprint 2
+const SupplierDashboardPlaceholder = () => (
+  <div style={{
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: '#F8FAFC',
+    flexDirection: 'column',
+    gap: 12,
+  }}>
+    <img src="/assets/images/cargo_merged_originalmark_syne800_true.png" alt="Cargo" style={{ height: 32, marginBottom: 8 }} />
+    <h1 style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 800, fontSize: 28, color: '#1E3A5F', margin: 0 }}>
+      Supplier Portal
+    </h1>
+    <p style={{ color: '#64748B', fontSize: 15, margin: 0 }}>Your dashboard is being built. Check back soon.</p>
+  </div>
+);
 
 // Dev Mode Banner Component
 const DevModeBanner = () => {
@@ -1055,6 +1077,22 @@ const Routes = () => {
         {/* Smart Import */}
         <Route path="/smart-import-with-auto-assignment-engine" element={<ProtectedRoute><SmartImportWithAutoAssignmentEngine /></ProtectedRoute>} />
         
+        {/* Supplier Auth Routes (public) */}
+        <Route path="/supplier/login" element={<SupplierLogin />} />
+        <Route path="/supplier/signup" element={<SupplierSignup />} />
+
+        {/* Supplier Protected Routes */}
+        <Route path="/supplier/dashboard" element={
+          <SupplierProtectedRoute>
+            <SupplierDashboardPlaceholder />
+          </SupplierProtectedRoute>
+        } />
+        <Route path="/supplier/*" element={
+          <SupplierProtectedRoute>
+            <SupplierDashboardPlaceholder />
+          </SupplierProtectedRoute>
+        } />
+
         {/* Provisioning Routes */}
         <Route path="/provisioning" element={<ProtectedRoute><ProvisioningWorkspace /></ProtectedRoute>} />
         <Route path="/provisioning/suppliers" element={<ProtectedRoute><ProvisioningSuppliers /></ProtectedRoute>} />

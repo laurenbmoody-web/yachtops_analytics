@@ -90,6 +90,15 @@ const LoginAuthentication = () => {
 
       console.log('[LOGIN] Authentication successful for user:', authData?.user?.id);
 
+      // Guard: supplier accounts should use the supplier login
+      const userType = authData?.user?.user_metadata?.user_type;
+      if (userType === 'supplier') {
+        setError('This is a supplier account. Please use the supplier login.');
+        await supabase?.auth?.signOut();
+        setLoading(false);
+        return;
+      }
+
       // Ensure profile exists after login
       const profileResult = await ensureProfileExists(authData?.user);
       
