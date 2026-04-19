@@ -62,6 +62,7 @@ import SupplierConfirmOrder from './pages/provisioning/SupplierConfirmOrder';
 import SupplierLogin from './pages/supplier-login';
 import SupplierSignup from './pages/supplier-signup';
 import SupplierProtectedRoute from './components/SupplierProtectedRoute';
+import SupplierPortal from './pages/supplier-portal';
 import TripItineraryTimeline from './pages/trip-itinerary-timeline/index';
 import InviteAcceptPage from './pages/invite-accept';
 import ForgotPasswordRequest from './pages/forgot-password-request';
@@ -1084,12 +1085,12 @@ const Routes = () => {
         {/* Supplier Protected Routes */}
         <Route path="/supplier/dashboard" element={
           <SupplierProtectedRoute>
-            <SupplierDashboardPlaceholder />
+            <SupplierPortal />
           </SupplierProtectedRoute>
         } />
         <Route path="/supplier/*" element={
           <SupplierProtectedRoute>
-            <SupplierDashboardPlaceholder />
+            <SupplierPortal />
           </SupplierProtectedRoute>
         } />
 
