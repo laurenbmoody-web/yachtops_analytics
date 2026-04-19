@@ -17,7 +17,7 @@ const SupplierLogin = () => {
         if (session?.user) {
           const userType = session.user.user_metadata?.user_type;
           if (userType === 'supplier') {
-            navigate('/supplier/dashboard', { replace: true });
+            navigate('/supplier/overview', { replace: true });
             return;
           }
         }
@@ -65,7 +65,7 @@ const SupplierLogin = () => {
         return;
       }
 
-      navigate('/supplier/dashboard', { replace: true });
+      navigate('/supplier/overview', { replace: true });
     } catch (err) {
       console.error('[SUPPLIER_LOGIN] Error:', err);
       setError(err?.message || 'Login failed. Please try again.');

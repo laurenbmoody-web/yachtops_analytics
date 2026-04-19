@@ -593,3 +593,72 @@
   padding: 0;
 }
 .sp-back:hover { color: var(--navy); }
+
+/* ── Shell (new router-based layout) ──────────────────────────────── */
+.sp-shell {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.sp-sidebar-logo {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sp-sidebar-who {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sp-sidebar-nav {
+  flex: 1;
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sp-nav-group-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 4px 6px 6px;
+}
+
+/* NavLink needs text-decoration reset */
+.sp-nav-item {
+  text-decoration: none;
+}
+
+.sp-topbar-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 0 12px;
+  height: 34px;
+  flex: 1;
+  max-width: 360px;
+}
+.sp-topbar-search input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--fg);
+  font-family: inherit;
+}
+.sp-topbar-search input::placeholder { color: var(--muted); }
