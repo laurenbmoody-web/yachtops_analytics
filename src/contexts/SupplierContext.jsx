@@ -25,31 +25,44 @@ export const SupplierProvider = ({ children }) => {
       return;
     }
 
-    const supplierId = user.user_metadata?.supplier_id;
-    if (!supplierId) {
-      setError('No supplier_id in user metadata');
-      setLoading(false);
-      return;
-    }
-
     let cancelled = false;
 
     const load = async () => {
       setLoading(true);
       setError(null);
       try {
-        const [profileRes, contactRes] = await Promise.all([
-          supabase.from('supplier_profiles').select('*').eq('id', supplierId).single(),
-          supabase.from('supplier_contacts').select('*').eq('user_id', user.id).single(),
-        ]);
+        // Primary: look up via supplier_contacts (always written by the
+        // Netlify function even when updateUser() fails due to no session).
+        const { data: contactData, error: contactErr } = await supabase
+          .from('supplier_contacts')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
 
         if (cancelled) return;
 
-        if (profileRes.error) throw profileRes.error;
-        if (contactRes.error && contactRes.error.code !== 'PGRST116') throw contactRes.error;
+        // PGRST116 = no rows — fall through to metadata fallback below.
+        if (contactErr && contactErr.code !== 'PGRST116') throw contactErr;
 
-        setSupplier(profileRes.data);
-        setContact(contactRes.data ?? null);
+        // Resolve supplier_id: contacts row first, then user_metadata fallback.
+        const supplierId =
+          contactData?.supplier_id ?? user.user_metadata?.supplier_id ?? null;
+
+        if (!supplierId) {
+          throw new Error('Supplier account not found. Please contact support.');
+        }
+
+        const { data: profileData, error: profileErr } = await supabase
+          .from('supplier_profiles')
+          .select('*')
+          .eq('id', supplierId)
+          .single();
+
+        if (cancelled) return;
+        if (profileErr) throw profileErr;
+
+        setContact(contactData ?? null);
+        setSupplier(profileData);
       } catch (err) {
         if (!cancelled) setError(err.message);
       } finally {
@@ -62,12 +75,11 @@ export const SupplierProvider = ({ children }) => {
   }, [session, user]);
 
   const refreshSupplier = async () => {
-    const supplierId = user?.user_metadata?.supplier_id;
-    if (!supplierId) return;
+    if (!supplier?.id) return;
     const { data, error: err } = await supabase
       .from('supplier_profiles')
       .select('*')
-      .eq('id', supplierId)
+      .eq('id', supplier.id)
       .single();
     if (!err) setSupplier(data);
   };
