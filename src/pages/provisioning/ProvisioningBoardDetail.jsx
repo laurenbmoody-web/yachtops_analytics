@@ -240,6 +240,26 @@ const ProvisioningBoardDetail = () => {
   // so a CREW member who created a board cannot bypass the tier restriction.
   const canSendToSupplier = userTier === 'COMMAND' || userTier === 'CHIEF';
   const hasSendableItems = items.some(i => i.status !== 'received' && i.name?.trim());
+
+  // Item-locking: once an order has been sent, board items that appear in any
+  // supplier_order_items row become read-only until the board is back to draft.
+  const isSent = list?.status === 'sent_to_supplier' || list?.status === 'confirmed';
+  const itemStatusMap = useMemo(() => {
+    const map = {};
+    supplierOrders.forEach(order => {
+      (order.supplier_order_items || []).forEach(oi => {
+        const key = (oi.item_name || '').toLowerCase().trim();
+        if (!map[key]) {
+          map[key] = {
+            status: oi.status,
+            substitution: oi.substitute_description,
+            subPrice: oi.substitution_price,
+          };
+        }
+      });
+    });
+    return map;
+  }, [supplierOrders]);
   // Delete individual items: owner / COMMAND / CHIEF / HOD  (not CREW)
   const canDeleteItem = !!isOwner || userTier === 'COMMAND' || (['CHIEF', 'HOD'].includes(userTier) && inSameDept);
 
@@ -284,15 +304,17 @@ const ProvisioningBoardDetail = () => {
     setLoading(true);
     setError(null);
     try {
-      const [fetchedList, fetchedItems, fetchedSuppliers] = await Promise.all([
+      const [fetchedList, fetchedItems, fetchedSuppliers, fetchedOrders] = await Promise.all([
         fetchProvisioningList(id),
         fetchListItems(id),
         activeTenantId ? fetchSuppliers(activeTenantId).catch(() => []) : Promise.resolve([]),
+        fetchSupplierOrders(id).catch(() => []),
       ]);
       setList(fetchedList);
       setDisplayCurrency(fetchedList?.currency || 'GBP');
       setItems(fetchedItems || []);
       setSuppliers(fetchedSuppliers || []);
+      setSupplierOrders(fetchedOrders || []);
 
       if (fetchedList?.trip_id) {
         try {
@@ -1369,6 +1391,17 @@ const ProvisioningBoardDetail = () => {
                         const convertCost = (amt) => (parseFloat(amt) / (fxRates[itemCurr] || 1)) * (fxRates[dispCurr] || 1);
                         const showOriginal = itemCurr !== dispCurr;
                         const origSymbol = CURR_SYMBOLS[itemCurr] || '£';
+
+                        // Supplier-order locking
+                        const itemOrder = itemStatusMap[(item.name || '').toLowerCase().trim()];
+                        const isLocked = isSent && !!itemOrder;
+                        const lockedBg = isLocked
+                          ? itemOrder.status === 'confirmed'   ? '#F0FDF4'
+                          : itemOrder.status === 'unavailable' ? '#FEF2F2'
+                          : itemOrder.status === 'substituted' ? '#FFFBEB'
+                          : '#F0F9FF'  // sent / pending response
+                          : null;
+
                         return (
                           <div
                             key={item.id}
@@ -1376,9 +1409,10 @@ const ProvisioningBoardDetail = () => {
                             onMouseLeave={() => setHoveredRow(null)}
                             style={{
                               display: 'grid', gridTemplateColumns: TABLE_GRID, gap: 0, padding: '0 16px',
-                              background: item.status === 'received' ? '#F8FAFC' : allergen ? '#FFFBEB' : isHovered ? '#FAFCFF' : 'white',
+                              background: lockedBg || (item.status === 'received' ? '#F8FAFC' : allergen ? '#FFFBEB' : isHovered ? '#FAFCFF' : 'white'),
                               borderBottom: rowIdx < deptItems.length - 1 ? '1px solid #F8FAFC' : 'none',
                               transition: 'background 0.1s',
+                              opacity: isLocked && itemOrder.status === 'unavailable' ? 0.7 : 1,
                             }}
                           >
                             {/* Quick-receive checkbox / received checkmark */}
@@ -1408,21 +1442,52 @@ const ProvisioningBoardDetail = () => {
                                     style={{ fontSize: 13, color: '#0F172A', background: '#F0F7FF', border: '1px solid #93C5FD', borderRadius: 5, padding: '2px 6px', width: '100%', outline: 'none' }}
                                   />
                                 ) : (
-                                  <span
-                                    onDoubleClick={() => !isReceived && setEditingCell({ itemId: item.id, field: 'name' })}
-                                    style={{ fontSize: 13, color: dim || '#0F172A', fontWeight: 500, cursor: 'default', lineHeight: 1.3 }}
-                                  >
-                                    {item.name}
-                                  </span>
+                                  <>
+                                    <span
+                                      onDoubleClick={() => !isReceived && !isLocked && setEditingCell({ itemId: item.id, field: 'name' })}
+                                      style={{
+                                        fontSize: 13,
+                                        color: itemOrder?.status === 'unavailable' ? '#94A3B8' : dim || '#0F172A',
+                                        fontWeight: 500, cursor: 'default', lineHeight: 1.3,
+                                        textDecoration: itemOrder?.status === 'unavailable' ? 'line-through' : 'none',
+                                      }}
+                                    >
+                                      {item.name}
+                                    </span>
+                                    {isLocked && (
+                                      <span style={{
+                                        fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3,
+                                        textTransform: 'uppercase', letterSpacing: '0.4px',
+                                        background: itemOrder.status === 'confirmed'   ? '#D1FAE5'
+                                                  : itemOrder.status === 'unavailable' ? '#FEE2E2'
+                                                  : itemOrder.status === 'substituted' ? '#FEF3C7'
+                                                  : '#E0F2FE',
+                                        color: itemOrder.status === 'confirmed'   ? '#065F46'
+                                             : itemOrder.status === 'unavailable' ? '#991B1B'
+                                             : itemOrder.status === 'substituted' ? '#92400E'
+                                             : '#0369A1',
+                                      }}>
+                                        {itemOrder.status === 'confirmed'   ? 'Confirmed'
+                                        : itemOrder.status === 'unavailable' ? 'Unavailable'
+                                        : itemOrder.status === 'substituted' ? 'Substituted'
+                                        : 'Sent'}
+                                      </span>
+                                    )}
+                                  </>
                                 )}
                               </div>
-                              {!isReceived && <AlwaysEditCell
+                              {!isReceived && !isLocked && <AlwaysEditCell
                                 value={item.brand ?? ''}
                                 placeholder="Brand…"
                                 onSave={v => handleCellSave(item, 'brand', v)}
                                 inputStyle={{ fontSize: 11, color: '#0F172A', paddingLeft: allergen ? 18 : undefined }}
                               />}
-                              {isReceived && item.brand && <span style={{ fontSize: 11, color: dim, padding: '2px 6px' }}>{item.brand}</span>}
+                              {(isReceived || isLocked) && item.brand && <span style={{ fontSize: 11, color: dim || '#94A3B8', padding: '2px 6px' }}>{item.brand}</span>}
+                              {isLocked && itemOrder?.status === 'substituted' && itemOrder.substitution && (
+                                <span style={{ fontSize: 11, color: '#92400E', paddingLeft: 6, borderLeft: '2px solid #F59E0B', marginTop: 2 }}>
+                                  → {itemOrder.substitution}{itemOrder.subPrice ? ` (${itemOrder.subPrice})` : ''}
+                                </span>
+                              )}
                             </div>
                             {/* Category */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
@@ -1497,11 +1562,12 @@ const ProvisioningBoardDetail = () => {
                                 <select
                                   value={item.status || 'draft'}
                                   onChange={e => handleStatusSave(item, 'status', e.target.value)}
+                                  disabled={isLocked}
                                   style={{
                                     paddingLeft: 16, paddingRight: 8, paddingTop: 3, paddingBottom: 3,
                                     fontSize: 11, fontWeight: 600, background: badge.bg, color: badge.color,
                                     border: `1px solid ${badge.border}`, borderRadius: 6,
-                                    cursor: 'pointer', outline: 'none', appearance: 'none',
+                                    cursor: isLocked ? 'not-allowed' : 'pointer', outline: 'none', appearance: 'none',
                                   }}
                                 >
                                   {ITEM_STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
@@ -1510,7 +1576,7 @@ const ProvisioningBoardDetail = () => {
                             </div>
                             {/* Actions */}
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '11px 0', gap: 2 }}>
-                              {isHovered && (
+                              {isHovered && !isLocked && (
                                 <>
                                   <button
                                     onClick={() => setItemDrawer({ open: true, item })}
@@ -2125,8 +2191,12 @@ const ProvisioningBoardDetail = () => {
         <SendToSupplierModal
           isOpen={showSendModal}
           onClose={() => setShowSendModal(false)}
-          onSent={(order) => {
-            setSupplierOrders(prev => [order, ...prev]);
+          onSent={async (order) => {
+            // Refetch from DB so deduped 'both' rows collapse correctly
+            try {
+              const fresh = await fetchSupplierOrders(id);
+              setSupplierOrders(fresh || []);
+            } catch { /* non-fatal */ }
             setList(prev => ({ ...prev, status: 'sent_to_supplier' }));
             setActiveTab('orders');
             showToast(`Order sent to ${order.supplier_name || 'supplier'}`, 'success');
