@@ -76,44 +76,31 @@ const SupplierSignup = () => {
 
       const portList = ports.split(',').map(p => p.trim()).filter(Boolean);
 
-      // 2. Create supplier_profiles row
-      const { data: supplier, error: supplierError } = await supabase
-        .from('supplier_profiles')
-        .insert({
-          name: companyName.trim(),
-          contact_email: email.trim(),
-          contact_phone: phone.trim() || null,
-          coverage_ports: portList,
+      // 2. Create supplier_profiles + contacts via Netlify function (uses service
+      //    role key so it works even before email confirmation grants a session).
+      const profileRes = await fetch('/.netlify/functions/create-supplier-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: authData.user.id,
+          companyName: companyName.trim(),
+          contactName: contactName.trim(),
+          email: email.trim(),
+          phone: phone.trim() || null,
+          ports: portList,
           categories: selectedCategories,
-        })
-        .select()
-        .single();
+        }),
+      });
 
-      if (supplierError) {
-        console.error('[SUPPLIER_SIGNUP] Profile creation error:', supplierError);
+      const profileJson = await profileRes.json();
+      if (!profileRes.ok || !profileJson.ok) {
+        console.error('[SUPPLIER_SIGNUP] Profile function error:', profileJson);
         setError('Account created but profile setup failed. Please contact support.');
         setLoading(false);
         return;
       }
 
-      // 3. Create supplier_contacts row
-      const { error: contactError } = await supabase.from('supplier_contacts').insert({
-        supplier_id: supplier.id,
-        user_id: authData.user.id,
-        role: 'owner',
-        name: contactName.trim(),
-        email: email.trim(),
-        phone: phone.trim() || null,
-      });
-
-      if (contactError) {
-        console.error('[SUPPLIER_SIGNUP] Contact creation error:', contactError);
-      }
-
-      // 4. Update user metadata with supplier_id
-      await supabase.auth.updateUser({
-        data: { supplier_id: supplier.id },
-      });
+      // Metadata is updated by the function; nothing more needed on the client.
 
       setSuccess(true);
 
