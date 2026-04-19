@@ -854,6 +854,12 @@ const ProvisioningBoardDetail = () => {
     partial:      { bg: '#FFFBEB', color: '#B45309', border: '#FDE68A', dot: '#FCD34D', label: 'Partial' },
     not_received: { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA', dot: '#FCA5A5', label: 'Not received' },
   };
+  const SUPPLIER_BADGE = {
+    pending:     { bg: '#E0F2FE', color: '#0369A1', border: '#BAE6FD', dot: '#38BDF8', label: 'Sent' },
+    confirmed:   { bg: '#D1FAE5', color: '#065F46', border: '#A7F3D0', dot: '#34D399', label: 'Confirmed' },
+    unavailable: { bg: '#FEE2E2', color: '#991B1B', border: '#FECACA', dot: '#FCA5A5', label: 'Unavailable' },
+    substituted: { bg: '#FEF3C7', color: '#92400E', border: '#FDE68A', dot: '#FCD34D', label: 'Substituted' },
+  };
 
   const STATUS_HERO_COLOR = {
     draft:                        { dot: '#F59E0B', text: '#F59E0B' },
@@ -1416,6 +1422,7 @@ const ProvisioningBoardDetail = () => {
                           : itemOrder.status === 'substituted' ? '#FFFBEB'
                           : '#F0F9FF'  // sent / pending response
                           : null;
+                        const displayBadge = isLocked ? (SUPPLIER_BADGE[itemOrder.status] || SUPPLIER_BADGE.pending) : badge;
 
                         return (
                           <div
@@ -1439,8 +1446,9 @@ const ProvisioningBoardDetail = () => {
                                 type="checkbox"
                                 checked={false}
                                 title="Mark as received"
-                                onChange={() => handleQuickReceive(item)}
-                                style={{ width: 13, height: 13, accentColor: '#1D9E75', cursor: 'pointer' }}
+                                onChange={() => !isLocked && handleQuickReceive(item)}
+                                disabled={isLocked}
+                                style={{ width: 13, height: 13, accentColor: '#1D9E75', cursor: isLocked ? 'default' : 'pointer', opacity: isLocked ? 0.3 : 1 }}
                               />
                               )}
                             </div>
@@ -1523,15 +1531,15 @@ const ProvisioningBoardDetail = () => {
                             </div>
                             {/* Size */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
-                              {isReceived
-                                ? <span style={{ fontSize: 12, color: dim }}>{item.size || ''}</span>
+                              {isReceived || isLocked
+                                ? <span style={{ fontSize: 12, color: dim || (isLocked ? '#94A3B8' : undefined) }}>{item.size || ''}</span>
                                 : <AlwaysEditCell value={item.size ?? ''} placeholder="e.g. 750ml" onSave={v => handleCellSave(item, 'size', v)} inputStyle={{ fontSize: 12, color: '#0F172A' }} />
                               }
                             </div>
                             {/* Unit */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
-                              {isReceived
-                                ? <span style={{ fontSize: 11, color: dim }}>{item.unit || 'each'}</span>
+                              {isReceived || isLocked
+                                ? <span style={{ fontSize: 11, color: dim || (isLocked ? '#94A3B8' : undefined) }}>{item.unit || 'each'}</span>
                                 : <select value={item.unit || 'each'} onChange={e => handleCellSave(item, 'unit', e.target.value)} style={{ fontSize: 11, color: '#64748B', background: 'none', border: 'none', outline: 'none', cursor: 'pointer', padding: 0, width: '100%' }}>
                                     {PROVISION_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                                   </select>
@@ -1539,8 +1547,8 @@ const ProvisioningBoardDetail = () => {
                             </div>
                             {/* Qty */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px', gap: 3 }}>
-                              {isReceived
-                                ? <span style={{ fontSize: 13, color: dim, minWidth: 18, textAlign: 'center' }}>{item.quantity_ordered ?? '-'}</span>
+                              {isReceived || isLocked
+                                ? <span style={{ fontSize: 13, color: dim || (isLocked ? '#94A3B8' : undefined), minWidth: 18, textAlign: 'center' }}>{item.quantity_ordered ?? '-'}</span>
                                 : <>
                                     <button onClick={() => handleQtyStep(item, 'quantity_ordered', -1)} style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F1F5F9', border: 'none', borderRadius: 3, cursor: 'pointer', fontSize: 13, color: '#64748B', flexShrink: 0, lineHeight: 1, padding: 0 }}>−</button>
                                     {editingCell?.itemId === item.id && editingCell?.field === 'quantity_ordered' ? (
@@ -1555,8 +1563,8 @@ const ProvisioningBoardDetail = () => {
                             {/* Unit Cost */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px', gap: 3 }}>
                               <span style={{ fontSize: 11, color: dim || '#94A3B8', flexShrink: 0 }}>{origSymbol}</span>
-                              {isReceived
-                                ? <span style={{ fontSize: 13, color: dim }}>{item.estimated_unit_cost ?? ''}</span>
+                              {isReceived || isLocked
+                                ? <span style={{ fontSize: 13, color: dim || (isLocked ? '#94A3B8' : undefined) }}>{item.estimated_unit_cost ?? ''}</span>
                                 : <AlwaysEditCell value={item.estimated_unit_cost ?? ''} placeholder="0.00" type="number" onSave={v => handleCellSave(item, 'estimated_unit_cost', v)} inputStyle={{ fontSize: 13, color: '#0F172A', textAlign: 'right' }} />
                               }
                             </div>
@@ -1573,20 +1581,22 @@ const ProvisioningBoardDetail = () => {
                             {/* Status badge select */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
                               <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-                                <span style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', width: 5, height: 5, borderRadius: '50%', background: badge.dot, pointerEvents: 'none', zIndex: 1 }} />
-                                <select
-                                  value={item.status || 'draft'}
-                                  onChange={e => handleStatusSave(item, 'status', e.target.value)}
-                                  disabled={isLocked}
-                                  style={{
-                                    paddingLeft: 16, paddingRight: 8, paddingTop: 3, paddingBottom: 3,
-                                    fontSize: 11, fontWeight: 600, background: badge.bg, color: badge.color,
-                                    border: `1px solid ${badge.border}`, borderRadius: 6,
-                                    cursor: isLocked ? 'not-allowed' : 'pointer', outline: 'none', appearance: 'none',
-                                  }}
-                                >
-                                  {ITEM_STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                                </select>
+                                <span style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', width: 5, height: 5, borderRadius: '50%', background: displayBadge.dot, pointerEvents: 'none', zIndex: 1 }} />
+                                {isLocked
+                                  ? <span style={{ paddingLeft: 16, paddingRight: 8, paddingTop: 3, paddingBottom: 3, fontSize: 11, fontWeight: 600, background: displayBadge.bg, color: displayBadge.color, border: `1px solid ${displayBadge.border}`, borderRadius: 6, display: 'inline-block' }}>{displayBadge.label}</span>
+                                  : <select
+                                      value={item.status || 'draft'}
+                                      onChange={e => handleStatusSave(item, 'status', e.target.value)}
+                                      style={{
+                                        paddingLeft: 16, paddingRight: 8, paddingTop: 3, paddingBottom: 3,
+                                        fontSize: 11, fontWeight: 600, background: badge.bg, color: badge.color,
+                                        border: `1px solid ${badge.border}`, borderRadius: 6,
+                                        cursor: 'pointer', outline: 'none', appearance: 'none',
+                                      }}
+                                    >
+                                      {ITEM_STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                    </select>
+                                }
                               </div>
                             </div>
                             {/* Actions */}
