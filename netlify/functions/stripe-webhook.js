@@ -142,10 +142,19 @@ async function createTenantRow(registration, session) {
     name: registration.vessel_name,
     type: 'VESSEL',
     status: 'ACTIVE',
+    vessel_type_label: (() => {
+      const t = (registration.vessel_type || '').toLowerCase();
+      if (t.includes('sail')) return 'Sailing Yacht';
+      if (t.includes('cat')) return 'Catamaran';
+      if (t.includes('motor') || t.includes('power')) return 'Motor Yacht';
+      return registration.vessel_type || null;
+    })(),
     imo_number: registration.imo_number || null,
-    loa_m: registration.loa_metres || null,
-    year_built: registration.year_built || null,
+    loa_m: registration.loa_metres ? parseFloat(registration.loa_metres) : null,
+    gt: registration.gross_tonnage ? parseInt(registration.gross_tonnage, 10) : null,
+    year_built: registration.year_built ? parseInt(registration.year_built, 10) : null,
     flag: registration.flag_state || null,
+    port_of_registry: registration.home_port || null,
     stripe_customer_id: session.customer,
     stripe_subscription_id: session.subscription,
     subscription_status: 'active',
