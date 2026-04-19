@@ -1518,6 +1518,38 @@ const OnboardingPage = () => {
   const [loadError, setLoadError] = useState('');
   const [membershipRetries, setMembershipRetries] = useState(0);
   const retriedRef = useRef(false); // guard: only call retryBootstrap once
+  const [recovering, setRecovering] = useState(false);
+  const [recoveryError, setRecoveryError] = useState('');
+
+  const handleRecovery = async () => {
+    setRecovering(true);
+    setRecoveryError('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setRecoveryError('No active session — please refresh the page and try again.');
+        return;
+      }
+      const res = await fetch('/.netlify/functions/recover-membership', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setRecoveryError(json?.error || 'Recovery failed. Please contact support.');
+        return;
+      }
+      // Row created — re-run bootstrap so activeTenantId gets set.
+      retriedRef.current = false;
+      setMembershipRetries(0);
+      setLoadError('');
+      retryBootstrap?.();
+    } catch (err) {
+      setRecoveryError(err?.message || 'Unexpected error. Please contact support.');
+    } finally {
+      setRecovering(false);
+    }
+  };
 
   // Inject Cargo animation keyframes once per page load
   useEffect(() => {
@@ -1632,9 +1664,29 @@ const OnboardingPage = () => {
   }
 
   if (loadError) {
+    const isMembershipError = loadError.includes('vessel membership');
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F8FAFC' }}>
-        <p className="text-sm" style={{ color: '#991B1B' }}>{loadError}</p>
+        <div style={{ maxWidth: 480, textAlign: 'center', padding: '0 24px' }}>
+          <p className="text-sm" style={{ color: '#991B1B', marginBottom: 16 }}>{loadError}</p>
+          {isMembershipError && (
+            <>
+              <button
+                onClick={handleRecovery}
+                disabled={recovering}
+                style={{
+                  padding: '8px 20px', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: recovering ? 'not-allowed' : 'pointer',
+                  background: recovering ? '#94A3B8' : '#1E3A5F', color: '#fff', border: 'none',
+                }}
+              >
+                {recovering ? 'Fixing your account…' : 'Retry Setup'}
+              </button>
+              {recoveryError && (
+                <p style={{ color: '#991B1B', fontSize: 13, marginTop: 10 }}>{recoveryError}</p>
+              )}
+            </>
+          )}
+        </div>
       </div>
     );
   }
