@@ -1446,9 +1446,8 @@ const ProvisioningBoardDetail = () => {
                                 type="checkbox"
                                 checked={false}
                                 title="Mark as received"
-                                onChange={() => !isLocked && handleQuickReceive(item)}
-                                disabled={isLocked}
-                                style={{ width: 13, height: 13, accentColor: '#1D9E75', cursor: isLocked ? 'default' : 'pointer', opacity: isLocked ? 0.3 : 1 }}
+                                onChange={() => handleQuickReceive(item)}
+                                style={{ width: 13, height: 13, accentColor: '#1D9E75', cursor: 'pointer' }}
                               />
                               )}
                             </div>
