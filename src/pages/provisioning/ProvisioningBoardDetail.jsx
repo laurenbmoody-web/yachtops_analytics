@@ -239,7 +239,12 @@ const ProvisioningBoardDetail = () => {
   // Send to supplier: COMMAND and CHIEF only — isOwner intentionally excluded
   // so a CREW member who created a board cannot bypass the tier restriction.
   const canSendToSupplier = userTier === 'COMMAND' || userTier === 'CHIEF';
-  const hasSendableItems = items.some(i => i.status !== 'received' && i.name?.trim());
+  const hasSendableItems = items
+    .filter(i => i.status !== 'received' && i.name?.trim())
+    .some(i => {
+      const oi = itemStatusMap[(i.name || '').toLowerCase().trim()];
+      return !oi || oi.status === 'pending';
+    });
 
   // Item-locking: once an order has been sent, board items that appear in any
   // supplier_order_items row become read-only until the board is back to draft.
@@ -616,6 +621,14 @@ const ProvisioningBoardDetail = () => {
     const sendableItems = items.filter(i => i.status !== 'received' && i.name?.trim());
     if (sendableItems.length === 0) {
       showToast('Add items to the board before sending to a supplier.', 'warning');
+      return;
+    }
+    const unsentItems = sendableItems.filter(i => {
+      const oi = itemStatusMap[(i.name || '').toLowerCase().trim()];
+      return !oi || oi.status === 'pending';
+    });
+    if (unsentItems.length === 0) {
+      showToast('All items on this board have already been sent to a supplier.', 'info');
       return;
     }
     setShowSendModal(true);
@@ -2203,13 +2216,19 @@ const ProvisioningBoardDetail = () => {
           }}
           tenantId={activeTenantId}
           listId={id}
-          items={items.filter(i => i.status !== 'received').map(i => ({
-            name: i.name,
-            quantity: i.quantity_ordered,
-            unit: i.unit,
-            notes: i.notes,
-            estimated_price: i.estimated_unit_cost || null,
-          }))}
+          items={items
+            .filter(i => i.status !== 'received' && i.name?.trim())
+            .filter(i => {
+              const oi = itemStatusMap[(i.name || '').toLowerCase().trim()];
+              return !oi || oi.status === 'pending';
+            })
+            .map(i => ({
+              name: i.name,
+              quantity: i.quantity_ordered,
+              unit: i.unit,
+              notes: i.notes,
+              estimated_price: i.estimated_unit_cost || null,
+            }))}
           vesselName={tenantVesselName || list?.title}
           vesselTypeLabel={tenantVesselTypeLabel}
           orderRef={list?.port_location}
