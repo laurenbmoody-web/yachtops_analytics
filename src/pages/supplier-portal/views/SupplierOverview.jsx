@@ -120,7 +120,7 @@ const SupplierOverview = () => {
 
       {kpis?.pendingOrders === 0 && kpis?.overdueInvoices === 0 && (
         <div className="sp-card" style={{ padding: '32px 24px', textAlign: 'center' }}>
-          <div style={{ marginBottom: 10 }}><ShieldCheck /></div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><ShieldCheck /></div>
           <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--fg)', marginBottom: 6 }}>All clear</div>
           <div style={{ fontSize: 13, color: 'var(--muted-s)' }}>No pending orders or overdue invoices. Enjoy the quiet.</div>
         </div>
