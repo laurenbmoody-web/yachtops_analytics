@@ -299,15 +299,10 @@ export const updateProvisioningList = async (listId, updates) => {
 
 export const deleteProvisioningList = async (listId) => {
   try {
-    const { error, count } = await supabase
-      ?.from('provisioning_lists')
-      ?.delete({ count: 'exact' })
-      ?.eq('id', listId);
+    const { data, error } = await supabase
+      ?.rpc('delete_provisioning_board', { p_list_id: listId });
     if (error) throw error;
-    if (count === 0) {
-      console.warn('[provisioningStorage] deleteProvisioningList: 0 rows deleted — RLS may be blocking deletion for listId:', listId);
-      throw new Error('Delete was blocked — you may not have permission to delete this board.');
-    }
+    if (data === false) throw new Error('Board not found or already deleted.');
   } catch (err) {
     console.error('[provisioningStorage] deleteProvisioningList error:', err);
     throw err;
