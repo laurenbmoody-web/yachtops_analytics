@@ -101,10 +101,11 @@ exports.handler = async (event) => {
     //    c) vessel_registrations by email without tenant_id filter + tenants by imo_number
     let tenantId = null;
     let fullName = '';
+    let registrationData = null; // carries vessel fields for tenant backfill
 
     // Strategy A: registration has been converted
     const regRes = await supaRest(
-      `vessel_registrations?contact_email=eq.${encodeURIComponent(email)}&tenant_id=not.is.null&order=converted_at.desc&limit=1&select=tenant_id,contact_name`,
+      `vessel_registrations?contact_email=eq.${encodeURIComponent(email)}&tenant_id=not.is.null&order=converted_at.desc&limit=1&select=tenant_id,contact_name,vessel_type,gross_tonnage,home_port`,
       { method: 'GET' }
     );
     if (regRes.ok) {
@@ -112,6 +113,7 @@ exports.handler = async (event) => {
       if (regs?.[0]?.tenant_id) {
         tenantId = regs[0].tenant_id;
         fullName = regs[0].contact_name || '';
+        registrationData = regs[0];
       }
     }
 
@@ -130,13 +132,14 @@ exports.handler = async (event) => {
     // Strategies C + D: unconverted registration → look up tenant by IMO or vessel name
     if (!tenantId) {
       const anyRegRes = await supaRest(
-        `vessel_registrations?contact_email=eq.${encodeURIComponent(email)}&order=created_at.desc&limit=1&select=imo_number,vessel_name,contact_name`,
+        `vessel_registrations?contact_email=eq.${encodeURIComponent(email)}&order=created_at.desc&limit=1&select=imo_number,vessel_name,contact_name,vessel_type,gross_tonnage,home_port`,
         { method: 'GET' }
       );
       if (anyRegRes.ok) {
         const anyRegs = await anyRegRes.json();
         if (anyRegs?.[0]) {
           fullName = anyRegs[0].contact_name || '';
+          registrationData = anyRegs[0];
           const imoNumber = anyRegs[0].imo_number;
           const vesselName = anyRegs[0].vessel_name;
 
@@ -215,14 +218,31 @@ exports.handler = async (event) => {
       }
     }
 
-    // 6. Set profiles.last_active_tenant_id so bootstrap takes Path 1 next time.
+    // 6. Backfill tenant row with any registration fields that the webhook missed
+    //    (vessel_type_label, gt, port_of_registry were added to createTenantRow later).
+    if (registrationData) {
+      const vesselTypeRaw = registrationData.vessel_type || '';
+      const tenantPatch = {};
+      if (vesselTypeRaw) tenantPatch.vessel_type_label = vesselTypeRaw;
+      if (registrationData.gross_tonnage) tenantPatch.gt = parseInt(registrationData.gross_tonnage, 10);
+      if (registrationData.home_port) tenantPatch.port_of_registry = registrationData.home_port;
+      if (Object.keys(tenantPatch).length > 0) {
+        await supaRest(`tenants?id=eq.${encodeURIComponent(tenantId)}`, {
+          method: 'PATCH',
+          headers: { 'Prefer': 'return=minimal' },
+          body: JSON.stringify(tenantPatch),
+        }).catch((err) => console.error('[recover-membership] tenant backfill failed (non-fatal):', err?.message));
+      }
+    }
+
+    // 8. Set profiles.last_active_tenant_id so bootstrap takes Path 1 next time.
     await supaRest(`profiles?id=eq.${encodeURIComponent(userId)}`, {
       method: 'PATCH',
       headers: { 'Prefer': 'return=minimal' },
       body: JSON.stringify({ last_active_tenant_id: tenantId }),
     });
 
-    // 7. Ensure profile has account_type set.
+    // 9. Ensure profile has account_type set.
     await supaRest(`profiles?id=eq.${encodeURIComponent(userId)}`, {
       method: 'PATCH',
       headers: { 'Prefer': 'return=minimal' },
