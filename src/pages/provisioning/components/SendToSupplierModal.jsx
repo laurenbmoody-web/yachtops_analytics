@@ -71,6 +71,7 @@ const SendToSupplierModal = ({
   const [step, setStep] = useState(0);
   const [sending, setSending] = useState(false);
   const [whatsappCopied, setWhatsappCopied] = useState(false);
+  const [sentMethods, setSentMethods] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [suppliersLoading, setSuppliersLoading] = useState(false);
 
@@ -95,6 +96,7 @@ const SendToSupplierModal = ({
     setStep(0);
     setSending(false);
     setWhatsappCopied(false);
+    setSentMethods([]);
     setSupplierMode('existing');
     setSelectedSupplierId('');
     setNewName(''); setNewEmail(''); setNewPhone('');
@@ -229,8 +231,9 @@ const SendToSupplierModal = ({
       await supabase.from('provisioning_lists').update({ status: 'sent_to_supplier' }).eq('id', listId);
       await saveNewSupplierToDirectory();
 
+      setSentMethods(prev => prev.includes('email') ? prev : [...prev, 'email']);
+      showToast('Order sent to supplier!', 'success');
       onSent && onSent(order);
-      onClose();
     } catch (err) {
       console.error('[SendToSupplierModal] send error:', err);
       showToast(`Failed to send order: ${err.message || err}`, 'error');
@@ -265,6 +268,7 @@ const SendToSupplierModal = ({
           .eq('id', listId);
 
         await saveNewSupplierToDirectory();
+        setSentMethods(prev => prev.includes('whatsapp') ? prev : [...prev, 'whatsapp']);
         onSent && onSent(order);
       } catch (orderErr) {
         console.warn('[SendToSupplierModal] WhatsApp order record failed (non-fatal):', orderErr);
@@ -499,17 +503,33 @@ const SendToSupplierModal = ({
         </div>
       </div>
 
+      {/* Success banner */}
+      {sentMethods.length > 0 && (
+        <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+          <p className="text-xs font-semibold text-green-800 dark:text-green-200 mb-0.5">Order sent!</p>
+          <p className="text-xs text-green-700 dark:text-green-300">
+            {sentMethods.includes('email') && sentMethods.includes('whatsapp')
+              ? 'Sent via email and copied for WhatsApp.'
+              : sentMethods.includes('email')
+                ? 'Email sent. You can also copy for WhatsApp below.'
+                : 'Copied for WhatsApp. You can also send via email above.'}
+          </p>
+        </div>
+      )}
+
       {/* Send buttons */}
       <div className="flex flex-col gap-2 pt-1">
         <button
           type="button"
           onClick={handleSendEmail}
-          disabled={sending || !supplierEmail}
+          disabled={sending || !supplierEmail || sentMethods.includes('email')}
           className="w-full py-2.5 text-sm font-semibold text-white rounded-lg transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-          style={{ background: '#00A8CC' }}
-          title={!supplierEmail ? 'No email address for this supplier' : undefined}
+          style={{ background: sentMethods.includes('email') ? '#64748B' : '#00A8CC', cursor: sentMethods.includes('email') ? 'not-allowed' : undefined }}
+          title={!supplierEmail ? 'No email address for this supplier' : sentMethods.includes('email') ? 'Email already sent' : undefined}
         >
-          {sending ? (
+          {sentMethods.includes('email') ? (
+            <><Icon name="Check" size={15} /> Email Sent</>
+          ) : sending ? (
             <><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> Sending…</>
           ) : (
             <><Icon name="Mail" size={15} /> Send via Email</>
@@ -519,18 +539,20 @@ const SendToSupplierModal = ({
         <button
           type="button"
           onClick={handleCopyWhatsApp}
-          disabled={sending}
+          disabled={sending || sentMethods.includes('whatsapp')}
           className="w-full py-2.5 text-sm font-semibold text-white rounded-lg transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-          style={{ background: whatsappCopied ? '#128C7E' : '#25D366' }}
+          style={{ background: sentMethods.includes('whatsapp') ? '#64748B' : whatsappCopied ? '#128C7E' : '#25D366', cursor: sentMethods.includes('whatsapp') ? 'not-allowed' : undefined }}
         >
-          {whatsappCopied ? (
+          {sentMethods.includes('whatsapp') ? (
+            <><Icon name="Check" size={15} /> WhatsApp Copied</>
+          ) : whatsappCopied ? (
             <><Icon name="Check" size={15} /> Copied!</>
           ) : (
             <><Icon name="MessageCircle" size={15} /> Copy for WhatsApp</>
           )}
         </button>
 
-        {!supplierEmail && (
+        {!supplierEmail && !sentMethods.includes('whatsapp') && (
           <p className="text-xs text-amber-600 dark:text-amber-400 text-center">
             No email on file — use WhatsApp copy or go back to add one.
           </p>
@@ -582,9 +604,15 @@ const SendToSupplierModal = ({
         )}
 
         {step === 2 && (
-          <Button variant="outline" onClick={() => setStep(1)} className="w-full mt-4" disabled={sending}>
-            Back
-          </Button>
+          sentMethods.length > 0 ? (
+            <Button onClick={onClose} className="w-full mt-4">
+              Done
+            </Button>
+          ) : (
+            <Button variant="outline" onClick={() => setStep(1)} className="w-full mt-4" disabled={sending}>
+              Back
+            </Button>
+          )
         )}
       </div>
     </div>

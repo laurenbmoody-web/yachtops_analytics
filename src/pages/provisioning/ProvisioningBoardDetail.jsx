@@ -239,6 +239,7 @@ const ProvisioningBoardDetail = () => {
   // Send to supplier: COMMAND and CHIEF only — isOwner intentionally excluded
   // so a CREW member who created a board cannot bypass the tier restriction.
   const canSendToSupplier = userTier === 'COMMAND' || userTier === 'CHIEF';
+  const hasSendableItems = items.some(i => i.status !== 'received' && i.name?.trim());
   // Delete individual items: owner / COMMAND / CHIEF / HOD  (not CREW)
   const canDeleteItem = !!isOwner || userTier === 'COMMAND' || (['CHIEF', 'HOD'].includes(userTier) && inSameDept);
 
@@ -1023,7 +1024,9 @@ const ProvisioningBoardDetail = () => {
               {canSendToSupplier && (
                 <button
                   onClick={handleSendToSupplier}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: '#00A8CC', border: '1px solid #0098BB', color: 'white', whiteSpace: 'nowrap' }}
+                  disabled={!hasSendableItems}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 7, cursor: hasSendableItems ? 'pointer' : 'not-allowed', background: hasSendableItems ? '#00A8CC' : '#CBD5E1', border: hasSendableItems ? '1px solid #0098BB' : '1px solid #CBD5E1', color: 'white', whiteSpace: 'nowrap', opacity: hasSendableItems ? 1 : 0.7 }}
+                  title={!hasSendableItems ? 'Add items to the board before sending' : undefined}
                 >
                   <Icon name="Send" style={{ width: 13, height: 13 }} /> Send to Supplier
                 </button>
@@ -1973,7 +1976,9 @@ const ProvisioningBoardDetail = () => {
                 {canSendToSupplier && (
                   <button
                     onClick={handleSendToSupplier}
-                    style={{ fontSize: 13, fontWeight: 600, padding: '8px 20px', borderRadius: 8, cursor: 'pointer', background: '#00A8CC', border: 'none', color: 'white' }}
+                    disabled={!hasSendableItems}
+                    style={{ fontSize: 13, fontWeight: 600, padding: '8px 20px', borderRadius: 8, cursor: hasSendableItems ? 'pointer' : 'not-allowed', background: hasSendableItems ? '#00A8CC' : '#CBD5E1', border: 'none', color: 'white', opacity: hasSendableItems ? 1 : 0.7 }}
+                    title={!hasSendableItems ? 'Add items to the board before sending' : undefined}
                   >
                     Send to Supplier
                   </button>
@@ -1997,6 +2002,9 @@ const ProvisioningBoardDetail = () => {
                         <span style={{ fontSize: 10, color: '#CBD5E1', flexShrink: 0 }}>{isExpanded ? '▾' : '▸'}</span>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#0F172A' }}>{order.supplier_name}</p>
+                          {order.supplier_email && (
+                            <p style={{ margin: '1px 0 0', fontSize: 11, color: '#64748B' }}>{order.supplier_email}</p>
+                          )}
                           <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94A3B8' }}>
                             {orderItems.length} item{orderItems.length !== 1 ? 's' : ''}
                             {order.delivery_port ? ` · ${order.delivery_port}` : ''}

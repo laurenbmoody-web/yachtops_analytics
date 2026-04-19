@@ -199,11 +199,13 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  // Subject: vessel name is the most important identifier for the supplier.
-  // Prefix with M/Y or S/Y from the vessel type label stored on the tenant row.
-  const vesselName    = body.vesselName || 'Vessel';
-  const vesselPrefix  = body.vesselTypeLabel ? `${body.vesselTypeLabel} ` : 'M/Y ';
-  const fullVessel    = `${vesselPrefix}${vesselName}`;
+  // Normalize vessel type to M/Y or S/Y regardless of how it's stored in the DB.
+  const rawVesselType  = (body.vesselTypeLabel || '').toLowerCase().trim();
+  const vesselTypeAbbr = rawVesselType.includes('sail') ? 'S/Y' : 'M/Y';
+  body.vesselTypeLabel = vesselTypeAbbr; // propagate normalized value to email body
+
+  const vesselName  = body.vesselName || 'Vessel';
+  const fullVessel  = `${vesselTypeAbbr} ${vesselName}`;
   const datePart      = body.deliveryDate ? `delivery ${body.deliveryDate}` : null;
   const portPart      = body.deliveryPort ? `at ${body.deliveryPort}` : null;
   const subject       = ['New order from ' + fullVessel, datePart, portPart].filter(Boolean).join(' — ');
