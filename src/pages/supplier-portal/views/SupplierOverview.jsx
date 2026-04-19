@@ -6,7 +6,7 @@ import KPICard from '../components/KPICard';
 import EmptyState from '../components/EmptyState';
 
 const SupplierOverview = () => {
-  const { supplier, loading: supplierLoading } = useSupplier();
+  const { supplier, loading: supplierLoading, error: supplierError } = useSupplier();
   const [kpis, setKpis] = useState(null);
   const [kpiLoading, setKpiLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -28,10 +28,14 @@ const SupplierOverview = () => {
     );
   }
 
-  if (!supplier) {
+  if (supplierError || !supplier) {
     return (
       <div className="sp-page">
-        <EmptyState icon="⚠️" title="Supplier not found" body="Your supplier profile could not be loaded. Please contact support." />
+        <EmptyState
+          icon="⚠️"
+          title="Supplier profile not found"
+          body={supplierError ?? 'Your supplier profile could not be loaded. Please contact support.'}
+        />
       </div>
     );
   }
