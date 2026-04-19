@@ -457,6 +457,11 @@ async function handleCheckoutCompleted(session) {
       );
       await upsertProfile(userId, registration);
       await setProfileTenant(userId, existingTenant.id);
+      await supaRest(`tenants?id=eq.${encodeURIComponent(existingTenant.id)}`, {
+        method: 'PATCH',
+        headers: { 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ current_admin_user_id: userId }),
+      }).catch(() => {});
       try {
         await createTenantMember(userId, existingTenant.id);
       } catch (memberErr) {
@@ -513,6 +518,16 @@ async function handleCheckoutCompleted(session) {
     registration.contact_name || ''
   );
   console.log(`[checkout] invite result`, { userId, created, email: registration.contact_email });
+
+  // 2b. Stamp the tenant with the admin user ID immediately so the
+  // recover-membership function can locate the tenant via current_admin_user_id
+  // even if later steps fail (markRegistrationConverted sets vessel_registrations.tenant_id,
+  // but if it never runs the only user→tenant link is this column).
+  await supaRest(`tenants?id=eq.${encodeURIComponent(tenant.id)}`, {
+    method: 'PATCH',
+    headers: { 'Prefer': 'return=minimal' },
+    body: JSON.stringify({ current_admin_user_id: userId }),
+  }).catch((err) => console.error(`[checkout] stamping current_admin_user_id failed (non-fatal): ${err?.message || err}`));
 
   // 3. Upsert profile and link to tenant
   await upsertProfile(userId, registration);
