@@ -283,7 +283,7 @@ async function createTenantMember(userId, tenantId) {
       role_id: captain.id,
       department_id: captain.department_id,
       active: true,
-      status: 'ACTIVE',
+      status: 'active',
     }),
   });
   if (!res.ok) {
