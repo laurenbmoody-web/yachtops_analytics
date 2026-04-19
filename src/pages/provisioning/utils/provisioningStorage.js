@@ -811,7 +811,7 @@ export const fetchCollaborators = async (listId) => {
   try {
     const { data, error } = await supabase
       ?.from('provisioning_list_collaborators')
-      ?.select('id, user_id, permission, added_at, profiles(full_name, email, avatar_url)')
+      ?.select('id, user_id, permission, added_at, profiles!provisioning_list_collaborators_user_id_fkey(full_name, email, avatar_url)')
       ?.eq('list_id', listId)
       ?.order('added_at', { ascending: true });
     if (error) { console.error('[provisioningStorage] fetchCollaborators error:', error.message); return []; }
