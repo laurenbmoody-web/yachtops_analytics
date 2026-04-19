@@ -63,28 +63,27 @@ const SupplierOverview = () => {
           label="Active orders"
           value={kpiLoading ? '…' : kpis?.pendingOrders ?? 0}
           sub="Awaiting confirmation"
-          accent="var(--blue)"
+          color="blue"
           icon={ShoppingBag}
         />
         <KPICard
           label="Overdue invoices"
           value={kpiLoading ? '…' : kpis?.overdueInvoices ?? 0}
           sub={kpis?.overdueInvoices > 0 ? 'Needs attention' : 'All clear'}
-          accent={kpis?.overdueInvoices > 0 ? 'var(--red)' : 'var(--green)'}
+          color={kpis?.overdueInvoices > 0 ? 'orange' : 'green'}
           icon={AlertTriangle}
         />
         <KPICard
           label="Outstanding"
           value={kpiLoading ? '…' : fmt(kpis?.outstandingAmount)}
           sub="Unpaid invoices"
-          accent="var(--amber)"
+          color="amber"
           icon={FileText}
         />
         <KPICard
           label="Catalogue items"
           value={kpiLoading ? '…' : kpis?.catalogueCount ?? 0}
           sub="Active products"
-          accent="var(--navy)"
           icon={BookOpen}
         />
       </div>
