@@ -3,10 +3,11 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, ShoppingBag, Truck, FileText, BookOpen, Tag,
   Users, MessageSquare, RotateCcw, Settings, LogOut,
-  Bell, Search, HelpCircle,
+  Bell, Search, HelpCircle, ChevronRight,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useSupplier } from '../../contexts/SupplierContext';
+import { WORKSPACE_CONFIG } from './config';
 import './supplier-portal.css';
 
 const NAV_GROUPS = [
@@ -59,16 +60,6 @@ const SupplierLayout = () => {
             <img src="/assets/images/cargo_merged_originalmark_syne800_true.png" alt="Cargo" />
           </div>
 
-          <div className="sp-sidebar-who">
-            <div className="sp-tenant-mark">{tenantMark}</div>
-            <div style={{ minWidth: 0 }}>
-              <div className="sp-tenant-name" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {supplier?.name ?? 'Supplier'}
-              </div>
-              <div className="sp-tenant-sub">Supplier workspace</div>
-            </div>
-          </div>
-
           <nav className="sp-sidebar-nav">
             {NAV_GROUPS.map((group) => (
               <div key={group.label} className="sp-nav-group">
@@ -110,13 +101,70 @@ const SupplierLayout = () => {
               <span className="sp-kbd">⌘K</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
-              <span className="sp-env-badge">Sandbox</span>
-              <button className="sp-icon-btn" aria-label="Help">
+<button className="sp-icon-btn" aria-label="Help">
                 <HelpCircle />
               </button>
               <button className="sp-icon-btn" aria-label="Notifications">
                 <Bell />
                 <span className="sp-notify-dot" />
+              </button>
+
+              {/* Workspace card */}
+              <button
+                onClick={() => navigate('/supplier/settings')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '6px 12px', borderRadius: 10,
+                  border: '1px solid #e2e8f0', background: 'transparent',
+                  cursor: 'pointer', marginLeft: 6,
+                  transition: 'background 120ms',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = '#f0f4ff'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                aria-label="Workspace settings"
+              >
+                {/* Logo */}
+                {WORKSPACE_CONFIG.logoUrl ? (
+                  <img
+                    src={WORKSPACE_CONFIG.logoUrl}
+                    alt="logo"
+                    style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
+                  />
+                ) : (
+                  <div style={{
+                    width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                    background: 'linear-gradient(135deg, #e0e7ff, #c7d2fe)',
+                    border: '1.5px dashed #818cf8',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontFamily: 'Outfit', fontWeight: 700, fontSize: 9,
+                    letterSpacing: '0.1em', color: '#818cf8',
+                  }}>LOGO</div>
+                )}
+
+                {/* Name + subtitle */}
+                <div style={{ textAlign: 'left', minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 12, color: '#1e293b', whiteSpace: 'nowrap', lineHeight: 1.3 }}>
+                    {supplier?.name ?? 'Source and Supply'}
+                  </div>
+                  <div style={{ fontSize: 10, color: '#94a3b8', lineHeight: 1.3 }}>Supplier workspace</div>
+                </div>
+
+                {/* Avatar stack */}
+                <div style={{ display: 'flex', alignItems: 'center', marginLeft: 2 }}>
+                  {WORKSPACE_CONFIG.members.map((m, i) => (
+                    <div key={i} style={{
+                      width: 20, height: 20, borderRadius: '50%',
+                      background: m.bg, color: '#fff',
+                      border: '2px solid #fff',
+                      marginLeft: i === 0 ? 0 : -6,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontFamily: 'Outfit', fontWeight: 700, fontSize: 7.5,
+                      flexShrink: 0, zIndex: WORKSPACE_CONFIG.members.length - i,
+                    }}>{m.initials}</div>
+                  ))}
+                </div>
+
+                <ChevronRight size={14} style={{ color: '#94a3b8', flexShrink: 0 }} />
               </button>
             </div>
           </header>
