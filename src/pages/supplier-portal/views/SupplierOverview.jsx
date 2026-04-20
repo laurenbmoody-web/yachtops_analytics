@@ -15,6 +15,13 @@ const formatDate = () => {
   return `${DAY_NAMES[now.getDay()]} · ${now.getDate()} ${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
 };
 
+const getGreeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return 'MORNING';
+  if (h < 18) return 'AFTERNOON';
+  return 'EVENING';
+};
+
 const LocationPin = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
     stroke="#1D9E75" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
@@ -101,13 +108,7 @@ const SupplierOverview = () => {
 
           {/* Hero heading — Syne 400 uppercase + DM Serif Display italic */}
           <h1 className="sp-overview-title">
-            GOOD{' '}
-            <em>
-              morning
-              {firstName
-                ? <span className="sp-title-name">, {firstName}.</span>
-                : '.'}
-            </em>
+            {getGreeting()}{firstName && <>, <em>{firstName}.</em></>}
           </h1>
 
           <p className="sp-page-sub">Here's what's happening across your supplier account today.</p>
