@@ -11,12 +11,12 @@ export const getSupplierTier = (role) => {
   return 'staff'; // logistics or unknown
 };
 
-const SupplierRoleGuard = ({ minTier = 'staff', children }) => {
+const SupplierRoleGuard = ({ minTier = 'staff', redirectTo = '/supplier/overview', children }) => {
   const { contact, loading } = useSupplier();
   if (loading) return null;
   const tier = getSupplierTier(contact?.role);
   if (TIER_ORDER[tier] < TIER_ORDER[minTier]) {
-    return <Navigate to="/supplier/overview" replace />;
+    return <Navigate to={redirectTo} replace />;
   }
   return children;
 };
