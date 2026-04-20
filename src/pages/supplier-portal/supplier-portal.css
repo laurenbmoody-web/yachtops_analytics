@@ -846,7 +846,7 @@
 
 /* ── Overview hero heading ─────────────────────────────────── */
 .sp-overview-title {
-  font-family: 'Syne';
+  font-family: 'DM Serif Display', serif;
   font-weight: 400;
   font-size: 66px;
   line-height: 1.08;
@@ -856,7 +856,6 @@
   margin: 0 0 14px;
 }
 .sp-overview-title em {
-  font-family: 'DM Serif Display';
   font-style: italic;
   font-weight: 400;
   text-transform: none;
@@ -865,6 +864,7 @@
 }
 .sp-title-name {
   color: var(--orange);
+  font-size: 0.62em;
 }
 
 /* ── Metadata strip (overview page only) ───────────────────── */
