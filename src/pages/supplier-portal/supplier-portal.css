@@ -846,25 +846,22 @@
 
 /* ── Overview hero heading ─────────────────────────────────── */
 .sp-overview-title {
-  font-family: 'DM Serif Display', serif;
-  font-weight: 400;
-  font-size: 66px;
-  line-height: 1.08;
-  letter-spacing: -0.02em;
-  color: var(--fg);
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 60px;
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+  color: var(--navy-app);
   text-transform: uppercase;
   margin: 0 0 14px;
 }
 .sp-overview-title em {
+  font-family: 'DM Serif Display', 'DM Serif Text', serif;
   font-style: italic;
   font-weight: 400;
   text-transform: none;
   letter-spacing: -0.01em;
-  color: var(--fg);
-}
-.sp-title-name {
   color: var(--orange);
-  font-size: 0.62em;
 }
 
 /* ── Metadata strip (overview page only) ───────────────────── */
