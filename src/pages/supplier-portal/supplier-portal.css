@@ -875,7 +875,7 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted-strong);
-  margin-bottom: 18px;
+  margin-bottom: 6px;
 }
 .sp-meta-dash {
   color: var(--orange);
