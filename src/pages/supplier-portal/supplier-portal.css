@@ -844,6 +844,50 @@
   line-height: 1.5;
 }
 
+/* ── Overview hero heading ─────────────────────────────────── */
+.sp-overview-title {
+  font-family: 'Syne';
+  font-weight: 400;
+  font-size: 66px;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+  text-transform: uppercase;
+  margin: 0 0 14px;
+}
+.sp-overview-title em {
+  font-family: 'DM Serif Display';
+  font-style: italic;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+}
+.sp-title-name {
+  color: var(--orange);
+}
+
+/* ── Metadata strip (overview page only) ───────────────────── */
+.sp-meta-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Syne';
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-strong);
+  margin-bottom: 18px;
+}
+.sp-meta-dash {
+  color: var(--orange);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1;
+  margin-right: 2px;
+}
+
 /* ── Responsive ────────────────────────────────────────────── */
 @media (max-width: 1100px) {
   .sp-kpis { grid-template-columns: repeat(2, 1fr); }
@@ -854,4 +898,5 @@
   .sp-kpis { grid-template-columns: 1fr; }
   .sp-page { padding: 20px 16px 32px; }
   .sp-page-title { font-size: 28px; }
+  .sp-overview-title { font-size: 40px; }
 }
