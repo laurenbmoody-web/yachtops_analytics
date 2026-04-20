@@ -86,6 +86,8 @@ import SetPassword from './pages/set-password';
 import OnboardingPage from './pages/onboarding';
 import { supabase } from './lib/supabaseClient';
 import { useAuth, RouteChangeLogger } from './contexts/AuthContext';
+import StandbyPage from './pages/pantry/StandbyPage';
+import ServicePlaceholder from './pages/pantry/presets/ServicePlaceholder';
 import TodayDetailPage from './pages/today-detail/index';
 import NotFound from './pages/NotFound';
 
@@ -1080,6 +1082,11 @@ const Routes = () => {
         {/* Guest Routes */}
         <Route path="/guest-management-dashboard" element={<ProtectedRoute><GuestManagementDashboard /></ProtectedRoute>} />
         <Route path="/guest/:guestId/preferences" element={<ProtectedRoute><GuestPreferenceProfile /></ProtectedRoute>} />
+
+        {/* Pantry / Interior Routes */}
+        <Route path="/pantry" element={<Navigate to="/pantry/standby" replace />} />
+        <Route path="/pantry/standby" element={<ProtectedRoute><StandbyPage /></ProtectedRoute>} />
+        <Route path="/pantry/service/:type" element={<ProtectedRoute><ServicePlaceholder /></ProtectedRoute>} />
         
         {/* Crew Routes */}
         <Route path="/crew-management" element={<ProtectedRoute><CrewManagement /></ProtectedRoute>} />
