@@ -1132,22 +1132,33 @@ const Routes = () => {
           <Route path="messages"        element={<SupplierMessages />} />
           <Route path="returns"         element={<SupplierReturns />} />
 
-          {/* Settings — bare /supplier/settings redirects to company tab */}
-          <Route path="settings" element={<Navigate to="/supplier/settings/company" replace />} />
-          <Route path="settings/company"       element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
-          <Route path="settings/team"          element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
-          <Route path="settings/zones"         element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
-          <Route path="settings/payment"       element={<SupplierRoleGuard minTier="admin"><SupplierSettings /></SupplierRoleGuard>} />
-          <Route path="settings/tax"           element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
-          <Route path="settings/integrations"  element={<SupplierRoleGuard minTier="admin"><SupplierSettings /></SupplierRoleGuard>} />
-          <Route path="settings/notifications" element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
+          {/* Workspace profile (replaces /supplier/settings) — manager+ required */}
+          <Route path="workspace" element={<Navigate to="/supplier/workspace/company" replace />} />
+          <Route path="workspace/company"       element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
+          <Route path="workspace/team"          element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
+          <Route path="workspace/zones"         element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
+          <Route path="workspace/tax"           element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
+          <Route path="workspace/notifications" element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
+          {/* Admin-only tabs: managers who deep-link fall back to company profile */}
+          <Route path="workspace/payment"       element={<SupplierRoleGuard minTier="admin" redirectTo="/supplier/workspace/company"><SupplierSettings /></SupplierRoleGuard>} />
+          <Route path="workspace/documents"     element={<SupplierRoleGuard minTier="admin" redirectTo="/supplier/workspace/company"><SupplierSettings /></SupplierRoleGuard>} />
+          <Route path="workspace/integrations"  element={<SupplierRoleGuard minTier="admin" redirectTo="/supplier/workspace/company"><SupplierSettings /></SupplierRoleGuard>} />
 
-          {/* Profile (personal) */}
-          <Route path="profile" element={<SupplierSettings />} />
+          {/* Redirect old /supplier/settings/* to workspace */}
+          <Route path="settings"   element={<Navigate to="/supplier/workspace" replace />} />
+          <Route path="settings/*" element={<Navigate to="/supplier/workspace" replace />} />
 
-          {/* Operations — admin only: billing; admin+manager: audit */}
-          <Route path="billing" element={<SupplierRoleGuard minTier="admin"><SupplierPlaceholder title="Billing & subscription" /></SupplierRoleGuard>} />
-          <Route path="audit"   element={<SupplierRoleGuard minTier="manager"><SupplierPlaceholder title="Audit log" /></SupplierRoleGuard>} />
+          {/* Profile */}
+          <Route path="profile" element={<SupplierPlaceholder title="My profile" />} />
+
+          {/* Operations */}
+          <Route path="audit" element={<SupplierRoleGuard minTier="manager"><SupplierPlaceholder title="Audit log" /></SupplierRoleGuard>} />
+
+          {/* Grow */}
+          <Route path="refer"     element={<SupplierPlaceholder title="Refer a supplier" />} />
+
+          {/* Help */}
+          <Route path="changelog" element={<SupplierPlaceholder title="What's new" />} />
 
           {/* Legacy: redirect /supplier/dashboard to /supplier/overview */}
           <Route path="dashboard" element={<Navigate to="/supplier/overview" replace />} />

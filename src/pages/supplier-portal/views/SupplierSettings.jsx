@@ -3,15 +3,18 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Save } from 'lucide-react';
 import { useSupplier } from '../../../contexts/SupplierContext';
 import { updateSupplierProfile } from '../utils/supplierStorage';
+import { getSupplierTier } from '../../../components/SupplierRoleGuard';
 
-const SECTIONS = [
-  { slug: 'company',       label: 'Company profile' },
-  { slug: 'team',          label: 'Team & permissions' },
-  { slug: 'zones',         label: 'Delivery zones' },
-  { slug: 'payment',       label: 'Payment & banking' },
-  { slug: 'tax',           label: 'Tax & invoicing' },
-  { slug: 'integrations',  label: 'Integrations' },
-  { slug: 'notifications', label: 'Notifications' },
+// Tab order per spec. adminOnly tabs are hidden from managers.
+const ALL_TABS = [
+  { slug: 'company',       label: 'Company profile',    adminOnly: false },
+  { slug: 'team',          label: 'Team & permissions',  adminOnly: false },
+  { slug: 'zones',         label: 'Delivery zones',      adminOnly: false },
+  { slug: 'tax',           label: 'Tax & invoicing',     adminOnly: false },
+  { slug: 'payment',       label: 'Payment & banking',   adminOnly: true  },
+  { slug: 'documents',     label: 'Documents & legal',   adminOnly: true  },
+  { slug: 'integrations',  label: 'Integrations',        adminOnly: true  },
+  { slug: 'notifications', label: 'Notifications',       adminOnly: false },
 ];
 
 const Field = ({ label, value, onChange, type = 'text', readOnly = false }) => (
@@ -39,16 +42,23 @@ const Field = ({ label, value, onChange, type = 'text', readOnly = false }) => (
 const SupplierSettings = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { supplier, refreshSupplier } = useSupplier();
+  const { supplier, contact, refreshSupplier } = useSupplier();
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(null);
 
-  // Derive active section slug from the current URL
+  const tier = getSupplierTier(contact?.role);
+  const isAdmin = tier === 'admin';
+
+  // Tabs visible to the current role
+  const visibleTabs = ALL_TABS.filter(t => isAdmin || !t.adminOnly);
+
+  // Derive active slug from URL
   const pathSlug = location.pathname.split('/').pop();
-  const activeSlug = SECTIONS.find(s => s.slug === pathSlug)?.slug ?? 'company';
-  const activeLabel = SECTIONS.find(s => s.slug === activeSlug)?.label ?? 'Company profile';
+  const activeTab = visibleTabs.find(t => t.slug === pathSlug) ?? visibleTabs[0];
+  const activeSlug = activeTab.slug;
+  const activeLabel = activeTab.label;
 
   React.useEffect(() => {
     if (supplier && !form) {
@@ -84,7 +94,7 @@ const SupplierSettings = () => {
   if (!supplier || !form) {
     return (
       <div className="sp-page">
-        <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--muted)' }}>Loading settings…</div>
+        <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--muted)' }}>Loading…</div>
       </div>
     );
   }
@@ -94,18 +104,18 @@ const SupplierSettings = () => {
       <div className="sp-page-head">
         <div>
           <div className="sp-eyebrow">Workspace · {supplier.name}</div>
-          <h1 className="sp-page-title">Your <em>workspace</em></h1>
+          <h1 className="sp-page-title">Workspace <em>profile</em></h1>
           <p className="sp-page-sub">Team, delivery zones, payment terms, integrations.</p>
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 20 }}>
-        {/* Settings nav — each item links to its own URL */}
+        {/* Tab nav — each item links to its own URL */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {SECTIONS.map(({ slug, label }) => (
+          {visibleTabs.map(({ slug, label }) => (
             <button
               key={slug}
-              onClick={() => navigate(`/supplier/settings/${slug}`)}
+              onClick={() => navigate(`/supplier/workspace/${slug}`)}
               style={{
                 padding: '9px 12px', borderRadius: 8, textAlign: 'left',
                 fontSize: 13, fontWeight: activeSlug === slug ? 600 : 400,
@@ -118,7 +128,7 @@ const SupplierSettings = () => {
           ))}
         </div>
 
-        {/* Settings content */}
+        {/* Tab content */}
         <div className="sp-card" style={{ padding: '22px 24px' }}>
           {activeSlug === 'company' ? (
             <>
@@ -155,16 +165,19 @@ const SupplierSettings = () => {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button
-                  className="sp-pill primary"
-                  style={{ padding: '9px 20px' }}
-                  onClick={handleSave}
-                  disabled={saving}
-                >
+                <button className="sp-pill primary" style={{ padding: '9px 20px' }} onClick={handleSave} disabled={saving}>
                   <Save size={13} />{saving ? 'Saving…' : 'Save changes'}
                 </button>
               </div>
             </>
+          ) : activeSlug === 'documents' ? (
+            <div style={{ textAlign: 'center', padding: '48px 0' }}>
+              <div style={{ fontSize: 28, marginBottom: 12 }}>🛡</div>
+              <div style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: 15, color: 'var(--fg)', marginBottom: 6 }}>Documents & legal</div>
+              <div style={{ fontSize: 13, color: 'var(--muted-strong)', maxWidth: 360, margin: '0 auto', lineHeight: 1.5 }}>
+                Manage certifications, agreements, and compliance documents. Coming soon.
+              </div>
+            </div>
           ) : (
             <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--muted)' }}>
               <div style={{ fontSize: 28, marginBottom: 8 }}>⚙</div>

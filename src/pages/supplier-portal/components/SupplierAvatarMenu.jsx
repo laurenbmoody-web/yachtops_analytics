@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ChevronDown, ChevronRight, User, Building2, Users, MapPin,
-  CreditCard, Receipt, Plug, Bell, DollarSign, ScrollText,
-  HelpCircle, LogOut,
+  ChevronDown, ChevronRight, User, Building2, ScrollText,
+  Gift, Sparkles, HelpCircle, LogOut,
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -11,16 +10,16 @@ import { useSupplier } from '../../../contexts/SupplierContext';
 import { getSupplierTier } from '../../../components/SupplierRoleGuard';
 
 const ROLE_LABELS = {
-  owner: 'ADMIN',
-  sales: 'MANAGER',
-  accounts: 'MANAGER',
+  owner:     'ADMIN',
+  sales:     'MANAGER',
+  accounts:  'MANAGER',
   logistics: 'STAFF',
 };
 
 const ROLE_BADGE = {
-  ADMIN:   { bg: 'rgba(99,102,241,0.12)',   color: '#4f46e5' },
-  MANAGER: { bg: 'rgba(14,165,233,0.12)',   color: '#0369a1' },
-  STAFF:   { bg: 'rgba(100,116,139,0.12)',  color: '#475569' },
+  ADMIN:   { bg: 'rgba(99,102,241,0.12)',  color: '#4f46e5' },
+  MANAGER: { bg: 'rgba(14,165,233,0.12)',  color: '#0369a1' },
+  STAFF:   { bg: 'rgba(100,116,139,0.12)', color: '#475569' },
 };
 
 const SectionLabel = ({ label }) => (
@@ -94,7 +93,6 @@ const SupplierAvatarMenu = () => {
   const roleLabel = ROLE_LABELS[contactRole] ?? 'STAFF';
   const badgeStyle = ROLE_BADGE[roleLabel];
 
-  const isAdmin = tier === 'admin';
   const isManager = tier === 'manager' || tier === 'admin';
 
   const go = (path) => { setOpen(false); navigate(path); };
@@ -146,7 +144,7 @@ const SupplierAvatarMenu = () => {
             boxShadow: '0 12px 36px rgba(15,22,41,0.13)',
             zIndex: 99, overflow: 'hidden',
           }}>
-            {/* Header */}
+            {/* Header block */}
             <div style={{
               padding: '16px',
               background: 'var(--bg-3)',
@@ -192,37 +190,26 @@ const SupplierAvatarMenu = () => {
                 <MenuItem icon={User} label="My profile" onClick={() => go('/supplier/profile')} />
               </div>
 
-              {/* Workspace — admin + manager */}
+              {/* Workspace — admin + manager only */}
               {isManager && (
                 <>
                   <Divider />
                   <SectionLabel label="Workspace" />
-                  <MenuItem icon={Building2} label="Company profile"    onClick={() => go('/supplier/settings/company')} />
-                  <MenuItem icon={Users}     label="Team & permissions" onClick={() => go('/supplier/settings/team')} />
-                  <MenuItem icon={MapPin}    label="Delivery zones"     onClick={() => go('/supplier/settings/zones')} />
-                  {isAdmin && (
-                    <MenuItem icon={CreditCard} label="Payment & banking" onClick={() => go('/supplier/settings/payment')} />
-                  )}
-                  <MenuItem icon={Receipt} label="Tax & invoicing"       onClick={() => go('/supplier/settings/tax')} />
-                  {isAdmin && (
-                    <MenuItem icon={Plug} label="Integrations"            onClick={() => go('/supplier/settings/integrations')} />
-                  )}
-                  <MenuItem icon={Bell} label="Notifications"             onClick={() => go('/supplier/settings/notifications')} />
+                  <MenuItem icon={Building2}  label="Workspace profile" onClick={() => go('/supplier/workspace')} />
+                  <MenuItem icon={ScrollText} label="Audit log"         onClick={() => go('/supplier/audit')} />
                 </>
               )}
 
-              {/* Operations — admin + manager */}
-              {isManager && (
-                <>
-                  <Divider />
-                  <SectionLabel label="Operations" />
-                  {isAdmin && (
-                    <MenuItem icon={DollarSign} label="Billing & subscription" onClick={() => go('/supplier/billing')} />
-                  )}
-                  <MenuItem icon={ScrollText} label="Audit log"   onClick={() => go('/supplier/audit')} />
-                  <MenuItem icon={HelpCircle} label="Help & support" href="mailto:support@cargo.works" />
-                </>
-              )}
+              {/* Grow */}
+              <Divider />
+              <SectionLabel label="Grow" />
+              <MenuItem icon={Gift} label="Refer a supplier" onClick={() => go('/supplier/refer')} />
+
+              {/* Help */}
+              <Divider />
+              <SectionLabel label="Help" />
+              <MenuItem icon={Sparkles}  label="What's new"     onClick={() => go('/supplier/changelog')} />
+              <MenuItem icon={HelpCircle} label="Help & support" href="#" />
 
               {/* Switch workspace */}
               <Divider />
