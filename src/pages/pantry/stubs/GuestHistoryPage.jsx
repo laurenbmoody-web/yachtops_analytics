@@ -32,6 +32,33 @@ function classifyHistoryEntry(entry) {
   return 'profile'; // generic create/update, no specific category
 }
 
+// Render a readable headline from the structured `changes` payload. Falls back
+// to `entry.message` (legacy) or a capitalised action word.
+function titleFor(entry) {
+  if (entry?.message) return entry.message;
+  const { action, changes } = entry ?? {};
+  if (action === 'mood_changed' && changes?.current_mood) {
+    const { from, to } = changes.current_mood;
+    if (!from && to) return `Mood set to ${to}`;
+    if (from && !to) return 'Mood cleared';
+    return `Mood changed · ${from} → ${to}`;
+  }
+  if (action === 'state_changed' && changes?.current_state) {
+    const { from, to } = changes.current_state;
+    return `State changed · ${from} → ${to}`;
+  }
+  if (action === 'ashore_set') {
+    const ctx = changes?.ashore_context?.to;
+    const dest = ctx?.destination;
+    return dest ? `Marked ashore · ${dest}` : 'Marked ashore';
+  }
+  if (action === 'ashore_cleared') return 'Ashore context cleared';
+  if (action === 'allergies_changed')         return 'Allergies updated';
+  if (action === 'health_conditions_changed') return 'Health conditions updated';
+  if (action === 'preferences_changed')       return 'Preferences updated';
+  return action ? `${action[0].toUpperCase()}${action.slice(1).replace(/_/g, ' ')}` : 'Updated';
+}
+
 export default function GuestHistoryPage() {
   const { id } = useParams();
   const [guest, setGuest]       = useState(null);
@@ -101,7 +128,7 @@ export default function GuestHistoryPage() {
             id: `h-${h.id}`,
             at: h.at,
             type: classifyHistoryEntry(h),
-            title: h.message || (h.action ? `${h.action[0].toUpperCase()}${h.action.slice(1)}` : 'Updated'),
+            title: titleFor(h),
             subtitle: null,
             author: h.actorName || resolveAuthor(h.actorUserId),
             source: null,

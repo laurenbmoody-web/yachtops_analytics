@@ -2,6 +2,24 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../contexts/AuthContext';
 
+// History entries live inside guests.history_log (jsonb). Keep the shape aligned
+// with the existing guestStorage.js convention: `actorUserId` (camelCase) so
+// downstream readers (GuestDetailPanel, pantry GuestHistoryPage) see one format.
+function buildHistoryEntry(action, actorUserId, changes) {
+  return {
+    id: `history-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+    at: new Date().toISOString(),
+    action,
+    actorUserId,
+    changes,
+  };
+}
+
+function appendHistory(existing, entry) {
+  const log = Array.isArray(existing) ? existing : [];
+  return [...log, entry];
+}
+
 export function useGuests() {
   const { user } = useAuth();
   const [guests, setGuests]   = useState([]);
@@ -42,36 +60,69 @@ export function useGuests() {
   useEffect(() => { fetch(); }, [fetch]);
 
   const updateGuestState = useCallback(async (guestId, nextState, ashoreContext = null) => {
+    const prevGuest = guests.find(g => g.id === guestId);
+    if (!prevGuest) return;
+
+    const prevState  = prevGuest.current_state ?? 'awake';
+    const prevAshore = prevGuest.ashore_context ?? null;
+    const stateChanged  = prevState !== nextState;
+    const ashoreChanged = JSON.stringify(prevAshore) !== JSON.stringify(ashoreContext);
+    if (!stateChanged && !ashoreChanged) return;
+
+    const changes = {};
+    if (stateChanged)  changes.current_state  = { from: prevState,  to: nextState };
+    if (ashoreChanged) changes.ashore_context = { from: prevAshore, to: ashoreContext };
+
+    // Primary action picks the most meaningful transition; nested changes carry the rest.
+    const action = stateChanged
+      ? 'state_changed'
+      : (ashoreContext ? 'ashore_set' : 'ashore_cleared');
+
+    const entry = buildHistoryEntry(action, user?.id ?? null, changes);
+    const nextLog = appendHistory(prevGuest.history_log, entry);
+
     setGuests(prev => prev.map(g =>
       g.id === guestId
-        ? { ...g, current_state: nextState, ashore_context: ashoreContext }
+        ? { ...g, current_state: nextState, ashore_context: ashoreContext, history_log: nextLog }
         : g
     ));
+
     const { error: err } = await supabase
       .from('guests')
-      .update({ current_state: nextState, ashore_context: ashoreContext })
+      .update({ current_state: nextState, ashore_context: ashoreContext, history_log: nextLog })
       .eq('id', guestId);
     if (err) {
       setError(err.message);
       fetch();
     }
-  }, [fetch]);
+  }, [guests, user, fetch]);
 
   const updateGuestMood = useCallback(async (guestId, moodKey, moodEmoji) => {
+    const prevGuest = guests.find(g => g.id === guestId);
+    if (!prevGuest) return;
+
+    const prevMood = prevGuest.current_mood ?? null;
+    if (prevMood === moodKey) return;
+
+    const changes = { current_mood: { from: prevMood, to: moodKey } };
+    const entry   = buildHistoryEntry('mood_changed', user?.id ?? null, changes);
+    const nextLog = appendHistory(prevGuest.history_log, entry);
+
     setGuests(prev => prev.map(g =>
       g.id === guestId
-        ? { ...g, current_mood: moodKey, current_mood_emoji: moodEmoji }
+        ? { ...g, current_mood: moodKey, current_mood_emoji: moodEmoji, history_log: nextLog }
         : g
     ));
+
     const { error: err } = await supabase
       .from('guests')
-      .update({ current_mood: moodKey, current_mood_emoji: moodEmoji })
+      .update({ current_mood: moodKey, current_mood_emoji: moodEmoji, history_log: nextLog })
       .eq('id', guestId);
     if (err) {
       setError(err.message);
       fetch();
     }
-  }, [fetch]);
+  }, [guests, user, fetch]);
 
   // Group by cabin_location_id
   const cabins = guests.reduce((acc, g) => {
