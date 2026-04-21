@@ -27,7 +27,7 @@ export function useGuests() {
         .select('*')
         .eq('tenant_id', member.tenant_id)
         .eq('is_deleted', false)
-        .eq('charter_status', 'active')
+        .eq('is_active_on_trip', true)
         .order('last_name');
 
       if (err) throw err;

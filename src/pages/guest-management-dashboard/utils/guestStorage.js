@@ -105,6 +105,7 @@ const mapRowToGuest = (row) => {
     shareGuestInfoWithCrew: row?.share_guest_info_with_crew || 'Limited',
     privacyNotes: row?.privacy_notes || '',
     passportDocumentUrl: row?.passport_document_url || null,
+    isActiveOnTrip: row?.is_active_on_trip ?? false,
   };
 };
 
@@ -162,6 +163,7 @@ const mapGuestToRow = (guestData) => {
   if (guestData?.shareGuestInfoWithCrew !== undefined) row.share_guest_info_with_crew = guestData?.shareGuestInfoWithCrew;
   if (guestData?.privacyNotes !== undefined) row.privacy_notes = guestData?.privacyNotes;
   if (guestData?.passportDocumentUrl !== undefined) row.passport_document_url = guestData?.passportDocumentUrl;
+  if (guestData?.isActiveOnTrip !== undefined) row.is_active_on_trip = guestData?.isActiveOnTrip;
   return row;
 };
 
