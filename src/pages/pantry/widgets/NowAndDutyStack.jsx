@@ -27,7 +27,7 @@ export default function NowAndDutyStack() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{
             width: 28, height: 28, borderRadius: '50%',
-            background: 'var(--ink)', color: 'var(--bg-canvas)',
+            background: '#1C1B3A', color: '#F5F1EA',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
             flexShrink: 0,

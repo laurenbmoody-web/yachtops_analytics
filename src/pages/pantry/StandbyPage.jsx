@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import './pantry.css';
 import Header from '../../components/navigation/Header';
 import { useGuests } from './hooks/useGuests';
@@ -15,6 +15,12 @@ import AllergiesWidget     from './widgets/AllergiesWidget';
 
 export default function StandbyPage() {
   const { guests } = useGuests();
+
+  useEffect(() => {
+    const prev = document.body.style.background;
+    document.body.style.background = '#F5F1EA';
+    return () => { document.body.style.background = prev; };
+  }, []);
   const onboardCount = guests.filter(g => (g.current_state ?? 'awake') !== 'ashore').length;
 
   return (
