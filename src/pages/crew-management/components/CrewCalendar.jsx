@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../../lib/supabaseClient';
 import { getStatusCellClass, getStatusLabel, buildStatusPeriods, getStatusForDay, CREW_STATUSES } from '../../../utils/crewStatus';
+import LogoSpinner from '../../../components/LogoSpinner';
 
 const MONTHS = [
   'January','February','March','April','May','June',
@@ -89,7 +90,7 @@ const CrewCalendar = ({ members, tenantId, refreshToken, canNavigate }) => {
         </button>
 
         {loading && (
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary ml-2" />
+          <LogoSpinner size={16} className="ml-2" />
         )}
       </div>
 

@@ -5,6 +5,7 @@ import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import Icon from '../../components/AppIcon';
+import LogoSpinner from '../../components/LogoSpinner';
 import QuickEntryModal from './components/QuickEntryModal';
 import BreachNotesModal from './components/BreachNotesModal';
 import StatusHistoryTab from './components/StatusHistoryTab';
@@ -776,7 +777,7 @@ const canEdit = (() => {
               >
                 {avatarUploading && (
                   <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-10">
-                    <Icon name="Loader2" size={24} className="text-primary animate-spin" />
+                    <LogoSpinner size={24} />
                   </div>
                 )}
                 {avatarPreview || crewMember?.avatarUrl ? (
@@ -1985,7 +1986,7 @@ const canEdit = (() => {
         <main className="p-6 max-w-[1800px] mx-auto">
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+              <LogoSpinner size={48} className="mx-auto mb-4" />
               <p className="text-muted-foreground">Checking authentication...</p>
             </div>
           </div>

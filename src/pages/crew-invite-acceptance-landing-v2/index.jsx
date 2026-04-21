@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import Image from '../../components/AppImage';
+import LogoSpinner from '../../components/LogoSpinner';
 import Button from '../../components/ui/Button';
 import { supabase } from '../../lib/supabaseClient';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -284,7 +285,7 @@ const CrewInviteAcceptanceLandingV2 = () => {
             />
           </div>
           <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mb-4">
-            <Icon name="Loader" size={32} className="text-primary animate-spin" />
+            <LogoSpinner size={32} />
           </div>
           <p className="text-sm text-muted-foreground">Loading invite details...</p>
         </div>

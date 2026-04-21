@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
+import LogoSpinner from '../../../components/LogoSpinner';
 import { supabase } from '../../../lib/supabaseClient';
 import { getCurrentUser } from '../../../utils/authStorage';
 
@@ -143,7 +144,7 @@ const TodaySnapshotWidget = () => {
       </div>
       {loading ? (
         <div className="py-8 flex items-center justify-center">
-          <div className="w-5 h-5 border-2 border-border border-t-primary rounded-full animate-spin" />
+          <LogoSpinner size={20} />
         </div>
       ) : activities?.length > 0 ? (
         <div className="space-y-3">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
+import LogoSpinner from '../../components/LogoSpinner';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
@@ -309,7 +310,7 @@ const DutySetsRotationManagement = () => {
         <Header />
         <main className="p-6 max-w-[1800px] mx-auto">
           <div className="bg-card rounded-xl border border-border shadow-sm p-12 text-center">
-            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <LogoSpinner size={32} className="mx-auto mb-4" />
             <p className="text-sm text-muted-foreground">Loading...</p>
           </div>
         </main>
@@ -413,7 +414,7 @@ const DutySetsRotationManagement = () => {
             {/* Template Library */}
             {loadingTemplates ? (
               <div className="bg-card rounded-xl border border-border shadow-sm p-12 text-center">
-                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                <LogoSpinner size={32} className="mx-auto mb-4" />
                 <p className="text-sm text-muted-foreground">Loading templates...</p>
               </div>
             ) : (

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Icon from '../../../components/AppIcon';
+import LogoSpinner from '../../../components/LogoSpinner';
 import Button from '../../../components/ui/Button';
 import { supabase } from '../../../lib/supabaseClient';
 
@@ -553,7 +554,7 @@ const RotationCalendar = ({ templates, departmentId, tenantId, currentUserId }) 
           >
             {clearingWeek ? (
               <>
-                <div className="w-4 h-4 border-2 border-foreground border-t-transparent rounded-full animate-spin" />
+                <LogoSpinner size={16} />
                 <span>Clearing...</span>
               </>
             ) : (
@@ -571,7 +572,7 @@ const RotationCalendar = ({ templates, departmentId, tenantId, currentUserId }) 
           >
             {autoRotating ? (
               <>
-                <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                <LogoSpinner size={16} />
                 <span>Rotating...</span>
               </>
             ) : (
@@ -647,7 +648,7 @@ const RotationCalendar = ({ templates, departmentId, tenantId, currentUserId }) 
                 <div className="max-h-56 overflow-y-auto py-1">
                   {loadingMembers ? (
                     <div className="flex items-center justify-center py-4 gap-2">
-                      <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      <LogoSpinner size={16} />
                       <span className="text-xs text-muted-foreground">Loading...</span>
                     </div>
                   ) : members?.length === 0 ? (
@@ -695,7 +696,7 @@ const RotationCalendar = ({ templates, departmentId, tenantId, currentUserId }) 
         {/* Loading state */}
         {loadingMembers && (
           <div className="p-8 text-center">
-            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+            <LogoSpinner size={24} className="mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">Loading members...</p>
           </div>
         )}
@@ -855,7 +856,7 @@ const DutySetAssignModal = ({ member, date, templates, currentAssignment, saving
 
         {saving && (
           <div className="px-5 pb-5 flex items-center justify-center gap-2">
-            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <LogoSpinner size={16} />
             <span className="text-xs text-muted-foreground">Saving...</span>
           </div>
         )}

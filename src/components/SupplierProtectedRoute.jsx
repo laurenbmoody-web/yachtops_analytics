@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import LogoSpinner from './LogoSpinner';
 
 const SupplierProtectedRoute = ({ children }) => {
   const { session, loading, user } = useAuth();
@@ -14,10 +15,7 @@ const SupplierProtectedRoute = ({ children }) => {
         justifyContent: 'center',
         background: '#F8FAFC',
       }}>
-        <div
-          className="animate-spin rounded-full h-12 w-12 border-b-2"
-          style={{ borderColor: '#1E3A5F' }}
-        />
+        <LogoSpinner size={48} />
       </div>
     );
   }

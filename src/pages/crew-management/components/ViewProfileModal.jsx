@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
+import LogoSpinner from '../../../components/LogoSpinner';
 import Button from '../../../components/ui/Button';
 import { supabase } from '../../../lib/supabaseClient';
 
@@ -75,7 +76,7 @@ const ViewProfileModal = ({ isOpen, onClose, userId }) => {
         <div className="p-6 overflow-y-auto flex-1">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <LogoSpinner size={32} />
             </div>
           ) : error ? (
             <div className="bg-error/10 border border-error/20 rounded-lg p-4 flex items-start gap-3">

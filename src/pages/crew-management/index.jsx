@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
+import LogoSpinner from '../../components/LogoSpinner';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 
@@ -725,7 +726,7 @@ const CrewManagement = () => {
         {/* Loading State - Small inline loader */}
         {loading && !timedOut && (
           <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <LogoSpinner size={32} />
           </div>
         )}
 
