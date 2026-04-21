@@ -5,13 +5,9 @@ import { X } from 'lucide-react';
 import { useGuestDayNotes } from '../hooks/useGuestDayNotes';
 import { formatDistanceToNow } from 'date-fns';
 import { ALL_MOODS, QUICK_MOODS } from '../constants/moods';
+import DrawerAllergiesBlock from './DrawerAllergiesBlock';
 
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-
-function splitPills(text) {
-  if (!text) return [];
-  return text.split(',').map(s => s.trim()).filter(Boolean);
-}
 
 function stateOptions(current) {
   const all = ['awake', 'asleep', 'ashore'];
@@ -122,6 +118,14 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
           </button>
         </div>
 
+        {/* Allergies & Medical — top priority block, first thing visible
+            after the guest header. Hidden entirely when both fields empty;
+            we deliberately do NOT render a "no allergies" placeholder. */}
+        <DrawerAllergiesBlock
+          allergies={guest.allergies}
+          healthConditions={guest.health_conditions}
+        />
+
         {/* State block */}
         <div className="p-drawer-section">
           <div className="p-caps" style={{ marginBottom: 10 }}>State</div>
@@ -198,20 +202,9 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
           </div>
         </div>
 
-        {/* Allergies & diet */}
-        {(guest.allergies || guest.health_conditions) && (
-          <div className="p-drawer-section">
-            <div className="p-caps" style={{ marginBottom: 8 }}>Allergies & diet</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {splitPills(guest.allergies).map((pill, i) => (
-                <span key={i} className="p-pill-allergy" aria-label={`Allergy: ${pill}`}>{pill}</span>
-              ))}
-              {splitPills(guest.health_conditions).map((pill, i) => (
-                <span key={i} className="p-pill-diet" aria-label={`Health condition: ${pill}`}>{pill}</span>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Allergies & diet previously rendered here — moved to the
+            <DrawerAllergiesBlock /> at the top of the drawer body so it's
+            the first thing visible after the guest header. */}
 
         {/* Today's notes */}
         <div className="p-drawer-section">
