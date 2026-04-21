@@ -1,11 +1,26 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useGuests } from '../hooks/useGuests';
 import CabinCard from './CabinCard';
 import GuestDrawer from '../drawers/GuestDrawer';
 
 export default function GuestsWidget() {
+  const location = useLocation();
   const { guests, cabins, loading, error, updateGuestState, updateGuestMood } = useGuests();
   const [drawerGuest, setDrawerGuest] = useState(null);
+
+  // Open the drawer for a specific guest when navigated here with location state
+  // (e.g. from NotesHistoryPage's guest chip). Consumed once — replaceState clears it
+  // so a back-nav or re-render doesn't reopen.
+  useEffect(() => {
+    const targetId = location.state?.openDrawerForGuestId;
+    if (!targetId || guests.length === 0) return;
+    const match = guests.find(g => g.id === targetId);
+    if (match) {
+      setDrawerGuest(match);
+      window.history.replaceState({}, '', location.pathname);
+    }
+  }, [location.state, location.pathname, guests]);
 
   const onboard  = guests.filter(g => (g.current_state ?? 'awake') !== 'ashore');
   const ashore   = guests.filter(g => (g.current_state ?? 'awake') === 'ashore');
