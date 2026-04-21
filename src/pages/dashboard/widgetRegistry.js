@@ -66,10 +66,16 @@ export const WIDGET_META = {
     allowedTiers: WIDGET_PERMISSIONS.ALL,
     defaultColumn: 'right',
   },
+  pantry: {
+    id: 'pantry',
+    title: 'Pantry · Interior',
+    allowedTiers: WIDGET_PERMISSIONS.ALL,
+    defaultColumn: 'center',
+  },
 };
 
 export const DEFAULT_LAYOUT = {
   left:   ['teamJobs', 'todaySnapshot', 'recentActivity'],
-  center: ['vesselView', 'laundry', 'quickActions'],
+  center: ['vesselView', 'laundry', 'quickActions', 'pantry'],
   right:  ['charterAccounts', 'ownerAccounts', 'inventoryHealth', 'provisioning'],
 };

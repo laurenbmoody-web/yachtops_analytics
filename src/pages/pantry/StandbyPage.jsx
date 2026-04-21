@@ -1,5 +1,6 @@
 import React from 'react';
 import './pantry.css';
+import Header from '../../components/navigation/Header';
 import { useGuests } from './hooks/useGuests';
 import ContextBar          from './widgets/ContextBar';
 import PageGreeting        from './widgets/PageGreeting';
@@ -17,36 +18,31 @@ export default function StandbyPage() {
   const onboardCount = guests.filter(g => (g.current_state ?? 'awake') !== 'ashore').length;
 
   return (
-    <div id="pantry-root" className="pantry-page">
-      {/* ── Header row ── */}
-      <div className="p-header-row">
-        <div style={{ flex: 1 }}>
-          <ContextBar />
-          <PageGreeting />
+    <>
+      <Header />
+      <div id="pantry-root" className="pantry-page">
+        <div className="p-header-row">
+          <div style={{ flex: 1 }}>
+            <ContextBar />
+            <PageGreeting />
+          </div>
+          <NowAndDutyStack />
         </div>
-        <NowAndDutyStack />
+
+        <ServicePresetPicker />
+        <DictateBar />
+        <GuestsWidget />
+
+        <div className="p-two-col">
+          <TodayTimeline />
+          <StewNotesWidget />
+        </div>
+
+        <div className="p-two-col">
+          <StockWidget guestCount={onboardCount} />
+          <AllergiesWidget />
+        </div>
       </div>
-
-      {/* ── Service preset picker ── */}
-      <ServicePresetPicker />
-
-      {/* ── Dictate bar ── */}
-      <DictateBar />
-
-      {/* ── Guests ── */}
-      <GuestsWidget />
-
-      {/* ── Two-col: Timeline + Stew notes ── */}
-      <div className="p-two-col">
-        <TodayTimeline />
-        <StewNotesWidget />
-      </div>
-
-      {/* ── Two-col: Stock + Allergies ── */}
-      <div className="p-two-col">
-        <StockWidget guestCount={onboardCount} />
-        <AllergiesWidget />
-      </div>
-    </div>
+    </>
   );
 }
