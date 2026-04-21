@@ -1330,24 +1330,10 @@ const PreferenceAssistantWizard = ({ isOpen, onClose, onComplete, guestId }) => 
         }
       }
 
-      // 5b. Log the wizard completion itself as a preferences_changed entry.
-      // Classifier in GuestHistoryPage keys off changes.preferences* so this
-      // lights up the Preferences filter tab on the history page.
-      if (created > 0) {
-        try {
-          await appendGuestHistory(supabase, {
-            guestId,
-            action: 'preferences_changed',
-            actorUserId: user?.id ?? null,
-            changes: {
-              preferences: {
-                from: null,
-                to: { added: created, source: 'wizard', keys: prefsToCreate.map(p => p?.key).filter(Boolean) },
-              },
-            },
-          });
-        } catch (e) { console.error('[Wizard] history_log append failed:', e); }
-      }
+      // Per-row history_log entries are written automatically by the
+      // preferencesStorage mutation hook (syncPreferencesForGuest), so no
+      // aggregated entry is needed here — each createPreference call above
+      // produces its own audit trail.
 
       // 6. Mark wizard as completed
       const completedSteps = Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1);

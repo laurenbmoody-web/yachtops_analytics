@@ -5,7 +5,6 @@ import Button from '../../components/ui/Button';
 import Icon from '../../components/AppIcon';
 import EditPreferenceSectionModal from '../master-preferences-view/components/EditPreferenceSectionModal';
 import { PreferenceCategory, getPreferencesByGuest, createPreference, updatePreference, deletePreference } from '../../utils/preferencesStorage';
-import { appendGuestHistory } from '../../utils/guestHistoryLog';
 import { loadGuests } from '../guest-management-dashboard/utils/guestStorage';
 import { loadTrips, TripStatus } from '../trips-management-dashboard/utils/tripStorage';
 import { getAuditLogsByEntity, EntityType } from '../../utils/auditLogger';
@@ -629,65 +628,10 @@ const GuestPreferenceProfile = () => {
     }
   };
 
-  // Consolidate the ALLERGIES-category preference rows back into the structured
-  // guests.allergies and guests.health_conditions columns, so the standby
-  // "What to avoid" widget (which reads the structured columns) stays in sync
-  // with edits made through this page. Appends a history_log entry for each
-  // column that actually changed.
-  const syncAllergiesBackToStructuredColumns = async () => {
-    if (!guestId || !activeTenantId) return;
-    try {
-      const allPrefs = await getPreferencesByGuest(guestId, activeTenantId);
-      const allergyPrefs = (allPrefs || []).filter(p => p?.category === PreferenceCategory?.ALLERGIES);
-
-      const allergyValues = allergyPrefs
-        .filter(p => p?.key !== 'Health Conditions')
-        .map(p => (p?.value ?? '').trim())
-        .filter(Boolean);
-      const healthValues = allergyPrefs
-        .filter(p => p?.key === 'Health Conditions')
-        .map(p => (p?.value ?? '').trim())
-        .filter(Boolean);
-
-      const nextAllergies = allergyValues.join(', ');
-      const nextHealth    = healthValues.join(', ');
-
-      const { data: currentGuest, error: readErr } = await supabase
-        .from('guests')
-        .select('allergies, health_conditions')
-        .eq('id', guestId)
-        .single();
-      if (readErr) throw readErr;
-
-      const allergiesChanged = (currentGuest?.allergies ?? '') !== nextAllergies;
-      const healthChanged    = (currentGuest?.health_conditions ?? '') !== nextHealth;
-      if (!allergiesChanged && !healthChanged) return;
-
-      const changes = {};
-      if (allergiesChanged) changes.allergies         = { from: currentGuest?.allergies ?? null,         to: nextAllergies };
-      if (healthChanged)    changes.health_conditions = { from: currentGuest?.health_conditions ?? null, to: nextHealth };
-
-      const action = allergiesChanged ? 'allergies_changed' : 'health_conditions_changed';
-      const columnUpdates = {};
-      if (allergiesChanged) columnUpdates.allergies         = nextAllergies;
-      if (healthChanged)    columnUpdates.health_conditions = nextHealth;
-
-      await appendGuestHistory(supabase, {
-        guestId,
-        action,
-        actorUserId: user?.id ?? null,
-        changes,
-        columnUpdates,
-      });
-    } catch (err) {
-      console.error('[GuestPreferenceProfile] allergies back-sync failed:', err);
-    }
-  };
-
-  const handleSaveSection = async () => {
-    if (editingSection === 'allergies_medical') {
-      await syncAllergiesBackToStructuredColumns();
-    }
+  // Back-sync to guests.* structured columns + history_log is handled at the
+  // preferencesStorage mutation layer (syncPreferencesForGuest). This handler
+  // just refreshes local state after the modal closes.
+  const handleSaveSection = () => {
     loadPreferencesData();
     loadAuditLogsData();
     loadWizardCompletion();
