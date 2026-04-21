@@ -9,7 +9,7 @@ export default function GuestsWidget() {
 
   const onboard  = guests.filter(g => (g.current_state ?? 'awake') !== 'ashore');
   const ashore   = guests.filter(g => (g.current_state ?? 'awake') === 'ashore');
-  const nextBack  = ashore.find(g => g.ashore_context?.return_time);
+  const nextBack  = ashore.find(g => g.ashore_context?.returning_at);
 
   return (
     <>
@@ -39,7 +39,7 @@ export default function GuestsWidget() {
             )}
             {nextBack && (
               <div className="p-guests-context">
-                {nextBack.first_name} back {nextBack.ashore_context.return_time}
+                {nextBack.first_name} back {nextBack.ashore_context.returning_at}
               </div>
             )}
           </div>
