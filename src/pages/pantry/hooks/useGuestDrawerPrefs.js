@@ -30,7 +30,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 const ROW_BUCKETS = {
   hot_drinks: {
     categories: ['Food & Beverage'],
-    keys: ['coffee', 'tea'],
+    keys: ['coffee', 'tea', 'matcha', 'hot chocolate', 'chai'],
   },
   drinks: {
     categories: ['Food & Beverage', 'Wine/Spirits'],
@@ -38,7 +38,14 @@ const ROW_BUCKETS = {
   },
   ambience: {
     categories: ['Cabin'],
-    keys: ['music', 'music volume', 'ambience', 'favourite spaces'],
+    // 'cabin temperature' is the wizard's canonical key; 'temperature' catches
+    // manual entries without the Cabin prefix. Confirmed: no other bucket
+    // claims a temperature-shaped key, so no double-bucket risk.
+    keys: [
+      'music', 'music volume', 'ambience', 'favourite spaces',
+      'lighting', 'scent',
+      'cabin temperature', 'temperature',
+    ],
   },
 };
 
@@ -68,19 +75,25 @@ function isFoodAvoidRow(pref) {
 // DAILY ROUTINE — only ROUTINE-category rows whose value parses as HH:MM.
 // Free-text keys like 'Morning Routine' / 'Late Night Behaviour' / 'Nap
 // Habits' are excluded. Gym Time, if added manually, will pick up here too.
+//
+// Ordering in parseRoutineAnchor matters: the HHMM regex is the gate. If
+// a row's value doesn't parse as a clock time we return null BEFORE
+// shortRoutineLabel is ever called, so free-text keys never reach the
+// display-label function. Keep the `if (!m) return null;` above the label
+// resolution below.
 const HHMM = /^\s*(\d{1,2}):(\d{2})\s*$/;
 
 function parseRoutineAnchor(pref) {
   if (pref?.category !== 'Routine') return null;
   const val = (pref?.value ?? '').trim();
   const m = val.match(HHMM);
-  if (!m) return null;
+  if (!m) return null;                    // gate: non-time rows bail here
   const hh = String(Math.min(23, Math.max(0, parseInt(m[1], 10)))).padStart(2, '0');
   const mm = String(Math.min(59, Math.max(0, parseInt(m[2], 10)))).padStart(2, '0');
   return {
     time:  `${hh}:${mm}`,
-    label: pref.key,          // stable label for matching to moments (e.g. 'Breakfast Time')
-    short: shortRoutineLabel(pref.key), // display label for timeline (e.g. 'BREAKFAST')
+    label: pref.key,                      // stable label for matching to moments (e.g. 'Breakfast Time')
+    short: shortRoutineLabel(pref.key),   // only called after HHMM match
     sortKey: parseInt(hh, 10) * 60 + parseInt(mm, 10),
   };
 }
@@ -187,10 +200,14 @@ export function useGuestDrawerPrefs(guestId) {
       if (prefsRes.error) throw prefsRes.error;
       if (guestRes.error) throw guestRes.error;
 
-      // Filter out any legacy auto-synced aggregate rows defensively —
-      // matches the guard in preferencesSync so a stray row can't poison
-      // the drawer either. (Cleanup migration 20260421130000 removed these
-      // from existing data; this is belt-and-braces.)
+      // Guard against phantom auto-synced rows — see Section 3 cleanup
+      // (migration 20260421130000). The legacy forward-sync effect used to
+      // write an aggregate pref row with source='guest_profile' + tag
+      // 'auto-synced', which fed back into its own column recomputation and
+      // compounded values on every mutation. The effect is gone, the data is
+      // cleaned, but this filter stays as defence against any surviving
+      // or re-introduced row polluting the drawer. Do not remove without
+      // re-reading the Section 3 commit history.
       const prefs = (prefsRes.data ?? []).filter(p => {
         if (p.source === 'guest_profile') return false;
         const tags = Array.isArray(p.tags) ? p.tags : [];
