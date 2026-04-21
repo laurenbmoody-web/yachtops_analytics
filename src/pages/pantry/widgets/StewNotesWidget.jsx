@@ -13,8 +13,8 @@ export default function StewNotesWidget() {
           <div className="p-caps">
             {loading ? '…' : `${notes.length} note${notes.length !== 1 ? 's' : ''}`} · newest first
           </div>
-          <div className="p-card-headline" style={{ '--headline-accent': 'var(--brass)' }}>
-            Worth <em style={{ color: 'var(--brass)' }}>noting.</em>
+          <div className="p-card-headline">
+            Worth <em>noting</em>.
           </div>
         </div>
         <button className="p-card-link" style={{ color: 'var(--brass)' }}
