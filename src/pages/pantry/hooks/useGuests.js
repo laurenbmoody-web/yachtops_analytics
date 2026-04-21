@@ -1,24 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../contexts/AuthContext';
-
-// History entries live inside guests.history_log (jsonb). Keep the shape aligned
-// with the existing guestStorage.js convention: `actorUserId` (camelCase) so
-// downstream readers (GuestDetailPanel, pantry GuestHistoryPage) see one format.
-function buildHistoryEntry(action, actorUserId, changes) {
-  return {
-    id: `history-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
-    at: new Date().toISOString(),
-    action,
-    actorUserId,
-    changes,
-  };
-}
-
-function appendHistory(existing, entry) {
-  const log = Array.isArray(existing) ? existing : [];
-  return [...log, entry];
-}
+import { buildHistoryEntry, appendToLog } from '../../../utils/guestHistoryLog';
 
 export function useGuests() {
   const { user } = useAuth();
@@ -79,7 +62,7 @@ export function useGuests() {
       : (ashoreContext ? 'ashore_set' : 'ashore_cleared');
 
     const entry = buildHistoryEntry(action, user?.id ?? null, changes);
-    const nextLog = appendHistory(prevGuest.history_log, entry);
+    const nextLog = appendToLog(prevGuest.history_log, entry);
 
     setGuests(prev => prev.map(g =>
       g.id === guestId
@@ -106,7 +89,7 @@ export function useGuests() {
 
     const changes = { current_mood: { from: prevMood, to: moodKey } };
     const entry   = buildHistoryEntry('mood_changed', user?.id ?? null, changes);
-    const nextLog = appendHistory(prevGuest.history_log, entry);
+    const nextLog = appendToLog(prevGuest.history_log, entry);
 
     setGuests(prev => prev.map(g =>
       g.id === guestId
