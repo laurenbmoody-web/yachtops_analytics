@@ -19,7 +19,7 @@ export default function PageGreeting({ activeService = null, firstName = null })
         margin: '0 0 0',
         fontWeight: 400,
       }}>
-        {firstName ? `Morning, ${firstName}. ` : ''}Here's the day ahead.
+        {firstName ? `Morning, ${firstName}. ` : ''}Here's what's on across the boat right now.
       </p>
     </>
   );

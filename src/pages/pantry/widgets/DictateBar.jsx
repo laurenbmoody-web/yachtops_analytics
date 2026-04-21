@@ -171,7 +171,7 @@ export default function DictateBar() {
               onPointerUp={handlePointerUp}
               style={{ touchAction: 'none' }}
             >
-              <Mic size={16} color="#fff" />
+              <Mic size={20} color="#fff" />
             </div>
             <div className="p-dictate-body">
               <div className="p-dictate-hint">Hold to dictate</div>
@@ -198,7 +198,7 @@ export default function DictateBar() {
                 onPointerDown={handlePointerDown}
                 onPointerUp={handlePointerUp}
               >
-                <Mic size={18} color="#fff" />
+                <Mic size={22} color="#fff" />
               </div>
               <div className="p-waveform" aria-hidden="true">
                 {waveHeights.map((h, i) => (

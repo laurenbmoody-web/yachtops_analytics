@@ -16,7 +16,7 @@
 
   /* Ink */
   --ink:            #1C1B3A;
-  --ink-muted:      #6B6880;
+  --ink-muted:      #695880;
   --ink-tertiary:   #8B8478;
 
   /* Accent — terracotta */
@@ -48,7 +48,7 @@
 
 /* ── Base reset inside pantry ──────────────────────────────── */
 .pantry-page {
-  background: var(--bg-canvas);
+  background: #F5F1EA;
   color: var(--ink);
   font-family: var(--font-sans);
   font-size: 13px;
@@ -707,7 +707,7 @@
 }
 .p-tl-dot {
   position: absolute;
-  left: -59px;
+  left: -14px;
   top: 5px;
   width: 6px;
   height: 6px;
@@ -720,7 +720,7 @@
   height: 10px;
   background: var(--accent);
   top: 3px;
-  left: -61px;
+  left: -14px;
   box-shadow: 0 0 0 2px var(--bg-canvas), 0 0 0 3px var(--accent);
   animation: tl-pulse 2s ease-in-out infinite;
 }
