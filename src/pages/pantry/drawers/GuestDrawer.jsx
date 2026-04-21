@@ -3,33 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useGuestDayNotes } from '../hooks/useGuestDayNotes';
 import { formatDistanceToNow } from 'date-fns';
-
-const QUICK_MOODS = [
-  { key: 'happy',       emoji: '🙂', label: 'Happy' },
-  { key: 'quiet',       emoji: '🤫', label: 'Quiet' },
-  { key: 'tired',       emoji: '😴', label: 'Tired' },
-  { key: 'celebrating', emoji: '🥂', label: 'Celebrating' },
-  { key: 'off',         emoji: '🌀', label: 'Off' },
-];
-
-const ALL_MOODS = [
-  ...QUICK_MOODS,
-  { key: 'playful',       emoji: '✨', label: 'Playful' },
-  { key: 'reflective',    emoji: '📖', label: 'Reflective' },
-  { key: 'flirty',        emoji: '💅', label: 'Flirty' },
-  { key: 'hungover',      emoji: '🥴', label: 'Hungover' },
-  { key: 'jetlagged',     emoji: '✈️', label: 'Jetlagged' },
-  { key: 'grumpy',        emoji: '😤', label: 'Grumpy' },
-  { key: 'stressed',      emoji: '😰', label: 'Stressed' },
-  { key: 'social',        emoji: '🗣️', label: 'Social' },
-  { key: 'private',       emoji: '🔕', label: 'Private' },
-  { key: 'unwell',        emoji: '🤒', label: 'Unwell' },
-  { key: 'relaxed',       emoji: '🏖️', label: 'Relaxed' },
-  { key: 'focused',       emoji: '🎯', label: 'Focused' },
-  { key: 'contemplative', emoji: '💭', label: 'Contemplative' },
-  { key: 'seasick',       emoji: '🌊', label: 'Seasick' },
-  { key: 'buzzy',         emoji: '🎉', label: 'Buzzy' },
-];
+import { ALL_MOODS, QUICK_MOODS } from '../constants/moods';
 
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
@@ -50,6 +24,10 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
   const [addingNote, setAddingNote]     = useState(false);
   const [submitting, setSubmitting]     = useState(false);
 
+  // Local optimistic state — initialised from the guest prop at open time
+  const [localState, setLocalState] = useState(guest.current_state ?? 'awake');
+  const [localMood, setLocalMood]   = useState(guest.current_mood ?? null);
+
   const today     = DAY_NAMES[new Date().getDay()];
   const firstName = guest.first_name ?? '';
   const lastName  = guest.last_name  ?? '';
@@ -63,6 +41,17 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
     return () => document.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
+  const handleStateChange = (newState) => {
+    if (newState === localState) return;
+    setLocalState(newState); // optimistic
+    onUpdateState?.(guest.id, newState);
+  };
+
+  const handleMoodChange = (key, emoji) => {
+    setLocalMood(key); // optimistic
+    onUpdateMood?.(guest.id, key, emoji);
+  };
+
   const handleAddNote = async () => {
     if (!noteInput.trim()) return;
     setSubmitting(true);
@@ -73,7 +62,9 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
 
   return (
     <AnimatePresence>
+      {/* Backdrop — tap outside to close */}
       <motion.div
+        key="backdrop"
         className="p-drawer-backdrop"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -81,7 +72,10 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
         onClick={onClose}
         aria-hidden="true"
       />
+
+      {/* Sheet — stopPropagation prevents backdrop click from firing */}
       <motion.div
+        key="sheet"
         className="p-drawer"
         role="dialog"
         aria-modal="true"
@@ -90,6 +84,7 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
         transition={{ type: 'spring', stiffness: 260, damping: 26 }}
+        onClick={e => e.stopPropagation()}
       >
         <div className="p-drawer-handle" />
 
@@ -107,9 +102,9 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
               {firstName} <em>{lastName}.</em>
             </div>
             <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 13, color: 'var(--ink-muted)', marginTop: 2 }}>
-              {guest.current_state === 'ashore'
+              {localState === 'ashore'
                 ? `Ashore${guest.ashore_context?.destination ? ` · ${guest.ashore_context.destination}` : ''}`
-                : `${(guest.current_state ?? 'awake').charAt(0).toUpperCase() + (guest.current_state ?? 'awake').slice(1)} · onboard`
+                : `${localState.charAt(0).toUpperCase() + localState.slice(1)} · onboard`
               }
             </div>
           </div>
@@ -126,19 +121,20 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
         <div className="p-drawer-section">
           <div className="p-caps" style={{ marginBottom: 10 }}>State</div>
           <div className="p-state-grid">
-            {stateOptions(guest.current_state).map(opt => (
-              <div
+            {stateOptions(localState).map(opt => (
+              <motion.div
                 key={opt.value}
                 className={`p-state-card${opt.active ? ' active' : ''}`}
                 role="button"
                 tabIndex={0}
-                onClick={() => !opt.active && onUpdateState?.(guest.id, opt.value)}
-                onKeyDown={e => e.key === 'Enter' && !opt.active && onUpdateState?.(guest.id, opt.value)}
+                whileTap={{ scale: 0.96 }}
+                onClick={() => handleStateChange(opt.value)}
+                onKeyDown={e => e.key === 'Enter' && handleStateChange(opt.value)}
                 aria-pressed={opt.active}
                 aria-label={`Mark as ${opt.label}`}
               >
                 <div className="p-caps">{opt.label}</div>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
@@ -164,11 +160,12 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
+                  whileTap={{ scale: 0.96 }}
                   transition={{ duration: 0.15 }}
-                  className={`p-pill-mood${guest.current_mood === m.key ? ' active' : ''}`}
-                  onClick={() => onUpdateMood?.(guest.id, m.key, m.emoji)}
+                  className={`p-pill-mood${localMood === m.key ? ' active' : ''}`}
+                  onClick={() => handleMoodChange(m.key, m.emoji)}
                   aria-label={m.label}
-                  aria-pressed={guest.current_mood === m.key}
+                  aria-pressed={localMood === m.key}
                 >
                   <span role="img" aria-hidden="true">{m.emoji}</span>
                   <span>{m.label}</span>

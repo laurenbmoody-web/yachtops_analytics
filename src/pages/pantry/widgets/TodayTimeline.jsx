@@ -16,7 +16,7 @@ export default function TodayTimeline() {
       <div className="p-card-head">
         <div>
           <div className="p-caps">{today} · a log</div>
-          <div className="p-card-headline">The day <em>ahead.</em></div>
+          <div className="p-card-headline">The day <em>ahead</em>.</div>
         </div>
       </div>
 

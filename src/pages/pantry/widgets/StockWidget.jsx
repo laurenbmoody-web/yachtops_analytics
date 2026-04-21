@@ -15,7 +15,7 @@ export default function StockWidget({ guestCount = 0 }) {
       <div className="p-card-head">
         <div>
           <div className="p-caps">{label}</div>
-          <div className="p-card-headline">What matters <em>this week.</em></div>
+          <div className="p-card-headline">What matters <em>this week</em>.</div>
         </div>
         <button className="p-card-link" onClick={() => navigate('/inventory/weekly')}
           aria-label="Open full inventory view">

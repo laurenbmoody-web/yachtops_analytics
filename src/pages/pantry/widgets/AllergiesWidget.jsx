@@ -14,7 +14,7 @@ export default function AllergiesWidget() {
       <div className="p-card-head">
         <div>
           <div className="p-caps">Live · from preferences</div>
-          <div className="p-card-headline">What to <em>avoid.</em></div>
+          <div className="p-card-headline">What to <em>avoid</em>.</div>
         </div>
       </div>
 

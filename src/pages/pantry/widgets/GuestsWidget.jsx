@@ -19,7 +19,7 @@ export default function GuestsWidget() {
             <div className="p-caps">
               By cabin · {cabins.length} cabin{cabins.length !== 1 ? 's' : ''}
             </div>
-            <div className="p-card-headline">Who's <em>aboard.</em></div>
+            <div className="p-card-headline">Who's <em>aboard</em>.</div>
           </div>
           <div className="p-guests-hint">tap · hold</div>
         </div>
