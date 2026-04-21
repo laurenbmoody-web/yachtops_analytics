@@ -539,56 +539,12 @@ const GuestPreferenceProfile = () => {
   // For HOD/CREW: check if this guest is on an active trip
   const guestIsOnActiveTrip = isFullAccess || activeTripsGuestIds?.has(guestId);
 
-  // Sync guest profile allergies/health conditions into the Allergies & Medical preferences section
-  useEffect(() => {
-    if (!selectedGuest || !guestId || !activeTenantId) return;
-    const hasAllergies = selectedGuest?.allergies && selectedGuest?.allergies?.trim() !== '';
-    const hasHealth = selectedGuest?.healthConditions && selectedGuest?.healthConditions?.trim() !== '';
-    if (!hasAllergies && !hasHealth) return;
-
-    const syncProfileData = async () => {
-      try {
-        const currentPrefs = await getPreferencesByGuest(guestId, activeTenantId);
-        const allergyPrefs = currentPrefs?.filter(p => p?.category === PreferenceCategory?.ALLERGIES) || [];
-
-        const syncEntry = async (key, value) => {
-          if (!value || value?.trim() === '') return;
-          const existing = allergyPrefs?.find(p => p?.key === key && p?.source === 'guest_profile');
-          if (existing) {
-            // Update if value changed
-            if (existing?.value !== value?.trim()) {
-              await updatePreference(existing?.id, { value: value?.trim() }, activeTenantId);
-            }
-          } else {
-            // Check if a manually-entered entry with same key exists — don't overwrite it
-            const manualEntry = allergyPrefs?.find(p => p?.key === key && p?.source !== 'guest_profile');
-            if (!manualEntry) {
-              await createPreference({
-                guestId,
-                category: PreferenceCategory?.ALLERGIES,
-                key,
-                value: value?.trim(),
-                priority: 'high',
-                tags: ['auto-synced'],
-                source: 'guest_profile',
-              }, activeTenantId);
-            }
-          }
-        };
-
-        if (hasAllergies) await syncEntry('Allergies', selectedGuest?.allergies);
-        if (hasHealth) await syncEntry('Health Conditions', selectedGuest?.healthConditions);
-
-        // Reload preferences after sync
-        const updated = await getPreferencesByGuest(guestId, activeTenantId);
-        setPreferences(updated || []);
-      } catch (err) {
-        console.error('[GuestPreferenceProfile] syncProfileData error:', err);
-      }
-    };
-
-    syncProfileData();
-  }, [selectedGuest?.id, selectedGuest?.allergies, selectedGuest?.healthConditions, activeTenantId]);
+  // NOTE: the old forward-sync useEffect that read selectedGuest.allergies and
+  // inserted an "auto-synced" aggregate preference row has been removed. Since
+  // preferencesSync now maintains guests.allergies / guests.health_conditions
+  // from the individual preference rows (the source of truth), the forward
+  // sync was creating a redundant aggregate row that fed back into its own
+  // recomputation. Flow is one-directional now: prefs -> structured column.
 
   const toggleSection = (sectionKey) => {
     setExpandedSections(prev => ({

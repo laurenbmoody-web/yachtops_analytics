@@ -28,6 +28,19 @@ import { appendGuestHistory } from './guestHistoryLog';
 const ALLERGIES_CATEGORY = 'Allergies';
 const HEALTH_KEY         = 'Health Conditions';
 
+// Rows that were synthesised by the legacy forward-sync (structured column ->
+// aggregate pref row) must be excluded from aggregation; otherwise the sync
+// would feed off its own output and compound values on every mutation.
+// The forward sync is now gone and auto-synced rows are cleaned up in
+// migration 20260421130000, but this filter is a belt-and-braces guard in
+// case any survive or get re-introduced by an older client.
+function isAutoSyncedRow(row) {
+  if (!row) return false;
+  if (row.source === 'guest_profile') return true;
+  const tags = Array.isArray(row.tags) ? row.tags : [];
+  return tags.includes('auto-synced') || tags.includes('auto_synced');
+}
+
 // Builds a narrative summary string from non-allergies preference rows.
 // Each row becomes "key: value" if key is present, else just "value".
 // Rows are grouped by category for stable ordering, joined with ". ".
@@ -78,13 +91,13 @@ export async function syncPreferencesForGuest(supabase, { guestId, tenantId, act
 async function syncAllergiesColumns(supabase, { guestId, tenantId, actorUserId }) {
   const { data: prefRows, error } = await supabase
     .from('guest_preferences')
-    .select('key, value')
+    .select('key, value, source, tags')
     .eq('tenant_id', tenantId)
     .eq('guest_id', guestId)
     .eq('category', ALLERGIES_CATEGORY);
   if (error) { console.error('[preferencesSync] read allergies prefs failed:', error); return; }
 
-  const rows = prefRows || [];
+  const rows = (prefRows || []).filter(r => !isAutoSyncedRow(r));
   const nextAllergies = buildAllergyColumn(rows.filter(r => r.key !== HEALTH_KEY));
   const nextHealth    = buildAllergyColumn(rows.filter(r => r.key === HEALTH_KEY));
 
@@ -127,13 +140,14 @@ async function syncAllergiesColumns(supabase, { guestId, tenantId, actorUserId }
 async function syncPreferencesSummary(supabase, { guestId, tenantId, actorUserId }) {
   const { data: prefRows, error } = await supabase
     .from('guest_preferences')
-    .select('category, key, value, created_at')
+    .select('category, key, value, created_at, source, tags')
     .eq('tenant_id', tenantId)
     .eq('guest_id', guestId)
     .neq('category', ALLERGIES_CATEGORY);
   if (error) { console.error('[preferencesSync] read non-allergy prefs failed:', error); return; }
 
-  const nextSummary = buildPreferencesSummary(prefRows);
+  const rows = (prefRows || []).filter(r => !isAutoSyncedRow(r));
+  const nextSummary = buildPreferencesSummary(rows);
 
   const { data: guest, error: readErr } = await supabase
     .from('guests')
