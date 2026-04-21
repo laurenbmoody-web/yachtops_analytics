@@ -143,41 +143,29 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
     fetchPassportUrl();
   }, [guest?.passportDocumentUrl]);
 
-  const handleActiveToggle = () => {
+  const handleActiveToggle = async () => {
     const newActiveState = !formData?.isActiveOnTrip;
     setFormData(prev => ({ ...prev, isActiveOnTrip: newActiveState }));
-    
-    // Save immediately to guest storage
-    const updated = updateGuest(guest?.id, { isActiveOnTrip: newActiveState });
+
+    const updated = await updateGuest(guest?.id, { isActiveOnTrip: newActiveState });
     if (updated) {
-      // Also update all trips that have this guest
       const allTrips = JSON.parse(localStorage.getItem('cargo.trips.v1') || '[]');
       let tripsUpdated = false;
-      
       allTrips?.forEach(trip => {
         const guestIndex = trip?.guests?.findIndex(tg => tg?.guestId === guest?.id);
         if (guestIndex !== -1) {
           trip.guests[guestIndex].isActive = newActiveState;
-          if (newActiveState) {
-            trip.guests[guestIndex].activatedAt = new Date()?.toISOString();
-          } else {
-            trip.guests[guestIndex].deactivatedAt = new Date()?.toISOString();
-          }
+          trip.guests[guestIndex][newActiveState ? 'activatedAt' : 'deactivatedAt'] = new Date()?.toISOString();
           tripsUpdated = true;
         }
       });
-      
       if (tripsUpdated) {
         localStorage.setItem('cargo.trips.v1', JSON.stringify(allTrips));
       }
-      
-      showToast(`Guest ${newActiveState ? 'activated' : 'deactivated'} on current trip`, 'success');
-      if (onEdit) {
-        onEdit(guest?.id, { isActiveOnTrip: newActiveState });
-      }
+      showToast(`Guest ${newActiveState ? 'activated on' : 'removed from'} current trip`, 'success');
+      if (onEdit) onEdit(guest?.id, { isActiveOnTrip: newActiveState });
     } else {
       showToast('Failed to update guest status', 'error');
-      // Revert on failure
       setFormData(prev => ({ ...prev, isActiveOnTrip: !newActiveState }));
     }
   };
