@@ -92,7 +92,6 @@ import ServicePlaceholder from './pages/pantry/presets/ServicePlaceholder';
 import TodaySchedulePage from './pages/pantry/stubs/TodaySchedulePage';
 import NotesHistoryPage from './pages/pantry/stubs/NotesHistoryPage';
 import InventoryWeeklyPage from './pages/pantry/stubs/InventoryWeeklyPage';
-import GuestPreferencesPage from './pages/pantry/stubs/GuestPreferencesPage';
 import GuestHistoryPage from './pages/pantry/stubs/GuestHistoryPage';
 import TodayDetailPage from './pages/today-detail/index';
 import NotFound from './pages/NotFound';
@@ -1096,7 +1095,6 @@ const Routes = () => {
         <Route path="/pantry/today" element={<ProtectedRoute><TodaySchedulePage /></ProtectedRoute>} />
         <Route path="/notes/history" element={<ProtectedRoute><NotesHistoryPage /></ProtectedRoute>} />
         <Route path="/inventory/weekly" element={<ProtectedRoute><InventoryWeeklyPage /></ProtectedRoute>} />
-        <Route path="/guests/:id/preferences" element={<ProtectedRoute><GuestPreferencesPage /></ProtectedRoute>} />
         <Route path="/guests/:id/history" element={<ProtectedRoute><GuestHistoryPage /></ProtectedRoute>} />
         
         {/* Crew Routes */}

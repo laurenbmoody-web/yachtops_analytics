@@ -8,7 +8,7 @@ export default function StandbyLayoutHeader({
   title = null,
   subtitle = null,
   backTo = null,
-  backLabel = '← Back to Standby',
+  backLabel = 'Back to Standby',
   showDuty = true,
 }) {
   const navigate = useNavigate();
@@ -18,8 +18,7 @@ export default function StandbyLayoutHeader({
       <div style={{ flex: 1 }}>
         {backTo && (
           <button
-            className="p-btn outline"
-            style={{ marginBottom: 12 }}
+            className="p-back-link"
             onClick={() => navigate(backTo)}
             aria-label={backLabel}
           >

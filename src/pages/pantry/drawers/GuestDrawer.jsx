@@ -26,7 +26,7 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
   const [addingNote, setAddingNote]     = useState(false);
   const [submitting, setSubmitting]     = useState(false);
 
-  const goToPreferences = () => { onClose(); navigate(`/guests/${guest.id}/preferences`); };
+  const goToPreferences = () => { onClose(); navigate(`/guest/${guest.id}/preferences`); };
   const goToHistory     = () => { onClose(); navigate(`/guests/${guest.id}/history`); };
 
   // Local optimistic state — initialised from the guest prop at open time

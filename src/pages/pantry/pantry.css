@@ -939,6 +939,43 @@
   gap: 24px;
   margin-bottom: 24px;
 }
+
+/* Editorial back link — tracked caps, muted, hairline underline on hover */
+.p-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 0;
+  background: none;
+  border: none;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  cursor: pointer;
+  transition: color 120ms;
+}
+.p-back-link::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-left: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  margin-right: 2px;
+  margin-left: 1px;
+  flex-shrink: 0;
+}
+.p-back-link:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 0.5px;
+}
 .p-two-col {
   display: grid;
   grid-template-columns: 1.3fr 1fr;
