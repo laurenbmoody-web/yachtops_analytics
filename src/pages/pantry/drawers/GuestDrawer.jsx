@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useGuestDayNotes } from '../hooks/useGuestDayNotes';
@@ -18,11 +19,15 @@ function stateOptions(current) {
 }
 
 export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMood }) {
+  const navigate = useNavigate();
   const { notes, loading: notesLoading, addNote } = useGuestDayNotes(guest.id);
   const [moodExpanded, setMoodExpanded] = useState(false);
   const [noteInput, setNoteInput]       = useState('');
   const [addingNote, setAddingNote]     = useState(false);
   const [submitting, setSubmitting]     = useState(false);
+
+  const goToPreferences = () => { onClose(); navigate(`/guests/${guest.id}/preferences`); };
+  const goToHistory     = () => { onClose(); navigate(`/guests/${guest.id}/history`); };
 
   // Local optimistic state — initialised from the guest prop at open time
   const [localState, setLocalState] = useState(guest.current_state ?? 'awake');
@@ -179,7 +184,7 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
         <div className="p-drawer-section">
           <div className="p-drawer-section-head">
             <div className="p-caps">At a glance</div>
-            <button className="p-card-link" aria-label="Open full preferences">
+            <button className="p-card-link" onClick={goToPreferences} aria-label="Open full preferences">
               Full preferences →
             </button>
           </div>
@@ -263,11 +268,11 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
         {/* Footer */}
         <div className="p-drawer-footer">
           <button className="p-btn primary" style={{ padding: '11px 14px', borderRadius: 10 }}
-            aria-label="Open full preferences">
+            onClick={goToPreferences} aria-label="Open full preferences">
             Full preferences →
           </button>
           <button className="p-btn primary" style={{ padding: '11px 14px', borderRadius: 10 }}
-            aria-label="View guest history">
+            onClick={goToHistory} aria-label="View guest history">
             View history →
           </button>
         </div>

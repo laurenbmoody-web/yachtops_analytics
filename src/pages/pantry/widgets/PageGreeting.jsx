@@ -1,10 +1,12 @@
 import React from 'react';
 
 // v1: always STANDBY. Meal preset pages will pass activeService.
-export default function PageGreeting({ activeService = null, firstName = null }) {
+export default function PageGreeting({ activeService = null, firstName = null, subtitle = null }) {
   const greetingWord = activeService
     ? activeService.toUpperCase()
     : 'STANDBY';
+
+  const defaultSubtitle = `${firstName ? `Morning, ${firstName}. ` : ''}Here's what's on across the boat right now.`;
 
   return (
     <>
@@ -19,7 +21,7 @@ export default function PageGreeting({ activeService = null, firstName = null })
         margin: '0 0 0',
         fontWeight: 400,
       }}>
-        {firstName ? `Morning, ${firstName}. ` : ''}Here's what's on across the boat right now.
+        {subtitle ?? defaultSubtitle}
       </p>
     </>
   );

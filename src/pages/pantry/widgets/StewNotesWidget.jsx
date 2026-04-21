@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useStewNotes } from '../hooks/useStewNotes';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function StewNotesWidget() {
+  const navigate = useNavigate();
   const { notes, loading, error, addNote } = useStewNotes({ limit: 3 });
   const [expanded, setExpanded] = useState(null);
 
@@ -18,6 +20,7 @@ export default function StewNotesWidget() {
           </div>
         </div>
         <button className="p-card-link" style={{ color: 'var(--brass)' }}
+          onClick={() => navigate('/notes/history')}
           aria-label="View all stew notes">
           View all →
         </button>
