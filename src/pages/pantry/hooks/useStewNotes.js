@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../contexts/AuthContext';
+import { appendGuestHistory } from '../../../utils/guestHistoryLog';
 
 export function useStewNotes({ limit = 3 } = {}) {
   const { user } = useAuth();
@@ -96,7 +97,8 @@ export function useStewNotes({ limit = 3 } = {}) {
   }, [user, fetch]);
 
   // Appends note content to guest's preferences_summary + marks the note saved.
-  // Sets related_guest_id too, so the note can be cross-linked from the guest drawer.
+  // Sets related_guest_id too, so the note can be cross-linked from the guest
+  // drawer. Also appends a preferences_changed entry to guests.history_log.
   const convertToPreference = useCallback(async (id, guestId) => {
     const note = notes.find(n => n.id === id);
     if (!note || !guestId) return;
@@ -112,11 +114,18 @@ export function useStewNotes({ limit = 3 } = {}) {
     const separator = existing.length > 0 ? (existing.endsWith('.') ? ' ' : '. ') : '';
     const nextSummary = `${existing}${separator}${note.content}`.trim();
 
-    const { error: updGuestErr } = await supabase
-      .from('guests')
-      .update({ preferences_summary: nextSummary })
-      .eq('id', guestId);
-    if (updGuestErr) { setError(updGuestErr.message); return; }
+    try {
+      await appendGuestHistory(supabase, {
+        guestId,
+        action: 'preferences_changed',
+        actorUserId: user?.id ?? null,
+        changes: {
+          preferences_summary: { from: guest?.preferences_summary ?? null, to: nextSummary },
+          preferences: { from: null, to: { source: 'stew_note_conversion', note_id: id } },
+        },
+        columnUpdates: { preferences_summary: nextSummary },
+      });
+    } catch (e) { setError(e.message); return; }
 
     const { error: updNoteErr } = await supabase
       .from('stew_notes')
@@ -125,7 +134,44 @@ export function useStewNotes({ limit = 3 } = {}) {
     if (updNoteErr) { setError(updNoteErr.message); return; }
 
     fetch();
-  }, [notes, fetch]);
+  }, [notes, user, fetch]);
+
+  // Converts a stew note into a guest_day_notes entry for today. Marks the
+  // stew note as done so it stops appearing in the Pending bucket, and sets
+  // related_guest_id for cross-linking.
+  const convertToDayNote = useCallback(async (id, guestId) => {
+    const note = notes.find(n => n.id === id);
+    if (!note || !guestId || !user) return;
+
+    const { data: member } = await supabase
+      .from('tenant_members')
+      .select('tenant_id')
+      .eq('user_id', user.id)
+      .eq('active', true)
+      .single();
+    if (!member) { setError('No active tenant membership'); return; }
+
+    const today = new Date().toISOString().split('T')[0];
+
+    const { error: insertErr } = await supabase
+      .from('guest_day_notes')
+      .insert({
+        tenant_id: member.tenant_id,
+        guest_id:  guestId,
+        content:   note.content,
+        author_id: user.id,
+        note_date: today,
+      });
+    if (insertErr) { setError(insertErr.message); return; }
+
+    const { error: updNoteErr } = await supabase
+      .from('stew_notes')
+      .update({ status: 'done', related_guest_id: guestId })
+      .eq('id', id);
+    if (updNoteErr) { setError(updNoteErr.message); return; }
+
+    fetch();
+  }, [notes, user, fetch]);
 
   return {
     notes,
@@ -138,5 +184,6 @@ export function useStewNotes({ limit = 3 } = {}) {
     updateStatus,
     deleteNote,
     convertToPreference,
+    convertToDayNote,
   };
 }

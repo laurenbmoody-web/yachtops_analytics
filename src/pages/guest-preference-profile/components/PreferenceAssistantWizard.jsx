@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Icon from '../../../components/AppIcon';
 import { supabase } from '../../../lib/supabaseClient';
 import { createPreference, getPreferencesByGuest, PreferenceCategory } from '../../../utils/preferencesStorage';
+import { appendGuestHistory } from '../../../utils/guestHistoryLog';
+import { useAuth } from '../../../contexts/AuthContext';
 import { showToast } from '../../../utils/toast';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -1179,6 +1181,7 @@ const mapExistingPrefsToAnswers = (existingPrefs) => {
 
 // ─── Main Wizard Component ────────────────────────────────────────────────────
 const PreferenceAssistantWizard = ({ isOpen, onClose, onComplete, guestId }) => {
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState({});
   const [saving, setSaving] = useState(false);
@@ -1307,13 +1310,43 @@ const PreferenceAssistantWizard = ({ isOpen, onClose, onComplete, guestId }) => 
         }
       }
 
-      // 5. Update charter_status on guest if provided
+      // 5. Update charter_status on guest if provided — log the transition
       if (answers?.charterStatus) {
-        await supabase
+        const { data: currentGuest } = await supabase
           ?.from('guests')
-          ?.update({ charter_status: answers?.charterStatus })
+          ?.select('charter_status')
           ?.eq('id', guestId)
-          ?.eq('tenant_id', tid);
+          ?.eq('tenant_id', tid)
+          ?.single();
+        const prevCharterStatus = currentGuest?.charter_status ?? null;
+        if (prevCharterStatus !== answers?.charterStatus) {
+          await appendGuestHistory(supabase, {
+            guestId,
+            action: 'charter_status_changed',
+            actorUserId: user?.id ?? null,
+            changes: { charter_status: { from: prevCharterStatus, to: answers.charterStatus } },
+            columnUpdates: { charter_status: answers.charterStatus },
+          });
+        }
+      }
+
+      // 5b. Log the wizard completion itself as a preferences_changed entry.
+      // Classifier in GuestHistoryPage keys off changes.preferences* so this
+      // lights up the Preferences filter tab on the history page.
+      if (created > 0) {
+        try {
+          await appendGuestHistory(supabase, {
+            guestId,
+            action: 'preferences_changed',
+            actorUserId: user?.id ?? null,
+            changes: {
+              preferences: {
+                from: null,
+                to: { added: created, source: 'wizard', keys: prefsToCreate.map(p => p?.key).filter(Boolean) },
+              },
+            },
+          });
+        } catch (e) { console.error('[Wizard] history_log append failed:', e); }
       }
 
       // 6. Mark wizard as completed

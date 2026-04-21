@@ -49,15 +49,23 @@ function SourceIcon({ source }) {
   return <Keyboard size={11} aria-label="typed" />;
 }
 
+const CONVERT_TYPE_LABEL = {
+  preference: 'a preference for',
+  day_note:   'a day note for',
+};
+
 function NoteRow({
   note, authorName, guests, currentUserId,
-  onToggleDone, onStartEdit, onDelete, onConvertToPreference,
+  onToggleDone, onStartEdit, onDelete,
+  onConvertToPreference, onConvertToDayNote,
   onOpenGuest,
 }) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing]   = useState(false);
   const [editValue, setEditValue] = useState(note.content);
-  const [picking, setPicking]   = useState(false); // converting-to-preference guest picker
+  // convert.stage: 'closed' | 'menu' | 'picker'
+  // convert.type: 'preference' | 'day_note' (only set when stage !== 'closed')
+  const [convert, setConvert] = useState({ stage: 'closed', type: null });
   const [pickedGuestId, setPickedGuestId] = useState(note.related_guest_id ?? '');
 
   const isDone    = note.status === 'done' || note.saved_to_preferences;
@@ -72,19 +80,24 @@ function NoteRow({
     setEditing(false);
   };
 
-  const handleConvertClick = async () => {
+  const runConversion = async (type, guestId) => {
+    if (type === 'preference') await onConvertToPreference(note.id, guestId);
+    if (type === 'day_note')   await onConvertToDayNote(note.id, guestId);
+  };
+
+  const handlePickType = async (type) => {
     if (note.related_guest_id) {
-      await onConvertToPreference(note.id, note.related_guest_id);
-      setPicking(false);
+      await runConversion(type, note.related_guest_id);
+      setConvert({ stage: 'closed', type: null });
     } else {
-      setPicking(true);
+      setConvert({ stage: 'picker', type });
     }
   };
 
   const handleConfirmPicked = async () => {
-    if (!pickedGuestId) return;
-    await onConvertToPreference(note.id, pickedGuestId);
-    setPicking(false);
+    if (!pickedGuestId || !convert.type) return;
+    await runConversion(convert.type, pickedGuestId);
+    setConvert({ stage: 'closed', type: null });
   };
 
   return (
@@ -174,9 +187,10 @@ function NoteRow({
             <Pencil size={12} style={{ marginRight: 4 }} />Edit
           </button>
           {!note.saved_to_preferences && (
-            <button className="p-btn outline" onClick={handleConvertClick}
-              aria-label="Convert note to a preference on the related guest">
-              Convert to preference →
+            <button className="p-btn outline"
+              onClick={() => setConvert({ stage: 'menu', type: null })}
+              aria-label="Convert this note to a preference, day note, inventory update, or schedule event">
+              Convert to… →
             </button>
           )}
           <button className="p-btn outline" onClick={() => onDelete(note.id)}
@@ -187,13 +201,49 @@ function NoteRow({
         </div>
       )}
 
-      {picking && (
+      {convert.stage === 'menu' && (
         <div style={{
           marginTop: 10, padding: 10,
           background: 'var(--bg-surface)', borderRadius: 8,
           border: '0.5px solid var(--p-border)',
         }}>
-          <div className="p-caps" style={{ marginBottom: 6 }}>Which guest does this preference belong to?</div>
+          <div className="p-caps" style={{ marginBottom: 8 }}>Convert this note to…</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <button className="p-btn outline" style={{ justifyContent: 'flex-start', textAlign: 'left' }}
+              onClick={() => handlePickType('preference')}>
+              Preference <span style={{ color: 'var(--ink-muted)' }}>· for a guest</span>
+            </button>
+            <button className="p-btn outline" style={{ justifyContent: 'flex-start', textAlign: 'left' }}
+              onClick={() => handlePickType('day_note')}>
+              Day note <span style={{ color: 'var(--ink-muted)' }}>· for a guest today</span>
+            </button>
+            <button className="p-btn outline" disabled
+              style={{ justifyContent: 'flex-start', textAlign: 'left', opacity: 0.5, cursor: 'not-allowed' }}
+              title="Coming soon">
+              Inventory update <span style={{ color: 'var(--ink-muted)' }}>· coming soon</span>
+            </button>
+            <button className="p-btn outline" disabled
+              style={{ justifyContent: 'flex-start', textAlign: 'left', opacity: 0.5, cursor: 'not-allowed' }}
+              title="Coming soon">
+              Schedule event <span style={{ color: 'var(--ink-muted)' }}>· coming soon</span>
+            </button>
+            <button className="p-btn ghost" style={{ justifyContent: 'flex-start', textAlign: 'left' }}
+              onClick={() => setConvert({ stage: 'closed', type: null })}>
+              Keep as note
+            </button>
+          </div>
+        </div>
+      )}
+
+      {convert.stage === 'picker' && (
+        <div style={{
+          marginTop: 10, padding: 10,
+          background: 'var(--bg-surface)', borderRadius: 8,
+          border: '0.5px solid var(--p-border)',
+        }}>
+          <div className="p-caps" style={{ marginBottom: 6 }}>
+            Pick a guest for {CONVERT_TYPE_LABEL[convert.type]}
+          </div>
           <select
             value={pickedGuestId}
             onChange={e => setPickedGuestId(e.target.value)}
@@ -214,7 +264,10 @@ function NoteRow({
             <button className="p-btn primary" onClick={handleConfirmPicked} disabled={!pickedGuestId}>
               Convert
             </button>
-            <button className="p-btn outline" onClick={() => setPicking(false)}>Cancel</button>
+            <button className="p-btn outline"
+              onClick={() => setConvert({ stage: 'menu', type: null })}>
+              Back
+            </button>
           </div>
         </div>
       )}
@@ -226,7 +279,7 @@ export default function NotesHistoryPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [limit, setLimit] = useState(PAGE_STEP);
-  const { notes, loading, error, addNote, updateContent, updateStatus, deleteNote, convertToPreference } =
+  const { notes, loading, error, addNote, updateContent, updateStatus, deleteNote, convertToPreference, convertToDayNote } =
     useStewNotes({ limit });
   const { guests } = useGuests();
 
@@ -403,6 +456,7 @@ export default function NotesHistoryPage() {
                   onStartEdit={updateContent}
                   onDelete={deleteNote}
                   onConvertToPreference={convertToPreference}
+                  onConvertToDayNote={convertToDayNote}
                   onOpenGuest={handleOpenGuest}
                 />
               ))}
