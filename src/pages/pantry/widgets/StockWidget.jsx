@@ -11,7 +11,7 @@ export default function StockWidget({ guestCount = 0 }) {
     : 'Weekly priorities';
 
   return (
-    <div className="p-card top-accent">
+    <div className="p-card top-navy">
       <div className="p-card-head">
         <div>
           <div className="p-caps">{label}</div>
