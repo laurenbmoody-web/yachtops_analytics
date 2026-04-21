@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
+import LogoSpinner from '../../../components/LogoSpinner';
 import Button from '../../../components/ui/Button';
 import { supabase } from '../../../lib/supabaseClient';
 import { useTenant } from '../../../contexts/TenantContext';
@@ -253,7 +254,7 @@ const PendingInvitesSection = ({ refreshTrigger }) => {
                           disabled={sendingInviteId === invite?.id}
                         >
                           {sendingInviteId === invite?.id
-                            ? <Icon name="Loader2" size={16} className="animate-spin" />
+                            ? <LogoSpinner size={16} />
                             : <Icon name="Mail" size={16} />
                           }
                         </Button>

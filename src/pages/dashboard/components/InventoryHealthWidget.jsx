@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
+import LogoSpinner from '../../../components/LogoSpinner';
 import { useNavigate } from 'react-router-dom';
 import { getInventoryHealthStats } from '../../inventory/utils/inventoryStorage';
 
@@ -46,7 +47,7 @@ const InventoryHealthWidget = () => {
         <div className="relative">
           {loading ? (
             <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <LogoSpinner size={32} />
             </div>
           ) : (
             <div className={`w-20 h-20 rounded-full flex items-center justify-center ${

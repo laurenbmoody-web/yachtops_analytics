@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { BrowserRouter, Routes as RouterRoutes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import ScrollToTop from 'components/ScrollToTop';
 import ErrorBoundary from 'components/ErrorBoundary';
+import LogoSpinner from './components/LogoSpinner';
 
 import Dashboard from './pages/dashboard';
 import TeamJobsManagement from './pages/team-jobs-management';
@@ -290,7 +291,7 @@ const ProtectedRoute = ({ children, requiresTenant = true, requiredRoles = null 
   if (!isDevMode() && (authLoading || isContextLoading)) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 p-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <LogoSpinner size={48} />
         <div className="text-center">
           <p className="text-lg font-medium text-foreground mb-1">
             Loading your vessel access…
@@ -299,7 +300,7 @@ const ProtectedRoute = ({ children, requiresTenant = true, requiredRoles = null 
             Checking permissions
           </p>
         </div>
-        
+
         {/* DEV MODE DEBUG PANEL */}
         {DEV_MODE && (
           <div className="mt-8 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs font-mono max-w-md w-full">
@@ -322,7 +323,7 @@ const ProtectedRoute = ({ children, requiresTenant = true, requiredRoles = null 
       </div>
     );
   }
-  
+
   // STEP 2: After loading completes - check session
   // EXCEPTION: Allow /reset-password and /forgot-password to be accessed without session (public routes)
   // If no session => redirect to /login-authentication (ONLY ALLOWED REDIRECT)
@@ -527,7 +528,7 @@ const CommandRoute = ({ children }) => {
   if (!isDevMode() && (authLoading || isContextLoading)) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 p-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <LogoSpinner size={48} />
         <div className="text-center">
           <p className="text-lg font-medium text-foreground mb-1">
             Loading your vessel access…
@@ -536,7 +537,7 @@ const CommandRoute = ({ children }) => {
             Checking permissions
           </p>
         </div>
-        
+
         {DEV_MODE && (
           <div className="mt-8 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs font-mono max-w-md w-full">
             <div className="font-bold mb-2 text-gray-700 dark:text-gray-300">🔧 DEV DEBUG</div>
@@ -558,12 +559,12 @@ const CommandRoute = ({ children }) => {
       </div>
     );
   }
-  
+
   // Check session
   if (!session) {
     return <Navigate to="/login-authentication" replace />;
   }
-  
+
   // Check tenant
   if (!tenant_id) {
     return (
@@ -585,7 +586,7 @@ const CommandRoute = ({ children }) => {
             Back to Dashboard
           </a>
         </div>
-        
+
         {DEV_MODE && (
           <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs font-mono max-w-md w-full">
             <div className="font-bold mb-2 text-gray-700 dark:text-gray-300">🔧 DEV DEBUG</div>
@@ -607,7 +608,7 @@ const CommandRoute = ({ children }) => {
       </div>
     );
   }
-  
+
   // Check role - COMMAND only
   const normalizedRole = (role || '')?.toUpperCase()?.trim();
   if (normalizedRole !== 'COMMAND') {
@@ -705,7 +706,7 @@ const CommandChiefRoute = ({ children }) => {
   if (!isDevMode() && (authLoading || isContextLoading)) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 p-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <LogoSpinner size={48} />
         <div className="text-center">
           <p className="text-lg font-medium text-foreground mb-1">
             Loading your vessel access…
@@ -714,7 +715,7 @@ const CommandChiefRoute = ({ children }) => {
             Checking permissions
           </p>
         </div>
-        
+
         {DEV_MODE && (
           <div className="mt-8 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs font-mono max-w-md w-full">
             <div className="font-bold mb-2 text-gray-700 dark:text-gray-300">🔧 DEV DEBUG</div>
@@ -736,12 +737,12 @@ const CommandChiefRoute = ({ children }) => {
       </div>
     );
   }
-  
+
   // Check session
   if (!session) {
     return <Navigate to="/login-authentication" replace />;
   }
-  
+
   // Check tenant
   if (!tenant_id) {
     return (
@@ -763,7 +764,7 @@ const CommandChiefRoute = ({ children }) => {
             Back to Dashboard
           </a>
         </div>
-        
+
         {DEV_MODE && (
           <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs font-mono max-w-md w-full">
             <div className="font-bold mb-2 text-gray-700 dark:text-gray-300">🔧 DEV DEBUG</div>
@@ -785,7 +786,7 @@ const CommandChiefRoute = ({ children }) => {
       </div>
     );
   }
-  
+
   // Check role - COMMAND or CHIEF
   const normalizedRole = (role || '')?.toUpperCase()?.trim();
   if (normalizedRole !== 'COMMAND' && normalizedRole !== 'CHIEF') {
@@ -866,7 +867,7 @@ const VesselAdminRoute = ({ children, allowedTiers = ['COMMAND', 'CHIEF'] }) => 
   if (authLoading || isContextLoading) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 p-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <LogoSpinner size={48} />
         <div className="text-center">
           <p className="text-lg font-medium text-foreground mb-1">Loading your vessel access…</p>
           <p className="text-sm text-muted-foreground">Checking permissions</p>
@@ -964,7 +965,7 @@ const MyProfileRedirect = () => {
   if (authLoading || isCreatingProfile) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <LogoSpinner size={32} />
       </div>
     );
   }
@@ -1121,7 +1122,7 @@ const Routes = () => {
           element={
             <SupplierProtectedRoute>
               <SupplierProvider>
-                <React.Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>}>
+                <React.Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><LogoSpinner size={32} /></div>}>
                   <SupplierLayout />
                 </React.Suspense>
               </SupplierProvider>

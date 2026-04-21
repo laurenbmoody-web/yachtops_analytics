@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import Icon from '../../../components/AppIcon';
+import LogoSpinner from '../../../components/LogoSpinner';
 
 // ─── Build a nested tree structure from the flat folderTree map ───────────────
 function buildNestedTree(folderTree, allItems) {
@@ -579,7 +580,7 @@ const ExportInventoryModal = ({
           >
             {isExporting ? (
               <>
-                <Icon name="Loader2" size={15} className="animate-spin" />
+                <LogoSpinner size={15} />
                 Exporting…
               </>
             ) : (

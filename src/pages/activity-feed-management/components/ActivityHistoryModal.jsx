@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import Icon from '../../../components/AppIcon';
+import LogoSpinner from '../../../components/LogoSpinner';
 import { getActivityForEntity } from '../../../utils/activityStorage';
 import { getCurrentUser } from '../../../utils/authStorage';
 
@@ -109,7 +110,7 @@ const ActivityHistoryModal = ({ isOpen, onClose, entityType, entityId, entityLab
           <div className="flex-1 overflow-y-auto p-6">
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <Icon name="Loader2" size={32} className="text-muted-foreground animate-spin" />
+                <LogoSpinner size={32} />
               </div>
             ) : events?.length === 0 ? (
               <div className="text-center py-12">

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import Image from '../../components/AppImage';
+import LogoSpinner from '../../components/LogoSpinner';
 import Button from '../../components/ui/Button';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
@@ -187,7 +188,7 @@ const CrewInviteAcceptancePage = () => {
         {/* Loading State */}
         {status === 'loading' && (
           <div className="text-center">
-            <Icon name="Loader2" className="w-16 h-16 mx-auto mb-4 text-blue-500 animate-spin" />
+            <LogoSpinner size={64} className="mx-auto mb-4" />
             <h1 className="text-2xl font-semibold mb-2">Loading...</h1>
           </div>
         )}
@@ -247,7 +248,7 @@ const CrewInviteAcceptancePage = () => {
         {/* Processing */}
         {status === 'processing' && (
           <div className="text-center">
-            <Icon name="Loader2" className="w-16 h-16 mx-auto mb-4 text-blue-500 animate-spin" />
+            <LogoSpinner size={64} className="mx-auto mb-4" />
             <h1 className="text-2xl font-semibold mb-2">Joining vessel…</h1>
             <p className={theme === 'night' ? 'text-gray-400' : 'text-gray-600'}>
               Please wait while we process your invitation.

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
+import LogoSpinner from '../../../components/LogoSpinner';
 import { parseSpreadsheetFile, parsePDFText } from '../../../services/inventoryImportParser';
 import { saveItem, createFolder } from '../../inventory/utils/inventoryStorage';
 import { supabase } from '../../../lib/supabaseClient';
@@ -1453,7 +1454,7 @@ export default function ImportInventoryModal({
           {step === 'importing' && (
             <div className="flex flex-col items-center justify-center py-16 gap-4">
               <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-                <Icon name="Loader2" size={24} className="text-primary animate-spin" />
+                <LogoSpinner size={24} />
               </div>
               <div className="text-center">
                 <p className="text-base font-semibold text-foreground">Importing items…</p>

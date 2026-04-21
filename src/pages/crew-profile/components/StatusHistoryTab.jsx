@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
+import LogoSpinner from '../../../components/LogoSpinner';
 import {
   getStatusLabel, getStatusDotClass, getStatusCellClass,
   buildStatusPeriods, getStatusForDay,
@@ -144,7 +145,7 @@ const StatusHistoryTab = ({ userId, tenantId }) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        <LogoSpinner size={32} />
       </div>
     );
   }

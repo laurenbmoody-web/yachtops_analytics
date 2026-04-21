@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
+import LogoSpinner from '../../../components/LogoSpinner';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import Select from '../../../components/ui/Select';
@@ -325,7 +326,7 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
                 variant="outline"
                 className="w-full"
               >
-                <Icon name={sendingEmail ? 'Loader2' : 'Mail'} size={16} className={`mr-2${sendingEmail ? ' animate-spin' : ''}`} />
+                {sendingEmail ? <LogoSpinner size={16} className="mr-2" /> : <Icon name="Mail" size={16} className="mr-2" />}
                 {sendingEmail ? 'Sending…' : 'Send invite'}
               </Button>
               <Button

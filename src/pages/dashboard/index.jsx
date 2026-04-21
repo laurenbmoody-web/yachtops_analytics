@@ -35,6 +35,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { ONBOARDING_TASKS, getNextTask, getCurrentStep } from './onboardingTasks';
 import { useAuth } from '../../contexts/AuthContext';
 import CrewDashboardCard from './components/CrewDashboardCard';
+import LogoSpinner from '../../components/LogoSpinner';
 
 // ── Brand tokens (match onboarding Cargo palette) ────────────────────────────
 const NAVY      = '#1E3A5F';
@@ -687,7 +688,7 @@ const Dashboard = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
+          <LogoSpinner size={48} className="mx-auto mb-4" />
           <p className="text-muted-foreground">Loading dashboard...</p>
         </div>
       </div>

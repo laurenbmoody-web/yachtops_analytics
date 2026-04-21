@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Icon from '../../../components/AppIcon';
+import LogoSpinner from '../../../components/LogoSpinner';
 import Button from '../../../components/ui/Button';
 import Select from '../../../components/ui/Select';
 import { Checkbox } from '../../../components/ui/Checkbox';
@@ -352,7 +353,7 @@ const ExportAuditModal = ({ isOpen, onClose, currentMonth, crewList }) => {
                 >
                   {isGenerating ? (
                     <>
-                      <Icon name="Loader" size={18} className="animate-spin" />
+                      <LogoSpinner size={18} />
                       Generating...
                     </>
                   ) : (

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/ui/Button';
 import Icon from '../../components/AppIcon';
+import LogoSpinner from '../../components/LogoSpinner';
 import { supabase } from '../../lib/supabaseClient';
 import { normalizeAccountType } from '../../utils/accountTypeHelpers';
 
@@ -84,7 +85,7 @@ const AccountSetup = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
         <div className="text-center">
-          <Icon name="Loader2" size={48} className="text-primary animate-spin mx-auto mb-4" />
+          <LogoSpinner size={48} className="mx-auto mb-4" />
           <p className="text-lg text-foreground">Loading account information...</p>
         </div>
       </div>

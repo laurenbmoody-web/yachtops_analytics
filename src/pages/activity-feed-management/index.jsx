@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
+import LogoSpinner from '../../components/LogoSpinner';
 import { getActivityLast24Hours, getActivityEvents } from '../../utils/activityStorage';
 import { getCurrentUser, hasCommandAccess } from '../../utils/authStorage';
 import { getDepartmentScope, DEPARTMENT_OPTIONS } from '../../utils/departmentScopeStorage';
@@ -328,7 +329,7 @@ const ActivityFeedManagement = () => {
         <div className="bg-card border border-border rounded-2xl shadow-sm">
           {loading ? (
             <div className="p-12 text-center">
-              <Icon name="Loader2" size={40} className="text-muted-foreground mx-auto mb-4 animate-spin" />
+              <LogoSpinner size={40} className="mx-auto mb-4" />
               <p className="text-muted-foreground">Loading activity...</p>
             </div>
           ) : displayedActivities?.length === 0 ? (

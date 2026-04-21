@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
+import LogoSpinner from '../../components/LogoSpinner';
 import Button from '../../components/ui/Button';
 import Select from '../../components/ui/Select';
 import Header from '../../components/navigation/Header';
@@ -237,7 +238,7 @@ const ColumnMappingConfiguration = () => {
         <main className="p-6 max-w-[1400px] mx-auto">
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <Icon name="Loader" size={40} className="text-primary animate-spin mx-auto mb-4" />
+              <LogoSpinner size={40} className="mx-auto mb-4" />
               <p className="text-muted-foreground">Loading batch data...</p>
             </div>
           </div>

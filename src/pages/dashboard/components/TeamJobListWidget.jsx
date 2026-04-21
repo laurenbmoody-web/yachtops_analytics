@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
+import LogoSpinner from '../../../components/LogoSpinner';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useTenant } from '../../../contexts/TenantContext';
@@ -75,7 +76,7 @@ const TeamJobListWidget = () => {
       </div>
       {loading ? (
         <div className="flex items-center justify-center py-6">
-          <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <LogoSpinner size={20} />
         </div>
       ) : (
         <div className="space-y-3">
