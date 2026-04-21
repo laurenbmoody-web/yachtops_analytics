@@ -11,6 +11,7 @@
 
 import React, { useState, useRef, useCallback, useMemo } from 'react';
 import Icon from '../../../components/AppIcon';
+import LogoSpinner from '../../../components/LogoSpinner';
 import Button from '../../../components/ui/Button';
 import { parseDocumentWithAzure, isAzureParseError } from '../../../services/azureDocumentParser';
 import { saveItem, createFolder } from '../../inventory/utils/inventoryStorage';
@@ -352,7 +353,7 @@ function UploadStep({ onFileUploaded, parseError, isLoading }) {
       <div className="flex justify-end">
         <Button disabled={!selectedFile || isLoading} onClick={() => selectedFile && onFileUploaded(selectedFile)} className="gap-2">
           {isLoading ? (
-<><Icon name="Loader2" size={16} className="animate-spin" />Importing…</>
+<><LogoSpinner size={16} />Importing…</>
           ) : (
 <><Icon name="Upload" size={16} />Import items</>
           )}
@@ -690,7 +691,7 @@ function PerTableReviewStep({ tables, tableStates, onTableStateChange, onNext, o
               <div className="flex items-center gap-2">
                 {isColorDetecting && (
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Icon name="Loader2" size={12} className="animate-spin" />
+                    <LogoSpinner size={12} />
                     Detecting fill colours…
                   </span>
                 )}
@@ -1485,7 +1486,7 @@ function ImportingStep({ progress, total, done, importedCount, importError, onCl
         <>
           <div className="flex flex-col items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <Icon name="Loader2" size={28} className="text-primary animate-spin" />
+              <LogoSpinner size={28} />
             </div>
             <div className="text-center">
               <p className="text-sm font-semibold text-foreground">Importing items…</p>

@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import Button from '../../components/ui/Button';
 import Image from '../../components/AppImage';
 import Icon from '../../components/AppIcon';
+import LogoSpinner from '../../components/LogoSpinner';
 import { useTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -52,7 +53,7 @@ const EnhancedPublicLandingPageWithThreePathSignup = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <Icon name="Loader2" size={48} className="text-primary animate-spin mx-auto mb-4" />
+          <LogoSpinner size={48} className="mx-auto mb-4" />
           <p className="text-lg text-foreground">Loading...</p>
         </div>
       </div>

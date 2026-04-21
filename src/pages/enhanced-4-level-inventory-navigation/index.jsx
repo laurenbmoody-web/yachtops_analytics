@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Button from '../../components/ui/Button';
 import Icon from '../../components/AppIcon';
+import LogoSpinner from '../../components/LogoSpinner';
 import { getAllItems, getItemsByLocation, getItemCountByLocation, deleteItem, saveItem, getFolderTree, createFolder, renameFolderInDB, deleteFolderFromDB, migrateLocalStorageFolderTree, moveFolderInDB, ensureDepartmentFolders, updateFolderVisibility, archiveFolder, updateItemStockLocations, bulkDeleteItemsByIds, bulkMoveItemsByIds, updateFolderAppearance, updateItemAppearance, updatePartialBottle } from '../inventory/utils/inventoryStorage';
 import { getCurrentUser, DEPARTMENTS } from '../../utils/authStorage';
 import { isDevMode } from '../../utils/devMode';
@@ -770,7 +771,7 @@ const MoveFolderModal = ({ folderName, currentPathSegments, folderTree, onClose,
             disabled={!selectedPath || moving}
             className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            {moving && <Icon name="Loader2" size={14} className="animate-spin" />}
+            {moving && <LogoSpinner size={14} />}
             {moving ? 'Moving…' : 'Move Here'}
           </button>
         </div>
@@ -895,7 +896,7 @@ const BulkMoveItemsModal = ({ selectedCount, folderTree, currentPathSegments, on
             disabled={!selectedPath || moving}
             className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            {moving && <Icon name="Loader2" size={14} className="animate-spin" />}
+            {moving && <LogoSpinner size={14} />}
             {moving ? 'Moving…' : 'Move Here'}
           </button>
         </div>
@@ -935,7 +936,7 @@ const BulkDeleteConfirmModal = ({ selectedCount, onClose, onConfirm }) => {
         <div className="flex gap-2 justify-end">
           <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors">Cancel</button>
           <button onClick={handleConfirm} disabled={deleting} className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-            {deleting && <Icon name="Loader2" size={14} className="animate-spin" />}
+            {deleting && <LogoSpinner size={14} />}
             {deleting ? 'Deleting…' : `Delete ${selectedCount} item${selectedCount !== 1 ? 's' : ''}`}
           </button>
         </div>
@@ -2973,7 +2974,7 @@ const LocationFirstInventory = () => {
       <div className="min-h-screen bg-background">
         <Header />
         <div className="flex items-center justify-center py-20">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <LogoSpinner size={48} />
         </div>
       </div>
     );
