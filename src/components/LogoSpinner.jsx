@@ -1,7 +1,7 @@
 export default function LogoSpinner({ size = 32, className = '' }) {
   return (
     <img
-      src="/cargo-logo.svg"
+      src="/logo-spinner.svg"
       alt=""
       aria-hidden="true"
       className={`animate-spin${className ? ` ${className}` : ''}`}
