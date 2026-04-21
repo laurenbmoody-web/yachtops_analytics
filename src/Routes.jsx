@@ -88,6 +88,11 @@ import { supabase } from './lib/supabaseClient';
 import { useAuth, RouteChangeLogger } from './contexts/AuthContext';
 import StandbyPage from './pages/pantry/StandbyPage';
 import ServicePlaceholder from './pages/pantry/presets/ServicePlaceholder';
+import TodaySchedulePage from './pages/pantry/stubs/TodaySchedulePage';
+import NotesHistoryPage from './pages/pantry/stubs/NotesHistoryPage';
+import InventoryWeeklyPage from './pages/pantry/stubs/InventoryWeeklyPage';
+import GuestPreferencesPage from './pages/pantry/stubs/GuestPreferencesPage';
+import GuestHistoryPage from './pages/pantry/stubs/GuestHistoryPage';
 import TodayDetailPage from './pages/today-detail/index';
 import NotFound from './pages/NotFound';
 
@@ -1087,6 +1092,11 @@ const Routes = () => {
         <Route path="/pantry" element={<Navigate to="/pantry/standby" replace />} />
         <Route path="/pantry/standby" element={<ProtectedRoute><StandbyPage /></ProtectedRoute>} />
         <Route path="/pantry/service/:type" element={<ProtectedRoute><ServicePlaceholder /></ProtectedRoute>} />
+        <Route path="/pantry/today" element={<ProtectedRoute><TodaySchedulePage /></ProtectedRoute>} />
+        <Route path="/notes/history" element={<ProtectedRoute><NotesHistoryPage /></ProtectedRoute>} />
+        <Route path="/inventory/weekly" element={<ProtectedRoute><InventoryWeeklyPage /></ProtectedRoute>} />
+        <Route path="/guests/:id/preferences" element={<ProtectedRoute><GuestPreferencesPage /></ProtectedRoute>} />
+        <Route path="/guests/:id/history" element={<ProtectedRoute><GuestHistoryPage /></ProtectedRoute>} />
         
         {/* Crew Routes */}
         <Route path="/crew-management" element={<ProtectedRoute><CrewManagement /></ProtectedRoute>} />
