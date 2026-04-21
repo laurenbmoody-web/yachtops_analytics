@@ -27,6 +27,7 @@ import ComprehensiveJobModal from '../team-jobs-management/components/Comprehens
 import SortableWidget from './components/SortableWidget';
 import DashboardEditBar from './components/DashboardEditBar';
 import ProvisioningWidget from './components/ProvisioningWidget';
+import PantryWidget from './components/PantryWidget';
 import AnchorChainProgress from '../../components/onboarding/AnchorChainProgress';
 
 import { useDashboardLayout } from './useDashboardLayout';
@@ -651,6 +652,8 @@ const Dashboard = () => {
         return <InventoryHealthWidget />;
       case 'provisioning':
         return <ProvisioningWidget />;
+      case 'pantry':
+        return <PantryWidget />;
       default:
         return null;
     }
