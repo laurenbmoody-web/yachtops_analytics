@@ -7,7 +7,7 @@ export default function StewNotesWidget() {
   const [expanded, setExpanded] = useState(null);
 
   return (
-    <div className="p-card top-brass">
+    <div className="p-card top-navy">
       <div className="p-card-head">
         <div>
           <div className="p-caps">

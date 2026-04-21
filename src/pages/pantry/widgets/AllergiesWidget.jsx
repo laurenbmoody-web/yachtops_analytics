@@ -10,7 +10,7 @@ export default function AllergiesWidget() {
   const { withRestrictions, withoutRestrictions, loading, error } = useAllergies();
 
   return (
-    <div className="p-card top-accent">
+    <div className="p-card top-navy">
       <div className="p-card-head">
         <div>
           <div className="p-caps">Live · from preferences</div>
