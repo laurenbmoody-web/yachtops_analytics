@@ -11,7 +11,7 @@ import LogsDeliveries from './pages/logs-deliveries';
 import BlueprintVesselView from './pages/blueprint-vessel-view';
 import DutySetsRotationManagement from './pages/duty-sets-rotation-management';
 import OpsVesselCalendar from './pages/ops-vessel-calendar';
-import LoginAuthentication from './pages/login-authentication';
+import Login from './pages/login';
 import CrewManagement from './pages/crew-management';
 import RoleManagement from './pages/crew-management/components/RoleManagement';
 import GuestManagementDashboard from './pages/guest-management-dashboard';
@@ -60,7 +60,6 @@ import DeliveryHistory from './pages/provisioning/DeliveryHistory';
 import ReturnSlipPage from './pages/provisioning/ReturnSlipPage';
 import ReturnConfirmPage from './pages/provisioning/ReturnConfirmPage';
 import SupplierConfirmOrder from './pages/provisioning/SupplierConfirmOrder';
-import SupplierLogin from './pages/supplier-login';
 import SupplierSignup from './pages/supplier-signup';
 import SupplierProtectedRoute from './components/SupplierProtectedRoute';
 import SupplierRoleGuard from './components/SupplierRoleGuard';
@@ -186,6 +185,20 @@ const DevModeBanner = () => {
       </div>
     </div>
   );
+};
+
+// Redirect legacy /login-authentication to the unified /login (preserve query params)
+const LegacyCrewLoginRedirect = () => {
+  const location = useLocation();
+  return <Navigate to={`/login${location?.search || ''}`} replace />;
+};
+
+// Redirect legacy /supplier/login to /login?mode=supplier (preserve any extra query params)
+const LegacySupplierLoginRedirect = () => {
+  const location = useLocation();
+  const params = new URLSearchParams(location?.search || '');
+  params?.set('mode', 'supplier');
+  return <Navigate to={`/login?${params?.toString()}`} replace />;
 };
 
 // Redirect component for old invite routes
@@ -1009,7 +1022,8 @@ const Routes = () => {
         {/* Public Routes */}
         <Route path="/public-landing-page" element={<PublicLandingPage />} />
         <Route path="/signup-vessel" element={<VesselSignupFlowStep1 />} />
-        <Route path="/login-authentication" element={<LoginAuthentication />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/login-authentication" element={<LegacyCrewLoginRedirect />} />
         
         {/* Password Reset Routes - PUBLIC */}
         <Route path="/forgot-password" element={<ForgotPasswordRequest />} />
@@ -1121,7 +1135,7 @@ const Routes = () => {
         <Route path="/smart-import-with-auto-assignment-engine" element={<ProtectedRoute><SmartImportWithAutoAssignmentEngine /></ProtectedRoute>} />
         
         {/* Supplier Auth Routes (public) */}
-        <Route path="/supplier/login" element={<SupplierLogin />} />
+        <Route path="/supplier/login" element={<LegacySupplierLoginRedirect />} />
         <Route path="/supplier/signup" element={<SupplierSignup />} />
 
         {/* Supplier nested routes */}
