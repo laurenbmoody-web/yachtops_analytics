@@ -99,16 +99,46 @@ function reshapeParenthetical(str) {
     (_, label, val) => `(${snakeToSpace(val).trim().toLowerCase()} ${label.trim().toLowerCase()})`);
 }
 
+// Pipe-joined storage ("Milk: Regular | Frequency: once_per_day") usually
+// wants the keys dropped ("Regular, once per day"). But some attribute keys
+// are ambiguous without context — "Regular" on a HOT DRINKS row reads as
+// "regular coffee" (vs decaf) when it actually meant "regular milk". For
+// those keys, preserve the key as a lowercased suffix on the value so the
+// render is unambiguous: "Regular milk, once per day".
+//
+// Rules guard against double-suffixing. A user typing "oat milk" in the
+// free-text Coffee milk field already contains the suffix word — don't
+// append a second one. Absence language ("none", "no milk", "without…")
+// also skips the suffix so we don't get "None milk".
+const PRESERVE_AS_SUFFIX = new Set(['milk', 'volume', 'tolerance']);
+
+const ABSENCE_PATTERN = /^(none|no\b|nothing|skip|without|n\/a)/i;
+
+function suffixShouldAttach(val, suffix) {
+  if (!val) return false;
+  if (ABSENCE_PATTERN.test(val)) return false;
+  const alreadyContains = new RegExp(`\\b${suffix}\\b`, 'i').test(val);
+  return !alreadyContains;
+}
+
 function parsePipeJoined(value) {
   const s = String(value ?? '').trim();
   if (!s.includes(' | ')) return null;
   const parts = s.split(' | ').map(p => p.trim()).filter(Boolean);
   if (!parts.every(p => p.includes(':'))) return null;
-  const vals = parts
-    .map(p => p.slice(p.indexOf(':') + 1).trim())
-    .map(v => snakeToSpace(v).trim())
-    .filter(Boolean);
-  return vals.length > 0 ? vals.join(', ') : null;
+  const fragments = parts.map(p => {
+    const idx = p.indexOf(':');
+    const rawKey = p.slice(0, idx).trim();
+    const rawVal = p.slice(idx + 1).trim();
+    const v = snakeToSpace(rawVal).trim();
+    if (!v) return null;
+    const suffix = rawKey.toLowerCase();
+    if (PRESERVE_AS_SUFFIX.has(suffix) && suffixShouldAttach(v, suffix)) {
+      return `${v} ${suffix}`;
+    }
+    return v;
+  }).filter(Boolean);
+  return fragments.length > 0 ? fragments.join(', ') : null;
 }
 
 function cleanseValue(value) {
@@ -224,6 +254,28 @@ function shortRoutineLabel(key) {
 // in both FOOD · AVOID and GUEST NOTES — which is exactly the bug the
 // screenshot caught. Also excludes pref_type='avoid' globally so an avoid
 // row never reads as a "note".
+//
+// GUEST_NOTE_REWRITES rewrites ambiguous single-phrase enum values into
+// self-contained phrases for specific source keys. "Knows well" on Crew
+// Familiarity reads as "the guest knows something well" without its key
+// context — the rewrite turns it into "Knows crew well" so the drawer
+// fragment stands alone. Keyed by the row's original pref key so adding a
+// new source field is a one-map addition. Values are the CLEANSED form
+// (post snakeToSpace + sentenceCase), not the raw snake_case storage.
+const GUEST_NOTE_REWRITES = {
+  'Crew Familiarity': {
+    'Does not know':    "Crew doesn't know guest yet",
+    'Some familiarity': 'Some familiarity with crew',
+    'Knows well':       'Knows crew well',
+  },
+};
+
+function rewriteGuestNoteValue(sourceKey, cleansed) {
+  const map = GUEST_NOTE_REWRITES[sourceKey];
+  if (!map) return cleansed;
+  return map[cleansed] ?? cleansed;
+}
+
 function buildGuestNotes(allPrefs, claimedIds) {
   const topThingsRow = allPrefs.find(p => p.category === 'Other'   && p.key === 'Top Things to Remember');
   const communicationRow = allPrefs.find(p => p.category === 'Service' && p.key === 'Communication Style');
@@ -247,10 +299,13 @@ function buildGuestNotes(allPrefs, claimedIds) {
     .map(p => cleanseValue(p.value))
     .filter(Boolean);
 
+  const communicationCleansed = cleanseValue(communicationRow?.value);
+  const familiarityCleansed   = cleanseValue(familiarityRow?.value);
+
   return {
     top_things:      topThings,
-    communication:   cleanseValue(communicationRow?.value) || null,
-    familiarity:     cleanseValue(familiarityRow?.value)   || null,
+    communication:   rewriteGuestNoteValue('Communication Style', communicationCleansed) || null,
+    familiarity:     rewriteGuestNoteValue('Crew Familiarity',   familiarityCleansed)   || null,
     priority_notes:  priorityNotes,
   };
 }
