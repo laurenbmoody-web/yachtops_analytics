@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useGuestDayNotes } from '../hooks/useGuestDayNotes';
+import { useGuestDrawerPrefs } from '../hooks/useGuestDrawerPrefs';
 import { formatDistanceToNow } from 'date-fns';
 import { ALL_MOODS, QUICK_MOODS } from '../constants/moods';
 import DrawerAllergiesBlock from './DrawerAllergiesBlock';
+import DrawerAtAGlance from './DrawerAtAGlance';
 
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
@@ -17,6 +19,7 @@ function stateOptions(current) {
 export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMood }) {
   const navigate = useNavigate();
   const { notes, loading: notesLoading, addNote } = useGuestDayNotes(guest.id);
+  const { data: drawerPrefs, loading: prefsLoading, error: prefsError } = useGuestDrawerPrefs(guest.id);
   const [moodExpanded, setMoodExpanded] = useState(false);
   const [noteInput, setNoteInput]       = useState('');
   const [addingNote, setAddingNote]     = useState(false);
@@ -184,7 +187,13 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
           </motion.div>
         </div>
 
-        {/* At a glance — preferences */}
+        {/* At a glance — 6 curated rows sourced directly from
+            guest_preferences via useGuestDrawerPrefs. The prose
+            rendering of guests.preferences_summary that used to live
+            here has been removed: the structured view is the single
+            source of truth for drawer body content. preferences_summary
+            stays in the DB for export / search / the full preferences
+            page, but is no longer read here. */}
         <div className="p-drawer-section">
           <div className="p-drawer-section-head">
             <div className="p-caps">At a glance</div>
@@ -192,14 +201,11 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
               Full preferences →
             </button>
           </div>
-          <div className="p-surface" style={{ padding: '12px 14px' }}>
-            {guest.preferences_summary
-              ? <p className="p-prefs-text">{guest.preferences_summary}</p>
-              : <p className="p-prefs-empty">
-                  No preferences saved yet. Tap 'Full preferences →' to add them, or dictate them with the mic.
-                </p>
-            }
-          </div>
+          <DrawerAtAGlance
+            data={drawerPrefs}
+            loading={prefsLoading}
+            error={prefsError}
+          />
         </div>
 
         {/* Allergies & diet previously rendered here — moved to the
