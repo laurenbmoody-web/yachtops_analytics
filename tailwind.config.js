@@ -62,7 +62,9 @@ module.exports = {
         body: ['Source Sans 3', 'sans-serif'],
         caption: ['Inter', 'sans-serif'],
         data: ['JetBrains Mono', 'monospace'],
-        branding: ['Canela', 'Georgia', 'Cambria', 'Times New Roman', 'serif']
+        branding: ['Canela', 'Georgia', 'Cambria', 'Times New Roman', 'serif'],
+        serif: ['Fraunces', 'Georgia', 'serif'],
+        'inter-tight': ['"Inter Tight"', 'system-ui', 'sans-serif']
       },
       fontSize: {
         'h1': ['2.25rem', { lineHeight: '1.2', fontWeight: '600' }],

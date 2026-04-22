@@ -1,0 +1,497 @@
+/* Cargo unified login page - scoped under #cargo-login-root */
+
+#cargo-login-root {
+  --cl-bg: #F4EEE4;
+  --cl-paper: #FFFFFF;
+  --cl-ink: #262A53;
+  --cl-ink-soft: #5A5E82;
+  --cl-ink-muted: #8A8EA8;
+  --cl-rust: #C65A1A;
+  --cl-rust-soft: #FBECE5;
+  --cl-rule: rgba(38, 42, 83, 0.12);
+  --cl-rule-strong: rgba(38, 42, 83, 0.22);
+  --cl-input-bg: #FAF6EE;
+
+  min-height: 100vh;
+  background: var(--cl-bg);
+  color: var(--cl-ink);
+  font-family: 'Inter Tight', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: flex;
+  flex-direction: column;
+}
+
+#cargo-login-root *,
+#cargo-login-root *::before,
+#cargo-login-root *::after {
+  box-sizing: border-box;
+}
+
+/* Topbar */
+#cargo-login-root .cl-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 48px;
+  border-bottom: 1px solid var(--cl-rule);
+}
+
+#cargo-login-root .cl-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--cl-ink);
+}
+
+#cargo-login-root .cl-brand-mark {
+  width: 32px;
+  height: 32px;
+  display: block;
+}
+
+#cargo-login-root .cl-brand-word {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 700;
+  font-size: 26px;
+  letter-spacing: -0.025em;
+  line-height: 1;
+  color: var(--cl-ink);
+}
+
+/* Toggle */
+#cargo-login-root .cl-toggle {
+  display: inline-flex;
+  background: var(--cl-paper);
+  border: 1px solid var(--cl-rule-strong);
+  border-radius: 999px;
+  padding: 3px;
+}
+
+#cargo-login-root .cl-toggle-btn {
+  background: transparent;
+  border: none;
+  padding: 7px 18px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cl-ink-soft);
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+
+#cargo-login-root .cl-toggle-btn.is-active {
+  background: var(--cl-ink);
+  color: var(--cl-bg);
+}
+
+/* Body grid */
+#cargo-login-root .cl-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 80px;
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 56px 80px 64px;
+  align-items: start;
+  flex: 1;
+}
+
+/* Left column */
+#cargo-login-root .cl-left {
+  animation: cl-rise .6s .12s ease-out both;
+}
+
+#cargo-login-root .cl-headline {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 800;
+  font-size: clamp(60px, 7vw, 104px);
+  line-height: 0.92;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+  color: var(--cl-ink);
+  margin: 0;
+  font-variation-settings: "opsz" 96;
+}
+
+#cargo-login-root .cl-headline em {
+  font-style: italic;
+  font-weight: 500;
+  color: var(--cl-rust);
+  text-transform: none;
+  letter-spacing: -0.015em;
+  font-variation-settings: "opsz" 72;
+}
+
+#cargo-login-root .cl-period {
+  color: var(--cl-rust);
+  font-style: normal;
+}
+
+#cargo-login-root .cl-left-foot {
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid var(--cl-rule);
+  animation: cl-rise .6s .4s ease-out both;
+}
+
+#cargo-login-root .cl-out-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--cl-ink-muted);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color .15s ease;
+}
+
+#cargo-login-root .cl-out-link:hover {
+  color: var(--cl-rust);
+}
+
+/* Card */
+#cargo-login-root .cl-card {
+  background: var(--cl-paper);
+  border: 1px solid var(--cl-rule-strong);
+  border-radius: 4px;
+  padding: 36px 36px 30px;
+  box-shadow: 0 1px 2px rgba(38, 42, 83, 0.04), 0 8px 32px rgba(38, 42, 83, 0.05);
+  position: sticky;
+  top: 48px;
+  animation: cl-rise .6s .2s ease-out both;
+}
+
+#cargo-login-root .cl-card-head {
+  padding-bottom: 20px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--cl-rule);
+}
+
+#cargo-login-root .cl-card-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 600;
+  font-size: 26px;
+  letter-spacing: -0.02em;
+  color: var(--cl-ink);
+  margin: 0;
+  line-height: 1.1;
+  font-variation-settings: "opsz" 36;
+}
+
+#cargo-login-root .cl-card-title em {
+  font-style: italic;
+  font-weight: 500;
+  color: var(--cl-rust);
+  letter-spacing: -0.015em;
+}
+
+/* Error */
+#cargo-login-root .cl-error {
+  background: var(--cl-rust-soft);
+  border: 1px solid rgba(198, 90, 26, 0.28);
+  color: #7A2E1E;
+  border-radius: 3px;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+#cargo-login-root .cl-error-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* Form */
+#cargo-login-root .cl-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+#cargo-login-root .cl-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+#cargo-login-root .cl-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cl-ink-soft);
+}
+
+#cargo-login-root .cl-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+#cargo-login-root .cl-forgot {
+  font-family: 'Fraunces', Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--cl-ink-soft);
+  text-decoration: none;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: color .15s ease;
+}
+
+#cargo-login-root .cl-forgot:hover {
+  color: var(--cl-rust);
+}
+
+#cargo-login-root .cl-field input {
+  width: 100%;
+  background: var(--cl-input-bg);
+  border: 1px solid var(--cl-rule-strong);
+  border-radius: 3px;
+  padding: 13px 14px;
+  font-size: 15px;
+  font-family: inherit;
+  color: var(--cl-ink);
+  outline: none;
+  transition: background .15s ease, border-color .15s ease;
+}
+
+#cargo-login-root .cl-field input::placeholder {
+  color: var(--cl-ink-muted);
+}
+
+#cargo-login-root .cl-field input:focus {
+  background: var(--cl-paper);
+  border-color: var(--cl-ink);
+}
+
+#cargo-login-root .cl-field input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Checkbox */
+#cargo-login-root .cl-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--cl-ink-soft);
+  cursor: pointer;
+  user-select: none;
+  margin-top: 2px;
+}
+
+#cargo-login-root .cl-check input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+#cargo-login-root .cl-check-box {
+  width: 15px;
+  height: 15px;
+  border: 1px solid var(--cl-rule-strong);
+  border-radius: 3px;
+  background: var(--cl-paper);
+  position: relative;
+  flex-shrink: 0;
+  transition: background .15s ease, border-color .15s ease;
+}
+
+#cargo-login-root .cl-check input:checked ~ .cl-check-box {
+  background: var(--cl-ink);
+  border-color: var(--cl-ink);
+}
+
+#cargo-login-root .cl-check input:checked ~ .cl-check-box::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border-right: 2px solid var(--cl-bg);
+  border-bottom: 2px solid var(--cl-bg);
+  transform: rotate(45deg);
+}
+
+#cargo-login-root .cl-check input:focus-visible ~ .cl-check-box {
+  outline: 2px solid var(--cl-rust);
+  outline-offset: 2px;
+}
+
+/* Submit */
+#cargo-login-root .cl-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  background: var(--cl-ink);
+  color: var(--cl-bg);
+  border: none;
+  border-radius: 3px;
+  padding: 14px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: background .18s ease;
+  margin-top: 4px;
+}
+
+#cargo-login-root .cl-submit:hover:not(:disabled) {
+  background: var(--cl-rust);
+}
+
+#cargo-login-root .cl-arrow {
+  display: inline-block;
+  transition: transform .18s ease;
+}
+
+#cargo-login-root .cl-submit:hover:not(:disabled) .cl-arrow {
+  transform: translateX(3px);
+}
+
+#cargo-login-root .cl-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Footer */
+#cargo-login-root .cl-card-foot {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--cl-rule);
+  text-align: center;
+}
+
+#cargo-login-root .cl-foot-primary {
+  font-size: 13.5px;
+  color: var(--cl-ink-soft);
+  margin: 0;
+}
+
+#cargo-login-root .cl-link-under {
+  color: var(--cl-ink);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1.5px solid var(--cl-rust);
+  padding-bottom: 1px;
+  transition: color .15s ease;
+}
+
+#cargo-login-root .cl-link-under:hover {
+  color: var(--cl-rust);
+}
+
+#cargo-login-root .cl-foot-secondary {
+  font-size: 12px;
+  color: var(--cl-ink-muted);
+  margin: 12px 0 0;
+}
+
+#cargo-login-root .cl-cross-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--cl-ink-muted);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color .15s ease;
+}
+
+#cargo-login-root .cl-cross-link:hover {
+  color: var(--cl-rust);
+}
+
+/* Loading state */
+#cargo-login-root.cl-is-loading {
+  align-items: center;
+  justify-content: center;
+}
+
+#cargo-login-root .cl-spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--cl-rule-strong);
+  border-top-color: var(--cl-ink);
+  border-radius: 50%;
+  animation: cl-spin 0.8s linear infinite;
+}
+
+@keyframes cl-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes cl-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 980px) {
+  #cargo-login-root .cl-topbar {
+    padding: 20px 24px;
+  }
+  #cargo-login-root .cl-grid {
+    grid-template-columns: 1fr;
+    gap: 48px;
+    padding: 40px 32px;
+  }
+  #cargo-login-root .cl-card {
+    position: static;
+    top: auto;
+  }
+  #cargo-login-root .cl-headline {
+    font-size: clamp(44px, 11vw, 56px);
+  }
+}
+
+@media (max-width: 520px) {
+  #cargo-login-root .cl-topbar {
+    padding: 16px 20px;
+  }
+  #cargo-login-root .cl-grid {
+    padding: 32px 20px 48px;
+    gap: 36px;
+  }
+  #cargo-login-root .cl-card {
+    padding: 28px 22px 24px;
+  }
+  #cargo-login-root .cl-headline {
+    font-size: 44px;
+  }
+  #cargo-login-root .cl-brand-word {
+    font-size: 22px;
+  }
+  #cargo-login-root .cl-toggle-btn {
+    padding: 6px 14px;
+  }
+}
