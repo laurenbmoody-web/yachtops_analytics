@@ -11,10 +11,25 @@ import React from 'react';
 //   - charCap:  optional character cap on the joined values string. Applies a
 //               graceful "…" truncation so the row can't overflow the drawer.
 //               Used for GUEST NOTES at ~120 chars per spec; other rows omit.
+//   - children: optional ReactNode rendered in the values slot in place of
+//               the joined string. Used by the DAILY ROUTINE row whose
+//               content is a mini-timeline component rather than text. When
+//               children is provided, values/charCap are ignored and the
+//               row renders unconditionally (caller is responsible for
+//               deciding whether the row should appear).
 //
-// If values is empty or contains only empty fragments, the row returns null
-// so the parent doesn't render an empty label.
-export default function DrawerRow({ label, values, charCap = null }) {
+// Without children: if values is empty or contains only empty fragments,
+// the row returns null so the parent doesn't render an empty label.
+export default function DrawerRow({ label, values, charCap = null, children = null }) {
+  if (children != null) {
+    return (
+      <div className="p-drawer-row">
+        <div className="p-drawer-row-label">{label}</div>
+        <div className="p-drawer-row-values">{children}</div>
+      </div>
+    );
+  }
+
   const fragments = (values || []).map(v => (v ?? '').trim()).filter(Boolean);
   if (fragments.length === 0) return null;
 

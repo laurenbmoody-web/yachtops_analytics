@@ -1,5 +1,6 @@
 import React from 'react';
 import DrawerRow from './DrawerRow';
+import DailyRoutineTimeline from './DailyRoutineTimeline';
 
 // Renders the 6-row curated At-a-glance list from the structured data
 // returned by useGuestDrawerPrefs(guestId). Empty rows auto-skip inside
@@ -7,10 +8,11 @@ import DrawerRow from './DrawerRow';
 // structured prefs at all), render the "no prefs yet" empty copy instead
 // so the section isn't completely blank under its heading.
 //
-// DAILY ROUTINE in Phase 3 is rendered as an inline time-label list so the
-// data flow can be sanity-checked end-to-end. Phase 4 replaces that row
-// with a proper DailyRoutineTimeline component (horizontal mini-timeline,
-// serif time above tracked-caps label).
+// DAILY ROUTINE breaks the label+values pattern: its right-hand slot is
+// the DailyRoutineTimeline component (horizontal mini-timeline, serif time
+// above tracked-caps label). We gate its rendering on >=2 anchors upstream
+// rather than relying on DrawerRow's auto-skip, because the children slot
+// always renders when provided.
 
 const GUEST_NOTES_CHAR_CAP = 120;
 
@@ -46,13 +48,8 @@ function valuesFromGuestNotes(notes) {
   return out;
 }
 
-function valuesFromRoutine(routine) {
-  // TODO(phase-4): replace this inline join with the DailyRoutineTimeline
-  // component (horizontal flex of time/label pairs, highlights the current
-  // moment's anchor, hides when fewer than 2 anchors present).
-  const anchors = routine || [];
-  if (anchors.length < 2) return [];
-  return anchors.map(a => `${a.time} ${a.short}`);
+function routineIsRenderable(routine) {
+  return Array.isArray(routine) && routine.length >= 2;
 }
 
 export default function DrawerAtAGlance({ data, loading, error }) {
@@ -78,7 +75,7 @@ export default function DrawerAtAGlance({ data, loading, error }) {
   const hotDrinks = valuesFromBucket(safe.hot_drinks);
   const drinks    = valuesFromBucket(safe.drinks);
   const foodAvoid = valuesFromFoodAvoid(safe.food_avoid);
-  const routine   = valuesFromRoutine(safe.routine);
+  const hasRoutine = routineIsRenderable(safe.routine);
   const notes     = valuesFromGuestNotes(safe.guest_notes);
   const ambience  = valuesFromBucket(safe.ambience);
 
@@ -86,7 +83,7 @@ export default function DrawerAtAGlance({ data, loading, error }) {
     hotDrinks.length === 0 &&
     drinks.length === 0 &&
     foodAvoid.length === 0 &&
-    routine.length === 0 &&
+    !hasRoutine &&
     notes.length === 0 &&
     ambience.length === 0;
 
@@ -105,7 +102,11 @@ export default function DrawerAtAGlance({ data, loading, error }) {
       <DrawerRow label="HOT DRINKS"    values={hotDrinks} />
       <DrawerRow label="DRINKS"        values={drinks} />
       <DrawerRow label={labelForFoodAvoid()} values={foodAvoid} />
-      <DrawerRow label="DAILY ROUTINE" values={routine} />
+      {hasRoutine && (
+        <DrawerRow label="DAILY ROUTINE">
+          <DailyRoutineTimeline anchors={safe.routine} />
+        </DrawerRow>
+      )}
       <DrawerRow label="GUEST NOTES"   values={notes} charCap={GUEST_NOTES_CHAR_CAP} />
       <DrawerRow label="AMBIENCE"      values={ambience} />
     </div>
