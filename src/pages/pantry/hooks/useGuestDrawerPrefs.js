@@ -254,6 +254,28 @@ function shortRoutineLabel(key) {
 // in both FOOD · AVOID and GUEST NOTES — which is exactly the bug the
 // screenshot caught. Also excludes pref_type='avoid' globally so an avoid
 // row never reads as a "note".
+//
+// GUEST_NOTE_REWRITES rewrites ambiguous single-phrase enum values into
+// self-contained phrases for specific source keys. "Knows well" on Crew
+// Familiarity reads as "the guest knows something well" without its key
+// context — the rewrite turns it into "Knows crew well" so the drawer
+// fragment stands alone. Keyed by the row's original pref key so adding a
+// new source field is a one-map addition. Values are the CLEANSED form
+// (post snakeToSpace + sentenceCase), not the raw snake_case storage.
+const GUEST_NOTE_REWRITES = {
+  'Crew Familiarity': {
+    'Does not know':    "Crew doesn't know guest yet",
+    'Some familiarity': 'Some familiarity with crew',
+    'Knows well':       'Knows crew well',
+  },
+};
+
+function rewriteGuestNoteValue(sourceKey, cleansed) {
+  const map = GUEST_NOTE_REWRITES[sourceKey];
+  if (!map) return cleansed;
+  return map[cleansed] ?? cleansed;
+}
+
 function buildGuestNotes(allPrefs, claimedIds) {
   const topThingsRow = allPrefs.find(p => p.category === 'Other'   && p.key === 'Top Things to Remember');
   const communicationRow = allPrefs.find(p => p.category === 'Service' && p.key === 'Communication Style');
@@ -277,10 +299,13 @@ function buildGuestNotes(allPrefs, claimedIds) {
     .map(p => cleanseValue(p.value))
     .filter(Boolean);
 
+  const communicationCleansed = cleanseValue(communicationRow?.value);
+  const familiarityCleansed   = cleanseValue(familiarityRow?.value);
+
   return {
     top_things:      topThings,
-    communication:   cleanseValue(communicationRow?.value) || null,
-    familiarity:     cleanseValue(familiarityRow?.value)   || null,
+    communication:   rewriteGuestNoteValue('Communication Style', communicationCleansed) || null,
+    familiarity:     rewriteGuestNoteValue('Crew Familiarity',   familiarityCleansed)   || null,
     priority_notes:  priorityNotes,
   };
 }
