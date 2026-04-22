@@ -347,6 +347,52 @@
   color: var(--ink-muted);
   padding: 8px 0;
 }
+
+/* ── Daily Routine mini-timeline ───────────────────────────── */
+/* Horizontal row of time/label pairs. Serif time on top, tracked-caps
+   label below. Flex-wraps when the drawer is narrow rather than
+   horizontal-scrolling (spec: no scroll-snap, no overengineering).
+   The optional .highlight class is used by the Phase 5 RIGHT NOW strip
+   to call out the anchor for the current service moment. */
+.p-drawer-routine-timeline {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px 20px;
+}
+.p-drawer-routine-anchor {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+.p-drawer-routine-time {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.1;
+}
+.p-drawer-routine-label {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  line-height: 1;
+}
+.p-drawer-routine-anchor.highlight .p-drawer-routine-time,
+.p-drawer-routine-anchor.highlight .p-drawer-routine-label {
+  color: var(--accent);
+}
+.p-drawer-routine-ellipsis {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  color: var(--ink-muted);
+  align-self: center;
+  padding-top: 6px;
+}
 .p-pill-mood {
   display: inline-flex;
   align-items: center;
