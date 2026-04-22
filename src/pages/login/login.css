@@ -47,19 +47,10 @@
   color: var(--cl-ink);
 }
 
-#cargo-login-root .cl-brand-mark {
-  width: 32px;
+#cargo-login-root .cl-brand-logo {
   height: 32px;
+  width: auto;
   display: block;
-}
-
-#cargo-login-root .cl-brand-word {
-  font-family: 'Fraunces', Georgia, serif;
-  font-weight: 700;
-  font-size: 26px;
-  letter-spacing: -0.025em;
-  line-height: 1;
-  color: var(--cl-ink);
 }
 
 /* Toggle */
@@ -112,9 +103,9 @@
 #cargo-login-root .cl-headline {
   font-family: 'Fraunces', Georgia, serif;
   font-weight: 800;
-  font-size: clamp(60px, 7vw, 104px);
-  line-height: 0.92;
-  letter-spacing: -0.035em;
+  font-size: clamp(44px, 5vw, 76px);
+  line-height: 0.95;
+  letter-spacing: -0.03em;
   text-transform: uppercase;
   color: var(--cl-ink);
   margin: 0;
@@ -488,8 +479,8 @@
   #cargo-login-root .cl-headline {
     font-size: 44px;
   }
-  #cargo-login-root .cl-brand-word {
-    font-size: 22px;
+  #cargo-login-root .cl-brand-logo {
+    height: 26px;
   }
   #cargo-login-root .cl-toggle-btn {
     padding: 6px 14px;

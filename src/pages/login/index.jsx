@@ -185,8 +185,7 @@ const Login = () => {
     <div id="cargo-login-root">
       <header className="cl-topbar">
         <a href="/" className="cl-brand" aria-label="Cargo home">
-          <img src="/cargo-mark.svg" alt="" className="cl-brand-mark" aria-hidden="true" />
-          <span className="cl-brand-word">cargo</span>
+          <img src="/centered-logo.svg" alt="Cargo" className="cl-brand-logo" />
         </a>
 
         <div className="cl-toggle" role="tablist" aria-label="Login mode">
