@@ -184,29 +184,31 @@ const Login = () => {
   return (
     <div id="cargo-login-root">
       <header className="cl-topbar">
-        <a href="/" className="cl-brand" aria-label="Cargo home">
-          <img src="/centered-logo.svg" alt="Cargo" className="cl-brand-logo" />
-        </a>
+        <div className="cl-topbar-inner">
+          <a href="/" className="cl-brand" aria-label="Cargo home">
+            <img src="/centered-logo.svg" alt="Cargo" className="cl-brand-logo" />
+          </a>
 
-        <div className="cl-toggle" role="tablist" aria-label="Login mode">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === 'crew'}
-            className={`cl-toggle-btn ${mode === 'crew' ? 'is-active' : ''}`}
-            onClick={() => switchMode('crew')}
-          >
-            Crew
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === 'supplier'}
-            className={`cl-toggle-btn ${mode === 'supplier' ? 'is-active' : ''}`}
-            onClick={() => switchMode('supplier')}
-          >
-            Supplier
-          </button>
+          <div className="cl-toggle" role="tablist" aria-label="Login mode">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'crew'}
+              className={`cl-toggle-btn ${mode === 'crew' ? 'is-active' : ''}`}
+              onClick={() => switchMode('crew')}
+            >
+              Crew
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'supplier'}
+              className={`cl-toggle-btn ${mode === 'supplier' ? 'is-active' : ''}`}
+              onClick={() => switchMode('supplier')}
+            >
+              Supplier
+            </button>
+          </div>
         </div>
       </header>
 
