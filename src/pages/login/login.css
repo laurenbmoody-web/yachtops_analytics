@@ -32,11 +32,17 @@
 
 /* Topbar */
 #cargo-login-root .cl-topbar {
+  border-bottom: 1px solid var(--cl-rule);
+}
+
+#cargo-login-root .cl-topbar-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 24px 48px;
-  border-bottom: 1px solid var(--cl-rule);
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 24px 80px;
 }
 
 #cargo-login-root .cl-brand {
@@ -448,8 +454,8 @@
 
 /* Responsive */
 @media (max-width: 980px) {
-  #cargo-login-root .cl-topbar {
-    padding: 20px 24px;
+  #cargo-login-root .cl-topbar-inner {
+    padding: 20px 32px;
   }
   #cargo-login-root .cl-grid {
     grid-template-columns: 1fr;
@@ -466,7 +472,7 @@
 }
 
 @media (max-width: 520px) {
-  #cargo-login-root .cl-topbar {
+  #cargo-login-root .cl-topbar-inner {
     padding: 16px 20px;
   }
   #cargo-login-root .cl-grid {
