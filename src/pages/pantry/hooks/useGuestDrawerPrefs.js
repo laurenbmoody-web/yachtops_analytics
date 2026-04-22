@@ -15,6 +15,11 @@
 // FOOD · AVOID, DAILY ROUTINE, and GUEST NOTES don't fit the simple
 // (category, key) shape — they each have their own narrow filter below.
 //
+// Every value returned from this hook runs through cleanseValue() so the
+// drawer never renders raw wizard storage strings (snake_case enums,
+// pipe-joined key:value pairs, "Avoid foo" instructional prefixes). Adding
+// new rules here means every bucket benefits automatically.
+//
 // TODO(phase-4): add a Supabase realtime subscription on
 // guest_preferences changes for this guestId so edits made on other pages
 // propagate live. Today the hook refetches on mount only.
@@ -38,13 +43,13 @@ const ROW_BUCKETS = {
   },
   ambience: {
     categories: ['Cabin'],
-    // 'cabin temperature' is the wizard's canonical key; 'temperature' catches
-    // manual entries without the Cabin prefix. Confirmed: no other bucket
-    // claims a temperature-shaped key, so no double-bucket risk.
+    // Cabin temperature intentionally NOT bucketed here — it's a cabin-setup
+    // concern rather than an ambience one, and renders as a bare unitless
+    // number ("20") that reads as noise without context. Still visible on
+    // the full preferences page.
     keys: [
       'music', 'music volume', 'ambience', 'favourite spaces',
       'lighting', 'scent',
-      'cabin temperature', 'temperature',
     ],
   },
 };
@@ -57,6 +62,83 @@ function findBucketFor(pref) {
     if (config.keys.includes(key)) return bucket;
   }
   return null;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Display-value cleansing
+// ────────────────────────────────────────────────────────────────────────────
+// The wizard writes verbose machine-shaped values — pipe-joined key:value
+// pairs ("Milk: Regular | Frequency: once_per_day"), snake_case enums
+// ("very_conversational"), and instructional prefixes ("Avoid spicy food
+// (tolerance: mild)"). cleanseValue() turns each into something a stew can
+// read at a glance. Rules:
+//
+//   1. If the value is a pipe-joined K:V list, drop the keys and join the
+//      cleansed values with commas.
+//   2. Snake_case and kebab-case tokens → spaces.
+//   3. Strip leading instructional verbs (Avoid / Don't / Under / etc.).
+//   4. Re-shape inline parentheticals of the form (label: value) →
+//      (value label) so "(tolerance: mild)" reads as "(mild tolerance)".
+//   5. Sentence-case the first letter.
+
+const INSTRUCTION_PREFIX = /^(avoid|do not|don't|dislikes?|dislike|under|no )\s+/i;
+
+function snakeToSpace(str) {
+  return String(str ?? '').replace(/[_-]+/g, ' ');
+}
+
+function sentenceCase(str) {
+  const s = String(str ?? '');
+  if (!s) return s;
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function reshapeParenthetical(str) {
+  // (tolerance: mild) → (mild tolerance); (severity: severe) → (severe severity)
+  return String(str ?? '').replace(/\(\s*([a-z][a-z\s]*?)\s*:\s*([a-z0-9_\-\s]+?)\s*\)/gi,
+    (_, label, val) => `(${snakeToSpace(val).trim().toLowerCase()} ${label.trim().toLowerCase()})`);
+}
+
+function parsePipeJoined(value) {
+  const s = String(value ?? '').trim();
+  if (!s.includes(' | ')) return null;
+  const parts = s.split(' | ').map(p => p.trim()).filter(Boolean);
+  if (!parts.every(p => p.includes(':'))) return null;
+  const vals = parts
+    .map(p => p.slice(p.indexOf(':') + 1).trim())
+    .map(v => snakeToSpace(v).trim())
+    .filter(Boolean);
+  return vals.length > 0 ? vals.join(', ') : null;
+}
+
+function cleanseValue(value) {
+  if (value == null) return '';
+  const piped = parsePipeJoined(value);
+  let v = piped != null ? piped : snakeToSpace(String(value));
+  v = reshapeParenthetical(v);
+  v = v.replace(INSTRUCTION_PREFIX, '');
+  return sentenceCase(v.trim());
+}
+
+// FOOD · AVOID rows: prefer the row's KEY when it's a concrete noun
+// (Coriander, Gluten, Nuts) — the value there tends to be an intensity
+// modifier ("Under any circumstance"). When the key is a generic bucket
+// ('Spice', 'Dietary', 'Food'), show the cleansed value instead; that's
+// where the substance lives for wizard-produced avoid rows.
+const GENERIC_AVOID_KEYS = new Set(['spice', 'dietary', 'food', 'avoid', 'other']);
+
+function formatAvoidSubject({ key, value }) {
+  const k = String(key ?? '').trim();
+  const cleansedValue = cleanseValue(value);
+  const keyIsGeneric = !k || GENERIC_AVOID_KEYS.has(k.toLowerCase());
+
+  if (!keyIsGeneric) {
+    // Specific concrete subject lives in the key. If the cleansed value
+    // carries a parenthetical modifier (e.g. "(severe)"), keep it on.
+    const paren = cleansedValue.match(/\(([^)]+)\)/);
+    return paren ? `${k} ${paren[0]}` : k;
+  }
+  return cleansedValue;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -83,18 +165,35 @@ function isFoodAvoidRow(pref) {
 // resolution below.
 const HHMM = /^\s*(\d{1,2}):(\d{2})\s*$/;
 
+// Wizard stores Bed Time as a casual 12h value ("11:00" meaning 11pm). When
+// the parsed hour is in the 0-14 range for a bed-like anchor, coerce to the
+// evening by adding 12h so timeline ordering stays right.
+//
+// TODO(backlog): fix at storage — wizard should normalise all routine times
+// to 24h format on write. Once the migration runs, delete this coercion.
+const EVENING_ANCHOR_KEYS = new Set(['bed time', 'turndown time']);
+
+function coerceEveningHour(key, hh) {
+  const k = String(key ?? '').toLowerCase().trim();
+  if (EVENING_ANCHOR_KEYS.has(k) && hh < 14) return hh + 12;
+  return hh;
+}
+
 function parseRoutineAnchor(pref) {
   if (pref?.category !== 'Routine') return null;
   const val = (pref?.value ?? '').trim();
   const m = val.match(HHMM);
   if (!m) return null;                    // gate: non-time rows bail here
-  const hh = String(Math.min(23, Math.max(0, parseInt(m[1], 10)))).padStart(2, '0');
-  const mm = String(Math.min(59, Math.max(0, parseInt(m[2], 10)))).padStart(2, '0');
+  let hh = Math.min(23, Math.max(0, parseInt(m[1], 10)));
+  const mm = Math.min(59, Math.max(0, parseInt(m[2], 10)));
+  hh = coerceEveningHour(pref.key, hh);
+  const hhStr = String(hh).padStart(2, '0');
+  const mmStr = String(mm).padStart(2, '0');
   return {
-    time:  `${hh}:${mm}`,
+    time:  `${hhStr}:${mmStr}`,
     label: pref.key,                      // stable label for matching to moments (e.g. 'Breakfast Time')
     short: shortRoutineLabel(pref.key),   // only called after HHMM match
-    sortKey: parseInt(hh, 10) * 60 + parseInt(mm, 10),
+    sortKey: hh * 60 + mm,
   };
 }
 
@@ -118,40 +217,65 @@ function shortRoutineLabel(key) {
 // the component can render individual bullets. If the storage shape changes
 // later (e.g. to a real array or to separate rows), only this function
 // needs updating — the UI contract stays guest_notes.top_things: string[].
-function buildGuestNotes(allPrefs) {
-  const byKey = {
-    top_things:        allPrefs.filter(p => p.category === 'Other'   && p.key === 'Top Things to Remember'),
-    communication:     allPrefs.filter(p => p.category === 'Service' && p.key === 'Communication Style'),
-    familiarity:       allPrefs.filter(p => p.category === 'Service' && p.key === 'Crew Familiarity'),
-    priority_flagged:  allPrefs.filter(p => p.priority === 'high'),
-  };
+//
+// priority_flagged intentionally excludes any pref already captured by
+// another bucket (claimedIds set built upstream). Otherwise a Coriander
+// row (Food & Beverage, pref_type='avoid', priority='high') would appear
+// in both FOOD · AVOID and GUEST NOTES — which is exactly the bug the
+// screenshot caught. Also excludes pref_type='avoid' globally so an avoid
+// row never reads as a "note".
+function buildGuestNotes(allPrefs, claimedIds) {
+  const topThingsRow = allPrefs.find(p => p.category === 'Other'   && p.key === 'Top Things to Remember');
+  const communicationRow = allPrefs.find(p => p.category === 'Service' && p.key === 'Communication Style');
+  const familiarityRow   = allPrefs.find(p => p.category === 'Service' && p.key === 'Crew Familiarity');
 
-  const topThings = (byKey.top_things[0]?.value ?? '')
+  const topThings = (topThingsRow?.value ?? '')
     .split(' | ')
-    .map(s => s.trim())
+    .map(s => cleanseValue(s))
     .filter(Boolean)
     .slice(0, 3);
 
+  const priorityNotes = allPrefs
+    .filter(p =>
+      p.priority === 'high' &&
+      p.pref_type !== 'avoid' &&
+      !claimedIds.has(p.id) &&
+      p.key !== 'Top Things to Remember' &&
+      p.key !== 'Communication Style'   &&
+      p.key !== 'Crew Familiarity'
+    )
+    .map(p => cleanseValue(p.value))
+    .filter(Boolean);
+
   return {
     top_things:      topThings,
-    communication:   byKey.communication[0]?.value ?? null,
-    familiarity:     byKey.familiarity[0]?.value ?? null,
-    priority_notes:  byKey.priority_flagged
-      .filter(p => p.key !== 'Top Things to Remember'
-                && p.key !== 'Communication Style'
-                && p.key !== 'Crew Familiarity')
-      .map(p => p.value)
-      .filter(Boolean),
+    communication:   cleanseValue(communicationRow?.value) || null,
+    familiarity:     cleanseValue(familiarityRow?.value)   || null,
+    priority_notes:  priorityNotes,
   };
 }
 
-// HOT DRINKS / DRINKS / AMBIENCE — bucketed values. Each preserves
-// key->value so the component can choose to show keys or just values.
+// HOT DRINKS / DRINKS / AMBIENCE — bucketed values. Every value runs through
+// cleanseValue so pipe-joined and snake_case storage shapes become readable.
+// A single wizard row sometimes stores a list (e.g. Favourite Spaces is
+// stored as "beach_club, main_salon") — we split those on comma so the
+// DrawerRow can surface each entry as its own " · "-separated fragment.
+// Side-effect: a Coffee value like "Milk: Regular | Frequency: once per day"
+// is first pipe-parsed into "Regular, once per day" and then split into
+// ["Regular", "Once per day"]. That loses attribute grouping for the coffee
+// case, but keeps the list-y cases right. Acceptable trade-off for v1.
 function collectBucketValues(bucketedRows) {
-  return bucketedRows.map(p => ({
-    key:   p.key ?? '',
-    value: (p.value ?? '').trim(),
-  })).filter(r => r.value);
+  const out = [];
+  for (const p of bucketedRows) {
+    const cleansed = cleanseValue(p.value);
+    if (!cleansed) continue;
+    const parts = cleansed
+      .split(/,\s*/)
+      .map(s => sentenceCase(s.trim()))
+      .filter(Boolean);
+    for (const part of parts) out.push({ key: p.key ?? '', value: part });
+  }
+  return out;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -214,20 +338,22 @@ export function useGuestDrawerPrefs(guestId) {
         return !(tags.includes('auto-synced') || tags.includes('auto_synced'));
       });
 
-      // Bucket the (category, key)-driven rows
+      // Bucket the (category, key)-driven rows. Track claimedIds so
+      // buildGuestNotes can exclude rows already surfaced elsewhere.
       const buckets = { hot_drinks: [], drinks: [], ambience: [] };
       const foodAvoidRows = [];
       const routineAnchors = [];
+      const claimedIds = new Set();
 
       for (const p of prefs) {
-        if (isFoodAvoidRow(p)) { foodAvoidRows.push(p); continue; }
+        if (isFoodAvoidRow(p)) { foodAvoidRows.push(p); claimedIds.add(p.id); continue; }
         const anchor = parseRoutineAnchor(p);
-        if (anchor) { routineAnchors.push(anchor); continue; }
+        if (anchor) { routineAnchors.push(anchor); claimedIds.add(p.id); continue; }
         const bucket = findBucketFor(p);
-        if (bucket) buckets[bucket].push(p);
+        if (bucket) { buckets[bucket].push(p); claimedIds.add(p.id); continue; }
       }
 
-      // Sort routine anchors by time for the mini-timeline
+      // Sort routine anchors by (coerced) time for the mini-timeline
       routineAnchors.sort((a, b) => a.sortKey - b.sortKey);
 
       const splitPills = (txt) => (txt ?? '').split(',').map(s => s.trim()).filter(Boolean);
@@ -237,13 +363,11 @@ export function useGuestDrawerPrefs(guestId) {
         health_conditions:  splitPills(guestRes.data?.health_conditions),
         hot_drinks:         collectBucketValues(buckets.hot_drinks),
         drinks:             collectBucketValues(buckets.drinks),
-        food_avoid:         foodAvoidRows.map(p => ({
-          key:   p.key ?? '',
-          value: (p.value ?? '').trim(),
-          category: p.category,
-        })).filter(r => r.value),
+        food_avoid:         foodAvoidRows
+          .map(p => ({ key: p.key ?? '', value: formatAvoidSubject({ key: p.key, value: p.value }), category: p.category }))
+          .filter(r => r.value),
         routine:            routineAnchors,
-        guest_notes:        buildGuestNotes(prefs),
+        guest_notes:        buildGuestNotes(prefs, claimedIds),
         ambience:           collectBucketValues(buckets.ambience),
       };
 
