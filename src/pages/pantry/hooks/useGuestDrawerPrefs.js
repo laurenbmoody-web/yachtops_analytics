@@ -255,16 +255,55 @@ function buildGuestNotes(allPrefs, claimedIds) {
   };
 }
 
-// HOT DRINKS / DRINKS / AMBIENCE — bucketed values. Every value runs through
-// cleanseValue so pipe-joined and snake_case storage shapes become readable.
-// A single wizard row sometimes stores a list (e.g. Favourite Spaces is
-// stored as "beach_club, main_salon") — we split those on comma so the
-// DrawerRow can surface each entry as its own " · "-separated fragment.
-// Side-effect: a Coffee value like "Milk: Regular | Frequency: once per day"
-// is first pipe-parsed into "Regular, once per day" and then split into
-// ["Regular", "Once per day"]. That loses attribute grouping for the coffee
-// case, but keeps the list-y cases right. Acceptable trade-off for v1.
-function collectBucketValues(bucketedRows) {
+// HOT DRINKS / DRINKS use collectBucketValuesGrouped — groups rows by their
+// key so the output reads "Coffee: Regular, once per day · Tea: Yorkshire"
+// rather than flat-joining "Regular · Once per day · Yorkshire". Attributes
+// within a group stay comma-joined; the middle-dot separator (·) only
+// divides groups.
+//
+// AMBIENCE uses collectBucketValuesFlat — single-row list values like
+// "beach_club, main_salon" split into individual pills ("Beach club · Main
+// salon"), no group label needed because the AMBIENCE row is the label.
+
+const GROUP_LABEL_OVERRIDES = {
+  cocktail: 'Cocktails',   // spec plural
+};
+
+function displayGroupLabel(key) {
+  const k = String(key ?? '').trim();
+  if (!k) return '';
+  const lc = k.toLowerCase();
+  if (GROUP_LABEL_OVERRIDES[lc]) return GROUP_LABEL_OVERRIDES[lc];
+  return lc.replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function collectBucketValuesGrouped(bucketedRows) {
+  // Group rows by lowercased key. Preserves first-encountered insertion
+  // order (Map contract) so Coffee appears before Tea when both exist.
+  const groups = new Map();
+  for (const p of bucketedRows) {
+    const kLC = String(p.key ?? '').toLowerCase().trim();
+    if (!kLC) continue;
+    const cleansed = cleanseValue(p.value);
+    if (!cleansed) continue;
+    const attrs = cleansed
+      .split(/,\s*/)
+      .map(s => s.trim())
+      .filter(Boolean);
+    if (attrs.length === 0) continue;
+    if (!groups.has(kLC)) groups.set(kLC, { label: displayGroupLabel(p.key), attrs: [] });
+    for (const a of attrs) groups.get(kLC).attrs.push(a);
+  }
+
+  const out = [];
+  for (const { label, attrs } of groups.values()) {
+    if (attrs.length === 0) continue;
+    out.push({ key: label, value: `${label}: ${attrs.join(', ')}` });
+  }
+  return out;
+}
+
+function collectBucketValuesFlat(bucketedRows) {
   const out = [];
   for (const p of bucketedRows) {
     const cleansed = cleanseValue(p.value);
@@ -361,14 +400,14 @@ export function useGuestDrawerPrefs(guestId) {
       const data = {
         allergies:          splitPills(guestRes.data?.allergies),
         health_conditions:  splitPills(guestRes.data?.health_conditions),
-        hot_drinks:         collectBucketValues(buckets.hot_drinks),
-        drinks:             collectBucketValues(buckets.drinks),
+        hot_drinks:         collectBucketValuesGrouped(buckets.hot_drinks),
+        drinks:             collectBucketValuesGrouped(buckets.drinks),
         food_avoid:         foodAvoidRows
           .map(p => ({ key: p.key ?? '', value: formatAvoidSubject({ key: p.key, value: p.value }), category: p.category }))
           .filter(r => r.value),
         routine:            routineAnchors,
         guest_notes:        buildGuestNotes(prefs, claimedIds),
-        ambience:           collectBucketValues(buckets.ambience),
+        ambience:           collectBucketValuesFlat(buckets.ambience),
       };
 
       setState({ data, loading: false, error: null });
