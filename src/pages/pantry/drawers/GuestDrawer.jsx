@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { X } from 'lucide-react';
@@ -10,10 +10,11 @@ import DrawerAllergiesBlock from './DrawerAllergiesBlock';
 import DrawerAtAGlance from './DrawerAtAGlance';
 import DrawerRightNow from './DrawerRightNow';
 
-// Swipe-down dismissal thresholds. If the user drags the handle past
-// either of these on release, the drawer dismisses; otherwise framer-
-// motion's dragSnapToOrigin snaps it back to fully-open.
-const DRAG_DISMISS_OFFSET   = 80;   // px dragged down past starting y
+// Swipe-down dismissal thresholds. On release the drawer dismisses if the
+// user has dragged past 50% of the drawer's own height OR flicked down
+// faster than the velocity cutoff. Otherwise framer-motion's
+// dragSnapToOrigin returns the sheet to y:0.
+const DRAG_DISMISS_RATIO    = 0.5;  // fraction of drawer height
 const DRAG_DISMISS_VELOCITY = 500;  // px/s on release (flick dismissal)
 
 const DAY_NAMES   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -51,6 +52,7 @@ function isoToHHMM(iso) {
 export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMood, onUpdateAshoreContext }) {
   const navigate = useNavigate();
   const dragControls = useDragControls();
+  const sheetRef = useRef(null);
   const { notes, loading: notesLoading, addNote } = useGuestDayNotes(guest.id);
   const { data: drawerPrefs, loading: prefsLoading, error: prefsError } = useGuestDrawerPrefs(guest.id);
   const [moodExpanded, setMoodExpanded] = useState(false);
@@ -150,7 +152,15 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
 
   return (
     <AnimatePresence>
-      {/* Backdrop — tap outside to close */}
+      {/* Backdrop — tap outside to close.
+          TODO: drive opacity from the sheet's drag motion value so the
+          backdrop fades as the sheet slides down. Attempted this pass but
+          binding style.opacity to a motion value supersedes the
+          initial/animate/exit transitions on the same prop — the backdrop
+          loses its fade-in/out. Needs a different plumbing approach
+          (manual useEffect + opacity state combined with drag) to land
+          without breaking the existing animation. Left optional per the
+          Phase 2 spec. */}
       <motion.div
         key="backdrop"
         className="p-drawer-backdrop"
@@ -165,8 +175,11 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
           Drag-to-dismiss is scoped to the handle via dragControls + the
           handle's onPointerDown trigger. dragListener={false} stops the
           whole sheet from listening for drag — so the guest scrolls the
-          drawer body normally without tripping the gesture. */}
+          drawer body normally without tripping the gesture. Dismiss
+          threshold is 50% of the sheet's own height, measured via
+          sheetRef, or a fast-flick velocity release. */}
       <motion.div
+        ref={sheetRef}
         key="sheet"
         className="p-drawer"
         role="dialog"
@@ -180,10 +193,11 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
         dragControls={dragControls}
         dragListener={false}
         dragConstraints={{ top: 0 }}
-        dragElastic={{ top: 0, bottom: 0.3 }}
         dragSnapToOrigin
         onDragEnd={(_, info) => {
-          if (info.offset.y > DRAG_DISMISS_OFFSET || info.velocity.y > DRAG_DISMISS_VELOCITY) {
+          const height = sheetRef.current?.offsetHeight ?? 600;
+          const threshold = height * DRAG_DISMISS_RATIO;
+          if (info.offset.y > threshold || info.velocity.y > DRAG_DISMISS_VELOCITY) {
             onClose();
           }
         }}
@@ -233,22 +247,36 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
             </div>
             {ashoreFormOpen && localState === 'ashore' && (
               <div className="p-drawer-ashore-form" role="group" aria-label="Ashore context">
-                <input
-                  type="text"
-                  className="p-drawer-ashore-input"
-                  placeholder="Where to?"
-                  value={ashoreDestination}
-                  onChange={e => setAshoreDestination(e.target.value)}
-                  aria-label="Destination"
-                />
-                <input
-                  type="time"
-                  className="p-drawer-ashore-input"
-                  placeholder="When back?"
-                  value={ashoreReturningAt}
-                  onChange={e => setAshoreReturningAt(e.target.value)}
-                  aria-label="Returning at"
-                />
+                <label className="p-drawer-ashore-field">
+                  <span className="p-drawer-ashore-label">Off to</span>
+                  <input
+                    type="text"
+                    className="p-drawer-ashore-input"
+                    placeholder="Where to?"
+                    value={ashoreDestination}
+                    onChange={e => setAshoreDestination(e.target.value)}
+                    aria-label="Destination"
+                  />
+                </label>
+                <label className="p-drawer-ashore-field">
+                  <span className="p-drawer-ashore-label">Back at</span>
+                  {/* Plain text input forced to 24h. Native <input type="time">
+                      honours OS locale — US locales show AM/PM, no reliable
+                      way to force 24h from HTML. Stew/yacht context is
+                      universally 24h, so a numeric text input with a clear
+                      HH:MM pattern is both consistent and guaranteed. */}
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    className="p-drawer-ashore-input"
+                    placeholder="21:30"
+                    pattern="^\d{1,2}:\d{2}$"
+                    maxLength={5}
+                    value={ashoreReturningAt}
+                    onChange={e => setAshoreReturningAt(e.target.value)}
+                    aria-label="Returning at, 24-hour HH:MM"
+                  />
+                </label>
                 <div className="p-drawer-ashore-actions">
                   <button type="button" className="p-btn primary" onClick={handleAshoreSave}>
                     Save

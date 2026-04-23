@@ -4,15 +4,6 @@ import { useGuests } from '../hooks/useGuests';
 import CabinCard from './CabinCard';
 import GuestDrawer from '../drawers/GuestDrawer';
 
-function formatAshoreReturnDisplay(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const h = String(d.getHours()).padStart(2, '0');
-  const m = String(d.getMinutes()).padStart(2, '0');
-  return `${h}:${m}`;
-}
-
 export default function GuestsWidget() {
   const location = useLocation();
   const {
@@ -42,9 +33,8 @@ export default function GuestsWidget() {
     }
   }, [location.state, location.pathname, guests]);
 
-  const onboard  = guests.filter(g => (g.current_state ?? 'awake') !== 'ashore');
-  const ashore   = guests.filter(g => (g.current_state ?? 'awake') === 'ashore');
-  const nextBack  = ashore.find(g => g.ashore_context?.returning_at);
+  const onboard = guests.filter(g => (g.current_state ?? 'awake') !== 'ashore');
+  const ashore  = guests.filter(g => (g.current_state ?? 'awake') === 'ashore');
 
   return (
     <>
@@ -70,11 +60,6 @@ export default function GuestsWidget() {
               <div className="p-stat">
                 <div className="p-stat-num">{ashore.length}</div>
                 <div className="p-stat-label">ashore</div>
-              </div>
-            )}
-            {nextBack && (
-              <div className="p-guests-context">
-                {nextBack.first_name} back {formatAshoreReturnDisplay(nextBack.ashore_context.returning_at)}
               </div>
             )}
           </div>
