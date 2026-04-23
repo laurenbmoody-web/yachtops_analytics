@@ -1416,3 +1416,82 @@
   outline: 1.5px solid var(--ink);
   outline-offset: -1.5px;
 }
+
+/* ── Guest-grouped consumables on /inventory/weekly ────────── */
+.p-consumable-guest {
+  margin-top: 18px;
+  padding-top: 10px;
+  border-top: 0.5px solid var(--p-border);
+}
+.p-consumable-guest:first-of-type {
+  margin-top: 8px;
+  padding-top: 0;
+  border-top: none;
+}
+.p-consumable-guest-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.p-consumable-guest-name {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-serif);
+  font-size: 18px;
+  color: var(--ink);
+}
+.p-consumable-guest-name em {
+  font-style: italic;
+  color: var(--ink-muted);
+}
+.p-consumable-guest-name:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 0.5px;
+}
+.p-consumable-guest-role {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.p-consumable-row {
+  /* Inherits .p-stock-row; overrides below tune for the grouped context. */
+  padding-left: 4px;
+}
+.p-consumable-right {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.p-consumable-par {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  color: var(--ink-tertiary);
+  margin-left: 4px;
+}
+.p-consumable-empty {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink-muted);
+  padding: 8px 0;
+}
+.p-consumable-empty-inline {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink-muted);
+  padding: 4px 0 6px;
+}
+.p-consumable-footer {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 0.5px solid var(--p-border);
+  text-align: right;
+}
