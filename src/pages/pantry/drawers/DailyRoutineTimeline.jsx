@@ -1,4 +1,5 @@
 import React from 'react';
+import { currentMinuteOfDay as vesselCurrentMinute } from '../../../utils/vesselLocalTime';
 
 // Horizontal mini-timeline of time/label pairs for the DAILY ROUTINE row.
 //
@@ -16,8 +17,8 @@ import React from 'react';
 //                          the browser's local time. Exposed as a prop for
 //                          testing and so Phase 5 can pass a moment-derived
 //                          value without this component recomputing.
-//                          TODO(phase-2): swap browser local for a vessel-
-//                          local time helper when it exists.
+//                          Defaults to the vessel-local current minute via
+//                          vesselLocalTime.currentMinuteOfDay.
 //
 // Rules:
 //   - Fewer than 2 anchors: returns null (row hides entirely).
@@ -30,8 +31,7 @@ const MAX_ANCHORS = 6;
 const TRIM_TARGET = 5;
 
 function nowMinuteOfDay() {
-  const d = new Date();
-  return d.getHours() * 60 + d.getMinutes();
+  return vesselCurrentMinute();
 }
 
 export default function DailyRoutineTimeline({ anchors, highlightKey = null, currentMinuteOfDay = null }) {

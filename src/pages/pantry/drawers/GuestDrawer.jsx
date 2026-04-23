@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useGuestDayNotes } from '../hooks/useGuestDayNotes';
 import { useGuestDrawerPrefs } from '../hooks/useGuestDrawerPrefs';
@@ -10,11 +10,47 @@ import DrawerAllergiesBlock from './DrawerAllergiesBlock';
 import DrawerAtAGlance from './DrawerAtAGlance';
 import DrawerRightNow from './DrawerRightNow';
 
+// Swipe-down dismissal thresholds. If the user drags the handle past
+// either of these on release, the drawer dismisses; otherwise framer-
+// motion's dragSnapToOrigin snaps it back to fully-open.
+const DRAG_DISMISS_OFFSET   = 80;   // px dragged down past starting y
+const DRAG_DISMISS_VELOCITY = 500;  // px/s on release (flick dismissal)
+
 const DAY_NAMES   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const STATE_PILLS = ['awake', 'asleep', 'ashore'];
 
-export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMood }) {
+// Ashore "returning_at" converters.
+//   - Form input is an HH:MM <input type="time"> in vessel-local time.
+//   - Storage is a full ISO timestamp (timestamptz in the DB schema).
+// Compose picks today at the given time, bumping to tomorrow if the time
+// has already passed — a user typing 01:00 at 23:30 means 01:00 next day.
+function hhmmToIso(hhmm) {
+  if (!hhmm) return null;
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
+  if (!m) return null;
+  const h = Math.min(23, Math.max(0, parseInt(m[1], 10)));
+  const min = Math.min(59, Math.max(0, parseInt(m[2], 10)));
+  const now = new Date();
+  const candidate = new Date(now);
+  candidate.setHours(h, min, 0, 0);
+  if (candidate.getTime() <= now.getTime()) {
+    candidate.setDate(candidate.getDate() + 1);
+  }
+  return candidate.toISOString();
+}
+
+function isoToHHMM(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const h = String(d.getHours()).padStart(2, '0');
+  const m = String(d.getMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
+}
+
+export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMood, onUpdateAshoreContext }) {
   const navigate = useNavigate();
+  const dragControls = useDragControls();
   const { notes, loading: notesLoading, addNote } = useGuestDayNotes(guest.id);
   const { data: drawerPrefs, loading: prefsLoading, error: prefsError } = useGuestDrawerPrefs(guest.id);
   const [moodExpanded, setMoodExpanded] = useState(false);
@@ -28,6 +64,14 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
   // Local optimistic state — initialised from the guest prop at open time
   const [localState, setLocalState] = useState(guest.current_state ?? 'awake');
   const [localMood, setLocalMood]   = useState(guest.current_mood ?? null);
+
+  // Ashore context form state. Opens automatically when Ashore pill is
+  // tapped (either switching TO ashore, or re-tapping while already ashore
+  // to edit the context). Closes on Save or Cancel. Auto-closes + clears
+  // context when state changes away from ashore.
+  const [ashoreFormOpen, setAshoreFormOpen] = useState(false);
+  const [ashoreDestination, setAshoreDestination] = useState(guest.ashore_context?.destination ?? '');
+  const [ashoreReturningAt, setAshoreReturningAt] = useState(isoToHHMM(guest.ashore_context?.returning_at));
 
   const today     = DAY_NAMES[new Date().getDay()];
   const firstName = guest.first_name ?? '';
@@ -43,14 +87,57 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
   }, [onClose]);
 
   const handleStateChange = (newState) => {
-    if (newState === localState) return;
+    // Re-tap already-active Ashore pill reopens the context form so the
+    // user can edit destination / returning_at without first toggling
+    // to another state.
+    if (newState === localState) {
+      if (newState === 'ashore') setAshoreFormOpen(true);
+      return;
+    }
+
     setLocalState(newState); // optimistic
     onUpdateState?.(guest.id, newState);
+
+    if (newState === 'ashore') {
+      // Open the inline form; reset to current DB values so an edit flow
+      // starts from truth (not leftover unsaved state from a prior open).
+      setAshoreDestination(guest.ashore_context?.destination ?? '');
+      setAshoreReturningAt(isoToHHMM(guest.ashore_context?.returning_at));
+      setAshoreFormOpen(true);
+    } else {
+      // Leaving ashore — clear persisted context + collapse the form.
+      setAshoreFormOpen(false);
+      setAshoreDestination('');
+      setAshoreReturningAt('');
+      if (guest.ashore_context != null) {
+        onUpdateAshoreContext?.(guest.id, null);
+      }
+    }
   };
 
-  const handleMoodChange = (key, emoji) => {
-    setLocalMood(key); // optimistic
-    onUpdateMood?.(guest.id, key, emoji);
+  const handleAshoreSave = () => {
+    const next = {
+      destination:  ashoreDestination.trim() || null,
+      returning_at: hhmmToIso(ashoreReturningAt),
+    };
+    onUpdateAshoreContext?.(guest.id, next);
+    setAshoreFormOpen(false);
+  };
+
+  const handleAshoreCancel = () => {
+    setAshoreFormOpen(false);
+    // Don't clear state — guest remains ashore with whatever context was
+    // saved before (or null). Spec: "incomplete context is still valid;
+    // ashore without destination is fine."
+  };
+
+  // Re-tap the active mood pill to unset (mood becomes null). Otherwise
+  // tapping a different pill switches the mood. Emoji arg dropped — the hook
+  // stopped writing current_mood_emoji in Phase 2 (dead-write removal).
+  const handleMoodChange = (key) => {
+    const nextKey = key === localMood ? null : key;
+    setLocalMood(nextKey); // optimistic
+    onUpdateMood?.(guest.id, nextKey);
   };
 
   const handleAddNote = async () => {
@@ -74,7 +161,11 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
         aria-hidden="true"
       />
 
-      {/* Sheet — stopPropagation prevents backdrop click from firing */}
+      {/* Sheet — stopPropagation prevents backdrop click from firing.
+          Drag-to-dismiss is scoped to the handle via dragControls + the
+          handle's onPointerDown trigger. dragListener={false} stops the
+          whole sheet from listening for drag — so the guest scrolls the
+          drawer body normally without tripping the gesture. */}
       <motion.div
         key="sheet"
         className="p-drawer"
@@ -85,9 +176,26 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
         transition={{ type: 'spring', stiffness: 260, damping: 26 }}
+        drag="y"
+        dragControls={dragControls}
+        dragListener={false}
+        dragConstraints={{ top: 0 }}
+        dragElastic={{ top: 0, bottom: 0.3 }}
+        dragSnapToOrigin
+        onDragEnd={(_, info) => {
+          if (info.offset.y > DRAG_DISMISS_OFFSET || info.velocity.y > DRAG_DISMISS_VELOCITY) {
+            onClose();
+          }
+        }}
         onClick={e => e.stopPropagation()}
       >
-        <div className="p-drawer-handle" />
+        <div
+          className="p-drawer-handle"
+          role="button"
+          aria-label="Drag down to dismiss"
+          onPointerDown={(e) => dragControls.start(e)}
+          style={{ touchAction: 'none', cursor: 'grab' }}
+        />
 
         {/* Header — identity + state pills. State pills replace the old
             mid-drawer STATE block; they're always-visible and live here so
@@ -123,11 +231,34 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
                 );
               })}
             </div>
-            {/* TODO(phase-2): ashore context inputs (destination + returning_at)
-                appear here when the Ashore pill is selected. handleStateChange
-                will then pass an ashoreContext object through to
-                onUpdateState, and the pantry/pantry.css row of inputs will
-                render conditionally on localState === 'ashore'. */}
+            {ashoreFormOpen && localState === 'ashore' && (
+              <div className="p-drawer-ashore-form" role="group" aria-label="Ashore context">
+                <input
+                  type="text"
+                  className="p-drawer-ashore-input"
+                  placeholder="Where to?"
+                  value={ashoreDestination}
+                  onChange={e => setAshoreDestination(e.target.value)}
+                  aria-label="Destination"
+                />
+                <input
+                  type="time"
+                  className="p-drawer-ashore-input"
+                  placeholder="When back?"
+                  value={ashoreReturningAt}
+                  onChange={e => setAshoreReturningAt(e.target.value)}
+                  aria-label="Returning at"
+                />
+                <div className="p-drawer-ashore-actions">
+                  <button type="button" className="p-btn primary" onClick={handleAshoreSave}>
+                    Save
+                  </button>
+                  <button type="button" className="p-drawer-ashore-cancel" onClick={handleAshoreCancel}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           <button
             className="p-btn outline" style={{ flexShrink: 0 }}
@@ -178,7 +309,7 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
                   whileTap={{ scale: 0.96 }}
                   transition={{ duration: 0.15 }}
                   className={`p-pill-mood${localMood === m.key ? ' active' : ''}`}
-                  onClick={() => handleMoodChange(m.key, m.emoji)}
+                  onClick={() => handleMoodChange(m.key)}
                   aria-label={m.label}
                   aria-pressed={localMood === m.key}
                 >

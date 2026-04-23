@@ -6,11 +6,8 @@
 // service preset (breakfast/lunch/dinner/drinks/turndown), which has a
 // 'drinks' slot; the drawer tracks crew-readiness moments, which has an
 // 'afternoon' slot instead.
-//
-// TODO(phase-2): swap `new Date()` for a vessel-local time helper. Today the
-// moment is computed in browser local time, which is close enough for Med
-// operation but will drift if the crew's browser is set to a different tz
-// than the vessel.
+
+import { currentMinuteOfDay } from '../../../utils/vesselLocalTime';
 
 export const SERVICE_MOMENTS = {
   BREAKFAST: 'breakfast',
@@ -50,7 +47,8 @@ export function momentForHour(hour) {
 }
 
 export function getCurrentServiceMoment(now = new Date()) {
-  return momentForHour(now.getHours());
+  const hour = Math.floor(currentMinuteOfDay(now) / 60);
+  return momentForHour(hour);
 }
 
 // Apply drawer overrides per spec §edge cases:
@@ -74,4 +72,40 @@ export function nextKeyTimeForMoment(moment, routineAnchors) {
   if (!key || !Array.isArray(routineAnchors)) return null;
   const hit = routineAnchors.find(a => a.label === key);
   return hit?.time ?? null;
+}
+
+// Keyword sets used to flag a GUEST NOTES top-things item as belonging to a
+// specific service moment. Items that contain NO keyword from any moment
+// are considered timeless and always pass the filter. Items that contain a
+// keyword for one moment but not the current one are excluded from the
+// RIGHT NOW strip (the main At-a-glance list still shows them).
+//
+// Matching is case-insensitive substring (not word-boundary) because the
+// patterns here are meaningful even as fragments — "morning routines" and
+// "morning" should both match.
+const MOMENT_KEYWORDS = {
+  [SERVICE_MOMENTS.BREAKFAST]: ['wake', 'wakes', 'morning', 'breakfast', 'early'],
+  [SERVICE_MOMENTS.LUNCH]:     ['lunch', 'midday', 'noon'],
+  [SERVICE_MOMENTS.AFTERNOON]: ['afternoon', 'tea time', 'siesta'],
+  [SERVICE_MOMENTS.DINNER]:    ['dinner', 'evening', 'before dinner'],
+  [SERVICE_MOMENTS.TURNDOWN]:  ['bed', 'night', 'before sleep', 'bedtime', 'turndown', 'late'],
+};
+
+const ALL_MOMENT_KEYWORDS = Object.values(MOMENT_KEYWORDS).flat();
+
+// Filters a list of string items to those relevant to the given moment.
+// Rules from the drawer spec:
+//   - contains a keyword for `moment` → include
+//   - contains no moment keyword at all → include (timeless / default-show)
+//   - contains a keyword for a different moment but not this one → exclude
+export function filterItemsByMoment(items, moment) {
+  if (!Array.isArray(items) || items.length === 0) return [];
+  if (!moment) return items;
+  const mine = MOMENT_KEYWORDS[moment] ?? [];
+  return items.filter(raw => {
+    const lc = String(raw ?? '').toLowerCase();
+    if (mine.some(k => lc.includes(k))) return true;
+    const anyOther = ALL_MOMENT_KEYWORDS.some(k => lc.includes(k));
+    return !anyOther;
+  });
 }
