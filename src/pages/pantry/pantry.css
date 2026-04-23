@@ -1057,24 +1057,44 @@
   justify-content: space-between;
   margin-bottom: 10px;
 }
-.p-state-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+/* ── Drawer header state pills (replaces the old mid-drawer State block) ── */
+/* Compact always-visible pill row under the guest name. Sizing matches
+   .p-pill-mood so visual rhythm between State (top) and Mood (lower)
+   reinforces that both are transient attributes of this guest. Active
+   pill fills with ink + white text — same treatment the old AWAKE card
+   used. Inactive pills outline with ink border + ink text. */
+.p-drawer-state-pills {
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+  margin-top: 10px;
 }
-.p-state-card {
-  padding: 10px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--p-border);
+.p-pill-state {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px solid var(--ink);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 120ms;
+  transition: background-color 120ms, color 120ms, font-weight 120ms;
 }
-.p-state-card.active {
+.p-pill-state.active {
   background: var(--ink);
-  border-color: var(--ink);
   color: #fff;
+  font-weight: 600;
+  cursor: default;
 }
-.p-state-card.active .p-caps { color: rgba(255,255,255,0.6); }
+.p-drawer-header-divider {
+  height: 0;
+  border: 0;
+  border-bottom: 0.5px solid var(--p-border);
+  margin: 16px 0 4px;
+}
 .p-drawer-footer {
   display: grid;
   grid-template-columns: 1fr 1fr;
