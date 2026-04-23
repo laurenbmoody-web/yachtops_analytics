@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../contexts/AuthContext';
 import { appendGuestHistory } from '../../../utils/guestHistoryLog';
+import { vesselLocalDate } from '../../../utils/vesselLocalTime';
 
 export function useStewNotes({ limit = 3 } = {}) {
   const { user } = useAuth();
@@ -151,7 +152,7 @@ export function useStewNotes({ limit = 3 } = {}) {
       .single();
     if (!member) { setError('No active tenant membership'); return; }
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = vesselLocalDate();
 
     const { error: insertErr } = await supabase
       .from('guest_day_notes')

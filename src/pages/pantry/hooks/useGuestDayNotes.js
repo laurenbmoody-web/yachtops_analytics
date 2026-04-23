@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../contexts/AuthContext';
+import { vesselLocalDate } from '../../../utils/vesselLocalTime';
 
 export function useGuestDayNotes(guestId) {
   const { user } = useAuth();
@@ -8,7 +9,10 @@ export function useGuestDayNotes(guestId) {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
 
-  const today = new Date().toISOString().split('T')[0];
+  // Vessel-local date — see src/utils/vesselLocalTime.js. Previously this
+  // was `new Date().toISOString().split('T')[0]` which wrote UTC dates and
+  // dropped late-night notes onto tomorrow's date.
+  const today = vesselLocalDate();
 
   const fetch = useCallback(async () => {
     if (!user || !guestId) return;

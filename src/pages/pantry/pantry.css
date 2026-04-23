@@ -368,7 +368,8 @@
 }
 .p-drawer-routine-time {
   font-family: var(--font-serif);
-  font-style: italic;
+  /* Upright serif for time numerals — they're hard data, not qualitative
+     prose. The tracked-caps short label below stays unchanged. */
   font-size: 13px;
   color: var(--ink);
   line-height: 1.1;
@@ -1095,6 +1096,50 @@
   border: 0;
   border-bottom: 0.5px solid var(--p-border);
   margin: 16px 0 4px;
+}
+.p-drawer-ashore-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  align-items: center;
+}
+.p-drawer-ashore-input {
+  flex: 1 1 140px;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 0.5px solid var(--p-border);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.3;
+}
+.p-drawer-ashore-input:focus {
+  outline: none;
+  border-color: var(--ink);
+}
+.p-drawer-ashore-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+.p-drawer-ashore-cancel {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+.p-drawer-ashore-cancel:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 0.5px;
 }
 .p-drawer-footer {
   display: grid;

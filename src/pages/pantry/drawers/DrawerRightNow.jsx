@@ -12,6 +12,7 @@ import {
   MOMENT_LABELS,
   MOMENT_NEXT_ANCHOR_KEY,
   SERVICE_MOMENTS,
+  filterItemsByMoment,
   getCurrentServiceMoment,
   nextKeyTimeForMoment,
   resolveEffectiveMoment,
@@ -45,13 +46,27 @@ const MOMENT_ROWS = {
   [SERVICE_MOMENTS.TURNDOWN]:  ['ambience', 'daily_routine'],
 };
 
-function valuesForRow(rowKey, data) {
+// Moment-filtered GUEST NOTES — only the `top_things` items are filtered
+// by the current service moment per spec §Phase 2 Item 5. The rest of the
+// guest_notes fragments (communication, familiarity, priority_notes) have
+// no natural time relevance and always surface.
+function valuesFromGuestNotesForMoment(notes, moment) {
+  if (!notes) return [];
+  const out = [];
+  for (const t of filterItemsByMoment(notes.top_things || [], moment)) out.push(t);
+  if (notes.communication) out.push(notes.communication);
+  if (notes.familiarity)   out.push(notes.familiarity);
+  for (const n of notes.priority_notes || []) out.push(n);
+  return out;
+}
+
+function valuesForRow(rowKey, data, moment) {
   switch (rowKey) {
     case 'hot_drinks':  return valuesFromBucket(data.hot_drinks);
     case 'drinks':      return valuesFromBucket(data.drinks);
     case 'ambience':    return valuesFromBucket(data.ambience);
     case 'food_avoid':  return valuesFromFoodAvoid(data.food_avoid);
-    case 'guest_notes': return valuesFromGuestNotes(data.guest_notes);
+    case 'guest_notes': return valuesFromGuestNotesForMoment(data.guest_notes, moment);
     default:            return [];
   }
 }
@@ -74,7 +89,7 @@ export default function DrawerRightNow({ guest, data, nowDate = null }) {
           ? { key: rk, kind: 'routine' }
           : null;
       }
-      const values = valuesForRow(rk, data);
+      const values = valuesForRow(rk, data, moment);
       return values.length > 0 ? { key: rk, kind: 'values', values } : null;
     })
     .filter(Boolean);
