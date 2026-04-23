@@ -22,13 +22,21 @@ export function useInventoryThisWeek({ limit = 4 } = {}) {
 
       if (!member) throw new Error('No active tenant membership');
 
-      const { data, error: err } = await supabase
+      // updated_at is included so downstream callers (InventoryWeeklyPage +
+      // useInventoryInsights) can use max(updated_at) as a cache-freshness
+      // signal without a second round-trip.
+      let query = supabase
         .from('inventory_items')
-        .select('id, name, unit, total_qty, par_level, reorder_point')
+        .select('id, name, unit, total_qty, par_level, reorder_point, updated_at')
         .eq('tenant_id', member.tenant_id)
         .not('total_qty', 'is', null)
-        .order('total_qty', { ascending: true })
-        .limit(limit * 2);
+        .order('total_qty', { ascending: true });
+
+      // limit=null → fetch all flagged items for the weekly page. Widget
+      // callers still pass a numeric limit and get top-N.
+      if (limit != null) query = query.limit(limit * 2);
+
+      const { data, error: err } = await query;
 
       if (err) throw err;
 
@@ -45,7 +53,7 @@ export function useInventoryThisWeek({ limit = 4 } = {}) {
         return (a.total_qty ?? 0) - (b.total_qty ?? 0);
       });
 
-      setItems(scored.slice(0, limit));
+      setItems(limit != null ? scored.slice(0, limit) : scored);
     } catch (e) {
       setError(e.message);
     } finally {
