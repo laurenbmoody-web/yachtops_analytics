@@ -10,12 +10,8 @@ import DrawerAllergiesBlock from './DrawerAllergiesBlock';
 import DrawerAtAGlance from './DrawerAtAGlance';
 import DrawerRightNow from './DrawerRightNow';
 
-const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-
-function stateOptions(current) {
-  const all = ['awake', 'asleep', 'ashore'];
-  return all.map(s => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1), active: s === (current ?? 'awake') }));
-}
+const DAY_NAMES   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const STATE_PILLS = ['awake', 'asleep', 'ashore'];
 
 export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMood }) {
   const navigate = useNavigate();
@@ -93,7 +89,11 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
       >
         <div className="p-drawer-handle" />
 
-        {/* Header */}
+        {/* Header — identity + state pills. State pills replace the old
+            mid-drawer STATE block; they're always-visible and live here so
+            the stew sees current state at a glance alongside the name.
+            Old italic "{State} · onboard" subtext removed — the filled pill
+            already communicates the state. */}
         <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start' }}>
           <div className="p-drawer-avatar">
             {imgSrc
@@ -106,12 +106,28 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
             <div className="p-drawer-name">
               {firstName} <em>{lastName}.</em>
             </div>
-            <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 13, color: 'var(--ink-muted)', marginTop: 2 }}>
-              {localState === 'ashore'
-                ? `Ashore${guest.ashore_context?.destination ? ` · ${guest.ashore_context.destination}` : ''}`
-                : `${localState.charAt(0).toUpperCase() + localState.slice(1)} · onboard`
-              }
+            <div className="p-drawer-state-pills" role="group" aria-label="Guest state">
+              {STATE_PILLS.map(s => {
+                const isActive = s === localState;
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    className={`p-pill-state${isActive ? ' active' : ''}`}
+                    onClick={() => handleStateChange(s)}
+                    aria-pressed={isActive}
+                    aria-label={`Mark as ${s}`}
+                  >
+                    {s.charAt(0).toUpperCase() + s.slice(1)}
+                  </button>
+                );
+              })}
             </div>
+            {/* TODO(phase-2): ashore context inputs (destination + returning_at)
+                appear here when the Ashore pill is selected. handleStateChange
+                will then pass an ashoreContext object through to
+                onUpdateState, and the pantry/pantry.css row of inputs will
+                render conditionally on localState === 'ashore'. */}
           </div>
           <button
             className="p-btn outline" style={{ flexShrink: 0 }}
@@ -121,6 +137,7 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
             <X size={14} />
           </button>
         </div>
+        <hr className="p-drawer-header-divider" />
 
         {/* Allergies & Medical — top priority block, first thing visible
             after the guest header. Hidden entirely when both fields empty;
@@ -136,28 +153,6 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
             when the effective moment's rows have no data, or when the
             sleep-override places them in an empty window. */}
         <DrawerRightNow guest={guest} data={drawerPrefs} />
-
-        {/* State block */}
-        <div className="p-drawer-section">
-          <div className="p-caps" style={{ marginBottom: 10 }}>State</div>
-          <div className="p-state-grid">
-            {stateOptions(localState).map(opt => (
-              <motion.div
-                key={opt.value}
-                className={`p-state-card${opt.active ? ' active' : ''}`}
-                role="button"
-                tabIndex={0}
-                whileTap={{ scale: 0.96 }}
-                onClick={() => handleStateChange(opt.value)}
-                onKeyDown={e => e.key === 'Enter' && handleStateChange(opt.value)}
-                aria-pressed={opt.active}
-                aria-label={`Mark as ${opt.label}`}
-              >
-                <div className="p-caps">{opt.label}</div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
 
         {/* Mood block */}
         <div className="p-drawer-section">
