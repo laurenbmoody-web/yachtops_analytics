@@ -40,10 +40,18 @@ export function useInventoryThisWeek({ limit = 4 } = {}) {
 
       if (err) throw err;
 
+      // Sentinel unit values like ":UNSELECTED:" leak from variant rows
+      // where no variant is chosen — strip so the UI never shows them.
+      const isSentinel = (u) => !u || /^:[A-Z_]+:$/.test(String(u).trim());
+
       // Simple v1 criticality: critical when total_qty <= reorder_point (or par_level / 2)
       const scored = (data ?? []).map(item => {
         const threshold = item.reorder_point ?? (item.par_level ? item.par_level / 2 : 2);
-        return { ...item, critical: item.total_qty <= threshold };
+        return {
+          ...item,
+          unit:     isSentinel(item.unit) ? '' : item.unit,
+          critical: item.total_qty <= threshold,
+        };
       });
 
       // Sort: critical first, then by qty ascending
