@@ -8,6 +8,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { ALL_MOODS, QUICK_MOODS } from '../constants/moods';
 import DrawerAllergiesBlock from './DrawerAllergiesBlock';
 import DrawerAtAGlance from './DrawerAtAGlance';
+import DrawerRightNow from './DrawerRightNow';
 
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
@@ -128,6 +129,13 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
           allergies={guest.allergies}
           healthConditions={guest.health_conditions}
         />
+
+        {/* RIGHT NOW · context-aware strip for the current service moment.
+            Renders above State/Mood (read-first, like Allergies) and above
+            the full At-a-glance list. Self-hides when the guest is ashore,
+            when the effective moment's rows have no data, or when the
+            sleep-override places them in an empty window. */}
+        <DrawerRightNow guest={guest} data={drawerPrefs} />
 
         {/* State block */}
         <div className="p-drawer-section">

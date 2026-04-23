@@ -393,6 +393,41 @@
   align-self: center;
   padding-top: 6px;
 }
+
+/* ── Drawer RIGHT NOW strip ────────────────────────────────── */
+/* Context-aware section above the full At-a-glance list. Header reads
+   "RIGHT NOW · {MOMENT} · {NEXT TIME}" in tracked caps, with the moment
+   name tinted terracotta. Rows below reuse DrawerRow — no duplicated
+   row styling. Hairline divider at the bottom separates strip from the
+   At-a-glance heading that follows. */
+.p-drawer-rightnow {
+  margin-top: 18px;
+  padding-bottom: 16px;
+  margin-bottom: 18px;
+  border-bottom: 0.5px solid var(--p-border);
+}
+.p-drawer-rightnow-header {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.p-drawer-rightnow-moment {
+  color: var(--accent);
+}
+.p-drawer-rightnow-time {
+  color: var(--ink);
+}
+.p-drawer-rightnow-sep {
+  color: var(--ink-tertiary);
+}
 .p-pill-mood {
   display: inline-flex;
   align-items: center;

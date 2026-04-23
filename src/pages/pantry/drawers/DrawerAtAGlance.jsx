@@ -1,6 +1,13 @@
 import React from 'react';
 import DrawerRow from './DrawerRow';
 import DailyRoutineTimeline from './DailyRoutineTimeline';
+import {
+  valuesFromBucket,
+  valuesFromFoodAvoid,
+  valuesFromGuestNotes,
+  routineIsRenderable,
+  labelForFoodAvoid,
+} from './drawerRowValues';
 
 // Renders the 6-row curated At-a-glance list from the structured data
 // returned by useGuestDrawerPrefs(guestId). Empty rows auto-skip inside
@@ -15,42 +22,6 @@ import DailyRoutineTimeline from './DailyRoutineTimeline';
 // always renders when provided.
 
 const GUEST_NOTES_CHAR_CAP = 120;
-
-function labelForFoodAvoid() {
-  // ReactNode label so only the AVOID span gets the terracotta accent.
-  return (
-    <>
-      FOOD · <span className="p-drawer-row-label-accent">AVOID</span>
-    </>
-  );
-}
-
-// Join the bucketed {key, value} rows into value-only display fragments.
-// Hook already trims values and filters empties.
-function valuesFromBucket(bucket) {
-  return (bucket || []).map(r => r.value);
-}
-
-function valuesFromFoodAvoid(foodAvoid) {
-  // For v1 we show the value only — the key (e.g. 'Spice') provides context
-  // but the VALUE is what the stew needs to see ("Avoid spicy food
-  // (tolerance: mild)"). If a row has no value we've already filtered it.
-  return (foodAvoid || []).map(r => r.value);
-}
-
-function valuesFromGuestNotes(notes) {
-  if (!notes) return [];
-  const out = [];
-  for (const t of notes.top_things || []) out.push(t);
-  if (notes.communication) out.push(notes.communication);
-  if (notes.familiarity)   out.push(notes.familiarity);
-  for (const n of notes.priority_notes || []) out.push(n);
-  return out;
-}
-
-function routineIsRenderable(routine) {
-  return Array.isArray(routine) && routine.length >= 2;
-}
 
 export default function DrawerAtAGlance({ data, loading, error }) {
   if (loading) {
