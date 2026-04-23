@@ -270,7 +270,7 @@ export default function InventoryWeeklyPage() {
                 </div>
                 {rows.length === 0 ? (
                   <p className="p-consumable-empty-inline">
-                    No tracked consumables for {guest.first_name} this trip.
+                    No tracked consumables for {guest.first_name} this trip — nothing flagged.
                   </p>
                 ) : (
                   rows.map(item => (
