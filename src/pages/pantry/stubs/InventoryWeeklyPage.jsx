@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RefreshCw } from 'lucide-react';
 import Header from '../../../components/navigation/Header';
@@ -6,6 +6,7 @@ import StandbyLayoutHeader from '../widgets/StandbyLayoutHeader';
 import { useGuests } from '../hooks/useGuests';
 import { useInventoryThisWeek } from '../hooks/useInventoryThisWeek';
 import { useInventoryInsights } from '../hooks/useInventoryInsights';
+import { useGuestConsumables } from '../hooks/useGuestConsumables';
 import { formatDistanceToNow } from 'date-fns';
 import '../pantry.css';
 
@@ -137,11 +138,37 @@ function InsightsBanner({ insights, loading, error, fetchedAt, onRefresh }) {
   );
 }
 
+function ItemRow({ item, onClick, selected }) {
+  const qty = item.total_qty ?? 0;
+  const parLabel = [
+    item.par_level != null     ? `par ${item.par_level}`     : null,
+    item.reorder_point != null ? `reorder ${item.reorder_point}` : null,
+  ].filter(Boolean).join(', ');
+  return (
+    <div
+      className={`p-stock-row p-consumable-row${selected ? ' selected' : ''}`}
+      role="button"
+      tabIndex={0}
+      onClick={() => onClick?.(item)}
+      onKeyDown={e => e.key === 'Enter' && onClick?.(item)}
+      aria-label={`${item.name}: ${qty} ${item.unit ?? ''}${parLabel ? `, ${parLabel}` : ''}`}
+    >
+      <span className="p-stock-name">{item.name}</span>
+      <div className="p-consumable-right">
+        <span className={`p-stock-count${item.critical ? ' critical' : ''}`}>{qty}</span>
+        <span className="p-stock-unit">{item.unit ?? ''}</span>
+        {parLabel && <span className="p-consumable-par">({parLabel})</span>}
+      </div>
+    </div>
+  );
+}
+
 export default function InventoryWeeklyPage() {
   const navigate = useNavigate();
   const { guests } = useGuests();
   const { items, loading: itemsLoading, error: itemsError } = useInventoryThisWeek({ limit: null });
   const { insights, loading, error, fetchedAt, refetch } = useInventoryInsights({ guests, items });
+  const { byGuest, loading: consumablesLoading } = useGuestConsumables({ guests, items });
 
   // TODO(phase-4d): item detail popover. For now, tapping an item (or an
   // item-citation chip on an insight) logs + focuses — no popover yet.
@@ -162,16 +189,7 @@ export default function InventoryWeeklyPage() {
     setSelectedItemId(item.id);
   };
 
-  // Split items so the list renders critical first, then watch, then the rest.
-  const sorted = useMemo(() => {
-    const copy = [...(items ?? [])];
-    copy.sort((a, b) => {
-      if (a.critical && !b.critical) return -1;
-      if (!a.critical && b.critical) return 1;
-      return (a.total_qty ?? 0) - (b.total_qty ?? 0);
-    });
-    return copy;
-  }, [items]);
+  const rolesFor = (g) => [g.guest_type].filter(Boolean).join(' · ');
 
   return (
     <>
@@ -179,7 +197,7 @@ export default function InventoryWeeklyPage() {
       <div id="pantry-root" className="pantry-page">
         <StandbyLayoutHeader
           title="Inventory"
-          subtitle="What to watch and restock this week."
+          subtitle="What matters for the guests on trip."
           backTo="/pantry/standby"
         />
 
@@ -208,49 +226,76 @@ export default function InventoryWeeklyPage() {
           )}
         </div>
 
-        {/* Full item list */}
+        {/* Guest-specific consumables. One section per active guest.
+            Generic medical / crew / ops inventory that isn't tied to an
+            active guest is intentionally excluded — that view lives on
+            the canonical /inventory page (linked at the bottom). */}
         <div className="p-card top-navy">
           <div className="p-card-head">
             <div>
-              <div className="p-caps">
-                {itemsLoading ? '…' : `${sorted.length} item${sorted.length === 1 ? '' : 's'} tracked`}
-              </div>
-              <div className="p-card-headline">Everything on the <em>shelf</em>.</div>
+              <div className="p-caps">Consumables · by guest</div>
+              <div className="p-card-headline">What each guest <em>needs</em>.</div>
             </div>
-            {/* TODO(phase-4e): link out to the canonical inventory detail page. */}
           </div>
 
-          {itemsLoading && (
+          {(itemsLoading || consumablesLoading) && (
             <div style={{ color: 'var(--ink-tertiary)', fontSize: 13 }}>Loading…</div>
           )}
           {itemsError && (
             <div style={{ color: 'var(--accent)', fontSize: 12 }}>Failed to load: {itemsError}</div>
           )}
-          {!itemsLoading && !itemsError && sorted.length === 0 && (
-            <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, color: 'var(--ink-muted)' }}>
-              No stock items found.
+
+          {!itemsLoading && !itemsError && (guests ?? []).length === 0 && (
+            <p className="p-consumable-empty">
+              No active charter guests. Add guests to the trip to see their tracked consumables here.
             </p>
           )}
 
-          {!itemsLoading && !itemsError && sorted.map(item => (
-            <div
-              key={item.id}
-              className={`p-stock-row${selectedItemId === item.id ? ' selected' : ''}`}
-              role="button"
-              tabIndex={0}
-              onClick={() => handleOpenItem(item)}
-              onKeyDown={e => e.key === 'Enter' && handleOpenItem(item)}
-              aria-label={`${item.name}: ${item.total_qty} ${item.unit ?? ''}`}
-            >
-              <span className="p-stock-name">{item.name}</span>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                <span className={`p-stock-count${item.critical ? ' critical' : ''}`}>
-                  {item.total_qty ?? 0}
-                </span>
-                <span className="p-stock-unit">{item.unit ?? ''}</span>
+          {!itemsLoading && !itemsError && (guests ?? []).map(guest => {
+            const rows = byGuest?.[guest.id] ?? [];
+            const roleLabel = rolesFor(guest);
+            return (
+              <div key={guest.id} className="p-consumable-guest">
+                <div className="p-consumable-guest-head">
+                  <button
+                    type="button"
+                    className="p-consumable-guest-name"
+                    onClick={() => handleOpenGuest(guest)}
+                    aria-label={`Open ${guest.first_name}'s drawer`}
+                    title={`Open ${guest.first_name}'s drawer`}
+                  >
+                    {guest.first_name} <em>{guest.last_name ?? ''}</em>
+                  </button>
+                  {roleLabel && <span className="p-consumable-guest-role">· {roleLabel}</span>}
+                </div>
+                {rows.length === 0 ? (
+                  <p className="p-consumable-empty-inline">
+                    No tracked consumables for {guest.first_name} this trip.
+                  </p>
+                ) : (
+                  rows.map(item => (
+                    <ItemRow
+                      key={`${guest.id}-${item.id}`}
+                      item={item}
+                      onClick={handleOpenItem}
+                      selected={selectedItemId === item.id}
+                    />
+                  ))
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
+
+          <div className="p-consumable-footer">
+            <button
+              type="button"
+              className="p-card-link"
+              onClick={() => navigate('/inventory')}
+              aria-label="Open the full inventory"
+            >
+              View full inventory →
+            </button>
+          </div>
         </div>
       </div>
     </>
