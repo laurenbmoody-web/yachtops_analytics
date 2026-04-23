@@ -802,6 +802,16 @@
   text-transform: uppercase;
   color: var(--ink-tertiary);
 }
+/* Per-ashore-guest return time, sits below the ASHORE state chip. Replaces
+   the old widget-level "{Name} back HH:MM" stats-row annotation, which
+   was ambiguous in multi-guest cabins. */
+.p-avatar-back {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 11px;
+  color: var(--accent);
+  margin-top: 2px;
+}
 
 /* ── Cabin card ────────────────────────────────────────────── */
 .p-cabin-card {
@@ -1100,13 +1110,27 @@
 .p-drawer-ashore-form {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
-  align-items: center;
+  gap: 10px 14px;
+  margin-top: 12px;
+  align-items: flex-end;
 }
-.p-drawer-ashore-input {
+.p-drawer-ashore-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   flex: 1 1 140px;
   min-width: 0;
+}
+.p-drawer-ashore-label {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.p-drawer-ashore-input {
+  width: 100%;
   padding: 6px 10px;
   border: 0.5px solid var(--p-border);
   border-radius: 6px;
@@ -1115,6 +1139,7 @@
   font-family: var(--font-sans);
   font-size: 12px;
   line-height: 1.3;
+  font-variant-numeric: tabular-nums;
 }
 .p-drawer-ashore-input:focus {
   outline: none;
