@@ -143,7 +143,55 @@ export const fetchDeliveries = async (supplierId, { from, to } = {}) => {
 
 // ─── Overview KPIs ───────────────────────────────────────────────────────────
 
+// Server-side aggregate RPC (migration 20260424120000). Returns per-currency
+// revenue buckets plus order/delivery counts. Frontend can convert currencies
+// via the home_currency on supplier_profiles + its Frankfurter cache.
+export const fetchSupplierKPIsV2 = async (supplierId) => {
+  const { data, error } = await supabase.rpc('get_supplier_kpis', {
+    p_supplier_id: supplierId,
+  });
+  if (error) throw error;
+  return data;
+};
+
+// Legacy KPI shape consumed by SupplierOverview. Kept as a thin adapter over
+// the new RPC so existing UI renders without changes. Falls back to the
+// original per-table queries if the RPC is unavailable for any reason.
 export const fetchSupplierKPIs = async (supplierId) => {
+  try {
+    const kpis = await fetchSupplierKPIsV2(supplierId);
+    if (kpis && !kpis.error) {
+      // Sum outstanding across all currencies (UI is currency-agnostic today).
+      const outstandingByCcy = kpis.revenue?.outstanding ?? {};
+      const outstandingAmount = Object.values(outstandingByCcy)
+        .reduce((sum, v) => sum + Number(v ?? 0), 0);
+
+      const [invoicesRes, catalogueRes] = await Promise.all([
+        supabase
+          .from('supplier_invoices')
+          .select('id, status')
+          .eq('supplier_id', supplierId)
+          .eq('status', 'overdue'),
+        supabase
+          .from('supplier_catalogue_items')
+          .select('id', { count: 'exact', head: true })
+          .eq('supplier_id', supplierId),
+      ]);
+
+      return {
+        pendingOrders: (kpis.orders?.new ?? 0) + (kpis.orders?.in_progress ?? 0),
+        overdueInvoices: invoicesRes.data?.length ?? 0,
+        outstandingAmount,
+        catalogueCount: catalogueRes.count ?? 0,
+        totalOrders: kpis.orders?.total ?? 0,
+        raw: kpis,
+      };
+    }
+  } catch (err) {
+    console.warn('[fetchSupplierKPIs] RPC path failed, using fallback:', err);
+  }
+
+  // Fallback: original per-table aggregation.
   const [ordersRes, invoicesRes, catalogueRes] = await Promise.all([
     supabase
       .from('supplier_orders')
@@ -188,4 +236,84 @@ export const fetchClients = async (supplierId) => {
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data ?? [];
+};
+
+// ─── Email Aliases ───────────────────────────────────────────────────────────
+
+export const fetchAliases = async (supplierId) => {
+  const { data, error } = await supabase
+    .from('supplier_email_aliases')
+    .select('*')
+    .eq('supplier_id', supplierId)
+    .order('is_primary', { ascending: false })
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+};
+
+export const addAlias = async (supplierId, email) => {
+  const token = crypto.randomUUID();
+  const { data, error } = await supabase
+    .from('supplier_email_aliases')
+    .insert({
+      supplier_id: supplierId,
+      email: email.toLowerCase().trim(),
+      verified: false,
+      is_primary: false,
+      verification_token: token,
+      verification_sent_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+  if (error) throw error;
+
+  try {
+    await supabase.functions.invoke('sendAliasVerification', {
+      body: { aliasId: data.id, email: data.email, token },
+    });
+  } catch (err) {
+    console.warn('[addAlias] verification email send failed (non-fatal):', err);
+  }
+
+  return data;
+};
+
+export const resendAliasVerification = async (aliasId) => {
+  const token = crypto.randomUUID();
+  const { data, error } = await supabase
+    .from('supplier_email_aliases')
+    .update({
+      verification_token: token,
+      verification_sent_at: new Date().toISOString(),
+    })
+    .eq('id', aliasId)
+    .select()
+    .single();
+  if (error) throw error;
+
+  try {
+    await supabase.functions.invoke('sendAliasVerification', {
+      body: { aliasId: data.id, email: data.email, token },
+    });
+  } catch (err) {
+    console.warn('[resendAliasVerification] send failed (non-fatal):', err);
+  }
+
+  return data;
+};
+
+export const deleteAlias = async (aliasId) => {
+  const { error } = await supabase
+    .from('supplier_email_aliases')
+    .delete()
+    .eq('id', aliasId);
+  if (error) throw error;
+};
+
+export const verifyAliasByToken = async (token) => {
+  const { data, error } = await supabase.rpc('verify_supplier_email_alias', {
+    p_token: token,
+  });
+  if (error) throw error;
+  return data;
 };
