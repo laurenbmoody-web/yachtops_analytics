@@ -43,14 +43,29 @@ const ANTHROPIC_API_URL    = 'https://api.anthropic.com/v1/messages';
 const SUPABASE_URL         = Deno.env.get('SUPABASE_URL') || '';
 const SERVICE_ROLE_KEY     = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
+// Bump whenever the system prompt / tool schema / scoring logic changes in a
+// way that would make old cached responses stale. Folded into the cache key
+// so existing entries naturally invalidate without a manual DELETE.
+//   v1 → initial release
+//   v2 → drop Allergies from consumable categories, filter pref_type=avoid,
+//        add VOICE section for chief-stew register in note field
+const PROMPT_VERSION = 'v2';
+
 // ─── Deterministic category allowlist ──────────────────────────────────────
-// Preferences that could plausibly map to a stockable consumable. Anything
-// outside this set is dropped before the prompt is built.
-const CONSUMABLE_CATEGORIES = new Set(['Food & Beverage', 'Allergies']);
+// Preferences that could plausibly map to a stockable consumable.
+// 'Allergies' category is NOT a consumable match target — handled in three
+// other places (guest profile, AI Signals banner, EMERGENCY subsection).
+// Rendering them in NOT TRACKED as well was noise. Dropped here.
+const CONSUMABLE_CATEGORIES = new Set(['Food & Beverage']);
 const CABIN_CONSUMABLE_KEYS = new Set(['Bathroom Products', 'Turn-Down Preferences']);
 
-function isConsumablePreference(p: { category?: string; key?: string }): boolean {
+function isConsumablePreference(p: { category?: string; key?: string; pref_type?: string }): boolean {
   if (!p?.category) return false;
+  // pref_type='avoid' are chef-/service-facing rules, not provisioning gaps.
+  // A "no coriander" preference is handled at cooking time, not by sourcing.
+  // Filter before any category logic so avoid rows never make the prompt
+  // or the cache key.
+  if (p.pref_type === 'avoid') return false;
   if (CONSUMABLE_CATEGORIES.has(p.category)) return true;
   if (p.category === 'Cabin' && p.key && CABIN_CONSUMABLE_KEYS.has(p.key)) return true;
   return false;
@@ -59,9 +74,10 @@ function isConsumablePreference(p: { category?: string; key?: string }): boolean
 // ─── Types ─────────────────────────────────────────────────────────────────
 
 interface Preference {
-  key:      string;
-  value:    string;
-  category: string;
+  key:        string;
+  value:      string;
+  category:   string;
+  pref_type?: string;  // 'preference' | 'avoid' | undefined — avoid rows filtered pre-prompt
 }
 
 interface InventoryItem {
@@ -115,7 +131,7 @@ async function buildCacheKey(
     .sort()
     .join('||');
   const tripPart = tripDaysRemaining == null ? 'null' : String(tripDaysRemaining);
-  return sha256Hex(`${guestId}::${prefsPart}::${invPart}::${tripPart}`);
+  return sha256Hex(`${PROMPT_VERSION}::${guestId}::${prefsPart}::${invPart}::${tripPart}`);
 }
 
 // ─── Cache read / write via Supabase REST (avoids bundling the JS client) ──
@@ -230,11 +246,37 @@ For EACH preference, determine:
 - daily_consumption_estimate is a number. Never null.
 - Skip EMERGENCY / allergy-response items — handled separately.
 
+## VOICE
+
+Write notes in chief-stew voice. You're talking to another chief stew, not writing audit logs.
+
+- Operational, not clerical. "Source before next port" not "not tracked in inventory."
+- Action-oriented. Tell the stew what to DO, not just what's missing — the section header NOT TRACKED already says what's missing. Don't repeat it.
+- Specific, not generic. "Tignanello not on board" not "wine matching not found."
+- No corporate phrasing: avoid "absent from inventory," "no direct match applicable," "provisioning note only," "inventory-tracked item," "avoidance flag." These are auditor phrases.
+- No hedging, no filler, no exclamation marks, no emoji.
+- Max 15 words. Often 8-12 is enough.
+
+Examples of voice that works:
+  "Source Tignanello before next port — no substitute stocked."
+  "Molton Brown and Redken missing. Worth sourcing if guest is a repeat."
+  "Multi-component cocktail; elderflower stocked, prosecco also needed."
+  "Cuisine spread — flag to chef for Italian/Japanese provisioning."
+  "Generic tea in stock; Yorkshire-specific not tracked."
+  "Fresh fruit and cashew nuts worth adding to next order."
+
+Examples of voice that doesn't:
+  "Tignanello not in inventory; explicit owner request to stock, act immediately."
+  "No elderflower, prosecco or Hugo Spritz components tracked in inventory."
+  "Cuisine-level preference; no direct inventory match applicable."
+  "Molton Brown and Redken not present in inventory; must source."
+  "Steak not an inventory-tracked item; provisioning note only."
+
 ## EXAMPLES
 
 Preference: "Wine | Tignanello, Super Tuscans"
 Inventory: "Tignanello 2017" (id: inv-wine-tigna)
-→ matched_item_id: "inv-wine-tigna", confidence: high, consumption: 0.5, note: "Tignanello 2017 matches the stated preference."
+→ matched_item_id: "inv-wine-tigna", confidence: high, consumption: 0.5, note: "Tignanello 2017 on board and matches the preference exactly."
 
 Preference: "Tea | Yorkshire"
 Inventory: generic "Tea" (id: inv-tea-generic)
@@ -242,7 +284,7 @@ Inventory: generic "Tea" (id: inv-tea-generic)
 
 Preference: "Bathroom Products | Molton Brown and Redken"
 Inventory: no matching items
-→ matched_item_id: null, confidence: none, consumption: 0.1, note: "Molton Brown and Redken not tracked in inventory."
+→ matched_item_id: null, confidence: none, consumption: 0.1, note: "Molton Brown and Redken missing. Worth sourcing if guest is a repeat."
 
 Output via the return_preference_links tool. No prose outside the tool call.`;
 }

@@ -39,10 +39,15 @@ import { tripDaysRemainingForGuest } from '../utils/tripDaysRemaining';
 // incoming prefs payload. Kept client-side so the hook can tell the page
 // whether the guest has any consumable prefs logged at all — matters
 // for picking the right empty-state copy ("all covered" vs "none logged").
-const CONSUMABLE_CATEGORIES   = new Set(['Food & Beverage', 'Allergies']);
+// Must stay in lockstep with the Edge Function's isConsumablePreference:
+//   - category allowlist: Food & Beverage + narrow Cabin whitelist
+//   - Allergies excluded — handled in EMERGENCY subsection + AI Signals
+//   - pref_type='avoid' excluded — chef/service-facing, not provisioning
+const CONSUMABLE_CATEGORIES   = new Set(['Food & Beverage']);
 const CABIN_CONSUMABLE_KEYS   = new Set(['Bathroom Products', 'Turn-Down Preferences']);
 function isConsumablePreference(p) {
   if (!p?.category) return false;
+  if (p?.pref_type === 'avoid') return false;
   if (CONSUMABLE_CATEGORIES.has(p.category)) return true;
   if (p.category === 'Cabin' && CABIN_CONSUMABLE_KEYS.has(p.key)) return true;
   return false;
@@ -145,7 +150,7 @@ export function usePreferenceLinks(guestId) {
           .single(),
         supabase
           .from('guest_preferences')
-          .select('category, key, value')
+          .select('category, key, value, pref_type')
           .eq('tenant_id', member.tenant_id)
           .eq('guest_id', guestId),
         supabase
@@ -201,9 +206,10 @@ export function usePreferenceLinks(guestId) {
               guest_age:             ageFromDob(guest?.date_of_birth),
               trip_days_remaining:   tripDaysRemaining,
               preferences:           prefsRows.map(p => ({
-                key:      p.key ?? '',
-                value:    p.value ?? '',
-                category: p.category ?? '',
+                key:       p.key ?? '',
+                value:     p.value ?? '',
+                category:  p.category ?? '',
+                pref_type: p.pref_type ?? null,
               })),
               inventory_items:       payloadItems,
             },
