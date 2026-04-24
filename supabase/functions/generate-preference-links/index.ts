@@ -49,7 +49,10 @@ const SERVICE_ROLE_KEY     = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 //   v1 → initial release
 //   v2 → drop Allergies from consumable categories, filter pref_type=avoid,
 //        add VOICE section for chief-stew register in note field
-const PROMPT_VERSION = 'v2';
+//   v3 → add interior_relevance tag per link (primary / shared / chef_only)
+//        so the same Edge Function can serve both interior + (future)
+//        galley dashboards from a single call
+const PROMPT_VERSION = 'v3';
 
 // ─── Deterministic category allowlist ──────────────────────────────────────
 // Preferences that could plausibly map to a stockable consumable.
@@ -104,6 +107,7 @@ interface Link {
   match_confidence:            'high' | 'medium' | 'low' | 'none';
   daily_consumption_estimate:  number;
   note:                        string;
+  interior_relevance:          'primary' | 'shared' | 'chef_only';
 }
 
 // ─── Cache key ─────────────────────────────────────────────────────────────
@@ -239,6 +243,11 @@ For EACH preference, determine:
 
 4. note — one short sentence (max 15 words) describing the linkage or gap.
 
+5. interior_relevance — tag who on the crew actually stocks and handles
+   this item on the boat. One of: "primary" / "shared" / "chef_only".
+   See the INTERIOR RELEVANCE section below for definitions and when
+   to pick each.
+
 ## RULES
 
 - One entry per input preference. Don't skip, don't duplicate.
@@ -272,19 +281,48 @@ Examples of voice that doesn't:
   "Molton Brown and Redken not present in inventory; must source."
   "Steak not an inventory-tracked item; provisioning note only."
 
+## INTERIOR RELEVANCE
+
+For each preference, tag who actually stocks and handles it on the boat:
+
+- "primary" — interior (stewardess) directly stocks, prepares, or serves this.
+  Examples: wines, cocktails, spirits, teas, coffees, packaged snacks,
+  toiletries, cabin consumables.
+
+- "shared" — either interior or chef might prepare this; both departments
+  could be responsible depending on crew setup.
+  Examples: smoothies, fresh juices, cut fruit platters, toasties,
+  simple breakfast items.
+
+- "chef_only" — chef fresh-makes from pantry staples; interior doesn't
+  touch this as a discrete item.
+  Examples: plated meals (sushi, tiramisu, steak preparations), specific
+  cuisines (Italian, Japanese), baked goods, hot-line dishes.
+
+When in doubt between "primary" and "shared", pick "shared" —
+over-including is safer than under-including for either department's view.
+
 ## EXAMPLES
 
 Preference: "Wine | Tignanello, Super Tuscans"
 Inventory: "Tignanello 2017" (id: inv-wine-tigna)
-→ matched_item_id: "inv-wine-tigna", confidence: high, consumption: 0.5, note: "Tignanello 2017 on board and matches the preference exactly."
+→ matched_item_id: "inv-wine-tigna", confidence: high, consumption: 0.5, interior_relevance: "primary", note: "Tignanello 2017 on board and matches the preference exactly."
 
 Preference: "Tea | Yorkshire"
 Inventory: generic "Tea" (id: inv-tea-generic)
-→ matched_item_id: "inv-tea-generic", confidence: medium, consumption: 2, note: "Generic tea in stock; Yorkshire-specific not tracked."
+→ matched_item_id: "inv-tea-generic", confidence: medium, consumption: 2, interior_relevance: "primary", note: "Generic tea in stock; Yorkshire-specific not tracked."
 
 Preference: "Bathroom Products | Molton Brown and Redken"
 Inventory: no matching items
-→ matched_item_id: null, confidence: none, consumption: 0.1, note: "Molton Brown and Redken missing. Worth sourcing if guest is a repeat."
+→ matched_item_id: null, confidence: none, consumption: 0.1, interior_relevance: "primary", note: "Molton Brown and Redken missing. Worth sourcing if guest is a repeat."
+
+Preference: "Favourite Meals | Sushi"
+Inventory: "Sushi-grade salmon" (id: inv-salmon-sushi)
+→ matched_item_id: "inv-salmon-sushi", confidence: low, consumption: 0, interior_relevance: "chef_only", note: "Sushi-grade salmon in stock; chef handles prep and plating."
+
+Preference: "Favourite Snacks | Fresh fruit, cashew nuts"
+Inventory: "Fresh fruit basket" (id: inv-fruit-basket), no cashews
+→ matched_item_id: "inv-fruit-basket", confidence: medium, consumption: 0.3, interior_relevance: "shared", note: "Fresh fruit on board; cashews missing — source for next order."
 
 Output via the return_preference_links tool. No prose outside the tool call.`;
 }
@@ -308,6 +346,11 @@ const RETURN_LINKS_TOOL = {
             match_confidence:           { type: 'string', enum: ['high', 'medium', 'low', 'none'] },
             daily_consumption_estimate: { type: 'number' },
             note:                       { type: 'string', maxLength: 120 },
+            interior_relevance: {
+              type: 'string',
+              enum: ['primary', 'shared', 'chef_only'],
+              description: "Who on the crew stocks and handles this item. primary=interior only, shared=interior OR chef, chef_only=chef fresh-makes (no interior involvement as a discrete item).",
+            },
           },
           required: [
             'preference_key',
@@ -316,6 +359,7 @@ const RETURN_LINKS_TOOL = {
             'match_confidence',
             'daily_consumption_estimate',
             'note',
+            'interior_relevance',
           ],
         },
       },
@@ -430,6 +474,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // have kept the IDs honest, even under tool-use.
     const validIds = new Set((body.inventory_items ?? []).map(i => i.id));
 
+    const VALID_RELEVANCE = new Set<string>(['primary', 'shared', 'chef_only']);
+
     const cleaned: Link[] = raw
       .filter(l =>
         l &&
@@ -446,6 +492,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
         match_confidence:           l.match_confidence,
         daily_consumption_estimate: Math.max(0, l.daily_consumption_estimate),
         note:                       l.note.slice(0, 120),
+        // Default to 'shared' when missing/invalid — matches the prompt
+        // "when in doubt, pick shared" rule. Over-including is safer than
+        // under-including for either department's view.
+        interior_relevance:         VALID_RELEVANCE.has(l.interior_relevance) ? l.interior_relevance : 'shared',
       }));
 
     await writeCache(cacheKey, body.guest_id, cleaned);
