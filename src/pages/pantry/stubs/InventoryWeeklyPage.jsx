@@ -98,13 +98,14 @@ function ItemRow({ item, onClick, selected }) {
   );
 }
 
-// AT RISK rows: preference label left (key-prefixed when ambiguous);
-// qty + reason right. Terracotta count when below par / stocked out;
-// neutral when only trip-need risk (still important but less urgent
-// than below-par).
+// AT RISK rows: matched inventory item name on the left (qty/par on the
+// right refer to this item, so the left matches — stew reading "Yorkshire
+// Gold Tea — 2 / par 8" is walking the storeroom looking for a box
+// labelled Yorkshire Gold). Terracotta count when below par / stocked
+// out; neutral when only trip-need risk.
 function AtRiskRow({ row, onClick, selected }) {
   const { link, item, reason } = row;
-  const label = stripSentinels(formatPreferenceLabel(link)) || '';
+  const label = stripSentinels(item?.name) || formatPreferenceLabel(link) || '';
   const qty = item?.total_qty ?? 0;
   const par = item?.par_level ?? null;
   const belowPar = par != null && qty < par;
