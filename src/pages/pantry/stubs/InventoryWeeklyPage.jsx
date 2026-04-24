@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RefreshCw } from 'lucide-react';
 import Header from '../../../components/navigation/Header';
@@ -6,40 +6,52 @@ import StandbyLayoutHeader from '../widgets/StandbyLayoutHeader';
 import { useGuests } from '../hooks/useGuests';
 import { useInventoryThisWeek } from '../hooks/useInventoryThisWeek';
 import { useInventoryInsights } from '../hooks/useInventoryInsights';
-import { usePreferenceLinks } from '../hooks/usePreferenceLinks';
+import { useInventoryConsumables } from '../hooks/useInventoryConsumables';
 import { stripSentinels } from '../utils/emergencyDevices';
 import { formatDistanceToNow } from 'date-fns';
 import '../pantry.css';
 
-// Preference keys whose value is ambiguous standalone ("Yorkshire",
-// "Iced americano", "Sushi") and need the key prefixed for clarity in
-// the left column of AT RISK / NOT TRACKED rows. Specific items
-// (Tignanello, Molton Brown, Hugo Spritz) render clearly on their own
-// and don't get prefixed.
-const KEYS_THAT_NEED_PREFIX = new Set([
-  'Tea',
-  'Coffee',
-  'Favourite Meals',
-  'Favourite Cuisines',
-  'Dessert Preferences',
-  'Evening Drink',
-  'Morning Drink',
-  'Cocktail',
+// Preference keys whose value is ambiguous standalone ("Yorkshire Gold",
+// "Iced americano", "Sushi") get the key prefixed for the guest-attribution
+// line beneath each item row. Values are the short label to display —
+// "Favourite Meals" reads as "Meals · Sushi", not "Favourite Meals · Sushi".
+// Specific items (Tignanello, Molton Brown) render clearly on their own
+// and don't appear here.
+const KEYS_THAT_NEED_PREFIX = new Map([
+  ['Tea',                 'Tea'],
+  ['Coffee',              'Coffee'],
+  ['Favourite Meals',     'Meals'],
+  ['Favourite Cuisines',  'Cuisines'],
+  ['Favourite Snacks',    'Snacks'],
+  ['Snacks to Pre-Order', 'Snacks'],
+  ['Dessert Preferences', 'Dessert'],
+  ['Evening Drink',       'Evening drink'],
+  ['Morning Drink',       'Morning drink'],
+  ['Cocktail',            'Cocktail'],
 ]);
 
-function formatPreferenceLabel(link) {
-  if (!link) return '';
-  const key   = link.preference_key   ?? '';
-  const value = link.preference_value ?? '';
+// Compose a per-guest preference label for the attribution line. Used in
+// "for John (Tea · Yorkshire Gold), Jane (Coffee · Iced americano)".
+function formatPreferenceLabel(key, value) {
+  if (!value) return key ?? '';
   if (KEYS_THAT_NEED_PREFIX.has(key)) {
-    return `${key} · ${value}`;
+    return `${KEYS_THAT_NEED_PREFIX.get(key)} · ${value}`;
   }
-  return value || key;
+  return value;
 }
 
-// Citation slugs come from the inventory-insights edge function as
-// lowercased machine strings (susan, oat_milk, tignanello_2017). Map
-// back to guest / item rows for tap-through.
+// "John, Jane and Susan" / "John and Jane" / "John". Keeps the attribution
+// line readable when 3+ guests contribute.
+function formatNameList(names) {
+  const clean = names.filter(Boolean);
+  if (clean.length === 0) return '';
+  if (clean.length === 1) return clean[0];
+  if (clean.length === 2) return `${clean[0]} and ${clean[1]}`;
+  return `${clean.slice(0, -1).join(', ')} and ${clean[clean.length - 1]}`;
+}
+
+// Citations from the AI-insights edge function — resolve slugs to guest
+// or item rows for tap-through on the insights banner.
 function slugify(s) {
   return String(s ?? '')
     .toLowerCase()
@@ -72,171 +84,118 @@ function citationLabel(slug, resolved) {
   return String(slug).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
-// ─── Small row components ───────────────────────────────────────────────────
+// ─── Row components ─────────────────────────────────────────────────────────
 
-// Emergency rows + anything else where we just render "name — qty/par".
-function ItemRow({ item, onClick, selected }) {
-  const name = stripSentinels(item?.name) || '';
-  const unit = stripSentinels(item?.unit) || '';
-  const qty = item?.total_qty ?? 0;
-  const par = item?.par_level ?? null;
-  return (
-    <div
-      className={`p-stock-row p-consumable-row${selected ? ' selected' : ''}`}
-      role="button"
-      tabIndex={0}
-      onClick={() => onClick?.(item)}
-      onKeyDown={e => e.key === 'Enter' && onClick?.(item)}
-      aria-label={`${name}: ${qty} ${unit}`}
-    >
-      <span className="p-stock-name">{name}</span>
-      <div className="p-consumable-right">
-        <span className="p-stock-count">{qty}</span>
-        {par != null && <span className="p-stock-unit">/ par {par}</span>}
-      </div>
-    </div>
-  );
-}
-
-// AT RISK rows: matched inventory item name on the left (qty/par on the
-// right refer to this item, so the left matches — stew reading "Yorkshire
-// Gold Tea — 2 / par 8" is walking the storeroom looking for a box
-// labelled Yorkshire Gold). Terracotta count when below par / stocked
-// out; neutral when only trip-need risk.
-function AtRiskRow({ row, onClick, selected }) {
-  const { link, item, reason } = row;
-  const label = stripSentinels(item?.name) || formatPreferenceLabel(link) || '';
-  const qty = item?.total_qty ?? 0;
-  const par = item?.par_level ?? null;
+// AT RISK row. Item name + qty/par on the right, guest attribution line
+// beneath — "for John (Tea · Yorkshire Gold), Jane (Tea · Yorkshire Gold)".
+// Terracotta count when below par. Clickable → selects the item.
+function InventoryRow({ row, onClick, selected }) {
+  const name = stripSentinels(row.item?.name) || '';
+  const unit = stripSentinels(row.item?.unit) || '';
+  const qty  = row.item?.qty ?? 0;
+  const par  = row.item?.par ?? null;
   const belowPar = par != null && qty < par;
+
+  const attribution = row.guests.map(g => {
+    const label = formatPreferenceLabel(g.original_preference_key, '');
+    return { first_name: g.first_name, label };
+  });
+
   return (
     <div
-      className={`p-stock-row p-consumable-row${selected ? ' selected' : ''}`}
+      className={`p-stock-row p-consumable-row p-consumable-inventory${selected ? ' selected' : ''}`}
       role="button"
       tabIndex={0}
-      onClick={() => onClick?.(item)}
-      onKeyDown={e => e.key === 'Enter' && onClick?.(item)}
-      aria-label={`${label}: ${qty}, ${reason}`}
+      onClick={() => onClick?.(row.item)}
+      onKeyDown={e => e.key === 'Enter' && onClick?.(row.item)}
+      aria-label={`${name}: ${qty} ${unit}, ${row.reason}`}
     >
-      <span className="p-stock-name">{label}</span>
-      <div className="p-consumable-right">
-        <span className={`p-stock-count${belowPar ? ' critical' : ''}`}>{qty}</span>
-        <span className="p-consumable-reason">· {reason}</span>
+      <div className="p-consumable-main">
+        <span className="p-stock-name">{name}</span>
+        <div className="p-consumable-right">
+          <span className={`p-stock-count${belowPar ? ' critical' : ''}`}>{qty}</span>
+          {par != null && <span className="p-stock-unit">/ par {par}</span>}
+          <span className="p-consumable-reason">· {row.reason}</span>
+        </div>
+      </div>
+      <div className="p-consumable-attribution">
+        for{' '}
+        {attribution.map((a, i) => (
+          <span key={i}>
+            {a.first_name}
+            {a.label && <span className="p-consumable-attr-label"> ({a.label})</span>}
+            {i < attribution.length - 1 && (i === attribution.length - 2 ? ' and ' : ', ')}
+          </span>
+        ))}
       </div>
     </div>
   );
 }
 
-// NOT TRACKED rows: preference label left (key-prefixed when ambiguous),
-// LLM note on the right in muted italic.
-function NotTrackedRow({ row }) {
-  const { link, reason } = row;
-  const label = stripSentinels(formatPreferenceLabel(link)) || 'Preference';
+// NOT TRACKED row. Preference summary on the left, model note italic on
+// the right. Attribution line beneath listing contributing guests.
+function GapRow({ row }) {
+  const label = stripSentinels(row.preference_summary) || 'Preference';
+  const names = row.guests.map(g => g.first_name);
   return (
-    <div className="p-stock-row p-consumable-row p-consumable-nontrack">
-      <span className="p-stock-name">{label}</span>
-      <span className="p-consumable-nontrack-reason">{reason}</span>
+    <div className="p-stock-row p-consumable-row p-consumable-gap">
+      <div className="p-consumable-main">
+        <span className="p-stock-name">{label}</span>
+        {row.model_note && (
+          <span className="p-consumable-nontrack-reason">{row.model_note}</span>
+        )}
+      </div>
+      <div className="p-consumable-attribution">for {formatNameList(names)}</div>
     </div>
   );
 }
 
-// Skeleton rows while the per-guest hook is in flight.
-function SkeletonRows({ count = 2 }) {
+// EMERGENCY row. One row per device, aggregating guests needing that device.
+// "Jext 0.3mg — 1 / par 2 · for John (nut allergy), Jane (peanut allergy)".
+function EmergencyGroupRow({ group, onClick, selected }) {
+  const name = stripSentinels(group.device?.name) || '';
+  const unit = stripSentinels(group.device?.unit) || '';
+  const qty  = group.device?.total_qty ?? 0;
+  const par  = group.device?.par_level ?? null;
+  const belowPar = par != null && qty < par;
+
+  return (
+    <div
+      className={`p-stock-row p-consumable-row p-consumable-emergency${selected ? ' selected' : ''}`}
+      role="button"
+      tabIndex={0}
+      onClick={() => onClick?.(group.device)}
+      onKeyDown={e => e.key === 'Enter' && onClick?.(group.device)}
+      aria-label={`${name}: ${qty} ${unit}, ${group.guests.length} guest${group.guests.length === 1 ? '' : 's'}`}
+    >
+      <div className="p-consumable-main">
+        <span className="p-stock-name">{name}</span>
+        <div className="p-consumable-right">
+          <span className={`p-stock-count${belowPar ? ' critical' : ''}`}>{qty}</span>
+          {par != null && <span className="p-stock-unit">/ par {par}</span>}
+        </div>
+      </div>
+      <div className="p-consumable-attribution">
+        for{' '}
+        {group.guests.map((g, i) => (
+          <span key={`${g.guest_id}-${g.condition}`}>
+            {g.first_name}
+            <span className="p-consumable-attr-label"> ({g.condition_label})</span>
+            {i < group.guests.length - 1 && (i === group.guests.length - 2 ? ' and ' : ', ')}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Skeleton rows while the hook's in flight.
+function SkeletonRows({ count = 3 }) {
   return (
     <div className="p-consumable-skeleton-wrap" aria-hidden="true">
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="p-consumable-skeleton" />
       ))}
-    </div>
-  );
-}
-
-// ─── GuestSection — calls the per-guest hook ───────────────────────────────
-
-function GuestSection({ guest, onOpenGuest, onOpenItem, selectedItemId }) {
-  const {
-    atRisk, notTracked, emergency,
-    hasConsumablePreferences, loading, error, refetch,
-  } = usePreferenceLinks(guest.id);
-
-  const roleLabel = [guest.guest_type].filter(Boolean).join(' · ');
-  const hasAnyRow = atRisk.length > 0 || notTracked.length > 0 || emergency.length > 0;
-
-  return (
-    <div className="p-consumable-guest">
-      <div className="p-consumable-guest-head">
-        <button
-          type="button"
-          className="p-consumable-guest-name"
-          onClick={() => onOpenGuest(guest)}
-          aria-label={`Open ${guest.first_name}'s drawer`}
-          title={`Open ${guest.first_name}'s drawer`}
-        >
-          {guest.first_name} <em>{guest.last_name ?? ''}</em>
-        </button>
-        {roleLabel && <span className="p-consumable-guest-role">· {roleLabel}</span>}
-      </div>
-
-      {loading && <SkeletonRows />}
-
-      {!loading && error && (
-        <p className="p-consumable-empty-inline">
-          Couldn't analyse {guest.first_name}'s preferences right now.{' '}
-          <button type="button" className="p-card-link" onClick={refetch}>Retry</button>
-        </p>
-      )}
-
-      {!loading && (
-        <>
-          {atRisk.length > 0 && (
-            <div className="p-consumable-sub">
-              <div className="p-consumable-subhead">At risk</div>
-              {atRisk.map((row, i) => (
-                <AtRiskRow
-                  key={`ar-${guest.id}-${row.item?.id ?? i}`}
-                  row={row}
-                  onClick={onOpenItem}
-                  selected={selectedItemId === row.item?.id}
-                />
-              ))}
-            </div>
-          )}
-
-          {notTracked.length > 0 && (
-            <div className="p-consumable-sub">
-              <div className="p-consumable-subhead">Not tracked</div>
-              {notTracked.map((row, i) => (
-                <NotTrackedRow
-                  key={`nt-${guest.id}-${row.link?.preference_key}-${i}`}
-                  row={row}
-                />
-              ))}
-            </div>
-          )}
-
-          {emergency.length > 0 && (
-            <div className="p-consumable-sub">
-              <div className="p-consumable-subhead">Emergency</div>
-              {emergency.map(item => (
-                <ItemRow
-                  key={`em-${guest.id}-${item.id}`}
-                  item={item}
-                  onClick={onOpenItem}
-                  selected={selectedItemId === item.id}
-                />
-              ))}
-            </div>
-          )}
-
-          {!hasAnyRow && !error && (
-            <p className="p-consumable-empty-inline">
-              {hasConsumablePreferences
-                ? `All ${guest.first_name}'s preferences covered for this trip.`
-                : `No tracked consumable preferences for ${guest.first_name}.`}
-            </p>
-          )}
-        </>
-      )}
     </div>
   );
 }
@@ -324,6 +283,9 @@ export default function InventoryWeeklyPage() {
   const { items, loading: itemsLoading, error: itemsError } = useInventoryThisWeek({ limit: null });
   const { insights, loading, error, fetchedAt, refetch: refetchInsights } = useInventoryInsights({ guests, items });
 
+  // Item-first hook: one call for the whole page, cross-guest aggregated.
+  const consumables = useInventoryConsumables();
+
   const [selectedItemId, setSelectedItemId] = useState(null);
 
   useEffect(() => {
@@ -338,6 +300,34 @@ export default function InventoryWeeklyPage() {
   const handleOpenItem = (item) => {
     setSelectedItemId(item?.id ?? null);
   };
+
+  // Split the item-first list into the two subsections.
+  const { atRisk, notTracked } = useMemo(() => {
+    const ar = [];
+    const nt = [];
+    for (const row of consumables.items ?? []) {
+      if (row.type === 'inventory') ar.push(row);
+      else if (row.type === 'gap')  nt.push(row);
+    }
+    return { atRisk: ar, notTracked: nt };
+  }, [consumables.items]);
+
+  // Group emergency responses by device id so "Jext 0.3mg" appears once
+  // even when John, Jane, and the child all trigger it.
+  const emergencyGroups = useMemo(() => {
+    const map = new Map();
+    for (const resp of consumables.emergency ?? []) {
+      const id = resp.device?.id;
+      if (!id) continue;
+      if (!map.has(id)) {
+        map.set(id, { device: resp.device, guests: [] });
+      }
+      map.get(id).guests.push(resp);
+    }
+    return Array.from(map.values());
+  }, [consumables.emergency]);
+
+  const hasAny = atRisk.length > 0 || notTracked.length > 0 || emergencyGroups.length > 0;
 
   return (
     <>
@@ -374,37 +364,81 @@ export default function InventoryWeeklyPage() {
           )}
         </div>
 
-        {/* Guest-specific consumables */}
+        {/* Item-first consumables */}
         <div className="p-card top-navy">
           <div className="p-card-head">
             <div>
-              <div className="p-caps">Consumables · by guest</div>
-              <div className="p-card-headline">What each guest <em>needs</em>.</div>
+              <div className="p-caps">Consumables · this trip</div>
+              <div className="p-card-headline">What to <em>source or reorder</em>.</div>
             </div>
+            <button
+              type="button"
+              className="p-card-link"
+              onClick={consumables.refetch}
+              disabled={consumables.loading}
+              aria-label="Re-run preference analysis"
+            >
+              <RefreshCw size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+              {consumables.loading ? 'Thinking…' : 'Refresh'}
+            </button>
           </div>
 
-          {itemsLoading && (
-            <div style={{ color: 'var(--ink-tertiary)', fontSize: 13 }}>Loading…</div>
-          )}
           {itemsError && (
-            <div style={{ color: 'var(--accent)', fontSize: 12 }}>Failed to load: {itemsError}</div>
+            <div style={{ color: 'var(--accent)', fontSize: 12 }}>
+              Failed to load inventory: {itemsError}
+            </div>
           )}
 
-          {!itemsLoading && !itemsError && (guests ?? []).length === 0 && (
-            <p className="p-consumable-empty">
-              No active charter guests. Add guests to the trip to see their tracked consumables here.
+          {consumables.loading && <SkeletonRows count={4} />}
+
+          {!consumables.loading && consumables.error && (
+            <p className="p-insights-error">
+              Partial results — the preference analyser failed for one or more guests.
             </p>
           )}
 
-          {!itemsLoading && !itemsError && (guests ?? []).map(guest => (
-            <GuestSection
-              key={guest.id}
-              guest={guest}
-              onOpenGuest={handleOpenGuest}
-              onOpenItem={handleOpenItem}
-              selectedItemId={selectedItemId}
-            />
-          ))}
+          {!consumables.loading && !hasAny && !consumables.error && (
+            <p className="p-consumable-empty">
+              All interior provisioning covered for this trip.
+            </p>
+          )}
+
+          {!consumables.loading && atRisk.length > 0 && (
+            <div className="p-consumable-sub">
+              <div className="p-caps p-consumable-subhead">At risk — source or reorder</div>
+              {atRisk.map(row => (
+                <InventoryRow
+                  key={`ar-${row.item.id}`}
+                  row={row}
+                  onClick={handleOpenItem}
+                  selected={selectedItemId === row.item.id}
+                />
+              ))}
+            </div>
+          )}
+
+          {!consumables.loading && notTracked.length > 0 && (
+            <div className="p-consumable-sub">
+              <div className="p-caps p-consumable-subhead">Not tracked — source before service</div>
+              {notTracked.map((row, i) => (
+                <GapRow key={`nt-${slugify(row.preference_summary)}-${i}`} row={row} />
+              ))}
+            </div>
+          )}
+
+          {!consumables.loading && emergencyGroups.length > 0 && (
+            <div className="p-consumable-sub">
+              <div className="p-caps p-consumable-subhead">Emergency</div>
+              {emergencyGroups.map(group => (
+                <EmergencyGroupRow
+                  key={`em-${group.device.id}`}
+                  group={group}
+                  onClick={handleOpenItem}
+                  selected={selectedItemId === group.device.id}
+                />
+              ))}
+            </div>
+          )}
 
           <div className="p-consumable-footer">
             <button
