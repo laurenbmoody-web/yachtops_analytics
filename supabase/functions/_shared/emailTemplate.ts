@@ -12,12 +12,13 @@
 
 export type EmailTemplateParams = {
   preheader: string;        // Inbox preview text (40-90 chars).
-  headline: string;         // Main Georgia serif headline.
+  headline: string;         // Main Georgia serif headline. May contain {emphasis} token.
   intro: string;            // One-sentence intro below headline.
   ctaLabel: string;         // Primary button text.
   ctaUrl: string;           // Primary button destination.
   secondaryText?: string;   // Optional small paragraph below the button.
   footerNote?: string;      // Optional small-print line in the footer.
+  headlineEmphasis?: string; // Optional burnt-orange italic span substituted into {emphasis}.
 };
 
 // Brand tokens — mirror the /verify-alias page and marketing site.
@@ -56,10 +57,25 @@ export function renderCargoEmail(params: EmailTemplateParams): string {
     ctaUrl,
     secondaryText,
     footerNote,
+    headlineEmphasis,
   } = params;
 
   const safePreheader = escapeHtml(preheader);
-  const safeHeadline  = escapeHtml(headline);
+  // Headline: escape first, then substitute the {emphasis} token with a safely-
+  // escaped burnt-orange <em> span. If headlineEmphasis is absent, {emphasis}
+  // is stripped (shouldn't appear) — callers that don't use the feature simply
+  // provide a headline without the token.
+  const escapedHeadline = escapeHtml(headline);
+  const safeHeadline = headlineEmphasis
+    ? escapedHeadline.replace(
+        /\{emphasis\}/g,
+        `<em style="font-style: italic; color: ${BURNT_ORG}; font-weight: inherit;">${escapeHtml(headlineEmphasis)}</em>`
+      )
+    : escapedHeadline;
+  // Plain-text flavour for the <title> tag (no markup allowed inside <title>).
+  const titleHeadline = headlineEmphasis
+    ? escapedHeadline.replace(/\{emphasis\}/g, escapeHtml(headlineEmphasis))
+    : escapedHeadline;
   const safeIntro     = escapeHtml(intro);
   const safeCtaLabel  = escapeHtml(ctaLabel);
   const safeCtaUrl    = escapeHtml(ctaUrl);
@@ -91,10 +107,18 @@ export function renderCargoEmail(params: EmailTemplateParams): string {
   <meta name="x-apple-disable-message-reformatting" />
   <meta name="color-scheme" content="light only" />
   <meta name="supported-color-schemes" content="light only" />
-  <title>${safeHeadline}</title>
+  <title>${titleHeadline}</title>
   <!--[if mso]>
     <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
   <![endif]-->
+  <style type="text/css">
+    @media only screen and (max-width: 600px) {
+      .cargo-card {
+        width: 100% !important;
+        padding: 32px 24px !important;
+      }
+    }
+  </style>
 </head>
 <body style="margin:0;padding:0;background:${CREAM_BG};-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:none;">
 
@@ -121,7 +145,7 @@ export function renderCargoEmail(params: EmailTemplateParams): string {
         </table>
 
         <!-- Content card -->
-        <table role="presentation" width="560" border="0" cellpadding="0" cellspacing="0" style="width:560px;max-width:560px;background:${WHITE};border:1px solid ${BORDER};border-radius:4px;">
+        <table role="presentation" class="cargo-card" width="560" border="0" cellpadding="0" cellspacing="0" style="width:560px;max-width:560px;background:${WHITE};border:1px solid ${BORDER};border-radius:4px;">
           <tr>
             <td style="padding:48px 48px 48px 48px;">
 
@@ -129,7 +153,7 @@ export function renderCargoEmail(params: EmailTemplateParams): string {
               <table role="presentation" border="0" cellpadding="0" cellspacing="0">
                 <tr>
                   <td style="font-family:${SERIF};font-size:32px;font-style:italic;color:${NAVY};line-height:1;">
-                    <img src="${WORDMARK_URL}" width="96" alt="cargo" style="display:block;width:96px;height:auto;border:0;outline:none;text-decoration:none;" />
+                    <img src="${WORDMARK_URL}" width="144" alt="cargo" style="display:block;width:144px;height:auto;border:0;outline:none;text-decoration:none;" />
                   </td>
                 </tr>
               </table>
