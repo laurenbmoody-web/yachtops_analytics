@@ -1,12 +1,14 @@
 // Supabase Edge Function: sendAliasVerification
 //
-// Sends a plain verification email via Resend when a supplier adds a new
+// Sends a branded verification email via Resend when a supplier adds a new
 // email alias to their account. The link points at /verify-alias/<token>,
 // which calls the verify_supplier_email_alias RPC on mount.
 //
 // Env vars required:
 //   RESEND_API_KEY
 //   SITE_URL  (optional — defaults to https://cargotechnology.netlify.app)
+
+import { renderCargoEmail, renderCargoEmailText } from '../_shared/emailTemplate.ts';
 
 declare const Deno: {
   serve: (handler: (req: Request) => Promise<Response>) => void;
@@ -21,14 +23,6 @@ const corsHeaders = {
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') || '';
 const SITE_URL = Deno.env.get('SITE_URL') || 'https://cargotechnology.netlify.app';
-
-function buildPlainText(verifyUrl: string): string {
-  return `Click the link below to verify this email address:
-
-${verifyUrl}
-
-If you didn't request this, you can ignore this email — nothing will change.`;
-}
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -62,6 +56,20 @@ Deno.serve(async (req: Request) => {
 
   const verifyUrl = `${SITE_URL}/verify-alias/${body.token}`;
 
+  const emailParams = {
+    preheader: 'Click the link to confirm this email for your Cargo supplier portal.',
+    headline: 'Verify your email address',
+    intro:
+      "We've added this email to your Cargo supplier portal. Click below to confirm it belongs to you — this lets orders sent to this address appear in your portal.",
+    ctaLabel: 'Verify email address',
+    ctaUrl: verifyUrl,
+    secondaryText: `Or paste this link into your browser: ${verifyUrl}`,
+    footerNote: "If you didn't request this, you can ignore this email — nothing will change.",
+  };
+
+  const html = renderCargoEmail(emailParams);
+  const text = renderCargoEmailText(emailParams);
+
   console.log('[sendAliasVerification] Sending to:', body.email, '| aliasId:', body.aliasId);
 
   const resendRes = await fetch('https://api.resend.com/emails', {
@@ -74,7 +82,8 @@ Deno.serve(async (req: Request) => {
       from:    'Cargo Suppliers <suppliers@cargotechnology.co.uk>',
       to:      [body.email],
       subject: 'Verify your email for Cargo Suppliers',
-      text:    buildPlainText(verifyUrl),
+      html,
+      text,
     }),
   });
 
