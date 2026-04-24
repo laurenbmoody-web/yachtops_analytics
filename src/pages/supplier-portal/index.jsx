@@ -5,6 +5,7 @@ import {
   ChevronDown, BarChart2,
 } from 'lucide-react';
 import { useSupplier } from '../../contexts/SupplierContext';
+import { hasClientPermission } from '../../contexts/SupplierPermissionContext';
 import './supplier-portal.css';
 
 import SupplierOverview    from './views/SupplierOverview';
@@ -18,20 +19,22 @@ import SupplierMessages    from './views/SupplierMessages';
 import SupplierReturns     from './views/SupplierReturns';
 import SupplierSettings    from './views/SupplierSettings';
 
+// `requires` gates visibility via hasClientPermission(tier, action).
+// Items without `requires` are visible to all active team members.
 const NAV = [
   { group: 'WORK', items: [
     { id: 'dashboard',  label: 'Overview',        icon: BarChart2 },
-    { id: 'orders',     label: 'Orders',          icon: Inbox },
-    { id: 'deliveries', label: 'Deliveries',      icon: Truck },
-    { id: 'invoices',   label: 'Invoices',        icon: FileText },
+    { id: 'orders',     label: 'Orders',          icon: Inbox,        requires: 'orders:view' },
+    { id: 'deliveries', label: 'Deliveries',      icon: Truck,        requires: 'deliveries:view' },
+    { id: 'invoices',   label: 'Invoices',        icon: FileText,     requires: 'invoices:view' },
   ]},
   { group: 'CATALOGUE', items: [
-    { id: 'catalogue',  label: 'Products',        icon: Package },
+    { id: 'catalogue',  label: 'Products',        icon: Package,      requires: 'catalogue:view' },
     { id: 'pricelists', label: 'Price lists',     icon: List, disabled: true },
   ]},
   { group: 'RELATIONSHIPS', items: [
-    { id: 'clients',    label: 'Yacht clients',   icon: Ship },
-    { id: 'messages',   label: 'Messages',        icon: MessageSquare },
+    { id: 'clients',    label: 'Yacht clients',   icon: Ship,         requires: 'clients:view' },
+    { id: 'messages',   label: 'Messages',        icon: MessageSquare,requires: 'messages:view' },
   ]},
   { group: '', items: [
     { id: 'returns',    label: 'Returns & Issues', icon: RotateCcw },
@@ -48,7 +51,8 @@ const initialsFrom = (name) => {
 };
 
 const SupplierPortal = () => {
-  const { supplier, loading: supplierLoading, error: supplierError } = useSupplier();
+  const { supplier, contact, loading: supplierLoading, error: supplierError } = useSupplier();
+  const tier = contact?.permission_tier ?? null;
 
   const [view, setView]                   = useState('dashboard');
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -129,7 +133,9 @@ const SupplierPortal = () => {
         {NAV.map((section, si) => (
           <div key={si} className="sp-nav-section">
             {section.group && <div className="sp-nav-label">{section.group}</div>}
-            {section.items.map(item => {
+            {section.items
+              .filter(item => !item.requires || hasClientPermission(tier, item.requires))
+              .map(item => {
               const Icon = item.icon;
               const isActive = view === item.id || (view === 'detail' && item.id === 'orders');
               return (

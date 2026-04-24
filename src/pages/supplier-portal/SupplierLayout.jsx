@@ -5,36 +5,50 @@ import {
   Users, MessageSquare, RotateCcw, Bell, Search,
 } from 'lucide-react';
 import SupplierAvatarMenu from './components/SupplierAvatarMenu';
+import { useTier, hasClientPermission } from '../../contexts/SupplierPermissionContext';
 import './supplier-portal.css';
 
+// `requires` gates each nav item via hasClientPermission. Items without
+// `requires` are visible to every active team member (Overview, Returns,
+// Price-lists placeholder).
 const NAV_GROUPS = [
   {
     label: 'Work',
     items: [
       { to: '/supplier/overview',   icon: LayoutDashboard, label: 'Overview' },
-      { to: '/supplier/orders',     icon: ShoppingBag,     label: 'Orders' },
-      { to: '/supplier/deliveries', icon: Truck,           label: 'Deliveries' },
-      { to: '/supplier/invoices',   icon: FileText,        label: 'Invoices' },
+      { to: '/supplier/orders',     icon: ShoppingBag,     label: 'Orders',    requires: 'orders:view' },
+      { to: '/supplier/deliveries', icon: Truck,           label: 'Deliveries', requires: 'deliveries:view' },
+      { to: '/supplier/invoices',   icon: FileText,        label: 'Invoices',  requires: 'invoices:view' },
     ],
   },
   {
     label: 'Catalogue',
     items: [
-      { to: '/supplier/products',    icon: BookOpen, label: 'Products' },
+      { to: '/supplier/products',    icon: BookOpen, label: 'Products',    requires: 'catalogue:view' },
       { to: '/supplier/price-lists', icon: Tag,      label: 'Price lists' },
     ],
   },
   {
     label: 'Relationships',
     items: [
-      { to: '/supplier/clients',  icon: Users,         label: 'Yacht clients' },
-      { to: '/supplier/messages', icon: MessageSquare, label: 'Messages' },
+      { to: '/supplier/clients',  icon: Users,         label: 'Yacht clients', requires: 'clients:view' },
+      { to: '/supplier/messages', icon: MessageSquare, label: 'Messages',      requires: 'messages:view' },
       { to: '/supplier/returns',  icon: RotateCcw,     label: 'Returns' },
     ],
   },
 ];
 
-const SupplierLayout = () => (
+const SupplierLayout = () => {
+  const { tier } = useTier();
+
+  const visibleGroups = NAV_GROUPS
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !item.requires || hasClientPermission(tier, item.requires)),
+    }))
+    .filter((group) => group.items.length > 0);
+
+  return (
   <div id="sp-root">
     <div className="sp-shell">
       {/* Sidebar */}
@@ -44,7 +58,7 @@ const SupplierLayout = () => (
         </div>
 
         <nav className="sp-sidebar-nav">
-          {NAV_GROUPS.map((group) => (
+          {visibleGroups.map((group) => (
             <div key={group.label} className="sp-nav-group">
               <div className="sp-nav-group-label">{group.label}</div>
               {group.items.map(({ to, icon: Icon, label }) => (
@@ -91,6 +105,7 @@ const SupplierLayout = () => (
       </div>
     </div>
   </div>
-);
+  );
+};
 
 export default SupplierLayout;
