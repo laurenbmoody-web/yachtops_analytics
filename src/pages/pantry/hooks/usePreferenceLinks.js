@@ -35,6 +35,19 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { emergencyDevicesForGuest } from '../utils/emergencyDevices';
 import { tripDaysRemainingForGuest } from '../utils/tripDaysRemaining';
 
+// Mirrors the deterministic allowlist the Edge Function applies to the
+// incoming prefs payload. Kept client-side so the hook can tell the page
+// whether the guest has any consumable prefs logged at all — matters
+// for picking the right empty-state copy ("all covered" vs "none logged").
+const CONSUMABLE_CATEGORIES   = new Set(['Food & Beverage', 'Allergies']);
+const CABIN_CONSUMABLE_KEYS   = new Set(['Bathroom Products', 'Turn-Down Preferences']);
+function isConsumablePreference(p) {
+  if (!p?.category) return false;
+  if (CONSUMABLE_CATEGORIES.has(p.category)) return true;
+  if (p.category === 'Cabin' && CABIN_CONSUMABLE_KEYS.has(p.key)) return true;
+  return false;
+}
+
 // Normalise the inventory fetch into the shape the Edge Function expects
 // + assessLink consumes. One mapping, two consumers.
 function toPayloadItem(row) {
@@ -98,6 +111,7 @@ export function usePreferenceLinks(guestId) {
     atRisk:     [],
     notTracked: [],
     emergency:  [],
+    hasConsumablePreferences: false,
     loading:    true,
     error:      null,
   });
@@ -108,7 +122,7 @@ export function usePreferenceLinks(guestId) {
 
   const run = useCallback(async () => {
     if (!user || !guestId) {
-      setState({ atRisk: [], notTracked: [], emergency: [], loading: false, error: null });
+      setState({ atRisk: [], notTracked: [], emergency: [], hasConsumablePreferences: false, loading: false, error: null });
       return;
     }
     const reqId = ++reqIdRef.current;
@@ -150,6 +164,7 @@ export function usePreferenceLinks(guestId) {
       const invRows      = invRes.data ?? [];
       const payloadItems = invRows.map(toPayloadItem);
       const inventoryById = new Map(payloadItems.map(i => [i.id, i]));
+      const hasConsumablePreferences = prefsRows.some(isConsumablePreference);
 
       // Emergency devices: compute regardless of the Edge Function outcome.
       // Even if the LLM call fails we still want to surface rescue items.
@@ -158,6 +173,18 @@ export function usePreferenceLinks(guestId) {
       if (reqId !== reqIdRef.current) return;
 
       const tripDaysRemaining = tripDaysRemainingForGuest(guestId);
+
+      // Short-circuit: no consumable prefs means nothing to ask the LLM.
+      // Skip the Edge Function entirely; return emergency-only buckets +
+      // the empty-state flag so the page picks the right copy.
+      if (!hasConsumablePreferences) {
+        setState({
+          atRisk: [], notTracked: [], emergency,
+          hasConsumablePreferences: false,
+          loading: false, error: null,
+        });
+        return;
+      }
 
       // Call Edge Function. If it fails, we still render emergency rows +
       // the error state so the page doesn't go blank.
@@ -193,6 +220,7 @@ export function usePreferenceLinks(guestId) {
           atRisk:     [],
           notTracked: [],
           emergency,
+          hasConsumablePreferences,
           loading:    false,
           error:      e instanceof Error ? e : new Error(String(e?.message ?? e)),
         });
@@ -230,13 +258,14 @@ export function usePreferenceLinks(guestId) {
         return qa - qb;
       });
 
-      setState({ atRisk, notTracked, emergency, loading: false, error: null });
+      setState({ atRisk, notTracked, emergency, hasConsumablePreferences, loading: false, error: null });
     } catch (e) {
       if (reqId !== reqIdRef.current) return;
       setState({
         atRisk:     [],
         notTracked: [],
         emergency:  [],
+        hasConsumablePreferences: false,
         loading:    false,
         error:      e instanceof Error ? e : new Error(String(e?.message ?? e)),
       });

@@ -6,14 +6,14 @@ import StandbyLayoutHeader from '../widgets/StandbyLayoutHeader';
 import { useGuests } from '../hooks/useGuests';
 import { useInventoryThisWeek } from '../hooks/useInventoryThisWeek';
 import { useInventoryInsights } from '../hooks/useInventoryInsights';
-import { useGuestConsumables, stripSentinels } from '../hooks/useGuestConsumables';
+import { usePreferenceLinks } from '../hooks/usePreferenceLinks';
+import { stripSentinels } from '../utils/emergencyDevices';
 import { formatDistanceToNow } from 'date-fns';
 import '../pantry.css';
 
-// Citation slugs come from the edge function as lowercased machine strings
-// (susan, oat_milk, tignanello_2017). Map them back to guest / item rows
-// for tap-through. The model generates them from natural language so we
-// canonicalise both sides to compare.
+// Citation slugs come from the inventory-insights edge function as
+// lowercased machine strings (susan, oat_milk, tignanello_2017). Map
+// back to guest / item rows for tap-through.
 function slugify(s) {
   return String(s ?? '')
     .toLowerCase()
@@ -25,17 +25,13 @@ function slugify(s) {
 function resolveCitation(slug, guests, items) {
   if (!slug) return null;
   const s = slug.toLowerCase().trim();
-
-  // Guest match: try first name, then first_last combined.
   for (const g of guests ?? []) {
     if (slugify(g.first_name) === s) return { kind: 'guest', target: g };
     if (slugify(`${g.first_name} ${g.last_name}`) === s) return { kind: 'guest', target: g };
   }
-  // Item match: exact slug on item name.
   for (const it of items ?? []) {
     if (slugify(it.name) === s) return { kind: 'item', target: it };
   }
-  // Loose fallback: substring contains — catches "tignanello" vs "tignanello_2017".
   for (const it of items ?? []) {
     if (slugify(it.name).includes(s) || s.includes(slugify(it.name))) {
       return { kind: 'item', target: it };
@@ -44,18 +40,183 @@ function resolveCitation(slug, guests, items) {
   return null;
 }
 
-// Human-readable label for a citation chip. Uses the real data row when
-// matched; falls back to the raw slug (un-snake-cased) when not.
 function citationLabel(slug, resolved) {
   if (resolved?.kind === 'guest') return resolved.target.first_name ?? slug;
   if (resolved?.kind === 'item')  return resolved.target.name ?? slug;
   return String(slug).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
+// ─── Small row components ───────────────────────────────────────────────────
+
+// Emergency rows + anything else where we just render "name — qty/par".
+function ItemRow({ item, onClick, selected }) {
+  const name = stripSentinels(item?.name) || '';
+  const unit = stripSentinels(item?.unit) || '';
+  const qty = item?.total_qty ?? 0;
+  const par = item?.par_level ?? null;
+  return (
+    <div
+      className={`p-stock-row p-consumable-row${selected ? ' selected' : ''}`}
+      role="button"
+      tabIndex={0}
+      onClick={() => onClick?.(item)}
+      onKeyDown={e => e.key === 'Enter' && onClick?.(item)}
+      aria-label={`${name}: ${qty} ${unit}`}
+    >
+      <span className="p-stock-name">{name}</span>
+      <div className="p-consumable-right">
+        <span className="p-stock-count">{qty}</span>
+        {par != null && <span className="p-stock-unit">/ par {par}</span>}
+      </div>
+    </div>
+  );
+}
+
+// AT RISK rows: item name left; qty + reason right. Terracotta count when
+// below par / stocked out; neutral when only trip-need risk (still
+// important but less urgent than below-par).
+function AtRiskRow({ row, onClick, selected }) {
+  const { link, item, reason } = row;
+  const name = stripSentinels(item?.name ?? link?.preference_value) || '';
+  const qty = item?.total_qty ?? 0;
+  const par = item?.par_level ?? null;
+  const belowPar = par != null && qty < par;
+  return (
+    <div
+      className={`p-stock-row p-consumable-row${selected ? ' selected' : ''}`}
+      role="button"
+      tabIndex={0}
+      onClick={() => onClick?.(item)}
+      onKeyDown={e => e.key === 'Enter' && onClick?.(item)}
+      aria-label={`${name}: ${qty}, ${reason}`}
+    >
+      <span className="p-stock-name">{name}</span>
+      <div className="p-consumable-right">
+        <span className={`p-stock-count${belowPar ? ' critical' : ''}`}>{qty}</span>
+        <span className="p-consumable-reason">· {reason}</span>
+      </div>
+    </div>
+  );
+}
+
+// NOT TRACKED rows: preference value left, note on the right in muted text.
+function NotTrackedRow({ row }) {
+  const { link, reason } = row;
+  const label = stripSentinels(link?.preference_value) || link?.preference_key || 'Preference';
+  return (
+    <div className="p-stock-row p-consumable-row p-consumable-nontrack">
+      <span className="p-stock-name">{label}</span>
+      <span className="p-consumable-nontrack-reason">{reason}</span>
+    </div>
+  );
+}
+
+// Skeleton rows while the per-guest hook is in flight.
+function SkeletonRows({ count = 2 }) {
+  return (
+    <div className="p-consumable-skeleton-wrap" aria-hidden="true">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="p-consumable-skeleton" />
+      ))}
+    </div>
+  );
+}
+
+// ─── GuestSection — calls the per-guest hook ───────────────────────────────
+
+function GuestSection({ guest, onOpenGuest, onOpenItem, selectedItemId }) {
+  const {
+    atRisk, notTracked, emergency,
+    hasConsumablePreferences, loading, error, refetch,
+  } = usePreferenceLinks(guest.id);
+
+  const roleLabel = [guest.guest_type].filter(Boolean).join(' · ');
+  const hasAnyRow = atRisk.length > 0 || notTracked.length > 0 || emergency.length > 0;
+
+  return (
+    <div className="p-consumable-guest">
+      <div className="p-consumable-guest-head">
+        <button
+          type="button"
+          className="p-consumable-guest-name"
+          onClick={() => onOpenGuest(guest)}
+          aria-label={`Open ${guest.first_name}'s drawer`}
+          title={`Open ${guest.first_name}'s drawer`}
+        >
+          {guest.first_name} <em>{guest.last_name ?? ''}</em>
+        </button>
+        {roleLabel && <span className="p-consumable-guest-role">· {roleLabel}</span>}
+      </div>
+
+      {loading && <SkeletonRows />}
+
+      {!loading && error && (
+        <p className="p-consumable-empty-inline">
+          Couldn't analyse {guest.first_name}'s preferences right now.{' '}
+          <button type="button" className="p-card-link" onClick={refetch}>Retry</button>
+        </p>
+      )}
+
+      {!loading && (
+        <>
+          {atRisk.length > 0 && (
+            <div className="p-consumable-sub">
+              <div className="p-consumable-subhead">At risk</div>
+              {atRisk.map((row, i) => (
+                <AtRiskRow
+                  key={`ar-${guest.id}-${row.item?.id ?? i}`}
+                  row={row}
+                  onClick={onOpenItem}
+                  selected={selectedItemId === row.item?.id}
+                />
+              ))}
+            </div>
+          )}
+
+          {notTracked.length > 0 && (
+            <div className="p-consumable-sub">
+              <div className="p-consumable-subhead">Not tracked</div>
+              {notTracked.map((row, i) => (
+                <NotTrackedRow
+                  key={`nt-${guest.id}-${row.link?.preference_key}-${i}`}
+                  row={row}
+                />
+              ))}
+            </div>
+          )}
+
+          {emergency.length > 0 && (
+            <div className="p-consumable-sub">
+              <div className="p-consumable-subhead">Emergency</div>
+              {emergency.map(item => (
+                <ItemRow
+                  key={`em-${guest.id}-${item.id}`}
+                  item={item}
+                  onClick={onOpenItem}
+                  selected={selectedItemId === item.id}
+                />
+              ))}
+            </div>
+          )}
+
+          {!hasAnyRow && !error && (
+            <p className="p-consumable-empty-inline">
+              {hasConsumablePreferences
+                ? `All ${guest.first_name}'s preferences covered for this trip.`
+                : `No tracked consumable preferences for ${guest.first_name}.`}
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── AI insights banner (unchanged) ─────────────────────────────────────────
+
 function InsightCard({ insight, guests, items, onOpenGuest, onOpenItem }) {
   const { severity, sentence, citations = [] } = insight;
   const hasCitations = citations.length > 0;
-
   const resolvedCitations = citations.map(c => ({
     slug: c,
     resolved: resolveCitation(c, guests, items),
@@ -100,7 +261,6 @@ function InsightCard({ insight, guests, items, onOpenGuest, onOpenItem }) {
 
 function InsightsBanner({ insights, loading, error, fetchedAt, onRefresh }) {
   const hasAny = insights.length > 0;
-
   return (
     <div className="p-insights-banner">
       <div className="p-insights-head">
@@ -118,65 +278,23 @@ function InsightsBanner({ insights, loading, error, fetchedAt, onRefresh }) {
           {loading ? 'Thinking…' : 'Refresh'}
         </button>
       </div>
-
-      {loading && insights.length === 0 && (
-        <p className="p-insights-empty">Generating insights…</p>
-      )}
-
-      {error && (
-        <p className="p-insights-error">
-          Insights unavailable — showing last snapshot.
-        </p>
-      )}
-
+      {loading && insights.length === 0 && <p className="p-insights-empty">Generating insights…</p>}
+      {error && <p className="p-insights-error">Insights unavailable — showing last snapshot.</p>}
       {!loading && !error && !hasAny && (
-        <p className="p-insights-empty">
-          All clear this week. Nothing to flag.
-        </p>
+        <p className="p-insights-empty">All clear this week. Nothing to flag.</p>
       )}
     </div>
   );
 }
 
-function ItemRow({ item, onClick, selected }) {
-  // Defensive sentinel strip at render — belt-and-braces on top of the
-  // hook-level sanitising. If a stray ":SELECTED:" ever slips through in
-  // name / unit, this catches it.
-  const name = stripSentinels(item.name) || '';
-  const unit = stripSentinels(item.unit) || '';
-  const qty = item.total_qty ?? 0;
-  const parLabel = [
-    item.par_level != null     ? `par ${item.par_level}`     : null,
-    item.reorder_point != null ? `reorder ${item.reorder_point}` : null,
-  ].filter(Boolean).join(', ');
-  return (
-    <div
-      className={`p-stock-row p-consumable-row${selected ? ' selected' : ''}`}
-      role="button"
-      tabIndex={0}
-      onClick={() => onClick?.(item)}
-      onKeyDown={e => e.key === 'Enter' && onClick?.(item)}
-      aria-label={`${name}: ${qty} ${unit}${parLabel ? `, ${parLabel}` : ''}`}
-    >
-      <span className="p-stock-name">{name}</span>
-      <div className="p-consumable-right">
-        <span className={`p-stock-count${item.critical ? ' critical' : ''}`}>{qty}</span>
-        <span className="p-stock-unit">{unit}</span>
-        {parLabel && <span className="p-consumable-par">({parLabel})</span>}
-      </div>
-    </div>
-  );
-}
+// ─── Page ───────────────────────────────────────────────────────────────────
 
 export default function InventoryWeeklyPage() {
   const navigate = useNavigate();
   const { guests } = useGuests();
   const { items, loading: itemsLoading, error: itemsError } = useInventoryThisWeek({ limit: null });
-  const { insights, loading, error, fetchedAt, refetch } = useInventoryInsights({ guests, items });
-  const { byGuest, loading: consumablesLoading } = useGuestConsumables({ guests, items });
+  const { insights, loading, error, fetchedAt, refetch: refetchInsights } = useInventoryInsights({ guests, items });
 
-  // TODO(phase-4d): item detail popover. For now, tapping an item (or an
-  // item-citation chip on an insight) logs + focuses — no popover yet.
   const [selectedItemId, setSelectedItemId] = useState(null);
 
   useEffect(() => {
@@ -186,15 +304,11 @@ export default function InventoryWeeklyPage() {
   }, []);
 
   const handleOpenGuest = (guest) => {
-    // Reuses the nav-state drawer-open plumbing from Section 3's NotesHistoryPage.
     navigate('/pantry/standby', { state: { openDrawerForGuestId: guest.id } });
   };
   const handleOpenItem = (item) => {
-    // TODO(phase-4d): replace this with the detail popover.
-    setSelectedItemId(item.id);
+    setSelectedItemId(item?.id ?? null);
   };
-
-  const rolesFor = (g) => [g.guest_type].filter(Boolean).join(' · ');
 
   return (
     <>
@@ -213,7 +327,7 @@ export default function InventoryWeeklyPage() {
             loading={loading}
             error={error}
             fetchedAt={fetchedAt}
-            onRefresh={refetch}
+            onRefresh={refetchInsights}
           />
           {insights.length > 0 && (
             <div className="p-insights-list">
@@ -231,10 +345,7 @@ export default function InventoryWeeklyPage() {
           )}
         </div>
 
-        {/* Guest-specific consumables. One section per active guest.
-            Generic medical / crew / ops inventory that isn't tied to an
-            active guest is intentionally excluded — that view lives on
-            the canonical /inventory page (linked at the bottom). */}
+        {/* Guest-specific consumables */}
         <div className="p-card top-navy">
           <div className="p-card-head">
             <div>
@@ -243,7 +354,7 @@ export default function InventoryWeeklyPage() {
             </div>
           </div>
 
-          {(itemsLoading || consumablesLoading) && (
+          {itemsLoading && (
             <div style={{ color: 'var(--ink-tertiary)', fontSize: 13 }}>Loading…</div>
           )}
           {itemsError && (
@@ -256,61 +367,15 @@ export default function InventoryWeeklyPage() {
             </p>
           )}
 
-          {!itemsLoading && !itemsError && (guests ?? []).map(guest => {
-            const section = byGuest?.[guest.id] ?? { preferences: [], emergency: [] };
-            const hasAny = section.preferences.length > 0 || section.emergency.length > 0;
-            const roleLabel = rolesFor(guest);
-            return (
-              <div key={guest.id} className="p-consumable-guest">
-                <div className="p-consumable-guest-head">
-                  <button
-                    type="button"
-                    className="p-consumable-guest-name"
-                    onClick={() => handleOpenGuest(guest)}
-                    aria-label={`Open ${guest.first_name}'s drawer`}
-                    title={`Open ${guest.first_name}'s drawer`}
-                  >
-                    {guest.first_name} <em>{guest.last_name ?? ''}</em>
-                  </button>
-                  {roleLabel && <span className="p-consumable-guest-role">· {roleLabel}</span>}
-                </div>
-
-                {!hasAny && (
-                  <p className="p-consumable-empty-inline">
-                    No tracked items for {guest.first_name} this trip.
-                  </p>
-                )}
-
-                {section.preferences.length > 0 && (
-                  <div className="p-consumable-sub">
-                    <div className="p-consumable-subhead">Preferences</div>
-                    {section.preferences.map(item => (
-                      <ItemRow
-                        key={`${guest.id}-pref-${item.id}`}
-                        item={item}
-                        onClick={handleOpenItem}
-                        selected={selectedItemId === item.id}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {section.emergency.length > 0 && (
-                  <div className="p-consumable-sub">
-                    <div className="p-consumable-subhead">Emergency</div>
-                    {section.emergency.map(item => (
-                      <ItemRow
-                        key={`${guest.id}-emerg-${item.id}`}
-                        item={item}
-                        onClick={handleOpenItem}
-                        selected={selectedItemId === item.id}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {!itemsLoading && !itemsError && (guests ?? []).map(guest => (
+            <GuestSection
+              key={guest.id}
+              guest={guest}
+              onOpenGuest={handleOpenGuest}
+              onOpenItem={handleOpenItem}
+              selectedItemId={selectedItemId}
+            />
+          ))}
 
           <div className="p-consumable-footer">
             <button
