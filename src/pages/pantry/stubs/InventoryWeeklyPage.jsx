@@ -11,6 +11,32 @@ import { stripSentinels } from '../utils/emergencyDevices';
 import { formatDistanceToNow } from 'date-fns';
 import '../pantry.css';
 
+// Preference keys whose value is ambiguous standalone ("Yorkshire",
+// "Iced americano", "Sushi") and need the key prefixed for clarity in
+// the left column of AT RISK / NOT TRACKED rows. Specific items
+// (Tignanello, Molton Brown, Hugo Spritz) render clearly on their own
+// and don't get prefixed.
+const KEYS_THAT_NEED_PREFIX = new Set([
+  'Tea',
+  'Coffee',
+  'Favourite Meals',
+  'Favourite Cuisines',
+  'Dessert Preferences',
+  'Evening Drink',
+  'Morning Drink',
+  'Cocktail',
+]);
+
+function formatPreferenceLabel(link) {
+  if (!link) return '';
+  const key   = link.preference_key   ?? '';
+  const value = link.preference_value ?? '';
+  if (KEYS_THAT_NEED_PREFIX.has(key)) {
+    return `${key} · ${value}`;
+  }
+  return value || key;
+}
+
 // Citation slugs come from the inventory-insights edge function as
 // lowercased machine strings (susan, oat_milk, tignanello_2017). Map
 // back to guest / item rows for tap-through.
@@ -72,12 +98,13 @@ function ItemRow({ item, onClick, selected }) {
   );
 }
 
-// AT RISK rows: item name left; qty + reason right. Terracotta count when
-// below par / stocked out; neutral when only trip-need risk (still
-// important but less urgent than below-par).
+// AT RISK rows: preference label left (key-prefixed when ambiguous);
+// qty + reason right. Terracotta count when below par / stocked out;
+// neutral when only trip-need risk (still important but less urgent
+// than below-par).
 function AtRiskRow({ row, onClick, selected }) {
   const { link, item, reason } = row;
-  const name = stripSentinels(item?.name ?? link?.preference_value) || '';
+  const label = stripSentinels(formatPreferenceLabel(link)) || '';
   const qty = item?.total_qty ?? 0;
   const par = item?.par_level ?? null;
   const belowPar = par != null && qty < par;
@@ -88,9 +115,9 @@ function AtRiskRow({ row, onClick, selected }) {
       tabIndex={0}
       onClick={() => onClick?.(item)}
       onKeyDown={e => e.key === 'Enter' && onClick?.(item)}
-      aria-label={`${name}: ${qty}, ${reason}`}
+      aria-label={`${label}: ${qty}, ${reason}`}
     >
-      <span className="p-stock-name">{name}</span>
+      <span className="p-stock-name">{label}</span>
       <div className="p-consumable-right">
         <span className={`p-stock-count${belowPar ? ' critical' : ''}`}>{qty}</span>
         <span className="p-consumable-reason">· {reason}</span>
@@ -99,10 +126,11 @@ function AtRiskRow({ row, onClick, selected }) {
   );
 }
 
-// NOT TRACKED rows: preference value left, note on the right in muted text.
+// NOT TRACKED rows: preference label left (key-prefixed when ambiguous),
+// LLM note on the right in muted italic.
 function NotTrackedRow({ row }) {
   const { link, reason } = row;
-  const label = stripSentinels(link?.preference_value) || link?.preference_key || 'Preference';
+  const label = stripSentinels(formatPreferenceLabel(link)) || 'Preference';
   return (
     <div className="p-stock-row p-consumable-row p-consumable-nontrack">
       <span className="p-stock-name">{label}</span>
