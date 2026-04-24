@@ -6,7 +6,7 @@ import StandbyLayoutHeader from '../widgets/StandbyLayoutHeader';
 import { useGuests } from '../hooks/useGuests';
 import { useInventoryThisWeek } from '../hooks/useInventoryThisWeek';
 import { useInventoryInsights } from '../hooks/useInventoryInsights';
-import { useGuestConsumables } from '../hooks/useGuestConsumables';
+import { useGuestConsumables, stripSentinels } from '../hooks/useGuestConsumables';
 import { formatDistanceToNow } from 'date-fns';
 import '../pantry.css';
 
@@ -139,6 +139,11 @@ function InsightsBanner({ insights, loading, error, fetchedAt, onRefresh }) {
 }
 
 function ItemRow({ item, onClick, selected }) {
+  // Defensive sentinel strip at render — belt-and-braces on top of the
+  // hook-level sanitising. If a stray ":SELECTED:" ever slips through in
+  // name / unit, this catches it.
+  const name = stripSentinels(item.name) || '';
+  const unit = stripSentinels(item.unit) || '';
   const qty = item.total_qty ?? 0;
   const parLabel = [
     item.par_level != null     ? `par ${item.par_level}`     : null,
@@ -151,12 +156,12 @@ function ItemRow({ item, onClick, selected }) {
       tabIndex={0}
       onClick={() => onClick?.(item)}
       onKeyDown={e => e.key === 'Enter' && onClick?.(item)}
-      aria-label={`${item.name}: ${qty} ${item.unit ?? ''}${parLabel ? `, ${parLabel}` : ''}`}
+      aria-label={`${name}: ${qty} ${unit}${parLabel ? `, ${parLabel}` : ''}`}
     >
-      <span className="p-stock-name">{item.name}</span>
+      <span className="p-stock-name">{name}</span>
       <div className="p-consumable-right">
         <span className={`p-stock-count${item.critical ? ' critical' : ''}`}>{qty}</span>
-        <span className="p-stock-unit">{item.unit ?? ''}</span>
+        <span className="p-stock-unit">{unit}</span>
         {parLabel && <span className="p-consumable-par">({parLabel})</span>}
       </div>
     </div>
@@ -252,7 +257,8 @@ export default function InventoryWeeklyPage() {
           )}
 
           {!itemsLoading && !itemsError && (guests ?? []).map(guest => {
-            const rows = byGuest?.[guest.id] ?? [];
+            const section = byGuest?.[guest.id] ?? { preferences: [], emergency: [] };
+            const hasAny = section.preferences.length > 0 || section.emergency.length > 0;
             const roleLabel = rolesFor(guest);
             return (
               <div key={guest.id} className="p-consumable-guest">
@@ -268,19 +274,39 @@ export default function InventoryWeeklyPage() {
                   </button>
                   {roleLabel && <span className="p-consumable-guest-role">· {roleLabel}</span>}
                 </div>
-                {rows.length === 0 ? (
+
+                {!hasAny && (
                   <p className="p-consumable-empty-inline">
-                    No tracked consumables for {guest.first_name} this trip — nothing flagged.
+                    No tracked items for {guest.first_name} this trip.
                   </p>
-                ) : (
-                  rows.map(item => (
-                    <ItemRow
-                      key={`${guest.id}-${item.id}`}
-                      item={item}
-                      onClick={handleOpenItem}
-                      selected={selectedItemId === item.id}
-                    />
-                  ))
+                )}
+
+                {section.preferences.length > 0 && (
+                  <div className="p-consumable-sub">
+                    <div className="p-consumable-subhead">Preferences</div>
+                    {section.preferences.map(item => (
+                      <ItemRow
+                        key={`${guest.id}-pref-${item.id}`}
+                        item={item}
+                        onClick={handleOpenItem}
+                        selected={selectedItemId === item.id}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {section.emergency.length > 0 && (
+                  <div className="p-consumable-sub">
+                    <div className="p-consumable-subhead">Emergency</div>
+                    {section.emergency.map(item => (
+                      <ItemRow
+                        key={`${guest.id}-emerg-${item.id}`}
+                        item={item}
+                        onClick={handleOpenItem}
+                        selected={selectedItemId === item.id}
+                      />
+                    ))}
+                  </div>
                 )}
               </div>
             );

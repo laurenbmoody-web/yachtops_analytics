@@ -1489,6 +1489,26 @@
   color: var(--ink-muted);
   padding: 4px 0 6px;
 }
+/* PREFERENCES / EMERGENCY subsections under each guest. Tracked-caps
+   header, small left-indent to nest the items visually inside the
+   guest's section. */
+.p-consumable-sub {
+  margin-top: 8px;
+  padding-left: 10px;
+  border-left: 2px solid var(--p-border);
+}
+.p-consumable-sub + .p-consumable-sub {
+  margin-top: 14px;
+}
+.p-consumable-subhead {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  margin-bottom: 4px;
+}
 .p-consumable-footer {
   margin-top: 20px;
   padding-top: 12px;
