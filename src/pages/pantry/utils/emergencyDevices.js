@@ -108,12 +108,33 @@ export function emergencyDevicesForGuest(guest, items) {
   return devices;
 }
 
+// Friendly per-guest condition label for the emergency row. Takes the
+// triggering regex match phrase and normalises to what a stew would
+// actually say: "peanut allergy", "tree nut allergy", "shellfish allergy",
+// "asthma", "diabetes", "cardiac".
+function conditionLabelFor(ruleId, matchedPhrase) {
+  if (ruleId === 'anaphylaxis') {
+    const phrase = String(matchedPhrase ?? '').toLowerCase().trim();
+    // Normalise plurals + specific shapes.
+    if (/tree\s*nut/.test(phrase))  return 'tree nut allergy';
+    if (/^nuts?$/.test(phrase))     return 'nut allergy';
+    if (/peanut/.test(phrase))      return 'peanut allergy';
+    if (/shellfish/.test(phrase))   return 'shellfish allergy';
+    if (/anaphylax/.test(phrase))   return 'anaphylaxis';
+    return phrase ? `${phrase.replace(/s$/, '')} allergy` : 'allergy';
+  }
+  if (ruleId === 'asthma')   return 'asthma';
+  if (ruleId === 'diabetes') return 'diabetes';
+  if (ruleId === 'cardiac')  return 'cardiac';
+  return ruleId;
+}
+
 // Like emergencyDevicesForGuest, but each entry carries the triggering
-// condition id + the guest reference so the page can render
-// "Jext 0.3mg — for John (nut allergy), Jane (peanut allergy)" in the
-// new item-first layout. Use this from useInventoryConsumables; the
-// original function stays for the legacy per-guest hook until it's
-// removed in cleanup.
+// condition id + a pre-formatted condition_label + the guest reference,
+// so the page can render "Jext 0.3mg — for John (nut allergy), Jane
+// (peanut allergy)" in the new item-first layout. Use this from
+// useInventoryConsumables; the original function stays for the legacy
+// per-guest hook until it's removed in cleanup.
 export function emergencyResponsesForGuest(guest, items) {
   const medText = `${guest?.allergies ?? ''} ${guest?.health_conditions ?? ''}`;
   if (!medText.trim()) return [];
@@ -126,11 +147,13 @@ export function emergencyResponsesForGuest(guest, items) {
 
   for (const rule of EMERGENCY_MATCHERS) {
     if (seen.has(rule.id)) continue;
-    if (!rule.match.test(medText)) continue;
+    const match = rule.match.exec(medText);
+    if (!match) continue;
     const picked = rule.pick(items || [], { paediatric });
     if (picked) {
       responses.push({
-        condition: rule.id,          // 'anaphylaxis' | 'asthma' | 'diabetes' | 'cardiac'
+        condition:       rule.id,           // 'anaphylaxis' | 'asthma' | 'diabetes' | 'cardiac'
+        condition_label: conditionLabelFor(rule.id, match[0]),
         device: {
           ...picked,
           name: stripSentinels(picked.name),

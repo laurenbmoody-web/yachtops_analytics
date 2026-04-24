@@ -1461,13 +1461,35 @@
   color: var(--ink-muted);
 }
 .p-consumable-row {
-  /* Inherits .p-stock-row; overrides below tune for the grouped context. */
-  padding-left: 4px;
+  /* Item-first layout: two stacked lines (main + attribution) instead
+     of the single flex row inherited from .p-stock-row. */
+  flex-direction: column;
+  align-items: stretch;
+  padding: 10px 4px;
+  gap: 4px;
+}
+.p-consumable-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
 }
 .p-consumable-right {
   display: flex;
   align-items: baseline;
   gap: 6px;
+}
+/* Second line under each item row — "for John (Tea · Yorkshire Gold),
+   Jane (Tea · Yorkshire Gold)". Sans-serif, muted, smaller. */
+.p-consumable-attribution {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--ink-muted);
+}
+.p-consumable-attr-label {
+  color: var(--ink-tertiary);
+  font-style: italic;
 }
 .p-consumable-par {
   font-family: var(--font-sans);
@@ -1537,6 +1559,17 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Item-first gap rows re-use the two-line shape: name on the top left,
+   italic model note top-right, attribution below. Override the legacy
+   38%/62% truncation so names can wrap when needed. */
+.p-consumable-gap .p-stock-name {
+  max-width: 55%;
+  white-space: normal;
+}
+.p-consumable-gap .p-consumable-nontrack-reason {
+  max-width: 45%;
 }
 
 /* Skeleton rows — two muted-grey pulsing bars under the guest heading

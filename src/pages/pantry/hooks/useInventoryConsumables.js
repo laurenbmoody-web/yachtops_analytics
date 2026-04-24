@@ -434,12 +434,13 @@ export function useInventoryConsumables() {
       for (const r of perGuestResults) {
         for (const resp of r.emergency) {
           emergency.push({
-            guest_id:    r.guest.id,
-            guest_name:  [r.guest.first_name, r.guest.last_name].filter(Boolean).join(' ').trim(),
-            first_name:  r.guest.first_name ?? '',
-            role:        r.guest.guest_type ?? null,
-            condition:   resp.condition,
-            device:      resp.device,
+            guest_id:        r.guest.id,
+            guest_name:      [r.guest.first_name, r.guest.last_name].filter(Boolean).join(' ').trim(),
+            first_name:      r.guest.first_name ?? '',
+            role:            r.guest.guest_type ?? null,
+            condition:       resp.condition,
+            condition_label: resp.condition_label,
+            device:          resp.device,
           });
         }
       }
