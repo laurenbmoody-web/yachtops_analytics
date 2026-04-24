@@ -68,7 +68,10 @@ import SupplierPortal from './pages/supplier-portal';
 import SupplierPortalDemo from './pages/supplier-portal-demo';
 import SupplierLayout from './pages/supplier-portal/SupplierLayout';
 import VerifyAlias from './pages/verify-alias';
+import AcceptSupplierInvite from './pages/accept-supplier-invite';
+import ConfirmOwnershipTransfer from './pages/confirm-ownership-transfer';
 import { SupplierProvider } from './contexts/SupplierContext';
+import { SupplierPermissionProvider } from './contexts/SupplierPermissionContext';
 
 // Lazy supplier views — loaded only when the supplier portal is accessed
 const SupplierOverview   = React.lazy(() => import('./pages/supplier-portal/views/SupplierOverview'));
@@ -1124,15 +1127,23 @@ const Routes = () => {
         {/* Supplier email alias verification — must work without a session */}
         <Route path="/verify-alias/:token" element={<VerifyAlias />} />
 
+        {/* Supplier invite acceptance — public; allows sign-in redirect */}
+        <Route path="/accept-supplier-invite/:token" element={<AcceptSupplierInvite />} />
+
+        {/* Supplier ownership transfer confirm — self-guards with sign-in redirect */}
+        <Route path="/confirm-ownership-transfer/:token" element={<ConfirmOwnershipTransfer />} />
+
         {/* Supplier nested routes */}
         <Route
           path="/supplier"
           element={
             <SupplierProtectedRoute>
               <SupplierProvider>
-                <React.Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><LogoSpinner size={32} /></div>}>
-                  <SupplierLayout />
-                </React.Suspense>
+                <SupplierPermissionProvider>
+                  <React.Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><LogoSpinner size={32} /></div>}>
+                    <SupplierLayout />
+                  </React.Suspense>
+                </SupplierPermissionProvider>
               </SupplierProvider>
             </SupplierProtectedRoute>
           }

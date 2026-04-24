@@ -317,3 +317,162 @@ export const verifyAliasByToken = async (token) => {
   if (error) throw error;
   return data;
 };
+
+// ─── Team ────────────────────────────────────────────────────────────────────
+
+export const fetchTeamMembers = async (supplierId) => {
+  const { data, error } = await supabase
+    .from('supplier_contacts')
+    .select('*')
+    .eq('supplier_id', supplierId)
+    .eq('active', true)
+    .order('permission_tier', { ascending: true })
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+};
+
+export const fetchPendingInvites = async (supplierId) => {
+  const { data, error } = await supabase
+    .from('supplier_invites')
+    .select('*')
+    .eq('supplier_id', supplierId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+};
+
+export const createInvite = async ({ supplierId, email, permissionTier, role, supplierName }) => {
+  const { data, error } = await supabase
+    .from('supplier_invites')
+    .insert({
+      supplier_id: supplierId,
+      email: email.toLowerCase().trim(),
+      permission_tier: permissionTier,
+      role,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+
+  try {
+    await supabase.functions.invoke('sendSupplierInvite', {
+      body: {
+        inviteId: data.id,
+        email: data.email,
+        token: data.token,
+        supplierName,
+      },
+    });
+  } catch (err) {
+    console.warn('[createInvite] email send failed (non-fatal):', err);
+  }
+  return data;
+};
+
+export const revokeInvite = async (inviteId) => {
+  const { data, error } = await supabase.rpc('revoke_supplier_invite', { p_invite_id: inviteId });
+  if (error) throw error;
+  return data;
+};
+
+export const nudgeInvite = async (inviteId, supplierName) => {
+  const { data: existing, error: readErr } = await supabase
+    .from('supplier_invites')
+    .select('nudge_count, email, token')
+    .eq('id', inviteId)
+    .single();
+  if (readErr) throw readErr;
+
+  const { data: invite, error } = await supabase
+    .from('supplier_invites')
+    .update({
+      nudge_count: (existing.nudge_count ?? 0) + 1,
+      last_nudged_at: new Date().toISOString(),
+    })
+    .eq('id', inviteId)
+    .select()
+    .single();
+  if (error) throw error;
+
+  try {
+    await supabase.functions.invoke('sendSupplierInvite', {
+      body: {
+        inviteId: invite.id,
+        email: invite.email,
+        token: invite.token,
+        isNudge: true,
+        supplierName,
+      },
+    });
+  } catch (err) {
+    console.warn('[nudgeInvite] send failed:', err);
+  }
+  return invite;
+};
+
+export const removeMember = async (contactId) => {
+  const { data, error } = await supabase.rpc('remove_supplier_member', { p_contact_id: contactId });
+  if (error) throw error;
+  return data;
+};
+
+export const updateMemberTier = async (contactId, newTier) => {
+  const { data, error } = await supabase.rpc('update_supplier_member_tier', {
+    p_contact_id: contactId,
+    p_new_tier: newTier,
+  });
+  if (error) throw error;
+  return data;
+};
+
+// ─── Ownership ──────────────────────────────────────────────────────────────
+
+export const requestOwnershipTransfer = async (toContactId, supplierName, fromName) => {
+  const { data, error } = await supabase.rpc('request_supplier_ownership_transfer', {
+    p_to_contact_id: toContactId,
+  });
+  if (error) throw error;
+
+  if (data?.ok) {
+    try {
+      await supabase.functions.invoke('sendOwnershipTransfer', {
+        body: {
+          token: data.token,
+          targetEmail: data.target_email,
+          supplierName,
+          fromName,
+        },
+      });
+    } catch (err) {
+      console.warn('[requestOwnershipTransfer] send failed:', err);
+    }
+  }
+  return data;
+};
+
+export const confirmOwnershipTransfer = async (token) => {
+  const { data, error } = await supabase.rpc('confirm_supplier_ownership_transfer', {
+    p_token: token,
+  });
+  if (error) throw error;
+  return data;
+};
+
+// ─── Invite acceptance (public read + accept) ───────────────────────────────
+
+export const fetchInvitePublic = async (token) => {
+  const { data, error } = await supabase.rpc('get_supplier_invite_public', { p_token: token });
+  if (error) throw error;
+  return data;
+};
+
+export const acceptInvite = async (token, fullName) => {
+  const { data, error } = await supabase.rpc('accept_supplier_invite', {
+    p_token: token,
+    p_full_name: fullName,
+  });
+  if (error) throw error;
+  return data;
+};

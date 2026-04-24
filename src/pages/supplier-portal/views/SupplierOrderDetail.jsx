@@ -2,11 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, X, RefreshCw } from 'lucide-react';
 import { fetchOrderById, updateOrderStatus, updateOrderItem } from '../utils/supplierStorage';
+import { usePermission } from '../../../contexts/SupplierPermissionContext';
 import StatusBadge from '../components/StatusBadge';
+
+const NO_PERMISSION_TITLE = "Your role doesn't have permission for this action.";
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
-const ItemRow = ({ item, onUpdate }) => {
+const ItemRow = ({ item, onUpdate, canEdit }) => {
   const [saving, setSaving] = useState(false);
   const [subNote, setSubNote] = useState(item.substitute_description ?? '');
   const [showSubInput, setShowSubInput] = useState(item.status === 'substituted');
@@ -43,20 +46,23 @@ const ItemRow = ({ item, onUpdate }) => {
           <div style={{ display: 'flex', gap: 6 }}>
             <button
               className="sp-rb primary"
-              style={{ fontSize: 11 }}
-              disabled={saving}
+              style={{ fontSize: 11, opacity: canEdit ? 1 : 0.5 }}
+              disabled={saving || !canEdit}
+              title={canEdit ? undefined : NO_PERMISSION_TITLE}
               onClick={() => act('confirmed')}
             ><Check size={11} /> Confirm</button>
             <button
               className="sp-rb"
-              style={{ fontSize: 11 }}
-              disabled={saving}
+              style={{ fontSize: 11, opacity: canEdit ? 1 : 0.5 }}
+              disabled={saving || !canEdit}
+              title={canEdit ? undefined : NO_PERMISSION_TITLE}
               onClick={() => { setShowSubInput(true); act('substituted'); }}
             ><RefreshCw size={11} /> Sub</button>
             <button
               className="sp-rb"
-              style={{ fontSize: 11, color: 'var(--red)' }}
-              disabled={saving}
+              style={{ fontSize: 11, color: 'var(--red)', opacity: canEdit ? 1 : 0.5 }}
+              disabled={saving || !canEdit}
+              title={canEdit ? undefined : NO_PERMISSION_TITLE}
               onClick={() => act('unavailable')}
             ><X size={11} /> N/A</button>
           </div>
@@ -72,6 +78,7 @@ const ItemRow = ({ item, onUpdate }) => {
 const SupplierOrderDetail = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
+  const { allowed: canEdit } = usePermission('orders:edit');
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -147,7 +154,7 @@ const SupplierOrderDetail = () => {
           </thead>
           <tbody>
             {items.map(item => (
-              <ItemRow key={item.id} item={item} onUpdate={handleItemUpdate} />
+              <ItemRow key={item.id} item={item} onUpdate={handleItemUpdate} canEdit={canEdit} />
             ))}
           </tbody>
         </table>
@@ -160,8 +167,9 @@ const SupplierOrderDetail = () => {
           </div>
           <button
             className="sp-pill primary"
-            style={{ padding: '9px 20px' }}
-            disabled={confirming}
+            style={{ padding: '9px 20px', opacity: canEdit ? 1 : 0.5 }}
+            disabled={confirming || !canEdit}
+            title={canEdit ? undefined : NO_PERMISSION_TITLE}
             onClick={handleConfirmAll}
           >
             {confirming ? 'Confirming…' : 'Confirm all & send'}

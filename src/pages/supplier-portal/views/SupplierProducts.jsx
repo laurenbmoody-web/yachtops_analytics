@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Pencil, Trash2, X } from 'lucide-react';
 import { useSupplier } from '../../../contexts/SupplierContext';
+import { usePermission } from '../../../contexts/SupplierPermissionContext';
 import {
   fetchCatalogueItems,
   createCatalogueItem,
@@ -8,6 +9,8 @@ import {
   deleteCatalogueItem,
 } from '../utils/supplierStorage';
 import EmptyState from '../components/EmptyState';
+
+const NO_PERMISSION_TITLE = "Your role doesn't have permission for this action.";
 
 const CATEGORIES = ['Produce', 'Meat & Fish', 'Dairy', 'Beverages', 'Dry Goods', 'Frozen', 'Cleaning', 'Other'];
 const UNITS = ['kg', 'g', 'L', 'ml', 'unit', 'case', 'box', 'bottle', 'each'];
@@ -99,6 +102,7 @@ const ProductModal = ({ initial, onSave, onClose, saving }) => {
 
 const SupplierProducts = () => {
   const { supplier } = useSupplier();
+  const { allowed: canEdit } = usePermission('catalogue:edit');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -167,7 +171,13 @@ const SupplierProducts = () => {
           <p className="sp-page-sub">Manage what you offer. Prices and stock visible to yacht clients.</p>
         </div>
         <div className="sp-actions">
-          <button className="sp-pill primary" onClick={() => setModal('new')}><Plus size={13} />New product</button>
+          <button
+            className="sp-pill primary"
+            onClick={() => setModal('new')}
+            disabled={!canEdit}
+            title={canEdit ? undefined : NO_PERMISSION_TITLE}
+            style={{ opacity: canEdit ? 1 : 0.5 }}
+          ><Plus size={13} />New product</button>
         </div>
       </div>
 
@@ -191,7 +201,7 @@ const SupplierProducts = () => {
           icon="📦"
           title={items.length === 0 ? 'No products yet' : 'No results'}
           body={items.length === 0 ? 'Add your first product to start receiving orders.' : 'Try a different search term.'}
-          action={items.length === 0 && (
+          action={items.length === 0 && canEdit && (
             <button className="sp-pill primary" onClick={() => setModal('new')}><Plus size={13} />Add product</button>
           )}
         />
@@ -231,10 +241,22 @@ const SupplierProducts = () => {
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button className="sp-icon-btn" style={{ width: 28, height: 28 }} onClick={() => setModal(item)}>
+                      <button
+                        className="sp-icon-btn"
+                        style={{ width: 28, height: 28, opacity: canEdit ? 1 : 0.4 }}
+                        disabled={!canEdit}
+                        title={canEdit ? undefined : NO_PERMISSION_TITLE}
+                        onClick={() => setModal(item)}
+                      >
                         <Pencil size={12} />
                       </button>
-                      <button className="sp-icon-btn" style={{ width: 28, height: 28, color: 'var(--red)' }} onClick={() => handleDelete(item.id)}>
+                      <button
+                        className="sp-icon-btn"
+                        style={{ width: 28, height: 28, color: 'var(--red)', opacity: canEdit ? 1 : 0.4 }}
+                        disabled={!canEdit}
+                        title={canEdit ? undefined : NO_PERMISSION_TITLE}
+                        onClick={() => handleDelete(item.id)}
+                      >
                         <Trash2 size={12} />
                       </button>
                     </div>
