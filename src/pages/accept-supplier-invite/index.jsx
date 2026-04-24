@@ -176,8 +176,8 @@ const AcceptSupplierInvite = () => {
         </Link>
         <p style={{ fontSize: 12, color: '#94A3B8', margin: '16px 0 0' }}>
           No account yet?{' '}
-          <Link to={`/supplier/signup?next=${returnTo}&email=${encodeURIComponent(invite.email)}`} style={{ color: '#1E3A5F' }}>
-            Create one
+          <Link to={`/accept-supplier-invite/${token}/signup`} style={{ color: '#1E3A5F' }}>
+            Create an account
           </Link>
         </p>
       </Card>
@@ -192,8 +192,11 @@ const AcceptSupplierInvite = () => {
         <p style={{ fontSize: 14, color: '#475569', margin: '0 0 12px', lineHeight: 1.55 }}>
           This invite was sent to <strong>{invite.email}</strong>.
         </p>
-        <p style={{ fontSize: 14, color: '#475569', margin: '0 0 24px', lineHeight: 1.55 }}>
-          You're signed in as <strong>{userEmail}</strong>. Please sign out and sign in with the invited address.
+        <p style={{ fontSize: 14, color: '#475569', margin: '0 0 16px', lineHeight: 1.55 }}>
+          You're signed in as <strong>{userEmail}</strong>. Sign out and sign in as <strong>{invite.email}</strong> — or, if you don't have an account yet,{' '}
+          <Link to={`/accept-supplier-invite/${token}/signup`} style={{ color: '#1E3A5F', fontWeight: 600 }}>
+            create one
+          </Link>.
         </p>
         <Link to="/supplier/login" style={{ ...primaryButton, textDecoration: 'none' }}>
           Go to sign-in
