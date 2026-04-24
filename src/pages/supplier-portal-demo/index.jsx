@@ -5,6 +5,7 @@ import {
   ChevronDown, BarChart2,
 } from 'lucide-react';
 import '../supplier-portal/supplier-portal.css';
+import './supplier-portal-demo.css';
 
 import DashboardView   from '../supplier-portal/views/DashboardView';
 import OrdersView      from '../supplier-portal/views/OrdersView';
@@ -65,6 +66,7 @@ const SupplierPortalDemo = () => {
 
   return (
     <div id="sp-root">
+      <div className="sp-shell">
 
       {/* Sidebar */}
       <aside className={`sp-sidebar${darkSidebar ? ' dark' : ''}`}>
@@ -131,6 +133,7 @@ const SupplierPortalDemo = () => {
         <div className="sp-content">
           {renderView()}
         </div>
+      </div>
       </div>
     </div>
   );
