@@ -1,82 +1,79 @@
 // Guest-relevance filter for the /inventory/weekly page body.
 //
-// Per-guest item list. An item surfaces under a specific guest ONLY if
-// one of two narrow rules fires:
+// This page is a "things tied to THIS guest" view. Not a food page. Not a
+// medical page. Scope spans everything a guest might have logged — coffee,
+// wine, toiletries, bedding, candles, spa oils, gym gear, cigars, smoking
+// accessories, children's snacks, pet food. Any category. If it's in the
+// guest's guest_preferences rows, it shows.
 //
-//   RULE 1 — Food & beverage match.
-//   Token overlap between the guest's FOOD & BEVERAGE preference rows
-//   (Coffee, Tea, Wine, Favourite Cuisines, Favourite Meals etc) and
-//   the item name. Word-boundary only — "cap" won't match "capsicum".
-//   Non-food preference categories are excluded (lifestyle attributes,
-//   not inventory).
+// Plus ONE emergency device per triggering condition.
 //
-//   RULE 2 — Emergency medical response.
-//   If the guest has an anaphylaxis trigger, asthma, or diabetes in
-//   allergies / health_conditions, a condition-specific matcher picks
-//   out ONLY the stew-administrable emergency items. Not the broader
-//   medical kit that supports them.
+// Allowlist rule — an item appears under a guest IF AND ONLY IF:
 //
-//     anaphylaxis triggers → auto-injector (age-matched) + antihistamines
-//     asthma               → inhaler  (NOT spacer / peak-flow meter)
-//     diabetes             → glucose monitor + insulin pen (NOT lancets,
-//                            test strips, alcohol wipes)
+//   1. The item's name token-overlaps with any of that guest's
+//      guest_preferences rows (key or value), across ALL categories
+//      (Food & Beverage, Cabin, Service, Routine, Activities, Other…).
+//      Word-boundary only — "cap" won't match "capsicum".
 //
-//   Pre-injection swabs, adrenaline ampoules / vials, magnifying glasses,
-//   dental gels, splints, generic first-aid kit contents — none of
-//   these surface. They live on the canonical /inventory page. The
-//   principle: rows under a guest are "what the stew grabs in an
-//   emergency response", not the full medical kit.
+//   2. The item is the SINGLE emergency-response device mapped to one
+//      of that guest's allergies or health_conditions. Strict 1-device-
+//      per-condition cap. No antihistamines. No ancillary kit (swabs,
+//      ampoules, syringes, lancets, test strips, spacers, peak-flow
+//      meters, cleaning supplies). Those live on the full inventory
+//      page.
 //
-// Results are deduplicated by (lowercased) item name. If the catalogue
-// has multiple SKUs of the same named item, qty/par/reorder sum and
-// critical is recomputed from the merged totals.
+// Condition → device map (per spec, stew-administrable device only):
+//
+//   peanut / tree nut / nut / shellfish / anaphylaxis → adrenaline
+//     auto-injector.  Age-matched: 0.3mg adult when age >=12 or
+//     unknown, 0.15mg paediatric only when age <12.
+//   asthma                 → inhaler
+//   diabetes               → glucose (monitor or glucagon)
+//   angina / cardiac       → GTN (glyceryl trinitrate)
+//
+// Results returned as { preferences, emergency } per guest. Page renders
+// a subsection header for each.
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../contexts/AuthContext';
 
-const FOOD_PREF_CATEGORY = 'Food & Beverage';
-
-// Stopwords for food-pref tokenisation. Wizard enum fillers that would
-// otherwise match unrelated items.
-const PREF_STOPWORDS = new Set([
+// Grammar fillers + generic preference metadata that add no signal.
+// Intentionally short — over-filtering loses legitimate matches on
+// brand names and item categories.
+const STOPWORDS = new Set([
   'the','and','for','with','but','etc','some','that','this',
   'are','was','has','have','had','not','any','all','one','two',
   'from','into','per','about','over','under','each',
-  'regular','none','mild','medium','hot','cold','low','moderate','high',
-  'small','large','generous','once','twice','slow','quick','fast',
-  'daily','weekly','occasional',
-  'morning','evening','night','afternoon','breakfast','lunch','dinner',
-  'avoid','tolerance','frequency','preference','preferences',
-  'prefers','preferred','favourite','favorite','style','type',
+  'preferred','favourite','favorite','preference','preferences',
+  'prefers','avoid','tolerance','frequency',
 ]);
 
 // ────────────────────────────────────────────────────────────────────────────
-// Food-preference matching (Rule 1)
+// Preference-based matching (Rule 1) — all categories contribute.
 // ────────────────────────────────────────────────────────────────────────────
 
-function tokeniseForPref(text) {
+function tokenise(text) {
   if (!text) return [];
   return String(text)
     .toLowerCase()
-    .replace(/[^a-z\s]/g, ' ')
+    .replace(/[^a-z0-9\s]/g, ' ')
     .split(/\s+/)
-    .filter(w => w.length >= 3 && !PREF_STOPWORDS.has(w));
+    .filter(w => w.length >= 3 && !STOPWORDS.has(w));
 }
 
-function buildFoodSignals(prefsRows) {
+function buildPrefSignals(prefsRows) {
   const signals = new Set();
   for (const r of prefsRows || []) {
-    if (r?.category !== FOOD_PREF_CATEGORY) continue;
-    for (const t of tokeniseForPref(r?.key))   signals.add(t);
-    for (const t of tokeniseForPref(r?.value)) signals.add(t);
+    for (const t of tokenise(r?.key))   signals.add(t);
+    for (const t of tokenise(r?.value)) signals.add(t);
   }
   return signals;
 }
 
 function itemMatchesAnySignal(itemName, signals) {
   if (!itemName || !signals || signals.size === 0) return false;
-  const haystack = String(itemName).toLowerCase();
+  const haystack = stripSentinels(String(itemName)).toLowerCase();
   for (const sig of signals) {
     if (!sig) continue;
     const escaped = sig.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -86,112 +83,99 @@ function itemMatchesAnySignal(itemName, signals) {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Medical-response matching (Rule 2) — targeted per-condition matchers.
-// Each matcher asks the narrow question: "is this item the emergency
-// response article for this condition, in a form the stew administers?"
+// Emergency device matchers (Rule 2) — ONE device per condition.
+// Each matcher answers the narrow question: "is this THE single
+// stew-administrable response device for this condition?"
 // ────────────────────────────────────────────────────────────────────────────
 
-// Ampoule / vial / 1mg-1ml forms are medic-only — exclude.
-function isVialOrAmpouleForm(lc) {
-  return /\b(vial|ampoule|amp\b|1\s*mg\s*\/\s*1\s*ml|1mg\/1ml)\b/.test(lc);
-}
-
-// Paediatric markers on auto-injectors: 0.15mg, junior, paediatric, kid/child.
-function isPaediatricMarker(lc) {
-  return /\b(paed|pediatric|junior|kid|child|0\.15\s*mg|0\.15mg)\b/.test(lc);
-}
-
-function isAutoInjector(name, paediatricGuest) {
-  if (!name) return false;
-  const lc = String(name).toLowerCase();
-  // Must be the auto-injector form. Brand names (Jext, EpiPen) or the
-  // explicit "adrenaline pen" / "auto-injector" form.
+function isAdrenalineAutoInjector(name, paediatricGuest) {
+  const lc = stripSentinels(String(name || '')).toLowerCase();
+  // Auto-injector form only — vial/ampoule/syringe forms are medic-only.
   const isInjector = /\b(auto[-\s]?injector|jext|epipen|adrenaline\s+pen)\b/.test(lc);
   if (!isInjector) return false;
-  // Exclude medic-only forms.
-  if (isVialOrAmpouleForm(lc)) return false;
-  const paed = isPaediatricMarker(lc);
-  // Age match: paediatric guest gets paediatric only; adult / unknown age
-  // gets adult default (exclude paediatric products).
-  return paediatricGuest ? paed : !paed;
-}
-
-function isAntihistamine(name) {
-  if (!name) return false;
-  return /\b(antihistamine|piriton|clarityn|zyrtec|benadryl|loratadine|cetirizine|chlorphenamine|diphenhydramine|fexofenadine)\b/i.test(name);
+  if (/\b(vial|ampoule|amp)\b/.test(lc)) return false;
+  if (/\b(needle|syringe)\b/.test(lc)) return false;
+  const paedMarker = /\b(paed|pediatric|junior|kid|child|0\.15\s*mg|0\.15mg)\b/.test(lc);
+  return paediatricGuest ? paedMarker : !paedMarker;
 }
 
 function isInhaler(name) {
-  if (!name) return false;
-  const lc = String(name).toLowerCase();
-  const isBronch = /\b(inhaler|salbutamol|ventolin|bronchodilator|puffer)\b/.test(lc);
-  if (!isBronch) return false;
+  const lc = stripSentinels(String(name || '')).toLowerCase();
+  if (!/\b(inhaler|salbutamol|ventolin|bronchodilator|puffer)\b/.test(lc)) return false;
   // Accessories that aren't the rescue item itself.
   if (/\b(spacer|chamber|peak[-\s]?flow|flow\s*meter|cleaner|case)\b/.test(lc)) return false;
   return true;
 }
 
-function isGlucoseMonitor(name) {
-  if (!name) return false;
-  return /\b(glucose\s*(monitor|meter)|glucometer|blood\s*glucose\s*(monitor|meter))\b/i.test(name);
+function isGlucoseDevice(name) {
+  const lc = stripSentinels(String(name || '')).toLowerCase();
+  return /\b(glucose\s*(monitor|meter)|glucometer|glucagon)\b/.test(lc);
 }
 
-function isInsulinPen(name) {
-  if (!name) return false;
-  const lc = String(name).toLowerCase();
-  if (!/\binsulin\b/.test(lc)) return false;
-  // Pen / auto-pen / flex-pen / injector — NOT lancet / needle / strip / wipe.
-  return /\b(pen|injector|flexpen|quickpen)\b/.test(lc);
+function isGTN(name) {
+  const lc = stripSentinels(String(name || '')).toLowerCase();
+  return /\b(gtn|glyceryl\s+trinitrate|nitroglycerin|nitrolingual|nitro\s*spray)\b/.test(lc);
 }
 
-// Condition triggers. Each returns true when the guest has that
-// condition in their allergies or health_conditions text.
-function hasAnaphylaxisTrigger(medText) {
-  return /\b(peanut|tree\s*nut|nuts?|shellfish|seafood|egg|dairy|bee|wasp|sting|sesame|anaphylax)\w*/i.test(medText);
-}
-function hasAsthma(medText) {
-  return /\b(asthma|wheeze|bronch)\w*/i.test(medText);
-}
-function hasDiabetes(medText) {
-  return /\b(diabet|hypoglyc)\w*/i.test(medText);
-}
+// Condition triggers — each pattern tested against the combined
+// allergies + health_conditions text.
+const EMERGENCY_MATCHERS = [
+  {
+    id:    'anaphylaxis',
+    match: /\b(peanut|tree\s*nut|nuts?|shellfish|anaphylax)\w*/i,
+    pick:  (items, { paediatric }) => items.find(it => isAdrenalineAutoInjector(it.name, paediatric)),
+  },
+  {
+    id:    'asthma',
+    match: /\basthma\w*/i,
+    pick:  (items) => items.find(it => isInhaler(it.name)),
+  },
+  {
+    id:    'diabetes',
+    match: /\bdiabet\w*/i,
+    pick:  (items) => items.find(it => isGlucoseDevice(it.name)),
+  },
+  {
+    id:    'cardiac',
+    match: /\b(angina|cardiac)\w*/i,
+    pick:  (items) => items.find(it => isGTN(it.name)),
+  },
+];
 
-function medicalItemsForGuest(guest, allItems) {
+function emergencyDevicesForGuest(guest, items) {
   const medText = `${guest?.allergies ?? ''} ${guest?.health_conditions ?? ''}`;
   if (!medText.trim()) return [];
 
   const age = computeAgeYears(guest?.date_of_birth);
-  const paed = age != null && age < 12;
+  const paediatric = age != null && age < 12;
 
-  const matchers = [];
-  if (hasAnaphylaxisTrigger(medText)) {
-    matchers.push((it) => isAutoInjector(it.name, paed));
-    matchers.push((it) => isAntihistamine(it.name));
-  }
-  if (hasAsthma(medText))   matchers.push((it) => isInhaler(it.name));
-  if (hasDiabetes(medText)) {
-    matchers.push((it) => isGlucoseMonitor(it.name));
-    matchers.push((it) => isInsulinPen(it.name));
-  }
+  const devices = [];
+  const seen = new Set();
 
-  if (matchers.length === 0) return [];
-
-  const picked = new Set();
-  const out = [];
-  for (const it of allItems || []) {
-    if (picked.has(it.id)) continue;
-    if (matchers.some(m => m(it))) {
-      picked.add(it.id);
-      out.push(it);
+  for (const rule of EMERGENCY_MATCHERS) {
+    if (seen.has(rule.id)) continue;
+    if (!rule.match.test(medText)) continue;
+    const picked = rule.pick(items || [], { paediatric });
+    if (picked) {
+      devices.push(picked);
+      seen.add(rule.id);
     }
   }
-  return out;
+
+  return devices;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Age parser — guests.date_of_birth is TEXT with inconsistent formats in
-// the wild. Parse defensively; fall through to null → adult default.
+// Helpers
 // ────────────────────────────────────────────────────────────────────────────
+
+// :SELECTED: / :UNSELECTED: / :ANY: sentinels leak from variant rows
+// where the picker hasn't settled. Strip from any field we display or
+// match against.
+export function stripSentinels(str) {
+  if (str == null) return str;
+  return String(str).replace(/:[A-Z_]+:/g, '').replace(/\s{2,}/g, ' ').trim();
+}
 
 function computeAgeYears(dobStr) {
   if (!dobStr) return null;
@@ -204,27 +188,27 @@ function computeAgeYears(dobStr) {
   return age >= 0 ? age : null;
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Dedup by name — collapse multiple SKUs. qty sums; par/reorder take the
-// sum too (multiple SKU thresholds add up to a combined minimum); unit
-// keeps the first non-sentinel; critical is re-derived from the merged
-// totals.
-// ────────────────────────────────────────────────────────────────────────────
-
+// Dedup multiple SKUs of the same named item. qty sums; par/reorder sum
+// (combined threshold); unit keeps the first non-empty; critical
+// re-derived from merged totals.
 function dedupeByName(items) {
   const byKey = new Map();
   for (const it of items) {
-    const key = String(it?.name ?? '').toLowerCase().trim();
+    const key = stripSentinels(String(it?.name ?? '')).toLowerCase().trim();
     if (!key) continue;
     if (!byKey.has(key)) {
-      byKey.set(key, { ...it });
+      byKey.set(key, {
+        ...it,
+        name: stripSentinels(it.name),
+        unit: stripSentinels(it.unit),
+      });
       continue;
     }
     const merged = byKey.get(key);
     merged.total_qty     = (merged.total_qty     ?? 0) + (it.total_qty     ?? 0);
-    merged.par_level     = (merged.par_level     ?? 0) + (it.par_level     ?? 0) || null;
-    merged.reorder_point = (merged.reorder_point ?? 0) + (it.reorder_point ?? 0) || null;
-    if (!merged.unit && it.unit) merged.unit = it.unit;
+    merged.par_level     = ((merged.par_level     ?? 0) + (it.par_level     ?? 0)) || null;
+    merged.reorder_point = ((merged.reorder_point ?? 0) + (it.reorder_point ?? 0)) || null;
+    if (!merged.unit && it.unit) merged.unit = stripSentinels(it.unit);
   }
   const out = [];
   for (const item of byKey.values()) {
@@ -233,6 +217,12 @@ function dedupeByName(items) {
     out.push(item);
   }
   return out;
+}
+
+function sortCriticalFirst(a, b) {
+  if (a.critical && !b.critical) return -1;
+  if (!a.critical && b.critical) return 1;
+  return (a.total_qty ?? 0) - (b.total_qty ?? 0);
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -296,22 +286,23 @@ export function useGuestConsumables({ guests, items }) {
 
   const byGuest = useMemo(() => {
     const out = {};
-    for (const guest of guests ?? []) out[guest.id] = [];
+    for (const guest of guests ?? []) out[guest.id] = { preferences: [], emergency: [] };
     if (!items?.length || !guests?.length) return out;
 
     for (const guest of guests) {
-      const foodSignals = buildFoodSignals(prefsByGuest[guest.id]);
-      const foodMatches = items.filter(it => itemMatchesAnySignal(it.name, foodSignals));
-      const medMatches  = medicalItemsForGuest(guest, items);
+      const signals = buildPrefSignals(prefsByGuest[guest.id]);
+      const prefMatches = items.filter(it => itemMatchesAnySignal(it.name, signals));
+      const preferences = dedupeByName(prefMatches).sort(sortCriticalFirst);
 
-      // Merge, dedup by name, sort critical-first then qty ascending.
-      const merged = dedupeByName([...foodMatches, ...medMatches]);
-      merged.sort((a, b) => {
-        if (a.critical && !b.critical) return -1;
-        if (!a.critical && b.critical) return 1;
-        return (a.total_qty ?? 0) - (b.total_qty ?? 0);
-      });
-      out[guest.id] = merged;
+      // Emergency devices aren't deduped — one device per condition is
+      // already enforced upstream. Still sanitise name/unit.
+      const emergency = emergencyDevicesForGuest(guest, items).map(it => ({
+        ...it,
+        name: stripSentinels(it.name),
+        unit: stripSentinels(it.unit),
+      }));
+
+      out[guest.id] = { preferences, emergency };
     }
 
     return out;
