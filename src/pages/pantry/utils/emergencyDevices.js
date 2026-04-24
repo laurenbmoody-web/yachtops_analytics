@@ -108,4 +108,41 @@ export function emergencyDevicesForGuest(guest, items) {
   return devices;
 }
 
+// Like emergencyDevicesForGuest, but each entry carries the triggering
+// condition id + the guest reference so the page can render
+// "Jext 0.3mg — for John (nut allergy), Jane (peanut allergy)" in the
+// new item-first layout. Use this from useInventoryConsumables; the
+// original function stays for the legacy per-guest hook until it's
+// removed in cleanup.
+export function emergencyResponsesForGuest(guest, items) {
+  const medText = `${guest?.allergies ?? ''} ${guest?.health_conditions ?? ''}`;
+  if (!medText.trim()) return [];
+
+  const age = computeAgeYears(guest?.date_of_birth);
+  const paediatric = age != null && age < 12;
+
+  const responses = [];
+  const seen = new Set();
+
+  for (const rule of EMERGENCY_MATCHERS) {
+    if (seen.has(rule.id)) continue;
+    if (!rule.match.test(medText)) continue;
+    const picked = rule.pick(items || [], { paediatric });
+    if (picked) {
+      responses.push({
+        condition: rule.id,          // 'anaphylaxis' | 'asthma' | 'diabetes' | 'cardiac'
+        device: {
+          ...picked,
+          name: stripSentinels(picked.name),
+          unit: stripSentinels(picked.unit),
+        },
+        guest,
+      });
+      seen.add(rule.id);
+    }
+  }
+
+  return responses;
+}
+
 export { stripSentinels };
