@@ -38,19 +38,65 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../contexts/AuthContext';
 
-// Grammar fillers + generic preference metadata that add no signal.
-// Intentionally short — over-filtering loses legitimate matches on
-// brand names and item categories.
+// Stopwords. The list is deliberately broad — this filter is a match
+// layer, not an NLP layer, and every entry here was earned by a real
+// false-positive in testing. Categories:
+//   - grammar fillers
+//   - preference metadata (wizard enum labels)
+//   - sizes / adjectives that collide with inventory names
+//     ("low" → Low adherent dressing, "large" → Large pouch)
+//   - colours (inventory often has "yellow", "black" in names)
+//   - structural nouns that leak from prefs values
+//     ("bag", "storage", "pouch", "water", "glass", "ice")
+//   - filler descriptors
+//   - service-row artefacts from the wizard ("dining", "ambience",
+//     "routine"…) that surface when values mirror their keys
 const STOPWORDS = new Set([
+  // grammar fillers
   'the','and','for','with','but','etc','some','that','this',
   'are','was','has','have','had','not','any','all','one','two',
   'from','into','per','about','over','under','each',
+  // preference metadata
   'preferred','favourite','favorite','preference','preferences',
   'prefers','avoid','tolerance','frequency',
+  // sizes & adjectives that match inventory names
+  'low','high','medium','large','small','mini','mega',
+  'regular','standard','plain','basic','extra',
+  // colours (inventory names carry these — 'yellow', 'black' etc.)
+  'black','white','yellow','brown','blue','red','green','grey','gray',
+  // structural nouns that leak from values
+  'water','bag','bags','storage','pouch','pouches','box','boxes',
+  'type','size','style','service','products','items','things',
+  'preparation','preparations',
+  // filler
+  'very','always','often','sometimes','never','usually',
+  'friendly','relaxed','moderate','neutral','mild',
+  'morning','evening','night','daily','weekly',
+  'like','likes','enjoy','enjoys','prefer',
+  // wizard service-row artefacts
+  'dining','ambience','routine','activities','activity',
+  'personality','profile','temperature','tidiness',
+  'communication','familiarity','presence','behaviour',
+  'buffet','plated','family','rustic',
+  'ibiza','beach','club','main','salon','spaces',
+  // specific inventory-collision fixes
+  'glass','ice',
+]);
+
+// Allowlist for 3-char signal tokens that survive the min-length gate.
+// Anything not in this list AND under 4 chars gets dropped — kills the
+// long tail of noise words ('low', 'bag', 'red', 'new', 'one', 'two'…).
+const SHORT_SIGNAL_ALLOWLIST = new Set([
+  'tea', 'gin', 'rum', 'oat', 'soy', 'nut', 'egg',
 ]);
 
 // ────────────────────────────────────────────────────────────────────────────
 // Preference-based matching (Rule 1) — all categories contribute.
+// Only the VALUE field is tokenised. Keys are structural labels from the
+// onboarding wizard ("Portion Size", "Bathroom Products", "Dining Service
+// Style") and carry no signal about what the guest actually wants —
+// tokenising them generated generic words like 'size' / 'type' / 'style' /
+// 'service' / 'products' that collided with medical inventory names.
 // ────────────────────────────────────────────────────────────────────────────
 
 function tokenise(text) {
@@ -59,13 +105,18 @@ function tokenise(text) {
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, ' ')
     .split(/\s+/)
-    .filter(w => w.length >= 3 && !STOPWORDS.has(w));
+    .filter(w => {
+      if (!w) return false;
+      if (STOPWORDS.has(w)) return false;
+      if (SHORT_SIGNAL_ALLOWLIST.has(w)) return true;
+      return w.length >= 4;
+    });
 }
 
 function buildPrefSignals(prefsRows) {
   const signals = new Set();
   for (const r of prefsRows || []) {
-    for (const t of tokenise(r?.key))   signals.add(t);
+    // Keys intentionally skipped — see module comment above.
     for (const t of tokenise(r?.value)) signals.add(t);
   }
   return signals;
