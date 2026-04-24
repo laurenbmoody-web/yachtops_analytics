@@ -1,0 +1,167 @@
+/* ============================================================
+   CARGO SUPPLIER PORTAL — DEMO-ONLY SUPPLEMENTS
+   Re-introduces layout classes that the mock *View.jsx files
+   still use but that were removed from supplier-portal.css
+   when the real portal was rebuilt.
+   Scoped under #sp-root so these rules never leak outside
+   the demo (or the real portal, though the real views do
+   not use these class names).
+   ============================================================ */
+
+/* ── KPI label/value aliases (real portal uses sp-kpi-l / sp-kpi-v) ── */
+#sp-root .sp-kpi-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Syne';
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted-strong);
+  margin-bottom: 12px;
+}
+#sp-root .sp-kpi-label svg { width: 12px; height: 12px; }
+
+#sp-root .sp-kpi-value {
+  font-family: 'Outfit';
+  font-weight: 800;
+  font-size: 32px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+  margin-bottom: 6px;
+}
+
+#sp-root .sp-delta {
+  display: inline-block;
+  font-family: 'JetBrains Mono';
+  font-size: 11px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--chip-bg);
+  color: var(--muted-strong);
+  margin-right: 4px;
+}
+#sp-root .sp-delta.up   { background: rgba(5,150,105,0.12);  color: var(--green); }
+#sp-root .sp-delta.down { background: rgba(220,38,38,0.12);  color: var(--red); }
+
+/* ── Tabs row ─────────────────────────────────────────────── */
+#sp-root .sp-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 14px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+}
+
+#sp-root .sp-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  font-family: 'Outfit';
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--muted-strong);
+  background: transparent;
+  border: none;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 120ms, color 120ms;
+  position: relative;
+}
+#sp-root .sp-tab:hover { color: var(--fg); background: var(--chip-bg); }
+#sp-root .sp-tab.active {
+  color: var(--fg);
+  background: var(--card);
+}
+#sp-root .sp-tab.active::after {
+  content: '';
+  position: absolute;
+  left: 10px; right: 10px; bottom: -7px;
+  height: 2px;
+  background: var(--navy-app);
+  border-radius: 2px;
+}
+
+#sp-root .sp-tab-count {
+  font-family: 'JetBrains Mono';
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--chip-bg);
+  color: var(--muted-strong);
+  border: 1px solid var(--line);
+}
+#sp-root .sp-tab.active .sp-tab-count {
+  background: var(--card);
+  color: var(--fg-2);
+}
+#sp-root .sp-tab-count.urgent {
+  background: rgba(220,38,38,0.12);
+  color: var(--red);
+  border-color: transparent;
+}
+
+/* ── Filter buttons ───────────────────────────────────────── */
+#sp-root .sp-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  font-family: 'Outfit';
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--muted-strong);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+#sp-root .sp-filter:hover { background: var(--bg-2); color: var(--fg); }
+
+#sp-root .sp-filter-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--line);
+  margin: 0 6px;
+}
+
+/* ── View toggle (Table / Cards / Board) ─────────────────── */
+#sp-root .sp-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+#sp-root .sp-view-toggle button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  font-family: 'Outfit';
+  font-weight: 600;
+  font-size: 11.5px;
+  color: var(--muted-strong);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+#sp-root .sp-view-toggle button:hover { color: var(--fg); }
+#sp-root .sp-view-toggle button.active {
+  color: var(--fg);
+  background: var(--card);
+  box-shadow: 0 1px 2px rgba(15,23,42,0.06);
+}
+#sp-root .sp-view-toggle button svg { width: 12px; height: 12px; }
