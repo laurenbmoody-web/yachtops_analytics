@@ -68,6 +68,7 @@ import SupplierPortalDemo from './pages/supplier-portal-demo';
 import SupplierLayout from './pages/supplier-portal/SupplierLayout';
 import VerifyAlias from './pages/verify-alias';
 import AcceptSupplierInvite from './pages/accept-supplier-invite';
+import AcceptSupplierInviteSignup from './pages/accept-supplier-invite-signup';
 import ConfirmOwnershipTransfer from './pages/confirm-ownership-transfer';
 import { SupplierProvider } from './contexts/SupplierContext';
 import { SupplierPermissionProvider } from './contexts/SupplierPermissionContext';
@@ -1151,6 +1152,9 @@ const Routes = () => {
 
         {/* Supplier invite acceptance — public; allows sign-in redirect */}
         <Route path="/accept-supplier-invite/:token" element={<AcceptSupplierInvite />} />
+
+        {/* Signup path for invited users who don't yet have a Cargo account */}
+        <Route path="/accept-supplier-invite/:token/signup" element={<AcceptSupplierInviteSignup />} />
 
         {/* Supplier ownership transfer confirm — self-guards with sign-in redirect */}
         <Route path="/confirm-ownership-transfer/:token" element={<ConfirmOwnershipTransfer />} />
