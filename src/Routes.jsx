@@ -65,7 +65,9 @@ import SupplierSignup from './pages/supplier-signup';
 import SupplierProtectedRoute from './components/SupplierProtectedRoute';
 import SupplierRoleGuard from './components/SupplierRoleGuard';
 import SupplierPortal from './pages/supplier-portal';
+import SupplierPortalDemo from './pages/supplier-portal-demo';
 import SupplierLayout from './pages/supplier-portal/SupplierLayout';
+import VerifyAlias from './pages/verify-alias';
 import { SupplierProvider } from './contexts/SupplierContext';
 
 // Lazy supplier views — loaded only when the supplier portal is accessed
@@ -1115,6 +1117,12 @@ const Routes = () => {
         {/* Supplier Auth Routes (public) */}
         <Route path="/supplier/login" element={<SupplierLogin />} />
         <Route path="/supplier/signup" element={<SupplierSignup />} />
+
+        {/* Public demo of the supplier portal — mock data, no auth required */}
+        <Route path="/supplier-portal/demo" element={<SupplierPortalDemo />} />
+
+        {/* Supplier email alias verification — must work without a session */}
+        <Route path="/verify-alias/:token" element={<VerifyAlias />} />
 
         {/* Supplier nested routes */}
         <Route

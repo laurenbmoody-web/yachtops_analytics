@@ -1,67 +1,114 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Inbox, Truck, FileText, Package, List, Ship, MessageSquare,
-  RotateCcw, Settings, Search, Bell, HelpCircle, LayoutGrid,
+  RotateCcw, Settings, Search, Bell, HelpCircle,
   ChevronDown, BarChart2,
 } from 'lucide-react';
+import { useSupplier } from '../../contexts/SupplierContext';
 import './supplier-portal.css';
 
-import DashboardView   from './views/DashboardView';
-import OrdersView      from './views/OrdersView';
-import OrderDetailView from './views/OrderDetailView';
-import CatalogueView   from './views/CatalogueView';
-import DeliveriesView  from './views/DeliveriesView';
-import InvoicesView    from './views/InvoicesView';
-import ClientsView     from './views/ClientsView';
-import MessagesView    from './views/MessagesView';
-import ReturnsView     from './views/ReturnsView';
-import SettingsView    from './views/SettingsView';
+import SupplierOverview    from './views/SupplierOverview';
+import SupplierOrders      from './views/SupplierOrders';
+import SupplierOrderDetail from './views/SupplierOrderDetail';
+import SupplierProducts    from './views/SupplierProducts';
+import SupplierDeliveries  from './views/SupplierDeliveries';
+import SupplierInvoices    from './views/SupplierInvoices';
+import SupplierClients     from './views/SupplierClients';
+import SupplierMessages    from './views/SupplierMessages';
+import SupplierReturns     from './views/SupplierReturns';
+import SupplierSettings    from './views/SupplierSettings';
 
 const NAV = [
   { group: 'WORK', items: [
-    { id: 'dashboard',  label: 'Overview',      icon: BarChart2 },
-    { id: 'orders',     label: 'Orders',         icon: Inbox,        badge: '4', urgent: true },
-    { id: 'deliveries', label: 'Deliveries',     icon: Truck,        badge: '7' },
-    { id: 'invoices',   label: 'Invoices',       icon: FileText,     badge: '2' },
+    { id: 'dashboard',  label: 'Overview',        icon: BarChart2 },
+    { id: 'orders',     label: 'Orders',          icon: Inbox },
+    { id: 'deliveries', label: 'Deliveries',      icon: Truck },
+    { id: 'invoices',   label: 'Invoices',        icon: FileText },
   ]},
   { group: 'CATALOGUE', items: [
-    { id: 'catalogue',  label: 'Products',       icon: Package },
-    { id: 'pricelists', label: 'Price lists',    icon: List, disabled: true },
+    { id: 'catalogue',  label: 'Products',        icon: Package },
+    { id: 'pricelists', label: 'Price lists',     icon: List, disabled: true },
   ]},
   { group: 'RELATIONSHIPS', items: [
-    { id: 'clients',    label: 'Yacht clients',  icon: Ship },
-    { id: 'messages',   label: 'Messages',       icon: MessageSquare, badge: '3' },
+    { id: 'clients',    label: 'Yacht clients',   icon: Ship },
+    { id: 'messages',   label: 'Messages',        icon: MessageSquare },
   ]},
   { group: '', items: [
     { id: 'returns',    label: 'Returns & Issues', icon: RotateCcw },
-    { id: 'settings',   label: 'Settings',          icon: Settings },
+    { id: 'settings',   label: 'Settings',         icon: Settings },
   ]},
 ];
 
+const initialsFrom = (name) => {
+  if (!name) return '—';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '—';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
 const SupplierPortal = () => {
-  const [view, setView]               = useState('orders');
+  const { supplier, loading: supplierLoading, error: supplierError } = useSupplier();
+
+  const [view, setView]                   = useState('dashboard');
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [darkSidebar, setDarkSidebar] = useState(false);
-  const [confirmed, setConfirmed]     = useState(false);
+  const [darkSidebar]                     = useState(false);
+  const [confirmed, setConfirmed]         = useState(false);
+
+  const brandName = supplier?.name ?? '—';
+  const brandMark = useMemo(() => initialsFrom(supplier?.name), [supplier?.name]);
 
   const openOrder = (id) => { setSelectedOrder(id); setView('detail'); setConfirmed(false); };
   const goBack    = ()   => { setView('orders'); setSelectedOrder(null); };
 
   const renderView = () => {
     switch (view) {
-      case 'dashboard':   return <DashboardView   onOpenOrder={openOrder} onNav={setView} />;
-      case 'orders':      return <OrdersView       onOpenOrder={openOrder} />;
-      case 'detail':      return <OrderDetailView  orderId={selectedOrder} onBack={goBack} confirmed={confirmed} onConfirm={() => setConfirmed(true)} />;
-      case 'catalogue':   return <CatalogueView />;
-      case 'deliveries':  return <DeliveriesView />;
-      case 'invoices':    return <InvoicesView />;
-      case 'clients':     return <ClientsView />;
-      case 'messages':    return <MessagesView onOpenOrder={openOrder} />;
-      case 'returns':     return <ReturnsView />;
-      case 'settings':    return <SettingsView />;
-      default:            return <OrdersView onOpenOrder={openOrder} />;
+      case 'dashboard':   return <SupplierOverview />;
+      case 'orders':      return <SupplierOrders onOpenOrder={openOrder} />;
+      case 'detail':      return <SupplierOrderDetail orderId={selectedOrder} onBack={goBack} confirmed={confirmed} onConfirm={() => setConfirmed(true)} />;
+      case 'catalogue':   return <SupplierProducts />;
+      case 'deliveries':  return <SupplierDeliveries />;
+      case 'invoices':    return <SupplierInvoices />;
+      case 'clients':     return <SupplierClients />;
+      case 'messages':    return <SupplierMessages onOpenOrder={openOrder} />;
+      case 'returns':     return <SupplierReturns />;
+      case 'settings':    return <SupplierSettings />;
+      default:            return <SupplierOverview />;
     }
   };
+
+  if (supplierLoading) {
+    return (
+      <div id="sp-root">
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)' }}>
+          Loading your supplier workspace…
+        </div>
+      </div>
+    );
+  }
+
+  if (supplierError || !supplier) {
+    return (
+      <div id="sp-root">
+        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24, textAlign: 'center' }}>
+          <div style={{ fontSize: 28 }}>⚠️</div>
+          <div style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: 18, color: 'var(--fg)' }}>
+            We couldn't load your supplier workspace
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--muted-s)', maxWidth: 420, lineHeight: 1.5 }}>
+            {supplierError ?? 'Your supplier profile could not be loaded.'}
+          </div>
+          <button
+            className="sp-pill primary"
+            style={{ padding: '9px 20px' }}
+            onClick={() => window.location.reload()}
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div id="sp-root">
@@ -70,10 +117,10 @@ const SupplierPortal = () => {
       <aside className={`sp-sidebar${darkSidebar ? ' dark' : ''}`}>
         {/* Brand */}
         <div className="sp-brand">
-          <div className="sp-tenant-mark">MP</div>
+          <div className="sp-tenant-mark">{brandMark}</div>
           <div>
-            <div className="sp-tenant-name">Maison Provence</div>
-            <div className="sp-tenant-sub">Antibes · Supplier</div>
+            <div className="sp-tenant-name">{brandName}</div>
+            <div className="sp-tenant-sub">Supplier</div>
           </div>
           <ChevronDown size={14} style={{ marginLeft: 'auto', color: 'var(--muted)', flexShrink: 0 }} />
         </div>
@@ -94,11 +141,6 @@ const SupplierPortal = () => {
                 >
                   <Icon size={15} />
                   {item.label}
-                  {item.badge && (
-                    <span className={`sp-nav-badge${item.urgent ? ' urgent' : ''}`}>
-                      {item.badge}
-                    </span>
-                  )}
                 </button>
               );
             })}
@@ -117,7 +159,6 @@ const SupplierPortal = () => {
             <span style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: 'var(--muted)', background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 4, padding: '1px 5px' }}>⌘K</span>
           </div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span className="sp-badge">SANDBOX</span>
             <button className="sp-icon-btn"><HelpCircle size={14} /></button>
             <button className="sp-icon-btn"><Bell size={14} /></button>
           </div>
