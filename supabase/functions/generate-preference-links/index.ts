@@ -52,26 +52,36 @@ const SERVICE_ROLE_KEY     = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 //   v3 → add interior_relevance tag per link (primary / shared / chef_only)
 //        so the same Edge Function can serve both interior + (future)
 //        galley dashboards from a single call
-const PROMPT_VERSION = 'v3';
+//   v4 → replace category-based filter with an explicit PROVISIONING_KEYS
+//        allowlist. Drops Turn-Down Preferences (service rule, not a
+//        sourcing rule), eliminates conflation of late-night-snack prefs
+//        with turn-down service prefs.
+const PROMPT_VERSION = 'v4';
 
-// ─── Deterministic category allowlist ──────────────────────────────────────
-// Preferences that could plausibly map to a stockable consumable.
-// 'Allergies' category is NOT a consumable match target — handled in three
-// other places (guest profile, AI Signals banner, EMERGENCY subsection).
-// Rendering them in NOT TRACKED as well was noise. Dropped here.
-const CONSUMABLE_CATEGORIES = new Set(['Food & Beverage']);
-const CABIN_CONSUMABLE_KEYS = new Set(['Bathroom Products', 'Turn-Down Preferences']);
+// ─── Deterministic preference allowlist ────────────────────────────────────
+// PROVISIONING_KEYS is the explicit list of preference keys that drive
+// sourcing/reordering on the interior-weekly page. Service rules
+// (Turn-Down, Music, Blanket Type), chef notes (Cooking Style, Doneness),
+// and lifestyle attributes (Hobbies, Routines) are NOT in this list — they
+// belong in cabin briefs and chef handovers, not in provisioning.
+//
+// Allergies are filtered separately and surface in EMERGENCY + AI Signals,
+// never as a provisioning row. pref_type='avoid' is also dropped — those
+// are service-time rules, not sourcing gaps.
+const PROVISIONING_KEYS = new Set<string>([
+  'Tea', 'Coffee', 'Wine', 'Wines to Stock', 'Spirits', 'Cocktail',
+  'Evening Drink', 'Morning Drink', 'Champagne', 'Beer',
+  'Non-Alcoholic Drinks', 'Hot Drinks',
+  'Favourite Snacks', 'Late Night Snacks', 'Snacks to Pre-Order',
+  'Dessert Preferences', 'Favourite Meals', 'Favourite Cuisines',
+  'Bathroom Products',
+]);
 
 function isConsumablePreference(p: { category?: string; key?: string; pref_type?: string }): boolean {
-  if (!p?.category) return false;
-  // pref_type='avoid' are chef-/service-facing rules, not provisioning gaps.
-  // A "no coriander" preference is handled at cooking time, not by sourcing.
-  // Filter before any category logic so avoid rows never make the prompt
-  // or the cache key.
+  if (!p?.key) return false;
   if (p.pref_type === 'avoid') return false;
-  if (CONSUMABLE_CATEGORIES.has(p.category)) return true;
-  if (p.category === 'Cabin' && p.key && CABIN_CONSUMABLE_KEYS.has(p.key)) return true;
-  return false;
+  if (p.category === 'Allergies') return false;
+  return PROVISIONING_KEYS.has(p.key);
 }
 
 // ─── Types ─────────────────────────────────────────────────────────────────
