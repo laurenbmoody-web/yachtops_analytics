@@ -219,6 +219,8 @@ const SendToSupplierModal = ({
         body: {
           to: supplierEmail,
           publicToken: order.public_token,
+          supplierProfileId: order.supplier_profile_id || null,
+          orderId: order.id,
           replyTo: user?.email || null,
           senderName: user?.user_metadata?.full_name || user?.email || null,
           ...orderPayload,
