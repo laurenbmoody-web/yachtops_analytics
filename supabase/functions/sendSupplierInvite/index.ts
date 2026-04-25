@@ -291,7 +291,7 @@ Deno.serve(async (req: Request) => {
   }
   supplierName = supplierName || 'A supplier';
 
-  const acceptUrl = `${SITE_URL}/accept-supplier-invite/${body.token}`;
+  const acceptUrl = `${SITE_URL}/accept-supplier-invite/${body.token}/signup`;
   const isNudge = !!body.isNudge;
 
   // Use just the first name for greetings — friendlier than "Hi Luca Moreau,".
