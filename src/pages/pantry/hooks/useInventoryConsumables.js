@@ -47,16 +47,23 @@ import { tripDaysRemainingForGuest } from '../utils/tripDaysRemaining';
 // different scope here.
 const INTERIOR_SCOPE = new Set(['primary', 'shared']);
 
-// Mirror of the Edge Function's deterministic pre-filter — see
-// usePreferenceLinks for the same guard.
-const CONSUMABLE_CATEGORIES = new Set(['Food & Beverage']);
-const CABIN_CONSUMABLE_KEYS = new Set(['Bathroom Products', 'Turn-Down Preferences']);
+// Mirror of the Edge Function's deterministic pre-filter. Must stay in
+// lockstep with PROVISIONING_KEYS on the server — the hook uses this only
+// to short-circuit the Edge Function call when a guest has zero
+// provisioning prefs (saves a round-trip + an LLM call on cache miss).
+const PROVISIONING_KEYS = new Set([
+  'Tea', 'Coffee', 'Wine', 'Wines to Stock', 'Spirits', 'Cocktail',
+  'Evening Drink', 'Morning Drink', 'Champagne', 'Beer',
+  'Non-Alcoholic Drinks', 'Hot Drinks',
+  'Favourite Snacks', 'Late Night Snacks', 'Snacks to Pre-Order',
+  'Dessert Preferences', 'Favourite Meals', 'Favourite Cuisines',
+  'Bathroom Products',
+]);
 function isConsumablePreference(p) {
-  if (!p?.category) return false;
+  if (!p?.key) return false;
   if (p?.pref_type === 'avoid') return false;
-  if (CONSUMABLE_CATEGORIES.has(p.category)) return true;
-  if (p.category === 'Cabin' && CABIN_CONSUMABLE_KEYS.has(p.key)) return true;
-  return false;
+  if (p?.category === 'Allergies') return false;
+  return PROVISIONING_KEYS.has(p.key);
 }
 
 function toPayloadItem(row) {
@@ -124,6 +131,24 @@ function aggregateRelevance(rels) {
   if (rels.some(r => r === 'primary')) return 'primary';
   if (rels.some(r => r === 'shared'))  return 'shared';
   return 'chef_only';
+}
+
+// Same guest can contribute multiple links to one bucket — e.g. John has
+// "Late Night Snacks · Popcorn, Dark Chocolate" AND a separate dessert
+// preference both linking to the same chocolate item. Without dedup the
+// row reads "for John and John" and his daily_consumption gets counted
+// twice. First contribution wins for original_preference_key + the note
+// + the daily_consumption — keeps the math honest.
+function dedupeContributorsByGuest(contributors) {
+  const seen = new Set();
+  const out  = [];
+  for (const c of contributors) {
+    const id = c?.guest?.id;
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(c);
+  }
+  return out;
 }
 
 function pickBestNote(notes, confidences) {
@@ -355,12 +380,13 @@ export function useInventoryConsumables() {
       // Shape + assess inventory rows.
       const inventoryItems = [];
       for (const bucket of inventoryBuckets.values()) {
-        const tripDaysList = bucket.contributors
+        const contributors = dedupeContributorsByGuest(bucket.contributors);
+        const tripDaysList = contributors
           .map(c => c.trip_days_remaining)
           .filter(v => v != null);
         const itemTripDays = tripDaysList.length > 0 ? Math.min(...tripDaysList) : null;
 
-        const totalDailyNeed = bucket.contributors
+        const totalDailyNeed = contributors
           .reduce((sum, c) => sum + (c.daily_consumption || 0), 0);
 
         const assessable = {
@@ -369,7 +395,7 @@ export function useInventoryConsumables() {
             par: Number.isFinite(bucket.item.par_level) ? bucket.item.par_level : null,
           },
           total_daily_need: totalDailyNeed,
-          guests:           bucket.contributors,
+          guests:           contributors,
         };
         const assessment = assessItem(assessable, itemTripDays);
         if (assessment.status === 'ok') continue;
@@ -383,7 +409,7 @@ export function useInventoryConsumables() {
             qty:  assessable.item.qty,
             par:  assessable.item.par,
           },
-          guests: bucket.contributors.map(c => ({
+          guests: contributors.map(c => ({
             ...c.guest,
             daily_consumption:       c.daily_consumption,
             original_preference_key: c.original_preference_key,
@@ -394,26 +420,29 @@ export function useInventoryConsumables() {
           status:                assessment.status,
           reason:                assessment.reason,
           model_note:            pickBestNote(
-            bucket.contributors.map(c => c.note),
-            bucket.contributors.map(c => c.confidence),
+            contributors.map(c => c.note),
+            contributors.map(c => c.confidence),
           ),
-          interior_relevance:    aggregateRelevance(bucket.contributors.map(c => c.interior_relevance)),
+          interior_relevance:    aggregateRelevance(contributors.map(c => c.interior_relevance)),
         });
       }
 
-      const gapItems = gapBuckets.map(b => ({
-        type:               'gap',
-        preference_summary: b.preference_value,
-        guests:             b.contributors.map(c => ({
-          ...c.guest,
-          original_preference_key: c.original_preference_key,
-        })),
-        model_note:         pickBestNote(
-          b.contributors.map(c => c.note),
-          b.contributors.map(c => c.confidence),
-        ),
-        interior_relevance: aggregateRelevance(b.contributors.map(c => c.interior_relevance)),
-      }));
+      const gapItems = gapBuckets.map(b => {
+        const contributors = dedupeContributorsByGuest(b.contributors);
+        return {
+          type:               'gap',
+          preference_summary: b.preference_value,
+          guests:             contributors.map(c => ({
+            ...c.guest,
+            original_preference_key: c.original_preference_key,
+          })),
+          model_note:         pickBestNote(
+            contributors.map(c => c.note),
+            contributors.map(c => c.confidence),
+          ),
+          interior_relevance: aggregateRelevance(contributors.map(c => c.interior_relevance)),
+        };
+      });
 
       // ── Sort ─────────────────────────────────────────────────────────
       // Inventory rows: guests count descending, then qty/par gap desc.
