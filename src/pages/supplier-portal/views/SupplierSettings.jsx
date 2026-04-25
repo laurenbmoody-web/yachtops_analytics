@@ -193,7 +193,9 @@ const PendingInviteRow = ({ invite, supplierName, onResent, onRevoked }) => {
     }}>
       <Mail size={14} style={{ color: 'var(--muted)' }} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, color: 'var(--fg)', fontWeight: 500 }}>{invite.email}</div>
+        <div style={{ fontSize: 13, color: 'var(--fg)', fontWeight: 500 }}>
+          {invite.name ? `${invite.name} · ${invite.email}` : invite.email}
+        </div>
         {err && <div style={{ fontSize: 11.5, color: 'var(--red)', marginTop: 2 }}>{err}</div>}
       </div>
       {invite.role && (
@@ -234,6 +236,7 @@ const PendingInviteRow = ({ invite, supplierName, onResent, onRevoked }) => {
 const TIER_FOR_ROLE = { sales: 'MEMBER', logistics: 'MEMBER', accounts: 'FINANCE', admin: 'ADMIN' };
 
 const InviteModal = ({ supplierId, supplierName, onClose, onCreated }) => {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('sales');
   const [tier, setTier] = useState('MEMBER');
@@ -252,7 +255,12 @@ const InviteModal = ({ supplierId, supplierName, onClose, onCreated }) => {
     setSubmitting(true); setErr(null);
     try {
       const created = await createInvite({
-        supplierId, email, permissionTier: tier, role, supplierName,
+        supplierId,
+        email,
+        name: name.trim() || null,
+        permissionTier: tier,
+        role,
+        supplierName,
       });
       onCreated?.(created);
     } catch (e2) {
@@ -299,13 +307,30 @@ const InviteModal = ({ supplierId, supplierName, onClose, onCreated }) => {
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
+            <label style={{ fontSize: 11.5, color: 'var(--muted-s)', display: 'block', marginBottom: 4 }}>Teammate's name <span style={{ color: 'var(--muted)', fontWeight: 400 }}>(optional)</span></label>
+            <input
+              type="text"
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Luca Moreau"
+              autoComplete="off"
+              style={{
+                width: '100%', border: '1px solid var(--line)', borderRadius: 7,
+                padding: '9px 12px', fontSize: 13, background: 'var(--card)', color: 'var(--fg)',
+                fontFamily: 'inherit',
+              }}
+            />
+          </div>
+
+          <div>
             <label style={{ fontSize: 11.5, color: 'var(--muted-s)', display: 'block', marginBottom: 4 }}>Email</label>
             <input
               type="email"
-              autoFocus
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="colleague@supplier.com"
+              autoComplete="off"
               style={{
                 width: '100%', border: '1px solid var(--line)', borderRadius: 7,
                 padding: '9px 12px', fontSize: 13, background: 'var(--card)', color: 'var(--fg)',
