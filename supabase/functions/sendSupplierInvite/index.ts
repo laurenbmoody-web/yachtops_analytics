@@ -11,7 +11,7 @@
 //     the caller doesn't pass supplierName in the request body)
 //
 // Request body:
-//   { inviteId: uuid, email: string, token: uuid, supplierName?: string, isNudge?: boolean }
+//   { inviteId: uuid, email: string, name?: string, token: uuid, supplierName?: string, isNudge?: boolean }
 
 declare const Deno: {
   serve: (handler: (req: Request) => Promise<Response>) => void;
@@ -266,6 +266,7 @@ Deno.serve(async (req: Request) => {
   let body: {
     inviteId?: string;
     email?: string;
+    name?: string;
     token?: string;
     supplierName?: string;
     isNudge?: boolean;
@@ -293,13 +294,21 @@ Deno.serve(async (req: Request) => {
   const acceptUrl = `${SITE_URL}/accept-supplier-invite/${body.token}`;
   const isNudge = !!body.isNudge;
 
+  // Use just the first name for greetings — friendlier than "Hi Luca Moreau,".
+  const inviteeName = (body.name ?? '').trim();
+  const firstName = inviteeName.split(/\s+/).filter(Boolean)[0] ?? '';
+  const greeting = firstName ? `Hi ${firstName}, ` : '';
+
   const subject = isNudge
     ? `Reminder: your invite to ${supplierName} is still pending`
     : `You've been invited to ${supplierName} on Cargo`;
 
+  // Capitalise the first letter when there's no greeting prefix so the
+  // sentence starts cleanly ("Just a reminder…" vs "Hi Luca, just a reminder…").
+  const reminderLead = greeting ? 'just a reminder' : 'Just a reminder';
   const intro = isNudge
-    ? `Just a reminder — you still have a pending invite to ${supplierName}'s Cargo supplier portal. Click below to accept, or ignore if you're no longer interested.`
-    : `${supplierName} has invited you to their Cargo supplier portal. Click below to accept and sign in — the invite expires in 14 days.`;
+    ? `${greeting}${reminderLead} — you still have a pending invite to ${supplierName}'s Cargo supplier portal. Click below to accept, or ignore if you're no longer interested.`
+    : `${greeting}${supplierName} has invited you to their Cargo supplier portal. Click below to accept and sign in — the invite expires in 14 days.`;
 
   const emailParams: EmailTemplateParams = {
     preheader: `Accept your invitation to join ${supplierName} on Cargo.`,

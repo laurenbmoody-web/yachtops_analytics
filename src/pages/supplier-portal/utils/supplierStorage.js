@@ -343,12 +343,13 @@ export const fetchPendingInvites = async (supplierId) => {
   return data ?? [];
 };
 
-export const createInvite = async ({ supplierId, email, permissionTier, role, supplierName }) => {
+export const createInvite = async ({ supplierId, email, name, permissionTier, role, supplierName }) => {
   const { data, error } = await supabase
     .from('supplier_invites')
     .insert({
       supplier_id: supplierId,
       email: email.toLowerCase().trim(),
+      name: name?.trim() || null,
       permission_tier: permissionTier,
       role,
     })
@@ -361,6 +362,7 @@ export const createInvite = async ({ supplierId, email, permissionTier, role, su
       body: {
         inviteId: data.id,
         email: data.email,
+        name: data.name,
         token: data.token,
         supplierName,
       },
@@ -380,7 +382,7 @@ export const revokeInvite = async (inviteId) => {
 export const nudgeInvite = async (inviteId, supplierName) => {
   const { data: existing, error: readErr } = await supabase
     .from('supplier_invites')
-    .select('nudge_count, email, token')
+    .select('nudge_count, email, token, name')
     .eq('id', inviteId)
     .single();
   if (readErr) throw readErr;
@@ -401,6 +403,7 @@ export const nudgeInvite = async (inviteId, supplierName) => {
       body: {
         inviteId: invite.id,
         email: invite.email,
+        name: invite.name,
         token: invite.token,
         isNudge: true,
         supplierName,

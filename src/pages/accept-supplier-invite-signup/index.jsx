@@ -104,6 +104,8 @@ const AcceptSupplierInviteSignup = () => {
         if (cancelled) return;
         if (res?.ok) {
           setInviteState({ status: 'ready', invite: res, error: null });
+          // Prefill the Full name field if the inviting admin provided one.
+          if (res.name) setFullName(res.name);
         } else {
           setInviteState({ status: 'error', invite: null, error: res?.error ?? 'not_found' });
         }
@@ -285,6 +287,7 @@ const AcceptSupplierInviteSignup = () => {
               disabled={loading}
               required
               minLength={2}
+              autoComplete="name"
               style={inputStyle(loading, false)}
             />
           </div>
@@ -296,6 +299,7 @@ const AcceptSupplierInviteSignup = () => {
               value={invite.email}
               disabled
               readOnly
+              autoComplete="email"
               style={inputStyle(false, true)}
             />
             <p style={{ fontSize: 11.5, color: '#94A3B8', margin: '4px 0 0' }}>
@@ -313,6 +317,7 @@ const AcceptSupplierInviteSignup = () => {
               disabled={loading}
               required
               minLength={6}
+              autoComplete="new-password"
               style={inputStyle(loading, false)}
             />
           </div>
@@ -327,6 +332,7 @@ const AcceptSupplierInviteSignup = () => {
               disabled={loading}
               required
               minLength={6}
+              autoComplete="new-password"
               style={inputStyle(loading, false)}
             />
           </div>
