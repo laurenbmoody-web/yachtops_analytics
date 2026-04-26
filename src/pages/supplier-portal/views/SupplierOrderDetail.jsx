@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchOrderById, updateOrderStatus, updateOrderItem } from '../utils/supplierStorage';
 import { usePermission } from '../../../contexts/SupplierPermissionContext';
@@ -119,6 +119,195 @@ const firstNameOf = (name) => {
   return String(name).trim().split(/\s+/)[0] || null;
 };
 
+// ─── Hero + action dropdowns ────────────────────────────────────────────────
+
+const ActionDropdown = ({ open, top, children }) => {
+  if (!open) return null;
+  return (
+    <div className="sod-action-dropdown" role="menu" style={{ top }}>
+      {children}
+    </div>
+  );
+};
+
+const DropdownRow = ({ icon, name, sub, link, empty, disabled, onClick }) => (
+  <button
+    type="button"
+    role="menuitem"
+    className={`sod-dd-row${empty ? ' sod-dd-empty' : ''}${disabled ? ' sod-dd-disabled' : ''}`}
+    onClick={disabled ? undefined : onClick}
+    disabled={disabled}
+  >
+    <span className="sod-dd-ico" aria-hidden="true">{icon}</span>
+    <span className="sod-dd-info">
+      <span className="sod-dd-name">{name}</span>
+      {sub && <span className="sod-dd-sub">{sub}</span>}
+    </span>
+    {link && <span className="sod-dd-link">{link}</span>}
+  </button>
+);
+
+const HeroActions = ({
+  documentsCount,
+  openMenu,
+  onToggle,
+  onOpenDock,
+  onOpenReturns,
+}) => {
+  const isOpen = (id) => openMenu === id;
+  return (
+    <div className="sod-hero-actions">
+      <button
+        type="button"
+        className={isOpen('docs') ? 'sod-menu-open' : ''}
+        onClick={(e) => { e.stopPropagation(); onToggle('docs'); }}
+        aria-haspopup="menu"
+        aria-expanded={isOpen('docs')}
+      >
+        <span className="sod-left">Documents</span>
+        <span className="sod-left" style={{ gap: 0 }}>
+          {documentsCount > 0 && <span className="sod-count-badge">{documentsCount}</span>}
+          <span className="sod-caret" style={{ marginLeft: 6 }}>›</span>
+        </span>
+      </button>
+
+      <button
+        type="button"
+        className={isOpen('actions') ? 'sod-menu-open' : ''}
+        onClick={(e) => { e.stopPropagation(); onToggle('actions'); }}
+        aria-haspopup="menu"
+        aria-expanded={isOpen('actions')}
+      >
+        <span className="sod-left">Actions</span>
+        <span className="sod-caret">›</span>
+      </button>
+
+      <button
+        type="button"
+        className={isOpen('returns') ? 'sod-menu-open' : ''}
+        onClick={(e) => { e.stopPropagation(); onToggle('returns'); }}
+        aria-haspopup="menu"
+        aria-expanded={isOpen('returns')}
+      >
+        <span className="sod-left">Returns</span>
+        <span className="sod-caret">›</span>
+      </button>
+
+      {/* Dropdowns positioned to the left of the action stack */}
+      <ActionDropdown open={isOpen('docs')} top={0}>
+        <DropdownRow
+          icon="📄"
+          name="Order PDF"
+          sub="Generated on send"
+          link="Open"
+          onClick={() => { /* TODO(out-of-scope): wire up Order PDF */ }}
+        />
+        <DropdownRow
+          icon="🧾"
+          name="Invoice"
+          sub="Not yet attached"
+          link="Attach"
+          empty
+          onClick={() => { /* TODO(out-of-scope): wire up Invoice attach */ }}
+        />
+        <DropdownRow
+          icon="🚚"
+          name="Delivery note"
+          sub="Generates on dispatch"
+          empty
+          disabled
+        />
+      </ActionDropdown>
+
+      <ActionDropdown open={isOpen('actions')} top={42}>
+        <DropdownRow icon="✎" name="Edit delivery"   sub="Date, time, location" />
+        <DropdownRow icon="👤" name="Reassign"        sub="Change order owner" />
+        <DropdownRow icon="⚓" name="Dock access notes" sub="Marina rules · gangway · contact" onClick={onOpenDock} />
+        <div className="sod-dd-divider" role="separator" />
+        <DropdownRow icon="⎘" name="Duplicate order" sub="Create a copy with same items" />
+        <DropdownRow icon="✉" name="Message vessel"  sub="Send a note to the crew" />
+      </ActionDropdown>
+
+      <ActionDropdown open={isOpen('returns')} top={84}>
+        <DropdownRow icon="+" name="Add return" sub="File a return for confirmed items" onClick={onOpenReturns} />
+        <DropdownRow icon="⮌" name="No returns yet" sub="Returns appear here once filed" empty disabled />
+      </ActionDropdown>
+    </div>
+  );
+};
+
+const Hero = ({
+  order,
+  orderShortId,
+  documentsCount,
+  openMenu,
+  onToggleMenu,
+  onOpenDock,
+  onOpenReturns,
+}) => {
+  const days = daysUntil(order.delivery_date);
+  const showDays = days != null && days >= 0;
+
+  const weekday = fmtWeekday(order.delivery_date);
+  const day = fmtDay(order.delivery_date);
+  const month = fmtMonth(order.delivery_date);
+  const time = order.delivery_time
+    ? String(order.delivery_time).slice(0, 5) // HH:mm
+    : null;
+  const portText = order.delivery_port || null;
+
+  return (
+    <div className="sod-hero">
+      <div className="sod-hero-id">
+        <div className="sod-hero-l">Order</div>
+        <div className="sod-hero-id-n">#{orderShortId}</div>
+      </div>
+
+      <div className="sod-hero-countdown">
+        <div className="sod-hero-l">Countdown</div>
+        <div className="sod-hero-countdown-n">{showDays ? days : '—'}</div>
+        <div className="sod-hero-countdown-u">{showDays ? (days === 1 ? 'day' : 'days') : 'no date'}</div>
+      </div>
+
+      <div className="sod-hero-when-block">
+        <div className="sod-hero-when-eyebrow">
+          Delivery{weekday ? ` · ${weekday}` : ''}
+        </div>
+        <div className="sod-hero-when">
+          {day != null ? (
+            <>
+              <span className="sod-day">{day}</span>
+              <span className="sod-month">{month}</span>
+            </>
+          ) : (
+            <span className="sod-day" style={{ color: 'var(--muted)' }}>TBC</span>
+          )}
+        </div>
+        <div className="sod-hero-where">
+          {time && <span className="sod-mtag">{time}</span>}
+          {portText ? <strong>{portText}</strong> : <span style={{ color: 'var(--muted)' }}>Port TBC</span>}
+          {order.delivery_contact && (
+            <>
+              {' · '}
+              {order.delivery_contact}
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="sod-hero-right">
+        <HeroActions
+          documentsCount={documentsCount}
+          openMenu={openMenu}
+          onToggle={onToggleMenu}
+          onOpenDock={onOpenDock}
+          onOpenReturns={onOpenReturns}
+        />
+      </div>
+    </div>
+  );
+};
+
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 const SupplierOrderDetail = () => {
@@ -129,6 +318,36 @@ const SupplierOrderDetail = () => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [openMenu, setOpenMenu] = useState(null);          // 'docs' | 'actions' | 'returns' | null
+  const [returnsDrawerOpen, setReturnsDrawerOpen] = useState(false);
+  const [dockDrawerOpen, setDockDrawerOpen] = useState(false);
+  const heroRef = useRef(null);
+
+  const toggleMenu = useCallback((id) => {
+    setOpenMenu((prev) => (prev === id ? null : id));
+  }, []);
+
+  // Click-outside on the hero closes any open dropdown.
+  useEffect(() => {
+    if (!openMenu) return;
+    const onDocClick = (e) => {
+      if (heroRef.current && !heroRef.current.contains(e.target)) {
+        setOpenMenu(null);
+      }
+    };
+    document.addEventListener('click', onDocClick);
+    return () => document.removeEventListener('click', onDocClick);
+  }, [openMenu]);
+
+  const handleOpenDock = useCallback(() => {
+    setOpenMenu(null);
+    setDockDrawerOpen(true);
+  }, []);
+
+  const handleOpenReturns = useCallback(() => {
+    setOpenMenu(null);
+    setReturnsDrawerOpen(true);
+  }, []);
 
   const load = () => {
     setLoading(true);
@@ -223,17 +442,32 @@ const SupplierOrderDetail = () => {
         </button>
       </header>
 
+      {/* ── Delivery hero with action dropdowns ── */}
+      <div ref={heroRef}>
+        <Hero
+          order={order}
+          orderShortId={orderShortId}
+          documentsCount={1}
+          openMenu={openMenu}
+          onToggleMenu={toggleMenu}
+          onOpenDock={handleOpenDock}
+          onOpenReturns={handleOpenReturns}
+        />
+      </div>
+
       {/*
-        ── TEMPORARY rendering until Runs 3–7 land. Items still get the
+        ── TEMPORARY rendering until Runs 4–7 land. Items still get the
         existing confirm/sub/unavailable behaviour against updateOrderItem,
         gated by canEdit; this block is replaced wholesale in Run 5.
       */}
       <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)', padding: '20px 22px', marginTop: 18 }}>
         <div style={{ fontSize: 13, color: 'var(--muted-strong)', fontFamily: 'Outfit', fontWeight: 500, marginBottom: 8 }}>
           {items.length} item{items.length === 1 ? '' : 's'} · status: {order.status}
+          {returnsDrawerOpen && ' · returns drawer requested'}
+          {dockDrawerOpen && ' · dock drawer requested'}
         </div>
         <div style={{ fontSize: 12.5, color: 'var(--muted)', fontFamily: 'JetBrains Mono' }}>
-          Hero, timeline, items table, footer cards and drawers land in subsequent runs.
+          Timeline, items table, footer cards and drawers land in subsequent runs.
         </div>
       </div>
     </div>
