@@ -35,11 +35,67 @@ export const fetchSupplierOrders = async (supplierId, { status, limit = 50 } = {
 export const fetchOrderById = async (orderId) => {
   const { data, error } = await supabase
     .from('supplier_orders')
-    .select('*, supplier_order_items(*)')
+    .select(`
+      *,
+      supplier_order_items(*),
+      assigned_contact:supplier_contacts!assigned_to_supplier_contact_id(id, name, email, role)
+    `)
     .eq('id', orderId)
     .single();
   if (error) throw error;
   return data;
+};
+
+// ─── Order admin (Edit delivery / Reassign) ──────────────────────────────────
+
+// Update editable delivery fields on an order. Whitelisted columns only —
+// caller-supplied keys outside this set are silently ignored so this can't
+// be used to bypass the (otherwise tightly RLS'd) `supplier_orders` table.
+export const updateOrderDelivery = async (orderId, updates) => {
+  const allowed = ['delivery_date', 'delivery_time', 'delivery_port',
+                   'delivery_contact', 'special_instructions'];
+  const payload = Object.fromEntries(
+    Object.entries(updates).filter(([k]) => allowed.includes(k))
+  );
+  const { data, error } = await supabase
+    .from('supplier_orders')
+    .update(payload)
+    .eq('id', orderId)
+    .select(`
+      *,
+      assigned_contact:supplier_contacts!assigned_to_supplier_contact_id(id, name, email, role)
+    `)
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+// Assign an order to a team member. Pass null to unassign.
+export const assignOrderToContact = async (orderId, supplierContactId) => {
+  const { data, error } = await supabase
+    .from('supplier_orders')
+    .update({ assigned_to_supplier_contact_id: supplierContactId })
+    .eq('id', orderId)
+    .select(`
+      *,
+      assigned_contact:supplier_contacts!assigned_to_supplier_contact_id(id, name, email, role)
+    `)
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+// List active team members for the current supplier (Reassign picker).
+// supplier_contacts RLS already scopes reads to the caller's supplier via
+// get_user_supplier_id(), so no explicit supplier_id filter is needed.
+export const fetchSupplierTeam = async () => {
+  const { data, error } = await supabase
+    .from('supplier_contacts')
+    .select('id, name, email, role, user_id')
+    .eq('active', true)
+    .order('name', { ascending: true });
+  if (error) throw error;
+  return data ?? [];
 };
 
 export const updateOrderStatus = async (orderId, status) => {
