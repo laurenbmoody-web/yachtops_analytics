@@ -119,6 +119,11 @@ const firstNameOf = (name) => {
   return String(name).trim().split(/\s+/)[0] || null;
 };
 
+// Stub for actions whose backing flows aren't built yet (Sprints 8/9/10).
+// Better than a silent click — see the dropdown action triage in the
+// follow-up backlog notes.
+const showComingSoon = (action) => window.alert(`"${action}" is coming soon.`);
+
 // ─── Hero + action dropdowns ────────────────────────────────────────────────
 
 const ActionDropdown = ({ open, top, children }) => {
@@ -194,34 +199,22 @@ const HeroActions = ({
 
       {/* Dropdowns positioned to the left of the action stack */}
       <ActionDropdown open={isOpen('docs')} top={0}>
-        <DropdownRow
-          icon="📄"
-          name="Order PDF"
-          link="Open"
-          onClick={() => { /* TODO(out-of-scope): wire up Order PDF */ }}
-        />
-        <DropdownRow
-          icon="🧾"
-          name="Invoice"
-          link="Attach"
-          empty
-          onClick={() => { /* TODO(out-of-scope): wire up Invoice attach */ }}
-        />
-        <DropdownRow
-          icon="🚚"
-          name="Delivery note"
-          empty
-          disabled
-        />
+        {/* Documents flows are not yet built — Sprint 9 owns Order PDF
+            generation, Invoice upload, and Delivery note auto-generation. */}
+        <DropdownRow icon="📄" name="Order PDF (soon)"     empty disabled />
+        <DropdownRow icon="🧾" name="Invoice (soon)"       empty disabled />
+        <DropdownRow icon="🚚" name="Delivery note (soon)" empty disabled />
       </ActionDropdown>
 
       <ActionDropdown open={isOpen('actions')} top={42}>
-        <DropdownRow icon="✎" name="Edit delivery" />
-        <DropdownRow icon="👤" name="Reassign" />
+        {/* Edit / Reassign / Duplicate / Message are placeholders until
+            Sprint 8 ships their respective modals + RPCs. */}
+        <DropdownRow icon="✎" name="Edit delivery"     onClick={() => showComingSoon('Edit delivery')} />
+        <DropdownRow icon="👤" name="Reassign"          onClick={() => showComingSoon('Reassign')} />
         <DropdownRow icon="⚓" name="Dock access notes" onClick={onOpenDock} />
         <div className="sod-dd-divider" role="separator" />
-        <DropdownRow icon="⎘" name="Duplicate order" />
-        <DropdownRow icon="✉" name="Message vessel" />
+        <DropdownRow icon="⎘" name="Duplicate order"   onClick={() => showComingSoon('Duplicate order')} />
+        <DropdownRow icon="✉" name="Message vessel"    onClick={() => showComingSoon('Message vessel')} />
       </ActionDropdown>
 
       <ActionDropdown open={isOpen('returns')} top={84}>
