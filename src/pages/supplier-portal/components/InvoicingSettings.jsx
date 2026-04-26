@@ -597,6 +597,235 @@ const CustomCategoriesBlock = ({ categories, onUpdate, onRemove, onAdd }) => (
   </div>
 );
 
+// ─── Section 4: Bank details ─────────────────────────────────────────────
+
+const BankDetailsSection = ({ form, set }) => {
+  const setBank = (key, value) => {
+    set('bank_details', { ...(form.bank_details || {}), [key]: value });
+  };
+  const bank = form.bank_details || {};
+  // Country-conditional fields: Sort code (UK), Account number (UK/US).
+  const showSortCode = form.business_country === 'GB';
+  const showAccountNumber = form.business_country === 'GB' || form.business_country === 'US';
+
+  return (
+    <SectionCard
+      title="Bank details"
+      subtitle="Appears on every invoice as payment instructions. Optional but recommended."
+    >
+      <div className="sp-field">
+        <label className="sp-field-label">Account name</label>
+        <input
+          type="text"
+          className="sp-field-input"
+          value={bank.account_name || ''}
+          onChange={(e) => setBank('account_name', e.target.value)}
+          placeholder="The name on the account"
+        />
+      </div>
+
+      <div className="sp-field-row">
+        <div className="sp-field">
+          <label className="sp-field-label">IBAN</label>
+          <input
+            type="text"
+            className="sp-field-input"
+            value={bank.iban || ''}
+            onChange={(e) => setBank('iban', e.target.value)}
+            placeholder="FR76 3000 1007 4712 3456 7890 185"
+            style={{ fontFamily: 'JetBrains Mono', fontSize: 12.5 }}
+          />
+        </div>
+        <div className="sp-field">
+          <label className="sp-field-label">BIC / SWIFT</label>
+          <input
+            type="text"
+            className="sp-field-input"
+            value={bank.bic_swift || ''}
+            onChange={(e) => setBank('bic_swift', e.target.value)}
+            placeholder="BNPAFRPPXXX"
+            style={{ fontFamily: 'JetBrains Mono', fontSize: 12.5 }}
+          />
+        </div>
+      </div>
+
+      <div className="sp-field">
+        <label className="sp-field-label">Bank name</label>
+        <input
+          type="text"
+          className="sp-field-input"
+          value={bank.bank_name || ''}
+          onChange={(e) => setBank('bank_name', e.target.value)}
+        />
+      </div>
+
+      {(showSortCode || showAccountNumber) && (
+        <div className="sp-field-row">
+          {showSortCode && (
+            <div className="sp-field">
+              <label className="sp-field-label">Sort code</label>
+              <input
+                type="text"
+                className="sp-field-input"
+                value={bank.sort_code || ''}
+                onChange={(e) => setBank('sort_code', e.target.value)}
+                placeholder="20-00-00"
+                style={{ fontFamily: 'JetBrains Mono', fontSize: 12.5 }}
+              />
+            </div>
+          )}
+          {showAccountNumber && (
+            <div className="sp-field">
+              <label className="sp-field-label">Account number</label>
+              <input
+                type="text"
+                className="sp-field-input"
+                value={bank.account_number || ''}
+                onChange={(e) => setBank('account_number', e.target.value)}
+                style={{ fontFamily: 'JetBrains Mono', fontSize: 12.5 }}
+              />
+            </div>
+          )}
+        </div>
+      )}
+    </SectionCard>
+  );
+};
+
+// ─── Section 5: Invoice numbering ────────────────────────────────────────
+
+// Render the next invoice number that the next_invoice_number RPC would
+// produce. Mirror server-side logic exactly: tokens replaced in same order,
+// counter zero-padded.
+const previewInvoiceNumber = (format, prefix, nextCounter) => {
+  if (!format) return '';
+  const now = new Date();
+  const yyyy = String(now.getFullYear());
+  const yy = yyyy.slice(2);
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  let result = format;
+  result = result.replaceAll('{prefix}', prefix || 'INV');
+  result = result.replaceAll('{YYYY}', yyyy);
+  result = result.replaceAll('{YY}', yy);
+  result = result.replaceAll('{MM}', mm);
+  result = result.replaceAll('{####}', String(nextCounter).padStart(4, '0'));
+  result = result.replaceAll('{###}', String(nextCounter).padStart(3, '0'));
+  result = result.replaceAll('{#####}', String(nextCounter).padStart(5, '0'));
+  return result;
+};
+
+const NumberingSection = ({ form, set }) => {
+  const nextCounter = (form.invoice_number_counter ?? 0) + 1;
+  const preview = useMemo(
+    () => previewInvoiceNumber(form.invoice_number_format, form.invoice_number_prefix, nextCounter),
+    [form.invoice_number_format, form.invoice_number_prefix, nextCounter]
+  );
+
+  return (
+    <SectionCard
+      title="Invoice numbering"
+      subtitle="Sequential, gap-free per supplier. The counter is read-only — it advances atomically each time you generate an invoice."
+    >
+      <div className="sp-field-row">
+        <div className="sp-field">
+          <label className="sp-field-label">Prefix</label>
+          <input
+            type="text"
+            className="sp-field-input"
+            value={form.invoice_number_prefix}
+            onChange={(e) => set('invoice_number_prefix', e.target.value)}
+            placeholder="INV"
+          />
+        </div>
+        <div className="sp-field">
+          <label className="sp-field-label">Counter (read-only)</label>
+          <input
+            type="text"
+            className="sp-field-input"
+            value={form.invoice_number_counter ?? 0}
+            disabled
+            style={{
+              background: 'var(--bg-2)', color: 'var(--muted-strong)',
+              fontFamily: 'JetBrains Mono', fontSize: 13,
+            }}
+          />
+        </div>
+      </div>
+
+      <div className="sp-field">
+        <label className="sp-field-label">Format</label>
+        <input
+          type="text"
+          className="sp-field-input"
+          value={form.invoice_number_format}
+          onChange={(e) => set('invoice_number_format', e.target.value)}
+          placeholder="{prefix}-{YYYY}-{####}"
+          style={{ fontFamily: 'JetBrains Mono', fontSize: 13 }}
+        />
+        <div style={{ fontSize: 11, color: 'var(--muted-strong)', marginTop: 5, lineHeight: 1.5 }}>
+          Tokens:{' '}
+          <code style={{ background: 'var(--bg-2)', padding: '1px 5px', borderRadius: 3 }}>{'{prefix}'}</code>{' '}
+          <code style={{ background: 'var(--bg-2)', padding: '1px 5px', borderRadius: 3 }}>{'{YYYY}'}</code>{' '}
+          <code style={{ background: 'var(--bg-2)', padding: '1px 5px', borderRadius: 3 }}>{'{YY}'}</code>{' '}
+          <code style={{ background: 'var(--bg-2)', padding: '1px 5px', borderRadius: 3 }}>{'{MM}'}</code>{' '}
+          <code style={{ background: 'var(--bg-2)', padding: '1px 5px', borderRadius: 3 }}>{'{####}'}</code>{' '}
+          (zero-padded)
+        </div>
+      </div>
+
+      <div style={{
+        marginTop: 14,
+        padding: '12px 14px',
+        background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 8,
+      }}>
+        <div style={{
+          fontFamily: 'Syne', fontWeight: 600, fontSize: 10,
+          letterSpacing: '0.12em', textTransform: 'uppercase',
+          color: 'var(--muted-strong)', marginBottom: 4,
+        }}>Next invoice will be</div>
+        <div style={{
+          fontFamily: 'JetBrains Mono', fontSize: 16,
+          color: 'var(--fg)', fontWeight: 500,
+        }}>
+          {preview || '—'}
+        </div>
+      </div>
+    </SectionCard>
+  );
+};
+
+// ─── Section 6: Payment terms + footer ───────────────────────────────────
+
+const PaymentTermsSection = ({ form, set }) => (
+  <SectionCard
+    title="Payment terms & footer"
+    subtitle="Default due-date offset and the legal / payment text that lands at the bottom of every invoice."
+  >
+    <div className="sp-field" style={{ maxWidth: 220 }}>
+      <label className="sp-field-label">Payment terms (days)</label>
+      <input
+        type="number"
+        min="0"
+        max="365"
+        className="sp-field-input"
+        value={form.invoice_payment_terms_days ?? 30}
+        onChange={(e) => set('invoice_payment_terms_days', Number(e.target.value) || 0)}
+      />
+    </div>
+
+    <div className="sp-field">
+      <label className="sp-field-label">Footer text</label>
+      <textarea
+        className="sp-field-textarea"
+        rows={4}
+        value={form.invoice_footer_terms ?? ''}
+        onChange={(e) => set('invoice_footer_terms', e.target.value)}
+        placeholder="e.g. Late payment will incur 2% interest per month. Goods remain the property of the seller until paid in full."
+      />
+    </div>
+  </SectionCard>
+);
+
 // ─── Main ─────────────────────────────────────────────────────────────────
 
 const InvoicingSettings = ({ supplier, onSaved }) => {
@@ -717,7 +946,14 @@ const InvoicingSettings = ({ supplier, onSaved }) => {
       {/* ── Section 3: Tax categories ── */}
       <TaxCategoriesSection form={form} set={set} />
 
-      {/* ── Sections 4–6: bank, numbering, footer (Run D) ── */}
+      {/* ── Section 4: Bank details ── */}
+      <BankDetailsSection form={form} set={set} />
+
+      {/* ── Section 5: Invoice numbering ── */}
+      <NumberingSection form={form} set={set} />
+
+      {/* ── Section 6: Payment terms + footer ── */}
+      <PaymentTermsSection form={form} set={set} />
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--line-soft)', paddingTop: 18, marginTop: 8 }}>
         <button
