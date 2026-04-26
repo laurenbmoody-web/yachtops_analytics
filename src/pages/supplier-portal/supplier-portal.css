@@ -961,7 +961,12 @@
   font-family: 'Outfit'; font-weight: 700; font-size: 12px;
 }
 #sp-root .sod-header-assignee.sod-unassigned .sod-av { background: var(--muted); color: #fff; }
-#sp-root .sod-header-assignee .sod-info { line-height: 1.15; text-align: left; }
+#sp-root .sod-header-assignee .sod-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  text-align: left;
+}
 #sp-root .sod-header-assignee .sod-label-tiny {
   font-family: 'Syne'; font-weight: 600;
   font-size: 9px; letter-spacing: 0.14em;
@@ -1104,9 +1109,11 @@
 }
 #sp-root .sod-action-dropdown .sod-dd-row .sod-dd-info { flex: 1; }
 #sp-root .sod-action-dropdown .sod-dd-row .sod-dd-name {
+  display: block;
   font-family: 'Outfit'; font-weight: 600; color: var(--fg); font-size: 13px;
 }
 #sp-root .sod-action-dropdown .sod-dd-row .sod-dd-sub {
+  display: block;
   font-size: 11px; color: var(--muted-strong); margin-top: 1px;
 }
 #sp-root .sod-action-dropdown .sod-dd-row .sod-dd-link {
@@ -1298,6 +1305,11 @@
   border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
   font-size: 18px; flex-shrink: 0;
+}
+#sp-root .sod-item-thumb-letter {
+  font-family: 'Outfit'; font-weight: 700; font-size: 18px;
+  color: var(--muted-strong);
+  line-height: 1;
 }
 #sp-root .sod-item-name-row {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
