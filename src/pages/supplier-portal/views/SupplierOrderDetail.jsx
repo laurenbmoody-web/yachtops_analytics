@@ -130,7 +130,7 @@ const ActionDropdown = ({ open, top, children }) => {
   );
 };
 
-const DropdownRow = ({ icon, name, sub, link, empty, disabled, onClick }) => (
+const DropdownRow = ({ icon, name, link, empty, disabled, onClick }) => (
   <button
     type="button"
     role="menuitem"
@@ -141,7 +141,6 @@ const DropdownRow = ({ icon, name, sub, link, empty, disabled, onClick }) => (
     <span className="sod-dd-ico" aria-hidden="true">{icon}</span>
     <span className="sod-dd-info">
       <span className="sod-dd-name">{name}</span>
-      {sub && <span className="sod-dd-sub">{sub}</span>}
     </span>
     {link && <span className="sod-dd-link">{link}</span>}
   </button>
@@ -198,14 +197,12 @@ const HeroActions = ({
         <DropdownRow
           icon="📄"
           name="Order PDF"
-          sub="Generated on send"
           link="Open"
           onClick={() => { /* TODO(out-of-scope): wire up Order PDF */ }}
         />
         <DropdownRow
           icon="🧾"
           name="Invoice"
-          sub="Not yet attached"
           link="Attach"
           empty
           onClick={() => { /* TODO(out-of-scope): wire up Invoice attach */ }}
@@ -213,24 +210,23 @@ const HeroActions = ({
         <DropdownRow
           icon="🚚"
           name="Delivery note"
-          sub="Generates on dispatch"
           empty
           disabled
         />
       </ActionDropdown>
 
       <ActionDropdown open={isOpen('actions')} top={42}>
-        <DropdownRow icon="✎" name="Edit delivery"   sub="Date, time, location" />
-        <DropdownRow icon="👤" name="Reassign"        sub="Change order owner" />
-        <DropdownRow icon="⚓" name="Dock access notes" sub="Marina rules · gangway · contact" onClick={onOpenDock} />
+        <DropdownRow icon="✎" name="Edit delivery" />
+        <DropdownRow icon="👤" name="Reassign" />
+        <DropdownRow icon="⚓" name="Dock access notes" onClick={onOpenDock} />
         <div className="sod-dd-divider" role="separator" />
-        <DropdownRow icon="⎘" name="Duplicate order" sub="Create a copy with same items" />
-        <DropdownRow icon="✉" name="Message vessel"  sub="Send a note to the crew" />
+        <DropdownRow icon="⎘" name="Duplicate order" />
+        <DropdownRow icon="✉" name="Message vessel" />
       </ActionDropdown>
 
       <ActionDropdown open={isOpen('returns')} top={84}>
-        <DropdownRow icon="+" name="Add return" sub="File a return for confirmed items" onClick={onOpenReturns} />
-        <DropdownRow icon="⮌" name="No returns yet" sub="Returns appear here once filed" empty disabled />
+        <DropdownRow icon="+" name="Add return" onClick={onOpenReturns} />
+        <DropdownRow icon="⮌" name="No returns yet" empty disabled />
       </ActionDropdown>
     </div>
   );
