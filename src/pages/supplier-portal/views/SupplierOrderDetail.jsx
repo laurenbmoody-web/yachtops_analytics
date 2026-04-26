@@ -2,6 +2,8 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchOrderById, updateOrderStatus, updateOrderItem } from '../utils/supplierStorage';
 import { usePermission } from '../../../contexts/SupplierPermissionContext';
+import EditDeliveryModal from '../components/EditDeliveryModal';
+import ReassignModal from '../components/ReassignModal';
 
 const NO_PERMISSION_TITLE = "Your role doesn't have permission for this action.";
 
@@ -157,6 +159,9 @@ const HeroActions = ({
   onToggle,
   onOpenDock,
   onOpenReturns,
+  onOpenEditDelivery,
+  onOpenReassign,
+  canEdit,
 }) => {
   const isOpen = (id) => openMenu === id;
   return (
@@ -207,10 +212,20 @@ const HeroActions = ({
       </ActionDropdown>
 
       <ActionDropdown open={isOpen('actions')} top={42}>
-        {/* Edit / Reassign / Duplicate / Message are placeholders until
-            Sprint 8 ships their respective modals + RPCs. */}
-        <DropdownRow icon="✎" name="Edit delivery"     onClick={() => showComingSoon('Edit delivery')} />
-        <DropdownRow icon="👤" name="Reassign"          onClick={() => showComingSoon('Reassign')} />
+        {/* Duplicate / Message vessel are still placeholders pending their own
+            sprints. Edit delivery + Reassign are wired to real modals. */}
+        <DropdownRow
+          icon="✎"
+          name="Edit delivery"
+          disabled={!canEdit}
+          onClick={canEdit ? onOpenEditDelivery : undefined}
+        />
+        <DropdownRow
+          icon="👤"
+          name="Reassign"
+          disabled={!canEdit}
+          onClick={canEdit ? onOpenReassign : undefined}
+        />
         <DropdownRow icon="⚓" name="Dock access notes" onClick={onOpenDock} />
         <div className="sod-dd-divider" role="separator" />
         <DropdownRow icon="⎘" name="Duplicate order"   onClick={() => showComingSoon('Duplicate order')} />
@@ -233,6 +248,9 @@ const Hero = ({
   onToggleMenu,
   onOpenDock,
   onOpenReturns,
+  onOpenEditDelivery,
+  onOpenReassign,
+  canEdit,
 }) => {
   const days = daysUntil(order.delivery_date);
   const showDays = days != null && days >= 0;
@@ -291,6 +309,9 @@ const Hero = ({
           onToggle={onToggleMenu}
           onOpenDock={onOpenDock}
           onOpenReturns={onOpenReturns}
+          onOpenEditDelivery={onOpenEditDelivery}
+          onOpenReassign={onOpenReassign}
+          canEdit={canEdit}
         />
       </div>
     </div>
@@ -963,6 +984,8 @@ const SupplierOrderDetail = () => {
   const [openThreadId, setOpenThreadId] = useState(null);  // item.id whose thread is expanded
   const [returnsDrawerOpen, setReturnsDrawerOpen] = useState(false);
   const [dockDrawerOpen, setDockDrawerOpen] = useState(false);
+  const [editDeliveryOpen, setEditDeliveryOpen] = useState(false);
+  const [reassignOpen, setReassignOpen] = useState(false);
   const heroRef = useRef(null);
 
   const toggleThread = useCallback((itemId) => {
@@ -993,6 +1016,23 @@ const SupplierOrderDetail = () => {
   const handleOpenReturns = useCallback(() => {
     setOpenMenu(null);
     setReturnsDrawerOpen(true);
+  }, []);
+
+  const handleOpenEditDelivery = useCallback(() => {
+    setOpenMenu(null);
+    setEditDeliveryOpen(true);
+  }, []);
+
+  const handleOpenReassign = useCallback(() => {
+    setOpenMenu(null);
+    setReassignOpen(true);
+  }, []);
+
+  // Modal save handlers — merge the row payload (which includes the joined
+  // assigned_contact) back into local state so the page reflects the change
+  // without a refetch.
+  const applyOrderUpdate = useCallback((updated) => {
+    setOrder((prev) => prev ? { ...prev, ...updated } : prev);
   }, []);
 
   const handleStatusAdvance = useCallback(async (newStatus) => {
@@ -1065,8 +1105,8 @@ const SupplierOrderDetail = () => {
 
   const items = order.supplier_order_items ?? [];
   const orderShortId = order.id.slice(0, 8).toUpperCase();
-  // TODO(schema): order.assigned_to_name — needs schema addition
-  const assigneeName = order.assigned_to_name || null;
+  const assigneeContact = order.assigned_contact || null;
+  const assigneeName = assigneeContact?.name || null;
   // TODO(schema): order.created_by_name / sender role — for now we lean on
   // supplier_orders.vessel_name + the implicit "chief stew" role.
   const senderName = order.created_by_name || null;
@@ -1114,8 +1154,13 @@ const SupplierOrderDetail = () => {
         <button
           type="button"
           className={`sod-header-assignee${assigneeName ? '' : ' sod-unassigned'}`}
-          title={assigneeName ? `Assigned to ${assigneeName}` : 'Unassigned'}
-          onClick={() => { /* TODO(schema): reassign action */ }}
+          title={
+            !canEdit
+              ? NO_PERMISSION_TITLE
+              : (assigneeName ? `Assigned to ${assigneeName} — click to reassign` : 'Unassigned — click to assign')
+          }
+          onClick={canEdit ? handleOpenReassign : undefined}
+          disabled={!canEdit}
         >
           <span className="sod-av">{assigneeName ? initialsOf(assigneeName) : '—'}</span>
           <span className="sod-info">
@@ -1135,6 +1180,9 @@ const SupplierOrderDetail = () => {
           onToggleMenu={toggleMenu}
           onOpenDock={handleOpenDock}
           onOpenReturns={handleOpenReturns}
+          onOpenEditDelivery={handleOpenEditDelivery}
+          onOpenReassign={handleOpenReassign}
+          canEdit={canEdit}
         />
       </div>
 
@@ -1193,6 +1241,20 @@ const SupplierOrderDetail = () => {
       >
         <DockDrawerBody order={order} />
       </Drawer>
+
+      {/* ── Edit delivery + Reassign modals ── */}
+      <EditDeliveryModal
+        order={order}
+        open={editDeliveryOpen}
+        onClose={() => setEditDeliveryOpen(false)}
+        onSaved={applyOrderUpdate}
+      />
+      <ReassignModal
+        order={order}
+        open={reassignOpen}
+        onClose={() => setReassignOpen(false)}
+        onSaved={applyOrderUpdate}
+      />
     </div>
   );
 };
