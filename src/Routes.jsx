@@ -1113,7 +1113,10 @@ const Routes = () => {
         <Route path="/pantry/standby" element={<ProtectedRoute><StandbyPage /></ProtectedRoute>} />
         <Route path="/pantry/service/:type" element={<ProtectedRoute><ServicePlaceholder /></ProtectedRoute>} />
         <Route path="/pantry/today" element={<ProtectedRoute><TodaySchedulePage /></ProtectedRoute>} />
-        <Route path="/notes/history" element={<ProtectedRoute><NotesHistoryPage /></ProtectedRoute>} />
+        <Route path="/pantry/notes" element={<ProtectedRoute><NotesHistoryPage /></ProtectedRoute>} />
+        {/* Legacy route — kept as a redirect so existing bookmarks and
+            cross-page links don't break. New canonical path is /pantry/notes. */}
+        <Route path="/notes/history" element={<Navigate to="/pantry/notes" replace />} />
         <Route path="/inventory/weekly" element={<ProtectedRoute><InventoryWeeklyPage /></ProtectedRoute>} />
         <Route path="/guests/:id/history" element={<ProtectedRoute><GuestHistoryPage /></ProtectedRoute>} />
         

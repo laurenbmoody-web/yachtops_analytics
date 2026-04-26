@@ -351,7 +351,7 @@ export default function NotesHistoryPage() {
       <div id="pantry-root" className="pantry-page">
         <StandbyLayoutHeader
           title="Notes"
-          subtitle="Every note the interior team has written, ever."
+          subtitle="What the team is tracking, today and prior."
           backTo="/pantry/standby"
         />
 
