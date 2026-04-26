@@ -285,6 +285,318 @@ const BusinessDetailsSection = ({ form, set, validationErrors }) => {
   );
 };
 
+// ─── Section 3: Tax categories ───────────────────────────────────────────
+
+const DISCLAIMER_COPY =
+  "Tax rates shown are Cargo's best-effort defaults. Verify with your accountant before issuing real invoices. You can override any rate below.";
+
+const DisclaimerBanner = () => (
+  <div style={{
+    padding: '10px 14px',
+    background: '#FEF3C7', border: '1px solid #FDE68A',
+    borderRadius: 8, fontSize: 12.5, color: '#92400E',
+    marginBottom: 14, lineHeight: 1.5,
+  }}>
+    <strong>Heads up.</strong> {DISCLAIMER_COPY}
+  </div>
+);
+
+// Resolve the rate the supplier will actually use for a given category:
+// override (if set) → preset rate (otherwise).
+const effectiveRate = (catKey, presetRate, overrides) => {
+  const o = overrides?.[catKey];
+  return o == null || o === '' ? presetRate : Number(o);
+};
+
+const CategoryRow = ({
+  cat,            // { key, rate, label, labelEn, note }
+  enabled,
+  override,       // string or number, possibly null
+  onToggle,
+  onOverrideChange,
+  onClearOverride,
+}) => {
+  const presetRate = cat.rate;
+  const hasOverride = override != null && override !== '' && Number(override) !== presetRate;
+  const displayLabel = cat.labelEn ? `${cat.label} (${cat.labelEn})` : cat.label;
+
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: '24px 1fr 100px 30px',
+      alignItems: 'center', gap: 10,
+      padding: '8px 10px',
+      background: enabled ? 'var(--card)' : 'transparent',
+      border: enabled ? '1px solid var(--line)' : '1px dashed var(--line-soft)',
+      borderRadius: 7,
+    }}>
+      <input
+        type="checkbox"
+        checked={enabled}
+        onChange={(e) => onToggle(cat.key, e.target.checked)}
+        style={{ cursor: 'pointer' }}
+      />
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: enabled ? 'var(--fg)' : 'var(--muted-strong)' }}>
+          {displayLabel}
+        </div>
+        {cat.note && (
+          <div style={{ fontSize: 11, color: 'var(--muted-strong)', marginTop: 2, lineHeight: 1.4 }}>
+            {cat.note}
+          </div>
+        )}
+        <div style={{ fontSize: 10.5, color: 'var(--muted)', fontFamily: 'JetBrains Mono', marginTop: 2 }}>
+          key: {cat.key} · default {presetRate}%
+        </div>
+      </div>
+      <div style={{ position: 'relative' }}>
+        <input
+          type="number"
+          step="0.1"
+          min="0"
+          max="100"
+          disabled={!enabled}
+          value={override == null || override === '' ? presetRate : override}
+          onChange={(e) => onOverrideChange(cat.key, e.target.value)}
+          className="sp-field-input"
+          style={{
+            paddingRight: 26,
+            background: hasOverride ? '#FEF3C7' : undefined,
+            borderColor: hasOverride ? '#F59E0B' : undefined,
+          }}
+        />
+        <span style={{
+          position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+          fontSize: 12, color: 'var(--muted-strong)', pointerEvents: 'none',
+        }}>%</span>
+      </div>
+      {hasOverride && enabled ? (
+        <button
+          type="button"
+          onClick={() => onClearOverride(cat.key)}
+          title="Reset to default"
+          style={{
+            background: 'transparent', border: 'none', cursor: 'pointer',
+            fontSize: 14, color: 'var(--muted-strong)', padding: 4,
+          }}
+        >↺</button>
+      ) : <span />}
+    </div>
+  );
+};
+
+const CustomCategoryRow = ({ cat, onChange, onRemove }) => (
+  <div style={{
+    display: 'grid',
+    gridTemplateColumns: '1fr 140px 100px 30px',
+    alignItems: 'center', gap: 10,
+    padding: '8px 10px',
+    border: '1px solid var(--line)', borderRadius: 7,
+    background: 'var(--card)',
+  }}>
+    <input
+      type="text"
+      placeholder="Label (e.g. Tobacco)"
+      value={cat.label}
+      onChange={(e) => onChange({ ...cat, label: e.target.value })}
+      className="sp-field-input"
+    />
+    <input
+      type="text"
+      placeholder="key (snake_case)"
+      value={cat.key}
+      onChange={(e) => onChange({ ...cat, key: e.target.value.replace(/[^a-z0-9_]/g, '_').toLowerCase() })}
+      className="sp-field-input"
+      style={{ fontFamily: 'JetBrains Mono', fontSize: 12 }}
+    />
+    <div style={{ position: 'relative' }}>
+      <input
+        type="number"
+        step="0.1"
+        min="0"
+        max="100"
+        value={cat.rate}
+        onChange={(e) => onChange({ ...cat, rate: e.target.value })}
+        className="sp-field-input"
+        style={{ paddingRight: 26 }}
+      />
+      <span style={{
+        position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+        fontSize: 12, color: 'var(--muted-strong)', pointerEvents: 'none',
+      }}>%</span>
+    </div>
+    <button
+      type="button"
+      onClick={onRemove}
+      title="Remove"
+      style={{
+        background: 'transparent', border: 'none', cursor: 'pointer',
+        fontSize: 16, color: 'var(--muted-strong)', padding: 4,
+      }}
+    >×</button>
+  </div>
+);
+
+const TaxCategoriesSection = ({ form, set }) => {
+  const preset = useMemo(() => getCountryTaxPreset(form.business_country), [form.business_country]);
+
+  const enabledSet = useMemo(
+    () => new Set(form.vat_categories_enabled || []),
+    [form.vat_categories_enabled]
+  );
+
+  const toggleCategory = (key, on) => {
+    const next = new Set(enabledSet);
+    if (on) next.add(key); else next.delete(key);
+    set('vat_categories_enabled', Array.from(next));
+  };
+
+  const setOverride = (key, value) => {
+    const next = { ...(form.vat_categories_overrides || {}) };
+    if (value === '' || value == null) {
+      delete next[key];
+    } else {
+      next[key] = Number(value);
+    }
+    set('vat_categories_overrides', next);
+  };
+
+  const clearOverride = (key) => {
+    const next = { ...(form.vat_categories_overrides || {}) };
+    delete next[key];
+    set('vat_categories_overrides', next);
+  };
+
+  const updateCustom = (idx, cat) => {
+    const next = [...form.vat_categories_custom];
+    next[idx] = cat;
+    set('vat_categories_custom', next);
+  };
+
+  const removeCustom = (idx) => {
+    const next = form.vat_categories_custom.filter((_, i) => i !== idx);
+    set('vat_categories_custom', next);
+  };
+
+  const addCustom = () => {
+    set('vat_categories_custom', [
+      ...form.vat_categories_custom,
+      { key: '', label: '', rate: '' },
+    ]);
+  };
+
+  if (!form.business_country) {
+    return (
+      <SectionCard title="Tax categories" subtitle="Pick a country above to load locally-correct tax categories.">
+        <DisclaimerBanner />
+        <div style={{
+          padding: 18, background: 'var(--bg)', borderRadius: 8,
+          fontSize: 13, color: 'var(--muted-strong)', textAlign: 'center',
+        }}>
+          Select a country to begin.
+        </div>
+      </SectionCard>
+    );
+  }
+
+  if (!preset) {
+    return (
+      <SectionCard title="Tax categories" subtitle="No preset for this country yet — categories will need to be added manually.">
+        <DisclaimerBanner />
+        <CustomCategoriesBlock
+          categories={form.vat_categories_custom}
+          onUpdate={updateCustom}
+          onRemove={removeCustom}
+          onAdd={addCustom}
+        />
+      </SectionCard>
+    );
+  }
+
+  // Sort: enabled categories first, disabled below.
+  const sorted = [...preset.categories].sort((a, b) => {
+    const aOn = enabledSet.has(a.key) ? 0 : 1;
+    const bOn = enabledSet.has(b.key) ? 0 : 1;
+    return aOn - bOn;
+  });
+
+  return (
+    <SectionCard
+      title="Tax categories"
+      subtitle={`${preset.name} · ${preset.taxName} · standard rate ${preset.categories.find(c => c.key === 'standard')?.rate ?? '—'}%`}
+    >
+      <DisclaimerBanner />
+
+      {preset.notes && (
+        <div style={{
+          fontSize: 12.5, color: 'var(--muted-strong)',
+          padding: '8px 12px', marginBottom: 12,
+          background: 'var(--bg-2)', borderRadius: 7,
+          lineHeight: 1.5,
+        }}>
+          <strong>{preset.name}:</strong> {preset.notes}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {sorted.map((cat) => (
+          <CategoryRow
+            key={cat.key}
+            cat={cat}
+            enabled={enabledSet.has(cat.key)}
+            override={form.vat_categories_overrides?.[cat.key]}
+            onToggle={toggleCategory}
+            onOverrideChange={setOverride}
+            onClearOverride={clearOverride}
+          />
+        ))}
+      </div>
+
+      <CustomCategoriesBlock
+        categories={form.vat_categories_custom}
+        onUpdate={updateCustom}
+        onRemove={removeCustom}
+        onAdd={addCustom}
+      />
+    </SectionCard>
+  );
+};
+
+const CustomCategoriesBlock = ({ categories, onUpdate, onRemove, onAdd }) => (
+  <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px dashed var(--line)' }}>
+    <div style={{
+      fontFamily: 'Syne', fontWeight: 600, fontSize: 10,
+      letterSpacing: '0.12em', textTransform: 'uppercase',
+      color: 'var(--muted-strong)', marginBottom: 8,
+    }}>Custom categories</div>
+    {categories.length === 0 && (
+      <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 10 }}>
+        Add a custom category if you supply something the country preset doesn't cover.
+      </div>
+    )}
+    {categories.length > 0 && (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+        {categories.map((cat, idx) => (
+          <CustomCategoryRow
+            key={idx}
+            cat={cat}
+            onChange={(c) => onUpdate(idx, c)}
+            onRemove={() => onRemove(idx)}
+          />
+        ))}
+      </div>
+    )}
+    <button
+      type="button"
+      className="sp-btn sp-btn-secondary"
+      onClick={onAdd}
+      style={{ fontSize: 12.5, padding: '7px 14px' }}
+    >
+      + Add custom category
+    </button>
+  </div>
+);
+
 // ─── Main ─────────────────────────────────────────────────────────────────
 
 const InvoicingSettings = ({ supplier, onSaved }) => {
@@ -402,7 +714,10 @@ const InvoicingSettings = ({ supplier, onSaved }) => {
       {/* ── Section 2: Business details ── */}
       <BusinessDetailsSection form={form} set={set} validationErrors={validationErrors} />
 
-      {/* ── Sections 3–6: tax categories, bank, numbering, footer (Runs C–D) ── */}
+      {/* ── Section 3: Tax categories ── */}
+      <TaxCategoriesSection form={form} set={set} />
+
+      {/* ── Sections 4–6: bank, numbering, footer (Run D) ── */}
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--line-soft)', paddingTop: 18, marginTop: 8 }}>
         <button
