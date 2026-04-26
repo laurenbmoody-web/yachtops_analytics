@@ -1,10 +1,9 @@
 // TripGuestPicker — pill row of trip guests for note-scoping.
 //
-// v1: single-select. `selected` is a string id or null; onChange fires
-// with the new id (or null when the same selected pill is tapped to
-// unscope). Phase D upgrades both call sites to multi-select; the
-// upgrade is prop-shape only — onMouseDown.preventDefault() and the
-// useGuests source stay the same.
+// v2 (Phase D): multi-select. `selected` is a string[] of guest UUIDs;
+// onChange fires with the new array. Tap a pill to toggle: absent →
+// added at end of array, present → removed. Empty array is the
+// unscoped/general state.
 //
 // Reads from useGuests() (already filtered to is_active_on_trip), so
 // the pill row covers AWAKE, ASLEEP, and ASHORE guests — all
@@ -30,7 +29,7 @@ import React from 'react';
 import { useGuests } from '../hooks/useGuests';
 
 export default function TripGuestPicker({
-  selected = null,
+  selected = [],
   onChange,
   guests: guestsProp = null,
   hidden = false,
@@ -44,6 +43,14 @@ export default function TripGuestPicker({
 
   if (!guests || guests.length === 0) return null;
 
+  const selectedArr = Array.isArray(selected) ? selected : [];
+  const selectedSet = new Set(selectedArr);
+
+  const toggle = (id) => {
+    if (selectedSet.has(id)) onChange(selectedArr.filter(x => x !== id));
+    else                     onChange([...selectedArr, id]);
+  };
+
   return (
     <div
       className={`p-note-chips${hidden ? ' is-hidden' : ''}`}
@@ -52,14 +59,14 @@ export default function TripGuestPicker({
       aria-hidden={hidden || undefined}
     >
       {guests.map(g => {
-        const isSelected = selected === g.id;
+        const isSelected = selectedSet.has(g.id);
         return (
           <button
             type="button"
             key={g.id}
             className={`p-note-chip${isSelected ? ' selected' : ''}`}
             onMouseDown={e => e.preventDefault()}
-            onClick={() => onChange(isSelected ? null : g.id)}
+            onClick={() => toggle(g.id)}
             aria-pressed={isSelected}
             aria-label={`Tag note for ${g.first_name}`}
             tabIndex={hidden ? -1 : 0}
