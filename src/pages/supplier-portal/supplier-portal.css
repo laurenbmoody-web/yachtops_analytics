@@ -1093,7 +1093,7 @@
 }
 #sp-root .sod-action-dropdown .sod-dd-row {
   display: flex; gap: 10px; align-items: center;
-  padding: 9px 10px; border-radius: 7px;
+  padding: 8px 10px; border-radius: 7px;
   font-family: 'DM Sans'; font-size: 13px;
   color: var(--fg); cursor: pointer;
   background: transparent; border: none; width: 100%;
