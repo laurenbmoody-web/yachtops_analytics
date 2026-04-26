@@ -1,9 +1,19 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { fetchSupplierProfileById, updateSupplierProfile } from '../utils/supplierStorage';
+import {
+  fetchSupplierProfileById,
+  updateSupplierProfile,
+  uploadSupplierLogo,
+} from '../utils/supplierStorage';
 import {
   getCountryTaxPreset,
   listSupportedCountries,
 } from '../../../data/countryTaxPresets';
+
+// Common invoice currencies — superset of the country presets'
+// defaultCurrency, so the dropdown always covers what suppliers might want.
+const COMMON_CURRENCIES = ['EUR', 'GBP', 'USD', 'CHF', 'AED', 'XCD', 'AUD', 'NZD', 'CAD', 'SGD', 'HKD', 'JPY', 'NOK', 'SEK', 'DKK'];
+
+const SUPPORTED_COUNTRIES = listSupportedCountries();
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -62,6 +72,218 @@ const SectionCard = ({ title, subtitle, children }) => (
     {children}
   </div>
 );
+
+// ─── Section 1: Logo upload ──────────────────────────────────────────────
+
+const LogoUploadSection = ({ supplierId, currentLogoUrl, onUploaded }) => {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!['image/png', 'image/jpeg'].includes(file.type)) {
+      setError('Logo must be a PNG or JPEG.');
+      return;
+    }
+    if (file.size > 1_000_000) {
+      setError('Logo must be under 1 MB.');
+      return;
+    }
+
+    setUploading(true);
+    setError(null);
+    try {
+      const url = await uploadSupplierLogo(supplierId, file);
+      onUploaded?.(url);
+    } catch (err) {
+      setError(err.message || 'Upload failed');
+    } finally {
+      setUploading(false);
+      // Reset input so the same file can be re-selected if needed.
+      e.target.value = '';
+    }
+  };
+
+  return (
+    <SectionCard
+      title="Logo"
+      subtitle="Appears top-left on every invoice you generate. PNG or JPEG, max 1 MB."
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+        <div style={{
+          width: 96, height: 96,
+          border: '1px solid var(--line)', borderRadius: 8,
+          background: 'var(--bg-2)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          overflow: 'hidden',
+        }}>
+          {currentLogoUrl ? (
+            <img src={currentLogoUrl} alt="Logo" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+          ) : (
+            <div style={{ fontSize: 11, color: 'var(--muted)', textAlign: 'center', padding: 4 }}>
+              No logo yet
+            </div>
+          )}
+        </div>
+        <div style={{ flex: 1 }}>
+          <label className="sp-btn sp-btn-secondary" style={{ display: 'inline-block', cursor: uploading ? 'wait' : 'pointer' }}>
+            {uploading ? 'Uploading…' : (currentLogoUrl ? 'Replace logo' : 'Upload logo')}
+            <input
+              type="file"
+              accept="image/png,image/jpeg"
+              onChange={handleFile}
+              disabled={uploading}
+              style={{ display: 'none' }}
+            />
+          </label>
+          {error && (
+            <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 6 }}>{error}</div>
+          )}
+        </div>
+      </div>
+    </SectionCard>
+  );
+};
+
+// ─── Section 2: Business details ─────────────────────────────────────────
+
+const BusinessDetailsSection = ({ form, set, validationErrors }) => {
+  const preset = useMemo(() => getCountryTaxPreset(form.business_country), [form.business_country]);
+
+  // When the country changes, suggest its default currency if the supplier
+  // hasn't picked one yet (treat 'EUR' default as "untouched" — best-effort).
+  const handleCountryChange = (iso2) => {
+    set('business_country', iso2);
+    const nextPreset = getCountryTaxPreset(iso2);
+    if (nextPreset && (!form.default_currency || form.default_currency === 'EUR')) {
+      set('default_currency', nextPreset.defaultCurrency);
+    }
+  };
+
+  const fieldError = (key) => validationErrors[key];
+  const inputClass = (key) => `sp-field-input${fieldError(key) ? ' sp-field-input-error' : ''}`;
+
+  return (
+    <SectionCard
+      title="Business details"
+      subtitle="Used on every invoice header. Country drives the default tax categories below."
+    >
+      <div className="sp-field-row">
+        <div className="sp-field">
+          <label className="sp-field-label">Country *</label>
+          <select
+            className={inputClass('business_country')}
+            value={form.business_country}
+            onChange={(e) => handleCountryChange(e.target.value)}
+          >
+            <option value="">Select country…</option>
+            {SUPPORTED_COUNTRIES.map((c) => (
+              <option key={c.iso2} value={c.iso2}>{c.name}</option>
+            ))}
+          </select>
+          {fieldError('business_country') && (
+            <div style={{ fontSize: 11.5, color: 'var(--red)', marginTop: 4 }}>{fieldError('business_country')}</div>
+          )}
+        </div>
+        <div className="sp-field">
+          <label className="sp-field-label">Default currency *</label>
+          <select
+            className={inputClass('default_currency')}
+            value={form.default_currency}
+            onChange={(e) => set('default_currency', e.target.value)}
+          >
+            {COMMON_CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div className="sp-field">
+        <label className="sp-field-label">Address line 1 *</label>
+        <input
+          type="text"
+          className={inputClass('business_address_line1')}
+          value={form.business_address_line1}
+          onChange={(e) => set('business_address_line1', e.target.value)}
+          placeholder="Street and number"
+        />
+        {fieldError('business_address_line1') && (
+          <div style={{ fontSize: 11.5, color: 'var(--red)', marginTop: 4 }}>{fieldError('business_address_line1')}</div>
+        )}
+      </div>
+
+      <div className="sp-field">
+        <label className="sp-field-label">Address line 2</label>
+        <input
+          type="text"
+          className="sp-field-input"
+          value={form.business_address_line2}
+          onChange={(e) => set('business_address_line2', e.target.value)}
+          placeholder="Apartment, suite, etc. (optional)"
+        />
+      </div>
+
+      <div className="sp-field-row">
+        <div className="sp-field">
+          <label className="sp-field-label">City *</label>
+          <input
+            type="text"
+            className={inputClass('business_city')}
+            value={form.business_city}
+            onChange={(e) => set('business_city', e.target.value)}
+          />
+          {fieldError('business_city') && (
+            <div style={{ fontSize: 11.5, color: 'var(--red)', marginTop: 4 }}>{fieldError('business_city')}</div>
+          )}
+        </div>
+        <div className="sp-field">
+          <label className="sp-field-label">Postal code</label>
+          <input
+            type="text"
+            className="sp-field-input"
+            value={form.business_postal_code}
+            onChange={(e) => set('business_postal_code', e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="sp-field">
+        <label className="sp-field-label">State / region</label>
+        <input
+          type="text"
+          className="sp-field-input"
+          value={form.business_state_region}
+          onChange={(e) => set('business_state_region', e.target.value)}
+          placeholder="Optional"
+        />
+      </div>
+
+      <div className="sp-field-row">
+        <div className="sp-field">
+          <label className="sp-field-label">{preset?.taxName || 'VAT'} number</label>
+          <input
+            type="text"
+            className="sp-field-input"
+            value={form.vat_number}
+            onChange={(e) => set('vat_number', e.target.value)}
+            placeholder={preset?.vatRegistrationFormat || 'Optional'}
+          />
+        </div>
+        <div className="sp-field">
+          <label className="sp-field-label">Company registration number</label>
+          <input
+            type="text"
+            className="sp-field-input"
+            value={form.company_registration_number}
+            onChange={(e) => set('company_registration_number', e.target.value)}
+            placeholder="Optional"
+          />
+        </div>
+      </div>
+    </SectionCard>
+  );
+};
 
 // ─── Main ─────────────────────────────────────────────────────────────────
 
@@ -170,12 +392,17 @@ const InvoicingSettings = ({ supplier, onSaved }) => {
         }}>Invoicing settings saved.</div>
       )}
 
-      {/* Sections land in Runs B–D */}
-      <SectionCard title="Logo, business details, tax categories, bank, numbering, footer" subtitle="Detail sections land in subsequent runs.">
-        <div style={{ fontSize: 12.5, color: 'var(--muted)', fontFamily: 'JetBrains Mono' }}>
-          Country selected: {form.business_country || '—'}
-        </div>
-      </SectionCard>
+      {/* ── Section 1: Logo upload ── */}
+      <LogoUploadSection
+        supplierId={supplierId}
+        currentLogoUrl={profile?.invoice_logo_url}
+        onUploaded={(url) => setProfile((p) => p ? { ...p, invoice_logo_url: url } : p)}
+      />
+
+      {/* ── Section 2: Business details ── */}
+      <BusinessDetailsSection form={form} set={set} validationErrors={validationErrors} />
+
+      {/* ── Sections 3–6: tax categories, bank, numbering, footer (Runs C–D) ── */}
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--line-soft)', paddingTop: 18, marginTop: 8 }}>
         <button
