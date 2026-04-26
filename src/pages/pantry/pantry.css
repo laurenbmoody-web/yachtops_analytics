@@ -1102,6 +1102,11 @@
   gap: 6px;
   padding: 8px 0 2px;
 }
+/* Mounted-but-hidden state — keeps useGuests() warm so pills appear
+   instantly when the parent input gets focus. */
+.p-note-chips.is-hidden {
+  display: none;
+}
 .p-note-chip {
   font-family: var(--font-sans);
   font-size: 11px;
