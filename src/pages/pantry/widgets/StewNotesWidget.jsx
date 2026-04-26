@@ -1,18 +1,34 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useStewNotesActive } from '../hooks/useStewNotes';
-import { useGuests } from '../hooks/useGuests';
 import { formatDistanceToNow } from 'date-fns';
+import { useStewNotesToday } from '../hooks/useStewNotes';
+import { useGuests } from '../hooks/useGuests';
+import { useCrewNames } from '../hooks/useCrewNames';
+import { useAuth } from '../../../contexts/AuthContext';
+import TripGuestPicker from './TripGuestPicker';
 
-// ─── Note row with checkbox + inline edit ──────────────────────────────────
+// HH:MM in vessel-local time. The browser TZ is the vessel-TZ proxy on
+// Cargo (per vesselLocalTime.js), so a default Intl.DateTimeFormat
+// resolves to the right window without an explicit timeZone.
+const TIME_FMT = new Intl.DateTimeFormat('en-GB', {
+  hour:   '2-digit',
+  minute: '2-digit',
+  hour12: false,
+});
 
-function NoteRow({ note, onComplete, onEdit, guestById }) {
+function formatHHMM(iso) {
+  if (!iso) return '';
+  return TIME_FMT.format(new Date(iso));
+}
+
+// ─── Note row — open OR done, checkbox left, body italic ───────────────────
+
+function NoteRow({ note, currentUserId, crewById, guestById,
+                  onComplete, onUncomplete, onEdit }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft]     = useState(note.content);
   const taRef = useRef(null);
 
-  // Keep draft in sync when the note's content changes from elsewhere
-  // (rollback on a failed edit, or a refetch landing fresh data).
   useEffect(() => { if (!editing) setDraft(note.content); }, [note.content, editing]);
 
   useEffect(() => {
@@ -23,6 +39,8 @@ function NoteRow({ note, onComplete, onEdit, guestById }) {
     }
   }, [editing]);
 
+  const isDone = !!note.completed_at;
+
   const save = () => {
     const trimmed = draft.trim();
     if (trimmed && trimmed !== note.content) {
@@ -32,34 +50,38 @@ function NoteRow({ note, onComplete, onEdit, guestById }) {
     }
     setEditing(false);
   };
-
-  const cancel = () => {
-    setDraft(note.content);
-    setEditing(false);
+  const cancel = () => { setDraft(note.content); setEditing(false); };
+  const onKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); }
+    else if (e.key === 'Escape')          { e.preventDefault(); cancel(); }
   };
 
-  const onKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      save();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      cancel();
-    }
+  const onCheckboxClick = () => {
+    if (isDone) onUncomplete(note.id);
+    else        onComplete(note.id);
   };
 
   const guest = note.related_guest_id ? guestById?.get(note.related_guest_id) : null;
 
+  // Done-by-other meta line — strict spec: only render the by-line when
+  // the completer is a different user. Self-completes show strike alone.
+  const completedByOther = isDone
+    && note.completed_by
+    && note.completed_by !== currentUserId;
+  const completerFirst = completedByOther
+    ? (crewById.get(note.completed_by)?.firstName ?? 'crew')
+    : null;
+
   return (
-    <div className="p-note-entry p-note-row">
+    <div className={`p-note-entry p-note-row${isDone ? ' done' : ''}`}>
       <button
         type="button"
         className="p-note-checkbox"
-        onClick={() => onComplete(note.id)}
-        aria-label="Mark note complete"
-        title="Mark complete"
+        onClick={onCheckboxClick}
+        aria-label={isDone ? 'Mark note open' : 'Mark note complete'}
+        title={isDone ? 'Tap to reopen' : 'Mark complete'}
       >
-        <span className="p-note-checkbox-box" />
+        <span className={`p-note-checkbox-box${isDone ? ' checked' : ''}`} />
       </button>
       <div className="p-note-row-body">
         {editing ? (
@@ -87,7 +109,12 @@ function NoteRow({ note, onComplete, onEdit, guestById }) {
           </div>
         )}
         <div className="p-note-meta">
-          <span>{formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}</span>
+          {!isDone && (
+            <span>{formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}</span>
+          )}
+          {completedByOther && (
+            <span>completed {formatHHMM(note.completed_at)} by {completerFirst}</span>
+          )}
           {guest && <span className="p-note-guest-tag">for {guest.first_name}</span>}
           {note.saved_to_preferences && (
             <span style={{ color: 'var(--confirm)' }}>saved to preferences</span>
@@ -98,24 +125,32 @@ function NoteRow({ note, onComplete, onEdit, guestById }) {
   );
 }
 
-// ─── Inline add row (editorial baseline input + guest chips) ───────────────
+// ─── Inline add row ────────────────────────────────────────────────────────
+//
+// Editorial baseline-border input. Pills only appear when the input has
+// focus — taps on pills don't take focus from the input
+// (onMouseDown.preventDefault inside TripGuestPicker), so pills stay
+// visible while the stew picks a guest. Blur to outside the row submits
+// any non-empty body and collapses the pill row.
 
-function NoteAddRow({ onAdd, onboardGuests, autoFocusOnEmpty }) {
+function NoteAddRow({ onAdd }) {
   const [body, setBody]       = useState('');
   const [guestId, setGuestId] = useState(null);
+  const [focused, setFocused] = useState(false);
   const [pending, setPending] = useState(false);
-  const inputRef = useRef(null);
+  const inputRef     = useRef(null);
+  const containerRef = useRef(null);
 
   const submit = async () => {
     const trimmed = body.trim();
     if (!trimmed || pending) return;
     setPending(true);
     try {
-      await onAdd({ body: trimmed, guest_id: guestId });
+      await onAdd({ body: trimmed, guest_ids: guestId ? [guestId] : [] });
       setBody('');
       setGuestId(null);
-      // Keep focus on the input so the stew can keep adding without
-      // re-tapping. Phase 2 brief calls this out as critical for feel.
+      // Keep focus so the stew can keep typing without re-tapping.
+      // Pill row stays visible because focus remains.
       inputRef.current?.focus();
     } finally {
       setPending(false);
@@ -126,20 +161,26 @@ function NoteAddRow({ onAdd, onboardGuests, autoFocusOnEmpty }) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       submit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setBody('');
+      setGuestId(null);
+      inputRef.current?.blur();
     }
   };
 
-  // Save when focus leaves the widget — but NOT when it shifts to a
-  // guest chip in this row. relatedTarget lets us tell the difference
-  // without a setTimeout race.
-  const onBlur = (e) => {
+  const onInputFocus = () => setFocused(true);
+  const onInputBlur = (e) => {
+    // If the next focus target is inside our container (defensive — chips
+    // don't actually take focus thanks to mousedown preventDefault), stay.
     const next = e.relatedTarget;
-    if (next && next.closest && next.closest('.p-note-add-row')) return;
-    submit();
+    if (next && containerRef.current?.contains(next)) return;
+    setFocused(false);
+    if (body.trim()) submit();
   };
 
   return (
-    <div className="p-note-add-row">
+    <div ref={containerRef} className="p-note-add-row">
       <input
         ref={inputRef}
         type="text"
@@ -147,34 +188,17 @@ function NoteAddRow({ onAdd, onboardGuests, autoFocusOnEmpty }) {
         placeholder="Add a note..."
         value={body}
         onChange={e => setBody(e.target.value)}
-        onBlur={onBlur}
         onKeyDown={onKeyDown}
-        autoFocus={autoFocusOnEmpty}
+        onFocus={onInputFocus}
+        onBlur={onInputBlur}
         aria-label="Add a stew note"
         disabled={pending}
       />
-      {onboardGuests.length > 0 && (
-        <div className="p-note-chips" role="group" aria-label="Tag note for guest">
-          {onboardGuests.map(g => {
-            const selected = guestId === g.id;
-            return (
-              <button
-                type="button"
-                key={g.id}
-                className={`p-note-chip${selected ? ' selected' : ''}`}
-                // Don't steal focus from the input — keeps the keyboard
-                // up on mobile and lets blur-to-save fire only when the
-                // user genuinely taps off the widget.
-                onMouseDown={e => e.preventDefault()}
-                onClick={() => setGuestId(prev => prev === g.id ? null : g.id)}
-                aria-pressed={selected}
-                aria-label={`Tag note for ${g.first_name}`}
-              >
-                {g.first_name}
-              </button>
-            );
-          })}
-        </div>
+      {focused && (
+        <TripGuestPicker
+          selected={guestId}
+          onChange={setGuestId}
+        />
       )}
     </div>
   );
@@ -184,30 +208,40 @@ function NoteAddRow({ onAdd, onboardGuests, autoFocusOnEmpty }) {
 
 export default function StewNotesWidget() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const {
     notes, loading, error,
-    addNote, completeNote, editNote,
-  } = useStewNotesActive();
+    addNote, completeNote, uncompleteNote, editNote,
+  } = useStewNotesToday();
   const { guests } = useGuests();
+  const crewById = useCrewNames();
 
-  const onboardGuests = useMemo(
-    () => (guests ?? []).filter(g => (g.current_state ?? 'awake') !== 'ashore'),
-    [guests],
-  );
   const guestById = useMemo(
     () => new Map((guests ?? []).map(g => [g.id, g])),
     [guests],
   );
 
-  const count = notes.length;
+  // Open at top, done at bottom. Open keeps newest-first (DB sort);
+  // done sorts by completed_at desc so the most-recently-ticked sits
+  // at the top of the done block — easiest to undo on mistap.
+  const { open, done } = useMemo(() => {
+    const o = [];
+    const d = [];
+    for (const n of notes) (n.completed_at ? d : o).push(n);
+    d.sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at));
+    return { open: o, done: d };
+  }, [notes]);
+
+  const totalCount = open.length + done.length;
+  const headerLabel = loading
+    ? '…'
+    : `${open.length} open · ${done.length} done`;
 
   return (
     <div className="p-card top-navy">
       <div className="p-card-head">
         <div>
-          <div className="p-caps">
-            {loading ? '…' : `${count} open · newest first`}
-          </div>
+          <div className="p-caps">{headerLabel}</div>
           <div className="p-card-headline">
             Worth <em>noting</em>.
           </div>
@@ -215,7 +249,7 @@ export default function StewNotesWidget() {
         <button className="p-card-link" style={{ color: 'var(--brass)' }}
           onClick={() => navigate('/pantry/notes')}
           aria-label="View all stew notes">
-          View all →
+          Open →
         </button>
       </div>
 
@@ -226,25 +260,42 @@ export default function StewNotesWidget() {
         <div style={{ color: 'var(--accent)', fontSize: 12 }}>Failed to load: {error}</div>
       )}
 
-      {!loading && !error && count === 0 && (
-        <p className="p-note-empty">No open notes.</p>
+      {!loading && !error && totalCount === 0 && (
+        <p className="p-note-empty">No notes today.</p>
       )}
 
-      {!loading && !error && notes.map(note => (
+      {!loading && !error && open.map(note => (
         <NoteRow
           key={note.id}
           note={note}
-          onComplete={completeNote}
-          onEdit={editNote}
+          currentUserId={user?.id ?? null}
+          crewById={crewById}
           guestById={guestById}
+          onComplete={completeNote}
+          onUncomplete={uncompleteNote}
+          onEdit={editNote}
+        />
+      ))}
+
+      {!loading && !error && done.length > 0 && (
+        <div className="p-note-done-divider" aria-hidden="true" />
+      )}
+
+      {!loading && !error && done.map(note => (
+        <NoteRow
+          key={note.id}
+          note={note}
+          currentUserId={user?.id ?? null}
+          crewById={crewById}
+          guestById={guestById}
+          onComplete={completeNote}
+          onUncomplete={uncompleteNote}
+          onEdit={editNote}
         />
       ))}
 
       {!loading && !error && (
-        <NoteAddRow
-          onAdd={addNote}
-          onboardGuests={onboardGuests}
-        />
+        <NoteAddRow onAdd={addNote} />
       )}
     </div>
   );
