@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchOrderById, updateOrderStatus, updateOrderItem } from '../utils/supplierStorage';
 import { usePermission } from '../../../contexts/SupplierPermissionContext';
@@ -742,6 +742,232 @@ const ItemsCard = ({
   );
 };
 
+// ─── Yacht client + standing notes + charter context + activity ────────────
+
+const YachtClientCard = ({ order }) => {
+  // TODO(schema): order.yacht_client_name, yacht_size_m, yacht_home_port,
+  //               client_since, last_order_at, lifetime_total, lifetime_order_count
+  const yachtName = order.yacht_client_name || order.vessel_name || order.yacht_name || null;
+  const sizeM = order.yacht_size_m;
+  const homePort = order.yacht_home_port;
+  const since = safeDate(order.client_since);
+  const sinceLabel = since ? since.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : null;
+
+  const specParts = [
+    sizeM ? `${sizeM}m` : null,
+    homePort ? `${homePort}-based` : null,
+    sinceLabel ? `since ${sinceLabel}` : null,
+  ].filter(Boolean);
+
+  const lastOrderAt = safeDate(order.last_order_at);
+  const lastOrderRel = lastOrderAt ? fmtRelative(lastOrderAt) : null;
+  const lifetimeTotal = order.lifetime_total != null ? Number(order.lifetime_total) : null;
+  const lifetimeCount = order.lifetime_order_count != null ? Number(order.lifetime_order_count) : null;
+
+  return (
+    <div className="sod-card">
+      <div className="sod-card-head">
+        <h4>Yacht client</h4>
+        <button type="button" className="sod-card-link" onClick={() => { /* TODO(schema): yacht client profile route */ }}>
+          View profile →
+        </button>
+      </div>
+      <div className="sod-yacht-card-body">
+        <div>
+          <div className="sod-yacht-name">
+            {yachtName ? <em>{yachtName}</em> : <em>—</em>}
+          </div>
+          <div className="sod-yacht-spec">
+            {specParts.length > 0 ? specParts.join(' · ') : '—'}
+          </div>
+        </div>
+        <div className="sod-yacht-stats">
+          <div>
+            <div className="sod-yacht-l">Last order</div>
+            <div className="sod-yacht-v">
+              {lastOrderRel ?? '—'}
+              {/* TODO(schema): on-time/late flag for last order */}
+            </div>
+          </div>
+          <div>
+            <div className="sod-yacht-l">Lifetime</div>
+            <div className="sod-yacht-v">
+              {lifetimeTotal != null ? formatCurrency(lifetimeTotal, order.currency || 'USD') : '—'}
+              {lifetimeCount != null && (
+                <small>· {lifetimeCount} order{lifetimeCount === 1 ? '' : 's'}</small>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const StandingNotesCard = ({ order }) => {
+  // TODO(schema): order.delivery_window, order.dock_contact, order.on_arrival_notes
+  const windowText = order.delivery_window || null;
+  const dockContact = order.dock_contact || order.delivery_contact || null;
+  const onArrivalText = order.on_arrival_notes || order.delivery_instructions || null;
+
+  return (
+    <div className="sod-card">
+      <div className="sod-card-head">
+        <h4>Standing notes</h4>
+        <span className="sod-card-meta">Delivery rules</span>
+      </div>
+      <div className="sod-standing-card-body">
+        <div className="sod-standing-row">
+          <div className="sod-standing-l">Window</div>
+          <div className="sod-standing-v">{windowText || '—'}</div>
+        </div>
+        <div className="sod-standing-row">
+          <div className="sod-standing-l">Dock contact</div>
+          <div className="sod-standing-v">
+            {dockContact ? <strong>{dockContact}</strong> : '—'}
+          </div>
+        </div>
+        <div className="sod-standing-row">
+          <div className="sod-standing-l">On arrival</div>
+          <div className="sod-standing-v">{onArrivalText || '—'}</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CharterContextCard = ({ order, yachtDisplayName }) => {
+  // TODO(schema): order.charter_context, charter_allergens, owner_aboard_dates
+  const charterText = order.charter_context || order.special_instructions || null;
+  return (
+    <div className="sod-card" style={{ marginTop: 18 }}>
+      <div className="sod-card-head">
+        <h4>Charter context</h4>
+        <span className="sod-card-meta">From {yachtDisplayName}'s provisioning board</span>
+      </div>
+      <div className="sod-ctx-body">
+        <span className="sod-ctx-mark" aria-hidden="true">"</span>
+        <div>
+          {charterText ? (
+            <>{charterText}</>
+          ) : (
+            <span style={{ color: 'var(--muted-strong)' }}>
+              No charter context shared yet. The chief stew can attach trip details from the provisioning board.
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ActivityCard = ({ order, yachtDisplayName }) => {
+  // TODO(schema): real activity log table — for now we surface the order
+  // creation event from the row itself.
+  const createdWhen = fmtTimestamp(order.created_at);
+  const sentWhen = order.sent_at ? fmtTimestamp(order.sent_at) : null;
+  const confirmedWhen = order.confirmed_at ? fmtTimestamp(order.confirmed_at) : null;
+
+  return (
+    <div className="sod-card" style={{ marginTop: 18 }}>
+      <div className="sod-card-head">
+        <h4>Activity</h4>
+        <span className="sod-card-meta">All events on this order</span>
+      </div>
+      <div className="sod-activity-body">
+        <ul className="sod-activity">
+          <li className="sod-act-now">
+            <div className="sod-act-when">{createdWhen ?? '—'}</div>
+            <div className="sod-act-what">
+              Order received from <em>{yachtDisplayName}</em>
+            </div>
+            <div className="sod-act-who">
+              {order.sent_via === 'portal' ? 'Created in portal' : 'Sent via email'}
+            </div>
+          </li>
+          {sentWhen && order.sent_at !== order.created_at && (
+            <li>
+              <div className="sod-act-when">{sentWhen}</div>
+              <div className="sod-act-what">Order sent to supplier</div>
+              <div className="sod-act-who">via {order.sent_via || 'email'}</div>
+            </li>
+          )}
+          {confirmedWhen && (
+            <li className="sod-act-done">
+              <div className="sod-act-when">{confirmedWhen}</div>
+              <div className="sod-act-what">Order confirmed</div>
+              <div className="sod-act-who">All available items confirmed</div>
+            </li>
+          )}
+        </ul>
+      </div>
+    </div>
+  );
+};
+
+// ─── Drawer ─────────────────────────────────────────────────────────────────
+
+const Drawer = ({ open, onClose, title, children }) => {
+  // Lock body scroll while a drawer is open + add an Escape-to-close handler.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+  return (
+    <>
+      <div className="sod-drawer-overlay" onClick={onClose} />
+      <aside className="sod-drawer sod-drawer-open" role="dialog" aria-modal="true" aria-label={title}>
+        <div className="sod-drawer-head">
+          <h3>{title}</h3>
+          <button type="button" className="sod-drawer-close" onClick={onClose}>Close</button>
+        </div>
+        <div className="sod-drawer-body">{children}</div>
+      </aside>
+    </>
+  );
+};
+
+const ReturnsDrawerBody = () => (
+  <div className="sod-drawer-empty">
+    <div className="sod-drawer-empty-ico" aria-hidden="true">↺</div>
+    <p>No returns recorded on this order yet. Returns are filed against confirmed items after delivery.</p>
+    <button type="button" className="sod-drawer-cta" disabled title="Coming soon">+ Add return</button>
+  </div>
+);
+
+const DockDrawerBody = ({ order }) => {
+  // TODO(schema): order.delivery_window, dock_contact, on_arrival_notes
+  const windowText = order.delivery_window || null;
+  const dockContact = order.dock_contact || order.delivery_contact || null;
+  const onArrivalText = order.on_arrival_notes || order.delivery_instructions || null;
+  const portText = order.delivery_port || null;
+
+  return (
+    <>
+      <section>
+        <h5>Marina</h5>
+        <p>{portText ? <strong>{portText}</strong> : '—'}</p>
+      </section>
+      <section>
+        <h5>Window</h5>
+        <p>{windowText || '—'}</p>
+      </section>
+      <section>
+        <h5>Dock contact</h5>
+        <p>{dockContact ? <strong>{dockContact}</strong> : '—'}</p>
+      </section>
+      <section>
+        <h5>On arrival</h5>
+        <p>{onArrivalText || '—'}</p>
+      </section>
+    </>
+  );
+};
+
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 const SupplierOrderDetail = () => {
@@ -948,24 +1174,43 @@ const SupplierOrderDetail = () => {
         onConfirmAll={handleConfirmAll}
       />
 
-      {/* TODO: yacht / standing notes / charter / activity cards land in Run 6 */}
-      {/* TODO: returns + dock drawers land in Run 7 (state already wired) */}
-      {(returnsDrawerOpen || dockDrawerOpen) && (
-        <div style={{ marginTop: 12, fontFamily: 'JetBrains Mono', fontSize: 11, color: 'var(--muted)' }}>
-          {returnsDrawerOpen && (
-            <span>
-              returns drawer requested ·{' '}
-              <button type="button" onClick={() => setReturnsDrawerOpen(false)}>close</button>
-            </span>
-          )}
-          {dockDrawerOpen && (
-            <span style={{ marginLeft: 12 }}>
-              dock drawer requested ·{' '}
-              <button type="button" onClick={() => setDockDrawerOpen(false)}>close</button>
-            </span>
-          )}
-        </div>
-      )}
+      {/* ── Yacht client + Standing notes (locked equal heights) ── */}
+      <div className="sod-yacht-standing-row">
+        <YachtClientCard order={order} />
+        <StandingNotesCard order={order} />
+      </div>
+
+      {/* ── Charter context ── */}
+      <CharterContextCard order={order} yachtDisplayName={yachtDisplayName} />
+
+      {/* ── Activity ── */}
+      <ActivityCard order={order} yachtDisplayName={yachtDisplayName} />
+
+      {/* ── Keyboard hint footer ── */}
+      <div className="sod-kb-hint">
+        <span className="sod-kb-key">C</span> confirm &nbsp;·&nbsp;
+        <span className="sod-kb-key">S</span> substitute &nbsp;·&nbsp;
+        <span className="sod-kb-key">U</span> unavailable &nbsp;·&nbsp;
+        <span className="sod-kb-key">A</span> confirm all &nbsp;·&nbsp;
+        <span className="sod-kb-key">M</span> messages
+      </div>
+
+      {/* ── Drawers ── */}
+      <Drawer
+        open={returnsDrawerOpen}
+        onClose={() => setReturnsDrawerOpen(false)}
+        title="Returns"
+      >
+        <ReturnsDrawerBody />
+      </Drawer>
+
+      <Drawer
+        open={dockDrawerOpen}
+        onClose={() => setDockDrawerOpen(false)}
+        title="Dock access"
+      >
+        <DockDrawerBody order={order} />
+      </Drawer>
     </div>
   );
 };
