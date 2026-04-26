@@ -405,6 +405,343 @@ const Timeline = ({ order, items, canEdit, onAdvance }) => {
   );
 };
 
+// ─── Items table ────────────────────────────────────────────────────────────
+
+const STATUS_LABEL = {
+  pending: 'Pending',
+  confirmed: 'Confirmed',
+  substituted: 'Substituted',
+  unavailable: 'Unavailable',
+  question: 'Question',
+};
+
+const STATUS_TO_ROW_CLASS = {
+  pending:     'sod-row-pending',
+  confirmed:   'sod-row-confirmed',
+  substituted: 'sod-row-substituted',
+  unavailable: 'sod-row-unavail',
+  question:    'sod-row-question',
+};
+
+const STATUS_TO_LABEL_CLASS = {
+  pending:     'sod-pending',
+  confirmed:   'sod-confirmed',
+  substituted: 'sod-substituted',
+  unavailable: 'sod-unavail',
+  question:    'sod-question',
+};
+
+// Lightweight category → emoji mapping for the item thumbnail. TODO(schema):
+// replace with item.category once that column exists.
+const thumbForItem = (item) => {
+  const name = String(item?.item_name ?? '').toLowerCase();
+  if (/(beef|steak|wagyu|rib|lamb|pork)/.test(name)) return '🥩';
+  if (/(wine|rosé|rose|champagne|magnum|bottle)/.test(name)) return '🍷';
+  if (/(rose|flower|bouquet|petal)/.test(name)) return '🌹';
+  if (/(fish|tuna|salmon|prawn|lobster)/.test(name)) return '🐟';
+  if (/(bread|baguette|pastry)/.test(name)) return '🥖';
+  if (/(cheese|brie|camembert)/.test(name)) return '🧀';
+  if (/(fruit|apple|berry|melon)/.test(name)) return '🍎';
+  if (/(veg|salad|tomato|lettuce)/.test(name)) return '🥬';
+  return '📦';
+};
+
+const SendArrow = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
+const ChatIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+  </svg>
+);
+
+const ItemRow = ({ item, currency, canEdit, threadOpen, onToggleThread, onUpdate }) => {
+  const status = item.status || 'pending';
+  const rowClass = STATUS_TO_ROW_CLASS[status] || '';
+  const labelClass = STATUS_TO_LABEL_CLASS[status] || '';
+
+  const messageCount = Number(item.message_count ?? 0);    // TODO(schema): item.message_count
+  const unreadCount = Number(item.unread_message_count ?? 0); // TODO(schema): item.unread_message_count
+  const showMsgIcon = messageCount > 0 || threadOpen;
+
+  // TODO(schema): item.size, item.pack, item.brand, item.category, item.subcategory,
+  //               item.type, item.requires_chilled, item.vintage_year, item.grade,
+  //               item.unit_price (currently inferred from server only when available)
+  const unitPrice = item.unit_price != null ? Number(item.unit_price) : null;
+
+  const handleAct = async (next) => {
+    try {
+      const updates = { status: next };
+      if (next === 'substituted' && item.substitute_description) {
+        updates.substitute_description = item.substitute_description;
+      }
+      await onUpdate(item.id, updates);
+    } catch (e) {
+      window.alert(`Update failed: ${e.message}`);
+    }
+  };
+
+  const isPending = status === 'pending';
+
+  return (
+    <>
+      <tr className={`${rowClass}${threadOpen ? ' sod-has-thread' : ''}`}>
+        <td>
+          <div className="sod-item-cell">
+            <div className="sod-item-thumb" aria-hidden="true">{thumbForItem(item)}</div>
+            <div>
+              <div className="sod-item-name-row">
+                <span className="sod-item-name">
+                  {item.item_name}
+                  {item.brand && <span className="sod-brand">{item.brand}</span>}
+                </span>
+                {STATUS_LABEL[status] && (
+                  <span className={`sod-item-status ${labelClass}`}>{STATUS_LABEL[status]}</span>
+                )}
+                {showMsgIcon && (
+                  <button
+                    type="button"
+                    className={`sod-msg-icon${unreadCount > 0 ? ' sod-has-new' : ''}`}
+                    onClick={() => onToggleThread(item.id)}
+                    title={threadOpen ? 'Hide messages' : 'View messages'}
+                  >
+                    <ChatIcon />
+                    <span className="sod-msg-count">{messageCount}</span>
+                  </button>
+                )}
+              </div>
+
+              {/* TODO(schema): item.category / subcategory / type — breadcrumb */}
+              {item.category && (
+                <div className="sod-item-category">
+                  {[item.category, item.subcategory, item.type]
+                    .filter(Boolean)
+                    .map((part, i, arr) => (
+                      <React.Fragment key={i}>
+                        {part}
+                        {i < arr.length - 1 && <span className="sod-cat-sep">›</span>}
+                      </React.Fragment>
+                    ))}
+                </div>
+              )}
+
+              {/* TODO(schema): item.requires_chilled / vintage_year / grade — chips */}
+              {(item.requires_chilled || item.vintage_year || item.grade) && (
+                <div className="sod-item-tags">
+                  {item.requires_chilled && <span className="sod-tag sod-tag-cold">❄ Chilled</span>}
+                  {item.vintage_year && <span className="sod-tag">{item.vintage_year} vintage</span>}
+                  {item.grade && <span className="sod-tag">{item.grade}</span>}
+                </div>
+              )}
+
+              {item.notes && <div className="sod-item-note">{item.notes}</div>}
+              {status === 'substituted' && item.substitute_description && (
+                <div className="sod-item-note">{item.substitute_description}</div>
+              )}
+            </div>
+          </div>
+        </td>
+
+        <td className="sod-num">{item.unit ?? '—'}</td>
+        <td className="sod-num">{item.size ?? '—'}{/* TODO(schema): item.size */}</td>
+        <td className="sod-num">{item.quantity ?? '—'}</td>
+        <td className={`sod-pack${item.pack ? '' : ' sod-empty'}`}>
+          {item.pack ? String(item.pack).toLowerCase() : '—'}
+          {/* TODO(schema): item.pack */}
+        </td>
+        <td>
+          <div className="sod-price">
+            {formatCurrency(unitPrice, currency)}
+            {/* TODO(out-of-scope): cross-yacht price intelligence line */}
+          </div>
+        </td>
+        <td>
+          <div className="sod-row-actions">
+            {isPending ? (
+              <>
+                <button
+                  type="button"
+                  className="sod-confirm-btn"
+                  disabled={!canEdit}
+                  title={canEdit ? 'Confirm' : NO_PERMISSION_TITLE}
+                  onClick={() => handleAct('confirmed')}
+                >Confirm</button>
+                <button
+                  type="button"
+                  className="sod-action-text-btn sod-act-sub"
+                  disabled={!canEdit}
+                  title={canEdit ? 'Substitute' : NO_PERMISSION_TITLE}
+                  onClick={() => handleAct('substituted')}
+                >Sub</button>
+                <button
+                  type="button"
+                  className="sod-action-icon sod-act-unavail"
+                  disabled={!canEdit}
+                  title={canEdit ? 'Unavailable' : NO_PERMISSION_TITLE}
+                  onClick={() => handleAct('unavailable')}
+                ><SendArrow /></button>
+              </>
+            ) : (
+              canEdit && (
+                <button
+                  type="button"
+                  className="sod-pill sod-ghost"
+                  style={{ fontSize: 11.5, padding: '4px 10px' }}
+                  onClick={() => handleAct('pending')}
+                  title="Reset to pending"
+                >Edit</button>
+              )
+            )}
+          </div>
+        </td>
+      </tr>
+
+      {threadOpen && (
+        <tr className="sod-thread-row">
+          <td colSpan={7}>
+            <div className="sod-thread">
+              {/* TODO(out-of-scope): real threaded messages (storage + send + realtime) */}
+              <div className="sod-thread-empty">
+                No messages yet. Threaded messaging is not wired up — this is a UI stub.
+              </div>
+              <div className="sod-thread-input">
+                <input
+                  type="text"
+                  placeholder="Send a follow-up — Cmd↵ to send"
+                  disabled
+                />
+                <button type="button" disabled>Send</button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+};
+
+const ItemsCard = ({
+  items,
+  currency,
+  canEdit,
+  openThreadId,
+  onToggleThread,
+  onItemUpdate,
+  onConfirmAll,
+}) => {
+  const itemCount = items.length;
+  const totalQty = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
+  const counts = items.reduce((acc, i) => {
+    const k = i.status || 'pending';
+    acc[k] = (acc[k] || 0) + 1;
+    return acc;
+  }, {});
+  const subtotal = items.reduce((s, i) => {
+    const price = Number(i.unit_price) || 0;
+    const qty = Number(i.quantity) || 0;
+    return s + price * qty;
+  }, 0);
+
+  const segs = [
+    counts.pending     && { cls: 'sod-seg-pending',   label: `${counts.pending} pending` },
+    counts.confirmed   && { cls: 'sod-seg-confirmed', label: `${counts.confirmed} confirmed` },
+    counts.question    && { cls: 'sod-seg-question',  label: `${counts.question} question${counts.question === 1 ? '' : 's'}` },
+    counts.substituted && { cls: 'sod-seg-question',  label: `${counts.substituted} substituted` },
+    counts.unavailable && { cls: 'sod-seg-unavail',   label: `${counts.unavailable} unavailable` },
+  ].filter(Boolean);
+
+  const hasPending = (counts.pending || 0) > 0;
+
+  return (
+    <div className="sod-card">
+      <div className="sod-items-toolbar">
+        <div className="sod-items-summary">
+          <span><strong>{itemCount} item{itemCount === 1 ? '' : 's'}</strong> · {totalQty} total</span>
+          {segs.length > 0 && (
+            <span className="sod-seg">
+              {segs.map((s, i) => (
+                <span key={i} className={s.cls}>{s.label}</span>
+              ))}
+            </span>
+          )}
+        </div>
+        <div className="sod-items-actions">
+          <button type="button" className="sod-pill sod-ghost" disabled title="Coming soon">+ Add line</button>
+          <button
+            type="button"
+            className="sod-pill sod-primary"
+            disabled={!canEdit || !hasPending}
+            title={!canEdit ? NO_PERMISSION_TITLE : (!hasPending ? 'Nothing to confirm' : 'Confirm all available items')}
+            onClick={onConfirmAll}
+          >
+            Confirm all available
+            <span className="sod-kbd">A</span>
+          </button>
+        </div>
+      </div>
+
+      <table className="sod-items-table">
+        <colgroup>
+          <col className="sod-col-item" />
+          <col className="sod-col-unit" />
+          <col className="sod-col-size" />
+          <col className="sod-col-qty" />
+          <col className="sod-col-pack" />
+          <col className="sod-col-price" />
+          <col className="sod-col-action" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Unit</th>
+            <th>Size</th>
+            <th>Qty</th>
+            <th>Pack</th>
+            <th>Price</th>
+            <th className="sod-th-action">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item) => (
+            <ItemRow
+              key={item.id}
+              item={item}
+              currency={currency}
+              canEdit={canEdit}
+              threadOpen={openThreadId === item.id}
+              onToggleThread={onToggleThread}
+              onUpdate={onItemUpdate}
+            />
+          ))}
+        </tbody>
+      </table>
+
+      <div className="sod-totals-footer">
+        <div className="sod-totals-row">
+          <div className="sod-totals-label">Subtotal</div>
+          <div className="sod-totals-value">{formatCurrency(subtotal, currency)}</div>
+        </div>
+        <div className="sod-totals-row">
+          <div className="sod-totals-label">Delivery</div>
+          <div className="sod-totals-value">{formatCurrency(0, currency)}</div>
+        </div>
+        <div className="sod-totals-row">
+          <div className="sod-totals-label">VAT (estimated)</div>
+          <div className="sod-totals-value">—</div>
+        </div>
+        <div className="sod-totals-row sod-totals-grand">
+          <div className="sod-totals-label">Estimated Total</div>
+          <div className="sod-totals-value">{formatCurrency(subtotal, currency)}</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 const SupplierOrderDetail = () => {
@@ -416,9 +753,14 @@ const SupplierOrderDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [openMenu, setOpenMenu] = useState(null);          // 'docs' | 'actions' | 'returns' | null
+  const [openThreadId, setOpenThreadId] = useState(null);  // item.id whose thread is expanded
   const [returnsDrawerOpen, setReturnsDrawerOpen] = useState(false);
   const [dockDrawerOpen, setDockDrawerOpen] = useState(false);
   const heroRef = useRef(null);
+
+  const toggleThread = useCallback((itemId) => {
+    setOpenThreadId((prev) => (prev === itemId ? null : itemId));
+  }, []);
 
   const toggleMenu = useCallback((id) => {
     setOpenMenu((prev) => (prev === id ? null : id));
@@ -452,6 +794,32 @@ const SupplierOrderDetail = () => {
       setOrder((prev) => prev ? { ...prev, status: newStatus } : prev);
     } catch (e) {
       window.alert(`Failed to advance status: ${e.message}`);
+    }
+  }, [orderId]);
+
+  const handleItemUpdate = useCallback(async (itemId, updates) => {
+    const updated = await updateOrderItem(itemId, updates);
+    setOrder((prev) => prev ? {
+      ...prev,
+      supplier_order_items: prev.supplier_order_items.map((i) =>
+        i.id === itemId ? { ...i, ...updated } : i
+      ),
+    } : prev);
+  }, []);
+
+  const handleConfirmAll = useCallback(async () => {
+    if (!window.confirm('Confirm every pending item on this order?')) return;
+    try {
+      await updateOrderStatus(orderId, 'confirmed');
+      setOrder((prev) => prev ? {
+        ...prev,
+        status: 'confirmed',
+        supplier_order_items: prev.supplier_order_items.map((i) =>
+          i.status === 'pending' ? { ...i, status: 'confirmed' } : i
+        ),
+      } : prev);
+    } catch (e) {
+      window.alert(`Failed to confirm: ${e.message}`);
     }
   }, [orderId]);
 
@@ -569,21 +937,35 @@ const SupplierOrderDetail = () => {
         onAdvance={handleStatusAdvance}
       />
 
-      {/*
-        ── TEMPORARY rendering until Runs 4–7 land. Items still get the
-        existing confirm/sub/unavailable behaviour against updateOrderItem,
-        gated by canEdit; this block is replaced wholesale in Run 5.
-      */}
-      <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)', padding: '20px 22px', marginTop: 18 }}>
-        <div style={{ fontSize: 13, color: 'var(--muted-strong)', fontFamily: 'Outfit', fontWeight: 500, marginBottom: 8 }}>
-          {items.length} item{items.length === 1 ? '' : 's'} · status: {order.status}
-          {returnsDrawerOpen && ' · returns drawer requested'}
-          {dockDrawerOpen && ' · dock drawer requested'}
+      {/* ── Items: toolbar, table with status stripes + thread row, totals footer ── */}
+      <ItemsCard
+        items={items}
+        currency={order.currency || 'USD'}
+        canEdit={canEdit}
+        openThreadId={openThreadId}
+        onToggleThread={toggleThread}
+        onItemUpdate={handleItemUpdate}
+        onConfirmAll={handleConfirmAll}
+      />
+
+      {/* TODO: yacht / standing notes / charter / activity cards land in Run 6 */}
+      {/* TODO: returns + dock drawers land in Run 7 (state already wired) */}
+      {(returnsDrawerOpen || dockDrawerOpen) && (
+        <div style={{ marginTop: 12, fontFamily: 'JetBrains Mono', fontSize: 11, color: 'var(--muted)' }}>
+          {returnsDrawerOpen && (
+            <span>
+              returns drawer requested ·{' '}
+              <button type="button" onClick={() => setReturnsDrawerOpen(false)}>close</button>
+            </span>
+          )}
+          {dockDrawerOpen && (
+            <span style={{ marginLeft: 12 }}>
+              dock drawer requested ·{' '}
+              <button type="button" onClick={() => setDockDrawerOpen(false)}>close</button>
+            </span>
+          )}
         </div>
-        <div style={{ fontSize: 12.5, color: 'var(--muted)', fontFamily: 'JetBrains Mono' }}>
-          Timeline, items table, footer cards and drawers land in subsequent runs.
-        </div>
-      </div>
+      )}
     </div>
   );
 };
