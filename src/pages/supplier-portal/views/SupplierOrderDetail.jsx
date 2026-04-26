@@ -1027,6 +1027,15 @@ const SupplierOrderDetail = () => {
   const [reassignOpen, setReassignOpen] = useState(false);
   const heroRef = useRef(null);
 
+  // Activity feed state — declared early so all the modal-save handlers below
+  // can close over `refetchActivity` without hitting a temporal-dead-zone
+  // error in the minified bundle.
+  const [activity, setActivity] = useState([]);
+  const refetchActivity = useCallback(() => {
+    if (!orderId) return;
+    fetchOrderActivity(orderId).then(setActivity).catch(() => setActivity([]));
+  }, [orderId]);
+
   const toggleThread = useCallback((itemId) => {
     setOpenThreadId((prev) => (prev === itemId ? null : itemId));
   }, []);
@@ -1124,14 +1133,9 @@ const SupplierOrderDetail = () => {
 
   useEffect(load, [orderId]);
 
-  // Activity feed — fetched on mount and refetched after any modal save
-  // (the modal callbacks call refetchActivity). Failures fall back to an
-  // empty list so the rest of the page still renders.
-  const [activity, setActivity] = useState([]);
-  const refetchActivity = useCallback(() => {
-    if (!orderId) return;
-    fetchOrderActivity(orderId).then(setActivity).catch(() => setActivity([]));
-  }, [orderId]);
+  // Activity feed: fire the initial fetch when orderId resolves. The state +
+  // refetcher are declared at the top of the component so the modal-save
+  // handlers above can close over them without hitting a TDZ error.
   useEffect(refetchActivity, [refetchActivity]);
 
   if (loading) {
