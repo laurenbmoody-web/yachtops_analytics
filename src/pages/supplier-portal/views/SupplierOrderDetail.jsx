@@ -742,6 +742,169 @@ const ItemsCard = ({
   );
 };
 
+// ─── Yacht client + standing notes + charter context + activity ────────────
+
+const YachtClientCard = ({ order }) => {
+  // TODO(schema): order.yacht_client_name, yacht_size_m, yacht_home_port,
+  //               client_since, last_order_at, lifetime_total, lifetime_order_count
+  const yachtName = order.yacht_client_name || order.vessel_name || order.yacht_name || null;
+  const sizeM = order.yacht_size_m;
+  const homePort = order.yacht_home_port;
+  const since = safeDate(order.client_since);
+  const sinceLabel = since ? since.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : null;
+
+  const specParts = [
+    sizeM ? `${sizeM}m` : null,
+    homePort ? `${homePort}-based` : null,
+    sinceLabel ? `since ${sinceLabel}` : null,
+  ].filter(Boolean);
+
+  const lastOrderAt = safeDate(order.last_order_at);
+  const lastOrderRel = lastOrderAt ? fmtRelative(lastOrderAt) : null;
+  const lifetimeTotal = order.lifetime_total != null ? Number(order.lifetime_total) : null;
+  const lifetimeCount = order.lifetime_order_count != null ? Number(order.lifetime_order_count) : null;
+
+  return (
+    <div className="sod-card">
+      <div className="sod-card-head">
+        <h4>Yacht client</h4>
+        <button type="button" className="sod-card-link" onClick={() => { /* TODO(schema): yacht client profile route */ }}>
+          View profile →
+        </button>
+      </div>
+      <div className="sod-yacht-card-body">
+        <div>
+          <div className="sod-yacht-name">
+            {yachtName ? <em>{yachtName}</em> : <em>—</em>}
+          </div>
+          <div className="sod-yacht-spec">
+            {specParts.length > 0 ? specParts.join(' · ') : '—'}
+          </div>
+        </div>
+        <div className="sod-yacht-stats">
+          <div>
+            <div className="sod-yacht-l">Last order</div>
+            <div className="sod-yacht-v">
+              {lastOrderRel ?? '—'}
+              {/* TODO(schema): on-time/late flag for last order */}
+            </div>
+          </div>
+          <div>
+            <div className="sod-yacht-l">Lifetime</div>
+            <div className="sod-yacht-v">
+              {lifetimeTotal != null ? formatCurrency(lifetimeTotal, order.currency || 'USD') : '—'}
+              {lifetimeCount != null && (
+                <small>· {lifetimeCount} order{lifetimeCount === 1 ? '' : 's'}</small>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const StandingNotesCard = ({ order }) => {
+  // TODO(schema): order.delivery_window, order.dock_contact, order.on_arrival_notes
+  const windowText = order.delivery_window || null;
+  const dockContact = order.dock_contact || order.delivery_contact || null;
+  const onArrivalText = order.on_arrival_notes || order.delivery_instructions || null;
+
+  return (
+    <div className="sod-card">
+      <div className="sod-card-head">
+        <h4>Standing notes</h4>
+        <span className="sod-card-meta">Delivery rules</span>
+      </div>
+      <div className="sod-standing-card-body">
+        <div className="sod-standing-row">
+          <div className="sod-standing-l">Window</div>
+          <div className="sod-standing-v">{windowText || '—'}</div>
+        </div>
+        <div className="sod-standing-row">
+          <div className="sod-standing-l">Dock contact</div>
+          <div className="sod-standing-v">
+            {dockContact ? <strong>{dockContact}</strong> : '—'}
+          </div>
+        </div>
+        <div className="sod-standing-row">
+          <div className="sod-standing-l">On arrival</div>
+          <div className="sod-standing-v">{onArrivalText || '—'}</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CharterContextCard = ({ order, yachtDisplayName }) => {
+  // TODO(schema): order.charter_context, charter_allergens, owner_aboard_dates
+  const charterText = order.charter_context || order.special_instructions || null;
+  return (
+    <div className="sod-card" style={{ marginTop: 18 }}>
+      <div className="sod-card-head">
+        <h4>Charter context</h4>
+        <span className="sod-card-meta">From {yachtDisplayName}'s provisioning board</span>
+      </div>
+      <div className="sod-ctx-body">
+        <span className="sod-ctx-mark" aria-hidden="true">"</span>
+        <div>
+          {charterText ? (
+            <>{charterText}</>
+          ) : (
+            <span style={{ color: 'var(--muted-strong)' }}>
+              No charter context shared yet. The chief stew can attach trip details from the provisioning board.
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ActivityCard = ({ order, yachtDisplayName }) => {
+  // TODO(schema): real activity log table — for now we surface the order
+  // creation event from the row itself.
+  const createdWhen = fmtTimestamp(order.created_at);
+  const sentWhen = order.sent_at ? fmtTimestamp(order.sent_at) : null;
+  const confirmedWhen = order.confirmed_at ? fmtTimestamp(order.confirmed_at) : null;
+
+  return (
+    <div className="sod-card" style={{ marginTop: 18 }}>
+      <div className="sod-card-head">
+        <h4>Activity</h4>
+        <span className="sod-card-meta">All events on this order</span>
+      </div>
+      <div className="sod-activity-body">
+        <ul className="sod-activity">
+          <li className="sod-act-now">
+            <div className="sod-act-when">{createdWhen ?? '—'}</div>
+            <div className="sod-act-what">
+              Order received from <em>{yachtDisplayName}</em>
+            </div>
+            <div className="sod-act-who">
+              {order.sent_via === 'portal' ? 'Created in portal' : 'Sent via email'}
+            </div>
+          </li>
+          {sentWhen && order.sent_at !== order.created_at && (
+            <li>
+              <div className="sod-act-when">{sentWhen}</div>
+              <div className="sod-act-what">Order sent to supplier</div>
+              <div className="sod-act-who">via {order.sent_via || 'email'}</div>
+            </li>
+          )}
+          {confirmedWhen && (
+            <li className="sod-act-done">
+              <div className="sod-act-when">{confirmedWhen}</div>
+              <div className="sod-act-what">Order confirmed</div>
+              <div className="sod-act-who">All available items confirmed</div>
+            </li>
+          )}
+        </ul>
+      </div>
+    </div>
+  );
+};
+
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 const SupplierOrderDetail = () => {
@@ -948,7 +1111,18 @@ const SupplierOrderDetail = () => {
         onConfirmAll={handleConfirmAll}
       />
 
-      {/* TODO: yacht / standing notes / charter / activity cards land in Run 6 */}
+      {/* ── Yacht client + Standing notes (locked equal heights) ── */}
+      <div className="sod-yacht-standing-row">
+        <YachtClientCard order={order} />
+        <StandingNotesCard order={order} />
+      </div>
+
+      {/* ── Charter context ── */}
+      <CharterContextCard order={order} yachtDisplayName={yachtDisplayName} />
+
+      {/* ── Activity ── */}
+      <ActivityCard order={order} yachtDisplayName={yachtDisplayName} />
+
       {/* TODO: returns + dock drawers land in Run 7 (state already wired) */}
       {(returnsDrawerOpen || dockDrawerOpen) && (
         <div style={{ marginTop: 12, fontFamily: 'JetBrains Mono', fontSize: 11, color: 'var(--muted)' }}>
