@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchOrderById, updateOrderStatus, updateOrderItem } from '../utils/supplierStorage';
 import { usePermission } from '../../../contexts/SupplierPermissionContext';
@@ -905,6 +905,69 @@ const ActivityCard = ({ order, yachtDisplayName }) => {
   );
 };
 
+// ─── Drawer ─────────────────────────────────────────────────────────────────
+
+const Drawer = ({ open, onClose, title, children }) => {
+  // Lock body scroll while a drawer is open + add an Escape-to-close handler.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+  return (
+    <>
+      <div className="sod-drawer-overlay" onClick={onClose} />
+      <aside className="sod-drawer sod-drawer-open" role="dialog" aria-modal="true" aria-label={title}>
+        <div className="sod-drawer-head">
+          <h3>{title}</h3>
+          <button type="button" className="sod-drawer-close" onClick={onClose}>Close</button>
+        </div>
+        <div className="sod-drawer-body">{children}</div>
+      </aside>
+    </>
+  );
+};
+
+const ReturnsDrawerBody = () => (
+  <div className="sod-drawer-empty">
+    <div className="sod-drawer-empty-ico" aria-hidden="true">↺</div>
+    <p>No returns recorded on this order yet. Returns are filed against confirmed items after delivery.</p>
+    <button type="button" className="sod-drawer-cta" disabled title="Coming soon">+ Add return</button>
+  </div>
+);
+
+const DockDrawerBody = ({ order }) => {
+  // TODO(schema): order.delivery_window, dock_contact, on_arrival_notes
+  const windowText = order.delivery_window || null;
+  const dockContact = order.dock_contact || order.delivery_contact || null;
+  const onArrivalText = order.on_arrival_notes || order.delivery_instructions || null;
+  const portText = order.delivery_port || null;
+
+  return (
+    <>
+      <section>
+        <h5>Marina</h5>
+        <p>{portText ? <strong>{portText}</strong> : '—'}</p>
+      </section>
+      <section>
+        <h5>Window</h5>
+        <p>{windowText || '—'}</p>
+      </section>
+      <section>
+        <h5>Dock contact</h5>
+        <p>{dockContact ? <strong>{dockContact}</strong> : '—'}</p>
+      </section>
+      <section>
+        <h5>On arrival</h5>
+        <p>{onArrivalText || '—'}</p>
+      </section>
+    </>
+  );
+};
+
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 const SupplierOrderDetail = () => {
@@ -1123,23 +1186,31 @@ const SupplierOrderDetail = () => {
       {/* ── Activity ── */}
       <ActivityCard order={order} yachtDisplayName={yachtDisplayName} />
 
-      {/* TODO: returns + dock drawers land in Run 7 (state already wired) */}
-      {(returnsDrawerOpen || dockDrawerOpen) && (
-        <div style={{ marginTop: 12, fontFamily: 'JetBrains Mono', fontSize: 11, color: 'var(--muted)' }}>
-          {returnsDrawerOpen && (
-            <span>
-              returns drawer requested ·{' '}
-              <button type="button" onClick={() => setReturnsDrawerOpen(false)}>close</button>
-            </span>
-          )}
-          {dockDrawerOpen && (
-            <span style={{ marginLeft: 12 }}>
-              dock drawer requested ·{' '}
-              <button type="button" onClick={() => setDockDrawerOpen(false)}>close</button>
-            </span>
-          )}
-        </div>
-      )}
+      {/* ── Keyboard hint footer ── */}
+      <div className="sod-kb-hint">
+        <span className="sod-kb-key">C</span> confirm &nbsp;·&nbsp;
+        <span className="sod-kb-key">S</span> substitute &nbsp;·&nbsp;
+        <span className="sod-kb-key">U</span> unavailable &nbsp;·&nbsp;
+        <span className="sod-kb-key">A</span> confirm all &nbsp;·&nbsp;
+        <span className="sod-kb-key">M</span> messages
+      </div>
+
+      {/* ── Drawers ── */}
+      <Drawer
+        open={returnsDrawerOpen}
+        onClose={() => setReturnsDrawerOpen(false)}
+        title="Returns"
+      >
+        <ReturnsDrawerBody />
+      </Drawer>
+
+      <Drawer
+        open={dockDrawerOpen}
+        onClose={() => setDockDrawerOpen(false)}
+        title="Dock access"
+      >
+        <DockDrawerBody order={order} />
+      </Drawer>
     </div>
   );
 };
