@@ -308,7 +308,8 @@ function PageNoteAddRow({ onAdd, guests }) {
   const [body, setBody]         = useState('');
   const [guestIds, setGuestIds] = useState([]);
   const [pending, setPending]   = useState(false);
-  const inputRef = useRef(null);
+  const inputRef     = useRef(null);
+  const containerRef = useRef(null);
 
   const submit = async () => {
     const trimmed = body.trim();
@@ -331,8 +332,19 @@ function PageNoteAddRow({ onAdd, guests }) {
     }
   };
 
+  // Guard against blur-while-tapping-a-chip races. mousedown.preventDefault()
+  // on the chip is meant to suppress focus shift, but some browsers still
+  // fire input.blur with relatedTarget=chip — without this guard, submit
+  // runs BEFORE the chip's onClick has updated guestIds, and a single-guest
+  // tap saves as unscoped. Matches the widget's pattern exactly.
+  const onBlur = (e) => {
+    const next = e.relatedTarget;
+    if (next && containerRef.current?.contains(next)) return;
+    if (body.trim()) submit();
+  };
+
   return (
-    <div className="p-note-add-row p-note-add-row-page">
+    <div ref={containerRef} className="p-note-add-row p-note-add-row-page">
       <input
         ref={inputRef}
         type="text"
@@ -341,7 +353,7 @@ function PageNoteAddRow({ onAdd, guests }) {
         value={body}
         onChange={e => setBody(e.target.value)}
         onKeyDown={onKeyDown}
-        onBlur={() => { if (body.trim()) submit(); }}
+        onBlur={onBlur}
         aria-label="Add a stew note"
         disabled={pending}
       />
