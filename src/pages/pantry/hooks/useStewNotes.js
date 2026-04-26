@@ -94,16 +94,32 @@ export function useStewNotes(opts = {}) {
 
   // ── Mutations ──────────────────────────────────────────────────────
 
-  // Two signatures — object form for new widget callers, two-arg form
+  // Three signatures — object form for new widget callers, two-arg form
   // kept so NotesHistoryPage and DictateBar don't need updating.
-  //   addNote({ body, guest_id?, source?, status? })
-  //   addNote(content, { relatedGuestId?, source?, status? })
+  //   addNote({ body, guest_ids?, source?, status? })   ← new (forward-compat)
+  //   addNote({ body, guest_id?,  source?, status? })   ← Phase 2 widget
+  //   addNote(content, { relatedGuestId?, source?, status? })  ← legacy
+  //
+  // guest_ids is the v2 surface; Phase D adds related_guest_ids UUID[] to
+  // the table. Until then we collapse to related_guest_id = guest_ids[0]
+  // so single-select keeps working and the wire format is forward-stable
+  // — Phase D becomes a writer change with zero caller churn.
   const addNote = useCallback(async (input, opts2 = {}) => {
     const isObject = typeof input === 'object' && input !== null && !Array.isArray(input);
-    const content        = isObject ? (input.body ?? input.content ?? '') : input;
-    const relatedGuestId = isObject ? (input.guest_id ?? null)            : (opts2.relatedGuestId ?? null);
-    const source         = isObject ? (input.source ?? 'typed')           : (opts2.source ?? 'typed');
-    const status         = isObject ? (input.status ?? 'pending')         : (opts2.status ?? 'pending');
+    const content  = isObject ? (input.body ?? input.content ?? '') : input;
+    const source   = isObject ? (input.source ?? 'typed')           : (opts2.source ?? 'typed');
+    const status   = isObject ? (input.status ?? 'pending')         : (opts2.status ?? 'pending');
+
+    let guestIds = [];
+    if (isObject) {
+      if (Array.isArray(input.guest_ids)) guestIds = input.guest_ids.filter(Boolean);
+      else if (input.guest_id)             guestIds = [input.guest_id];
+    } else if (Array.isArray(opts2.relatedGuestIds)) {
+      guestIds = opts2.relatedGuestIds.filter(Boolean);
+    } else if (opts2.relatedGuestId) {
+      guestIds = [opts2.relatedGuestId];
+    }
+    const relatedGuestId = guestIds[0] ?? null;
 
     if (!content || !content.trim()) return null;
 

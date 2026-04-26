@@ -1009,6 +1009,29 @@
 .p-note-checkbox:hover .p-note-checkbox-box {
   border-color: var(--ink);
 }
+.p-note-checkbox-box.checked {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+/* Done note treatment — strike + dim. The metadata line stays visible
+   so "completed HH:MM by {first_name}" can read against the dimmed body. */
+.p-note-row.done .p-note-text {
+  text-decoration: line-through;
+  text-decoration-color: var(--ink-tertiary);
+  color: var(--ink-tertiary);
+  opacity: 0.7;
+}
+.p-note-row.done .p-note-meta {
+  color: var(--ink-tertiary);
+}
+/* Subtle separator between the open block and the done block — same
+   weight as a row border, just a hair more breathing room. */
+.p-note-done-divider {
+  height: 0;
+  border-top: 0.5px dashed var(--p-border);
+  margin: 6px 0 2px;
+}
 
 .p-note-text {
   cursor: text;
