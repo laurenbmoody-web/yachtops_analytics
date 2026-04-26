@@ -431,20 +431,10 @@ const STATUS_TO_LABEL_CLASS = {
   question:    'sod-question',
 };
 
-// Lightweight category → emoji mapping for the item thumbnail. TODO(schema):
-// replace with item.category once that column exists.
-const thumbForItem = (item) => {
-  const name = String(item?.item_name ?? '').toLowerCase();
-  if (/(beef|steak|wagyu|rib|lamb|pork)/.test(name)) return '🥩';
-  if (/(wine|rosé|rose|champagne|magnum|bottle)/.test(name)) return '🍷';
-  if (/(rose|flower|bouquet|petal)/.test(name)) return '🌹';
-  if (/(fish|tuna|salmon|prawn|lobster)/.test(name)) return '🐟';
-  if (/(bread|baguette|pastry)/.test(name)) return '🥖';
-  if (/(cheese|brie|camembert)/.test(name)) return '🧀';
-  if (/(fruit|apple|berry|melon)/.test(name)) return '🍎';
-  if (/(veg|salad|tomato|lettuce)/.test(name)) return '🥬';
-  return '📦';
-};
+// First-letter circle is the thumb fallback until we have item.category +
+// dedicated icons. Cleaner than a generic 📦 box and never misleading.
+const thumbLetterFor = (item) =>
+  String(item?.item_name ?? '?').trim().charAt(0).toUpperCase() || '?';
 
 const SendArrow = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -492,7 +482,9 @@ const ItemRow = ({ item, currency, canEdit, threadOpen, onToggleThread, onUpdate
       <tr className={`${rowClass}${threadOpen ? ' sod-has-thread' : ''}`}>
         <td>
           <div className="sod-item-cell">
-            <div className="sod-item-thumb" aria-hidden="true">{thumbForItem(item)}</div>
+            <div className="sod-item-thumb" aria-hidden="true">
+              <span className="sod-item-thumb-letter">{thumbLetterFor(item)}</span>
+            </div>
             <div>
               <div className="sod-item-name-row">
                 <span className="sod-item-name">
@@ -1117,7 +1109,9 @@ const SupplierOrderDetail = () => {
             </button>
           </h1>
           <div className="sod-order-sub">
-            {senderName ? <strong>{senderName}</strong> : <strong>{order.supplier_name || 'Vessel crew'}</strong>}
+            {senderName
+              ? <strong>{senderName}</strong>
+              : <strong>{order.vessel_name || order.yacht_name || 'Vessel crew'}</strong>}
             {senderRole && <>, {senderRole}</>}
             {sentRelative && (
               <>
@@ -1191,8 +1185,7 @@ const SupplierOrderDetail = () => {
         <span className="sod-kb-key">C</span> confirm &nbsp;·&nbsp;
         <span className="sod-kb-key">S</span> substitute &nbsp;·&nbsp;
         <span className="sod-kb-key">U</span> unavailable &nbsp;·&nbsp;
-        <span className="sod-kb-key">A</span> confirm all &nbsp;·&nbsp;
-        <span className="sod-kb-key">M</span> messages
+        <span className="sod-kb-key">A</span> confirm all
       </div>
 
       {/* ── Drawers ── */}
