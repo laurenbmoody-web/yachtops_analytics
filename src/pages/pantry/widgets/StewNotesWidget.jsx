@@ -5,7 +5,20 @@ import { useStewNotesToday } from '../hooks/useStewNotes';
 import { useGuests } from '../hooks/useGuests';
 import { useCrewNames } from '../hooks/useCrewNames';
 import { useAuth } from '../../../contexts/AuthContext';
+import { formatGuestList } from '../utils/formatGuestList';
 import TripGuestPicker from './TripGuestPicker';
+
+// Pull the guest_ids array off a note. Reads the canonical multi-guest
+// column first; falls back to the legacy single-id column for any rows
+// that haven't been touched since Phase D's writer flip. Backfill
+// migration handles existing rows on db side, so this fallback is
+// belt-and-braces.
+function noteGuestIds(note) {
+  if (Array.isArray(note?.related_guest_ids) && note.related_guest_ids.length > 0) {
+    return note.related_guest_ids;
+  }
+  return note?.related_guest_id ? [note.related_guest_id] : [];
+}
 
 // HH:MM in vessel-local time. The browser TZ is the vessel-TZ proxy on
 // Cargo (per vesselLocalTime.js), so a default Intl.DateTimeFormat
@@ -23,13 +36,21 @@ function formatHHMM(iso) {
 
 // ─── Note row — open OR done, checkbox left, body italic ───────────────────
 
-function NoteRow({ note, currentUserId, crewById, guestById,
+function NoteRow({ note, currentUserId, crewById, guestById, allGuests,
                   onComplete, onUncomplete, onEdit }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft]     = useState(note.content);
+  const [editing, setEditing]       = useState(false);
+  const [draft, setDraft]           = useState(note.content);
+  const [guestDraft, setGuestDraft] = useState(() => noteGuestIds(note));
   const taRef = useRef(null);
 
-  useEffect(() => { if (!editing) setDraft(note.content); }, [note.content, editing]);
+  // Keep drafts in sync with incoming changes when not editing — covers
+  // optimistic rollbacks and refetch landings.
+  useEffect(() => {
+    if (!editing) {
+      setDraft(note.content);
+      setGuestDraft(noteGuestIds(note));
+    }
+  }, [note.content, note.related_guest_ids, note.related_guest_id, editing]);
 
   useEffect(() => {
     if (editing && taRef.current) {
@@ -43,14 +64,28 @@ function NoteRow({ note, currentUserId, crewById, guestById,
 
   const save = () => {
     const trimmed = draft.trim();
-    if (trimmed && trimmed !== note.content) {
-      onEdit(note.id, trimmed);
+    const currentIds = noteGuestIds(note);
+    const bodyChanged   = trimmed && trimmed !== note.content;
+    const guestsChanged = currentIds.length !== guestDraft.length
+      || currentIds.some((id, i) => id !== guestDraft[i]);
+
+    if (bodyChanged && guestsChanged) {
+      onEdit(note.id, { body: trimmed, guest_ids: guestDraft });
+    } else if (bodyChanged) {
+      onEdit(note.id, { body: trimmed });
+    } else if (guestsChanged) {
+      onEdit(note.id, { guest_ids: guestDraft });
     } else {
       setDraft(note.content);
+      setGuestDraft(currentIds);
     }
     setEditing(false);
   };
-  const cancel = () => { setDraft(note.content); setEditing(false); };
+  const cancel = () => {
+    setDraft(note.content);
+    setGuestDraft(noteGuestIds(note));
+    setEditing(false);
+  };
   const onKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); }
     else if (e.key === 'Escape')          { e.preventDefault(); cancel(); }
@@ -61,7 +96,7 @@ function NoteRow({ note, currentUserId, crewById, guestById,
     else        onComplete(note.id);
   };
 
-  const guest = note.related_guest_id ? guestById?.get(note.related_guest_id) : null;
+  const guestList = formatGuestList(noteGuestIds(note), guestById);
 
   // Done-by-other meta line — strict spec: only render the by-line when
   // the completer is a different user. Self-completes show strike alone.
@@ -85,16 +120,30 @@ function NoteRow({ note, currentUserId, crewById, guestById,
       </button>
       <div className="p-note-row-body">
         {editing ? (
-          <textarea
-            ref={taRef}
-            className="p-note-edit"
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
-            onBlur={save}
-            onKeyDown={onKeyDown}
-            rows={Math.max(1, Math.min(6, Math.ceil((draft?.length || 0) / 60)))}
-            aria-label="Edit note"
-          />
+          <>
+            <textarea
+              ref={taRef}
+              className="p-note-edit"
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onBlur={(e) => {
+                // Don't save when focus moves to a guest chip in this row
+                // — the user is retagging, not done. Chips don't take
+                // focus (mousedown preventDefault) so this is defensive.
+                const next = e.relatedTarget;
+                if (next && next.closest && next.closest('.p-note-row')) return;
+                save();
+              }}
+              onKeyDown={onKeyDown}
+              rows={Math.max(1, Math.min(6, Math.ceil((draft?.length || 0) / 60)))}
+              aria-label="Edit note"
+            />
+            <TripGuestPicker
+              selected={guestDraft}
+              onChange={setGuestDraft}
+              guests={allGuests}
+            />
+          </>
         ) : (
           <div
             className="p-note-text"
@@ -115,7 +164,7 @@ function NoteRow({ note, currentUserId, crewById, guestById,
           {completedByOther && (
             <span>completed {formatHHMM(note.completed_at)} by {completerFirst}</span>
           )}
-          {guest && <span className="p-note-guest-tag">for {guest.first_name}</span>}
+          {guestList && <span className="p-note-guest-tag">for {guestList}</span>}
           {note.saved_to_preferences && (
             <span style={{ color: 'var(--confirm)' }}>saved to preferences</span>
           )}
@@ -134,10 +183,10 @@ function NoteRow({ note, currentUserId, crewById, guestById,
 // any non-empty body and collapses the pill row.
 
 function NoteAddRow({ onAdd, guests }) {
-  const [body, setBody]       = useState('');
-  const [guestId, setGuestId] = useState(null);
-  const [focused, setFocused] = useState(false);
-  const [pending, setPending] = useState(false);
+  const [body, setBody]         = useState('');
+  const [guestIds, setGuestIds] = useState([]);
+  const [focused, setFocused]   = useState(false);
+  const [pending, setPending]   = useState(false);
   const inputRef     = useRef(null);
   const containerRef = useRef(null);
 
@@ -146,9 +195,9 @@ function NoteAddRow({ onAdd, guests }) {
     if (!trimmed || pending) return;
     setPending(true);
     try {
-      await onAdd({ body: trimmed, guest_ids: guestId ? [guestId] : [] });
+      await onAdd({ body: trimmed, guest_ids: guestIds });
       setBody('');
-      setGuestId(null);
+      setGuestIds([]);
       // Keep focus so the stew can keep typing without re-tapping.
       // Pill row stays visible because focus remains.
       inputRef.current?.focus();
@@ -164,7 +213,7 @@ function NoteAddRow({ onAdd, guests }) {
     } else if (e.key === 'Escape') {
       e.preventDefault();
       setBody('');
-      setGuestId(null);
+      setGuestIds([]);
       inputRef.current?.blur();
     }
   };
@@ -198,8 +247,8 @@ function NoteAddRow({ onAdd, guests }) {
           input gets focus — toggling hidden via prop avoids the
           focus-time fetch lag the conditional mount caused. */}
       <TripGuestPicker
-        selected={guestId}
-        onChange={setGuestId}
+        selected={guestIds}
+        onChange={setGuestIds}
         guests={guests}
         hidden={!focused}
       />
@@ -274,6 +323,7 @@ export default function StewNotesWidget() {
           currentUserId={user?.id ?? null}
           crewById={crewById}
           guestById={guestById}
+          allGuests={guests}
           onComplete={completeNote}
           onUncomplete={uncompleteNote}
           onEdit={editNote}
@@ -291,6 +341,7 @@ export default function StewNotesWidget() {
           currentUserId={user?.id ?? null}
           crewById={crewById}
           guestById={guestById}
+          allGuests={guests}
           onComplete={completeNote}
           onUncomplete={uncompleteNote}
           onEdit={editNote}

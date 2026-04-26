@@ -137,12 +137,17 @@ export function useStewNotes(opts = {}) {
     const { data, error: err } = await supabase
       .from('stew_notes')
       .insert({
-        tenant_id:        member.tenant_id,
-        content:          content.trim(),
-        author_id:        user.id,
+        tenant_id:         member.tenant_id,
+        content:           content.trim(),
+        author_id:         user.id,
         source,
         status,
-        related_guest_id: relatedGuestId,
+        // Phase D: write the array column. related_guest_id is kept
+        // populated as the first element until the legacy column is
+        // dropped in a follow-up — readers can use either, but the
+        // array is the canonical surface going forward.
+        related_guest_ids: guestIds,
+        related_guest_id:  guestIds[0] ?? null,
       })
       .select('*')
       .single();
@@ -188,17 +193,39 @@ export function useStewNotes(opts = {}) {
     }
   }, [notes]);
 
-  // Inline body edit — same shape as the existing updateContent (kept for
-  // back-compat with NotesHistoryPage), but exposed under the new name
-  // the widget spec uses.
-  const editNote = useCallback(async (id, body) => {
-    const trimmed = (body ?? '').trim();
-    if (!trimmed) return;
+  // Two signatures:
+  //   editNote(id, "string body")             — body-only (Phase 1)
+  //   editNote(id, { body?, guest_ids? })     — body and/or scope retag (Phase D)
+  //
+  // Empty body is a no-op (we don't accept blanking a note via this
+  // path — delete is the right operation for that). guest_ids of [] IS
+  // accepted: it removes all tags from a note, returning it to a
+  // general note. Optimistic state on both fields, rollback on error.
+  const editNote = useCallback(async (id, input) => {
+    const isObject = typeof input === 'object' && input !== null && !Array.isArray(input);
+    const rawBody  = isObject ? input.body : input;
+    const guestIds = isObject && Array.isArray(input.guest_ids)
+      ? input.guest_ids.filter(Boolean)
+      : null;
+
+    const update = {};
+    if (rawBody != null) {
+      const trimmed = String(rawBody).trim();
+      if (!trimmed) return;            // empty body = silent no-op
+      update.content = trimmed;
+    }
+    if (guestIds != null) {
+      update.related_guest_ids = guestIds;
+      update.related_guest_id  = guestIds[0] ?? null;
+    }
+    if (Object.keys(update).length === 0) return;
+
     const prev = notes;
-    setNotes(curr => curr.map(n => n.id === id ? { ...n, content: trimmed } : n));
+    setNotes(curr => curr.map(n => (n.id === id ? { ...n, ...update } : n)));
+
     const { error: err } = await supabase
       .from('stew_notes')
-      .update({ content: trimmed })
+      .update(update)
       .eq('id', id);
     if (err) {
       setNotes(prev);

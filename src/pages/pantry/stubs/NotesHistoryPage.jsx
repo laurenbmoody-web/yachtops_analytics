@@ -9,7 +9,18 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import TripGuestPicker from '../widgets/TripGuestPicker';
+import { formatGuestList } from '../utils/formatGuestList';
 import '../pantry.css';
+
+// Same fallback as the widget — read related_guest_ids first, fall back
+// to the legacy single-id column for any rows the Phase D writer flip
+// hasn't touched yet (the migration backfills, but defensive belt).
+function noteGuestIds(note) {
+  if (Array.isArray(note?.related_guest_ids) && note.related_guest_ids.length > 0) {
+    return note.related_guest_ids;
+  }
+  return note?.related_guest_id ? [note.related_guest_id] : [];
+}
 
 const PAGE_STEP = 50;
 
@@ -87,15 +98,21 @@ function FilterGroup({ label, options, value, onToggle }) {
 // ─── Note row — page version (richer than widget; convert/delete) ──────────
 
 function PageNoteRow({
-  note, currentUserId, crewById, guestById, authorName,
+  note, currentUserId, crewById, guestById, authorName, allGuests,
   onComplete, onUncomplete, onEdit, onDelete,
   onOpenGuest, onOpenConvert,
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft]     = useState(note.content);
+  const [editing, setEditing]       = useState(false);
+  const [draft, setDraft]           = useState(note.content);
+  const [guestDraft, setGuestDraft] = useState(() => noteGuestIds(note));
   const taRef = useRef(null);
 
-  useEffect(() => { if (!editing) setDraft(note.content); }, [note.content, editing]);
+  useEffect(() => {
+    if (!editing) {
+      setDraft(note.content);
+      setGuestDraft(noteGuestIds(note));
+    }
+  }, [note.content, note.related_guest_ids, note.related_guest_id, editing]);
   useEffect(() => {
     if (editing && taRef.current) {
       taRef.current.focus();
@@ -108,17 +125,38 @@ function PageNoteRow({
 
   const save = () => {
     const trimmed = draft.trim();
-    if (trimmed && trimmed !== note.content) onEdit(note.id, trimmed);
-    else setDraft(note.content);
+    const currentIds = noteGuestIds(note);
+    const bodyChanged   = trimmed && trimmed !== note.content;
+    const guestsChanged = currentIds.length !== guestDraft.length
+      || currentIds.some((id, i) => id !== guestDraft[i]);
+
+    if (bodyChanged && guestsChanged) {
+      onEdit(note.id, { body: trimmed, guest_ids: guestDraft });
+    } else if (bodyChanged) {
+      onEdit(note.id, { body: trimmed });
+    } else if (guestsChanged) {
+      onEdit(note.id, { guest_ids: guestDraft });
+    } else {
+      setDraft(note.content);
+      setGuestDraft(currentIds);
+    }
     setEditing(false);
   };
-  const cancel = () => { setDraft(note.content); setEditing(false); };
+  const cancel = () => {
+    setDraft(note.content);
+    setGuestDraft(noteGuestIds(note));
+    setEditing(false);
+  };
   const onKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); }
     else if (e.key === 'Escape')          { e.preventDefault(); cancel(); }
   };
 
-  const guest = note.related_guest_id ? guestById?.get(note.related_guest_id) : null;
+  const guestIds   = noteGuestIds(note);
+  const guestList  = formatGuestList(guestIds, guestById);
+  // First-tagged guest is the drawer-link target — keeps the existing
+  // single-tap-to-open behaviour for the common single-guest case.
+  const primaryGuest = guestIds.length > 0 ? guestById?.get(guestIds[0]) : null;
   const completedByOther = isDone && note.completed_by && note.completed_by !== currentUserId;
   const completerFirst = completedByOther
     ? (crewById.get(note.completed_by)?.firstName ?? 'crew')
@@ -137,16 +175,29 @@ function PageNoteRow({
       </button>
       <div className="p-note-row-body">
         {editing ? (
-          <textarea
-            ref={taRef}
-            className="p-note-edit"
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
-            onBlur={save}
-            onKeyDown={onKeyDown}
-            rows={Math.max(1, Math.min(6, Math.ceil((draft?.length || 0) / 60)))}
-            aria-label="Edit note"
-          />
+          <>
+            <textarea
+              ref={taRef}
+              className="p-note-edit"
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onBlur={(e) => {
+                // Keep edit mode alive when focus shifts to a chip in
+                // this row — the user is retagging, not done.
+                const next = e.relatedTarget;
+                if (next && next.closest && next.closest('.p-note-row')) return;
+                save();
+              }}
+              onKeyDown={onKeyDown}
+              rows={Math.max(1, Math.min(6, Math.ceil((draft?.length || 0) / 60)))}
+              aria-label="Edit note"
+            />
+            <TripGuestPicker
+              selected={guestDraft}
+              onChange={setGuestDraft}
+              guests={allGuests}
+            />
+          </>
         ) : (
           <div
             className="p-note-text"
@@ -170,14 +221,17 @@ function PageNoteRow({
             <span>completed {formatHHMM(note.completed_at)} by {completerFirst}</span>
           )}
           <span>by {authorName}</span>
-          {guest && (
+          {guestList && (
             <button
               type="button"
               className="p-note-guest-link"
-              onClick={() => onOpenGuest(guest.id)}
-              aria-label={`Open ${guest.first_name}'s drawer`}
+              onClick={() => primaryGuest && onOpenGuest(primaryGuest.id)}
+              aria-label={primaryGuest
+                ? `Open ${primaryGuest.first_name}'s drawer`
+                : `Tagged for ${guestList}`}
+              disabled={!primaryGuest}
             >
-              for {guest.first_name}
+              for {guestList}
             </button>
           )}
           {note.saved_to_preferences && (
@@ -251,9 +305,9 @@ function ConvertSheet({ note, guests, onClose, onConvertToPreference, onConvertT
 // ─── Inline add row — same shape as widget but pills always visible ────────
 
 function PageNoteAddRow({ onAdd, guests }) {
-  const [body, setBody]       = useState('');
-  const [guestId, setGuestId] = useState(null);
-  const [pending, setPending] = useState(false);
+  const [body, setBody]         = useState('');
+  const [guestIds, setGuestIds] = useState([]);
+  const [pending, setPending]   = useState(false);
   const inputRef = useRef(null);
 
   const submit = async () => {
@@ -261,9 +315,9 @@ function PageNoteAddRow({ onAdd, guests }) {
     if (!trimmed || pending) return;
     setPending(true);
     try {
-      await onAdd({ body: trimmed, guest_ids: guestId ? [guestId] : [] });
+      await onAdd({ body: trimmed, guest_ids: guestIds });
       setBody('');
-      setGuestId(null);
+      setGuestIds([]);
       inputRef.current?.focus();
     } finally {
       setPending(false);
@@ -273,7 +327,7 @@ function PageNoteAddRow({ onAdd, guests }) {
   const onKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); }
     else if (e.key === 'Escape')          {
-      e.preventDefault(); setBody(''); setGuestId(null); inputRef.current?.blur();
+      e.preventDefault(); setBody(''); setGuestIds([]); inputRef.current?.blur();
     }
   };
 
@@ -294,8 +348,8 @@ function PageNoteAddRow({ onAdd, guests }) {
       {/* Page has the breathing room — pills always visible, no
           focus-gating like the widget. */}
       <TripGuestPicker
-        selected={guestId}
-        onChange={setGuestId}
+        selected={guestIds}
+        onChange={setGuestIds}
         guests={guests}
       />
     </div>
@@ -582,6 +636,7 @@ export default function NotesHistoryPage() {
                     currentUserId={user?.id}
                     crewById={crewById}
                     guestById={guestById}
+                    allGuests={guests}
                     authorName={resolveAuthor(note.author_id)}
                     onComplete={completeNote}
                     onUncomplete={uncompleteNote}
@@ -601,6 +656,7 @@ export default function NotesHistoryPage() {
                     currentUserId={user?.id}
                     crewById={crewById}
                     guestById={guestById}
+                    allGuests={guests}
                     authorName={resolveAuthor(note.author_id)}
                     onComplete={completeNote}
                     onUncomplete={uncompleteNote}
@@ -644,6 +700,7 @@ export default function NotesHistoryPage() {
                         currentUserId={user?.id}
                         crewById={crewById}
                         guestById={guestById}
+                        allGuests={guests}
                         authorName={resolveAuthor(note.author_id)}
                         onComplete={completeNote}
                         onUncomplete={uncompleteNote}
@@ -668,6 +725,7 @@ export default function NotesHistoryPage() {
                         currentUserId={user?.id}
                         crewById={crewById}
                         guestById={guestById}
+                        allGuests={guests}
                         authorName={resolveAuthor(note.author_id)}
                         onComplete={completeNote}
                         onUncomplete={uncompleteNote}
