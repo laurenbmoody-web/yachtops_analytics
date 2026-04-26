@@ -971,6 +971,137 @@
 }
 .p-note-status-done { color: var(--confirm); }
 
+/* ── Stew notes inline CRUD (Phase 2) ──────────────────────────
+   The standby StewNotesWidget is the primary authoring surface, so the
+   row gains a checkbox affordance + tap-to-edit, and the bottom of the
+   widget carries an editorial baseline-border input + guest chips for
+   inline add. Treatment matches the rest of the widget's typography —
+   no boxed form fields, just the same .p-border baseline used between
+   note rows. */
+
+.p-note-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.p-note-row-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.p-note-checkbox {
+  flex: 0 0 auto;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin-top: 5px;
+  cursor: pointer;
+  line-height: 0;
+}
+.p-note-checkbox-box {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--p-border);
+  border-radius: 3px;
+  background: transparent;
+  transition: border-color 100ms;
+}
+.p-note-checkbox:hover .p-note-checkbox-box {
+  border-color: var(--ink);
+}
+
+.p-note-text {
+  cursor: text;
+}
+.p-note-edit {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-bottom: 0.5px solid var(--ink);
+  outline: none;
+  padding: 0 0 4px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.45;
+  resize: none;
+  margin-bottom: 4px;
+}
+
+.p-note-guest-tag {
+  color: var(--ink-muted);
+}
+.p-note-empty {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink-muted);
+  padding: 10px 0 4px;
+  margin: 0;
+}
+
+/* Editorial inline-add input: baseline border, no box. The placeholder
+   and value share the same serif italic so the empty state reads as a
+   continuation of the list, not a form field. */
+.p-note-add-row {
+  padding-top: 4px;
+}
+.p-note-add {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-bottom: 0.5px solid var(--p-border);
+  outline: none;
+  padding: 12px 0 10px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.p-note-add::placeholder {
+  color: var(--ink-tertiary);
+  font-style: italic;
+  opacity: 1;
+}
+.p-note-add:focus {
+  border-bottom-color: var(--ink);
+}
+.p-note-add:disabled {
+  opacity: 0.6;
+}
+
+/* Guest chip row under the input. Pill chips, ink-fill on selected. */
+.p-note-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 0 2px;
+}
+.p-note-chip {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  background: transparent;
+  border: 0.5px solid var(--p-border);
+  border-radius: 999px;
+  padding: 3px 10px;
+  color: var(--ink-muted);
+  cursor: pointer;
+  transition: background 100ms, color 100ms, border-color 100ms;
+}
+.p-note-chip:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+.p-note-chip.selected {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg-card);
+}
+
 /* ── Stock widget ──────────────────────────────────────────── */
 .p-stock-row {
   display: flex;
