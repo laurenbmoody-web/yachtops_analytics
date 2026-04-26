@@ -1056,7 +1056,7 @@
   min-width: 220px;
 }
 #sp-root .sod-hero-actions { display: flex; flex-direction: column; gap: 6px; position: relative; }
-#sp-root .sod-hero-actions button {
+#sp-root .sod-hero-actions > button {
   background: transparent; border: 1px solid var(--line);
   border-radius: 6px; padding: 8px 14px;
   font-family: 'Syne'; font-weight: 700; font-size: 11px;
@@ -1067,8 +1067,8 @@
   transition: all 120ms ease;
   position: relative;
 }
-#sp-root .sod-hero-actions button:hover { background: var(--bg-2); border-color: var(--muted); color: var(--fg); }
-#sp-root .sod-hero-actions button.sod-menu-open {
+#sp-root .sod-hero-actions > button:hover { background: var(--bg-2); border-color: var(--muted); color: var(--fg); }
+#sp-root .sod-hero-actions > button.sod-menu-open {
   background: var(--bg-2); border-color: var(--muted); color: var(--fg);
 }
 #sp-root .sod-hero-actions .sod-left { display: flex; align-items: center; gap: 8px; }
