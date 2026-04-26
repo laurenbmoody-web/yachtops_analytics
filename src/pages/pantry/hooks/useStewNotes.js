@@ -1,17 +1,54 @@
+// useStewNotes — read + CRUD for stew_notes.
+//
+// Primary authoring surface is now the standby StewNotesWidget, so the
+// hook supports inline complete / uncomplete / edit alongside the older
+// add / convert / delete methods. Two filter shortcuts are exported as
+// thin wrappers:
+//
+//   useStewNotesActive() — completed_at IS NULL              (widget)
+//   useStewNotesToday()  — active OR completed today (vessel-local 6am→)
+//
+// The base useStewNotes accepts { filter, limit, from, to, guestId } so
+// a useStewNotesHistory({ from, to, guest_id }) wrapper can be added
+// later without restructuring the hook body.
+//
+// Optimistic state is applied for fast in-widget actions (complete,
+// uncomplete, edit) — the UI flips on tap and rolls back on the rare
+// error path. addNote stays non-optimistic; the row only appears once
+// it's persisted, so we don't need to invent a temp id.
+
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../contexts/AuthContext';
 import { appendGuestHistory } from '../../../utils/guestHistoryLog';
 import { vesselLocalDate } from '../../../utils/vesselLocalTime';
 
-export function useStewNotes({ limit = 3 } = {}) {
-  const { user } = useAuth();
-  const [notes, setNotes]     = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState(null);
-  const [tenantId, setTenantId] = useState(null);
+// ISO instant for today's 06:00 in vessel-local time. The browser TZ is
+// the vessel-TZ proxy on Cargo (per vesselLocalTime.js), so a Date built
+// from the local date string + local 6am-naive resolves to the right
+// instant for the .gte filter.
+function vesselToday6amISO() {
+  const ymd = vesselLocalDate();              // "2026-04-26"
+  const d   = new Date(`${ymd}T06:00:00`);    // interpreted in browser TZ
+  return d.toISOString();
+}
 
-  const fetch = useCallback(async () => {
+export function useStewNotes(opts = {}) {
+  const {
+    limit  = null,
+    filter = 'all',     // 'all' | 'active' | 'today'
+    guestId,            // string | null  — restricts to one guest's notes
+    from,               // ISO — created_at >= from
+    to,                 // ISO — created_at < to
+  } = opts;
+
+  const { user } = useAuth();
+  const [notes, setNotes]         = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState(null);
+  const [tenantId, setTenantId]   = useState(null);
+
+  const fetchNotes = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     setError(null);
@@ -22,7 +59,6 @@ export function useStewNotes({ limit = 3 } = {}) {
         .eq('user_id', user.id)
         .eq('active', true)
         .single();
-
       if (!member) throw new Error('No active tenant membership');
       setTenantId(member.tenant_id);
 
@@ -33,6 +69,15 @@ export function useStewNotes({ limit = 3 } = {}) {
         .eq('is_deleted', false)
         .order('created_at', { ascending: false });
 
+      if (filter === 'active') {
+        query = query.is('completed_at', null);
+      } else if (filter === 'today') {
+        const since = vesselToday6amISO();
+        query = query.or(`completed_at.is.null,completed_at.gte.${since}`);
+      }
+      if (guestId) query = query.eq('related_guest_id', guestId);
+      if (from)    query = query.gte('created_at', from);
+      if (to)      query = query.lt('created_at', to);
       if (limit != null) query = query.limit(limit);
 
       const { data, error: err } = await query;
@@ -43,11 +88,25 @@ export function useStewNotes({ limit = 3 } = {}) {
     } finally {
       setLoading(false);
     }
-  }, [user, limit]);
+  }, [user, limit, filter, guestId, from, to]);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => { fetchNotes(); }, [fetchNotes]);
 
-  const addNote = useCallback(async (content, opts = {}) => {
+  // ── Mutations ──────────────────────────────────────────────────────
+
+  // Two signatures — object form for new widget callers, two-arg form
+  // kept so NotesHistoryPage and DictateBar don't need updating.
+  //   addNote({ body, guest_id?, source?, status? })
+  //   addNote(content, { relatedGuestId?, source?, status? })
+  const addNote = useCallback(async (input, opts2 = {}) => {
+    const isObject = typeof input === 'object' && input !== null && !Array.isArray(input);
+    const content        = isObject ? (input.body ?? input.content ?? '') : input;
+    const relatedGuestId = isObject ? (input.guest_id ?? null)            : (opts2.relatedGuestId ?? null);
+    const source         = isObject ? (input.source ?? 'typed')           : (opts2.source ?? 'typed');
+    const status         = isObject ? (input.status ?? 'pending')         : (opts2.status ?? 'pending');
+
+    if (!content || !content.trim()) return null;
+
     const { data: member } = await supabase
       .from('tenant_members')
       .select('tenant_id')
@@ -55,59 +114,110 @@ export function useStewNotes({ limit = 3 } = {}) {
       .eq('active', true)
       .single();
 
-    const { error: err } = await supabase
+    const { data, error: err } = await supabase
       .from('stew_notes')
       .insert({
         tenant_id:        member.tenant_id,
-        content,
+        content:          content.trim(),
         author_id:        user.id,
-        source:           opts.source ?? 'typed',
-        status:           opts.status ?? 'pending',
-        related_guest_id: opts.relatedGuestId ?? null,
-      });
+        source,
+        status,
+        related_guest_id: relatedGuestId,
+      })
+      .select('*')
+      .single();
 
     if (err) throw err;
-    fetch();
-  }, [user, fetch]);
+    fetchNotes();
+    return data;
+  }, [user, fetchNotes]);
 
-  const updateContent = useCallback(async (id, content) => {
-    setNotes(prev => prev.map(n => n.id === id ? { ...n, content } : n));
+  // Mark complete. Optimistic — flip the row instantly, roll back on error.
+  // The widget filters on completed_at IS NULL, so the row vanishes from
+  // its list as soon as state updates.
+  const completeNote = useCallback(async (id) => {
+    if (!user) return;
+    const nowIso = new Date().toISOString();
+    const prev = notes;
+    setNotes(curr => curr.map(n => n.id === id
+      ? { ...n, completed_at: nowIso, completed_by: user.id }
+      : n));
     const { error: err } = await supabase
       .from('stew_notes')
-      .update({ content })
+      .update({ completed_at: nowIso, completed_by: user.id })
       .eq('id', id);
-    if (err) { setError(err.message); fetch(); }
-  }, [fetch]);
+    if (err) {
+      setNotes(prev);
+      setError(err.message);
+    }
+  }, [notes, user]);
+
+  // Mistake-fix path. Clears completion, reappears in active.
+  const uncompleteNote = useCallback(async (id) => {
+    const prev = notes;
+    setNotes(curr => curr.map(n => n.id === id
+      ? { ...n, completed_at: null, completed_by: null }
+      : n));
+    const { error: err } = await supabase
+      .from('stew_notes')
+      .update({ completed_at: null, completed_by: null })
+      .eq('id', id);
+    if (err) {
+      setNotes(prev);
+      setError(err.message);
+    }
+  }, [notes]);
+
+  // Inline body edit — same shape as the existing updateContent (kept for
+  // back-compat with NotesHistoryPage), but exposed under the new name
+  // the widget spec uses.
+  const editNote = useCallback(async (id, body) => {
+    const trimmed = (body ?? '').trim();
+    if (!trimmed) return;
+    const prev = notes;
+    setNotes(curr => curr.map(n => n.id === id ? { ...n, content: trimmed } : n));
+    const { error: err } = await supabase
+      .from('stew_notes')
+      .update({ content: trimmed })
+      .eq('id', id);
+    if (err) {
+      setNotes(prev);
+      setError(err.message);
+    }
+  }, [notes]);
+
+  // ── Legacy shims kept for NotesHistoryPage / DictateBar ────────────
+
+  const updateContent = useCallback(async (id, content) => {
+    return editNote(id, content);
+  }, [editNote]);
 
   const updateStatus = useCallback(async (id, status) => {
-    setNotes(prev => prev.map(n => n.id === id ? { ...n, status } : n));
+    setNotes(curr => curr.map(n => n.id === id ? { ...n, status } : n));
     const { error: err } = await supabase
       .from('stew_notes')
       .update({ status })
       .eq('id', id);
-    if (err) { setError(err.message); fetch(); }
-  }, [fetch]);
+    if (err) { setError(err.message); fetchNotes(); }
+  }, [fetchNotes]);
 
   const deleteNote = useCallback(async (id) => {
-    setNotes(prev => prev.filter(n => n.id !== id));
+    setNotes(curr => curr.filter(n => n.id !== id));
     const { error: err } = await supabase
       .from('stew_notes')
       .update({ is_deleted: true, deleted_at: new Date().toISOString(), deleted_by_user_id: user?.id ?? null })
       .eq('id', id);
-    if (err) { setError(err.message); fetch(); }
-  }, [user, fetch]);
+    if (err) { setError(err.message); fetchNotes(); }
+  }, [user, fetchNotes]);
 
-  // Appends note content to guest's preferences_summary + marks the note saved.
-  // Sets related_guest_id too, so the note can be cross-linked from the guest
-  // drawer. Also appends a preferences_changed entry to guests.history_log.
-  const convertToPreference = useCallback(async (id, guestId) => {
+  const convertToPreference = useCallback(async (id, guestIdArg) => {
     const note = notes.find(n => n.id === id);
-    if (!note || !guestId) return;
+    if (!note || !guestIdArg) return;
 
     const { data: guest, error: guestErr } = await supabase
       .from('guests')
       .select('preferences_summary')
-      .eq('id', guestId)
+      .eq('id', guestIdArg)
       .single();
     if (guestErr) { setError(guestErr.message); return; }
 
@@ -117,7 +227,7 @@ export function useStewNotes({ limit = 3 } = {}) {
 
     try {
       await appendGuestHistory(supabase, {
-        guestId,
+        guestId: guestIdArg,
         action: 'preferences_changed',
         actorUserId: user?.id ?? null,
         changes: {
@@ -130,19 +240,16 @@ export function useStewNotes({ limit = 3 } = {}) {
 
     const { error: updNoteErr } = await supabase
       .from('stew_notes')
-      .update({ saved_to_preferences: true, related_guest_id: guestId })
+      .update({ saved_to_preferences: true, related_guest_id: guestIdArg })
       .eq('id', id);
     if (updNoteErr) { setError(updNoteErr.message); return; }
 
-    fetch();
-  }, [notes, user, fetch]);
+    fetchNotes();
+  }, [notes, user, fetchNotes]);
 
-  // Converts a stew note into a guest_day_notes entry for today. Marks the
-  // stew note as done so it stops appearing in the Pending bucket, and sets
-  // related_guest_id for cross-linking.
-  const convertToDayNote = useCallback(async (id, guestId) => {
+  const convertToDayNote = useCallback(async (id, guestIdArg) => {
     const note = notes.find(n => n.id === id);
-    if (!note || !guestId || !user) return;
+    if (!note || !guestIdArg || !user) return;
 
     const { data: member } = await supabase
       .from('tenant_members')
@@ -158,7 +265,7 @@ export function useStewNotes({ limit = 3 } = {}) {
       .from('guest_day_notes')
       .insert({
         tenant_id: member.tenant_id,
-        guest_id:  guestId,
+        guest_id:  guestIdArg,
         content:   note.content,
         author_id: user.id,
         note_date: today,
@@ -167,24 +274,39 @@ export function useStewNotes({ limit = 3 } = {}) {
 
     const { error: updNoteErr } = await supabase
       .from('stew_notes')
-      .update({ status: 'done', related_guest_id: guestId })
+      .update({ status: 'done', related_guest_id: guestIdArg })
       .eq('id', id);
     if (updNoteErr) { setError(updNoteErr.message); return; }
 
-    fetch();
-  }, [notes, user, fetch]);
+    fetchNotes();
+  }, [notes, user, fetchNotes]);
 
   return {
     notes,
     loading,
     error,
     tenantId,
-    refetch: fetch,
+    refetch: fetchNotes,
     addNote,
+    completeNote,
+    uncompleteNote,
+    editNote,
+    // Legacy / extended shims:
     updateContent,
     updateStatus,
     deleteNote,
     convertToPreference,
     convertToDayNote,
   };
+}
+
+// Active-only — completed_at IS NULL. Widget consumes this.
+export function useStewNotesActive(opts = {}) {
+  return useStewNotes({ ...opts, filter: 'active' });
+}
+
+// Active + still-completed-today — modal consumes this. Vessel-local 6am
+// is the rollover; a note completed at 23:55 yesterday won't appear.
+export function useStewNotesToday(opts = {}) {
+  return useStewNotes({ ...opts, filter: 'today' });
 }
