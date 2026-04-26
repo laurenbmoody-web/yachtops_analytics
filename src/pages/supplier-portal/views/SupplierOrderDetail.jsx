@@ -308,6 +308,103 @@ const Hero = ({
   );
 };
 
+// ─── Timeline ───────────────────────────────────────────────────────────────
+
+// Map order status to the index of the "current" step in TIMELINE_STEPS.
+// Anything before the current index is "done"; anything after is "future".
+const currentStepIndexFor = (status) => {
+  const idx = STATUS_TO_STEP_INDEX[status];
+  return typeof idx === 'number' ? idx : 1;  // fallback to "Confirming"
+};
+
+const Timeline = ({ order, items, canEdit, onAdvance }) => {
+  const currentIdx = currentStepIndexFor(order.status);
+  const pendingCount = items.filter((i) => i.status === 'pending').length;
+  const totalCount = items.length;
+
+  // Progress bar width as a fraction of the full track between dots. The
+  // track sits inside 9px-from-each-edge (matches the CSS `left:9px;right:9px`),
+  // so we scale by (currentIdx / (steps-1)).
+  const progressFraction = currentIdx > 0
+    ? Math.min(1, currentIdx / (TIMELINE_STEPS.length - 1))
+    : 0;
+
+  const stepWhen = (idx) => {
+    if (idx === 0) {
+      return fmtTimestamp(order.sent_at || order.created_at) || 'Sent';
+    }
+    if (idx === currentIdx) {
+      // "Confirming" gets the X of Y progress hint.
+      if (TIMELINE_STEPS[idx].key === 'confirming' && totalCount > 0) {
+        return `Now · ${totalCount - pendingCount} of ${totalCount}`;
+      }
+      return 'Now';
+    }
+    if (idx < currentIdx) {
+      // TODO(schema): per-step timestamps (picking_at, packed_at, …) need columns.
+      return '✓';
+    }
+    // Future delivery step gets the planned date if we have one.
+    if (TIMELINE_STEPS[idx].key === 'delivered' && order.delivery_date) {
+      const dt = safeDate(order.delivery_date);
+      return dt ? dt.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : '—';
+    }
+    return '—';
+  };
+
+  const handleStepClick = (idx) => {
+    if (idx === currentIdx) return;             // no-op on current
+    if (idx < currentIdx) {
+      // Walking backward isn't supported via the UI — flag intent in console
+      // and bail. Future work: an explicit "revert" affordance.
+      console.warn('[SupplierOrderDetail] Backward step click ignored:', TIMELINE_STEPS[idx].key);
+      return;
+    }
+    if (idx > currentIdx + 1) {
+      window.alert(`Advance one step at a time. Next step: ${TIMELINE_STEPS[currentIdx + 1].label}.`);
+      return;
+    }
+    if (!canEdit) {
+      window.alert(NO_PERMISSION_TITLE);
+      return;
+    }
+    const target = TIMELINE_STEPS[idx];
+    const ok = window.confirm(`Advance order to "${target.label}"? This is logged on the order.`);
+    if (!ok) return;
+    onAdvance(target.key);
+  };
+
+  return (
+    <div className="sod-timeline-card">
+      <div className="sod-stepper-line">
+        <div className="sod-stepper-progress" style={{ width: `calc((100% - 18px) * ${progressFraction})` }} />
+        {TIMELINE_STEPS.map((step, idx) => {
+          const isDone = idx < currentIdx;
+          const isCurrent = idx === currentIdx;
+          const cls = `sod-step${isDone ? ' sod-done' : ''}${isCurrent ? ' sod-current' : ''}`;
+          return (
+            <button
+              key={step.key}
+              type="button"
+              className={cls}
+              onClick={() => handleStepClick(idx)}
+              aria-current={isCurrent ? 'step' : undefined}
+              title={isCurrent ? 'Current step' : (idx > currentIdx ? `Advance to ${step.label}` : 'Already completed')}
+            >
+              <div className="sod-step-dot" />
+              <div className="sod-step-name">{step.label}</div>
+              <div className="sod-step-when">{stepWhen(idx)}</div>
+            </button>
+          );
+        })}
+      </div>
+      <div className="sod-timeline-meta">
+        Click a step to advance — confirmation required before any state change.
+      </div>
+    </div>
+  );
+};
+
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 const SupplierOrderDetail = () => {
@@ -348,6 +445,15 @@ const SupplierOrderDetail = () => {
     setOpenMenu(null);
     setReturnsDrawerOpen(true);
   }, []);
+
+  const handleStatusAdvance = useCallback(async (newStatus) => {
+    try {
+      await updateOrderStatus(orderId, newStatus);
+      setOrder((prev) => prev ? { ...prev, status: newStatus } : prev);
+    } catch (e) {
+      window.alert(`Failed to advance status: ${e.message}`);
+    }
+  }, [orderId]);
 
   const load = () => {
     setLoading(true);
@@ -454,6 +560,14 @@ const SupplierOrderDetail = () => {
           onOpenReturns={handleOpenReturns}
         />
       </div>
+
+      {/* ── 7-state timeline ── */}
+      <Timeline
+        order={order}
+        items={items}
+        canEdit={canEdit}
+        onAdvance={handleStatusAdvance}
+      />
 
       {/*
         ── TEMPORARY rendering until Runs 4–7 land. Items still get the
