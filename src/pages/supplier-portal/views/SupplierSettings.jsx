@@ -19,6 +19,7 @@ import {
   requestOwnershipTransfer,
 } from '../utils/supplierStorage';
 import { getSupplierTier } from '../../../components/SupplierRoleGuard';
+import InvoicingSettings from '../components/InvoicingSettings';
 
 // Tab order per spec. adminOnly tabs are hidden from managers.
 const ALL_TABS = [
@@ -1065,6 +1066,8 @@ const SupplierSettings = () => {
                 <div style={{ fontSize: 13 }}>You don't have permission to view the team.</div>
               </div>
             )
+          ) : activeSlug === 'tax' ? (
+            <InvoicingSettings supplier={supplier} onSaved={refreshSupplier} />
           ) : activeSlug === 'documents' ? (
             <div style={{ textAlign: 'center', padding: '48px 0' }}>
               <div style={{ fontSize: 28, marginBottom: 12 }}>🛡</div>
