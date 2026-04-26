@@ -213,7 +213,7 @@ export default function StewNotesWidget() {
           </div>
         </div>
         <button className="p-card-link" style={{ color: 'var(--brass)' }}
-          onClick={() => navigate('/notes/history')}
+          onClick={() => navigate('/pantry/notes')}
           aria-label="View all stew notes">
           View all →
         </button>
