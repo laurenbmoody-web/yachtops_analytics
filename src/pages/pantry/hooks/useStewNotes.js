@@ -27,7 +27,11 @@ import { vesselLocalDate } from '../../../utils/vesselLocalTime';
 // the vessel-TZ proxy on Cargo (per vesselLocalTime.js), so a Date built
 // from the local date string + local 6am-naive resolves to the right
 // instant for the .gte filter.
-function vesselToday6amISO() {
+//
+// Exported so the /pantry/notes page can split a single notes fetch into
+// today / previous client-side using the same threshold the modal hook
+// uses for its server-side .gte filter.
+export function vesselToday6amISO() {
   const ymd = vesselLocalDate();              // "2026-04-26"
   const d   = new Date(`${ymd}T06:00:00`);    // interpreted in browser TZ
   return d.toISOString();
