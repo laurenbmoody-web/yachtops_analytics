@@ -1131,35 +1131,93 @@
 }
 
 /* ── /pantry/notes page (Phase C) ─────────────────────────────
-   Editorial baseline-only search input that visually rhymes with the
-   note-add input. No icon prefix — placeholder copy carries the
-   affordance. */
-.p-note-search {
-  width: 100%;
+   Search row sits naked above the TODAY card — no card wrapper, just
+   page-level padding. Search field reads as a search field
+   (light grey baseline, magnifier icon prefix); filter trigger is a
+   small pill that anchors a dropdown panel holding the grouped
+   multi-select. */
+.p-search-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 14px;
+  padding: 0 4px;
+}
+.p-search-field {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  border-bottom: 0.5px solid var(--p-border);
+  padding: 8px 0;
+}
+.p-search-field-icon {
+  flex: 0 0 auto;
+  margin-right: 8px;
+  color: var(--ink-muted);
+}
+.p-search-input {
+  flex: 1;
   background: transparent;
   border: 0;
-  border-bottom: 0.5px solid var(--p-border);
   outline: none;
-  padding: 12px 0 10px;
   font-family: var(--font-serif);
   font-style: italic;
   font-size: 14px;
   line-height: 1.45;
   color: var(--ink);
-  margin-bottom: 12px;
 }
-.p-note-search::placeholder {
+.p-search-input::placeholder {
   color: var(--ink-tertiary);
   font-style: italic;
   opacity: 1;
 }
-.p-note-search:focus {
+.p-search-field:focus-within {
   border-bottom-color: var(--ink);
 }
 
+/* Filter trigger — small pill button, ink-fill on has-active to
+   visually echo a selected chip without expanding the panel. */
+.p-filter-anchor {
+  position: relative;
+  flex: 0 0 auto;
+}
+.p-filter-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 0.5px solid var(--p-border);
+  border-radius: 999px;
+  padding: 5px 10px 5px 12px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  color: var(--ink-muted);
+  cursor: pointer;
+  transition: border-color 100ms, color 100ms;
+}
+.p-filter-trigger:hover,
+.p-filter-trigger.has-active {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+.p-filter-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 280px;
+  max-width: 80vw;
+  background: var(--bg-card);
+  border: 0.5px solid var(--p-border);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.10);
+  padding: 10px 14px 12px;
+  z-index: 30;
+}
+
 /* Grouped multi-select filter rows. Tracked-caps label on the left,
-   pill row right. AND across groups, OR within group; the pills
-   reuse .p-note-chip from the widget. */
+   pill row on the right. Lives inside the filter dropdown now. */
 .p-filter-group {
   display: flex;
   align-items: baseline;
@@ -1170,7 +1228,7 @@
   border-top: 0.5px dashed var(--p-border);
 }
 .p-filter-label {
-  flex: 0 0 64px;
+  flex: 0 0 56px;
   margin: 0;
 }
 .p-filter-pills {
@@ -1181,8 +1239,55 @@
 .p-clear-filters {
   display: inline-flex;
   align-items: center;
-  margin-top: 8px;
+  margin-top: 10px;
   font-size: 11px;
+}
+
+/* Tab row at the top of the TODAY/PREVIOUS card. Two text labels
+   separated by a middle dot; active tab gets ink + underline,
+   inactive sits muted. The voice-dictation hint floats right. */
+.p-note-tabs-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.p-note-tabs {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.p-note-tab {
+  background: transparent;
+  border: 0;
+  padding: 0 0 2px;
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-style: italic;
+  color: var(--ink-tertiary);
+  cursor: pointer;
+  transition: color 100ms;
+}
+.p-note-tab:hover {
+  color: var(--ink-muted);
+}
+.p-note-tab.active {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 0.5px;
+}
+.p-note-tab-sep {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  color: var(--ink-tertiary);
+}
+
+/* PREVIOUS subsection headers — quieter than the TODAY headline since
+   the tab row is the primary section anchor on this page. */
+.p-prev-subhead {
+  margin: 12px 0 6px;
 }
 
 /* Page-version add row — pills always visible, more breathing room. */
@@ -1232,14 +1337,6 @@
   color: var(--ink);
   text-decoration: underline;
   text-underline-offset: 3px;
-}
-
-/* "View previous notes →" toggle at the bottom of the TODAY card. */
-.p-note-prev-toggle {
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 0.5px solid var(--p-border);
-  text-align: right;
 }
 
 /* Convert sheet — anchored bottom-right of the page, simple panel.
