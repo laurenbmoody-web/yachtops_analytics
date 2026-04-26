@@ -555,3 +555,84 @@ export const acceptInvite = async (token, fullName) => {
   if (error) throw error;
   return data;
 };
+
+// ─── Invoicing (settings + generation) ──────────────────────────────────────
+
+// Fetch the full supplier_profiles row, including the invoicing fields added
+// in migration 20260428100000. The settings page uses every column.
+export const fetchSupplierProfileById = async (supplierId) => {
+  const { data, error } = await supabase
+    .from('supplier_profiles')
+    .select('*')
+    .eq('id', supplierId)
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+// Upload a supplier logo to the public `supplier-logos` bucket and write the
+// resulting public URL onto invoice_logo_url. Path scheme:
+//   supplier-logos/{supplier_id}/logo.{ext}
+//
+// upsert:true means re-uploading with the same extension overwrites. If the
+// supplier swaps from PNG → JPG the old file is left behind (cheap garbage,
+// not worth the complexity to clean up automatically).
+export const uploadSupplierLogo = async (supplierId, file) => {
+  if (!file) throw new Error('No file provided');
+  const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+  const path = `${supplierId}/logo.${ext}`;
+  const { error: uploadError } = await supabase.storage
+    .from('supplier-logos')
+    .upload(path, file, { upsert: true, cacheControl: '3600' });
+  if (uploadError) throw uploadError;
+  const { data: { publicUrl } } = supabase.storage
+    .from('supplier-logos')
+    .getPublicUrl(path);
+  // Bust any CDN cache by appending the upload timestamp.
+  const cacheBustedUrl = `${publicUrl}?t=${Date.now()}`;
+  await updateSupplierProfile(supplierId, { invoice_logo_url: cacheBustedUrl });
+  return cacheBustedUrl;
+};
+
+// All invoices for a single order. Used by SupplierOrderDetail to decide
+// whether the Documents → Invoice row says "Generate" or "Open".
+export const fetchInvoicesForOrder = async (orderId) => {
+  const { data, error } = await supabase
+    .from('supplier_invoices')
+    .select('*')
+    .eq('order_id', orderId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+};
+
+// Generate a supplier invoice via the generateSupplierInvoice edge function.
+// `options` shape:
+//   {
+//     line_categories: { [item_id]: vat_category_key },
+//     issue_date?: string (ISO date),
+//     due_date?: string (ISO date),
+//     payment_terms_days?: number,
+//     notes?: string,
+//     bonded_supply?: boolean,
+//   }
+// Resolves to { invoice_id, invoice_number, pdf_url, signed_url } on success.
+export const generateSupplierInvoice = async (orderId, options = {}) => {
+  const { data, error } = await supabase.functions.invoke('generateSupplierInvoice', {
+    body: { orderId, options },
+  });
+  if (error) throw error;
+  return data;
+};
+
+// Mint a short-lived signed URL for an invoice PDF via the
+// getInvoiceSignedUrl edge function. The function handles the auth check
+// (supplier-owner OR vessel tenant-member of the order's tenant) so this
+// works from both portals.
+export const fetchInvoiceSignedUrl = async (invoiceId) => {
+  const { data, error } = await supabase.functions.invoke('getInvoiceSignedUrl', {
+    body: { invoiceId },
+  });
+  if (error) throw error;
+  return data; // { signed_url, expires_at }
+};
