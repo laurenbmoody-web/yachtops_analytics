@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Mic, Trash2, X } from 'lucide-react';
+import { Mic, Trash2, X, Search as SearchIcon, ChevronDown } from 'lucide-react';
 import Header from '../../../components/navigation/Header';
 import StandbyLayoutHeader from '../widgets/StandbyLayoutHeader';
 import { useStewNotes, vesselToday6amISO } from '../hooks/useStewNotes';
@@ -320,8 +320,30 @@ export default function NotesHistoryPage() {
 
   const [search, setSearch]       = useState('');
   const [filters, setFilters]     = useState({ status: [], author: [], source: [] });
-  const [showPrev, setShowPrev]   = useState(false);
+  const [activeTab, setActiveTab] = useState('today'); // 'today' | 'previous'
+  const [filterOpen, setFilterOpen] = useState(false);
   const [convertNote, setConvertNote] = useState(null);
+
+  const filterTriggerRef = useRef(null);
+  const filterPanelRef   = useRef(null);
+
+  // Close the filter dropdown on outside-tap or Escape. Filter selections
+  // persist; this only toggles panel visibility.
+  useEffect(() => {
+    if (!filterOpen) return;
+    const onClick = (e) => {
+      if (filterTriggerRef.current?.contains(e.target)) return;
+      if (filterPanelRef.current?.contains(e.target))   return;
+      setFilterOpen(false);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') setFilterOpen(false); };
+    document.addEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [filterOpen]);
 
   useEffect(() => {
     const prev = document.body.style.background;
@@ -367,7 +389,6 @@ export default function NotesHistoryPage() {
     const w = [];
     const e = [];
     for (const n of previousNotes) {
-      const t = new Date(n.completed_at ?? n.created_at).getTime();
       if (isThisWeek(n.completed_at ?? n.created_at, today6amMs)) w.push(n);
       else                                                         e.push(n);
     }
@@ -384,14 +405,8 @@ export default function NotesHistoryPage() {
     || filters.source.length > 0;
 
   const hasAnyNotes = notes.length > 0;
-  const hasFilteredAny = filtered.length > 0;
 
-  // Auto-expand previous when there's nothing today but previous has rows.
-  useEffect(() => {
-    if (!loading && todayNotes.length === 0 && previousNotes.length > 0) {
-      setShowPrev(true);
-    }
-  }, [loading, todayNotes.length, previousNotes.length]);
+  const activeFilterCount = filters.status.length + filters.author.length + filters.source.length;
 
   const toggleFilter = (group, key) => {
     setFilters(prev => {
@@ -422,51 +437,88 @@ export default function NotesHistoryPage() {
           backTo="/pantry/standby"
         />
 
-        {/* ── Search + filters ────────────────────────────────────── */}
-        <div className="p-card top-navy" style={{ marginBottom: 12 }}>
-          <input
-            type="search"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search notes..."
-            className="p-note-search"
-            aria-label="Search notes"
-          />
-          <FilterGroup
-            label="Status"
-            options={[{ key: 'open', label: 'Open' }, { key: 'done', label: 'Done' }]}
-            value={filters.status}
-            onToggle={k => toggleFilter('status', k)}
-          />
-          <FilterGroup
-            label="Author"
-            options={[{ key: 'mine', label: 'Mine' }, { key: 'crew', label: 'Crew' }]}
-            value={filters.author}
-            onToggle={k => toggleFilter('author', k)}
-          />
-          <FilterGroup
-            label="Source"
-            options={[{ key: 'voice', label: 'Voice' }, { key: 'typed', label: 'Typed' }]}
-            value={filters.source}
-            onToggle={k => toggleFilter('source', k)}
-          />
-          {filtersActive && (
-            <button type="button" className="p-card-link p-clear-filters"
-              onClick={clearFilters}>
-              <X size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-              Clear filters
+        {/* ── Search row + filter dropdown ─────────────────────────
+            Sits naked above the TODAY card — no card wrapper, just
+            page-level padding. Search field reads as a search field
+            (magnifier icon prefix). Filter trigger anchors a dropdown
+            panel that holds the grouped multi-select. */}
+        <div className="p-search-row">
+          <div className="p-search-field">
+            <SearchIcon size={14} className="p-search-field-icon" aria-hidden="true" />
+            <input
+              type="search"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search notes..."
+              className="p-search-input"
+              aria-label="Search notes"
+            />
+          </div>
+          <div className="p-filter-anchor">
+            <button
+              ref={filterTriggerRef}
+              type="button"
+              className={`p-filter-trigger${activeFilterCount > 0 ? ' has-active' : ''}`}
+              onClick={() => setFilterOpen(o => !o)}
+              aria-expanded={filterOpen}
+              aria-haspopup="true"
+            >
+              Filter{activeFilterCount > 0 && ` (${activeFilterCount})`}
+              <ChevronDown size={12} aria-hidden="true" />
             </button>
-          )}
+            {filterOpen && (
+              <div ref={filterPanelRef} className="p-filter-dropdown" role="dialog">
+                <FilterGroup
+                  label="Status"
+                  options={[{ key: 'open', label: 'Open' }, { key: 'done', label: 'Done' }]}
+                  value={filters.status}
+                  onToggle={k => toggleFilter('status', k)}
+                />
+                <FilterGroup
+                  label="Author"
+                  options={[{ key: 'mine', label: 'Mine' }, { key: 'crew', label: 'Crew' }]}
+                  value={filters.author}
+                  onToggle={k => toggleFilter('author', k)}
+                />
+                <FilterGroup
+                  label="Source"
+                  options={[{ key: 'voice', label: 'Voice' }, { key: 'typed', label: 'Typed' }]}
+                  value={filters.source}
+                  onToggle={k => toggleFilter('source', k)}
+                />
+                {activeFilterCount > 0 && (
+                  <button type="button" className="p-card-link p-clear-filters"
+                    onClick={clearFilters}>
+                    <X size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+                    Clear filters
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* ── TODAY ───────────────────────────────────────────────── */}
+        {/* ── TODAY / PREVIOUS card with tab row ───────────────────── */}
         <div className="p-card top-navy">
-          <div className="p-card-head">
-            <div>
-              <div className="p-caps">Today</div>
-              <div className="p-card-headline">
-                <em>{todayOpen.length}</em> open · {todayDone.length} done
-              </div>
+          <div className="p-note-tabs-row">
+            <div className="p-note-tabs">
+              <button
+                type="button"
+                className={`p-note-tab${activeTab === 'today' ? ' active' : ''}`}
+                onClick={() => setActiveTab('today')}
+                aria-pressed={activeTab === 'today'}
+              >
+                Today
+              </button>
+              <span className="p-note-tab-sep" aria-hidden="true">·</span>
+              <button
+                type="button"
+                className={`p-note-tab${activeTab === 'previous' ? ' active' : ''}`}
+                onClick={() => setActiveTab('previous')}
+                aria-pressed={activeTab === 'previous'}
+              >
+                View previous
+              </button>
             </div>
             <span style={{
               display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -476,7 +528,15 @@ export default function NotesHistoryPage() {
             </span>
           </div>
 
-          <PageNoteAddRow onAdd={addNote} guests={guests} />
+          {activeTab === 'today' && (
+            <div className="p-card-headline" style={{ marginBottom: 8 }}>
+              <em>{todayOpen.length}</em> open · {todayDone.length} done
+            </div>
+          )}
+
+          {activeTab === 'today' && (
+            <PageNoteAddRow onAdd={addNote} guests={guests} />
+          )}
 
           {loading && (
             <div style={{ color: 'var(--ink-tertiary)', fontSize: 13, padding: '12px 0' }}>
@@ -487,142 +547,150 @@ export default function NotesHistoryPage() {
             <div style={{ color: 'var(--accent)', fontSize: 12 }}>Failed to load: {error}</div>
           )}
 
-          {/* Empty state branches (priority order)                       */}
-          {!loading && !error && !hasAnyNotes && (
-            <p className="p-note-empty">
-              No notes yet. Add one above to get started.
-            </p>
-          )}
-          {!loading && !error && hasAnyNotes && !hasFilteredAny && (
-            <p className="p-note-empty">
-              No notes match your filters.{' '}
-              <button type="button" className="p-card-link"
-                onClick={clearFilters}>Clear filters</button>
-            </p>
-          )}
-          {!loading && !error && hasFilteredAny && todayNotes.length === 0 && (
-            <p className="p-note-empty">
-              No notes today. Previous notes below.
-            </p>
-          )}
+          {/* TODAY tab content */}
+          {!loading && !error && activeTab === 'today' && (() => {
+            // Empty-state priority: global empty → filtered empty → today empty.
+            if (!hasAnyNotes) {
+              return (
+                <p className="p-note-empty">
+                  No notes yet. Add one above to get started.
+                </p>
+              );
+            }
+            if (filtersActive && todayNotes.length === 0) {
+              return (
+                <p className="p-note-empty">
+                  No notes match your filters.{' '}
+                  <button type="button" className="p-card-link"
+                    onClick={() => setFilterOpen(true)}>Open filters</button>
+                </p>
+              );
+            }
+            if (todayNotes.length === 0) {
+              return (
+                <p className="p-note-empty">
+                  No notes today. Switch to <em>View previous</em> to see earlier.
+                </p>
+              );
+            }
+            return (
+              <>
+                {todayOpen.map(note => (
+                  <PageNoteRow
+                    key={note.id}
+                    note={note}
+                    currentUserId={user?.id}
+                    crewById={crewById}
+                    guestById={guestById}
+                    authorName={resolveAuthor(note.author_id)}
+                    onComplete={completeNote}
+                    onUncomplete={uncompleteNote}
+                    onEdit={editNote}
+                    onDelete={deleteNote}
+                    onOpenGuest={handleOpenGuest}
+                    onOpenConvert={setConvertNote}
+                  />
+                ))}
+                {todayDone.length > 0 && (
+                  <div className="p-note-done-divider" aria-hidden="true" />
+                )}
+                {todayDone.map(note => (
+                  <PageNoteRow
+                    key={note.id}
+                    note={note}
+                    currentUserId={user?.id}
+                    crewById={crewById}
+                    guestById={guestById}
+                    authorName={resolveAuthor(note.author_id)}
+                    onComplete={completeNote}
+                    onUncomplete={uncompleteNote}
+                    onEdit={editNote}
+                    onDelete={deleteNote}
+                    onOpenGuest={handleOpenGuest}
+                    onOpenConvert={setConvertNote}
+                  />
+                ))}
+              </>
+            );
+          })()}
 
-          {/* TODAY rows */}
-          {!loading && !error && todayOpen.map(note => (
-            <PageNoteRow
-              key={note.id}
-              note={note}
-              currentUserId={user?.id}
-              crewById={crewById}
-              guestById={guestById}
-              authorName={resolveAuthor(note.author_id)}
-              onComplete={completeNote}
-              onUncomplete={uncompleteNote}
-              onEdit={editNote}
-              onDelete={deleteNote}
-              onOpenGuest={handleOpenGuest}
-              onOpenConvert={setConvertNote}
-            />
-          ))}
-          {!loading && !error && todayDone.length > 0 && (
-            <div className="p-note-done-divider" aria-hidden="true" />
-          )}
-          {!loading && !error && todayDone.map(note => (
-            <PageNoteRow
-              key={note.id}
-              note={note}
-              currentUserId={user?.id}
-              crewById={crewById}
-              guestById={guestById}
-              authorName={resolveAuthor(note.author_id)}
-              onComplete={completeNote}
-              onUncomplete={uncompleteNote}
-              onEdit={editNote}
-              onDelete={deleteNote}
-              onOpenGuest={handleOpenGuest}
-              onOpenConvert={setConvertNote}
-            />
-          ))}
-
-          {/* "View previous notes →" toggle */}
-          {!loading && !error && previousNotes.length > 0 && (
-            <div className="p-note-prev-toggle">
-              <button type="button" className="p-card-link"
-                style={{ color: 'var(--brass)' }}
-                onClick={() => setShowPrev(s => !s)}
-                aria-expanded={showPrev}>
-                {showPrev ? 'Hide previous notes' : 'View previous notes'} →
-              </button>
-            </div>
-          )}
+          {/* PREVIOUS tab content */}
+          {!loading && !error && activeTab === 'previous' && (() => {
+            if (filtersActive && previousNotes.length === 0) {
+              return (
+                <p className="p-note-empty">
+                  No notes match your filters.{' '}
+                  <button type="button" className="p-card-link"
+                    onClick={() => setFilterOpen(true)}>Open filters</button>
+                </p>
+              );
+            }
+            if (previousNotes.length === 0) {
+              return (
+                <p className="p-note-empty">No previous notes.</p>
+              );
+            }
+            return (
+              <>
+                {thisWeek.length > 0 && (
+                  <>
+                    <div className="p-caps p-prev-subhead">
+                      This week · {thisWeek.length} note{thisWeek.length === 1 ? '' : 's'}
+                    </div>
+                    {thisWeek.map(note => (
+                      <PageNoteRow
+                        key={note.id}
+                        note={note}
+                        currentUserId={user?.id}
+                        crewById={crewById}
+                        guestById={guestById}
+                        authorName={resolveAuthor(note.author_id)}
+                        onComplete={completeNote}
+                        onUncomplete={uncompleteNote}
+                        onEdit={editNote}
+                        onDelete={deleteNote}
+                        onOpenGuest={handleOpenGuest}
+                        onOpenConvert={setConvertNote}
+                      />
+                    ))}
+                  </>
+                )}
+                {earlier.length > 0 && (
+                  <>
+                    <div className="p-caps p-prev-subhead"
+                      style={{ marginTop: thisWeek.length > 0 ? 18 : 0 }}>
+                      Earlier · {earlier.length} note{earlier.length === 1 ? '' : 's'}
+                    </div>
+                    {earlier.map(note => (
+                      <PageNoteRow
+                        key={note.id}
+                        note={note}
+                        currentUserId={user?.id}
+                        crewById={crewById}
+                        guestById={guestById}
+                        authorName={resolveAuthor(note.author_id)}
+                        onComplete={completeNote}
+                        onUncomplete={uncompleteNote}
+                        onEdit={editNote}
+                        onDelete={deleteNote}
+                        onOpenGuest={handleOpenGuest}
+                        onOpenConvert={setConvertNote}
+                      />
+                    ))}
+                  </>
+                )}
+                {notes.length >= limit && (
+                  <div style={{ marginTop: 12, textAlign: 'center' }}>
+                    <button className="p-btn outline"
+                      onClick={() => setLimit(l => l + PAGE_STEP)}>
+                      Load more
+                    </button>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
-
-        {/* ── PREVIOUS (inline, expanded) ─────────────────────────── */}
-        {!loading && !error && showPrev && previousNotes.length > 0 && (
-          <div className="p-card top-navy" style={{ marginTop: 12 }}>
-            {thisWeek.length > 0 && (
-              <>
-                <div className="p-card-head">
-                  <div>
-                    <div className="p-caps">This week</div>
-                    <div className="p-card-headline">{thisWeek.length} note{thisWeek.length === 1 ? '' : 's'}</div>
-                  </div>
-                </div>
-                {thisWeek.map(note => (
-                  <PageNoteRow
-                    key={note.id}
-                    note={note}
-                    currentUserId={user?.id}
-                    crewById={crewById}
-                    guestById={guestById}
-                    authorName={resolveAuthor(note.author_id)}
-                    onComplete={completeNote}
-                    onUncomplete={uncompleteNote}
-                    onEdit={editNote}
-                    onDelete={deleteNote}
-                    onOpenGuest={handleOpenGuest}
-                    onOpenConvert={setConvertNote}
-                  />
-                ))}
-              </>
-            )}
-
-            {earlier.length > 0 && (
-              <>
-                <div className="p-card-head" style={{ marginTop: thisWeek.length > 0 ? 18 : 0 }}>
-                  <div>
-                    <div className="p-caps">Earlier</div>
-                    <div className="p-card-headline">{earlier.length} note{earlier.length === 1 ? '' : 's'}</div>
-                  </div>
-                </div>
-                {earlier.map(note => (
-                  <PageNoteRow
-                    key={note.id}
-                    note={note}
-                    currentUserId={user?.id}
-                    crewById={crewById}
-                    guestById={guestById}
-                    authorName={resolveAuthor(note.author_id)}
-                    onComplete={completeNote}
-                    onUncomplete={uncompleteNote}
-                    onEdit={editNote}
-                    onDelete={deleteNote}
-                    onOpenGuest={handleOpenGuest}
-                    onOpenConvert={setConvertNote}
-                  />
-                ))}
-              </>
-            )}
-
-            {notes.length >= limit && (
-              <div style={{ marginTop: 12, textAlign: 'center' }}>
-                <button className="p-btn outline"
-                  onClick={() => setLimit(l => l + PAGE_STEP)}>
-                  Load more
-                </button>
-              </div>
-            )}
-          </div>
-        )}
 
         {convertNote && (
           <ConvertSheet
