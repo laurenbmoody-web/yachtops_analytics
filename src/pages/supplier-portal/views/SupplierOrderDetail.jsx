@@ -1,91 +1,138 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, X, RefreshCw } from 'lucide-react';
 import { fetchOrderById, updateOrderStatus, updateOrderItem } from '../utils/supplierStorage';
 import { usePermission } from '../../../contexts/SupplierPermissionContext';
-import StatusBadge from '../components/StatusBadge';
 
 const NO_PERMISSION_TITLE = "Your role doesn't have permission for this action.";
 
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+// ─── Timeline state machine ──────────────────────────────────────────────────
+// Server status → which timeline step is "current". Statuses past `confirmed`
+// (picking, packed, dispatched, invoiced) may not exist as DB enum values yet —
+// they're rendered as future steps until the data layer catches up.
+const TIMELINE_STEPS = [
+  { key: 'sent',       label: 'Sent' },
+  { key: 'confirming', label: 'Confirming' },
+  { key: 'picking',    label: 'Picking' },
+  { key: 'packed',     label: 'Packed' },
+  { key: 'dispatched', label: 'Dispatched' },
+  { key: 'delivered',  label: 'Delivered' },
+  { key: 'invoiced',   label: 'Invoiced' },
+];
 
-const ItemRow = ({ item, onUpdate, canEdit }) => {
-  const [saving, setSaving] = useState(false);
-  const [subNote, setSubNote] = useState(item.substitute_description ?? '');
-  const [showSubInput, setShowSubInput] = useState(item.status === 'substituted');
-
-  const act = async (status) => {
-    setSaving(true);
-    try {
-      const updates = { status };
-      if (status === 'substituted') updates.substitute_description = subNote;
-      await onUpdate(item.id, updates);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <tr>
-      <td>
-        <div className="sp-line-name">{item.item_name}</div>
-        {item.notes && <div className="sp-line-sku">{item.notes}</div>}
-        {showSubInput && (
-          <input
-            value={subNote}
-            onChange={e => setSubNote(e.target.value)}
-            placeholder="Substitute description…"
-            style={{ marginTop: 6, padding: '5px 8px', borderRadius: 6, border: '1px solid var(--line)', fontSize: 12, width: '100%', maxWidth: 280 }}
-          />
-        )}
-      </td>
-      <td style={{ fontSize: 13 }}>{item.quantity} {item.unit}</td>
-      <td><StatusBadge status={item.status} /></td>
-      <td>
-        {item.status === 'pending' && (
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button
-              className="sp-rb primary"
-              style={{ fontSize: 11, opacity: canEdit ? 1 : 0.5 }}
-              disabled={saving || !canEdit}
-              title={canEdit ? undefined : NO_PERMISSION_TITLE}
-              onClick={() => act('confirmed')}
-            ><Check size={11} /> Confirm</button>
-            <button
-              className="sp-rb"
-              style={{ fontSize: 11, opacity: canEdit ? 1 : 0.5 }}
-              disabled={saving || !canEdit}
-              title={canEdit ? undefined : NO_PERMISSION_TITLE}
-              onClick={() => { setShowSubInput(true); act('substituted'); }}
-            ><RefreshCw size={11} /> Sub</button>
-            <button
-              className="sp-rb"
-              style={{ fontSize: 11, color: 'var(--red)', opacity: canEdit ? 1 : 0.5 }}
-              disabled={saving || !canEdit}
-              title={canEdit ? undefined : NO_PERMISSION_TITLE}
-              onClick={() => act('unavailable')}
-            ><X size={11} /> N/A</button>
-          </div>
-        )}
-        {item.status !== 'pending' && item.substitute_description && (
-          <div style={{ fontSize: 11.5, color: 'var(--muted-s)' }}>→ {item.substitute_description}</div>
-        )}
-      </td>
-    </tr>
-  );
+const STATUS_TO_STEP_INDEX = {
+  draft: 0,
+  sent: 1,
+  pending: 1,
+  partially_confirmed: 1,
+  confirmed: 2,
+  picking: 2,
+  packed: 3,
+  dispatched: 4,
+  delivered: 5,
+  invoiced: 6,
 };
+
+// ─── Date / number helpers ──────────────────────────────────────────────────
+
+const safeDate = (d) => {
+  if (!d) return null;
+  const dt = new Date(d);
+  return isNaN(dt.getTime()) ? null : dt;
+};
+
+// "Thursday"
+const fmtWeekday = (d) => {
+  const dt = safeDate(d);
+  return dt ? dt.toLocaleDateString('en-GB', { weekday: 'long' }) : null;
+};
+
+// "7"
+const fmtDay = (d) => {
+  const dt = safeDate(d);
+  return dt ? dt.getDate() : null;
+};
+
+// "May"
+const fmtMonth = (d) => {
+  const dt = safeDate(d);
+  return dt ? dt.toLocaleDateString('en-GB', { month: 'short' }) : null;
+};
+
+// "25 Apr · 09:14"
+const fmtTimestamp = (d) => {
+  const dt = safeDate(d);
+  if (!dt) return null;
+  const date = dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const time = dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return `${date} · ${time}`;
+};
+
+// "2 hours ago" / "5d ago"
+const fmtRelative = (d) => {
+  const dt = safeDate(d);
+  if (!dt) return null;
+  const diffMs = Date.now() - dt.getTime();
+  const mins = Math.round(diffMs / 60_000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min${mins === 1 ? '' : 's'} ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  const days = Math.round(hours / 24);
+  return `${days}d ago`;
+};
+
+// Whole days from today (00:00 local) to delivery date. Negative if past.
+const daysUntil = (d) => {
+  const dt = safeDate(d);
+  if (!dt) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(dt);
+  target.setHours(0, 0, 0, 0);
+  return Math.round((target.getTime() - today.getTime()) / 86_400_000);
+};
+
+const formatCurrency = (amount, currency = 'USD') => {
+  if (amount == null || isNaN(Number(amount))) return '—';
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Number(amount));
+  } catch {
+    return `${currency} ${Number(amount).toFixed(2)}`;
+  }
+};
+
+const initialsOf = (name) => {
+  if (!name) return '—';
+  const parts = String(name).trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '—';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
+const firstNameOf = (name) => {
+  if (!name) return null;
+  return String(name).trim().split(/\s+/)[0] || null;
+};
+
+// ─── Page ───────────────────────────────────────────────────────────────────
 
 const SupplierOrderDetail = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
   const { allowed: canEdit } = usePermission('orders:edit');
+
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [confirming, setConfirming] = useState(false);
 
   const load = () => {
     setLoading(true);
+    setError(null);
     fetchOrderById(orderId)
       .then(setOrder)
       .catch(e => setError(e.message))
@@ -94,88 +141,101 @@ const SupplierOrderDetail = () => {
 
   useEffect(load, [orderId]);
 
-  const handleItemUpdate = async (itemId, updates) => {
-    const updated = await updateOrderItem(itemId, updates);
-    setOrder(prev => ({
-      ...prev,
-      supplier_order_items: prev.supplier_order_items.map(i => i.id === itemId ? { ...i, ...updated } : i),
-    }));
-  };
+  if (loading) {
+    return (
+      <div className="sod-page">
+        <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--muted)' }}>
+          Loading order…
+        </div>
+      </div>
+    );
+  }
 
-  const handleConfirmAll = async () => {
-    setConfirming(true);
-    try {
-      await updateOrderStatus(orderId, 'confirmed');
-      setOrder(prev => ({ ...prev, status: 'confirmed' }));
-    } finally {
-      setConfirming(false);
-    }
-  };
+  if (error) {
+    return (
+      <div className="sod-page">
+        <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--red)' }}>
+          {error}
+        </div>
+      </div>
+    );
+  }
 
-  if (loading) return <div className="sp-page"><div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--muted)' }}>Loading order…</div></div>;
-  if (error)   return <div className="sp-page"><div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--red)' }}>{error}</div></div>;
-  if (!order)  return null;
+  if (!order) return null;
 
   const items = order.supplier_order_items ?? [];
-  const pendingCount = items.filter(i => i.status === 'pending').length;
+  const orderShortId = order.id.slice(0, 8).toUpperCase();
+  // TODO(schema): order.assigned_to_name — needs schema addition
+  const assigneeName = order.assigned_to_name || null;
+  // TODO(schema): order.created_by_name / sender role — for now we lean on
+  // supplier_orders.vessel_name + the implicit "chief stew" role.
+  const senderName = order.created_by_name || null;
+  const senderRole = order.created_by_role || 'Chief stew';
+  const sentRelative = fmtRelative(order.sent_at || order.created_at);
+  const yachtDisplayName = order.vessel_name || order.yacht_name || 'the yacht';
 
   return (
-    <div className="sp-page">
-      <button className="sp-back" onClick={() => navigate('/supplier/orders')}>
-        <ArrowLeft size={14} /> Back to orders
-      </button>
+    <div className="sod-page">
 
-      <div className="sp-page-head">
+      {/* ── Crumb ── */}
+      <div className="sod-crumb">
+        <a onClick={() => navigate('/supplier/orders')}>Orders</a>
+        <span className="sep">›</span>
+        #{orderShortId}
+      </div>
+
+      {/* ── Page header: title + assignee chip ── */}
+      <header className="sod-order-header">
         <div>
-          <div className="sp-eyebrow">Order · {order.supplier_name}</div>
-          <h1 className="sp-page-title" style={{ fontSize: 22 }}>#{order.id.slice(0, 8).toUpperCase()}</h1>
-          <p className="sp-page-sub">
-            Delivery {fmtDate(order.delivery_date)} · {order.delivery_port ?? 'Port TBC'} · {items.length} items
-          </p>
-        </div>
-        <StatusBadge status={order.status} style={{ fontSize: 13 }} />
-      </div>
-
-      {order.special_instructions && (
-        <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 13, color: '#92400E' }}>
-          <b>Special instructions:</b> {order.special_instructions}
-        </div>
-      )}
-
-      <div className="sp-table-wrap" style={{ marginBottom: 24 }}>
-        <table className="sp-table">
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>Qty</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map(item => (
-              <ItemRow key={item.id} item={item} onUpdate={handleItemUpdate} canEdit={canEdit} />
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {pendingCount > 0 && (
-        <div className="sp-confirm-bar">
-          <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--fg)' }}>
-            {pendingCount} item{pendingCount > 1 ? 's' : ''} still pending
+          <h1 className="sod-order-title">
+            FROM{' '}
+            <button
+              type="button"
+              className="sod-yacht-link"
+              onClick={() => { /* TODO(schema): yacht client page link */ }}
+            >
+              {yachtDisplayName}.
+            </button>
+          </h1>
+          <div className="sod-order-sub">
+            {senderName ? <strong>{senderName}</strong> : <strong>{order.supplier_name || 'Vessel crew'}</strong>}
+            {senderRole && <>, {senderRole}</>}
+            {sentRelative && (
+              <>
+                <span className="sep">·</span>
+                sent {sentRelative}
+              </>
+            )}
           </div>
-          <button
-            className="sp-pill primary"
-            style={{ padding: '9px 20px', opacity: canEdit ? 1 : 0.5 }}
-            disabled={confirming || !canEdit}
-            title={canEdit ? undefined : NO_PERMISSION_TITLE}
-            onClick={handleConfirmAll}
-          >
-            {confirming ? 'Confirming…' : 'Confirm all & send'}
-          </button>
         </div>
-      )}
+
+        <button
+          type="button"
+          className={`sod-header-assignee${assigneeName ? '' : ' sod-unassigned'}`}
+          title={assigneeName ? `Assigned to ${assigneeName}` : 'Unassigned'}
+          onClick={() => { /* TODO(schema): reassign action */ }}
+        >
+          <span className="sod-av">{assigneeName ? initialsOf(assigneeName) : '—'}</span>
+          <span className="sod-info">
+            <span className="sod-label-tiny">{assigneeName ? 'Assigned' : 'Status'}</span>
+            <span className="sod-name">{assigneeName ? firstNameOf(assigneeName) : 'Unassigned'}</span>
+          </span>
+        </button>
+      </header>
+
+      {/*
+        ── TEMPORARY rendering until Runs 3–7 land. Items still get the
+        existing confirm/sub/unavailable behaviour against updateOrderItem,
+        gated by canEdit; this block is replaced wholesale in Run 5.
+      */}
+      <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)', padding: '20px 22px', marginTop: 18 }}>
+        <div style={{ fontSize: 13, color: 'var(--muted-strong)', fontFamily: 'Outfit', fontWeight: 500, marginBottom: 8 }}>
+          {items.length} item{items.length === 1 ? '' : 's'} · status: {order.status}
+        </div>
+        <div style={{ fontSize: 12.5, color: 'var(--muted)', fontFamily: 'JetBrains Mono' }}>
+          Hero, timeline, items table, footer cards and drawers land in subsequent runs.
+        </div>
+      </div>
     </div>
   );
 };
