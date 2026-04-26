@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchOrderById, updateOrderStatus, updateOrderItem } from '../utils/supplierStorage';
+import { fetchOrderById, updateOrderStatus, updateOrderItem, fetchOrderActivity } from '../utils/supplierStorage';
 import { usePermission } from '../../../contexts/SupplierPermissionContext';
 import EditDeliveryModal from '../components/EditDeliveryModal';
 import ReassignModal from '../components/ReassignModal';
@@ -863,49 +863,88 @@ const CharterContextCard = ({ order, yachtDisplayName }) => {
   );
 };
 
-const ActivityCard = ({ order, yachtDisplayName }) => {
-  // TODO(schema): real activity log table — for now we surface the order
-  // creation event from the row itself.
-  const createdWhen = fmtTimestamp(order.created_at);
-  const sentWhen = order.sent_at ? fmtTimestamp(order.sent_at) : null;
-  const confirmedWhen = order.confirmed_at ? fmtTimestamp(order.confirmed_at) : null;
+// Format a single supplier_order_activity row for the Activity card. Returns
+// { when, dotClass, title, sub } where dotClass keys the timeline marker
+// colour (defined in supplier-portal.css).
+const fmtActivityEvent = (event) => {
+  const actor = event.actor_name
+    || (event.actor_role === 'system' ? 'System' : 'Someone');
+  const dt = new Date(event.created_at);
+  const when = isNaN(dt.getTime())
+    ? ''
+    : dt.toLocaleString(undefined, {
+        month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      });
 
-  return (
-    <div className="sod-card" style={{ marginTop: 18 }}>
-      <div className="sod-card-head">
-        <h4>Activity</h4>
-        <span className="sod-card-meta">All events on this order</span>
-      </div>
-      <div className="sod-activity-body">
-        <ul className="sod-activity">
-          <li className="sod-act-now">
-            <div className="sod-act-when">{createdWhen ?? '—'}</div>
-            <div className="sod-act-what">
-              Order received from <em>{yachtDisplayName}</em>
-            </div>
-            <div className="sod-act-who">
-              {order.sent_via === 'portal' ? 'Created in portal' : 'Sent via email'}
-            </div>
-          </li>
-          {sentWhen && order.sent_at !== order.created_at && (
-            <li>
-              <div className="sod-act-when">{sentWhen}</div>
-              <div className="sod-act-what">Order sent to supplier</div>
-              <div className="sod-act-who">via {order.sent_via || 'email'}</div>
-            </li>
-          )}
-          {confirmedWhen && (
-            <li className="sod-act-done">
-              <div className="sod-act-when">{confirmedWhen}</div>
-              <div className="sod-act-what">Order confirmed</div>
-              <div className="sod-act-who">All available items confirmed</div>
-            </li>
-          )}
-        </ul>
-      </div>
-    </div>
-  );
+  switch (event.event_type) {
+    case 'order_received':
+      return {
+        when, dotClass: 'sod-act-now',
+        title: <>Order received from <em>{event.payload?.vessel_name || 'vessel'}</em></>,
+        sub: `Sent via ${event.payload?.sent_via || 'email'}`,
+      };
+    case 'delivery_edited': {
+      const fields = event.payload?.fields_changed || [];
+      const labels = fields.map((f) => f.replace('delivery_', '').replace('_', ' '));
+      return {
+        when, dotClass: '',
+        title: <>Delivery {labels.join(', ') || 'details'} updated</>,
+        sub: `By ${actor}`,
+      };
+    }
+    case 'reassigned':
+      return {
+        when, dotClass: '',
+        title: 'Order reassigned',
+        sub: `By ${actor}`,
+      };
+    case 'status_advanced':
+      return {
+        when, dotClass: 'sod-act-done',
+        title: <>Status: {event.payload?.from} → <strong>{event.payload?.to}</strong></>,
+        sub: `By ${actor}`,
+      };
+    case 'item_confirmed':
+    case 'item_substituted':
+    case 'item_unavailable':
+      return {
+        when, dotClass: '',
+        title: <>{event.payload?.item_name || 'Item'} {event.event_type.replace('item_', '')}</>,
+        sub: `By ${actor}`,
+      };
+    default:
+      return { when, dotClass: '', title: event.event_type, sub: actor };
+  }
 };
+
+const ActivityCard = ({ activity }) => (
+  <div className="sod-card" style={{ marginTop: 18 }}>
+    <div className="sod-card-head">
+      <h4>Activity</h4>
+      <span className="sod-card-meta">All events on this order</span>
+    </div>
+    <div className="sod-activity-body">
+      <ul className="sod-activity">
+        {activity.length === 0 && (
+          <li style={{ color: 'var(--muted-strong)', fontSize: 13 }}>
+            No activity yet.
+          </li>
+        )}
+        {activity.map((event) => {
+          const { when, dotClass, title, sub } = fmtActivityEvent(event);
+          return (
+            <li key={event.id} className={dotClass || undefined}>
+              <div className="sod-act-when">{when}</div>
+              <div className="sod-act-what">{title}</div>
+              {sub && <div className="sod-act-who">{sub}</div>}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  </div>
+);
 
 // ─── Drawer ─────────────────────────────────────────────────────────────────
 
@@ -1030,19 +1069,22 @@ const SupplierOrderDetail = () => {
 
   // Modal save handlers — merge the row payload (which includes the joined
   // assigned_contact) back into local state so the page reflects the change
-  // without a refetch.
+  // without a refetch, and fetch fresh activity entries written by the
+  // log_supplier_order_changes trigger.
   const applyOrderUpdate = useCallback((updated) => {
     setOrder((prev) => prev ? { ...prev, ...updated } : prev);
-  }, []);
+    refetchActivity();
+  }, [refetchActivity]);
 
   const handleStatusAdvance = useCallback(async (newStatus) => {
     try {
       await updateOrderStatus(orderId, newStatus);
       setOrder((prev) => prev ? { ...prev, status: newStatus } : prev);
+      refetchActivity();
     } catch (e) {
       window.alert(`Failed to advance status: ${e.message}`);
     }
-  }, [orderId]);
+  }, [orderId, refetchActivity]);
 
   const handleItemUpdate = useCallback(async (itemId, updates) => {
     const updated = await updateOrderItem(itemId, updates);
@@ -1065,10 +1107,11 @@ const SupplierOrderDetail = () => {
           i.status === 'pending' ? { ...i, status: 'confirmed' } : i
         ),
       } : prev);
+      refetchActivity();
     } catch (e) {
       window.alert(`Failed to confirm: ${e.message}`);
     }
-  }, [orderId]);
+  }, [orderId, refetchActivity]);
 
   const load = () => {
     setLoading(true);
@@ -1080,6 +1123,16 @@ const SupplierOrderDetail = () => {
   };
 
   useEffect(load, [orderId]);
+
+  // Activity feed — fetched on mount and refetched after any modal save
+  // (the modal callbacks call refetchActivity). Failures fall back to an
+  // empty list so the rest of the page still renders.
+  const [activity, setActivity] = useState([]);
+  const refetchActivity = useCallback(() => {
+    if (!orderId) return;
+    fetchOrderActivity(orderId).then(setActivity).catch(() => setActivity([]));
+  }, [orderId]);
+  useEffect(refetchActivity, [refetchActivity]);
 
   if (loading) {
     return (
@@ -1215,7 +1268,7 @@ const SupplierOrderDetail = () => {
       <CharterContextCard order={order} yachtDisplayName={yachtDisplayName} />
 
       {/* ── Activity ── */}
-      <ActivityCard order={order} yachtDisplayName={yachtDisplayName} />
+      <ActivityCard activity={activity} />
 
       {/* ── Keyboard hint footer ── */}
       <div className="sod-kb-hint">

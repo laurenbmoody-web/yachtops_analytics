@@ -2,20 +2,22 @@ import React, { useEffect, useState } from 'react';
 import SupplierModal from './SupplierModal';
 import { updateOrderDelivery } from '../utils/supplierStorage';
 
+// special_instructions is intentionally not editable here. That column holds
+// the vessel's charter context (cuisine style, allergens, owner-aboard dates)
+// and is rendered on the page as the Charter Context card — it's the vessel's
+// data, not the supplier's delivery notes.
 const EMPTY_FORM = {
   delivery_date: '',
   delivery_time: '',
   delivery_port: '',
   delivery_contact: '',
-  special_instructions: '',
 };
 
 const formFromOrder = (order) => ({
-  delivery_date:        order?.delivery_date ?? '',
-  delivery_time:        order?.delivery_time ?? '',
-  delivery_port:        order?.delivery_port ?? '',
-  delivery_contact:     order?.delivery_contact ?? '',
-  special_instructions: order?.special_instructions ?? '',
+  delivery_date:    order?.delivery_date ?? '',
+  delivery_time:    order?.delivery_time ?? '',
+  delivery_port:    order?.delivery_port ?? '',
+  delivery_contact: order?.delivery_contact ?? '',
 });
 
 export default function EditDeliveryModal({ order, open, onClose, onSaved }) {
@@ -115,17 +117,6 @@ export default function EditDeliveryModal({ order, open, onClose, onSaved }) {
           placeholder="e.g. Bosun David Klein +33 6 xx xx 47 22"
           value={form.delivery_contact}
           onChange={set('delivery_contact')}
-          disabled={saving}
-        />
-      </div>
-
-      <div className="sp-field">
-        <label className="sp-field-label">Special instructions</label>
-        <textarea
-          className="sp-field-textarea"
-          placeholder="Any special handling notes…"
-          value={form.special_instructions}
-          onChange={set('special_instructions')}
           disabled={saving}
         />
       </div>

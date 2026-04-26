@@ -51,9 +51,12 @@ export const fetchOrderById = async (orderId) => {
 // Update editable delivery fields on an order. Whitelisted columns only —
 // caller-supplied keys outside this set are silently ignored so this can't
 // be used to bypass the (otherwise tightly RLS'd) `supplier_orders` table.
+//
+// Note: special_instructions is intentionally NOT in this list. That column
+// holds the vessel's charter context (cuisine style, allergens, owner-aboard
+// dates) and is the vessel's data, not the supplier's delivery notes.
 export const updateOrderDelivery = async (orderId, updates) => {
-  const allowed = ['delivery_date', 'delivery_time', 'delivery_port',
-                   'delivery_contact', 'special_instructions'];
+  const allowed = ['delivery_date', 'delivery_time', 'delivery_port', 'delivery_contact'];
   const payload = Object.fromEntries(
     Object.entries(updates).filter(([k]) => allowed.includes(k))
   );
@@ -85,15 +88,32 @@ export const assignOrderToContact = async (orderId, supplierContactId) => {
   return data;
 };
 
-// List active team members for the current supplier (Reassign picker).
-// supplier_contacts RLS already scopes reads to the caller's supplier via
-// get_user_supplier_id(), so no explicit supplier_id filter is needed.
-export const fetchSupplierTeam = async () => {
-  const { data, error } = await supabase
+// List team members for the current supplier (Reassign picker / Settings → Team).
+// supplier_contacts RLS scopes reads to the caller's supplier via
+// get_user_supplier_id() (see migration 20260427130000), so no explicit
+// supplier_id filter is needed here.
+//
+// `activeOnly` defaults to true — Reassign picker wants only people who
+// have accepted. Settings → Team can pass { activeOnly: false } to include
+// soft-removed members for audit history.
+export const fetchSupplierTeam = async ({ activeOnly = true } = {}) => {
+  let query = supabase
     .from('supplier_contacts')
-    .select('id, name, email, role, user_id')
-    .eq('active', true)
+    .select('id, name, email, role, user_id, active, permission_tier')
     .order('name', { ascending: true });
+  if (activeOnly) query = query.eq('active', true);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data ?? [];
+};
+
+// Fetch the activity log for a supplier order. Newest events first.
+export const fetchOrderActivity = async (orderId) => {
+  const { data, error } = await supabase
+    .from('supplier_order_activity')
+    .select('*')
+    .eq('order_id', orderId)
+    .order('created_at', { ascending: false });
   if (error) throw error;
   return data ?? [];
 };
