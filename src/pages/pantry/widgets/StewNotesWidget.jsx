@@ -133,7 +133,7 @@ function NoteRow({ note, currentUserId, crewById, guestById,
 // visible while the stew picks a guest. Blur to outside the row submits
 // any non-empty body and collapses the pill row.
 
-function NoteAddRow({ onAdd }) {
+function NoteAddRow({ onAdd, guests }) {
   const [body, setBody]       = useState('');
   const [guestId, setGuestId] = useState(null);
   const [focused, setFocused] = useState(false);
@@ -194,12 +194,15 @@ function NoteAddRow({ onAdd }) {
         aria-label="Add a stew note"
         disabled={pending}
       />
-      {focused && (
-        <TripGuestPicker
-          selected={guestId}
-          onChange={setGuestId}
-        />
-      )}
+      {/* Mount unconditionally so guest data is ready the moment the
+          input gets focus — toggling hidden via prop avoids the
+          focus-time fetch lag the conditional mount caused. */}
+      <TripGuestPicker
+        selected={guestId}
+        onChange={setGuestId}
+        guests={guests}
+        hidden={!focused}
+      />
     </div>
   );
 }
@@ -295,7 +298,7 @@ export default function StewNotesWidget() {
       ))}
 
       {!loading && !error && (
-        <NoteAddRow onAdd={addNote} />
+        <NoteAddRow onAdd={addNote} guests={guests} />
       )}
     </div>
   );

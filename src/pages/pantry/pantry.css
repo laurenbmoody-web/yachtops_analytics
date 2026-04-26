@@ -1102,6 +1102,11 @@
   gap: 6px;
   padding: 8px 0 2px;
 }
+/* Mounted-but-hidden state — keeps useGuests() warm so pills appear
+   instantly when the parent input gets focus. */
+.p-note-chips.is-hidden {
+  display: none;
+}
 .p-note-chip {
   font-family: var(--font-sans);
   font-size: 11px;
@@ -1123,6 +1128,154 @@
   background: var(--ink);
   border-color: var(--ink);
   color: var(--bg-card);
+}
+
+/* ── /pantry/notes page (Phase C) ─────────────────────────────
+   Editorial baseline-only search input that visually rhymes with the
+   note-add input. No icon prefix — placeholder copy carries the
+   affordance. */
+.p-note-search {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-bottom: 0.5px solid var(--p-border);
+  outline: none;
+  padding: 12px 0 10px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink);
+  margin-bottom: 12px;
+}
+.p-note-search::placeholder {
+  color: var(--ink-tertiary);
+  font-style: italic;
+  opacity: 1;
+}
+.p-note-search:focus {
+  border-bottom-color: var(--ink);
+}
+
+/* Grouped multi-select filter rows. Tracked-caps label on the left,
+   pill row right. AND across groups, OR within group; the pills
+   reuse .p-note-chip from the widget. */
+.p-filter-group {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 6px 0;
+}
+.p-filter-group + .p-filter-group {
+  border-top: 0.5px dashed var(--p-border);
+}
+.p-filter-label {
+  flex: 0 0 64px;
+  margin: 0;
+}
+.p-filter-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.p-clear-filters {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 11px;
+}
+
+/* Page-version add row — pills always visible, more breathing room. */
+.p-note-add-row-page {
+  padding: 10px 0 4px;
+}
+.p-note-add-page {
+  font-size: 16px;
+  padding: 14px 0 12px;
+}
+
+/* Meta-line inline links (convert / delete) — sit alongside time +
+   author + guest tag. Colors muted; danger turns terracotta. */
+.p-note-meta-link {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  color: var(--ink-muted);
+  cursor: pointer;
+  text-transform: lowercase;
+}
+.p-note-meta-link:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.p-note-meta-danger {
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+}
+.p-note-meta-danger:hover {
+  color: var(--accent);
+}
+.p-note-guest-link {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+.p-note-guest-link:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* "View previous notes →" toggle at the bottom of the TODAY card. */
+.p-note-prev-toggle {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 0.5px solid var(--p-border);
+  text-align: right;
+}
+
+/* Convert sheet — anchored bottom-right of the page, simple panel.
+   Reuses .p-note-chip for type pills + a native select for guest pick. */
+.p-convert-sheet {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  left: 16px;
+  max-width: 380px;
+  margin-left: auto;
+  background: var(--bg-card);
+  border: 0.5px solid var(--p-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.12);
+  z-index: 50;
+}
+.p-convert-types {
+  display: flex;
+  gap: 6px;
+}
+.p-convert-picker {
+  width: 100%;
+  padding: 8px 10px;
+  border: 0.5px solid var(--p-border);
+  border-radius: 6px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  background: var(--bg-card);
+  color: var(--ink);
+}
+.p-convert-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
 }
 
 /* ── Stock widget ──────────────────────────────────────────── */
