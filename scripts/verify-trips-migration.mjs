@@ -212,22 +212,82 @@ await test("trip with 'Friends & Family' type → 'Friends/Family' on the wire",
   });
 });
 
-await test('Missing endDate → null on the wire; empty string → empty (raw passthrough)', async () => {
+await test('Missing endDate → null on the wire', async () => {
   const trips = [
-    { id: 't1', name: 'No end',    tripType: 'Owner', startDate: '2026-01-01', guests: [] },
-    { id: 't2', name: 'Empty end', tripType: 'Owner', startDate: '2026-02-01', endDate: '', guests: [] },
+    { id: 't1', name: 'No end', tripType: 'Owner', startDate: '2026-01-01', guests: [] },
   ];
   await withMockedEnv({}, async (mod) => {
-    const calls = [];
+    let received;
     const supa = makeSupabaseStub({
-      rpcImpl: async (fn, params) => {
-        calls.push(params);
-        return { data: 'srv-' + params.p_legacy_id, error: null };
-      },
+      rpcImpl: async (fn, params) => { received = params; return { data: 'srv-1', error: null }; },
     });
     await mod.migrateTripsArrayToSupabase(supa, trips);
-    assert.equal(calls[0].p_end_date, null);
-    assert.equal(calls[1].p_end_date, '');
+    assert.equal(received.p_end_date, null);
+  });
+});
+
+await test("endDate: '' → coerced to null, trip migrates successfully", async () => {
+  const trips = [
+    { id: 't1', name: 'Empty end', tripType: 'Owner', startDate: '2026-02-01', endDate: '', guests: [] },
+  ];
+  await withMockedEnv({}, async (mod) => {
+    let received;
+    const supa = makeSupabaseStub({
+      rpcImpl: async (fn, params) => { received = params; return { data: 'srv-1', error: null }; },
+    });
+    const res = await mod.migrateTripsArrayToSupabase(supa, trips);
+    assert.equal(received.p_end_date, null);
+    assert.equal(res.migrated, 1);
+    assert.equal(res.errors.length, 0);
+  });
+});
+
+await test("endDate: '   ' (whitespace) → coerced to null", async () => {
+  const trips = [
+    { id: 't1', name: 'Whitespace end', tripType: 'Owner', startDate: '2026-02-01', endDate: '   ', guests: [] },
+  ];
+  await withMockedEnv({}, async (mod) => {
+    let received;
+    const supa = makeSupabaseStub({
+      rpcImpl: async (fn, params) => { received = params; return { data: 'srv-1', error: null }; },
+    });
+    await mod.migrateTripsArrayToSupabase(supa, trips);
+    assert.equal(received.p_end_date, null);
+  });
+});
+
+await test("startDate: '' → recorded as error with clear message, no RPC call", async () => {
+  const trips = [
+    { id: 't1', name: 'No start', tripType: 'Owner', startDate: '', endDate: '2026-01-05', guests: [] },
+  ];
+  await withMockedEnv({}, async (mod) => {
+    let rpcCalled = false;
+    const supa = makeSupabaseStub({
+      rpcImpl: async () => { rpcCalled = true; return { data: 'srv-1', error: null }; },
+    });
+    const res = await mod.migrateTripsArrayToSupabase(supa, trips);
+    assert.equal(rpcCalled, false, 'RPC should not be called when startDate is empty');
+    assert.equal(res.migrated, 0);
+    assert.equal(res.errors.length, 1);
+    assert.equal(res.errors[0].tripId, 't1');
+    assert.equal(res.errors[0].tripName, 'No start');
+    assert.match(res.errors[0].error, /Missing required start date/);
+  });
+});
+
+await test('Missing startDate key → recorded as error, no RPC call', async () => {
+  const trips = [
+    { id: 't1', name: 'Missing start', tripType: 'Owner', endDate: '2026-01-05', guests: [] },
+  ];
+  await withMockedEnv({}, async (mod) => {
+    let rpcCalled = false;
+    const supa = makeSupabaseStub({
+      rpcImpl: async () => { rpcCalled = true; return { data: 'srv-1', error: null }; },
+    });
+    const res = await mod.migrateTripsArrayToSupabase(supa, trips);
+    assert.equal(rpcCalled, false);
+    assert.equal(res.errors.length, 1);
+    assert.match(res.errors[0].error, /Missing required start date/);
   });
 });
 

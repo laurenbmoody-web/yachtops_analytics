@@ -148,6 +148,29 @@ export async function migrateTripsArrayToSupabase(supabase, trips) {
       continue;
     }
 
+    // Pre-flight: start_date is NOT NULL on the schema. Older
+    // localStorage rows occasionally have startDate: '' rather than a
+    // missing key — without this guard the RPC surfaces an opaque
+    // "invalid date input syntax" with no user recovery path. Surface
+    // a clear message here instead and skip the RPC entirely.
+    if (!trip.startDate || !String(trip.startDate).trim()) {
+      results.errors.push({
+        tripId:   trip.id,
+        tripName: trip.name ?? null,
+        error:    'Missing required start date — edit trip in app to add one before migration',
+      });
+      continue;
+    }
+
+    // end_date is NOT NULL on the schema too, but the RPC's caller
+    // contract accepts null and the backfill / pre-A2 frontend allowed
+    // empty strings interchangeably with nulls for open-ended trips.
+    // Coerce '' → null on the wire so those rows surface as a clean
+    // schema-level NOT NULL violation rather than a date-parse error.
+    const endDateForWire = (trip.endDate && String(trip.endDate).trim())
+      ? trip.endDate
+      : null;
+
     try {
       const { data: supabaseId, error } = await supabase.rpc(
         'migrate_localstorage_trip',
@@ -155,8 +178,8 @@ export async function migrateTripsArrayToSupabase(supabase, trips) {
           p_legacy_id:         String(trip.id),
           p_name:              trip.name ?? '(untitled)',
           p_trip_type:         normaliseTripType(trip.tripType),
-          p_start_date:        trip.startDate ?? null,
-          p_end_date:          trip.endDate   ?? null,
+          p_start_date:        trip.startDate,
+          p_end_date:          endDateForWire,
           p_itinerary_summary: trip.itinerarySummary ?? null,
           p_guest_ids:         extractGuestIds(trip.guests),
         },
