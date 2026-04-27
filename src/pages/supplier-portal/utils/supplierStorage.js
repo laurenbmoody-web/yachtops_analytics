@@ -38,7 +38,8 @@ export const fetchOrderById = async (orderId) => {
     .select(`
       *,
       supplier_order_items(*),
-      assigned_contact:supplier_contacts!assigned_to_supplier_contact_id(id, name, email, role)
+      assigned_contact:supplier_contacts!assigned_to_supplier_contact_id(id, name, email, role),
+      invoices:supplier_invoices(id, invoice_number, pdf_url, amount, currency, status, created_at, due_date)
     `)
     .eq('id', orderId)
     .single();
