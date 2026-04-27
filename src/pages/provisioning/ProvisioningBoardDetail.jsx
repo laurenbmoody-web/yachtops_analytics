@@ -1436,28 +1436,15 @@ const ProvisioningBoardDetail = () => {
                 Clear filters
               </button>
             )}
-            {/* Group by toggle */}
-            <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-full text-sm">
-              <span className="text-slate-500 px-2">Group by</span>
-              <button
-                onClick={() => setGroupBy('category')}
-                className={groupBy === 'category'
-                  ? 'bg-white px-3 py-1 rounded-full font-medium text-slate-900'
-                  : 'px-3 py-1 rounded-full text-slate-500 hover:text-slate-700'
-                }
-              >
-                Category
-              </button>
-              <button
-                onClick={() => setGroupBy('none')}
-                className={groupBy === 'none'
-                  ? 'bg-white px-3 py-1 rounded-full font-medium text-slate-900'
-                  : 'px-3 py-1 rounded-full text-slate-500 hover:text-slate-700'
-                }
-              >
-                None
-              </button>
-            </div>
+            {/* Group by */}
+            <select
+              value={groupBy}
+              onChange={e => setGroupBy(e.target.value)}
+              style={{ fontSize: 11, background: 'white', border: '1px solid #F1F5F9', borderRadius: 7, padding: '6px 10px', color: '#64748B', outline: 'none', cursor: 'pointer' }}
+            >
+              <option value="category">Group: Category</option>
+              <option value="none">Group: None</option>
+            </select>
             {/* Show received toggle */}
             <button
               type="button"
@@ -1629,12 +1616,6 @@ const ProvisioningBoardDetail = () => {
                         // Supplier-order locking
                         const itemOrder = itemStatusMap[(item.name || '').toLowerCase().trim()];
                         const isLocked = isSent && !!itemOrder;
-                        const lockedBg = isLocked
-                          ? itemOrder.status === 'confirmed'   ? '#F0FDF4'
-                          : itemOrder.status === 'unavailable' ? '#FEF2F2'
-                          : itemOrder.status === 'substituted' ? '#FFFBEB'
-                          : '#F0F9FF'  // sent / pending response
-                          : null;
                         const displayBadge = isLocked ? (SUPPLIER_BADGE[itemOrder.status] || SUPPLIER_BADGE.pending) : badge;
 
                         return (
@@ -1644,7 +1625,7 @@ const ProvisioningBoardDetail = () => {
                             onMouseLeave={() => setHoveredRow(null)}
                             style={{
                               display: 'grid', gridTemplateColumns: TABLE_GRID, gap: 0, padding: '0 16px',
-                              background: lockedBg || (item.status === 'received' ? '#F8FAFC' : allergen ? '#FFFBEB' : isHovered ? '#FAFCFF' : 'white'),
+                              background: allergen ? '#FFFBEB' : isHovered ? '#FAFCFF' : 'white',
                               borderBottom: rowIdx < totalRows - 1 ? '1px solid #F8FAFC' : 'none',
                               transition: 'background 0.1s',
                               opacity: isLocked && itemOrder.status === 'unavailable' ? 0.7 : 1,
