@@ -173,13 +173,19 @@ function renderBankBlock(supplier: any, invoiceNumber: string): string {
 }
 
 function renderVatBreakdownRows(input: InvoiceRenderInput): string {
-  // Single-rate invoices collapse to one "VAT" line; multi-rate invoices
-  // surface per-category rows so the customer can see the maths.
-  if (input.vatBreakdown.length <= 1) {
-    return `<tr><td>VAT</td><td>${input.supplier.default_currency || 'EUR'} ${fmtAmount(input.totals.vatTotal)}</td></tr>`;
+  // Always show the rate alongside each VAT line so the customer can see
+  // the maths at a glance, even on single-rate invoices.
+  const taxName = input.options.tax_name || 'VAT';
+  if (input.vatBreakdown.length === 0) {
+    return `<tr><td>${escapeHtml(taxName)} (0%)</td><td>${input.supplier.default_currency || 'EUR'} 0.00</td></tr>`;
+  }
+  if (input.vatBreakdown.length === 1) {
+    const b = input.vatBreakdown[0];
+    return `<tr><td>${escapeHtml(taxName)} (${b.rate.toFixed(1)}%)</td>
+        <td>${input.supplier.default_currency || 'EUR'} ${fmtAmount(b.vat_amount)}</td></tr>`;
   }
   return input.vatBreakdown.map((b) => `
-    <tr><td>VAT (${escapeHtml(b.label)}, ${b.rate.toFixed(1)}%)</td>
+    <tr><td>${escapeHtml(taxName)} (${escapeHtml(b.label)}, ${b.rate.toFixed(1)}%)</td>
         <td>${input.supplier.default_currency || 'EUR'} ${fmtAmount(b.vat_amount)}</td></tr>
   `).join('');
 }
@@ -187,7 +193,10 @@ function renderVatBreakdownRows(input: InvoiceRenderInput): string {
 function renderInvoiceHtml(input: InvoiceRenderInput): string {
   const cur = input.supplier.default_currency || 'EUR';
   const supplierName = escapeHtml(input.supplier.name || 'Supplier');
-  const taxNumberLabel = 'VAT'; // Country-specific labels (TVA / IVA / GST) handled in registry; fall back to "VAT"
+  // Country-specific tax label (TVA / IVA / GST etc.) — the modal looks it up
+  // from the country preset and passes it in via options.tax_name. Falls back
+  // to "VAT" for countries without a registry entry.
+  const taxNumberLabel = input.options.tax_name || 'VAT';
   const billToName = escapeHtml(input.order.vessel_name || input.order.yacht_name || 'Vessel');
   const isBonded = !!input.options.bonded_supply;
 
