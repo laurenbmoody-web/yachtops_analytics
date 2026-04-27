@@ -2118,11 +2118,27 @@ export const markOrderSent = async (orderId, sentVia = 'email') => {
 export const fetchSupplierOrders = async (listId) => {
   const { data, error } = await supabase
     .from('supplier_orders')
-    .select('*, supplier_order_items(*)')
+    .select(`
+      *,
+      supplier_order_items(*),
+      supplier_invoices(id, invoice_number, amount, currency, status, pdf_url, created_at, due_date)
+    `)
     .eq('list_id', listId)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data || [];
+};
+
+// Mint a 10-min signed URL for a supplier invoice PDF via the
+// getInvoiceSignedUrl edge function. The function auth-checks the caller
+// against tenant_members for the order's tenant, so no extra client
+// permission work is needed here.
+export const fetchInvoiceSignedUrl = async (invoiceId) => {
+  const { data, error } = await supabase.functions.invoke('getInvoiceSignedUrl', {
+    body: { invoiceId },
+  });
+  if (error) throw error;
+  return data; // { signed_url, expires_at }
 };
 
 export const fetchOrderByToken = async (token) => {
