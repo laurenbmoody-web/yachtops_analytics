@@ -637,3 +637,73 @@ export const fetchInvoiceSignedUrl = async (invoiceId) => {
   if (error) throw error;
   return data; // { signed_url, expires_at }
 };
+
+// ─── Quote workflow (Sprint 9.5) ────────────────────────────────────────────
+
+// Set the supplier's quoted price on a single line. The auto-accept BEFORE
+// trigger (migration 20260429100100) inspects this update and:
+//   - if quoted = estimated AND same currency → quote_status='agreed',
+//     agreed_* populated automatically
+//   - otherwise → quote_status='quoted' for vessel review
+//
+// Caller may omit quoted_currency, in which case we don't touch the column.
+// (The trigger reads NEW.quoted_currency — leaving it unset means the row's
+// existing value stays, which is fine on first quote because the
+// estimated_currency is also already populated.)
+export const quoteOrderItem = async (itemId, { quoted_price, quoted_currency } = {}) => {
+  const updates = { quoted_price };
+  if (quoted_currency != null) updates.quoted_currency = quoted_currency;
+  const { data, error } = await supabase
+    .from('supplier_order_items')
+    .update(updates)
+    .eq('id', itemId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+// Confirm a line. Combines the legacy fulfilment-status flip with the new
+// quote workflow:
+//
+//   - If the line has no quoted_price yet, defaults to estimated_price /
+//     estimated_currency. The auto-accept trigger then flips quote_status
+//     to 'agreed' (since quoted = estimated by definition here).
+//   - If the caller passes a different quoted_price, the trigger marks the
+//     line as 'quoted' and the vessel sees it for explicit acceptance.
+//   - If the line already has a quoted_price and the caller doesn't pass
+//     a new one, only the fulfilment status flips — quote state is left
+//     untouched.
+//
+// Two queries by design: the read-then-write makes the auto-quote-on-confirm
+// path explicit. Negligible at single-supplier traffic volumes.
+export const confirmOrderItem = async (itemId, { quoted_price, quoted_currency } = {}) => {
+  const { data: current, error: fetchErr } = await supabase
+    .from('supplier_order_items')
+    .select('quoted_price, estimated_price, estimated_currency')
+    .eq('id', itemId)
+    .single();
+  if (fetchErr) throw fetchErr;
+
+  const updates = { status: 'confirmed' };
+
+  if (current.quoted_price == null) {
+    // Auto-quote at estimated price (or the override caller passed in).
+    updates.quoted_price    = quoted_price ?? current.estimated_price;
+    updates.quoted_currency = quoted_currency ?? current.estimated_currency;
+  } else if (quoted_price !== undefined && Number(quoted_price) !== Number(current.quoted_price)) {
+    // Re-quote with a new price.
+    updates.quoted_price    = quoted_price;
+    updates.quoted_currency = quoted_currency ?? current.estimated_currency;
+  }
+  // else: already quoted, caller didn't change the price → leave quote alone.
+
+  const { data, error } = await supabase
+    .from('supplier_order_items')
+    .update(updates)
+    .eq('id', itemId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
