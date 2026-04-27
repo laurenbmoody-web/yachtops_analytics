@@ -28,6 +28,9 @@ import {
   fetchOrderHistory,
   fetchSupplierOrders,
   fetchInvoiceSignedUrl,
+  acceptOrderItemQuote,
+  declineOrderItemQuote,
+  queryOrderItemQuote,
   PROVISIONING_STATUS,
   PROVISION_CATEGORIES,
   PROVISION_UNITS,
@@ -212,6 +215,86 @@ const ProvisioningBoardDetail = () => {
   const [showSendModal, setShowSendModal] = useState(false);
   const [supplierOrders, setSupplierOrders] = useState([]);
   const [supplierOrdersLoading, setSupplierOrdersLoading] = useState(false);
+
+  // Sprint 9.5 quote workflow state
+  const [quoteRowBusy, setQuoteRowBusy] = useState(null);   // item.id currently saving
+  const [acceptAllBusy, setAcceptAllBusy] = useState(null); // order.id currently bulk-accepting
+  const [queryModalItem, setQueryModalItem] = useState(null);
+
+  // Merge an updated supplier_order_items row back into local state.
+  // Finds the order containing this item by order_id and replaces the line.
+  const mergeUpdatedItem = useCallback((updated) => {
+    if (!updated?.id) return;
+    setSupplierOrders((prev) => prev.map((o) => (
+      o.id === updated.order_id
+        ? { ...o, supplier_order_items: (o.supplier_order_items || []).map((it) => it.id === updated.id ? { ...it, ...updated } : it) }
+        : o
+    )));
+  }, []);
+
+  const handleAcceptItemQuote = useCallback(async (item) => {
+    setQuoteRowBusy(item.id);
+    try {
+      const updated = await acceptOrderItemQuote(item.id);
+      mergeUpdatedItem(updated);
+    } catch (e) {
+      window.alert(`Could not accept quote: ${e.message}`);
+    } finally {
+      setQuoteRowBusy(null);
+    }
+  }, [mergeUpdatedItem]);
+
+  const handleDeclineItemQuote = useCallback(async (item) => {
+    if (!window.confirm('Decline this quote? The supplier will be asked to re-quote.')) return;
+    setQuoteRowBusy(item.id);
+    try {
+      const updated = await declineOrderItemQuote(item.id);
+      mergeUpdatedItem(updated);
+    } catch (e) {
+      window.alert(`Could not decline: ${e.message}`);
+    } finally {
+      setQuoteRowBusy(null);
+    }
+  }, [mergeUpdatedItem]);
+
+  const handleQueryItemQuote = useCallback(async (item) => {
+    // Open the placeholder modal first; the RPC also flips quote_status
+    // to 'in_discussion' so the supplier sees the line is being queried.
+    setQueryModalItem(item);
+    setQuoteRowBusy(item.id);
+    try {
+      const updated = await queryOrderItemQuote(item.id);
+      mergeUpdatedItem(updated);
+    } catch (e) {
+      // Failure to flip status server-side is non-fatal — the modal is
+      // already open, supplier just won't see the in_discussion badge.
+      console.warn('[queryOrderItemQuote] failed:', e.message);
+    } finally {
+      setQuoteRowBusy(null);
+    }
+  }, [mergeUpdatedItem]);
+
+  // Bulk-accept every quoted line on a single order.
+  const handleAcceptAllQuoted = useCallback(async (order) => {
+    const quoted = (order.supplier_order_items || []).filter((i) => i.quote_status === 'quoted');
+    if (quoted.length === 0) return;
+    if (!window.confirm(`Accept all ${quoted.length} quoted price${quoted.length === 1 ? '' : 's'}?`)) return;
+    setAcceptAllBusy(order.id);
+    try {
+      const results = await Promise.allSettled(quoted.map((it) => acceptOrderItemQuote(it.id)));
+      // Merge each successful result; surface count of failures if any.
+      let failed = 0;
+      results.forEach((r) => {
+        if (r.status === 'fulfilled') mergeUpdatedItem(r.value);
+        else failed += 1;
+      });
+      if (failed > 0) {
+        window.alert(`Accepted ${quoted.length - failed} of ${quoted.length}. ${failed} failed — refresh to retry.`);
+      }
+    } finally {
+      setAcceptAllBusy(null);
+    }
+  }, [mergeUpdatedItem]);
   const [expandedOrder, setExpandedOrder] = useState(null);
   const [tenantVesselName, setTenantVesselName] = useState('');
   const [tenantVesselTypeLabel, setTenantVesselTypeLabel] = useState('');
@@ -2169,28 +2252,147 @@ const ProvisioningBoardDetail = () => {
                       </div>
                       {isExpanded && (
                         <div style={{ padding: '0 18px 16px', borderTop: '1px solid #F1F5F9' }}>
+                          {(() => {
+                            const quotedCount = (order.supplier_order_items || []).filter(x => x.quote_status === 'quoted').length;
+                            if (quotedCount < 2) return null;
+                            const isBusy = acceptAllBusy === order.id;
+                            return (
+                              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAcceptAllQuoted(order)}
+                                  disabled={isBusy}
+                                  style={{
+                                    fontSize: 12, fontWeight: 600, padding: '5px 12px',
+                                    borderRadius: 20, border: '1px solid #1E40AF',
+                                    background: isBusy ? '#DBEAFE' : '#EFF6FF',
+                                    color: '#1E40AF', cursor: isBusy ? 'wait' : 'pointer',
+                                  }}
+                                >
+                                  {isBusy ? 'Accepting…' : `Accept ${quotedCount} quoted prices`}
+                                </button>
+                              </div>
+                            );
+                          })()}
                           <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 12 }}>
                             <thead>
                               <tr style={{ background: '#F8FAFC' }}>
                                 <th style={{ padding: '7px 10px', fontSize: 11, fontWeight: 600, color: '#94A3B8', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Item</th>
                                 <th style={{ padding: '7px 10px', fontSize: 11, fontWeight: 600, color: '#94A3B8', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Qty</th>
-                                <th style={{ padding: '7px 10px', fontSize: 11, fontWeight: 600, color: '#94A3B8', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>
+                                <th style={{ padding: '7px 10px', fontSize: 11, fontWeight: 600, color: '#94A3B8', textAlign: 'right', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Price</th>
+                                <th style={{ padding: '7px 10px', fontSize: 11, fontWeight: 600, color: '#94A3B8', textAlign: 'right', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Action</th>
                               </tr>
                             </thead>
                             <tbody>
                               {orderItems.map((it, i) => {
-                                const itColor = it.status === 'confirmed' ? '#059669'
-                                  : it.status === 'unavailable' ? '#DC2626'
-                                  : it.status === 'substituted' ? '#D97706'
-                                  : '#94A3B8';
+                                const cur = it.estimated_currency || it.quoted_currency || it.agreed_currency || order.currency || 'EUR';
+                                const fmtMoney = (n) => {
+                                  if (n == null) return '—';
+                                  try { return new Intl.NumberFormat('en-US', { style: 'currency', currency: cur }).format(Number(n)); }
+                                  catch { return `${cur} ${Number(n).toFixed(2)}`; }
+                                };
+                                const qStatus = it.quote_status || 'awaiting_quote';
+                                const isBusy = quoteRowBusy === it.id;
+
+                                // Delta chip (quoted vs estimated, when both exist + differ).
+                                let deltaChip = null;
+                                if (it.estimated_price != null && it.quoted_price != null
+                                    && Number(it.estimated_price) > 0
+                                    && Number(it.estimated_price) !== Number(it.quoted_price)) {
+                                  const pct = ((Number(it.quoted_price) - Number(it.estimated_price)) / Number(it.estimated_price)) * 100;
+                                  const up = pct >= 0;
+                                  deltaChip = (
+                                    <span style={{
+                                      display: 'inline-block', marginLeft: 6,
+                                      fontSize: 10, fontWeight: 700,
+                                      padding: '1px 6px', borderRadius: 999,
+                                      background: up ? '#FEF3C7' : '#D1FAE5',
+                                      color: up ? '#92400E' : '#065F46',
+                                    }}>{up ? '+' : ''}{pct.toFixed(1)}%</span>
+                                  );
+                                }
+
+                                const stateBadge = (label, bg, color) => (
+                                  <span style={{
+                                    display: 'inline-block', fontSize: 10, fontWeight: 700,
+                                    letterSpacing: '0.05em', textTransform: 'uppercase',
+                                    padding: '2px 8px', borderRadius: 999,
+                                    background: bg, color,
+                                  }}>{label}</span>
+                                );
+
+                                let priceCell, actionCell;
+                                if (qStatus === 'agreed') {
+                                  priceCell = (
+                                    <>
+                                      <div style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(it.agreed_price)}</div>
+                                      <div style={{ fontSize: 10.5, color: '#94A3B8', marginTop: 2 }}>Agreed</div>
+                                    </>
+                                  );
+                                  actionCell = stateBadge('Agreed', '#D1FAE5', '#065F46');
+                                } else if (qStatus === 'awaiting_quote') {
+                                  priceCell = (
+                                    <>
+                                      <div style={{ fontVariantNumeric: 'tabular-nums', color: '#64748B' }}>est. {fmtMoney(it.estimated_price)}</div>
+                                    </>
+                                  );
+                                  actionCell = (
+                                    <span style={{ fontSize: 11, color: '#94A3B8' }}>Awaiting supplier quote</span>
+                                  );
+                                } else if (qStatus === 'unavailable') {
+                                  priceCell = <span style={{ color: '#94A3B8' }}>—</span>;
+                                  actionCell = stateBadge('Unavailable', '#FEE2E2', '#991B1B');
+                                } else if (qStatus === 'declined') {
+                                  priceCell = <div style={{ fontSize: 11, color: '#94A3B8' }}>est. {fmtMoney(it.estimated_price)}</div>;
+                                  actionCell = (
+                                    <span style={{ fontSize: 11, color: '#92400E' }}>Declined — awaiting re-quote</span>
+                                  );
+                                } else {
+                                  // 'quoted' OR 'in_discussion' → show price + actions
+                                  const isDiscussion = qStatus === 'in_discussion';
+                                  priceCell = (
+                                    <>
+                                      <div style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                                        {fmtMoney(it.quoted_price)}
+                                        {deltaChip}
+                                      </div>
+                                      <div style={{ fontSize: 10.5, color: '#94A3B8', marginTop: 2 }}>est. {fmtMoney(it.estimated_price)}</div>
+                                      {isDiscussion && (
+                                        <div style={{ marginTop: 4 }}>
+                                          {stateBadge('Query open', '#FEF3C7', '#92400E')}
+                                        </div>
+                                      )}
+                                    </>
+                                  );
+                                  actionCell = (
+                                    <div style={{ display: 'inline-flex', gap: 6 }}>
+                                      <button type="button" onClick={() => handleAcceptItemQuote(it)} disabled={isBusy}
+                                        style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 14, border: '1px solid #059669', background: '#D1FAE5', color: '#065F46', cursor: isBusy ? 'wait' : 'pointer' }}>
+                                        Accept
+                                      </button>
+                                      {!isDiscussion && (
+                                        <button type="button" onClick={() => handleQueryItemQuote(it)} disabled={isBusy}
+                                          style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 14, border: '1px solid #D97706', background: '#FEF3C7', color: '#92400E', cursor: isBusy ? 'wait' : 'pointer' }}>
+                                          Query
+                                        </button>
+                                      )}
+                                      <button type="button" onClick={() => handleDeclineItemQuote(it)} disabled={isBusy}
+                                        style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 14, border: '1px solid #DC2626', background: '#FEE2E2', color: '#991B1B', cursor: isBusy ? 'wait' : 'pointer' }}>
+                                        Decline
+                                      </button>
+                                    </div>
+                                  );
+                                }
+
                                 return (
                                   <tr key={it.id} style={{ borderBottom: i < orderItems.length - 1 ? '1px solid #F8FAFC' : 'none' }}>
-                                    <td style={{ padding: '7px 10px', fontSize: 13, color: '#0F172A' }}>
+                                    <td style={{ padding: '8px 10px', fontSize: 13, color: '#0F172A' }}>
                                       {it.item_name}
                                       {it.substitute_description && <span style={{ marginLeft: 6, fontSize: 11, color: '#D97706' }}>→ {it.substitute_description}</span>}
                                     </td>
-                                    <td style={{ padding: '7px 10px', fontSize: 13, color: '#475569', textAlign: 'center' }}>{it.quantity} {it.unit || ''}</td>
-                                    <td style={{ padding: '7px 10px', fontSize: 11, fontWeight: 600, color: itColor, textTransform: 'capitalize' }}>{it.status}</td>
+                                    <td style={{ padding: '8px 10px', fontSize: 13, color: '#475569', textAlign: 'center' }}>{it.quantity} {it.unit || ''}</td>
+                                    <td style={{ padding: '8px 10px', fontSize: 13, color: '#0F172A', textAlign: 'right' }}>{priceCell}</td>
+                                    <td style={{ padding: '8px 10px', textAlign: 'right' }}>{actionCell}</td>
                                   </tr>
                                 );
                               })}
@@ -2307,6 +2509,47 @@ const ProvisioningBoardDetail = () => {
         }}
         onClose={() => setItemDrawer({ open: false, item: null })}
       />
+
+      {/* Query placeholder — Sprint 9.5 stub. Real threading is a future
+          sprint; for now the RPC has already flipped quote_status to
+          'in_discussion' so the supplier sees the line being queried. */}
+      {queryModalItem && (
+        <div
+          onClick={() => setQueryModalItem(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.45)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 9000, padding: 16,
+          }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{
+            background: '#fff', borderRadius: 14, width: '100%', maxWidth: 460,
+            padding: '22px 26px', boxShadow: '0 24px 64px rgba(15,23,42,0.24)',
+          }}>
+            <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700, color: '#0F172A' }}>
+              Query raised — discussion threads coming soon
+            </h3>
+            <p style={{ margin: '0 0 8px', fontSize: 13.5, color: '#475569', lineHeight: 1.55 }}>
+              We've flagged <strong>{queryModalItem.item_name}</strong> as in discussion, so the
+              supplier knows you have a question. Threaded messaging on quoted lines is a future
+              sprint — for now, contact your supplier directly.
+            </p>
+            <p style={{ margin: '0 0 16px', fontSize: 12.5, color: '#94A3B8' }}>
+              You can still Accept or Decline this line at any time.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => setQueryModalItem(null)}
+                style={{
+                  fontSize: 13, fontWeight: 600, padding: '8px 16px',
+                  borderRadius: 8, border: 'none', background: '#1E3A5F', color: '#fff', cursor: 'pointer',
+                }}
+              >Got it</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
