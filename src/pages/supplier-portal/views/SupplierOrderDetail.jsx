@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchOrderById, updateOrderStatus, updateOrderItem, fetchOrderActivity } from '../utils/supplierStorage';
+import { fetchOrderById, updateOrderStatus, updateOrderItem, fetchOrderActivity, fetchInvoiceSignedUrl } from '../utils/supplierStorage';
 import { usePermission } from '../../../contexts/SupplierPermissionContext';
 import EditDeliveryModal from '../components/EditDeliveryModal';
 import ReassignModal from '../components/ReassignModal';
+import GenerateInvoiceModal from '../components/GenerateInvoiceModal';
 
 const NO_PERMISSION_TITLE = "Your role doesn't have permission for this action.";
 
@@ -161,6 +162,9 @@ const HeroActions = ({
   onOpenReturns,
   onOpenEditDelivery,
   onOpenReassign,
+  onGenerateInvoice,
+  onOpenInvoice,
+  invoice,             // most-recent supplier_invoices row, or null/undefined
   canEdit,
 }) => {
   const isOpen = (id) => openMenu === id;
@@ -204,10 +208,25 @@ const HeroActions = ({
 
       {/* Dropdowns positioned to the left of the action stack */}
       <ActionDropdown open={isOpen('docs')} top={0}>
-        {/* Documents flows are not yet built — Sprint 9 owns Order PDF
-            generation, Invoice upload, and Delivery note auto-generation. */}
+        {/* Order PDF + Delivery note still pending — Sprint 9b. Invoice is
+            wired below: shows "Generate" if no invoice exists yet, or
+            "Open" linking to the signed URL if one does. */}
         <DropdownRow icon="📄" name="Order PDF (soon)"     empty disabled />
-        <DropdownRow icon="🧾" name="Invoice (soon)"       empty disabled />
+        {invoice ? (
+          <DropdownRow
+            icon="🧾"
+            name={`Invoice ${invoice.invoice_number}`}
+            link="Open"
+            onClick={() => onOpenInvoice?.(invoice)}
+          />
+        ) : (
+          <DropdownRow
+            icon="🧾"
+            name="Generate invoice"
+            disabled={!canEdit}
+            onClick={canEdit ? onGenerateInvoice : undefined}
+          />
+        )}
         <DropdownRow icon="🚚" name="Delivery note (soon)" empty disabled />
       </ActionDropdown>
 
@@ -250,6 +269,9 @@ const Hero = ({
   onOpenReturns,
   onOpenEditDelivery,
   onOpenReassign,
+  onGenerateInvoice,
+  onOpenInvoice,
+  invoice,
   canEdit,
 }) => {
   const days = daysUntil(order.delivery_date);
@@ -311,6 +333,9 @@ const Hero = ({
           onOpenReturns={onOpenReturns}
           onOpenEditDelivery={onOpenEditDelivery}
           onOpenReassign={onOpenReassign}
+          onGenerateInvoice={onGenerateInvoice}
+          onOpenInvoice={onOpenInvoice}
+          invoice={invoice}
           canEdit={canEdit}
         />
       </div>
@@ -1025,6 +1050,7 @@ const SupplierOrderDetail = () => {
   const [dockDrawerOpen, setDockDrawerOpen] = useState(false);
   const [editDeliveryOpen, setEditDeliveryOpen] = useState(false);
   const [reassignOpen, setReassignOpen] = useState(false);
+  const [generateInvoiceOpen, setGenerateInvoiceOpen] = useState(false);
   const heroRef = useRef(null);
 
   // Activity feed state — declared early so all the modal-save handlers below
@@ -1075,6 +1101,35 @@ const SupplierOrderDetail = () => {
     setOpenMenu(null);
     setReassignOpen(true);
   }, []);
+
+  const handleOpenGenerateInvoice = useCallback(() => {
+    setOpenMenu(null);
+    setGenerateInvoiceOpen(true);
+  }, []);
+
+  // Open the existing invoice's PDF in a new tab. Mints a fresh signed URL
+  // each time — the row's pdf_url is the storage path, not a URL.
+  const handleOpenInvoice = useCallback(async (invoice) => {
+    setOpenMenu(null);
+    if (!invoice?.id) return;
+    try {
+      const res = await fetchInvoiceSignedUrl(invoice.id);
+      if (res?.signed_url) {
+        window.open(res.signed_url, '_blank', 'noopener');
+      } else {
+        window.alert('Could not open invoice — no signed URL returned.');
+      }
+    } catch (e) {
+      window.alert(`Could not open invoice: ${e.message}`);
+    }
+  }, []);
+
+  // After a fresh invoice is generated, refetch the order so the
+  // Documents row flips from "Generate" to "Open".
+  const handleInvoiceGenerated = useCallback(() => {
+    fetchOrderById(orderId).then(setOrder).catch(() => {});
+    refetchActivity();
+  }, [orderId, refetchActivity]);
 
   // Modal save handlers — merge the row payload (which includes the joined
   // assigned_contact) back into local state so the page reflects the change
@@ -1239,6 +1294,9 @@ const SupplierOrderDetail = () => {
           onOpenReturns={handleOpenReturns}
           onOpenEditDelivery={handleOpenEditDelivery}
           onOpenReassign={handleOpenReassign}
+          onGenerateInvoice={handleOpenGenerateInvoice}
+          onOpenInvoice={handleOpenInvoice}
+          invoice={(order.invoices && order.invoices.length > 0) ? order.invoices[0] : null}
           canEdit={canEdit}
         />
       </div>
@@ -1311,6 +1369,14 @@ const SupplierOrderDetail = () => {
         open={reassignOpen}
         onClose={() => setReassignOpen(false)}
         onSaved={applyOrderUpdate}
+      />
+      <GenerateInvoiceModal
+        orderId={order.id}
+        items={items}
+        supplierId={order.supplier_profile_id}
+        open={generateInvoiceOpen}
+        onClose={() => setGenerateInvoiceOpen(false)}
+        onGenerated={handleInvoiceGenerated}
       />
     </div>
   );
