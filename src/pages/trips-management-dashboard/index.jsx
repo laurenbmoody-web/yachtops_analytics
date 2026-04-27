@@ -132,8 +132,8 @@ const TripsManagementDashboard = () => {
       const data = loadTrips();
       console.log('[TRIPS] fetch success, rows:', data?.length || 0);
       setTrips(data);
-      const guestData = loadGuests();
-      setGuests(guestData?.filter(g => !g?.isDeleted));
+      const guestData = await loadGuests();
+      setGuests((guestData || []).filter(g => !g?.isDeleted));
     } catch (err) {
       console.error('[TRIPS] fetch error:', err);
       
@@ -169,9 +169,14 @@ const TripsManagementDashboard = () => {
     setPageLoading(false);
   };
 
-  const loadGuestsData = () => {
-    const data = loadGuests();
-    setGuests(data?.filter(g => !g?.isDeleted));
+  const loadGuestsData = async () => {
+    try {
+      const data = await loadGuests();
+      setGuests((data || []).filter(g => !g?.isDeleted));
+    } catch (err) {
+      console.error('[trips dashboard] loadGuestsData failed:', err);
+      setGuests([]);
+    }
   };
 
   // Separate trips by status

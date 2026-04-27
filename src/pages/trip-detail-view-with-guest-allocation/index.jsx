@@ -132,9 +132,14 @@ const TripDetailView = () => {
     setTrip(tripData);
   };
 
-  const loadGuestsData = () => {
-    const data = loadGuests();
-    setGuests(data?.filter(g => !g?.isDeleted));
+  const loadGuestsData = async () => {
+    try {
+      const data = await loadGuests();
+      setGuests((data || []).filter(g => !g?.isDeleted));
+    } catch (err) {
+      console.error('[trip detail] loadGuestsData failed:', err);
+      setGuests([]);
+    }
   };
 
   const loadPreferencesData = () => {
@@ -2714,11 +2719,26 @@ const PreferencesSection = ({ trip, tripId, permissions, onUpdate, navigate }) =
   const [searchParams, setSearchParams] = useSearchParams();
   const guestIdFromUrl = searchParams?.get('guestId');
   
-  // Get active guests for this trip
-  const allGuests = loadGuests();
-  const activeGuests = allGuests?.filter(g => 
+  // Get active guests for this trip. loadGuests is async (Supabase),
+  // so we hydrate via state + effect rather than the original
+  // sync render-time call (which returned a Promise and rendered as an
+  // empty list).
+  const [allGuests, setAllGuests] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await loadGuests();
+        if (!cancelled) setAllGuests(data || []);
+      } catch (err) {
+        console.error('[PreferencesSection] loadGuests failed:', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  const activeGuests = allGuests.filter(g =>
     trip?.guests?.some(tg => tg?.guestId === g?.id && tg?.isActive)
-  ) || [];
+  );
 
   // Current guest selection with URL param support
   const [currentGuestIndex, setCurrentGuestIndex] = useState(0);
