@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchOrderById, updateOrderStatus, updateOrderItem, fetchOrderActivity, fetchInvoiceSignedUrl } from '../utils/supplierStorage';
+import { fetchOrderById, updateOrderStatus, updateOrderItem, fetchOrderActivity, fetchInvoiceSignedUrl, quoteOrderItem, confirmOrderItem } from '../utils/supplierStorage';
 import { usePermission } from '../../../contexts/SupplierPermissionContext';
 import EditDeliveryModal from '../components/EditDeliveryModal';
 import ReassignModal from '../components/ReassignModal';
@@ -484,7 +484,174 @@ const ChatIcon = () => (
   </svg>
 );
 
-const ItemRow = ({ item, currency, canEdit, threadOpen, onToggleThread, onUpdate }) => {
+// ─── Status-aware price cell ─────────────────────────────────────────────
+//
+// Renders the Price column based on the line's quote_status. Encapsulates
+// the inline editor for awaiting_quote / declined states, the read-only
+// renderings for quoted / agreed / in_discussion, and the muted greyed-out
+// state for unavailable.
+//
+// Live-edit semantics:
+//   - draft state holds whatever the supplier types
+//   - blur OR Enter commits via onQuote
+//   - Esc reverts to the last server-confirmed value
+//   - Saves are debounced only by the explicit blur/Enter trigger — no
+//     auto-save on keystroke (safer; predictable behaviour)
+//
+// The auto-accept BEFORE trigger handles the rest. See migration
+// 20260429100100.
+
+const PriceCell = ({ item, currency, canEdit, onQuote }) => {
+  const status = item.quote_status || 'awaiting_quote';
+  const fallbackCurrency = item.estimated_currency || currency || 'EUR';
+
+  const editable = (status === 'awaiting_quote' || status === 'declined') && canEdit;
+
+  const [draft, setDraft] = useState(() =>
+    item.quoted_price != null
+      ? String(item.quoted_price)
+      : (item.estimated_price != null ? String(item.estimated_price) : '')
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Reset the draft whenever the upstream item changes (e.g. after a save
+  // round-trip, vessel decline that re-opens editing, etc.).
+  useEffect(() => {
+    setDraft(
+      item.quoted_price != null
+        ? String(item.quoted_price)
+        : (item.estimated_price != null ? String(item.estimated_price) : '')
+    );
+    setError(null);
+  }, [item.id, item.quoted_price, item.estimated_price, item.quote_status]);
+
+  const commit = async () => {
+    if (!editable || saving) return;
+    const trimmed = (draft ?? '').trim();
+    if (!trimmed) return; // empty = no save
+    const next = Number(trimmed);
+    if (Number.isNaN(next) || next < 0) {
+      setError('Invalid price');
+      return;
+    }
+    // No-op if the draft equals the current quoted_price — saves a round-trip.
+    if (item.quoted_price != null && Number(item.quoted_price) === next) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await onQuote(item.id, { quoted_price: next, quoted_currency: fallbackCurrency });
+    } catch (e) {
+      setError(e.message || 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onKeyDown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
+    else if (e.key === 'Escape') {
+      e.preventDefault();
+      setDraft(item.quoted_price != null ? String(item.quoted_price) : String(item.estimated_price ?? ''));
+      e.target.blur();
+    }
+  };
+
+  // Delta vs estimate for the active draft.
+  const draftNum = Number(draft);
+  const estNum = Number(item.estimated_price);
+  let deltaChip = null;
+  if (editable && !Number.isNaN(draftNum) && estNum > 0 && draftNum !== estNum) {
+    const pct = ((draftNum - estNum) / estNum) * 100;
+    const cls = pct >= 0 ? 'up' : 'down';
+    const sign = pct >= 0 ? '+' : '';
+    deltaChip = <span className={`sod-price-delta ${cls}`}>{sign}{pct.toFixed(1)}%</span>;
+  }
+
+  // ── Branch by status ──────────────────────────────────────────────────
+
+  if (status === 'unavailable') {
+    return (
+      <div className="sod-price-cell">
+        <span className="sod-price-readonly" style={{ color: 'var(--muted)' }}>—</span>
+      </div>
+    );
+  }
+
+  if (status === 'agreed') {
+    const agreedFmt = formatCurrency(item.agreed_price, item.agreed_currency || fallbackCurrency);
+    const drift = item.estimated_price != null
+      && item.agreed_price != null
+      && Number(item.estimated_price) !== Number(item.agreed_price);
+    return (
+      <div className="sod-price-cell">
+        <span className="sod-price-quoted-label">Agreed</span>
+        <span className="sod-price-readonly">{agreedFmt}</span>
+        {drift && (
+          <span className="sod-price-readonly-sub">
+            est. {formatCurrency(item.estimated_price, item.estimated_currency || fallbackCurrency)}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  if (status === 'quoted' || status === 'in_discussion') {
+    const quotedFmt = formatCurrency(item.quoted_price, item.quoted_currency || fallbackCurrency);
+    const estFmt = formatCurrency(item.estimated_price, item.estimated_currency || fallbackCurrency);
+    return (
+      <div className="sod-price-cell">
+        <span className="sod-price-quoted-label">
+          {status === 'in_discussion' ? 'Quoted (in query)' : 'Quoted · awaiting vessel'}
+        </span>
+        <span className="sod-price-readonly">{quotedFmt}</span>
+        {item.estimated_price != null && (
+          <span className="sod-price-readonly-sub">est. {estFmt}</span>
+        )}
+        {status === 'in_discussion' && (
+          <span className="sod-price-discussion-badge">In discussion</span>
+        )}
+      </div>
+    );
+  }
+
+  // awaiting_quote / declined → editable
+  return (
+    <div className="sod-price-cell">
+      <span className="sod-price-quoted-label">
+        {status === 'declined' ? 'Re-quote' : 'Your quote'}
+      </span>
+      <div className="sod-price-input-wrap">
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          className="sod-price-input"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={onKeyDown}
+          disabled={!canEdit || saving}
+          title={canEdit ? 'Set your quoted price — Enter to save, Esc to revert' : NO_PERMISSION_TITLE}
+        />
+        <span className="sod-price-input-currency">{fallbackCurrency}</span>
+        {deltaChip}
+      </div>
+      {item.estimated_price != null && (
+        <span className="sod-price-readonly-sub">
+          est. {formatCurrency(item.estimated_price, item.estimated_currency || fallbackCurrency)}
+        </span>
+      )}
+      {status === 'declined' && (
+        <span className="sod-price-declined-tag">Declined — adjust and confirm</span>
+      )}
+      {saving && <span className="sod-price-saving">saving…</span>}
+      {error && <span className="sod-price-saving" style={{ color: 'var(--red)' }}>{error}</span>}
+    </div>
+  );
+};
+
+const ItemRow = ({ item, currency, canEdit, threadOpen, onToggleThread, onUpdate, onQuote }) => {
   const status = item.status || 'pending';
   const rowClass = STATUS_TO_ROW_CLASS[status] || '';
   const labelClass = STATUS_TO_LABEL_CLASS[status] || '';
@@ -581,10 +748,7 @@ const ItemRow = ({ item, currency, canEdit, threadOpen, onToggleThread, onUpdate
           {/* TODO(schema): item.pack */}
         </td>
         <td>
-          <div className="sod-price">
-            {formatCurrency(unitPrice, currency)}
-            {/* TODO(out-of-scope): cross-yacht price intelligence line */}
-          </div>
+          <PriceCell item={item} currency={currency} canEdit={canEdit} onQuote={onQuote} />
         </td>
         <td>
           <div className="sod-row-actions">
@@ -658,6 +822,7 @@ const ItemsCard = ({
   openThreadId,
   onToggleThread,
   onItemUpdate,
+  onItemQuote,
   onConfirmAll,
 }) => {
   const itemCount = items.length;
@@ -742,6 +907,7 @@ const ItemsCard = ({
               threadOpen={openThreadId === item.id}
               onToggleThread={onToggleThread}
               onUpdate={onItemUpdate}
+              onQuote={onItemQuote}
             />
           ))}
         </tbody>
@@ -1165,15 +1331,42 @@ const SupplierOrderDetail = () => {
     }
   }, [orderId, refetchActivity]);
 
-  const handleItemUpdate = useCallback(async (itemId, updates) => {
-    const updated = await updateOrderItem(itemId, updates);
+  // Merge an updated supplier_order_items row back into local state.
+  const mergeItem = useCallback((updated) => {
+    if (!updated?.id) return;
     setOrder((prev) => prev ? {
       ...prev,
       supplier_order_items: prev.supplier_order_items.map((i) =>
-        i.id === itemId ? { ...i, ...updated } : i
+        i.id === updated.id ? { ...i, ...updated } : i
       ),
     } : prev);
   }, []);
+
+  // Status / sub / unavailable / reset-to-pending. The 'confirmed' branch
+  // routes through confirmOrderItem so the quote auto-seeds at
+  // estimated_price (which lets the auto-accept BEFORE trigger flip the
+  // line straight to quote_status='agreed' on the no-change path).
+  const handleItemUpdate = useCallback(async (itemId, updates) => {
+    let updated;
+    if (updates && updates.status === 'confirmed') {
+      updated = await confirmOrderItem(itemId, {
+        quoted_price: updates.quoted_price,
+        quoted_currency: updates.quoted_currency,
+      });
+    } else {
+      updated = await updateOrderItem(itemId, updates);
+    }
+    mergeItem(updated);
+    refetchActivity();
+  }, [mergeItem, refetchActivity]);
+
+  // Pure quote save — supplier types a price into the inline input.
+  // The auto-accept BEFORE trigger handles the rest server-side.
+  const handleItemQuote = useCallback(async (itemId, payload) => {
+    const updated = await quoteOrderItem(itemId, payload);
+    mergeItem(updated);
+    refetchActivity();
+  }, [mergeItem, refetchActivity]);
 
   const handleConfirmAll = useCallback(async () => {
     if (!window.confirm('Confirm every pending item on this order?')) return;
@@ -1332,6 +1525,7 @@ const SupplierOrderDetail = () => {
         openThreadId={openThreadId}
         onToggleThread={toggleThread}
         onItemUpdate={handleItemUpdate}
+        onItemQuote={handleItemQuote}
         onConfirmAll={handleConfirmAll}
       />
 
