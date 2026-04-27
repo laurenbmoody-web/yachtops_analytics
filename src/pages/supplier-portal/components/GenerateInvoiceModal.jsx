@@ -122,7 +122,7 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
       const rate = bondedSupply ? 0 : (cat?.rate ?? 0);
       const label = bondedSupply ? 'Bonded supply' : (cat?.label || 'Standard');
       const qty = Number(it.quantity) || 0;
-      const price = Number(it.unit_price) || 0;
+      const price = Number(it.agreed_price ?? it.unit_price) || 0;
       const taxable = qty * price;
       const vat = taxable * rate / 100;
       return { item: it, catKey, rate, label, taxable, vat, total: taxable + vat };
@@ -344,7 +344,7 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
                   <strong>{it.item_name}</strong>
                   <span style={{ color: 'var(--muted-strong)', marginLeft: 6 }}>
                     {it.quantity}{it.unit ? ' ' + it.unit : ''} ·{' '}
-                    {fmtMoney(it.unit_price, currency)}
+                    {fmtMoney(it.agreed_price ?? it.unit_price, currency)}
                   </span>
                 </div>
                 <select
