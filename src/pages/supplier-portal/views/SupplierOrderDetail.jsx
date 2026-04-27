@@ -930,6 +930,21 @@ const fmtActivityEvent = (event) => {
         title: <>Status: {event.payload?.from} → <strong>{event.payload?.to}</strong></>,
         sub: `By ${actor}`,
       };
+    case 'invoice_generated': {
+      const cur = event.payload?.currency || 'EUR';
+      const amt = event.payload?.amount;
+      let amtStr = '';
+      if (amt != null) {
+        try {
+          amtStr = ' · ' + new Intl.NumberFormat('en-US', { style: 'currency', currency: cur }).format(Number(amt));
+        } catch { amtStr = ` · ${cur} ${Number(amt).toFixed(2)}`; }
+      }
+      return {
+        when, dotClass: 'sod-act-done',
+        title: <>Invoice <strong>{event.payload?.invoice_number || 'issued'}</strong>{amtStr}{event.payload?.bonded_supply ? ' · bonded' : ''}</>,
+        sub: `By ${actor}`,
+      };
+    }
     case 'item_confirmed':
     case 'item_substituted':
     case 'item_unavailable':
