@@ -27,6 +27,7 @@ import {
   fetchUserNames,
   fetchOrderHistory,
   fetchSupplierOrders,
+  fetchInvoiceSignedUrl,
   PROVISIONING_STATUS,
   PROVISION_CATEGORIES,
   PROVISION_UNITS,
@@ -2104,6 +2105,50 @@ const ProvisioningBoardDetail = () => {
                         <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20, background: statusColor.bg, color: statusColor.text, flexShrink: 0 }}>
                           {order.status === 'partially_confirmed' ? 'Partial' : order.status?.charAt(0).toUpperCase() + order.status?.slice(1)}
                         </span>
+                        {(() => {
+                          // Most-recent invoice received from the supplier, if any.
+                          const invoices = order.supplier_invoices || [];
+                          if (invoices.length === 0) return null;
+                          const invoice = [...invoices].sort((a, b) =>
+                            (b.created_at || '').localeCompare(a.created_at || '')
+                          )[0];
+                          const handleClick = async (e) => {
+                            e.stopPropagation();
+                            try {
+                              const res = await fetchInvoiceSignedUrl(invoice.id);
+                              if (res?.signed_url) {
+                                window.open(res.signed_url, '_blank', 'noopener');
+                              } else {
+                                window.alert('Could not open invoice — no signed URL returned.');
+                              }
+                            } catch (err) {
+                              window.alert(`Could not open invoice: ${err.message}`);
+                            }
+                          };
+                          const fmt = (a, c = 'EUR') => {
+                            try {
+                              return new Intl.NumberFormat('en-US', { style: 'currency', currency: c }).format(Number(a) || 0);
+                            } catch { return `${c} ${Number(a || 0).toFixed(2)}`; }
+                          };
+                          return (
+                            <button
+                              type="button"
+                              onClick={handleClick}
+                              title={`Invoice ${invoice.invoice_number} · click to open`}
+                              style={{
+                                fontSize: 11, fontWeight: 600,
+                                padding: '3px 10px', borderRadius: 20,
+                                background: '#FED7AA', color: '#9A3412',
+                                border: 'none', cursor: 'pointer',
+                                flexShrink: 0,
+                                display: 'inline-flex', alignItems: 'center', gap: 5,
+                              }}
+                            >
+                              <span aria-hidden="true">📄</span>
+                              Invoice · {fmt(invoice.amount, invoice.currency)}
+                            </button>
+                          );
+                        })()}
                         {order.sent_via && (
                           order.sent_via === 'both' ? (
                             <>
