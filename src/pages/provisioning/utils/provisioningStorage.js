@@ -2184,3 +2184,38 @@ export const confirmSupplierOrder = async (orderId, supplierNotes = '') => {
   if (error) throw error;
   return data;
 };
+
+// ─── Quote workflow (Sprint 9.5 — vessel side) ──────────────────────────────
+//
+// Each helper just calls a SECURITY DEFINER RPC defined in migration
+// 20260429100300. The RPCs do their own auth checks against
+// tenant_members via the order's provisioning_list, so no client-side
+// permission work is needed here.
+
+// Accept the supplier's quoted price on a single line. Server copies
+// quoted_price → agreed_price and flips quote_status to 'agreed'.
+// Valid from 'quoted' or 'in_discussion'.
+export const acceptOrderItemQuote = async (itemId) => {
+  const { data, error } = await supabase.rpc('accept_order_item_quote', { p_item_id: itemId });
+  if (error) throw error;
+  return data;
+};
+
+// Decline the supplier's quoted price. Server clears agreed_* and flips
+// quote_status to 'declined'. Supplier sees the line return to
+// re-quotable state.
+export const declineOrderItemQuote = async (itemId) => {
+  const { data, error } = await supabase.rpc('decline_order_item_quote', { p_item_id: itemId });
+  if (error) throw error;
+  return data;
+};
+
+// Open a query / discussion thread on a quoted line. Server flips
+// quote_status to 'in_discussion'. Threading itself is a future sprint
+// — this just marks the line so the supplier knows the vessel has a
+// question.
+export const queryOrderItemQuote = async (itemId) => {
+  const { data, error } = await supabase.rpc('query_order_item_quote', { p_item_id: itemId });
+  if (error) throw error;
+  return data;
+};
