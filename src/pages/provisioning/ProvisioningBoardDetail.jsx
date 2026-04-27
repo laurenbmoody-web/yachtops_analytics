@@ -55,6 +55,7 @@ import {
 import SummaryGauges from './components/SummaryGauges';
 import { getActivityForEntity } from '../../utils/activityStorage';
 import { supabase } from '../../lib/supabaseClient';
+import { getCategoryColor, hexToRgba } from './data/categories';
 
 // ── (SummaryGauges, SemiGauge, useCountUp live in components/SummaryGauges.jsx) ─
 
@@ -183,6 +184,10 @@ const ProvisioningBoardDetail = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [deptFilter, setDeptFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [groupBy, setGroupBy] = useState('category'); // 'category' | 'none'
+  const [collapsedCategories, setCollapsedCategories] = useState(new Set());
+  const [sortColumn, setSortColumn] = useState('item');
+  const [sortDirection, setSortDirection] = useState('asc');
   const [addingToDept, setAddingToDept] = useState(null);
   const [newItemName, setNewItemName] = useState('');
   const [showMenu, setShowMenu] = useState(false);
@@ -774,6 +779,72 @@ const ProvisioningBoardDetail = () => {
     return ordered;
   }, [filteredItems, addingToDept, departments, showReceived]);
 
+  // ── Sorting ──────────────────────────────────────────────────────────────
+  const handleSort = (col) => {
+    if (sortColumn === col) {
+      setSortDirection(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(col);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortItems = useCallback((arr) => {
+    const sorted = [...arr];
+    sorted.sort((a, b) => {
+      switch (sortColumn) {
+        case 'item':      return (a.name || '').localeCompare(b.name || '');
+        case 'category':  return (a.category || '').localeCompare(b.category || '');
+        case 'qty':       return (Number(a.quantity_ordered) || 0) - (Number(b.quantity_ordered) || 0);
+        case 'unit_cost': return (Number(a.estimated_unit_cost) || 0) - (Number(b.estimated_unit_cost) || 0);
+        case 'total': {
+          const at = (Number(a.quantity_ordered) || 0) * (Number(a.estimated_unit_cost) || 0);
+          const bt = (Number(b.quantity_ordered) || 0) * (Number(b.estimated_unit_cost) || 0);
+          return at - bt;
+        }
+        case 'status':    return (a.status || '').localeCompare(b.status || '');
+        default:          return 0;
+      }
+    });
+    return sortDirection === 'desc' ? sorted.reverse() : sorted;
+  }, [sortColumn, sortDirection]);
+
+  // ── Category collapse ────────────────────────────────────────────────────
+  const toggleCategory = (key) => {
+    setCollapsedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  // Seed collapse state once: collapse all but first 2 categories per dept
+  // on first load. Skipped after the user has interacted.
+  const collapsedSeededRef = useRef(false);
+  useEffect(() => {
+    if (groupBy !== 'category') return;
+    if (collapsedSeededRef.current) return;
+    if (collapsedCategories.size > 0) return;
+    if (deptGroups.length === 0) return;
+
+    const seed = new Set();
+    for (const { dept, items: deptItems } of deptGroups) {
+      const cats = new Set();
+      for (const it of deptItems) cats.add(it.category || 'Uncategorised');
+      const sortedCats = Array.from(cats).sort((a, b) => {
+        if (a === 'Uncategorised') return 1;
+        if (b === 'Uncategorised') return -1;
+        return a.localeCompare(b);
+      });
+      sortedCats.slice(2).forEach(cat => seed.add(`${dept}::${cat}`));
+    }
+    if (seed.size > 0) {
+      setCollapsedCategories(seed);
+    }
+    collapsedSeededRef.current = true;
+  }, [deptGroups, groupBy, collapsedCategories.size]);
+
   const grandTotals = useMemo(() => items.reduce((acc, i) => {
     const qty = parseFloat(i.quantity_ordered) || 0;
     const qtyRec = parseFloat(i.quantity_received) || 0;
@@ -1282,6 +1353,28 @@ const ProvisioningBoardDetail = () => {
                 Clear filters
               </button>
             )}
+            {/* Group by toggle */}
+            <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-full text-sm">
+              <span className="text-slate-500 px-2">Group by</span>
+              <button
+                onClick={() => setGroupBy('category')}
+                className={groupBy === 'category'
+                  ? 'bg-white px-3 py-1 rounded-full font-medium text-slate-900'
+                  : 'px-3 py-1 rounded-full text-slate-500 hover:text-slate-700'
+                }
+              >
+                Category
+              </button>
+              <button
+                onClick={() => setGroupBy('none')}
+                className={groupBy === 'none'
+                  ? 'bg-white px-3 py-1 rounded-full font-medium text-slate-900'
+                  : 'px-3 py-1 rounded-full text-slate-500 hover:text-slate-700'
+                }
+              >
+                None
+              </button>
+            </div>
             {/* Show received toggle */}
             <button
               type="button"
@@ -1394,15 +1487,51 @@ const ProvisioningBoardDetail = () => {
                             style={{ width: 13, height: 13, accentColor: '#1D9E75', cursor: 'pointer' }}
                           />
                         </div>
-                        {['Item', 'Category', 'Size', 'Unit', 'Qty', 'Unit Cost', 'Total', 'Status', ''].map((h) => (
-                          <div key={h} style={{ fontSize: 9, fontWeight: 700, color: '#CBD5E1', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '10px 8px', display: 'flex', alignItems: 'center' }}>
-                            {h}
-                          </div>
-                        ))}
+                        {[
+                          { label: 'Item',      key: 'item' },
+                          { label: 'Category',  key: 'category' },
+                          { label: 'Size',      key: null },
+                          { label: 'Unit',      key: null },
+                          { label: 'Qty',       key: 'qty' },
+                          { label: 'Unit Cost', key: 'unit_cost' },
+                          { label: 'Total',     key: 'total' },
+                          { label: 'Status',    key: 'status' },
+                          { label: '',          key: null },
+                        ].map(({ label, key }, idx) => {
+                          const sortable = !!key;
+                          const active = sortable && sortColumn === key;
+                          return (
+                            <div
+                              key={`${label}-${idx}`}
+                              onClick={sortable ? () => handleSort(key) : undefined}
+                              style={{
+                                fontSize: 9,
+                                fontWeight: 700,
+                                color: active ? '#1E3A5F' : '#CBD5E1',
+                                letterSpacing: '0.1em',
+                                textTransform: 'uppercase',
+                                padding: '10px 8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                cursor: sortable ? 'pointer' : 'default',
+                                userSelect: sortable ? 'none' : undefined,
+                              }}
+                            >
+                              {label}
+                              {active && (
+                                <span style={{ fontSize: 9, color: '#1E3A5F' }}>
+                                  {sortDirection === 'asc' ? '▲' : '▼'}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
 
                       {/* Item rows */}
-                      {deptItems.map((item, rowIdx) => {
+                      {(() => {
+                        const renderItemRow = (item, rowIdx, totalRows) => {
                         const badge = STATUS_BADGE[item.status] || STATUS_BADGE.draft;
                         const isHovered = hoveredRow === item.id;
                         const isEditing = editingCell?.itemId === item.id;
@@ -1433,7 +1562,7 @@ const ProvisioningBoardDetail = () => {
                             style={{
                               display: 'grid', gridTemplateColumns: TABLE_GRID, gap: 0, padding: '0 16px',
                               background: lockedBg || (item.status === 'received' ? '#F8FAFC' : allergen ? '#FFFBEB' : isHovered ? '#FAFCFF' : 'white'),
-                              borderBottom: rowIdx < deptItems.length - 1 ? '1px solid #F8FAFC' : 'none',
+                              borderBottom: rowIdx < totalRows - 1 ? '1px solid #F8FAFC' : 'none',
                               transition: 'background 0.1s',
                               opacity: isLocked && itemOrder.status === 'unavailable' ? 0.7 : 1,
                             }}
@@ -1628,7 +1757,71 @@ const ProvisioningBoardDetail = () => {
                             </div>
                           </div>
                         );
-                      })}
+                        };
+
+                        if (groupBy === 'category') {
+                          const catMap = new Map();
+                          for (const it of deptItems) {
+                            const k = it.category || 'Uncategorised';
+                            if (!catMap.has(k)) catMap.set(k, []);
+                            catMap.get(k).push(it);
+                          }
+                          const catEntries = Array.from(catMap.entries()).sort(([a], [b]) => {
+                            if (a === 'Uncategorised') return 1;
+                            if (b === 'Uncategorised') return -1;
+                            return a.localeCompare(b);
+                          });
+
+                          return catEntries.map(([category, catItems]) => {
+                            const color = getCategoryColor(category);
+                            const key = `${dept}::${category}`;
+                            const isCollapsed = collapsedCategories.has(key);
+                            const subtotal = catItems.reduce((sum, i) => {
+                              const cost = parseFloat(i.estimated_unit_cost) || 0;
+                              const qty  = parseFloat(i.quantity_ordered) || 0;
+                              const iCurr = i.currency || currency;
+                              return sum + qty * ((cost / (fxRates[iCurr] || 1)) * (fxRates[dispCurr] || 1));
+                            }, 0);
+                            const sortedRows = sortItems(catItems);
+
+                            return (
+                              <React.Fragment key={key}>
+                                <div
+                                  onClick={() => toggleCategory(key)}
+                                  style={{
+                                    background: hexToRgba(color, 0.08),
+                                    borderLeft: `4px solid ${color}`,
+                                    padding: '10px 16px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    cursor: 'pointer',
+                                    borderTop: '1px solid #F1F5F9',
+                                    transition: 'filter 0.15s',
+                                  }}
+                                  onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(0.97)'; }}
+                                  onMouseLeave={e => { e.currentTarget.style.filter = 'none'; }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <span style={{ color, fontSize: 12 }}>{isCollapsed ? '▸' : '▾'}</span>
+                                    <span style={{ color, fontWeight: 500, fontSize: 13 }}>{category}</span>
+                                    <span style={{ fontSize: 12, color: '#64748B' }}>
+                                      {catItems.length} {catItems.length === 1 ? 'item' : 'items'}
+                                    </span>
+                                  </div>
+                                  <span style={{ color, fontWeight: 500, fontSize: 13 }}>
+                                    {dispSymbol}{subtotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                  </span>
+                                </div>
+                                {!isCollapsed && sortedRows.map((item, idx) => renderItemRow(item, idx, sortedRows.length))}
+                              </React.Fragment>
+                            );
+                          });
+                        }
+
+                        const sortedFlat = sortItems(deptItems);
+                        return sortedFlat.map((item, idx) => renderItemRow(item, idx, sortedFlat.length));
+                      })()}
 
                       {/* Subtotal row */}
                       <div style={{ display: 'grid', gridTemplateColumns: TABLE_GRID, gap: 0, padding: '0 16px', background: '#FAFAFA', borderTop: '1px solid #F1F5F9' }}>
