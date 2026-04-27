@@ -69,17 +69,23 @@ const TripPreferencesView = () => {
     setTrip(tripData);
   };
 
-  const loadGuestsData = () => {
-    const allGuests = loadGuests();
-    const tripData = getTripById(tripId);
-    if (tripData) {
-      const tripGuests = allGuests?.filter(g => 
-        !g?.isDeleted && tripData?.guestIds?.includes(g?.id)
-      );
-      setGuests(tripGuests);
-      if (tripGuests?.length > 0 && !selectedGuestId) {
-        setSelectedGuestId(tripGuests?.[0]?.id);
+  const loadGuestsData = async () => {
+    try {
+      const data = await loadGuests();
+      const allGuests = data || [];
+      const tripData = getTripById(tripId);
+      if (tripData) {
+        const tripGuests = allGuests.filter(g =>
+          !g?.isDeleted && tripData?.guestIds?.includes(g?.id)
+        );
+        setGuests(tripGuests);
+        if (tripGuests.length > 0 && !selectedGuestId) {
+          setSelectedGuestId(tripGuests[0]?.id);
+        }
       }
+    } catch (err) {
+      console.error('[trip-preferences-view] loadGuestsData failed:', err);
+      setGuests([]);
     }
   };
 
