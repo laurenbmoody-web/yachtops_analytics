@@ -1119,6 +1119,52 @@ const fmtActivityEvent = (event) => {
         title: <>{event.payload?.item_name || 'Item'} {event.event_type.replace('item_', '')}</>,
         sub: `By ${actor}`,
       };
+
+    // Sprint 9.5 quote workflow events. Use the same fmt-money helper
+    // pattern as invoice_generated so currency falls back gracefully.
+    case 'quote_received': {
+      const cur = event.payload?.quoted_currency || 'EUR';
+      const amt = event.payload?.quoted_price;
+      let amtStr = '';
+      if (amt != null) {
+        try { amtStr = new Intl.NumberFormat('en-US', { style: 'currency', currency: cur }).format(Number(amt)); }
+        catch { amtStr = `${cur} ${Number(amt).toFixed(2)}`; }
+      }
+      const auto = event.payload?.auto_accepted;
+      return {
+        when,
+        dotClass: auto ? 'sod-act-done' : '',
+        title: <>Quote received — <em>{event.payload?.item_name || 'item'}</em>{amtStr ? ` at ${amtStr}` : ''}{auto ? ' · auto-accepted' : ''}</>,
+        sub: `By ${actor}`,
+      };
+    }
+    case 'quote_accepted': {
+      const cur = event.payload?.agreed_currency || 'EUR';
+      const amt = event.payload?.agreed_price;
+      let amtStr = '';
+      if (amt != null) {
+        try { amtStr = new Intl.NumberFormat('en-US', { style: 'currency', currency: cur }).format(Number(amt)); }
+        catch { amtStr = `${cur} ${Number(amt).toFixed(2)}`; }
+      }
+      return {
+        when,
+        dotClass: 'sod-act-done',
+        title: <>Quote accepted — <em>{event.payload?.item_name || 'item'}</em>{amtStr ? ` at ${amtStr}` : ''}</>,
+        sub: `By ${actor}`,
+      };
+    }
+    case 'quote_declined':
+      return {
+        when, dotClass: '',
+        title: <>Quote declined — <em>{event.payload?.item_name || 'item'}</em></>,
+        sub: `By ${actor}`,
+      };
+    case 'discussion_opened':
+      return {
+        when, dotClass: '',
+        title: <>Query raised — <em>{event.payload?.item_name || 'item'}</em></>,
+        sub: `By ${actor}`,
+      };
     default:
       return { when, dotClass: '', title: event.event_type, sub: actor };
   }
