@@ -101,6 +101,18 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
   const taxName = getTaxNameForSupplier(supplier);
   const ready = useMemo(() => isInvoicingReady(supplier), [supplier]);
 
+  // Sprint 9.5: count items not yet in a billable state. Server-side check
+  // in generateSupplierInvoice/index.ts is the canonical guard; this banner
+  // surfaces the same constraint client-side so the supplier doesn't waste
+  // a click.
+  const blockingItems = useMemo(() => {
+    if (!Array.isArray(items)) return [];
+    return items.filter((it) => {
+      const qs = it.quote_status;
+      return qs && qs !== 'agreed' && qs !== 'unavailable';
+    });
+  }, [items]);
+
   // ─── Live totals ────────────────────────────────────────────────────────
   const computed = useMemo(() => {
     if (!items) return { lines: [], subtotal: 0, vatTotal: 0, total: 0, breakdown: [] };
@@ -137,6 +149,7 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
   // ─── Submit ────────────────────────────────────────────────────────────
   const handleGenerate = async () => {
     if (!ready.ready) return;
+    if (blockingItems.length > 0) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -238,13 +251,33 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
             type="button"
             className="sp-btn sp-btn-primary"
             onClick={handleGenerate}
-            disabled={submitting || !items || items.length === 0}
+            disabled={submitting || !items || items.length === 0 || blockingItems.length > 0}
+            title={blockingItems.length > 0
+              ? `${blockingItems.length} line${blockingItems.length === 1 ? '' : 's'} still awaiting agreement`
+              : undefined}
           >
             {submitting ? 'Generating…' : 'Generate invoice'}
           </button>
         </>
       }
     >
+      {/* Awaiting-agreement banner — blocks Generate until every line is
+          agreed (or unavailable). Server-side guard in generateSupplierInvoice
+          mirrors this so a manual API call can't bypass it. */}
+      {blockingItems.length > 0 && (
+        <div style={{
+          padding: '10px 14px',
+          background: '#FEE2E2', border: '1px solid #FCA5A5',
+          borderRadius: 8, fontSize: 12.5, color: '#991B1B',
+          marginBottom: 14, lineHeight: 1.5,
+        }}>
+          <strong>{blockingItems.length} line{blockingItems.length === 1 ? '' : 's'} still awaiting agreement.</strong>{' '}
+          Resolve all quotes before generating an invoice. Items pending:{' '}
+          {blockingItems.slice(0, 3).map((it) => it.item_name).join(', ')}
+          {blockingItems.length > 3 && ` +${blockingItems.length - 3} more`}.
+        </div>
+      )}
+
       {/* Disclaimer */}
       <div style={{
         padding: '10px 14px',

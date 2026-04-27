@@ -202,7 +202,7 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
 
   const itemRows = input.items.map((it: any) => {
     const qty = `${it.quantity ?? ''}${it.unit ? ' ' + escapeHtml(it.unit) : ''}`.trim();
-    const unitPrice = `${cur} ${fmtAmount(Number(it.unit_price) || 0)}`;
+    const unitPrice = `${cur} ${fmtAmount(Number(it.agreed_price ?? it.unit_price) || 0)}`;
     const rate = `${(it._effectiveRate ?? 0).toFixed(1)}%`;
     const lineTotal = `${cur} ${fmtAmount(it._lineTotal ?? 0)}`;
     return `
@@ -490,6 +490,7 @@ interface ComputedLine {
   quantity: number;
   unit: string | null;
   unit_price: number;
+  unit_currency: string | null;
   vat_category_key: string;
   vat_rate: number;     // effective rate after bonded check
   vat_label: string;
@@ -505,7 +506,13 @@ function computeLines(items: any[], optionsLines: any[], bonded: boolean): Compu
     const rawRate = bonded ? 0 : (Number(meta.rate) || 0);
     const rate = Math.max(0, Math.min(100, rawRate));
     const qty = Number(it.quantity) || 0;
-    const price = Number(it.unit_price) || 0;
+    // Sprint 9.5: read agreed_price (the negotiated value). Fall back to
+    // unit_price for legacy rows backfilled from before the split — the
+    // 20260429100000 migration set agreed_price = unit_price for confirmed/
+    // substituted lines, so the fallback only matters for rows that
+    // somehow slipped through without backfill.
+    const price = Number(it.agreed_price ?? it.unit_price) || 0;
+    const currency = it.agreed_currency ?? it.estimated_currency ?? null;
     const taxable = qty * price;
     const vat = taxable * rate / 100;
     return {
@@ -514,6 +521,7 @@ function computeLines(items: any[], optionsLines: any[], bonded: boolean): Compu
       quantity: qty,
       unit: it.unit ?? null,
       unit_price: price,
+      unit_currency: currency,
       vat_category_key: bonded ? 'bonded' : (meta.category_key || 'standard'),
       vat_rate: rate,
       vat_label: bonded ? 'Bonded supply' : (meta.label || 'Standard'),
@@ -589,6 +597,25 @@ Deno.serve(async (req: Request) => {
     }
     const items: any[] = order.supplier_order_items || [];
     if (items.length === 0) return jsonResponse({ error: 'Order has no line items' }, 400);
+
+    // Sprint 9.5 precondition: every line must be agreed or unavailable
+    // before we'll generate an invoice. The Generate Invoice modal surfaces
+    // the same check client-side, but this is the canonical guard.
+    const blockingLines = items.filter((it: any) => {
+      const qs = it.quote_status;
+      return qs && qs !== 'agreed' && qs !== 'unavailable';
+    });
+    if (blockingLines.length > 0) {
+      return jsonResponse({
+        error: `Cannot generate invoice — ${blockingLines.length} line${blockingLines.length === 1 ? '' : 's'} still awaiting agreement`,
+        blocking_count: blockingLines.length,
+        blocking_items: blockingLines.map((it: any) => ({
+          id: it.id,
+          item_name: it.item_name,
+          quote_status: it.quote_status,
+        })),
+      }, 400);
+    }
 
     // 3) Fetch supplier profile
     const profiles = await restGet<any[]>(`supplier_profiles?id=eq.${supplierId}&select=*`);
@@ -708,11 +735,16 @@ Deno.serve(async (req: Request) => {
     });
     const invoice = Array.isArray(inserted) ? inserted[0] : inserted;
 
-    // 10) Snapshot per-line VAT onto supplier_order_items
+    // 10) Snapshot per-line VAT + invoiced price onto supplier_order_items.
+    // invoiced_price catches any divergence between agreed_price and what
+    // actually got billed — Sprint 10's reconciliation view will flag
+    // mismatches.
     await Promise.all(computed.map((l) =>
       restPatch(`supplier_order_items?id=eq.${l.item_id}`, {
         vat_category_key: l.vat_category_key,
         vat_rate_snapshot: l.vat_rate,
+        invoiced_price: l.unit_price,
+        invoiced_currency: l.unit_currency ?? supplier.default_currency ?? null,
       })
     ));
 
