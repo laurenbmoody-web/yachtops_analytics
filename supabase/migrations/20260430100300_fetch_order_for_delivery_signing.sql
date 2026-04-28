@@ -18,6 +18,19 @@
 -- authorisation. The RPC returns NULL on unknown tokens — never leaks
 -- which orders exist.
 --
+-- Implementation notes (from the working version Lauren tested live):
+--   - The order envelope is built via to_jsonb(v_order) THEN stripped of
+--     delivery_signing_token in a second statement. Inline subtraction
+--     (to_jsonb(v_order) - 'delivery_signing_token') tripped a parser
+--     edge case in the deployed Postgres.
+--   - Items are aggregated via a subquery rather than a direct
+--     jsonb_agg(jsonb_build_object(...) ORDER BY ...) — clearer plan,
+--     and lets us project only the fields the signer needs to see.
+--   - Items ordered by updated_at (created_at column doesn't exist on
+--     supplier_order_items).
+--   - Pricing intentionally excluded from the items projection: this is
+--     a fulfilment confirmation, not a billing confirmation.
+--
 -- The supplementary edge function `signDeliveryNote` (Commit 6) writes the
 -- actual signature back; this RPC is read-only.
 
@@ -28,11 +41,10 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_order   public.supplier_orders%ROWTYPE;
-  v_supplier_name        text;
-  v_supplier_id          uuid;
-  v_supplier_city        text;
-  v_items                jsonb;
+  v_order        public.supplier_orders;
+  v_supplier     public.supplier_profiles;
+  v_items        jsonb;
+  v_order_jsonb  jsonb;
 BEGIN
   IF p_token IS NULL OR length(p_token) < 16 THEN
     RETURN NULL;
@@ -43,52 +55,38 @@ BEGIN
   WHERE delivery_signing_token = p_token
   LIMIT 1;
 
-  IF NOT FOUND THEN
+  IF v_order.id IS NULL THEN
     RETURN NULL;
   END IF;
 
-  -- Supplier display info
-  SELECT id, name, business_city
-    INTO v_supplier_id, v_supplier_name, v_supplier_city
-  FROM public.supplier_profiles
-  WHERE id = v_order.supplier_profile_id;
+  -- Build the order envelope. Strip the signing token in a second statement
+  -- so the wire payload never echoes back the capability secret — even
+  -- though the caller already had it to make the request, returning it
+  -- would be a needless surface.
+  v_order_jsonb := to_jsonb(v_order);
+  v_order_jsonb := v_order_jsonb - 'delivery_signing_token';
 
-  -- Line items for the receipt — only the fields the signer needs to see.
-  -- Pricing is intentionally omitted: this is a fulfilment confirmation,
-  -- not a billing confirmation.
-  SELECT COALESCE(jsonb_agg(jsonb_build_object(
-    'id',                     i.id,
-    'item_name',              i.item_name,
-    'quantity',               i.quantity,
-    'unit',                   i.unit,
-    'notes',                  i.notes,
-    'substitute_description', i.substitute_description,
-    'status',                 i.status,
-    'quote_status',           i.quote_status
-  ) ORDER BY i.created_at), '[]'::jsonb)
-    INTO v_items
-  FROM public.supplier_order_items i
-  WHERE i.order_id = v_order.id;
+  SELECT * INTO v_supplier
+  FROM public.supplier_profiles
+  WHERE id = v_order.supplier_profile_id
+  LIMIT 1;
+
+  -- Project only the line-item fields the signer needs to confirm the
+  -- delivery. Pricing intentionally omitted.
+  SELECT COALESCE(jsonb_agg(row_to_json(i)::jsonb ORDER BY i.updated_at), '[]'::jsonb)
+  INTO v_items
+  FROM (
+    SELECT
+      id, item_name, quantity, unit, notes,
+      substitute_description, status, quote_status, updated_at
+    FROM public.supplier_order_items
+    WHERE order_id = v_order.id
+  ) i;
 
   RETURN jsonb_build_object(
-    'order', jsonb_build_object(
-      'id',                            v_order.id,
-      'vessel_name',                   v_order.vessel_name,
-      'delivery_date',                 v_order.delivery_date,
-      'delivery_time',                 v_order.delivery_time,
-      'delivery_port',                 v_order.delivery_port,
-      'delivery_contact',              v_order.delivery_contact,
-      'status',                        v_order.status,
-      'crew_signed_at',                v_order.crew_signed_at,
-      'crew_signer_name',              v_order.crew_signer_name,
-      'delivery_note_generated_at',    v_order.delivery_note_generated_at
-    ),
-    'supplier', jsonb_build_object(
-      'id',            v_supplier_id,
-      'name',          v_supplier_name,
-      'business_city', v_supplier_city
-    ),
-    'items', v_items
+    'order',    v_order_jsonb,
+    'supplier', COALESCE(to_jsonb(v_supplier), 'null'::jsonb),
+    'items',    v_items
   );
 END;
 $$;
