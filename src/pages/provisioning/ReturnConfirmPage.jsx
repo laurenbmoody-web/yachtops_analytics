@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
+import SignaturePad from '../../components/SignaturePad';
 
 const CheckIcon = ({ size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, display: 'block' }}>
@@ -7,88 +8,6 @@ const CheckIcon = ({ size = 16 }) => (
     <path d="M5 8l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 );
-
-// ── Signature pad ─────────────────────────────────────────────────────────────
-
-const SignaturePad = ({ onSign }) => {
-  const canvasRef = useRef(null);
-  const [drawing, setDrawing] = useState(false);
-  const [hasStrokes, setHasStrokes] = useState(false);
-
-  const getPos = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect();
-    const touch = e.touches?.[0];
-    return {
-      x: (touch ? touch.clientX : e.clientX) - rect.left,
-      y: (touch ? touch.clientY : e.clientY) - rect.top,
-    };
-  };
-
-  const startDraw = useCallback((e) => {
-    e.preventDefault();
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-    const { x, y } = getPos(e);
-    ctx.beginPath(); ctx.moveTo(x, y);
-    setDrawing(true);
-  }, []);
-
-  const draw = useCallback((e) => {
-    if (!drawing) return;
-    e.preventDefault();
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-    const { x, y } = getPos(e);
-    ctx.lineTo(x, y);
-    ctx.strokeStyle = '#1E3A5F'; ctx.lineWidth = 2;
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    ctx.stroke();
-    setHasStrokes(true);
-  }, [drawing]);
-
-  const endDraw = useCallback(() => {
-    setDrawing(false);
-    if (hasStrokes && canvasRef.current) onSign?.(canvasRef.current.toDataURL('image/png'));
-  }, [hasStrokes, onSign]);
-
-  const clear = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-    setHasStrokes(false);
-    onSign?.(null);
-  };
-
-  return (
-    <div style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', border: '1px solid #E2E8F0', background: '#FAFAFA' }}>
-      <canvas
-        ref={canvasRef}
-        width={560}
-        height={110}
-        style={{ width: '100%', height: 110, cursor: 'crosshair', touchAction: 'none', display: 'block' }}
-        onMouseDown={startDraw} onMouseMove={draw} onMouseUp={endDraw} onMouseLeave={endDraw}
-        onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={endDraw}
-      />
-      {!hasStrokes && (
-        <span style={{
-          position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
-          fontSize: 13, color: '#CBD5E1', pointerEvents: 'none', userSelect: 'none',
-        }}>Sign here</span>
-      )}
-      {hasStrokes && (
-        <button onClick={clear} style={{
-          position: 'absolute', top: 8, right: 10, background: 'none', border: 'none',
-          fontSize: 11, color: '#94A3B8', cursor: 'pointer', padding: '2px 6px',
-        }}
-          onMouseEnter={e => { e.currentTarget.style.color = '#DC2626'; }}
-          onMouseLeave={e => { e.currentTarget.style.color = '#94A3B8'; }}>
-          Clear
-        </button>
-      )}
-      <div style={{ borderTop: '1px solid #E2E8F0', height: 0, position: 'absolute', bottom: 28, left: 16, right: 16 }} />
-    </div>
-  );
-};
 
 // ── Page wrapper (off-white background, full height) ──────────────────────────
 
