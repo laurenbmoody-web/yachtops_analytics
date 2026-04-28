@@ -1268,6 +1268,21 @@ const fmtActivityEvent = (event) => {
         title: <>Delivery note generated{event.payload?.signing_token_minted ? ' · signing link minted' : ''}</>,
         sub: `By ${actor}`,
       };
+    case 'delivery_signed': {
+      const advanced = event.payload?.status_advanced;
+      const flagsBits = [];
+      if (event.payload?.has_discrepancy_notes) flagsBits.push('discrepancies noted');
+      if (advanced) flagsBits.push(`status → ${event.payload?.status_to || 'delivered'}`);
+      const suffix = flagsBits.length ? ' · ' + flagsBits.join(' · ') : '';
+      // actor on this event is the crew signer's typed name (no auth.uid()
+      // because the capability URL is anonymous). fmtActivityEvent's
+      // upstream `actor` resolves to that via actor_name.
+      return {
+        when, dotClass: 'sod-act-done',
+        title: <>Delivery signed by <strong>{event.payload?.signer_name || actor}</strong>{suffix}</>,
+        sub: 'Crew signature',
+      };
+    }
     case 'discussion_opened':
       return {
         when, dotClass: '',
