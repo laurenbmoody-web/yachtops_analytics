@@ -1026,7 +1026,10 @@ const ProvisioningBoardDetail = () => {
   };
 
   // cols: check | item | category | size | unit | qty | unit cost | total | status | actions
-  const TABLE_GRID = '36px minmax(180px,1.5fr) minmax(110px,0.8fr) 76px 70px 92px 90px 80px 120px 56px';
+  const TABLE_GRID_FULL   = '36px minmax(180px,1.5fr) minmax(110px,0.8fr) 76px 70px 92px 90px 80px 120px 56px';
+  // cols: check | item | size | unit | qty | unit cost | total | status | actions  (category dropped)
+  const TABLE_GRID_NO_CAT = '36px minmax(180px,1.5fr) 76px 70px 92px 90px 80px 120px 56px';
+  const TABLE_GRID = groupBy === 'category' ? TABLE_GRID_NO_CAT : TABLE_GRID_FULL;
 
   const CURR_SYMBOLS = { GBP: '£', USD: '$', EUR: '€' };
   const currSymbol = CURR_SYMBOLS[list?.currency] || '£';
@@ -1439,7 +1442,14 @@ const ProvisioningBoardDetail = () => {
             {/* Group by */}
             <select
               value={groupBy}
-              onChange={e => setGroupBy(e.target.value)}
+              onChange={e => {
+                const next = e.target.value;
+                setGroupBy(next);
+                if (next === 'category' && sortColumn === 'category') {
+                  setSortColumn('item');
+                  setSortDirection('asc');
+                }
+              }}
               style={{ fontSize: 11, background: 'white', border: '1px solid #F1F5F9', borderRadius: 7, padding: '6px 10px', color: '#64748B', outline: 'none', cursor: 'pointer' }}
             >
               <option value="category">Group: Category</option>
@@ -1559,7 +1569,7 @@ const ProvisioningBoardDetail = () => {
                         </div>
                         {[
                           { label: 'Item',      key: 'item' },
-                          { label: 'Category',  key: 'category' },
+                          ...(groupBy === 'category' ? [] : [{ label: 'Category', key: 'category' }]),
                           { label: 'Size',      key: null },
                           { label: 'Unit',      key: null },
                           { label: 'Qty',       key: 'qty' },
@@ -1706,22 +1716,24 @@ const ProvisioningBoardDetail = () => {
                               )}
                             </div>
                             {/* Category */}
-                            <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
-                              <span style={{ fontSize: 12, color: dim || '#64748B' }}>
-                                {(() => {
-                                  const segs = [item.category, item.sub_category]
-                                    .filter(Boolean)
-                                    .join(' > ')
-                                    .split(/\s*[>›]\s*/)
-                                    .map(s => s.trim())
-                                    .filter(Boolean)
-                                    .filter((s, i, arr) => arr.indexOf(s) === i);
-                                  return segs.length > 0
-                                    ? segs.join(' › ')
-                                    : <span style={{ color: '#CBD5E1' }}>-</span>;
-                                })()}
-                              </span>
-                            </div>
+                            {groupBy !== 'category' && (
+                              <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
+                                <span style={{ fontSize: 12, color: dim || '#64748B' }}>
+                                  {(() => {
+                                    const segs = [item.category, item.sub_category]
+                                      .filter(Boolean)
+                                      .join(' > ')
+                                      .split(/\s*[>›]\s*/)
+                                      .map(s => s.trim())
+                                      .filter(Boolean)
+                                      .filter((s, i, arr) => arr.indexOf(s) === i);
+                                    return segs.length > 0
+                                      ? segs.join(' › ')
+                                      : <span style={{ color: '#CBD5E1' }}>-</span>;
+                                  })()}
+                                </span>
+                              </div>
+                            )}
                             {/* Size */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
                               {isReceived || isLocked
@@ -1889,7 +1901,7 @@ const ProvisioningBoardDetail = () => {
 
                       {/* Subtotal row */}
                       <div style={{ display: 'grid', gridTemplateColumns: TABLE_GRID, gap: 0, padding: '0 16px', background: '#FAFAFA', borderTop: '1px solid #F1F5F9' }}>
-                        <div style={{ gridColumn: '1 / 7', padding: '8px 8px 8px 0' }}>
+                        <div style={{ gridColumn: groupBy === 'category' ? '1 / 6' : '1 / 7', padding: '8px 8px 8px 0' }}>
                           <span style={{ fontSize: 11, color: '#94A3B8' }}>{deptItems.length} item{deptItems.length !== 1 ? 's' : ''}</span>
                         </div>
                         <div style={{ padding: '8px 8px', display: 'flex', alignItems: 'center' }}>
