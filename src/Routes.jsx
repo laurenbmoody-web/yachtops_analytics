@@ -1096,10 +1096,10 @@ const Routes = () => {
         
         {/* Trips Routes */}
         <Route path="/trips-management-dashboard" element={<ProtectedRoute><TripsManagementDashboard /></ProtectedRoute>} />
-        <Route path="/trip/:tripId" element={<ProtectedRoute><TripDetailView /></ProtectedRoute>} />
-        <Route path="/trip/:tripId/itinerary" element={<ProtectedRoute><TripItineraryTimeline /></ProtectedRoute>} />
-        <Route path="/trip/:tripId/preferences" element={<ProtectedRoute><TripPreferencesView /></ProtectedRoute>} />
-        <Route path="/trip/:tripId/preferences-overview" element={<ProtectedRoute><TripPreferencesOverview /></ProtectedRoute>} />
+        <Route path="/trips/:tripId" element={<ProtectedRoute><TripDetailView /></ProtectedRoute>} />
+        <Route path="/trips/:tripId/itinerary" element={<ProtectedRoute><TripItineraryTimeline /></ProtectedRoute>} />
+        <Route path="/trips/:tripId/preferences" element={<ProtectedRoute><TripPreferencesView /></ProtectedRoute>} />
+        <Route path="/trips/:tripId/preferences-overview" element={<ProtectedRoute><TripPreferencesOverview /></ProtectedRoute>} />
         
         {/* Preferences Routes */}
         <Route path="/preferences" element={<ProtectedRoute><PreferencesDirectory /></ProtectedRoute>} />
