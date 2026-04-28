@@ -663,6 +663,22 @@ export const generateOrderPdf = async (orderId) => {
   return data;
 };
 
+// Render the Cargo-branded UNSIGNED delivery note for an order. Mints (or
+// reuses) the delivery_signing_token, embeds it as a QR code, uploads the
+// PDF, and stamps supplier_orders.delivery_note_pdf_url +
+// .delivery_note_generated_at + .delivery_signing_token (first time only).
+// Server returns 409 if delivered_signed_at is already set — at that point
+// the supplier should open the signed copy via fetchDocumentSignedUrl
+// ('delivery_note_signed', orderId).
+// Resolves to { pdf_path, signing_token, signed_url, expires_at, generated_at, token_was_new }.
+export const generateDeliveryNote = async (orderId) => {
+  const { data, error } = await supabase.functions.invoke('generateDeliveryNote', {
+    body: { orderId },
+  });
+  if (error) throw error;
+  return data;
+};
+
 // ─── Quote workflow (Sprint 9.5) ────────────────────────────────────────────
 
 // Set the supplier's quoted price on a single line. The auto-accept BEFORE

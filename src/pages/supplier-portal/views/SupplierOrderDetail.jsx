@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchOrderById, updateOrderStatus, updateOrderItem, fetchOrderActivity, fetchInvoiceSignedUrl, fetchDocumentSignedUrl, generateOrderPdf, quoteOrderItem, confirmOrderItem } from '../utils/supplierStorage';
+import { fetchOrderById, updateOrderStatus, updateOrderItem, fetchOrderActivity, fetchInvoiceSignedUrl, fetchDocumentSignedUrl, generateOrderPdf, generateDeliveryNote, quoteOrderItem, confirmOrderItem } from '../utils/supplierStorage';
 import { usePermission } from '../../../contexts/SupplierPermissionContext';
 import EditDeliveryModal from '../components/EditDeliveryModal';
 import ReassignModal from '../components/ReassignModal';
@@ -170,6 +170,11 @@ const HeroActions = ({
   orderPdfBusy,        // boolean — generation in flight
   onGenerateOrderPdf,
   onOpenOrderPdf,
+  deliveryNote,        // { hasUnsigned, hasSigned } — derived from supplier_orders cols
+  deliveryNoteBusy,
+  onGenerateDeliveryNote,
+  onOpenDeliveryNote,
+  onOpenSignedDeliveryNote,
   canEdit,
 }) => {
   const isOpen = (id) => openMenu === id;
@@ -262,7 +267,46 @@ const HeroActions = ({
             onClick={canEdit ? onGenerateInvoice : undefined}
           />
         )}
-        <DropdownRow icon="🚚" name="Delivery note (soon)" empty disabled />
+        {/* Delivery note: three states — none / unsigned generated / signed.
+            Once signed, regenerate is locked (server returns 409). The signed
+            row, when present, replaces the unsigned one rather than stacking
+            on top — the signed copy is the canonical record. */}
+        {deliveryNote.hasSigned ? (
+          <DropdownRow
+            icon="🚚"
+            name="Signed delivery note"
+            link="Open"
+            onClick={onOpenSignedDeliveryNote}
+          />
+        ) : deliveryNote.hasUnsigned ? (
+          <>
+            <DropdownRow
+              icon="🚚"
+              name="Delivery note"
+              link="Open"
+              onClick={onOpenDeliveryNote}
+            />
+            <button
+              type="button"
+              role="menuitem"
+              className={`sod-dd-row sod-dd-subrow${deliveryNoteBusy || !canEdit ? ' sod-dd-disabled' : ''}`}
+              onClick={canEdit && !deliveryNoteBusy ? onGenerateDeliveryNote : undefined}
+              disabled={!canEdit || deliveryNoteBusy}
+              aria-label="Regenerate delivery note"
+            >
+              <span className="sod-dd-name">
+                ↻ {deliveryNoteBusy ? 'Regenerating…' : 'Regenerate'}
+              </span>
+            </button>
+          </>
+        ) : (
+          <DropdownRow
+            icon="🚚"
+            name={deliveryNoteBusy ? 'Generating delivery note…' : 'Generate delivery note'}
+            disabled={!canEdit || deliveryNoteBusy}
+            onClick={canEdit && !deliveryNoteBusy ? onGenerateDeliveryNote : undefined}
+          />
+        )}
       </ActionDropdown>
 
       <ActionDropdown open={isOpen('actions')} top={42}>
@@ -311,6 +355,11 @@ const Hero = ({
   orderPdfBusy,
   onGenerateOrderPdf,
   onOpenOrderPdf,
+  deliveryNote,
+  deliveryNoteBusy,
+  onGenerateDeliveryNote,
+  onOpenDeliveryNote,
+  onOpenSignedDeliveryNote,
   canEdit,
 }) => {
   const days = daysUntil(order.delivery_date);
@@ -379,6 +428,11 @@ const Hero = ({
           orderPdfBusy={orderPdfBusy}
           onGenerateOrderPdf={onGenerateOrderPdf}
           onOpenOrderPdf={onOpenOrderPdf}
+          deliveryNote={deliveryNote}
+          deliveryNoteBusy={deliveryNoteBusy}
+          onGenerateDeliveryNote={onGenerateDeliveryNote}
+          onOpenDeliveryNote={onOpenDeliveryNote}
+          onOpenSignedDeliveryNote={onOpenSignedDeliveryNote}
           canEdit={canEdit}
         />
       </div>
@@ -1208,6 +1262,12 @@ const fmtActivityEvent = (event) => {
         title: <>Order PDF generated</>,
         sub: `By ${actor}`,
       };
+    case 'delivery_note_generated':
+      return {
+        when, dotClass: 'sod-act-done',
+        title: <>Delivery note generated{event.payload?.signing_token_minted ? ' · signing link minted' : ''}</>,
+        sub: `By ${actor}`,
+      };
     case 'discussion_opened':
       return {
         when, dotClass: '',
@@ -1370,6 +1430,7 @@ const SupplierOrderDetail = () => {
   const [reassignOpen, setReassignOpen] = useState(false);
   const [generateInvoiceOpen, setGenerateInvoiceOpen] = useState(false);
   const [orderPdfBusy, setOrderPdfBusy] = useState(false);
+  const [deliveryNoteBusy, setDeliveryNoteBusy] = useState(false);
   const [activityDrawerOpen, setActivityDrawerOpen] = useState(false);
   const heroRef = useRef(null);
 
@@ -1487,6 +1548,57 @@ const SupplierOrderDetail = () => {
       }
     } catch (e) {
       window.alert(`Could not open order PDF: ${e.message || e}`);
+    }
+  }, [orderId]);
+
+  // Generate or regenerate the unsigned delivery note. Server mints (or
+  // reuses) the delivery_signing_token, embeds it as a QR code, overwrites
+  // the storage path. Refuses if the order has already been signed (409).
+  const handleGenerateDeliveryNote = useCallback(async () => {
+    setOpenMenu(null);
+    if (deliveryNoteBusy) return;
+    setDeliveryNoteBusy(true);
+    try {
+      const res = await generateDeliveryNote(orderId);
+      if (res?.signed_url) {
+        window.open(res.signed_url, '_blank', 'noopener');
+      }
+      fetchOrderById(orderId).then(setOrder).catch(() => {});
+      refetchActivity();
+    } catch (e) {
+      window.alert(`Could not generate delivery note: ${e.message || e}`);
+    } finally {
+      setDeliveryNoteBusy(false);
+    }
+  }, [orderId, deliveryNoteBusy, refetchActivity]);
+
+  const handleOpenDeliveryNote = useCallback(async () => {
+    setOpenMenu(null);
+    if (!orderId) return;
+    try {
+      const res = await fetchDocumentSignedUrl('delivery_note', orderId);
+      if (res?.signed_url) {
+        window.open(res.signed_url, '_blank', 'noopener');
+      } else {
+        window.alert('Could not open delivery note — no signed URL returned.');
+      }
+    } catch (e) {
+      window.alert(`Could not open delivery note: ${e.message || e}`);
+    }
+  }, [orderId]);
+
+  const handleOpenSignedDeliveryNote = useCallback(async () => {
+    setOpenMenu(null);
+    if (!orderId) return;
+    try {
+      const res = await fetchDocumentSignedUrl('delivery_note_signed', orderId);
+      if (res?.signed_url) {
+        window.open(res.signed_url, '_blank', 'noopener');
+      } else {
+        window.alert('Could not open signed delivery note — no signed URL returned.');
+      }
+    } catch (e) {
+      window.alert(`Could not open signed delivery note: ${e.message || e}`);
     }
   }, [orderId]);
 
@@ -1673,7 +1785,16 @@ const SupplierOrderDetail = () => {
         {(() => {
           const latestInvoice = (order.invoices && order.invoices.length > 0) ? order.invoices[0] : null;
           const orderHasPdf = !!order.order_pdf_url;
-          const docsCount = (latestInvoice ? 1 : 0) + (orderHasPdf ? 1 : 0);
+          const deliveryNote = {
+            hasUnsigned: !!order.delivery_note_pdf_url,
+            hasSigned: !!order.delivery_note_signed_pdf_url,
+          };
+          // Documents badge counts each kind once. The signed delivery note
+          // replaces the unsigned one rather than stacking.
+          const docsCount =
+            (latestInvoice ? 1 : 0) +
+            (orderHasPdf ? 1 : 0) +
+            (deliveryNote.hasSigned || deliveryNote.hasUnsigned ? 1 : 0);
           return (
             <Hero
               order={order}
@@ -1692,6 +1813,11 @@ const SupplierOrderDetail = () => {
               orderPdfBusy={orderPdfBusy}
               onGenerateOrderPdf={handleGenerateOrderPdf}
               onOpenOrderPdf={handleOpenOrderPdf}
+              deliveryNote={deliveryNote}
+              deliveryNoteBusy={deliveryNoteBusy}
+              onGenerateDeliveryNote={handleGenerateDeliveryNote}
+              onOpenDeliveryNote={handleOpenDeliveryNote}
+              onOpenSignedDeliveryNote={handleOpenSignedDeliveryNote}
               canEdit={canEdit}
             />
           );
