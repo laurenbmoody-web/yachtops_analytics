@@ -1,15 +1,40 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useGuests } from '../hooks/useGuests';
 import CabinCard from './CabinCard';
 import GuestDrawer from '../drawers/GuestDrawer';
 
 export default function GuestsWidget() {
-  const { guests, cabins, loading, error, updateGuestState, updateGuestMood } = useGuests();
-  const [drawerGuest, setDrawerGuest] = useState(null);
+  const location = useLocation();
+  const {
+    guests, cabins, loading, error,
+    updateGuestState, updateGuestMood, updateAshoreContext,
+  } = useGuests();
+  const [drawerGuestId, setDrawerGuestId] = useState(null);
 
-  const onboard  = guests.filter(g => (g.current_state ?? 'awake') !== 'ashore');
-  const ashore   = guests.filter(g => (g.current_state ?? 'awake') === 'ashore');
-  const nextBack  = ashore.find(g => g.ashore_context?.return_time);
+  // The drawer mirrors state from `guests` — sourcing by ID means the drawer
+  // re-renders whenever the underlying guest changes (mood, state, ashore
+  // context), without needing GuestDrawer to re-fetch.
+  const drawerGuest = useMemo(
+    () => (drawerGuestId ? guests.find(g => g.id === drawerGuestId) ?? null : null),
+    [drawerGuestId, guests]
+  );
+
+  // Open the drawer for a specific guest when navigated here with location state
+  // (e.g. from NotesHistoryPage's guest chip). Consumed once — replaceState clears it
+  // so a back-nav or re-render doesn't reopen.
+  useEffect(() => {
+    const targetId = location.state?.openDrawerForGuestId;
+    if (!targetId || guests.length === 0) return;
+    const match = guests.find(g => g.id === targetId);
+    if (match) {
+      setDrawerGuestId(match.id);
+      window.history.replaceState({}, '', location.pathname);
+    }
+  }, [location.state, location.pathname, guests]);
+
+  const onboard = guests.filter(g => (g.current_state ?? 'awake') !== 'ashore');
+  const ashore  = guests.filter(g => (g.current_state ?? 'awake') === 'ashore');
 
   return (
     <>
@@ -35,11 +60,6 @@ export default function GuestsWidget() {
               <div className="p-stat">
                 <div className="p-stat-num">{ashore.length}</div>
                 <div className="p-stat-label">ashore</div>
-              </div>
-            )}
-            {nextBack && (
-              <div className="p-guests-context">
-                {nextBack.first_name} back {nextBack.ashore_context.return_time}
               </div>
             )}
           </div>
@@ -68,7 +88,7 @@ export default function GuestsWidget() {
                 key={cabin.id}
                 cabin={cabin}
                 onToggleState={updateGuestState}
-                onLongPress={setDrawerGuest}
+                onLongPress={(g) => setDrawerGuestId(g.id)}
               />
             ))}
           </div>
@@ -79,9 +99,10 @@ export default function GuestsWidget() {
         <GuestDrawer
           guest={drawerGuest}
           allGuests={guests}
-          onClose={() => setDrawerGuest(null)}
+          onClose={() => setDrawerGuestId(null)}
           onUpdateState={updateGuestState}
           onUpdateMood={updateGuestMood}
+          onUpdateAshoreContext={updateAshoreContext}
         />
       )}
     </>

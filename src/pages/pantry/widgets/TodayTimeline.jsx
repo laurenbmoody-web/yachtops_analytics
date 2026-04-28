@@ -1,9 +1,11 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTodaySchedule } from '../hooks/useTodaySchedule';
 
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
 export default function TodayTimeline() {
+  const navigate = useNavigate();
   const { events } = useTodaySchedule();
   const today = DAY_NAMES[new Date().getDay()];
 
@@ -18,6 +20,10 @@ export default function TodayTimeline() {
           <div className="p-caps">{today} · a log</div>
           <div className="p-card-headline">The day <em>ahead</em>.</div>
         </div>
+        <button className="p-card-link" onClick={() => navigate('/pantry/today')}
+          aria-label="View full day schedule">
+          View full day →
+        </button>
       </div>
 
       <div className="p-timeline">

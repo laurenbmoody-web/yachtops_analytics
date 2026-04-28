@@ -54,7 +54,7 @@ const SupplierLayout = () => {
       {/* Sidebar */}
       <aside className="sp-sidebar">
         <div className="sp-sidebar-logo">
-          <img src="/assets/images/cargo_merged_originalmark_syne800_true.png" alt="Cargo" />
+          <img src="/centered-logo.svg" alt="Cargo" />
         </div>
 
         <nav className="sp-sidebar-nav">

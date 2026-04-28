@@ -1,6 +1,7 @@
 // Guest Preferences Storage Utility - Supabase Backend
 import { supabase } from '../lib/supabaseClient';
 import { logActivity } from './activityStorage';
+import { syncPreferencesForGuest } from './preferencesSync';
 
 // Get active tenant ID from localStorage
 const getActiveTenantId = () => {
@@ -163,6 +164,15 @@ export const createPreference = async (preferenceData, tenantId) => {
       }
     });
 
+    // Back-sync structured guests.* column(s) and append history_log entry.
+    // One hook covers every category so every UI surface propagates automatically.
+    await syncPreferencesForGuest(supabase, {
+      guestId:     preferenceData?.guestId,
+      tenantId:    tid,
+      actorUserId: userId,
+      category:    preferenceData?.category,
+    });
+
     return result;
   } catch (err) {
     console.error('[preferencesStorage] createPreference failed:', err);
@@ -220,25 +230,31 @@ export const updatePreference = async (preferenceId, updates, tenantId) => {
       }
     });
 
-    // If update returned data, use first row
-    if (data && data?.length > 0) {
-      return mapRowToPreference(data?.[0]);
+    // Resolve the full row (returned or refetched) so we know which guest +
+    // category the update affected, then back-sync structured columns.
+    let rowAfter = data && data?.length > 0 ? data?.[0] : null;
+    if (!rowAfter) {
+      const { data: refetched, error: refetchError } = await supabase
+        ?.from('guest_preferences')
+        ?.select('*')
+        ?.eq('id', preferenceId)
+        ?.eq('tenant_id', tid)
+        ?.single();
+      if (refetchError) {
+        console.error('[preferencesStorage] updatePreference refetch error:', refetchError);
+        return null;
+      }
+      rowAfter = refetched;
     }
 
-    // Fallback: re-fetch the updated row
-    const { data: refetched, error: refetchError } = await supabase
-      ?.from('guest_preferences')
-      ?.select('*')
-      ?.eq('id', preferenceId)
-      ?.eq('tenant_id', tid)
-      ?.single();
+    await syncPreferencesForGuest(supabase, {
+      guestId:     rowAfter?.guest_id,
+      tenantId:    tid,
+      actorUserId: userId,
+      category:    rowAfter?.category,
+    });
 
-    if (refetchError) {
-      console.error('[preferencesStorage] updatePreference refetch error:', refetchError);
-      return null;
-    }
-
-    return mapRowToPreference(refetched);
+    return mapRowToPreference(rowAfter);
   } catch (err) {
     console.error('[preferencesStorage] updatePreference failed:', err);
     return null;
@@ -252,7 +268,20 @@ export const deletePreference = async (preferenceId, tenantId) => {
     if (!tid) throw new Error('No tenant ID available');
 
     const user = await getCurrentUser();
+    const userId = user?.id || null;
     const userName = user?.user_metadata?.full_name || user?.email || 'Unknown';
+
+    // Read guest_id + category before delete so we can sync afterwards.
+    const { data: rowBefore, error: readErr } = await supabase
+      ?.from('guest_preferences')
+      ?.select('guest_id, category')
+      ?.eq('id', preferenceId)
+      ?.eq('tenant_id', tid)
+      ?.single();
+    if (readErr) {
+      console.error('[preferencesStorage] deletePreference read-before error:', readErr);
+      // Proceed with delete even if we can't read — no-op for sync if row is gone.
+    }
 
     const { error } = await supabase
       ?.from('guest_preferences')
@@ -275,6 +304,15 @@ export const deletePreference = async (preferenceId, tenantId) => {
       summary: `${userName} deleted a preference`,
       meta: { preferenceId }
     });
+
+    if (rowBefore?.guest_id && rowBefore?.category) {
+      await syncPreferencesForGuest(supabase, {
+        guestId:     rowBefore.guest_id,
+        tenantId:    tid,
+        actorUserId: userId,
+        category:    rowBefore.category,
+      });
+    }
 
     return true;
   } catch (err) {

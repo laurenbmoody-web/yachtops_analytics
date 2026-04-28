@@ -2,9 +2,7 @@ import React, { useEffect } from 'react';
 import './pantry.css';
 import Header from '../../components/navigation/Header';
 import { useGuests } from './hooks/useGuests';
-import ContextBar          from './widgets/ContextBar';
-import PageGreeting        from './widgets/PageGreeting';
-import NowAndDutyStack     from './widgets/NowAndDutyStack';
+import StandbyLayoutHeader  from './widgets/StandbyLayoutHeader';
 import ServicePresetPicker from './widgets/ServicePresetPicker';
 import DictateBar          from './widgets/DictateBar';
 import GuestsWidget        from './widgets/GuestsWidget';
@@ -27,13 +25,7 @@ export default function StandbyPage() {
     <>
       <Header />
       <div id="pantry-root" className="pantry-page">
-        <div className="p-header-row">
-          <div style={{ flex: 1 }}>
-            <ContextBar />
-            <PageGreeting />
-          </div>
-          <NowAndDutyStack />
-        </div>
+        <StandbyLayoutHeader />
 
         <ServicePresetPicker />
         <DictateBar />

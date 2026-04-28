@@ -14,6 +14,15 @@ function stateLabel(state) {
   return 'Awake';
 }
 
+function formatReturnTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const h = String(d.getHours()).padStart(2, '0');
+  const m = String(d.getMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
+}
+
 export default function GuestAvatar({ guest, onToggleState, onLongPress }) {
   const state = guest.current_state ?? 'awake';
   const longTimer = useRef(null);
@@ -84,6 +93,11 @@ export default function GuestAvatar({ guest, onToggleState, onLongPress }) {
       </div>
 
       <div className="p-avatar-state">{stateLabel(state)}</div>
+      {state === 'ashore' && guest.ashore_context?.returning_at && (
+        <div className="p-avatar-back" aria-label={`Back at ${formatReturnTime(guest.ashore_context.returning_at)}`}>
+          back {formatReturnTime(guest.ashore_context.returning_at)}
+        </div>
+      )}
     </div>
   );
 }

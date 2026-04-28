@@ -11,13 +11,25 @@ const AddOrSelectGuestModal = ({ isOpen, onClose, onSelectExisting, onCreateNew,
   const [showAddGuestModal, setShowAddGuestModal] = useState(false);
 
   useEffect(() => {
-    if (isOpen && mode === 'select') {
-      // Load guests that are not already active on this trip
-      const allGuests = loadGuests()?.filter(g => !g?.isDeleted);
-      const currentGuestIds = currentTripGuests?.filter(tg => tg?.isActive)?.map(tg => tg?.guestId) || [];
-      const available = allGuests?.filter(g => !currentGuestIds?.includes(g?.id));
-      setAvailableGuests(available);
-    }
+    if (!isOpen || mode !== 'select') return;
+    let cancelled = false;
+    (async () => {
+      try {
+        // Load guests that are not already active on this trip. loadGuests
+        // is async (Supabase) — without the await it returned a Promise and
+        // the modal showed "No guests found".
+        const data = await loadGuests();
+        if (cancelled) return;
+        const allGuests = (data || []).filter(g => !g?.isDeleted);
+        const currentGuestIds = currentTripGuests?.filter(tg => tg?.isActive)?.map(tg => tg?.guestId) || [];
+        const available = allGuests.filter(g => !currentGuestIds.includes(g?.id));
+        setAvailableGuests(available);
+      } catch (err) {
+        console.error('[AddOrSelectGuestModal] loadGuests failed:', err);
+        if (!cancelled) setAvailableGuests([]);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [isOpen, mode, currentTripGuests]);
 
   const handleClose = () => {

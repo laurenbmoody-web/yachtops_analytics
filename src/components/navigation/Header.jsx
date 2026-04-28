@@ -440,10 +440,8 @@ const Header = () => {
           onClick={() => navigate('/dashboard')}
         >
           <Image
-            src={theme === 'night' 
-              ? "/assets/images/cargo_merged_reverse_navy.png" : "/assets/images/cargo_merged_originalmark_syne800_true.png"
-            }
-            alt="Company Logo"
+            src="/centered-logo.svg"
+            alt="Cargo"
             className="h-8 w-auto object-contain"
           />
           <div className="text-muted-foreground text-xl">|</div>

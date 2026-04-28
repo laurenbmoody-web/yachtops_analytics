@@ -247,6 +247,189 @@
   background: var(--confirm-soft);
   color: var(--confirm-deep);
 }
+
+/* ── Drawer Allergies & Medical top block ──────────────────── */
+/* Dedicated variants for the drawer's top-of-body Allergies & Medical
+   block. Kept separate from .p-pill-allergy / .p-pill-diet (which are
+   used by the standby AllergiesWidget) so the two surfaces can evolve
+   independently. */
+.p-drawer-allergies {
+  margin-top: 16px;
+  margin-bottom: 18px;
+  padding: 12px 14px 12px 16px;
+  border-left: 4px solid var(--accent);
+  background: var(--bg-surface);
+  border-radius: 0 8px 8px 0;
+}
+.p-drawer-allergies-heading {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+.p-drawer-allergies-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.p-drawer-pill-allergy {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--accent);
+  color: #fff;
+}
+.p-drawer-pill-health {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+/* ── Drawer At-a-glance rows ───────────────────────────────── */
+/* Generic row primitive used by the 6 curated rows in the drawer body.
+   Label column fixed at 120px, values right-aligned-left (i.e. flex-1)
+   in serif italic so the content reads as editorial prose. Hairline
+   divider between rows; last row drops the divider. */
+.p-drawer-atglance {
+  margin-top: 4px;
+}
+.p-drawer-row {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 10px 0;
+  border-bottom: 0.5px solid var(--p-border);
+}
+.p-drawer-row:last-child {
+  border-bottom: none;
+}
+.p-drawer-row-label {
+  flex: 0 0 120px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  line-height: 1.4;
+}
+.p-drawer-row-label-accent {
+  color: var(--accent);
+}
+.p-drawer-row-values {
+  flex: 1;
+  font-family: var(--font-serif);
+  font-size: 14px;
+  font-style: italic;
+  color: var(--ink);
+  line-height: 1.5;
+  min-width: 0;
+  word-break: break-word;
+}
+.p-drawer-atglance-empty {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink-muted);
+  padding: 8px 0;
+}
+
+/* ── Daily Routine mini-timeline ───────────────────────────── */
+/* Horizontal row of time/label pairs. Serif time on top, tracked-caps
+   label below. Flex-wraps when the drawer is narrow rather than
+   horizontal-scrolling (spec: no scroll-snap, no overengineering).
+   The optional .highlight class is used by the Phase 5 RIGHT NOW strip
+   to call out the anchor for the current service moment. */
+.p-drawer-routine-timeline {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.p-drawer-routine-anchor {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+.p-drawer-routine-time {
+  font-family: var(--font-serif);
+  /* Upright serif for time numerals — they're hard data, not qualitative
+     prose. The tracked-caps short label below stays unchanged. */
+  font-size: 13px;
+  color: var(--ink);
+  line-height: 1.1;
+}
+.p-drawer-routine-label {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  line-height: 1;
+}
+.p-drawer-routine-anchor.highlight .p-drawer-routine-time,
+.p-drawer-routine-anchor.highlight .p-drawer-routine-label {
+  color: var(--accent);
+}
+.p-drawer-routine-ellipsis {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  color: var(--ink-muted);
+  align-self: center;
+  padding-top: 6px;
+}
+
+/* ── Drawer RIGHT NOW strip ────────────────────────────────── */
+/* Context-aware section above the full At-a-glance list. Header reads
+   "RIGHT NOW · {MOMENT} · {NEXT TIME}" in tracked caps, with the moment
+   name tinted terracotta. Rows below reuse DrawerRow — no duplicated
+   row styling. Hairline divider at the bottom separates strip from the
+   At-a-glance heading that follows. */
+.p-drawer-rightnow {
+  margin-top: 18px;
+  margin-bottom: 18px;
+  padding: 14px 16px 16px;
+  background: rgba(198, 90, 26, 0.05);
+  border-bottom: 0.5px solid var(--p-border);
+}
+.p-drawer-rightnow-header {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.p-drawer-rightnow-moment {
+  color: var(--accent);
+}
+.p-drawer-rightnow-time {
+  color: var(--ink);
+}
+.p-drawer-rightnow-sep {
+  color: var(--ink-tertiary);
+}
 .p-pill-mood {
   display: inline-flex;
   align-items: center;
@@ -619,6 +802,16 @@
   text-transform: uppercase;
   color: var(--ink-tertiary);
 }
+/* Per-ashore-guest return time, sits below the ASHORE state chip. Replaces
+   the old widget-level "{Name} back HH:MM" stats-row annotation, which
+   was ambiguous in multi-guest cabins. */
+.p-avatar-back {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 11px;
+  color: var(--accent);
+  margin-top: 2px;
+}
 
 /* ── Cabin card ────────────────────────────────────────────── */
 .p-cabin-card {
@@ -778,6 +971,410 @@
 }
 .p-note-status-done { color: var(--confirm); }
 
+/* ── Stew notes inline CRUD (Phase 2) ──────────────────────────
+   The standby StewNotesWidget is the primary authoring surface, so the
+   row gains a checkbox affordance + tap-to-edit, and the bottom of the
+   widget carries an editorial baseline-border input + guest chips for
+   inline add. Treatment matches the rest of the widget's typography —
+   no boxed form fields, just the same .p-border baseline used between
+   note rows. */
+
+.p-note-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.p-note-row-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.p-note-checkbox {
+  flex: 0 0 auto;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin-top: 5px;
+  cursor: pointer;
+  line-height: 0;
+}
+.p-note-checkbox-box {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--p-border);
+  border-radius: 3px;
+  background: transparent;
+  transition: border-color 100ms;
+}
+.p-note-checkbox:hover .p-note-checkbox-box {
+  border-color: var(--ink);
+}
+.p-note-checkbox-box.checked {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+/* Done note treatment — strike + dim. The metadata line stays visible
+   so "completed HH:MM by {first_name}" can read against the dimmed body. */
+.p-note-row.done .p-note-text {
+  text-decoration: line-through;
+  text-decoration-color: var(--ink-tertiary);
+  color: var(--ink-tertiary);
+  opacity: 0.7;
+}
+.p-note-row.done .p-note-meta {
+  color: var(--ink-tertiary);
+}
+/* Subtle separator between the open block and the done block — same
+   weight as a row border, just a hair more breathing room. */
+.p-note-done-divider {
+  height: 0;
+  border-top: 0.5px dashed var(--p-border);
+  margin: 6px 0 2px;
+}
+
+.p-note-text {
+  cursor: text;
+}
+.p-note-edit {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-bottom: 0.5px solid var(--ink);
+  outline: none;
+  padding: 0 0 4px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.45;
+  resize: none;
+  margin-bottom: 4px;
+}
+
+.p-note-guest-tag {
+  color: var(--ink-muted);
+}
+.p-note-empty {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink-muted);
+  padding: 10px 0 4px;
+  margin: 0;
+}
+
+/* Editorial inline-add input: baseline border, no box. The placeholder
+   and value share the same serif italic so the empty state reads as a
+   continuation of the list, not a form field. */
+.p-note-add-row {
+  padding-top: 4px;
+}
+.p-note-add {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-bottom: 0.5px solid var(--p-border);
+  outline: none;
+  padding: 12px 0 10px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.p-note-add::placeholder {
+  color: var(--ink-tertiary);
+  font-style: italic;
+  opacity: 1;
+}
+.p-note-add:focus {
+  border-bottom-color: var(--ink);
+}
+.p-note-add:disabled {
+  opacity: 0.6;
+}
+
+/* Guest chip row under the input. Pill chips, ink-fill on selected. */
+.p-note-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 0 2px;
+}
+/* Mounted-but-hidden state — keeps useGuests() warm so pills appear
+   instantly when the parent input gets focus. */
+.p-note-chips.is-hidden {
+  display: none;
+}
+.p-note-chip {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  background: transparent;
+  border: 0.5px solid var(--p-border);
+  border-radius: 999px;
+  padding: 3px 10px;
+  color: var(--ink-muted);
+  cursor: pointer;
+  transition: background 100ms, color 100ms, border-color 100ms;
+}
+.p-note-chip:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+.p-note-chip.selected {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg-card);
+}
+
+/* ── /pantry/notes page (Phase C) ─────────────────────────────
+   Search row sits naked above the TODAY card — no card wrapper, just
+   page-level padding. Search field reads as a search field
+   (light grey baseline, magnifier icon prefix); filter trigger is a
+   small pill that anchors a dropdown panel holding the grouped
+   multi-select. */
+.p-search-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 14px;
+  padding: 0 4px;
+}
+.p-search-field {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  border-bottom: 0.5px solid var(--p-border);
+  padding: 8px 0;
+}
+.p-search-field-icon {
+  flex: 0 0 auto;
+  margin-right: 8px;
+  color: var(--ink-muted);
+}
+.p-search-input {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  outline: none;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.p-search-input::placeholder {
+  color: var(--ink-tertiary);
+  font-style: italic;
+  opacity: 1;
+}
+.p-search-field:focus-within {
+  border-bottom-color: var(--ink);
+}
+
+/* Filter trigger — small pill button, ink-fill on has-active to
+   visually echo a selected chip without expanding the panel. */
+.p-filter-anchor {
+  position: relative;
+  flex: 0 0 auto;
+}
+.p-filter-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 0.5px solid var(--p-border);
+  border-radius: 999px;
+  padding: 5px 10px 5px 12px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  color: var(--ink-muted);
+  cursor: pointer;
+  transition: border-color 100ms, color 100ms;
+}
+.p-filter-trigger:hover,
+.p-filter-trigger.has-active {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+.p-filter-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 280px;
+  max-width: 80vw;
+  background: var(--bg-card);
+  border: 0.5px solid var(--p-border);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.10);
+  padding: 10px 14px 12px;
+  z-index: 30;
+}
+
+/* Grouped multi-select filter rows. Tracked-caps label on the left,
+   pill row on the right. Lives inside the filter dropdown now. */
+.p-filter-group {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 6px 0;
+}
+.p-filter-group + .p-filter-group {
+  border-top: 0.5px dashed var(--p-border);
+}
+.p-filter-label {
+  flex: 0 0 56px;
+  margin: 0;
+}
+.p-filter-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.p-clear-filters {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 10px;
+  font-size: 11px;
+}
+
+/* Tab row at the top of the TODAY/PREVIOUS card. Two text labels
+   separated by a middle dot; active tab gets ink + underline,
+   inactive sits muted. The voice-dictation hint floats right. */
+.p-note-tabs-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.p-note-tabs {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.p-note-tab {
+  background: transparent;
+  border: 0;
+  padding: 0 0 2px;
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-style: italic;
+  color: var(--ink-tertiary);
+  cursor: pointer;
+  transition: color 100ms;
+}
+.p-note-tab:hover {
+  color: var(--ink-muted);
+}
+.p-note-tab.active {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 0.5px;
+}
+.p-note-tab-sep {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  color: var(--ink-tertiary);
+}
+
+/* PREVIOUS subsection headers — quieter than the TODAY headline since
+   the tab row is the primary section anchor on this page. */
+.p-prev-subhead {
+  margin: 12px 0 6px;
+}
+
+/* Page-version add row — pills always visible, more breathing room. */
+.p-note-add-row-page {
+  padding: 10px 0 4px;
+}
+.p-note-add-page {
+  font-size: 16px;
+  padding: 14px 0 12px;
+}
+
+/* Meta-line inline links (convert / delete) — sit alongside time +
+   author + guest tag. Colors muted; danger turns terracotta. */
+.p-note-meta-link {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  color: var(--ink-muted);
+  cursor: pointer;
+  text-transform: lowercase;
+}
+.p-note-meta-link:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.p-note-meta-danger {
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+}
+.p-note-meta-danger:hover {
+  color: var(--accent);
+}
+.p-note-guest-link {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+.p-note-guest-link:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Convert sheet — anchored bottom-right of the page, simple panel.
+   Reuses .p-note-chip for type pills + a native select for guest pick. */
+.p-convert-sheet {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  left: 16px;
+  max-width: 380px;
+  margin-left: auto;
+  background: var(--bg-card);
+  border: 0.5px solid var(--p-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.12);
+  z-index: 50;
+}
+.p-convert-types {
+  display: flex;
+  gap: 6px;
+}
+.p-convert-picker {
+  width: 100%;
+  padding: 8px 10px;
+  border: 0.5px solid var(--p-border);
+  border-radius: 6px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  background: var(--bg-card);
+  color: var(--ink);
+}
+.p-convert-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+
 /* ── Stock widget ──────────────────────────────────────────── */
 .p-stock-row {
   display: flex;
@@ -876,43 +1473,108 @@
   justify-content: space-between;
   margin-bottom: 10px;
 }
-.p-state-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+/* ── Drawer header state pills (replaces the old mid-drawer State block) ── */
+/* Compact always-visible pill row under the guest name. Sizing matches
+   .p-pill-mood so visual rhythm between State (top) and Mood (lower)
+   reinforces that both are transient attributes of this guest. Active
+   pill fills with ink + white text — same treatment the old AWAKE card
+   used. Inactive pills outline with ink border + ink text. */
+.p-drawer-state-pills {
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+  margin-top: 10px;
 }
-.p-state-card {
-  padding: 10px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--p-border);
+.p-pill-state {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px solid var(--ink);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 120ms;
+  transition: background-color 120ms, color 120ms, font-weight 120ms;
 }
-.p-state-card.active {
+.p-pill-state.active {
   background: var(--ink);
-  border-color: var(--ink);
   color: #fff;
+  font-weight: 600;
+  cursor: default;
 }
-.p-state-card.active .p-caps { color: rgba(255,255,255,0.6); }
+.p-drawer-header-divider {
+  height: 0;
+  border: 0;
+  border-bottom: 0.5px solid var(--p-border);
+  margin: 16px 0 4px;
+}
+.p-drawer-ashore-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-top: 12px;
+  align-items: flex-end;
+}
+.p-drawer-ashore-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 140px;
+  min-width: 0;
+}
+.p-drawer-ashore-label {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.p-drawer-ashore-input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 0.5px solid var(--p-border);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+.p-drawer-ashore-input:focus {
+  outline: none;
+  border-color: var(--ink);
+}
+.p-drawer-ashore-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+.p-drawer-ashore-cancel {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+.p-drawer-ashore-cancel:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 0.5px;
+}
 .p-drawer-footer {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-top: 24px;
-}
-.p-prefs-text {
-  font-family: var(--font-serif);
-  font-style: italic;
-  font-size: 14px;
-  color: var(--ink);
-  line-height: 1.6;
-}
-.p-prefs-empty {
-  font-family: var(--font-serif);
-  font-style: italic;
-  font-size: 14px;
-  color: var(--ink-muted);
-  line-height: 1.6;
 }
 .p-add-note-btn {
   width: 100%;
@@ -938,6 +1600,43 @@
   justify-content: space-between;
   gap: 24px;
   margin-bottom: 24px;
+}
+
+/* Editorial back link — tracked caps, muted, hairline underline on hover */
+.p-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 0;
+  background: none;
+  border: none;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  cursor: pointer;
+  transition: color 120ms;
+}
+.p-back-link::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-left: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  margin-right: 2px;
+  margin-left: 1px;
+  flex-shrink: 0;
+}
+.p-back-link:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 0.5px;
 }
 .p-two-col {
   display: grid;
@@ -978,4 +1677,362 @@
   .p-dictate-mic.recording::after { animation: none; }
   .p-dictate-cursor { animation: none; opacity: 1; }
   .p-tl-dot.now { animation: none; }
+}
+
+/* ── Inventory Weekly · AI insights banner ─────────────────── */
+/* Severity hierarchy:
+     critical → terracotta — left accent bar + wash + filled dot + weight
+     watch    → brass      — left accent bar + light wash + filled dot
+     info     → muted      — no wash, hairline left, muted dot
+   Citations un-resolved render reduced-opacity + ⚠ no citation badge so
+   calibration regressions are visible rather than silently hidden. */
+.p-insights-banner {
+  margin-top: 8px;
+}
+.p-insights-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.p-insights-empty {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink-muted);
+  padding: 6px 0;
+}
+.p-insights-error {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--accent);
+  padding: 6px 0;
+}
+.p-insights-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.p-insight {
+  padding: 10px 12px 8px;
+  border-radius: 6px;
+  border-left: 3px solid var(--p-border);
+  background: transparent;
+  transition: opacity 120ms;
+}
+.p-insight.no-citation { opacity: 0.65; }
+
+.p-insight-critical {
+  border-left-color: var(--accent);
+  background: var(--accent-soft);
+}
+.p-insight-watch {
+  border-left-color: var(--brass);
+  background: var(--brass-soft);
+}
+.p-insight-info {
+  border-left-color: var(--ink-muted);
+}
+
+.p-insight-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.p-insight-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+.p-insight-dot-critical { background: var(--accent); }
+.p-insight-dot-watch    { background: var(--brass); }
+.p-insight-dot-info     { background: var(--ink-muted); }
+
+.p-insight-severity {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  flex-shrink: 0;
+  margin-top: 4px;
+  width: 56px;
+}
+.p-insight-critical .p-insight-severity { color: var(--accent); }
+.p-insight-watch    .p-insight-severity { color: var(--brass); }
+
+.p-insight-sentence {
+  flex: 1;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.5;
+  min-width: 0;
+}
+.p-insight-critical .p-insight-sentence { font-weight: 500; }
+
+.p-insight-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: 72px;   /* indent to line up with sentence — past dot + severity column */
+  margin-top: 6px;
+  min-height: 18px;
+}
+.p-insight-uncited {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  color: var(--accent);
+  letter-spacing: 0.4px;
+}
+.p-insight-citation {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  background: rgba(28, 27, 58, 0.06);
+  color: var(--ink);
+  border: 0.5px solid transparent;
+  cursor: pointer;
+  transition: background-color 120ms, border-color 120ms;
+}
+.p-insight-citation:hover:not(:disabled) {
+  background: rgba(28, 27, 58, 0.1);
+  border-color: var(--ink);
+}
+.p-insight-citation:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.p-stock-row.selected {
+  outline: 1.5px solid var(--ink);
+  outline-offset: -1.5px;
+}
+
+/* ── Standby Stock widget (compact preview) ────────────────────
+   Single-line rows: item/preference name on the left, "for John,
+   Jane and Susan" on the right in muted sans-serif. No qty/par —
+   the modal at /inventory/weekly carries the detail. */
+.p-stock-widget-row {
+  align-items: baseline;
+  gap: 8px;
+}
+.p-stock-widget-attr {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--ink-muted);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60%;
+}
+.p-stock-widget-more .p-stock-name {
+  font-family: var(--font-sans);
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+/* ── Guest-grouped consumables on /inventory/weekly ────────── */
+.p-consumable-guest {
+  margin-top: 18px;
+  padding-top: 10px;
+  border-top: 0.5px solid var(--p-border);
+}
+.p-consumable-guest:first-of-type {
+  margin-top: 8px;
+  padding-top: 0;
+  border-top: none;
+}
+.p-consumable-guest-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.p-consumable-guest-name {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-serif);
+  font-size: 18px;
+  color: var(--ink);
+}
+.p-consumable-guest-name em {
+  font-style: italic;
+  color: var(--ink-muted);
+}
+.p-consumable-guest-name:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 0.5px;
+}
+.p-consumable-guest-role {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.p-consumable-row {
+  /* Item-first layout: two stacked lines (main + attribution) instead
+     of the single flex row inherited from .p-stock-row. */
+  flex-direction: column;
+  align-items: stretch;
+  padding: 10px 4px;
+  gap: 4px;
+}
+.p-consumable-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.p-consumable-right {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+/* Second line under each item row — "for John (Tea · Yorkshire Gold),
+   Jane (Tea · Yorkshire Gold)". Sans-serif, muted, smaller. */
+.p-consumable-attribution {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--ink-muted);
+}
+.p-consumable-attr-label {
+  color: var(--ink-tertiary);
+  font-style: italic;
+}
+.p-consumable-par {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  color: var(--ink-tertiary);
+  margin-left: 4px;
+}
+.p-consumable-empty {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink-muted);
+  padding: 8px 0;
+}
+.p-consumable-empty-inline {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink-muted);
+  padding: 4px 0 6px;
+}
+/* PREFERENCES / EMERGENCY subsections under each guest. Tracked-caps
+   header, small left-indent to nest the items visually inside the
+   guest's section. */
+.p-consumable-sub {
+  margin-top: 8px;
+  padding-left: 10px;
+  border-left: 2px solid var(--p-border);
+}
+.p-consumable-sub + .p-consumable-sub {
+  margin-top: 14px;
+}
+.p-consumable-subhead {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  margin-bottom: 4px;
+}
+
+/* AT RISK row reason — muted grey tag after the qty number. */
+.p-consumable-reason {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  color: var(--ink-muted);
+  margin-left: 6px;
+}
+
+/* NOT TRACKED row — preference value on left, LLM note on right in
+   lighter colour. Lines truncate so long notes don't push rows wide. */
+.p-consumable-nontrack-reason {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 12px;
+  color: var(--ink-tertiary);
+  text-align: right;
+  max-width: 62%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.p-consumable-nontrack .p-stock-name {
+  flex-shrink: 0;
+  max-width: 38%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Item-first gap rows re-use the two-line shape: name on the top left,
+   italic model note top-right, attribution below. Override the legacy
+   38%/62% truncation so names can wrap when needed. */
+.p-consumable-gap .p-stock-name {
+  max-width: 55%;
+  white-space: normal;
+}
+.p-consumable-gap .p-consumable-nontrack-reason {
+  max-width: 45%;
+}
+
+/* Skeleton rows — two muted-grey pulsing bars under the guest heading
+   while usePreferenceLinks is in flight. No existing skeleton pattern
+   in the codebase so this is minimal inline. */
+.p-consumable-skeleton-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 0;
+}
+.p-consumable-skeleton {
+  height: 18px;
+  border-radius: 4px;
+  background: linear-gradient(90deg,
+    rgba(0,0,0,0.05) 0%,
+    rgba(0,0,0,0.09) 50%,
+    rgba(0,0,0,0.05) 100%);
+  background-size: 200% 100%;
+  animation: p-shimmer 1.4s linear infinite;
+}
+@keyframes p-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .p-consumable-skeleton { animation: none; }
+}
+.p-consumable-footer {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 0.5px solid var(--p-border);
+  text-align: right;
 }

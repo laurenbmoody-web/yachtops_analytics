@@ -1,32 +1,79 @@
-import React, { useState, useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useGuestDayNotes } from '../hooks/useGuestDayNotes';
+import { useGuestDrawerPrefs } from '../hooks/useGuestDrawerPrefs';
 import { formatDistanceToNow } from 'date-fns';
 import { ALL_MOODS, QUICK_MOODS } from '../constants/moods';
+import DrawerAllergiesBlock from './DrawerAllergiesBlock';
+import DrawerAtAGlance from './DrawerAtAGlance';
+import DrawerRightNow from './DrawerRightNow';
 
-const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+// Swipe-down dismissal thresholds. On release the drawer dismisses if the
+// user has dragged past 50% of the drawer's own height OR flicked down
+// faster than the velocity cutoff. Otherwise framer-motion's
+// dragSnapToOrigin returns the sheet to y:0.
+const DRAG_DISMISS_RATIO    = 0.5;  // fraction of drawer height
+const DRAG_DISMISS_VELOCITY = 500;  // px/s on release (flick dismissal)
 
-function splitPills(text) {
-  if (!text) return [];
-  return text.split(',').map(s => s.trim()).filter(Boolean);
+const DAY_NAMES   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const STATE_PILLS = ['awake', 'asleep', 'ashore'];
+
+// Ashore "returning_at" converters.
+//   - Form input is an HH:MM <input type="time"> in vessel-local time.
+//   - Storage is a full ISO timestamp (timestamptz in the DB schema).
+// Compose picks today at the given time, bumping to tomorrow if the time
+// has already passed — a user typing 01:00 at 23:30 means 01:00 next day.
+function hhmmToIso(hhmm) {
+  if (!hhmm) return null;
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
+  if (!m) return null;
+  const h = Math.min(23, Math.max(0, parseInt(m[1], 10)));
+  const min = Math.min(59, Math.max(0, parseInt(m[2], 10)));
+  const now = new Date();
+  const candidate = new Date(now);
+  candidate.setHours(h, min, 0, 0);
+  if (candidate.getTime() <= now.getTime()) {
+    candidate.setDate(candidate.getDate() + 1);
+  }
+  return candidate.toISOString();
 }
 
-function stateOptions(current) {
-  const all = ['awake', 'asleep', 'ashore'];
-  return all.map(s => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1), active: s === (current ?? 'awake') }));
+function isoToHHMM(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const h = String(d.getHours()).padStart(2, '0');
+  const m = String(d.getMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
 }
 
-export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMood }) {
+export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMood, onUpdateAshoreContext }) {
+  const navigate = useNavigate();
+  const dragControls = useDragControls();
+  const sheetRef = useRef(null);
   const { notes, loading: notesLoading, addNote } = useGuestDayNotes(guest.id);
+  const { data: drawerPrefs, loading: prefsLoading, error: prefsError } = useGuestDrawerPrefs(guest.id);
   const [moodExpanded, setMoodExpanded] = useState(false);
   const [noteInput, setNoteInput]       = useState('');
   const [addingNote, setAddingNote]     = useState(false);
   const [submitting, setSubmitting]     = useState(false);
 
+  const goToPreferences = () => { onClose(); navigate(`/guest/${guest.id}/preferences`); };
+  const goToHistory     = () => { onClose(); navigate(`/guests/${guest.id}/history`); };
+
   // Local optimistic state — initialised from the guest prop at open time
   const [localState, setLocalState] = useState(guest.current_state ?? 'awake');
   const [localMood, setLocalMood]   = useState(guest.current_mood ?? null);
+
+  // Ashore context form state. Opens automatically when Ashore pill is
+  // tapped (either switching TO ashore, or re-tapping while already ashore
+  // to edit the context). Closes on Save or Cancel. Auto-closes + clears
+  // context when state changes away from ashore.
+  const [ashoreFormOpen, setAshoreFormOpen] = useState(false);
+  const [ashoreDestination, setAshoreDestination] = useState(guest.ashore_context?.destination ?? '');
+  const [ashoreReturningAt, setAshoreReturningAt] = useState(isoToHHMM(guest.ashore_context?.returning_at));
 
   const today     = DAY_NAMES[new Date().getDay()];
   const firstName = guest.first_name ?? '';
@@ -42,14 +89,57 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
   }, [onClose]);
 
   const handleStateChange = (newState) => {
-    if (newState === localState) return;
+    // Re-tap already-active Ashore pill reopens the context form so the
+    // user can edit destination / returning_at without first toggling
+    // to another state.
+    if (newState === localState) {
+      if (newState === 'ashore') setAshoreFormOpen(true);
+      return;
+    }
+
     setLocalState(newState); // optimistic
     onUpdateState?.(guest.id, newState);
+
+    if (newState === 'ashore') {
+      // Open the inline form; reset to current DB values so an edit flow
+      // starts from truth (not leftover unsaved state from a prior open).
+      setAshoreDestination(guest.ashore_context?.destination ?? '');
+      setAshoreReturningAt(isoToHHMM(guest.ashore_context?.returning_at));
+      setAshoreFormOpen(true);
+    } else {
+      // Leaving ashore — clear persisted context + collapse the form.
+      setAshoreFormOpen(false);
+      setAshoreDestination('');
+      setAshoreReturningAt('');
+      if (guest.ashore_context != null) {
+        onUpdateAshoreContext?.(guest.id, null);
+      }
+    }
   };
 
-  const handleMoodChange = (key, emoji) => {
-    setLocalMood(key); // optimistic
-    onUpdateMood?.(guest.id, key, emoji);
+  const handleAshoreSave = () => {
+    const next = {
+      destination:  ashoreDestination.trim() || null,
+      returning_at: hhmmToIso(ashoreReturningAt),
+    };
+    onUpdateAshoreContext?.(guest.id, next);
+    setAshoreFormOpen(false);
+  };
+
+  const handleAshoreCancel = () => {
+    setAshoreFormOpen(false);
+    // Don't clear state — guest remains ashore with whatever context was
+    // saved before (or null). Spec: "incomplete context is still valid;
+    // ashore without destination is fine."
+  };
+
+  // Re-tap the active mood pill to unset (mood becomes null). Otherwise
+  // tapping a different pill switches the mood. Emoji arg dropped — the hook
+  // stopped writing current_mood_emoji in Phase 2 (dead-write removal).
+  const handleMoodChange = (key) => {
+    const nextKey = key === localMood ? null : key;
+    setLocalMood(nextKey); // optimistic
+    onUpdateMood?.(guest.id, nextKey);
   };
 
   const handleAddNote = async () => {
@@ -62,7 +152,15 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
 
   return (
     <AnimatePresence>
-      {/* Backdrop — tap outside to close */}
+      {/* Backdrop — tap outside to close.
+          TODO: drive opacity from the sheet's drag motion value so the
+          backdrop fades as the sheet slides down. Attempted this pass but
+          binding style.opacity to a motion value supersedes the
+          initial/animate/exit transitions on the same prop — the backdrop
+          loses its fade-in/out. Needs a different plumbing approach
+          (manual useEffect + opacity state combined with drag) to land
+          without breaking the existing animation. Left optional per the
+          Phase 2 spec. */}
       <motion.div
         key="backdrop"
         className="p-drawer-backdrop"
@@ -73,8 +171,15 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
         aria-hidden="true"
       />
 
-      {/* Sheet — stopPropagation prevents backdrop click from firing */}
+      {/* Sheet — stopPropagation prevents backdrop click from firing.
+          Drag-to-dismiss is scoped to the handle via dragControls + the
+          handle's onPointerDown trigger. dragListener={false} stops the
+          whole sheet from listening for drag — so the guest scrolls the
+          drawer body normally without tripping the gesture. Dismiss
+          threshold is 50% of the sheet's own height, measured via
+          sheetRef, or a fast-flick velocity release. */}
       <motion.div
+        ref={sheetRef}
         key="sheet"
         className="p-drawer"
         role="dialog"
@@ -84,11 +189,33 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
         transition={{ type: 'spring', stiffness: 260, damping: 26 }}
+        drag="y"
+        dragControls={dragControls}
+        dragListener={false}
+        dragConstraints={{ top: 0 }}
+        dragSnapToOrigin
+        onDragEnd={(_, info) => {
+          const height = sheetRef.current?.offsetHeight ?? 600;
+          const threshold = height * DRAG_DISMISS_RATIO;
+          if (info.offset.y > threshold || info.velocity.y > DRAG_DISMISS_VELOCITY) {
+            onClose();
+          }
+        }}
         onClick={e => e.stopPropagation()}
       >
-        <div className="p-drawer-handle" />
+        <div
+          className="p-drawer-handle"
+          role="button"
+          aria-label="Drag down to dismiss"
+          onPointerDown={(e) => dragControls.start(e)}
+          style={{ touchAction: 'none', cursor: 'grab' }}
+        />
 
-        {/* Header */}
+        {/* Header — identity + state pills. State pills replace the old
+            mid-drawer STATE block; they're always-visible and live here so
+            the stew sees current state at a glance alongside the name.
+            Old italic "{State} · onboard" subtext removed — the filled pill
+            already communicates the state. */}
         <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start' }}>
           <div className="p-drawer-avatar">
             {imgSrc
@@ -101,12 +228,65 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
             <div className="p-drawer-name">
               {firstName} <em>{lastName}.</em>
             </div>
-            <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 13, color: 'var(--ink-muted)', marginTop: 2 }}>
-              {localState === 'ashore'
-                ? `Ashore${guest.ashore_context?.destination ? ` · ${guest.ashore_context.destination}` : ''}`
-                : `${localState.charAt(0).toUpperCase() + localState.slice(1)} · onboard`
-              }
+            <div className="p-drawer-state-pills" role="group" aria-label="Guest state">
+              {STATE_PILLS.map(s => {
+                const isActive = s === localState;
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    className={`p-pill-state${isActive ? ' active' : ''}`}
+                    onClick={() => handleStateChange(s)}
+                    aria-pressed={isActive}
+                    aria-label={`Mark as ${s}`}
+                  >
+                    {s.charAt(0).toUpperCase() + s.slice(1)}
+                  </button>
+                );
+              })}
             </div>
+            {ashoreFormOpen && localState === 'ashore' && (
+              <div className="p-drawer-ashore-form" role="group" aria-label="Ashore context">
+                <label className="p-drawer-ashore-field">
+                  <span className="p-drawer-ashore-label">Off to</span>
+                  <input
+                    type="text"
+                    className="p-drawer-ashore-input"
+                    placeholder="Where to?"
+                    value={ashoreDestination}
+                    onChange={e => setAshoreDestination(e.target.value)}
+                    aria-label="Destination"
+                  />
+                </label>
+                <label className="p-drawer-ashore-field">
+                  <span className="p-drawer-ashore-label">Back at</span>
+                  {/* Plain text input forced to 24h. Native <input type="time">
+                      honours OS locale — US locales show AM/PM, no reliable
+                      way to force 24h from HTML. Stew/yacht context is
+                      universally 24h, so a numeric text input with a clear
+                      HH:MM pattern is both consistent and guaranteed. */}
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    className="p-drawer-ashore-input"
+                    placeholder="21:30"
+                    pattern="^\d{1,2}:\d{2}$"
+                    maxLength={5}
+                    value={ashoreReturningAt}
+                    onChange={e => setAshoreReturningAt(e.target.value)}
+                    aria-label="Returning at, 24-hour HH:MM"
+                  />
+                </label>
+                <div className="p-drawer-ashore-actions">
+                  <button type="button" className="p-btn primary" onClick={handleAshoreSave}>
+                    Save
+                  </button>
+                  <button type="button" className="p-drawer-ashore-cancel" onClick={handleAshoreCancel}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           <button
             className="p-btn outline" style={{ flexShrink: 0 }}
@@ -116,28 +296,22 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
             <X size={14} />
           </button>
         </div>
+        <hr className="p-drawer-header-divider" />
 
-        {/* State block */}
-        <div className="p-drawer-section">
-          <div className="p-caps" style={{ marginBottom: 10 }}>State</div>
-          <div className="p-state-grid">
-            {stateOptions(localState).map(opt => (
-              <motion.div
-                key={opt.value}
-                className={`p-state-card${opt.active ? ' active' : ''}`}
-                role="button"
-                tabIndex={0}
-                whileTap={{ scale: 0.96 }}
-                onClick={() => handleStateChange(opt.value)}
-                onKeyDown={e => e.key === 'Enter' && handleStateChange(opt.value)}
-                aria-pressed={opt.active}
-                aria-label={`Mark as ${opt.label}`}
-              >
-                <div className="p-caps">{opt.label}</div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
+        {/* Allergies & Medical — top priority block, first thing visible
+            after the guest header. Hidden entirely when both fields empty;
+            we deliberately do NOT render a "no allergies" placeholder. */}
+        <DrawerAllergiesBlock
+          allergies={guest.allergies}
+          healthConditions={guest.health_conditions}
+        />
+
+        {/* RIGHT NOW · context-aware strip for the current service moment.
+            Renders above State/Mood (read-first, like Allergies) and above
+            the full At-a-glance list. Self-hides when the guest is ashore,
+            when the effective moment's rows have no data, or when the
+            sleep-override places them in an empty window. */}
+        <DrawerRightNow guest={guest} data={drawerPrefs} />
 
         {/* Mood block */}
         <div className="p-drawer-section">
@@ -163,7 +337,7 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
                   whileTap={{ scale: 0.96 }}
                   transition={{ duration: 0.15 }}
                   className={`p-pill-mood${localMood === m.key ? ' active' : ''}`}
-                  onClick={() => handleMoodChange(m.key, m.emoji)}
+                  onClick={() => handleMoodChange(m.key)}
                   aria-label={m.label}
                   aria-pressed={localMood === m.key}
                 >
@@ -175,38 +349,30 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
           </motion.div>
         </div>
 
-        {/* At a glance — preferences */}
+        {/* At a glance — 6 curated rows sourced directly from
+            guest_preferences via useGuestDrawerPrefs. The prose
+            rendering of guests.preferences_summary that used to live
+            here has been removed: the structured view is the single
+            source of truth for drawer body content. preferences_summary
+            stays in the DB for export / search / the full preferences
+            page, but is no longer read here. */}
         <div className="p-drawer-section">
           <div className="p-drawer-section-head">
             <div className="p-caps">At a glance</div>
-            <button className="p-card-link" aria-label="Open full preferences">
+            <button className="p-card-link" onClick={goToPreferences} aria-label="Open full preferences">
               Full preferences →
             </button>
           </div>
-          <div className="p-surface" style={{ padding: '12px 14px' }}>
-            {guest.preferences_summary
-              ? <p className="p-prefs-text">{guest.preferences_summary}</p>
-              : <p className="p-prefs-empty">
-                  No preferences saved yet. Tap 'Full preferences →' to add them, or dictate them with the mic.
-                </p>
-            }
-          </div>
+          <DrawerAtAGlance
+            data={drawerPrefs}
+            loading={prefsLoading}
+            error={prefsError}
+          />
         </div>
 
-        {/* Allergies & diet */}
-        {(guest.allergies || guest.health_conditions) && (
-          <div className="p-drawer-section">
-            <div className="p-caps" style={{ marginBottom: 8 }}>Allergies & diet</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {splitPills(guest.allergies).map((pill, i) => (
-                <span key={i} className="p-pill-allergy" aria-label={`Allergy: ${pill}`}>{pill}</span>
-              ))}
-              {splitPills(guest.health_conditions).map((pill, i) => (
-                <span key={i} className="p-pill-diet" aria-label={`Health condition: ${pill}`}>{pill}</span>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Allergies & diet previously rendered here — moved to the
+            <DrawerAllergiesBlock /> at the top of the drawer body so it's
+            the first thing visible after the guest header. */}
 
         {/* Today's notes */}
         <div className="p-drawer-section">
@@ -263,11 +429,11 @@ export default function GuestDrawer({ guest, onClose, onUpdateState, onUpdateMoo
         {/* Footer */}
         <div className="p-drawer-footer">
           <button className="p-btn primary" style={{ padding: '11px 14px', borderRadius: 10 }}
-            aria-label="Open full preferences">
+            onClick={goToPreferences} aria-label="Open full preferences">
             Full preferences →
           </button>
           <button className="p-btn primary" style={{ padding: '11px 14px', borderRadius: 10 }}
-            aria-label="View guest history">
+            onClick={goToHistory} aria-label="View guest history">
             View history →
           </button>
         </div>

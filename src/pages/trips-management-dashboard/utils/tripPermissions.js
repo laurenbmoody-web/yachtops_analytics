@@ -6,7 +6,14 @@ import { isDevMode } from '../../../utils/devMode';
 // Normalize tier to uppercase for case-insensitive comparison
 export const normalizeTier = (user) => {
   if (!user) return 'CREW';
-  const tierRaw = user?.effectiveTier || user?.permissionTier || user?.tier || '';
+  // Accept both snake_case (set by AuthContext from Supabase) and camelCase
+  // (legacy from localStorage-era auth flow). Field name divergence is being
+  // tracked for cleanup after A3 ships.
+  const tierRaw = user?.effectiveTier
+               || user?.permissionTier
+               || user?.permission_tier
+               || user?.tier
+               || '';
   return String(tierRaw)?.toUpperCase()?.trim();
 };
 

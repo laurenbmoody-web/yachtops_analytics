@@ -11,7 +11,7 @@ import LogsDeliveries from './pages/logs-deliveries';
 import BlueprintVesselView from './pages/blueprint-vessel-view';
 import DutySetsRotationManagement from './pages/duty-sets-rotation-management';
 import OpsVesselCalendar from './pages/ops-vessel-calendar';
-import LoginAuthentication from './pages/login-authentication';
+import Login from './pages/login';
 import CrewManagement from './pages/crew-management';
 import RoleManagement from './pages/crew-management/components/RoleManagement';
 import GuestManagementDashboard from './pages/guest-management-dashboard';
@@ -96,6 +96,10 @@ import { supabase } from './lib/supabaseClient';
 import { useAuth, RouteChangeLogger } from './contexts/AuthContext';
 import StandbyPage from './pages/pantry/StandbyPage';
 import ServicePlaceholder from './pages/pantry/presets/ServicePlaceholder';
+import TodaySchedulePage from './pages/pantry/stubs/TodaySchedulePage';
+import NotesHistoryPage from './pages/pantry/stubs/NotesHistoryPage';
+import InventoryWeeklyPage from './pages/pantry/stubs/InventoryWeeklyPage';
+import GuestHistoryPage from './pages/pantry/stubs/GuestHistoryPage';
 import TodayDetailPage from './pages/today-detail/index';
 import NotFound from './pages/NotFound';
 
@@ -189,6 +193,20 @@ const DevModeBanner = () => {
       </div>
     </div>
   );
+};
+
+// Redirect legacy /login-authentication to the unified /login (preserve query params)
+const LegacyCrewLoginRedirect = () => {
+  const location = useLocation();
+  return <Navigate to={`/login${location?.search || ''}`} replace />;
+};
+
+// Redirect legacy /supplier/login to /login?mode=supplier (preserve any extra query params)
+const LegacySupplierLoginRedirect = () => {
+  const location = useLocation();
+  const params = new URLSearchParams(location?.search || '');
+  params?.set('mode', 'supplier');
+  return <Navigate to={`/login?${params?.toString()}`} replace />;
 };
 
 // Redirect component for old invite routes
@@ -1012,7 +1030,8 @@ const Routes = () => {
         {/* Public Routes */}
         <Route path="/public-landing-page" element={<PublicLandingPage />} />
         <Route path="/signup-vessel" element={<VesselSignupFlowStep1 />} />
-        <Route path="/login-authentication" element={<LoginAuthentication />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/login-authentication" element={<LegacyCrewLoginRedirect />} />
         
         {/* Password Reset Routes - PUBLIC */}
         <Route path="/forgot-password" element={<ForgotPasswordRequest />} />
@@ -1080,10 +1099,10 @@ const Routes = () => {
         
         {/* Trips Routes */}
         <Route path="/trips-management-dashboard" element={<ProtectedRoute><TripsManagementDashboard /></ProtectedRoute>} />
-        <Route path="/trip/:tripId" element={<ProtectedRoute><TripDetailView /></ProtectedRoute>} />
-        <Route path="/trip/:tripId/itinerary" element={<ProtectedRoute><TripItineraryTimeline /></ProtectedRoute>} />
-        <Route path="/trip/:tripId/preferences" element={<ProtectedRoute><TripPreferencesView /></ProtectedRoute>} />
-        <Route path="/trip/:tripId/preferences-overview" element={<ProtectedRoute><TripPreferencesOverview /></ProtectedRoute>} />
+        <Route path="/trips/:tripId" element={<ProtectedRoute><TripDetailView /></ProtectedRoute>} />
+        <Route path="/trips/:tripId/itinerary" element={<ProtectedRoute><TripItineraryTimeline /></ProtectedRoute>} />
+        <Route path="/trips/:tripId/preferences" element={<ProtectedRoute><TripPreferencesView /></ProtectedRoute>} />
+        <Route path="/trips/:tripId/preferences-overview" element={<ProtectedRoute><TripPreferencesOverview /></ProtectedRoute>} />
         
         {/* Preferences Routes */}
         <Route path="/preferences" element={<ProtectedRoute><PreferencesDirectory /></ProtectedRoute>} />
@@ -1096,6 +1115,13 @@ const Routes = () => {
         <Route path="/pantry" element={<Navigate to="/pantry/standby" replace />} />
         <Route path="/pantry/standby" element={<ProtectedRoute><StandbyPage /></ProtectedRoute>} />
         <Route path="/pantry/service/:type" element={<ProtectedRoute><ServicePlaceholder /></ProtectedRoute>} />
+        <Route path="/pantry/today" element={<ProtectedRoute><TodaySchedulePage /></ProtectedRoute>} />
+        <Route path="/pantry/notes" element={<ProtectedRoute><NotesHistoryPage /></ProtectedRoute>} />
+        {/* Legacy route — kept as a redirect so existing bookmarks and
+            cross-page links don't break. New canonical path is /pantry/notes. */}
+        <Route path="/notes/history" element={<Navigate to="/pantry/notes" replace />} />
+        <Route path="/inventory/weekly" element={<ProtectedRoute><InventoryWeeklyPage /></ProtectedRoute>} />
+        <Route path="/guests/:id/history" element={<ProtectedRoute><GuestHistoryPage /></ProtectedRoute>} />
         
         {/* Crew Routes */}
         <Route path="/crew-management" element={<ProtectedRoute><CrewManagement /></ProtectedRoute>} />
@@ -1121,7 +1147,7 @@ const Routes = () => {
         <Route path="/smart-import-with-auto-assignment-engine" element={<ProtectedRoute><SmartImportWithAutoAssignmentEngine /></ProtectedRoute>} />
         
         {/* Supplier Auth Routes (public) */}
-        <Route path="/supplier/login" element={<SupplierLogin />} />
+        <Route path="/supplier/login" element={<LegacySupplierLoginRedirect />} />
         <Route path="/supplier/signup" element={<SupplierSignup />} />
 
         {/* Public demo of the supplier portal — mock data, no auth required */}

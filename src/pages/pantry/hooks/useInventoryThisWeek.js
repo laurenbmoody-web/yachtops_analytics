@@ -22,20 +22,36 @@ export function useInventoryThisWeek({ limit = 4 } = {}) {
 
       if (!member) throw new Error('No active tenant membership');
 
-      const { data, error: err } = await supabase
+      // updated_at is included so downstream callers (InventoryWeeklyPage +
+      // useInventoryInsights) can use max(updated_at) as a cache-freshness
+      // signal without a second round-trip.
+      let query = supabase
         .from('inventory_items')
-        .select('id, name, unit, total_qty, par_level, reorder_point')
+        .select('id, name, unit, total_qty, par_level, reorder_point, updated_at')
         .eq('tenant_id', member.tenant_id)
         .not('total_qty', 'is', null)
-        .order('total_qty', { ascending: true })
-        .limit(limit * 2);
+        .order('total_qty', { ascending: true });
+
+      // limit=null → fetch all flagged items for the weekly page. Widget
+      // callers still pass a numeric limit and get top-N.
+      if (limit != null) query = query.limit(limit * 2);
+
+      const { data, error: err } = await query;
 
       if (err) throw err;
+
+      // Sentinel unit values like ":UNSELECTED:" leak from variant rows
+      // where no variant is chosen — strip so the UI never shows them.
+      const isSentinel = (u) => !u || /^:[A-Z_]+:$/.test(String(u).trim());
 
       // Simple v1 criticality: critical when total_qty <= reorder_point (or par_level / 2)
       const scored = (data ?? []).map(item => {
         const threshold = item.reorder_point ?? (item.par_level ? item.par_level / 2 : 2);
-        return { ...item, critical: item.total_qty <= threshold };
+        return {
+          ...item,
+          unit:     isSentinel(item.unit) ? '' : item.unit,
+          critical: item.total_qty <= threshold,
+        };
       });
 
       // Sort: critical first, then by qty ascending
@@ -45,7 +61,7 @@ export function useInventoryThisWeek({ limit = 4 } = {}) {
         return (a.total_qty ?? 0) - (b.total_qty ?? 0);
       });
 
-      setItems(scored.slice(0, limit));
+      setItems(limit != null ? scored.slice(0, limit) : scored);
     } catch (e) {
       setError(e.message);
     } finally {

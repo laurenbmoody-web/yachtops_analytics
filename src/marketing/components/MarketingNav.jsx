@@ -23,7 +23,7 @@ const MarketingNav = () => {
       >
         {/* Logo */}
         <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <img src="/assets/images/cargo_merged_originalmark_syne800_true.png" alt="Cargo" style={{ height: 28, width: 'auto' }} />
+          <img src="/centered-logo.svg" alt="Cargo" style={{ height: 28, width: 'auto' }} />
         </Link>
 
         {/* Centre links */}
@@ -61,23 +61,6 @@ const MarketingNav = () => {
 
         {/* Right */}
         <div className="flex items-center" style={{ gap: 4 }}>
-          <Link
-            to="/supplier/login"
-            className="mkt-archivo transition-colors duration-150"
-            style={{
-              fontWeight: 700,
-              fontSize: 10,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              color: '#94A3B8',
-              textDecoration: 'none',
-              padding: '0 10px',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.color = '#1E3A5F')}
-            onMouseLeave={e => (e.currentTarget.style.color = '#94A3B8')}
-          >
-            Suppliers
-          </Link>
           <Link
             to="/login-authentication"
             className="mkt-archivo transition-colors duration-150"
