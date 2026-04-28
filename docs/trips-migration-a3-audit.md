@@ -529,3 +529,120 @@ Every export. Phase column = which A3 sub-phase the helper's swap belongs to.
 **Audit complete.** No code changes proposed in this doc. Production state unchanged.
 
 Next step: pause for Lauren to review. After approval, Phase A3.1 proper begins as a separate session.
+
+---
+
+## Addendum — `GuestDetailPanel.jsx:163` bypass investigation
+
+Read-only follow-up commissioned in the PR1 review. Findings written here so PR3 (A3.5) can act on them. No fix applied.
+
+### What field is being written
+
+Two fields on the localStorage trip object, looped across **every trip** that includes the guest:
+
+```js
+// GuestDetailPanel.jsx:152-164
+const allTrips = JSON.parse(localStorage.getItem('cargo.trips.v1') || '[]');
+let tripsUpdated = false;
+allTrips?.forEach(trip => {
+  const guestIndex = trip?.guests?.findIndex(tg => tg?.guestId === guest?.id);
+  if (guestIndex !== -1) {
+    trip.guests[guestIndex].isActive = newActiveState;
+    trip.guests[guestIndex][newActiveState ? 'activatedAt' : 'deactivatedAt'] = new Date()?.toISOString();
+    tripsUpdated = true;
+  }
+});
+if (tripsUpdated) {
+  localStorage.setItem('cargo.trips.v1', JSON.stringify(allTrips));
+}
+```
+
+Specifically:
+- `trip.guests[].isActive` (boolean, toggled)
+- `trip.guests[].activatedAt` OR `trip.guests[].deactivatedAt` (ISO timestamp, branched on the new state)
+
+The `setItem` writes the entire trips collection back, not just the affected trips.
+
+### User flow
+
+1. User opens `/guest-management-dashboard`
+2. Clicks a guest card → opens `GuestDetailPanel`
+3. Sees the "Active on current trip" toggle
+4. Clicks it
+5. `handleActiveToggle()` runs:
+   - Optimistic `setFormData` flip
+   - **Supabase write:** `updateGuest(guest.id, { isActiveOnTrip: newActiveState })` — RLS-enforced on the guest row
+   - **localStorage write (the bypass):** the `forEach` loop above
+   - Toast: "Guest activated on current trip" / "Guest removed from current trip"
+
+The Supabase write updates `guests.is_active_on_trip` (the **global** "currently on board" flag). The localStorage write updates **per-trip** membership. These are conceptually distinct but the UI conflates them under a single toggle.
+
+### Permission tier reaching the flow
+
+Toggle rendered inside `{canEdit && !isDeleted && (...)}` (line 751). `canEdit` resolves in `guest-management-dashboard/index.jsx:51`:
+
+```js
+const userTier = String(currentTenantMember?.permission_tier || '').toUpperCase().trim();
+const isCommandOrChief = userTier === 'COMMAND' || userTier === 'CHIEF';
+const canEdit = DEV_MODE ? true : isCommandOrChief;
+```
+
+So **COMMAND** and **CHIEF** can reach the toggle. **CREW** cannot (toggle isn't rendered).
+
+This is the same numeric tier check as `tripStorage.toggleGuestActiveStatus` (which calls `normalizeTier(currentUser)` against the same allow-list at tripStorage.js:425). **Both code paths arrive at the same allow-list.** The bypass is not a permission escalation — just a different code path that produces the same allow/deny outcome via a different gate object.
+
+### What's actually broken (correcting the audit's earlier wording)
+
+Section 9 #7 said "bypasses `updateTrip`'s permission gate." That phrasing is imprecise. The UI **does** gate at `canEdit`. Three real problems remain:
+
+1. **No activity log entry.** `tripStorage.updateTrip` and `tripStorage.toggleGuestActiveStatus` both append to `tripActivityLog` and call `logActivity()` for the global activity feed. The direct localStorage write skips both — toggles are invisible to anyone reviewing trip history.
+
+2. **No tenant scoping.** The `forEach` mutates **every localStorage trip** that includes the guest. Today this is benign because localStorage is per-device per-user, but the moment A3 ships and trips move to Supabase, "loop all trips" becomes a multi-tenant bug if the same code path persists unchanged.
+
+3. **Field-name divergence.** GuestDetailPanel writes `isActive`, `activatedAt`, `deactivatedAt`. `tripStorage.toggleGuestActiveStatus` writes `isActive`, `activatedAt`, `activatedByUserId` (no `deactivatedAt`). Two writers producing structurally different rows in the same array — last writer sets the per-guest schema.
+
+### What the permission **should** be
+
+Toggling per-trip guest membership is a partial trip update. `toggleGuestActiveStatus` already encodes the right rule: COMMAND/CHIEF only. **No tier change needed.** The bug is the duplicate code path, not the gate.
+
+Post-A3 the relevant table is `trip_guests` (A1's join table). The toggle becomes:
+- `UPDATE guests SET is_active_on_trip = X WHERE id = guest_id` (global, already RLS-scoped)
+- `UPDATE trip_guests SET is_active_on_trip = X WHERE guest_id = guest_id` (per-trip, RLS resolves tenant via parent `trips` per the A1 policy)
+
+Both writes in one transaction, RLS enforces tenant isolation, no localStorage involvement.
+
+### Recommended fix shape — three options for PR3 to choose from
+
+#### Option A — Route through `toggleGuestActiveStatus` per-trip
+
+Replace the `forEach` localStorage write with:
+
+```js
+const allTrips = loadTrips();
+allTrips
+  .filter(t => t.guests?.some(tg => tg.guestId === guest.id))
+  .forEach(t => toggleGuestActiveStatus(t.id, guest.id));
+```
+
+**Pros:** Activity log fires. Permission check fires per call. Smallest change.
+**Cons:** Still loops in JS. After A3.5 makes `toggleGuestActiveStatus` async, this becomes `Promise.all(...)`.
+
+#### Option B — New RPC `set_guest_active_state(guest_id, is_active)`
+
+Single Supabase call updating `guests.is_active_on_trip` + every matching `trip_guests.is_active_on_trip` in one transaction, RLS-scoped. JS handler becomes one `supabase.rpc(...)`.
+
+**Pros:** Atomic, no JS loop, RLS enforces tenant, single audit-log surface via trigger on the RPC.
+**Cons:** Requires a migration. Schema-side decision needed: does turning a guest off globally also turn off membership on every trip, or only on the active trip? Current code does "every trip"; not necessarily what users want.
+
+#### Option C — Move the field out of the trip object entirely
+
+Once A3 ships, the per-trip `isActive` flag has a Supabase home (`trip_guests.is_active_on_trip`). Instead of mirroring it into localStorage at all, the GuestDetailPanel toggles `trip_guests.is_active_on_trip` for the relevant trip(s).
+
+**Pros:** One source of truth.
+**Cons:** Forces the UX question — which trips to touch? Probably needs `for_active_trip_only` semantics or a UX redesign.
+
+### Recommendation for PR3
+
+**Option A as the immediate fix in PR3.** Smallest change, preserves activity logging, fits the existing helper surface, and survives A3's read-path swap because `toggleGuestActiveStatus` is already in the wave-of-helpers slated for A3.5 migration.
+
+Option B / C are post-A3 cleanup territory, possibly bundled with a small UX conversation about what the toggle is supposed to do across multiple trips.
