@@ -61,6 +61,9 @@ export const PROVISION_DEPARTMENTS = ['Galley', 'Interior', 'Deck', 'Engineering
 
 export const PROVISION_UNITS = ['each', 'kg', 'litre', 'box', 'bottle', 'case', 'tin', 'bag', 'pack', 'dozen'];
 
+// TODO(backlog): PROVISION_CATEGORIES below duplicates CATEGORY_GROUPS in
+// data/categories.js with diverging names (e.g. 'Dry Goods' vs 'Pantry & Dry
+// Goods'). Unify in a future sprint.
 export const PROVISION_CATEGORIES = {
   Galley: ['Dry Goods', 'Fresh Produce', 'Meat & Seafood', 'Dairy', 'Beverages', 'Alcohol', 'Condiments', 'Cleaning', 'Other'],
   Interior: ['Cleaning Supplies', 'Toiletries', 'Linen', 'Amenities', 'Office', 'Other'],
@@ -134,7 +137,9 @@ export const fetchInventoryLocationChildren = async (tenantId, location) => {
 /**
  * Fetch active departments for this tenant via the get_tenant_departments RPC.
  * Falls back to vessels.departments_in_use if the RPC fails.
- * Returns a string[] of department names.
+ * Returns { id, name, color }[] sorted by name. Legacy-fallback rows
+ * (where only the name is known) get id=null and color='#5F5E5A' so
+ * consumers can rely on the shape.
  */
 export const fetchVesselDepartments = async (tenantId) => {
   if (!tenantId) return [];
@@ -143,7 +148,10 @@ export const fetchVesselDepartments = async (tenantId) => {
     const { data: rpcData, error: rpcErr } = await supabase
       ?.rpc('get_tenant_departments', { p_tenant_id: tenantId });
     if (!rpcErr && Array.isArray(rpcData) && rpcData.length > 0) {
-      return rpcData.map(d => d.name).filter(Boolean).sort();
+      return rpcData
+        .filter(d => d?.name)
+        .map(d => ({ id: d.id ?? null, name: d.name, color: d.color || '#5F5E5A' }))
+        .sort((a, b) => a.name.localeCompare(b.name));
     }
   } catch { /* fall through to legacy approach */ }
 
@@ -158,7 +166,10 @@ export const fetchVesselDepartments = async (tenantId) => {
     if (error || !data?.departments_in_use) return [];
     const raw = data.departments_in_use;
     const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(Boolean)
+      .map(name => ({ id: null, name, color: '#5F5E5A' }));
   } catch (err) {
     console.warn('[provisioningStorage] fetchVesselDepartments error:', err);
     return [];

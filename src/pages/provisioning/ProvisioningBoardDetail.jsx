@@ -58,7 +58,7 @@ import {
 import SummaryGauges from './components/SummaryGauges';
 import { getActivityForEntity } from '../../utils/activityStorage';
 import { supabase } from '../../lib/supabaseClient';
-import { getCategoryColor, hexToRgba } from './data/categories';
+import { getDepartmentColor, hexToRgba } from './data/categories';
 
 // ── (SummaryGauges, SemiGauge, useCountUp live in components/SummaryGauges.jsx) ─
 
@@ -359,15 +359,18 @@ const ProvisioningBoardDetail = () => {
   // Delete individual items: owner / COMMAND / CHIEF / HOD  (not CREW)
   const canDeleteItem = !!isOwner || userTier === 'COMMAND' || (['CHIEF', 'HOD'].includes(userTier) && inSameDept);
 
-  // Default department for new items: user's own dept from auth, then board's dept, then vessel config, else null (→ GLOBAL)
+  // Default department NAME (string) for new items: user's own dept from auth,
+  // then board's dept, then vessel config, else null (→ GLOBAL). departments is
+  // { id, name, color }[]; we return just the name to keep downstream callers
+  // (addingToDept, handleAddItem) operating on strings.
   const defaultDept = useMemo(() => {
     const userDept = (user?.department || '').trim();
     if (userDept) {
-      const match = departments.find(d => d?.toLowerCase() === userDept.toLowerCase());
-      if (match) return match;
+      const match = departments.find(d => d?.name?.toLowerCase() === userDept.toLowerCase());
+      if (match) return match.name;
     }
     return (Array.isArray(list?.department) ? list.department.filter(Boolean) : (list?.department || '').split(',').map(d => d.trim()).filter(Boolean))[0]
-      || departments.find(Boolean) || null;
+      || departments[0]?.name || null;
   }, [departments, list?.department, user?.department]);
 
   // ── Load ──────────────────────────────────────────────────────────────────
@@ -857,8 +860,20 @@ const ProvisioningBoardDetail = () => {
     });
     if (addingToDept && !groups[addingToDept]) groups[addingToDept] = [];
     const ordered = [];
-    departments.forEach(d => { if (groups[d] !== undefined) ordered.push({ dept: d, items: groups[d] }); });
-    Object.keys(groups).forEach(d => { if (!departments.includes(d)) ordered.push({ dept: d, items: groups[d] }); });
+    const deptNames = new Set(departments.map(d => d?.name).filter(Boolean));
+    // Preserve canonical dept order (sorted by name from the RPC), and pass
+    // the dept object through so the category header can read .color.
+    departments.forEach(d => {
+      if (d?.name && groups[d.name] !== undefined) {
+        ordered.push({ dept: d.name, deptObj: d, items: groups[d.name] });
+      }
+    });
+    // Fallback group for items whose department name isn't in the
+    // departments list (e.g. 'General', deleted dept). No deptObj — header
+    // colour will fall to neutral grey via getDepartmentColor.
+    Object.keys(groups).forEach(d => {
+      if (!deptNames.has(d)) ordered.push({ dept: d, deptObj: null, items: groups[d] });
+    });
     return ordered;
   }, [filteredItems, addingToDept, departments, showReceived]);
 
@@ -993,6 +1008,8 @@ const ProvisioningBoardDetail = () => {
 
   // ── Style constants ───────────────────────────────────────────────────────
 
+  // TODO(backlog): DEPT_CHIP_STYLES is a hardcoded dept→colour map that predates the
+  // dept.color DB column. Migrate to use dept.color as single source of truth.
   const DEPT_CHIP_STYLES = {
     Galley:      { bg: '#FEF9C3', color: '#854D0E' },
     Interior:    { bg: '#EDE9FE', color: '#5B21B6' },
@@ -1418,7 +1435,7 @@ const ProvisioningBoardDetail = () => {
               style={{ fontSize: 11, background: 'white', border: '1px solid #F1F5F9', borderRadius: 7, padding: '6px 10px', color: '#64748B', outline: 'none', cursor: 'pointer' }}
             >
               <option value="all">All depts</option>
-              {departments.map(d => <option key={d} value={d}>{d}</option>)}
+              {departments.map(d => <option key={d.id || d.name} value={d.name}>{d.name}</option>)}
             </select>
             {/* Status filter */}
             <select
@@ -1532,7 +1549,7 @@ const ProvisioningBoardDetail = () => {
             <div style={{ padding: '48px 0', textAlign: 'center', fontSize: 13, color: '#94A3B8' }}>No items match your filters.</div>
           ) : (
             <>
-              {deptGroups.map(({ dept, items: deptItems }) => {
+              {deptGroups.map(({ dept, deptObj, items: deptItems }) => {
                 const deptChip = getDeptChip(dept);
                 const deptSubtotal = deptItems.reduce((acc, i) => {
                   const cost = parseFloat(i.estimated_unit_cost) || 0;
@@ -1849,7 +1866,10 @@ const ProvisioningBoardDetail = () => {
                           });
 
                           return catEntries.map(([category, catItems]) => {
-                            const color = getCategoryColor(category);
+                            // Category header colour comes from the dept now (single source
+                            // of truth: public.departments.color). Falls back to neutral grey
+                            // when the dept isn't in the lookup table (e.g. 'General').
+                            const color = getDepartmentColor(deptObj);
                             const key = `${dept}::${category}`;
                             const isCollapsed = collapsedCategories.has(key);
                             const subtotal = catItems.reduce((sum, i) => {
@@ -2686,7 +2706,7 @@ const ProvisioningBoardDetail = () => {
         listId={id}
         tenantId={activeTenantId}
         listCurrency={currency}
-        departments={departments}
+        departments={departments.map(d => d.name)}
         theme="light"
         onSaved={handleItemDrawerSaved}
         onDeleted={(listId, itemId) => {
