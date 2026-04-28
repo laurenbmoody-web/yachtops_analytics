@@ -2141,6 +2141,17 @@ export const fetchInvoiceSignedUrl = async (invoiceId) => {
   return data; // { signed_url, expires_at }
 };
 
+// Generalised signed-URL helper for supplier documents (Sprint 9b). Used by
+// the vessel side to open the order PDF, unsigned delivery note, and signed
+// delivery note. documentKind values match the edge function contract.
+export const fetchDocumentSignedUrl = async (documentKind, documentId) => {
+  const { data, error } = await supabase.functions.invoke('getDocumentSignedUrl', {
+    body: { documentKind, documentId },
+  });
+  if (error) throw error;
+  return data; // { signed_url, expires_at }
+};
+
 export const fetchOrderByToken = async (token) => {
   const { data, error } = await supabase
     .from('supplier_orders')
