@@ -30,6 +30,9 @@ UPDATE public.departments SET color = '#A98AC9' WHERE lower(name) = 'spa'       
 UPDATE public.departments SET color = '#3D4F5C' WHERE lower(name) = 'security'           AND color IS NULL;
 UPDATE public.departments SET color = '#E8A33D' WHERE lower(name) = 'aviation'           AND color IS NULL;
 UPDATE public.departments SET color = '#7A6E5D' WHERE lower(name) = 'shore / management' AND color IS NULL;
+UPDATE public.departments SET color = '#7A6E5D' WHERE lower(name) = 'admin'              AND color IS NULL;
+UPDATE public.departments SET color = '#C13F3F' WHERE lower(name) = 'medical'            AND color IS NULL;
+UPDATE public.departments SET color = '#3A8FB7' WHERE lower(name) = 'science'            AND color IS NULL;
 
 -- Fallback grey for any department row not covered above (custom tenant
 -- departments seeded post-deploy will pick this up too).
