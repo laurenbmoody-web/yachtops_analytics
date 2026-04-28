@@ -5,6 +5,7 @@ import { usePermission } from '../../../contexts/SupplierPermissionContext';
 import EditDeliveryModal from '../components/EditDeliveryModal';
 import ReassignModal from '../components/ReassignModal';
 import GenerateInvoiceModal from '../components/GenerateInvoiceModal';
+import SupplierModal from '../components/SupplierModal';
 
 const NO_PERMISSION_TITLE = "Your role doesn't have permission for this action.";
 
@@ -213,14 +214,31 @@ const HeroActions = ({
       {/* Dropdowns positioned to the left of the action stack */}
       <ActionDropdown open={isOpen('docs')} top={0}>
         {/* Sprint 9b: Order PDF wired (Cargo-branded). Delivery note still
-            pending later in this sprint. Invoice (supplier-branded) below. */}
+            pending later in this sprint. Invoice (supplier-branded) below.
+            When a PDF exists we expose a primary "Open" row plus a compact
+            secondary "Regenerate" row underneath — second click overwrites
+            the same storage path and writes a fresh activity event. */}
         {orderHasPdf ? (
-          <DropdownRow
-            icon="📄"
-            name="Order PDF"
-            link="Open"
-            onClick={onOpenOrderPdf}
-          />
+          <>
+            <DropdownRow
+              icon="📄"
+              name="Order PDF"
+              link="Open"
+              onClick={onOpenOrderPdf}
+            />
+            <button
+              type="button"
+              role="menuitem"
+              className={`sod-dd-row sod-dd-subrow${orderPdfBusy || !canEdit ? ' sod-dd-disabled' : ''}`}
+              onClick={canEdit && !orderPdfBusy ? onGenerateOrderPdf : undefined}
+              disabled={!canEdit || orderPdfBusy}
+              aria-label="Regenerate order PDF"
+            >
+              <span className="sod-dd-name">
+                ↻ {orderPdfBusy ? 'Regenerating…' : 'Regenerate'}
+              </span>
+            </button>
+          </>
         ) : (
           <DropdownRow
             icon="📄"
@@ -1201,13 +1219,55 @@ const fmtActivityEvent = (event) => {
   }
 };
 
-const ActivityCard = ({ activity }) => (
-  <div className="sod-card" style={{ marginTop: 18 }}>
-    <div className="sod-card-head">
-      <h4>Activity</h4>
-      <span className="sod-card-meta">All events on this order</span>
+const ACTIVITY_CARD_LIMIT = 5;
+
+const ActivityCard = ({ activity, onViewAll }) => {
+  const total = activity.length;
+  const truncated = total > ACTIVITY_CARD_LIMIT;
+  const visible = truncated ? activity.slice(0, ACTIVITY_CARD_LIMIT) : activity;
+  return (
+    <div className="sod-card" style={{ marginTop: 18 }}>
+      <div className="sod-card-head">
+        <h4>Activity</h4>
+        <span className="sod-card-meta">
+          {truncated ? `${ACTIVITY_CARD_LIMIT} most recent of ${total}` : 'All events on this order'}
+        </span>
+      </div>
+      <div className="sod-activity-body">
+        <ul className="sod-activity">
+          {total === 0 && (
+            <li style={{ color: 'var(--muted-strong)', fontSize: 13 }}>
+              No activity yet.
+            </li>
+          )}
+          {visible.map((event) => {
+            const { when, dotClass, title, sub } = fmtActivityEvent(event);
+            return (
+              <li key={event.id} className={dotClass || undefined}>
+                <div className="sod-act-when">{when}</div>
+                <div className="sod-act-what">{title}</div>
+                {sub && <div className="sod-act-who">{sub}</div>}
+              </li>
+            );
+          })}
+        </ul>
+        {truncated && (
+          <div className="sod-activity-viewall">
+            <button type="button" onClick={onViewAll}>
+              View all activity ({total}) →
+            </button>
+          </div>
+        )}
+      </div>
     </div>
-    <div className="sod-activity-body">
+  );
+};
+
+// Full chronological list inside a SupplierModal shell. Reuses
+// fmtActivityEvent so styling matches the on-page card exactly.
+const ActivityDrawer = ({ open, onClose, activity }) => (
+  <SupplierModal open={open} onClose={onClose} title="Activity">
+    <div className="sod-activity-drawer-body">
       <ul className="sod-activity">
         {activity.length === 0 && (
           <li style={{ color: 'var(--muted-strong)', fontSize: 13 }}>
@@ -1226,7 +1286,7 @@ const ActivityCard = ({ activity }) => (
         })}
       </ul>
     </div>
-  </div>
+  </SupplierModal>
 );
 
 // ─── Drawer ─────────────────────────────────────────────────────────────────
@@ -1310,6 +1370,7 @@ const SupplierOrderDetail = () => {
   const [reassignOpen, setReassignOpen] = useState(false);
   const [generateInvoiceOpen, setGenerateInvoiceOpen] = useState(false);
   const [orderPdfBusy, setOrderPdfBusy] = useState(false);
+  const [activityDrawerOpen, setActivityDrawerOpen] = useState(false);
   const heroRef = useRef(null);
 
   // Activity feed state — declared early so all the modal-save handlers below
@@ -1667,7 +1728,7 @@ const SupplierOrderDetail = () => {
       <CharterContextCard order={order} yachtDisplayName={yachtDisplayName} />
 
       {/* ── Activity ── */}
-      <ActivityCard activity={activity} />
+      <ActivityCard activity={activity} onViewAll={() => setActivityDrawerOpen(true)} />
 
       {/* ── Keyboard hint footer ── */}
       <div className="sod-kb-hint">
@@ -1714,6 +1775,11 @@ const SupplierOrderDetail = () => {
         open={generateInvoiceOpen}
         onClose={() => setGenerateInvoiceOpen(false)}
         onGenerated={handleInvoiceGenerated}
+      />
+      <ActivityDrawer
+        open={activityDrawerOpen}
+        onClose={() => setActivityDrawerOpen(false)}
+        activity={activity}
       />
     </div>
   );

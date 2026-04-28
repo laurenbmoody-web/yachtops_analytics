@@ -1128,6 +1128,46 @@
   height: 1px; background: var(--line-soft); margin: 4px 6px;
 }
 
+/* Compact secondary row sitting under a primary row (e.g. "↻ Regenerate"
+   beneath "Order PDF · Open"). Smaller font, no icon, right-aligned. */
+#sp-root .sod-action-dropdown .sod-dd-row.sod-dd-subrow {
+  padding: 4px 10px 6px 46px;   /* indent matches the icon column above */
+  margin-top: -4px;
+  font-size: 11.5px;
+  color: var(--muted-strong);
+  justify-content: flex-start;
+}
+#sp-root .sod-action-dropdown .sod-dd-row.sod-dd-subrow:hover {
+  color: var(--navy);
+  background: transparent;
+}
+#sp-root .sod-action-dropdown .sod-dd-row.sod-dd-subrow .sod-dd-name {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: inherit;
+  font-family: 'DM Sans';
+}
+
+/* Activity card "View all" link — bottom of truncated list */
+#sp-root .sod-activity-viewall {
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid var(--line-soft);
+  text-align: right;
+}
+#sp-root .sod-activity-viewall button {
+  background: transparent; border: none; cursor: pointer;
+  font-family: 'Outfit'; font-weight: 600; font-size: 12px;
+  color: var(--navy); padding: 0;
+}
+#sp-root .sod-activity-viewall button:hover { text-decoration: underline; }
+
+/* Activity drawer body (uses the SupplierModal shell) */
+#sp-root .sod-activity-drawer-body {
+  max-height: 60vh; overflow-y: auto;
+  padding-right: 4px;
+}
+#sp-root .sod-activity-drawer-body .sod-activity { margin: 0; padding: 0; }
+
 /* ── Timeline ───────────────────────────────────────────── */
 #sp-root .sod-timeline-card {
   background: var(--card); border: 1px solid var(--line);
