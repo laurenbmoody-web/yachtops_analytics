@@ -638,6 +638,19 @@ export const fetchInvoiceSignedUrl = async (invoiceId) => {
   return data; // { signed_url, expires_at }
 };
 
+// Generalised signed-URL helper for supplier-side documents (Sprint 9b).
+// documentKind ∈ 'invoice' | 'order_pdf' | 'delivery_note' | 'delivery_note_signed'.
+// documentId is the parent row id (supplier_invoices.id for 'invoice',
+// supplier_orders.id for the three order-document kinds). Auth and bucket
+// routing happen inside the getDocumentSignedUrl edge function.
+export const fetchDocumentSignedUrl = async (documentKind, documentId) => {
+  const { data, error } = await supabase.functions.invoke('getDocumentSignedUrl', {
+    body: { documentKind, documentId },
+  });
+  if (error) throw error;
+  return data; // { signed_url, expires_at }
+};
+
 // ─── Quote workflow (Sprint 9.5) ────────────────────────────────────────────
 
 // Set the supplier's quoted price on a single line. The auto-accept BEFORE
