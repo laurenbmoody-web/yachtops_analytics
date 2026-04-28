@@ -646,3 +646,66 @@ Once A3 ships, the per-trip `isActive` flag has a Supabase home (`trip_guests.is
 **Option A as the immediate fix in PR3.** Smallest change, preserves activity logging, fits the existing helper surface, and survives A3's read-path swap because `toggleGuestActiveStatus` is already in the wave-of-helpers slated for A3.5 migration.
 
 Option B / C are post-A3 cleanup territory, possibly bundled with a small UX conversation about what the toggle is supposed to do across multiple trips.
+
+---
+
+## Addendum — `migrate_localstorage_trip` v1 → v2 RPC fix
+
+Found while debugging the missing `trip_guests` rows on existing migrated trips. Filed for the audit trail; the fix has shipped as `supabase/migrations/20260427120300_migrate_trip_rpc_v2.sql`.
+
+### The bug
+
+The v1 RPC (`20260427120200_migrate_trip_from_localstorage.sql`) returned early when a trip with the given `legacy_local_id` already existed, **skipping the guest-linking block entirely**:
+
+```sql
+-- v1 (buggy)
+SELECT id INTO v_trip_id FROM trips
+ WHERE legacy_local_id = p_legacy_id AND tenant_id = v_tenant_id LIMIT 1;
+
+IF v_trip_id IS NOT NULL THEN
+  RETURN v_trip_id;  -- ← bails here, never reaches guest linking
+END IF;
+```
+
+Any trip whose first migration call landed the trip row but failed to link guests (e.g. `p_guest_ids = []` on the first call, or partial-failure mid-loop) stayed broken forever — subsequent runs hit the early-return and never re-attempted guest linking. Production manifestation: trips migrated with empty `trip_guests` arrays. Two existing trips were patched manually with raw SQL.
+
+### The fix (v2)
+
+```sql
+-- v2 (correct)
+SELECT id INTO v_trip_id FROM trips
+ WHERE legacy_local_id = p_legacy_id AND tenant_id = v_tenant_id LIMIT 1;
+
+IF v_trip_id IS NULL THEN
+  INSERT INTO trips (...) VALUES (...) RETURNING id INTO v_trip_id;
+END IF;
+
+-- Always runs — both fresh-insert and found-existing paths reach here.
+-- ON CONFLICT (trip_id, guest_id) DO NOTHING already in the loop keeps
+-- re-runs idempotent at the trip_guests level.
+IF p_guest_ids IS NOT NULL AND array_length(p_guest_ids, 1) > 0 THEN
+  FOREACH v_guest_id IN ARRAY p_guest_ids LOOP
+    INSERT INTO trip_guests (trip_id, guest_id, is_active_on_trip)
+    SELECT v_trip_id, g.id, true
+      FROM guests g
+     WHERE g.id = v_guest_id AND g.tenant_id = v_tenant_id
+    ON CONFLICT (trip_id, guest_id) DO NOTHING;
+  END LOOP;
+END IF;
+
+RETURN v_trip_id;
+```
+
+### Manual data patch (already applied)
+
+The two affected trips were repaired in production with direct SQL inserts into `trip_guests`. The third trip (still pending migration at the time of the fix) will pick up correct linking via the v2 RPC on its next migration runner pass.
+
+### Why this slipped through A1's local Postgres verification
+
+A1's local-Postgres test matrix exercised the happy path (trip + 2 guests inserted in one call) and the idempotency check (re-call with same `legacy_id` returns the same uuid). Both passed. **Neither test exercised the partial-failure recovery path** — first call with empty `p_guest_ids`, then second call with populated `p_guest_ids`. That gap is what allowed the early-return to ship.
+
+Future A* RPC tests should include a "partial-failure recovery" case: simulate the writer landing the parent row but failing on dependent inserts, then verify a re-run reconciles correctly.
+
+### Filed for the post-A3 cleanup queue
+
+- **Once the localStorage→Supabase migration is fully complete** (Phase A2 retired, no users left on localStorage), the `migrate_localstorage_trip` RPC + the `legacy_local_id` column can both be dropped. Tracker entry already exists in Section 9 of this doc.
