@@ -61,7 +61,6 @@ import ReturnSlipPage from './pages/provisioning/ReturnSlipPage';
 import ReturnConfirmPage from './pages/provisioning/ReturnConfirmPage';
 import SupplierConfirmOrder from './pages/provisioning/SupplierConfirmOrder';
 import DeliverySigningPage from './pages/supplier-portal/views/DeliverySigningPage';
-import SupplierLogin from './pages/supplier-login';
 import SupplierSignup from './pages/supplier-signup';
 import SupplierProtectedRoute from './components/SupplierProtectedRoute';
 import SupplierRoleGuard from './components/SupplierRoleGuard';
