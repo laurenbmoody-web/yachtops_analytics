@@ -11,10 +11,15 @@
 // receiving crew may have already received. Cleanup of an unwanted token
 // would require a deliberate void/replace flow (not in this sprint).
 //
-// Lock-out: once delivered_signed_at IS NOT NULL the order is considered
+// Lock-out: once crew_signed_at IS NOT NULL the order is considered
 // signed and we refuse to regenerate the unsigned note. The signed-PDF path
 // (delivery_note_signed_pdf_url) is the canonical record at that point.
 // Server returns 409 Conflict with a clear error message.
+//
+// Sprint 9c note: a parallel supplier_signed_at column will land alongside
+// crew_signed_at, and the lock-out condition will then become
+// "crew_signed_at OR supplier_signed_at IS NOT NULL". Single-party check
+// for now — the crew is the canonical signing party in v1.
 //
 // QR generation: tries npm:qrcode first (data-URL embed, no external
 // dependency at PDF render time). If that import or call fails, falls back
@@ -511,7 +516,7 @@ Deno.serve(async (req: Request) => {
 
     // Lock-out: if the order is already signed, refuse to regenerate the
     // unsigned note. The signed PDF is the canonical record.
-    if (order.delivered_signed_at) {
+    if (order.crew_signed_at) {
       return jsonResponse({
         error: 'Cannot regenerate — delivery note has already been signed. Use the signed copy from Documents.',
       }, 409);
