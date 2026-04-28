@@ -8,13 +8,18 @@
 -- fetchVesselDepartments helper return { id, name, color }[] without a
 -- separate lookup.
 --
--- Both functions are CREATE OR REPLACE so re-running is safe. SECURITY DEFINER
--- + search_path locked, mirroring the existing definitions. GRANT re-issued
--- because Postgres drops privileges when the return signature changes.
+-- Postgres CREATE OR REPLACE FUNCTION cannot change the return type — TABLE
+-- columns are OUT parameters, and adding `color text` is a return-type change
+-- (error 42P13). So we DROP first, then CREATE. DROP IF EXISTS keeps the
+-- migration idempotent. SECURITY DEFINER + search_path locked, mirroring the
+-- existing definitions. GRANTs re-issued because Postgres drops privileges
+-- when the function is dropped.
 
 -- ── get_tenant_departments ────────────────────────────────────────────────
 
-CREATE OR REPLACE FUNCTION public.get_tenant_departments(p_tenant_id UUID)
+DROP FUNCTION IF EXISTS public.get_tenant_departments(UUID);
+
+CREATE FUNCTION public.get_tenant_departments(p_tenant_id UUID)
 RETURNS TABLE(id UUID, name TEXT, color TEXT)
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -32,6 +37,12 @@ BEGIN
     RAISE EXCEPTION 'Access denied: not a member of this tenant';
   END IF;
 
+  -- TODO(backlog): p_tenant_id is currently used only as a membership gate;
+  -- the SELECT below returns ALL departments from the global lookup table
+  -- regardless of tenant. Behaviour preserved verbatim from
+  -- 20260310110000_fix_departments_seed_and_rpc.sql to avoid a behavioural
+  -- change in this sprint. If departments ever become tenant-scoped, this
+  -- query and the matching get_all_departments RPC must be revisited.
   RETURN QUERY
   SELECT d.id, d.name, d.color
   FROM public.departments d
@@ -43,7 +54,9 @@ GRANT EXECUTE ON FUNCTION public.get_tenant_departments(UUID) TO authenticated;
 
 -- ── get_all_departments ───────────────────────────────────────────────────
 
-CREATE OR REPLACE FUNCTION public.get_all_departments()
+DROP FUNCTION IF EXISTS public.get_all_departments();
+
+CREATE FUNCTION public.get_all_departments()
 RETURNS TABLE(id UUID, name TEXT, color TEXT)
 LANGUAGE plpgsql
 SECURITY DEFINER
