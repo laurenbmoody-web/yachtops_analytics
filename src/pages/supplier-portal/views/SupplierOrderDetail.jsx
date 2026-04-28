@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchOrderById, updateOrderStatus, updateOrderItem, fetchOrderActivity, fetchInvoiceSignedUrl, quoteOrderItem, confirmOrderItem } from '../utils/supplierStorage';
+import { fetchOrderById, updateOrderStatus, updateOrderItem, fetchOrderActivity, fetchInvoiceSignedUrl, fetchDocumentSignedUrl, generateOrderPdf, quoteOrderItem, confirmOrderItem } from '../utils/supplierStorage';
 import { usePermission } from '../../../contexts/SupplierPermissionContext';
 import EditDeliveryModal from '../components/EditDeliveryModal';
 import ReassignModal from '../components/ReassignModal';
@@ -165,6 +165,10 @@ const HeroActions = ({
   onGenerateInvoice,
   onOpenInvoice,
   invoice,             // most-recent supplier_invoices row, or null/undefined
+  orderHasPdf,         // boolean — supplier_orders.order_pdf_url is set
+  orderPdfBusy,        // boolean — generation in flight
+  onGenerateOrderPdf,
+  onOpenOrderPdf,
   canEdit,
 }) => {
   const isOpen = (id) => openMenu === id;
@@ -208,10 +212,23 @@ const HeroActions = ({
 
       {/* Dropdowns positioned to the left of the action stack */}
       <ActionDropdown open={isOpen('docs')} top={0}>
-        {/* Order PDF + Delivery note still pending — Sprint 9b. Invoice is
-            wired below: shows "Generate" if no invoice exists yet, or
-            "Open" linking to the signed URL if one does. */}
-        <DropdownRow icon="📄" name="Order PDF (soon)"     empty disabled />
+        {/* Sprint 9b: Order PDF wired (Cargo-branded). Delivery note still
+            pending later in this sprint. Invoice (supplier-branded) below. */}
+        {orderHasPdf ? (
+          <DropdownRow
+            icon="📄"
+            name="Order PDF"
+            link="Open"
+            onClick={onOpenOrderPdf}
+          />
+        ) : (
+          <DropdownRow
+            icon="📄"
+            name={orderPdfBusy ? 'Generating order PDF…' : 'Generate order PDF'}
+            disabled={!canEdit || orderPdfBusy}
+            onClick={canEdit && !orderPdfBusy ? onGenerateOrderPdf : undefined}
+          />
+        )}
         {invoice ? (
           <DropdownRow
             icon="🧾"
@@ -272,6 +289,10 @@ const Hero = ({
   onGenerateInvoice,
   onOpenInvoice,
   invoice,
+  orderHasPdf,
+  orderPdfBusy,
+  onGenerateOrderPdf,
+  onOpenOrderPdf,
   canEdit,
 }) => {
   const days = daysUntil(order.delivery_date);
@@ -336,6 +357,10 @@ const Hero = ({
           onGenerateInvoice={onGenerateInvoice}
           onOpenInvoice={onOpenInvoice}
           invoice={invoice}
+          orderHasPdf={orderHasPdf}
+          orderPdfBusy={orderPdfBusy}
+          onGenerateOrderPdf={onGenerateOrderPdf}
+          onOpenOrderPdf={onOpenOrderPdf}
           canEdit={canEdit}
         />
       </div>
@@ -1159,6 +1184,12 @@ const fmtActivityEvent = (event) => {
         title: <>Quote declined — <em>{event.payload?.item_name || 'item'}</em></>,
         sub: `By ${actor}`,
       };
+    case 'order_pdf_generated':
+      return {
+        when, dotClass: 'sod-act-done',
+        title: <>Order PDF generated</>,
+        sub: `By ${actor}`,
+      };
     case 'discussion_opened':
       return {
         when, dotClass: '',
@@ -1278,6 +1309,7 @@ const SupplierOrderDetail = () => {
   const [editDeliveryOpen, setEditDeliveryOpen] = useState(false);
   const [reassignOpen, setReassignOpen] = useState(false);
   const [generateInvoiceOpen, setGenerateInvoiceOpen] = useState(false);
+  const [orderPdfBusy, setOrderPdfBusy] = useState(false);
   const heroRef = useRef(null);
 
   // Activity feed state — declared early so all the modal-save handlers below
@@ -1357,6 +1389,45 @@ const SupplierOrderDetail = () => {
     fetchOrderById(orderId).then(setOrder).catch(() => {});
     refetchActivity();
   }, [orderId, refetchActivity]);
+
+  // Generate or regenerate the Cargo-branded order PDF. Server overwrites
+  // order_pdf_url; we refetch to pick up the new path + timestamp, then open
+  // the freshly minted signed URL.
+  const handleGenerateOrderPdf = useCallback(async () => {
+    setOpenMenu(null);
+    if (orderPdfBusy) return;
+    setOrderPdfBusy(true);
+    try {
+      const res = await generateOrderPdf(orderId);
+      if (res?.signed_url) {
+        window.open(res.signed_url, '_blank', 'noopener');
+      }
+      // Pick up the new pdf_url + generated_at on the order row.
+      fetchOrderById(orderId).then(setOrder).catch(() => {});
+      refetchActivity();
+    } catch (e) {
+      window.alert(`Could not generate order PDF: ${e.message || e}`);
+    } finally {
+      setOrderPdfBusy(false);
+    }
+  }, [orderId, orderPdfBusy, refetchActivity]);
+
+  // Open the (already-generated) order PDF in a new tab via a fresh
+  // signed URL.
+  const handleOpenOrderPdf = useCallback(async () => {
+    setOpenMenu(null);
+    if (!orderId) return;
+    try {
+      const res = await fetchDocumentSignedUrl('order_pdf', orderId);
+      if (res?.signed_url) {
+        window.open(res.signed_url, '_blank', 'noopener');
+      } else {
+        window.alert('Could not open order PDF — no signed URL returned.');
+      }
+    } catch (e) {
+      window.alert(`Could not open order PDF: ${e.message || e}`);
+    }
+  }, [orderId]);
 
   // Modal save handlers — merge the row payload (which includes the joined
   // assigned_contact) back into local state so the page reflects the change
@@ -1538,21 +1609,32 @@ const SupplierOrderDetail = () => {
 
       {/* ── Delivery hero with action dropdowns ── */}
       <div ref={heroRef}>
-        <Hero
-          order={order}
-          orderShortId={orderShortId}
-          documentsCount={1}
-          openMenu={openMenu}
-          onToggleMenu={toggleMenu}
-          onOpenDock={handleOpenDock}
-          onOpenReturns={handleOpenReturns}
-          onOpenEditDelivery={handleOpenEditDelivery}
-          onOpenReassign={handleOpenReassign}
-          onGenerateInvoice={handleOpenGenerateInvoice}
-          onOpenInvoice={handleOpenInvoice}
-          invoice={(order.invoices && order.invoices.length > 0) ? order.invoices[0] : null}
-          canEdit={canEdit}
-        />
+        {(() => {
+          const latestInvoice = (order.invoices && order.invoices.length > 0) ? order.invoices[0] : null;
+          const orderHasPdf = !!order.order_pdf_url;
+          const docsCount = (latestInvoice ? 1 : 0) + (orderHasPdf ? 1 : 0);
+          return (
+            <Hero
+              order={order}
+              orderShortId={orderShortId}
+              documentsCount={docsCount}
+              openMenu={openMenu}
+              onToggleMenu={toggleMenu}
+              onOpenDock={handleOpenDock}
+              onOpenReturns={handleOpenReturns}
+              onOpenEditDelivery={handleOpenEditDelivery}
+              onOpenReassign={handleOpenReassign}
+              onGenerateInvoice={handleOpenGenerateInvoice}
+              onOpenInvoice={handleOpenInvoice}
+              invoice={latestInvoice}
+              orderHasPdf={orderHasPdf}
+              orderPdfBusy={orderPdfBusy}
+              onGenerateOrderPdf={handleGenerateOrderPdf}
+              onOpenOrderPdf={handleOpenOrderPdf}
+              canEdit={canEdit}
+            />
+          );
+        })()}
       </div>
 
       {/* ── 7-state timeline ── */}

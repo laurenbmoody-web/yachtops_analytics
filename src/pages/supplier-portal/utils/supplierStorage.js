@@ -651,6 +651,18 @@ export const fetchDocumentSignedUrl = async (documentKind, documentId) => {
   return data; // { signed_url, expires_at }
 };
 
+// Render the Cargo-branded order acknowledgement PDF for an order. Updates
+// supplier_orders.order_pdf_url + .order_pdf_generated_at server-side and
+// returns a fresh 10-min signed URL the caller can open immediately.
+// Resolves to { pdf_path, signed_url, expires_at, generated_at }.
+export const generateOrderPdf = async (orderId) => {
+  const { data, error } = await supabase.functions.invoke('generateOrderPdf', {
+    body: { orderId },
+  });
+  if (error) throw error;
+  return data;
+};
+
 // ─── Quote workflow (Sprint 9.5) ────────────────────────────────────────────
 
 // Set the supplier's quoted price on a single line. The auto-accept BEFORE
