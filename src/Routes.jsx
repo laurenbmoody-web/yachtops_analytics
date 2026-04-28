@@ -60,6 +60,8 @@ import DeliveryHistory from './pages/provisioning/DeliveryHistory';
 import ReturnSlipPage from './pages/provisioning/ReturnSlipPage';
 import ReturnConfirmPage from './pages/provisioning/ReturnConfirmPage';
 import SupplierConfirmOrder from './pages/provisioning/SupplierConfirmOrder';
+import DeliverySigningPage from './pages/supplier-portal/views/DeliverySigningPage';
+import SupplierLogin from './pages/supplier-login';
 import SupplierSignup from './pages/supplier-signup';
 import SupplierProtectedRoute from './components/SupplierProtectedRoute';
 import SupplierRoleGuard from './components/SupplierRoleGuard';
@@ -1039,6 +1041,7 @@ const Routes = () => {
         {/* Invite Routes - PUBLIC (no ProtectedRoute wrapper) */}
         <Route path="/return-confirm" element={<ReturnConfirmPage />} />
         <Route path="/order/confirm/:token" element={<SupplierConfirmOrder />} />
+        <Route path="/delivery-sign/:token" element={<DeliverySigningPage />} />
         <Route path="/invite-accept" element={<InviteAcceptPage />} />
         <Route path="/invite" element={<InviteRedirect />} />
         <Route path="/accept-invite" element={<InviteRedirect />} />
