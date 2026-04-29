@@ -1,20 +1,14 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import Header from '../../../components/navigation/Header';
-import StandbyLayoutHeader from '../widgets/StandbyLayoutHeader';
+import { EditorialPageShell } from '../../../components/editorial';
 import '../pantry.css';
 
 export default function TodaySchedulePage() {
-  useEffect(() => {
-    const prev = document.body.style.background;
-    document.body.style.background = '#F5F1EA';
-    return () => { document.body.style.background = prev; };
-  }, []);
-
   return (
     <>
       <Header />
       <div id="pantry-root" className="pantry-page">
-        <StandbyLayoutHeader
+        <EditorialPageShell
           title="Today"
           subtitle="The day ahead — full schedule. Coming in a future sprint."
           backTo="/pantry/standby"

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Mic, Trash2, X, Search as SearchIcon, ChevronDown } from 'lucide-react';
 import Header from '../../../components/navigation/Header';
-import StandbyLayoutHeader from '../widgets/StandbyLayoutHeader';
+import { EditorialPageShell } from '../../../components/editorial';
 import { useStewNotes, vesselToday6amISO } from '../hooks/useStewNotes';
 import { useGuests } from '../hooks/useGuests';
 import { useCrewNames } from '../hooks/useCrewNames';
@@ -411,12 +411,6 @@ export default function NotesHistoryPage() {
     };
   }, [filterOpen]);
 
-  useEffect(() => {
-    const prev = document.body.style.background;
-    document.body.style.background = '#F5F1EA';
-    return () => { document.body.style.background = prev; };
-  }, []);
-
   const today6am   = useMemo(() => vesselToday6amISO(), []);
   const today6amMs = new Date(today6am).getTime();
 
@@ -497,7 +491,7 @@ export default function NotesHistoryPage() {
     <>
       <Header />
       <div id="pantry-root" className="pantry-page">
-        <StandbyLayoutHeader
+        <EditorialPageShell
           title="Notes"
           subtitle="What the team is tracking, today and prior."
           backTo="/pantry/standby"
