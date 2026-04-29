@@ -3,6 +3,7 @@ import { supabase } from '../../../lib/supabaseClient';
 import { useTenant } from '../../../contexts/TenantContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { showToast } from '../../../utils/toast';
+import { BOARD_TYPES } from '../../provisioning/data/templates';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DEPARTMENTS = ['Galley', 'Interior', 'Deck', 'Engineering', 'Admin'];
@@ -167,8 +168,12 @@ const CreateProvisioningListModal = ({
   const [activeTab, setActiveTab] = useState('manual');
 
   // ─── Form state
+  // board_type defaults to 'charter' — most common case, saves a click on the
+  // most common workflow. Sprint 9c.1a — column lives at provisioning_lists.board_type
+  // with a CHECK constraint covering the values in BOARD_TYPES.
   const [form, setForm] = useState({
     title: '',
+    board_type: 'charter',
     trip_id: '',
     departments: [],
     port_location: '',
@@ -220,7 +225,7 @@ const CreateProvisioningListModal = ({
   useEffect(() => {
     if (isOpen) {
       setActiveTab('manual');
-      setForm({ title: '', trip_id: '', departments: [], port_location: '', supplier_id: '', estimated_cost: '', currency: 'GBP', order_by_date: '', notes: '' });
+      setForm({ title: '', board_type: 'charter', trip_id: '', departments: [], port_location: '', supplier_id: '', estimated_cost: '', currency: 'GBP', order_by_date: '', notes: '' });
       setItems([BLANK_ITEM()]);
       setFormErrors({});
       setSaving(false);
@@ -503,6 +508,7 @@ const CreateProvisioningListModal = ({
       const listPayload = {
         tenant_id:      activeTenantId,
         title:          form.title.trim(),
+        board_type:     form.board_type || 'other',
         trip_id:        form.trip_id || null,
         department:     form.departments,
         port_location:  form.port_location.trim() || null,
@@ -711,6 +717,20 @@ const CreateProvisioningListModal = ({
                 {formErrors.title && (
                   <span style={{ fontSize: 11, color: '#ef4444', marginTop: 4, display: 'block' }}>{formErrors.title}</span>
                 )}
+              </div>
+
+              {/* Board type — Sprint 9c.1a. Defaults to 'charter' on open. */}
+              <div style={fieldWrap}>
+                <label style={labelStyle}>Board type *</label>
+                <select
+                  style={{ ...inputStyle, color: form.board_type ? 'white' : 'rgba(255,255,255,0.35)' }}
+                  value={form.board_type}
+                  onChange={e => setField('board_type', e.target.value)}
+                >
+                  {BOARD_TYPES.map(bt => (
+                    <option key={bt.value} value={bt.value}>{bt.label}</option>
+                  ))}
+                </select>
               </div>
 
               {/* Link to trip */}

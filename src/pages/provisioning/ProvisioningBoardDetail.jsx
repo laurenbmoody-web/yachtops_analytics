@@ -6,6 +6,7 @@ import Icon from '../../components/AppIcon';
 import { EditorialPageShell, EditorialTabNav } from '../../components/editorial';
 import '../pantry/pantry.css';
 import StatusBadge from './components/StatusBadge';
+import { BOARD_TYPES } from './data/templates';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 import {
@@ -70,6 +71,7 @@ import { getCategoryColor, hexToRgba } from './data/categories';
 const EditBoardModal = ({ list, onSaved, onClose }) => {
   const [form, setForm] = useState({
     title: list.title || '',
+    board_type: list.board_type || 'other',
     status: list.status || PROVISIONING_STATUS.DRAFT,
     port_location: list.port_location || '',
     order_by_date: list.order_by_date || '',
@@ -83,6 +85,7 @@ const EditBoardModal = ({ list, onSaved, onClose }) => {
     try {
       const updated = await updateProvisioningList(list.id, {
         title: form.title.trim(),
+        board_type: form.board_type,
         status: form.status,
         port_location: form.port_location,
         order_by_date: form.order_by_date || null,
@@ -108,8 +111,20 @@ const EditBoardModal = ({ list, onSaved, onClose }) => {
           </button>
         </div>
         <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Title</label>
+            <input type="text" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} className={fieldCls} />
+          </div>
+          {/* Board type — Sprint 9c.1a. Sits between Title and Port/Location. */}
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Board type</label>
+            <select value={form.board_type} onChange={e => setForm(f => ({ ...f, board_type: e.target.value }))} className={fieldCls}>
+              {BOARD_TYPES.map(bt => (
+                <option key={bt.value} value={bt.value}>{bt.label}</option>
+              ))}
+            </select>
+          </div>
           {[
-            { label: 'Title', key: 'title', type: 'text' },
             { label: 'Port / Location', key: 'port_location', type: 'text' },
             { label: 'Order By Date', key: 'order_by_date', type: 'date' },
           ].map(({ label, key, type }) => (
