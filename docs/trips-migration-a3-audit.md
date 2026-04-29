@@ -850,3 +850,34 @@ Two `logTripActivity` helpers (one in `TripDetailView`, one in `RemindersSection
 The whitelist + diff pattern means callers don't need to know which fields go where. As A3.7+ phases peel each embedded array into its own table, the whitelist grows and the embedded-only fallback shrinks. When the last embedded array migrates, the localStorage write path can be retired entirely.
 
 **Apply elsewhere if/when:** any future write helper that accepts arbitrary `updates` and needs to route subsets of fields to different storage backends. Same shape: whitelist + camelCase→snake_case map + diff helpers for array fields + everything-else localStorage fallback.
+
+### PR3 verification — round 1: deleteTrip silently no-op'd
+
+Pre-PR3 LS rows were never stamped with `supabaseId` (only A3.5+ `createTrip` does that on insert). `deleteTrip(tripId)`'s pre-existing path keyed off `tripToDelete?.supabaseId`, so for any trip created before the write-path swap landed, the Supabase soft-delete branch was skipped and only the LS hard-delete fired. The merge layer treated the absent-on-LS / present-on-Supabase row as "Supabase-side existing" on the next page load and the trip resurrected.
+
+**Fix shipped (commit `a0efbe1`):** added `resolveSupabaseTripId(lsTrip)` — looks up `trips` by `legacy_local_id` when the LS row lacks the `supabaseId` stamp, stamps the row in-place + persists, returns the uuid. `updateTrip`, `deleteTrip`, and `toggleGuestActiveStatus` all call the resolver before deciding which write path to take. Cheap single-query lookup, cached on the LS row so subsequent calls in the same session are no-ops.
+
+**Pattern note: lazy resolver for migration-window stamps.** When a hybrid storage layer adds a "canonical id stamped on local rows" mechanism mid-migration, pre-existing local rows won't have the stamp. Two options:
+1. Eager bulk-stamp on next read (heavy if N is large; needs RLS-friendly batched query)
+2. Lazy per-row resolver on next write (cheap; touches only the rows that change)
+
+Option 2 wins for trips because writes are user-initiated and rare; the read path's existing merge layer doesn't need the stamp at all (it joins by `legacy_local_id` server-side). The resolver is also recovery-safe: if the Supabase row is later manually deleted (e.g. via Studio), the resolver returns null and writes fall through to LS-only behavior — no orphaned-pointer crash.
+
+### PR3 verification — round 2: orphan handlers (missing UI buttons)
+
+Lauren reported "theres no actual delete trip function … theres no edit button either". Investigation: `handleEditTrip` and `handleDeleteTrip` exist in `trip-detail-view-with-guest-allocation/index.jsx` and have correct bodies — but `grep -rn` found zero callers. Pre-existing latent gap — the handlers were authored, the modal state was authored, the modal was rendered, but no UI button ever called the open/delete paths. Surfaced now because Lauren manually deleted Supabase rows via Studio and needed a way to clean up the LS stragglers.
+
+**Fix:** added Edit + Delete buttons as a top-right overlay on the trip detail hero header, gated on `permissions?.canEdit` / `permissions?.canDelete`. Buttons call the existing `handleEditTrip` / `handleDeleteTrip` handlers — no handler changes needed.
+
+**Stuck-trip recovery flow** (Supabase row deleted manually, LS row stranded):
+
+1. Dashboard renders the LS row via the merge layer (Supabase side empty for that legacy id)
+2. Lauren clicks into the trip — `getTripById` returns the LS-only merged shape
+3. Lauren clicks Delete — `deleteTrip(tripId)` runs `resolveSupabaseTripId(tripToDelete)`
+   - **Case A** (unstamped LS row): resolver query by `legacy_local_id` returns null → LS-only hard-delete branch fires
+   - **Case B** (stamped LS row, Supabase row gone): resolver returns cached `supabaseId`, `.update()` against the missing row returns `{ data: null, error: null }` (zero-row UPDATE is not an error) → LS hard-delete still fires
+4. LS row gone, Lauren unblocked; merge layer no longer surfaces the trip
+
+Both cases self-heal without manual ledger surgery.
+
+**Pattern note: orphan handlers are a code-review blind spot.** Handler functions defined alongside other component logic look complete in isolation — they read, mutate, fire toasts, navigate on success. But "defined" ≠ "wired". `grep -rn "handleX" src/` catching zero callers outside the definition site is the cheap sanity check. Worth adding as a per-PR smoke test: list new handler functions, grep their names, confirm at least one external caller. Applies anywhere — handler authoring and UI button wiring tend to happen in different parts of the file (or in different sessions) and can drift.
