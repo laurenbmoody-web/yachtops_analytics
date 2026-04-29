@@ -26,8 +26,8 @@ const CompleteTripModal = ({ isOpen, onClose, trip, tripId, onComplete }) => {
     showToast('All requests marked as done', 'success');
   };
 
-  const handleComplete = () => {
-    const updated = updateTrip(tripId, { status: TripStatus?.COMPLETED });
+  const handleComplete = async () => {
+    const updated = await updateTrip(tripId, { status: TripStatus?.COMPLETED });
     if (updated) {
       logTripActivity(tripId, TripActivityType?.TRIP_COMPLETED, 'Trip marked as completed');
       showToast('Trip marked as completed', 'success');

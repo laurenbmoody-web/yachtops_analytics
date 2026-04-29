@@ -21,6 +21,7 @@ import { supabase } from '../../../lib/supabaseClient';
 import { showToast } from '../../../utils/toast';
 import { normalizeTier } from './tripPermissions';
 import { logActivity } from '../../../utils/activityStorage';
+import { loadMigrationStatus, saveMigrationStatus } from '../../../utils/migrateTripsToSupabase';
 
 // Trip Status enum
 export const TripStatus = {
@@ -398,22 +399,29 @@ const saveTrips = (trips) => {
   }
 };
 
-// Create new trip
-export const createTrip = (tripData) => {
+// Create new trip. Async post-A3.5 — dual-writes to Supabase + localStorage.
+//
+// Order: Supabase first (so a failed insert surfaces as a real error
+// before any localStorage state is touched), then localStorage.
+// Activity-feed log fires after both stores succeed.
+//
+// Returns the new trip object (with both legacy `id` and `supabaseId`)
+// on success, null on failure (with toast).
+export const createTrip = async (tripData) => {
   try {
     const currentUser = getCurrentUser();
     const userId = getCurrentUserId();
     const userTier = normalizeTier(currentUser);
-    
+
     // Permission check
     if (userTier !== 'COMMAND' && userTier !== 'CHIEF') {
       showToast("You don't have permission to create trips.", 'error');
       return null;
     }
-    
+
     const trips = loadLocalTrips();
     let status = calculateTripStatus(tripData?.startDate, tripData?.endDate);
-    
+
     // Convert guestIds to new guests array structure
     const guests = [];
     if (tripData?.guestIds && Array.isArray(tripData?.guestIds)) {
@@ -426,9 +434,74 @@ export const createTrip = (tripData) => {
         });
       });
     }
-    
+
+    const legacyId = `trip-${generateId()}`;
+    const nowIso   = new Date()?.toISOString();
+
+    // ── Supabase write first ───────────────────────────────────────────
+    // Top-level fields go to trips; guest membership goes to trip_guests
+    // join in a follow-up insert. legacy_local_id links the new Supabase
+    // row to the localStorage shape so loadTrips' merge layer can find
+    // its embedded-array partner via the existing match path.
+    let supabaseId = null;
+    const tid = getActiveTenantId();
+    if (tid) {
+      try {
+        const { data: insertedTrip, error: tripErr } = await supabase
+          ?.from('trips')
+          ?.insert({
+            tenant_id:         tid,
+            name:              tripData?.name,
+            trip_type:         tripData?.tripType || TripType?.OWNER,
+            start_date:        tripData?.startDate,
+            end_date:          tripData?.endDate,
+            itinerary_summary: tripData?.itinerarySummary || null,
+            notes:             tripData?.notes || null,
+            created_by:        currentUser?.id || null,
+            legacy_local_id:   legacyId,
+          })
+          ?.select('id')
+          ?.single();
+        if (tripErr) throw tripErr;
+        supabaseId = insertedTrip?.id ?? null;
+
+        // Trip-guests INSERTs. Cross-tenant guest_ids would silently fail
+        // RLS — defensive null-guard means we only insert what we have.
+        if (supabaseId && tripData?.guestIds?.length) {
+          const tgRows = tripData.guestIds
+            .filter(Boolean)
+            .map(gid => ({
+              trip_id:           supabaseId,
+              guest_id:          gid,
+              is_active_on_trip: false,
+            }));
+          if (tgRows.length) {
+            const { error: tgErr } = await supabase
+              ?.from('trip_guests')
+              ?.insert(tgRows);
+            if (tgErr) {
+              // Trip row inserted; trip_guests insert failed. Surface
+              // but don't roll back — A2's runner will reconcile on
+              // next page load via the v2 RPC's recovery path.
+              console.warn('[createTrip] trip_guests insert failed (will reconcile next load):', tgErr);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[createTrip] Supabase insert failed:', err);
+        showToast('Failed to create trip. Please try again.', 'error');
+        return null;
+      }
+    } else {
+      // No tenant context → LS-only fallback. The migration runner will
+      // pick up the trip on the next post-bootstrap pass.
+      console.warn('[createTrip] No tenant context — saving to localStorage only; will sync on next migration run.');
+    }
+
+    // ── localStorage write ─────────────────────────────────────────────
     const newTrip = {
-      id: `trip-${generateId()}`,
+      id: legacyId,
+      supabaseId,                     // nullable for LS-only fallback case
       vesselId: 'default',
       name: tripData?.name,
       startDate: tripData?.startDate,
@@ -437,7 +510,6 @@ export const createTrip = (tripData) => {
       notes: tripData?.notes || '',
       guests: guests,
       guestIds: tripData?.guestIds || [], // Keep for backward compatibility
-      // NEW FIELDS
       tripType: tripData?.tripType || TripType?.OWNER,
       itinerarySummary: tripData?.itinerarySummary || '',
       heroImageUrl: tripData?.heroImageUrl || null,
@@ -450,23 +522,34 @@ export const createTrip = (tripData) => {
       itineraryDays: tripData?.itineraryDays || [],
       tripActivityLog: tripData?.tripActivityLog || [],
       photos: tripData?.photos || [],
-      createdAt: new Date()?.toISOString(),
+      createdAt: nowIso,
       createdByUserId: userId,
-      updatedAt: new Date()?.toISOString(),
+      updatedAt: nowIso,
       updatedByUserId: userId
     };
-    
+
     trips?.push(newTrip);
     saveTrips(trips);
 
-    // Log to Supabase activity feed
+    // Mark as already migrated so the A2 runner doesn't re-attempt.
+    if (supabaseId) {
+      const ledger = loadMigrationStatus();
+      ledger.migratedTripIds = ledger.migratedTripIds || {};
+      ledger.migratedTripIds[legacyId] = {
+        supabaseId,
+        migratedAt: nowIso,
+      };
+      saveMigrationStatus(ledger);
+    }
+
+    // Log to Supabase activity feed (post-success)
     logActivity({
       module: 'trips',
       action: TripActions?.TRIP_CREATED,
       entityType: 'trip',
-      entityId: newTrip?.id,
+      entityId: legacyId,
       summary: `Trip created: ${newTrip?.name}`,
-      meta: { tripName: newTrip?.name, tripType: newTrip?.tripType, status: newTrip?.status }
+      meta: { tripName: newTrip?.name, tripType: newTrip?.tripType, status: newTrip?.status, supabaseId }
     });
 
     return newTrip;
@@ -476,25 +559,73 @@ export const createTrip = (tripData) => {
   }
 };
 
-// Update existing trip
-export const updateTrip = (tripId, updates) => {
+// Top-level fields that map cleanly to the Supabase trips table.
+// Anything outside this set is either:
+//   - guests (mapped to trip_guests join, handled in its own branch)
+//   - embedded array (itineraryDays, specialDates, photos, etc. —
+//     localStorage-only until A3.7+)
+const SUPABASE_TRIP_TOP_LEVEL_FIELDS = new Set([
+  'name', 'tripType', 'startDate', 'endDate', 'notes', 'itinerarySummary',
+]);
+
+// localStorage→Supabase column mapping for the top-level fields.
+const SUPABASE_COLUMN_MAP = {
+  name:             'name',
+  tripType:         'trip_type',
+  startDate:        'start_date',
+  endDate:          'end_date',
+  notes:            'notes',
+  itinerarySummary: 'itinerary_summary',
+};
+
+// Diff old vs new guests array. Returns { added, removed, stateChanged }
+// where each is a list of { guestId, isActive } records from the new shape.
+function diffGuests(oldGuests, newGuests) {
+  const oldList = Array.isArray(oldGuests) ? oldGuests : [];
+  const newList = Array.isArray(newGuests) ? newGuests : [];
+  const oldByGuest = new Map(oldList.filter(g => g?.guestId).map(g => [g.guestId, g]));
+  const newByGuest = new Map(newList.filter(g => g?.guestId).map(g => [g.guestId, g]));
+
+  const added = newList.filter(g => g?.guestId && !oldByGuest.has(g.guestId));
+  const removed = oldList.filter(g => g?.guestId && !newByGuest.has(g.guestId));
+  const stateChanged = newList.filter(g => {
+    if (!g?.guestId) return false;
+    const old = oldByGuest.get(g.guestId);
+    return old && (old.isActive ?? false) !== (g.isActive ?? false);
+  });
+  return { added, removed, stateChanged };
+}
+
+// Update existing trip. Async post-A3.5 — dual-writes to Supabase + localStorage.
+//
+// Field routing:
+//   - Top-level (name, dates, type, notes, itinerary_summary) → trips table
+//   - guests array → trip_guests join (diff + INSERT/DELETE/UPDATE)
+//   - Embedded arrays (itineraryDays, specialDates, photos, etc.) →
+//     localStorage only; deferred to A3.7+ phases
+//
+// Lookup is by either legacy id or supabase uuid via findTripByAnyId so
+// callers holding either format work transparently. localStorage write
+// always fires; Supabase writes only fire when the trip has a supabaseId
+// (LS-only pending-sync trips defer to A2's migration runner).
+export const updateTrip = async (tripId, updates) => {
   try {
     const currentUser = getCurrentUser();
     const userId = getCurrentUserId();
     const userTier = normalizeTier(currentUser);
-    
-    // Permission check
+
     if (userTier !== 'COMMAND' && userTier !== 'CHIEF') {
       showToast("You don't have permission to update trips.", 'error');
       return null;
     }
-    
+
     const trips = loadLocalTrips();
-    const index = trips?.findIndex(t => t?.id === tripId);
+    // Match by either legacy id or supabaseId — callers may hold either.
+    const index = trips?.findIndex(t => t?.id === tripId || t?.supabaseId === tripId);
     if (index === -1) return null;
 
     const oldTrip = trips?.[index];
-    
+
     // Recalculate status if dates changed
     let status = oldTrip?.status;
     if (updates?.startDate || updates?.endDate) {
@@ -505,7 +636,72 @@ export const updateTrip = (tripId, updates) => {
 
     const newStatus = updates?.status || status;
     const statusChanged = newStatus !== oldTrip?.status;
-    
+
+    // ── Supabase dual-write ───────────────────────────────────────────
+    // Skip if the trip has no supabaseId yet — LS-only pending-sync.
+    // The A2 runner picks it up on the next page load.
+    const supabaseId = oldTrip?.supabaseId;
+    if (supabaseId) {
+      // 1. Top-level field updates → trips table.
+      const supabasePatch = {};
+      for (const key of Object.keys(updates || {})) {
+        if (SUPABASE_TRIP_TOP_LEVEL_FIELDS.has(key)) {
+          supabasePatch[SUPABASE_COLUMN_MAP[key]] = updates[key];
+        }
+      }
+      if (Object.keys(supabasePatch).length > 0) {
+        const { error: tripErr } = await supabase
+          ?.from('trips')
+          ?.update(supabasePatch)
+          ?.eq('id', supabaseId);
+        if (tripErr) {
+          console.error('[updateTrip] Supabase trips update failed:', tripErr);
+          showToast('Failed to save changes. Please try again.', 'error');
+          return null;
+        }
+      }
+
+      // 2. Guests diff → trip_guests INSERT / DELETE / UPDATE.
+      if (Array.isArray(updates?.guests)) {
+        const { added, removed, stateChanged: changed } = diffGuests(oldTrip?.guests, updates.guests);
+
+        if (added.length > 0) {
+          const rows = added.map(g => ({
+            trip_id:           supabaseId,
+            guest_id:          g.guestId,
+            is_active_on_trip: g.isActive ?? false,
+          }));
+          const { error: addErr } = await supabase?.from('trip_guests')?.insert(rows);
+          if (addErr) console.warn('[updateTrip] trip_guests insert failed:', addErr);
+        }
+        if (removed.length > 0) {
+          for (const g of removed) {
+            const { error: delErr } = await supabase
+              ?.from('trip_guests')
+              ?.delete()
+              ?.eq('trip_id', supabaseId)
+              ?.eq('guest_id', g.guestId);
+            if (delErr) console.warn('[updateTrip] trip_guests delete failed:', delErr);
+          }
+        }
+        if (changed.length > 0) {
+          for (const g of changed) {
+            const { error: upErr } = await supabase
+              ?.from('trip_guests')
+              ?.update({ is_active_on_trip: g.isActive ?? false })
+              ?.eq('trip_id', supabaseId)
+              ?.eq('guest_id', g.guestId);
+            if (upErr) console.warn('[updateTrip] trip_guests update failed:', upErr);
+          }
+        }
+      }
+    } else {
+      // No supabaseId — localStorage-only update. Migration runner will
+      // sync when it next finds an unmigrated trip.
+      console.warn('[updateTrip] Trip has no supabaseId; saving to localStorage only. Will sync on next migration run.');
+    }
+
+    // ── localStorage write (always) ───────────────────────────────────
     trips[index] = {
       ...oldTrip,
       ...updates,
@@ -513,7 +709,6 @@ export const updateTrip = (tripId, updates) => {
       updatedAt: new Date()?.toISOString(),
       updatedByUserId: userId
     };
-    
     saveTrips(trips);
 
     // Log status change separately if it changed
@@ -522,18 +717,18 @@ export const updateTrip = (tripId, updates) => {
         module: 'trips',
         action: TripActions?.TRIP_STATUS_CHANGED,
         entityType: 'trip',
-        entityId: tripId,
+        entityId: oldTrip?.id,
         summary: `Trip status changed to ${newStatus}: ${oldTrip?.name}`,
-        meta: { tripName: oldTrip?.name, oldStatus: oldTrip?.status, newStatus }
+        meta: { tripName: oldTrip?.name, oldStatus: oldTrip?.status, newStatus, supabaseId }
       });
     } else {
       logActivity({
         module: 'trips',
         action: TripActions?.TRIP_UPDATED,
         entityType: 'trip',
-        entityId: tripId,
+        entityId: oldTrip?.id,
         summary: `Trip updated: ${oldTrip?.name}`,
-        meta: { tripName: oldTrip?.name }
+        meta: { tripName: oldTrip?.name, supabaseId }
       });
     }
 
@@ -544,37 +739,74 @@ export const updateTrip = (tripId, updates) => {
   }
 };
 
-// Delete trip
-export const deleteTrip = (tripId) => {
+// Delete trip. Async post-A3.5 — soft-deletes on Supabase
+// (is_deleted = true), hard-removes from localStorage. The Supabase
+// soft-delete preserves the trip row for audit + retains the
+// legacy_local_id mapping; the merge layer's `is_deleted = false`
+// filter excludes it from reads. Lookup matches either id format.
+export const deleteTrip = async (tripId) => {
   try {
     const currentUser = getCurrentUser();
     const userTier = normalizeTier(currentUser);
-    
-    // Permission check
+
     if (userTier !== 'COMMAND' && userTier !== 'CHIEF') {
       showToast("You don't have permission to delete trips.", 'error');
       return false;
     }
-    
+
     const trips = loadLocalTrips();
-    const tripToDelete = trips?.find(t => t?.id === tripId);
-    const filtered = trips?.filter(t => t?.id !== tripId);
-    
+    const tripToDelete = trips?.find(t => t?.id === tripId || t?.supabaseId === tripId);
+    if (!tripToDelete) return false;
+
+    // ── Supabase soft-delete (skip when no supabaseId — LS-only trip) ─
+    const supabaseId = tripToDelete?.supabaseId;
+    if (supabaseId) {
+      const { error } = await supabase
+        ?.from('trips')
+        ?.update({
+          is_deleted:         true,
+          deleted_at:         new Date()?.toISOString(),
+          deleted_by_user_id: currentUser?.id || null,
+        })
+        ?.eq('id', supabaseId);
+      if (error) {
+        console.error('[deleteTrip] Supabase soft-delete failed:', error);
+        showToast('Failed to delete trip. Please try again.', 'error');
+        return false;
+      }
+    } else {
+      console.warn('[deleteTrip] Trip has no supabaseId; localStorage delete only.');
+    }
+
+    // ── localStorage hard-delete (preserves legacy behaviour) ─────────
+    const filtered = trips?.filter(t => t?.id !== tripToDelete?.id);
+
     // Also delete associated preferences
     const preferences = loadPreferences();
-    const filteredPrefs = preferences?.filter(p => p?.tripId !== tripId);
+    const filteredPrefs = preferences?.filter(p => p?.tripId !== tripToDelete?.id);
     savePreferences(filteredPrefs);
-    
+
     const result = saveTrips(filtered);
+
+    // Drop the trip from the migration ledger so a future re-creation
+    // with the same legacy id (vanishingly unlikely but possible) doesn't
+    // hit a stale skip-because-already-migrated path.
+    if (tripToDelete?.id) {
+      const ledger = loadMigrationStatus();
+      if (ledger?.migratedTripIds?.[tripToDelete.id]) {
+        delete ledger.migratedTripIds[tripToDelete.id];
+        saveMigrationStatus(ledger);
+      }
+    }
 
     if (result && tripToDelete) {
       logActivity({
         module: 'trips',
         action: TripActions?.TRIP_DELETED,
         entityType: 'trip',
-        entityId: tripId,
+        entityId: tripToDelete?.id,
         summary: `Trip deleted: ${tripToDelete?.name}`,
-        meta: { tripName: tripToDelete?.name }
+        meta: { tripName: tripToDelete?.name, supabaseId }
       });
     }
 
@@ -623,58 +855,80 @@ export const getActiveGuestsFromCurrentTrip = async () => {
     ?.map(g => g?.guestId) || [];
 };
 
-// Toggle guest active status for a specific trip
-export const toggleGuestActiveStatus = (tripId, guestId) => {
+// Toggle guest active status for a specific trip. Async post-A3.5 —
+// dual-writes to trip_guests (Supabase) and trip.guests[] (localStorage).
+// Lookup is by either id format for consistency with the other writers.
+//
+// This is the helper GuestDetailPanel:163 routes through (Option A
+// fix from the audit-doc addendum). Activity-log entry fires once,
+// after both stores succeed.
+export const toggleGuestActiveStatus = async (tripId, guestId) => {
   try {
     const currentUser = getCurrentUser();
     const userId = getCurrentUserId();
     const userTier = normalizeTier(currentUser);
-    
-    // Permission check
+
     if (userTier !== 'COMMAND' && userTier !== 'CHIEF') {
       showToast("You don't have permission to update guest status.", 'error');
       return null;
     }
-    
+
     const trips = loadLocalTrips();
-    const index = trips?.findIndex(t => t?.id === tripId);
+    const index = trips?.findIndex(t => t?.id === tripId || t?.supabaseId === tripId);
     if (index === -1) return null;
-    
+
     const trip = trips?.[index];
     const guests = trip?.guests || [];
-    
-    // Find the guest in the guests array
+
     const guestIndex = guests?.findIndex(g => g?.guestId === guestId);
     if (guestIndex === -1) return null;
-    
+
     const currentStatus = guests?.[guestIndex]?.isActive;
-    
-    // Toggle the status
+    const newStatus     = !currentStatus;
+
+    // ── Supabase write first (skip when no supabaseId) ───────────────
+    const supabaseId = trip?.supabaseId;
+    if (supabaseId) {
+      const { error } = await supabase
+        ?.from('trip_guests')
+        ?.update({ is_active_on_trip: newStatus })
+        ?.eq('trip_id', supabaseId)
+        ?.eq('guest_id', guestId);
+      if (error) {
+        console.error('[toggleGuestActiveStatus] Supabase update failed:', error);
+        showToast('Failed to update guest status. Please try again.', 'error');
+        return null;
+      }
+    } else {
+      console.warn('[toggleGuestActiveStatus] Trip has no supabaseId; localStorage update only.');
+    }
+
+    // ── localStorage write ───────────────────────────────────────────
     guests[guestIndex] = {
       ...guests?.[guestIndex],
-      isActive: !currentStatus,
-      activatedAt: !currentStatus ? new Date()?.toISOString() : guests?.[guestIndex]?.activatedAt,
-      activatedByUserId: !currentStatus ? userId : guests?.[guestIndex]?.activatedByUserId
+      isActive:          newStatus,
+      activatedAt:       newStatus ? new Date()?.toISOString() : guests?.[guestIndex]?.activatedAt,
+      activatedByUserId: newStatus ? userId                    : guests?.[guestIndex]?.activatedByUserId,
     };
-    
+
     trips[index] = {
       ...trip,
       guests: guests,
       updatedAt: new Date()?.toISOString(),
       updatedByUserId: userId
     };
-    
+
     saveTrips(trips);
 
-    // Log guest added/removed to activity feed
-    const action = !currentStatus ? TripActions?.TRIP_GUEST_ADDED : TripActions?.TRIP_GUEST_REMOVED;
+    // Activity feed (post-success)
+    const action = newStatus ? TripActions?.TRIP_GUEST_ADDED : TripActions?.TRIP_GUEST_REMOVED;
     logActivity({
       module: 'trips',
       action,
       entityType: 'trip',
-      entityId: tripId,
-      summary: `Guest ${!currentStatus ? 'activated' : 'deactivated'} on trip: ${trip?.name}`,
-      meta: { tripName: trip?.name, guestId }
+      entityId: trip?.id,
+      summary: `Guest ${newStatus ? 'activated' : 'deactivated'} on trip: ${trip?.name}`,
+      meta: { tripName: trip?.name, guestId, supabaseId }
     });
 
     return trips?.[index];
