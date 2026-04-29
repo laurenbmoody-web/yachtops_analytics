@@ -1870,6 +1870,20 @@ const ProvisioningBoardDetail = () => {
                             // of truth: public.departments.color). Falls back to neutral grey
                             // when the dept isn't in the lookup table (e.g. 'General').
                             const color = getDepartmentColor(deptObj);
+                            // Diagnostic: confirm deptObj carries a colour from the DB.
+                            // Remove once dept colour rendering is verified end-to-end.
+                            if (typeof window !== 'undefined' && !window.__deptColourDebugLogged?.[dept]) {
+                              console.log('[dept-colour-debug]', {
+                                dept,
+                                deptObj,
+                                resolvedColor: color,
+                                deptObjColor: deptObj?.color,
+                                fellBack: !deptObj || !deptObj.color,
+                                allDepartments: departments.map(x => ({ name: x?.name, color: x?.color })),
+                              });
+                              window.__deptColourDebugLogged = window.__deptColourDebugLogged || {};
+                              window.__deptColourDebugLogged[dept] = true;
+                            }
                             const key = `${dept}::${category}`;
                             const isCollapsed = collapsedCategories.has(key);
                             const subtotal = catItems.reduce((sum, i) => {
