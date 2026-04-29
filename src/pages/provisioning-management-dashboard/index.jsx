@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { useTenant } from '../../contexts/TenantContext';
 import { showToast } from '../../utils/toast';
 import CreateProvisioningListModal from './components/CreateProvisioningListModal';
+import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
 
 // ─── Status config ────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
@@ -44,14 +45,9 @@ const fmtCost = (val) => {
   return `£${Number(val).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
-// Load trips from localStorage (trips are not yet in Supabase)
-const loadLocalTrips = () => {
-  try {
-    return JSON.parse(localStorage.getItem('cargo.trips.v1') || '[]');
-  } catch {
-    return [];
-  }
-};
+// Trips were localStorage-only pre-A3; loadTrips is now async + Supabase
+// + LS merged. The local helper is removed; the page hydrates trips into
+// state via useEffect below.
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 const ProvisioningManagementDashboard = () => {
@@ -63,6 +59,8 @@ const ProvisioningManagementDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [suppliersLoading, setSuppliersLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Trips hydrated from the async loadTrips (Supabase + LS merge).
+  const [localTrips, setLocalTrips] = useState([]);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -131,8 +129,23 @@ const ProvisioningManagementDashboard = () => {
     loadSuppliers();
   }, [loadLists, loadSuppliers]);
 
+  // Hydrate trips for the trip-name lookup map. loadTrips is async
+  // post-A3.1; cancellation guard prevents stale state on unmount.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const trips = await loadTrips();
+        if (!cancelled) setLocalTrips(trips || []);
+      } catch (err) {
+        console.warn('[provisioning-management-dashboard] loadTrips failed:', err);
+        if (!cancelled) setLocalTrips([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   // ─── Filtered lists ──────────────────────────────────────────────────────────
-  const localTrips = loadLocalTrips();
   const tripMap = Object.fromEntries(localTrips.map(t => [t.id, t]));
   const supplierMap = Object.fromEntries(suppliers.map(s => [s.id, s]));
 

@@ -20,7 +20,7 @@ import {
   PROVISION_CATEGORIES,
 } from './utils/provisioningStorage';
 import { getSmartSuggestions } from '../../utils/provisioningSuggestions';
-import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
+import { loadTrips, findTripByAnyId } from '../trips-management-dashboard/utils/tripStorage';
 import { getAllCategoriesL1, getCategoriesL2ByL1 } from '../inventory/utils/taxonomyStorage';
 
 const STEPS = ['List Details', 'Smart Suggestions', 'Build List', 'Templates & History', 'Review & Submit'];
@@ -87,9 +87,19 @@ const ProvisioningForm = () => {
   const [suppliers, setSuppliers] = useState([]);
   const [tripGuests, setTripGuests] = useState([]);
 
+  // loadTrips is async post-A3.1 — IIFE + cancellation guard
   useEffect(() => {
-    const t = loadTrips() || [];
-    setTrips(t);
+    let cancelled = false;
+    (async () => {
+      try {
+        const t = (await loadTrips()) || [];
+        if (!cancelled) setTrips(t);
+      } catch (err) {
+        console.warn('[ProvisioningForm] loadTrips failed:', err);
+        if (!cancelled) setTrips([]);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -143,17 +153,20 @@ const ProvisioningForm = () => {
   }, [details.trip_id, activeTenantId]);
 
   // Compute trip guest count for scaling banner
-  const linkedTrip = trips.find(t => t.id === details.trip_id);
+  const linkedTrip = findTripByAnyId(trips, details.trip_id);
   const guestCount = linkedTrip?.guests?.filter(g => g.isActive !== false)?.length || 0;
   const tripDays = linkedTrip
     ? Math.max(1, Math.round((new Date(linkedTrip.endDate) - new Date(linkedTrip.startDate)) / 86400000))
     : 1;
 
-  // Allergen cross-reference
+  // Allergen cross-reference — actual checking happens via the
+  // suggestions engine (utils/provisioningSuggestions.js). The
+  // placeholder localStorage read here was dead code; removed during
+  // the A3.2 sweep. If allergen surfacing comes back to this surface,
+  // hydrate via the async helpers, not localStorage.
   const guestAllergens = React.useMemo(() => {
     if (!linkedTrip) return [];
-    const stored = localStorage.getItem('cargo.trips.v1');
-    return []; // Allergen checking done via suggestions engine
+    return [];
   }, [linkedTrip]);
 
   // ── Item editing helpers ──────────────────────────────────────────────────
@@ -337,8 +350,14 @@ const ProvisioningForm = () => {
                 className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 <option value="">— No trip linked —</option>
+                {/* Option value is the canonical Supabase UUID so the
+                    form state matches what provisioning_lists.trip_id
+                    expects. Falls back to legacy id for LS-only
+                    pending-sync trips. */}
                 {trips.filter(t => t.status !== 'completed').map(t => (
-                  <option key={t.id} value={t.id}>{t.name || t.title}</option>
+                  <option key={t.id} value={t.supabaseId || t.id}>
+                    {t.name || t.title}
+                  </option>
                 ))}
               </select>
             </div>

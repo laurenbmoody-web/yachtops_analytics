@@ -40,18 +40,23 @@ const MasterPreferencesView = () => {
     }
   }, [isBlocked, navigate]);
 
-  // Load active trip guest IDs for HOD/CREW permission check
+  // Load active trip guest IDs for HOD/CREW permission check.
+  // loadTrips is async post-A3.1; wrap in IIFE to keep useEffect signature.
   useEffect(() => {
-    if (isLimitedAccess) {
+    if (!isLimitedAccess) return;
+    let cancelled = false;
+    (async () => {
       try {
-        const allTrips = loadTrips();
+        const allTrips = await loadTrips();
+        if (cancelled) return;
         const activeTrips = allTrips?.filter(t => t?.status === TripStatus?.ACTIVE && !t?.isDeleted) || [];
         const ids = new Set(activeTrips?.flatMap(t => t?.guestIds || []));
         setActiveTripsGuestIds(ids);
       } catch (err) {
         console.error('[MasterPreferencesView] loadActiveTrips error:', err);
       }
-    }
+    })();
+    return () => { cancelled = true; };
   }, [isLimitedAccess]);
 
   // Load guests

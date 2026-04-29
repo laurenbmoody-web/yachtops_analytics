@@ -1,8 +1,18 @@
+// Per-department category lists for the provisioning module.
+//
+// Department COLOURS now live in the database (public.departments.color).
+// Read them via fetchVesselDepartments → { id, name, color }[] and pass the
+// dept object to getDepartmentColor(dept) for rendering.
+//
+// Category lists below remain in code for now — flagged for migration to a
+// per-department categories table in a future sprint. See PROVISION_CATEGORIES
+// in utils/provisioningStorage.js for a parallel (older, diverging) list that
+// also needs unifying.
+
 export const CATEGORY_GROUPS = [
   {
     group: 'Galley',
     department: 'Galley',
-    color: '#D4537E',
     categories: [
       'Fresh Produce',
       'Dairy & Eggs',
@@ -23,7 +33,6 @@ export const CATEGORY_GROUPS = [
   {
     group: 'Interior',
     department: 'Interior',
-    color: '#D85A30',
     categories: [
       'Cleaning Products — Interior',
       'Linen & Laundry',
@@ -39,7 +48,6 @@ export const CATEGORY_GROUPS = [
   {
     group: 'Deck',
     department: 'Deck',
-    color: '#639922',
     categories: [
       'Cleaning Products — Exterior',
       'Deck Consumables & Hardware',
@@ -55,7 +63,6 @@ export const CATEGORY_GROUPS = [
   {
     group: 'Engineering',
     department: 'Engineering',
-    color: '#534AB7',
     categories: [
       'Filters & Purifiers',
       'Oils, Lubricants & Coolants',
@@ -70,9 +77,22 @@ export const CATEGORY_GROUPS = [
     ],
   },
   {
+    group: 'Bridge',
+    department: 'Bridge',
+    categories: [
+      'Navigation & Charts',
+      'Bridge Electronics',
+      'Communications Equipment',
+      'Watchkeeping Supplies',
+      'Logbooks & Stationery',
+      'Binoculars & Optics',
+      'Weather Instruments',
+      'Bridge Consumables',
+    ],
+  },
+  {
     group: 'General',
     department: null,
-    color: '#5F5E5A',
     categories: [
       'Medical & First Aid',
       'Uniforms & Crew Clothing',
@@ -87,20 +107,25 @@ export const CATEGORY_GROUPS = [
 
 export const ALL_CATEGORIES = CATEGORY_GROUPS.flatMap(g => g.categories);
 
-export const CATEGORY_COLORS = {};
-CATEGORY_GROUPS.forEach(g => {
-  g.categories.forEach(c => {
-    CATEGORY_COLORS[c] = g.color;
-  });
-});
-
 export const getCategoryGroup = (category) => {
   return CATEGORY_GROUPS.find(g => g.categories.includes(category))?.group || 'General';
 };
 
-export const getCategoryColor = (category) => {
-  return CATEGORY_COLORS[category] || '#5F5E5A';
+// Returns the category list for a given department name. Match is on
+// CATEGORY_GROUPS.group (case-insensitive). Falls back to ['Uncategorised']
+// when no group matches — callers can render a single-option dropdown so the
+// AI inference path can still run.
+export const categoriesForDept = (deptName) => {
+  if (!deptName) return ['Uncategorised'];
+  const target = String(deptName).trim().toLowerCase();
+  const group = CATEGORY_GROUPS.find(g => g.group?.toLowerCase() === target);
+  return group?.categories?.length ? group.categories : ['Uncategorised'];
 };
+
+// Single source of truth for department colour: read directly off the dept
+// object returned by fetchVesselDepartments. Falls back to neutral grey if
+// the object is missing a colour (legacy fallback path).
+export const getDepartmentColor = (dept) => dept?.color || '#5F5E5A';
 
 // Convert hex to rgba for tinted backgrounds
 export const hexToRgba = (hex, alpha = 0.08) => {

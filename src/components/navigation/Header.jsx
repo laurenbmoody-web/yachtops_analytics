@@ -16,6 +16,7 @@ import { getUnreadCount, checkDueAndOverdueJobs } from '../../pages/team-jobs-ma
 import { isDevMode } from '../../utils/devMode';
 import { loadCards } from '../../pages/team-jobs-management/utils/cardStorage';
 import { loadGuests } from '../../pages/guest-management-dashboard/utils/guestStorage';
+import { loadTrips } from '../../pages/trips-management-dashboard/utils/tripStorage';
 
 
 const Header = () => {
@@ -216,14 +217,9 @@ const Header = () => {
       if (defects.length) groups.push({ category: 'Defects', items: defects });
     } catch { /* skip */ }
 
-    // Trips (localStorage)
-    try {
-      const trips = (JSON.parse(localStorage.getItem('cargo.trips.v1') || '[]'))
-        .filter(t => (t?.title || '').toLowerCase().includes(q))
-        .slice(0, 3)
-        .map(t => ({ label: t.title || 'Untitled trip', subtitle: t.status || '', path: '/trips-management-dashboard', icon: 'Map' }));
-      if (trips.length) groups.push({ category: 'Trips', items: trips });
-    } catch { /* skip */ }
+    // Trips moved to the async Supabase wave below — loadTrips is now
+    // async post-A3.1 (Supabase + localStorage merge). The category
+    // appears in the search results as soon as the await resolves.
 
     // Laundry (localStorage)
     try {
@@ -245,7 +241,7 @@ const Header = () => {
     const TIMEOUT = 5000;
     const race = (promise) => Promise.race([promise, new Promise((_, r) => setTimeout(() => r(new Error('timeout')), TIMEOUT))]);
 
-    const [crewRes, jobsRes, inventoryRes, guestsRes] = await Promise.allSettled([
+    const [crewRes, jobsRes, inventoryRes, guestsRes, tripsRes] = await Promise.allSettled([
       // Crew — profiles scoped to this tenant via tenant_members
       race(
         supabase
@@ -276,6 +272,8 @@ const Header = () => {
       ),
       // Guests
       race(loadGuests()),
+      // Trips — loadTrips is async post-A3.1 (Supabase + LS merge)
+      race(loadTrips()),
     ]);
 
     setSearchResults(prev => {
@@ -334,6 +332,19 @@ const Header = () => {
             icon: 'UserCheck',
           }));
         upsert('Guests', items);
+      }
+
+      if (tripsRes.status === 'fulfilled') {
+        const items = (tripsRes.value || [])
+          .filter(t => (t?.name || t?.title || '').toLowerCase().includes(q))
+          .slice(0, 3)
+          .map(t => ({
+            label: t.name || t.title || 'Untitled trip',
+            subtitle: t.status || '',
+            path: '/trips-management-dashboard',
+            icon: 'Map',
+          }));
+        upsert('Trips', items);
       }
 
       return updated;

@@ -136,7 +136,15 @@ const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved,
         <label className={labelCls}>Linked Trip</label>
         <select value={form.trip_id} onChange={e => set('trip_id', e.target.value)} className={inputCls}>
           <option value="">None</option>
-          {(trips || []).map(t => <option key={t.id} value={t.id}>{t.title || t.name}</option>)}
+          {/* Use the canonical Supabase UUID as the option value so the
+              dropdown matches existing list.trip_id (uuid) and so a new
+              selection sends a uuid on save. Falls back to legacy id
+              for LS-only pending-sync trips. */}
+          {(trips || []).map(t => (
+            <option key={t.id} value={t.supabaseId || t.id}>
+              {t.title || t.name}
+            </option>
+          ))}
         </select>
       </div>
 

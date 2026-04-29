@@ -47,8 +47,8 @@ const TripPreferencesOverview = () => {
     }
   }, [tripId]);
 
-  const loadTripData = () => {
-    const tripData = getTripById(tripId);
+  const loadTripData = async () => {
+    const tripData = await getTripById(tripId);
     if (!tripData) {
       showToast('Trip not found', 'error');
       navigate('/trips-management-dashboard');
@@ -57,9 +57,12 @@ const TripPreferencesOverview = () => {
     setTrip(tripData);
   };
 
-  const loadGuestsData = () => {
-    const allGuests = loadGuests();
-    const tripData = getTripById(tripId);
+  // loadGuests + getTripById are both async — this file was not in the
+  // earlier loadGuests await sweep (320c59a). Fixed during the A3.1
+  // pass; matches the pattern used in trip-preferences-view.
+  const loadGuestsData = async () => {
+    const allGuests = (await loadGuests()) || [];
+    const tripData = await getTripById(tripId);
     if (tripData) {
       const tripGuests = allGuests?.filter(g => 
         !g?.isDeleted && tripData?.guestIds?.includes(g?.id)

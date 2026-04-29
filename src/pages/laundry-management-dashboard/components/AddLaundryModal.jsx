@@ -56,7 +56,7 @@ const AddLaundryModal = ({ onClose, onSuccess }) => {
   useEffect(() => {
     if (formData?.ownerType === OwnerType?.GUEST) {
       const loadActiveGuests = async () => {
-        const activeGuestIds = getActiveGuestsFromCurrentTrip();
+        const activeGuestIds = await getActiveGuestsFromCurrentTrip();
         const allGuests = await loadGuests();
         const filtered = (allGuests || []).filter(g => !g?.isDeleted);
         const activeGuestsData = filtered.filter(g => activeGuestIds?.includes(g?.id));

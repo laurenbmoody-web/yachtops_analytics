@@ -138,10 +138,14 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
     setCreating(true);
     setLocalError('');
     try {
+      // tripId state holds the merged trip's legacy id (display + dropdown
+      // value). Provisioning_lists.trip_id is uuid; resolve to the
+      // canonical Supabase UUID via selectedTrip.supabaseId before
+      // crossing the wire.
       await onCreated({
         title: title.trim(),
         board_type: boardType || null,
-        trip_id: tripId || null,
+        trip_id: selectedTrip?.supabaseId || null,
         is_private: isPrivate,
         startFrom,
         preloadedItems: extraItems,
@@ -492,9 +496,9 @@ const ProvisioningWorkspace = () => {
     setLoading(true);
     setError(null);
     try {
-      // loadTrips is synchronous (localStorage) — wrap safely
+      // loadTrips is async (Supabase + localStorage merge post-A3.1)
       let fetchedTrips = [];
-      try { fetchedTrips = loadTrips() || []; } catch { fetchedTrips = []; }
+      try { fetchedTrips = (await loadTrips()) || []; } catch { fetchedTrips = []; }
 
       const [fetchedLists, fetchedSuppliers] = await Promise.all([
         fetchProvisioningLists(activeTenantId, userId, deptId, userTier),
@@ -901,7 +905,7 @@ const ProvisioningWorkspace = () => {
                 className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary"
               >
                 <option value="all">All depts</option>
-                {departments.map(d => <option key={d} value={d}>{d}</option>)}
+                {departments.map(d => <option key={d.id || d.name} value={d.name}>{d.name}</option>)}
               </select>
               {hasActiveFilters && (
                 <button
@@ -1107,7 +1111,7 @@ const ProvisioningWorkspace = () => {
         suppliers={suppliers}
         trips={trips}
         tenantId={activeTenantId}
-        departments={departments}
+        departments={departments.map(d => d.name)}
         onSaved={handleBoardSaved}
         onDeleted={handleBoardDeleted}
         onAddItems={handleAddItemsFromDrawer}
@@ -1120,7 +1124,7 @@ const ProvisioningWorkspace = () => {
         item={itemDrawer.item}
         listId={itemDrawer.listId}
         tenantId={activeTenantId}
-        departments={departments}
+        departments={departments.map(d => d.name)}
         suppliers={suppliers}
         theme="light"
         onSaved={handleItemSaved}

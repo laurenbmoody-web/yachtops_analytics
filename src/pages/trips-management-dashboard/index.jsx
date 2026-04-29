@@ -129,7 +129,7 @@ const TripsManagementDashboard = () => {
         setGuests ([]);
       }
       
-      const data = loadTrips();
+      const data = await loadTrips();
       console.log('[TRIPS] fetch success, rows:', data?.length || 0);
       setTrips(data);
       const guestData = await loadGuests();
@@ -162,11 +162,16 @@ const TripsManagementDashboard = () => {
     }
   };
 
-  const loadTripsData = () => {
+  const loadTripsData = async () => {
     setPageLoading(true);
-    const data = loadTrips();
-    setTrips(data);
-    setPageLoading(false);
+    try {
+      const data = await loadTrips();
+      setTrips(data);
+    } catch (err) {
+      console.warn('[trips-dashboard] loadTrips failed:', err);
+    } finally {
+      setPageLoading(false);
+    }
   };
 
   const loadGuestsData = async () => {

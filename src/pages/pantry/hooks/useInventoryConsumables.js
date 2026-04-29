@@ -40,7 +40,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../contexts/AuthContext';
 import { emergencyResponsesForGuest } from '../utils/emergencyDevices';
-import { tripDaysRemainingForGuest } from '../utils/tripDaysRemaining';
+import { tripDaysRemainingForGuestFromTrips } from '../utils/tripDaysRemaining';
+import { loadTrips } from '../../trips-management-dashboard/utils/tripStorage';
 
 // Interior scope filter. A future chef dashboard would use
 // { 'shared', 'chef_only' } — same Edge Function, same cache,
@@ -252,6 +253,11 @@ export function useInventoryConsumables() {
         return;
       }
 
+      // Load trips once for the per-guest tripDays computation. Avoids
+      // N parallel loadTrips calls inside the per-guest Promise.all.
+      let allTrips = [];
+      try { allTrips = await loadTrips(); } catch { allTrips = []; }
+
       // Per-guest: fetch prefs + call Edge Function in parallel.
       const perGuestResults = await Promise.all(guests.map(async guest => {
         try {
@@ -262,7 +268,7 @@ export function useInventoryConsumables() {
             .eq('guest_id', guest.id);
           if (prefsErr) throw prefsErr;
 
-          const tripDays = tripDaysRemainingForGuest(guest.id);
+          const tripDays = tripDaysRemainingForGuestFromTrips(allTrips, guest.id);
           const hasConsumable = (prefsRows ?? []).some(isConsumablePreference);
 
           let links = [];
@@ -297,7 +303,7 @@ export function useInventoryConsumables() {
           // against the already-fetched inventory.
           const emergency = emergencyResponsesForGuest(guest, invRows);
           return {
-            guest, tripDays: tripDaysRemainingForGuest(guest.id),
+            guest, tripDays: tripDaysRemainingForGuestFromTrips(allTrips, guest.id),
             links: [], emergency,
             error: e instanceof Error ? e : new Error(String(e?.message ?? e)),
           };

@@ -1,5 +1,23 @@
 // Trip Management Storage Utility
+//
+// Hybrid read path during the localStorage→Supabase migration window
+// (Phase A3.1+). Read helpers are async and merge:
+//   - Top-level fields (name, dates, type, etc.) from Supabase trips table
+//   - Guest membership from trip_guests join table
+//   - Embedded arrays (itineraryDays, specialDates, photos, charterDocs,
+//     brokerDetails, heroImage*, tripActivityLog) from localStorage —
+//     these have no Supabase home yet (tracked as A3.7+ phases)
+//
+// Stale-detection: if localStorage updatedAt > Supabase updated_at,
+// prefer localStorage top-level fields. Handles the write-then-read
+// case where a recent localStorage write hasn't been synced by the
+// migration runner yet.
+//
+// Writes still go to localStorage exclusively (PR3 swaps writes).
+// The Phase A2 migration runner syncs localStorage → Supabase on each
+// page load, so Supabase trip rows stay fresh.
 
+import { supabase } from '../../../lib/supabaseClient';
 import { showToast } from '../../../utils/toast';
 import { normalizeTier } from './tripPermissions';
 import { logActivity } from '../../../utils/activityStorage';
@@ -169,29 +187,204 @@ const migrateTripGuestsStructure = (trip) => {
 
 // ============ TRIP OPERATIONS ============
 
-// Load all trips
-export const loadTrips = () => {
+// Active tenant resolution. Mirrors the pattern in
+// guest-management-dashboard/utils/guestStorage.js so trips and guests
+// agree on tenant scope without an extra round-trip.
+const getActiveTenantId = () => {
+  return localStorage.getItem('cargo_active_tenant_id') ||
+    localStorage.getItem('cargo.currentTenantId') ||
+    null;
+};
+
+// Private — synchronous localStorage read for the legacy trip array.
+// Used by the merge logic in loadTrips() and as the fallback when
+// Supabase is unreachable. Same body as the previous public loadTrips.
+const loadLocalTrips = () => {
   try {
     const data = localStorage.getItem(TRIPS_KEY);
     const trips = data ? JSON.parse(data) : [];
-    
-    // Migrate all trips to new structure
+
+    // Migrate all trips to new guest-array structure on read.
     const migratedTrips = trips?.map(trip => migrateTripGuestsStructure(trip));
-    
-    // Save migrated trips if any migration occurred
-    const needsSave = migratedTrips?.some((trip, index) => 
+
+    const needsSave = migratedTrips?.some((trip, index) =>
       !trips?.[index]?.guests || !Array.isArray(trips?.[index]?.guests)
     );
-    
     if (needsSave) {
       saveTrips(migratedTrips);
     }
-    
-    return migratedTrips;
+
+    return migratedTrips || [];
   } catch (error) {
-    console.error('Error loading trips:', error);
+    console.error('Error loading trips from localStorage:', error);
     return [];
   }
+};
+
+// Map a Supabase trips row (joined with trip_guests) into the legacy
+// camelCase shape that callers expect. Embedded arrays come from the
+// matching localStorage trip when present; default to empty otherwise.
+//
+// `preferLs` flips top-level fields to the localStorage version when
+// the LS row's updatedAt is newer than the Supabase row's updated_at —
+// the stale-detection cache that handles the write-then-read window.
+const mapSupabaseTripToLegacyShape = (row, lsTrip, { preferLs = false } = {}) => {
+  const tripGuests = Array.isArray(row?.trip_guests) ? row.trip_guests : [];
+
+  // Reconstruct the legacy guests array shape from trip_guests join.
+  // activatedAt / activatedByUserId only exist in localStorage today
+  // (added_at on the join is the closest Supabase analog).
+  const lsGuestsByGuestId = new Map(
+    (lsTrip?.guests || [])
+      .filter(g => g?.guestId)
+      .map(g => [g.guestId, g])
+  );
+  const guests = tripGuests.map(tg => {
+    const lsGuest = lsGuestsByGuestId.get(tg.guest_id) || {};
+    return {
+      guestId:           tg.guest_id,
+      isActive:          tg.is_active_on_trip ?? false,
+      activatedAt:       lsGuest.activatedAt       ?? tg.added_at ?? null,
+      activatedByUserId: lsGuest.activatedByUserId ?? null,
+    };
+  });
+
+  // Top-level field source: Supabase canonical, unless the LS copy is
+  // newer (preferLs flag). Either way the embedded arrays come from LS.
+  const top = preferLs ? lsTrip : null;
+  const startDate = top?.startDate ?? row?.start_date;
+  const endDate   = top?.endDate   ?? row?.end_date;
+
+  return {
+    // Keep the legacy ID format that every existing call site uses
+    // (`trip-{ts}-{rand}`). Supabase uuid is exposed on `supabaseId`
+    // for forward-looking code; PR3 will swap callers to it.
+    id:        row?.legacy_local_id || lsTrip?.id || `trip-supabase-${row?.id}`,
+    supabaseId: row?.id,
+
+    // Top-level
+    vesselId:          lsTrip?.vesselId || 'default',
+    name:              top?.name              ?? row?.name              ?? '',
+    tripType:          top?.tripType          ?? row?.trip_type         ?? null,
+    startDate,
+    endDate,
+    notes:             top?.notes             ?? row?.notes             ?? '',
+    itinerarySummary:  top?.itinerarySummary  ?? row?.itinerary_summary ?? '',
+
+    // Computed at read time (no `status` column in Supabase schema)
+    status: calculateTripStatus(startDate, endDate),
+
+    // Audit
+    createdAt:        row?.created_at,
+    createdByUserId:  row?.created_by,
+    updatedAt:        row?.updated_at,
+    updatedByUserId:  lsTrip?.updatedByUserId ?? null, // not in Supabase schema yet
+    isDeleted:        row?.is_deleted ?? false,
+
+    // Guest membership — Supabase canonical
+    guests,
+    guestIds: guests.map(g => g.guestId), // legacy back-compat
+
+    // Embedded arrays — localStorage only (no Supabase home, A3.7+)
+    itineraryDays:        lsTrip?.itineraryDays        ?? [],
+    specialDates:         lsTrip?.specialDates         ?? [],
+    specialRequests:      lsTrip?.specialRequests      ?? [],
+    photos:               lsTrip?.photos               ?? [],
+    charterDocs:          lsTrip?.charterDocs          ?? [],
+    brokerDetails:        lsTrip?.brokerDetails        ?? null,
+    heroImageUrl:         lsTrip?.heroImageUrl         ?? null,
+    heroImageUpdatedAt:   lsTrip?.heroImageUpdatedAt   ?? null,
+    heroImageUpdatedBy:   lsTrip?.heroImageUpdatedBy   ?? null,
+    tripActivityLog:      lsTrip?.tripActivityLog      ?? [],
+  };
+};
+
+// Load all trips. Async — Supabase + localStorage merge.
+//
+// Strategy:
+//   1. Fetch tenant's Supabase trips (with embedded trip_guests rows).
+//   2. Read localStorage trips for legacy_local_id lookup + embedded
+//      array enrichment.
+//   3. For each Supabase trip, merge with its LS counterpart by
+//      legacy_local_id. Stale-detection uses updatedAt comparison.
+//   4. localStorage-only trips (not yet synced by the A2 migration
+//      runner) are appended as-is so the dashboard immediately
+//      reflects fresh writes.
+//
+// Falls back to localStorage only when:
+//   - No active tenant context (anon, mid-bootstrap)
+//   - Supabase query fails (network, RLS, etc.) — logged + degraded
+export const loadTrips = async () => {
+  const tid = getActiveTenantId();
+  const lsTrips = loadLocalTrips();
+
+  // Without a tenant context we have nothing to merge against; serve
+  // the localStorage view so the dashboard still renders during the
+  // brief auth-bootstrap window.
+  if (!tid) return lsTrips;
+
+  let supabaseRows = [];
+  try {
+    const { data, error } = await supabase
+      ?.from('trips')
+      ?.select(`
+        id, tenant_id, name, trip_type, start_date, end_date,
+        itinerary_summary, notes, created_by, created_at, updated_at,
+        is_deleted, deleted_at, deleted_by_user_id, legacy_local_id,
+        trip_guests ( guest_id, is_active_on_trip, added_at )
+      `)
+      ?.eq('tenant_id', tid)
+      ?.eq('is_deleted', false)
+      ?.order('start_date', { ascending: false });
+    if (error) throw error;
+    supabaseRows = data || [];
+  } catch (err) {
+    // Soft fail — frontend continues to render with localStorage data.
+    // The next page load retries the Supabase fetch automatically.
+    console.warn('[tripStorage] Supabase trips fetch failed, falling back to localStorage:', err);
+    return lsTrips;
+  }
+
+  // Build a lookup of LS trips by legacy id for O(1) merge.
+  const lsTripsByLegacyId = new Map();
+  for (const lsTrip of lsTrips) {
+    if (lsTrip?.id) lsTripsByLegacyId.set(lsTrip.id, lsTrip);
+  }
+
+  const merged = [];
+  const seenLegacyIds = new Set();
+
+  for (const row of supabaseRows) {
+    const legacyId = row?.legacy_local_id;
+    const lsTrip = legacyId ? lsTripsByLegacyId.get(legacyId) : null;
+
+    // Stale-detection: if the LS row is newer, prefer its top-level
+    // fields. The migration runner will catch up on the next page load.
+    const lsUpdated = lsTrip?.updatedAt ? new Date(lsTrip.updatedAt).getTime() : 0;
+    const sbUpdated = row?.updated_at   ? new Date(row.updated_at).getTime()   : 0;
+    const preferLs = !!lsTrip && lsUpdated > sbUpdated;
+
+    merged.push(mapSupabaseTripToLegacyShape(row, lsTrip, { preferLs }));
+    if (legacyId) seenLegacyIds.add(legacyId);
+  }
+
+  // Pending-sync trips: in localStorage but not yet in Supabase. Most
+  // commonly this is a trip just created via the (still-localStorage)
+  // write path that the A2 runner hasn't synced yet.
+  for (const lsTrip of lsTrips) {
+    if (lsTrip?.id && !seenLegacyIds.has(lsTrip.id)) {
+      merged.push(lsTrip);
+    }
+  }
+
+  // Stable sort by startDate desc (matches the existing dashboard UX).
+  merged.sort((a, b) => {
+    const da = a?.startDate ? new Date(a.startDate).getTime() : 0;
+    const db = b?.startDate ? new Date(b.startDate).getTime() : 0;
+    return db - da;
+  });
+
+  return merged;
 };
 
 // Save trips
@@ -218,7 +411,7 @@ export const createTrip = (tripData) => {
       return null;
     }
     
-    const trips = loadTrips();
+    const trips = loadLocalTrips();
     let status = calculateTripStatus(tripData?.startDate, tripData?.endDate);
     
     // Convert guestIds to new guests array structure
@@ -296,7 +489,7 @@ export const updateTrip = (tripId, updates) => {
       return null;
     }
     
-    const trips = loadTrips();
+    const trips = loadLocalTrips();
     const index = trips?.findIndex(t => t?.id === tripId);
     if (index === -1) return null;
 
@@ -363,7 +556,7 @@ export const deleteTrip = (tripId) => {
       return false;
     }
     
-    const trips = loadTrips();
+    const trips = loadLocalTrips();
     const tripToDelete = trips?.find(t => t?.id === tripId);
     const filtered = trips?.filter(t => t?.id !== tripId);
     
@@ -392,26 +585,39 @@ export const deleteTrip = (tripId) => {
   }
 };
 
-// Get trip by ID
-export const getTripById = (tripId) => {
-  const trips = loadTrips();
-  return trips?.find(t => t?.id === tripId) || null;
+// Find a merged trip by either its legacy id or its Supabase UUID.
+// During the A3 migration window, callers may hold either format:
+//   - URLs / older state → legacy "trip-{ts}-{rand}" string
+//   - provisioning_lists.trip_id and other Supabase FKs → uuid
+// Pure helper over a pre-fetched trips array; no Supabase calls.
+export const findTripByAnyId = (trips, value) => {
+  if (!value || !Array.isArray(trips)) return null;
+  return trips.find(t => t?.supabaseId === value || t?.id === value) || null;
 };
 
-// Get active trip (if any)
-export const getActiveTrip = () => {
-  const trips = loadTrips();
+// Get trip by ID. Async — uses the merged Supabase+localStorage list.
+// Matches by either the legacy id format (`trip-{ts}-{rand}`) used in
+// URLs and older state, OR the Supabase uuid stored in FKs like
+// provisioning_lists.trip_id. Either format works during the A3
+// migration window; PR3+ will naturalise everything to uuid.
+export const getTripById = async (tripId) => {
+  const trips = await loadTrips();
+  return findTripByAnyId(trips, tripId);
+};
+
+// Get active trip (if any). Status is computed at read time from
+// start_date / end_date — no `status` column on the Supabase schema.
+export const getActiveTrip = async () => {
+  const trips = await loadTrips();
   return trips?.find(t => t?.status === TripStatus?.ACTIVE) || null;
 };
 
-// Get active guests from current active trip
-export const getActiveGuestsFromCurrentTrip = () => {
-  const activeTrip = getActiveTrip();
+// Get active guests from current active trip.
+export const getActiveGuestsFromCurrentTrip = async () => {
+  const activeTrip = await getActiveTrip();
   if (!activeTrip || !activeTrip?.guests) {
     return [];
   }
-  
-  // Return only guests where isActive === true
   return activeTrip?.guests
     ?.filter(g => g?.isActive === true)
     ?.map(g => g?.guestId) || [];
@@ -430,7 +636,7 @@ export const toggleGuestActiveStatus = (tripId, guestId) => {
       return null;
     }
     
-    const trips = loadTrips();
+    const trips = loadLocalTrips();
     const index = trips?.findIndex(t => t?.id === tripId);
     if (index === -1) return null;
     
@@ -543,7 +749,7 @@ export const addItineraryDay = (tripId, dayData) => {
       return null;
     }
     
-    const trips = loadTrips();
+    const trips = loadLocalTrips();
     const index = trips?.findIndex(t => t?.id === tripId);
     if (index === -1) return null;
     
@@ -591,7 +797,7 @@ export const updateItineraryDay = (tripId, dayId, updates) => {
       return null;
     }
     
-    const trips = loadTrips();
+    const trips = loadLocalTrips();
     const tripIndex = trips?.findIndex(t => t?.id === tripId);
     if (tripIndex === -1) return null;
     
@@ -633,7 +839,7 @@ export const deleteItineraryDay = (tripId, dayId) => {
       return null;
     }
     
-    const trips = loadTrips();
+    const trips = loadLocalTrips();
     const tripIndex = trips?.findIndex(t => t?.id === tripId);
     if (tripIndex === -1) return null;
     
@@ -668,7 +874,7 @@ export const addSpecialDate = (tripId, dateData) => {
       return null;
     }
     
-    const trips = loadTrips();
+    const trips = loadLocalTrips();
     const index = trips?.findIndex(t => t?.id === tripId);
     if (index === -1) return null;
     
@@ -712,7 +918,7 @@ export const updateSpecialDate = (tripId, dateId, updates) => {
       return null;
     }
     
-    const trips = loadTrips();
+    const trips = loadLocalTrips();
     const tripIndex = trips?.findIndex(t => t?.id === tripId);
     if (tripIndex === -1) return null;
     
@@ -754,7 +960,7 @@ export const deleteSpecialDate = (tripId, dateId) => {
       return null;
     }
     
-    const trips = loadTrips();
+    const trips = loadLocalTrips();
     const tripIndex = trips?.findIndex(t => t?.id === tripId);
     if (tripIndex === -1) return null;
     
@@ -785,7 +991,7 @@ export const addSpecialRequest = (tripId, requestData) => {
       return null;
     }
     
-    const trips = loadTrips();
+    const trips = loadLocalTrips();
     const index = trips?.findIndex(t => t?.id === tripId);
     if (index === -1) return null;
     
@@ -830,7 +1036,7 @@ export const updateSpecialRequest = (tripId, requestId, updates) => {
       return null;
     }
     
-    const trips = loadTrips();
+    const trips = loadLocalTrips();
     const tripIndex = trips?.findIndex(t => t?.id === tripId);
     if (tripIndex === -1) return null;
     
@@ -875,7 +1081,7 @@ export const deleteSpecialRequest = (tripId, requestId) => {
       return null;
     }
     
-    const trips = loadTrips();
+    const trips = loadLocalTrips();
     const tripIndex = trips?.findIndex(t => t?.id === tripId);
     if (tripIndex === -1) return null;
     
@@ -896,7 +1102,7 @@ export const deleteSpecialRequest = (tripId, requestId) => {
 // Log trip activity — also fires to Supabase activity_events for the global feed
 export const logTripActivity = (tripId, activityType, message) => {
   try {
-    const trips = loadTrips();
+    const trips = loadLocalTrips();
     const index = trips?.findIndex(t => t?.id === tripId);
     if (index === -1) return;
     
@@ -930,9 +1136,9 @@ export const logTripActivity = (tripId, activityType, message) => {
   }
 };
 
-// Get trip activity log
-export const getTripActivityLog = (tripId) => {
-  const trip = getTripById(tripId);
+// Get trip activity log. Async — getTripById is async post-A3.1.
+export const getTripActivityLog = async (tripId) => {
+  const trip = await getTripById(tripId);
   if (!trip) return [];
   return trip?.tripActivityLog || [];
 };

@@ -122,8 +122,8 @@ const TripDetailView = () => {
     }
   }, [activeSection, tripId]);
 
-  const loadTripData = () => {
-    const tripData = getTripById(tripId);
+  const loadTripData = async () => {
+    const tripData = await getTripById(tripId);
     if (!tripData) {
       showToast('Trip not found', 'error');
       navigate('/trips-management-dashboard');
@@ -547,7 +547,14 @@ const TripDetailView = () => {
               trip={trip}
               guests={guests}
               permissions={permissions}
-              onUpdate={loadTripData}
+              onUpdate={async () => {
+                // Refresh both trip + guests so the section's filtered
+                // active-guest list reflects the change. GuestsSection
+                // is a top-level component without closure access to
+                // these, so the wrapper has to bundle both.
+                await loadTripData();
+                await loadGuestsData();
+              }}
               navigate={navigate}
               setActiveSection={setActiveSection}
             />
@@ -2060,8 +2067,7 @@ const GuestsSection = ({ trip, guests, permissions, onUpdate, navigate, setActiv
       // Also update the guest's isActiveOnTrip flag
       updateGuest(guest?.id, { isActiveOnTrip: true });
       showToast('Guest added to trip', 'success');
-      loadTripData();
-      loadGuestsData();
+      onUpdate();
       setShowAddGuestModal(false);
     } else {
       showToast('Failed to add guest to trip', 'error');

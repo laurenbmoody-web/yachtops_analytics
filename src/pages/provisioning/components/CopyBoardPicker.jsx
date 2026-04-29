@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
-import { loadTrips } from '../../trips-management-dashboard/utils/tripStorage';
+import { loadTrips, findTripByAnyId } from '../../trips-management-dashboard/utils/tripStorage';
 
 // ── CopyBoardPicker ────────────────────────────────────────────────────────
 // Modal for copying items from a previous board onto a new board.
@@ -31,7 +31,7 @@ export default function CopyBoardPicker({ tenantId, department, newGuestCount = 
           ?.order('created_at', { ascending: false })
           ?.limit(30);
 
-        const trips = loadTrips() || [];
+        const trips = (await loadTrips()) || [];
 
         const enriched = await Promise.all((lists || []).map(async (board) => {
           // Item count
@@ -44,7 +44,7 @@ export default function CopyBoardPicker({ tenantId, department, newGuestCount = 
           let guestCount = 0;
           let tripName = null;
           if (board.trip_id) {
-            const trip = trips.find(t => t.id === board.trip_id);
+            const trip = findTripByAnyId(trips, board.trip_id);
             if (trip) {
               guestCount = trip.guests?.filter(g => g.isActive)?.length || trip.guests?.length || 0;
               tripName = trip.name || trip.title || null;
