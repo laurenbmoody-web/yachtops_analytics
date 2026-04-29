@@ -3,7 +3,7 @@ import { Filter, Plus, MoreHorizontal } from 'lucide-react';
 
 const RETURNS = [
   { issue: '2 burrata short — crate damaged', sku: 'DRY-BUR-250 × 2', ym: 'm4', short: 'LUM', yacht: 'M/Y Lumen', order: '#CGO-2026-0405', items: '2 units', opened: '15 Apr', status: 'issues', statusLbl: 'Awaiting decision', credit: '€ 14.80', resolve: true },
-  { issue: 'Loup de mer refused — too small',  sku: 'FSH-LDM-12 × 3',  ym: 'm2', short: 'AET', yacht: 'M/Y Aether', order: '#CGO-2026-0412', items: '3 units', opened: '17 Apr', status: 'picking', statusLbl: 'Collecting Tue',     credit: '€ 126.00' },
+  { issue: 'Loup de mer refused — too small',  sku: 'FSH-LDM-12 × 3',  ym: 'm2', short: 'AET', yacht: 'M/Y Aether', order: '#CGO-2026-0412', items: '3 units', opened: '17 Apr', status: 'dispatched', statusLbl: 'Collecting Tue',     credit: '€ 126.00' },
   { issue: 'Wrong vintage delivered — Ott Clos Mireille', sku: 'WIN-OTT-CM23', ym: 'm3', short: 'SOL', yacht: 'M/Y Solstice', order: '#CGO-2026-0387', items: '6 bottles', opened: '08 Apr', status: 'confirmed', statusLbl: 'Credit note issued', credit: '€ 228.00' },
 ];
 

@@ -13,27 +13,29 @@ const NO_PERMISSION_TITLE = "Your role doesn't have permission for this action."
 // Server status → which timeline step is "current". Statuses past `confirmed`
 // (picking, packed, dispatched, invoiced) may not exist as DB enum values yet —
 // they're rendered as future steps until the data layer catches up.
+// Sprint 9c.2a: 8-stage lifecycle. Quoted is derived (per-line aggregation)
+// and rendered separately by the 9c.2 Orders tab; the supplier portal's
+// own Timeline below renders the 7 STORED stages in order. 'draft' folds
+// into the leading 'sent' position visually.
 const TIMELINE_STEPS = [
-  { key: 'sent',       label: 'Sent' },
-  { key: 'confirming', label: 'Confirming' },
-  { key: 'picking',    label: 'Picking' },
-  { key: 'packed',     label: 'Packed' },
-  { key: 'dispatched', label: 'Dispatched' },
-  { key: 'delivered',  label: 'Delivered' },
-  { key: 'invoiced',   label: 'Invoiced' },
+  { key: 'sent',             label: 'Sent' },
+  { key: 'confirmed',        label: 'Confirmed' },
+  { key: 'dispatched',       label: 'Dispatched' },
+  { key: 'out_for_delivery', label: 'Out for delivery' },
+  { key: 'received',         label: 'Received' },
+  { key: 'invoiced',         label: 'Invoiced' },
+  { key: 'paid',             label: 'Paid' },
 ];
 
 const STATUS_TO_STEP_INDEX = {
-  draft: 0,
-  sent: 1,
-  pending: 1,
-  partially_confirmed: 1,
-  confirmed: 2,
-  picking: 2,
-  packed: 3,
-  dispatched: 4,
-  delivered: 5,
-  invoiced: 6,
+  draft:            0,
+  sent:             0,
+  confirmed:        1,
+  dispatched:       2,
+  out_for_delivery: 3,
+  received:         4,
+  invoiced:         5,
+  paid:             6,
 };
 
 // ─── Date / number helpers ──────────────────────────────────────────────────
@@ -466,18 +468,18 @@ const Timeline = ({ order, items, canEdit, onAdvance }) => {
       return fmtTimestamp(order.sent_at || order.created_at) || 'Sent';
     }
     if (idx === currentIdx) {
-      // "Confirming" gets the X of Y progress hint.
-      if (TIMELINE_STEPS[idx].key === 'confirming' && totalCount > 0) {
+      // "Confirmed" gets the X of Y progress hint while items are still pending.
+      if (TIMELINE_STEPS[idx].key === 'confirmed' && totalCount > 0 && pendingCount > 0) {
         return `Now · ${totalCount - pendingCount} of ${totalCount}`;
       }
       return 'Now';
     }
     if (idx < currentIdx) {
-      // TODO(schema): per-step timestamps (picking_at, packed_at, …) need columns.
+      // TODO(schema): per-step timestamps (confirmed_at, dispatched_at, …) need columns.
       return '✓';
     }
     // Future delivery step gets the planned date if we have one.
-    if (TIMELINE_STEPS[idx].key === 'delivered' && order.delivery_date) {
+    if (TIMELINE_STEPS[idx].key === 'received' && order.delivery_date) {
       const dt = safeDate(order.delivery_date);
       return dt ? dt.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : '—';
     }
