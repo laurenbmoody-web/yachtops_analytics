@@ -17,6 +17,174 @@ import {
 } from '../utils/provisioningStorage';
 import { getSmartSuggestions } from '../../../utils/provisioningSuggestions';
 
+// Sprint 9c.1a follow-up — interim restyle of the drawer body content for
+// the white card surface. Replaces dark-theme Tailwind classes with
+// concrete editorial-language values so the form is usable on /provisioning.
+// Sprint 9c.5 (modal/drawer pass) will rewrite this properly in the
+// editorial pattern; the bd-* classes below are deliberately throwaway
+// scaffolding to make the existing JSX readable in the meantime.
+const BD_STYLES = `
+.bd-input {
+  width: 100%;
+  background: #FAF7F0;
+  border: 1px solid rgba(30, 39, 66, 0.12);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: #1E2742;
+  outline: none;
+  transition: border-color 0.15s;
+  font-family: inherit;
+}
+.bd-input::placeholder { color: rgba(30, 39, 66, 0.35); }
+.bd-input:focus { border-color: #C65A1A; }
+.bd-input:disabled { opacity: 0.5; }
+.bd-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(30, 39, 66, 0.55);
+  margin-bottom: 4px;
+}
+.bd-pill {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(30, 39, 66, 0.08);
+  background: rgba(30, 39, 66, 0.04);
+  color: #1E2742;
+  transition: all 0.15s;
+  cursor: pointer;
+}
+.bd-pill:hover { background: rgba(30, 39, 66, 0.08); }
+.bd-pill-active {
+  background: #FEF3E8;
+  border-color: #C65A1A;
+  color: #C65A1A;
+  font-weight: 500;
+}
+.bd-pill-active:hover { background: #FCE6D2; }
+.bd-card {
+  background: #FAF7F0;
+  border: 1px solid rgba(30, 39, 66, 0.08);
+  border-radius: 8px;
+  padding: 12px;
+}
+.bd-tag {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(30, 39, 66, 0.06);
+  color: rgba(30, 39, 66, 0.7);
+}
+.bd-muted        { color: rgba(30, 39, 66, 0.55); }
+.bd-strong       { color: #1E2742; }
+.bd-faint        { color: rgba(30, 39, 66, 0.4); }
+.bd-divider      { border-top: 1px solid rgba(30, 39, 66, 0.08); }
+.bd-row-hover:hover { background: rgba(30, 39, 66, 0.04); }
+.bd-tab-bar {
+  display: flex;
+  gap: 4px;
+  background: rgba(30, 39, 66, 0.04);
+  border-radius: 8px;
+  padding: 2px;
+}
+.bd-tab {
+  flex: 1;
+  padding: 6px 0;
+  font-size: 14px;
+  border-radius: 6px;
+  border: 0;
+  background: transparent;
+  color: rgba(30, 39, 66, 0.55);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.bd-tab:hover { color: #1E2742; }
+.bd-tab-active {
+  background: #FFFFFF;
+  color: #C65A1A;
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(30, 39, 66, 0.06);
+}
+.bd-btn-secondary {
+  width: 100%;
+  padding: 8px 0;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(30, 39, 66, 0.12);
+  background: #FFFFFF;
+  color: #1E2742;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.bd-btn-secondary:hover { background: #FAF7F0; }
+.bd-btn-primary {
+  width: 100%;
+  padding: 10px 0;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 8px;
+  border: 0;
+  background: #1E2742;
+  color: #FFFFFF;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.bd-btn-primary:hover { opacity: 0.9; }
+.bd-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.bd-btn-accent {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 8px;
+  border: 1px solid #C65A1A;
+  background: #FEF3E8;
+  color: #C65A1A;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.bd-btn-accent:hover { background: #FCE6D2; }
+.bd-btn-danger {
+  width: 100%;
+  padding: 8px 0;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  background: rgba(254, 242, 242, 0.6);
+  color: #B91C1C;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.bd-btn-danger:hover { background: rgba(254, 226, 226, 0.7); }
+.bd-btn-danger:disabled { opacity: 0.4; cursor: not-allowed; }
+.bd-btn-status-warn {
+  width: 100%;
+  padding: 8px 0;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(217, 119, 6, 0.25);
+  background: rgba(254, 243, 199, 0.5);
+  color: #B45309;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.bd-btn-status-warn:hover { background: rgba(254, 243, 199, 0.85); }
+.bd-btn-status-go {
+  flex: 1;
+  padding: 8px 0;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(30, 64, 175, 0.2);
+  background: rgba(219, 234, 254, 0.5);
+  color: #1E40AF;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.bd-btn-status-go:hover { background: rgba(219, 234, 254, 0.85); }
+`;
+
+
 // ── Edit mode ────────────────────────────────────────────────────────────────
 
 const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved, onDeleted, onClose }) => {
@@ -120,8 +288,8 @@ const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved,
 
   const set = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
 
-  const inputCls = 'w-full bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.08)] rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none focus:border-[#4A90E2] transition-colors';
-  const labelCls = 'block text-xs font-medium text-slate-400 mb-1';
+  const inputCls = 'bd-input';
+  const labelCls = 'bd-label';
 
   return (
     <div className="space-y-5">
@@ -153,7 +321,7 @@ const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved,
         <label className={labelCls}>Departments</label>
         <div className="flex flex-wrap gap-2">
           {departments.length === 0
-            ? <span className="text-xs text-slate-500 italic">No departments configured</span>
+            ? <span className="text-xs italic bd-faint">No departments configured</span>
             : departments.map(d => {
                 const selected = form.department.split(',').map(s => s.trim()).filter(Boolean).includes(d);
                 return (
@@ -164,7 +332,7 @@ const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved,
                       const next = selected ? current.filter(x => x !== d) : [...current, d];
                       set('department', next.join(', '));
                     }}
-                    className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${selected ? 'bg-[#4A90E2]/20 border-[#4A90E2]/40 text-[#4A90E2]' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+                    className={`bd-pill${selected ? ' bd-pill-active' : ''}`}
                   >
                     {d}
                   </button>
@@ -229,7 +397,7 @@ const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved,
           <option value="department">My department</option>
           <option value="shared">Shared — collaborators &amp; link holders</option>
         </select>
-        <p className="text-xs text-slate-500 mt-1">
+        <p className="text-xs mt-1 bd-faint">
           {form.visibility === 'private' && 'Only you (and COMMAND) can see this board.'}
           {form.visibility === 'department' && 'Everyone in your department can see this board.'}
           {form.visibility === 'shared' && 'Visible to people you invite or share a link with.'}
@@ -240,43 +408,43 @@ const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved,
       <button
         onClick={handleSave}
         disabled={saving || !form.title.trim()}
-        className="w-full py-2.5 bg-[#4A90E2] text-white text-sm font-medium rounded-lg hover:bg-[#4A90E2]/80 disabled:opacity-40 transition-colors"
+        className="bd-btn-primary"
       >
         {saving ? 'Saving...' : 'Save Changes'}
       </button>
 
       {/* Status actions */}
-      <div className="border-t border-white/5 pt-4 space-y-2">
-        <p className="text-xs font-medium text-slate-400 mb-2">Status Actions</p>
+      <div className="bd-divider pt-4 space-y-2">
+        <p className="text-xs font-medium mb-2 bd-muted">Status Actions</p>
         <div className="flex items-center gap-2 mb-2">
           <StatusBadge status={list.status} />
         </div>
         {list.status === PROVISIONING_STATUS.DRAFT && (
-          <button onClick={() => handleStatusChange(PROVISIONING_STATUS.PENDING_APPROVAL)} className="w-full py-2 bg-amber-600/20 text-amber-400 text-sm rounded-lg hover:bg-amber-600/30 transition-colors">
+          <button onClick={() => handleStatusChange(PROVISIONING_STATUS.PENDING_APPROVAL)} className="bd-btn-status-warn">
             Submit for Approval
           </button>
         )}
         {list.status === PROVISIONING_STATUS.PENDING_APPROVAL && (
           <div className="flex gap-2">
-            <button onClick={() => handleStatusChange(PROVISIONING_STATUS.SENT_TO_SUPPLIER)} className="flex-1 py-2 bg-blue-600/20 text-blue-400 text-sm rounded-lg hover:bg-blue-600/30 transition-colors">
+            <button onClick={() => handleStatusChange(PROVISIONING_STATUS.SENT_TO_SUPPLIER)} className="bd-btn-status-go">
               Approve & Send
             </button>
-            <button onClick={() => handleStatusChange(PROVISIONING_STATUS.DRAFT)} className="flex-1 py-2 bg-white/5 text-slate-400 text-sm rounded-lg hover:bg-white/10 transition-colors">
+            <button onClick={() => handleStatusChange(PROVISIONING_STATUS.DRAFT)} className="bd-btn-secondary" style={{ flex: 1 }}>
               Request Changes
             </button>
           </div>
         )}
-        <button onClick={handleSaveAsTemplate} className="w-full py-2 bg-white/5 text-slate-400 text-sm rounded-lg hover:bg-white/10 transition-colors">
+        <button onClick={handleSaveAsTemplate} className="bd-btn-secondary">
           Save as Template
         </button>
       </div>
 
       {/* Delete danger zone */}
-      <div className="border-t border-red-500/20 pt-4">
+      <div className="pt-4" style={{ borderTop: '1px solid rgba(220, 38, 38, 0.15)' }}>
         <button
           onClick={handleDelete}
           disabled={deleting}
-          className="w-full py-2 bg-red-500/10 text-red-400 text-sm rounded-lg hover:bg-red-500/20 disabled:opacity-40 transition-colors"
+          className="bd-btn-danger"
         >
           {deleting ? 'Deleting...' : 'Delete Board'}
         </button>
@@ -474,13 +642,13 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
     }
   };
 
-  const inputCls = 'w-full bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.08)] rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none focus:border-[#4A90E2] transition-colors';
+  const inputCls = 'bd-input';
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12 gap-3">
-        <div className="w-5 h-5 border-2 border-[#4A90E2] border-t-transparent rounded-full animate-spin" />
-        <span className="text-sm text-slate-400">Loading...</span>
+        <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#C65A1A', borderTopColor: 'transparent' }} />
+        <span className="text-sm bd-muted">Loading...</span>
       </div>
     );
   }
@@ -488,12 +656,12 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
   return (
     <div className="space-y-4">
       {/* Tabs */}
-      <div className="flex gap-1 bg-white/5 rounded-lg p-0.5">
+      <div className="bd-tab-bar">
         {['templates', 'history'].map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`flex-1 py-1.5 text-sm rounded-md transition-colors ${tab === t ? 'bg-[#4A90E2]/20 text-[#4A90E2] font-medium' : 'text-slate-400 hover:text-white'}`}
+            className={`bd-tab${tab === t ? ' bd-tab-active' : ''}`}
           >
             {t === 'templates' ? 'Templates' : 'Order History'}
           </button>
@@ -503,7 +671,7 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
       {tab === 'templates' ? (
         <div className="space-y-2">
           {templates.length === 0 && (
-            <p className="text-sm text-slate-500 text-center py-6">No templates saved yet.</p>
+            <p className="text-sm text-center py-6 bd-muted">No templates saved yet.</p>
           )}
           {templates.map(tpl => {
             const depts = Array.isArray(tpl.department)
@@ -512,46 +680,47 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
             const isPreviewing = previewTplId === tpl.id;
             const pItems = previewItems[tpl.id];
             return (
-              <div key={tpl.id} className="bg-white/5 border border-white/8 rounded-lg p-3">
+              <div key={tpl.id} className="bd-card">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-white">{tpl.title}</p>
+                    <p className="text-sm font-medium bd-strong">{tpl.title}</p>
                     {depts.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1">
                         {depts.map(d => (
-                          <span key={d} className="text-[10px] px-1.5 py-0.5 bg-white/10 text-slate-400 rounded">{d}</span>
+                          <span key={d} className="bd-tag">{d}</span>
                         ))}
                       </div>
                     )}
                     {isPreviewing && pItems && (
-                      <p className="text-[10px] text-slate-500 mt-1">{pItems.length} item{pItems.length !== 1 ? 's' : ''}</p>
+                      <p className="text-[10px] mt-1 bd-faint">{pItems.length} item{pItems.length !== 1 ? 's' : ''}</p>
                     )}
                   </div>
                   <div className="flex gap-1.5 flex-shrink-0">
                     <button
                       onClick={() => handlePreviewToggle(tpl.id)}
-                      className="px-2.5 py-1.5 bg-white/5 text-slate-400 text-xs rounded-lg hover:bg-white/10 transition-colors"
+                      className="bd-btn-secondary"
+                      style={{ width: 'auto', padding: '6px 10px', fontSize: 12 }}
                     >
                       {isPreviewing ? 'Hide' : 'Preview'}
                     </button>
                     <button
                       onClick={() => handleApplyTemplate(tpl)}
-                      className="px-3 py-1.5 bg-[#4A90E2]/20 text-[#4A90E2] text-xs font-medium rounded-lg hover:bg-[#4A90E2]/30 transition-colors"
+                      className="bd-btn-accent"
                     >
                       Use template
                     </button>
                   </div>
                 </div>
                 {isPreviewing && (
-                  <div className="mt-3 border-t border-white/5 pt-3">
+                  <div className="mt-3 bd-divider pt-3">
                     {previewLoading[tpl.id] ? (
-                      <p className="text-xs text-slate-500">Loading items…</p>
+                      <p className="text-xs bd-muted">Loading items…</p>
                     ) : !pItems || pItems.length === 0 ? (
-                      <p className="text-xs text-slate-500">No items in this template.</p>
+                      <p className="text-xs bd-muted">No items in this template.</p>
                     ) : (
                       <div className="space-y-1 max-h-40 overflow-y-auto">
                         {pItems.map(item => (
-                          <p key={item.id} className="text-xs text-slate-400">
+                          <p key={item.id} className="text-xs bd-muted">
                             {item.name}
                             {item.brand ? ` · ${item.brand}` : ''}
                             {item.size ? ` · ${item.size}` : ''}
@@ -578,17 +747,17 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
           {checkedItems.size > 0 && (
             <button
               onClick={handleAddSelected}
-              className="w-full py-2 bg-[#4A90E2] text-white text-sm font-medium rounded-lg hover:bg-[#4A90E2]/80 transition-colors"
+              className="bd-btn-primary"
             >
               Add {checkedItems.size} selected item{checkedItems.size !== 1 ? 's' : ''}
             </button>
           )}
 
           {Object.keys(groupedHistory).length === 0 && (
-            <p className="text-sm text-slate-500 text-center py-6">No order history found.</p>
+            <p className="text-sm text-center py-6 bd-muted">No order history found.</p>
           )}
 
-          <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-1">
+          <div className="space-y-5 overflow-y-auto pr-1" style={{ maxHeight: '60vh' }}>
             {Object.entries(groupedHistory).map(([dept, cats]) => {
               const allDeptKeys = deptKeys(dept);
               const allDeptChecked = allDeptKeys.length > 0 && allDeptKeys.every(k => checkedItems.has(k));
@@ -596,10 +765,11 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
                 <div key={dept}>
                   {/* Department header */}
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{dept}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider bd-muted">{dept}</span>
                     <button
                       onClick={() => selectAllDept(dept, !allDeptChecked)}
-                      className="text-[10px] text-[#4A90E2] hover:underline"
+                      className="text-[10px] hover:underline"
+                      style={{ color: '#C65A1A', background: 'none', border: 0, cursor: 'pointer' }}
                     >
                       {allDeptChecked ? 'Deselect all' : 'Select all'}
                     </button>
@@ -607,7 +777,7 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
 
                   {Object.entries(cats).map(([cat, items]) => (
                     <div key={cat} className="mb-3">
-                      <p className="text-[10px] font-medium text-slate-600 uppercase tracking-wide mb-1 pl-1">{cat}</p>
+                      <p className="text-[10px] font-medium uppercase tracking-wide mb-1 pl-1 bd-faint">{cat}</p>
                       {items.map(h => {
                         const key = histKey(h);
                         const isChecked = checkedItems.has(key);
@@ -615,21 +785,22 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
                           ? new Date(h.last_ordered_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })
                           : null;
                         return (
-                          <div key={key} className="flex items-start gap-2 py-1.5 px-1 hover:bg-white/5 rounded-lg transition-colors">
+                          <div key={key} className="flex items-start gap-2 py-1.5 px-1 rounded-lg transition-colors bd-row-hover">
                             <input
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => toggleCheck(key)}
-                              className="mt-1 flex-shrink-0 accent-[#4A90E2]"
+                              className="mt-1 flex-shrink-0"
+                              style={{ accentColor: '#C65A1A' }}
                             />
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm text-white leading-snug">{h.name}</p>
+                              <p className="text-sm leading-snug bd-strong">{h.name}</p>
                               <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                                {h.brand && <span className="text-xs text-slate-500">{h.brand}</span>}
-                                {h.size && <span className="text-xs text-slate-500">{h.size}</span>}
-                                <span className="text-[10px] px-1.5 py-0.5 bg-white/5 text-slate-500 rounded">{dept}</span>
-                                <span className="text-[10px] text-slate-600">×{h.times_ordered}</span>
-                                {lastDate && <span className="text-[10px] text-slate-600">{lastDate}</span>}
+                                {h.brand && <span className="text-xs bd-muted">{h.brand}</span>}
+                                {h.size && <span className="text-xs bd-muted">{h.size}</span>}
+                                <span className="bd-tag">{dept}</span>
+                                <span className="text-[10px] bd-faint">×{h.times_ordered}</span>
+                                {lastDate && <span className="text-[10px] bd-faint">{lastDate}</span>}
                               </div>
                             </div>
                             {/* Info popover */}
@@ -637,14 +808,15 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
                               <button
                                 onMouseEnter={() => setInfoPopover(key)}
                                 onMouseLeave={() => setInfoPopover(null)}
-                                className="p-1 text-slate-600 hover:text-slate-400 transition-colors"
+                                className="p-1 transition-colors bd-faint"
+                                style={{ background: 'none', border: 0, cursor: 'pointer' }}
                               >
                                 <Icon name="Info" className="w-3.5 h-3.5" />
                               </button>
                               {infoPopover === key && (
                                 <div
-                                  className="absolute right-0 bottom-7 z-20 rounded-lg shadow-xl text-xs text-slate-300 whitespace-nowrap"
-                                  style={{ background: '#1a2540', border: '1px solid rgba(255,255,255,0.12)', padding: '8px 12px' }}
+                                  className="absolute right-0 bottom-7 z-20 rounded-lg shadow-xl text-xs whitespace-nowrap"
+                                  style={{ background: '#FFFFFF', border: '1px solid rgba(30, 39, 66, 0.12)', padding: '8px 12px', color: '#1E2742' }}
                                 >
                                   <p>Last qty: {h.last_quantity != null ? `${h.last_quantity} ${h.unit}` : '—'}</p>
                                   <p>Avg qty: {h.avg_quantity != null ? `${h.avg_quantity} ${h.unit}` : '—'}</p>
@@ -679,6 +851,7 @@ const BoardDrawer = ({ open, mode, list, suppliers, trips, tenantId, departments
 
   return (
     <Drawer open={open} onClose={onClose} title={DRAWER_TITLES[mode] || 'Board'}>
+      <style>{BD_STYLES}</style>
       {mode === 'edit' && (
         <EditMode
           list={list}
