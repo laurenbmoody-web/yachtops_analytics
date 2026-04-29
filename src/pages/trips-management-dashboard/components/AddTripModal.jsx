@@ -126,11 +126,11 @@ const AddTripModal = ({ isOpen, onClose, onSave, editingTrip, guests }) => {
     return Object.keys(newErrors)?.length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) return;
 
     if (editingTrip) {
-      const updated = updateTrip(editingTrip?.id, formData);
+      const updated = await updateTrip(editingTrip?.id, formData);
       if (updated) {
         showToast('Trip updated successfully', 'success');
         onSave();
@@ -138,7 +138,7 @@ const AddTripModal = ({ isOpen, onClose, onSave, editingTrip, guests }) => {
         showToast('Failed to update trip', 'error');
       }
     } else {
-      const newTrip = createTrip(formData);
+      const newTrip = await createTrip(formData);
       if (newTrip) {
         showToast('Trip created successfully', 'success');
         onSave();

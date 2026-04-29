@@ -786,3 +786,67 @@ export const findTripByAnyId = (trips, value) => {
 - Add Guest modal — slow load on existing-guest list, no skeleton/spinner. Add loading state while `loadGuests()` resolves.
 - Provisioning board view — doesn't surface linked trip name after creation. Save works (FK correct), display path needs the trip name fetched + rendered. Lauren is working on a provisioning page update in a separate sprint; folds into that scope.
 - `/inventory/weekly` bounce-to-dashboard + 400 errors — pre-existing investigation needed.
+
+---
+
+## Addendum — PR3 (write-path swap) findings
+
+PR3 (A3.5 + A3.6 + GuestDetailPanel:163 fix) shipped on `claude/trips-a3-write-path-swap`. Trips writes now dual-write to Supabase + localStorage; embedded-array writes (itineraryDays, specialDates, photos, etc.) stay localStorage-only until A3.7+.
+
+### A3.5 — Write helpers async + Supabase dual-write
+
+Four helpers converted, each with permission-check unchanged + Supabase-first / localStorage-second order so Supabase failures throw cleanly before any state mutation.
+
+- **`createTrip(tripData)`** — INSERTs into `trips`, then iterates the initial `guestIds` into `trip_guests`. Stamps the new localStorage row with `supabaseId` so subsequent reads + writes map cleanly. Updates the A2 migration ledger so the runner skips the now-already-migrated row.
+- **`updateTrip(tripId, updates)`** — branches updates by field name. Top-level fields (`name`, `tripType`, `startDate`, `endDate`, `notes`, `itinerarySummary`) flow into a single `trips` table UPDATE. Guests array changes diff old vs new via the new `diffGuests(...)` helper, then INSERT/DELETE/UPDATE-on-`is_active_on_trip` against `trip_guests`. Embedded-array updates (`itineraryDays`, `specialDates`, `tripActivityLog`, etc.) skip Supabase entirely — they hit localStorage only.
+- **`deleteTrip(tripId)`** — soft-deletes on Supabase (`is_deleted = true`, `deleted_at`, `deleted_by_user_id`), preserves the legacy mapping. localStorage hard-deletes per pre-A3 behaviour. Removes the migration-ledger entry to defend against vanishingly-unlikely legacy-id reuse.
+- **`toggleGuestActiveStatus(tripId, guestId)`** — dual-writes to `trip_guests.is_active_on_trip` + the localStorage `trip.guests[].isActive`. Activity-feed entry fires post-success.
+
+LS-only pending-sync trips (no `supabaseId`) skip the Supabase write with a console warning. The A2 runner picks them up on the next page load via `migrate_localstorage_trip` (idempotent since v2). All four helpers match by either legacy id OR `supabaseId` — same dual-id pattern as the read helpers.
+
+### A3.6 — `tripDaysRemaining` regression check
+
+No code change needed. The merge layer from PR2 already returns trips with embedded `endDate` populated from whichever side won the stale-detection comparison. `tripDaysRemainingForGuestFromTrips(trips, guestId)` reads from the array transparently:
+
+- Supabase + LS merged: works, `endDate` resolves via merge precedence
+- LS-only pending-sync: works, falls through to LS values
+- Inventory edge function payload: continues to receive a number (or null) per `useInventoryConsumables`'s existing flow
+
+### GuestDetailPanel:163 fix — Option A applied
+
+Replaced the direct `localStorage.setItem('cargo.trips.v1', ...)` in `handleActiveToggle` with a `Promise.all` over `toggleGuestActiveStatus(tripId, guestId)` calls — one per trip the guest is on. Three audit-flagged problems resolve simultaneously:
+
+- **Activity log** — fires per per-trip toggle via the canonical helper.
+- **Tenant scoping** — `toggleGuestActiveStatus` matches by `t.id` or `t.supabaseId`, RLS on `trip_guests` enforces tenant boundary on the Supabase write side.
+- **Field-name divergence** — single writer, single shape (`isActive` + `activatedAt` + `activatedByUserId`); the legacy `deactivatedAt` is no longer written.
+
+The handler skips no-op toggles (per-trip flag already aligned with new global state) so it doesn't fire RPCs or activity entries unnecessarily. Failures on individual trips log a warning but don't block siblings — partial success is preferred over all-or-nothing rollback.
+
+### `void`-prefixed fire-and-forget for activity logs
+
+Two `logTripActivity` helpers (one in `TripDetailView`, one in `RemindersSection`) write `tripActivityLog` (an embedded array, no Supabase home yet). Per the spec, embedded-array writes stay localStorage-only and don't need to await. The bare-call sites are now `void updateTrip(...)` to make the fire-and-forget intent explicit.
+
+### Embedded-array writes deferred (per spec)
+
+`addItineraryDay`, `updateItineraryDay`, `deleteItineraryDay`, `addSpecialDate`, `updateSpecialDate`, `deleteSpecialDate`, `addSpecialRequest`, `updateSpecialRequest`, `deleteSpecialRequest` — all left as sync localStorage-only. They route through `loadLocalTrips` + `saveTrips` directly (not through async `loadTrips`), so they continue to work synchronously. A3.7+ phases migrate each.
+
+### Caller updates
+
+26 caller sites added `await` (or were marked `void` for fire-and-forget activity logs). Patterns applied:
+
+- Already-async functions → just add `await`
+- Sync handlers (event handlers, modal saves) → promote to `async` then add `await`
+- React `onChange` / `onClick` arrow handlers → arrow function gains `async` keyword
+- FileReader callbacks → `reader.onloadend = async () => { ... await updateTrip(...) ... }`
+
+### Pattern note: branch-by-field updateTrip
+
+`updateTrip` accepting arbitrary field updates is the right shape for a transition window — the helper internally routes:
+
+- Top-level fields → Supabase `trips` table (whitelist via `SUPABASE_TRIP_TOP_LEVEL_FIELDS` + camelCase→snake_case via `SUPABASE_COLUMN_MAP`)
+- `guests` array → `trip_guests` join via `diffGuests` (added/removed/state-changed)
+- Embedded arrays (everything else) → localStorage only
+
+The whitelist + diff pattern means callers don't need to know which fields go where. As A3.7+ phases peel each embedded array into its own table, the whitelist grows and the embedded-only fallback shrinks. When the last embedded array migrates, the localStorage write path can be retired entirely.
+
+**Apply elsewhere if/when:** any future write helper that accepts arbitrary `updates` and needs to route subsets of fields to different storage backends. Same shape: whitelist + camelCase→snake_case map + diff helpers for array fields + everything-else localStorage fallback.

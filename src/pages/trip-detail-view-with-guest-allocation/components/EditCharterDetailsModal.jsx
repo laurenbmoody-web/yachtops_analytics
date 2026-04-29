@@ -49,8 +49,8 @@ const EditCharterDetailsModal = ({ isOpen, onClose, onSave, tripId, trip }) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = () => {
-    const updated = updateTrip(tripId, { brokerDetails: formData });
+  const handleSubmit = async () => {
+    const updated = await updateTrip(tripId, { brokerDetails: formData });
     if (updated) {
       showToast('Charter details updated successfully', 'success');
       onSave();

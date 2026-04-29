@@ -222,10 +222,10 @@ const TripsManagementDashboard = () => {
     setShowMarkCompletedModal(true);
   };
 
-  const confirmMarkCompleted = () => {
+  const confirmMarkCompleted = async () => {
     if (!tripToComplete) return;
     const updated = { ...tripToComplete, status: TripStatus?.COMPLETED, endedAt: new Date()?.toISOString() };
-    const success = updateTrip(tripToComplete?.id, updated);
+    const success = await updateTrip(tripToComplete?.id, updated);
     if (success) {
       showToast('Trip marked as completed', 'success');
       loadTripsData();
@@ -241,10 +241,10 @@ const TripsManagementDashboard = () => {
     setShowEndTripModal(true);
   };
 
-  const confirmEndTrip = () => {
+  const confirmEndTrip = async () => {
     if (!tripToComplete) return;
     const updated = { ...tripToComplete, status: TripStatus?.COMPLETED, endedAt: new Date()?.toISOString() };
-    const success = updateTrip(tripToComplete?.id, updated);
+    const success = await updateTrip(tripToComplete?.id, updated);
     if (success) {
       showToast('Trip ended successfully', 'success');
       loadTripsData();
@@ -418,16 +418,16 @@ const TripsManagementDashboard = () => {
       
       try {
         const reader = new FileReader();
-        reader.onloadend = () => {
+        reader.onloadend = async () => {
           const base64String = reader?.result;
-          
+
           const updated = {
             heroImageUrl: base64String,
             heroImageUpdatedAt: new Date()?.toISOString(),
             heroImageUpdatedBy: currentUser?.id
           };
-          
-          const success = updateTrip(trip?.id, updated);
+
+          const success = await updateTrip(trip?.id, updated);
           if (success) {
             showToast('Hero image updated', 'success');
             loadTripsData();

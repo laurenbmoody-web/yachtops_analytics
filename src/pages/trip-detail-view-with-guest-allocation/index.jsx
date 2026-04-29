@@ -158,9 +158,9 @@ const TripDetailView = () => {
     setShowCompleteModal(true);
   };
 
-  const handleDeleteTrip = () => {
+  const handleDeleteTrip = async () => {
     if (window.confirm('Are you sure you want to delete this trip? This will also delete all associated preferences.')) {
-      const success = deleteTrip(tripId);
+      const success = await deleteTrip(tripId);
       if (success) {
         showToast('Trip deleted successfully', 'success');
         navigate('/trips-management-dashboard');
@@ -238,7 +238,7 @@ const TripDetailView = () => {
   };
   
   // Handle adding guest through trip overview
-  const handleAddGuest = (guestData) => {
+  const handleAddGuest = async (guestData) => {
     // Create guest with isActiveOnTrip set to true
     const newGuest = createGuest({ ...guestData, isActiveOnTrip: true });
     if (newGuest) {
@@ -254,7 +254,7 @@ const TripDetailView = () => {
       ];
       
       // Update trip
-      const success = updateTrip(trip?.id, { guests: updatedGuests });
+      const success = await updateTrip(trip?.id, { guests: updatedGuests });
       if (success) {
         showToast('Guest added and activated on trip', 'success');
         loadTripData();
@@ -267,7 +267,11 @@ const TripDetailView = () => {
     }
   };
   
-  // Log trip activity
+  // Log trip activity. Fire-and-forget Promise — tripActivityLog is an
+  // embedded array (no Supabase home yet), so updateTrip's dual-write
+  // skips it for trips table writes; only localStorage is touched.
+  // Caller doesn't await — the entry shows up in localStorage on next
+  // microtask flush, which is fine for activity logging.
   const logTripActivity = (actionType, message, entityId = null) => {
     const activity = {
       id: `activity-${Date.now()}-${Math.random()?.toString(36)?.substr(2, 9)}`,
@@ -277,13 +281,13 @@ const TripDetailView = () => {
       message,
       entityId
     };
-    
+
     const updatedTrip = {
       ...trip,
       tripActivityLog: [...(trip?.tripActivityLog || []), activity]
     };
-    
-    updateTrip(trip?.id, updatedTrip);
+
+    void updateTrip(trip?.id, updatedTrip);
   };
 
   // Get hero image URL (single source of truth with backward compatibility)
@@ -522,18 +526,18 @@ const TripDetailView = () => {
                   permissions={permissions}
                   onAdd={() => setShowAddReminderModal(true)}
                   onItemClick={(reminder) => setShowReminderDetailPopover(reminder)}
-                  onToggleComplete={(reminderId) => {
+                  onToggleComplete={async (reminderId) => {
                     const reminders = trip?.reminders || [];
-                    let updatedReminders = reminders?.map(r => 
-                      r?.id === reminderId ? { 
-                        ...r, 
+                    let updatedReminders = reminders?.map(r =>
+                      r?.id === reminderId ? {
+                        ...r,
                         completed: !r?.completed,
                         completedAt: !r?.completed ? new Date()?.toISOString() : null,
                         completedBy: !r?.completed ? getCurrentUser()?.id : null
                       } : r
                     );
                     const updatedTrip = { ...trip, reminders: updatedReminders };
-                    updateTrip(trip?.id, updatedTrip);
+                    await updateTrip(trip?.id, updatedTrip);
                     loadTripData();
                     logTripActivity('REMINDER_COMPLETED', `Reminder "${reminders?.find(r => r?.id === reminderId)?.title}" marked as ${!reminders?.find(r => r?.id === reminderId)?.completed ? 'completed' : 'incomplete'}`);
                   }}
@@ -602,7 +606,7 @@ const TripDetailView = () => {
                 accept="image/*"
                 multiple
                 className="hidden"
-                onChange={(e) => {
+                onChange={async (e) => {
                   const files = Array.from(e?.target?.files || []);
                   if (files?.length === 0) return;
 
@@ -626,7 +630,7 @@ const TripDetailView = () => {
                     ...trip,
                     photos: updatedPhotos
                   };
-                  updateTrip(trip?.id, updated);
+                  await updateTrip(trip?.id, updated);
                   loadTripData();
                   
                   setIsUploadingPhoto(false);
@@ -654,7 +658,7 @@ const TripDetailView = () => {
                         <p className="text-white/60 text-xs">{new Date(photo.uploadedAt)?.toLocaleDateString()}</p>
                         {permissions?.canEdit && (
                           <button
-                            onClick={() => {
+                            onClick={async () => {
                               if (window.confirm('Delete this photo?')) {
                                 const updatedPhotos = photos?.filter(p => p?.id !== photo?.id);
                                 setPhotos(updatedPhotos);
@@ -662,7 +666,7 @@ const TripDetailView = () => {
                                   ...trip,
                                   photos: updatedPhotos
                                 };
-                                updateTrip(trip?.id, updated);
+                                await updateTrip(trip?.id, updated);
                                 loadTripData();
                                 showToast('Photo deleted', 'success');
                               }
@@ -740,13 +744,13 @@ const TripDetailView = () => {
                               <Icon name="Edit" size={16} />
                             </button>
                             <button
-                              onClick={() => {
+                              onClick={async () => {
                                 if (window.confirm('Delete this special occasion?')) {
                                   const updated = {
                                     ...trip,
                                     specialDates: trip?.specialDates?.filter(s => s?.id !== date?.id)
                                   };
-                                  updateTrip(trip?.id, updated);
+                                  await updateTrip(trip?.id, updated);
                                   loadTripData();
                                   showToast('Special occasion deleted', 'success');
                                 }
@@ -791,7 +795,7 @@ const TripDetailView = () => {
                 accept="image/*"
                 multiple
                 className="hidden"
-                onChange={(e) => {
+                onChange={async (e) => {
                   const files = Array.from(e?.target?.files || []);
                   if (files?.length === 0) return;
 
@@ -815,7 +819,7 @@ const TripDetailView = () => {
                     ...trip,
                     photos: updatedPhotos
                   };
-                  updateTrip(trip?.id, updated);
+                  await updateTrip(trip?.id, updated);
                   loadTripData();
                   
                   setIsUploadingPhoto(false);
@@ -843,7 +847,7 @@ const TripDetailView = () => {
                         <p className="text-white/60 text-xs">{new Date(photo.uploadedAt)?.toLocaleDateString()}</p>
                         {permissions?.canEdit && (
                           <button
-                            onClick={() => {
+                            onClick={async () => {
                               if (window.confirm('Delete this photo?')) {
                                 const updatedPhotos = photos?.filter(p => p?.id !== photo?.id);
                                 setPhotos(updatedPhotos);
@@ -851,7 +855,7 @@ const TripDetailView = () => {
                                   ...trip,
                                   photos: updatedPhotos
                                 };
-                                updateTrip(trip?.id, updated);
+                                await updateTrip(trip?.id, updated);
                                 loadTripData();
                                 showToast('Photo deleted', 'success');
                               }
@@ -1139,13 +1143,13 @@ const TripDetailView = () => {
             setShowSpecialDetailPopover(null);
             setShowAddSpecialModal(true);
           }}
-          onDelete={(specialId) => {
+          onDelete={async (specialId) => {
             if (window.confirm('Delete this special occasion?')) {
               const updated = {
                 ...trip,
                 specialDates: trip?.specialDates?.filter(s => s?.id !== specialId)
               };
-              updateTrip(trip?.id, updated);
+              await updateTrip(trip?.id, updated);
               loadTripData();
               showToast('Special occasion deleted', 'success');
               logTripActivity('SPECIAL_DELETED', `Special occasion "${showSpecialDetailPopover?.title}" deleted`);
@@ -1166,13 +1170,13 @@ const TripDetailView = () => {
             setShowReminderDetailPopover(null);
             setShowAddReminderModal(true);
           }}
-          onDelete={(reminderId) => {
+          onDelete={async (reminderId) => {
             if (window.confirm('Delete this reminder?')) {
               const updated = {
                 ...trip,
                 reminders: trip?.reminders?.filter(r => r?.id !== reminderId)
               };
-              updateTrip(trip?.id, updated);
+              await updateTrip(trip?.id, updated);
               loadTripData();
               logTripActivity('REMINDER_DELETED', `Reminder "${showReminderDetailPopover?.title}" deleted`);
               showToast('Reminder deleted', 'success');
@@ -2049,7 +2053,7 @@ const GuestsSection = ({ trip, guests, permissions, onUpdate, navigate, setActiv
     return { ...guest, ...tg };
   })?.filter(g => g?.id); // Filter out any undefined guests
 
-  const handleSelectExistingGuest = (guest) => {
+  const handleSelectExistingGuest = async (guest) => {
     // Add existing guest to trip's guests array
     const updatedGuests = [
       ...(trip?.guests || []),
@@ -2062,7 +2066,7 @@ const GuestsSection = ({ trip, guests, permissions, onUpdate, navigate, setActiv
     ];
     
     // Update trip
-    const success = updateTrip(trip?.id, { guests: updatedGuests });
+    const success = await updateTrip(trip?.id, { guests: updatedGuests });
     if (success) {
       // Also update the guest's isActiveOnTrip flag
       updateGuest(guest?.id, { isActiveOnTrip: true });
@@ -2074,7 +2078,7 @@ const GuestsSection = ({ trip, guests, permissions, onUpdate, navigate, setActiv
     }
   };
 
-  const handleCreateNewGuest = (guestData) => {
+  const handleCreateNewGuest = async (guestData) => {
     // Create guest with isActiveOnTrip set to true
     const newGuest = createGuest({ ...guestData, isActiveOnTrip: true });
     if (newGuest) {
@@ -2090,7 +2094,7 @@ const GuestsSection = ({ trip, guests, permissions, onUpdate, navigate, setActiv
       ];
       
       // Update trip
-      const success = updateTrip(trip?.id, { guests: updatedGuests });
+      const success = await updateTrip(trip?.id, { guests: updatedGuests });
       if (success) {
         showToast('Guest created and added to trip', 'success');
         onUpdate();
@@ -2184,7 +2188,9 @@ const RemindersSection = ({ trip, tripId, navigate, permissions, onUpdate, setAc
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingReminder, setEditingReminder] = useState(null);
   const currentUser = getCurrentUser();
-  
+
+  // Fire-and-forget activity logger (tripActivityLog is an embedded
+  // array — localStorage-only, no Supabase round-trip needed).
   const logTripActivity = (actionType, message, entityId = null) => {
     const activity = {
       id: `activity-${Date.now()}-${Math.random()?.toString(36)?.substr(2, 9)}`,
@@ -2194,13 +2200,13 @@ const RemindersSection = ({ trip, tripId, navigate, permissions, onUpdate, setAc
       message,
       entityId
     };
-    
+
     const updatedTrip = {
       ...trip,
       tripActivityLog: [...(trip?.tripActivityLog || []), activity]
     };
-    
-    updateTrip(trip?.id, updatedTrip);
+
+    void updateTrip(trip?.id, updatedTrip);
   };
 
   const reminders = trip?.reminders || [];
@@ -2210,26 +2216,26 @@ const RemindersSection = ({ trip, tripId, navigate, permissions, onUpdate, setAc
     return 0;
   });
 
-  const handleToggleComplete = (reminderId) => {
-    let updatedReminders = reminders?.map(r => 
-      r?.id === reminderId ? { 
-        ...r, 
+  const handleToggleComplete = async (reminderId) => {
+    let updatedReminders = reminders?.map(r =>
+      r?.id === reminderId ? {
+        ...r,
         completed: !r?.completed,
         completedAt: !r?.completed ? new Date()?.toISOString() : null,
         completedBy: !r?.completed ? getCurrentUser()?.id : null
       } : r
     );
     const updatedTrip = { ...trip, reminders: updatedReminders };
-    updateTrip(trip?.id, updatedTrip);
+    await updateTrip(trip?.id, updatedTrip);
     showToast('Reminder updated', 'success');
     onUpdate();
   };
 
-  const handleDelete = (reminderId) => {
+  const handleDelete = async (reminderId) => {
     if (window.confirm('Delete this reminder?')) {
       let updatedReminders = reminders?.filter(r => r?.id !== reminderId);
       const updatedTrip = { ...trip, reminders: updatedReminders };
-      updateTrip(trip?.id, updatedTrip);
+      await updateTrip(trip?.id, updatedTrip);
       showToast('Reminder deleted', 'success');
       onUpdate();
     }
@@ -2318,7 +2324,7 @@ const AddReminderModal = ({ isOpen, onClose, trip, editingReminder, onSave }) =>
   const [title, setTitle] = useState(editingReminder?.title || '');
   const [dueDate, setDueDate] = useState(editingReminder?.dueDate || '');
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!title?.trim()) {
       showToast('Please enter a title', 'error');
       return;
@@ -2347,7 +2353,7 @@ const AddReminderModal = ({ isOpen, onClose, trip, editingReminder, onSave }) =>
     }
 
     const updatedTrip = { ...trip, reminders: updatedReminders };
-    updateTrip(trip?.id, updatedTrip);
+    await updateTrip(trip?.id, updatedTrip);
     showToast(editingReminder ? 'Reminder updated' : 'Reminder added', 'success');
     onSave();
   };
@@ -2410,7 +2416,7 @@ const AddSpecialModal = ({ isOpen, onClose, trip, guests, editingSpecial, onSave
   const [notes, setNotes] = useState(editingSpecial?.notes || '');
   const [type, setType] = useState(editingSpecial?.type || 'Birthday');
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!title?.trim()) {
       showToast('Please enter a title', 'error');
       return;
@@ -2443,7 +2449,7 @@ const AddSpecialModal = ({ isOpen, onClose, trip, guests, editingSpecial, onSave
     }
 
     const updatedTrip = { ...trip, specialDates: updatedSpecialDates };
-    updateTrip(trip?.id, updatedTrip);
+    await updateTrip(trip?.id, updatedTrip);
     showToast(editingSpecial ? 'Special occasion updated' : 'Special occasion added', 'success');
     onSave();
   };

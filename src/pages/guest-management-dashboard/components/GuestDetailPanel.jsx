@@ -7,6 +7,7 @@ import Icon from '../../../components/AppIcon';
 import { showToast } from '../../../utils/toast';
 import { MaritalStatus, getMaritalStatusDisplay, getAvailableSpouseOptions, updateGuest, deleteGuest, reinstateGuest, getAvailableKidsOptions, getLinkedKids, linkKid, unlinkKid, uploadPassportDocument, deletePassportDocument, getPassportDocumentSignedUrl } from '../utils/guestStorage';
 import { getCurrentUser } from '../../../utils/authStorage';
+import { loadTrips, toggleGuestActiveStatus } from '../../trips-management-dashboard/utils/tripStorage';
 
 import { getAllDecks, getZonesByDeck, getSpacesByZone } from '../../locations-management-settings/utils/locationsHierarchyStorage';
 
@@ -143,31 +144,56 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
     fetchPassportUrl();
   }, [guest?.passportDocumentUrl]);
 
+  // Option A fix from the audit-doc addendum.
+  //
+  // Pre-PR3 this directly mutated cargo.trips.v1 in localStorage, which
+  // bypassed activity logging, did no tenant scoping, and produced
+  // field-name divergence with tripStorage's writer (this path wrote
+  // `deactivatedAt` while toggleGuestActiveStatus writes
+  // `activatedByUserId`). Routing through the canonical helper fixes
+  // all three: activity-feed entries fire, RLS scopes per trip,
+  // single field-name shape.
+  //
+  // toggleGuestActiveStatus is async post-A3.5 and writes to
+  // trip_guests (Supabase) + trip.guests[] (localStorage) atomically.
+  // Each trip-membership flip emits its own activity entry. Failures
+  // on individual trips are logged but don't block the others —
+  // partial success is preferred over all-or-nothing rollback.
   const handleActiveToggle = async () => {
     const newActiveState = !formData?.isActiveOnTrip;
     setFormData(prev => ({ ...prev, isActiveOnTrip: newActiveState }));
 
     const updated = await updateGuest(guest?.id, { isActiveOnTrip: newActiveState });
-    if (updated) {
-      const allTrips = JSON.parse(localStorage.getItem('cargo.trips.v1') || '[]');
-      let tripsUpdated = false;
-      allTrips?.forEach(trip => {
-        const guestIndex = trip?.guests?.findIndex(tg => tg?.guestId === guest?.id);
-        if (guestIndex !== -1) {
-          trip.guests[guestIndex].isActive = newActiveState;
-          trip.guests[guestIndex][newActiveState ? 'activatedAt' : 'deactivatedAt'] = new Date()?.toISOString();
-          tripsUpdated = true;
-        }
-      });
-      if (tripsUpdated) {
-        localStorage.setItem('cargo.trips.v1', JSON.stringify(allTrips));
-      }
-      showToast(`Guest ${newActiveState ? 'activated on' : 'removed from'} current trip`, 'success');
-      if (onEdit) onEdit(guest?.id, { isActiveOnTrip: newActiveState });
-    } else {
+    if (!updated) {
       showToast('Failed to update guest status', 'error');
       setFormData(prev => ({ ...prev, isActiveOnTrip: !newActiveState }));
+      return;
     }
+
+    // Sync per-trip membership for every trip the guest is on. If the
+    // guest's per-trip flag already matches the new global state we
+    // skip the toggle (no-op writes waste an RPC and an activity entry).
+    try {
+      const allTrips = await loadTrips();
+      const tripsWithGuest = (allTrips || []).filter(t =>
+        Array.isArray(t?.guests) && t.guests.some(g => g?.guestId === guest?.id)
+      );
+      await Promise.all(tripsWithGuest.map(async (t) => {
+        const tg = t.guests.find(g => g?.guestId === guest?.id);
+        if ((tg?.isActive ?? false) === newActiveState) return; // already aligned
+        try {
+          // toggleGuestActiveStatus flips, so we only call when state differs.
+          await toggleGuestActiveStatus(t?.id, guest?.id);
+        } catch (err) {
+          console.warn('[GuestDetailPanel] toggleGuestActiveStatus failed for', t?.id, err);
+        }
+      }));
+    } catch (err) {
+      console.warn('[GuestDetailPanel] loadTrips failed during active-toggle sync:', err);
+    }
+
+    showToast(`Guest ${newActiveState ? 'activated on' : 'removed from'} current trip`, 'success');
+    if (onEdit) onEdit(guest?.id, { isActiveOnTrip: newActiveState });
   };
   
   // Close dropdown when clicking outside
