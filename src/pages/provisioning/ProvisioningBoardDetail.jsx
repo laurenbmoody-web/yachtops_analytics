@@ -1176,88 +1176,110 @@ const ProvisioningBoardDetail = () => {
           rightRail={null}
           showDuty={false}
           actionStrip={
-            // Sprint 9c.1 Commit 2: action ribbon moved into the shell's
-            // actionStrip slot but buttons retain their existing inline
-            // styles. Commit 3 will refactor to the unified pill aesthetic
-            // and group reads (Suggestions/Templates/PDF/Print) vs writes
-            // (Receive Items/Send to Supplier).
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end', margin: '0 0 18px' }}>
-              <button
-                onClick={showSuggestions ? () => setShowSuggestions(false) : handleGetSuggestions}
-                disabled={suggestionsLoading}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: showSuggestions ? '#1D4ED8' : '#EFF6FF', border: '1px solid #BFDBFE', color: showSuggestions ? 'white' : '#1D4ED8', opacity: suggestionsLoading ? 0.7 : 1 }}
-              >
-                {suggestionsLoading ? '…' : '✦'} Suggestions
-              </button>
-              <button
-                onClick={() => showToast('Templates coming soon', 'success')}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
-              >
-                <Icon name="FileText" style={{ width: 13, height: 13 }} /> Templates
-              </button>
-              <button
-                onClick={() => { showToast('Use "Save as PDF" in the print dialog', 'success'); setTimeout(() => window.print(), 300); }}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
-              >
-                <Icon name="FileDown" style={{ width: 13, height: 13 }} /> PDF
-              </button>
-              <button
-                onClick={() => window.print()}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
-              >
-                <Icon name="Printer" style={{ width: 13, height: 13 }} /> Print
-              </button>
-              <button
-                onClick={() => setShowReceiveModal(true)}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: '#ECFDF5', border: '1px solid #A7F3D0', color: '#065F46', whiteSpace: 'nowrap' }}
-              >
-                <Icon name="PackageCheck" style={{ width: 13, height: 13 }} /> Receive Items
-              </button>
-              {canSendToSupplier && (
+            // Sprint 9c.1 Commit 3: unified pill aesthetic per the editorial
+            // language. Two visual groups separated by a hairline divider:
+            // read actions (Suggestions / Templates / PDF / Print) on the
+            // left, write actions (Receive Items / Send to Supplier or
+            // Submit for Approval / overflow menu) on the right. Send to
+            // Supplier is the lone "primary" action — filled navy when its
+            // gating condition (hasSendableItems) holds.
+            <div className="cargo-ribbon">
+              {/* Read actions */}
+              <div className="cargo-ribbon-group">
                 <button
-                  onClick={handleSendToSupplier}
-                  disabled={!hasSendableItems}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 7, cursor: hasSendableItems ? 'pointer' : 'not-allowed', background: hasSendableItems ? '#00A8CC' : '#CBD5E1', border: hasSendableItems ? '1px solid #0098BB' : '1px solid #CBD5E1', color: 'white', whiteSpace: 'nowrap', opacity: hasSendableItems ? 1 : 0.7 }}
-                  title={!hasSendableItems ? 'Add items to the board before sending' : undefined}
+                  type="button"
+                  onClick={showSuggestions ? () => setShowSuggestions(false) : handleGetSuggestions}
+                  disabled={suggestionsLoading}
+                  className={`cargo-ribbon-btn${showSuggestions ? ' cargo-ribbon-btn-active' : ''}`}
                 >
-                  <Icon name="Send" style={{ width: 13, height: 13 }} /> Send to Supplier
+                  <span aria-hidden="true">{suggestionsLoading ? '…' : '✦'}</span> Suggestions
                 </button>
-              )}
-              {isDraftOrPending && (
                 <button
-                  onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: '#1E3A5F', border: '1px solid #1E3A5F', color: 'white', whiteSpace: 'nowrap' }}
+                  type="button"
+                  onClick={() => showToast('Templates coming soon', 'success')}
+                  className="cargo-ribbon-btn"
                 >
-                  <Icon name="Send" style={{ width: 13, height: 13 }} /> Submit for Approval
+                  <Icon name="FileText" style={{ width: 13, height: 13 }} /> Templates
                 </button>
-              )}
-              <div className="relative" ref={menuRef}>
                 <button
-                  onClick={() => setShowMenu(v => !v)}
-                  style={{ display: 'flex', alignItems: 'center', padding: '6px 8px', borderRadius: 7, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}
+                  type="button"
+                  onClick={() => { showToast('Use "Save as PDF" in the print dialog', 'success'); setTimeout(() => window.print(), 300); }}
+                  className="cargo-ribbon-btn"
                 >
-                  <Icon name="MoreHorizontal" style={{ width: 14, height: 14 }} />
+                  <Icon name="FileDown" style={{ width: 13, height: 13 }} /> PDF
                 </button>
-                {showMenu && (
-                  <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[185px] z-50">
-                    {canEdit && (
-                      <button onClick={() => { setShowMenu(false); setShowEditModal(true); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
-                        <Icon name="Pencil" className="w-4 h-4" /> Edit Board
-                      </button>
-                    )}
-                    <button onClick={handleDuplicate} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
-                      <Icon name="Copy" className="w-4 h-4" /> Duplicate
-                    </button>
-                    {canDelete && (
-                      <>
-                        <div className="my-1 border-t border-border" />
-                        <button onClick={handleDeleteBoard} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 flex items-center gap-2">
-                          <Icon name="Trash2" className="w-4 h-4" /> Delete Board
-                        </button>
-                      </>
-                    )}
-                  </div>
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="cargo-ribbon-btn"
+                >
+                  <Icon name="Printer" style={{ width: 13, height: 13 }} /> Print
+                </button>
+              </div>
+
+              <div className="cargo-ribbon-divider" aria-hidden="true" />
+
+              {/* Write actions */}
+              <div className="cargo-ribbon-group">
+                <button
+                  type="button"
+                  onClick={() => setShowReceiveModal(true)}
+                  className="cargo-ribbon-btn"
+                >
+                  <Icon name="PackageCheck" style={{ width: 13, height: 13 }} /> Receive Items
+                </button>
+                {canSendToSupplier && (
+                  <button
+                    type="button"
+                    onClick={handleSendToSupplier}
+                    disabled={!hasSendableItems}
+                    className="cargo-ribbon-btn cargo-ribbon-btn-primary"
+                    title={!hasSendableItems ? 'Add items to the board before sending' : undefined}
+                  >
+                    <Icon name="Send" style={{ width: 13, height: 13 }} /> Send to Supplier
+                  </button>
                 )}
+                {isDraftOrPending && (
+                  <button
+                    type="button"
+                    onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)}
+                    className="cargo-ribbon-btn"
+                  >
+                    <Icon name="Send" style={{ width: 13, height: 13 }} /> Submit for Approval
+                  </button>
+                )}
+                <div className="relative" ref={menuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setShowMenu(v => !v)}
+                    className="cargo-ribbon-btn cargo-ribbon-btn-icon"
+                    aria-label="More board actions"
+                    aria-haspopup="menu"
+                    aria-expanded={showMenu}
+                  >
+                    <Icon name="MoreHorizontal" style={{ width: 14, height: 14 }} />
+                  </button>
+                  {showMenu && (
+                    <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[185px] z-50">
+                      {canEdit && (
+                        <button onClick={() => { setShowMenu(false); setShowEditModal(true); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
+                          <Icon name="Pencil" className="w-4 h-4" /> Edit Board
+                        </button>
+                      )}
+                      <button onClick={handleDuplicate} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
+                        <Icon name="Copy" className="w-4 h-4" /> Duplicate
+                      </button>
+                      {canDelete && (
+                        <>
+                          <div className="my-1 border-t border-border" />
+                          <button onClick={handleDeleteBoard} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 flex items-center gap-2">
+                            <Icon name="Trash2" className="w-4 h-4" /> Delete Board
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           }

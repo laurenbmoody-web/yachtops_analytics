@@ -1667,6 +1667,93 @@
   outline-offset: 2px;
 }
 
+/* ── Editorial action ribbon (Sprint 9c.1 Commit 3) ─────────
+   Unified pill aesthetic for page-level action buttons. White
+   surface, hairline navy border, cream hover. Grouped flex layout
+   with a visual divider between read-actions and write-actions.
+   First consumer: /provisioning/{boardId}'s action strip
+   (Suggestions/Templates/PDF/Print | Receive Items/Send to Supplier). */
+.cargo-ribbon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin: 0 0 18px;
+}
+.cargo-ribbon-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.cargo-ribbon-divider {
+  width: 1px;
+  height: 18px;
+  background: rgba(30, 39, 66, 0.12);
+  flex-shrink: 0;
+  margin: 0 2px;
+}
+.cargo-ribbon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+  background: #FFFFFF;
+  border: 1px solid rgba(30, 39, 66, 0.12);
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, opacity 0.12s;
+}
+.cargo-ribbon-btn:hover { background: var(--bg-canvas); }
+.cargo-ribbon-btn:disabled,
+.cargo-ribbon-btn[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.cargo-ribbon-btn:disabled:hover,
+.cargo-ribbon-btn[aria-disabled="true"]:hover { background: #FFFFFF; }
+
+/* Active toggle — e.g. Suggestions panel open */
+.cargo-ribbon-btn-active {
+  background: #FEF3E8;
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.cargo-ribbon-btn-active:hover { background: #FCE6D2; }
+
+/* Primary action — filled navy with cream text. Reserved for the single
+   most-emphatic write action (Send to Supplier). */
+.cargo-ribbon-btn-primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg-canvas);
+}
+.cargo-ribbon-btn-primary:hover {
+  background: rgba(30, 39, 66, 0.92);
+  border-color: rgba(30, 39, 66, 0.92);
+}
+.cargo-ribbon-btn-primary:disabled:hover,
+.cargo-ribbon-btn-primary[aria-disabled="true"]:hover {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+/* Icon-only square pill (overflow / more menu trigger) */
+.cargo-ribbon-btn-icon { padding: 8px 10px; }
+
+/* Hide the ribbon on print — the buttons are interactive UI;
+   printing should produce the page content only. */
+@media print {
+  .cargo-ribbon { display: none; }
+}
+
 /* ── Editorial tab nav (Sprint 9c.1) ────────────────────────
    Tracked uppercase, terracotta active underline. Replaces the
    blue bottom-border pattern used elsewhere. Lives here rather
