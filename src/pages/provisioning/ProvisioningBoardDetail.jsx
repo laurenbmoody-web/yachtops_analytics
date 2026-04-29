@@ -3,6 +3,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
+import { EditorialPageShell, EditorialTabNav } from '../../components/editorial';
+import '../pantry/pantry.css';
 import StatusBadge from './components/StatusBadge';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -1083,6 +1085,36 @@ const ProvisioningBoardDetail = () => {
     deptTags.length > 0 && { type: 'chips', content: deptTags },
   ].filter(Boolean);
 
+  // ── Editorial header (Sprint 9c.1) ────────────────────────────────────────
+  // Split the board title into the editorial pattern's two halves.
+  // 'Charter - Bridge'  → headline='CHARTER',  qualifier='Bridge'
+  // 'Owner Week'        → headline='OWNER WEEK', qualifier=<dept fallback>
+  const titleStr = list?.title || '';
+  const sepMatch = titleStr.match(/\s*-\s*/);
+  let editorialHeadline;
+  let editorialQualifier;
+  if (sepMatch) {
+    editorialHeadline = titleStr.slice(0, sepMatch.index).trim().toUpperCase();
+    editorialQualifier = titleStr.slice(sepMatch.index + sepMatch[0].length).trim();
+  } else {
+    editorialHeadline = titleStr.toUpperCase();
+    editorialQualifier = deptTags[0] || 'Provisioning';
+  }
+  // Subtitle carries the operational state — status + overdue flag — that
+  // used to live as inline chips next to the H1 in the predecessor design.
+  const editorialSubtitle = [
+    statusLabel,
+    isOverdue && 'Overdue',
+  ].filter(Boolean).join(' · ');
+  // Meta strip — translates the existing metaItems to the editorial segment
+  // shape. Dept chips are dropped from the strip (they were a different
+  // visual pattern); first dept lands in the qualifier instead.
+  const editorialMeta = [
+    list?.port_location && { icon: 'MapPin', label: list.port_location },
+    trip && { label: trip.title || trip.name },
+    supplierName && { label: supplierName, muted: true },
+  ].filter(Boolean);
+
   // ── States ────────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -1115,99 +1147,24 @@ const ProvisioningBoardDetail = () => {
   return (
     <>
       <Header />
-      <div className="min-h-screen bg-background">
+      <div className="editorial-page">
 
-        {/* ── Hero ─────────────────────────────────────────────────────── */}
-        <div style={{ background: 'white', borderBottom: '1px solid #F1F5F9' }}>
-
-          {/* Hero content - full width */}
-          <div style={{ padding: '20px 32px 0' }}>
-              {/* Back link */}
-              <button
-                onClick={() => navigate('/provisioning')}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 4 }}
-                onMouseEnter={e => e.currentTarget.style.color = '#1E3A5F'}
-                onMouseLeave={e => e.currentTarget.style.color = '#94A3B8'}
-              >
-                <Icon name="ArrowLeft" style={{ width: 13, height: 13 }} /> Back to boards
-              </button>
-              {/* Board name + status chip + overdue chip */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 6 }}>
-                <h1 style={{ fontSize: 32, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.025em', lineHeight: 1.05, margin: 0, flexShrink: 0 }}>
-                  {renderTitle(list.title)}
-                </h1>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, marginTop: 6 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: heroStatus.dot, display: 'inline-block', flexShrink: 0 }} />
-                  <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: heroStatus.text, whiteSpace: 'nowrap' }}>
-                    {statusLabel}
-                  </span>
-                </div>
-                {isOverdue && (
-                  <span style={{ fontSize: 10, color: '#EF4444', background: '#FEF2F2', padding: '2px 8px', borderRadius: 4, border: '1px solid #FECACA', flexShrink: 0, whiteSpace: 'nowrap' }}>
-                    Overdue
-                  </span>
-                )}
-              </div>
-              {/* Meta band (conditional) */}
-              {metaItems.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
-                  {metaItems.map((m, idx) => (
-                    <div key={idx} style={{
-                      display: 'flex', alignItems: 'center', gap: 5,
-                      fontSize: 11, color: '#94A3B8',
-                      paddingLeft: idx === 0 ? 0 : 16, paddingRight: 16,
-                      borderRight: idx === metaItems.length - 1 ? 'none' : '1px solid #F1F5F9',
-                    }}>
-                      {m.type === 'chips' ? (
-                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                          {m.content.map(d => {
-                            const cs = getDeptChip(d);
-                            return (
-                              <span key={d} style={{ background: cs.bg, color: cs.color, fontSize: 9, fontWeight: 700, padding: '3px 8px', borderRadius: 3, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                                {d}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <>
-                          <Icon name={m.icon} style={{ width: 13, height: 13, flexShrink: 0 }} />
-                          {m.content}
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-          </div>
-
-          {/* Tab bar + actions (single row) */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 32px', borderTop: '1px solid #F1F5F9', marginTop: 12 }}>
-            {/* Tabs left */}
-            <div style={{ display: 'flex' }}>
-              {[
-                { id: 'items', label: 'Items' },
-                { id: 'deliveries', label: 'Deliveries' },
-                { id: 'orders', label: 'Orders' },
-                { id: 'history', label: 'History' },
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  style={{
-                    fontSize: 12, fontWeight: activeTab === tab.id ? 600 : 500,
-                    color: activeTab === tab.id ? '#1E3A5F' : '#94A3B8',
-                    padding: '12px 18px', cursor: 'pointer', background: 'none', border: 'none',
-                    borderBottom: activeTab === tab.id ? '2px solid #4A90E2' : '2px solid transparent',
-                    marginBottom: -1, transition: 'all 0.15s',
-                  }}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-            {/* Actions right */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap' }}>
+        <EditorialPageShell
+          title={editorialHeadline}
+          qualifier={editorialQualifier}
+          subtitle={editorialSubtitle}
+          meta={editorialMeta}
+          backTo="/provisioning"
+          backLabel="Back to boards"
+          rightRail={null}
+          showDuty={false}
+          actionStrip={
+            // Sprint 9c.1 Commit 2: action ribbon moved into the shell's
+            // actionStrip slot but buttons retain their existing inline
+            // styles. Commit 3 will refactor to the unified pill aesthetic
+            // and group reads (Suggestions/Templates/PDF/Print) vs writes
+            // (Receive Items/Send to Supplier).
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end', margin: '0 0 18px' }}>
               <button
                 onClick={showSuggestions ? () => setShowSuggestions(false) : handleGetSuggestions}
                 disabled={suggestionsLoading}
@@ -1286,8 +1243,19 @@ const ProvisioningBoardDetail = () => {
                 )}
               </div>
             </div>
-          </div>
-        </div>
+          }
+        >
+
+        <EditorialTabNav
+          tabs={[
+            { id: 'items', label: 'Items' },
+            { id: 'deliveries', label: 'Deliveries' },
+            { id: 'orders', label: 'Orders' },
+            { id: 'history', label: 'History' },
+          ]}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
 
         {/* ── Smart Suggestions panel ──────────────────────────────────── */}
         {showSuggestions && (
@@ -1503,7 +1471,7 @@ const ProvisioningBoardDetail = () => {
         </div>
 
         {/* ── Items area ────────────────────────────────────────────────── */}
-        {activeTab === 'items' && <div style={{ padding: '24px 32px 48px', background: '#F8FAFC' }}>
+        {activeTab === 'items' && <div style={{ padding: '24px 0 48px' }}>
           {deptGroups.length === 0 && items.length === 0 ? (
             /* True empty board */
             <div style={{ padding: '80px 0', textAlign: 'center' }}>
@@ -2038,7 +2006,7 @@ const ProvisioningBoardDetail = () => {
 
         {/* ── Deliveries tab ─────────────────────────────────────────────── */}
         {activeTab === 'deliveries' && (
-          <div style={{ padding: '32px 40px 64px', background: '#F8FAFC' }}>
+          <div style={{ padding: '32px 0 64px' }}>
             {deliveriesLoading ? (
               <div style={{ padding: '48px 0', textAlign: 'center', fontSize: 13, color: '#94A3B8' }}>Loading…</div>
             ) : deliveries.length === 0 && completedItems.length === 0 ? (
@@ -2245,7 +2213,7 @@ const ProvisioningBoardDetail = () => {
 
         {/* ── History tab ────────────────────────────────────────────────── */}
         {activeTab === 'history' && (
-          <div style={{ padding: '32px 40px 64px', background: '#F8FAFC' }}>
+          <div style={{ padding: '32px 0 64px' }}>
             {activityLoading ? (
               <div style={{ padding: '48px 0', textAlign: 'center', fontSize: 13, color: '#94A3B8' }}>Loading…</div>
             ) : (() => {
@@ -2357,7 +2325,7 @@ const ProvisioningBoardDetail = () => {
 
         {/* ── Orders tab ─────────────────────────────────────────────────────── */}
         {activeTab === 'orders' && (
-          <div style={{ padding: '32px 40px 64px', background: '#F8FAFC' }}>
+          <div style={{ padding: '32px 0 64px' }}>
             {supplierOrdersLoading ? (
               <div style={{ padding: '48px 0', textAlign: 'center', fontSize: 13, color: '#94A3B8' }}>Loading…</div>
             ) : supplierOrders.length === 0 ? (
@@ -2630,6 +2598,7 @@ const ProvisioningBoardDetail = () => {
             )}
           </div>
         )}
+        </EditorialPageShell>
       </div>
 
       {showEditModal && (
