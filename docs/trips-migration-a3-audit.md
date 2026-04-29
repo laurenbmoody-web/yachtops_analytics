@@ -709,3 +709,80 @@ Future A* RPC tests should include a "partial-failure recovery" case: simulate t
 ### Filed for the post-A3 cleanup queue
 
 - **Once the localStorage→Supabase migration is fully complete** (Phase A2 retired, no users left on localStorage), the `migrate_localstorage_trip` RPC + the `legacy_local_id` column can both be dropped. Tracker entry already exists in Section 9 of this doc.
+
+---
+
+## Addendum — PR2 verification findings + `findTripByAnyId` pattern
+
+PR2 (read-path swap, A3.1 + A3.2) shipped on `claude/trips-a3-read-path-swap`. Verification surfaced three bugs; two were fixed in the PR, one was confirmed pre-existing and filed separately.
+
+### Bug 1 — `loadTripData not defined` inside `GuestsSection`
+
+**Pre-existing, surfaced by PR2 verification.**
+
+`GuestsSection` (top-level component at line 2033 of `trip-detail-view-with-guest-allocation/index.jsx`) is a sibling of `TripDetailView`, not a nested closure. Its `handleSelectExistingGuest` referenced the parent's `loadTripData` / `loadGuestsData` directly, which threw `Uncaught ReferenceError` on every "+ existing guest" click. The toast appeared (write succeeded) but the re-render never fired because the refresh path threw.
+
+`handleCreateNewGuest` in the same component used the `onUpdate` prop correctly. The select-existing path was inconsistent.
+
+**Fix**: parent's `onUpdate` prop wraps both `loadTripData()` and `loadGuestsData()`; the existing-guest handler uses `onUpdate()` matching the create path. One coherent refresh boundary at the prop layer.
+
+**Lesson**: when a top-level component in a multi-component file references functions, grep the file for stray references against outer-scope locals — they don't exist in closure. Pattern: prop drilling, not implicit closure.
+
+### Bug 2 — legacy id sent to `provisioning_lists.trip_id` (uuid column)
+
+**Introduced by the merge shape.** PR2's hybrid trip object exposes the legacy `trip-{ts}-{rand}` string as `trip.id` (URL/comparison compat) and the canonical Supabase uuid as `trip.supabaseId`. The provisioning trip-link write path was sending `trip.id`, which Postgres rejected with `invalid input syntax for type uuid: "trip-1777406393909-iqd788rbk"`.
+
+**Fix — five layers** (committed in `c9e308b`):
+
+1. **New helper `findTripByAnyId(trips, value)`** in `tripStorage.js` — pure, matches by either `supabaseId` or `id`. Solves the dual-format lookup problem during the migration window.
+2. **`getTripById` widened** to use `findTripByAnyId` so URL-based nav (legacy id) and FK reads (uuid) both resolve.
+3. **Three trip dropdowns** (`CreateProvisioningListModal`, `BoardDrawer`, `ProvisioningForm`) — option `value` is `t.supabaseId || t.id` so form state matches the uuid column shape.
+4. **Submit-time resolution** in `NewBoardColumn` — `onCreated` payload uses `selectedTrip.supabaseId`.
+5. **Seven existing `trips.find(t => t.id === value)` lookups** across the provisioning surfaces switched to `findTripByAnyId`.
+
+LS-only pending-sync trips (created locally, not yet migrated) lack a `supabaseId`. The dropdown still renders them with legacy id as fallback; insert into `provisioning_lists.trip_id` would fail uuid validation if selected — acceptable, you shouldn't be able to FK-link to a trip that doesn't exist server-side. PR3's write swap eliminates this case (all new trips will get a Supabase uuid at create time).
+
+### Bug 3 — `/inventory/weekly` bounces to dashboard (PRE-EXISTING, NOT FIXED IN PR2)
+
+`git diff main..HEAD` confirms PR2 didn't modify `InventoryWeeklyPage.jsx` or any of its direct dependencies (`useGuests`, `useInventoryThisWeek`, `useInventoryInsights`). The "getInventoryHealthStats placeholder" warning is from `InventoryHealthWidget` on the dashboard — a separate component. The 400 errors and bouncing-to-dashboard need their own investigation in a follow-up PR. Filed separately.
+
+### Pattern: dual-id lookup during migration windows
+
+`findTripByAnyId` is a **reusable pattern** for any future migration that needs to support a legacy id format and a new canonical id format simultaneously during a transition window. The shape:
+
+```js
+// Pure helper — no DB calls, operates over a pre-fetched array.
+// Matches by either format. Either id type can be passed in by
+// callers, regardless of whether they hold legacy state (URLs,
+// older saves) or canonical state (FK columns, new writes).
+export const findTripByAnyId = (trips, value) => {
+  if (!value || !Array.isArray(trips)) return null;
+  return trips.find(t => t?.supabaseId === value || t?.id === value) || null;
+};
+```
+
+**When to use this pattern:**
+- A read-path swap that introduces a new canonical id format alongside an existing legacy format
+- Transition windows where some callers have already adopted the new format (FK columns, new writes) while others still hold the old format (URLs, cached state, older saves)
+- Where a forced flip would cascade into URL changes, broken bookmarks, or breaking caller assumptions
+
+**Why it's load-bearing:**
+- The merge layer's output exposes BOTH formats on each row (`trip.id` legacy, `trip.supabaseId` canonical) so renderers can pick what they need
+- Lookup helpers like `findTripByAnyId` and `getTripById` accept either format transparently, so callers don't need to know which they hold
+- Write boundaries explicitly resolve to the canonical format (`selectedTrip.supabaseId`) so the wire format is always the new shape
+
+**Cost ledger:**
+- Two id fields per row instead of one
+- Lookup is O(N) with a 2x constant (checks two fields per row); acceptable for the small N of trips
+- Some callers may need updating to use `findTripByAnyId` instead of inline `trips.find(t => t.id === ...)` — grep'd in PR2's review and 7 sites caught
+- Once the legacy format is fully retired (post-A3 + cleanup window), `trip.supabaseId` collapses back to `trip.id` and the helper deletes
+
+**Apply elsewhere if/when:**
+- The guests, preferences, or any other localStorage→Supabase migration ever needs the same hybrid window. Same shape: legacy id field for compat, canonical uuid field for forwards, dual-lookup helper.
+- The provisioning_lists FK migration in A4 — similar shape if it needs to support pre-A3 legacy strings on existing rows (it shouldn't, but if it does, the pattern's there).
+
+### Filed for post-A3 cleanup
+
+- Add Guest modal — slow load on existing-guest list, no skeleton/spinner. Add loading state while `loadGuests()` resolves.
+- Provisioning board view — doesn't surface linked trip name after creation. Save works (FK correct), display path needs the trip name fetched + rendered. Lauren is working on a provisioning page update in a separate sprint; folds into that scope.
+- `/inventory/weekly` bounce-to-dashboard + 400 errors — pre-existing investigation needed.
