@@ -1,16 +1,40 @@
 import React, { useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
 
-// Three Tailwind arbitrary-value classes used here (max-w-[480px],
-// bg-black/50, bg-black/20) never survived Tailwind's content-scan purge
-// for this file — the compiled CSS contained zero instances of any of
-// them. Effect: the panel rendered at full viewport width, the backdrop
-// was transparent, and the drawer appeared to "render inline" overlapping
-// the page underneath. Replaced with inline styles so they always apply.
+// Sprint 9c.1a follow-up: this file had two layered bugs.
 //
-// `width` now accepts a number (px) or any CSS length string. Both
-// existing callers (BoardDrawer, ItemDrawer) used the default, so no
-// caller changes needed.
+//   1. Three Tailwind arbitrary-value classes (max-w-[480px], bg-black/50,
+//      bg-black/20) never survived Tailwind's content-scan purge — the
+//      compiled CSS had zero matches. Panel rendered at full viewport
+//      width, backdrop was transparent. Fixed in the previous commit by
+//      moving them to inline styles.
+//
+//   2. The dark-theme branch referenced var(--card), var(--border),
+//      var(--foreground) — but the codebase only defines --color-card,
+//      --color-border, --color-foreground (Tailwind config aliases the
+//      bare names but the bare CSS vars themselves don't exist at :root).
+//      Result: panel surface was transparent because var(--card) resolved
+//      to nothing, the title was unstyled-text, and the footer had no bg.
+//      Light theme used concrete hex values and worked, which masked the
+//      issue for ItemDrawer (which always passes theme="light"). The
+//      kanban BoardDrawer doesn't pass a theme so it got the broken dark
+//      branch.
+//
+// Both branches now use concrete editorial-language values:
+//   - White card surface (#FFFFFF)
+//   - Hairline navy-tinted border (rgba(30, 39, 66, 0.06))
+//   - Deep navy title text (#1E2742)
+//   - Slate close-button with navy hover
+//
+// `theme` prop kept on the signature for back-compat but is now visually
+// equivalent across both values. Future restyles (e.g. a true dark drawer)
+// can branch on it again with intentional concrete values.
+const PANEL_BG     = '#FFFFFF';
+const HAIRLINE     = '1px solid rgba(30, 39, 66, 0.06)';
+const TITLE_INK    = '#1E2742';
+const CLOSE_INK    = '#94A3B8';
+const CLOSE_HOVER  = '#1E2742';
+
 const Drawer = ({ open, onClose, title, children, footer, width = 480, theme = 'dark' }) => {
   const isLight = theme === 'light';
   const maxWidth = typeof width === 'number' ? `${width}px` : width;
@@ -37,23 +61,23 @@ const Drawer = ({ open, onClose, title, children, footer, width = 480, theme = '
       >
         <div
           className="h-full flex flex-col shadow-2xl"
-          style={isLight ? { background: '#ffffff', borderLeft: '1px solid #E2E8F0' } : { background: 'var(--card)', borderLeft: '1px solid var(--border)' }}
+          style={{ background: PANEL_BG, borderLeft: HAIRLINE }}
         >
           {/* Header */}
           <div
             className="flex items-center justify-between px-6 py-4"
-            style={isLight ? { background: '#ffffff', borderBottom: '1px solid #E2E8F0' } : { borderBottom: '1px solid var(--border)' }}
+            style={{ background: PANEL_BG, borderBottom: HAIRLINE }}
           >
             <h2
               className="text-base font-semibold truncate"
-              style={isLight ? { color: '#1E3A5F' } : { color: 'var(--foreground)' }}
+              style={{ color: TITLE_INK }}
             >{title}</h2>
             <button
               onClick={onClose}
-              className={isLight ? 'p-1.5 rounded-lg transition-colors' : 'p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors'}
-              style={isLight ? { color: '#94A3B8' } : undefined}
-              onMouseEnter={isLight ? e => e.currentTarget.style.color = '#1E3A5F' : undefined}
-              onMouseLeave={isLight ? e => e.currentTarget.style.color = '#94A3B8' : undefined}
+              className="p-1.5 rounded-lg transition-colors"
+              style={{ color: CLOSE_INK }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = CLOSE_HOVER; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = CLOSE_INK; }}
             >
               <Icon name="X" className="w-5 h-5" />
             </button>
@@ -66,9 +90,7 @@ const Drawer = ({ open, onClose, title, children, footer, width = 480, theme = '
           {footer && (
             <div
               className="flex-shrink-0"
-              style={isLight
-                ? { borderTop: '1px solid #E2E8F0', background: '#ffffff' }
-                : { borderTop: '1px solid var(--border)', background: 'var(--card)' }}
+              style={{ borderTop: HAIRLINE, background: PANEL_BG }}
             >
               {footer}
             </div>
