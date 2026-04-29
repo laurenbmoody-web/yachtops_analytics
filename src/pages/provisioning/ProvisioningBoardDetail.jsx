@@ -60,7 +60,7 @@ import {
 import SummaryGauges from './components/SummaryGauges';
 import { getActivityForEntity } from '../../utils/activityStorage';
 import { supabase } from '../../lib/supabaseClient';
-import { getDepartmentColor, hexToRgba } from './data/categories';
+import { getDepartmentColor, hexToRgba, categoriesForDept } from './data/categories';
 
 // ── (SummaryGauges, SemiGauge, useCountUp live in components/SummaryGauges.jsx) ─
 
@@ -195,6 +195,7 @@ const ProvisioningBoardDetail = () => {
   const [sortDirection, setSortDirection] = useState('asc');
   const [addingToDept, setAddingToDept] = useState(null);
   const [newItemName, setNewItemName] = useState('');
+  const [newItemCategory, setNewItemCategory] = useState('');
   const [showMenu, setShowMenu] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
@@ -668,8 +669,9 @@ const ProvisioningBoardDetail = () => {
 
   const handleAddItem = async (dept) => {
     if (!newItemName.trim()) return;
-    const payload = { list_id: id, name: newItemName.trim(), department: (dept === 'Other' || dept === 'General') ? '' : dept, quantity_ordered: 1, unit: 'each', status: 'draft', source: 'manual' };
+    const payload = { list_id: id, name: newItemName.trim(), department: (dept === 'Other' || dept === 'General') ? '' : dept, category: newItemCategory.trim() || null, quantity_ordered: 1, unit: 'each', status: 'draft', source: 'manual' };
     setNewItemName('');
+    setNewItemCategory('');
     setAddingToDept(null);
     try {
       const [saved] = await upsertItems([payload]);
@@ -1482,7 +1484,7 @@ const ProvisioningBoardDetail = () => {
               <p style={{ fontSize: 12, color: '#94A3B8', marginBottom: 16 }}>Add items to track your provisioning order.</p>
               {canAddItems && (
                 <button
-                  onClick={() => { setAddingToDept(defaultDept || 'General'); setNewItemName(''); }}
+                  onClick={() => { setAddingToDept(defaultDept || 'General'); setNewItemName(''); setNewItemCategory(''); }}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: '#1E3A5F', border: 'none', borderRadius: 8, color: 'white', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
                 >
                   <Icon name="Plus" style={{ width: 14, height: 14 }} /> Add first item
@@ -1500,13 +1502,21 @@ const ProvisioningBoardDetail = () => {
               {addingToDept === '__global__' ? (
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'white', border: '1px solid #93C5FD', borderRadius: 8 }}>
                   <input autoFocus type="text" placeholder="Item name…" value={newItemName} onChange={e => setNewItemName(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') { handleAddItem(defaultDept || 'General'); setAddingToDept(null); } if (e.key === 'Escape') { setAddingToDept(null); setNewItemName(''); } }}
+                    onKeyDown={e => { if (e.key === 'Enter') { handleAddItem(defaultDept || 'General'); setAddingToDept(null); } if (e.key === 'Escape') { setAddingToDept(null); setNewItemName(''); setNewItemCategory(''); } }}
                     style={{ fontSize: 13, background: 'transparent', border: 'none', outline: 'none', color: '#0F172A', width: 200 }} />
+                  <select
+                    value={newItemCategory}
+                    onChange={e => setNewItemCategory(e.target.value)}
+                    style={{ fontSize: 13, background: 'white', border: '1px solid #93C5FD', borderRadius: 6, padding: '4px 8px', outline: 'none', color: newItemCategory ? '#0F172A' : '#94A3B8', cursor: 'pointer' }}
+                  >
+                    <option value="">Select category…</option>
+                    {categoriesForDept(defaultDept || 'General').map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
                   <button onClick={() => { handleAddItem(defaultDept || 'General'); setAddingToDept(null); }} style={{ fontSize: 12, fontWeight: 600, padding: '4px 10px', background: '#1E3A5F', border: 'none', borderRadius: 6, color: 'white', cursor: 'pointer' }}>Add</button>
-                  <button onClick={() => { setAddingToDept(null); setNewItemName(''); }} style={{ fontSize: 12, padding: '4px 8px', background: 'none', border: '1px solid #E2E8F0', borderRadius: 6, color: '#94A3B8', cursor: 'pointer' }}>Cancel</button>
+                  <button onClick={() => { setAddingToDept(null); setNewItemName(''); setNewItemCategory(''); }} style={{ fontSize: 12, padding: '4px 8px', background: 'none', border: '1px solid #E2E8F0', borderRadius: 6, color: '#94A3B8', cursor: 'pointer' }}>Cancel</button>
                 </div>
               ) : canAddItems ? (
-                <button onClick={() => { setAddingToDept(defaultDept || '__global__'); setNewItemName(''); }}
+                <button onClick={() => { setAddingToDept(defaultDept || '__global__'); setNewItemName(''); setNewItemCategory(''); }}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: 'white', border: '1px dashed #CBD5E1', borderRadius: 8, color: '#64748B', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
                 >
                   <Icon name="Plus" style={{ width: 14, height: 14 }} /> Add another item
@@ -1923,15 +1933,23 @@ const ProvisioningBoardDetail = () => {
                             placeholder="Item name…"
                             value={newItemName}
                             onChange={e => setNewItemName(e.target.value)}
-                            onKeyDown={e => { if (e.key === 'Enter') handleAddItem(dept); if (e.key === 'Escape') { setAddingToDept(null); setNewItemName(''); } }}
+                            onKeyDown={e => { if (e.key === 'Enter') handleAddItem(dept); if (e.key === 'Escape') { setAddingToDept(null); setNewItemName(''); setNewItemCategory(''); } }}
                             style={{ flex: 1, fontSize: 13, background: 'white', border: '1px solid #93C5FD', borderRadius: 6, padding: '5px 10px', outline: 'none', color: '#0F172A' }}
                           />
+                          <select
+                            value={newItemCategory}
+                            onChange={e => setNewItemCategory(e.target.value)}
+                            style={{ flex: '0 0 200px', fontSize: 13, background: 'white', border: '1px solid #93C5FD', borderRadius: 6, padding: '5px 10px', outline: 'none', color: newItemCategory ? '#0F172A' : '#94A3B8', cursor: 'pointer' }}
+                          >
+                            <option value="">Select category…</option>
+                            {categoriesForDept(dept).map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
                           <button onClick={() => handleAddItem(dept)} style={{ fontSize: 12, fontWeight: 600, padding: '5px 12px', background: '#1E3A5F', border: 'none', borderRadius: 6, color: 'white', cursor: 'pointer' }}>Add</button>
-                          <button onClick={() => { setAddingToDept(null); setNewItemName(''); }} style={{ fontSize: 12, padding: '5px 10px', background: 'none', border: '1px solid #E2E8F0', borderRadius: 6, color: '#94A3B8', cursor: 'pointer' }}>Cancel</button>
+                          <button onClick={() => { setAddingToDept(null); setNewItemName(''); setNewItemCategory(''); }} style={{ fontSize: 12, padding: '5px 10px', background: 'none', border: '1px solid #E2E8F0', borderRadius: 6, color: '#94A3B8', cursor: 'pointer' }}>Cancel</button>
                         </div>
                       ) : canAddItems ? (
                         <button
-                          onClick={() => { setAddingToDept(dept); setNewItemName(''); }}
+                          onClick={() => { setAddingToDept(dept); setNewItemName(''); setNewItemCategory(''); }}
                           style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '9px 16px', background: 'none', border: 'none', borderTop: '1px dashed #F1F5F9', cursor: 'pointer', fontSize: 12, color: '#CBD5E1', textAlign: 'left' }}
                           onMouseEnter={e => { e.currentTarget.style.background = '#FAFEFF'; e.currentTarget.style.color = '#4A90E2'; e.currentTarget.style.borderTopColor = '#4A90E2'; }}
                           onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#CBD5E1'; e.currentTarget.style.borderTopColor = '#F1F5F9'; }}
@@ -1971,16 +1989,24 @@ const ProvisioningBoardDetail = () => {
                       onChange={e => setNewItemName(e.target.value)}
                       onKeyDown={e => {
                         if (e.key === 'Enter') { handleAddItem(defaultDept || 'General'); setAddingToDept(null); }
-                        if (e.key === 'Escape') { setAddingToDept(null); setNewItemName(''); }
+                        if (e.key === 'Escape') { setAddingToDept(null); setNewItemName(''); setNewItemCategory(''); }
                       }}
                       style={{ flex: 1, maxWidth: 320, fontSize: 13, background: 'white', border: '1px solid #93C5FD', borderRadius: 6, padding: '6px 10px', outline: 'none', color: '#0F172A' }}
                     />
+                    <select
+                      value={newItemCategory}
+                      onChange={e => setNewItemCategory(e.target.value)}
+                      style={{ flex: '0 0 200px', fontSize: 13, background: 'white', border: '1px solid #93C5FD', borderRadius: 6, padding: '6px 10px', outline: 'none', color: newItemCategory ? '#0F172A' : '#94A3B8', cursor: 'pointer' }}
+                    >
+                      <option value="">Select category…</option>
+                      {categoriesForDept(defaultDept || 'General').map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
                     <button onClick={() => { handleAddItem(defaultDept || 'General'); setAddingToDept(null); }} style={{ fontSize: 12, fontWeight: 600, padding: '6px 14px', background: '#1E3A5F', border: 'none', borderRadius: 6, color: 'white', cursor: 'pointer' }}>Add</button>
-                    <button onClick={() => { setAddingToDept(null); setNewItemName(''); }} style={{ fontSize: 12, padding: '6px 10px', background: 'none', border: '1px solid #E2E8F0', borderRadius: 6, color: '#94A3B8', cursor: 'pointer' }}>Cancel</button>
+                    <button onClick={() => { setAddingToDept(null); setNewItemName(''); setNewItemCategory(''); }} style={{ fontSize: 12, padding: '6px 10px', background: 'none', border: '1px solid #E2E8F0', borderRadius: 6, color: '#94A3B8', cursor: 'pointer' }}>Cancel</button>
                   </div>
                 ) : canAddItems ? (
                   <button
-                    onClick={() => { setAddingToDept(defaultDept || '__global__'); setNewItemName(''); }}
+                    onClick={() => { setAddingToDept(defaultDept || '__global__'); setNewItemName(''); setNewItemCategory(''); }}
                     style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                     onMouseEnter={e => { e.currentTarget.style.color = '#4A90E2'; }}
                     onMouseLeave={e => { e.currentTarget.style.color = '#94A3B8'; }}
