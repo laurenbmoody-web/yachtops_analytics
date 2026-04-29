@@ -85,8 +85,8 @@ export const ORDERS = [
     items: 18, flagged: 0,
     deliverBy: 'Mon 20 Apr',
     deliverTime: '16:00 · Antibes',
-    status: 'picking',
-    statusLbl: 'Picking',
+    status: 'dispatched',
+    statusLbl: 'Dispatched',
     value: '€ 1,940.80',
   },
   {
