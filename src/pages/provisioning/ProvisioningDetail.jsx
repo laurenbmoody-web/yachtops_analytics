@@ -15,7 +15,7 @@ import {
   PROVISIONING_STATUS,
   formatCurrency,
 } from './utils/provisioningStorage';
-import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
+import { loadTrips, findTripByAnyId } from '../trips-management-dashboard/utils/tripStorage';
 
 const ProvisioningDetail = () => {
   const navigate = useNavigate();
@@ -60,7 +60,7 @@ const ProvisioningDetail = () => {
 
       if (listData?.trip_id) {
         const trips = (await loadTrips()) || [];
-        const trip = trips.find(t => t.id === listData.trip_id);
+        const trip = findTripByAnyId(trips, listData.trip_id);
         setTripName(trip?.name || trip?.title || '');
       }
     } catch (err) {
