@@ -3,6 +3,7 @@ import Icon from '../../../components/AppIcon';
 import Drawer from './Drawer';
 import SmartSuggestionsPanel from './SmartSuggestionsPanel';
 import StatusBadge, { STATUS_CONFIG } from './StatusBadge';
+import { BOARD_TYPES } from '../data/templates';
 import {
   updateProvisioningList,
   updateListStatus,
@@ -190,6 +191,7 @@ const BD_STYLES = `
 const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved, onDeleted, onClose }) => {
   const [form, setForm] = useState({
     title: '',
+    board_type: 'general',
     trip_id: '',
     department: '',
     port_location: '',
@@ -202,6 +204,7 @@ const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved,
   });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [saveError, setSaveError] = useState(null);
 
   // department may be text[] from DB or legacy comma-string — normalise to comma-string for form
   const normDept = (dept) => {
@@ -214,6 +217,7 @@ const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved,
     if (list) {
       setForm({
         title: list.title || '',
+        board_type: list.board_type || 'general',
         trip_id: list.trip_id || '',
         department: normDept(list.department),
         port_location: list.port_location || '',
@@ -224,12 +228,14 @@ const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved,
         notes: list.notes || '',
         visibility: list.visibility || (list.is_private ? 'private' : 'shared'),
       });
+      setSaveError(null);
     }
   }, [list]);
 
   const handleSave = async () => {
     if (!form.title.trim()) return;
     setSaving(true);
+    setSaveError(null);
     try {
       // department stored as text[] in DB — convert comma-string → array
       const deptArray = form.department
@@ -237,6 +243,7 @@ const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved,
         : [];
       const updated = await updateProvisioningList(list.id, {
         title: form.title.trim(),
+        board_type: form.board_type || 'general',
         trip_id: form.trip_id || null,
         department: deptArray,
         port_location: form.port_location,
@@ -249,8 +256,12 @@ const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved,
         is_private: form.visibility === 'private',
       });
       onSaved(updated);
-    } catch {
-      // error handled by caller
+    } catch (err) {
+      // Surface the error so the user sees it instead of a silent no-op.
+      // Previously caught and dropped — the dev error Lauren spotted in
+      // the console had no UI feedback.
+      console.error('[BoardDrawer.EditMode] save error:', err);
+      setSaveError(err?.message || String(err) || 'Save failed');
     } finally {
       setSaving(false);
     }
@@ -297,6 +308,16 @@ const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved,
       <div>
         <label className={labelCls}>Board Title *</label>
         <input value={form.title} onChange={e => set('title', e.target.value)} className={inputCls} placeholder="e.g. Weekly Galley Order" />
+      </div>
+
+      {/* Board type — Sprint 9c.1a.1 */}
+      <div>
+        <label className={labelCls}>Board type</label>
+        <select value={form.board_type} onChange={e => set('board_type', e.target.value)} className={inputCls}>
+          {BOARD_TYPES.map(bt => (
+            <option key={bt.value} value={bt.value}>{bt.label}</option>
+          ))}
+        </select>
       </div>
 
       {/* Trip */}
@@ -412,6 +433,23 @@ const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved,
       >
         {saving ? 'Saving...' : 'Save Changes'}
       </button>
+      {saveError && (
+        <p
+          role="alert"
+          style={{
+            margin: '8px 0 0',
+            fontSize: 12,
+            color: '#B91C1C',
+            background: 'rgba(254, 242, 242, 0.6)',
+            border: '1px solid rgba(220, 38, 38, 0.2)',
+            borderRadius: 6,
+            padding: '8px 10px',
+            lineHeight: 1.4,
+          }}
+        >
+          Save failed: {saveError}
+        </p>
+      )}
 
       {/* Status actions */}
       <div className="bd-divider pt-4 space-y-2">
