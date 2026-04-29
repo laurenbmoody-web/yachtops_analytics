@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RefreshCw } from 'lucide-react';
 import Header from '../../../components/navigation/Header';
-import StandbyLayoutHeader from '../widgets/StandbyLayoutHeader';
+import { EditorialPageShell } from '../../../components/editorial';
 import { useGuests } from '../hooks/useGuests';
 import { useInventoryThisWeek } from '../hooks/useInventoryThisWeek';
 import { useInventoryInsights } from '../hooks/useInventoryInsights';
@@ -288,12 +288,6 @@ export default function InventoryWeeklyPage() {
 
   const [selectedItemId, setSelectedItemId] = useState(null);
 
-  useEffect(() => {
-    const prev = document.body.style.background;
-    document.body.style.background = '#F5F1EA';
-    return () => { document.body.style.background = prev; };
-  }, []);
-
   const handleOpenGuest = (guest) => {
     navigate('/pantry/standby', { state: { openDrawerForGuestId: guest.id } });
   };
@@ -333,7 +327,7 @@ export default function InventoryWeeklyPage() {
     <>
       <Header />
       <div id="pantry-root" className="pantry-page">
-        <StandbyLayoutHeader
+        <EditorialPageShell
           title="Inventory"
           subtitle="What matters for the guests on trip."
           backTo="/pantry/standby"

@@ -6,8 +6,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@500;600;700;800&family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap');
 
 /* ── Tokens ────────────────────────────────────────────────── */
+/* Sprint 9c.1: scope expanded to .editorial-page so non-Pantry consumers
+   (Provisioning first, more to follow) can opt in to the editorial
+   language by wrapping content in <div className="editorial-page">.
+   Sprint 9c.5 (deferred) will lift these to :root with --cargo-* names. */
 #pantry-root,
-.pantry-page {
+.pantry-page,
+.editorial-page {
   /* Canvas */
   --bg-canvas:      #F5F1EA;
   --bg-card:        #FFFFFF;
@@ -46,8 +51,9 @@
   --font-ui:        'Outfit', system-ui, sans-serif;
 }
 
-/* ── Base reset inside pantry ──────────────────────────────── */
-.pantry-page {
+/* ── Base reset inside pantry / editorial page ──────────────── */
+.pantry-page,
+.editorial-page {
   background: #F5F1EA;
   color: var(--ink);
   font-family: var(--font-sans);
@@ -1655,14 +1661,57 @@
 }
 
 /* ── Focus states (accessibility) ─────────────────────────── */
-.pantry-page *:focus-visible {
+.pantry-page *:focus-visible,
+.editorial-page *:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
+/* ── Editorial tab nav (Sprint 9c.1) ────────────────────────
+   Tracked uppercase, terracotta active underline. Replaces the
+   blue bottom-border pattern used elsewhere. Lives here rather
+   than in a separate file so it inherits the editorial token
+   scope without an extra import. */
+.editorial-tab-nav {
+  display: flex;
+  gap: 28px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--p-border);
+  margin: 0 0 1.75rem;
+  overflow-x: auto;
+}
+
+.editorial-tab {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--ink);
+  opacity: 0.5;
+  background: transparent;
+  border: 0;
+  padding: 0 0 14px;
+  margin-bottom: -15px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s, border-color 0.15s;
+  border-bottom: 2px solid transparent;
+}
+
+.editorial-tab:hover {
+  opacity: 0.8;
+}
+
+.editorial-tab-active {
+  opacity: 1;
+  border-bottom-color: var(--accent);
+}
+
 /* ── Responsive ────────────────────────────────────────────── */
 @media (max-width: 768px) {
-  .pantry-page { padding: 16px 16px 48px; }
+  .pantry-page,
+  .editorial-page { padding: 16px 16px 48px; }
   .p-greeting  { font-size: 44px; }
   .p-two-col   { grid-template-columns: 1fr; }
   .p-preset-row { overflow-x: auto; padding-bottom: 4px; flex-wrap: nowrap; }

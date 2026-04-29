@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import Header from '../../../components/navigation/Header';
-import StandbyLayoutHeader from '../widgets/StandbyLayoutHeader';
+import { EditorialPageShell } from '../../../components/editorial';
 import { supabase } from '../../../lib/supabaseClient';
 import '../pantry.css';
 
@@ -66,12 +66,6 @@ export default function GuestHistoryPage() {
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
   const [activeFilter, setActiveFilter] = useState('all');
-
-  useEffect(() => {
-    const prev = document.body.style.background;
-    document.body.style.background = '#F5F1EA';
-    return () => { document.body.style.background = prev; };
-  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -189,7 +183,7 @@ export default function GuestHistoryPage() {
     <>
       <Header />
       <div id="pantry-root" className="pantry-page">
-        <StandbyLayoutHeader
+        <EditorialPageShell
           title="History"
           subtitle={firstName ? `Everything logged about ${firstName}.` : 'Guest history.'}
           backTo="/pantry/standby"
