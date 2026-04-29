@@ -17,6 +17,7 @@ import {
   formatCurrency,
 } from '../utils/provisioningStorage';
 import { getSmartSuggestions } from '../../../utils/provisioningSuggestions';
+import { showToast } from '../../../utils/toast';
 
 // Sprint 9c.1a follow-up — interim restyle of the drawer body content for
 // the white card surface. Replaces dark-theme Tailwind classes with
@@ -256,6 +257,8 @@ const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved,
         is_private: form.visibility === 'private',
       });
       onSaved(updated);
+      showToast('Board saved', 'success');
+      onClose?.();
     } catch (err) {
       // Surface the error so the user sees it instead of a silent no-op.
       // Previously caught and dropped — the dev error Lauren spotted in
