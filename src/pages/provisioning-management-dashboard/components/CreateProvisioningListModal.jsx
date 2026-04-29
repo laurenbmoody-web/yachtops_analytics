@@ -164,12 +164,13 @@ const CreateProvisioningListModal = ({
   const [activeTab, setActiveTab] = useState('manual');
 
   // ─── Form state
-  // board_type defaults to 'charter' — most common case, saves a click on the
-  // most common workflow. Sprint 9c.1a — column lives at provisioning_lists.board_type
-  // with a CHECK constraint covering the values in BOARD_TYPES.
+  // board_type defaults to 'general' — neutral fallback that requires the
+  // user to explicitly classify the board. Sprint 9c.1a.1 — column lives
+  // at provisioning_lists.board_type with a CHECK constraint covering the
+  // 7 values in BOARD_TYPES.
   const [form, setForm] = useState({
     title: '',
-    board_type: 'charter',
+    board_type: 'general',
     trip_id: '',
     departments: [],
     port_location: '',
@@ -235,7 +236,7 @@ const CreateProvisioningListModal = ({
   useEffect(() => {
     if (isOpen) {
       setActiveTab('manual');
-      setForm({ title: '', board_type: 'charter', trip_id: '', departments: [], port_location: '', supplier_id: '', estimated_cost: '', currency: 'GBP', order_by_date: '', notes: '' });
+      setForm({ title: '', board_type: 'general', trip_id: '', departments: [], port_location: '', supplier_id: '', estimated_cost: '', currency: 'GBP', order_by_date: '', notes: '' });
       setItems([BLANK_ITEM()]);
       setFormErrors({});
       setSaving(false);
