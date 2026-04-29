@@ -527,7 +527,7 @@ const CreateProvisioningListModal = ({
       const listPayload = {
         tenant_id:      activeTenantId,
         title:          form.title.trim(),
-        board_type:     form.board_type || 'other',
+        board_type:     form.board_type || 'general',
         trip_id:        tripIdForWire,
         department:     form.departments,
         port_location:  form.port_location.trim() || null,

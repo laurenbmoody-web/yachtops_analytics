@@ -13,12 +13,15 @@ export default function TemplatePicker({ boardType, guestCount = 0, onUse, onBac
   const [activeFilter, setActiveFilter] = useState(boardType || 'all');
   const [selected, setSelected] = useState(null);
 
+  // Sprint 9c.1a.1: canonical 7-value enum is charter, owner, yard,
+  // crossing, crew, standby, general. Shipyard merged into yard. Picker
+  // surfaces a representative subset — full filter list lives in BOARD_TYPES.
   const filters = [
-    { value: 'all',       label: 'All' },
-    { value: 'charter',   label: 'Charter' },
-    { value: 'owner',     label: 'Owner' },
-    { value: 'shipyard',  label: 'Shipyard' },
-    { value: 'general',   label: 'General' },
+    { value: 'all',     label: 'All' },
+    { value: 'charter', label: 'Charter' },
+    { value: 'owner',   label: 'Owner' },
+    { value: 'yard',    label: 'Yard' },
+    { value: 'general', label: 'General' },
   ];
 
   const visible = TEMPLATES.filter(t =>

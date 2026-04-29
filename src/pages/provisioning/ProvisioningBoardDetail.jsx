@@ -71,7 +71,7 @@ import { getDepartmentColor, hexToRgba, categoriesForDept } from './data/categor
 const EditBoardModal = ({ list, onSaved, onClose }) => {
   const [form, setForm] = useState({
     title: list.title || '',
-    board_type: list.board_type || 'other',
+    board_type: list.board_type || 'general',
     status: list.status || PROVISIONING_STATUS.DRAFT,
     port_location: list.port_location || '',
     order_by_date: list.order_by_date || '',

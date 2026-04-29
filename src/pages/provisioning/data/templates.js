@@ -2,26 +2,25 @@
 // Quantities expressed as default_qty_per_guest (to be multiplied by trip guest count).
 // Items with no per-guest scaling use default_qty_flat (absolute quantity).
 
-// Sprint 9c.1a: enum aligned with provisioning_lists.board_type CHECK constraint.
-// Display labels are derived here for UI; values are the canonical snake_case
-// stored in the database.
+// Sprint 9c.1a.1: simplified to 7 single-word values matching the
+// provisioning_lists.board_type CHECK constraint. Values double as
+// display labels (capitalised at render).
 export const BOARD_TYPES = [
-  { value: 'charter',     label: 'Charter' },
-  { value: 'owner_trip',  label: 'Owner trip' },
-  { value: 'yard_period', label: 'Yard period' },
-  { value: 'crossing',    label: 'Crossing' },
-  { value: 'crew_change', label: 'Crew change' },
-  { value: 'shipyard',    label: 'Shipyard' },
-  { value: 'standby',     label: 'Standby' },
-  { value: 'other',       label: 'List' },
+  { value: 'charter',  label: 'Charter' },
+  { value: 'owner',    label: 'Owner' },
+  { value: 'yard',     label: 'Yard' },
+  { value: 'crossing', label: 'Crossing' },
+  { value: 'crew',     label: 'Crew' },
+  { value: 'standby',  label: 'Standby' },
+  { value: 'general',  label: 'General' },
 ];
 
-// Maps trip.tripType → board_type value (canonical)
+// Maps trip.tripType → board_type value
 export const TRIP_TYPE_TO_BOARD_TYPE = {
   'Charter':        'charter',
-  'Owner':          'owner_trip',
-  'Friends/Family': 'owner_trip',
-  'Other':          'other',
+  'Owner':          'owner',
+  'Friends/Family': 'owner',
+  'Other':          'general',
 };
 
 export const TEMPLATES = [
@@ -193,7 +192,7 @@ export const TEMPLATES = [
   {
     id: 'owner-short',
     name: 'Owner Trip — Short (2–4 days)',
-    boardTypes: ['owner_trip'],
+    boardTypes: ['owner'],
     department: 'Galley',
     description: 'Essentials for a short owner or friends/family trip. Focuses on quality over volume.',
     categories: ['Beverages', 'Fresh Produce', 'Dairy', 'Dry Goods', 'Condiments', 'Cleaning'],
@@ -250,7 +249,7 @@ export const TEMPLATES = [
   {
     id: 'deck-charter',
     name: 'Deck Provisions — Charter',
-    boardTypes: ['charter', 'owner_trip'],
+    boardTypes: ['charter', 'owner'],
     department: 'Deck',
     description: 'Deck consumables, water toy supplies, suncare, and guest safety items for on-deck use.',
     categories: ['Suncare & Guest Comfort', 'Water Sports', 'Safety', 'Deck Consumables', 'Snacks & Beverages'],
@@ -291,7 +290,7 @@ export const TEMPLATES = [
   {
     id: 'engineering-general',
     name: 'Engineering Consumables',
-    boardTypes: ['other', 'shipyard'],
+    boardTypes: ['general', 'yard'],
     department: 'Engineering',
     description: 'Filters, oils, cleaning chemicals, and spare parts consumables for the engine room and technical spaces.',
     categories: ['Filters', 'Oils & Lubricants', 'Cleaning Chemicals', 'Electrical & Tools', 'Safety'],
