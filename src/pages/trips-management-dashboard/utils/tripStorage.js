@@ -222,6 +222,55 @@ const loadLocalTrips = () => {
   }
 };
 
+// Resolve a Supabase trip uuid for a localStorage row. Pre-PR3 LS rows
+// don't carry `supabaseId` (only A3.5+ createTrip stamps it on insert),
+// so writers that need the canonical Supabase uuid have to look it up
+// by legacy_local_id when the LS row's stamp is missing. Cheap single-
+// row query, RLS-scoped via tenant_id. Stamps the LS row in-place via
+// the side-effecting `lsTrip` mutation so subsequent calls in the same
+// session don't re-query.
+//
+// Returns the supabaseId on success, null when the trip has no
+// matching Supabase row (e.g. LS-only pending-sync trip the migration
+// runner hasn't seen yet).
+const resolveSupabaseTripId = async (lsTrip) => {
+  if (!lsTrip) return null;
+  if (lsTrip.supabaseId) return lsTrip.supabaseId;
+
+  const tid = getActiveTenantId();
+  if (!tid || !lsTrip.id) return null;
+
+  try {
+    const { data, error } = await supabase
+      ?.from('trips')
+      ?.select('id')
+      ?.eq('tenant_id', tid)
+      ?.eq('legacy_local_id', lsTrip.id)
+      ?.maybeSingle();
+    if (error) {
+      console.warn('[resolveSupabaseTripId] lookup failed:', error);
+      return null;
+    }
+    if (data?.id) {
+      // Stamp the LS row + persist so this resolver becomes a no-op
+      // next call. Read the latest array first to avoid clobbering
+      // unrelated concurrent writes.
+      const trips = loadLocalTrips();
+      const idx = trips.findIndex(t => t?.id === lsTrip.id);
+      if (idx !== -1) {
+        trips[idx] = { ...trips[idx], supabaseId: data.id };
+        saveTrips(trips);
+      }
+      lsTrip.supabaseId = data.id;
+      return data.id;
+    }
+    return null;
+  } catch (err) {
+    console.warn('[resolveSupabaseTripId] unexpected failure:', err);
+    return null;
+  }
+};
+
 // Map a Supabase trips row (joined with trip_guests) into the legacy
 // camelCase shape that callers expect. Embedded arrays come from the
 // matching localStorage trip when present; default to empty otherwise.
@@ -638,9 +687,11 @@ export const updateTrip = async (tripId, updates) => {
     const statusChanged = newStatus !== oldTrip?.status;
 
     // ── Supabase dual-write ───────────────────────────────────────────
-    // Skip if the trip has no supabaseId yet — LS-only pending-sync.
-    // The A2 runner picks it up on the next page load.
-    const supabaseId = oldTrip?.supabaseId;
+    // Pre-PR3 LS rows don't carry supabaseId stamped. Resolve via the
+    // legacy_local_id lookup before the dual-write so writes hit the
+    // right Supabase row. Resolver returns null only for genuine
+    // LS-only pending-sync trips (A2 runner hasn't seen them yet).
+    const supabaseId = await resolveSupabaseTripId(oldTrip);
     if (supabaseId) {
       // 1. Top-level field updates → trips table.
       const supabasePatch = {};
@@ -758,8 +809,9 @@ export const deleteTrip = async (tripId) => {
     const tripToDelete = trips?.find(t => t?.id === tripId || t?.supabaseId === tripId);
     if (!tripToDelete) return false;
 
-    // ── Supabase soft-delete (skip when no supabaseId — LS-only trip) ─
-    const supabaseId = tripToDelete?.supabaseId;
+    // Pre-PR3 LS rows don't carry supabaseId. Resolve via the
+    // legacy_local_id lookup so the soft-delete actually fires.
+    const supabaseId = await resolveSupabaseTripId(tripToDelete);
     if (supabaseId) {
       const { error } = await supabase
         ?.from('trips')
@@ -886,8 +938,10 @@ export const toggleGuestActiveStatus = async (tripId, guestId) => {
     const currentStatus = guests?.[guestIndex]?.isActive;
     const newStatus     = !currentStatus;
 
-    // ── Supabase write first (skip when no supabaseId) ───────────────
-    const supabaseId = trip?.supabaseId;
+    // ── Supabase write first ─────────────────────────────────────────
+    // Pre-PR3 LS rows don't carry supabaseId; resolve via the
+    // legacy_local_id lookup so the trip_guests update fires.
+    const supabaseId = await resolveSupabaseTripId(trip);
     if (supabaseId) {
       const { error } = await supabase
         ?.from('trip_guests')
