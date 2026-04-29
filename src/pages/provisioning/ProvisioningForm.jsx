@@ -20,7 +20,7 @@ import {
   PROVISION_CATEGORIES,
 } from './utils/provisioningStorage';
 import { getSmartSuggestions } from '../../utils/provisioningSuggestions';
-import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
+import { loadTrips, findTripByAnyId } from '../trips-management-dashboard/utils/tripStorage';
 import { getAllCategoriesL1, getCategoriesL2ByL1 } from '../inventory/utils/taxonomyStorage';
 
 const STEPS = ['List Details', 'Smart Suggestions', 'Build List', 'Templates & History', 'Review & Submit'];
@@ -153,7 +153,7 @@ const ProvisioningForm = () => {
   }, [details.trip_id, activeTenantId]);
 
   // Compute trip guest count for scaling banner
-  const linkedTrip = trips.find(t => t.id === details.trip_id);
+  const linkedTrip = findTripByAnyId(trips, details.trip_id);
   const guestCount = linkedTrip?.guests?.filter(g => g.isActive !== false)?.length || 0;
   const tripDays = linkedTrip
     ? Math.max(1, Math.round((new Date(linkedTrip.endDate) - new Date(linkedTrip.startDate)) / 86400000))
@@ -350,8 +350,14 @@ const ProvisioningForm = () => {
                 className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 <option value="">— No trip linked —</option>
+                {/* Option value is the canonical Supabase UUID so the
+                    form state matches what provisioning_lists.trip_id
+                    expects. Falls back to legacy id for LS-only
+                    pending-sync trips. */}
                 {trips.filter(t => t.status !== 'completed').map(t => (
-                  <option key={t.id} value={t.id}>{t.name || t.title}</option>
+                  <option key={t.id} value={t.supabaseId || t.id}>
+                    {t.name || t.title}
+                  </option>
                 ))}
               </select>
             </div>

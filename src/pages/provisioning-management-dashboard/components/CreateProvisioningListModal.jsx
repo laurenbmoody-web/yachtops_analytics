@@ -3,7 +3,7 @@ import { supabase } from '../../../lib/supabaseClient';
 import { useTenant } from '../../../contexts/TenantContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { showToast } from '../../../utils/toast';
-import { loadTrips } from '../../trips-management-dashboard/utils/tripStorage';
+import { loadTrips, findTripByAnyId } from '../../trips-management-dashboard/utils/tripStorage';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DEPARTMENTS = ['Galley', 'Interior', 'Deck', 'Engineering', 'Admin'];
@@ -252,7 +252,7 @@ const CreateProvisioningListModal = ({
     if (!form.trip_id || !activeTenantId) return;
     setSuggestionsLoading(true);
 
-    const trip = trips.find(t => t.id === form.trip_id);
+    const trip = findTripByAnyId(trips, form.trip_id);
     const guestIds = (trip?.guests || []).filter(g => g.isActive !== false).map(g => g.guestId).filter(Boolean);
 
     const [prefResult, stockResult, patternResult] = await Promise.allSettled([
@@ -510,10 +510,19 @@ const CreateProvisioningListModal = ({
     setSaving(true);
     try {
       const userId = session?.user?.id || null;
+      // provisioning_lists.trip_id is a uuid column. Trips on the merged
+      // shape expose `supabaseId` (the canonical Supabase UUID) alongside
+      // the legacy `id` string. Resolve to the UUID at submit; fall back
+      // to null if the selected trip is LS-only (pending-sync, no
+      // Supabase row yet — DB insert would fail anyway).
+      const selectedTrip = form.trip_id
+        ? findTripByAnyId(trips, form.trip_id)
+        : null;
+      const tripIdForWire = selectedTrip?.supabaseId || null;
       const listPayload = {
         tenant_id:      activeTenantId,
         title:          form.title.trim(),
-        trip_id:        form.trip_id || null,
+        trip_id:        tripIdForWire,
         department:     form.departments,
         port_location:  form.port_location.trim() || null,
         supplier_id:    form.supplier_id || null,

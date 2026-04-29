@@ -35,7 +35,7 @@
 
 import { supabase } from '../../../lib/supabaseClient';
 import { sendNotification, NOTIFICATION_TYPES, SEVERITY } from '../../team-jobs-management/utils/notifications';
-import { loadTrips } from '../../trips-management-dashboard/utils/tripStorage';
+import { loadTrips, findTripByAnyId } from '../../trips-management-dashboard/utils/tripStorage';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -2043,7 +2043,7 @@ export const fetchOrderHistory = async (tenantId, department, limit = 10) => {
           ?.maybeSingle();
 
         if (board?.trip_id) {
-          const trip = trips.find(t => t.id === board.trip_id);
+          const trip = findTripByAnyId(trips, board.trip_id);
           if (trip) {
             tripInfo = {
               tripType:   trip.tripType,

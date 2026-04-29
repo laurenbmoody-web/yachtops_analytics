@@ -138,10 +138,14 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
     setCreating(true);
     setLocalError('');
     try {
+      // tripId state holds the merged trip's legacy id (display + dropdown
+      // value). Provisioning_lists.trip_id is uuid; resolve to the
+      // canonical Supabase UUID via selectedTrip.supabaseId before
+      // crossing the wire.
       await onCreated({
         title: title.trim(),
         board_type: boardType || null,
-        trip_id: tripId || null,
+        trip_id: selectedTrip?.supabaseId || null,
         is_private: isPrivate,
         startFrom,
         preloadedItems: extraItems,

@@ -44,7 +44,7 @@ import InvoiceUploadModal, { PAYMENT_STATUS_OPTIONS } from './components/Invoice
 import ItemDrawer from './components/ItemDrawer';
 import ReceiveDeliveryModal from './components/ReceiveDeliveryModal';
 import ConfirmDeliveryModal from './components/ConfirmDeliveryModal';
-import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
+import { loadTrips, findTripByAnyId } from '../trips-management-dashboard/utils/tripStorage';
 import { loadGuests } from '../guest-management-dashboard/utils/guestStorage';
 import { showToast } from '../../utils/toast';
 import {
@@ -420,7 +420,7 @@ const ProvisioningBoardDetail = () => {
       if (fetchedList?.trip_id) {
         try {
           const trips = (await loadTrips()) || [];
-          const linked = trips.find(t => t.id === fetchedList.trip_id) || null;
+          const linked = findTripByAnyId(trips, fetchedList.trip_id);
           setTrip(linked);
 
           if (linked?.guests?.length && activeTenantId) {

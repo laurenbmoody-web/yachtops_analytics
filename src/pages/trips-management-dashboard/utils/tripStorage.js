@@ -585,13 +585,24 @@ export const deleteTrip = (tripId) => {
   }
 };
 
+// Find a merged trip by either its legacy id or its Supabase UUID.
+// During the A3 migration window, callers may hold either format:
+//   - URLs / older state → legacy "trip-{ts}-{rand}" string
+//   - provisioning_lists.trip_id and other Supabase FKs → uuid
+// Pure helper over a pre-fetched trips array; no Supabase calls.
+export const findTripByAnyId = (trips, value) => {
+  if (!value || !Array.isArray(trips)) return null;
+  return trips.find(t => t?.supabaseId === value || t?.id === value) || null;
+};
+
 // Get trip by ID. Async — uses the merged Supabase+localStorage list.
-// Lookup is by legacy id format (`trip-{ts}-{rand}`) to keep callers
-// working through the PR2 window. PR3 will swap callers to Supabase
-// uuid (exposed as trip.supabaseId for forward-looking code).
+// Matches by either the legacy id format (`trip-{ts}-{rand}`) used in
+// URLs and older state, OR the Supabase uuid stored in FKs like
+// provisioning_lists.trip_id. Either format works during the A3
+// migration window; PR3+ will naturalise everything to uuid.
 export const getTripById = async (tripId) => {
   const trips = await loadTrips();
-  return trips?.find(t => t?.id === tripId) || null;
+  return findTripByAnyId(trips, tripId);
 };
 
 // Get active trip (if any). Status is computed at read time from
