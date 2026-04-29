@@ -901,7 +901,7 @@ const ProvisioningWorkspace = () => {
                 className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary"
               >
                 <option value="all">All depts</option>
-                {departments.map(d => <option key={d} value={d}>{d}</option>)}
+                {departments.map(d => <option key={d.id || d.name} value={d.name}>{d.name}</option>)}
               </select>
               {hasActiveFilters && (
                 <button
@@ -1107,7 +1107,7 @@ const ProvisioningWorkspace = () => {
         suppliers={suppliers}
         trips={trips}
         tenantId={activeTenantId}
-        departments={departments}
+        departments={departments.map(d => d.name)}
         onSaved={handleBoardSaved}
         onDeleted={handleBoardDeleted}
         onAddItems={handleAddItemsFromDrawer}
@@ -1120,7 +1120,7 @@ const ProvisioningWorkspace = () => {
         item={itemDrawer.item}
         listId={itemDrawer.listId}
         tenantId={activeTenantId}
-        departments={departments}
+        departments={departments.map(d => d.name)}
         suppliers={suppliers}
         theme="light"
         onSaved={handleItemSaved}
