@@ -1,8 +1,20 @@
 import React, { useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
 
-const Drawer = ({ open, onClose, title, children, footer, width = 'max-w-[480px]', theme = 'dark' }) => {
+// Three Tailwind arbitrary-value classes used here (max-w-[480px],
+// bg-black/50, bg-black/20) never survived Tailwind's content-scan purge
+// for this file — the compiled CSS contained zero instances of any of
+// them. Effect: the panel rendered at full viewport width, the backdrop
+// was transparent, and the drawer appeared to "render inline" overlapping
+// the page underneath. Replaced with inline styles so they always apply.
+//
+// `width` now accepts a number (px) or any CSS length string. Both
+// existing callers (BoardDrawer, ItemDrawer) used the default, so no
+// caller changes needed.
+const Drawer = ({ open, onClose, title, children, footer, width = 480, theme = 'dark' }) => {
   const isLight = theme === 'light';
+  const maxWidth = typeof width === 'number' ? `${width}px` : width;
+  const backdropBg = isLight ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.5)';
 
   useEffect(() => {
     if (open) document.body.style.overflow = 'hidden';
@@ -14,12 +26,14 @@ const Drawer = ({ open, onClose, title, children, footer, width = 'max-w-[480px]
     <>
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 z-40 transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'} ${isLight ? 'bg-black/20' : 'bg-black/50'}`}
+        className={`fixed inset-0 z-40 transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        style={{ background: backdropBg }}
         onClick={onClose}
       />
       {/* Panel */}
       <div
-        className={`fixed top-0 right-0 h-full ${width} w-full z-50 transition-transform duration-300 ease-in-out ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed top-0 right-0 h-full w-full z-50 transition-transform duration-300 ease-in-out ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        style={{ maxWidth }}
       >
         <div
           className="h-full flex flex-col shadow-2xl"
