@@ -679,6 +679,28 @@ export const generateDeliveryNote = async (orderId) => {
   return data;
 };
 
+// Email the unsigned delivery note's signing link to the receiving party
+// (Sprint 9b Commit 7). Server validates the order has a generated delivery
+// note (refuses with 409 otherwise — does NOT auto-regenerate), enforces
+// a 30-minute idempotency window unless force=true is passed, and stamps
+// supplier_orders.delivery_note_emailed_at on success.
+//
+// Resolves to:
+//   { ok: true, message_id, sent_to, attached, force }                     (sent)
+//   { ok: true, already_sent: true, sent_at }                              (within idempotency window)
+// Throws on:
+//   - Order not found (404)
+//   - Delivery note not generated yet (409)
+//   - Recipient email not on file (422)
+//   - Resend send failure (502)
+export const sendDeliveryNoteEmails = async (orderId, { force = false } = {}) => {
+  const { data, error } = await supabase.functions.invoke('sendDeliveryNoteEmails', {
+    body: { orderId, force },
+  });
+  if (error) throw error;
+  return data;
+};
+
 // ─── Quote workflow (Sprint 9.5) ────────────────────────────────────────────
 
 // Set the supplier's quoted price on a single line. The auto-accept BEFORE
