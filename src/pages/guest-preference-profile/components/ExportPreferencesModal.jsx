@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import { loadTrips } from '../../trips-management-dashboard/utils/tripStorage';
@@ -233,7 +233,7 @@ const GroupedDiningServiceStyleBlock = ({ prefs, showConfidence }) => {
 };
 
 // ─── FULL GUEST REPORT ────────────────────────────────────────────────────────
-const FullGuestReport = ({ guest, preferences, includeImages }) => {
+const FullGuestReport = ({ guest, preferences, includeImages, guestTrips = [] }) => {
   const byCategory = (cat) =>
     preferences?.filter(p => p?.category === cat && p?.prefType !== 'avoid');
   const avoidsByCategory = (cat) =>
@@ -324,11 +324,9 @@ const FullGuestReport = ({ guest, preferences, includeImages }) => {
   const notesPrefs = byCategory('Other');
   const notesAvoids = avoidsByCategory('Other');
 
-  let guestTrips = [];
-  try {
-    const allTrips = loadTrips();
-    guestTrips = (allTrips || [])?.filter(t => !t?.isDeleted && (t?.guestIds || [])?.includes(guest?.id));
-  } catch {}
+  // guestTrips passed in as a prop now — loadTrips is async post-A3.1
+  // and can't be called synchronously during render. The parent modal
+  // hydrates this list once on open and passes it down.
 
   return (
     <div style={{ fontFamily: 'Georgia, serif', color: '#1a1a1a', lineHeight: '1.5', background: '#ffffff' }}>
@@ -519,8 +517,8 @@ const ChefReport = ({ guest, preferences, includeImages }) => {
 };
 
 // ─── Report Content (shared between preview and print) ────────────────────────
-const ReportContent = ({ reportType, guest, preferences, includeImages }) => {
-  if (reportType === 'full') return <FullGuestReport guest={guest} preferences={preferences} includeImages={includeImages} />;
+const ReportContent = ({ reportType, guest, preferences, includeImages, guestTrips }) => {
+  if (reportType === 'full') return <FullGuestReport guest={guest} preferences={preferences} includeImages={includeImages} guestTrips={guestTrips} />;
   return <ChefReport guest={guest} preferences={preferences} includeImages={includeImages} />;
 };
 
@@ -530,7 +528,28 @@ const ExportPreferencesModal = ({ isOpen, onClose, guest, preferences }) => {
   const [showPreview, setShowPreview] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [includeImages, setIncludeImages] = useState(false);
+  // loadTrips is async post-A3.1 — hydrate the per-guest trip list on
+  // open and pass down as a prop. FullGuestReport renders synchronously
+  // and can't await, hence the modal-level effect.
+  const [guestTrips, setGuestTrips] = useState([]);
   const previewRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen || !guest?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const allTrips = await loadTrips();
+        if (cancelled) return;
+        setGuestTrips((allTrips || [])
+          .filter(t => !t?.isDeleted && (t?.guestIds || []).includes(guest?.id)));
+      } catch (err) {
+        console.warn('[ExportPreferencesModal] loadTrips failed:', err);
+        if (!cancelled) setGuestTrips([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isOpen, guest?.id]);
 
   if (!isOpen) return null;
 
@@ -653,7 +672,7 @@ const ExportPreferencesModal = ({ isOpen, onClose, guest, preferences }) => {
                 borderRadius: '4px',
               }}
             >
-              <ReportContent reportType={reportType} guest={guest} preferences={preferences} includeImages={includeImages} />
+              <ReportContent reportType={reportType} guest={guest} preferences={preferences} includeImages={includeImages} guestTrips={guestTrips} />
             </div>
           </div>
 

@@ -46,8 +46,8 @@ const TripItineraryTimeline = () => {
     }
   }, [tripId]);
 
-  const loadTripData = () => {
-    const tripData = getTripById(tripId);
+  const loadTripData = async () => {
+    const tripData = await getTripById(tripId);
     if (tripData) {
       setTrip(tripData);
     } else {

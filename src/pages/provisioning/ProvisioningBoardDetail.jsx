@@ -414,7 +414,7 @@ const ProvisioningBoardDetail = () => {
 
       if (fetchedList?.trip_id) {
         try {
-          const trips = loadTrips() || [];
+          const trips = (await loadTrips()) || [];
           const linked = trips.find(t => t.id === fetchedList.trip_id) || null;
           setTrip(linked);
 

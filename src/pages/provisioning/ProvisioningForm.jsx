@@ -87,9 +87,19 @@ const ProvisioningForm = () => {
   const [suppliers, setSuppliers] = useState([]);
   const [tripGuests, setTripGuests] = useState([]);
 
+  // loadTrips is async post-A3.1 — IIFE + cancellation guard
   useEffect(() => {
-    const t = loadTrips() || [];
-    setTrips(t);
+    let cancelled = false;
+    (async () => {
+      try {
+        const t = (await loadTrips()) || [];
+        if (!cancelled) setTrips(t);
+      } catch (err) {
+        console.warn('[ProvisioningForm] loadTrips failed:', err);
+        if (!cancelled) setTrips([]);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -149,11 +159,14 @@ const ProvisioningForm = () => {
     ? Math.max(1, Math.round((new Date(linkedTrip.endDate) - new Date(linkedTrip.startDate)) / 86400000))
     : 1;
 
-  // Allergen cross-reference
+  // Allergen cross-reference — actual checking happens via the
+  // suggestions engine (utils/provisioningSuggestions.js). The
+  // placeholder localStorage read here was dead code; removed during
+  // the A3.2 sweep. If allergen surfacing comes back to this surface,
+  // hydrate via the async helpers, not localStorage.
   const guestAllergens = React.useMemo(() => {
     if (!linkedTrip) return [];
-    const stored = localStorage.getItem('cargo.trips.v1');
-    return []; // Allergen checking done via suggestions engine
+    return [];
   }, [linkedTrip]);
 
   // ── Item editing helpers ──────────────────────────────────────────────────

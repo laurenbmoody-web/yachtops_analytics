@@ -3,6 +3,7 @@ import { supabase } from '../../../lib/supabaseClient';
 import { useTenant } from '../../../contexts/TenantContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { showToast } from '../../../utils/toast';
+import { loadTrips } from '../../trips-management-dashboard/utils/tripStorage';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DEPARTMENTS = ['Galley', 'Interior', 'Deck', 'Engineering', 'Admin'];
@@ -41,14 +42,9 @@ const BLANK_ITEM = () => ({
   item_notes: '',
 });
 
-// Load trips from localStorage
-const loadLocalTrips = () => {
-  try {
-    return JSON.parse(localStorage.getItem('cargo.trips.v1') || '[]');
-  } catch {
-    return [];
-  }
-};
+// Trips were localStorage-only pre-A3; loadTrips is now async + Supabase
+// + LS merged. The local helper is removed; the modal hydrates trips via
+// useEffect on mount.
 
 // Load guest preferences from localStorage (legacy store)
 const loadLocalPreferences = () => {
@@ -184,7 +180,21 @@ const CreateProvisioningListModal = ({
   const [items, setItems] = useState([BLANK_ITEM()]);
 
   // ─── Source data
-  const [trips] = useState(() => loadLocalTrips());
+  // loadTrips is async post-A3.1; hydrate via useEffect with cancellation guard.
+  const [trips, setTrips] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const fetched = await loadTrips();
+        if (!cancelled) setTrips(fetched || []);
+      } catch (err) {
+        console.warn('[CreateProvisioningListModal] loadTrips failed:', err);
+        if (!cancelled) setTrips([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   const [suppliers, setSuppliers] = useState(suppliersProp);
   const [addingSupplier, setAddingSupplier] = useState(false);
   const [newSupplierName, setNewSupplierName] = useState('');

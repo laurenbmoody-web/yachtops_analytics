@@ -2014,7 +2014,7 @@ export const fetchOrderHistory = async (tenantId, department, limit = 10) => {
 
     if (error || !ledgerEntries?.length) return [];
 
-    const trips = loadTrips() || [];
+    const trips = (await loadTrips()) || [];
     const history = [];
 
     for (const entry of ledgerEntries) {

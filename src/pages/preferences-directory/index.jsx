@@ -95,7 +95,7 @@ const PreferencesDirectory = () => {
       // Load data
       const allGuests = await loadGuests(activeTenantId);
       const activeGuests = allGuests?.filter(g => !g?.isDeleted) || [];
-      const allTrips = loadTrips();
+      const allTrips = await loadTrips();
 
       // For HOD/CREW: only show guests on active trips
       const activeTrips = allTrips?.filter(t => t?.status === TripStatus?.ACTIVE && !t?.isDeleted) || [];

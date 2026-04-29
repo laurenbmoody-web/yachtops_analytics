@@ -9,6 +9,7 @@
  */
 
 import { supabase } from '../lib/supabaseClient';
+import { getTripById } from '../pages/trips-management-dashboard/utils/tripStorage';
 
 // ── Query 1: Guest Preferences ────────────────────────────────────────────────
 
@@ -18,10 +19,10 @@ const FOOD_PREFERENCE_CATEGORIES = [
 
 async function getGuestPreferenceSuggestions(tripId, vesselId) {
   try {
-    // Get all guest IDs on this trip
-    const stored = localStorage.getItem('cargo.trips.v1');
-    const trips = stored ? JSON.parse(stored) : [];
-    const trip = trips.find(t => t.id === tripId);
+    // Get all guest IDs on this trip. getTripById is async post-A3.1
+    // (Supabase trips + trip_guests merged with localStorage embedded
+    // arrays).
+    const trip = await getTripById(tripId);
     if (!trip?.guests?.length) return [];
 
     const guestIds = trip.guests.filter(g => g.isActive !== false).map(g => g.guestId).filter(Boolean);
@@ -222,9 +223,7 @@ const LOCATION_STAPLES = [
 
 async function getLocationAwareSuggestions(tripId) {
   try {
-    const stored = localStorage.getItem('cargo.trips.v1');
-    const trips = stored ? JSON.parse(stored) : [];
-    const trip = trips.find(t => t.id === tripId);
+    const trip = await getTripById(tripId);
     if (!trip) return [];
 
     // Check itinerary for remote ports or long passages

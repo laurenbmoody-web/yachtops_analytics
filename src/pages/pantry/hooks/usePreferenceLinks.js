@@ -177,7 +177,7 @@ export function usePreferenceLinks(guestId) {
 
       if (reqId !== reqIdRef.current) return;
 
-      const tripDaysRemaining = tripDaysRemainingForGuest(guestId);
+      const tripDaysRemaining = await tripDaysRemainingForGuest(guestId);
 
       // Short-circuit: no consumable prefs means nothing to ask the LLM.
       // Skip the Edge Function entirely; return emergency-only buckets +

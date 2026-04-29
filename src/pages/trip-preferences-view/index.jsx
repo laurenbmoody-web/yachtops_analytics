@@ -59,8 +59,8 @@ const TripPreferencesView = () => {
     }
   }, [selectedGuestId, tripId]);
 
-  const loadTripData = () => {
-    const tripData = getTripById(tripId);
+  const loadTripData = async () => {
+    const tripData = await getTripById(tripId);
     if (!tripData) {
       showToast('Trip not found', 'error');
       navigate('/trips-management-dashboard');
@@ -73,7 +73,7 @@ const TripPreferencesView = () => {
     try {
       const data = await loadGuests();
       const allGuests = data || [];
-      const tripData = getTripById(tripId);
+      const tripData = await getTripById(tripId);
       if (tripData) {
         const tripGuests = allGuests.filter(g =>
           !g?.isDeleted && tripData?.guestIds?.includes(g?.id)

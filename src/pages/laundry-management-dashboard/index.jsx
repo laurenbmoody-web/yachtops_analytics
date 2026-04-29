@@ -68,6 +68,26 @@ const LaundryManagementDashboard = () => {
     setLaundryItems(allTodayItems);
   }, []);
   
+  // Hydrate the active trip when tripId changes. loadTrips is async
+  // post-A3.1; split out from the main filter effect so the synchronous
+  // filter loop can read from `trip` state without re-fetching every
+  // time a status or search filter changes.
+  useEffect(() => {
+    if (!tripId) { setTrip(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const trips = await loadTrips();
+        if (cancelled) return;
+        setTrip(trips?.find(t => t?.id === tripId) ?? null);
+      } catch (err) {
+        console.warn('[laundry-dashboard] loadTrips failed:', err);
+        if (!cancelled) setTrip(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [tripId]);
+
   useEffect(() => {
     // Apply filters
     let filtered = [...laundryItems];
@@ -90,37 +110,29 @@ const LaundryManagementDashboard = () => {
     // Filter by search query
     if (searchQuery?.trim()) {
       const query = searchQuery?.toLowerCase();
-      filtered = filtered?.filter(item => 
+      filtered = filtered?.filter(item =>
         item?.ownerName?.toLowerCase()?.includes(query) ||
         item?.description?.toLowerCase()?.includes(query) ||
         item?.id?.toLowerCase()?.includes(query)
       );
     }
-    
-    // Filter by tripId if present
-    if (tripId) {
-      const trips = loadTrips();
-      const tripData = trips?.find(t => t?.id === tripId);
-      setTrip(tripData);
-      
-      if (tripData) {
-        const activeGuestIds = tripData?.guests?.filter(g => g?.isActive)?.map(g => g?.guestId) || [];
-        filtered = filtered?.filter(item => {
-          // First check if item has tripId field
-          if (item?.tripId) {
-            return item?.tripId === tripId;
-          }
-          // Fallback to guest matching
-          if (item?.ownerType?.toLowerCase() === 'guest' && item?.ownerGuestId) {
-            return activeGuestIds?.includes(item?.ownerGuestId);
-          }
-          return false;
-        });
-      }
+
+    // Filter by tripId if present — uses the `trip` state hydrated above
+    if (tripId && trip) {
+      const activeGuestIds = trip?.guests?.filter(g => g?.isActive)?.map(g => g?.guestId) || [];
+      filtered = filtered?.filter(item => {
+        if (item?.tripId) {
+          return item?.tripId === tripId;
+        }
+        if (item?.ownerType?.toLowerCase() === 'guest' && item?.ownerGuestId) {
+          return activeGuestIds?.includes(item?.ownerGuestId);
+        }
+        return false;
+      });
     }
 
     setFilteredItems(filtered);
-  }, [laundryItems, statusFilter, ownerFilter, searchQuery, tripId]);
+  }, [laundryItems, statusFilter, ownerFilter, searchQuery, tripId, trip]);
   
   const loadLaundryItems = () => {
     const { openItems, deliveredToday } = getTodayViewItems();
