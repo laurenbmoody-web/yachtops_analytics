@@ -59,7 +59,7 @@ const ProvisioningDetail = () => {
       }
 
       if (listData?.trip_id) {
-        const trips = loadTrips() || [];
+        const trips = (await loadTrips()) || [];
         const trip = trips.find(t => t.id === listData.trip_id);
         setTripName(trip?.name || trip?.title || '');
       }

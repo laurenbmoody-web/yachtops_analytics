@@ -48,7 +48,7 @@ const ProvisioningWidget = () => {
       const attention = attentionResult.status === 'fulfilled' ? (attentionResult.value.data || []) : [];
 
       // Enrich pending with trip names
-      const trips = loadTrips() || [];
+      const trips = (await loadTrips()) || [];
       const tripMap = Object.fromEntries(trips.map(t => [t.id, t.name || t.title]));
 
       setPendingLists(pending.map(l => ({ ...l, trip_name: l.trip_id ? tripMap[l.trip_id] : null })));

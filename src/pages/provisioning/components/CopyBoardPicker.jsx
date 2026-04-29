@@ -31,7 +31,7 @@ export default function CopyBoardPicker({ tenantId, department, newGuestCount = 
           ?.order('created_at', { ascending: false })
           ?.limit(30);
 
-        const trips = loadTrips() || [];
+        const trips = (await loadTrips()) || [];
 
         const enriched = await Promise.all((lists || []).map(async (board) => {
           // Item count

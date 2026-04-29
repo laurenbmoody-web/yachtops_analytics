@@ -492,9 +492,9 @@ const ProvisioningWorkspace = () => {
     setLoading(true);
     setError(null);
     try {
-      // loadTrips is synchronous (localStorage) — wrap safely
+      // loadTrips is async (Supabase + localStorage merge post-A3.1)
       let fetchedTrips = [];
-      try { fetchedTrips = loadTrips() || []; } catch { fetchedTrips = []; }
+      try { fetchedTrips = (await loadTrips()) || []; } catch { fetchedTrips = []; }
 
       const [fetchedLists, fetchedSuppliers] = await Promise.all([
         fetchProvisioningLists(activeTenantId, userId, deptId, userTier),

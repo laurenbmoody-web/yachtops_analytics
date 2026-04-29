@@ -122,8 +122,8 @@ const TripDetailView = () => {
     }
   }, [activeSection, tripId]);
 
-  const loadTripData = () => {
-    const tripData = getTripById(tripId);
+  const loadTripData = async () => {
+    const tripData = await getTripById(tripId);
     if (!tripData) {
       showToast('Trip not found', 'error');
       navigate('/trips-management-dashboard');
