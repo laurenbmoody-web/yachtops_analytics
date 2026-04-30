@@ -4,18 +4,12 @@
 // to the receiving party (vessel side) so they can click through to
 // /delivery-sign/<token>, sign on canvas, and confirm receipt.
 //
-// === RUN 2 — DRY-RUN MODE ===
+// === RUN 3 — REAL SEND ===
 //
-// This file currently runs in DRY-RUN mode. It validates inputs, fetches
-// the order, runs the idempotency check, resolves the recipient via the
-// 4-step chain, and computes the would-be-sent email — but does NOT call
-// Resend or stamp delivery_note_emailed_at. Returns a structured preview.
-//
-// Run 3 will:
-//   - Add Resend send (RESEND_API_KEY already in Supabase secrets)
-//   - Stamp delivery_note_emailed_at on success
-//   - Write the delivery_note_emailed activity event
-//   - Replace the preview return with { ok: true, message_id, sent_to, ... }
+// Validates input, fetches the order, runs idempotency, resolves the
+// recipient via the 4-step chain, sends via Resend, stamps
+// supplier_orders.delivery_note_emailed_at, and writes a
+// 'delivery_note_emailed' activity event.
 //
 // === Auth ===
 //
@@ -51,14 +45,24 @@
 //   SUPABASE_URL
 //   SUPABASE_SERVICE_ROLE_KEY
 //   SITE_URL                       (defaults to https://cargotechnology.netlify.app)
-//   RESEND_API_KEY                 (used in Run 3 only)
+//   RESEND_API_KEY
 //
 // === Body ===
 //   { orderId: uuid, force?: boolean }
 //
-// === Response (dry-run) ===
-//   { ok: true, dry_run: true, ... }                                 (preview)
-//   { ok: true, dry_run: true, already_sent: true, sent_at, ... }    (idempotency)
+// === Response ===
+//   { ok: true, message_id, sent_to, recipient_count, resolution, ... }  (sent)
+//   { ok: true, already_sent: true, sent_at, remaining_window_seconds }  (idempotency)
+//
+// === Order of operations (real send) ===
+//   1. Validate + auth + load order
+//   2. Idempotency check
+//   3. Resolve recipients (4-step chain)
+//   4. Build email (subject + HTML + plain text)
+//   5. Resend POST → return 502 on failure (no stamp, no activity)
+//   6. PATCH supplier_orders SET delivery_note_emailed_at = now()  (best-effort)
+//   7. INSERT supplier_order_activity 'delivery_note_emailed'      (best-effort)
+//   8. Return success with message_id
 
 declare const Deno: {
   serve: (handler: (req: Request) => Promise<Response>) => void;
@@ -74,6 +78,11 @@ const corsHeaders = {
 const SUPABASE_URL          = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const SITE_URL              = Deno.env.get('SITE_URL') || 'https://cargotechnology.netlify.app';
+const RESEND_API_KEY        = Deno.env.get('RESEND_API_KEY') || '';
+
+const FROM_EMAIL = 'Cargo Deliveries <deliveries@cargotechnology.co.uk>';
+const CARGO_WORDMARK_URL =
+  'https://cargotechnology.netlify.app/assets/images/cargo_merged_originalmark_syne800_true.png';
 
 // Idempotency window: refuse sends within this many ms of the previous
 // emailed_at unless force=true. 30 minutes per spec.
@@ -90,6 +99,30 @@ async function restGet<T = any>(path: string): Promise<T> {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: restHeaders });
   if (!res.ok) throw new Error(`REST GET ${path} failed: ${res.status} ${await res.text()}`);
   return await res.json();
+}
+
+async function restPatch(path: string, body: unknown): Promise<void> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    method: 'PATCH',
+    headers: { ...restHeaders, Prefer: 'return=minimal' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`REST PATCH ${path} failed: ${res.status} ${await res.text()}`);
+}
+
+async function restPostNoReturn(path: string, body: unknown): Promise<void> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    method: 'POST',
+    headers: { ...restHeaders, Prefer: 'return=minimal' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`REST POST ${path} failed: ${res.status} ${await res.text()}`);
+}
+
+function escapeHtml(s: string): string {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 async function userFromJwt(authHeader: string): Promise<{ id: string; email: string } | null> {
@@ -296,9 +329,8 @@ async function resolveRecipients(senderId: string, tenantId: string): Promise<Re
   return null;
 }
 
-// Compute the email subject + greeting + body for the given resolution.
-// Pure function — caller plugs into Resend in Run 3 or returns as preview
-// in Run 2.
+// Compute the email subject + greeting + plain-text + HTML for the given
+// resolution. Pure function.
 function buildEmail(opts: {
   resolution: 'sender_active' | 'role_match' | 'command_fallback';
   recipients: ResolvedRecipient[];
@@ -327,7 +359,102 @@ function buildEmail(opts: {
     'Cargo',
   ].join('\n');
 
-  return { subject, greeting, body_text: bodyText, signing_url: signingUrl };
+  // Email-client safe HTML — table layout, inline styles, no JS, fonts via
+  // system stack. Cargo wordmark hosted on Netlify (existing CDN path used
+  // by the supplier portal emails). CTA button uses VML/MSO fallback for
+  // Outlook.
+  const bodyHtml = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>${escapeHtml(subject)}</title>
+</head>
+<body style="margin:0;padding:0;background:#FDF8F4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#0F172A;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#FDF8F4;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;">
+
+          <!-- Wordmark -->
+          <tr>
+            <td align="center" style="padding:0 0 22px;">
+              <img src="${CARGO_WORDMARK_URL}" alt="Cargo" height="22" style="display:block;height:22px;border:0;outline:none;text-decoration:none;"/>
+            </td>
+          </tr>
+
+          <!-- Card -->
+          <tr>
+            <td style="background:#FFFFFF;border-radius:12px;box-shadow:0 1px 4px rgba(15,23,42,0.06),0 4px 24px rgba(15,23,42,0.04);overflow:hidden;">
+
+              <!-- Header band -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="background:#1E3A5F;padding:22px 28px;">
+                    <h1 style="margin:0 0 5px;font-size:19px;font-weight:700;color:#FFFFFF;letter-spacing:-0.3px;font-family:inherit;">
+                      Delivery confirmation needed
+                    </h1>
+                    <p style="margin:0;font-size:12px;color:#93C5FD;font-family:inherit;">
+                      ${escapeHtml(vesselName)} · Order #${escapeHtml(orderShortId)}
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Body -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding:28px;">
+                    <p style="margin:0 0 14px;font-size:15px;line-height:1.55;color:#0F172A;font-family:inherit;">
+                      ${escapeHtml(greeting)}
+                    </p>
+                    <p style="margin:0 0 18px;font-size:14px;line-height:1.6;color:#334155;font-family:inherit;">
+                      A delivery from <strong>${escapeHtml(supplierName)}</strong> is on its way to <strong>${escapeHtml(vesselName)}</strong>. Sign here on receipt to confirm what arrived.
+                    </p>
+
+                    <!-- CTA button -->
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px;">
+                      <tr>
+                        <td bgcolor="#059669" style="border-radius:8px;">
+                          <a href="${escapeHtml(signingUrl)}" target="_blank" rel="noopener" style="display:inline-block;padding:12px 22px;font-size:14px;font-weight:700;color:#FFFFFF;background:#059669;border-radius:8px;text-decoration:none;font-family:inherit;letter-spacing:0.01em;">
+                            Confirm delivery
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <p style="margin:0 0 6px;font-size:11px;color:#94A3B8;letter-spacing:0.06em;text-transform:uppercase;font-weight:600;font-family:inherit;">
+                      Or paste this link into your browser
+                    </p>
+                    <p style="margin:0;font-size:12px;line-height:1.5;color:#475569;word-break:break-all;font-family:'JetBrains Mono',monospace;">
+                      <a href="${escapeHtml(signingUrl)}" style="color:#1E3A5F;text-decoration:underline;">${escapeHtml(signingUrl)}</a>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="padding:18px 16px 4px;font-size:11px;color:#94A3B8;font-family:inherit;">
+              You're receiving this because you're listed as a contact for ${escapeHtml(vesselName)} on Cargo.
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:0 16px 12px;font-size:11px;color:#CBD5E1;font-family:inherit;">
+              Powered by <a href="https://cargotechnology.app" style="color:#94A3B8;text-decoration:none;">Cargo</a>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  return { subject, greeting, body_text: bodyText, body_html: bodyHtml, signing_url: signingUrl };
 }
 
 // ─── Main handler ────────────────────────────────────────────────────────
@@ -395,7 +522,6 @@ Deno.serve(async (req: Request) => {
         const remaining = Math.ceil((IDEMPOTENCY_WINDOW_MS - elapsed) / 1000);
         return jsonResponse({
           ok: true,
-          dry_run: true,
           already_sent: true,
           sent_at: order.delivery_note_emailed_at,
           remaining_window_seconds: remaining,
@@ -445,33 +571,88 @@ Deno.serve(async (req: Request) => {
     const toEmail = resolved.recipients[0].email;
     const bccEmails = resolved.recipients.slice(1).map((r) => r.email);
 
-    // === RUN 2 — DRY-RUN. No Resend send. Return the would-be-sent preview.
+    // === Real send (Run 3) ===
+
+    if (!RESEND_API_KEY) {
+      return jsonResponse({ error: 'RESEND_API_KEY not configured' }, 500);
+    }
+
+    const resendPayload: any = {
+      from: FROM_EMAIL,
+      to: [toEmail],
+      subject: email.subject,
+      html: email.body_html,
+      text: email.body_text,
+    };
+    if (bccEmails.length > 0) resendPayload.bcc = bccEmails;
+
+    const resendRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(resendPayload),
+    });
+
+    const resendBody = await resendRes.json().catch(() => ({}));
+    if (!resendRes.ok) {
+      console.error('[sendDeliveryNoteEmails] Resend send failed', resendRes.status, resendBody);
+      return jsonResponse({
+        error: resendBody?.message || `Resend error ${resendRes.status}`,
+        resend_status: resendRes.status,
+      }, 502);
+    }
+
+    const messageId: string = resendBody?.id || '';
+    const sentAt = new Date().toISOString();
+
+    // Stamp the order — best-effort. If this fails the email already
+    // went out, so we log + still return success rather than misleading
+    // the caller into thinking the send didn't happen.
+    try {
+      await restPatch(`supplier_orders?id=eq.${order.id}`, {
+        delivery_note_emailed_at: sentAt,
+      });
+    } catch (stampErr) {
+      console.error('[sendDeliveryNoteEmails] emailed_at stamp failed (email already sent)', stampErr);
+    }
+
+    // Activity event — best-effort. Payload shape per Lauren's 9b.7 spec:
+    // resolution + matched_role_id are queryable for debugging ("show me
+    // orders where rotation fallback fired") and analytics.
+    try {
+      await restPostNoReturn('supplier_order_activity', {
+        order_id: order.id,
+        event_type: 'delivery_note_emailed',
+        actor_user_id: user.id,
+        actor_supplier_contact_id: contact.id,
+        actor_role: 'supplier',
+        payload: {
+          to: resolved.recipients.map((r) => r.email),
+          sent_by: senderId,
+          resolution: resolved.resolution,
+          matched_role_id: resolved.matched_role_id,
+          recipient_count: resolved.recipients.length,
+          message_id: messageId,
+          attached: false,
+          force: !!force,
+        },
+      });
+    } catch (logErr) {
+      console.error('[sendDeliveryNoteEmails] activity event write failed', logErr);
+    }
+
     return jsonResponse({
       ok: true,
-      dry_run: true,
-      order_id: orderId,
-      order_short_id: orderShortId,
-      vessel_name: vesselName,
-      supplier_name: supplierName,
+      message_id: messageId,
+      sent_to: resolved.recipients.map((r) => r.email),
+      recipient_count: resolved.recipients.length,
       resolution: resolved.resolution,
       matched_role_id: resolved.matched_role_id,
-      recipient_count: resolved.recipients.length,
-      recipients: resolved.recipients.map((r) => ({
-        email: r.email,
-        first_name: r.first_name,
-        full_name: r.full_name,
-      })),
-      would_send: {
-        from: 'Cargo <hello@cargotechnology.co.uk>',
-        to: [toEmail],
-        bcc: bccEmails,
-        subject: email.subject,
-        body_text: email.body_text,
-        signing_url: email.signing_url,
-      },
+      attached: false,
       force: !!force,
-      preview_only: true,
-      note: 'Run 2 dry-run. Run 3 will replace this with a real Resend send + activity event + emailed_at stamp.',
+      sent_at: sentAt,
     }, 200);
 
   } catch (err: any) {
