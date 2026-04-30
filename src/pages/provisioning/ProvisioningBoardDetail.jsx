@@ -62,6 +62,7 @@ import SummaryGauges from './components/SummaryGauges';
 import { getActivityForEntity } from '../../utils/activityStorage';
 import { supabase } from '../../lib/supabaseClient';
 import { getDepartmentColor, hexToRgba, categoriesForDept } from './data/categories';
+import { useInferCategory } from './hooks/useInferCategory';
 
 // ── (SummaryGauges, SemiGauge, useCountUp live in components/SummaryGauges.jsx) ─
 
@@ -211,6 +212,7 @@ const ProvisioningBoardDetail = () => {
   const [addingToDept, setAddingToDept] = useState(null);
   const [newItemName, setNewItemName] = useState('');
   const [newItemCategory, setNewItemCategory] = useState('');
+  const { inferring, inferredCategory, infer: inferCategory, clearInference } = useInferCategory();
   const [showMenu, setShowMenu] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
@@ -390,6 +392,25 @@ const ProvisioningBoardDetail = () => {
     return (Array.isArray(list?.department) ? list.department.filter(Boolean) : (list?.department || '').split(',').map(d => d.trim()).filter(Boolean))[0]
       || departments[0]?.name || null;
   }, [departments, list?.department, user?.department]);
+
+  // ── AI category inference (Sprint 4B Phase 4) ────────────────────────────
+  // Apply the inferred category to the add row only when the dropdown is
+  // still empty and the name input is still populated. User-picked values
+  // win — the guard re-checks state every render so a category typed during
+  // the 800ms debounce isn't overwritten when the inference resolves.
+  useEffect(() => {
+    if (!inferredCategory) return;
+    if (newItemCategory.trim()) return;
+    if (!newItemName.trim()) return;
+    setNewItemCategory(inferredCategory);
+  }, [inferredCategory, newItemCategory, newItemName]);
+
+  // Cross-row staleness guard: when the active add row changes (or closes),
+  // drop any in-flight or resolved inference so a result from one surface
+  // can't auto-fill a different one.
+  useEffect(() => {
+    clearInference();
+  }, [addingToDept, clearInference]);
 
   // ── Load ──────────────────────────────────────────────────────────────────
 
@@ -1538,16 +1559,28 @@ const ProvisioningBoardDetail = () => {
               <p style={{ fontSize: 12, color: '#94A3B8', marginBottom: 20 }}>View the Deliveries tab for delivery history.</p>
               {addingToDept === '__global__' ? (
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'white', border: '1px solid #93C5FD', borderRadius: 8 }}>
-                  <input autoFocus type="text" placeholder="Item name…" value={newItemName} onChange={e => setNewItemName(e.target.value)}
+                  <input autoFocus type="text" placeholder="Item name…" value={newItemName}
+                    onChange={e => {
+                      setNewItemName(e.target.value);
+                      if (!e.target.value.trim()) clearInference();
+                    }}
+                    onBlur={() => {
+                      const dn = defaultDept || 'General';
+                      if (!newItemCategory.trim() && newItemName.trim()) {
+                        inferCategory(newItemName, dn, categoriesForDept(dn));
+                      }
+                    }}
                     onKeyDown={e => { if (e.key === 'Enter') { handleAddItem(defaultDept || 'General'); setAddingToDept(null); } if (e.key === 'Escape') { setAddingToDept(null); setNewItemName(''); setNewItemCategory(''); } }}
                     style={{ fontSize: 13, background: 'transparent', border: 'none', outline: 'none', color: '#0F172A', width: 200 }} />
                   <select
                     value={newItemCategory}
                     onChange={e => setNewItemCategory(e.target.value)}
-                    style={{ fontSize: 13, background: 'white', border: '1px solid #93C5FD', borderRadius: 6, padding: '4px 8px', outline: 'none', color: newItemCategory ? '#0F172A' : '#94A3B8', cursor: 'pointer' }}
+                    style={{ fontSize: 13, background: 'white', border: '1px solid #93C5FD', borderRadius: 6, padding: '4px 8px', outline: 'none', color: newItemCategory ? '#0F172A' : '#94A3B8', cursor: 'pointer', fontStyle: !newItemCategory && inferring ? 'italic' : 'normal' }}
                   >
-                    <option value="">Select category…</option>
-                    {categoriesForDept(defaultDept || 'General').map(c => <option key={c} value={c}>{c}</option>)}
+                    <option value="">{inferring && !newItemCategory ? 'Inferring…' : 'Select category…'}</option>
+                    {categoriesForDept(defaultDept || 'General').filter(c => c !== 'Uncategorised').map(c => <option key={c} value={c}>{c}</option>)}
+                    <option disabled>──────────</option>
+                    <option value="Uncategorised">Uncategorised</option>
                   </select>
                   <button onClick={() => { handleAddItem(defaultDept || 'General'); setAddingToDept(null); }} style={{ fontSize: 12, fontWeight: 600, padding: '4px 10px', background: '#1E3A5F', border: 'none', borderRadius: 6, color: 'white', cursor: 'pointer' }}>Add</button>
                   <button onClick={() => { setAddingToDept(null); setNewItemName(''); setNewItemCategory(''); }} style={{ fontSize: 12, padding: '4px 8px', background: 'none', border: '1px solid #E2E8F0', borderRadius: 6, color: '#94A3B8', cursor: 'pointer' }}>Cancel</button>
@@ -1885,20 +1918,6 @@ const ProvisioningBoardDetail = () => {
                             // of truth: public.departments.color). Falls back to neutral grey
                             // when the dept isn't in the lookup table (e.g. 'General').
                             const color = getDepartmentColor(deptObj);
-                            // Diagnostic: confirm deptObj carries a colour from the DB.
-                            // Remove once dept colour rendering is verified end-to-end.
-                            if (typeof window !== 'undefined' && !window.__deptColourDebugLogged?.[dept]) {
-                              console.log('[dept-colour-debug]', {
-                                dept,
-                                deptObj,
-                                resolvedColor: color,
-                                deptObjColor: deptObj?.color,
-                                fellBack: !deptObj || !deptObj.color,
-                                allDepartments: departments.map(x => ({ name: x?.name, color: x?.color })),
-                              });
-                              window.__deptColourDebugLogged = window.__deptColourDebugLogged || {};
-                              window.__deptColourDebugLogged[dept] = true;
-                            }
                             const key = `${dept}::${category}`;
                             const isCollapsed = collapsedCategories.has(key);
                             const subtotal = catItems.reduce((sum, i) => {
@@ -1969,17 +1988,27 @@ const ProvisioningBoardDetail = () => {
                             type="text"
                             placeholder="Item name…"
                             value={newItemName}
-                            onChange={e => setNewItemName(e.target.value)}
+                            onChange={e => {
+                              setNewItemName(e.target.value);
+                              if (!e.target.value.trim()) clearInference();
+                            }}
+                            onBlur={() => {
+                              if (!newItemCategory.trim() && newItemName.trim()) {
+                                inferCategory(newItemName, dept, categoriesForDept(dept));
+                              }
+                            }}
                             onKeyDown={e => { if (e.key === 'Enter') handleAddItem(dept); if (e.key === 'Escape') { setAddingToDept(null); setNewItemName(''); setNewItemCategory(''); } }}
                             style={{ flex: 1, fontSize: 13, background: 'white', border: '1px solid #93C5FD', borderRadius: 6, padding: '5px 10px', outline: 'none', color: '#0F172A' }}
                           />
                           <select
                             value={newItemCategory}
                             onChange={e => setNewItemCategory(e.target.value)}
-                            style={{ flex: '0 0 200px', fontSize: 13, background: 'white', border: '1px solid #93C5FD', borderRadius: 6, padding: '5px 10px', outline: 'none', color: newItemCategory ? '#0F172A' : '#94A3B8', cursor: 'pointer' }}
+                            style={{ flex: '0 0 200px', fontSize: 13, background: 'white', border: '1px solid #93C5FD', borderRadius: 6, padding: '5px 10px', outline: 'none', color: newItemCategory ? '#0F172A' : '#94A3B8', cursor: 'pointer', fontStyle: !newItemCategory && inferring ? 'italic' : 'normal' }}
                           >
-                            <option value="">Select category…</option>
-                            {categoriesForDept(dept).map(c => <option key={c} value={c}>{c}</option>)}
+                            <option value="">{inferring && !newItemCategory ? 'Inferring…' : 'Select category…'}</option>
+                            {categoriesForDept(dept).filter(c => c !== 'Uncategorised').map(c => <option key={c} value={c}>{c}</option>)}
+                            <option disabled>──────────</option>
+                            <option value="Uncategorised">Uncategorised</option>
                           </select>
                           <button onClick={() => handleAddItem(dept)} style={{ fontSize: 12, fontWeight: 600, padding: '5px 12px', background: '#1E3A5F', border: 'none', borderRadius: 6, color: 'white', cursor: 'pointer' }}>Add</button>
                           <button onClick={() => { setAddingToDept(null); setNewItemName(''); setNewItemCategory(''); }} style={{ fontSize: 12, padding: '5px 10px', background: 'none', border: '1px solid #E2E8F0', borderRadius: 6, color: '#94A3B8', cursor: 'pointer' }}>Cancel</button>
@@ -2023,7 +2052,16 @@ const ProvisioningBoardDetail = () => {
                       type="text"
                       placeholder="Item name…"
                       value={newItemName}
-                      onChange={e => setNewItemName(e.target.value)}
+                      onChange={e => {
+                        setNewItemName(e.target.value);
+                        if (!e.target.value.trim()) clearInference();
+                      }}
+                      onBlur={() => {
+                        const dn = defaultDept || 'General';
+                        if (!newItemCategory.trim() && newItemName.trim()) {
+                          inferCategory(newItemName, dn, categoriesForDept(dn));
+                        }
+                      }}
                       onKeyDown={e => {
                         if (e.key === 'Enter') { handleAddItem(defaultDept || 'General'); setAddingToDept(null); }
                         if (e.key === 'Escape') { setAddingToDept(null); setNewItemName(''); setNewItemCategory(''); }
@@ -2033,10 +2071,12 @@ const ProvisioningBoardDetail = () => {
                     <select
                       value={newItemCategory}
                       onChange={e => setNewItemCategory(e.target.value)}
-                      style={{ flex: '0 0 200px', fontSize: 13, background: 'white', border: '1px solid #93C5FD', borderRadius: 6, padding: '6px 10px', outline: 'none', color: newItemCategory ? '#0F172A' : '#94A3B8', cursor: 'pointer' }}
+                      style={{ flex: '0 0 200px', fontSize: 13, background: 'white', border: '1px solid #93C5FD', borderRadius: 6, padding: '6px 10px', outline: 'none', color: newItemCategory ? '#0F172A' : '#94A3B8', cursor: 'pointer', fontStyle: !newItemCategory && inferring ? 'italic' : 'normal' }}
                     >
-                      <option value="">Select category…</option>
-                      {categoriesForDept(defaultDept || 'General').map(c => <option key={c} value={c}>{c}</option>)}
+                      <option value="">{inferring && !newItemCategory ? 'Inferring…' : 'Select category…'}</option>
+                      {categoriesForDept(defaultDept || 'General').filter(c => c !== 'Uncategorised').map(c => <option key={c} value={c}>{c}</option>)}
+                      <option disabled>──────────</option>
+                      <option value="Uncategorised">Uncategorised</option>
                     </select>
                     <button onClick={() => { handleAddItem(defaultDept || 'General'); setAddingToDept(null); }} style={{ fontSize: 12, fontWeight: 600, padding: '6px 14px', background: '#1E3A5F', border: 'none', borderRadius: 6, color: 'white', cursor: 'pointer' }}>Add</button>
                     <button onClick={() => { setAddingToDept(null); setNewItemName(''); setNewItemCategory(''); }} style={{ fontSize: 12, padding: '6px 10px', background: 'none', border: '1px solid #E2E8F0', borderRadius: 6, color: '#94A3B8', cursor: 'pointer' }}>Cancel</button>
