@@ -2387,6 +2387,40 @@
 .cargo-od-footer-spacer { flex: 1; }
 .cargo-od-footer .cargo-ribbon-btn { font-size: 11px; }
 
+/* ── Sprint 9c.2 page redirect — section cards / footer card ─
+
+   In the order detail page (replacing the drawer), the surface needs
+   visual rhythm: atmospheric sections bleed into the cream, data-dense
+   sections sit inside flat white cards. These two classes are the
+   canonical editorial container — pure flat, no shadows, no 3D edge,
+   no terracotta accent at the card level.
+
+   Used by:
+     .editorial-section-card → Documents (What's *in flight*), Lines,
+                                Activity. Hero, stats grid, and the
+                                lifecycle timeline stay bleeding.
+     .editorial-footer-card  → action zone at the bottom of the page,
+                                slightly warmer cream tint to signal
+                                that buttons live here. */
+.editorial-section-card {
+  background: #FFFFFF;
+  border: 1px solid rgba(30, 39, 66, 0.06);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+.editorial-footer-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #FAF7F0;
+  border: 1px solid rgba(30, 39, 66, 0.06);
+  border-radius: 12px;
+  padding: 0.85rem 1.25rem;
+  margin-top: 1.25rem;
+}
+.editorial-footer-card .cargo-ribbon-btn { font-size: 11px; }
+
 /* ── Responsive (mobile/narrow viewport) ───────────────────── */
 @media (max-width: 640px) {
   .cargo-od-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }

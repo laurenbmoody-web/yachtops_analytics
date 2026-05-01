@@ -566,7 +566,7 @@ function primaryActionFor(status) {
 function FooterBar({ status, onBack }) {
   const primary = primaryActionFor(status);
   return (
-    <div className="cargo-od-footer">
+    <div className="editorial-footer-card">
       <button
         type="button"
         className="cargo-ribbon-btn cargo-ribbon-btn-primary"
@@ -755,7 +755,7 @@ export default function SupplierOrderPage() {
   return (
     <>
       <Header />
-      <div className="editorial-page" style={{ paddingBottom: 96 }}>
+      <div className="editorial-page">
 
         {/* Editorial header — back link · meta strip · headline · subline.
             Built manually because EditorialHeadline uppercases the title and
@@ -804,14 +804,14 @@ export default function SupplierOrderPage() {
             <LifecycleTimeline order={order} />
           </div>
 
-          <div className="cargo-od-section">
+          <div className="editorial-section-card">
             <span className="cargo-od-section-label">
               What's <em>in flight</em>.
             </span>
             <DocumentsSection order={order} />
           </div>
 
-          <div className="cargo-od-section">
+          <div className="editorial-section-card">
             <span className="cargo-od-section-label">Lines.</span>
             <LinesSection
               order={order}
@@ -824,17 +824,17 @@ export default function SupplierOrderPage() {
             />
           </div>
 
-          <div className="cargo-od-section">
+          <div className="editorial-section-card">
             <span className="cargo-od-section-label">
               Recent <em>activity</em>.
             </span>
             <ActivitySection orderId={order.id} />
           </div>
+
+          {/* Action zone — in-flow card, slightly warmer cream tint. */}
+          <FooterBar status={order.status} onBack={handleBack} />
         </div>
       </div>
-
-      {/* Sticky footer pinned to viewport bottom. */}
-      <FooterBar status={order.status} onBack={handleBack} />
 
       {/* Query placeholder modal — Sprint 9.5 stub, copy-pasted from
           ProvisioningBoardDetail. Threaded discussions land in a future
