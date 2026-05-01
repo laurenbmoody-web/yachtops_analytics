@@ -271,6 +271,65 @@ const resolveSupabaseTripId = async (lsTrip) => {
   }
 };
 
+// ── Itinerary day merge (A3.7a) ─────────────────────────────────────
+//
+// trip_itinerary_days rows live in Supabase. The overview modal also
+// writes legacy fields (keyEvents, guestMovements) to a LS sidecar
+// keyed by the Supabase day uuid — those fields don't have a Supabase
+// home and aren't worth a column for. The sidecar lives inside the
+// legacy `trip.itineraryDays` array so older callers (TripCalendar's
+// hasGuestMovement, TodayOverview's keyEvents render) keep working
+// with the merged shape.
+//
+// Pre-A3.7a localStorage-only days have timestamp-shaped ids
+// (`day-{ts}-{rand}`) — those won't collide with Supabase UUIDs and
+// surface alongside, sorted by date in the timeline UI. Lauren's audit
+// confirmed real LS data is empty across all trips, so this branch is
+// theoretical but keeps the migration recovery-safe.
+const mergeItineraryDays = (supabaseDays, lsTrip) => {
+  const lsDays = Array.isArray(lsTrip?.itineraryDays) ? lsTrip.itineraryDays : [];
+  const lsByUuid = new Map();
+  const lsLegacyOnly = [];
+
+  for (const lsDay of lsDays) {
+    if (!lsDay?.id) continue;
+    // UUIDs match Supabase rows; everything else is legacy LS-only.
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lsDay.id);
+    if (isUuid) lsByUuid.set(lsDay.id, lsDay);
+    else        lsLegacyOnly.push(lsDay);
+  }
+
+  // Supabase days, hydrated with legacy-extras sidecar when present.
+  const merged = (supabaseDays || [])
+    .filter(d => !d?.is_deleted)
+    .map(d => {
+      const sidecar = lsByUuid.get(d.id) || {};
+      return {
+        // Supabase canonical fields, in legacy camelCase shape so
+        // existing readers (TodayOverview, TripCalendar) work as-is.
+        id:             d.id,
+        date:           d.event_date,
+        locationTitle:  d.location,
+        stopType:       d.stop_type ?? null,
+        stopDetail:     d.stop_detail ?? null,
+        notes:          d.notes ?? '',
+        aboardGuestIds: Array.isArray(d.aboard_guest_ids) ? d.aboard_guest_ids : [],
+        createdAt:      d.created_at,
+        createdByUserId: d.created_by ?? null,
+        updatedAt:      d.updated_at,
+        // Legacy LS-only fields (sidecar):
+        keyEvents:      Array.isArray(sidecar?.keyEvents)      ? sidecar.keyEvents      : [],
+        guestMovements: Array.isArray(sidecar?.guestMovements) ? sidecar.guestMovements : [],
+        mapImageUrl:    sidecar?.mapImageUrl ?? null,
+      };
+    });
+
+  // Append any legacy LS-only days (string ids). They're transitional —
+  // Lauren confirmed empty in production, but the path is here for
+  // safety if someone has localdata from before the swap.
+  return [...merged, ...lsLegacyOnly];
+};
+
 // Map a Supabase trips row (joined with trip_guests) into the legacy
 // camelCase shape that callers expect. Embedded arrays come from the
 // matching localStorage trip when present; default to empty otherwise.
@@ -335,8 +394,12 @@ const mapSupabaseTripToLegacyShape = (row, lsTrip, { preferLs = false } = {}) =>
     guests,
     guestIds: guests.map(g => g.guestId), // legacy back-compat
 
-    // Embedded arrays — localStorage only (no Supabase home, A3.7+)
-    itineraryDays:        lsTrip?.itineraryDays        ?? [],
+    // Embedded arrays — most are localStorage only (no Supabase home,
+    // A3.7+). itineraryDays merges Supabase trip_itinerary_days rows
+    // (A3.7a, supplied by loadTrips) with any legacy LS-only days, plus
+    // a legacy-extras sidecar (keyEvents/guestMovements/mapImageUrl)
+    // keyed by day id for overview-modal-created days.
+    itineraryDays:        mergeItineraryDays(row?.trip_itinerary_days || [], lsTrip),
     specialDates:         lsTrip?.specialDates         ?? [],
     specialRequests:      lsTrip?.specialRequests      ?? [],
     photos:               lsTrip?.photos               ?? [],
@@ -381,7 +444,11 @@ export const loadTrips = async () => {
         id, tenant_id, name, trip_type, start_date, end_date,
         itinerary_summary, notes, created_by, created_at, updated_at,
         is_deleted, deleted_at, deleted_by_user_id, legacy_local_id,
-        trip_guests ( guest_id, is_active_on_trip, added_at )
+        trip_guests ( guest_id, is_active_on_trip, added_at ),
+        trip_itinerary_days (
+          id, event_date, location, stop_type, stop_detail, notes,
+          aboard_guest_ids, created_at, updated_at, created_by, is_deleted
+        )
       `)
       ?.eq('tenant_id', tid)
       ?.eq('is_deleted', false)
@@ -1040,6 +1107,69 @@ export const getProvisioningStatus = (trip) => {
 // Get laundry status (placeholder)
 export const getLaundryStatus = (trip) => {
   return '—';
+};
+
+// ============ ITINERARY DAY LEGACY-EXTRAS SIDECAR (A3.7a) ============
+//
+// keyEvents (string[]), guestMovements (string[]), and mapImageUrl
+// (string) don't have a Supabase home — they're A3.7b-deferred fields
+// that the overview-tab modal still writes from old behavior, plus
+// mapImageUrl from the timeline modal. Stored in the LS trip's
+// itineraryDays array as `{ id: <supabase-uuid>, keyEvents,
+// guestMovements, mapImageUrl }` so the merge layer in
+// mapSupabaseTripToLegacyShape can hydrate the merged day.
+//
+// Pre-A3.7a LS days (timestamp-shaped ids) coexist alongside without
+// collision; the merge layer keeps both.
+export const setItineraryDayLegacyExtras = (tripId, dayUuid, extras) => {
+  try {
+    if (!dayUuid) return false;
+    const trips = loadLocalTrips();
+    const idx = trips?.findIndex(t => t?.id === tripId || t?.supabaseId === tripId);
+    if (idx === -1) {
+      // No LS row for this trip yet (Supabase-only). Create a minimal
+      // shell so the sidecar has somewhere to live. The merge layer
+      // tolerates an LS row with no top-level fields.
+      trips.push({ id: tripId, itineraryDays: [{ id: dayUuid, ...extras }] });
+      saveTrips(trips);
+      return true;
+    }
+    const days = Array.isArray(trips[idx].itineraryDays) ? trips[idx].itineraryDays : [];
+    const dayIdx = days.findIndex(d => d?.id === dayUuid);
+    const next = { id: dayUuid };
+    if (extras?.keyEvents      !== undefined) next.keyEvents      = extras.keyEvents;
+    if (extras?.guestMovements !== undefined) next.guestMovements = extras.guestMovements;
+    if (extras?.mapImageUrl    !== undefined) next.mapImageUrl    = extras.mapImageUrl;
+
+    if (dayIdx === -1) {
+      trips[idx].itineraryDays = [...days, next];
+    } else {
+      trips[idx].itineraryDays = days.map((d, i) => i === dayIdx ? { ...d, ...next } : d);
+    }
+    saveTrips(trips);
+    return true;
+  } catch (err) {
+    console.error('[setItineraryDayLegacyExtras] failed:', err);
+    return false;
+  }
+};
+
+// Cleanup hook called after deleteDay so the LS sidecar doesn't
+// accumulate stale entries pointing at soft-deleted Supabase rows.
+export const removeItineraryDayLegacyExtras = (tripId, dayUuid) => {
+  try {
+    if (!dayUuid) return false;
+    const trips = loadLocalTrips();
+    const idx = trips?.findIndex(t => t?.id === tripId || t?.supabaseId === tripId);
+    if (idx === -1) return false;
+    const days = Array.isArray(trips[idx].itineraryDays) ? trips[idx].itineraryDays : [];
+    trips[idx].itineraryDays = days.filter(d => d?.id !== dayUuid);
+    saveTrips(trips);
+    return true;
+  } catch (err) {
+    console.error('[removeItineraryDayLegacyExtras] failed:', err);
+    return false;
+  }
 };
 
 // ============ ITINERARY DAY OPERATIONS ============

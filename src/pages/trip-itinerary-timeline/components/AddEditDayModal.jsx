@@ -3,16 +3,25 @@ import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import Icon from '../../../components/AppIcon';
 import { showToast } from '../../../utils/toast';
-import { addItineraryDay, updateItineraryDay } from '../../trips-management-dashboard/utils/tripStorage';
 
-const AddEditDayModal = ({ isOpen, onClose, tripId, editingDay, suggestedDate }) => {
+const STOP_TYPES = ['Dock', 'Anchor', 'Underway'];
+
+const AddEditDayModal = ({
+  isOpen,
+  onClose,
+  editingDay,
+  suggestedDate,
+  guests = [],
+  addDay,
+  updateDay,
+}) => {
   const [formData, setFormData] = useState({
-    date: '',
-    locationTitle: '',
-    stopType: 'ANCHOR',
-    stopDetail: '',
+    event_date: '',
+    location: '',
+    stop_type: '',
+    stop_detail: '',
     notes: '',
-    mapImageUrl: ''
+    aboard_guest_ids: [],
   });
   const [errors, setErrors] = useState({});
 
@@ -20,21 +29,25 @@ const AddEditDayModal = ({ isOpen, onClose, tripId, editingDay, suggestedDate })
     if (isOpen) {
       if (editingDay) {
         setFormData({
-          date: editingDay?.date || '',
-          locationTitle: editingDay?.locationTitle || '',
-          stopType: editingDay?.stopType || 'ANCHOR',
-          stopDetail: editingDay?.stopDetail || '',
-          notes: editingDay?.notes || '',
-          mapImageUrl: editingDay?.mapImageUrl || ''
+          event_date:       editingDay?.date          || editingDay?.event_date      || '',
+          location:         editingDay?.locationTitle || editingDay?.location        || '',
+          stop_type:        editingDay?.stopType      || editingDay?.stop_type       || '',
+          stop_detail:      editingDay?.stopDetail    || editingDay?.stop_detail     || '',
+          notes:            editingDay?.notes         || '',
+          aboard_guest_ids: Array.isArray(editingDay?.aboardGuestIds)
+            ? editingDay.aboardGuestIds
+            : Array.isArray(editingDay?.aboard_guest_ids)
+              ? editingDay.aboard_guest_ids
+              : [],
         });
       } else {
         setFormData({
-          date: suggestedDate || '',
-          locationTitle: '',
-          stopType: 'ANCHOR',
-          stopDetail: '',
-          notes: '',
-          mapImageUrl: ''
+          event_date:       suggestedDate || '',
+          location:         '',
+          stop_type:        '',
+          stop_detail:      '',
+          notes:            '',
+          aboard_guest_ids: [],
         });
       }
       setErrors({});
@@ -50,36 +63,47 @@ const AddEditDayModal = ({ isOpen, onClose, tripId, editingDay, suggestedDate })
     }
   };
 
-  const validate = () => {
-    const newErrors = {};
-
-    if (!formData?.date) {
-      newErrors.date = 'Date is required';
-    }
-
-    if (!formData?.locationTitle?.trim()) {
-      newErrors.locationTitle = 'Location is required';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors)?.length === 0;
+  const toggleGuest = (guestId) => {
+    setFormData(prev => {
+      const set = new Set(prev.aboard_guest_ids);
+      if (set.has(guestId)) set.delete(guestId);
+      else                  set.add(guestId);
+      return { ...prev, aboard_guest_ids: Array.from(set) };
+    });
   };
 
-  const handleSubmit = () => {
+  const validate = () => {
+    const newErrors = {};
+    if (!formData?.event_date) newErrors.event_date = 'Date is required';
+    if (!formData?.location?.trim()) newErrors.location = 'Location is required';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async () => {
     if (!validate()) return;
 
+    const payload = {
+      event_date:       formData.event_date,
+      location:         formData.location.trim(),
+      stop_type:        formData.stop_type || null,
+      stop_detail:      formData.stop_detail?.trim() || null,
+      notes:            formData.notes?.trim() || null,
+      aboard_guest_ids: formData.aboard_guest_ids,
+    };
+
     if (editingDay) {
-      const updated = updateItineraryDay(tripId, editingDay?.id, formData);
+      const updated = await updateDay(editingDay.id, payload);
       if (updated) {
-        showToast('Itinerary day updated successfully', 'success');
+        showToast('Itinerary day updated', 'success');
         onClose();
       } else {
         showToast('Failed to update itinerary day', 'error');
       }
     } else {
-      const created = addItineraryDay(tripId, formData);
+      const created = await addDay(payload);
       if (created) {
-        showToast('Itinerary day added successfully', 'success');
+        showToast('Itinerary day added', 'success');
         onClose();
       } else {
         showToast('Failed to add itinerary day', 'error');
@@ -87,94 +111,95 @@ const AddEditDayModal = ({ isOpen, onClose, tripId, editingDay, suggestedDate })
     }
   };
 
+  const stopTypeIcon = (type) => {
+    switch (type) {
+      case 'Dock':     return 'Anchor';
+      case 'Anchor':   return 'Anchor';
+      case 'Underway': return 'Ship';
+      default:         return 'MapPin';
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-card rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">
           <h2 className="text-xl font-semibold text-foreground">
             {editingDay ? 'Edit Itinerary Day' : 'Add Itinerary Day'}
           </h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-muted rounded-lg transition-smooth"
-          >
+          <button onClick={onClose} className="p-2 hover:bg-muted rounded-lg transition-smooth">
             <Icon name="X" size={20} className="text-muted-foreground" />
           </button>
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {/* Date */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
               Date <span className="text-destructive">*</span>
             </label>
             <Input
               type="date"
-              value={formData?.date}
-              onChange={(e) => handleChange('date', e?.target?.value)}
-              error={errors?.date}
+              value={formData.event_date}
+              onChange={(e) => handleChange('event_date', e?.target?.value)}
+              error={errors?.event_date}
             />
           </div>
 
-          {/* Location */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
               Location <span className="text-destructive">*</span>
             </label>
             <Input
-              value={formData?.locationTitle}
-              onChange={(e) => handleChange('locationTitle', e?.target?.value)}
+              value={formData.location}
+              onChange={(e) => handleChange('location', e?.target?.value)}
               placeholder="e.g., St Martin"
-              error={errors?.locationTitle}
+              error={errors?.location}
             />
           </div>
 
-          {/* Stop Type */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
-              Stop Type <span className="text-destructive">*</span>
+              Stop Type
             </label>
             <div className="flex gap-3">
-              {['DOCK', 'ANCHOR', 'UNDERWAY']?.map(type => (
+              {STOP_TYPES.map(type => (
                 <button
                   key={type}
                   type="button"
-                  onClick={() => handleChange('stopType', type)}
+                  onClick={() => handleChange('stop_type', formData.stop_type === type ? '' : type)}
                   className={`flex-1 px-4 py-3 rounded-lg border transition-smooth ${
-                    formData?.stopType === type
-                      ? 'border-primary bg-primary/10 text-primary font-medium' :'border-border bg-card text-foreground hover:border-primary/50'
+                    formData.stop_type === type
+                      ? 'border-primary bg-primary/10 text-primary font-medium'
+                      : 'border-border bg-card text-foreground hover:border-primary/50'
                   }`}
                 >
-                  {type === 'DOCK' && <Icon name="Anchor" size={16} className="inline mr-2" />}
-                  {type === 'ANCHOR' && <Icon name="Anchor" size={16} className="inline mr-2" />}
-                  {type === 'UNDERWAY' && <Icon name="Ship" size={16} className="inline mr-2" />}
+                  <Icon name={stopTypeIcon(type)} size={16} className="inline mr-2" />
                   {type}
                 </button>
               ))}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Optional — leave blank if unspecified.
+            </p>
           </div>
 
-          {/* Stop Detail */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
               Stop Detail (Optional)
             </label>
             <Input
-              value={formData?.stopDetail}
-              onChange={(e) => handleChange('stopDetail', e?.target?.value)}
-              placeholder="e.g., St Martin Anchorage, Nassau Marine"
+              value={formData.stop_detail}
+              onChange={(e) => handleChange('stop_detail', e?.target?.value)}
+              placeholder="e.g., St Martin Anchorage, Nassau Marina"
             />
           </div>
 
-          {/* Notes */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
               Notes (Optional)
             </label>
             <textarea
-              value={formData?.notes}
+              value={formData.notes}
               onChange={(e) => handleChange('notes', e?.target?.value)}
               placeholder="e.g., Evening cruise, Pick up"
               rows={3}
@@ -182,27 +207,43 @@ const AddEditDayModal = ({ isOpen, onClose, tripId, editingDay, suggestedDate })
             />
           </div>
 
-          {/* Map Image URL (optional) */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
-              Map Image URL (Optional)
+              Aboard Guests (Optional)
             </label>
-            <Input
-              value={formData?.mapImageUrl}
-              onChange={(e) => handleChange('mapImageUrl', e?.target?.value)}
-              placeholder="https://example.com/map.jpg"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Leave empty to use default placeholder
-            </p>
+            {guests?.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No guests on this trip yet.</p>
+            ) : (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  {guests.map(g => {
+                    const selected = formData.aboard_guest_ids.includes(g?.id);
+                    return (
+                      <button
+                        key={g?.id}
+                        type="button"
+                        onClick={() => toggleGuest(g?.id)}
+                        className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-smooth ${
+                          selected
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-border bg-card text-foreground hover:border-primary/50'
+                        }`}
+                      >
+                        {g?.firstName || g?.first_name || g?.name || 'Guest'}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Empty selection = all trip guests aboard.
+                </p>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-end gap-3 p-6 border-t border-border">
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSubmit}>
             {editingDay ? 'Save Changes' : 'Add Day'}
           </Button>

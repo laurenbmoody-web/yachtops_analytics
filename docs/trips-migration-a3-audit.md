@@ -881,3 +881,86 @@ Lauren reported "theres no actual delete trip function … theres no edit button
 Both cases self-heal without manual ledger surgery.
 
 **Pattern note: orphan handlers are a code-review blind spot.** Handler functions defined alongside other component logic look complete in isolation — they read, mutate, fire toasts, navigate on success. But "defined" ≠ "wired". `grep -rn "handleX" src/` catching zero callers outside the definition site is the cheap sanity check. Worth adding as a per-PR smoke test: list new handler functions, grep their names, confirm at least one external caller. Applies anywhere — handler authoring and UI button wiring tend to happen in different parts of the file (or in different sessions) and can drift.
+
+---
+
+## Addendum — PR4 (A3.7a) — itinerary days + activities
+
+A3.7a moves trip itinerary out of the embedded `trip.itineraryDays` LS array into two new Supabase tables: `trip_itinerary_days` and `trip_itinerary_activities`. Activities are a brand-new first-class concept — no LS predecessor.
+
+### Pre-PR audit findings (before code)
+
+The pre-PR survey flagged six gaps between Lauren's spec and the existing codebase. Surfacing them before writing code saved a re-do round:
+
+1. **Two itinerary surfaces, not one** — `ItinerarySection` in trip detail overview (orphan, never rendered) and the dedicated `/trips/:tripId/itinerary` route (`TripItineraryTimeline`, the live surface).
+2. **Two modals, different field shapes** — `AddItineraryDayModal` (overview tab, simpler — date / location / keyEvents / guestMovements / notes) and `AddEditDayModal` (timeline page, richer — date / location / stop_type / stop_detail / notes / mapImageUrl). Same underlying day record.
+3. **stop_type required in spec, missing from overview modal** — schema would have rejected every overview-tab insert.
+4. **`guestMovements` (string[]) ≠ `aboard_guest_ids` (UUID[])** — different semantics. guestMovements is ad-hoc text, aboard_guest_ids is structured membership.
+5. **Activities is brand-new** — no existing AddActivityModal, no helper, no embedded sub-array. Closest analog is `keyEvents` (string[]).
+6. **mapImageUrl in timeline modal, not in spec** — Storage bucket strategy is A3.10 territory.
+
+### Decisions locked
+
+- `stop_type` nullable with `CHECK (stop_type IS NULL OR stop_type IN ('Dock', 'Anchor', 'Underway'))`. Overview modal writes NULL; timeline modal writes one of the three.
+- Activities are independent of `keyEvents`. Legacy `keyEvents` stays LS-only as a "Key Events" sidecar field on the day; A3.7b decides whether to retire or repurpose.
+- `guestMovements` stays LS-only on the day (sidecar). A3.7b retirement decision.
+- `mapImageUrl` dropped from new schema, stays LS-only (sidecar, timeline modal only).
+- Both modals write the same `trip_itinerary_days` table — overview modal writes a subset (no stop_type, no stop_detail, no aboard_guest_ids), timeline modal writes the full set.
+- No migration runner for A3.7a — Lauren's audit confirmed real LS data is empty across all trips. Future LS-only days (if any pre-A3.7a data exists in someone's browser) surface alongside Supabase days via the merge layer.
+
+### Schema
+
+Two migrations, mirroring A1 + Stew Notes Phase D conventions:
+
+- `20260501000000_trip_itinerary_days.sql` — UUID PK, tenant_id + trip_id FKs, event_date / location / stop_type (nullable, CHECK) / stop_detail / notes / aboard_guest_ids (UUID[] DEFAULT '{}' NOT NULL), soft-delete trio, `is_tenant_member` RLS, GIN index on `aboard_guest_ids`.
+- `20260501000100_trip_itinerary_activities.sql` — UUID PK, tenant_id + day_id FKs (`ON DELETE CASCADE` so hard-deleting a day takes activities with it), nullable start_time TIME, title (NOT NULL), description / location, linked_guest_ids (UUID[]), sort_order INTEGER. Same RLS + soft-delete + GIN.
+
+Both idempotent (`IF NOT EXISTS`, `DROP POLICY IF EXISTS`, `DROP TRIGGER IF EXISTS`).
+
+### Hook: `useItinerary(tripSupabaseId)`
+
+Mirrors `useStewNotes`. Tenant-scoped fetch via `cargo_active_tenant_id` LS key (sync, no extra round-trip). PostgREST nested select returns days with embedded activities in one query. Optimistic CRUD on both — `addDay`, `updateDay`, `deleteDay`, `addActivity`, `updateActivity`, `deleteActivity`, `reorderActivities`. Rollback on Supabase error.
+
+Sort: days by `event_date` ascending, activities within a day by `start_time NULLS LAST` then `sort_order` (resolves time-less-activity ties without exposing sort_order to users).
+
+### Merge-on-read pattern (A3.7a embedded-array bridge)
+
+`mapSupabaseTripToLegacyShape` now hydrates `trip.itineraryDays` from the SELECT's `trip_itinerary_days(*)` embed, in legacy camelCase shape (`{ id, date, locationTitle, stopType, stopDetail, notes, aboardGuestIds, ... }`). Existing readers (`TodayOverviewSection`, `TomorrowSnapshotSection`, `TripCalendarSection`, `provisioningSuggestions.js`) keep working without rewrites — they read the merged shape from `trip.itineraryDays` exactly as before.
+
+The legacy LS array in `trip.itineraryDays` is repurposed as a **sidecar**: when a Supabase day uuid matches an LS entry, the LS entry's `keyEvents` / `guestMovements` / `mapImageUrl` fields hydrate the merged day object alongside Supabase canonical fields. The overview modal writes this sidecar via `setItineraryDayLegacyExtras(tripId, dayUuid, extras)` after a successful `addDay` / `updateDay`.
+
+Pre-A3.7a LS days (timestamp-shaped ids like `day-{ts}-{rand}`) coexist alongside without collision — the merge layer surfaces them as standalone days. Lauren confirmed real LS data is empty so this is theoretical, but the path is recovery-safe if any user browser has stranded LS data.
+
+**Pattern note: array column vs join table for embedded-but-rarely-queried-independently data.** `aboard_guest_ids UUID[]` (and `linked_guest_ids` on activities) lives as a Postgres array column, not a join table. Trade-off:
+
+- **Array column wins for**: small N (typical trip has <20 guests), always read alongside the parent (the day or activity always wants its guest list), no need to query "show all days where guest X was aboard" from scratch (GIN index handles it efficiently).
+- **Join table wins for**: large N (would be a guest-aboard membership table for vessels with hundreds of named guests across years), independent reads needed (analytics like "guest X's lifetime cruise history" — but that's better served by `trip_guests`), constraint enforcement (FK to guests table on each membership row, which the array doesn't enforce by itself).
+
+A3.7a picked array column because (a) trip rarely has more than 8-12 guests, (b) the field is always read with the parent day/activity, (c) `linked_guest_ids` on activities at most overlaps with the day's `aboard_guest_ids` so duplication is tolerable, (d) the GIN index supports the future "show all activities involving guest X" query without a separate table. Same trade-off Stew Notes Phase D made for `related_guest_ids` on `stew_notes`.
+
+The downside: render path needs to silently filter out non-existent guest UUIDs (a guest removed from the trip leaves stale UUIDs in `aboard_guest_ids` arrays on past days). Both modals + `DayCard` render handle this via `guestNameById(guests, id)` returning null → entry skipped. Same pattern Stew Notes uses.
+
+### UI scope
+
+- **Overview modal `AddItineraryDayModal`** — wired to hook's `addDay` / `updateDay` plus `setItineraryDayLegacyExtras` for keyEvents/guestMovements. **Note**: this modal's open-trigger is itself orphan (`setShowAddItineraryModal(true)` never called); spec wires the modal so it works the moment a UI affordance is added. Same orphan-handler pattern flagged in PR3 round-2.
+- **Timeline modal `AddEditDayModal`** — wired to hook's `addDay` / `updateDay`. Stop-type values converted from legacy uppercase (`DOCK`/`ANCHOR`/`UNDERWAY`) to title case (`Dock`/`Anchor`/`Underway`) matching the schema CHECK. New aboard-guests inline pill picker — empty selection means "all trip guests aboard."
+- **Timeline page `TripItineraryTimeline`** — consumes `useItinerary(trip?.supabaseId)`, renders `days` (raw Supabase shape) instead of legacy `trip.itineraryDays`. `DayCard` rebuilt around the new shape with activities rendered inline below day metadata. Each day shows aboard-guest pills (or "All guests aboard" placeholder), activity list with time / title / description / location / linked-guest pills, edit + delete affordances per activity.
+- **New `AddActivityModal`** — opens via `+ Add activity` per day. HTML5 `<input type="time">` (optional), title (required), description / location (optional), linked guests (optional pill picker). Calls `addActivity({ day_id, ... })` / `updateActivity(id, ...)`.
+- **Editorial design treatment** — out of scope for A3.7a per spec. Components use existing card / button / input primitives without restyling. A3.7b ships the design pass.
+
+### Architectural callouts surfaced during build
+
+1. **Stop type case mismatch.** The legacy timeline modal stored uppercase values (`DOCK`/`ANCHOR`/`UNDERWAY`); the schema CHECK accepts only title case. Resolved by changing the modal to write title case + `DayCard`'s `getStopTypeConfig` switch updated. Any pre-A3.7a LS days with uppercase stop_type render as "no stop type" (config returns null, chip hidden) — graceful degradation.
+2. **Legacy helpers retained as exports.** `addItineraryDay` / `updateItineraryDay` / `deleteItineraryDay` in `tripStorage.js` keep their LS-only bodies. No internal callers remain after A3.7a, but removing them now is a wider blast-radius change. They'll be retired in A3.7b alongside the keyEvents/guestMovements/mapImageUrl sidecar fields they were authored for.
+3. **The trip detail page consumes `useItinerary` for a currently-orphan modal.** `useItinerary(trip?.supabaseId)` is mounted on every trip detail render so that when the AddItineraryDayModal is eventually wired to a button, mutations flow without further refactoring. Cost: one extra Supabase fetch per trip detail mount that nothing currently consumes — cheap but noticeable. A3.7b can decide to fold this picture differently (e.g. open the modal from the timeline page only, drop the orphan path entirely).
+4. **`trip.supabaseId` may be null briefly during initial load.** Hook returns `{ days: [], loading: false }` when `tripSupabaseId` is undefined — handled by the empty state on the timeline page; on the trip detail page the orphan modal can't open until trip loads anyway.
+5. **`is_deleted` filter on PostgREST nested embed.** The query selects activities whose parent day is `is_deleted = false`, but doesn't filter activity-level `is_deleted` in the embed expression. Client-side filter (`.filter(a => !a?.is_deleted)`) handles it. A future micro-optim: PostgREST's embedded filter syntax `!inner` or `?trip_itinerary_activities.is_deleted=eq.false` could push the filter server-side.
+
+### Filed for A3.7b
+
+- `keyEvents` (string[]) — retire or migrate into `trip_itinerary_activities` rows? Today it's a typed-text bullet list; activities want richer structure (time, location, linked guests). Migration story TBD.
+- `guestMovements` (string[]) — same retire/migrate question. Calendar dot logic depends on `guestMovements.length > 0 || aboard_guest_ids.length > 0`; once retired the calendar should pull from `aboard_guest_ids` exclusively (cleaner anyway).
+- `mapImageUrl` — Storage bucket strategy + UI for upload. Currently dead-codepath (no users have this set). Likely folds into A3.10 photos migration.
+- Editorial design pass (A3.7b proper) — current UI uses existing primitives without restyling.
+- Wire the orphan `AddItineraryDayModal` open trigger (`setShowAddItineraryModal(true)`) — same orphan-handler gap pattern as PR3 round-2's Edit/Delete trip buttons.
+- Decide whether the trip detail page should consume `useItinerary` at all (vs only the timeline page) — depends on whether A3.7b adds itinerary editing affordances to the overview tab.
