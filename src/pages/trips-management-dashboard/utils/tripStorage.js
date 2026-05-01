@@ -233,7 +233,10 @@ const loadLocalTrips = () => {
 // Returns the supabaseId on success, null when the trip has no
 // matching Supabase row (e.g. LS-only pending-sync trip the migration
 // runner hasn't seen yet).
-const resolveSupabaseTripId = async (lsTrip) => {
+// Exported for callers (e.g. useItinerary mount sites) that need the
+// uuid before invoking a Supabase-backed hook. Same lazy-resolve
+// pattern updateTrip / deleteTrip use internally.
+export const resolveSupabaseTripId = async (lsTrip) => {
   if (!lsTrip) return null;
   if (lsTrip.supabaseId) return lsTrip.supabaseId;
 
