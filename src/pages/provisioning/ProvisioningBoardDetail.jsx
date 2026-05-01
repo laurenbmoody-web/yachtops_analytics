@@ -2692,32 +2692,22 @@ const ProvisioningBoardDetail = () => {
         onClose={() => setItemDrawer({ open: false, item: null })}
       />
 
-      {/* Sprint 9c.2 Commit 1.5 — supplier order detail drawer.
+      {/* Sprint 9c.2 Commit 1.5b — supplier order detail drawer.
           Resolves the live order off the supplierOrders list each render so
           mid-quote edits (Accept/Decline/Query) reflect immediately when
-          the parent state updates. */}
-      {(() => {
-        const drawerOrder = drawerOrderId
-          ? supplierOrders.find((o) => o.id === drawerOrderId) || null
-          : null;
-        const drawerTitle = drawerOrder
-          ? `${drawerOrder.supplier_profile?.name || drawerOrder.supplier_name || 'Order'} · #${shortOrderRef(drawerOrder.id)}`
-          : 'Order';
-        return (
-          <SupplierOrderDrawer
-            open={!!drawerOrderId}
-            order={drawerOrder}
-            drawerTitle={drawerTitle}
-            acceptAllBusy={acceptAllBusy}
-            quoteRowBusy={quoteRowBusy}
-            onAcceptAllQuoted={handleAcceptAllQuoted}
-            onAcceptItemQuote={handleAcceptItemQuote}
-            onQueryItemQuote={handleQueryItemQuote}
-            onDeclineItemQuote={handleDeclineItemQuote}
-            onClose={() => setDrawerOrderId(null)}
-          />
-        );
-      })()}
+          the parent state updates. The drawer renders its own rich title
+          (Georgia name + mono ref + flag) — no drawerTitle prop needed. */}
+      <SupplierOrderDrawer
+        open={!!drawerOrderId}
+        order={drawerOrderId ? supplierOrders.find((o) => o.id === drawerOrderId) || null : null}
+        acceptAllBusy={acceptAllBusy}
+        quoteRowBusy={quoteRowBusy}
+        onAcceptAllQuoted={handleAcceptAllQuoted}
+        onAcceptItemQuote={handleAcceptItemQuote}
+        onQueryItemQuote={handleQueryItemQuote}
+        onDeclineItemQuote={handleDeclineItemQuote}
+        onClose={() => setDrawerOrderId(null)}
+      />
 
       {/* Query placeholder — Sprint 9.5 stub. Real threading is a future
           sprint; for now the RPC has already flipped quote_status to

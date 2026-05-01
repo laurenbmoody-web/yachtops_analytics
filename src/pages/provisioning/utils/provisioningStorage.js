@@ -2126,6 +2126,19 @@ export const markOrderSent = async (orderId, sentVia = 'email') => {
   return data;
 };
 
+// Fetch the activity log for a supplier order from the vessel side.
+// Newest events first. Reads supplier_order_activity directly via the
+// vessel-side RLS policy added in Sprint 9c.2 Commit 1.5b.
+export const fetchSupplierOrderActivity = async (orderId) => {
+  const { data, error } = await supabase
+    .from('supplier_order_activity')
+    .select('*')
+    .eq('order_id', orderId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+};
+
 export const fetchSupplierOrders = async (listId) => {
   const { data, error } = await supabase
     .from('supplier_orders')
