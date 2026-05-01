@@ -1754,6 +1754,132 @@
   .cargo-ribbon { display: none; }
 }
 
+/* ── Editorial supplier order card (Sprint 9c.2) ────────────
+   White surface with hairline border + bottom 3D edge for active
+   lifecycle states. Supplier identity row uses Georgia (text-serif,
+   readable) to differentiate from the page-level display serif
+   (DM Serif Display) — same design system, different semantic
+   moment. The card is the editorial unit on the Orders tab. */
+.cargo-order-card {
+  background: #FFFFFF;
+  border: 1px solid rgba(30, 39, 66, 0.06);
+  border-radius: 16px;
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.cargo-order-card:hover {
+  border-color: rgba(30, 39, 66, 0.12);
+  box-shadow: 0 4px 16px rgba(30, 39, 66, 0.04);
+}
+/* Active lifecycle states get a 5px navy bottom edge — the 3D moment
+   that signals "this order is in flight". Terminal states (paid /
+   draft) keep just the hairline. Active states determined client-side
+   per order.status. */
+.cargo-order-card-active { border-bottom-width: 5px; border-bottom-color: #1E2742; }
+
+.cargo-order-card-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 18px 22px 16px;
+  cursor: pointer;
+}
+
+.cargo-order-card-identity { flex: 1; min-width: 0; }
+
+/* Supplier name — Georgia text-serif, the editorial moment for the card */
+.cargo-order-card-supplier {
+  font-family: Georgia, 'DM Serif Text', 'Times New Roman', serif;
+  font-size: 21px;
+  font-weight: 500;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+  line-height: 1.2;
+  margin: 0 0 6px;
+}
+
+/* Tracked uppercase meta row beneath the supplier name */
+.cargo-order-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.cargo-order-card-ref {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  text-transform: none;
+}
+.cargo-order-card-meta-divider {
+  width: 1px;
+  height: 10px;
+  background: rgba(30, 39, 66, 0.18);
+  flex-shrink: 0;
+}
+.cargo-order-card-flag {
+  font-size: 14px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Status chip — supplier-portal-style chip with editorial colours */
+.cargo-order-card-status {
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Body slot — placeholder space for the lifecycle indicator (9c.2 C2)
+   and document chips (9c.2 C3). Empty in C1 — kept minimal for visual
+   rhythm. */
+.cargo-order-card-body {
+  padding: 0 22px;
+  min-height: 0;
+}
+
+/* Action affordances at card bottom — pill aesthetic from the ribbon
+   vocabulary. Stage-appropriate actions land in 9c.2 C3-C5. C1 carries
+   a minimal expand/collapse trigger and the existing invoice link
+   when present. */
+.cargo-order-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 0 22px 16px;
+}
+
+/* Card chevron / expand toggle */
+.cargo-order-card-chevron {
+  font-size: 12px;
+  color: rgba(30, 39, 66, 0.4);
+  flex-shrink: 0;
+  margin-top: 4px;
+  transition: transform 0.15s;
+}
+.cargo-order-card-chevron.is-open { transform: rotate(90deg); }
+
+/* Expanded section — keeps the existing per-line quote workflow JSX
+   intact for C1; subsequent commits restyle as needed. */
+.cargo-order-card-expanded {
+  padding: 0 22px 18px;
+  border-top: 1px solid rgba(30, 39, 66, 0.06);
+}
+
 /* ── Editorial tab nav (Sprint 9c.1) ────────────────────────
    Tracked uppercase, terracotta active underline. Replaces the
    blue bottom-border pattern used elsewhere. Lives here rather

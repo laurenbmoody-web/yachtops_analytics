@@ -2132,7 +2132,8 @@ export const fetchSupplierOrders = async (listId) => {
     .select(`
       *,
       supplier_order_items(*),
-      supplier_invoices(id, invoice_number, amount, currency, status, pdf_url, created_at, due_date)
+      supplier_invoices(id, invoice_number, amount, currency, status, pdf_url, created_at, due_date),
+      supplier_profile:supplier_profile_id(id, name, business_country, business_city)
     `)
     .eq('list_id', listId)
     .order('created_at', { ascending: false });
