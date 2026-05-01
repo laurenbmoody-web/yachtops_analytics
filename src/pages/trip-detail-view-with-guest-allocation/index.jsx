@@ -22,6 +22,7 @@ import StatusBadge from '../provisioning/components/StatusBadge';
 
 import AddOrSelectGuestModal from './components/AddOrSelectGuestModal';
 import Select from '../../components/ui/Select';
+import { useItinerary } from '../trip-itinerary-timeline/hooks/useItinerary';
 
 
 const TripDetailView = () => {
@@ -68,6 +69,14 @@ const TripDetailView = () => {
     canEdit: canEditTrip(currentUser),
     canDelete: canDeleteTrip(currentUser)
   };
+
+  // A3.7a: itinerary days+activities live in Supabase. The trip detail
+  // page consumes the hook so the (currently orphan but spec-wired)
+  // overview AddItineraryDayModal has live mutations to call.
+  const {
+    addDay: addItineraryDayHook,
+    updateDay: updateItineraryDayHook,
+  } = useItinerary(trip?.supabaseId);
 
   // Check authentication and authorization
   useEffect(() => {
@@ -1048,9 +1057,10 @@ const TripDetailView = () => {
             setShowAddItineraryModal(false);
             setEditingItineraryDay(null);
           }}
-          trip={trip}
           tripId={tripId}
           editingDay={editingItineraryDay}
+          addDay={addItineraryDayHook}
+          updateDay={updateItineraryDayHook}
           onSave={() => {
             setShowAddItineraryModal(false);
             setEditingItineraryDay(null);
