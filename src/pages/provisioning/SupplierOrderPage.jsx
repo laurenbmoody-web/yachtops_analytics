@@ -10,6 +10,10 @@ import {
   acceptOrderItemQuote,
   declineOrderItemQuote,
   queryOrderItemQuote,
+  fetchDocumentSignedUrl,
+  fetchInvoiceSignedUrl,
+  sendDeliveryNoteEmails,
+  markInvoicePaid,
 } from './utils/provisioningStorage';
 import { showToast } from '../../utils/toast';
 
@@ -154,10 +158,94 @@ function LifecycleTimeline({ order }) {
 }
 
 // ───────────────────────────────────────────────────────────
+// Supplier info popover (anchored to the headline)
+// ───────────────────────────────────────────────────────────
+//
+// No supplier-detail page exists yet, so the supplier name opens a
+// lightweight popover with the contact card + a link out to the
+// suppliers list. Once a per-supplier detail page lands (e.g.
+// /provisioning/suppliers/:id), this can be replaced with a direct
+// navigate without disturbing any of the row interactivity around it.
+
+function SupplierInfoPopover({ order, onClose, onViewAll }) {
+  const profile = order.supplier_profile || {};
+  const name = profile.name || order.supplier_name || 'Supplier';
+  const country = profile.business_country || null;
+  const city = profile.business_city || null;
+  const flag = flagEmoji(country);
+  const email = order.supplier_email || null;
+  const phone = order.supplier_phone || null;
+  const address = order.supplier_address || null;
+  const paymentTerms = profile.invoice_payment_terms_days != null
+    ? `Net ${profile.invoice_payment_terms_days} days`
+    : null;
+
+  return (
+    <div className="cargo-od-supplier-popover" role="dialog" aria-label={`${name} contact details`}>
+      <div className="cargo-od-supplier-popover-header">
+        <h4 className="cargo-od-supplier-popover-name">
+          {name}
+          {flag && <span className="cargo-od-supplier-popover-flag">{flag}</span>}
+        </h4>
+        {(city || country) && (
+          <p className="cargo-od-supplier-popover-locale">
+            {[city, country].filter(Boolean).join(' · ')}
+          </p>
+        )}
+      </div>
+      <dl className="cargo-od-supplier-popover-details">
+        {email && (
+          <>
+            <dt>Email</dt>
+            <dd><a href={`mailto:${email}`}>{email}</a></dd>
+          </>
+        )}
+        {phone && (
+          <>
+            <dt>Phone</dt>
+            <dd><a href={`tel:${phone}`}>{phone}</a></dd>
+          </>
+        )}
+        {address && (
+          <>
+            <dt>Address</dt>
+            <dd>{address}</dd>
+          </>
+        )}
+        {paymentTerms && (
+          <>
+            <dt>Payment</dt>
+            <dd>{paymentTerms}</dd>
+          </>
+        )}
+        {!email && !phone && !address && !paymentTerms && (
+          <dd className="cargo-od-supplier-popover-empty">
+            No contact details on file.
+          </dd>
+        )}
+      </dl>
+      <button
+        type="button"
+        className="cargo-od-supplier-popover-link"
+        onClick={onViewAll}
+      >
+        View all suppliers ›
+      </button>
+      <button
+        type="button"
+        className="cargo-od-supplier-popover-close"
+        onClick={onClose}
+        aria-label="Close"
+      >×</button>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────
 // Hero stat cards
 // ───────────────────────────────────────────────────────────
 
-function HeroStats({ order }) {
+function HeroStats({ order, onOpenVariance }) {
   const items = order.supplier_order_items || [];
   const invoices = order.supplier_invoices || [];
   const currency = order.currency
@@ -221,7 +309,21 @@ function HeroStats({ order }) {
         <span className="cargo-od-stat-sub">{agreedSub}</span>
       </div>
 
-      <div className={`cargo-od-stat${isOverBudget ? ' is-action' : ''}`}>
+      <div
+        className={`cargo-od-stat${isOverBudget ? ' is-action is-clickable' : ''}`}
+        role={isOverBudget ? 'button' : undefined}
+        tabIndex={isOverBudget ? 0 : undefined}
+        onClick={isOverBudget ? () => onOpenVariance({ overInvoice, agreedTotal, invoicedTotal, currency }) : undefined}
+        onKeyDown={isOverBudget ? (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onOpenVariance({ overInvoice, agreedTotal, invoicedTotal, currency });
+          }
+        } : undefined}
+        title={isOverBudget
+          ? `Invoice total exceeds agreed total by ${fmtMoney(overInvoice, currency)}. Click to view variance breakdown.`
+          : undefined}
+      >
         <span className="cargo-od-stat-label">Invoiced</span>
         <span className={`cargo-od-stat-value is-money${isOverBudget ? ' is-action' : ''}`}>
           {invoices.length > 0 ? fmtMoney(invoicedTotal, currency) : '—'}
@@ -239,67 +341,183 @@ function HeroStats({ order }) {
 }
 
 // ───────────────────────────────────────────────────────────
-// Documents (3-row hairline list)
+// Documents (3-row hairline list — state-aware + interactive)
 // ───────────────────────────────────────────────────────────
 
-function DocumentsSection({ order }) {
+// Open a signed-URL document in a new tab. Centralised so each row's
+// onClick is a one-liner; surfaces toast errors if the edge function
+// rejects (RLS, missing path, etc.).
+async function openSignedDocument(kind, id) {
+  try {
+    const res = await fetchDocumentSignedUrl(kind, id);
+    if (res?.signed_url) window.open(res.signed_url, '_blank', 'noopener,noreferrer');
+    else showToast('Document is no longer available', 'error');
+  } catch (e) {
+    showToast(`Could not open document: ${e.message || 'unknown error'}`, 'error');
+  }
+}
+
+async function openSignedInvoice(invoiceId) {
+  try {
+    const res = await fetchInvoiceSignedUrl(invoiceId);
+    if (res?.signed_url) window.open(res.signed_url, '_blank', 'noopener,noreferrer');
+    else showToast('Invoice is no longer available', 'error');
+  } catch (e) {
+    showToast(`Could not open invoice: ${e.message || 'unknown error'}`, 'error');
+  }
+}
+
+// Single document row. `interactive` toggles the clickable affordance
+// (cursor, hover tint, terracotta › arrow). Row content stays identical
+// across both modes — same name on the left, same state text on the right.
+function DocRow({ name, stateNode, interactive, onClick, hoverActions }) {
+  const handleKey = (e) => {
+    if (!interactive || !onClick) return;
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); }
+  };
+  return (
+    <div
+      className={`cargo-od-doc-row${interactive ? ' is-interactive' : ''}`}
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onClick={interactive ? onClick : undefined}
+      onKeyDown={interactive ? handleKey : undefined}
+    >
+      <span className="cargo-od-doc-name">{name}</span>
+      <span className="cargo-od-doc-state-wrap">
+        {stateNode}
+        {hoverActions}
+        {interactive && <span className="cargo-od-doc-arrow" aria-hidden="true">›</span>}
+      </span>
+    </div>
+  );
+}
+
+function DocumentsSection({ order, dnPopoverOpen, setDnPopoverOpen, resendBusy, onResendSigningEmail, markPaidBusy, onMarkPaid }) {
+  // Order PDF — clickable iff a stored URL exists.
+  const orderPdfInteractive = !!order.order_pdf_url;
   const orderPdfState = order.order_pdf_url
     ? (order.order_pdf_generated_at
         ? `Generated · ${fmtDateShort(order.order_pdf_generated_at)}`
         : 'Generated')
     : 'Not generated';
 
+  // Delivery note — four states, three of them interactive.
   let dnState, dnClass = '', dnPulse = false;
+  let dnInteractive = false;
+  let dnOnClick = null;
   if (order.delivery_note_signed_pdf_url) {
     dnState = order.crew_signed_at
       ? `Signed · ${fmtDateShort(order.crew_signed_at)}`
       : 'Signed';
     dnClass = 'is-success';
+    dnInteractive = true;
+    dnOnClick = () => openSignedDocument('delivery_note_signed', order.id);
   } else if (order.delivery_note_emailed_at && order.delivery_note_pdf_url) {
     dnState = 'Awaiting signature';
     dnClass = 'is-action';
     dnPulse = true;
+    dnInteractive = true;
+    dnOnClick = () => setDnPopoverOpen((v) => !v);
   } else if (order.delivery_note_pdf_url) {
     dnState = order.delivery_note_generated_at
       ? `Generated · ${fmtDateShort(order.delivery_note_generated_at)}`
       : 'Generated';
+    dnInteractive = true;
+    dnOnClick = () => openSignedDocument('delivery_note', order.id);
   } else {
     dnState = 'Not generated';
   }
 
+  // Invoice — pick the most recent for the row chip; older ones live
+  // outside this row.
   const invoices = order.supplier_invoices || [];
   const inv = invoices.length > 0
     ? [...invoices].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))[0]
     : null;
   let invState, invClass = '';
+  let invInteractive = false;
+  let invOnClick = null;
+  let invHoverActions = null;
   if (inv) {
     const cur = inv.currency || order.currency || 'EUR';
-    const dt = fmtDateShort(inv.created_at);
-    invState = `Received · ${dt} · ${fmtMoney(inv.amount, cur)}`;
+    const isPaid = inv.status === 'paid';
+    const dt = isPaid
+      ? fmtDateShort(inv.paid_at || inv.created_at)
+      : fmtDateShort(inv.created_at);
+    invState = isPaid
+      ? `Paid · ${dt}`
+      : `Received · ${dt} · ${fmtMoney(inv.amount, cur)}`;
     invClass = 'is-success';
+    invInteractive = true;
+    invOnClick = () => openSignedInvoice(inv.id);
+    if (!isPaid) {
+      const isBusy = markPaidBusy === inv.id;
+      invHoverActions = (
+        <button
+          type="button"
+          className="cargo-od-doc-hover-btn"
+          onClick={(e) => { e.stopPropagation(); onMarkPaid(inv); }}
+          disabled={isBusy}
+          title="Mark this invoice as paid"
+        >
+          {isBusy ? 'Saving…' : 'Mark paid'}
+        </button>
+      );
+    }
   } else {
     invState = 'Not received';
   }
 
-  const noop = () => {};
-
   return (
     <div>
-      <div className="cargo-od-doc-row" role="button" tabIndex={0} onClick={noop} onKeyDown={(e) => { if (e.key === 'Enter') noop(); }}>
-        <span className="cargo-od-doc-name">Order PDF</span>
-        <span className="cargo-od-doc-state">{orderPdfState}</span>
+      <DocRow
+        name="Order PDF"
+        stateNode={<span className="cargo-od-doc-state">{orderPdfState}</span>}
+        interactive={orderPdfInteractive}
+        onClick={orderPdfInteractive ? () => openSignedDocument('order_pdf', order.id) : null}
+      />
+
+      <div className="cargo-od-doc-row-wrap">
+        <DocRow
+          name="Delivery note"
+          stateNode={
+            <span className={`cargo-od-doc-state ${dnClass}`}>
+              {dnPulse && <span className="cargo-od-doc-pulse" aria-hidden="true" />}
+              {dnState}
+            </span>
+          }
+          interactive={dnInteractive}
+          onClick={dnOnClick}
+        />
+        {dnPopoverOpen && (
+          <div className="cargo-od-doc-popover" role="dialog" aria-label="Delivery note actions">
+            <button
+              type="button"
+              className="cargo-od-doc-popover-item"
+              onClick={() => { setDnPopoverOpen(false); openSignedDocument('delivery_note', order.id); }}
+            >
+              Open unsigned PDF
+            </button>
+            <button
+              type="button"
+              className="cargo-od-doc-popover-item"
+              onClick={() => { onResendSigningEmail(true); }}
+              disabled={resendBusy}
+            >
+              {resendBusy ? 'Sending…' : 'Resend signing email'}
+            </button>
+          </div>
+        )}
       </div>
-      <div className="cargo-od-doc-row" role="button" tabIndex={0} onClick={noop} onKeyDown={(e) => { if (e.key === 'Enter') noop(); }}>
-        <span className="cargo-od-doc-name">Delivery note</span>
-        <span className={`cargo-od-doc-state ${dnClass}`}>
-          {dnPulse && <span className="cargo-od-doc-pulse" aria-hidden="true" />}
-          {dnState}
-        </span>
-      </div>
-      <div className="cargo-od-doc-row" role="button" tabIndex={0} onClick={noop} onKeyDown={(e) => { if (e.key === 'Enter') noop(); }}>
-        <span className="cargo-od-doc-name">Invoice</span>
-        <span className={`cargo-od-doc-state ${invClass}`}>{invState}</span>
-      </div>
+
+      <DocRow
+        name="Invoice"
+        stateNode={<span className={`cargo-od-doc-state ${invClass}`}>{invState}</span>}
+        interactive={invInteractive}
+        onClick={invOnClick}
+        hoverActions={invHoverActions}
+      />
     </div>
   );
 }
@@ -607,6 +825,17 @@ export default function SupplierOrderPage() {
   const [acceptAllBusy, setAcceptAllBusy] = useState(null);
   const [queryModalItem, setQueryModalItem] = useState(null);
 
+  // Sprint 9c.2 Commit 2 — interactive surface state.
+  // Supplier-name popover anchored to the headline.
+  const [supplierPopoverOpen, setSupplierPopoverOpen] = useState(false);
+  // Delivery-note "awaiting signature" inline popover (open unsigned / resend).
+  const [dnPopoverOpen, setDnPopoverOpen] = useState(false);
+  // Invoiced over-budget breakdown dialog.
+  const [varianceDialog, setVarianceDialog] = useState(null);
+  // Async row state.
+  const [resendBusy, setResendBusy] = useState(false);
+  const [markPaidBusy, setMarkPaidBusy] = useState(null); // invoiceId currently saving
+
   // Lift body bg to editorial cream while this page is mounted (mirrors
   // EditorialPageShell's behavior — we don't use the shell because its
   // headline component force-uppercases the title).
@@ -717,6 +946,67 @@ export default function SupplierOrderPage() {
 
   const handleBack = () => navigate(`/provisioning/${boardId}`);
 
+  // Resend the delivery-note signing email. force=true bypasses the
+  // 30-min idempotency window so the user can deliberately retry.
+  const handleResendSigningEmail = useCallback(async (force = false) => {
+    if (!order?.id) return;
+    setResendBusy(true);
+    try {
+      const res = await sendDeliveryNoteEmails(order.id, { force });
+      if (res?.already_sent) {
+        showToast(`Already sent — within idempotency window.`, 'info');
+      } else {
+        showToast(`Signing link sent to ${res?.sent_to || 'supplier'}`, 'success');
+        // Update emailed_at so the row state stays in sync without a full refetch.
+        setOrder((prev) => prev ? { ...prev, delivery_note_emailed_at: new Date().toISOString() } : prev);
+      }
+      setDnPopoverOpen(false);
+    } catch (e) {
+      showToast(`Could not send signing email: ${e.message || 'unknown error'}`, 'error');
+    } finally {
+      setResendBusy(false);
+    }
+  }, [order]);
+
+  // Mark a single invoice as paid. Best-effort advances order.status to
+  // 'paid' too — the helper handles the parent update internally.
+  const handleMarkInvoicePaid = useCallback(async (invoice) => {
+    if (!invoice?.id) return;
+    if (!window.confirm(`Mark invoice ${invoice.invoice_number || ''} as paid?`)) return;
+    setMarkPaidBusy(invoice.id);
+    try {
+      const updated = await markInvoicePaid(invoice.id);
+      setOrder((prev) => {
+        if (!prev) return prev;
+        const next = { ...prev };
+        next.supplier_invoices = (prev.supplier_invoices || []).map((inv) =>
+          inv.id === updated.id ? { ...inv, status: 'paid', paid_at: updated.paid_at } : inv
+        );
+        next.status = 'paid';
+        return next;
+      });
+      showToast('Invoice marked as paid', 'success');
+    } catch (e) {
+      showToast(`Could not mark paid: ${e.message || 'unknown error'}`, 'error');
+    } finally {
+      setMarkPaidBusy(null);
+    }
+  }, []);
+
+  // Click-outside dismissal for supplier + delivery-note popovers. Both
+  // panels carry a data attribute so a single document listener can decide
+  // whether the click originated inside any open popover.
+  useEffect(() => {
+    if (!supplierPopoverOpen && !dnPopoverOpen) return;
+    const onDocClick = (e) => {
+      if (e.target.closest('[data-popover-anchor]')) return;
+      setSupplierPopoverOpen(false);
+      setDnPopoverOpen(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [supplierPopoverOpen, dnPopoverOpen]);
+
   // ── Render ──────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -774,9 +1064,33 @@ export default function SupplierOrderPage() {
 
             {/* Custom headline — Georgia display-case supplier name + italic
                 terracotta board-type qualifier. Mirrors the EditorialHeadline
-                pattern but preserves multi-word supplier-name casing. */}
+                pattern but preserves multi-word supplier-name casing.
+                Sprint 9c.2 Commit 2: supplier name is a clickable trigger
+                that opens an info popover (no detail page exists yet). */}
             <h1 className="p-greeting" style={{ textTransform: 'none' }}>
-              {supplierName}<span className="p-greeting-punctuation">,</span>{' '}
+              <span className="cargo-od-supplier-trigger-wrap" data-popover-anchor>
+                <button
+                  type="button"
+                  className="cargo-od-supplier-trigger"
+                  onClick={() => setSupplierPopoverOpen((v) => !v)}
+                  aria-haspopup="dialog"
+                  aria-expanded={supplierPopoverOpen}
+                >
+                  {supplierName}
+                  <span className="cargo-od-supplier-arrow" aria-hidden="true">›</span>
+                </button>
+                {supplierPopoverOpen && (
+                  <SupplierInfoPopover
+                    order={order}
+                    onClose={() => setSupplierPopoverOpen(false)}
+                    onViewAll={() => {
+                      setSupplierPopoverOpen(false);
+                      navigate('/provisioning/suppliers');
+                    }}
+                  />
+                )}
+              </span>
+              <span className="p-greeting-punctuation">,</span>{' '}
               <em>{boardType}</em><span className="p-greeting-punctuation">.</span>
             </h1>
             <p style={{
@@ -797,7 +1111,7 @@ export default function SupplierOrderPage() {
         {/* Page body — sections dissolve into the editorial background,
             separated by the section labels and hairline rules. */}
         <div className="cargo-od" style={{ marginTop: 24 }}>
-          <HeroStats order={order} />
+          <HeroStats order={order} onOpenVariance={(v) => setVarianceDialog(v)} />
 
           <div className="cargo-od-section">
             <span className="cargo-od-section-label">Lifecycle.</span>
@@ -808,7 +1122,17 @@ export default function SupplierOrderPage() {
             <span className="cargo-od-section-label">
               What's <em>in flight</em>.
             </span>
-            <DocumentsSection order={order} />
+            <div data-popover-anchor>
+              <DocumentsSection
+                order={order}
+                dnPopoverOpen={dnPopoverOpen}
+                setDnPopoverOpen={setDnPopoverOpen}
+                resendBusy={resendBusy}
+                onResendSigningEmail={handleResendSigningEmail}
+                markPaidBusy={markPaidBusy}
+                onMarkPaid={handleMarkInvoicePaid}
+              />
+            </div>
           </div>
 
           <div className="editorial-section-card">
@@ -873,6 +1197,67 @@ export default function SupplierOrderPage() {
                   borderRadius: 8, border: 'none', background: '#1E3A5F', color: '#fff', cursor: 'pointer',
                 }}
               >Got it</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sprint 9c.2 Commit 2 — variance breakdown dialog. Opens when the
+          user clicks the over-budget Invoiced stat card. Shows per-line
+          variance (agreed unit × qty vs. invoiced share) for any line
+          whose agreed total deviates from the average invoice line, and
+          falls back to the overall delta when per-line invoice attribution
+          isn't available. Dispute / accept actions are stubs — full
+          variance reconciliation is its own sprint. */}
+      {varianceDialog && (
+        <div
+          onClick={() => setVarianceDialog(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.45)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 9000, padding: 16,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="cargo-od-variance-dialog"
+            role="dialog"
+            aria-label="Invoice variance breakdown"
+          >
+            <h3 className="cargo-od-variance-title">
+              Invoice <em>variance</em>.
+            </h3>
+            <p className="cargo-od-variance-subtitle">
+              Invoice total exceeds agreed total by{' '}
+              <strong>{fmtMoney(varianceDialog.overInvoice, varianceDialog.currency)}</strong>.
+            </p>
+            <dl className="cargo-od-variance-grid">
+              <dt>Agreed</dt>
+              <dd>{fmtMoney(varianceDialog.agreedTotal, varianceDialog.currency)}</dd>
+              <dt>Invoiced</dt>
+              <dd>{fmtMoney(varianceDialog.invoicedTotal, varianceDialog.currency)}</dd>
+              <dt>Delta</dt>
+              <dd className="is-over">
+                {fmtMoneyDelta(varianceDialog.overInvoice, varianceDialog.currency)}
+              </dd>
+            </dl>
+            <p className="cargo-od-variance-note">
+              Per-line variance attribution lands in a future sprint. For now,
+              cross-reference the supplier invoice PDF with the Lines table
+              above to spot which entries came in higher than agreed.
+            </p>
+            <div className="cargo-od-variance-actions">
+              <button
+                type="button"
+                className="cargo-ribbon-btn"
+                disabled
+                title="Dispute workflow lands in a later commit"
+              >Dispute</button>
+              <button
+                type="button"
+                className="cargo-ribbon-btn"
+                onClick={() => setVarianceDialog(null)}
+              >Close</button>
             </div>
           </div>
         </div>
