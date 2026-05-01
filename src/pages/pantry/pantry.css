@@ -2116,11 +2116,14 @@
   padding: 11px 0;
   border-bottom: 1px solid rgba(30, 39, 66, 0.06);
   font-family: var(--font-sans);
-  cursor: pointer;
   transition: background 0.12s;
 }
 .cargo-od-doc-row:last-child { border-bottom: 0; }
-.cargo-od-doc-row:hover { background: rgba(250, 247, 240, 0.6); }
+/* Sprint 9c.2 Commit 2: cursor + hover lift only on interactive rows.
+   Non-interactive states ("Not generated", "Not received") read as
+   plain text with no clickable affordance. */
+.cargo-od-doc-row.is-interactive { cursor: pointer; }
+.cargo-od-doc-row.is-interactive:hover { background: rgba(250, 247, 240, 0.6); }
 .cargo-od-doc-name {
   font-size: 13px;
   font-weight: 500;
@@ -2155,6 +2158,300 @@
 @keyframes cargo-od-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50%      { opacity: 0.5; transform: scale(1.3); }
+}
+
+/* Sprint 9c.2 Commit 2 — interactive document row affordances.
+   Right-side state cluster: state text · optional hover button · faint
+   terracotta › arrow that lights up when the row is hovered. */
+.cargo-od-doc-state-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.cargo-od-doc-arrow {
+  font-family: Georgia, serif;
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--accent);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.cargo-od-doc-row.is-interactive:hover .cargo-od-doc-arrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+.cargo-od-doc-hover-btn {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid rgba(196, 91, 71, 0.35);
+  border-radius: 999px;
+  padding: 3px 10px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.12s;
+}
+.cargo-od-doc-row.is-interactive:hover .cargo-od-doc-hover-btn,
+.cargo-od-doc-hover-btn:focus-visible {
+  opacity: 1;
+}
+.cargo-od-doc-hover-btn:hover {
+  background: rgba(196, 91, 71, 0.08);
+}
+.cargo-od-doc-hover-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Inline popover for the "Awaiting signature" delivery-note row. Anchored
+   below the row via a relative wrapper. */
+.cargo-od-doc-row-wrap { position: relative; }
+.cargo-od-doc-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+  min-width: 220px;
+  background: #FFFFFF;
+  border: 1px solid rgba(30, 39, 66, 0.08);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+}
+.cargo-od-doc-popover-item {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  padding: 9px 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.cargo-od-doc-popover-item:hover { background: #FAF7F0; }
+.cargo-od-doc-popover-item:disabled { cursor: not-allowed; opacity: 0.6; }
+
+/* Sprint 9c.2 Commit 2 — supplier name trigger + popover.
+   Trigger is the supplier name styled as the headline; clickable affordance
+   is a subtle terracotta underline + › arrow on hover. No persistent
+   underline at rest — preserves the editorial typography. */
+.cargo-od-supplier-trigger-wrap {
+  position: relative;
+  display: inline-block;
+}
+.cargo-od-supplier-trigger {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-transform: inherit;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  transition: border-color 0.15s ease;
+}
+.cargo-od-supplier-trigger:hover,
+.cargo-od-supplier-trigger:focus-visible {
+  border-bottom-color: rgba(196, 91, 71, 0.5);
+  outline: none;
+}
+.cargo-od-supplier-arrow {
+  display: inline-block;
+  margin-left: 6px;
+  font-family: Georgia, serif;
+  color: var(--accent);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.cargo-od-supplier-trigger:hover .cargo-od-supplier-arrow,
+.cargo-od-supplier-trigger:focus-visible .cargo-od-supplier-arrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.cargo-od-supplier-popover {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  z-index: 40;
+  min-width: 320px;
+  max-width: 380px;
+  background: #FFFFFF;
+  border: 1px solid rgba(30, 39, 66, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.14);
+  padding: 18px 20px 14px;
+  font-family: var(--font-sans);
+}
+.cargo-od-supplier-popover-header { margin-bottom: 12px; }
+.cargo-od-supplier-popover-name {
+  font-family: Georgia, 'DM Serif Text', 'Times New Roman', serif;
+  font-size: 17px;
+  font-weight: 400;
+  color: var(--ink);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cargo-od-supplier-popover-flag { font-size: 16px; }
+.cargo-od-supplier-popover-locale {
+  font-size: 11.5px;
+  color: rgba(30, 39, 66, 0.55);
+  margin: 4px 0 0;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.cargo-od-supplier-popover-details {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  gap: 6px 12px;
+  margin: 0 0 14px;
+  font-size: 12.5px;
+}
+.cargo-od-supplier-popover-details dt {
+  color: rgba(30, 39, 66, 0.5);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding-top: 2px;
+}
+.cargo-od-supplier-popover-details dd {
+  margin: 0;
+  color: var(--ink);
+  word-break: break-word;
+}
+.cargo-od-supplier-popover-details a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.12s;
+}
+.cargo-od-supplier-popover-details a:hover {
+  border-bottom-color: var(--accent);
+}
+.cargo-od-supplier-popover-empty {
+  font-style: italic;
+  color: rgba(30, 39, 66, 0.5);
+  grid-column: 1 / -1;
+}
+.cargo-od-supplier-popover-link {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  padding: 8px 0 0;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  border-top: 1px solid rgba(30, 39, 66, 0.06);
+  width: 100%;
+  text-align: left;
+}
+.cargo-od-supplier-popover-link:hover { text-decoration: underline; }
+.cargo-od-supplier-popover-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  color: rgba(30, 39, 66, 0.4);
+  cursor: pointer;
+  border-radius: 50%;
+}
+.cargo-od-supplier-popover-close:hover {
+  color: var(--ink);
+  background: rgba(30, 39, 66, 0.06);
+}
+
+/* Sprint 9c.2 Commit 2 — Invoiced over-budget stat card click affordance.
+   Cursor + faint lift on hover; the terracotta `is-action` colouring is
+   already present from the bleeding hero stats. */
+.cargo-od-stat.is-clickable { cursor: pointer; }
+.cargo-od-stat.is-clickable:hover {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(196, 91, 71, 0.18);
+}
+
+/* Variance breakdown dialog. Lightweight — full-line variance attribution
+   is a future sprint, this just frames the delta and gives a stub for
+   dispute / accept actions. */
+.cargo-od-variance-dialog {
+  background: #FFFEFB;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 460px;
+  padding: 24px 28px 22px;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.24);
+  font-family: var(--font-sans);
+}
+.cargo-od-variance-title {
+  font-family: Georgia, 'DM Serif Text', 'Times New Roman', serif;
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--ink);
+  margin: 0 0 6px;
+}
+.cargo-od-variance-title em {
+  font-style: italic;
+  color: var(--accent);
+}
+.cargo-od-variance-subtitle {
+  font-size: 13px;
+  color: rgba(30, 39, 66, 0.7);
+  margin: 0 0 18px;
+  line-height: 1.55;
+}
+.cargo-od-variance-grid {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 8px 16px;
+  margin: 0 0 14px;
+  font-size: 13px;
+}
+.cargo-od-variance-grid dt {
+  color: rgba(30, 39, 66, 0.5);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding-top: 2px;
+}
+.cargo-od-variance-grid dd {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 600;
+}
+.cargo-od-variance-grid dd.is-over { color: var(--accent); }
+.cargo-od-variance-note {
+  font-size: 12px;
+  color: rgba(30, 39, 66, 0.55);
+  line-height: 1.5;
+  margin: 4px 0 18px;
+  padding: 10px 12px;
+  background: #FAF7F0;
+  border-radius: 8px;
+}
+.cargo-od-variance-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 /* ── Lines section ─────────────────────────────────────────── */

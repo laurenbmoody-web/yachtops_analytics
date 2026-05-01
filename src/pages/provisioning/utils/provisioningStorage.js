@@ -2196,6 +2196,42 @@ export const fetchDocumentSignedUrl = async (documentKind, documentId) => {
   return data; // { signed_url, expires_at }
 };
 
+// Sprint 9c.2 Commit 2 — vessel-side resend of the delivery-note signing
+// link. Mirrors the supplier-portal helper but lives here so the
+// SupplierOrderPage can import without crossing module boundaries. The edge
+// function enforces a 30-min idempotency window unless force=true.
+export const sendDeliveryNoteEmails = async (orderId, { force = false } = {}) => {
+  const { data, error } = await supabase.functions.invoke('sendDeliveryNoteEmails', {
+    body: { orderId, force },
+  });
+  if (error) throw error;
+  return data;
+};
+
+// Sprint 9c.2 Commit 2 — flip an invoice to paid. Updates the invoice row
+// status + paid_at, and bumps the parent order to lifecycle 'paid'. The
+// invoice row's RLS policy is tenant-scoped, so this works for any vessel
+// member who can read the order. Returns the updated invoice row.
+export const markInvoicePaid = async (invoiceId) => {
+  const nowIso = new Date().toISOString();
+  const { data: invoice, error: invErr } = await supabase
+    .from('supplier_invoices')
+    .update({ status: 'paid', paid_at: nowIso })
+    .eq('id', invoiceId)
+    .select('id, order_id, status, paid_at')
+    .single();
+  if (invErr) throw invErr;
+  if (invoice?.order_id) {
+    // Best-effort: advance the parent order to 'paid'. RLS may reject if
+    // the user lacks tenant_members; we don't fail the whole call on that.
+    await supabase
+      .from('supplier_orders')
+      .update({ status: 'paid' })
+      .eq('id', invoice.order_id);
+  }
+  return invoice;
+};
+
 export const fetchOrderByToken = async (token) => {
   const { data, error } = await supabase
     .from('supplier_orders')
