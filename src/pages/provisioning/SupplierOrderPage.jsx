@@ -1,34 +1,45 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import Drawer from './Drawer';
-import { fetchSupplierOrderActivity } from '../utils/provisioningStorage';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import Header from '../../components/navigation/Header';
+import EditorialMetaStrip from '../../components/editorial/EditorialMetaStrip';
+import '../pantry/pantry.css';
+import {
+  fetchSupplierOrderById,
+  fetchSupplierOrderActivity,
+  fetchProvisioningList,
+  acceptOrderItemQuote,
+  declineOrderItemQuote,
+  queryOrderItemQuote,
+} from './utils/provisioningStorage';
+import { showToast } from '../../utils/toast';
 
-// Sprint 9c.2 Commit 1.5c — drawer redesign.
+// Sprint 9c.2 — supplier order detail page (replaces the drawer architecture).
 //
-// Editorial magazine spread + dashboard density. Drawer reads top-to-
-// bottom like a periodical article about the order, but every section
-// gives data at a glance. No card walls inside the drawer — sections
-// dissolve into the page background, separated by hairline rules.
+// URL: /provisioning/:boardId/orders/:orderId
+//
+// The drawer composition migrated wholesale into a page so the order detail
+// surface gets full viewport width, becomes URL-shareable, and is symmetric
+// with /provisioning/:boardId. Section CSS (`cargo-od-*`) is reused — it's
+// styling-semantic, not drawer-specific.
 //
 // Sections:
-//   1. Hero       — kicker / headline / subline / 4 stat cards
-//   2. Lifecycle  — 8-step horizontal timeline, current state terracotta
-//   3. Documents  — 3 hairline rows, pulsing dot when action needed
-//   4. Lines      — summary chip row + items table + keyboard shortcuts
-//   5. Activity   — top 3 events with italic terracotta actor names
-//   6. Footer     — sticky pill cluster: primary action + secondaries + close
+//   1. Editorial header — back link · meta strip · Georgia headline · subline
+//   2. Hero stat cards   — Status · Countdown · Agreed · Invoiced
+//   3. Lifecycle         — 8-step horizontal timeline
+//   4. Documents         — 3 hairline rows, pulse on action-needed
+//   5. Lines             — summary chips + items table + per-line quote actions
+//   6. Activity          — top 3 with italic Georgia actor names
+//   7. Sticky footer     — primary action + secondaries + back
 //
-// What survives from 1.5b:
-//   - Drawer mount/open state in the parent (drawerOrderId)
-//   - Drawer wrapper component
-//   - Per-line quote workflow (Accept/Query/Decline) — restyled chrome,
-//     same handlers
-// What's thrown away:
-//   - The placeholder card walls
-//   - The thin items table — replaced by the structured one with summary
-//     chips and keyboard shortcuts row
+// EditorialHeadline isn't used because it uppercases the title — supplier
+// names are display-case multi-word strings ("Marina Mercante Palma") that
+// don't survive ALL CAPS. Header rendered manually within the editorial-page
+// token scope so the typography still inherits cleanly.
+
+const EDITORIAL_BG = '#F5F1EA';
 
 // ───────────────────────────────────────────────────────────
-// Helpers
+// Helpers (migrated from SupplierOrderDrawer)
 // ───────────────────────────────────────────────────────────
 
 const fmtMoney = (n, currency = 'EUR') => {
@@ -74,7 +85,6 @@ const fmtRelative = (iso) => {
   } catch { return ''; }
 };
 
-// Days until a date — negative if past.
 const daysUntil = (iso) => {
   if (!iso) return null;
   try {
@@ -84,7 +94,6 @@ const daysUntil = (iso) => {
   } catch { return null; }
 };
 
-// Display label for status sub-line, e.g. "since 25 Apr"
 const statusSinceLabel = (order) => {
   const ts = order.confirmed_at || order.sent_at || order.created_at;
   const d = fmtDateShort(ts);
@@ -106,9 +115,6 @@ const LIFECYCLE_STEPS = [
   { key: 'paid',             label: 'Paid' },
 ];
 
-// Compute current displayed step. Quoted is derived from per-line
-// quote_status when order.status is still 'sent' but lines have been
-// quoted by the supplier.
 function currentLifecycleIndex(order) {
   const status = order.status;
   const items = order.supplier_order_items || [];
@@ -148,10 +154,10 @@ function LifecycleTimeline({ order }) {
 }
 
 // ───────────────────────────────────────────────────────────
-// Hero
+// Hero stat cards
 // ───────────────────────────────────────────────────────────
 
-function HeroBlock({ order, list, onClose }) {
+function HeroStats({ order }) {
   const items = order.supplier_order_items || [];
   const invoices = order.supplier_invoices || [];
   const currency = order.currency
@@ -159,12 +165,6 @@ function HeroBlock({ order, list, onClose }) {
     || items[0]?.agreed_currency
     || 'EUR';
 
-  // Money totals
-  const sumLines = (key) => items.reduce(
-    (s, it) => s + (Number(it[key]) || 0) * (Number(it.quantity) || 0),
-    0,
-  );
-  const estimatedTotal = sumLines('estimated_price');
   const agreedTotal = items.reduce((s, it) => {
     const val = Number(it.agreed_price ?? it.quoted_price ?? it.estimated_price) || 0;
     return s + val * (Number(it.quantity) || 0);
@@ -173,7 +173,6 @@ function HeroBlock({ order, list, onClose }) {
   const overInvoice = invoicedTotal - agreedTotal;
   const isOverBudget = invoices.length > 0 && overInvoice > 0.01;
 
-  // Countdown
   const dDelta = daysUntil(order.delivery_date);
   const isOverdue = dDelta != null && dDelta < 0;
   const countdownValue =
@@ -186,7 +185,6 @@ function HeroBlock({ order, list, onClose }) {
     ? `expected ${fmtDateShort(order.delivery_date)}`
     : '—';
 
-  // Agreed sub — "all lines accepted" / "N of M agreed"
   const agreedCount = items.filter((i) => i.quote_status === 'agreed').length;
   const totalCount = items.length;
   const agreedSub = totalCount === 0
@@ -195,94 +193,46 @@ function HeroBlock({ order, list, onClose }) {
     ? 'all lines accepted'
     : `${agreedCount} of ${totalCount} agreed`;
 
-  // Headline composition
-  const supplierName = order.supplier_profile?.name || order.supplier_name || 'Supplier';
-  const boardType = list?.board_type || 'general';     // canonical lowercase value
-  const country = order.supplier_profile?.business_country || null;
-  const flag = flagEmoji(country);
-
-  // Kicker pieces
-  const vesselName = order.vessel_name || 'the vessel';
-  const deptList = Array.isArray(list?.department) ? list.department.filter(Boolean) : [list?.department].filter(Boolean);
-  const deptLabel = deptList[0] || 'Provisioning';
-  const kickerPieces = [
-    `From ${vesselName}`,
-    boardType,
-    deptLabel,
-  ].filter(Boolean);
-
-  const port = order.delivery_port || null;
-
-  // Status sub (always shows the most recent state-change anchor we have)
   const statusValue = (order.status || 'sent').replace(/_/g, ' ');
 
   return (
-    <div className="cargo-od-hero">
-      <button
-        type="button"
-        className="cargo-od-hero-close"
-        onClick={onClose}
-        aria-label="Close drawer"
-      >×</button>
+    <div className="cargo-od-stats">
+      <div className="cargo-od-stat">
+        <span className="cargo-od-stat-label">Status</span>
+        <span className="cargo-od-stat-value">
+          {statusValue.charAt(0).toUpperCase() + statusValue.slice(1)}
+        </span>
+        <span className="cargo-od-stat-sub">{statusSinceLabel(order)}</span>
+      </div>
 
-      <p className="cargo-od-kicker">
-        {kickerPieces.join(' · ')}
-      </p>
+      <div className={`cargo-od-stat${isOverdue ? ' is-action' : ''}`}>
+        <span className="cargo-od-stat-label">Countdown</span>
+        <span className={`cargo-od-stat-value${isOverdue ? ' is-action' : ''}`}>
+          {countdownValue}
+        </span>
+        <span className="cargo-od-stat-sub">{expectedSub}</span>
+      </div>
 
-      <h2 className="cargo-od-headline">
-        {supplierName}
-        <span className="cargo-od-headline-punct">,</span>
-        {' '}
-        <em>{boardType}</em>
-        <span className="cargo-od-headline-punct">.</span>
-      </h2>
+      <div className="cargo-od-stat">
+        <span className="cargo-od-stat-label">Agreed</span>
+        <span className="cargo-od-stat-value is-money">
+          {fmtMoney(agreedTotal, currency)}
+        </span>
+        <span className="cargo-od-stat-sub">{agreedSub}</span>
+      </div>
 
-      <p className="cargo-od-subline">
-        Order #{shortRef(order.id)}
-        {flag && <> · <span className="cargo-od-subline-flag">{flag}</span></>}
-        {' · '}{totalCount} {totalCount === 1 ? 'item' : 'items'}
-        {port && <> · {port}</>}
-      </p>
-
-      {/* 4 stat cards */}
-      <div className="cargo-od-stats">
-        <div className="cargo-od-stat">
-          <span className="cargo-od-stat-label">Status</span>
-          <span className="cargo-od-stat-value">
-            {statusValue.charAt(0).toUpperCase() + statusValue.slice(1)}
-          </span>
-          <span className="cargo-od-stat-sub">{statusSinceLabel(order)}</span>
-        </div>
-
-        <div className={`cargo-od-stat${isOverdue ? ' is-action' : ''}`}>
-          <span className="cargo-od-stat-label">Countdown</span>
-          <span className={`cargo-od-stat-value${isOverdue ? ' is-action' : ''}`}>
-            {countdownValue}
-          </span>
-          <span className="cargo-od-stat-sub">{expectedSub}</span>
-        </div>
-
-        <div className="cargo-od-stat">
-          <span className="cargo-od-stat-label">Agreed</span>
-          <span className="cargo-od-stat-value is-money">
-            {fmtMoney(agreedTotal, currency)}
-          </span>
-          <span className="cargo-od-stat-sub">{agreedSub}</span>
-        </div>
-
-        <div className={`cargo-od-stat${isOverBudget ? ' is-action' : ''}`}>
-          <span className="cargo-od-stat-label">Invoiced</span>
-          <span className={`cargo-od-stat-value is-money${isOverBudget ? ' is-action' : ''}`}>
-            {invoices.length > 0 ? fmtMoney(invoicedTotal, currency) : '—'}
-          </span>
-          <span className={`cargo-od-stat-sub${isOverBudget ? ' is-action' : ''}`}>
-            {invoices.length === 0
-              ? 'not received'
-              : isOverBudget
-              ? `${fmtMoneyDelta(overInvoice, currency)} over`
-              : 'matches agreed'}
-          </span>
-        </div>
+      <div className={`cargo-od-stat${isOverBudget ? ' is-action' : ''}`}>
+        <span className="cargo-od-stat-label">Invoiced</span>
+        <span className={`cargo-od-stat-value is-money${isOverBudget ? ' is-action' : ''}`}>
+          {invoices.length > 0 ? fmtMoney(invoicedTotal, currency) : '—'}
+        </span>
+        <span className={`cargo-od-stat-sub${isOverBudget ? ' is-action' : ''}`}>
+          {invoices.length === 0
+            ? 'not received'
+            : isOverBudget
+            ? `${fmtMoneyDelta(overInvoice, currency)} over`
+            : 'matches agreed'}
+        </span>
       </div>
     </div>
   );
@@ -293,15 +243,12 @@ function HeroBlock({ order, list, onClose }) {
 // ───────────────────────────────────────────────────────────
 
 function DocumentsSection({ order }) {
-  // Order PDF
   const orderPdfState = order.order_pdf_url
     ? (order.order_pdf_generated_at
         ? `Generated · ${fmtDateShort(order.order_pdf_generated_at)}`
         : 'Generated')
     : 'Not generated';
-  const orderPdfClass = order.order_pdf_url ? '' : '';
 
-  // Delivery note state
   let dnState, dnClass = '', dnPulse = false;
   if (order.delivery_note_signed_pdf_url) {
     dnState = order.crew_signed_at
@@ -320,7 +267,6 @@ function DocumentsSection({ order }) {
     dnState = 'Not generated';
   }
 
-  // Invoice — first / most recent
   const invoices = order.supplier_invoices || [];
   const inv = invoices.length > 0
     ? [...invoices].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))[0]
@@ -335,14 +281,13 @@ function DocumentsSection({ order }) {
     invState = 'Not received';
   }
 
-  // Click handlers — placeholder per spec; wired in Commit 3.
   const noop = () => {};
 
   return (
     <div>
       <div className="cargo-od-doc-row" role="button" tabIndex={0} onClick={noop} onKeyDown={(e) => { if (e.key === 'Enter') noop(); }}>
         <span className="cargo-od-doc-name">Order PDF</span>
-        <span className={`cargo-od-doc-state ${orderPdfClass}`}>{orderPdfState}</span>
+        <span className="cargo-od-doc-state">{orderPdfState}</span>
       </div>
       <div className="cargo-od-doc-row" role="button" tabIndex={0} onClick={noop} onKeyDown={(e) => { if (e.key === 'Enter') noop(); }}>
         <span className="cargo-od-doc-name">Delivery note</span>
@@ -367,11 +312,10 @@ function LinesSection({ order, acceptAllBusy, quoteRowBusy, onAcceptAllQuoted, o
   const items = order.supplier_order_items || [];
   const counts = useMemo(() => {
     const total = items.length;
-    const totalQty = items.reduce((s, it) => s + (Number(it.quantity) || 0), 0);
     const pending = items.filter((i) => (i.status || i.quote_status || 'pending') === 'pending').length;
     const confirmed = items.filter((i) => i.status === 'confirmed' || i.quote_status === 'agreed').length;
     const unavailable = items.filter((i) => i.status === 'unavailable' || i.quote_status === 'unavailable').length;
-    return { total, totalQty, pending, confirmed, unavailable };
+    return { total, pending, confirmed, unavailable };
   }, [items]);
 
   const quotedCount = items.filter((x) => x.quote_status === 'quoted').length;
@@ -414,7 +358,6 @@ function LinesSection({ order, acceptAllBusy, quoteRowBusy, onAcceptAllQuoted, o
             const qStatus = it.quote_status || 'awaiting_quote';
             const isBusy = quoteRowBusy === it.id;
 
-            // Delta chip
             let deltaChip = null;
             if (it.estimated_price != null && it.quoted_price != null
                 && Number(it.estimated_price) > 0
@@ -449,7 +392,6 @@ function LinesSection({ order, acceptAllBusy, quoteRowBusy, onAcceptAllQuoted, o
               priceCell = <div style={{ fontSize: 11, color: 'rgba(30,39,66,0.5)' }}>est. {fmtMoney(it.estimated_price, cur)}</div>;
               statusCell = <span className="cargo-od-pill tonal-rose">Declined</span>;
             } else {
-              // 'quoted' or 'in_discussion'
               const isDiscussion = qStatus === 'in_discussion';
               priceCell = (
                 <>
@@ -501,8 +443,6 @@ function LinesSection({ order, acceptAllBusy, quoteRowBusy, onAcceptAllQuoted, o
         </tbody>
       </table>
 
-      {/* Keyboard shortcut row — visual parity with supplier portal.
-          Handlers wire in a future commit; row stays decorative for now. */}
       <div className="cargo-od-kbd-row" aria-hidden="true">
         <span><kbd>C</kbd> confirm</span>
         <span><kbd>S</kbd> substitute</span>
@@ -521,8 +461,6 @@ function LinesSection({ order, acceptAllBusy, quoteRowBusy, onAcceptAllQuoted, o
 // Activity — top 3 with italic Georgia terracotta actor names
 // ───────────────────────────────────────────────────────────
 
-// Render an activity event with the actor's name embedded inline as
-// <em class="cargo-od-activity-actor"> for the editorial voice moment.
 function renderActivityWhat(event) {
   const actor = event.actor_name || event.actor_role || 'system';
   const Actor = ({ name }) => <em className="cargo-od-activity-actor">{name}</em>;
@@ -565,9 +503,10 @@ function renderActivityWhat(event) {
   }
 }
 
-function ActivitySection({ orderId, onViewAll }) {
+function ActivitySection({ orderId }) {
   const [activity, setActivity] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     if (!orderId) return;
@@ -582,23 +521,23 @@ function ActivitySection({ orderId, onViewAll }) {
   if (loading) return <p className="cargo-od-activity-empty">Loading activity…</p>;
   if (activity.length === 0) return <p className="cargo-od-activity-empty">No activity yet.</p>;
 
-  const top3 = activity.slice(0, 3);
+  const visible = showAll ? activity : activity.slice(0, 3);
 
   return (
     <>
       <ul className="cargo-od-activity">
-        {top3.map((event) => (
+        {visible.map((event) => (
           <li key={event.id} className="cargo-od-activity-item">
             <p className="cargo-od-activity-when">{fmtRelative(event.created_at)}</p>
             <p className="cargo-od-activity-what">{renderActivityWhat(event)}</p>
           </li>
         ))}
       </ul>
-      {activity.length > 3 && (
+      {!showAll && activity.length > 3 && (
         <button
           type="button"
           className="cargo-od-activity-link"
-          onClick={onViewAll}
+          onClick={() => setShowAll(true)}
         >
           View all activity ({activity.length}) →
         </button>
@@ -608,11 +547,9 @@ function ActivitySection({ orderId, onViewAll }) {
 }
 
 // ───────────────────────────────────────────────────────────
-// Footer
+// Sticky footer
 // ───────────────────────────────────────────────────────────
 
-// State-appropriate primary action label. Real handlers wired in
-// Commits 3-5 alongside document chips, payment style, authorization.
 function primaryActionFor(status) {
   switch (status) {
     case 'sent':              return { label: 'Cancel order' };
@@ -626,7 +563,7 @@ function primaryActionFor(status) {
   }
 }
 
-function FooterBar({ status, onClose }) {
+function FooterBar({ status, onBack }) {
   const primary = primaryActionFor(status);
   return (
     <div className="cargo-od-footer">
@@ -645,51 +582,222 @@ function FooterBar({ status, onClose }) {
         Email supplier
       </button>
       <span className="cargo-od-footer-spacer" />
-      <button type="button" className="cargo-ribbon-btn" onClick={onClose}>
-        Close
+      <button type="button" className="cargo-ribbon-btn" onClick={onBack}>
+        Back to board
       </button>
     </div>
   );
 }
 
 // ───────────────────────────────────────────────────────────
-// Main drawer
+// Page
 // ───────────────────────────────────────────────────────────
 
-export default function SupplierOrderDrawer({
-  open,
-  order,
-  list,
-  acceptAllBusy,
-  quoteRowBusy,
-  onAcceptAllQuoted,
-  onAcceptItemQuote,
-  onQueryItemQuote,
-  onDeclineItemQuote,
-  onClose,
-}) {
-  const handleViewAllActivity = () => {
-    // Inline expand isn't requested — defer to a follow-up. For now,
-    // scroll the user back to top so they can see the link disappears
-    // (placeholder UX).
-    // eslint-disable-next-line no-console
-    console.info('[SupplierOrderDrawer] View all activity — wire in a later commit');
-  };
+export default function SupplierOrderPage() {
+  const { boardId, orderId } = useParams();
+  const navigate = useNavigate();
+
+  const [order, setOrder] = useState(null);
+  const [list, setList] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+
+  // Quote workflow state — local to this page since it's now self-contained.
+  const [quoteRowBusy, setQuoteRowBusy] = useState(null);
+  const [acceptAllBusy, setAcceptAllBusy] = useState(null);
+  const [queryModalItem, setQueryModalItem] = useState(null);
+
+  // Lift body bg to editorial cream while this page is mounted (mirrors
+  // EditorialPageShell's behavior — we don't use the shell because its
+  // headline component force-uppercases the title).
+  useEffect(() => {
+    const prev = document.body.style.background;
+    document.body.style.background = EDITORIAL_BG;
+    return () => { document.body.style.background = prev; };
+  }, []);
+
+  // Load order + list in parallel. Treat order-not-found OR
+  // order.list_id !== boardId as a 404 and bounce back to the board.
+  useEffect(() => {
+    if (!orderId || !boardId) return;
+    let cancelled = false;
+    setLoading(true);
+    setNotFound(false);
+    Promise.all([
+      fetchSupplierOrderById(orderId),
+      fetchProvisioningList(boardId).catch(() => null),
+    ])
+      .then(([o, l]) => {
+        if (cancelled) return;
+        if (!o || (o.list_id && boardId && o.list_id !== boardId)) {
+          setNotFound(true);
+          showToast('Order not found on this board', 'error');
+          navigate(`/provisioning/${boardId}`, { replace: true });
+          return;
+        }
+        setOrder(o);
+        setList(l);
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error('[SupplierOrderPage] load failed:', err);
+        setNotFound(true);
+        showToast('Could not load order', 'error');
+        navigate(`/provisioning/${boardId}`, { replace: true });
+      });
+    return () => { cancelled = true; };
+  }, [orderId, boardId, navigate]);
+
+  // ── Quote handlers (mirror ProvisioningBoardDetail) ─────────────────
+  const mergeUpdatedItem = useCallback((updated) => {
+    if (!updated?.id) return;
+    setOrder((prev) => prev
+      ? { ...prev, supplier_order_items: (prev.supplier_order_items || []).map((it) => it.id === updated.id ? { ...it, ...updated } : it) }
+      : prev);
+  }, []);
+
+  const handleAcceptItemQuote = useCallback(async (item) => {
+    setQuoteRowBusy(item.id);
+    try {
+      const updated = await acceptOrderItemQuote(item.id);
+      mergeUpdatedItem(updated);
+    } catch (e) {
+      window.alert(`Could not accept quote: ${e.message}`);
+    } finally {
+      setQuoteRowBusy(null);
+    }
+  }, [mergeUpdatedItem]);
+
+  const handleDeclineItemQuote = useCallback(async (item) => {
+    if (!window.confirm('Decline this quote? The supplier will be asked to re-quote.')) return;
+    setQuoteRowBusy(item.id);
+    try {
+      const updated = await declineOrderItemQuote(item.id);
+      mergeUpdatedItem(updated);
+    } catch (e) {
+      window.alert(`Could not decline: ${e.message}`);
+    } finally {
+      setQuoteRowBusy(null);
+    }
+  }, [mergeUpdatedItem]);
+
+  const handleQueryItemQuote = useCallback(async (item) => {
+    setQueryModalItem(item);
+    setQuoteRowBusy(item.id);
+    try {
+      const updated = await queryOrderItemQuote(item.id);
+      mergeUpdatedItem(updated);
+    } catch (e) {
+      console.warn('[queryOrderItemQuote] failed:', e.message);
+    } finally {
+      setQuoteRowBusy(null);
+    }
+  }, [mergeUpdatedItem]);
+
+  const handleAcceptAllQuoted = useCallback(async (o) => {
+    const quoted = (o.supplier_order_items || []).filter((i) => i.quote_status === 'quoted');
+    if (quoted.length === 0) return;
+    if (!window.confirm(`Accept all ${quoted.length} quoted price${quoted.length === 1 ? '' : 's'}?`)) return;
+    setAcceptAllBusy(o.id);
+    try {
+      const results = await Promise.allSettled(quoted.map((it) => acceptOrderItemQuote(it.id)));
+      let failed = 0;
+      results.forEach((r) => {
+        if (r.status === 'fulfilled') mergeUpdatedItem(r.value);
+        else failed += 1;
+      });
+      if (failed > 0) {
+        window.alert(`Accepted ${quoted.length - failed} of ${quoted.length}. ${failed} failed — refresh to retry.`);
+      }
+    } finally {
+      setAcceptAllBusy(null);
+    }
+  }, [mergeUpdatedItem]);
+
+  const handleBack = () => navigate(`/provisioning/${boardId}`);
+
+  // ── Render ──────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <>
+        <Header />
+        <div className="editorial-page">
+          <p style={{ padding: '40px 0', color: 'rgba(30,39,66,0.5)' }}>Loading order…</p>
+        </div>
+      </>
+    );
+  }
+
+  if (notFound || !order) {
+    // Navigate effect already redirected; render nothing while it transitions.
+    return null;
+  }
+
+  const supplierName = order.supplier_profile?.name || order.supplier_name || 'Supplier';
+  const boardType = list?.board_type || 'general';
+  const country = order.supplier_profile?.business_country || null;
+  const flag = flagEmoji(country);
+  const totalCount = (order.supplier_order_items || []).length;
+  const port = order.delivery_port || null;
+  const vesselName = order.vessel_name || 'the vessel';
+  const deptList = Array.isArray(list?.department) ? list.department.filter(Boolean) : [list?.department].filter(Boolean);
+  const deptLabel = deptList[0] || 'Provisioning';
+
+  // Editorial meta strip — uppercase tracked context row.
+  const editorialMeta = [
+    { icon: 'MapPin', label: vesselName.toUpperCase() },
+    { label: boardType.toUpperCase() },
+    { label: deptLabel.toUpperCase() },
+    { label: `ORDER #${shortRef(order.id)}` },
+  ].filter(Boolean);
 
   return (
-    <Drawer
-      open={open}
-      onClose={onClose}
-      theme="light"
-      width={720}
-      panelBg="#FFFEFB"
-      hideHeader
-      bodyClassName="flex-1 overflow-y-auto"
-      footer={order ? <FooterBar status={order.status} onClose={onClose} /> : null}
-    >
-      {order ? (
-        <div className="cargo-od">
-          <HeroBlock order={order} list={list} onClose={onClose} />
+    <>
+      <Header />
+      <div className="editorial-page" style={{ paddingBottom: 96 }}>
+
+        {/* Editorial header — back link · meta strip · headline · subline.
+            Built manually because EditorialHeadline uppercases the title and
+            display-case supplier names ("Marina Mercante Palma") need to
+            survive intact. */}
+        <div className="p-header-row">
+          <div style={{ flex: 1 }}>
+            <button
+              className="p-back-link"
+              onClick={handleBack}
+              aria-label="Back to board"
+            >
+              Back to board
+            </button>
+            <EditorialMetaStrip meta={editorialMeta} />
+
+            {/* Custom headline — Georgia display-case supplier name + italic
+                terracotta board-type qualifier. Mirrors the EditorialHeadline
+                pattern but preserves multi-word supplier-name casing. */}
+            <h1 className="p-greeting" style={{ textTransform: 'none' }}>
+              {supplierName}<span className="p-greeting-punctuation">,</span>{' '}
+              <em>{boardType}</em><span className="p-greeting-punctuation">.</span>
+            </h1>
+            <p style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 14,
+              color: 'var(--ink-muted)',
+              margin: '0 0 0',
+              fontWeight: 400,
+            }}>
+              {totalCount} {totalCount === 1 ? 'item' : 'items'}
+              {flag && <> · <span style={{ fontSize: 14 }}>{flag}</span></>}
+              {port && <> · {port}</>}
+              {order.delivery_date && <> · expected {fmtDateShort(order.delivery_date)}</>}
+            </p>
+          </div>
+        </div>
+
+        {/* Page body — sections dissolve into the editorial background,
+            separated by the section labels and hairline rules. */}
+        <div className="cargo-od" style={{ marginTop: 24 }}>
+          <HeroStats order={order} />
 
           <div className="cargo-od-section">
             <span className="cargo-od-section-label">Lifecycle.</span>
@@ -709,10 +817,10 @@ export default function SupplierOrderDrawer({
               order={order}
               acceptAllBusy={acceptAllBusy}
               quoteRowBusy={quoteRowBusy}
-              onAcceptAllQuoted={onAcceptAllQuoted}
-              onAcceptItemQuote={onAcceptItemQuote}
-              onQueryItemQuote={onQueryItemQuote}
-              onDeclineItemQuote={onDeclineItemQuote}
+              onAcceptAllQuoted={handleAcceptAllQuoted}
+              onAcceptItemQuote={handleAcceptItemQuote}
+              onQueryItemQuote={handleQueryItemQuote}
+              onDeclineItemQuote={handleDeclineItemQuote}
             />
           </div>
 
@@ -720,14 +828,55 @@ export default function SupplierOrderDrawer({
             <span className="cargo-od-section-label">
               Recent <em>activity</em>.
             </span>
-            <ActivitySection orderId={order.id} onViewAll={handleViewAllActivity} />
+            <ActivitySection orderId={order.id} />
           </div>
         </div>
-      ) : (
-        <p style={{ padding: '2rem 1.5rem', fontSize: 13, color: 'rgba(30,39,66,0.55)' }}>
-          No order selected.
-        </p>
+      </div>
+
+      {/* Sticky footer pinned to viewport bottom. */}
+      <FooterBar status={order.status} onBack={handleBack} />
+
+      {/* Query placeholder modal — Sprint 9.5 stub, copy-pasted from
+          ProvisioningBoardDetail. Threaded discussions land in a future
+          sprint; the RPC has already flipped quote_status to 'in_discussion'
+          so the supplier sees the line being queried. */}
+      {queryModalItem && (
+        <div
+          onClick={() => setQueryModalItem(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.45)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 9000, padding: 16,
+          }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{
+            background: '#fff', borderRadius: 14, width: '100%', maxWidth: 460,
+            padding: '22px 26px', boxShadow: '0 24px 64px rgba(15,23,42,0.24)',
+          }}>
+            <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700, color: '#0F172A' }}>
+              Query raised — discussion threads coming soon
+            </h3>
+            <p style={{ margin: '0 0 8px', fontSize: 13.5, color: '#475569', lineHeight: 1.55 }}>
+              We've flagged <strong>{queryModalItem.item_name}</strong> as in discussion, so the
+              supplier knows you have a question. Threaded messaging on quoted lines is a future
+              sprint — for now, contact your supplier directly.
+            </p>
+            <p style={{ margin: '0 0 16px', fontSize: 12.5, color: '#94A3B8' }}>
+              You can still Accept or Decline this line at any time.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => setQueryModalItem(null)}
+                style={{
+                  fontSize: 13, fontWeight: 600, padding: '8px 16px',
+                  borderRadius: 8, border: 'none', background: '#1E3A5F', color: '#fff', cursor: 'pointer',
+                }}
+              >Got it</button>
+            </div>
+          </div>
+        </div>
       )}
-    </Drawer>
+    </>
   );
 }
