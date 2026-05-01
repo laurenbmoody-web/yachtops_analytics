@@ -2139,6 +2139,25 @@ export const fetchSupplierOrderActivity = async (orderId) => {
   return data ?? [];
 };
 
+// Single-order fetch by id — for the dedicated SupplierOrderPage at
+// /provisioning/:boardId/orders/:orderId. Returns null on no-match.
+// Joins items, invoices, supplier_profile (same shape as fetchSupplierOrders)
+// so the page consumes the same projection.
+export const fetchSupplierOrderById = async (orderId) => {
+  const { data, error } = await supabase
+    .from('supplier_orders')
+    .select(`
+      *,
+      supplier_order_items(*),
+      supplier_invoices(id, invoice_number, amount, currency, status, pdf_url, created_at, due_date),
+      supplier_profile:supplier_profile_id(id, name, business_country, business_city)
+    `)
+    .eq('id', orderId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+};
+
 export const fetchSupplierOrders = async (listId) => {
   const { data, error } = await supabase
     .from('supplier_orders')

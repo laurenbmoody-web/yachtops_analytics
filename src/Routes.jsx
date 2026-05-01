@@ -54,6 +54,7 @@ import { isDevMode } from './utils/devMode';
 
 import ProvisioningWorkspace from './pages/provisioning';
 import ProvisioningBoardDetail from './pages/provisioning/ProvisioningBoardDetail';
+import SupplierOrderPage from './pages/provisioning/SupplierOrderPage';
 import ProvisioningSuppliers from './pages/provisioning/ProvisioningSuppliers';
 import DeliveryInbox from './pages/provisioning/DeliveryInbox';
 import DeliveryHistory from './pages/provisioning/DeliveryHistory';
@@ -1229,6 +1230,8 @@ const Routes = () => {
         <Route path="/provisioning/history" element={<ProtectedRoute><DeliveryHistory /></ProtectedRoute>} />
         <Route path="/provisioning/return-slip" element={<ProtectedRoute><ReturnSlipPage /></ProtectedRoute>} />
         <Route path="/provisioning/:id" element={<ProtectedRoute><ProvisioningBoardDetail /></ProtectedRoute>} />
+        {/* Sprint 9c.2 — supplier order detail page (replaces drawer). */}
+        <Route path="/provisioning/:boardId/orders/:orderId" element={<ProtectedRoute><SupplierOrderPage /></ProtectedRoute>} />
 
         {/* Accounts */}
         <Route path="/accounts" element={<ProtectedRoute><Accounts /></ProtectedRoute>} />

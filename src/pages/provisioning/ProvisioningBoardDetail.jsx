@@ -43,7 +43,6 @@ import {
 import SendToSupplierModal from './components/SendToSupplierModal';
 import InvoiceUploadModal, { PAYMENT_STATUS_OPTIONS } from './components/InvoiceUploadModal';
 import ItemDrawer from './components/ItemDrawer';
-import SupplierOrderDrawer from './components/SupplierOrderDrawer';
 import ReceiveDeliveryModal from './components/ReceiveDeliveryModal';
 import ConfirmDeliveryModal from './components/ConfirmDeliveryModal';
 import { loadTrips, findTripByAnyId } from '../trips-management-dashboard/utils/tripStorage';
@@ -349,10 +348,9 @@ const ProvisioningBoardDetail = () => {
       setAcceptAllBusy(null);
     }
   }, [mergeUpdatedItem]);
-  // Sprint 9c.2 Commit 1.5: replaces inline expansion with a slide-in
-  // drawer. Holds the order id whose detail drawer is currently open;
-  // null = drawer closed.
-  const [drawerOrderId, setDrawerOrderId] = useState(null);
+  // Sprint 9c.2 redirect: order detail now lives at its own page
+  // (/provisioning/:boardId/orders/:orderId). Card click navigates there
+  // instead of opening a drawer.
   const [tenantVesselName, setTenantVesselName] = useState('');
   const [tenantVesselTypeLabel, setTenantVesselTypeLabel] = useState('');
 
@@ -2520,16 +2518,17 @@ const ProvisioningBoardDetail = () => {
                       className={`cargo-order-card${isActive ? ' cargo-order-card-active' : ''}`}
                     >
                       {/* Identity row + status — clickable to open the
-                          detail drawer (Sprint 9c.2 Commit 1.5). */}
+                          detail page at /provisioning/:boardId/orders/:orderId
+                          (Sprint 9c.2 page redirect). */}
                       <div
                         className="cargo-order-card-row"
-                        onClick={() => setDrawerOrderId(order.id)}
+                        onClick={() => navigate(`/provisioning/${id}/orders/${order.id}`)}
                         role="button"
                         tabIndex={0}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
-                            setDrawerOrderId(order.id);
+                            navigate(`/provisioning/${id}/orders/${order.id}`);
                           }
                         }}
                       >
@@ -2730,24 +2729,6 @@ const ProvisioningBoardDetail = () => {
           setItemDrawer({ open: false, item: null });
         }}
         onClose={() => setItemDrawer({ open: false, item: null })}
-      />
-
-      {/* Sprint 9c.2 Commit 1.5b — supplier order detail drawer.
-          Resolves the live order off the supplierOrders list each render so
-          mid-quote edits (Accept/Decline/Query) reflect immediately when
-          the parent state updates. The drawer renders its own rich title
-          (Georgia name + mono ref + flag) — no drawerTitle prop needed. */}
-      <SupplierOrderDrawer
-        open={!!drawerOrderId}
-        order={drawerOrderId ? supplierOrders.find((o) => o.id === drawerOrderId) || null : null}
-        list={list}
-        acceptAllBusy={acceptAllBusy}
-        quoteRowBusy={quoteRowBusy}
-        onAcceptAllQuoted={handleAcceptAllQuoted}
-        onAcceptItemQuote={handleAcceptItemQuote}
-        onQueryItemQuote={handleQueryItemQuote}
-        onDeclineItemQuote={handleDeclineItemQuote}
-        onClose={() => setDrawerOrderId(null)}
       />
 
       {/* Query placeholder — Sprint 9.5 stub. Real threading is a future
