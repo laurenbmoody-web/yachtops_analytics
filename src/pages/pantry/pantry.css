@@ -1874,290 +1874,530 @@
   font-weight: 600;
 }
 
-/* ── Supplier order drawer (Sprint 9c.2 Commit 1.5b) ────────
-   Full skeleton structure for the vessel-side order detail.
-   Sections from top: rich title (in Drawer header) · hero block ·
-   timeline placeholder · documents placeholder · activity feed ·
-   item count summary · action pills · items table · footer. */
+/* ── Supplier order drawer (Sprint 9c.2 Commit 1.5c — redesign) ─
+   Editorial magazine spread + dashboard density. Drawer panel bg
+   is set on the Drawer wrapper (#FFFEFB — slightly warmer than the
+   page #F5F1EA gives a paper feel). No card walls inside; sections
+   are hairline-separated regions within the body.
 
-/* Sections share consistent vertical rhythm */
+   Section vocab:
+     .cargo-od               — root font/colour for the body
+     .cargo-od-section       — hairline-separated section
+     .cargo-od-section-label — tracked uppercase label, with optional
+                                italic terracotta noun via <em>
+*/
+
 .cargo-od {
   font-family: var(--font-sans);
   color: var(--ink);
+  position: relative;
 }
-.cargo-od-section { margin: 0 0 22px; }
+.cargo-od-section {
+  padding: 1.1rem 1.5rem;
+  border-bottom: 1px solid rgba(30, 39, 66, 0.06);
+}
+.cargo-od-section:last-child { border-bottom: 0; }
 .cargo-od-section-label {
   display: block;
+  font-family: var(--font-sans);
   font-size: 9.5px;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--ink-muted);
-  margin: 0 0 8px;
-}
-
-/* Drawer-header rich title — Georgia name + mono ref + flag */
-.cargo-od-title {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  flex-wrap: wrap;
-  font-family: inherit;
-}
-.cargo-od-title-name {
-  font-family: Georgia, 'DM Serif Text', 'Times New Roman', serif;
-  font-size: 17px;
-  font-weight: 500;
-  color: var(--ink);
-  letter-spacing: -0.005em;
-}
-.cargo-od-title-ref {
-  font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
   color: rgba(30, 39, 66, 0.55);
+  margin: 0 0 14px;
 }
-.cargo-od-title-flag { font-size: 14px; }
+.cargo-od-section-label em {
+  font-family: Georgia, 'DM Serif Text', 'Times New Roman', serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 13px;
+  letter-spacing: -0.005em;
+  text-transform: lowercase;
+  color: var(--accent);
+  margin: 0 1px;
+}
 
-/* Hero block — bordered card with key facts */
+/* ── Hero ───────────────────────────────────────────────────── */
+
 .cargo-od-hero {
-  background: #FAF7F0;
-  border: 1px solid rgba(30, 39, 66, 0.08);
-  border-radius: 12px;
-  padding: 16px 18px;
-  display: grid;
-  gap: 16px;
+  padding: 1.75rem 1.5rem 1.25rem;
+  border-bottom: 1px solid rgba(30, 39, 66, 0.06);
+  position: relative;
 }
-.cargo-od-hero-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
-.cargo-od-hero-cell {
-  min-width: 0;
-}
-.cargo-od-hero-label {
-  display: block;
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-muted);
-  margin: 0 0 3px;
-}
-.cargo-od-hero-value {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ink);
-  line-height: 1.3;
-}
-.cargo-od-hero-value-strong {
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  font-variant-numeric: tabular-nums;
-}
-.cargo-od-hero-status {
-  display: inline-block;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  padding: 4px 10px;
+.cargo-od-hero-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 28px;
+  height: 28px;
   border-radius: 999px;
+  border: 0;
+  background: rgba(30, 39, 66, 0.06);
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  font-size: 14px;
+  line-height: 1;
+}
+.cargo-od-hero-close:hover { background: rgba(30, 39, 66, 0.12); }
+
+.cargo-od-kicker {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink);
+  opacity: 0.6;
+  margin: 0 0 14px;
 }
 
-/* Money summary row */
-.cargo-od-money {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  padding-top: 14px;
-  border-top: 1px solid rgba(30, 39, 66, 0.08);
+.cargo-od-headline {
+  font-family: Georgia, 'DM Serif Text', 'Times New Roman', serif;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0 0 10px;
 }
-.cargo-od-money-cell { text-align: left; }
-.cargo-od-money-label {
+.cargo-od-headline em {
+  font-style: italic;
+  font-weight: 600;
+  color: var(--accent);
+}
+.cargo-od-headline-punct {
+  color: var(--ink);
+  font-style: normal;
+}
+
+.cargo-od-subline {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink);
+  opacity: 0.55;
+  margin: 0 0 18px;
+}
+.cargo-od-subline-flag {
+  display: inline-block;
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+  vertical-align: middle;
+  margin: 0 2px;
+}
+
+/* 4-card stat grid */
+.cargo-od-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.cargo-od-stat {
+  background: #FFFFFF;
+  border: 1px solid rgba(30, 39, 66, 0.06);
+  border-radius: 6px;
+  padding: 9px 11px;
+}
+.cargo-od-stat.is-action {
+  border-color: var(--accent);
+  background: #FEF3E8;
+}
+.cargo-od-stat-label {
   display: block;
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--ink-muted);
-  margin: 0 0 3px;
+  color: rgba(30, 39, 66, 0.55);
+  margin: 0 0 5px;
 }
-.cargo-od-money-value {
+.cargo-od-stat-value {
   display: block;
+  font-family: Georgia, 'DM Serif Text', 'Times New Roman', serif;
   font-size: 13px;
   font-weight: 600;
+  letter-spacing: -0.005em;
   color: var(--ink);
-  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
 }
-
-/* Placeholder cards (timeline, documents) */
-.cargo-od-placeholder {
-  background: #FFFFFF;
-  border: 1px dashed rgba(30, 39, 66, 0.12);
-  border-radius: 10px;
-  padding: 16px 18px;
-  font-size: 12px;
-  color: var(--ink-muted);
-  font-style: italic;
+.cargo-od-stat-value.is-money    { font-size: 16px; }
+.cargo-od-stat-value.is-action   { color: var(--accent); }
+.cargo-od-stat-sub {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  color: rgba(30, 39, 66, 0.55);
+  margin: 4px 0 0;
 }
+.cargo-od-stat-sub.is-action { color: var(--accent); }
 
-/* Documents placeholder slot list */
-.cargo-od-doc-slots {
+/* ── Lifecycle timeline (8 steps) ──────────────────────────── */
+
+.cargo-od-timeline {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  position: relative;
+  padding: 0 6px;
+}
+.cargo-od-timeline-step {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  position: relative;
 }
-.cargo-od-doc-slot {
+.cargo-od-timeline-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: calc(50% + 8px);
+  right: calc(-50% + 8px);
+  height: 2px;
+  background: rgba(30, 39, 66, 0.12);
+  z-index: 0;
+}
+.cargo-od-timeline-step.is-past:not(:last-child)::after {
+  background: var(--ink);
+}
+.cargo-od-timeline-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(30, 39, 66, 0.35);
+  background: transparent;
+  position: relative;
+  z-index: 1;
+  transition: transform 0.15s;
+}
+.cargo-od-timeline-step.is-past .cargo-od-timeline-dot {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+.cargo-od-timeline-step.is-current .cargo-od-timeline-dot {
+  background: var(--accent);
+  border-color: var(--accent);
+  transform: scale(1.4);
+}
+.cargo-od-timeline-step.is-future .cargo-od-timeline-dot {
+  border-color: rgba(30, 39, 66, 0.25);
+}
+.cargo-od-timeline-label {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink);
+  opacity: 0.6;
+  text-align: center;
+  white-space: nowrap;
+}
+.cargo-od-timeline-step.is-current .cargo-od-timeline-label {
+  color: var(--accent);
+  opacity: 1;
+  font-weight: 600;
+}
+.cargo-od-timeline-step.is-future .cargo-od-timeline-label { opacity: 0.45; }
+
+/* ── Documents (3 hairline-separated rows) ─────────────────── */
+
+.cargo-od-doc-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
-  background: #FFFFFF;
-  border: 1px solid rgba(30, 39, 66, 0.08);
-  border-radius: 8px;
-  font-size: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid rgba(30, 39, 66, 0.06);
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.cargo-od-doc-row:last-child { border-bottom: 0; }
+.cargo-od-doc-row:hover { background: rgba(250, 247, 240, 0.6); }
+.cargo-od-doc-name {
+  font-size: 13px;
+  font-weight: 500;
   color: var(--ink);
 }
-.cargo-od-doc-slot-name { font-weight: 500; }
-.cargo-od-doc-slot-state {
-  font-size: 10px;
+.cargo-od-doc-state {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink);
+  opacity: 0.55;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.cargo-od-doc-state.is-action {
+  opacity: 1;
+  color: var(--accent);
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-muted);
+}
+.cargo-od-doc-state.is-success {
+  opacity: 1;
+  color: #166534;
+  font-weight: 600;
+}
+.cargo-od-doc-pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: cargo-od-pulse 1.6s ease-in-out infinite;
+}
+@keyframes cargo-od-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.5; transform: scale(1.3); }
 }
 
-/* Activity feed */
-.cargo-od-activity { list-style: none; padding: 0; margin: 0; }
+/* ── Lines section ─────────────────────────────────────────── */
+
+.cargo-od-lines-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: rgba(30, 39, 66, 0.7);
+  margin: 0 0 12px;
+}
+.cargo-od-lines-summary strong {
+  color: var(--ink);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.cargo-od-lines-summary .is-pending strong  { color: var(--accent); }
+.cargo-od-lines-summary .is-confirmed strong { color: #166534; }
+.cargo-od-lines-summary .is-unavail strong  { color: rgba(30, 39, 66, 0.55); font-weight: 600; }
+
+.cargo-od-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-sans);
+}
+.cargo-od-table th {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(30, 39, 66, 0.55);
+  text-align: left;
+  padding: 7px 10px 9px;
+  border-bottom: 1px solid rgba(30, 39, 66, 0.08);
+}
+.cargo-od-table th.num     { text-align: right; }
+.cargo-od-table th.center  { text-align: center; }
+.cargo-od-table tr {
+  transition: background 0.12s;
+}
+.cargo-od-table tbody tr:hover {
+  background: rgba(250, 247, 240, 0.5);
+}
+.cargo-od-table td {
+  padding: 9px 10px;
+  font-size: 13px;
+  color: var(--ink);
+  border-bottom: 1px solid rgba(30, 39, 66, 0.04);
+  vertical-align: top;
+}
+.cargo-od-table tr:last-child td { border-bottom: 0; }
+.cargo-od-table td.num    { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cargo-od-table td.center { text-align: center; color: rgba(30, 39, 66, 0.7); }
+
+/* Tonal status pills inside the table */
+.cargo-od-pill {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+.cargo-od-pill.tonal-green   { background: rgba(22, 101, 52, 0.1);   color: #166534; }
+.cargo-od-pill.tonal-amber   { background: rgba(217, 119, 6, 0.12);  color: #92400E; }
+.cargo-od-pill.tonal-muted   { background: rgba(30, 39, 66, 0.06);   color: rgba(30, 39, 66, 0.6); }
+.cargo-od-pill.tonal-rose    { background: rgba(220, 38, 38, 0.08);  color: #991B1B; }
+
+/* Keyboard shortcut row */
+.cargo-od-kbd-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 14px 0 0;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  color: var(--ink);
+  opacity: 0.5;
+}
+.cargo-od-kbd-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.cargo-od-kbd-row kbd {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 9.5px;
+  padding: 1px 5px;
+  border: 1px solid rgba(30, 39, 66, 0.2);
+  border-radius: 3px;
+  color: var(--ink);
+  background: transparent;
+  text-transform: uppercase;
+}
+
+/* Per-line quote workflow buttons (preserved from 9.5) — slot inside
+   the new table cells. */
+.cargo-od-line-actions {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.cargo-od-line-btn {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: 14px;
+  cursor: pointer;
+  border: 1px solid;
+}
+.cargo-od-line-btn.accept   { border-color: #059669; background: rgba(16, 185, 129, 0.12); color: #065F46; }
+.cargo-od-line-btn.query    { border-color: #D97706; background: rgba(217, 119, 6, 0.12);  color: #92400E; }
+.cargo-od-line-btn.decline  { border-color: #DC2626; background: rgba(220, 38, 38, 0.08);  color: #991B1B; }
+.cargo-od-line-btn:disabled { cursor: wait; opacity: 0.6; }
+
+.cargo-od-delta-chip {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+.cargo-od-delta-chip.up   { background: rgba(217, 119, 6, 0.15);  color: #92400E; }
+.cargo-od-delta-chip.down { background: rgba(22, 101, 52, 0.12); color: #166534; }
+
+.cargo-od-supplier-notes {
+  margin: 14px 0 0;
+  font-family: Georgia, 'DM Serif Text', 'Times New Roman', serif;
+  font-style: italic;
+  font-size: 13px;
+  color: rgba(30, 39, 66, 0.65);
+  line-height: 1.5;
+}
+
+/* Accept-N quoted prices bulk button */
+.cargo-od-bulk-accept {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 999px;
+  border: 1px solid #1E40AF;
+  background: rgba(219, 234, 254, 0.5);
+  color: #1E40AF;
+  cursor: pointer;
+  margin: 0 0 10px;
+}
+.cargo-od-bulk-accept:hover  { background: rgba(219, 234, 254, 0.85); }
+.cargo-od-bulk-accept:disabled { cursor: wait; opacity: 0.7; }
+
+/* ── Recent activity ───────────────────────────────────────── */
+
+.cargo-od-activity { list-style: none; margin: 0; padding: 0; }
 .cargo-od-activity-item {
   position: relative;
-  padding: 8px 0 8px 18px;
-  border-bottom: 1px solid rgba(30, 39, 66, 0.06);
+  padding: 10px 0 10px 18px;
+  border-bottom: 1px solid rgba(30, 39, 66, 0.04);
 }
 .cargo-od-activity-item:last-child { border-bottom: 0; }
 .cargo-od-activity-item::before {
   content: '';
   position: absolute;
-  left: 0; top: 14px;
-  width: 6px; height: 6px;
+  left: 0;
+  top: 16px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: rgba(30, 39, 66, 0.25);
+  background: #166534;
 }
-.cargo-od-activity-item.is-done::before { background: #166534; }
-.cargo-od-activity-item.is-now::before  { background: var(--accent); }
 .cargo-od-activity-when {
-  font-size: 10px;
-  letter-spacing: 0.06em;
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--ink-muted);
-  margin: 0 0 2px;
+  color: rgba(30, 39, 66, 0.55);
+  margin: 0 0 3px;
 }
 .cargo-od-activity-what {
+  font-family: var(--font-sans);
   font-size: 13px;
   color: var(--ink);
-  line-height: 1.4;
+  line-height: 1.45;
   margin: 0;
 }
-.cargo-od-activity-who {
-  font-size: 11px;
-  color: var(--ink-muted);
-  margin: 2px 0 0;
+.cargo-od-activity-actor {
+  font-family: Georgia, 'DM Serif Text', 'Times New Roman', serif;
+  font-style: italic;
+  font-weight: 400;
+  color: var(--accent);
 }
 .cargo-od-activity-empty {
+  font-family: var(--font-sans);
   font-size: 12px;
-  color: var(--ink-muted);
+  color: rgba(30, 39, 66, 0.55);
   font-style: italic;
 }
-.cargo-od-activity-toggle {
-  margin-top: 8px;
-  background: none;
+.cargo-od-activity-link {
+  display: inline-block;
+  margin: 12px 0 0;
+  background: 0;
   border: 0;
-  padding: 4px 0;
+  padding: 0;
+  cursor: pointer;
   font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 600;
   color: var(--accent);
-  cursor: pointer;
   letter-spacing: 0.04em;
 }
-.cargo-od-activity-toggle:hover { text-decoration: underline; }
+.cargo-od-activity-link:hover { text-decoration: underline; }
 
-/* Item count summary chips */
-.cargo-od-counts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.cargo-od-count-chip {
-  font-size: 11px;
-  font-weight: 500;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: rgba(30, 39, 66, 0.04);
-  color: var(--ink);
-  border: 1px solid rgba(30, 39, 66, 0.08);
-}
-.cargo-od-count-chip strong {
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
+/* ── Sticky footer ─────────────────────────────────────────── */
 
-/* Action affordances pill cluster */
-.cargo-od-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-/* Footer — primary action + back link */
 .cargo-od-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 22px;
-  border-top: 1px solid rgba(30, 39, 66, 0.06);
+  gap: 8px;
+  padding: 0.85rem 1.5rem;
   background: #FAF7F0;
+  border-top: 1px solid rgba(30, 39, 66, 0.06);
 }
-.cargo-od-footer-back {
-  font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ink-muted);
-  background: none;
-  border: 0;
-  cursor: pointer;
-  padding: 0;
+.cargo-od-footer-spacer { flex: 1; }
+.cargo-od-footer .cargo-ribbon-btn { font-size: 11px; }
+
+/* ── Responsive (mobile/narrow viewport) ───────────────────── */
+@media (max-width: 640px) {
+  .cargo-od-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cargo-od-timeline { grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: 24px; }
+  .cargo-od-timeline-step:nth-child(4n)::after { display: none; }
+  .cargo-od-headline { font-size: 24px; }
+  .cargo-od-section,
+  .cargo-od-hero { padding-left: 1rem; padding-right: 1rem; }
+  .cargo-od-footer { padding-left: 1rem; padding-right: 1rem; }
 }
-.cargo-od-footer-back:hover { color: var(--ink); }
-.cargo-od-footer-primary {
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  padding: 9px 18px;
-  background: var(--ink);
-  color: var(--bg-canvas);
-  border: 0;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-.cargo-od-footer-primary:hover { opacity: 0.9; }
-.cargo-od-footer-primary:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
+
 
 /* ── Editorial tab nav (Sprint 9c.1) ────────────────────────
    Tracked uppercase, terracotta active underline. Replaces the

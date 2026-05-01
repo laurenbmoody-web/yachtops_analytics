@@ -2,20 +2,30 @@ import React, { useEffect, useState, useMemo } from 'react';
 import Drawer from './Drawer';
 import { fetchSupplierOrderActivity } from '../utils/provisioningStorage';
 
-// Sprint 9c.2 Commit 1.5b — full drawer skeleton.
+// Sprint 9c.2 Commit 1.5c — drawer redesign.
 //
-// Sections (top to bottom):
-//   1. Title (rich) — Georgia name + mono ref + flag, in Drawer header
-//   2. Hero block — status, countdown, delivery facts, money summary
-//   3. Lifecycle timeline — placeholder (Commit 2b fills)
-//   4. Documents — placeholder slot list (Commit 3 wires)
-//   5. Activity feed — LIVE (5 most recent + toggle for full)
-//   6. Item count summary — LIVE chips
-//   7. Action affordances — placeholder pills
-//   8. Items table — existing per-line quote workflow
-//   9. Footer — primary action placeholder + close
+// Editorial magazine spread + dashboard density. Drawer reads top-to-
+// bottom like a periodical article about the order, but every section
+// gives data at a glance. No card walls inside the drawer — sections
+// dissolve into the page background, separated by hairline rules.
 //
-// Subsequent commits replace the placeholders with real interactivity.
+// Sections:
+//   1. Hero       — kicker / headline / subline / 4 stat cards
+//   2. Lifecycle  — 8-step horizontal timeline, current state terracotta
+//   3. Documents  — 3 hairline rows, pulsing dot when action needed
+//   4. Lines      — summary chip row + items table + keyboard shortcuts
+//   5. Activity   — top 3 events with italic terracotta actor names
+//   6. Footer     — sticky pill cluster: primary action + secondaries + close
+//
+// What survives from 1.5b:
+//   - Drawer mount/open state in the parent (drawerOrderId)
+//   - Drawer wrapper component
+//   - Per-line quote workflow (Accept/Query/Decline) — restyled chrome,
+//     same handlers
+// What's thrown away:
+//   - The placeholder card walls
+//   - The thin items table — replaced by the structured one with summary
+//     chips and keyboard shortcuts row
 
 // ───────────────────────────────────────────────────────────
 // Helpers
@@ -25,6 +35,12 @@ const fmtMoney = (n, currency = 'EUR') => {
   if (n == null || n === '') return '—';
   try { return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(Number(n)); }
   catch { return `${currency} ${Number(n).toFixed(2)}`; }
+};
+
+const fmtMoneyDelta = (n, currency = 'EUR') => {
+  const v = Number(n) || 0;
+  const sign = v > 0 ? '+' : v < 0 ? '−' : '';
+  return `${sign}${fmtMoney(Math.abs(v), currency)}`;
 };
 
 const shortRef = (id) => String(id || '').slice(0, 8).toUpperCase();
@@ -37,39 +53,11 @@ const flagEmoji = (iso) => {
   return String.fromCodePoint(u.charCodeAt(0) + offset, u.charCodeAt(1) + offset);
 };
 
-// Status chip colour palette — same as the summary card. Subsequent commits
-// will replace this with the lifecycle indicator's colour scheme.
-const statusChipStyle = (status) => {
-  if (status === 'paid' || status === 'received' || status === 'confirmed') {
-    return { background: '#D1FAE5', color: '#065F46' };
-  }
-  if (status === 'sent') return { background: '#DBEAFE', color: '#1E40AF' };
-  if (status === 'partially_confirmed') return { background: '#FEF3C7', color: '#92400E' };
-  if (status === 'invoiced') return { background: '#FED7AA', color: '#9A3412' };
-  return { background: '#F1F5F9', color: '#475569' };
-};
-
-const fmtStatusLabel = (s) => {
-  if (!s) return '';
-  if (s === 'partially_confirmed') return 'Partial';
-  return s.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
-};
-
-const fmtDate = (iso) => {
-  if (!iso) return '—';
-  try {
-    return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-  } catch { return iso; }
-};
-
 const fmtDateShort = (iso) => {
   if (!iso) return null;
-  try {
-    return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-  } catch { return iso; }
+  try { return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); }
+  catch { return null; }
 };
-
-const fmtTime = (t) => (t ? String(t).slice(0, 5) : null);
 
 const fmtRelative = (iso) => {
   if (!iso) return '';
@@ -81,95 +69,89 @@ const fmtRelative = (iso) => {
     const hours = Math.floor(minutes / 60);
     if (hours < 24) return `${hours}h ago`;
     const days = Math.floor(hours / 24);
-    if (days < 7) return `${days}d ago`;
+    if (days < 30) return `${days}d ago`;
     return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   } catch { return ''; }
 };
 
-// Countdown to a future date — null if past.
+// Days until a date — negative if past.
 const daysUntil = (iso) => {
   if (!iso) return null;
   try {
-    const target = new Date(iso);
-    target.setHours(0, 0, 0, 0);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const target = new Date(iso); target.setHours(0, 0, 0, 0);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
     return Math.round((target - today) / 86400000);
   } catch { return null; }
 };
 
-// ───────────────────────────────────────────────────────────
-// Activity event renderer (vessel-side flavour)
-// ───────────────────────────────────────────────────────────
-
-// Mirrors the supplier-portal pattern at a slightly simpler level —
-// vessel-relevant event types only. Sprint 9c (later) will filter purely
-// supplier-internal events (reassigned, delivery_edited) so the feed
-// stays useful for chief stews; for now we render everything we receive.
-const fmtActivityEvent = (event) => {
-  const when = fmtRelative(event.created_at);
-  const actor = event.actor_name || event.actor_role || 'system';
-  const dot =
-    event.event_type === 'order_received' ? 'is-done'
-    : event.event_type === 'status_advanced' ? 'is-done'
-    : event.event_type === 'item_confirmed' ? 'is-done'
-    : event.event_type === 'quote_accepted' ? 'is-done'
-    : event.event_type === 'delivery_signed' ? 'is-done'
-    : event.event_type === 'delivery_note_emailed' ? 'is-done'
-    : event.event_type === 'invoice_generated' ? 'is-done'
-    : '';
-
-  switch (event.event_type) {
-    case 'order_received':
-      return { when, dot, what: `Order received by supplier`, who: `From ${event.payload?.vessel_name || 'vessel'}` };
-    case 'status_advanced':
-      return { when, dot, what: <>Status: {event.payload?.from || '—'} → <strong>{event.payload?.to || '—'}</strong></>, who: `By ${actor}` };
-    case 'reassigned':
-      return { when, dot: '', what: 'Order reassigned', who: `By ${actor}` };
-    case 'delivery_edited':
-      return { when, dot: '', what: `Delivery details edited`, who: `By ${actor}` };
-    case 'item_confirmed':
-    case 'item_substituted':
-    case 'item_unavailable':
-      return {
-        when, dot,
-        what: <>{event.payload?.item_name || 'Item'} {event.event_type.replace('item_', '')}</>,
-        who: `By ${actor}`,
-      };
-    case 'quote_received': {
-      const auto = event.payload?.auto_accepted;
-      return {
-        when, dot: auto ? 'is-done' : '',
-        what: <>Quote received — <em>{event.payload?.item_name || 'item'}</em>{auto ? ' · auto-accepted' : ''}</>,
-        who: `By ${actor}`,
-      };
-    }
-    case 'quote_accepted':
-      return { when, dot, what: <>Quote accepted — <em>{event.payload?.item_name || 'item'}</em></>, who: `By ${actor}` };
-    case 'quote_declined':
-      return { when, dot: '', what: <>Quote declined — <em>{event.payload?.item_name || 'item'}</em></>, who: `By ${actor}` };
-    case 'discussion_opened':
-      return { when, dot: '', what: <>Query raised — <em>{event.payload?.item_name || 'item'}</em></>, who: `By ${actor}` };
-    case 'order_pdf_generated':
-      return { when, dot, what: 'Order PDF generated', who: `By ${actor}` };
-    case 'delivery_note_generated':
-      return { when, dot, what: <>Delivery note generated{event.payload?.signing_token_minted ? ' · signing link minted' : ''}</>, who: `By ${actor}` };
-    case 'delivery_note_emailed':
-      return { when, dot, what: 'Delivery note signing link sent', who: `By ${actor}` };
-    case 'delivery_signed':
-      return { when, dot, what: <>Delivery signed by <strong>{event.payload?.signer_name || actor}</strong></>, who: 'Crew signature' };
-    case 'invoice_generated':
-      return { when, dot, what: <>Invoice <strong>{event.payload?.invoice_number || 'issued'}</strong></>, who: `By ${actor}` };
-    default:
-      return { when, dot: '', what: event.event_type, who: actor };
-  }
+// Display label for status sub-line, e.g. "since 25 Apr"
+const statusSinceLabel = (order) => {
+  const ts = order.confirmed_at || order.sent_at || order.created_at;
+  const d = fmtDateShort(ts);
+  return d ? `since ${d}` : '—';
 };
 
 // ───────────────────────────────────────────────────────────
-// Hero / sections
+// 8-step lifecycle indicator
 // ───────────────────────────────────────────────────────────
 
-function HeroBlock({ order }) {
+const LIFECYCLE_STEPS = [
+  { key: 'sent',             label: 'Sent' },
+  { key: 'quoted',           label: 'Quoted' },     // derived, not stored
+  { key: 'confirmed',        label: 'Confirmed' },
+  { key: 'dispatched',       label: 'Dispatched' },
+  { key: 'out_for_delivery', label: 'Out for del.' },
+  { key: 'received',         label: 'Received' },
+  { key: 'invoiced',         label: 'Invoiced' },
+  { key: 'paid',             label: 'Paid' },
+];
+
+// Compute current displayed step. Quoted is derived from per-line
+// quote_status when order.status is still 'sent' but lines have been
+// quoted by the supplier.
+function currentLifecycleIndex(order) {
+  const status = order.status;
+  const items = order.supplier_order_items || [];
+  switch (status) {
+    case 'paid':              return 7;
+    case 'invoiced':          return 6;
+    case 'received':          return 5;
+    case 'out_for_delivery':  return 4;
+    case 'dispatched':        return 3;
+    case 'confirmed':         return 2;
+    case 'sent': {
+      const hasQuoted = items.some((i) => i.quote_status === 'quoted');
+      return hasQuoted ? 1 : 0;
+    }
+    default: return 0;
+  }
+}
+
+function LifecycleTimeline({ order }) {
+  const currentIdx = currentLifecycleIndex(order);
+  return (
+    <div className="cargo-od-timeline" role="list" aria-label="Order lifecycle">
+      {LIFECYCLE_STEPS.map((step, i) => {
+        const stateClass =
+          i < currentIdx ? 'is-past'
+          : i === currentIdx ? 'is-current'
+          : 'is-future';
+        return (
+          <div key={step.key} className={`cargo-od-timeline-step ${stateClass}`} role="listitem">
+            <span className="cargo-od-timeline-dot" aria-hidden="true" />
+            <span className="cargo-od-timeline-label">{step.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────
+// Hero
+// ───────────────────────────────────────────────────────────
+
+function HeroBlock({ order, list, onClose }) {
   const items = order.supplier_order_items || [];
   const invoices = order.supplier_invoices || [];
   const currency = order.currency
@@ -177,126 +159,415 @@ function HeroBlock({ order }) {
     || items[0]?.agreed_currency
     || 'EUR';
 
-  const sumOf = (key) => items.reduce((s, it) => s + (Number(it[key]) || 0) * (Number(it.quantity) || 0), 0);
-  const estimatedTotal = sumOf('estimated_price');
+  // Money totals
+  const sumLines = (key) => items.reduce(
+    (s, it) => s + (Number(it[key]) || 0) * (Number(it.quantity) || 0),
+    0,
+  );
+  const estimatedTotal = sumLines('estimated_price');
   const agreedTotal = items.reduce((s, it) => {
     const val = Number(it.agreed_price ?? it.quoted_price ?? it.estimated_price) || 0;
     return s + val * (Number(it.quantity) || 0);
   }, 0);
   const invoicedTotal = invoices.reduce((s, inv) => s + (Number(inv.amount) || 0), 0);
+  const overInvoice = invoicedTotal - agreedTotal;
+  const isOverBudget = invoices.length > 0 && overInvoice > 0.01;
 
-  const countdown = daysUntil(order.delivery_date);
-  const countdownLabel = countdown == null ? '—'
-    : countdown < 0 ? `${Math.abs(countdown)}d overdue`
-    : countdown === 0 ? 'Today'
-    : countdown === 1 ? 'Tomorrow'
-    : `${countdown}d`;
+  // Countdown
+  const dDelta = daysUntil(order.delivery_date);
+  const isOverdue = dDelta != null && dDelta < 0;
+  const countdownValue =
+    dDelta == null ? '—'
+    : dDelta < 0 ? `${Math.abs(dDelta)}d overdue`
+    : dDelta === 0 ? 'Today'
+    : dDelta === 1 ? '1d to go'
+    : `${dDelta}d to go`;
+  const expectedSub = order.delivery_date
+    ? `expected ${fmtDateShort(order.delivery_date)}`
+    : '—';
 
-  const status = order.status || 'sent';
+  // Agreed sub — "all lines accepted" / "N of M agreed"
+  const agreedCount = items.filter((i) => i.quote_status === 'agreed').length;
+  const totalCount = items.length;
+  const agreedSub = totalCount === 0
+    ? '—'
+    : agreedCount === totalCount
+    ? 'all lines accepted'
+    : `${agreedCount} of ${totalCount} agreed`;
+
+  // Headline composition
   const supplierName = order.supplier_profile?.name || order.supplier_name || 'Supplier';
+  const boardType = list?.board_type || 'general';     // canonical lowercase value
+  const country = order.supplier_profile?.business_country || null;
+  const flag = flagEmoji(country);
+
+  // Kicker pieces
+  const vesselName = order.vessel_name || 'the vessel';
+  const deptList = Array.isArray(list?.department) ? list.department.filter(Boolean) : [list?.department].filter(Boolean);
+  const deptLabel = deptList[0] || 'Provisioning';
+  const kickerPieces = [
+    `From ${vesselName}`,
+    boardType,
+    deptLabel,
+  ].filter(Boolean);
+
+  const port = order.delivery_port || null;
+
+  // Status sub (always shows the most recent state-change anchor we have)
+  const statusValue = (order.status || 'sent').replace(/_/g, ' ');
 
   return (
     <div className="cargo-od-hero">
-      <div className="cargo-od-hero-row">
-        <div className="cargo-od-hero-cell">
-          <span className="cargo-od-hero-label">Status</span>
-          <span className="cargo-od-hero-status" style={statusChipStyle(status)}>
-            {fmtStatusLabel(status)}
-          </span>
-        </div>
-        <div className="cargo-od-hero-cell" style={{ textAlign: 'right' }}>
-          <span className="cargo-od-hero-label">Countdown</span>
-          <span className="cargo-od-hero-value-strong">{countdownLabel}</span>
-        </div>
-      </div>
+      <button
+        type="button"
+        className="cargo-od-hero-close"
+        onClick={onClose}
+        aria-label="Close drawer"
+      >×</button>
 
-      <div className="cargo-od-hero-row">
-        <div className="cargo-od-hero-cell">
-          <span className="cargo-od-hero-label">Delivery</span>
-          <span className="cargo-od-hero-value">
-            {fmtDate(order.delivery_date)}
-            {fmtTime(order.delivery_time) && ` · ${fmtTime(order.delivery_time)}`}
-          </span>
-          {order.delivery_port && (
-            <span className="cargo-od-hero-value" style={{ fontSize: 12, color: 'var(--ink-muted)', fontWeight: 500, marginTop: 2 }}>
-              {order.delivery_port}
-            </span>
-          )}
-        </div>
-        <div className="cargo-od-hero-cell">
-          <span className="cargo-od-hero-label">To · Contact</span>
-          <span className="cargo-od-hero-value">{supplierName}</span>
-          {order.delivery_contact && (
-            <span className="cargo-od-hero-value" style={{ fontSize: 12, color: 'var(--ink-muted)', fontWeight: 500, marginTop: 2 }}>
-              Attn: {order.delivery_contact}
-            </span>
-          )}
-        </div>
-      </div>
+      <p className="cargo-od-kicker">
+        {kickerPieces.join(' · ')}
+      </p>
 
-      <div className="cargo-od-money">
-        <div className="cargo-od-money-cell">
-          <span className="cargo-od-money-label">Estimated</span>
-          <span className="cargo-od-money-value">{fmtMoney(estimatedTotal, currency)}</span>
+      <h2 className="cargo-od-headline">
+        {supplierName}
+        <span className="cargo-od-headline-punct">,</span>
+        {' '}
+        <em>{boardType}</em>
+        <span className="cargo-od-headline-punct">.</span>
+      </h2>
+
+      <p className="cargo-od-subline">
+        Order #{shortRef(order.id)}
+        {flag && <> · <span className="cargo-od-subline-flag">{flag}</span></>}
+        {' · '}{totalCount} {totalCount === 1 ? 'item' : 'items'}
+        {port && <> · {port}</>}
+      </p>
+
+      {/* 4 stat cards */}
+      <div className="cargo-od-stats">
+        <div className="cargo-od-stat">
+          <span className="cargo-od-stat-label">Status</span>
+          <span className="cargo-od-stat-value">
+            {statusValue.charAt(0).toUpperCase() + statusValue.slice(1)}
+          </span>
+          <span className="cargo-od-stat-sub">{statusSinceLabel(order)}</span>
         </div>
-        <div className="cargo-od-money-cell">
-          <span className="cargo-od-money-label">Agreed</span>
-          <span className="cargo-od-money-value">{fmtMoney(agreedTotal, currency)}</span>
+
+        <div className={`cargo-od-stat${isOverdue ? ' is-action' : ''}`}>
+          <span className="cargo-od-stat-label">Countdown</span>
+          <span className={`cargo-od-stat-value${isOverdue ? ' is-action' : ''}`}>
+            {countdownValue}
+          </span>
+          <span className="cargo-od-stat-sub">{expectedSub}</span>
         </div>
-        <div className="cargo-od-money-cell">
-          <span className="cargo-od-money-label">Invoiced</span>
-          <span className="cargo-od-money-value">
+
+        <div className="cargo-od-stat">
+          <span className="cargo-od-stat-label">Agreed</span>
+          <span className="cargo-od-stat-value is-money">
+            {fmtMoney(agreedTotal, currency)}
+          </span>
+          <span className="cargo-od-stat-sub">{agreedSub}</span>
+        </div>
+
+        <div className={`cargo-od-stat${isOverBudget ? ' is-action' : ''}`}>
+          <span className="cargo-od-stat-label">Invoiced</span>
+          <span className={`cargo-od-stat-value is-money${isOverBudget ? ' is-action' : ''}`}>
             {invoices.length > 0 ? fmtMoney(invoicedTotal, currency) : '—'}
           </span>
+          <span className={`cargo-od-stat-sub${isOverBudget ? ' is-action' : ''}`}>
+            {invoices.length === 0
+              ? 'not received'
+              : isOverBudget
+              ? `${fmtMoneyDelta(overInvoice, currency)} over`
+              : 'matches agreed'}
+          </span>
         </div>
       </div>
     </div>
   );
 }
 
-function LifecycleTimelinePlaceholder() {
+// ───────────────────────────────────────────────────────────
+// Documents (3-row hairline list)
+// ───────────────────────────────────────────────────────────
+
+function DocumentsSection({ order }) {
+  // Order PDF
+  const orderPdfState = order.order_pdf_url
+    ? (order.order_pdf_generated_at
+        ? `Generated · ${fmtDateShort(order.order_pdf_generated_at)}`
+        : 'Generated')
+    : 'Not generated';
+  const orderPdfClass = order.order_pdf_url ? '' : '';
+
+  // Delivery note state
+  let dnState, dnClass = '', dnPulse = false;
+  if (order.delivery_note_signed_pdf_url) {
+    dnState = order.crew_signed_at
+      ? `Signed · ${fmtDateShort(order.crew_signed_at)}`
+      : 'Signed';
+    dnClass = 'is-success';
+  } else if (order.delivery_note_emailed_at && order.delivery_note_pdf_url) {
+    dnState = 'Awaiting signature';
+    dnClass = 'is-action';
+    dnPulse = true;
+  } else if (order.delivery_note_pdf_url) {
+    dnState = order.delivery_note_generated_at
+      ? `Generated · ${fmtDateShort(order.delivery_note_generated_at)}`
+      : 'Generated';
+  } else {
+    dnState = 'Not generated';
+  }
+
+  // Invoice — first / most recent
+  const invoices = order.supplier_invoices || [];
+  const inv = invoices.length > 0
+    ? [...invoices].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))[0]
+    : null;
+  let invState, invClass = '';
+  if (inv) {
+    const cur = inv.currency || order.currency || 'EUR';
+    const dt = fmtDateShort(inv.created_at);
+    invState = `Received · ${dt} · ${fmtMoney(inv.amount, cur)}`;
+    invClass = 'is-success';
+  } else {
+    invState = 'Not received';
+  }
+
+  // Click handlers — placeholder per spec; wired in Commit 3.
+  const noop = () => {};
+
   return (
-    <div className="cargo-od-placeholder">
-      Lifecycle timeline · 8 stages with adaptive label density · lands in Sprint 9c.2 Commit 2b.
+    <div>
+      <div className="cargo-od-doc-row" role="button" tabIndex={0} onClick={noop} onKeyDown={(e) => { if (e.key === 'Enter') noop(); }}>
+        <span className="cargo-od-doc-name">Order PDF</span>
+        <span className={`cargo-od-doc-state ${orderPdfClass}`}>{orderPdfState}</span>
+      </div>
+      <div className="cargo-od-doc-row" role="button" tabIndex={0} onClick={noop} onKeyDown={(e) => { if (e.key === 'Enter') noop(); }}>
+        <span className="cargo-od-doc-name">Delivery note</span>
+        <span className={`cargo-od-doc-state ${dnClass}`}>
+          {dnPulse && <span className="cargo-od-doc-pulse" aria-hidden="true" />}
+          {dnState}
+        </span>
+      </div>
+      <div className="cargo-od-doc-row" role="button" tabIndex={0} onClick={noop} onKeyDown={(e) => { if (e.key === 'Enter') noop(); }}>
+        <span className="cargo-od-doc-name">Invoice</span>
+        <span className={`cargo-od-doc-state ${invClass}`}>{invState}</span>
+      </div>
     </div>
   );
 }
 
-function DocumentsPlaceholder({ order }) {
-  const slots = [
-    {
-      name: 'Order PDF',
-      state: order.order_pdf_url ? 'Generated' : 'Not generated',
-    },
-    {
-      name: 'Delivery note',
-      state: order.delivery_note_signed_pdf_url
-        ? 'Signed'
-        : order.delivery_note_pdf_url
-        ? (order.delivery_note_emailed_at ? 'Sent for signature' : 'Generated')
-        : 'Not generated',
-    },
-    {
-      name: 'Invoice',
-      state: (order.supplier_invoices || []).length > 0 ? 'Received' : 'Not received',
-    },
-  ];
+// ───────────────────────────────────────────────────────────
+// Lines table — preserved per-line quote workflow
+// ───────────────────────────────────────────────────────────
+
+function LinesSection({ order, acceptAllBusy, quoteRowBusy, onAcceptAllQuoted, onAcceptItemQuote, onQueryItemQuote, onDeclineItemQuote }) {
+  const items = order.supplier_order_items || [];
+  const counts = useMemo(() => {
+    const total = items.length;
+    const totalQty = items.reduce((s, it) => s + (Number(it.quantity) || 0), 0);
+    const pending = items.filter((i) => (i.status || i.quote_status || 'pending') === 'pending').length;
+    const confirmed = items.filter((i) => i.status === 'confirmed' || i.quote_status === 'agreed').length;
+    const unavailable = items.filter((i) => i.status === 'unavailable' || i.quote_status === 'unavailable').length;
+    return { total, totalQty, pending, confirmed, unavailable };
+  }, [items]);
+
+  const quotedCount = items.filter((x) => x.quote_status === 'quoted').length;
+  const acceptAllBusyForThis = acceptAllBusy === order.id;
+
   return (
-    <ul className="cargo-od-doc-slots">
-      {slots.map((s) => (
-        <li key={s.name} className="cargo-od-doc-slot">
-          <span className="cargo-od-doc-slot-name">{s.name}</span>
-          <span className="cargo-od-doc-slot-state">{s.state}</span>
-        </li>
-      ))}
-    </ul>
+    <div>
+      <p className="cargo-od-lines-summary">
+        <span><strong>{counts.total}</strong> total</span>
+        {counts.pending > 0 && <span className="is-pending"><strong>{counts.pending}</strong> pending</span>}
+        {counts.confirmed > 0 && <span className="is-confirmed"><strong>{counts.confirmed}</strong> confirmed</span>}
+        {counts.unavailable > 0 && <span className="is-unavail"><strong>{counts.unavailable}</strong> unavailable</span>}
+      </p>
+
+      {quotedCount >= 2 && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            className="cargo-od-bulk-accept"
+            onClick={() => onAcceptAllQuoted(order)}
+            disabled={acceptAllBusyForThis}
+          >
+            {acceptAllBusyForThis ? 'Accepting…' : `Accept ${quotedCount} quoted prices`}
+          </button>
+        </div>
+      )}
+
+      <table className="cargo-od-table">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th className="center">Qty</th>
+            <th className="num">Price</th>
+            <th className="num">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((it) => {
+            const cur = it.estimated_currency || it.quoted_currency || it.agreed_currency || order.currency || 'EUR';
+            const qStatus = it.quote_status || 'awaiting_quote';
+            const isBusy = quoteRowBusy === it.id;
+
+            // Delta chip
+            let deltaChip = null;
+            if (it.estimated_price != null && it.quoted_price != null
+                && Number(it.estimated_price) > 0
+                && Number(it.estimated_price) !== Number(it.quoted_price)) {
+              const pct = ((Number(it.quoted_price) - Number(it.estimated_price)) / Number(it.estimated_price)) * 100;
+              const up = pct >= 0;
+              deltaChip = (
+                <span className={`cargo-od-delta-chip ${up ? 'up' : 'down'}`}>
+                  {up ? '+' : ''}{pct.toFixed(1)}%
+                </span>
+              );
+            }
+
+            let priceCell, statusCell;
+            if (qStatus === 'agreed') {
+              priceCell = (
+                <>
+                  <div style={{ fontWeight: 700 }}>{fmtMoney(it.agreed_price, cur)}</div>
+                  <div style={{ fontSize: 10.5, color: 'rgba(30,39,66,0.5)', marginTop: 2 }}>Agreed</div>
+                </>
+              );
+              statusCell = <span className="cargo-od-pill tonal-green">Agreed</span>;
+            } else if (qStatus === 'awaiting_quote') {
+              priceCell = (
+                <div style={{ color: 'rgba(30,39,66,0.55)' }}>est. {fmtMoney(it.estimated_price, cur)}</div>
+              );
+              statusCell = <span className="cargo-od-pill tonal-amber">Pending</span>;
+            } else if (qStatus === 'unavailable') {
+              priceCell = <span style={{ color: 'rgba(30,39,66,0.4)' }}>—</span>;
+              statusCell = <span className="cargo-od-pill tonal-muted">Unavailable</span>;
+            } else if (qStatus === 'declined') {
+              priceCell = <div style={{ fontSize: 11, color: 'rgba(30,39,66,0.5)' }}>est. {fmtMoney(it.estimated_price, cur)}</div>;
+              statusCell = <span className="cargo-od-pill tonal-rose">Declined</span>;
+            } else {
+              // 'quoted' or 'in_discussion'
+              const isDiscussion = qStatus === 'in_discussion';
+              priceCell = (
+                <>
+                  <div style={{ fontWeight: 700 }}>
+                    {fmtMoney(it.quoted_price, cur)}
+                    {deltaChip}
+                  </div>
+                  <div style={{ fontSize: 10.5, color: 'rgba(30,39,66,0.5)', marginTop: 2 }}>
+                    est. {fmtMoney(it.estimated_price, cur)}
+                  </div>
+                </>
+              );
+              statusCell = (
+                <div className="cargo-od-line-actions">
+                  <button type="button" className="cargo-od-line-btn accept"
+                    onClick={() => onAcceptItemQuote(it)} disabled={isBusy}>
+                    Accept
+                  </button>
+                  {!isDiscussion && (
+                    <button type="button" className="cargo-od-line-btn query"
+                      onClick={() => onQueryItemQuote(it)} disabled={isBusy}>
+                      Query
+                    </button>
+                  )}
+                  <button type="button" className="cargo-od-line-btn decline"
+                    onClick={() => onDeclineItemQuote(it)} disabled={isBusy}>
+                    Decline
+                  </button>
+                </div>
+              );
+            }
+
+            return (
+              <tr key={it.id}>
+                <td>
+                  {it.item_name}
+                  {it.substitute_description && (
+                    <span style={{ marginLeft: 6, fontSize: 11, color: '#D97706' }}>
+                      → {it.substitute_description}
+                    </span>
+                  )}
+                </td>
+                <td className="center">{it.quantity} {it.unit || ''}</td>
+                <td className="num">{priceCell}</td>
+                <td className="num">{statusCell}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      {/* Keyboard shortcut row — visual parity with supplier portal.
+          Handlers wire in a future commit; row stays decorative for now. */}
+      <div className="cargo-od-kbd-row" aria-hidden="true">
+        <span><kbd>C</kbd> confirm</span>
+        <span><kbd>S</kbd> substitute</span>
+        <span><kbd>U</kbd> unavailable</span>
+        <span><kbd>A</kbd> confirm all</span>
+      </div>
+
+      {order.supplier_notes && (
+        <p className="cargo-od-supplier-notes">"{order.supplier_notes}"</p>
+      )}
+    </div>
   );
 }
 
-function ActivityFeed({ orderId }) {
+// ───────────────────────────────────────────────────────────
+// Activity — top 3 with italic Georgia terracotta actor names
+// ───────────────────────────────────────────────────────────
+
+// Render an activity event with the actor's name embedded inline as
+// <em class="cargo-od-activity-actor"> for the editorial voice moment.
+function renderActivityWhat(event) {
+  const actor = event.actor_name || event.actor_role || 'system';
+  const Actor = ({ name }) => <em className="cargo-od-activity-actor">{name}</em>;
+
+  switch (event.event_type) {
+    case 'order_received':
+      return <>Order received by supplier</>;
+    case 'status_advanced':
+      return <>Status advanced — {event.payload?.from || '—'} → <strong>{event.payload?.to || '—'}</strong></>;
+    case 'reassigned':
+      return <>Order reassigned by <Actor name={actor} /></>;
+    case 'delivery_edited':
+      return <>Delivery edited by <Actor name={actor} /></>;
+    case 'item_confirmed':
+      return <>{event.payload?.item_name || 'Item'} confirmed by <Actor name={actor} /></>;
+    case 'item_substituted':
+      return <>{event.payload?.item_name || 'Item'} substituted by <Actor name={actor} /></>;
+    case 'item_unavailable':
+      return <>{event.payload?.item_name || 'Item'} marked unavailable by <Actor name={actor} /></>;
+    case 'quote_received':
+      return <>Quote received — {event.payload?.item_name || 'item'}{event.payload?.auto_accepted ? ' · auto-accepted' : ''}</>;
+    case 'quote_accepted':
+      return <>Quote accepted by <Actor name={actor} /> — {event.payload?.item_name || 'item'}</>;
+    case 'quote_declined':
+      return <>Quote declined by <Actor name={actor} /> — {event.payload?.item_name || 'item'}</>;
+    case 'discussion_opened':
+      return <>Query raised by <Actor name={actor} /> — {event.payload?.item_name || 'item'}</>;
+    case 'order_pdf_generated':
+      return <>Order PDF generated by <Actor name={actor} /></>;
+    case 'delivery_note_generated':
+      return <>Delivery note generated by <Actor name={actor} /></>;
+    case 'delivery_note_emailed':
+      return <>Delivery note signing link sent by <Actor name={actor} /></>;
+    case 'delivery_signed':
+      return <>Delivery signed by <Actor name={event.payload?.signer_name || actor} /></>;
+    case 'invoice_generated':
+      return <>Invoice <strong>{event.payload?.invoice_number || 'issued'}</strong> generated</>;
+    default:
+      return event.event_type;
+  }
+}
+
+function ActivitySection({ orderId, onViewAll }) {
   const [activity, setActivity] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     if (!orderId) return;
@@ -308,234 +579,76 @@ function ActivityFeed({ orderId }) {
     return () => { cancelled = true; };
   }, [orderId]);
 
-  if (loading) {
-    return <p className="cargo-od-activity-empty">Loading activity…</p>;
-  }
-  if (activity.length === 0) {
-    return <p className="cargo-od-activity-empty">No activity yet.</p>;
-  }
+  if (loading) return <p className="cargo-od-activity-empty">Loading activity…</p>;
+  if (activity.length === 0) return <p className="cargo-od-activity-empty">No activity yet.</p>;
 
-  const visible = showAll ? activity : activity.slice(0, 5);
-  const truncated = !showAll && activity.length > 5;
+  const top3 = activity.slice(0, 3);
 
   return (
     <>
       <ul className="cargo-od-activity">
-        {visible.map((event) => {
-          const { when, dot, what, who } = fmtActivityEvent(event);
-          return (
-            <li key={event.id} className={`cargo-od-activity-item ${dot}`}>
-              <p className="cargo-od-activity-when">{when}</p>
-              <p className="cargo-od-activity-what">{what}</p>
-              {who && <p className="cargo-od-activity-who">{who}</p>}
-            </li>
-          );
-        })}
+        {top3.map((event) => (
+          <li key={event.id} className="cargo-od-activity-item">
+            <p className="cargo-od-activity-when">{fmtRelative(event.created_at)}</p>
+            <p className="cargo-od-activity-what">{renderActivityWhat(event)}</p>
+          </li>
+        ))}
       </ul>
-      {(truncated || showAll) && activity.length > 5 && (
+      {activity.length > 3 && (
         <button
           type="button"
-          className="cargo-od-activity-toggle"
-          onClick={() => setShowAll((v) => !v)}
+          className="cargo-od-activity-link"
+          onClick={onViewAll}
         >
-          {showAll ? 'Show 5 most recent ↑' : `View all activity (${activity.length}) →`}
+          View all activity ({activity.length}) →
         </button>
       )}
     </>
   );
 }
 
-function ItemCounts({ items }) {
-  const counts = useMemo(() => {
-    const total = items.length;
-    const byStatus = items.reduce((acc, it) => {
-      const s = it.status || it.quote_status || 'pending';
-      acc[s] = (acc[s] || 0) + 1;
-      return acc;
-    }, {});
-    const totalQty = items.reduce((s, it) => s + (Number(it.quantity) || 0), 0);
-    return { total, byStatus, totalQty };
-  }, [items]);
-
-  if (counts.total === 0) {
-    return <p className="cargo-od-activity-empty">No items on this order.</p>;
-  }
-
-  const chips = [
-    { label: 'Items', value: counts.total },
-    { label: 'Total qty', value: counts.totalQty },
-    { label: 'Pending', value: counts.byStatus.pending || 0, hideIfZero: true },
-    { label: 'Confirmed', value: counts.byStatus.confirmed || 0, hideIfZero: true },
-    { label: 'Substituted', value: counts.byStatus.substituted || 0, hideIfZero: true },
-    { label: 'Unavailable', value: counts.byStatus.unavailable || 0, hideIfZero: true },
-  ].filter((c) => !c.hideIfZero || c.value > 0);
-
-  return (
-    <div className="cargo-od-counts">
-      {chips.map((c) => (
-        <span key={c.label} className="cargo-od-count-chip">
-          <strong>{c.value}</strong> {c.label.toLowerCase()}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function ActionPills({ status }) {
-  // Stage-appropriate placeholder pills. Real handlers wired in
-  // Commits 3-5 alongside document chips, payment style variants,
-  // and the authorization workflow.
-  const pills = [];
-  if (status === 'sent' || status === 'confirmed') {
-    pills.push({ label: 'Awaiting supplier' });
-  }
-  if (status === 'dispatched' || status === 'out_for_delivery') {
-    pills.push({ label: 'Mark received' });
-    pills.push({ label: 'Report issue' });
-  }
-  if (status === 'received') {
-    pills.push({ label: 'Awaiting invoice' });
-  }
-  if (status === 'invoiced') {
-    pills.push({ label: 'Mark paid' });
-    pills.push({ label: 'Dispute' });
-  }
-  if (pills.length === 0) {
-    pills.push({ label: 'No actions yet' });
-  }
-
-  return (
-    <div className="cargo-od-actions">
-      {pills.map((p) => (
-        <button
-          key={p.label}
-          type="button"
-          className="cargo-ribbon-btn"
-          disabled
-          title="Action wired in a later commit"
-          style={{ fontSize: 11 }}
-        >
-          {p.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 // ───────────────────────────────────────────────────────────
-// Items table — existing per-line quote workflow (verbatim from C1.5)
+// Footer
 // ───────────────────────────────────────────────────────────
 
-const stateBadge = (label, bg, color) => (
-  <span style={{
-    display: 'inline-block', fontSize: 10, fontWeight: 700,
-    letterSpacing: '0.05em', textTransform: 'uppercase',
-    padding: '2px 8px', borderRadius: 999,
-    background: bg, color,
-  }}>{label}</span>
-);
+// State-appropriate primary action label. Real handlers wired in
+// Commits 3-5 alongside document chips, payment style, authorization.
+function primaryActionFor(status) {
+  switch (status) {
+    case 'sent':              return { label: 'Cancel order' };
+    case 'confirmed':        return { label: 'Awaiting dispatch' };
+    case 'dispatched':       return { label: 'Awaiting delivery' };
+    case 'out_for_delivery': return { label: 'Mark received' };
+    case 'received':          return { label: 'Awaiting invoice' };
+    case 'invoiced':          return { label: 'Mark paid' };
+    case 'paid':              return { label: 'Order closed' };
+    default:                  return { label: 'Continue' };
+  }
+}
 
-function ItemsTable({ order, quoteRowBusy, onAcceptItemQuote, onQueryItemQuote, onDeclineItemQuote }) {
-  const items = order.supplier_order_items || [];
+function FooterBar({ status, onClose }) {
+  const primary = primaryActionFor(status);
   return (
-    <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 4 }}>
-      <thead>
-        <tr style={{ background: '#F8FAFC' }}>
-          <th style={{ padding: '7px 10px', fontSize: 10, fontWeight: 700, color: 'var(--ink-muted)', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Item</th>
-          <th style={{ padding: '7px 10px', fontSize: 10, fontWeight: 700, color: 'var(--ink-muted)', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Qty</th>
-          <th style={{ padding: '7px 10px', fontSize: 10, fontWeight: 700, color: 'var(--ink-muted)', textAlign: 'right', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Price</th>
-          <th style={{ padding: '7px 10px', fontSize: 10, fontWeight: 700, color: 'var(--ink-muted)', textAlign: 'right', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        {items.map((it, i) => {
-          const cur = it.estimated_currency || it.quoted_currency || it.agreed_currency || order.currency || 'EUR';
-          const qStatus = it.quote_status || 'awaiting_quote';
-          const isBusy = quoteRowBusy === it.id;
-
-          let deltaChip = null;
-          if (it.estimated_price != null && it.quoted_price != null
-              && Number(it.estimated_price) > 0
-              && Number(it.estimated_price) !== Number(it.quoted_price)) {
-            const pct = ((Number(it.quoted_price) - Number(it.estimated_price)) / Number(it.estimated_price)) * 100;
-            const up = pct >= 0;
-            deltaChip = (
-              <span style={{
-                display: 'inline-block', marginLeft: 6,
-                fontSize: 10, fontWeight: 700,
-                padding: '1px 6px', borderRadius: 999,
-                background: up ? '#FEF3C7' : '#D1FAE5',
-                color: up ? '#92400E' : '#065F46',
-              }}>{up ? '+' : ''}{pct.toFixed(1)}%</span>
-            );
-          }
-
-          let priceCell, actionCell;
-          if (qStatus === 'agreed') {
-            priceCell = (
-              <>
-                <div style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(it.agreed_price, cur)}</div>
-                <div style={{ fontSize: 10.5, color: '#94A3B8', marginTop: 2 }}>Agreed</div>
-              </>
-            );
-            actionCell = stateBadge('Agreed', '#D1FAE5', '#065F46');
-          } else if (qStatus === 'awaiting_quote') {
-            priceCell = (
-              <div style={{ fontVariantNumeric: 'tabular-nums', color: '#64748B' }}>est. {fmtMoney(it.estimated_price, cur)}</div>
-            );
-            actionCell = <span style={{ fontSize: 11, color: '#94A3B8' }}>Awaiting supplier quote</span>;
-          } else if (qStatus === 'unavailable') {
-            priceCell = <span style={{ color: '#94A3B8' }}>—</span>;
-            actionCell = stateBadge('Unavailable', '#FEE2E2', '#991B1B');
-          } else if (qStatus === 'declined') {
-            priceCell = <div style={{ fontSize: 11, color: '#94A3B8' }}>est. {fmtMoney(it.estimated_price, cur)}</div>;
-            actionCell = <span style={{ fontSize: 11, color: '#92400E' }}>Declined — awaiting re-quote</span>;
-          } else {
-            const isDiscussion = qStatus === 'in_discussion';
-            priceCell = (
-              <>
-                <div style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                  {fmtMoney(it.quoted_price, cur)}
-                  {deltaChip}
-                </div>
-                <div style={{ fontSize: 10.5, color: '#94A3B8', marginTop: 2 }}>est. {fmtMoney(it.estimated_price, cur)}</div>
-                {isDiscussion && <div style={{ marginTop: 4 }}>{stateBadge('Query open', '#FEF3C7', '#92400E')}</div>}
-              </>
-            );
-            actionCell = (
-              <div style={{ display: 'inline-flex', gap: 6 }}>
-                <button type="button" onClick={() => onAcceptItemQuote(it)} disabled={isBusy}
-                  style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 14, border: '1px solid #059669', background: '#D1FAE5', color: '#065F46', cursor: isBusy ? 'wait' : 'pointer' }}>
-                  Accept
-                </button>
-                {!isDiscussion && (
-                  <button type="button" onClick={() => onQueryItemQuote(it)} disabled={isBusy}
-                    style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 14, border: '1px solid #D97706', background: '#FEF3C7', color: '#92400E', cursor: isBusy ? 'wait' : 'pointer' }}>
-                    Query
-                  </button>
-                )}
-                <button type="button" onClick={() => onDeclineItemQuote(it)} disabled={isBusy}
-                  style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 14, border: '1px solid #DC2626', background: '#FEE2E2', color: '#991B1B', cursor: isBusy ? 'wait' : 'pointer' }}>
-                  Decline
-                </button>
-              </div>
-            );
-          }
-
-          return (
-            <tr key={it.id} style={{ borderBottom: i < items.length - 1 ? '1px solid #F8FAFC' : 'none' }}>
-              <td style={{ padding: '8px 10px', fontSize: 13, color: 'var(--ink)' }}>
-                {it.item_name}
-                {it.substitute_description && <span style={{ marginLeft: 6, fontSize: 11, color: '#D97706' }}>→ {it.substitute_description}</span>}
-              </td>
-              <td style={{ padding: '8px 10px', fontSize: 13, color: '#475569', textAlign: 'center' }}>{it.quantity} {it.unit || ''}</td>
-              <td style={{ padding: '8px 10px', fontSize: 13, color: 'var(--ink)', textAlign: 'right' }}>{priceCell}</td>
-              <td style={{ padding: '8px 10px', textAlign: 'right' }}>{actionCell}</td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+    <div className="cargo-od-footer">
+      <button
+        type="button"
+        className="cargo-ribbon-btn cargo-ribbon-btn-primary"
+        disabled
+        title="Action wired in a later commit"
+      >
+        {primary.label}
+      </button>
+      <button type="button" className="cargo-ribbon-btn" disabled title="Wired in Commit 3">
+        Receive items
+      </button>
+      <button type="button" className="cargo-ribbon-btn" disabled title="Wired in Commit 3">
+        Email supplier
+      </button>
+      <span className="cargo-od-footer-spacer" />
+      <button type="button" className="cargo-ribbon-btn" onClick={onClose}>
+        Close
+      </button>
+    </div>
   );
 }
 
@@ -546,6 +659,7 @@ function ItemsTable({ order, quoteRowBusy, onAcceptItemQuote, onQueryItemQuote, 
 export default function SupplierOrderDrawer({
   open,
   order,
+  list,
   acceptAllBusy,
   quoteRowBusy,
   onAcceptAllQuoted,
@@ -554,138 +668,65 @@ export default function SupplierOrderDrawer({
   onDeclineItemQuote,
   onClose,
 }) {
-  const items = order?.supplier_order_items || [];
-  const quotedCount = items.filter((x) => x.quote_status === 'quoted').length;
-  const acceptAllBusyForThis = order && acceptAllBusy === order.id;
-
-  // Rich header title — Georgia name + mono ref + flag.
-  const titleNode = order ? (
-    <div className="cargo-od-title">
-      <span className="cargo-od-title-name">
-        {order.supplier_profile?.name || order.supplier_name || 'Order'}
-      </span>
-      <span className="cargo-od-title-ref">#{shortRef(order.id)}</span>
-      {order.supplier_profile?.business_country && (
-        <span className="cargo-od-title-flag" title={order.supplier_profile.business_country}>
-          {flagEmoji(order.supplier_profile.business_country)}
-        </span>
-      )}
-    </div>
-  ) : 'Order';
-
-  // Footer primary action — placeholder per status. Wired in later commits.
-  const primaryAction = (() => {
-    if (!order) return { label: 'Close', disabled: true };
-    switch (order.status) {
-      case 'draft':            return { label: 'Send to supplier',   disabled: true };
-      case 'sent':              return { label: 'Awaiting confirmation', disabled: true };
-      case 'confirmed':        return { label: 'Awaiting dispatch', disabled: true };
-      case 'dispatched':       return { label: 'Awaiting delivery', disabled: true };
-      case 'out_for_delivery': return { label: 'Mark received',     disabled: true };
-      case 'received':          return { label: 'Awaiting invoice',  disabled: true };
-      case 'invoiced':          return { label: 'Mark paid',         disabled: true };
-      case 'paid':              return { label: 'Order closed',      disabled: true };
-      default:                  return { label: 'Continue',          disabled: true };
-    }
-  })();
-
-  // Custom footer — back link on left, primary on right
-  const footerNode = order && (
-    <div className="cargo-od-footer">
-      <button type="button" className="cargo-od-footer-back" onClick={onClose}>← Close</button>
-      <button
-        type="button"
-        className="cargo-od-footer-primary"
-        disabled={primaryAction.disabled}
-        title="Wired in later commits"
-      >
-        {primaryAction.label}
-      </button>
-    </div>
-  );
+  const handleViewAllActivity = () => {
+    // Inline expand isn't requested — defer to a follow-up. For now,
+    // scroll the user back to top so they can see the link disappears
+    // (placeholder UX).
+    // eslint-disable-next-line no-console
+    console.info('[SupplierOrderDrawer] View all activity — wire in a later commit');
+  };
 
   return (
     <Drawer
       open={open}
       onClose={onClose}
-      title={titleNode}
       theme="light"
       width={720}
-      footer={footerNode}
+      panelBg="#FFFEFB"
+      hideHeader
+      bodyClassName="flex-1 overflow-y-auto"
+      footer={order ? <FooterBar status={order.status} onClose={onClose} /> : null}
     >
       {order ? (
         <div className="cargo-od">
-          {/* 1. Hero block */}
+          <HeroBlock order={order} list={list} onClose={onClose} />
+
           <div className="cargo-od-section">
-            <HeroBlock order={order} />
+            <span className="cargo-od-section-label">Lifecycle.</span>
+            <LifecycleTimeline order={order} />
           </div>
 
-          {/* 2. Lifecycle timeline (placeholder) */}
           <div className="cargo-od-section">
-            <span className="cargo-od-section-label">Lifecycle</span>
-            <LifecycleTimelinePlaceholder />
+            <span className="cargo-od-section-label">
+              What's <em>in flight</em>.
+            </span>
+            <DocumentsSection order={order} />
           </div>
 
-          {/* 3. Documents (placeholder slot list) */}
           <div className="cargo-od-section">
-            <span className="cargo-od-section-label">Documents</span>
-            <DocumentsPlaceholder order={order} />
-          </div>
-
-          {/* 4. Activity feed — LIVE */}
-          <div className="cargo-od-section">
-            <span className="cargo-od-section-label">Activity</span>
-            <ActivityFeed orderId={order.id} />
-          </div>
-
-          {/* 5. Item count summary — LIVE */}
-          <div className="cargo-od-section">
-            <span className="cargo-od-section-label">Items at a glance</span>
-            <ItemCounts items={items} />
-          </div>
-
-          {/* 6. Action affordances — placeholder pills */}
-          <div className="cargo-od-section">
-            <span className="cargo-od-section-label">Actions</span>
-            <ActionPills status={order.status} />
-          </div>
-
-          {/* 7. Items table — existing per-line quote workflow */}
-          <div className="cargo-od-section">
-            <span className="cargo-od-section-label">Lines</span>
-            {quotedCount >= 2 && (
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
-                <button
-                  type="button"
-                  onClick={() => onAcceptAllQuoted(order)}
-                  disabled={acceptAllBusyForThis}
-                  style={{
-                    fontSize: 12, fontWeight: 600, padding: '5px 12px',
-                    borderRadius: 20, border: '1px solid #1E40AF',
-                    background: acceptAllBusyForThis ? '#DBEAFE' : '#EFF6FF',
-                    color: '#1E40AF', cursor: acceptAllBusyForThis ? 'wait' : 'pointer',
-                  }}
-                >
-                  {acceptAllBusyForThis ? 'Accepting…' : `Accept ${quotedCount} quoted prices`}
-                </button>
-              </div>
-            )}
-            <ItemsTable
+            <span className="cargo-od-section-label">Lines.</span>
+            <LinesSection
               order={order}
+              acceptAllBusy={acceptAllBusy}
               quoteRowBusy={quoteRowBusy}
+              onAcceptAllQuoted={onAcceptAllQuoted}
               onAcceptItemQuote={onAcceptItemQuote}
               onQueryItemQuote={onQueryItemQuote}
               onDeclineItemQuote={onDeclineItemQuote}
             />
-            {order.supplier_notes && (
-              <p style={{ margin: '12px 0 0', fontSize: 12, color: 'var(--ink-muted)', fontStyle: 'italic' }}>
-                "{order.supplier_notes}"
-              </p>
-            )}
+          </div>
+
+          <div className="cargo-od-section">
+            <span className="cargo-od-section-label">
+              Recent <em>activity</em>.
+            </span>
+            <ActivitySection orderId={order.id} onViewAll={handleViewAllActivity} />
           </div>
         </div>
       ) : (
-        <p style={{ fontSize: 13, color: 'var(--ink-muted)' }}>No order selected.</p>
+        <p style={{ padding: '2rem 1.5rem', fontSize: 13, color: 'rgba(30,39,66,0.55)' }}>
+          No order selected.
+        </p>
       )}
     </Drawer>
   );

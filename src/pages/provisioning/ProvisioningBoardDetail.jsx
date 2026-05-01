@@ -2740,6 +2740,7 @@ const ProvisioningBoardDetail = () => {
       <SupplierOrderDrawer
         open={!!drawerOrderId}
         order={drawerOrderId ? supplierOrders.find((o) => o.id === drawerOrderId) || null : null}
+        list={list}
         acceptAllBusy={acceptAllBusy}
         quoteRowBusy={quoteRowBusy}
         onAcceptAllQuoted={handleAcceptAllQuoted}
