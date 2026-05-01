@@ -113,9 +113,20 @@ export function useItinerary(tripSupabaseId) {
   // can use the returned id for follow-up writes (e.g. legacy
   // keyEvents/guestMovements LS sidecar from the overview modal).
   const addDay = useCallback(async (input) => {
-    if (!user || !tripSupabaseId) return null;
+    if (!user) {
+      console.error('[itinerary] addDay aborted: no authenticated user');
+      return null;
+    }
+    if (!tripSupabaseId) {
+      console.error('[itinerary] addDay aborted: tripSupabaseId is missing — likely a pending-sync LS-only trip not yet stamped with a Supabase uuid. Trip may need to be re-saved or the migration runner needs to sync.');
+      return null;
+    }
     const tid = getActiveTenantIdFromLS();
-    if (!tid) { setError('No active tenant'); return null; }
+    if (!tid) {
+      console.error('[itinerary] addDay aborted: no active tenant id in localStorage (cargo_active_tenant_id / cargo.currentTenantId)');
+      setError('No active tenant');
+      return null;
+    }
 
     const payload = {
       tenant_id:        tid,
@@ -129,23 +140,36 @@ export function useItinerary(tripSupabaseId) {
       created_by:       user.id,
     };
 
-    const { data, error: err } = await supabase
-      .from('trip_itinerary_days')
-      .insert(payload)
-      .select('*')
-      .single();
-    if (err) { setError(err.message); return null; }
+    try {
+      const { data, error: err } = await supabase
+        .from('trip_itinerary_days')
+        .insert(payload)
+        .select('*')
+        .single();
+      if (err) {
+        console.error('[itinerary] addDay supabase error:', err, 'payload:', payload);
+        setError(err.message);
+        return null;
+      }
 
-    const newDay = { ...data, activities: [] };
-    setDays(curr => sortDays([...curr, newDay]));
-    return newDay;
+      const newDay = { ...data, activities: [] };
+      setDays(curr => sortDays([...curr, newDay]));
+      return newDay;
+    } catch (e) {
+      console.error('[itinerary] addDay unexpected error:', e, 'payload:', payload);
+      setError(e?.message ?? String(e));
+      return null;
+    }
   }, [user, tripSupabaseId]);
 
   // Branch updates by field — caller passes any subset of editable
   // columns. Optimistic patch on local state, rollback if Supabase
   // rejects (RLS, CHECK on stop_type, etc.).
   const updateDay = useCallback(async (dayId, updates) => {
-    if (!user) return null;
+    if (!user) {
+      console.error('[itinerary] updateDay aborted: no authenticated user');
+      return null;
+    }
     const prev = days;
 
     setDays(curr => sortDays(curr.map(d =>
@@ -159,50 +183,83 @@ export function useItinerary(tripSupabaseId) {
     if (updates?.stop_detail      !== undefined) allowed.stop_detail      = updates.stop_detail;
     if (updates?.notes            !== undefined) allowed.notes            = updates.notes;
     if (updates?.aboard_guest_ids !== undefined) allowed.aboard_guest_ids = updates.aboard_guest_ids;
-    if (Object.keys(allowed).length === 0) return null;
-
-    const { data, error: err } = await supabase
-      .from('trip_itinerary_days')
-      .update(allowed)
-      .eq('id', dayId)
-      .select('*')
-      .single();
-    if (err) {
-      setDays(prev);
-      setError(err.message);
+    if (Object.keys(allowed).length === 0) {
+      console.error('[itinerary] updateDay aborted: no whitelisted fields in updates payload', updates);
       return null;
     }
-    return data;
+
+    try {
+      const { data, error: err } = await supabase
+        .from('trip_itinerary_days')
+        .update(allowed)
+        .eq('id', dayId)
+        .select('*')
+        .single();
+      if (err) {
+        console.error('[itinerary] updateDay supabase error:', err, 'dayId:', dayId, 'payload:', allowed);
+        setDays(prev);
+        setError(err.message);
+        return null;
+      }
+      return data;
+    } catch (e) {
+      console.error('[itinerary] updateDay unexpected error:', e, 'dayId:', dayId, 'payload:', allowed);
+      setDays(prev);
+      setError(e?.message ?? String(e));
+      return null;
+    }
   }, [days, user]);
 
   // Soft delete. Optimistic remove from local state.
   const deleteDay = useCallback(async (dayId) => {
-    if (!user) return false;
+    if (!user) {
+      console.error('[itinerary] deleteDay aborted: no authenticated user');
+      return false;
+    }
     const prev = days;
     setDays(curr => curr.filter(d => d.id !== dayId));
 
-    const { error: err } = await supabase
-      .from('trip_itinerary_days')
-      .update({
-        is_deleted:         true,
-        deleted_at:         new Date().toISOString(),
-        deleted_by_user_id: user.id,
-      })
-      .eq('id', dayId);
-    if (err) {
+    try {
+      const { error: err } = await supabase
+        .from('trip_itinerary_days')
+        .update({
+          is_deleted:         true,
+          deleted_at:         new Date().toISOString(),
+          deleted_by_user_id: user.id,
+        })
+        .eq('id', dayId);
+      if (err) {
+        console.error('[itinerary] deleteDay supabase error:', err, 'dayId:', dayId);
+        setDays(prev);
+        setError(err.message);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.error('[itinerary] deleteDay unexpected error:', e, 'dayId:', dayId);
       setDays(prev);
-      setError(err.message);
+      setError(e?.message ?? String(e));
       return false;
     }
-    return true;
   }, [days, user]);
 
   // ── Activity mutations ─────────────────────────────────────────────
 
   const addActivity = useCallback(async (input) => {
-    if (!user) return null;
+    if (!user) {
+      console.error('[itinerary] addActivity aborted: no authenticated user');
+      return null;
+    }
     const tid = getActiveTenantIdFromLS();
-    if (!tid) { setError('No active tenant'); return null; }
+    if (!tid) {
+      console.error('[itinerary] addActivity aborted: no active tenant id in localStorage');
+      setError('No active tenant');
+      return null;
+    }
+    if (!input?.day_id) {
+      console.error('[itinerary] addActivity aborted: input.day_id is missing', input);
+      return null;
+    }
 
     // Compute next sort_order for this day so manual time-less entries
     // append at the end. Falls back to 0 when the day has no activities.
@@ -223,21 +280,33 @@ export function useItinerary(tripSupabaseId) {
       created_by:       user.id,
     };
 
-    const { data, error: err } = await supabase
-      .from('trip_itinerary_activities')
-      .insert(payload)
-      .select('*')
-      .single();
-    if (err) { setError(err.message); return null; }
-
-    setDays(curr => curr.map(d => d.id === input?.day_id
-      ? { ...d, activities: sortActivities([...(d.activities ?? []), data]) }
-      : d));
-    return data;
+    try {
+      const { data, error: err } = await supabase
+        .from('trip_itinerary_activities')
+        .insert(payload)
+        .select('*')
+        .single();
+      if (err) {
+        console.error('[itinerary] addActivity supabase error:', err, 'payload:', payload);
+        setError(err.message);
+        return null;
+      }
+      setDays(curr => curr.map(d => d.id === input?.day_id
+        ? { ...d, activities: sortActivities([...(d.activities ?? []), data]) }
+        : d));
+      return data;
+    } catch (e) {
+      console.error('[itinerary] addActivity unexpected error:', e, 'payload:', payload);
+      setError(e?.message ?? String(e));
+      return null;
+    }
   }, [days, user]);
 
   const updateActivity = useCallback(async (activityId, updates) => {
-    if (!user) return null;
+    if (!user) {
+      console.error('[itinerary] updateActivity aborted: no authenticated user');
+      return null;
+    }
     const prev = days;
 
     setDays(curr => curr.map(d => ({
@@ -254,44 +323,66 @@ export function useItinerary(tripSupabaseId) {
     if (updates?.location         !== undefined) allowed.location         = updates.location;
     if (updates?.linked_guest_ids !== undefined) allowed.linked_guest_ids = updates.linked_guest_ids;
     if (updates?.sort_order       !== undefined) allowed.sort_order       = updates.sort_order;
-    if (Object.keys(allowed).length === 0) return null;
-
-    const { data, error: err } = await supabase
-      .from('trip_itinerary_activities')
-      .update(allowed)
-      .eq('id', activityId)
-      .select('*')
-      .single();
-    if (err) {
-      setDays(prev);
-      setError(err.message);
+    if (Object.keys(allowed).length === 0) {
+      console.error('[itinerary] updateActivity aborted: no whitelisted fields in updates payload', updates);
       return null;
     }
-    return data;
+
+    try {
+      const { data, error: err } = await supabase
+        .from('trip_itinerary_activities')
+        .update(allowed)
+        .eq('id', activityId)
+        .select('*')
+        .single();
+      if (err) {
+        console.error('[itinerary] updateActivity supabase error:', err, 'activityId:', activityId, 'payload:', allowed);
+        setDays(prev);
+        setError(err.message);
+        return null;
+      }
+      return data;
+    } catch (e) {
+      console.error('[itinerary] updateActivity unexpected error:', e, 'activityId:', activityId, 'payload:', allowed);
+      setDays(prev);
+      setError(e?.message ?? String(e));
+      return null;
+    }
   }, [days, user]);
 
   const deleteActivity = useCallback(async (activityId) => {
-    if (!user) return false;
+    if (!user) {
+      console.error('[itinerary] deleteActivity aborted: no authenticated user');
+      return false;
+    }
     const prev = days;
     setDays(curr => curr.map(d => ({
       ...d,
       activities: (d.activities ?? []).filter(a => a.id !== activityId),
     })));
 
-    const { error: err } = await supabase
-      .from('trip_itinerary_activities')
-      .update({
-        is_deleted:         true,
-        deleted_at:         new Date().toISOString(),
-        deleted_by_user_id: user.id,
-      })
-      .eq('id', activityId);
-    if (err) {
+    try {
+      const { error: err } = await supabase
+        .from('trip_itinerary_activities')
+        .update({
+          is_deleted:         true,
+          deleted_at:         new Date().toISOString(),
+          deleted_by_user_id: user.id,
+        })
+        .eq('id', activityId);
+      if (err) {
+        console.error('[itinerary] deleteActivity supabase error:', err, 'activityId:', activityId);
+        setDays(prev);
+        setError(err.message);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.error('[itinerary] deleteActivity unexpected error:', e, 'activityId:', activityId);
       setDays(prev);
-      setError(err.message);
+      setError(e?.message ?? String(e));
       return false;
     }
-    return true;
   }, [days, user]);
 
   // Bulk reorder — used by drag-rearrange. Renumbers sort_order for
@@ -319,6 +410,7 @@ export function useItinerary(tripSupabaseId) {
       ));
       return true;
     } catch (e) {
+      console.error('[itinerary] reorderActivities error:', e, 'dayId:', dayId, 'order:', activityIdsInOrder);
       setDays(prev);
       setError(e?.message ?? String(e));
       return false;
