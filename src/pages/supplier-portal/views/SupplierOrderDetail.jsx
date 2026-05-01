@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchOrderById, updateOrderStatus, updateOrderItem, fetchOrderActivity, fetchInvoiceSignedUrl, fetchDocumentSignedUrl, generateOrderPdf, generateDeliveryNote, quoteOrderItem, confirmOrderItem } from '../utils/supplierStorage';
+import { fetchOrderById, updateOrderStatus, updateOrderItem, fetchOrderActivity, fetchInvoiceSignedUrl, fetchDocumentSignedUrl, generateOrderPdf, generateDeliveryNote, sendDeliveryNoteEmails, quoteOrderItem, confirmOrderItem } from '../utils/supplierStorage';
+import { showToast } from '../../../utils/toast';
 import { usePermission } from '../../../contexts/SupplierPermissionContext';
 import EditDeliveryModal from '../components/EditDeliveryModal';
 import ReassignModal from '../components/ReassignModal';
@@ -188,11 +189,13 @@ const HeroActions = ({
   orderPdfBusy,        // boolean — generation in flight
   onGenerateOrderPdf,
   onOpenOrderPdf,
-  deliveryNote,        // { hasUnsigned, hasSigned } — derived from supplier_orders cols
+  deliveryNote,        // { hasUnsigned, hasSigned, emailedAt } — derived from supplier_orders cols
   deliveryNoteBusy,
+  deliveryNoteEmailBusy,
   onGenerateDeliveryNote,
   onOpenDeliveryNote,
   onOpenSignedDeliveryNote,
+  onEmailDeliveryNote,
   canEdit,
 }) => {
   const isOpen = (id) => openMenu === id;
@@ -316,6 +319,46 @@ const HeroActions = ({
                 ↻ {deliveryNoteBusy ? 'Regenerating…' : 'Regenerate'}
               </span>
             </button>
+            {/* Email signing link — disabled within the 30-min idempotency
+                window. Server enforces the window too; the disable here is
+                purely UX hint so the user doesn't click into a 200-already-sent
+                response. */}
+            {(() => {
+              const emailedAt = deliveryNote.emailedAt;
+              const minsAgo = emailedAt
+                ? Math.floor((Date.now() - new Date(emailedAt).getTime()) / 60000)
+                : null;
+              const recentlyEmailed = minsAgo !== null && minsAgo < 30;
+              const wasEverEmailed  = emailedAt != null;
+
+              let label;
+              if (deliveryNoteEmailBusy) {
+                label = '✉ Sending…';
+              } else if (recentlyEmailed) {
+                label = `✉ Sent ${minsAgo === 0 ? 'just now' : `${minsAgo} min ago`}`;
+              } else {
+                label = wasEverEmailed ? '✉ Resend signing link' : '✉ Email signing link';
+              }
+
+              const disabled = !canEdit || deliveryNoteEmailBusy || recentlyEmailed;
+              const tooltip = recentlyEmailed
+                ? `Try again in ${30 - minsAgo} min.`
+                : undefined;
+
+              return (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={`sod-dd-row sod-dd-subrow${disabled ? ' sod-dd-disabled' : ''}`}
+                  onClick={!disabled ? onEmailDeliveryNote : undefined}
+                  disabled={disabled}
+                  title={tooltip}
+                  aria-label={wasEverEmailed ? 'Resend delivery note signing link' : 'Email delivery note signing link'}
+                >
+                  <span className="sod-dd-name">{label}</span>
+                </button>
+              );
+            })()}
           </>
         ) : (
           <DropdownRow
@@ -375,9 +418,11 @@ const Hero = ({
   onOpenOrderPdf,
   deliveryNote,
   deliveryNoteBusy,
+  deliveryNoteEmailBusy,
   onGenerateDeliveryNote,
   onOpenDeliveryNote,
   onOpenSignedDeliveryNote,
+  onEmailDeliveryNote,
   canEdit,
 }) => {
   const days = daysUntil(order.delivery_date);
@@ -448,9 +493,11 @@ const Hero = ({
           onOpenOrderPdf={onOpenOrderPdf}
           deliveryNote={deliveryNote}
           deliveryNoteBusy={deliveryNoteBusy}
+          deliveryNoteEmailBusy={deliveryNoteEmailBusy}
           onGenerateDeliveryNote={onGenerateDeliveryNote}
           onOpenDeliveryNote={onOpenDeliveryNote}
           onOpenSignedDeliveryNote={onOpenSignedDeliveryNote}
+          onEmailDeliveryNote={onEmailDeliveryNote}
           canEdit={canEdit}
         />
       </div>
@@ -1286,6 +1333,22 @@ const fmtActivityEvent = (event) => {
         title: <>Delivery note generated{event.payload?.signing_token_minted ? ' · signing link minted' : ''}</>,
         sub: `By ${actor}`,
       };
+    case 'delivery_note_emailed': {
+      const recipientCount = event.payload?.recipient_count || (event.payload?.to?.length ?? 1);
+      const resolution = event.payload?.resolution;
+      const force = event.payload?.force;
+      const bits = [];
+      if (recipientCount > 1) bits.push(`${recipientCount} recipients`);
+      if (resolution === 'role_match') bits.push('rotation match');
+      if (resolution === 'command_fallback') bits.push('command fallback');
+      if (force) bits.push('forced');
+      const suffix = bits.length ? ' · ' + bits.join(' · ') : '';
+      return {
+        when, dotClass: 'sod-act-done',
+        title: <>Delivery note signing link sent{suffix}</>,
+        sub: `By ${actor}`,
+      };
+    }
     case 'delivery_signed': {
       const advanced = event.payload?.status_advanced;
       const flagsBits = [];
@@ -1464,6 +1527,7 @@ const SupplierOrderDetail = () => {
   const [generateInvoiceOpen, setGenerateInvoiceOpen] = useState(false);
   const [orderPdfBusy, setOrderPdfBusy] = useState(false);
   const [deliveryNoteBusy, setDeliveryNoteBusy] = useState(false);
+  const [deliveryNoteEmailBusy, setDeliveryNoteEmailBusy] = useState(false);
   const [activityDrawerOpen, setActivityDrawerOpen] = useState(false);
   const heroRef = useRef(null);
 
@@ -1634,6 +1698,41 @@ const SupplierOrderDetail = () => {
       window.alert(`Could not open signed delivery note: ${e.message || e}`);
     }
   }, [orderId]);
+
+  // Email the delivery note signing link to the receiving party (Sprint 9b
+  // Commit 7). Server runs the 4-step recipient resolution chain, sends via
+  // Resend, stamps delivery_note_emailed_at, and writes a delivery_note_emailed
+  // activity event. The Documents dropdown button is gated on
+  // delivery_note_pdf_url existing and outside the 30-min idempotency window;
+  // this handler is defensive against both states (server returns 409/200
+  // already_sent appropriately).
+  const handleEmailDeliveryNote = useCallback(async () => {
+    setOpenMenu(null);
+    if (deliveryNoteEmailBusy) return;
+    setDeliveryNoteEmailBusy(true);
+    try {
+      const res = await sendDeliveryNoteEmails(orderId);
+      if (res?.already_sent) {
+        const mins = Math.max(1, Math.ceil((res.remaining_window_seconds || 0) / 60));
+        showToast(`Already sent — try again in ${mins} min`, 'info');
+      } else {
+        const sentTo = res?.sent_to || [];
+        const label = sentTo.length === 0
+          ? 'recipient'
+          : sentTo.length === 1
+          ? sentTo[0]
+          : `${sentTo[0]} +${sentTo.length - 1} more`;
+        showToast(`Signing link sent to ${label}`, 'success');
+      }
+      // Pick up the new emailed_at + activity row
+      fetchOrderById(orderId).then(setOrder).catch(() => {});
+      refetchActivity();
+    } catch (e) {
+      showToast(`Could not send: ${e?.message || e}`, 'error');
+    } finally {
+      setDeliveryNoteEmailBusy(false);
+    }
+  }, [orderId, deliveryNoteEmailBusy, refetchActivity]);
 
   // Modal save handlers — merge the row payload (which includes the joined
   // assigned_contact) back into local state so the page reflects the change
@@ -1821,6 +1920,7 @@ const SupplierOrderDetail = () => {
           const deliveryNote = {
             hasUnsigned: !!order.delivery_note_pdf_url,
             hasSigned: !!order.delivery_note_signed_pdf_url,
+            emailedAt: order.delivery_note_emailed_at || null,
           };
           // Documents badge counts each kind once. The signed delivery note
           // replaces the unsigned one rather than stacking.
@@ -1848,9 +1948,11 @@ const SupplierOrderDetail = () => {
               onOpenOrderPdf={handleOpenOrderPdf}
               deliveryNote={deliveryNote}
               deliveryNoteBusy={deliveryNoteBusy}
+              deliveryNoteEmailBusy={deliveryNoteEmailBusy}
               onGenerateDeliveryNote={handleGenerateDeliveryNote}
               onOpenDeliveryNote={handleOpenDeliveryNote}
               onOpenSignedDeliveryNote={handleOpenSignedDeliveryNote}
+              onEmailDeliveryNote={handleEmailDeliveryNote}
               canEdit={canEdit}
             />
           );
