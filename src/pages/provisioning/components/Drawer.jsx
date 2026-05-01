@@ -29,13 +29,33 @@ import Icon from '../../../components/AppIcon';
 // `theme` prop kept on the signature for back-compat but is now visually
 // equivalent across both values. Future restyles (e.g. a true dark drawer)
 // can branch on it again with intentional concrete values.
-const PANEL_BG     = '#FFFFFF';
+const PANEL_BG_DEFAULT = '#FFFFFF';
 const HAIRLINE     = '1px solid rgba(30, 39, 66, 0.06)';
 const TITLE_INK    = '#1E2742';
 const CLOSE_INK    = '#94A3B8';
 const CLOSE_HOVER  = '#1E2742';
 
-const Drawer = ({ open, onClose, title, children, footer, width = 480, theme = 'dark' }) => {
+const Drawer = ({
+  open,
+  onClose,
+  title,
+  children,
+  footer,
+  width = 480,
+  theme = 'dark',
+  // Sprint 9c.2 Commit 1.5c (drawer redesign):
+  //   - panelBg: override the default white panel surface (e.g. #FFFEFB
+  //     for the editorial paper feel — slightly warmer than the page bg).
+  //   - hideHeader: skip the built-in title bar so the drawer body
+  //     extends to the top edge. Consumer renders its own close button
+  //     inside the body (typical for editorial hero layouts).
+  panelBg = PANEL_BG_DEFAULT,
+  hideHeader = false,
+  // Optional content padding override — defaults to px-6 py-5 (Tailwind).
+  // When the consumer wants edge-to-edge content (e.g. hero section
+  // bleeding to drawer edges), pass null to drop padding entirely.
+  bodyClassName = 'flex-1 overflow-y-auto px-6 py-5',
+}) => {
   const isLight = theme === 'light';
   const maxWidth = typeof width === 'number' ? `${width}px` : width;
   const backdropBg = isLight ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.5)';
@@ -61,36 +81,38 @@ const Drawer = ({ open, onClose, title, children, footer, width = 480, theme = '
       >
         <div
           className="h-full flex flex-col shadow-2xl"
-          style={{ background: PANEL_BG, borderLeft: HAIRLINE }}
+          style={{ background: panelBg, borderLeft: HAIRLINE }}
         >
-          {/* Header */}
-          <div
-            className="flex items-center justify-between px-6 py-4"
-            style={{ background: PANEL_BG, borderBottom: HAIRLINE }}
-          >
-            <h2
-              className="text-base font-semibold truncate"
-              style={{ color: TITLE_INK }}
-            >{title}</h2>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg transition-colors"
-              style={{ color: CLOSE_INK }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = CLOSE_HOVER; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = CLOSE_INK; }}
+          {/* Header (optional) */}
+          {!hideHeader && (
+            <div
+              className="flex items-center justify-between px-6 py-4"
+              style={{ background: panelBg, borderBottom: HAIRLINE }}
             >
-              <Icon name="X" className="w-5 h-5" />
-            </button>
-          </div>
+              <h2
+                className="text-base font-semibold truncate"
+                style={{ color: TITLE_INK }}
+              >{title}</h2>
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded-lg transition-colors"
+                style={{ color: CLOSE_INK }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = CLOSE_HOVER; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = CLOSE_INK; }}
+              >
+                <Icon name="X" className="w-5 h-5" />
+              </button>
+            </div>
+          )}
           {/* Body */}
-          <div className="flex-1 overflow-y-auto px-6 py-5">
+          <div className={bodyClassName}>
             {children}
           </div>
           {/* Footer (optional) */}
           {footer && (
             <div
               className="flex-shrink-0"
-              style={{ borderTop: HAIRLINE, background: PANEL_BG }}
+              style={{ borderTop: HAIRLINE, background: panelBg }}
             >
               {footer}
             </div>
