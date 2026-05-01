@@ -5,7 +5,7 @@ import Button from '../../components/ui/Button';
 import Icon from '../../components/AppIcon';
 import AddEditDayModal from './components/AddEditDayModal';
 import AddActivityModal from './components/AddActivityModal';
-import { getTripById } from '../trips-management-dashboard/utils/tripStorage';
+import { getTripById, resolveSupabaseTripId } from '../trips-management-dashboard/utils/tripStorage';
 import { loadGuests } from '../guest-management-dashboard/utils/guestStorage';
 import { getCurrentUser } from '../../utils/authStorage';
 import { showToast } from '../../utils/toast';
@@ -18,6 +18,12 @@ const TripItineraryTimeline = () => {
   const { tripId } = useParams();
   const [currentUser, setCurrentUser] = useState(null);
   const [trip, setTrip] = useState(null);
+  // Lazily resolved Supabase uuid for the trip — pre-A3.5 LS trips
+  // and post-A3.5 trips whose merge layer didn't stamp supabaseId need
+  // this lookup before useItinerary can fire its query / mutations.
+  // Mirrors the resolver pattern updateTrip / deleteTrip use internally
+  // (commit a0efbe1).
+  const [tripUuid, setTripUuid] = useState(null);
   const [guests, setGuests] = useState([]);
   const [showAddEditModal, setShowAddEditModal] = useState(false);
   const [editingDay, setEditingDay] = useState(null);
@@ -32,6 +38,9 @@ const TripItineraryTimeline = () => {
   };
 
   // Hook canonical for days+activities once we have the trip's UUID.
+  // Falls back to trip.supabaseId synchronously when the merge layer
+  // happened to stamp it; the resolver effect below covers the case
+  // where it didn't.
   const {
     days,
     loading: itineraryLoading,
@@ -41,7 +50,7 @@ const TripItineraryTimeline = () => {
     addActivity,
     updateActivity,
     deleteActivity,
-  } = useItinerary(trip?.supabaseId);
+  } = useItinerary(tripUuid || trip?.supabaseId);
 
   useEffect(() => {
     const user = getCurrentUser();
@@ -57,6 +66,21 @@ const TripItineraryTimeline = () => {
   useEffect(() => {
     if (tripId) loadTripData();
   }, [tripId]);
+
+  // Resolve Supabase uuid lazily when the merge layer didn't stamp it
+  // (pre-A3.5 LS trips, pending-sync trips). Returns the cached
+  // supabaseId or queries by legacy_local_id; result also stamps the
+  // LS row in-place so subsequent calls in the session no-op.
+  useEffect(() => {
+    if (!trip || trip?.supabaseId) return;
+    let cancelled = false;
+    resolveSupabaseTripId(trip).then(uuid => {
+      if (cancelled) return;
+      if (uuid) setTripUuid(uuid);
+      else      console.warn('[itinerary-timeline] resolveSupabaseTripId returned null — trip has no Supabase counterpart yet.');
+    });
+    return () => { cancelled = true; };
+  }, [trip]);
 
   const loadTripData = async () => {
     const tripData = await getTripById(tripId);

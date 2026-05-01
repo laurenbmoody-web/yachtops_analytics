@@ -964,3 +964,22 @@ The downside: render path needs to silently filter out non-existent guest UUIDs 
 - Editorial design pass (A3.7b proper) — current UI uses existing primitives without restyling.
 - Wire the orphan `AddItineraryDayModal` open trigger (`setShowAddItineraryModal(true)`) — same orphan-handler gap pattern as PR3 round-2's Edit/Delete trip buttons.
 - Decide whether the trip detail page should consume `useItinerary` at all (vs only the timeline page) — depends on whether A3.7b adds itinerary editing affordances to the overview tab.
+
+### A3.7a verification — round 1: useItinerary mutations silently no-op'd
+
+Lauren reported "Failed to add itinerary day" toast firing without a network request and without a console error. Diagnostic logs added in commit `3fd5add` confirmed the cause: every silent return path in the hook now logs to console, and the first repro surfaced `addDay aborted: tripSupabaseId is missing`.
+
+**Root cause:** the merge layer in `mapSupabaseTripToLegacyShape` returns merged trip objects where `row?.id` is read but the LS-only / pending-sync branch (`tripStorage.js:425`) pushes the raw `lsTrip` without a `supabaseId` stamp. All three of Lauren's trips showed `supabaseId: undefined` even though they exist in Supabase with valid UUIDs. The hook saw the undefined and bailed before ever hitting the network.
+
+**Fix shipped:** lazy-resolve `supabaseId` at the timeline page + trip detail page mount sites via `resolveSupabaseTripId(trip)` (now exported from `tripStorage.js`). Mirrors the pattern `updateTrip` / `deleteTrip` use internally (commit `a0efbe1`). The page stores the resolved uuid in local state, passes `tripUuid || trip?.supabaseId` into `useItinerary` so the hook fires its query as soon as either source produces a value.
+
+**Pattern note: lazy-resolve at write/mount sites instead of stamping at merge time.** Two architectural options when local objects need a server-side uuid that isn't always present:
+
+1. **Stamp at merge time** — every read goes through `mapSupabaseTripToLegacyShape` and writes the uuid back to the LS row in-place. Pros: callers can rely on `trip.supabaseId` always being present after first read. Cons: read-time side effects (writes during reads), every merge mutates LS.
+2. **Lazy-resolve at consumer sites** — the field stays absent from the merged shape until a caller actively needs it; consumers call the resolver and cache the result. Pros: no read-time side effects, callers opt in. Cons: each consumer must remember to resolve before relying on the field; pattern repeats.
+
+A3 has been using option 2 (lazy-resolve in `updateTrip` / `deleteTrip` internally), and A3.7a now extends that to mount-time resolution at the timeline + trip detail pages. Consistency wins for now. Switching to option 1 would touch `mapSupabaseTripToLegacyShape` + every reader's expectations and is wider scope than A3.7a's brief.
+
+### Filed for post-A3 cleanup queue
+
+- **Stamp `supabaseId` at merge time.** The lazy-resolve pattern works but each new consumer has to remember to wire it. A future refactor in `mapSupabaseTripToLegacyShape` could read the LS row, find the corresponding Supabase row by `legacy_local_id`, stamp `supabaseId` on the LS row in-place, and return the merged shape with `supabaseId` always populated. Eliminates the resolver-at-mount-site boilerplate everywhere downstream. Doesn't ship in A3.7a — wider blast radius, every reader's mental model changes. Filed for the post-A3 cleanup window alongside the legacy-helper retirements.

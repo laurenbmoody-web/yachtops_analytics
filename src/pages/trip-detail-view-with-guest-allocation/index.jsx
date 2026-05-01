@@ -10,7 +10,7 @@ import AddSpecialDateModal from './components/AddSpecialDateModal';
 import AddSpecialRequestModal from './components/AddSpecialRequestModal';
 import EditCharterDetailsModal from './components/EditCharterDetailsModal';
 import TripLaundryDrawer from './components/TripLaundryDrawer';
-import { getTripById, deleteTrip, TripStatus, TripType, getPreferencesByTrip, getActiveGuestCount, getPreferencesCoveragePct, getOpenRequestsCount, getUpcomingSpecialDatesCount, getProvisioningStatus, getLaundryStatus, updateTrip } from '../trips-management-dashboard/utils/tripStorage';
+import { getTripById, deleteTrip, TripStatus, TripType, getPreferencesByTrip, getActiveGuestCount, getPreferencesCoveragePct, getOpenRequestsCount, getUpcomingSpecialDatesCount, getProvisioningStatus, getLaundryStatus, updateTrip, resolveSupabaseTripId } from '../trips-management-dashboard/utils/tripStorage';
 import { loadGuests, updateGuest } from '../guest-management-dashboard/utils/guestStorage';
 import { createGuest } from '../guest-management-dashboard/utils/guestStorage';
 import { getCurrentUser } from '../../utils/authStorage';
@@ -73,10 +73,14 @@ const TripDetailView = () => {
   // A3.7a: itinerary days+activities live in Supabase. The trip detail
   // page consumes the hook so the (currently orphan but spec-wired)
   // overview AddItineraryDayModal has live mutations to call.
+  // tripUuid lazy-resolves Supabase id when the merge layer didn't
+  // stamp it (pre-A3.5 LS trips, pending-sync trips). Mirrors the
+  // resolver pattern updateTrip / deleteTrip use internally.
+  const [tripUuid, setTripUuid] = useState(null);
   const {
     addDay: addItineraryDayHook,
     updateDay: updateItineraryDayHook,
-  } = useItinerary(trip?.supabaseId);
+  } = useItinerary(tripUuid || trip?.supabaseId);
 
   // Check authentication and authorization
   useEffect(() => {
@@ -101,6 +105,20 @@ const TripDetailView = () => {
       loadPreferencesData();
     }
   }, [tripId]);
+
+  // Resolve Supabase uuid lazily when the merge layer didn't stamp it.
+  // Pre-A3.5 LS trips and pending-sync trips need this lookup before
+  // useItinerary can fire its query / mutations.
+  useEffect(() => {
+    if (!trip || trip?.supabaseId) return;
+    let cancelled = false;
+    resolveSupabaseTripId(trip).then(uuid => {
+      if (cancelled) return;
+      if (uuid) setTripUuid(uuid);
+      else      console.warn('[trip-detail] resolveSupabaseTripId returned null — trip has no Supabase counterpart yet.');
+    });
+    return () => { cancelled = true; };
+  }, [trip]);
 
   // Load photos from trip data
   useEffect(() => {
