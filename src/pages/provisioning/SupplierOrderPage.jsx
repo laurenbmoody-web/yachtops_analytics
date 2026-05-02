@@ -16,6 +16,24 @@ import {
   markInvoicePaid,
 } from './utils/provisioningStorage';
 import { showToast } from '../../utils/toast';
+import { listSupportedCountries } from '../../data/countryTaxPresets';
+
+// Build the ISO2 → display-name lookup once. Falls back to the raw code
+// when a country is outside the supported set (rare, but won't crash).
+const COUNTRY_NAMES_BY_ISO2 = (() => {
+  const out = {};
+  try {
+    for (const { iso2, name } of listSupportedCountries()) {
+      if (iso2) out[iso2.toUpperCase()] = name;
+    }
+  } catch { /* presets unavailable — fall through to raw codes */ }
+  return out;
+})();
+const countryName = (iso) => {
+  if (!iso) return null;
+  const code = String(iso).toUpperCase();
+  return COUNTRY_NAMES_BY_ISO2[code] || code;
+};
 
 // Sprint 9c.2 — supplier order detail page (replaces the drawer architecture).
 //
@@ -170,9 +188,9 @@ function LifecycleTimeline({ order }) {
 function SupplierInfoPopover({ order, onClose, onViewAll }) {
   const profile = order.supplier_profile || {};
   const name = profile.name || order.supplier_name || 'Supplier';
-  const country = profile.business_country || null;
+  const isoCountry = profile.business_country || null;
   const city = profile.business_city || null;
-  const flag = flagEmoji(country);
+  const flag = flagEmoji(isoCountry);
   const email = order.supplier_email || null;
   const phone = order.supplier_phone || null;
   const address = order.supplier_address || null;
@@ -180,63 +198,64 @@ function SupplierInfoPopover({ order, onClose, onViewAll }) {
     ? `Net ${profile.invoice_payment_terms_days} days`
     : null;
 
+  // Locale line: prefer "{country full name} · {city}" when both exist,
+  // else whichever is present. Country code is resolved to its display
+  // name so the chip doesn't read like a stray ISO code ("FR").
+  const fullCountry = isoCountry ? countryName(isoCountry) : null;
+  const localePieces = [fullCountry, city].filter(Boolean);
+  const localeLine = localePieces.length > 0 ? localePieces.join(' · ') : null;
+
+  // Each row is [label, value] — falsy values drop the entire row.
+  const rows = [
+    email && ['Email', <a key="e" href={`mailto:${email}`}>{email}</a>],
+    phone && ['Phone', <a key="p" href={`tel:${phone}`}>{phone}</a>],
+    address && ['Address', <span key="a">{address}</span>],
+    paymentTerms && ['Payment terms', <span key="t">{paymentTerms}</span>],
+  ].filter(Boolean);
+
   return (
     <div className="cargo-od-supplier-popover" role="dialog" aria-label={`${name} contact details`}>
-      <div className="cargo-od-supplier-popover-header">
-        <h4 className="cargo-od-supplier-popover-name">
-          {name}
-          {flag && <span className="cargo-od-supplier-popover-flag">{flag}</span>}
-        </h4>
-        {(city || country) && (
-          <p className="cargo-od-supplier-popover-locale">
-            {[city, country].filter(Boolean).join(' · ')}
-          </p>
-        )}
-      </div>
-      <dl className="cargo-od-supplier-popover-details">
-        {email && (
-          <>
-            <dt>Email</dt>
-            <dd><a href={`mailto:${email}`}>{email}</a></dd>
-          </>
-        )}
-        {phone && (
-          <>
-            <dt>Phone</dt>
-            <dd><a href={`tel:${phone}`}>{phone}</a></dd>
-          </>
-        )}
-        {address && (
-          <>
-            <dt>Address</dt>
-            <dd>{address}</dd>
-          </>
-        )}
-        {paymentTerms && (
-          <>
-            <dt>Payment</dt>
-            <dd>{paymentTerms}</dd>
-          </>
-        )}
-        {!email && !phone && !address && !paymentTerms && (
-          <dd className="cargo-od-supplier-popover-empty">
-            No contact details on file.
-          </dd>
-        )}
-      </dl>
-      <button
-        type="button"
-        className="cargo-od-supplier-popover-link"
-        onClick={onViewAll}
-      >
-        View all suppliers ›
-      </button>
       <button
         type="button"
         className="cargo-od-supplier-popover-close"
         onClick={onClose}
         aria-label="Close"
       >×</button>
+
+      <div className="cargo-od-supplier-popover-header">
+        <h4 className="cargo-od-supplier-popover-name">
+          <span>{name}</span>
+          {flag && <span className="cargo-od-supplier-popover-flag" aria-hidden="true">{flag}</span>}
+        </h4>
+        {localeLine && (
+          <p className="cargo-od-supplier-popover-locale">{localeLine}</p>
+        )}
+      </div>
+
+      {rows.length > 0 && (
+        <div className="cargo-od-supplier-popover-rows">
+          {rows.map(([label, value]) => (
+            <div className="cargo-od-supplier-popover-row" key={label}>
+              <div className="cargo-od-supplier-popover-label">{label}</div>
+              <div className="cargo-od-supplier-popover-value">{value}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {rows.length === 0 && (
+        <p className="cargo-od-supplier-popover-empty">
+          No contact details on file.
+        </p>
+      )}
+
+      <button
+        type="button"
+        className="cargo-od-supplier-popover-link"
+        onClick={onViewAll}
+      >
+        View all orders with this supplier ›
+      </button>
     </div>
   );
 }
@@ -1065,32 +1084,39 @@ export default function SupplierOrderPage() {
             {/* Custom headline — Georgia display-case supplier name + italic
                 terracotta board-type qualifier. Mirrors the EditorialHeadline
                 pattern but preserves multi-word supplier-name casing.
-                Sprint 9c.2 Commit 2: supplier name is a clickable trigger
-                that opens an info popover (no detail page exists yet). */}
+
+                Sprint 9c.2 Commit 2 (follow-up): supplier name is a clickable
+                trigger that opens an info popover. Convention: interactive
+                triggers embedded in editorial typography MUST render visually
+                identical to the original text at rest. The hover affordance
+                (terracotta underline + ›) is the only place it appears, and
+                the › lives in a ::after pseudo-element so it consumes zero
+                inline space — no kerning shift around the comma. */}
             <h1 className="p-greeting" style={{ textTransform: 'none' }}>
-              <span className="cargo-od-supplier-trigger-wrap" data-popover-anchor>
-                <button
-                  type="button"
-                  className="cargo-od-supplier-trigger"
-                  onClick={() => setSupplierPopoverOpen((v) => !v)}
-                  aria-haspopup="dialog"
-                  aria-expanded={supplierPopoverOpen}
-                >
-                  {supplierName}
-                  <span className="cargo-od-supplier-arrow" aria-hidden="true">›</span>
-                </button>
-                {supplierPopoverOpen && (
-                  <SupplierInfoPopover
-                    order={order}
-                    onClose={() => setSupplierPopoverOpen(false)}
-                    onViewAll={() => {
-                      setSupplierPopoverOpen(false);
+              <span className="cargo-od-supplier-trigger-wrap" data-popover-anchor><button
+                type="button"
+                className="cargo-od-supplier-trigger"
+                onClick={() => setSupplierPopoverOpen((v) => !v)}
+                aria-haspopup="dialog"
+                aria-expanded={supplierPopoverOpen}
+              >{supplierName}</button>{supplierPopoverOpen && (
+                <SupplierInfoPopover
+                  order={order}
+                  onClose={() => setSupplierPopoverOpen(false)}
+                  onViewAll={() => {
+                    setSupplierPopoverOpen(false);
+                    // Prefer the supplier_profile detail page when the order
+                    // carries a supplier_profile_id (modern path). Fall back
+                    // to the unfiltered directory for legacy rows.
+                    const supplierProfileId = order.supplier_profile?.id || order.supplier_profile_id;
+                    if (supplierProfileId) {
+                      navigate(`/provisioning/suppliers/${supplierProfileId}`);
+                    } else {
                       navigate('/provisioning/suppliers');
-                    }}
-                  />
-                )}
-              </span>
-              <span className="p-greeting-punctuation">,</span>{' '}
+                    }
+                  }}
+                />
+              )}</span><span className="p-greeting-punctuation">,</span>{' '}
               <em>{boardType}</em><span className="p-greeting-punctuation">.</span>
             </h1>
             <p style={{

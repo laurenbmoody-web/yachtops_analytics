@@ -55,6 +55,7 @@ import { isDevMode } from './utils/devMode';
 import ProvisioningWorkspace from './pages/provisioning';
 import ProvisioningBoardDetail from './pages/provisioning/ProvisioningBoardDetail';
 import SupplierOrderPage from './pages/provisioning/SupplierOrderPage';
+import SupplierDetailPage from './pages/provisioning/SupplierDetailPage';
 import ProvisioningSuppliers from './pages/provisioning/ProvisioningSuppliers';
 import DeliveryInbox from './pages/provisioning/DeliveryInbox';
 import DeliveryHistory from './pages/provisioning/DeliveryHistory';
@@ -1226,6 +1227,8 @@ const Routes = () => {
         {/* Provisioning Routes */}
         <Route path="/provisioning" element={<ProtectedRoute><ProvisioningWorkspace /></ProtectedRoute>} />
         <Route path="/provisioning/suppliers" element={<ProtectedRoute><ProvisioningSuppliers /></ProtectedRoute>} />
+        {/* Sprint 9c.2 Commit 2 follow-up — per-supplier detail by supplier_profile_id. */}
+        <Route path="/provisioning/suppliers/:supplierProfileId" element={<ProtectedRoute><SupplierDetailPage /></ProtectedRoute>} />
         <Route path="/provisioning/inbox" element={<ProtectedRoute><DeliveryInbox /></ProtectedRoute>} />
         <Route path="/provisioning/history" element={<ProtectedRoute><DeliveryHistory /></ProtectedRoute>} />
         <Route path="/provisioning/return-slip" element={<ProtectedRoute><ReturnSlipPage /></ProtectedRoute>} />

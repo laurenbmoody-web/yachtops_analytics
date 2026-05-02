@@ -2239,13 +2239,26 @@
 .cargo-od-doc-popover-item:hover { background: #FAF7F0; }
 .cargo-od-doc-popover-item:disabled { cursor: not-allowed; opacity: 0.6; }
 
-/* Sprint 9c.2 Commit 2 — supplier name trigger + popover.
-   Trigger is the supplier name styled as the headline; clickable affordance
-   is a subtle terracotta underline + › arrow on hover. No persistent
-   underline at rest — preserves the editorial typography. */
+/* Sprint 9c.2 Commit 2 (follow-up) — supplier name trigger + popover.
+   Convention: interactive triggers embedded in editorial typography render
+   pixel-identical to the original text at rest. The hover affordance is
+   the only place the clickable cue appears.
+
+   Implementation notes:
+   - Wrap is `display: inline` so the trigger participates in the inline
+     text flow with no inline-block baseline shift.
+   - Trigger is a button stripped to bare text (font/color inherit, no
+     padding, margin, border, background). It must consume the same inline
+     box as the equivalent text would.
+   - The hover underline uses `text-decoration` with a transparent colour
+     at rest → terracotta on hover. text-decoration adds NO box space, so
+     it never shifts the surrounding kerning.
+   - The hover ›arrow lives in a ::after pseudo-element pinned absolutely
+     to the right of the trigger box. Pseudo-element + position:absolute
+     means zero inline space at rest. */
 .cargo-od-supplier-trigger-wrap {
   position: relative;
-  display: inline-block;
+  display: inline;
 }
 .cargo-od-supplier-trigger {
   font: inherit;
@@ -2253,131 +2266,168 @@
   background: transparent;
   border: 0;
   padding: 0;
+  margin: 0;
   cursor: pointer;
   text-transform: inherit;
-  text-decoration: none;
-  border-bottom: 2px solid transparent;
-  transition: border-color 0.15s ease;
+  position: relative;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
+  transition: text-decoration-color 0.15s ease;
 }
 .cargo-od-supplier-trigger:hover,
 .cargo-od-supplier-trigger:focus-visible {
-  border-bottom-color: rgba(196, 91, 71, 0.5);
+  text-decoration-color: rgba(196, 91, 71, 0.5);
   outline: none;
 }
-.cargo-od-supplier-arrow {
-  display: inline-block;
+.cargo-od-supplier-trigger::after {
+  content: '\203A'; /* › */
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translate(-4px, -50%);
   margin-left: 6px;
   font-family: Georgia, serif;
+  font-style: normal;
   color: var(--accent);
   opacity: 0;
-  transform: translateX(-4px);
+  pointer-events: none;
   transition: opacity 0.15s ease, transform 0.15s ease;
 }
-.cargo-od-supplier-trigger:hover .cargo-od-supplier-arrow,
-.cargo-od-supplier-trigger:focus-visible .cargo-od-supplier-arrow {
+.cargo-od-supplier-trigger:hover::after,
+.cargo-od-supplier-trigger:focus-visible::after {
   opacity: 1;
-  transform: translateX(0);
+  transform: translate(0, -50%);
 }
 
+/* Sprint 9c.2 Commit 2 (follow-up) — supplier info popover.
+   Stacked layout: header → divider → row stack → divider → footer link.
+   Each row is [tracked-uppercase label] above [value], not horizontal.
+   Empty fields drop the whole row (no "EMAIL — none" placeholders). */
 .cargo-od-supplier-popover {
   position: absolute;
   left: 0;
   top: calc(100% + 8px);
   z-index: 40;
-  min-width: 320px;
-  max-width: 380px;
+  width: 280px;
   background: #FFFFFF;
-  border: 1px solid rgba(30, 39, 66, 0.08);
+  border: 1px solid rgba(30, 39, 66, 0.06);
   border-radius: 12px;
   box-shadow: 0 16px 40px rgba(15, 23, 42, 0.14);
-  padding: 18px 20px 14px;
+  padding: 1.25rem;
   font-family: var(--font-sans);
 }
-.cargo-od-supplier-popover-header { margin-bottom: 12px; }
+.cargo-od-supplier-popover-header {
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(30, 39, 66, 0.06);
+}
 .cargo-od-supplier-popover-name {
   font-family: Georgia, 'DM Serif Text', 'Times New Roman', serif;
-  font-size: 17px;
-  font-weight: 400;
+  font-size: 16px;
+  font-weight: 600;
   color: var(--ink);
   margin: 0;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: baseline;
+  gap: 0.5rem;
+  line-height: 1.25;
 }
-.cargo-od-supplier-popover-flag { font-size: 16px; }
+.cargo-od-supplier-popover-flag {
+  font-size: 14px;
+}
 .cargo-od-supplier-popover-locale {
-  font-size: 11.5px;
+  font-size: 10px;
+  font-weight: 500;
   color: rgba(30, 39, 66, 0.55);
   margin: 4px 0 0;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
-.cargo-od-supplier-popover-details {
-  display: grid;
-  grid-template-columns: 70px 1fr;
-  gap: 6px 12px;
-  margin: 0 0 14px;
-  font-size: 12.5px;
+.cargo-od-supplier-popover-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(30, 39, 66, 0.06);
 }
-.cargo-od-supplier-popover-details dt {
-  color: rgba(30, 39, 66, 0.5);
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+.cargo-od-supplier-popover-row {
+  display: block;
+}
+.cargo-od-supplier-popover-label {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  padding-top: 2px;
+  color: rgba(30, 39, 66, 0.55);
+  margin-bottom: 4px;
 }
-.cargo-od-supplier-popover-details dd {
-  margin: 0;
+.cargo-od-supplier-popover-value {
+  font-size: 13px;
+  font-weight: 400;
   color: var(--ink);
   word-break: break-word;
+  line-height: 1.45;
 }
-.cargo-od-supplier-popover-details a {
-  color: var(--accent);
+.cargo-od-supplier-popover-value a {
+  color: var(--ink);
   text-decoration: none;
-  border-bottom: 1px solid transparent;
-  transition: border-color 0.12s;
+  transition: color 0.12s;
 }
-.cargo-od-supplier-popover-details a:hover {
-  border-bottom-color: var(--accent);
+.cargo-od-supplier-popover-value a:hover {
+  color: var(--accent);
 }
 .cargo-od-supplier-popover-empty {
+  font-size: 12.5px;
   font-style: italic;
   color: rgba(30, 39, 66, 0.5);
-  grid-column: 1 / -1;
+  margin: 0 0 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(30, 39, 66, 0.06);
 }
 .cargo-od-supplier-popover-link {
   font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--accent);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(30, 39, 66, 0.6);
   background: transparent;
   border: 0;
-  padding: 8px 0 0;
+  padding: 0;
   cursor: pointer;
-  letter-spacing: 0.02em;
-  border-top: 1px solid rgba(30, 39, 66, 0.06);
   width: 100%;
   text-align: left;
+  transition: color 0.12s;
 }
-.cargo-od-supplier-popover-link:hover { text-decoration: underline; }
+.cargo-od-supplier-popover-link:hover,
+.cargo-od-supplier-popover-link:focus-visible {
+  color: var(--accent);
+  outline: none;
+}
 .cargo-od-supplier-popover-close {
   position: absolute;
-  top: 10px;
+  top: 12px;
   right: 12px;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 0;
-  background: transparent;
-  font-size: 18px;
+  background: rgba(30, 39, 66, 0.06);
+  font-size: 16px;
   line-height: 1;
-  color: rgba(30, 39, 66, 0.4);
+  color: rgba(30, 39, 66, 0.55);
   cursor: pointer;
   border-radius: 50%;
+  transition: background 0.12s, color 0.12s;
 }
 .cargo-od-supplier-popover-close:hover {
+  background: rgba(30, 39, 66, 0.12);
   color: var(--ink);
-  background: rgba(30, 39, 66, 0.06);
 }
 
 /* Sprint 9c.2 Commit 2 — Invoiced over-budget stat card click affordance.
@@ -2452,6 +2502,14 @@
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+/* Sprint 9c.2 Commit 2 follow-up — orders table on the supplier detail
+   page. Same .cargo-od-table chrome, plus row hover lift + cursor so the
+   row reads as clickable. */
+.cargo-od-supplier-orders-row { cursor: pointer; }
+.cargo-od-supplier-orders-row:hover {
+  background: rgba(250, 247, 240, 0.6);
 }
 
 /* ── Lines section ─────────────────────────────────────────── */
