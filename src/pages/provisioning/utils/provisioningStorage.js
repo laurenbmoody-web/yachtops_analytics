@@ -2139,6 +2139,41 @@ export const fetchSupplierOrderActivity = async (orderId) => {
   return data ?? [];
 };
 
+// Sprint 9c.2 Commit 2 follow-up — fetch a single supplier_profiles row
+// for the dedicated SupplierDetailPage at /provisioning/suppliers/:id.
+// Returns null on no-match; throws on RLS / network errors.
+export const fetchSupplierProfileById = async (supplierProfileId) => {
+  const { data, error } = await supabase
+    .from('supplier_profiles')
+    .select(`
+      id, name, business_country, business_city, business_state_region,
+      business_postal_code, business_address_line1, business_address_line2,
+      invoice_payment_terms_days, default_currency
+    `)
+    .eq('id', supplierProfileId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+};
+
+// Sprint 9c.2 Commit 2 follow-up — list every supplier_order tied to a
+// given supplier_profile_id. RLS scopes this to the caller's tenant
+// automatically (the supplier_orders policy chain runs through
+// tenant_members). Sort newest-first.
+export const fetchSupplierOrdersBySupplierProfileId = async (supplierProfileId) => {
+  const { data, error } = await supabase
+    .from('supplier_orders')
+    .select(`
+      id, status, created_at, currency, list_id, vessel_name, supplier_profile_id,
+      supplier_order_items(id, quantity, agreed_price, quoted_price, estimated_price),
+      provisioning_lists:list_id(id, title)
+    `)
+    .eq('supplier_profile_id', supplierProfileId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+};
+
 // Single-order fetch by id — for the dedicated SupplierOrderPage at
 // /provisioning/:boardId/orders/:orderId. Returns null on no-match.
 // Joins items, invoices, supplier_profile (same shape as fetchSupplierOrders)

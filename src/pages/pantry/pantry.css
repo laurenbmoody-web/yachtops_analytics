@@ -2504,6 +2504,14 @@
   gap: 8px;
 }
 
+/* Sprint 9c.2 Commit 2 follow-up — orders table on the supplier detail
+   page. Same .cargo-od-table chrome, plus row hover lift + cursor so the
+   row reads as clickable. */
+.cargo-od-supplier-orders-row { cursor: pointer; }
+.cargo-od-supplier-orders-row:hover {
+  background: rgba(250, 247, 240, 0.6);
+}
+
 /* ── Lines section ─────────────────────────────────────────── */
 
 .cargo-od-lines-summary {

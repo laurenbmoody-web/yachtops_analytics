@@ -254,7 +254,7 @@ function SupplierInfoPopover({ order, onClose, onViewAll }) {
         className="cargo-od-supplier-popover-link"
         onClick={onViewAll}
       >
-        View all suppliers ›
+        View all orders with this supplier ›
       </button>
     </div>
   );
@@ -1105,7 +1105,15 @@ export default function SupplierOrderPage() {
                   onClose={() => setSupplierPopoverOpen(false)}
                   onViewAll={() => {
                     setSupplierPopoverOpen(false);
-                    navigate('/provisioning/suppliers');
+                    // Prefer the supplier_profile detail page when the order
+                    // carries a supplier_profile_id (modern path). Fall back
+                    // to the unfiltered directory for legacy rows.
+                    const supplierProfileId = order.supplier_profile?.id || order.supplier_profile_id;
+                    if (supplierProfileId) {
+                      navigate(`/provisioning/suppliers/${supplierProfileId}`);
+                    } else {
+                      navigate('/provisioning/suppliers');
+                    }
                   }}
                 />
               )}</span><span className="p-greeting-punctuation">,</span>{' '}
