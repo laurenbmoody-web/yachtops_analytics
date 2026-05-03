@@ -254,7 +254,7 @@ function SupplierInfoPopover({ order, onClose, onViewAll }) {
         className="cargo-od-supplier-popover-link"
         onClick={onViewAll}
       >
-        View all orders with this supplier ›
+        View all orders ›
       </button>
     </div>
   );
