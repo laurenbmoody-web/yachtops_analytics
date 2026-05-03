@@ -2239,23 +2239,21 @@
 .cargo-od-doc-popover-item:hover { background: #FAF7F0; }
 .cargo-od-doc-popover-item:disabled { cursor: not-allowed; opacity: 0.6; }
 
-/* Sprint 9c.2 Commit 2 (follow-up v2) — supplier name trigger.
-   Convention: interactive triggers embedded in editorial typography render
-   pixel-identical to the original text at rest. The hover affordance is
-   the only place the clickable cue appears.
+/* Sprint 9c.2 Commit 2 (follow-up v3) — supplier name trigger.
+   Working rule: interactive triggers embedded in editorial typography
+   render visually identical to the original text at rest. The hover
+   affordance is the ONLY place the clickable cue appears.
 
-   v1 used `text-decoration-color: transparent` + an `opacity: 0` ::after
-   so the elements were always present but invisible at rest. That left
-   visible residue in some browsers (the › arrow showed at rest, and the
-   underline lingered after hover ends). v2 toggles them off entirely:
-       at rest:  text-decoration: none;  ::after { content: none; }
-       on hover: text-decoration: underline; ::after { content: '\203A'; … }
-   No transitions on the trigger — instant on/off, no sticky states.
+   v3 removes the ::after chevron entirely. It was sitting where the
+   comma should live in the canonical "WORD, *qualifier*." pattern and
+   colliding with it visually. Hover affordance is now underline-only.
 
    Typography parity: every font-* property is `inherit` explicitly so the
-   browser's button user-agent styles can't bleed in (some UAs apply their
-   own font-weight / font-family on form controls, which made the headline
-   look heavier on the order page than on the supplier detail page). */
+   button user-agent style can't bleed through (some UAs apply their own
+   font-family / font-weight on form controls). The trigger inherits the
+   parent's `text-transform: uppercase` so the canonical headline word
+   (e.g. SOURCE AND SUPPLY) renders identically whether or not the
+   supplier name happens to be clickable. */
 .cargo-od-supplier-trigger-wrap {
   position: relative;
   display: inline;
@@ -2280,9 +2278,6 @@
   -webkit-font-smoothing: inherit;
   -moz-osx-font-smoothing: inherit;
 }
-/* Pseudo doesn't render at rest. */
-.cargo-od-supplier-trigger::after { content: none; }
-
 .cargo-od-supplier-trigger:hover,
 .cargo-od-supplier-trigger:focus-visible {
   outline: none;
@@ -2291,35 +2286,21 @@
   text-decoration-thickness: 1.5px;
   text-underline-offset: 4px;
 }
-.cargo-od-supplier-trigger:hover::after,
-.cargo-od-supplier-trigger:focus-visible::after {
-  content: '\203A';
-  position: absolute;
-  left: 100%;
-  top: 50%;
-  margin-left: 6px;
-  transform: translateY(-50%);
-  font-family: Georgia, serif;
-  font-style: normal;
-  font-weight: inherit;
-  color: var(--accent);
-  pointer-events: none;
-}
 
-/* Sprint 9c.2 Commit 2 (follow-up) — supplier info popover.
-   Stacked layout: header → divider → row stack → divider → footer link.
-   Each row is [tracked-uppercase label] above [value], not horizontal.
-   Empty fields drop the whole row (no "EMAIL — none" placeholders).
+/* Sprint 9c.2 Commit 2 (follow-up v3) — supplier info popover.
+   Component-level spacing system using flex gap. The popover is a flex
+   column; gap supplies the breathing room between blocks. Per-element
+   margin/padding patches and divider borders are gone — they kept
+   getting tweaked one element at a time. Now there is exactly one knob.
 
-   Vertical rhythm tuned in v2:
-     name → locale          8px
-     locale → header divider 12px
-     header divider → first label  14px
-     label → value           6px
-     row → row              12px
-     last row → footer divider 14px
-     footer divider → link  14px
-*/
+       popover (flex column)            gap: 16px        padding: 20px
+       └─ name (h4)                     name + flag inline
+       └─ locale (p)                    tracked uppercase
+       └─ row (each: flex column)       gap: 4px         label above value
+       └─ … additional rows
+       └─ link (button)                 view all orders ›
+
+   No dividers. The 16px parent gap is the rhythm. */
 .cargo-od-supplier-popover {
   position: absolute;
   left: 0;
@@ -2330,20 +2311,18 @@
   border: 1px solid rgba(30, 39, 66, 0.06);
   border-radius: 12px;
   box-shadow: 0 16px 40px rgba(15, 23, 42, 0.14);
-  padding: 1.25rem;
+  padding: 20px;
   font-family: var(--font-sans);
-}
-.cargo-od-supplier-popover-header {
-  padding-bottom: 12px;
-  margin-bottom: 14px;
-  border-bottom: 1px solid rgba(30, 39, 66, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 .cargo-od-supplier-popover-name {
   font-family: Georgia, 'DM Serif Text', 'Times New Roman', serif;
   font-size: 16px;
   font-weight: 600;
   color: var(--ink);
-  margin: 0 0 8px;
+  margin: 0;
   display: flex;
   align-items: baseline;
   gap: 0.5rem;
@@ -2360,16 +2339,10 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
-.cargo-od-supplier-popover-rows {
+.cargo-od-supplier-popover-row {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 14px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid rgba(30, 39, 66, 0.06);
-}
-.cargo-od-supplier-popover-row {
-  display: block;
+  gap: 4px;
 }
 .cargo-od-supplier-popover-label {
   font-size: 9px;
@@ -2377,7 +2350,6 @@
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: rgba(30, 39, 66, 0.55);
-  margin-bottom: 6px;
   line-height: 1;
 }
 .cargo-od-supplier-popover-value {
@@ -2399,9 +2371,7 @@
   font-size: 12.5px;
   font-style: italic;
   color: rgba(30, 39, 66, 0.5);
-  margin: 0 0 14px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid rgba(30, 39, 66, 0.06);
+  margin: 0;
 }
 .cargo-od-supplier-popover-link {
   font-family: var(--font-sans);

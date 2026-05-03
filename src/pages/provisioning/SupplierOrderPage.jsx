@@ -213,6 +213,14 @@ function SupplierInfoPopover({ order, onClose, onViewAll }) {
     paymentTerms && ['Payment terms', <span key="t">{paymentTerms}</span>],
   ].filter(Boolean);
 
+  // v3 spacing: the popover is a flex column with explicit `gap: 16px`
+  // between major blocks (name, locale, each row, footer link). Within
+  // each label/value row the internal gap is 4px. No dividers — gap
+  // alone supplies the breathing room. See pantry.css:
+  //   .cargo-od-supplier-popover { display:flex; flex-direction:column;
+  //                                gap:16px; padding:20px; ... }
+  //   .cargo-od-supplier-popover-row { display:flex; flex-direction:column;
+  //                                    gap:4px; }
   return (
     <div className="cargo-od-supplier-popover" role="dialog" aria-label={`${name} contact details`}>
       <button
@@ -222,26 +230,21 @@ function SupplierInfoPopover({ order, onClose, onViewAll }) {
         aria-label="Close"
       >×</button>
 
-      <div className="cargo-od-supplier-popover-header">
-        <h4 className="cargo-od-supplier-popover-name">
-          <span>{name}</span>
-          {flag && <span className="cargo-od-supplier-popover-flag" aria-hidden="true">{flag}</span>}
-        </h4>
-        {localeLine && (
-          <p className="cargo-od-supplier-popover-locale">{localeLine}</p>
-        )}
-      </div>
+      <h4 className="cargo-od-supplier-popover-name">
+        <span>{name}</span>
+        {flag && <span className="cargo-od-supplier-popover-flag" aria-hidden="true">{flag}</span>}
+      </h4>
 
-      {rows.length > 0 && (
-        <div className="cargo-od-supplier-popover-rows">
-          {rows.map(([label, value]) => (
-            <div className="cargo-od-supplier-popover-row" key={label}>
-              <div className="cargo-od-supplier-popover-label">{label}</div>
-              <div className="cargo-od-supplier-popover-value">{value}</div>
-            </div>
-          ))}
-        </div>
+      {localeLine && (
+        <p className="cargo-od-supplier-popover-locale">{localeLine}</p>
       )}
+
+      {rows.map(([label, value]) => (
+        <div className="cargo-od-supplier-popover-row" key={label}>
+          <div className="cargo-od-supplier-popover-label">{label}</div>
+          <div className="cargo-od-supplier-popover-value">{value}</div>
+        </div>
+      ))}
 
       {rows.length === 0 && (
         <p className="cargo-od-supplier-popover-empty">
@@ -1081,18 +1084,22 @@ export default function SupplierOrderPage() {
             </button>
             <EditorialMetaStrip meta={editorialMeta} />
 
-            {/* Custom headline — Georgia display-case supplier name + italic
-                terracotta board-type qualifier. Mirrors the EditorialHeadline
-                pattern but preserves multi-word supplier-name casing.
+            {/* Canonical editorial headline — same .p-greeting pattern as
+                the standby page ("STANDBY, *Interior*."). The qualifier
+                word (supplier name) is UPPERCASED via the parent rule's
+                `text-transform: uppercase`; the styled word (board type)
+                stays display-case via `.p-greeting em { text-transform:
+                none }`. Punctuation spans inherit navy from the parent.
 
-                Sprint 9c.2 Commit 2 (follow-up): supplier name is a clickable
-                trigger that opens an info popover. Convention: interactive
-                triggers embedded in editorial typography MUST render visually
-                identical to the original text at rest. The hover affordance
-                (terracotta underline + ›) is the only place it appears, and
-                the › lives in a ::after pseudo-element so it consumes zero
-                inline space — no kerning shift around the comma. */}
-            <h1 className="p-greeting" style={{ textTransform: 'none' }}>
+                The supplier name is wrapped in a clickable trigger that
+                opens an info popover. Working rule: interactive triggers
+                in editorial typography render visually identical to the
+                original text at rest — the hover affordance (terracotta
+                underline) is the ONLY place the clickable cue appears.
+                There is intentionally NO chevron arrow here; the comma
+                lives where a comma should live, and the trigger is
+                otherwise indistinguishable from static headline text. */}
+            <h1 className="p-greeting">
               <span className="cargo-od-supplier-trigger-wrap" data-popover-anchor><button
                 type="button"
                 className="cargo-od-supplier-trigger"
