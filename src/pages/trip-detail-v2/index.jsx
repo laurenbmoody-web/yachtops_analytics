@@ -4,6 +4,7 @@ import Header from '../../components/navigation/Header';
 import '../pantry/pantry.css';
 import { getTripById, resolveSupabaseTripId } from '../trips-management-dashboard/utils/tripStorage';
 import { useItinerary } from '../trip-itinerary-timeline/hooks/useItinerary';
+import { useAuth } from '../../contexts/AuthContext';
 
 import SectionHeader      from './sections/SectionHeader';
 import SectionRoute       from './sections/SectionRoute';
@@ -21,9 +22,25 @@ const EDITORIAL_BG = '#F5F1EA';
 export default function TripDetailV2() {
   const { tripId } = useParams();
   const navigate = useNavigate();
+  const { tenantRole, activeTenantId, session } = useAuth();
   const [trip, setTrip] = useState(null);
   const [status, setStatus] = useState('loading');
+  const [errorDetail, setErrorDetail] = useState(null);
   const [tripUuid, setTripUuid] = useState(null);
+
+  // Diagnostic — print once per render so the redirect-loop bug from the
+  // legacy page can't hide. If this log never appears, V2 isn't mounting
+  // at all (router miss, ProtectedRoute kick, etc.). If it appears once
+  // and then the URL changes, something else is doing the redirect.
+  console.log('[v2 page] render', {
+    tripId,
+    hasTrip: !!trip,
+    status,
+    tenantRole,
+    activeTenantId,
+    hasSession: !!session,
+    pathname: typeof window !== 'undefined' ? window.location.pathname : null,
+  });
 
   useEffect(() => {
     const prev = document.body.style.background;
@@ -33,16 +50,31 @@ export default function TripDetailV2() {
 
   useEffect(() => {
     let cancelled = false;
-    if (!tripId) return;
+    if (!tripId) {
+      console.warn('[v2 page] no tripId in params — useParams returned undefined. Check route declaration.');
+      return;
+    }
+    console.log('[v2 page] fetching trip', tripId);
     setStatus('loading');
+    setErrorDetail(null);
     Promise.resolve(getTripById(tripId))
       .then((data) => {
         if (cancelled) return;
-        if (!data) { setStatus('missing'); return; }
+        if (!data) {
+          console.warn('[v2 page] getTripById returned null for', tripId);
+          setStatus('missing');
+          return;
+        }
+        console.log('[v2 page] trip loaded', { id: data?.id, name: data?.name, supabaseId: data?.supabaseId });
         setTrip(data);
         setStatus('ready');
       })
-      .catch(() => { if (!cancelled) setStatus('error'); });
+      .catch((err) => {
+        if (cancelled) return;
+        console.error('[v2 page] getTripById threw', err);
+        setErrorDetail(err?.message || String(err));
+        setStatus('error');
+      });
     return () => { cancelled = true; };
   }, [tripId]);
 
@@ -53,6 +85,8 @@ export default function TripDetailV2() {
     let cancelled = false;
     resolveSupabaseTripId(trip).then((uuid) => {
       if (!cancelled && uuid) setTripUuid(uuid);
+    }).catch((err) => {
+      console.warn('[v2 page] resolveSupabaseTripId failed', err);
     });
     return () => { cancelled = true; };
   }, [trip]);
@@ -79,6 +113,9 @@ export default function TripDetailV2() {
         <div className="editorial-page">
           <p style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--ink)', margin: '0 0 12px' }}>
             Couldn't load this trip.
+          </p>
+          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-muted)', margin: '0 0 16px' }}>
+            tripId: <code>{String(tripId)}</code>{status === 'error' && errorDetail ? <> · error: <code>{errorDetail}</code></> : null}
           </p>
           <button
             onClick={() => navigate('/trips-management-dashboard')}
