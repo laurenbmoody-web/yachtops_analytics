@@ -3192,3 +3192,351 @@
   border-top: 0.5px solid var(--p-border);
   text-align: right;
 }
+
+/* ============================================================
+   trip-detail-v2 — Phase 2 sections
+   Scoped under .editorial-page to inherit token vars.
+   ============================================================ */
+
+/* ── Header phase pills · summary band ─────────────────────── */
+.editorial-page .v2-summary-band {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0;
+  margin-top: 28px;
+  margin-bottom: 24px;
+  background: #FFFFFF;
+  border: 0.5px solid var(--p-border);
+  border-radius: 12px;
+  border-top: 2px solid var(--ink);
+  overflow: hidden;
+}
+.editorial-page .v2-summary-band.suppressed { display: none; }
+.editorial-page .v2-summary-cell {
+  padding: 18px 22px;
+  border-right: 0.5px solid var(--p-border);
+}
+.editorial-page .v2-summary-cell:last-child { border-right: none; }
+.editorial-page .v2-summary-cap {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-tertiary);
+  margin-bottom: 8px;
+}
+.editorial-page .v2-summary-num {
+  font-family: var(--font-serif);
+  font-size: 32px;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1;
+}
+.editorial-page .v2-summary-num-sub {
+  font-size: 13px;
+  color: var(--ink-muted);
+  margin-left: 6px;
+}
+.editorial-page .v2-summary-serif {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.05;
+  font-style: italic;
+}
+.editorial-page .v2-summary-serif.accent { color: var(--accent); }
+.editorial-page .v2-summary-meta {
+  font-size: 12px;
+  color: var(--ink-muted);
+  margin-top: 6px;
+}
+
+/* ── Route widget · day chips ──────────────────────────────── */
+.editorial-page .v2-route-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+.editorial-page .v2-chip {
+  border: 0.5px solid var(--p-border);
+  border-radius: 10px;
+  padding: 14px;
+  background: #FFFFFF;
+  position: relative;
+}
+.editorial-page .v2-chip.past { opacity: 0.55; }
+.editorial-page .v2-chip.today {
+  border: 1.5px solid var(--accent);
+  background: var(--accent-soft);
+}
+.editorial-page .v2-chip.flagged { border: 0.5px solid var(--accent); }
+
+.editorial-page .v2-chip-daylabel {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-tertiary);
+  margin-bottom: 10px;
+}
+.editorial-page .v2-chip.today .v2-chip-daylabel {
+  color: var(--accent);
+  font-weight: 600;
+}
+.editorial-page .v2-chip.flagged .v2-chip-daylabel { padding-right: 70px; }
+
+.editorial-page .v2-chip-loc {
+  font-family: var(--font-serif);
+  font-size: 19px;
+  line-height: 1.1;
+  color: var(--ink);
+}
+.editorial-page .v2-chip-loc.stack {
+  font-size: 16px;
+  line-height: 1.2;
+}
+.editorial-page .v2-chip-stoptype {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink-muted);
+  margin-bottom: 8px;
+}
+.editorial-page .v2-chip.today .v2-chip-stoptype { color: var(--accent); }
+.editorial-page .v2-chip-sub {
+  font-size: 11px;
+  color: var(--ink-muted);
+  line-height: 1.4;
+}
+.editorial-page .v2-chip.today .v2-chip-sub {
+  color: var(--accent-deep);
+  font-weight: 500;
+}
+.editorial-page .v2-chip-transit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+.editorial-page .v2-chip-transit .arr {
+  font-style: normal;
+  color: var(--ink-tertiary);
+}
+
+.editorial-page .v2-chip-flag {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  background: var(--accent);
+  color: #FFFFFF;
+  padding: 3px 8px 3px 7px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  border-radius: 0 9px 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.editorial-page .v2-route-empty {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink-muted);
+  padding: 24px 0;
+}
+
+/* ── Coming up · day rows ──────────────────────────────────── */
+.editorial-page .v2-cu-row {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 20px;
+  padding: 16px 0;
+  border-bottom: 0.5px solid var(--p-border);
+  align-items: flex-start;
+}
+.editorial-page .v2-cu-row:last-child { border-bottom: none; }
+.editorial-page .v2-cu-row.today {
+  padding: 18px 16px;
+  background: #FAFAF7;
+  margin: 0 -16px;
+  border-radius: 8px;
+}
+.editorial-page .v2-cu-datehero {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  line-height: 1;
+  color: var(--ink);
+}
+.editorial-page .v2-cu-datehero.today {
+  font-size: 26px;
+  color: var(--accent);
+}
+.editorial-page .v2-cu-datehero.later { color: var(--ink-muted); }
+.editorial-page .v2-cu-datesub {
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--ink-tertiary);
+  margin-top: 6px;
+}
+.editorial-page .v2-cu-datesub:not(:first-child) { margin-top: 2px; }
+.editorial-page .v2-cu-datesub.accent {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.editorial-page .v2-cu-moment {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 12px;
+  padding: 7px 0;
+  align-items: baseline;
+}
+.editorial-page .v2-cu-moment-time {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  color: var(--ink);
+}
+.editorial-page .v2-cu-moment.upnext .v2-cu-moment-time {
+  font-size: 16px;
+  color: var(--accent);
+  font-weight: 500;
+}
+.editorial-page .v2-cu-moment-line {
+  font-size: 13px;
+  font-weight: 500;
+}
+.editorial-page .v2-cu-moment-meta {
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+.editorial-page .v2-cu-moment-meta.upnext { color: var(--accent-deep); }
+
+.editorial-page .v2-cu-occasion {
+  padding: 4px 0;
+}
+.editorial-page .v2-cu-occasion-title {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  line-height: 1.2;
+  color: var(--ink);
+}
+.editorial-page .v2-cu-occasion-title em {
+  color: var(--accent);
+  font-weight: 400;
+}
+.editorial-page .v2-cu-occasion-meta {
+  font-size: 12px;
+  color: var(--ink-muted);
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.editorial-page .v2-cu-compressed {
+  padding: 6px 0 0;
+  font-size: 11px;
+  color: var(--ink-tertiary);
+  font-style: italic;
+}
+.editorial-page .v2-cu-openday {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: var(--accent-soft);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.editorial-page .v2-cu-reminder {
+  padding: 4px 0;
+  font-size: 13px;
+}
+.editorial-page .v2-cu-reminder-when {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  margin-right: 8px;
+}
+.editorial-page .v2-cu-reminder-title { font-weight: 500; }
+.editorial-page .v2-cu-reminder-meta { color: var(--ink-muted); }
+
+.editorial-page .v2-cu-earlier {
+  padding: 4px 0 0;
+  font-size: 11px;
+  color: var(--ink-tertiary);
+  font-style: italic;
+}
+
+.editorial-page .v2-cu-archived-headline {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 22px;
+  line-height: 1;
+  margin: 0;
+  color: var(--ink-muted);
+}
+.editorial-page .v2-cu-archived-headline em {
+  color: var(--ink-tertiary);
+  font-weight: 400;
+}
+
+/* ── Card head: caps meta + serif title pattern (shared) ───── */
+.editorial-page .v2-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 22px;
+}
+.editorial-page .v2-card-meta {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-tertiary);
+  margin-bottom: 6px;
+}
+.editorial-page .v2-card-title {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 28px;
+  line-height: 1;
+  margin: 0;
+  color: var(--ink);
+}
+.editorial-page .v2-card-title em {
+  color: var(--accent);
+  font-weight: 400;
+}
+.editorial-page .v2-card-actions { display: flex; gap: 8px; }
+.editorial-page .v2-btn-ghost {
+  background: transparent;
+  border: 0.5px solid var(--p-border);
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+}
+.editorial-page .v2-btn-ghost.muted { color: var(--ink-muted); }
+.editorial-page .v2-btn-filled {
+  background: var(--ink);
+  color: var(--bg-canvas);
+  border: none;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* Archived "Coming up" variant — grey top border instead of terracotta */
+.editorial-page .p-card.top-archived {
+  border-top: 2px solid var(--p-border);
+}

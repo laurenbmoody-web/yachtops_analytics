@@ -3,30 +3,49 @@ import React from 'react';
 /**
  * Shared scaffold for a trip-detail-v2 section card.
  *
- * - Wraps content in `.p-card` with the top-border accent (`navy`, `accent`,
- *   `brass`) — these classes already exist in pantry.css under the
- *   `.editorial-page` token scope.
- * - Renders an editorial section headline in DM Serif Display where
- *   `lead` is the plain leading text and `italic` is the italic terracotta
- *   tail. The italic span includes the trailing period — readers see it as
- *   one italic phrase ending the line.
- * - Adds vertical rhythm between sections.
+ * Renders a `.p-card` with a top-border accent (navy / accent / brass /
+ * archived-grey), plus an optional editorial header block: caps meta
+ * line + DM Serif title (with italic terracotta tail) + actions slot.
+ *
+ * Two title APIs:
+ *   - lead/italic: simple split, terracotta italic tail (Phase 1 pattern)
+ *   - titleNode: pass full JSX (used when the italic span is in the
+ *     middle, e.g. "Nothing left to do." or "What's coming up.")
  */
-export default function SectionCard({ accent = 'navy', lead = '', italic = '', children }) {
+export default function SectionCard({
+  accent = 'navy',
+  meta,
+  lead,
+  italic,
+  titleNode,
+  actions,
+  children,
+  style,
+}) {
   const accentClass =
-    accent === 'accent' ? 'top-accent' :
-    accent === 'brass'  ? 'top-brass'  :
-                          'top-navy';
+    accent === 'accent'   ? 'top-accent'   :
+    accent === 'brass'    ? 'top-brass'    :
+    accent === 'archived' ? 'top-archived' :
+                            'top-navy';
+
+  const hasHeader = meta || lead || italic || titleNode || actions;
 
   return (
-    <section className={`p-card ${accentClass}`} style={{ marginBottom: 20 }}>
-      <h2 className="p-card-headline">
-        {lead}
-        <em>{italic}</em>
-      </h2>
-      <div style={{ marginTop: 14 }}>
-        {children}
-      </div>
+    <section className={`p-card ${accentClass}`} style={{ marginBottom: 20, ...style }}>
+      {hasHeader && (
+        <div className="v2-card-head">
+          <div>
+            {meta && <div className="v2-card-meta">{meta}</div>}
+            {(lead || italic || titleNode) && (
+              <h2 className="v2-card-title">
+                {titleNode ?? (<>{lead}<em>{italic}</em></>)}
+              </h2>
+            )}
+          </div>
+          {actions && <div className="v2-card-actions">{actions}</div>}
+        </div>
+      )}
+      {children}
     </section>
   );
 }

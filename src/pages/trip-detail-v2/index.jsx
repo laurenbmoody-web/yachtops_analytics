@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import '../pantry/pantry.css';
-import { getTripById } from '../trips-management-dashboard/utils/tripStorage';
+import { getTripById, resolveSupabaseTripId } from '../trips-management-dashboard/utils/tripStorage';
+import { useItinerary } from '../trip-itinerary-timeline/hooks/useItinerary';
 
 import SectionHeader      from './sections/SectionHeader';
 import SectionRoute       from './sections/SectionRoute';
@@ -22,6 +23,7 @@ export default function TripDetailV2() {
   const navigate = useNavigate();
   const [trip, setTrip] = useState(null);
   const [status, setStatus] = useState('loading');
+  const [tripUuid, setTripUuid] = useState(null);
 
   useEffect(() => {
     const prev = document.body.style.background;
@@ -43,6 +45,19 @@ export default function TripDetailV2() {
       .catch(() => { if (!cancelled) setStatus('error'); });
     return () => { cancelled = true; };
   }, [tripId]);
+
+  // Mirror the existing trip page: resolve Supabase UUID lazily when the
+  // merge layer didn't stamp it (pre-A3.5 LS trips, pending sync).
+  useEffect(() => {
+    if (!trip || trip?.supabaseId) return;
+    let cancelled = false;
+    resolveSupabaseTripId(trip).then((uuid) => {
+      if (!cancelled && uuid) setTripUuid(uuid);
+    });
+    return () => { cancelled = true; };
+  }, [trip]);
+
+  const { days, loading: itineraryLoading } = useItinerary(tripUuid || trip?.supabaseId);
 
   if (status === 'loading') {
     return (
@@ -81,9 +96,9 @@ export default function TripDetailV2() {
     <>
       <Header />
       <div className="editorial-page">
-        <SectionHeader trip={trip} />
-        <SectionRoute trip={trip} />
-        <SectionComingUp trip={trip} />
+        <SectionHeader trip={trip} days={days} />
+        <SectionRoute trip={trip} days={days} loading={itineraryLoading} />
+        <SectionComingUp trip={trip} days={days} />
         <SectionAboard trip={trip} />
         <SectionCrew trip={trip} />
         <SectionProvisioning trip={trip} />
