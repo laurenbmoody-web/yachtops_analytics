@@ -11,7 +11,14 @@
   <link rel="manifest" href="/manifest.json" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,500;1,9..144,600&family=Inter+Tight:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
+  <!-- DM Serif Display gets its own dedicated <link> so the editorial headline
+       (.p-greeting via var(--font-serif)) loads reliably. Combining it into
+       the multi-family link below was returning unreliably across routes
+       (some pages got it, some fell back to Georgia). Explicit axis spec
+       `ital,wght@0,400;1,400` requests upright AND italic at weight 400 —
+       the only weight DM Serif Display ships. -->
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital,wght@0,400;1,400&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,500;1,9..144,600&family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet" />
   </head>
 
 <body>
