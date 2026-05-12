@@ -52,10 +52,17 @@ export function tripTypeQualifier(tripType) {
 export function principalName(trip) {
   const raw = (trip?.name || '').trim();
   if (!raw) return 'Trip';
-  return raw
+  const stripped = raw
     .replace(/\b(charter|owner|trip|visit|family|friends)\b/gi, '')
     .replace(/\s{2,}/g, ' ')
-    .trim() || raw;
+    .trim();
+  // Fall back to the original name when stripping leaves nothing
+  // recognisable as a principal — empty, or starts with lowercase
+  // (e.g. "Family viewing" → "viewing"). Better an unstripped headline
+  // than one that reads ", a visit."
+  if (!stripped) return raw;
+  if (/^[a-z]/.test(stripped)) return raw;
+  return stripped;
 }
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
