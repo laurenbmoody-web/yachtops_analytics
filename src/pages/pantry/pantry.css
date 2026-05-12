@@ -2264,6 +2264,20 @@
 .cargo-od-supplier-trigger-wrap {
   position: relative;
   display: inline;
+  /* Sprint 9c.2 Commit 2 (follow-up v5) — explicit font-family: inherit.
+     tailwind.css has a global rule:
+        body, p, span, button, input, textarea, select
+        { font-family: 'Plus Jakarta Sans', sans-serif; }
+     which matches this wrap span by element selector. Without our own
+     class rule setting font-family, the wrap span computes to Plus
+     Jakarta Sans — and the button inside, with font-family: inherit,
+     then inherits the WRAP's computed value (Plus Jakarta Sans) instead
+     of the h1.p-greeting's value (DM Serif Display). Result: the
+     supplier name on the order page rendered in a wrong font while the
+     plain "STANDBY" text on Standby rendered DM Serif Display correctly.
+     Setting font-family: inherit here (class specificity 0,1,0 beats the
+     global element rule 0,0,1) restores the chain h1 → wrap → button. */
+  font-family: inherit;
 }
 .cargo-od-supplier-trigger {
   font-family: inherit;
