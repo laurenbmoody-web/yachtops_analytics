@@ -17,6 +17,13 @@ import SectionDocuments   from './sections/SectionDocuments';
 import SectionPhotos      from './sections/SectionPhotos';
 import SectionActivity    from './sections/SectionActivity';
 
+// Module-load probe. If this never logs, the V2 module isn't being
+// imported — Routes.jsx isn't loading the file, or the bundler tree-
+// shook it, or a chunk failed to download. If it logs but [v2 page]
+// render doesn't, the route doesn't match `/trips/:tripId/v2` and
+// React never invokes the component.
+console.log('[v2 module] loaded', new Date().toISOString());
+
 const EDITORIAL_BG = '#F5F1EA';
 
 export default function TripDetailV2() {
