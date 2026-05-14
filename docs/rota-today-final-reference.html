@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cargo Reference — Rota Today — final with rest panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body { margin: 0; padding: 0; background: #F5F1EA; }
+</style>
+</head>
+<body>
+<div style="background: #F5F1EA; padding: 28px 32px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;">
+
+<style>
+.rota-cell { border-right: 0.5px solid #ECE6DC; border-bottom: 0.5px solid #ECE6DC; height: 36px; box-sizing: border-box; position: relative; background: #FFFFFF; }
+.rota-cell.hour-tick { border-right: 1px solid #B4B2A9; }
+.rota-cell.filled { background: #1C1B3A; }
+.rota-cell.now { background: #C65A1A; }
+.rota-cell.tomorrow { background: #FAF8F2; }
+.rota-cell.tomorrow.filled { background: #1C1B3A; }
+
+.rota-row { display: grid; grid-template-columns: 130px repeat(48, minmax(20px, 1fr)); gap: 0; transition: background 0.15s; cursor: pointer; }
+.rota-row:hover { background: #FAFAF7; }
+.rota-row:hover .rota-cell { background: #FAFAF7; }
+.rota-row:hover .rota-cell.filled { background: #1C1B3A; }
+.rota-row:hover .rota-cell.now { background: #C65A1A; }
+.rota-row:hover .rota-cell.tomorrow { background: #F0EBDF; }
+.rota-row:hover .rota-cell.tomorrow.filled { background: #1C1B3A; }
+.rota-row:hover .rota-name { background: #FAFAF7; box-shadow: 2px 0 4px -2px rgba(28, 27, 58, 0.08); }
+.rota-row:hover .rota-name.now-row { background: #F5DDD0; }
+
+.rota-name { padding: 8px 12px 8px 0; border-bottom: 0.5px solid #ECE6DC; border-right: 1px solid #B4B2A9; box-sizing: border-box; height: 36px; display: flex; flex-direction: column; justify-content: center; background: #FFFFFF; position: sticky; left: 0; z-index: 4; box-shadow: 1px 0 2px -1px rgba(28, 27, 58, 0.04); }
+.rota-name.now-row { background: #FAECE7; }
+.rota-name.totals { background: #FAFAF7; border-bottom: 1px solid #B4B2A9; border-top: 0.5px solid #DFD8CC; cursor: default; box-shadow: 1px 0 2px -1px rgba(28, 27, 58, 0.04); }
+
+.rota-dept { padding: 12px 8px 6px 0; font-size: 9px; letter-spacing: 1.8px; text-transform: uppercase; color: #8B8478; font-weight: 600; background: #FFFFFF; position: sticky; left: 0; z-index: 4; min-width: 130px; max-width: 130px; box-shadow: 1px 0 2px -1px rgba(28, 27, 58, 0.04); border-right: 1px solid #B4B2A9; }
+.dept-row { display: grid; grid-template-columns: 130px 1fr; align-items: center; }
+.dept-rule { height: 0.5px; background: #DFD8CC; margin-left: 8px; }
+
+.totals-cell { border-right: 0.5px solid #ECE6DC; border-bottom: 1px solid #B4B2A9; border-top: 0.5px solid #DFD8CC; height: 28px; background: #FAFAF7; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 500; color: #1C1B3A; }
+.totals-cell.hour-tick { border-right: 1px solid #B4B2A9; }
+.totals-cell.empty-shift { color: #C9C0AE; }
+.totals-cell.heavy { color: #C65A1A; font-weight: 600; }
+.totals-cell.tomorrow { background: #FAF8F2; }
+
+.hour-label { font-family: 'DM Serif Display', Georgia, serif; font-size: 11px; color: #695880; text-align: center; padding-bottom: 4px; }
+.hour-label.now { color: #C65A1A; font-weight: 600; font-size: 13px; }
+.hour-label.tomorrow { color: #8B8478; font-style: italic; }
+
+.now-line { position: absolute; top: 0; bottom: 0; width: 1.5px; background: #C65A1A; z-index: 3; pointer-events: none; opacity: 0.7; }
+
+.timeline-strip { display: flex; height: 32px; border-radius: 6px; overflow: hidden; border: 0.5px solid #DFD8CC; position: relative; }
+.timeline-now { position: absolute; top: -4px; bottom: -4px; width: 1.5px; background: #C65A1A; opacity: 0.85; z-index: 2; }
+.timeline-now::before { content: ''; position: absolute; top: -3px; left: -3px; width: 6px; height: 6px; background: #C65A1A; border-radius: 50%; }
+
+.weekly-bar-track { height: 80px; background: #ECE6DC; border-radius: 4px; position: relative; overflow: hidden; }
+.weekly-bar-fill { position: absolute; bottom: 0; left: 0; right: 0; }
+.weekly-mlc-line { position: absolute; left: 0; right: 0; height: 1px; background: #C65A1A; z-index: 2; }
+.weekly-mlc-line::after { content: ''; position: absolute; left: -2px; top: -1.5px; width: 4px; height: 4px; background: #C65A1A; border-radius: 50%; }
+</style>
+
+<div style="background: #FFFFFF; border: 0.5px solid #DFD8CC; border-radius: 12px; border-top: 2px solid #1C1B3A; padding: 24px;">
+
+  <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 22px;">
+    <div>
+      <div style="font-size: 9px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; color: #8B8478; margin-bottom: 6px;">Friday 1 May \u00b7 12 crew on this trip \u00b7 5 on duty now</div>
+      <h2 style="font-family: 'DM Serif Display', Georgia, serif; font-weight: 500; font-size: 24px; line-height: 1; margin: 0;">The <em style="color: #C65A1A; font-weight: 400;">rota</em>.</h2>
+    </div>
+    <div style="display: flex; gap: 6px;">
+      <button style="background: transparent; color: #1C1B3A; border: 0.5px solid #DFD8CC; border-radius: 999px; padding: 6px 12px; font-size: 11px; font-weight: 500;">Today</button>
+      <button style="background: transparent; color: #1C1B3A; border: 0.5px solid #DFD8CC; border-radius: 999px; padding: 6px 12px; font-size: 11px; font-weight: 500;">Week</button>
+      <button style="background: transparent; color: #1C1B3A; border: 0.5px solid #DFD8CC; border-radius: 999px; padding: 6px 12px; font-size: 11px; font-weight: 500;">Hours of rest log</button>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 0.5px solid #DFD8CC; font-size: 11px; color: #695880;">
+    <button style="background: transparent; border: 0.5px solid #DFD8CC; border-radius: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer;">\u2190</button>
+    <span style="font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; color: #1C1B3A; min-width: 130px; text-align: center;">Friday 1 May</span>
+    <button style="background: transparent; border: 0.5px solid #DFD8CC; border-radius: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer;">\u2192</button>
+    <span style="margin-left: 16px;">04:00 Fri \u2014 04:00 Sat \u00b7 click any name for the rest panel \u00b7 hover a row to highlight</span>
+  </div>
+
+  <div style="overflow-x: auto; margin: 0 -8px; padding: 0 8px;">
+    <div style="min-width: 1200px; position: relative;">
+
+      <div style="display: grid; grid-template-columns: 130px repeat(24, minmax(40px, 1fr)); gap: 0; padding-bottom: 6px; border-bottom: 1px solid #B4B2A9;">
+        <div style="font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: #8B8478; padding: 0 12px 4px 0; background: #FFFFFF; position: sticky; left: 0; z-index: 4; border-right: 1px solid #B4B2A9; box-shadow: 1px 0 2px -1px rgba(28, 27, 58, 0.04);">Crew \u00b7 Friday \u2192 Saturday</div>
+        <div class="hour-label">04</div><div class="hour-label">05</div><div class="hour-label">06</div><div class="hour-label">07</div>
+        <div class="hour-label">08</div><div class="hour-label">09</div><div class="hour-label">10</div><div class="hour-label">11</div>
+        <div class="hour-label">12</div><div class="hour-label">13</div><div class="hour-label">14</div><div class="hour-label">15</div>
+        <div class="hour-label">16</div><div class="hour-label">17</div><div class="hour-label now">18</div><div class="hour-label">19</div>
+        <div class="hour-label">20</div><div class="hour-label">21</div><div class="hour-label">22</div><div class="hour-label">23</div>
+        <div class="hour-label tomorrow">00</div><div class="hour-label tomorrow">01</div><div class="hour-label tomorrow">02</div><div class="hour-label tomorrow">03</div>
+      </div>
+
+      <div class="dept-row">
+        <div class="rota-dept">Interior</div>
+        <div class="dept-rule"></div>
+      </div>
+
+      <div class="rota-row">
+        <div class="rota-name now-row">
+          <div style="font-size: 12px; font-weight: 500;">Claire</div>
+          <div style="font-size: 10px; color: #C65A1A;">Chief stew \u00b7 8h 30m \u00b7 64h / 77h</div>
+        </div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell now"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+      </div>
+
+      <div class="rota-row">
+        <div class="rota-name">
+          <div style="font-size: 12px; font-weight: 500;">Marco</div>
+          <div style="font-size: 10px; color: #8B8478;">2nd stew \u00b7 9h \u00b7 70h / 77h</div>
+        </div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+      </div>
+
+      <div class="rota-row" style="background: #FAFAF7;">
+        <div class="rota-name now-row" style="background: #F5DDD0; box-shadow: 2px 0 4px -2px rgba(28, 27, 58, 0.08);">
+          <div style="font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 4px;">
+            Emma
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#C65A1A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div style="font-size: 10px; color: #7A2E1E; font-weight: 500;">3rd stew \u00b7 7h \u00b7 58h / 77h</div>
+        </div>
+        <div class="rota-cell" style="background: #FAFAF7;"></div><div class="rota-cell hour-tick" style="background: #FAFAF7;"></div>
+        <div class="rota-cell" style="background: #FAFAF7;"></div><div class="rota-cell hour-tick" style="background: #FAFAF7;"></div>
+        <div class="rota-cell" style="background: #FAFAF7;"></div><div class="rota-cell hour-tick" style="background: #FAFAF7;"></div>
+        <div class="rota-cell" style="background: #FAFAF7;"></div><div class="rota-cell hour-tick" style="background: #FAFAF7;"></div>
+        <div class="rota-cell" style="background: #FAFAF7;"></div><div class="rota-cell hour-tick" style="background: #FAFAF7;"></div>
+        <div class="rota-cell" style="background: #FAFAF7;"></div><div class="rota-cell hour-tick" style="background: #FAFAF7;"></div>
+        <div class="rota-cell" style="background: #FAFAF7;"></div><div class="rota-cell hour-tick" style="background: #FAFAF7;"></div>
+        <div class="rota-cell" style="background: #FAFAF7;"></div><div class="rota-cell hour-tick" style="background: #FAFAF7;"></div>
+        <div class="rota-cell" style="background: #FAFAF7;"></div><div class="rota-cell hour-tick" style="background: #FAFAF7;"></div>
+        <div class="rota-cell" style="background: #FAFAF7;"></div><div class="rota-cell hour-tick" style="background: #FAFAF7;"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell now"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell" style="background: #FAFAF7;"></div><div class="rota-cell hour-tick" style="background: #FAFAF7;"></div>
+        <div class="rota-cell" style="background: #FAFAF7;"></div><div class="rota-cell hour-tick" style="background: #FAFAF7;"></div>
+        <div class="rota-cell tomorrow" style="background: #F0EBDF;"></div><div class="rota-cell tomorrow hour-tick" style="background: #F0EBDF;"></div>
+        <div class="rota-cell tomorrow" style="background: #F0EBDF;"></div><div class="rota-cell tomorrow hour-tick" style="background: #F0EBDF;"></div>
+        <div class="rota-cell tomorrow" style="background: #F0EBDF;"></div><div class="rota-cell tomorrow hour-tick" style="background: #F0EBDF;"></div>
+        <div class="rota-cell tomorrow" style="background: #F0EBDF;"></div><div class="rota-cell tomorrow hour-tick" style="background: #F0EBDF;"></div>
+      </div>
+
+      <div class="rota-row" style="opacity: 0.5;">
+        <div class="rota-name" style="opacity: 1;">
+          <div style="font-size: 12px; font-weight: 500;">Sophie</div>
+          <div style="font-size: 10px; color: #8B8478;">Laundry \u00b7 off \u00b7 77h / 77h</div>
+        </div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+      </div>
+
+      <div class="dept-row">
+        <div class="rota-dept">Deck</div>
+        <div class="dept-rule"></div>
+      </div>
+
+      <div class="rota-row">
+        <div class="rota-name">
+          <div style="font-size: 12px; font-weight: 500;">James</div>
+          <div style="font-size: 10px; color: #8B8478;">Bosun \u00b7 9h 15m \u00b7 68h / 77h</div>
+        </div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+      </div>
+
+      <div class="rota-row">
+        <div class="rota-name">
+          <div style="font-size: 12px; font-weight: 500;">Tom</div>
+          <div style="font-size: 10px; color: #8B8478;">Watch \u00b7 22:00 \u2014 02:00 \u00b7 73h / 77h</div>
+        </div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell tomorrow filled"></div><div class="rota-cell tomorrow filled hour-tick"></div>
+        <div class="rota-cell tomorrow filled"></div><div class="rota-cell tomorrow filled hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+      </div>
+
+      <div class="dept-row">
+        <div class="rota-dept">Galley</div>
+        <div class="dept-rule"></div>
+      </div>
+
+      <div class="rota-row">
+        <div class="rota-name">
+          <div style="font-size: 12px; font-weight: 500;">Anders</div>
+          <div style="font-size: 10px; color: #8B8478;">Head chef \u00b7 9h 30m \u00b7 71h / 77h</div>
+        </div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 130px repeat(48, minmax(20px, 1fr)); gap: 0;">
+        <div class="rota-name totals">
+          <div style="font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: #1C1B3A; font-weight: 600;">On at this half-hour</div>
+          <div style="font-size: 10px; color: #695880; margin-top: 2px;">Across all departments</div>
+        </div>
+        <div class="totals-cell empty-shift">0</div><div class="totals-cell empty-shift hour-tick">0</div>
+        <div class="totals-cell empty-shift">0</div><div class="totals-cell empty-shift hour-tick">0</div>
+        <div class="totals-cell empty-shift">0</div><div class="totals-cell empty-shift hour-tick">0</div>
+        <div class="totals-cell">1</div><div class="totals-cell hour-tick">1</div>
+        <div class="totals-cell">3</div><div class="totals-cell hour-tick">3</div>
+        <div class="totals-cell heavy">4</div><div class="totals-cell heavy hour-tick">4</div>
+        <div class="totals-cell heavy">5</div><div class="totals-cell heavy hour-tick">5</div>
+        <div class="totals-cell heavy">5</div><div class="totals-cell heavy hour-tick">5</div>
+        <div class="totals-cell heavy">5</div><div class="totals-cell heavy hour-tick">5</div>
+        <div class="totals-cell">3</div><div class="totals-cell hour-tick">3</div>
+        <div class="totals-cell">3</div><div class="totals-cell hour-tick">3</div>
+        <div class="totals-cell">3</div><div class="totals-cell hour-tick">3</div>
+        <div class="totals-cell">3</div><div class="totals-cell hour-tick">3</div>
+        <div class="totals-cell heavy">5</div><div class="totals-cell heavy hour-tick">5</div>
+        <div class="totals-cell heavy" style="background: #FAECE7;">5</div><div class="totals-cell heavy hour-tick">5</div>
+        <div class="totals-cell heavy">5</div><div class="totals-cell heavy hour-tick">5</div>
+        <div class="totals-cell heavy">5</div><div class="totals-cell heavy hour-tick">5</div>
+        <div class="totals-cell heavy">4</div><div class="totals-cell heavy hour-tick">4</div>
+        <div class="totals-cell">2</div><div class="totals-cell hour-tick">2</div>
+        <div class="totals-cell">1</div><div class="totals-cell hour-tick">1</div>
+        <div class="totals-cell tomorrow">1</div><div class="totals-cell tomorrow hour-tick">1</div>
+        <div class="totals-cell tomorrow">1</div><div class="totals-cell tomorrow hour-tick">1</div>
+        <div class="totals-cell tomorrow empty-shift">0</div><div class="totals-cell tomorrow empty-shift hour-tick">0</div>
+        <div class="totals-cell tomorrow empty-shift">0</div><div class="totals-cell tomorrow empty-shift hour-tick">0</div>
+      </div>
+
+      <div class="now-line" style="left: calc(130px + (28 / 48) * (100% - 130px));"></div>
+
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top: 28px;">
+  <div style="font-size: 9px; font-weight: 600; letter-spacing: 1.8px; text-transform: uppercase; color: #C65A1A; margin-bottom: 4px;">Rest panel \u00b7 clicked Emma</div>
+  <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 18px; line-height: 1; color: #695880; font-style: italic; margin-bottom: 14px;">Slides over from the right.</div>
+
+  <div style="background: #FFFFFF; border: 0.5px solid #DFD8CC; border-radius: 12px; border-top: 2px solid #C65A1A; padding: 24px;">
+
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
+      <div style="display: flex; gap: 14px; align-items: center;">
+        <div style="width: 48px; height: 48px; border-radius: 50%; background: #FAECE7; color: #7A2E1E; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 600;">EM</div>
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <h3 style="font-family: 'DM Serif Display', Georgia, serif; font-weight: 500; font-size: 26px; line-height: 1; margin: 0;">Emma Larsen</h3>
+            <span style="font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: #7A2E1E; font-weight: 600; background: #FAECE7; padding: 4px 10px; border-radius: 999px;">Below MLC daily</span>
+          </div>
+          <div style="font-size: 11px; color: #695880; letter-spacing: 1.2px; text-transform: uppercase; margin-top: 6px;">Interior \u00b7 3rd stew \u00b7 on now until 22:00</div>
+        </div>
+      </div>
+      <button style="background: transparent; border: 0.5px solid #DFD8CC; border-radius: 999px; padding: 8px 16px; font-size: 12px; font-weight: 500; color: #1C1B3A; cursor: pointer;">Close</button>
+    </div>
+
+    <div style="background: #FAECE7; border: 0.5px solid #F5C9B8; border-radius: 8px; padding: 16px 18px; margin-bottom: 24px;">
+      <div style="display: flex; align-items: flex-start; gap: 12px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7A2E1E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px;"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div style="flex: 1;">
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 17px; line-height: 1.3; color: #1C1B3A; margin-bottom: 8px;">Emma's rest in the last 24 hours came in <em style="color: #7A2E1E;">two short blocks</em> \u2014 5 hours, then 2 hours.</div>
+          <div style="font-size: 12px; color: #1C1B3A; line-height: 1.6;">MLC requires <strong>10 hours of rest in any 24-hour window, with at least one block of 6 hours</strong>. Emma is 3 hours short on total rest, and her longest block (5h) is below the 6h minimum. To return to compliance, her next shift cannot start before <strong>05:00 Saturday</strong> without a logged operational reason.</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px;">
+        <div>
+          <div style="font-size: 9px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #8B8478;">Last 24 hours \u00b7 what each segment was</div>
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; margin-top: 4px;">7 hours rest \u00b7 13 hours on duty \u00b7 4 hours other off-time</div>
+        </div>
+      </div>
+      <div class="timeline-strip" style="position: relative;">
+        <div style="flex: 5; background: #C7DCC9; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #2D5A3A; font-weight: 500;" title="22:30 yesterday \u2192 03:30: 5 hours continuous rest">5h rest</div>
+        <div style="flex: 4; background: #ECE6DC; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #695880;">4h off-duty</div>
+        <div style="flex: 2; background: #C7DCC9; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #2D5A3A; font-weight: 500;">2h rest</div>
+        <div style="flex: 7; background: #1C1B3A; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #F5F1EA; font-weight: 500;">7h on duty \u00b7 so far</div>
+        <div style="flex: 4; background: #1C1B3A; opacity: 0.55; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #F5F1EA; font-weight: 500;">4h scheduled</div>
+        <div style="flex: 2; background: repeating-linear-gradient(45deg, #ECE6DC, #ECE6DC 4px, #DFD8CC 4px, #DFD8CC 8px); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #695880; font-style: italic;">2h projected</div>
+        <div class="timeline-now" style="left: 66.6%;"></div>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-size: 10px; color: #8B8478; margin-top: 6px;">
+        <span>18:30 yesterday</span>
+        <span style="color: #C65A1A; font-weight: 500;">\u2191 now (18:30)</span>
+        <span>18:30 tomorrow</span>
+      </div>
+      <div style="display: flex; gap: 14px; margin-top: 12px; font-size: 11px; color: #695880; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: #C7DCC9; border-radius: 2px;"></span><span>Continuous rest</span></div>
+        <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: #ECE6DC; border-radius: 2px;"></span><span>Off-duty (not rest)</span></div>
+        <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: #1C1B3A; border-radius: 2px;"></span><span>On duty</span></div>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px;">
+        <div>
+          <div style="font-size: 9px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #8B8478;">Rest hours per day \u00b7 last 7 days</div>
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; margin-top: 4px;">58 hours total \u00b7 <span style="color: #7A2E1E;">19h short</span> of the 77h weekly minimum</div>
+        </div>
+        <div style="display: flex; gap: 14px; font-size: 11px; color: #695880;">
+          <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: #C7DCC9;"></span><span>10h+</span></div>
+          <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: #F5C9B8;"></span><span>Below 10h</span></div>
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: 28px repeat(7, 1fr); gap: 4px; align-items: end;">
+        <div style="display: flex; flex-direction: column; height: 100px; justify-content: space-between; font-size: 9px; color: #8B8478; text-align: right; padding-right: 4px; padding-bottom: 18px;">
+          <span>14h</span>
+          <span style="color: #C65A1A;">10h</span>
+          <span>0h</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div class="weekly-bar-track" style="height: 100px;">
+            <div class="weekly-bar-fill" style="height: 64%; background: #C7DCC9;"></div>
+            <div class="weekly-mlc-line" style="bottom: 71%;"></div>
+            <div style="position: absolute; bottom: 4px; left: 0; right: 0; text-align: center; font-size: 10px; color: #2D5A3A; font-weight: 500;">9h</div>
+          </div>
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 11px; color: #695880; text-align: center;">Sat</div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div class="weekly-bar-track" style="height: 100px;">
+            <div class="weekly-bar-fill" style="height: 79%; background: #C7DCC9;"></div>
+            <div class="weekly-mlc-line" style="bottom: 71%;"></div>
+            <div style="position: absolute; bottom: 4px; left: 0; right: 0; text-align: center; font-size: 10px; color: #2D5A3A; font-weight: 500;">11h</div>
+          </div>
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 11px; color: #695880; text-align: center;">Sun</div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div class="weekly-bar-track" style="height: 100px;">
+            <div class="weekly-bar-fill" style="height: 71%; background: #C7DCC9;"></div>
+            <div class="weekly-mlc-line" style="bottom: 71%;"></div>
+            <div style="position: absolute; bottom: 4px; left: 0; right: 0; text-align: center; font-size: 10px; color: #2D5A3A; font-weight: 500;">10h</div>
+          </div>
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 11px; color: #695880; text-align: center;">Mon</div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div class="weekly-bar-track" style="height: 100px;">
+            <div class="weekly-bar-fill" style="height: 57%; background: #F5C9B8;"></div>
+            <div class="weekly-mlc-line" style="bottom: 71%;"></div>
+            <div style="position: absolute; bottom: 4px; left: 0; right: 0; text-align: center; font-size: 10px; color: #7A2E1E; font-weight: 500;">8h</div>
+          </div>
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 11px; color: #7A2E1E; text-align: center;">Tue</div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div class="weekly-bar-track" style="height: 100px;">
+            <div class="weekly-bar-fill" style="height: 64%; background: #C7DCC9;"></div>
+            <div class="weekly-mlc-line" style="bottom: 71%;"></div>
+            <div style="position: absolute; bottom: 4px; left: 0; right: 0; text-align: center; font-size: 10px; color: #2D5A3A; font-weight: 500;">9h</div>
+          </div>
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 11px; color: #695880; text-align: center;">Wed</div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div class="weekly-bar-track" style="height: 100px;">
+            <div class="weekly-bar-fill" style="height: 29%; background: #F5C9B8;"></div>
+            <div class="weekly-mlc-line" style="bottom: 71%;"></div>
+            <div style="position: absolute; bottom: 4px; left: 0; right: 0; text-align: center; font-size: 10px; color: #7A2E1E; font-weight: 500;">4h</div>
+          </div>
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 11px; color: #7A2E1E; text-align: center;">Thu</div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div class="weekly-bar-track" style="height: 100px;">
+            <div class="weekly-bar-fill" style="height: 50%; background: #F5C9B8; opacity: 0.7;"></div>
+            <div class="weekly-mlc-line" style="bottom: 71%;"></div>
+            <div style="position: absolute; bottom: 4px; left: 0; right: 0; text-align: center; font-size: 10px; color: #7A2E1E; font-weight: 500;">7h</div>
+          </div>
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 11px; color: #C65A1A; text-align: center; font-weight: 500;">Fri \u00b7 so far</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 8px;">
+      <button style="background: #1C1B3A; color: #F5F1EA; border: none; border-radius: 999px; padding: 9px 18px; font-size: 12px; font-weight: 500;">Adjust her shift</button>
+      <button style="background: transparent; color: #1C1B3A; border: 0.5px solid #DFD8CC; border-radius: 999px; padding: 9px 18px; font-size: 12px; font-weight: 500;">Log violation reason</button>
+      <button style="background: transparent; color: #1C1B3A; border: 0.5px solid #DFD8CC; border-radius: 999px; padding: 9px 18px; font-size: 12px; font-weight: 500; margin-left: auto;">Hours of rest log \u2192</button>
+    </div>
+
+  </div>
+</div>
+
+</div></widget_code>
+</body>
+</html>

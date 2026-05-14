@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cargo Reference — Rota — Week planning view</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body { margin: 0; padding: 0; background: #F5F1EA; }
+</style>
+</head>
+<body>
+<div style="background: #F5F1EA; padding: 28px 32px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;">
+
+<style>
+.week-cell { border-right: 0.5px solid #ECE6DC; border-bottom: 0.5px solid #ECE6DC; padding: 10px 8px; box-sizing: border-box; min-height: 78px; position: relative; cursor: pointer; transition: filter 0.15s; }
+.week-cell.off { background: #FAFAF7; }
+.week-cell.compliant { background: #F0F4EE; }
+.week-cell.warning { background: #FAECE7; }
+.week-cell.violation { background: #C65A1A; color: #F5F1EA; }
+.week-cell.scheduled { background: repeating-linear-gradient(135deg, #FFFFFF 0, #FFFFFF 6px, #F5F1EA 6px, #F5F1EA 7px); border: 0.5px dashed #B4B2A9; }
+.week-cell:hover { filter: brightness(0.96); }
+.week-cell .total { font-family: 'DM Serif Display', Georgia, serif; font-size: 17px; line-height: 1; }
+.week-cell.scheduled .total { color: #695880; font-style: italic; }
+.week-cell .label { font-size: 9px; letter-spacing: 0.8px; text-transform: uppercase; color: #695880; margin-top: 5px; }
+.week-cell.warning .label { color: #7A2E1E; }
+.week-cell.violation .label { color: #F5F1EA; opacity: 0.85; }
+.week-cell.off .label { color: #B4B2A9; }
+.week-cell.scheduled .label { color: #8B8478; font-style: italic; }
+.week-cell .rest-mini { font-size: 9px; color: #8B8478; margin-top: 3px; }
+.week-cell.warning .rest-mini { color: #7A2E1E; font-weight: 500; }
+.week-cell.violation .rest-mini { color: #F5F1EA; }
+.week-cell.scheduled .rest-mini { color: #8B8478; font-style: italic; }
+
+.correction-alert {
+  position: absolute; top: 4px; right: 4px;
+  width: 16px; height: 16px;
+  background: #C65A1A; color: #FFFFFF;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; line-height: 1;
+  box-shadow: 0 0 0 2px #FFFFFF, 0 1px 3px rgba(198, 90, 26, 0.3);
+}
+
+.summary-cell { background: #FAFAF7; padding: 10px 12px; box-sizing: border-box; min-height: 78px; border-right: 0.5px solid #ECE6DC; border-bottom: 0.5px solid #ECE6DC; }
+.summary-cell.warning { background: #FAECE7; }
+</style>
+
+<div style="background: #FFFFFF; border: 0.5px solid #DFD8CC; border-radius: 12px; border-top: 2px solid #1C1B3A; padding: 24px;">
+
+  <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 22px;">
+    <div>
+      <div style="font-size: 9px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; color: #8B8478; margin-bottom: 6px;">Week of 27 Apr \u2014 3 May \u00b7 trip in progress \u00b7 2 MLC flags \u00b7 1 pending correction</div>
+      <h2 style="font-family: 'DM Serif Display', Georgia, serif; font-weight: 500; font-size: 24px; line-height: 1; margin: 0;">The <em style="color: #C65A1A; font-weight: 400;">rota</em>.</h2>
+    </div>
+    <div style="display: flex; gap: 6px;">
+      <button style="background: transparent; color: #1C1B3A; border: 0.5px solid #DFD8CC; border-radius: 999px; padding: 6px 12px; font-size: 11px; font-weight: 500;">Today</button>
+      <button style="background: #1C1B3A; color: #F5F1EA; border: none; border-radius: 999px; padding: 6px 12px; font-size: 11px; font-weight: 500;">Week</button>
+      <button style="background: transparent; color: #1C1B3A; border: 0.5px solid #DFD8CC; border-radius: 999px; padding: 6px 12px; font-size: 11px; font-weight: 500;">Hours of rest log</button>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 14px; align-items: center; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 0.5px solid #DFD8CC; font-size: 11px; color: #695880;">
+    <button style="background: transparent; border: 0.5px solid #DFD8CC; border-radius: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer;">\u2190</button>
+    <span style="font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; color: #1C1B3A; min-width: 180px; text-align: center;">27 Apr \u2014 3 May</span>
+    <button style="background: transparent; border: 0.5px solid #DFD8CC; border-radius: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer;">\u2192</button>
+    <div style="display: inline-flex; background: #FAFAF7; border: 0.5px solid #DFD8CC; border-radius: 999px; padding: 3px; margin-left: 14px;">
+      <button style="background: #FAECE7; border: none; padding: 5px 14px; font-size: 11px; color: #C65A1A; font-weight: 600; cursor: pointer; border-radius: 999px;">This week</button>
+      <button style="background: transparent; border: none; padding: 5px 14px; font-size: 11px; color: #8B8478; cursor: pointer; border-radius: 999px;">Next week</button>
+      <button style="background: transparent; border: none; padding: 5px 14px; font-size: 11px; color: #8B8478; cursor: pointer; border-radius: 999px;">14 days</button>
+    </div>
+    <span style="margin-left: auto; font-style: italic;">Click a cell to drop into the half-hour day</span>
+  </div>
+
+  <div style="overflow-x: auto;">
+    <div style="min-width: 1100px;">
+      <div style="display: grid; grid-template-columns: 200px repeat(7, minmax(110px, 1fr)) 150px; gap: 0; border: 0.5px solid #DFD8CC; border-radius: 8px; overflow: hidden;">
+
+        <div style="background: #FAFAF7; padding: 12px; border-right: 1px solid #B4B2A9; border-bottom: 1px solid #B4B2A9; font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: #8B8478; font-weight: 600; display: flex; align-items: center;">Crew \u00b7 7 days</div>
+        <div style="background: #FAFAF7; padding: 12px 8px; text-align: center; border-bottom: 1px solid #B4B2A9; border-right: 0.5px solid #DFD8CC;">
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 14px;">Mon</div>
+          <div style="font-size: 9px; color: #8B8478; letter-spacing: 1px; text-transform: uppercase;">27 Apr</div>
+        </div>
+        <div style="background: #FAFAF7; padding: 12px 8px; text-align: center; border-bottom: 1px solid #B4B2A9; border-right: 0.5px solid #DFD8CC;">
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 14px;">Tue</div>
+          <div style="font-size: 9px; color: #8B8478; letter-spacing: 1px; text-transform: uppercase;">28 Apr</div>
+        </div>
+        <div style="background: #FAFAF7; padding: 12px 8px; text-align: center; border-bottom: 1px solid #B4B2A9; border-right: 0.5px solid #DFD8CC;">
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 14px;">Wed</div>
+          <div style="font-size: 9px; color: #8B8478; letter-spacing: 1px; text-transform: uppercase;">29 Apr</div>
+        </div>
+        <div style="background: #FAFAF7; padding: 12px 8px; text-align: center; border-bottom: 1px solid #B4B2A9; border-right: 0.5px solid #DFD8CC;">
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 14px;">Thu</div>
+          <div style="font-size: 9px; color: #8B8478; letter-spacing: 1px; text-transform: uppercase;">30 Apr</div>
+        </div>
+        <div style="background: #FAECE7; padding: 12px 8px; text-align: center; border-bottom: 1px solid #B4B2A9; border-right: 0.5px solid #DFD8CC;">
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 14px; color: #C65A1A; font-weight: 600;">Fri</div>
+          <div style="font-size: 9px; color: #C65A1A; letter-spacing: 1px; text-transform: uppercase; font-weight: 500;">1 May \u00b7 today</div>
+        </div>
+        <div style="background: #FAFAF7; padding: 12px 8px; text-align: center; border-bottom: 1px solid #B4B2A9; border-right: 0.5px solid #DFD8CC;">
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 14px;">Sat</div>
+          <div style="font-size: 9px; color: #8B8478; letter-spacing: 1px; text-transform: uppercase;">2 May</div>
+        </div>
+        <div style="background: #FAFAF7; padding: 12px 8px; text-align: center; border-bottom: 1px solid #B4B2A9; border-right: 1px solid #B4B2A9;">
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 14px;">Sun</div>
+          <div style="font-size: 9px; color: #8B8478; letter-spacing: 1px; text-transform: uppercase;">3 May</div>
+        </div>
+        <div style="background: #FAFAF7; padding: 12px 8px; text-align: center; border-bottom: 1px solid #B4B2A9;">
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 14px;">Week ahead</div>
+          <div style="font-size: 9px; color: #8B8478; letter-spacing: 1px; text-transform: uppercase;">total \u00b7 MLC status</div>
+        </div>
+
+        <div style="background: #FAFAF7; padding: 8px 12px; border-right: 1px solid #B4B2A9; border-bottom: 0.5px solid #B4B2A9; font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: #8B8478; font-weight: 600; display: flex; align-items: center; grid-column: 1 / -1;">Interior \u00b7 4 crew</div>
+
+        <div style="padding: 12px; border-right: 1px solid #B4B2A9; border-bottom: 0.5px solid #ECE6DC; background: #FFFFFF;">
+          <div style="font-size: 13px; font-weight: 500;">Claire</div>
+          <div style="font-size: 11px; color: #8B8478; margin-top: 1px;">Chief stew</div>
+        </div>
+        <div class="week-cell compliant"><div class="total">11h</div><div class="label">on duty</div><div class="rest-mini">11h rest</div></div>
+        <div class="week-cell warning">
+          <div class="correction-alert" title="Pending correction">!</div>
+          <div class="total">14h</div><div class="label">on duty</div><div class="rest-mini">8h rest</div>
+        </div>
+        <div class="week-cell compliant"><div class="total">10h</div><div class="label">on duty</div><div class="rest-mini">12h rest</div></div>
+        <div class="week-cell compliant"><div class="total">12h</div><div class="label">on duty</div><div class="rest-mini">10h rest</div></div>
+        <div class="week-cell warning"><div class="total">12h</div><div class="label">on now</div><div class="rest-mini">8h 30m rest</div></div>
+        <div class="week-cell scheduled"><div class="total">\u2014</div><div class="label">off planned</div><div class="rest-mini">24h rest</div></div>
+        <div class="week-cell scheduled"><div class="total">\u2014</div><div class="label">off planned</div><div class="rest-mini">24h rest</div></div>
+        <div class="summary-cell warning">
+          <div style="font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: #7A2E1E; font-weight: 600; margin-bottom: 4px;">Total ahead</div>
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 18px; line-height: 1; color: #7A2E1E;">59h on</div>
+          <div style="font-size: 10px; color: #7A2E1E; margin-top: 4px;">Rest <span style="font-weight: 600;">73h</span> / 77h</div>
+          <div style="font-size: 9px; color: #7A2E1E; margin-top: 3px; font-style: italic;">4h short by Sun</div>
+        </div>
+
+        <div style="padding: 12px; border-right: 1px solid #B4B2A9; border-bottom: 0.5px solid #ECE6DC; background: #FFFFFF;">
+          <div style="font-size: 13px; font-weight: 500;">Marco</div>
+          <div style="font-size: 11px; color: #8B8478; margin-top: 1px;">2nd stew</div>
+        </div>
+        <div class="week-cell compliant"><div class="total">10h</div><div class="label">on duty</div><div class="rest-mini">11h rest</div></div>
+        <div class="week-cell off"><div class="total" style="color: #B4B2A9;">\u2014</div><div class="label">off</div></div>
+        <div class="week-cell compliant"><div class="total">10h</div><div class="label">on duty</div><div class="rest-mini">12h rest</div></div>
+        <div class="week-cell compliant"><div class="total">10h</div><div class="label">on duty</div><div class="rest-mini">11h rest</div></div>
+        <div class="week-cell compliant"><div class="total">8h</div><div class="label">on duty</div><div class="rest-mini">9h rest</div></div>
+        <div class="week-cell scheduled"><div class="total">10h</div><div class="label">scheduled</div><div class="rest-mini">10h rest</div></div>
+        <div class="week-cell scheduled"><div class="total">\u2014</div><div class="label">off planned</div><div class="rest-mini">24h rest</div></div>
+        <div class="summary-cell">
+          <div style="font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: #695880; font-weight: 600; margin-bottom: 4px;">Total ahead</div>
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 18px; line-height: 1;">48h on</div>
+          <div style="font-size: 10px; color: #695880; margin-top: 4px;">Rest <span style="color: #1C1B3A; font-weight: 500;">96h</span> / 77h</div>
+          <div style="font-size: 9px; color: #2D5A3A; margin-top: 3px; font-style: italic;">19h spare \u2713</div>
+        </div>
+
+        <div style="padding: 12px; border-right: 1px solid #B4B2A9; border-bottom: 0.5px solid #ECE6DC; background: #FFFFFF;">
+          <div style="font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 4px;">Emma <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#C65A1A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+          <div style="font-size: 11px; color: #8B8478; margin-top: 1px;">3rd stew</div>
+        </div>
+        <div class="week-cell compliant"><div class="total">12h</div><div class="label">on duty</div><div class="rest-mini">10h rest</div></div>
+        <div class="week-cell warning"><div class="total">14h</div><div class="label">on duty</div><div class="rest-mini">7h rest</div></div>
+        <div class="week-cell compliant"><div class="total">10h</div><div class="label">on duty</div><div class="rest-mini">11h rest</div></div>
+        <div class="week-cell violation"><div class="total">15h</div><div class="label">violation logged</div><div class="rest-mini">5h rest</div></div>
+        <div class="week-cell warning"><div class="total">12h</div><div class="label">on now</div><div class="rest-mini">7h rest</div></div>
+        <div class="week-cell scheduled"><div class="total">8h</div><div class="label">scheduled</div><div class="rest-mini">10h rest</div></div>
+        <div class="week-cell scheduled"><div class="total">\u2014</div><div class="label">off planned</div><div class="rest-mini">24h rest</div></div>
+        <div class="summary-cell warning">
+          <div style="font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: #7A2E1E; font-weight: 600; margin-bottom: 4px;">Total ahead</div>
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 18px; line-height: 1; color: #7A2E1E;">71h on</div>
+          <div style="font-size: 10px; color: #7A2E1E; margin-top: 4px;">Rest <span style="font-weight: 600;">61h</span> / 77h</div>
+          <div style="font-size: 9px; color: #7A2E1E; margin-top: 3px; font-style: italic;">16h short by Sun</div>
+        </div>
+
+        <div style="background: #FAFAF7; padding: 8px 12px; border-right: 1px solid #B4B2A9; border-bottom: 0.5px solid #B4B2A9; font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: #8B8478; font-weight: 600; display: flex; align-items: center; grid-column: 1 / -1;">Deck \u00b7 3 crew</div>
+
+        <div style="padding: 12px; border-right: 1px solid #B4B2A9; border-bottom: 0.5px solid #ECE6DC; background: #FFFFFF;">
+          <div style="font-size: 13px; font-weight: 500;">James</div>
+          <div style="font-size: 11px; color: #8B8478; margin-top: 1px;">Bosun</div>
+        </div>
+        <div class="week-cell compliant"><div class="total">9h</div><div class="label">on duty</div><div class="rest-mini">12h rest</div></div>
+        <div class="week-cell compliant"><div class="total">10h</div><div class="label">on duty</div><div class="rest-mini">11h rest</div></div>
+        <div class="week-cell off"><div class="total" style="color: #B4B2A9;">\u2014</div><div class="label">off</div></div>
+        <div class="week-cell compliant"><div class="total">8h</div><div class="label">on duty</div><div class="rest-mini">12h rest</div></div>
+        <div class="week-cell compliant"><div class="total">8h</div><div class="label">on duty</div><div class="rest-mini">9h 15m rest</div></div>
+        <div class="week-cell scheduled"><div class="total">10h</div><div class="label">scheduled</div><div class="rest-mini">10h rest</div></div>
+        <div class="week-cell scheduled"><div class="total">8h</div><div class="label">scheduled</div><div class="rest-mini">11h rest</div></div>
+        <div class="summary-cell">
+          <div style="font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: #695880; font-weight: 600; margin-bottom: 4px;">Total ahead</div>
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 18px; line-height: 1;">53h on</div>
+          <div style="font-size: 10px; color: #695880; margin-top: 4px;">Rest <span style="color: #1C1B3A; font-weight: 500;">82h</span> / 77h</div>
+          <div style="font-size: 9px; color: #2D5A3A; margin-top: 3px; font-style: italic;">5h spare \u2713</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top: 14px; padding-top: 14px; border-top: 0.5px solid #DFD8CC; display: flex; gap: 14px; align-items: center; font-size: 11px; color: #8B8478; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 14px; height: 14px; background: #F0F4EE; border: 0.5px solid #DFD8CC;"></span><span>MLC compliant</span></div>
+    <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 14px; height: 14px; background: #FAECE7; border: 0.5px solid #F5C9B8;"></span><span>Below 10h rest</span></div>
+    <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 14px; height: 14px; background: #C65A1A; border: 0.5px solid #C65A1A;"></span><span>Logged violation</span></div>
+    <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 14px; height: 14px; background: repeating-linear-gradient(135deg, #FFFFFF 0, #FFFFFF 4px, #F5F1EA 4px, #F5F1EA 5px); border: 0.5px dashed #B4B2A9;"></span><span>Forecast</span></div>
+    <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 16px; height: 16px; background: #C65A1A; color: #FFFFFF; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; box-shadow: 0 0 0 2px #FFFFFF;">!</span><span>Pending correction</span></div>
+    <span style="margin-left: auto; font-style: italic;">1 pending correction \u00b7 <a href="#" style="color: #C65A1A; text-decoration: none; border-bottom: 0.5px solid #FAECE7;">review</a></span>
+  </div>
+
+</div>
+
+</div></widget_code>
+</body>
+</html>

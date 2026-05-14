@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cargo Reference — Crew on this trip — grid + list views</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body { margin: 0; padding: 0; background: #F5F1EA; }
+</style>
+</head>
+<body>
+<div style="background: #F5F1EA; padding: 28px 32px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;">
+
+<div style="margin-bottom: 36px;">
+  <div style="font-size: 9px; font-weight: 600; letter-spacing: 1.8px; text-transform: uppercase; color: #8B8478; margin-bottom: 4px;">View A \u00b7 grid \u00b7 half-hourly across the day</div>
+  <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 18px; line-height: 1; color: #695880; font-style: italic; margin-bottom: 14px;">For coverage planning.</div>
+
+  <div style="background: #FFFFFF; border: 0.5px solid #DFD8CC; border-radius: 12px; border-top: 2px solid #1C1B3A; padding: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 22px;">
+      <div>
+        <div style="font-size: 9px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; color: #8B8478; margin-bottom: 6px;">Friday 1 May \u00b7 12 crew on this trip \u00b7 5 on duty now</div>
+        <h2 style="font-family: 'DM Serif Display', Georgia, serif; font-weight: 500; font-size: 24px; line-height: 1; margin: 0;">The <em style="color: #C65A1A; font-weight: 400;">rota</em>.</h2>
+      </div>
+      <div style="display: flex; gap: 6px;">
+        <button style="background: #1C1B3A; color: #F5F1EA; border: none; border-radius: 999px; padding: 6px 12px; font-size: 11px; font-weight: 500;">Grid</button>
+        <button style="background: transparent; color: #1C1B3A; border: 0.5px solid #DFD8CC; border-radius: 999px; padding: 6px 12px; font-size: 11px; font-weight: 500;">List</button>
+        <button style="background: transparent; color: #1C1B3A; border: 0.5px solid #DFD8CC; border-radius: 999px; padding: 6px 12px; font-size: 11px; font-weight: 500;">Edit</button>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 0.5px solid #DFD8CC; font-size: 11px; color: #695880;">
+      <button style="background: transparent; border: 0.5px solid #DFD8CC; border-radius: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer;">\u2190</button>
+      <span style="font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; color: #1C1B3A; min-width: 130px; text-align: center;">Friday 1 May</span>
+      <button style="background: transparent; border: 0.5px solid #DFD8CC; border-radius: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer;">\u2192</button>
+      <span style="margin-left: 16px;">Day window 06:00\u201322:00 \u00b7 <a href="#" style="color: #C65A1A; text-decoration: none; border-bottom: 0.5px solid #FAECE7;">show full 24h</a></span>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 12px; padding: 4px 0 6px;">
+      <div style="font-size: 9px; letter-spacing: 1.8px; text-transform: uppercase; color: #8B8478; font-weight: 600; flex-shrink: 0;">Interior \u00b7 4 crew</div>
+      <div style="height: 0.5px; background: #DFD8CC; flex: 1;"></div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 140px 28px 1fr; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 0.5px solid #ECE6DC;">
+      <div>
+        <div style="font-size: 13px; font-weight: 500;">Claire</div>
+        <div style="font-size: 10px; color: #8B8478;">Chief stew \u00b7 8h 30m rest</div>
+      </div>
+      <div></div>
+      <div style="position: relative; height: 28px;">
+        <div style="position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: #ECE6DC; transform: translateY(-50%);"></div>
+        <div style="position: absolute; left: 0; top: 4px; bottom: 4px; width: calc(100% * (12/16)); background: #1C1B3A; border-radius: 4px; padding: 0 8px; display: flex; align-items: center; color: #F5F1EA; font-size: 10px; font-weight: 500;">06:00 \u2014 14:00</div>
+        <div style="position: absolute; left: calc(100% * (14/16)); top: 4px; bottom: 4px; width: calc(100% * (4/16) - 1px); background: #C65A1A; border-radius: 4px; padding: 0 8px; display: flex; align-items: center; color: #FFFFFF; font-size: 10px; font-weight: 500;">18 \u2014 22</div>
+        <div style="position: absolute; left: calc(100% * (12.75/16)); top: -4px; bottom: -4px; width: 2px; background: #C65A1A; opacity: 0.4;"></div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 140px 28px 1fr; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 0.5px solid #ECE6DC;">
+      <div>
+        <div style="font-size: 13px; font-weight: 500;">Marco</div>
+        <div style="font-size: 10px; color: #8B8478;">2nd stew \u00b7 9h rest</div>
+      </div>
+      <div></div>
+      <div style="position: relative; height: 28px;">
+        <div style="position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: #ECE6DC; transform: translateY(-50%);"></div>
+        <div style="position: absolute; left: calc(100% * (4/16)); top: 4px; bottom: 4px; width: calc(100% * (8/16) - 1px); background: #1C1B3A; border-radius: 4px; padding: 0 8px; display: flex; align-items: center; color: #F5F1EA; font-size: 10px; font-weight: 500;">10:00 \u2014 18:00</div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 140px 28px 1fr; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 0.5px solid #ECE6DC;">
+      <div>
+        <div style="font-size: 13px; font-weight: 500;">Emma</div>
+        <div style="font-size: 10px; color: #695880;">3rd stew \u00b7 <span style="color: #C65A1A; font-weight: 500;">7h rest</span></div>
+      </div>
+      <div title="MLC warning: rest period below 10h">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#C65A1A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </div>
+      <div style="position: relative; height: 28px;">
+        <div style="position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: #ECE6DC; transform: translateY(-50%);"></div>
+        <div style="position: absolute; left: calc(100% * (8/16)); top: 4px; bottom: 4px; width: calc(100% * (8/16) - 1px); background: #C65A1A; border-radius: 4px; padding: 0 8px; display: flex; align-items: center; color: #FFFFFF; font-size: 10px; font-weight: 500;">14:00 \u2014 22:00</div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 140px 28px 1fr; gap: 8px; align-items: center; padding: 10px 0; opacity: 0.5;">
+      <div>
+        <div style="font-size: 13px; font-weight: 500;">Sophie</div>
+        <div style="font-size: 10px; color: #8B8478;">Laundry \u00b7 off today</div>
+      </div>
+      <div></div>
+      <div style="position: relative; height: 28px;">
+        <div style="position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: #ECE6DC; transform: translateY(-50%);"></div>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 12px; padding: 12px 0 6px;">
+      <div style="font-size: 9px; letter-spacing: 1.8px; text-transform: uppercase; color: #8B8478; font-weight: 600; flex-shrink: 0;">Deck \u00b7 3 crew</div>
+      <div style="height: 0.5px; background: #DFD8CC; flex: 1;"></div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 140px 28px 1fr; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 0.5px solid #ECE6DC;">
+      <div>
+        <div style="font-size: 13px; font-weight: 500;">James</div>
+        <div style="font-size: 10px; color: #8B8478;">Bosun \u00b7 9h 15m rest</div>
+      </div>
+      <div></div>
+      <div style="position: relative; height: 28px;">
+        <div style="position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: #ECE6DC; transform: translateY(-50%);"></div>
+        <div style="position: absolute; left: calc(100% * (2/16)); top: 4px; bottom: 4px; width: calc(100% * (8/16) - 1px); background: #1C1B3A; border-radius: 4px; padding: 0 8px; display: flex; align-items: center; color: #F5F1EA; font-size: 10px; font-weight: 500;">08:00 \u2014 16:00</div>
+        <div style="position: absolute; left: calc(100% * (12.75/16)); top: -4px; bottom: -4px; width: 2px; background: #C65A1A; opacity: 0.4;"></div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 140px 28px 1fr; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 0.5px solid #ECE6DC;">
+      <div>
+        <div style="font-size: 13px; font-weight: 500;">Tom</div>
+        <div style="font-size: 10px; color: #8B8478;">Deckhand \u00b7 10h rest</div>
+      </div>
+      <div></div>
+      <div style="position: relative; height: 28px;">
+        <div style="position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: #ECE6DC; transform: translateY(-50%);"></div>
+        <div style="position: absolute; left: calc(100% * (2/16)); top: 4px; bottom: 4px; width: calc(100% * (10/16) - 1px); background: #1C1B3A; border-radius: 4px; padding: 0 8px; display: flex; align-items: center; color: #F5F1EA; font-size: 10px; font-weight: 500;">08:00 \u2014 18:00</div>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 12px; padding: 12px 0 6px;">
+      <div style="font-size: 9px; letter-spacing: 1.8px; text-transform: uppercase; color: #8B8478; font-weight: 600; flex-shrink: 0;">Galley \u00b7 2 crew</div>
+      <div style="height: 0.5px; background: #DFD8CC; flex: 1;"></div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 140px 28px 1fr; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 0.5px solid #ECE6DC;">
+      <div>
+        <div style="font-size: 13px; font-weight: 500;">Anders</div>
+        <div style="font-size: 10px; color: #8B8478;">Head chef \u00b7 9h 30m rest</div>
+      </div>
+      <div></div>
+      <div style="position: relative; height: 28px;">
+        <div style="position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: #ECE6DC; transform: translateY(-50%);"></div>
+        <div style="position: absolute; left: calc(100% * (1.5/16)); top: 4px; bottom: 4px; width: calc(100% * (5/16) - 1px); background: #1C1B3A; border-radius: 4px; padding: 0 8px; display: flex; align-items: center; color: #F5F1EA; font-size: 10px; font-weight: 500;">07:30 \u2014 12:30</div>
+        <div style="position: absolute; left: calc(100% * (11.5/16)); top: 4px; bottom: 4px; width: calc(100% * (4.5/16) - 1px); background: #1C1B3A; border-radius: 4px; padding: 0 8px; display: flex; align-items: center; color: #F5F1EA; font-size: 10px; font-weight: 500;">17:30 \u2014 22:00</div>
+      </div>
+    </div>
+
+    <div style="margin-top: 14px; padding-top: 14px; border-top: 0.5px solid #DFD8CC; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #8B8478;">
+      <div style="display: flex; gap: 14px; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 14px; height: 8px; background: #1C1B3A; border-radius: 2px;"></span><span>On duty</span></div>
+        <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 14px; height: 8px; background: #C65A1A; border-radius: 2px;"></span><span>Up next or current</span></div>
+        <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 2px; height: 12px; background: #C65A1A; opacity: 0.5;"></span><span>Now (18:45)</span></div>
+      </div>
+      <span style="font-style: italic;">1 pending correction \u00b7 <a href="#" style="color: #C65A1A; text-decoration: none; border-bottom: 0.5px solid #FAECE7;">review</a></span>
+    </div>
+
+  </div>
+</div>
+
+<div>
+  <div style="font-size: 9px; font-weight: 600; letter-spacing: 1.8px; text-transform: uppercase; color: #8B8478; margin-bottom: 4px;">View B \u00b7 list \u00b7 crew-by-crew</div>
+  <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 18px; line-height: 1; color: #695880; font-style: italic; margin-bottom: 14px;">For glance and audit.</div>
+
+  <div style="background: #FFFFFF; border: 0.5px solid #DFD8CC; border-radius: 12px; border-top: 2px solid #1C1B3A; padding: 24px;">
+
+    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 22px;">
+      <div>
+        <div style="font-size: 9px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; color: #8B8478; margin-bottom: 6px;">Friday 1 May \u00b7 12 crew on this trip \u00b7 5 on duty now</div>
+        <h2 style="font-family: 'DM Serif Display', Georgia, serif; font-weight: 500; font-size: 24px; line-height: 1; margin: 0;">The <em style="color: #C65A1A; font-weight: 400;">rota</em>.</h2>
+      </div>
+      <div style="display: flex; gap: 6px;">
+        <button style="background: transparent; color: #1C1B3A; border: 0.5px solid #DFD8CC; border-radius: 999px; padding: 6px 12px; font-size: 11px; font-weight: 500;">Grid</button>
+        <button style="background: #1C1B3A; color: #F5F1EA; border: none; border-radius: 999px; padding: 6px 12px; font-size: 11px; font-weight: 500;">List</button>
+        <button style="background: transparent; color: #1C1B3A; border: 0.5px solid #DFD8CC; border-radius: 999px; padding: 6px 12px; font-size: 11px; font-weight: 500;">Edit</button>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 12px; padding: 4px 0 8px;">
+      <div style="font-size: 9px; letter-spacing: 1.8px; text-transform: uppercase; color: #8B8478; font-weight: 600; flex-shrink: 0;">Interior \u00b7 4 crew</div>
+      <div style="height: 0.5px; background: #DFD8CC; flex: 1;"></div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 36px 1fr auto auto; gap: 14px; align-items: center; padding: 12px 0; border-bottom: 0.5px solid #ECE6DC;">
+      <div style="width: 36px; height: 36px; border-radius: 50%; background: #FAECE7; color: #7A2E1E; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;">CL</div>
+      <div>
+        <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 17px; line-height: 1.1;">Claire</div>
+        <div style="font-size: 11px; color: #695880; margin-top: 2px;">Chief stew \u00b7 today 06:00\u201314:00, 18:00\u201322:00</div>
+      </div>
+      <div style="font-size: 11px; color: #695880; text-align: right;">
+        <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 14px; color: #1C1B3A;">8h 30m</div>
+        <div style="font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-top: 2px;">rest 24h</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 5px; font-size: 11px; color: #C65A1A; font-weight: 500; background: #FAECE7; padding: 4px 10px; border-radius: 999px;">On now</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 36px 1fr auto auto; gap: 14px; align-items: center; padding: 12px 0; border-bottom: 0.5px solid #ECE6DC;">
+      <div style="width: 36px; height: 36px; border-radius: 50%; background: #ECE6DC; color: #5C5440; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;">MC</div>
+      <div>
+        <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 17px; line-height: 1.1;">Marco</div>
+        <div style="font-size: 11px; color: #695880; margin-top: 2px;">2nd stew \u00b7 today 10:00\u201318:00</div>
+      </div>
+      <div style="font-size: 11px; color: #695880; text-align: right;">
+        <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 14px; color: #1C1B3A;">9h</div>
+        <div style="font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-top: 2px;">rest 24h</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 5px; font-size: 11px; color: #695880; background: #ECE6DC; padding: 4px 10px; border-radius: 999px;">Off now</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 36px 1fr auto auto; gap: 14px; align-items: center; padding: 12px 0; border-bottom: 0.5px solid #ECE6DC;">
+      <div style="width: 36px; height: 36px; border-radius: 50%; background: #FAECE7; color: #7A2E1E; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;">EM</div>
+      <div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 17px; line-height: 1.1;">Emma</div>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#C65A1A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <div style="font-size: 11px; color: #695880; margin-top: 2px;">3rd stew \u00b7 today 14:00\u201322:00 \u00b7 <span style="color: #C65A1A; font-weight: 500;">rest below MLC</span></div>
+      </div>
+      <div style="font-size: 11px; color: #695880; text-align: right;">
+        <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 14px; color: #C65A1A;">7h</div>
+        <div style="font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-top: 2px;">rest 24h</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 5px; font-size: 11px; color: #C65A1A; font-weight: 500; background: #FAECE7; padding: 4px 10px; border-radius: 999px;">On now</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 36px 1fr auto auto; gap: 14px; align-items: center; padding: 12px 0; border-bottom: 0.5px solid #ECE6DC; opacity: 0.55;">
+      <div style="width: 36px; height: 36px; border-radius: 50%; background: #ECE6DC; color: #5C5440; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;">SO</div>
+      <div>
+        <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 17px; line-height: 1.1;">Sophie</div>
+        <div style="font-size: 11px; color: #695880; margin-top: 2px;">Laundry \u00b7 off today, back Saturday 08:00</div>
+      </div>
+      <div></div>
+      <div style="font-size: 11px; color: #695880; background: #ECE6DC; padding: 4px 10px; border-radius: 999px;">Off</div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 12px; padding: 12px 0 8px;">
+      <div style="font-size: 9px; letter-spacing: 1.8px; text-transform: uppercase; color: #8B8478; font-weight: 600; flex-shrink: 0;">Deck \u00b7 3 crew</div>
+      <div style="height: 0.5px; background: #DFD8CC; flex: 1;"></div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 36px 1fr auto auto; gap: 14px; align-items: center; padding: 12px 0; border-bottom: 0.5px solid #ECE6DC;">
+      <div style="width: 36px; height: 36px; border-radius: 50%; background: #FAECE7; color: #7A2E1E; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;">JT</div>
+      <div>
+        <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 17px; line-height: 1.1;">James</div>
+        <div style="font-size: 11px; color: #695880; margin-top: 2px;">Bosun \u00b7 today 08:00\u201316:00, on watch</div>
+      </div>
+      <div style="font-size: 11px; color: #695880; text-align: right;">
+        <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 14px; color: #1C1B3A;">9h 15m</div>
+        <div style="font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-top: 2px;">rest 24h</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 5px; font-size: 11px; color: #C65A1A; font-weight: 500; background: #FAECE7; padding: 4px 10px; border-radius: 999px;">On now</div>
+    </div>
+
+    <div style="margin-top: 14px; padding-top: 14px; border-top: 0.5px solid #DFD8CC; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #8B8478;">
+      <span>Tap a crew member for their week.</span>
+      <span style="font-style: italic;">1 pending correction \u00b7 <a href="#" style="color: #C65A1A; text-decoration: none; border-bottom: 0.5px solid #FAECE7;">review</a></span>
+    </div>
+
+  </div>
+</div>
+
+</div></widget_code>
+</body>
+</html>

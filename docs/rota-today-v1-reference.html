@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cargo Reference — Rota Today — now-line + totals + midnight span</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body { margin: 0; padding: 0; background: #F5F1EA; }
+</style>
+</head>
+<body>
+<div style="background: #F5F1EA; padding: 28px 32px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;">
+
+<style>
+.rota-cell { border-right: 0.5px solid #ECE6DC; border-bottom: 0.5px solid #ECE6DC; height: 36px; box-sizing: border-box; position: relative; }
+.rota-cell.hour-tick { border-right: 1px solid #B4B2A9; }
+.rota-cell.filled { background: #1C1B3A; }
+.rota-cell.now { background: #C65A1A; }
+.rota-cell.tomorrow { background: #FAF8F2; }
+.rota-cell.tomorrow.filled { background: #1C1B3A; }
+.rota-name { padding: 8px 12px 8px 0; border-bottom: 0.5px solid #ECE6DC; border-right: 1px solid #B4B2A9; box-sizing: border-box; height: 36px; display: flex; flex-direction: column; justify-content: center; background: #FFFFFF; position: sticky; left: 0; z-index: 2; }
+.rota-name.totals { background: #FAFAF7; border-bottom: 1px solid #B4B2A9; border-top: 0.5px solid #DFD8CC; }
+.totals-cell { border-right: 0.5px solid #ECE6DC; border-bottom: 1px solid #B4B2A9; border-top: 0.5px solid #DFD8CC; height: 28px; background: #FAFAF7; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 500; color: #1C1B3A; }
+.totals-cell.hour-tick { border-right: 1px solid #B4B2A9; }
+.totals-cell.empty-shift { color: #C9C0AE; }
+.totals-cell.heavy { color: #C65A1A; font-weight: 600; }
+.hour-label { font-family: 'DM Serif Display', Georgia, serif; font-size: 11px; color: #695880; text-align: center; padding-bottom: 4px; }
+.hour-label.now { color: #C65A1A; font-weight: 600; font-size: 13px; }
+.hour-label.tomorrow { color: #8B8478; font-style: italic; }
+.tomorrow-marker { font-size: 9px; letter-spacing: 1.2px; text-transform: uppercase; color: #8B8478; padding: 0 4px 4px; font-weight: 500; font-style: italic; text-align: center; grid-column: span 4; }
+.now-line { position: absolute; top: 0; bottom: 0; width: 1.5px; background: #C65A1A; z-index: 3; pointer-events: none; opacity: 0.65; }
+</style>
+
+<div style="background: #FFFFFF; border: 0.5px solid #DFD8CC; border-radius: 12px; border-top: 2px solid #1C1B3A; padding: 24px;">
+
+  <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 22px;">
+    <div>
+      <div style="font-size: 9px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; color: #8B8478; margin-bottom: 6px;">Friday 1 May \u00b7 12 crew on this trip \u00b7 5 on duty now</div>
+      <h2 style="font-family: 'DM Serif Display', Georgia, serif; font-weight: 500; font-size: 24px; line-height: 1; margin: 0;">The <em style="color: #C65A1A; font-weight: 400;">rota</em>.</h2>
+    </div>
+    <div style="display: flex; gap: 6px;">
+      <button style="background: transparent; color: #1C1B3A; border: 0.5px solid #DFD8CC; border-radius: 999px; padding: 6px 12px; font-size: 11px; font-weight: 500;">Today</button>
+      <button style="background: transparent; color: #1C1B3A; border: 0.5px solid #DFD8CC; border-radius: 999px; padding: 6px 12px; font-size: 11px; font-weight: 500;">Week</button>
+      <button style="background: transparent; color: #1C1B3A; border: 0.5px solid #DFD8CC; border-radius: 999px; padding: 6px 12px; font-size: 11px; font-weight: 500;">Edit</button>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 0.5px solid #DFD8CC; font-size: 11px; color: #695880;">
+    <button style="background: transparent; border: 0.5px solid #DFD8CC; border-radius: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer;">\u2190</button>
+    <span style="font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; color: #1C1B3A; min-width: 130px; text-align: center;">Friday 1 May</span>
+    <button style="background: transparent; border: 0.5px solid #DFD8CC; border-radius: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer;">\u2192</button>
+    <span style="margin-left: 16px;">Day window 04:00 Fri \u2014 04:00 Sat \u00b7 30-min cells</span>
+  </div>
+
+  <div style="overflow-x: auto; margin: 0 -8px; padding: 0 8px; position: relative;">
+    <div style="min-width: 1320px; position: relative;">
+
+      <div style="display: grid; grid-template-columns: 130px repeat(28, minmax(40px, 1fr)); gap: 0; padding-bottom: 6px; border-bottom: 1px solid #B4B2A9;">
+        <div style="font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: #8B8478; padding: 0 12px 4px 0; background: #FFFFFF; position: sticky; left: 0; z-index: 2;">Crew \u00b7 Friday \u2192 Saturday</div>
+        <div class="hour-label">04</div>
+        <div class="hour-label">05</div>
+        <div class="hour-label">06</div>
+        <div class="hour-label">07</div>
+        <div class="hour-label">08</div>
+        <div class="hour-label">09</div>
+        <div class="hour-label">10</div>
+        <div class="hour-label">11</div>
+        <div class="hour-label">12</div>
+        <div class="hour-label">13</div>
+        <div class="hour-label">14</div>
+        <div class="hour-label">15</div>
+        <div class="hour-label">16</div>
+        <div class="hour-label">17</div>
+        <div class="hour-label now">18</div>
+        <div class="hour-label">19</div>
+        <div class="hour-label">20</div>
+        <div class="hour-label">21</div>
+        <div class="hour-label">22</div>
+        <div class="hour-label">23</div>
+        <div class="hour-label tomorrow">00</div>
+        <div class="hour-label tomorrow">01</div>
+        <div class="hour-label tomorrow">02</div>
+        <div class="hour-label tomorrow">03</div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 130px repeat(20, minmax(40px, 1fr)) repeat(4, minmax(40px, 1fr)); gap: 0;">
+        <div></div>
+        <div style="grid-column: span 20;"></div>
+        <div class="tomorrow-marker">Saturday \u2192</div>
+      </div>
+
+      <div style="font-size: 9px; letter-spacing: 1.8px; text-transform: uppercase; color: #8B8478; font-weight: 600; padding: 12px 0 6px;">Interior</div>
+
+      <div style="display: grid; grid-template-columns: 130px repeat(56, minmax(20px, 1fr)); gap: 0; position: relative;">
+        <div class="rota-name">
+          <div style="font-size: 12px; font-weight: 500;">Claire</div>
+          <div style="font-size: 10px; color: #8B8478;">Chief stew \u00b7 8h 30m</div>
+        </div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell now"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 130px repeat(56, minmax(20px, 1fr)); gap: 0;">
+        <div class="rota-name">
+          <div style="font-size: 12px; font-weight: 500;">Marco</div>
+          <div style="font-size: 10px; color: #8B8478;">2nd stew \u00b7 9h</div>
+        </div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 130px repeat(56, minmax(20px, 1fr)); gap: 0;">
+        <div class="rota-name">
+          <div style="font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 4px;">
+            Emma
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#C65A1A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div style="font-size: 10px; color: #C65A1A; font-weight: 500;">3rd stew \u00b7 7h rest</div>
+        </div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell now"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 130px repeat(56, minmax(20px, 1fr)); gap: 0; opacity: 0.5;">
+        <div class="rota-name" style="opacity: 1;">
+          <div style="font-size: 12px; font-weight: 500;">Sophie</div>
+          <div style="font-size: 10px; color: #8B8478;">Laundry \u00b7 off</div>
+        </div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+      </div>
+
+      <div style="font-size: 9px; letter-spacing: 1.8px; text-transform: uppercase; color: #8B8478; font-weight: 600; padding: 12px 0 6px;">Deck</div>
+
+      <div style="display: grid; grid-template-columns: 130px repeat(56, minmax(20px, 1fr)); gap: 0;">
+        <div class="rota-name">
+          <div style="font-size: 12px; font-weight: 500;">James</div>
+          <div style="font-size: 10px; color: #8B8478;">Bosun \u00b7 9h 15m</div>
+        </div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 130px repeat(56, minmax(20px, 1fr)); gap: 0;">
+        <div class="rota-name">
+          <div style="font-size: 12px; font-weight: 500;">Tom</div>
+          <div style="font-size: 10px; color: #8B8478;">Watch \u00b7 22:00 \u2014 02:00</div>
+        </div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell tomorrow filled"></div><div class="rota-cell tomorrow filled hour-tick"></div>
+        <div class="rota-cell tomorrow filled"></div><div class="rota-cell tomorrow filled hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+      </div>
+
+      <div style="font-size: 9px; letter-spacing: 1.8px; text-transform: uppercase; color: #8B8478; font-weight: 600; padding: 12px 0 6px;">Galley</div>
+
+      <div style="display: grid; grid-template-columns: 130px repeat(56, minmax(20px, 1fr)); gap: 0;">
+        <div class="rota-name">
+          <div style="font-size: 12px; font-weight: 500;">Anders</div>
+          <div style="font-size: 10px; color: #8B8478;">Head chef \u00b7 9h 30m</div>
+        </div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell filled"></div><div class="rota-cell filled hour-tick"></div>
+        <div class="rota-cell"></div><div class="rota-cell hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+        <div class="rota-cell tomorrow"></div><div class="rota-cell tomorrow hour-tick"></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 130px repeat(56, minmax(20px, 1fr)); gap: 0;">
+        <div class="rota-name totals">
+          <div style="font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: #1C1B3A; font-weight: 600;">On at this half-hour</div>
+          <div style="font-size: 10px; color: #695880; margin-top: 2px;">Across all departments</div>
+        </div>
+        <div class="totals-cell empty-shift">0</div><div class="totals-cell empty-shift hour-tick">0</div>
+        <div class="totals-cell empty-shift">0</div><div class="totals-cell empty-shift hour-tick">0</div>
+        <div class="totals-cell empty-shift">0</div><div class="totals-cell empty-shift hour-tick">0</div>
+        <div class="totals-cell">1</div><div class="totals-cell hour-tick">1</div>
+        <div class="totals-cell">3</div><div class="totals-cell hour-tick">3</div>
+        <div class="totals-cell heavy">4</div><div class="totals-cell heavy hour-tick">4</div>
+        <div class="totals-cell heavy">5</div><div class="totals-cell heavy hour-tick">5</div>
+        <div class="totals-cell heavy">5</div><div class="totals-cell heavy hour-tick">5</div>
+        <div class="totals-cell heavy">5</div><div class="totals-cell heavy hour-tick">5</div>
+        <div class="totals-cell">3</div><div class="totals-cell hour-tick">3</div>
+        <div class="totals-cell">3</div><div class="totals-cell hour-tick">3</div>
+        <div class="totals-cell">3</div><div class="totals-cell hour-tick">3</div>
+        <div class="totals-cell">3</div><div class="totals-cell hour-tick">3</div>
+        <div class="totals-cell heavy">5</div><div class="totals-cell heavy hour-tick">5</div>
+        <div class="totals-cell heavy" style="background: #FAECE7;">5</div><div class="totals-cell heavy hour-tick">5</div>
+        <div class="totals-cell heavy">5</div><div class="totals-cell heavy hour-tick">5</div>
+        <div class="totals-cell heavy">5</div><div class="totals-cell heavy hour-tick">5</div>
+        <div class="totals-cell heavy">4</div><div class="totals-cell heavy hour-tick">4</div>
+        <div class="totals-cell">2</div><div class="totals-cell hour-tick">2</div>
+        <div class="totals-cell">1</div><div class="totals-cell hour-tick">1</div>
+        <div class="totals-cell" style="background: #FAF8F2;">1</div><div class="totals-cell hour-tick" style="background: #FAF8F2;">1</div>
+        <div class="totals-cell" style="background: #FAF8F2;">1</div><div class="totals-cell hour-tick" style="background: #FAF8F2;">1</div>
+        <div class="totals-cell empty-shift" style="background: #FAF8F2;">0</div><div class="totals-cell empty-shift hour-tick" style="background: #FAF8F2;">0</div>
+        <div class="totals-cell empty-shift" style="background: #FAF8F2;">0</div><div class="totals-cell empty-shift hour-tick" style="background: #FAF8F2;">0</div>
+      </div>
+
+      <div class="now-line" style="left: calc(130px + (37.5 / 56) * (100% - 130px));"></div>
+
+    </div>
+  </div>
+
+  <div style="margin-top: 14px; padding-top: 14px; border-top: 0.5px solid #DFD8CC; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #8B8478;">
+    <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+      <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: #1C1B3A; border: 0.5px solid #ECE6DC;"></span><span>Scheduled</span></div>
+      <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: #C65A1A; border: 0.5px solid #ECE6DC;"></span><span>On now</span></div>
+      <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: #FAF8F2; border: 0.5px solid #ECE6DC;"></span><span>Saturday</span></div>
+      <div style="display: flex; align-items: center; gap: 5px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#C65A1A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span>Below 10h MLC</span></div>
+    </div>
+    <span style="font-style: italic;">1 pending correction \u00b7 <a href="#" style="color: #C65A1A; text-decoration: none; border-bottom: 0.5px solid #FAECE7;">review</a></span>
+  </div>
+
+</div>
+
+</div></widget_code>
+</body>
+</html>

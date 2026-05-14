@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cargo Reference — Rota — Rest panel final with suggestion cards</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body { margin: 0; padding: 0; background: #F5F1EA; }
+</style>
+</head>
+<body>
+<div style="background: #F5F1EA; padding: 28px 32px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;">
+
+<style>
+.backdrop { position: relative; background: #FFFFFF; border: 0.5px solid #DFD8CC; border-radius: 12px; padding: 24px; min-height: 1180px; overflow: visible; }
+.backdrop-content { filter: blur(3px) saturate(0.85); opacity: 0.5; pointer-events: none; }
+.backdrop-darken { position: absolute; inset: 0; background: rgba(28, 27, 58, 0.18); border-radius: 12px; }
+
+.panel-card {
+  position: absolute;
+  top: 36px; left: 50%; transform: translateX(-50%);
+  width: 92%; max-width: 880px;
+  background: #FFFFFF;
+  border: 0.5px solid #DFD8CC;
+  border-top: 2px solid #C65A1A;
+  border-radius: 14px;
+  box-shadow: 0 24px 60px -12px rgba(28, 27, 58, 0.28), 0 8px 24px -8px rgba(28, 27, 58, 0.14);
+  padding: 28px 32px;
+}
+
+.timeline-strip { display: flex; height: 38px; border-radius: 6px; overflow: hidden; border: 0.5px solid #DFD8CC; position: relative; }
+.timeline-strip > div { position: relative; padding: 6px 8px; display: flex; flex-direction: column; justify-content: center; }
+.seg-label { font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase; line-height: 1; }
+.seg-sub { font-size: 8px; opacity: 0.85; margin-top: 2px; line-height: 1; font-style: italic; }
+.timeline-now { position: absolute; top: -6px; bottom: -6px; width: 2px; background: #C65A1A; z-index: 3; }
+.timeline-now::before { content: ''; position: absolute; top: -3px; left: -3px; width: 6px; height: 6px; background: #C65A1A; border-radius: 50%; }
+
+.bar-row { display: grid; grid-template-columns: 56px repeat(7, 1fr); gap: 8px; }
+.bar-track-wrap { display: flex; flex-direction: column; }
+.weekly-bar-track { height: 120px; background: #FAFAF7; border-radius: 4px; position: relative; overflow: hidden; border: 0.5px solid #ECE6DC; flex-shrink: 0; }
+.weekly-bar-track.today { border: 1.5px solid #C65A1A; background: #FFFCFA; box-shadow: 0 0 0 3px #FAECE7; }
+.weekly-bar-fill { position: absolute; bottom: 0; left: 4px; right: 4px; border-radius: 2px 2px 0 0; }
+.weekly-mlc-line { position: absolute; left: 0; right: 0; height: 1px; background: #C65A1A; z-index: 2; }
+.bar-day-label { font-family: 'DM Serif Display', Georgia, serif; font-size: 11px; color: #695880; text-align: center; line-height: 1.3; padding-top: 6px; word-break: break-word; }
+
+.glyph-confirmed {
+  width: 14px; height: 14px;
+  background: #FFFFFF; color: #2D5A3A;
+  border: 1px solid #C7DCC9;
+  border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700;
+  vertical-align: middle;
+}
+
+.insights-stat { background: #FAFAF7; border: 0.5px solid #ECE6DC; border-radius: 8px; padding: 14px 16px; }
+.insights-stat .num { font-family: 'DM Serif Display', Georgia, serif; font-size: 22px; line-height: 1; color: #1C1B3A; }
+.insights-stat .lbl { font-size: 9px; letter-spacing: 1.2px; text-transform: uppercase; color: #8B8478; margin-top: 6px; }
+.insights-stat .sub { font-size: 10px; color: #695880; margin-top: 4px; }
+
+.suggestion-card {
+  background: #FFFFFF;
+  border: 0.5px solid #DFD8CC;
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin-bottom: 10px;
+  position: relative;
+}
+.suggestion-card.confident { border-left: 3px solid #2D5A3A; }
+.suggestion-card.judgment { border-left: 3px solid #C9C0AE; }
+.suggestion-confidence-pill {
+  display: inline-block;
+  font-size: 9px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 999px;
+  margin-bottom: 10px;
+}
+.suggestion-confidence-pill.confident { background: #F0F4EE; color: #2D5A3A; border: 0.5px solid #C7DCC9; }
+.suggestion-confidence-pill.judgment { background: #FAFAF7; color: #695880; border: 0.5px solid #DFD8CC; }
+.suggestion-effect-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+.suggestion-effect {
+  background: #FAFAF7;
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.effect-name { font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; color: #8B8478; font-weight: 600; }
+.effect-change { font-family: 'DM Serif Display', Georgia, serif; font-size: 14px; line-height: 1.2; }
+.suggestion-actions { display: flex; gap: 8px; }
+</style>
+
+<div class="backdrop">
+
+  <div class="backdrop-content">
+    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 22px;">
+      <div>
+        <div style="font-size: 9px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; color: #8B8478; margin-bottom: 6px;">Friday 1 May \u00b7 12 crew on this trip</div>
+        <h2 style="font-family: 'DM Serif Display', Georgia, serif; font-weight: 500; font-size: 24px; line-height: 1; margin: 0;">The <em style="color: #C65A1A; font-weight: 400;">rota</em>.</h2>
+      </div>
+    </div>
+    <div style="display: grid; grid-template-columns: 220px repeat(8, 1fr); gap: 0; border: 0.5px solid #DFD8CC; border-radius: 8px; overflow: hidden; min-height: 280px;">
+      <div style="background: #FAFAF7; padding: 12px;"></div>
+      <div style="background: #FAFAF7; padding: 12px;"></div>
+      <div style="background: #FAFAF7; padding: 12px;"></div>
+      <div style="background: #FAFAF7; padding: 12px;"></div>
+      <div style="background: #FAFAF7; padding: 12px;"></div>
+      <div style="background: #FAECE7; padding: 12px;"></div>
+      <div style="background: #FAFAF7; padding: 12px;"></div>
+      <div style="background: #FAFAF7; padding: 12px;"></div>
+      <div style="background: #FAFAF7; padding: 12px;"></div>
+      <div style="padding: 12px;"></div>
+      <div style="background: #F0F4EE; padding: 18px;"></div>
+      <div style="background: #F0F4EE; padding: 18px;"></div>
+      <div style="background: #FAECE7; padding: 18px;"></div>
+      <div style="background: #FAECE7; padding: 18px;"></div>
+      <div style="background: #FAECE7; padding: 18px;"></div>
+      <div style="background: #F0F4EE; padding: 18px;"></div>
+      <div style="background: #FAFAF7; padding: 18px;"></div>
+    </div>
+  </div>
+
+  <div class="backdrop-darken"></div>
+
+  <div class="panel-card">
+
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px;">
+      <div style="display: flex; gap: 16px; align-items: center;">
+        <div style="width: 56px; height: 56px; border-radius: 50%; background: #FAECE7; color: #7A2E1E; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; font-family: 'DM Serif Display', Georgia, serif;">EM</div>
+        <div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <h3 style="font-family: 'DM Serif Display', Georgia, serif; font-weight: 500; font-size: 28px; line-height: 1; margin: 0;">Emma Larsen</h3>
+            <span style="font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: #7A2E1E; font-weight: 600; background: #FAECE7; padding: 4px 10px; border-radius: 999px; border: 0.5px solid #F5C9B8;">Below MLC daily &amp; weekly</span>
+          </div>
+          <div style="font-size: 11px; color: #695880; letter-spacing: 1.2px; text-transform: uppercase; margin-top: 6px;">Interior \u00b7 3rd stew \u00b7 on duty now until 22:00</div>
+          <div style="font-size: 11px; color: #8B8478; margin-top: 8px;">Today \u00b7 <span style="color: #7A2E1E; font-weight: 500;">7h rest so far</span> \u00b7 <span style="color: #7A2E1E; font-weight: 500;">Past week 63h</span></div>
+        </div>
+      </div>
+      <button style="background: transparent; border: 0.5px solid #DFD8CC; border-radius: 999px; width: 32px; height: 32px; font-size: 16px; color: #695880; cursor: pointer; display: flex; align-items: center; justify-content: center;">\u00d7</button>
+    </div>
+
+    <div style="background: #FAECE7; border: 0.5px solid #F5C9B8; border-radius: 10px; padding: 18px 20px; margin-bottom: 22px;">
+      <div style="display: flex; align-items: flex-start; gap: 12px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7A2E1E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px;"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div style="flex: 1;">
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 18px; line-height: 1.35; color: #1C1B3A; margin-bottom: 8px;">Emma is failing both <em style="color: #7A2E1E;">daily and weekly</em> MLC rest rules.</div>
+          <div style="font-size: 12px; color: #1C1B3A; line-height: 1.65;">Daily: her last 24 hours show <strong>7h total rest in two blocks</strong> \u2014 6h then 1h. MLC requires 10h total in any 24h window, with at least one block of 6h continuous. She just meets the block rule but is 3h short on total rest.<br><br>Weekly: her rolling 7-day rest sits at <strong>63h, 14h short of the 77h required</strong>. The cumulative shortfall has grown each day this week.<br><br>To return to compliance, her next shift cannot start before <strong>05:00 Saturday</strong>, and Saturday's planned hours need reducing or reassigning.</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 26px;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px;">
+        <div>
+          <div style="font-size: 9px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #8B8478;">Last 24 hours \u00b7 18:30 yesterday \u2192 now</div>
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; margin-top: 4px;">7h rest \u00b7 17h on duty</div>
+        </div>
+      </div>
+
+      <div class="timeline-strip">
+        <div style="flex: 6; background: #C7DCC9; color: #2D5A3A;">
+          <div class="seg-label">6h rest</div>
+          <div class="seg-sub">18:30 yest \u2014 00:30</div>
+        </div>
+        <div style="flex: 8; background: #1C1B3A; color: #F5F1EA;">
+          <div class="seg-label">8h on duty</div>
+          <div class="seg-sub">duty \u00b7 early service</div>
+        </div>
+        <div style="flex: 1; background: #C7DCC9; color: #2D5A3A;">
+          <div class="seg-label">1h</div>
+        </div>
+        <div style="flex: 9; background: #1C1B3A; color: #F5F1EA;">
+          <div class="seg-label">9h on duty</div>
+          <div class="seg-sub">duty \u00b7 service \u00b7 still on now</div>
+        </div>
+        <div class="timeline-now" style="right: 0;"></div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; font-size: 10px; color: #8B8478; margin-top: 8px;">
+        <span>18:30 yesterday</span>
+        <span style="color: #C65A1A; font-weight: 500;">\u2191 now (18:30 today)</span>
+      </div>
+
+      <div style="display: flex; gap: 14px; margin-top: 14px; font-size: 11px; color: #695880; align-items: center; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: #C7DCC9; border-radius: 2px;"></span><span>Rest</span></div>
+        <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: #1C1B3A; border-radius: 2px;"></span><span>On duty (any type)</span></div>
+        <span style="font-style: italic; color: #8B8478;">Click any segment to see the underlying shift</span>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 26px;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px;">
+        <div>
+          <div style="font-size: 9px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #8B8478;">Rolling 7d rest \u00b7 evolving by day</div>
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; margin-top: 4px;">63h projected by tonight \u00b7 <span style="color: #7A2E1E;">14h short</span> of the 77h weekly minimum</div>
+          <div style="font-size: 10px; color: #8B8478; font-style: italic; margin-top: 3px;">y-axis is the rolling 7-day rest figure on each day \u00b7 MLC requires 77h or more</div>
+        </div>
+        <div style="display: flex; gap: 14px; font-size: 11px; color: #695880; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: #C7DCC9; border-radius: 2px;"></span><span>\u2265 77h</span></div>
+          <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: #F5C9B8; border-radius: 2px;"></span><span>Below 77h</span></div>
+        </div>
+      </div>
+
+      <div class="bar-row">
+        <div style="display: flex; flex-direction: column; height: 120px; justify-content: space-between; font-size: 9px; color: #8B8478; text-align: right; padding-right: 6px; padding-bottom: 24px;">
+          <span>100h <span style="font-size: 8px; letter-spacing: 1px; text-transform: uppercase; color: #B4B2A9;">rest</span></span>
+          <span style="color: #C65A1A; font-weight: 500;">77h MLC</span>
+          <span>0h</span>
+        </div>
+
+        <div class="bar-track-wrap">
+          <div class="weekly-bar-track">
+            <div class="weekly-bar-fill" style="height: 75%; background: #C7DCC9;"></div>
+            <div class="weekly-mlc-line" style="bottom: 77%;"></div>
+            <div style="position: absolute; bottom: 5px; left: 0; right: 0; text-align: center; font-size: 10px; color: #2D5A3A; font-weight: 500;">75h</div>
+          </div>
+          <div class="bar-day-label">Sat \u00b7 26 Apr</div>
+        </div>
+
+        <div class="bar-track-wrap">
+          <div class="weekly-bar-track">
+            <div class="weekly-bar-fill" style="height: 79%; background: #C7DCC9;"></div>
+            <div class="weekly-mlc-line" style="bottom: 77%;"></div>
+            <div style="position: absolute; bottom: 5px; left: 0; right: 0; text-align: center; font-size: 10px; color: #2D5A3A; font-weight: 500;">79h</div>
+          </div>
+          <div class="bar-day-label">Sun \u00b7 27 Apr</div>
+        </div>
+
+        <div class="bar-track-wrap">
+          <div class="weekly-bar-track">
+            <div class="weekly-bar-fill" style="height: 75%; background: #F5C9B8;"></div>
+            <div class="weekly-mlc-line" style="bottom: 77%;"></div>
+            <div style="position: absolute; bottom: 5px; left: 0; right: 0; text-align: center; font-size: 10px; color: #7A2E1E; font-weight: 500;">75h <span class="glyph-confirmed">\u2713</span></div>
+          </div>
+          <div class="bar-day-label" style="color: #7A2E1E;">Wed \u00b7 30 Apr \u00b7 violation logged with reason</div>
+        </div>
+
+        <div class="bar-track-wrap">
+          <div class="weekly-bar-track">
+            <div class="weekly-bar-fill" style="height: 68%; background: #F5C9B8;"></div>
+            <div class="weekly-mlc-line" style="bottom: 77%;"></div>
+            <div style="position: absolute; bottom: 5px; left: 0; right: 0; text-align: center; font-size: 10px; color: #7A2E1E; font-weight: 500;">68h <span class="glyph-confirmed">\u2713</span></div>
+          </div>
+          <div class="bar-day-label" style="color: #7A2E1E;">Thu \u00b7 1 May</div>
+        </div>
+
+        <div class="bar-track-wrap">
+          <div class="weekly-bar-track today">
+            <div class="weekly-bar-fill" style="height: 63%; background: #F5C9B8;"></div>
+            <div class="weekly-mlc-line" style="bottom: 77%;"></div>
+            <div style="position: absolute; bottom: 5px; left: 0; right: 0; text-align: center; font-size: 10px; color: #7A2E1E; font-weight: 600;">63h</div>
+            <div style="position: absolute; top: 4px; left: 0; right: 0; text-align: center; font-size: 8px; color: #C65A1A; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase;">Today</div>
+          </div>
+          <div class="bar-day-label" style="color: #C65A1A; font-weight: 600;">Fri \u00b7 today</div>
+        </div>
+
+        <div class="bar-track-wrap">
+          <div class="weekly-bar-track" style="opacity: 0.72;">
+            <div class="weekly-bar-fill" style="height: 66%; background: #F5C9B8;"></div>
+            <div class="weekly-mlc-line" style="bottom: 77%;"></div>
+            <div style="position: absolute; bottom: 5px; left: 0; right: 0; text-align: center; font-size: 10px; color: #7A2E1E; font-weight: 500;">66h</div>
+          </div>
+          <div class="bar-day-label" style="font-style: italic;">Sat \u00b7 projected</div>
+        </div>
+
+        <div class="bar-track-wrap">
+          <div class="weekly-bar-track" style="opacity: 0.72;">
+            <div class="weekly-bar-fill" style="height: 79%; background: #C7DCC9;"></div>
+            <div class="weekly-mlc-line" style="bottom: 77%;"></div>
+            <div style="position: absolute; bottom: 5px; left: 0; right: 0; text-align: center; font-size: 10px; color: #2D5A3A; font-weight: 500;">79h</div>
+          </div>
+          <div class="bar-day-label" style="font-style: italic;">Sun \u00b7 projected</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 26px;">
+      <div style="font-size: 9px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #8B8478; margin-bottom: 4px;">This trip so far \u00b7 day 3 of 5</div>
+      <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; margin-bottom: 14px;">Emma has worked <em style="color: #1C1B3A;">41 hours</em> across the first three days of the Marchetti charter.</div>
+
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+        <div class="insights-stat">
+          <div class="num">29h</div>
+          <div class="lbl">Duty</div>
+          <div class="sub">71% of her trip work</div>
+        </div>
+        <div class="insights-stat">
+          <div class="num">8h</div>
+          <div class="lbl">Standby \u00b7 support</div>
+          <div class="sub">19% \u00b7 scheduled forward</div>
+        </div>
+        <div class="insights-stat">
+          <div class="num">4h</div>
+          <div class="lbl">Watch \u00b7 anchor</div>
+          <div class="sub">10% \u00b7 overnight cover</div>
+        </div>
+        <div class="insights-stat" style="background: #FAECE7; border-color: #F5C9B8;">
+          <div class="num" style="color: #7A2E1E;">2</div>
+          <div class="lbl" style="color: #7A2E1E;">Logged violations</div>
+          <div class="sub" style="color: #7A2E1E;">Wed + Thu \u00b7 acknowledged</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 26px;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px;">
+        <div>
+          <div style="font-size: 9px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #C65A1A;">Worth considering</div>
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; margin-top: 4px;">Two ways to bring Emma into compliance without losing coverage.</div>
+        </div>
+      </div>
+
+      <div class="suggestion-card confident">
+        <span class="suggestion-confidence-pill confident">Confident swap</span>
+        <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 17px; line-height: 1.4; color: #1C1B3A; margin-bottom: 4px;">Move Emma's <em style="color: #C65A1A;">Saturday 8h standby \u00b7 support</em> to Marco.</div>
+        <div style="font-size: 12px; color: #695880; line-height: 1.5;">Marco has 19h spare across the rolling week and is qualified to cover bridge support for the same overnight window. Emma takes the day clear, recovers fully by Sunday.</div>
+
+        <div class="suggestion-effect-row">
+          <div class="suggestion-effect">
+            <div class="effect-name">Emma \u00b7 3rd stew</div>
+            <div class="effect-change">
+              <span style="color: #7A2E1E;">63h</span> <span style="color: #8B8478;">\u2192</span> <span style="color: #2D5A3A;">79h \u2713</span>
+            </div>
+            <div style="font-size: 10px; color: #8B8478;">By Sunday \u00b7 compliant</div>
+          </div>
+          <div class="suggestion-effect">
+            <div class="effect-name">Marco \u00b7 2nd stew</div>
+            <div class="effect-change">
+              <span style="color: #2D5A3A;">96h</span> <span style="color: #8B8478;">\u2192</span> <span style="color: #2D5A3A;">88h \u2713</span>
+            </div>
+            <div style="font-size: 10px; color: #8B8478;">By Sunday \u00b7 still compliant</div>
+          </div>
+        </div>
+
+        <div class="suggestion-actions">
+          <button style="background: #1C1B3A; color: #F5F1EA; border: none; border-radius: 999px; padding: 8px 16px; font-size: 11px; font-weight: 500; cursor: pointer;">Apply this swap</button>
+          <button style="background: transparent; color: #1C1B3A; border: 0.5px solid #DFD8CC; border-radius: 999px; padding: 8px 16px; font-size: 11px; font-weight: 500; cursor: pointer;">Preview on rota</button>
+        </div>
+      </div>
+
+      <div class="suggestion-card judgment">
+        <span class="suggestion-confidence-pill judgment">Needs your judgment</span>
+        <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 17px; line-height: 1.4; color: #1C1B3A; margin-bottom: 4px;">Extend Emma's Sunday off back into <em style="color: #C65A1A;">Saturday afternoon</em> \u2014 4h reduction.</div>
+        <div style="font-size: 12px; color: #695880; line-height: 1.5;">Saturday afternoon turn-down service currently runs Emma \u2014 needs reassigning to Claire (8h short herself) or Sophie (laundry, full week). Lighter cover but not zero.</div>
+
+        <div class="suggestion-effect-row">
+          <div class="suggestion-effect">
+            <div class="effect-name">Emma \u00b7 3rd stew</div>
+            <div class="effect-change">
+              <span style="color: #7A2E1E;">63h</span> <span style="color: #8B8478;">\u2192</span> <span style="color: #2D5A3A;">73h \u2713</span>
+            </div>
+            <div style="font-size: 10px; color: #8B8478;">By Sunday \u00b7 just compliant</div>
+          </div>
+          <div class="suggestion-effect">
+            <div class="effect-name">Coverage gap</div>
+            <div class="effect-change" style="font-size: 12px; color: #7A2E1E;">Saturday turn-down</div>
+            <div style="font-size: 10px; color: #7A2E1E;">Needs reassignment</div>
+          </div>
+        </div>
+
+        <div class="suggestion-actions">
+          <button style="background: #1C1B3A; color: #F5F1EA; border: none; border-radius: 999px; padding: 8px 16px; font-size: 11px; font-weight: 500; cursor: pointer;">Reassign &amp; apply</button>
+          <button style="background: transparent; color: #1C1B3A; border: 0.5px solid #DFD8CC; border-radius: 999px; padding: 8px 16px; font-size: 11px; font-weight: 500; cursor: pointer;">Preview on rota</button>
+        </div>
+      </div>
+
+      <div style="font-size: 11px; color: #8B8478; font-style: italic; margin-top: 8px;">Suggestions weigh MLC compliance against guest service coverage and crew qualifications. <a href="#" style="color: #C65A1A; text-decoration: none; border-bottom: 0.5px solid #FAECE7;">Why these two?</a></div>
+    </div>
+
+    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+      <button style="background: #1C1B3A; color: #F5F1EA; border: none; border-radius: 999px; padding: 10px 20px; font-size: 12px; font-weight: 500; cursor: pointer;">Adjust her shift</button>
+      <button style="background: transparent; color: #1C1B3A; border: 0.5px solid #DFD8CC; border-radius: 999px; padding: 10px 20px; font-size: 12px; font-weight: 500; cursor: pointer;">Log violation reason</button>
+      <button style="background: transparent; color: #1C1B3A; border: 0.5px solid #DFD8CC; border-radius: 999px; padding: 10px 20px; font-size: 12px; font-weight: 500; cursor: pointer;">Add note</button>
+      <button style="background: transparent; color: #1C1B3A; border: 0.5px solid #DFD8CC; border-radius: 999px; padding: 10px 20px; font-size: 12px; font-weight: 500; cursor: pointer; margin-left: auto;">Hours of rest log \u2192</button>
+    </div>
+
+    <div style="margin-top: 18px; padding-top: 14px; border-top: 0.5px solid #ECE6DC; font-size: 11px; color: #8B8478; font-style: italic;">Once the rota is locked for tomorrow, Emma sees her next 24 hours and any pending corrections she's submitted. Crew receive their planned schedule automatically.</div>
+
+  </div>
+
+</div>
+
+</div></widget_code>
+</body>
+</html>

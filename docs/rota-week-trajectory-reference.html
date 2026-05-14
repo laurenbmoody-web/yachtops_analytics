@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cargo Reference — Rota — Week with trajectory pills</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body { margin: 0; padding: 0; background: #F5F1EA; }
+</style>
+</head>
+<body>
+<div style="background: #F5F1EA; padding: 28px 32px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;">
+
+<style>
+.week-cell { border-right: 0.5px solid #ECE6DC; border-bottom: 0.5px solid #ECE6DC; padding: 10px 8px; box-sizing: border-box; min-height: 88px; position: relative; cursor: pointer; transition: filter 0.15s; }
+.week-cell.compliant { background: #F0F4EE; }
+.week-cell.violation { background: #FAECE7; }
+.week-cell.future { opacity: 0.72; }
+.week-cell.off { background: #FAFAF7; }
+.week-cell.sick { background: #FAFAF7; }
+.week-cell:hover { filter: brightness(0.96); }
+.week-cell .total { font-family: 'DM Serif Display', Georgia, serif; font-size: 17px; line-height: 1; }
+.week-cell.off .total, .week-cell.sick .total { color: #B4B2A9; font-style: italic; }
+.week-cell .type-line { font-size: 9px; letter-spacing: 0.8px; text-transform: uppercase; color: #695880; margin-top: 5px; }
+.week-cell.compliant .type-line { color: #2D5A3A; }
+.week-cell.violation .type-line { color: #7A2E1E; font-weight: 500; }
+.week-cell.off .type-line, .week-cell.sick .type-line { color: #B4B2A9; font-style: italic; }
+.week-cell .rolling-7d { font-size: 9px; margin-top: 4px; padding-top: 4px; border-top: 0.5px solid rgba(28,27,58,0.08); display: flex; justify-content: space-between; align-items: baseline; }
+.week-cell .rolling-7d .lbl { color: #8B8478; letter-spacing: 0.5px; text-transform: uppercase; font-size: 8px; }
+.week-cell.compliant .rolling-7d .num { color: #2D5A3A; font-weight: 500; }
+.week-cell.violation .rolling-7d .num { color: #7A2E1E; font-weight: 600; }
+.week-cell.off .rolling-7d .num, .week-cell.sick .rolling-7d .num { color: #8B8478; }
+.week-cell.off .rolling-7d, .week-cell.sick .rolling-7d { border-top-color: rgba(180,178,169,0.3); }
+
+.glyph-pending {
+  position: absolute; top: 4px; right: 4px;
+  width: 16px; height: 16px;
+  background: #C65A1A; color: #FFFFFF;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; line-height: 1;
+  box-shadow: 0 0 0 2px #FFFFFF, 0 1px 3px rgba(198, 90, 26, 0.3);
+}
+.glyph-confirmed {
+  position: absolute; top: 4px; right: 4px;
+  width: 16px; height: 16px;
+  background: #FFFFFF; color: #2D5A3A;
+  border: 1px solid #C7DCC9;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; line-height: 1;
+}
+
+.summary-cell { background: #FAFAF7; padding: 10px 12px; box-sizing: border-box; min-height: 88px; border-right: 0.5px solid #ECE6DC; border-bottom: 0.5px solid #ECE6DC; }
+.summary-cell.warning { background: #FAECE7; }
+
+.day-pill { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 22px; padding: 0 6px; border-radius: 6px; font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase; font-weight: 600; }
+.day-pill.compliant { background: #C7DCC9; color: #2D5A3A; }
+.day-pill.violation { background: #F5C9B8; color: #7A2E1E; }
+.day-pill.off { background: #ECE6DC; color: #8B8478; }
+.day-pill.future { opacity: 0.65; border: 0.5px dashed; }
+
+.now-marker {
+  position: absolute; top: 0; bottom: 0;
+  width: 2px;
+  background: #C65A1A;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0.85;
+}
+</style>
+
+<div style="background: #FFFFFF; border: 0.5px solid #DFD8CC; border-radius: 12px; border-top: 2px solid #1C1B3A; padding: 24px;">
+
+  <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 22px;">
+    <div>
+      <div style="font-size: 9px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; color: #8B8478; margin-bottom: 6px;">Marchetti charter \u00b7 1 \u2014 5 May \u00b7 day 3 of 5 \u00b7 2 violations \u00b7 1 pending correction</div>
+      <h2 style="font-family: 'DM Serif Display', Georgia, serif; font-weight: 500; font-size: 24px; line-height: 1; margin: 0;">The <em style="color: #C65A1A; font-weight: 400;">rota</em>.</h2>
+    </div>
+    <div style="display: flex; gap: 6px;">
+      <button style="background: transparent; color: #1C1B3A; border: 0.5px solid #DFD8CC; border-radius: 999px; padding: 6px 12px; font-size: 11px; font-weight: 500;">Today</button>
+      <button style="background: #1C1B3A; color: #F5F1EA; border: none; border-radius: 999px; padding: 6px 12px; font-size: 11px; font-weight: 500;">Trip span</button>
+      <button style="background: transparent; color: #1C1B3A; border: 0.5px solid #DFD8CC; border-radius: 999px; padding: 6px 12px; font-size: 11px; font-weight: 500;">Hours of rest log</button>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 14px; align-items: center; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 0.5px solid #DFD8CC; font-size: 11px; color: #695880; flex-wrap: wrap;">
+    <span style="font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; color: #1C1B3A;">Wed 1 \u2014 Sun 5 May</span>
+    <div style="display: inline-flex; background: #FAFAF7; border: 0.5px solid #DFD8CC; border-radius: 999px; padding: 3px;">
+      <button style="background: #FAECE7; border: none; padding: 5px 14px; font-size: 11px; color: #C65A1A; font-weight: 600; cursor: pointer; border-radius: 999px;">Trip only</button>
+      <button style="background: transparent; border: none; padding: 5px 14px; font-size: 11px; color: #8B8478; cursor: pointer; border-radius: 999px;">\u00b1 7d context</button>
+    </div>
+    <span style="margin-left: auto; font-style: italic;">Vertical line marks today \u00b7 cells dim past today (forecast)</span>
+  </div>
+
+  <div style="overflow-x: auto;">
+    <div style="min-width: 1100px; position: relative;">
+
+      <div style="display: grid; grid-template-columns: 200px repeat(5, minmax(140px, 1fr)) 200px; gap: 0; border: 0.5px solid #DFD8CC; border-radius: 8px; overflow: hidden;">
+
+        <div style="background: #FAFAF7; padding: 12px; border-right: 1px solid #B4B2A9; border-bottom: 1px solid #B4B2A9; font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: #8B8478; font-weight: 600; display: flex; align-items: center;">Crew \u00b7 trip span</div>
+        <div style="background: #FAFAF7; padding: 12px 8px; text-align: center; border-bottom: 1px solid #B4B2A9; border-right: 0.5px solid #DFD8CC;">
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 14px;">Day 1 \u00b7 embark</div>
+          <div style="font-size: 9px; color: #8B8478; letter-spacing: 1px; text-transform: uppercase;">Wed 1 May</div>
+        </div>
+        <div style="background: #FAFAF7; padding: 12px 8px; text-align: center; border-bottom: 1px solid #B4B2A9; border-right: 0.5px solid #DFD8CC;">
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 14px;">Day 2</div>
+          <div style="font-size: 9px; color: #8B8478; letter-spacing: 1px; text-transform: uppercase;">Thu 2 May</div>
+        </div>
+        <div style="background: #FAECE7; padding: 12px 8px; text-align: center; border-bottom: 1px solid #B4B2A9; border-right: 0.5px solid #DFD8CC;">
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 14px; color: #C65A1A; font-weight: 600;">Day 3 \u00b7 today</div>
+          <div style="font-size: 9px; color: #C65A1A; letter-spacing: 1px; text-transform: uppercase; font-weight: 500;">Fri 3 May</div>
+        </div>
+        <div style="background: #FAFAF7; padding: 12px 8px; text-align: center; border-bottom: 1px solid #B4B2A9; border-right: 0.5px solid #DFD8CC;">
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 14px;">Day 4</div>
+          <div style="font-size: 9px; color: #8B8478; letter-spacing: 1px; text-transform: uppercase;">Sat 4 May</div>
+        </div>
+        <div style="background: #FAFAF7; padding: 12px 8px; text-align: center; border-bottom: 1px solid #B4B2A9; border-right: 1px solid #B4B2A9;">
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 14px;">Day 5 \u00b7 disembark</div>
+          <div style="font-size: 9px; color: #8B8478; letter-spacing: 1px; text-transform: uppercase;">Sun 5 May</div>
+        </div>
+        <div style="background: #FAFAF7; padding: 12px 8px; text-align: center; border-bottom: 1px solid #B4B2A9;">
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 14px;">Trajectory</div>
+          <div style="font-size: 9px; color: #8B8478; letter-spacing: 1px; text-transform: uppercase;">rolling 7d \u00b7 MLC 77h</div>
+        </div>
+
+        <div style="background: #FAFAF7; padding: 8px 12px; border-right: 1px solid #B4B2A9; border-bottom: 0.5px solid #B4B2A9; font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: #8B8478; font-weight: 600; grid-column: 1 / -1;">Interior \u00b7 4 crew</div>
+
+        <div style="padding: 12px; border-right: 1px solid #B4B2A9; border-bottom: 0.5px solid #ECE6DC; background: #FFFFFF;">
+          <div style="font-size: 13px; font-weight: 500;">Claire</div>
+          <div style="font-size: 11px; color: #8B8478; margin-top: 1px;">Chief stew</div>
+        </div>
+        <div class="week-cell compliant">
+          <div class="total">11h</div>
+          <div class="type-line">duty</div>
+          <div class="rolling-7d"><span class="lbl">7d rest</span><span class="num">81h</span></div>
+        </div>
+        <div class="week-cell compliant">
+          <div class="total">10h</div>
+          <div class="type-line">duty</div>
+          <div class="rolling-7d"><span class="lbl">7d rest</span><span class="num">79h</span></div>
+        </div>
+        <div class="week-cell violation">
+          <div class="glyph-pending" title="Pending correction">!</div>
+          <div class="total">12h</div>
+          <div class="type-line">duty \u00b7 on now</div>
+          <div class="rolling-7d"><span class="lbl">7d rest</span><span class="num">73h \u2193 short 4h</span></div>
+        </div>
+        <div class="week-cell violation future">
+          <div class="total">12h</div>
+          <div class="type-line">duty</div>
+          <div class="rolling-7d"><span class="lbl">7d rest</span><span class="num">71h \u2193 short 6h</span></div>
+        </div>
+        <div class="week-cell compliant future">
+          <div class="total">\u2014</div>
+          <div class="type-line">off</div>
+          <div class="rolling-7d"><span class="lbl">7d rest</span><span class="num">79h \u2191</span></div>
+        </div>
+        <div class="summary-cell warning">
+          <div style="display: flex; gap: 3px; margin-bottom: 8px;">
+            <span class="day-pill compliant">W</span>
+            <span class="day-pill compliant">T</span>
+            <span class="day-pill violation">F</span>
+            <span class="day-pill violation future">S</span>
+            <span class="day-pill compliant future">S</span>
+          </div>
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 14px; line-height: 1.2; color: #7A2E1E;">Worst on Sat</div>
+          <div style="font-size: 10px; color: #7A2E1E; margin-top: 4px; font-weight: 500;">71h rest \u00b7 6h short</div>
+        </div>
+
+        <div style="padding: 12px; border-right: 1px solid #B4B2A9; border-bottom: 0.5px solid #ECE6DC; background: #FFFFFF;">
+          <div style="font-size: 13px; font-weight: 500;">Marco</div>
+          <div style="font-size: 11px; color: #8B8478; margin-top: 1px;">2nd stew</div>
+        </div>
+        <div class="week-cell compliant">
+          <div class="total">10h</div>
+          <div class="type-line">duty</div>
+          <div class="rolling-7d"><span class="lbl">7d rest</span><span class="num">88h</span></div>
+        </div>
+        <div class="week-cell off">
+          <div class="total">\u2014</div>
+          <div class="type-line">off</div>
+          <div class="rolling-7d"><span class="lbl">7d rest</span><span class="num">94h</span></div>
+        </div>
+        <div class="week-cell compliant">
+          <div class="total">10h</div>
+          <div class="type-line">duty</div>
+          <div class="rolling-7d"><span class="lbl">7d rest</span><span class="num">92h</span></div>
+        </div>
+        <div class="week-cell compliant future">
+          <div class="total">10h</div>
+          <div class="type-line">duty</div>
+          <div class="rolling-7d"><span class="lbl">7d rest</span><span class="num">90h</span></div>
+        </div>
+        <div class="week-cell compliant future">
+          <div class="total">8h</div>
+          <div class="type-line">duty</div>
+          <div class="rolling-7d"><span class="lbl">7d rest</span><span class="num">96h \u2191</span></div>
+        </div>
+        <div class="summary-cell">
+          <div style="display: flex; gap: 3px; margin-bottom: 8px;">
+            <span class="day-pill compliant">W</span>
+            <span class="day-pill off">T</span>
+            <span class="day-pill compliant">F</span>
+            <span class="day-pill compliant future">S</span>
+            <span class="day-pill compliant future">S</span>
+          </div>
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 14px; line-height: 1.2; color: #2D5A3A;">Steady \u2713</div>
+          <div style="font-size: 10px; color: #2D5A3A; margin-top: 4px;">88h min \u00b7 11h spare</div>
+        </div>
+
+        <div style="padding: 12px; border-right: 1px solid #B4B2A9; border-bottom: 0.5px solid #ECE6DC; background: #FFFFFF;">
+          <div style="font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 4px;">Emma <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#C65A1A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+          <div style="font-size: 11px; color: #8B8478; margin-top: 1px;">3rd stew</div>
+        </div>
+        <div class="week-cell violation">
+          <div class="glyph-confirmed" title="Logged with reason">\u2713</div>
+          <div class="total">14h</div>
+          <div class="type-line">duty</div>
+          <div class="rolling-7d"><span class="lbl">7d rest</span><span class="num">75h \u2193 short 2h</span></div>
+        </div>
+        <div class="week-cell violation">
+          <div class="glyph-confirmed" title="Logged with reason">\u2713</div>
+          <div class="total">15h</div>
+          <div class="type-line">duty</div>
+          <div class="rolling-7d"><span class="lbl">7d rest</span><span class="num">68h \u2193 short 9h</span></div>
+        </div>
+        <div class="week-cell violation">
+          <div class="total">12h</div>
+          <div class="type-line">duty \u00b7 on now</div>
+          <div class="rolling-7d"><span class="lbl">7d rest</span><span class="num">63h \u2193 short 14h</span></div>
+        </div>
+        <div class="week-cell violation future">
+          <div class="total">8h</div>
+          <div class="type-line">standby \u00b7 support</div>
+          <div class="rolling-7d"><span class="lbl">7d rest</span><span class="num">66h \u2193 short 11h</span></div>
+        </div>
+        <div class="week-cell compliant future">
+          <div class="total">\u2014</div>
+          <div class="type-line">off</div>
+          <div class="rolling-7d"><span class="lbl">7d rest</span><span class="num">79h \u2191</span></div>
+        </div>
+        <div class="summary-cell warning">
+          <div style="display: flex; gap: 3px; margin-bottom: 8px;">
+            <span class="day-pill violation">W</span>
+            <span class="day-pill violation">T</span>
+            <span class="day-pill violation">F</span>
+            <span class="day-pill violation future">S</span>
+            <span class="day-pill compliant future">S</span>
+          </div>
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 14px; line-height: 1.2; color: #7A2E1E;">Worst on Fri</div>
+          <div style="font-size: 10px; color: #7A2E1E; margin-top: 4px; font-weight: 500;">63h rest \u00b7 14h short</div>
+        </div>
+
+        <div style="background: #FAFAF7; padding: 8px 12px; border-right: 1px solid #B4B2A9; border-bottom: 0.5px solid #B4B2A9; font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: #8B8478; font-weight: 600; grid-column: 1 / -1;">Deck \u00b7 3 crew</div>
+
+        <div style="padding: 12px; border-right: 1px solid #B4B2A9; border-bottom: 0.5px solid #ECE6DC; background: #FFFFFF;">
+          <div style="font-size: 13px; font-weight: 500;">James</div>
+          <div style="font-size: 11px; color: #8B8478; margin-top: 1px;">Bosun</div>
+        </div>
+        <div class="week-cell compliant">
+          <div class="total">9h</div>
+          <div class="type-line">duty</div>
+          <div class="rolling-7d"><span class="lbl">7d rest</span><span class="num">85h</span></div>
+        </div>
+        <div class="week-cell compliant">
+          <div class="total">8h</div>
+          <div class="type-line">watch \u00b7 navigation</div>
+          <div class="rolling-7d"><span class="lbl">7d rest</span><span class="num">86h</span></div>
+        </div>
+        <div class="week-cell compliant">
+          <div class="total">8h</div>
+          <div class="type-line">duty</div>
+          <div class="rolling-7d"><span class="lbl">7d rest</span><span class="num">88h</span></div>
+        </div>
+        <div class="week-cell compliant future">
+          <div class="total">4h</div>
+          <div class="type-line">watch \u00b7 anchor</div>
+          <div class="rolling-7d"><span class="lbl">7d rest</span><span class="num">90h</span></div>
+        </div>
+        <div class="week-cell compliant future">
+          <div class="total">8h</div>
+          <div class="type-line">duty</div>
+          <div class="rolling-7d"><span class="lbl">7d rest</span><span class="num">88h</span></div>
+        </div>
+        <div class="summary-cell">
+          <div style="display: flex; gap: 3px; margin-bottom: 8px;">
+            <span class="day-pill compliant">W</span>
+            <span class="day-pill compliant">T</span>
+            <span class="day-pill compliant">F</span>
+            <span class="day-pill compliant future">S</span>
+            <span class="day-pill compliant future">S</span>
+          </div>
+          <div style="font-family: 'DM Serif Display', Georgia, serif; font-size: 14px; line-height: 1.2; color: #2D5A3A;">Steady \u2713</div>
+          <div style="font-size: 10px; color: #2D5A3A; margin-top: 4px;">85h min \u00b7 8h spare</div>
+        </div>
+
+      </div>
+
+      <div class="now-marker" style="left: calc(200px + (2.5 / 5) * (100% - 380px));"></div>
+
+    </div>
+  </div>
+
+  <div style="margin-top: 14px; padding-top: 14px; border-top: 0.5px solid #DFD8CC; display: flex; gap: 14px; align-items: center; font-size: 11px; color: #8B8478; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 14px; height: 14px; background: #F0F4EE; border: 0.5px solid #DFD8CC;"></span><span>Compliant</span></div>
+    <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 14px; height: 14px; background: #FAECE7; border: 0.5px solid #F5C9B8;"></span><span>Violation</span></div>
+    <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 2px; height: 14px; background: #C65A1A;"></span><span>Today (forecast cells dim)</span></div>
+    <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 16px; height: 16px; background: #C65A1A; color: #FFFFFF; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; box-shadow: 0 0 0 2px #FFFFFF;">!</span><span>Pending review</span></div>
+    <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 16px; height: 16px; background: #FFFFFF; color: #2D5A3A; border: 1px solid #C7DCC9; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700;">\u2713</span><span>Confirmed / logged</span></div>
+    <span style="margin-left: auto; font-style: italic;"><a href="#" style="color: #C65A1A; text-decoration: none; border-bottom: 0.5px solid #FAECE7;">Review pending</a></span>
+  </div>
+
+</div>
+
+</div></widget_code>
+</body>
+</html>
