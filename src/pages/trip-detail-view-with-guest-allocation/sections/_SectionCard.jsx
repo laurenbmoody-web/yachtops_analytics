@@ -1,7 +1,7 @@
 import React from 'react';
 
 /**
- * Shared scaffold for a trip-detail-v2 section card.
+ * Shared scaffold for a trip detail section card.
  *
  * Renders a `.p-card` with a top-border accent (navy / accent / brass /
  * archived-grey), plus an optional editorial header block: caps meta

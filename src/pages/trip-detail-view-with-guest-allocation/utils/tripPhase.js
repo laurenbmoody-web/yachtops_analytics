@@ -1,4 +1,4 @@
-// Shared utilities for trip-detail-v2 Phase 2 sections.
+// Shared utilities for the trip detail page — Phase 2 sections.
 //
 // Phase computation collapses the existing TripStatus + dates onto the
 // four editorial phases used by the redesign (Planning / Aboard /
