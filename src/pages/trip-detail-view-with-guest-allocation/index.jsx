@@ -5,6 +5,7 @@ import '../pantry/pantry.css';
 import { getTripById, resolveSupabaseTripId } from '../trips-management-dashboard/utils/tripStorage';
 import { useItinerary } from '../trip-itinerary-timeline/hooks/useItinerary';
 
+import RotaDrawer         from './components/RotaDrawer';
 import SectionHeader      from './sections/SectionHeader';
 import SectionRoute       from './sections/SectionRoute';
 import SectionComingUp    from './sections/SectionComingUp';
@@ -24,6 +25,7 @@ export default function TripDetail() {
   const [trip, setTrip] = useState(null);
   const [status, setStatus] = useState('loading');
   const [tripUuid, setTripUuid] = useState(null);
+  const [rotaOpen, setRotaOpen] = useState(false);
 
   useEffect(() => {
     const prev = document.body.style.background;
@@ -96,17 +98,18 @@ export default function TripDetail() {
     <>
       <Header />
       <div className="editorial-page">
-        <SectionHeader trip={trip} days={days} />
+        <SectionHeader trip={trip} days={days} onOpenRota={() => setRotaOpen(true)} />
         <SectionRoute trip={trip} days={days} loading={itineraryLoading} />
         <SectionComingUp trip={trip} days={days} />
         <SectionAboard trip={trip} />
-        <SectionCrew trip={trip} />
+        <SectionCrew trip={trip} onOpenRota={() => setRotaOpen(true)} />
         <SectionProvisioning trip={trip} />
         <SectionMemory trip={trip} />
         <SectionDocuments trip={trip} />
         <SectionPhotos trip={trip} />
         <SectionActivity trip={trip} />
       </div>
+      <RotaDrawer open={rotaOpen} onClose={() => setRotaOpen(false)} />
     </>
   );
 }
