@@ -27,7 +27,6 @@ import LaundryManagementDashboard from './pages/laundry-management-dashboard';
 import LaundryCalendarHistoryView from './pages/laundry-calendar-history-view';
 import TripsManagementDashboard from './pages/trips-management-dashboard';
 import TripDetailView from './pages/trip-detail-view-with-guest-allocation';
-import TripDetailV2 from './pages/trip-detail-v2';
 import TripPreferencesView from './pages/trip-preferences-view';
 import TripPreferencesOverview from './pages/trip-preferences-overview';
 import PreferencesDirectory from './pages/preferences-directory';
@@ -1102,7 +1101,6 @@ const Routes = () => {
         {/* Trips Routes */}
         <Route path="/trips-management-dashboard" element={<ProtectedRoute><TripsManagementDashboard /></ProtectedRoute>} />
         <Route path="/trips/:tripId" element={<ProtectedRoute><TripDetailView /></ProtectedRoute>} />
-        <Route path="/trips/:tripId/v2" element={<ProtectedRoute><TripDetailV2 /></ProtectedRoute>} />
         <Route path="/trips/:tripId/itinerary" element={<ProtectedRoute><TripItineraryTimeline /></ProtectedRoute>} />
         <Route path="/trips/:tripId/preferences" element={<ProtectedRoute><TripPreferencesView /></ProtectedRoute>} />
         <Route path="/trips/:tripId/preferences-overview" element={<ProtectedRoute><TripPreferencesOverview /></ProtectedRoute>} />
