@@ -10,8 +10,17 @@ function LiveClock() {
   return time.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 
-export default function NowAndDutyStack() {
+/**
+ * NowAndDutyStack — the right-rail mini-cards shown beside the editorial
+ * headline (Now + On duty).
+ *
+ * Optional `onDutyClick` makes the On-duty card behave as a clickable
+ * trigger (e.g. trip detail page opening the rota drawer). Default: not
+ * clickable, preserving the Pantry StandbyPage's static treatment.
+ */
+export default function NowAndDutyStack({ onDutyClick }) {
   const { onDuty } = useInteriorDuty();
+  const clickable = typeof onDutyClick === 'function';
 
   return (
     <div className="p-now-stack">
@@ -22,7 +31,21 @@ export default function NowAndDutyStack() {
       </div>
 
       {/* On duty card */}
-      <div className="p-card" style={{ padding: '14px 18px' }}>
+      <div
+        className="p-card"
+        style={{
+          padding: '14px 18px',
+          cursor: clickable ? 'pointer' : 'default',
+          transition: clickable ? 'background 0.15s, box-shadow 0.15s' : 'none',
+        }}
+        role={clickable ? 'button' : undefined}
+        tabIndex={clickable ? 0 : undefined}
+        onClick={clickable ? onDutyClick : undefined}
+        onKeyDown={clickable ? (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onDutyClick(); }
+        } : undefined}
+        aria-label={clickable ? 'Open the rota' : undefined}
+      >
         <div className="p-caps" style={{ marginBottom: 4 }}>On duty</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{
