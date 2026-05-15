@@ -594,3 +594,47 @@
   padding: 60px 0; text-align: center; font-size: 13px;
   color: var(--sd-muted);
 }
+
+/* Skeleton block — pulses while the async metrics bundle resolves
+   underneath the synchronous profile/contacts content. */
+.sd-skel {
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(90deg,
+    rgba(38, 42, 83, 0.06) 25%,
+    rgba(38, 42, 83, 0.10) 37%,
+    rgba(38, 42, 83, 0.06) 63%);
+  background-size: 400% 100%;
+  animation: sd-skel-pulse 1.4s ease-in-out infinite;
+}
+@keyframes sd-skel-pulse {
+  0%   { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+/* AS TRANSACTED multi-currency stack — replaces the single hero number
+   on Total Spend / Avg Order / dept total + legend rows. */
+.sd-currency-stack { display: flex; flex-direction: column; gap: 2px; }
+.sd-currency-stack .sd-stack-line { font-size: 22px; line-height: 1.2; }
+.sd-kpi-essential .sd-currency-stack .sd-stack-line { font-size: 26px; }
+.sd-stack-more {
+  font-size: 11px; color: var(--sd-muted-soft); margin-top: 2px;
+  font-weight: 600; letter-spacing: 0.04em;
+}
+.sd-dept-legend-row .total .sd-currency-stack { align-items: flex-end; }
+.sd-dept-legend-row .total .sd-currency-stack .sd-stack-line {
+  font-size: 12px; font-weight: 600; color: var(--sd-navy);
+}
+
+/* Note shown in place of charts/bars in AS TRANSACTED mode. */
+.sd-trend-note {
+  font-size: 12px; color: var(--sd-muted); font-style: italic;
+  padding: 22px 4px; text-align: center;
+}
+
+/* Uncategorised legend row — rendered as a static div (no clickthrough);
+   kill the button affordances so it reads as informational only. */
+.sd-dept-legend-row.is-static {
+  cursor: default;
+}
+.sd-dept-legend-row.is-static:hover { background: transparent; }
