@@ -4,9 +4,10 @@ import Header from '../../components/navigation/Header';
 import '../pantry/pantry.css';
 import './crew-rota.css';
 import RotaTodayGrid from '../trip-detail-view-with-guest-allocation/components/RotaTodayGrid';
-import { MOCK_CREW, DEPT_ORDER } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
+import { DEPT_ORDER } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
 import CrewListView from './CrewListView';
 import RestPanelPopover from './RestPanelPopover';
+import { useRotaShifts } from './useRotaShifts';
 
 const EDITORIAL_BG = '#F5F1EA';
 
@@ -63,11 +64,13 @@ export default function CrewRotaPage() {
     return () => { document.body.style.background = prev; };
   }, []);
 
-  const total = MOCK_CREW.length;
-  const onDuty = MOCK_CREW.filter(c => c.onNow && !c.offToday).length;
+  const { crew, loading, error } = useRotaShifts();
+
+  const total = crew.length;
+  const onDuty = crew.filter(c => c.onNow && !c.offToday).length;
   const meta = `${fullDateLabel(now)} · ${total} crew on this trip · ${onDuty} on duty now`;
 
-  const presentDepts = DEPT_ORDER.filter(d => MOCK_CREW.some(c => c.department === d));
+  const presentDepts = DEPT_ORDER.filter(d => crew.some(c => c.department === d));
   const cardContext = `${presentDepts.join(' · ')}  —  ${total} crew · ${onDuty} on duty`;
 
   return (
@@ -123,9 +126,26 @@ export default function CrewRotaPage() {
           </div>
 
           <div className="crew-rota-card-body">
-            {view === 'grid'
-              ? <RotaTodayGrid now={now} gridStartHour={6} onCrewClick={setSelectedCrew} />
-              : <CrewListView onCrewClick={setSelectedCrew} />}
+            {loading ? (
+              <div style={{
+                padding: '48px 0', textAlign: 'center',
+                fontFamily: 'var(--font-sans)', fontSize: 13,
+                color: 'var(--ink-muted)', fontStyle: 'italic',
+              }}>
+                Loading the rota…
+              </div>
+            ) : error ? (
+              <div style={{
+                padding: '48px 0', textAlign: 'center',
+                fontFamily: 'var(--font-sans)', fontSize: 13, color: '#7A2E1E',
+              }}>
+                Couldn't load the rota. {error}
+              </div>
+            ) : view === 'grid' ? (
+              <RotaTodayGrid crew={crew} now={now} gridStartHour={6} onCrewClick={setSelectedCrew} />
+            ) : (
+              <CrewListView crew={crew} onCrewClick={setSelectedCrew} />
+            )}
           </div>
 
           <div className="crew-rota-card-footer">
