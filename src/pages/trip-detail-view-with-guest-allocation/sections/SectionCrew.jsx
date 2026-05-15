@@ -3,12 +3,9 @@ import SectionCard from './_SectionCard';
 
 // ── Mock crew data ──────────────────────────────────────────────────────────
 //
-// Phase 3 renders the crew list against the same mock people shown in
-// docs/crew-list-reference.html (View B · list) and docs/rota-today-
-// final-reference.html. No rota / shifts Supabase table exists yet; this
-// data is shared with RotaTodayGrid so both surfaces stay consistent.
-//
-// Export here so the rota drawer can read the same shape.
+// Shared with RotaTodayGrid (future rota page). No rota / shifts Supabase
+// table exists yet; this data keeps the glance widget and the grid in sync.
+// Exported — RotaTodayGrid imports MOCK_CREW.
 
 export const MOCK_CREW = [
   {
@@ -76,219 +73,126 @@ export const MOCK_CREW = [
   },
 ];
 
-const DEPT_ORDER = ['Interior', 'Deck', 'Galley', 'Engineering'];
+export const DEPT_ORDER = ['Interior', 'Deck', 'Galley', 'Engineering'];
 
 // ── Visual primitives ───────────────────────────────────────────────────────
 
-const MlcTriangle = ({ size = 11 }) => (
+export const MlcTriangle = ({ size = 11 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-    stroke="#C65A1A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    stroke="#C65A1A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+    style={{ flexShrink: 0 }}>
     <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
     <line x1="12" y1="9" x2="12" y2="13"/>
     <line x1="12" y1="17" x2="12.01" y2="17"/>
   </svg>
 );
 
-function StatusPill({ kind }) {
-  if (kind === 'on-now') {
-    return (
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 5,
-        fontSize: 11, color: '#C65A1A', fontWeight: 500,
-        background: '#FAECE7', padding: '4px 10px', borderRadius: 999,
-        whiteSpace: 'nowrap',
-      }}>On now</div>
-    );
-  }
-  if (kind === 'off-now') {
-    return (
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 5,
-        fontSize: 11, color: '#695880',
-        background: '#ECE6DC', padding: '4px 10px', borderRadius: 999,
-        whiteSpace: 'nowrap',
-      }}>Off now</div>
-    );
-  }
-  // 'off' — off the rota today
-  return (
-    <div style={{
-      fontSize: 11, color: '#695880',
-      background: '#ECE6DC', padding: '4px 10px', borderRadius: 999,
-      whiteSpace: 'nowrap',
-    }}>Off</div>
-  );
-}
-
-function DepartmentDivider({ label, count }) {
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 12,
-      padding: '12px 0 8px',
-    }}>
-      <div style={{
-        fontSize: 9, letterSpacing: 1.8, textTransform: 'uppercase',
-        color: '#8B8478', fontWeight: 600, flexShrink: 0,
-      }}>{label} · {count} crew</div>
-      <div style={{ height: '0.5px', background: '#DFD8CC', flex: 1 }} />
-    </div>
-  );
-}
-
-function CrewRow({ crew }) {
-  const isOff = crew.offToday;
-  const onDuty = crew.onNow && !isOff;
-  const restColor = crew.mlcWarning ? '#C65A1A' : '#1C1B3A';
-
-  const avatarBg   = onDuty ? '#FAECE7' : '#ECE6DC';
-  const avatarText = onDuty ? '#7A2E1E' : '#5C5440';
-
-  const roleLine = (() => {
-    if (isOff) return crew.shiftText; // "off today, back Saturday 08:00"
-    if (crew.mlcWarning) {
-      return (
-        <>
-          {crew.role} · {crew.shiftText} ·{' '}
-          <span style={{ color: '#C65A1A', fontWeight: 500 }}>rest below MLC</span>
-        </>
-      );
-    }
-    return `${crew.role} · ${crew.shiftText}`;
-  })();
-
-  const pillKind = isOff ? 'off' : (onDuty ? 'on-now' : 'off-now');
-
-  return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: '36px 1fr auto auto',
-      gap: 14, alignItems: 'center',
-      padding: '12px 0',
-      borderBottom: '0.5px solid #ECE6DC',
-      opacity: isOff ? 0.55 : 1,
-    }}>
-      <div style={{
-        width: 36, height: 36, borderRadius: '50%',
-        background: avatarBg, color: avatarText,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 12, fontWeight: 600,
-      }}>{crew.initials}</div>
-
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{
-            fontFamily: 'var(--font-serif)',
-            fontSize: 17, lineHeight: 1.1,
-          }}>{crew.name}</div>
-          {crew.mlcWarning && <MlcTriangle />}
-        </div>
-        <div style={{ fontSize: 11, color: '#695880', marginTop: 2 }}>
-          {isOff ? `${crew.role} · ${crew.shiftText}` : roleLine}
-        </div>
-      </div>
-
-      {crew.rest24h ? (
-        <div style={{ fontSize: 11, color: '#695880', textAlign: 'right' }}>
-          <div style={{
-            fontFamily: 'var(--font-serif)', fontSize: 14, color: restColor,
-            fontWeight: crew.mlcWarning ? 600 : 400,
-          }}>{crew.rest24h}</div>
-          <div style={{
-            fontSize: 10, letterSpacing: 1, textTransform: 'uppercase',
-            color: '#8B8478', marginTop: 2,
-          }}>Rest 24h</div>
-        </div>
-      ) : (
-        <div />
-      )}
-
-      <StatusPill kind={pillKind} />
-    </div>
-  );
-}
-
 // ── Section ─────────────────────────────────────────────────────────────────
-
-function todayLabel(now = new Date()) {
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const months = ['January', 'February', 'March', 'April', 'May', 'June',
-                  'July', 'August', 'September', 'October', 'November', 'December'];
-  return `${days[now.getDay()]} ${now.getDate()} ${months[now.getMonth()]}`;
-}
 
 export default function SectionCrew({ onOpenRota }) {
   const crew = MOCK_CREW;
-  const onNowCount = crew.filter(c => c.onNow && !c.offToday).length;
-  const pendingCorrections = 1;
+  const total = crew.length;
+  const onDuty = crew.filter(c => c.onNow && !c.offToday).length;
 
-  if (crew.length === 0) {
-    return (
-      <SectionCard
-        accent="brass"
-        titleNode={<>Crew on <em>this trip</em>.</>}
-      >
-        <p style={{
-          fontFamily: 'var(--font-serif)', fontStyle: 'italic',
-          fontSize: 16, color: 'var(--ink-muted)', margin: 0,
-        }}>
-          Crew list will appear when members are added.
-        </p>
-      </SectionCard>
-    );
-  }
-
-  // Group by department, respecting DEPT_ORDER for the canonical sort order.
+  // Department counts in canonical order.
   const byDept = new Map();
   for (const c of crew) {
     const d = c.department || 'Other';
-    if (!byDept.has(d)) byDept.set(d, []);
-    byDept.get(d).push(c);
+    if (!byDept.has(d)) byDept.set(d, { on: 0, off: 0 });
+    const bucket = byDept.get(d);
+    if (c.onNow && !c.offToday) bucket.on += 1;
+    else bucket.off += 1;
   }
   const orderedDepts = [
     ...DEPT_ORDER.filter(d => byDept.has(d)),
     ...Array.from(byDept.keys()).filter(d => !DEPT_ORDER.includes(d)),
   ];
 
-  const meta = `${todayLabel()} · ${crew.length} crew on this trip · ${onNowCount} on duty now`;
+  const warnings = crew.filter(c => c.mlcWarning);
 
   return (
     <SectionCard
       accent="brass"
-      meta={meta}
+      meta={`${total} crew`}
       titleNode={<>Crew on <em>this trip</em>.</>}
-      actions={
-        <button
-          className="v2-btn-ghost"
-          onClick={onOpenRota}
-          style={{ cursor: onOpenRota ? 'pointer' : 'default' }}
-        >
-          Open the rota
-        </button>
-      }
+      style={{ maxWidth: 220 }}
     >
-      {orderedDepts.map(dept => (
-        <div key={dept}>
-          <DepartmentDivider label={dept} count={byDept.get(dept).length} />
-          {byDept.get(dept).map(c => <CrewRow key={c.id} crew={c} />)}
-        </div>
-      ))}
-
-      <div style={{
-        marginTop: 14, paddingTop: 14,
-        borderTop: '0.5px solid #DFD8CC',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        fontSize: 11, color: '#8B8478',
-      }}>
-        <span>Tap a crew member for their week.</span>
-        <span style={{ fontStyle: 'italic' }}>
-          {pendingCorrections} pending correction ·{' '}
-          <span style={{
-            color: '#C65A1A', textDecoration: 'underline',
-            textDecorationColor: '#FAECE7', textUnderlineOffset: 3,
-            cursor: 'pointer',
-          }}>review</span>
-        </span>
+      {/* Hero — on duty count */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 0, marginTop: 4 }}>
+        <span style={{
+          fontFamily: 'var(--font-serif)', fontSize: 32, color: '#1C1B3A', lineHeight: 1,
+        }}>{onDuty}</span>
+        <span style={{
+          fontFamily: 'var(--font-serif)', fontSize: 32, color: '#DFD8CC', lineHeight: 1,
+          margin: '0 6px',
+        }}>/</span>
+        <span style={{
+          fontFamily: 'var(--font-serif)', fontSize: 20, color: '#8B8478', lineHeight: 1,
+        }}>{total}</span>
+        <span style={{
+          fontFamily: 'var(--font-sans)', fontSize: 11, color: '#695880', marginLeft: 6,
+        }}>on duty</span>
       </div>
+
+      {/* Department breakdown */}
+      <div style={{ marginTop: 16 }}>
+        {orderedDepts.map(dept => {
+          const { on, off } = byDept.get(dept);
+          return (
+            <div key={dept} style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '8px 0', borderTop: '0.5px solid #ECE6DC',
+            }}>
+              <span style={{
+                fontSize: 9, textTransform: 'uppercase', letterSpacing: 1,
+                color: '#8B8478', fontWeight: 600,
+              }}>{dept}</span>
+              <span style={{ fontSize: 11 }}>
+                <span style={{ color: '#1C1B3A' }}>{on} on</span>
+                {off > 0 && (
+                  <span style={{ color: '#8B8478' }}> · {off} off</span>
+                )}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* MLC warnings */}
+      {warnings.length > 0 && (
+        <div style={{
+          marginTop: 4, paddingTop: 10, borderTop: '0.5px solid #ECE6DC',
+          display: 'flex', flexDirection: 'column', gap: 6,
+        }}>
+          {warnings.map(c => (
+            <div key={c.id} style={{
+              display: 'flex', alignItems: 'flex-start', gap: 6,
+              fontSize: 10, color: '#C65A1A', fontWeight: 500, lineHeight: 1.3,
+            }}>
+              <span style={{ marginTop: 1 }}><MlcTriangle /></span>
+              <span>{c.name} {c.rest24h} · below MLC daily</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Rota link */}
+      <button
+        type="button"
+        onClick={onOpenRota}
+        style={{
+          marginTop: 12, width: '100%',
+          background: 'transparent',
+          border: '0.5px solid #DFD8CC',
+          borderRadius: 999,
+          padding: '6px 14px',
+          fontFamily: 'var(--font-sans)',
+          fontSize: 11, fontWeight: 500, color: '#1C1B3A',
+          cursor: 'pointer',
+        }}
+      >
+        Open the rota →
+      </button>
     </SectionCard>
   );
 }
