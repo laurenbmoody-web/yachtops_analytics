@@ -533,142 +533,168 @@
 .rest-btn.ghost:hover { background: #FAFAF7; }
 .rest-btn.push { margin-left: auto; }
 
-/* ============================================================
-   Rota grid — recovered from rota-drawer.css (RotaTodayGrid deps)
-   ============================================================ */
-.rota-grid-wrap { overflow-x: auto; margin: 0 -8px; padding: 0 8px; }
-.rota-grid-inner { min-width: 1200px; position: relative; }
 
-.rota-header-row {
+/* ============================================================
+   Rota grid — modern v4 (rounded cells, 2px gaps, no borders)
+   Spec-prefixed with rota- to avoid global class collisions.
+   ============================================================ */
+.rota-grid-wrap { overflow-x: auto; }
+.rota-grid-inner { min-width: 1100px; position: relative; }
+
+/* Hour labels — 24 cols above the 48-col grid */
+.rota-hour-row {
   display: grid;
-  grid-template-columns: 220px repeat(24, minmax(40px, 1fr));
-  gap: 0;
-  padding-bottom: 6px;
-  border-bottom: 1px solid #B4B2A9;
+  grid-template-columns: 200px repeat(24, 1fr);
+  padding-bottom: 10px;
+  margin-bottom: 4px;
 }
-.rota-header-label {
+.rota-hour-spacer {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 9px;
   letter-spacing: 1.5px;
   text-transform: uppercase;
   color: #8B8478;
-  padding: 0 12px 8px 14px;
-  background: #FFFFFF;
+  display: flex;
+  align-items: flex-end;
+  padding: 0 12px 0 12px;
   position: sticky;
   left: 0;
-  z-index: 4;
-  border-right: 1px solid #B4B2A9;
-  box-shadow: 1px 0 2px -1px rgba(28, 27, 58, 0.04);
+  z-index: 2;
+  background: #FFFFFF;
 }
 .rota-hour-label {
   font-family: 'DM Serif Display', Georgia, serif;
   font-size: 11px;
-  color: #695880;
+  color: #8B8478;
   text-align: center;
-  padding-bottom: 8px;
 }
 .rota-hour-label.now { color: #C65A1A; font-weight: 600; font-size: 13px; }
-.rota-hour-label.tomorrow { color: #8B8478; font-style: italic; }
+.rota-hour-label.tm  { color: #B4B2A9; font-style: italic; }
 
-.rota-dept-row { display: grid; grid-template-columns: 220px 1fr; align-items: center; }
+/* Department divider */
+.rota-dept-row {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  align-items: center;
+  margin: 12px 0 6px;
+}
 .rota-dept {
-  padding: 14px 14px 8px 14px;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 9px;
   letter-spacing: 1.8px;
   text-transform: uppercase;
   color: #8B8478;
   font-weight: 600;
-  background: #FFFFFF;
+  padding: 0 12px;
   position: sticky;
   left: 0;
-  z-index: 4;
-  min-width: 220px;
-  max-width: 220px;
-  box-shadow: 1px 0 2px -1px rgba(28, 27, 58, 0.04);
-  border-right: 1px solid #B4B2A9;
+  z-index: 2;
+  background: #FFFFFF;
 }
-.rota-dept-rule { height: 0.5px; background: #DFD8CC; margin-left: 8px; }
+.rota-dept-rule { height: 0.5px; background: #ECE6DC; }
 
+/* Crew row — 48 cells, 2px gaps everywhere */
 .rota-row {
   display: grid;
-  grid-template-columns: 220px repeat(48, minmax(20px, 1fr));
-  gap: 0;
-  transition: background 0.15s;
+  grid-template-columns: 200px repeat(48, 1fr);
+  gap: 2px;
+  margin-bottom: 2px;
 }
-.rota-row.off-day { opacity: 0.55; }
-.rota-row:hover .rota-cell { background: #FAFAF7; }
-.rota-row:hover .rota-cell.filled { background: #1C1B3A; }
-.rota-row:hover .rota-cell.now { background: #C65A1A; }
-.rota-row:hover .rota-cell.tomorrow { background: #F0EBDF; }
-.rota-row:hover .rota-cell.tomorrow.filled { background: #1C1B3A; }
-.rota-row:hover .rota-name { background: #FAFAF7; box-shadow: 2px 0 4px -2px rgba(28, 27, 58, 0.08); }
-.rota-row:hover .rota-name.now-row { background: #F5DDD0; }
+.rota-row.off { opacity: 0.45; }
 
-.rota-name {
-  padding: 10px 14px 10px 14px;
-  border-bottom: 0.5px solid #ECE6DC;
-  border-right: 1px solid #B4B2A9;
-  box-sizing: border-box;
-  height: 56px;
+.rota-c {
+  height: 48px;
+  background: #F7F5F0;
+  border-radius: 4px;
+}
+.rota-c.f   { background: #1C1B3A; }
+.rota-c.sat { background: #EDEAE3; }
+
+/* Name cell — always white, Name · Role one line + rest line */
+.rota-nm {
+  padding: 8px 12px;
+  height: 48px;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  cursor: pointer;
   background: #FFFFFF;
   position: sticky;
   left: 0;
-  z-index: 4;
-  box-shadow: 1px 0 2px -1px rgba(28, 27, 58, 0.04);
-  cursor: pointer;
+  z-index: 2;
 }
-.rota-name.now-row { background: #FAECE7; }
-.rota-name.warning-row { background: #F5DDD0; }
-.rota-name:hover { background: #F5DDD0 !important; }
-
-.rota-name-title {
+.rota-nm-line {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 13px;
   font-weight: 500;
   color: #1C1B3A;
   display: flex;
   align-items: center;
-  gap: 4px;
 }
-.rota-name-role {
+.rota-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #B4B2A9;
+  margin: 0 7px;
+  flex-shrink: 0;
+}
+.rota-role {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  font-size: 11px;
+  font-weight: 400;
   color: #8B8478;
-  margin-top: 1px;
+  font-size: 11px;
 }
-.rota-rest-line {
+.rota-nm-rest {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 9px;
-  letter-spacing: 1px;
+  letter-spacing: 0.8px;
   text-transform: uppercase;
   color: #695880;
-  margin-top: 4px;
-  white-space: nowrap;
+  margin-top: 3px;
 }
-.rota-rest-line.warning { color: #C65A1A; }
-.rota-rest-num { color: #1C1B3A; font-weight: 500; }
-.rota-rest-num.warning { color: #7A2E1E; font-weight: 600; }
-.rota-rest-pipe { color: #C9C0AE; margin: 0 5px; }
-.rota-rest-pipe.warning { color: #F5C9B8; }
+.rota-nm-rest b { font-weight: 600; color: #1C1B3A; }
+.rota-pipe { color: #C9C0AE; margin: 0 4px; }
+.rota-nm-rest.w { color: #C65A1A; }
+.rota-nm-rest.w b { color: #C65A1A; }
 
-.rota-cell {
-  border-right: 0.5px solid #ECE6DC;
-  border-bottom: 0.5px solid #ECE6DC;
-  height: 56px;
-  box-sizing: border-box;
-  position: relative;
+/* Totals row */
+.rota-totals {
+  display: grid;
+  grid-template-columns: 200px repeat(48, 1fr);
+  gap: 2px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 0.5px solid #ECE6DC;
+}
+.rota-totals-label {
+  padding: 4px 12px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: #8B8478;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  position: sticky;
+  left: 0;
+  z-index: 2;
   background: #FFFFFF;
 }
-.rota-cell.hour-tick { border-right: 1px solid #B4B2A9; }
-.rota-cell.filled { background: #1C1B3A; }
-.rota-cell.now { background: #C65A1A; }
-.rota-cell.tomorrow { background: #FAF8F2; }
-.rota-cell.tomorrow.filled { background: #1C1B3A; }
+.rota-t {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  color: #B4B2A9;
+}
+.rota-t.has   { color: #1C1B3A; }
+.rota-t.heavy { color: #C65A1A; font-weight: 600; }
 
+/* Now-line */
 .rota-now-line {
   position: absolute;
   top: 0;
@@ -677,49 +703,5 @@
   background: #C65A1A;
   z-index: 3;
   pointer-events: none;
-  opacity: 0.7;
+  opacity: 0.5;
 }
-
-.rota-totals-row {
-  display: grid;
-  grid-template-columns: 220px repeat(48, minmax(20px, 1fr));
-  gap: 0;
-}
-.rota-totals-name {
-  padding: 8px 14px 8px 14px;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  font-size: 11px;
-  font-weight: 500;
-  color: #1C1B3A;
-  background: #FAFAF7;
-  border-top: 0.5px solid #DFD8CC;
-  border-bottom: 1px solid #B4B2A9;
-  border-right: 1px solid #B4B2A9;
-  box-sizing: border-box;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  position: sticky;
-  left: 0;
-  z-index: 4;
-  box-shadow: 1px 0 2px -1px rgba(28, 27, 58, 0.04);
-}
-.rota-totals-cell {
-  border-right: 0.5px solid #ECE6DC;
-  border-bottom: 1px solid #B4B2A9;
-  border-top: 0.5px solid #DFD8CC;
-  height: 32px;
-  background: #FAFAF7;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  font-size: 10px;
-  font-weight: 500;
-  color: #1C1B3A;
-}
-.rota-totals-cell.hour-tick { border-right: 1px solid #B4B2A9; }
-.rota-totals-cell.empty-shift { color: #C9C0AE; }
-.rota-totals-cell.heavy { color: #C65A1A; font-weight: 600; }
-.rota-totals-cell.tomorrow { background: #FAF8F2; }
