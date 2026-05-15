@@ -1,5 +1,5 @@
 import React from 'react';
-import { MOCK_CREW, DEPT_ORDER, MlcTriangle } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
+import { DEPT_ORDER, MlcTriangle } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
 
 function avatarColors(onDuty) {
   return onDuty
@@ -80,9 +80,7 @@ function CrewRow({ crew, onClick }) {
   );
 }
 
-export default function CrewListView({ onCrewClick }) {
-  const crew = MOCK_CREW;
-
+export default function CrewListView({ crew = [], onCrewClick }) {
   const byDept = new Map();
   for (const c of crew) {
     const d = c.department || 'Other';

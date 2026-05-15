@@ -1,78 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import SectionCard from './_SectionCard';
-
-// ── Mock crew data ──────────────────────────────────────────────────────────
-//
-// Shared with RotaTodayGrid (future rota page). No rota / shifts Supabase
-// table exists yet; this data keeps the glance widget and the grid in sync.
-// Exported — RotaTodayGrid imports MOCK_CREW.
-
-export const MOCK_CREW = [
-  {
-    id: 'claire',  initials: 'CL', name: 'Claire',  role: 'Chief stew',
-    department: 'Interior',
-    shiftText: 'today 08:00–14:00, 18:00–22:00',
-    shifts: [{ start: 8, end: 14, type: 'duty' }, { start: 18, end: 22, type: 'duty' }],
-    rest24h: '8h 30m', pastWeek: '64h',
-    mlcWarning: false,
-    onNow: true, offToday: false,
-  },
-  {
-    id: 'marco',   initials: 'MC', name: 'Marco',   role: '2nd stew',
-    department: 'Interior',
-    shiftText: 'today 10:00–18:00',
-    shifts: [{ start: 10, end: 18, type: 'duty' }],
-    rest24h: '9h', pastWeek: '70h',
-    mlcWarning: false,
-    onNow: false, offToday: false,
-  },
-  {
-    id: 'emma',    initials: 'EM', name: 'Emma',    role: '3rd stew',
-    department: 'Interior',
-    shiftText: 'today 14:00–22:00',
-    shifts: [{ start: 14, end: 22, type: 'duty' }],
-    rest24h: '7h', pastWeek: '58h',
-    mlcWarning: true,
-    onNow: true, offToday: false,
-  },
-  {
-    id: 'sophie',  initials: 'SO', name: 'Sophie',  role: 'Laundry',
-    department: 'Interior',
-    shiftText: 'off today, back Saturday 08:00',
-    shifts: [],
-    rest24h: null, pastWeek: null,
-    mlcWarning: false,
-    onNow: false, offToday: true,
-  },
-  {
-    id: 'james',   initials: 'JT', name: 'James',   role: 'Bosun',
-    department: 'Deck',
-    shiftText: 'today 08:00–16:00, on watch',
-    shifts: [{ start: 8, end: 16, type: 'watch', subType: 'anchor' }],
-    rest24h: '9h 15m', pastWeek: '67h',
-    mlcWarning: false,
-    onNow: true, offToday: false,
-  },
-  {
-    id: 'tom',     initials: 'TM', name: 'Tom',     role: 'Deckhand',
-    department: 'Deck',
-    shiftText: 'today 08:00–18:00',
-    shifts: [{ start: 8, end: 18, type: 'duty' }],
-    rest24h: '10h', pastWeek: '62h',
-    mlcWarning: false,
-    onNow: false, offToday: false,
-  },
-  {
-    id: 'anders',  initials: 'AN', name: 'Anders',  role: 'Head chef',
-    department: 'Galley',
-    shiftText: 'today 07:30–12:30, 17:30–22:00',
-    shifts: [{ start: 7.5, end: 12.5, type: 'duty' }, { start: 17.5, end: 22, type: 'duty' }],
-    rest24h: '9h 30m', pastWeek: '68h',
-    mlcWarning: false,
-    onNow: true, offToday: false,
-  },
-];
+import { useRotaShifts } from '../../crew-rota/useRotaShifts';
 
 export const DEPT_ORDER = ['Interior', 'Deck', 'Galley', 'Engineering'];
 
@@ -92,7 +21,7 @@ export const MlcTriangle = ({ size = 11 }) => (
 
 export default function SectionCrew() {
   const navigate = useNavigate();
-  const crew = MOCK_CREW;
+  const { crew, loading } = useRotaShifts();
   const total = crew.length;
   const onDuty = crew.filter(c => c.onNow && !c.offToday).length;
 
@@ -111,6 +40,23 @@ export default function SectionCrew() {
   ];
 
   const warnings = crew.filter(c => c.mlcWarning);
+
+  if (loading && crew.length === 0) {
+    return (
+      <SectionCard
+        accent="brass"
+        titleNode={<>Crew on <em>this trip</em>.</>}
+        style={{ maxWidth: 220 }}
+      >
+        <div style={{
+          fontFamily: 'var(--font-sans)', fontSize: 11,
+          color: '#8B8478', fontStyle: 'italic', marginTop: 8,
+        }}>
+          Loading crew…
+        </div>
+      </SectionCard>
+    );
+  }
 
   return (
     <SectionCard

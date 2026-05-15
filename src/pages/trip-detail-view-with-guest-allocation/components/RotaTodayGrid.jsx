@@ -1,5 +1,4 @@
 import React from 'react';
-import { MOCK_CREW } from '../sections/SectionCrew';
 
 // ── Time / shift helpers ────────────────────────────────────────────────────
 //
@@ -177,8 +176,7 @@ function DepartmentSection({ label, crew, gridStartHour, onCrewClick }) {
 
 const DEPT_ORDER = ['Interior', 'Deck', 'Galley', 'Engineering'];
 
-export default function RotaTodayGrid({ now = new Date(), onCrewClick, gridStartHour = 6 }) {
-  const crew = MOCK_CREW;
+export default function RotaTodayGrid({ crew = [], now = new Date(), onCrewClick, gridStartHour = 6 }) {
   const currentSlot = nowSlot(now, gridStartHour);
   const currentHour = now.getHours();
 
