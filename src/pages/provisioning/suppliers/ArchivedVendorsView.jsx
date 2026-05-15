@@ -45,7 +45,7 @@ const ArchivedVendorsView = () => {
     setError(null);
     const { data, error: e } = await fetchArchivedVendors();
     if (e) {
-      setError(e.message || 'Could not load archived vendors.');
+      setError(e.message || 'Could not load archived suppliers.');
       setVendors([]);
     } else {
       setVendors(data || []);
@@ -66,7 +66,7 @@ const ArchivedVendorsView = () => {
     setRestoringId(null);
     if (e) {
       setVendors(snapshot);
-      showToast('Could not restore vendor', 'error');
+      showToast('Could not restore supplier', 'error');
     } else {
       showToast(`${v.name} restored`, 'success');
     }
@@ -88,16 +88,16 @@ const ArchivedVendorsView = () => {
             <div>
               <div className="sd-dir-meta">
                 <span className="dot">●</span>
-                <span>VENDOR DIRECTORY</span>
+                <span>SUPPLIER DIRECTORY</span>
                 <span className="sep">·</span>
                 <span>ARCHIVE</span>
               </div>
               <h1 className="sd-dir-headline">
-                Archived <span className="accent">vendors</span>
+                Archived <span className="accent">suppliers</span>
                 <span className="period">.</span>
               </h1>
               <div className="sd-dir-subline">
-                Soft-deleted vendors. Restore one to bring it back into the directory.
+                Soft-deleted suppliers. Restore one to bring it back into the directory.
               </div>
             </div>
           </div>
@@ -113,7 +113,7 @@ const ArchivedVendorsView = () => {
           ) : vendors.length === 0 ? (
             <div className="sd-dir-empty">
               <h3>Nothing archived</h3>
-              <p>Archived vendors will appear here.</p>
+              <p>Archived suppliers will appear here.</p>
               <button
                 type="button"
                 className="sd-dir-clear"

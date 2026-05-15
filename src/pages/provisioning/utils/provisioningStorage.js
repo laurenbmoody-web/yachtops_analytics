@@ -2516,6 +2516,19 @@ export const fetchVendorOrderStats = async () => {
   return { data: map, error: null };
 };
 
+// Vessel (tenant) display name for the directory meta strip. Same
+// query Header uses; RLS on `tenants` already scopes it to the
+// caller's memberships. Returns { data: name|null, error }.
+export const fetchTenantName = async (tenantId) => {
+  if (!tenantId) return { data: null, error: null };
+  const { data, error } = await supabase
+    .from('tenants')
+    .select('name')
+    .eq('id', tenantId)
+    .maybeSingle();
+  return { data: data?.name || null, error };
+};
+
 export const fetchOrderByToken = async (token) => {
   const { data, error } = await supabase
     .from('supplier_orders')
