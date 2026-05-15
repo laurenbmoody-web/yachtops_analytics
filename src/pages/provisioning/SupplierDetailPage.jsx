@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import { useAuth } from '../../contexts/AuthContext';
@@ -10,8 +10,25 @@ import {
 } from './utils/provisioningStorage';
 import { showToast } from '../../utils/toast';
 import { listSupportedCountries } from '../../data/countryTaxPresets';
-import { getMockSupplierMetrics, DEPT_LOOKUP } from './supplier-detail/mockSupplierMetrics';
+import { getSupplierMetrics } from './supplier-detail/supplierMetrics';
 import './supplier-detail/supplier-detail.css';
+
+// TODO(reporting-currency): hard-coded for v1. Swap for
+// vessels.reporting_currency once that column exists.
+const REPORTING_CURRENCY = 'EUR';
+
+// Lighten/darken a hex colour for the dept deep-dive pill. pillBg = the
+// colour at ~0.15 alpha; pillText = the colour itself. Computed at render
+// (per Phase 1 note 2) so it scales to all 11 real departments and stays
+// honest to the departments.color source.
+const hexToRgba = (hex, alpha) => {
+  const h = String(hex || '').replace('#', '');
+  if (h.length !== 6) return `rgba(95, 94, 90, ${alpha})`;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
 
 // ─── Country code → display name ──────────────────────────────
 // supplier_profiles.business_country is the ISO 2-letter code
@@ -39,9 +56,8 @@ const countryName = (iso) => {
 // docs/supplier_detail_page.html. The HTML mockup is the visual source
 // of truth; this component is its React translation against:
 //   - fetchSupplierProfileById  → supplier row (incl. notes / contacts)
-//   - fetchSupplierOrdersBySupplierProfileId  → orders list
-//   - getMockSupplierMetrics    → KPI bundle (mock; swapped for real
-//                                  Supabase queries in a follow-up sprint)
+//   - getSupplierMetrics        → live KPI + orders bundle (async,
+//                                  Frankfurter-converted to reporting EUR)
 //   - useAuth().tenantRole      → COMMAND / CHIEF gate
 //
 // Role scoping:
@@ -248,6 +264,32 @@ function CurrencyMixDonut({ mix }) {
   );
 }
 
+// ─── AS TRANSACTED currency stack ────────────────────────────
+//
+// Renders a per-currency original-amount stack (dominant currency first;
+// the aggregator already sorted byCurrency by converted spend desc).
+// ≤3 currencies: show all. ≥4: top 2 + "+ N more currencies" caption.
+function CurrencyStack({ list, fmt }) {
+  if (!list || list.length === 0) return <div className="value">—</div>;
+  const lines = list.length >= 4 ? list.slice(0, 2) : list;
+  const moreCount = list.length >= 4 ? list.length - 2 : 0;
+  return (
+    <div className="sd-currency-stack">
+      {lines.map((e) => (
+        <div className="value sd-stack-line" key={e.code}>{fmt(e.amount, e.code)}</div>
+      ))}
+      {moreCount > 0 && (
+        <div className="sd-stack-more">+ {moreCount} more {moreCount === 1 ? 'currency' : 'currencies'}</div>
+      )}
+    </div>
+  );
+}
+
+// Thin skeleton block for the lazy-loading metric sections.
+function Skel({ w = '100%', h = 28, mt = 0 }) {
+  return <span className="sd-skel" style={{ width: w, height: h, marginTop: mt }} />;
+}
+
 // ─── Page ────────────────────────────────────────────────────
 
 export default function SupplierDetailPage() {
@@ -267,9 +309,13 @@ export default function SupplierDetailPage() {
   const effectiveRole = (tenantRole || 'CHIEF').toUpperCase();
   const isCommand = effectiveRole === 'COMMAND';
 
-  // Chief view defaults to interior in this mock pass. Live impl will
-  // derive this from the user's department membership.
-  const departmentKey = isCommand ? null : 'interior';
+  // TODO: Replace 'Interior' constant with the user's actual dept from
+  // tenant_members.department_id (column doesn't exist yet — add in a
+  // follow-up sprint along with a UI for Captain to assign dept membership
+  // during onboarding). Chief users without an assigned dept should fall
+  // back to the supplier's most-used dept, OR render an "Assign me a
+  // department" prompt instead of the scoped view.
+  const departmentKey = isCommand ? null : 'Interior';
 
   // Currency toggle — visual only in this PR (no conversion).
   const [currencyMode, setCurrencyMode] = useState('reporting');
@@ -304,8 +350,9 @@ export default function SupplierDetailPage() {
     let cancelled = false;
     setLoading(true);
     setNotFound(false);
-    // Orders list is mock-driven this PR (see mockSupplierMetrics); we
-    // only need to fetch the profile row for notes / contacts / address.
+    // Profile is the synchronous load (name / address / notes / contacts
+    // render immediately). Orders + KPIs come from the async metrics
+    // bundle below and lazy-load underneath.
     fetchSupplierProfileById(supplierProfileId)
       .then((p) => {
         if (cancelled) return;
@@ -336,11 +383,35 @@ export default function SupplierDetailPage() {
     return () => { cancelled = true; };
   }, [supplierProfileId, navigate]);
 
-  // Mock KPI bundle, recomputed on role flip.
-  const metrics = useMemo(
-    () => getMockSupplierMetrics(supplierProfileId, { tenantRole: effectiveRole, departmentKey }),
-    [supplierProfileId, effectiveRole, departmentKey],
-  );
+  // Real metrics bundle — async, lazy-loaded underneath the synchronous
+  // profile. Does NOT depend on currencyMode: the bundle carries both
+  // reporting-converted and original-currency figures, the render picks
+  // which to show. Re-runs only on supplier / role / dept change.
+  const [metrics, setMetrics] = useState(null);
+  const [metricsLoading, setMetricsLoading] = useState(true);
+  useEffect(() => {
+    if (!supplierProfileId) return undefined;
+    let cancelled = false;
+    setMetricsLoading(true);
+    getSupplierMetrics(supplierProfileId, {
+      tenantRole: effectiveRole,
+      departmentKey,
+      reportingCurrency: REPORTING_CURRENCY,
+    })
+      .then((bundle) => {
+        if (cancelled) return;
+        setMetrics(bundle);
+        setMetricsLoading(false);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error('[SupplierDetailPage] metrics load failed:', err);
+        setMetrics(null);
+        setMetricsLoading(false);
+        showToast('Could not load supplier metrics', 'error');
+      });
+    return () => { cancelled = true; };
+  }, [supplierProfileId, effectiveRole, departmentKey]);
 
   // ── Notes persistence ────────────────────────────────────────
   // On blur, if the textarea content differs from the persisted notes,
@@ -468,13 +539,16 @@ export default function SupplierDetailPage() {
     countryFull,
   ].filter(Boolean).join(' · ').toUpperCase();
 
-  const orderTotalCount = metrics.totalSpend.orderCount;
-  const lastDays = metrics.lastOrder.daysAgo;
-  const cur = metrics.totalSpend.currency || 'EUR';
+  // Metrics may still be loading — every consumer below is null-guarded
+  // so the supplier name / address / contacts render immediately while
+  // the KPI sections show skeletons underneath.
+  const hasMetrics = !!metrics;
+  const transacted = currencyMode === 'transacted';
+  const orderTotalCount = metrics?.totalSpend.orderCount ?? 0;
+  const lastDays = metrics?.lastOrder.daysAgo ?? null;
+  const cur = metrics?.totalSpend.currency || REPORTING_CURRENCY;
 
-  // Orders source is the mock bundle (path-A design preview). Live data
-  // swap happens in the mock module — page render code is unchanged.
-  const orders = metrics.orders || [];
+  const orders = metrics?.orders || [];
   const visibleOrders = orders.slice(0, 5);
   const showCount = visibleOrders.length;
 
@@ -517,11 +591,17 @@ export default function SupplierDetailPage() {
                 <span className="sd-dot">●</span>
                 {countryFull && <><span>{countryFull.toUpperCase()}</span><span className="sd-sep">·</span></>}
                 {city && <><span>{city.toUpperCase()}</span><span className="sd-sep">·</span></>}
-                <span>{orderTotalCount} {orderTotalCount === 1 ? 'ORDER' : 'ORDERS'}</span>
-                {lastDays != null && <>
-                  <span className="sd-sep">·</span>
-                  <span>LAST ORDER {lastDays}D AGO</span>
-                </>}
+                {hasMetrics ? (
+                  <>
+                    <span>{orderTotalCount} {orderTotalCount === 1 ? 'ORDER' : 'ORDERS'}</span>
+                    {lastDays != null && <>
+                      <span className="sd-sep">·</span>
+                      <span>LAST ORDER {lastDays}D AGO</span>
+                    </>}
+                  </>
+                ) : (
+                  <Skel w="160px" h={12} />
+                )}
               </div>
 
               <div className={`sd-scope-pill ${isCommand ? 'sd-scope-pill-command' : 'sd-scope-pill-chief'}`}>
@@ -561,23 +641,33 @@ export default function SupplierDetailPage() {
           <div className="sd-essential-kpis">
             <div className="sd-card sd-kpi-essential">
               <div className="sd-label-cap">TOTAL SPEND</div>
-              <div className="value">{fmtMoney(metrics.totalSpend.amount, cur)}</div>
+              {!hasMetrics ? <Skel h={34} /> : transacted ? (
+                <CurrencyStack list={metrics.totalSpend.byCurrency} fmt={fmtMoney} />
+              ) : (
+                <div className="value">{fmtMoney(metrics.totalSpend.amount, cur)}</div>
+              )}
               <div className="context">
-                across {orderTotalCount} orders{!isCommand && ' · Interior'}
+                {hasMetrics ? <>across {orderTotalCount} orders{!isCommand && ' · Interior'}</> : <Skel w="120px" h={12} mt={6} />}
               </div>
             </div>
             <div className="sd-card sd-kpi-essential">
-              <div className="sd-label-cap">ON-TIME DELIVERY</div>
-              <div className="value">{metrics.onTimeRate.percent}%</div>
+              <div className="sd-label-cap">COMPLETED ORDERS</div>
+              {!hasMetrics ? <Skel h={34} /> : (
+                <div className="value">{metrics.completedOrders.percent}%</div>
+              )}
               <div className="context">
-                {metrics.onTimeRate.onTime} of {metrics.onTimeRate.total} on-time
+                {hasMetrics ? <>{metrics.completedOrders.completed} of {metrics.completedOrders.total} completed</> : <Skel w="120px" h={12} mt={6} />}
               </div>
             </div>
             <div className="sd-card sd-kpi-essential">
               <div className="sd-label-cap">LAST ORDER</div>
-              <div className="value">{lastDays === 0 ? 'Today' : lastDays === 1 ? '1 day ago' : `${lastDays} days ago`}</div>
+              {!hasMetrics ? <Skel h={34} /> : (
+                <div className="value">
+                  {lastDays === 0 ? 'Today' : lastDays === 1 ? '1 day ago' : `${lastDays} days ago`}
+                </div>
+              )}
               <div className="context">
-                {metrics.lastOrder.ref} · {fmtMoney(metrics.lastOrder.total, metrics.lastOrder.currency)}
+                {hasMetrics ? <>{metrics.lastOrder.ref} · {fmtMoney(metrics.lastOrder.total, metrics.lastOrder.currency)}</> : <Skel w="140px" h={12} mt={6} />}
               </div>
             </div>
           </div>
@@ -586,7 +676,7 @@ export default function SupplierDetailPage() {
           <div className="sd-section-title-row">
             <h2 className="sd-section-title">Orders<span className="period">.</span></h2>
             <div className="sd-orders-meta">
-              <span>{ordersShowingText}</span>
+              {hasMetrics && <span>{ordersShowingText}</span>}
               <button type="button" className="sd-filter-link">FILTER ›</button>
             </div>
           </div>
@@ -596,7 +686,11 @@ export default function SupplierDetailPage() {
               <span>REF</span><span>VESSEL</span><span>BOARD</span>
               <span>STATUS</span><span>TOTAL</span><span>CREATED</span>
             </div>
-            {visibleOrders.length === 0 ? (
+            {!hasMetrics ? (
+              [0, 1, 2, 3, 4].map((i) => (
+                <div className="sd-orders-row" key={i}><Skel w="80%" h={14} /></div>
+              ))
+            ) : visibleOrders.length === 0 ? (
               <div className="sd-orders-empty">No orders yet with this supplier.</div>
             ) : visibleOrders.map((o) => {
               const pill = STATUS_PILL[o.status] || STATUS_PILL.draft;
@@ -624,7 +718,7 @@ export default function SupplierDetailPage() {
                 </div>
               );
             })}
-            {visibleOrders.length > 0 && (
+            {hasMetrics && visibleOrders.length > 0 && (
               <button type="button" className="sd-show-all">{showAllText}</button>
             )}
           </div>
@@ -634,53 +728,79 @@ export default function SupplierDetailPage() {
             <div className="sd-secondary-kpis">
               <div className="sd-card">
                 <div className="sd-label-cap">AVG ORDER VALUE</div>
-                <div className="value">{fmtMoney(metrics.avgOrderValue.amount, cur)}</div>
-                <div className="context">across {orderTotalCount} orders</div>
-                <div className="footer-line delta-neutral">
-                  range {fmtMoneyCompact(metrics.avgOrderValue.rangeLow, cur)} – {fmtMoneyCompact(metrics.avgOrderValue.rangeHigh, cur)}
+                {!hasMetrics ? <Skel h={28} /> : transacted ? (
+                  <CurrencyStack list={metrics.avgOrderValue.byCurrency} fmt={fmtMoney} />
+                ) : (
+                  <div className="value">{fmtMoney(metrics.avgOrderValue.amount, cur)}</div>
+                )}
+                <div className="context">
+                  {hasMetrics ? <>across {orderTotalCount} orders</> : <Skel w="100px" h={12} mt={6} />}
                 </div>
+                {hasMetrics && !transacted && (
+                  <div className="footer-line delta-neutral">
+                    range {fmtMoneyCompact(metrics.avgOrderValue.rangeLow, cur)} – {fmtMoneyCompact(metrics.avgOrderValue.rangeHigh, cur)}
+                  </div>
+                )}
               </div>
 
               <div className="sd-card">
                 <div className="sd-label-cap">DISCREPANCY RATE</div>
-                <div className="value">{metrics.discrepancyRate.percent}%</div>
-                <div className="context">
-                  {metrics.discrepancyRate.withIssues} of {metrics.discrepancyRate.total} with issues
-                </div>
-                <div className={`footer-line ${metrics.discrepancyRate.percent < metrics.discrepancyRate.fleetAvg ? 'delta-up' : 'delta-neutral'}`}>
-                  {metrics.discrepancyRate.percent < metrics.discrepancyRate.fleetAvg ? '▼' : '▲'} vs fleet avg {metrics.discrepancyRate.fleetAvg}%
-                </div>
+                {!hasMetrics ? <Skel h={28} /> : (
+                  <>
+                    <div className="value">{metrics.discrepancyRate.percent}%</div>
+                    <div className="context">
+                      {metrics.discrepancyRate.withIssues} of {metrics.discrepancyRate.total} with issues
+                    </div>
+                    <div className={`footer-line ${metrics.discrepancyRate.percent < metrics.discrepancyRate.fleetAvg ? 'delta-up' : 'delta-neutral'}`}>
+                      {metrics.discrepancyRate.percent < metrics.discrepancyRate.fleetAvg ? '▼' : '▲'} vs fleet avg {metrics.discrepancyRate.fleetAvg}%
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="sd-card sd-trend-card">
                 <div className="sd-trend-header">
                   <div className="sd-label-cap">12-MONTH TREND</div>
-                  <div className="context">
-                    {fmtMoneyCompact(metrics.trend12mo.monthlyAvg, cur)} avg / month{!isCommand && ' · Interior'}
+                  {hasMetrics && !transacted && (
+                    <div className="context">
+                      {fmtMoneyCompact(metrics.trend12mo.monthlyAvg, cur)} avg / month{!isCommand && ' · Interior'}
+                    </div>
+                  )}
+                </div>
+                {!hasMetrics ? <Skel h={80} /> : transacted ? (
+                  <div className="sd-trend-note">
+                    Trend not shown in transacted view — switch to EUR Reporting to see.
                   </div>
-                </div>
-                <VesselTrendSparkline points={metrics.trend12mo.points} />
-                <div className="sd-trend-axis">
-                  <span>JUN</span><span>SEP</span><span>DEC</span><span>MAR</span><span>MAY</span>
-                </div>
+                ) : (
+                  <>
+                    <VesselTrendSparkline points={metrics.trend12mo.points} />
+                    <div className="sd-trend-axis">
+                      <span>JUN</span><span>SEP</span><span>DEC</span><span>MAR</span><span>MAY</span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
             <div>
               <div className="sd-card sd-currency-mix-card">
-                <CurrencyMixDonut mix={metrics.currencyMix} />
-                <div className="legend">
-                  <div className="sd-label-cap">CURRENCY MIX</div>
-                  {metrics.currencyMix.map((m, i) => {
-                    const palette = ['#262A53', '#C65A1A', '#B4B2A9', '#888780'];
-                    return (
-                      <div className="sd-currency-mix-row" key={m.code}>
-                        <span><span className="swatch" style={{ background: palette[i % palette.length] }} />{m.code}</span>
-                        <span className="pct">{m.percent}%</span>
-                      </div>
-                    );
-                  })}
-                </div>
+                {!hasMetrics ? <Skel w="80px" h={80} /> : (
+                  <>
+                    <CurrencyMixDonut mix={metrics.currencyMix} />
+                    <div className="legend">
+                      <div className="sd-label-cap">CURRENCY MIX</div>
+                      {metrics.currencyMix.map((m, i) => {
+                        const palette = ['#262A53', '#C65A1A', '#B4B2A9', '#888780'];
+                        return (
+                          <div className="sd-currency-mix-row" key={m.code}>
+                            <span><span className="swatch" style={{ background: palette[i % palette.length] }} />{m.code}</span>
+                            <span className="pct">{m.percent}%</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
               </div>
               <div className="sd-mix-disclaimer">
                 Currency mix always shows original transaction currencies, regardless of toggle above.
@@ -689,12 +809,13 @@ export default function SupplierDetailPage() {
           </div>
 
           {/* ── Department spend (Command only) ──────────────── */}
-          {isCommand && metrics.departmentBreakdown && (
+          {isCommand && hasMetrics && metrics.departmentBreakdown && metrics.departmentBreakdown.length > 0 && (
             <DepartmentSpendSection
               totalSpend={metrics.totalSpend}
               departments={metrics.departmentBreakdown}
               activeDept={activeDept}
               onToggleDept={toggleDept}
+              transacted={transacted}
             />
           )}
 
@@ -787,9 +908,14 @@ export default function SupplierDetailPage() {
 
 // ─── Department spend section (Command only) ────────────────
 
-function DepartmentSpendSection({ totalSpend, departments, activeDept, onToggleDept }) {
+function DepartmentSpendSection({ totalSpend, departments, activeDept, onToggleDept, transacted }) {
   const cur = totalSpend.currency || 'EUR';
-  const active = activeDept ? DEPT_LOOKUP[activeDept] : null;
+  // Active dept resolved from the live breakdown (no static DEPT_LOOKUP —
+  // the breakdown is per-supplier now). Uncategorised never opens a
+  // deep-dive, so an active key pointing at it resolves to null.
+  const active = activeDept
+    ? departments.find((d) => d.key === activeDept && !d.uncategorised) || null
+    : null;
   return (
     <div className="sd-dept-section">
       <h2 className="sd-section-title">Department spend<span className="period">.</span></h2>
@@ -803,31 +929,52 @@ function DepartmentSpendSection({ totalSpend, departments, activeDept, onToggleD
           </div>
 
           <div className="total-line">
-            <div className="total-value">{fmtMoney(totalSpend.amount, cur)}</div>
+            {transacted ? (
+              <CurrencyStack list={totalSpend.byCurrency} fmt={fmtMoney} />
+            ) : (
+              <div className="total-value">{fmtMoney(totalSpend.amount, cur)}</div>
+            )}
             <div className="total-context">across {totalSpend.orderCount} orders · vessel-wide</div>
           </div>
 
-          <div className="sd-stacked-bar">
-            {departments.map((d) => (
-              <div key={d.key} style={{ background: d.colour, width: `${d.spendPercent}%` }} />
-            ))}
-          </div>
+          {transacted ? (
+            <div className="sd-trend-note">Bar chart available in EUR reporting view.</div>
+          ) : (
+            <div className="sd-stacked-bar">
+              {departments.map((d) => (
+                <div key={d.key} style={{ background: d.colour, width: `${d.spendPercent}%` }} />
+              ))}
+            </div>
+          )}
 
           <div className="sd-dept-legend">
-            {departments.map((d) => (
-              <button
-                type="button"
-                key={d.key}
-                className={`sd-dept-legend-row${activeDept === d.key ? ' active' : ''}`}
-                onClick={() => onToggleDept(d.key)}
-              >
-                <span className="swatch" style={{ background: d.colour }} />
-                <span className="name">{d.name}</span>
-                <span className="stats">{d.orderCount} orders &nbsp; {d.spendPercent}%</span>
-                <span className="total">{fmtMoney(d.spendAmount, cur)}</span>
-                <span className="chev">›</span>
-              </button>
-            ))}
+            {departments.map((d) => {
+              const clickable = !d.uncategorised;
+              const rowClass = `sd-dept-legend-row${activeDept === d.key ? ' active' : ''}${clickable ? '' : ' is-static'}`;
+              const inner = (
+                <>
+                  <span className="swatch" style={{ background: d.colour }} />
+                  <span className="name">{d.name}</span>
+                  <span className="stats">{d.orderCount} orders &nbsp; {d.spendPercent}%</span>
+                  {transacted ? (
+                    <span className="total"><CurrencyStack list={d.spendByCurrency} fmt={fmtMoney} /></span>
+                  ) : (
+                    <span className="total">{fmtMoney(d.spendAmount, cur)}</span>
+                  )}
+                  <span className="chev">{clickable ? '›' : ''}</span>
+                </>
+              );
+              return clickable ? (
+                <button
+                  type="button"
+                  key={d.key}
+                  className={rowClass}
+                  onClick={() => onToggleDept(d.key)}
+                >{inner}</button>
+              ) : (
+                <div key={d.key} className={rowClass}>{inner}</div>
+              );
+            })}
           </div>
         </div>
 
@@ -837,7 +984,7 @@ function DepartmentSpendSection({ totalSpend, departments, activeDept, onToggleD
               <>
                 <div
                   className="panel-pill"
-                  style={{ background: active.pillBg, color: active.pillText }}
+                  style={{ background: hexToRgba(active.colour, 0.15), color: active.colour }}
                 >
                   {active.name.toUpperCase()} · {active.orderCount} ORDERS
                 </div>
@@ -856,9 +1003,9 @@ function DepartmentSpendSection({ totalSpend, departments, activeDept, onToggleD
                     <div className="c">range {fmtMoneyCompact(active.avgRangeLow, cur)}–{fmtMoneyCompact(active.avgRangeHigh, cur)}</div>
                   </div>
                   <div className="sd-panel-kpi">
-                    <div className="sd-label-cap">ON-TIME</div>
-                    <div className="v">{active.onTimePercent}%</div>
-                    <div className="c">{active.onTimeOnTime} of {active.onTimeTotal} on-time</div>
+                    <div className="sd-label-cap">COMPLETED</div>
+                    <div className="v">{active.completedPercent}%</div>
+                    <div className="c">{active.completedCount} of {active.completedTotal} completed</div>
                   </div>
                   <div className="sd-panel-kpi">
                     <div className="sd-label-cap">DISCREPANCY</div>
@@ -872,10 +1019,18 @@ function DepartmentSpendSection({ totalSpend, departments, activeDept, onToggleD
                 </div>
 
                 <div className="sd-panel-trend-label">12-MONTH TREND</div>
-                <DeptTrendSparkline points={active.trendPoints} color={active.colour} />
-                <div className="sd-panel-trend-axis">
-                  <span>JUN</span><span>DEC</span><span>MAY</span>
-                </div>
+                {transacted ? (
+                  <div className="sd-trend-note">
+                    Trend not shown in transacted view — switch to EUR Reporting to see.
+                  </div>
+                ) : (
+                  <>
+                    <DeptTrendSparkline points={active.trendPoints} color={active.colour} />
+                    <div className="sd-panel-trend-axis">
+                      <span>JUN</span><span>DEC</span><span>MAY</span>
+                    </div>
+                  </>
+                )}
 
                 <div className="sd-top-items-header">
                   <div className="sd-label-cap">TOP ITEMS</div>
