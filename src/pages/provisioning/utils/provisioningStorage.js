@@ -2480,6 +2480,42 @@ export const fetchKnownCategoryTaxonomy = async () => {
   };
 };
 
+// Sprint 9c.3 Phase 5 — lightweight per-vendor order rollup for the
+// directory card metadata row ("N orders · last Xd ago" + total spend).
+// One RLS-scoped query over the tenant's supplier_orders (+ nested
+// items for the spend sum), aggregated client-side into a map keyed by
+// supplier_profile_id. Per-vendor N+1 avoided. Returns { data: map,
+// error } where map[supplierProfileId] = { orderCount, lastOrderAt,
+// totalSpend, currency }. Vendors with no orders are simply absent from
+// the map (the card renders a 0/— fallback).
+export const fetchVendorOrderStats = async () => {
+  const { data, error } = await supabase
+    .from('supplier_orders')
+    .select(`
+      supplier_profile_id, created_at, currency,
+      supplier_order_items(quantity, agreed_price, quoted_price, estimated_price)
+    `);
+  if (error) return { data: {}, error };
+  const map = {};
+  for (const o of data || []) {
+    const k = o.supplier_profile_id;
+    if (!k) continue;
+    if (!map[k]) {
+      map[k] = { orderCount: 0, lastOrderAt: null, totalSpend: 0, currency: o.currency || 'EUR' };
+    }
+    map[k].orderCount += 1;
+    if (!map[k].lastOrderAt || o.created_at > map[k].lastOrderAt) {
+      map[k].lastOrderAt = o.created_at;
+    }
+    const total = (o.supplier_order_items || []).reduce((s, it) => {
+      const unit = Number(it.agreed_price ?? it.quoted_price ?? it.estimated_price) || 0;
+      return s + unit * (Number(it.quantity) || 0);
+    }, 0);
+    map[k].totalSpend += total;
+  }
+  return { data: map, error: null };
+};
+
 export const fetchOrderByToken = async (token) => {
   const { data, error } = await supabase
     .from('supplier_orders')
