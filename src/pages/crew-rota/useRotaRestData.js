@@ -50,7 +50,9 @@ function staticTripInsights(firstName) {
 }
 
 export function useRotaRestData(memberId) {
-  const { tenantId } = useAuth();
+  // AuthContext exposes `activeTenantId`, not `tenantId`.
+  const { activeTenantId } = useAuth();
+  const tenantId = activeTenantId;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);

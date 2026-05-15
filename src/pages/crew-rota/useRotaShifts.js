@@ -121,7 +121,13 @@ export function deriveCrew(member, memberShifts, weekShifts, now = new Date()) {
 }
 
 export function useRotaShifts() {
-  const { tenantId } = useAuth();
+  // AuthContext exposes `activeTenantId` (not `tenantId`) — matching the
+  // pattern used by useTripGuests / useTripsMigration. Destructuring
+  // `tenantId` here was always undefined, so the effect bailed before
+  // it could even log.
+  const { activeTenantId } = useAuth();
+  const tenantId = activeTenantId;
+  console.log('[useRotaShifts] hook called, activeTenantId:', activeTenantId);
   const [crew, setCrew] = useState([]);
   const [shifts, setShifts] = useState([]);
   const [effectiveDate, setEffectiveDate] = useState(null);
@@ -130,7 +136,12 @@ export function useRotaShifts() {
 
   useEffect(() => {
     let cancelled = false;
-    if (!tenantId) { setLoading(false); return undefined; }
+    console.log('[useRotaShifts] effect, tenantId:', tenantId);
+    if (!tenantId) {
+      console.log('[useRotaShifts] BAILING — no tenantId');
+      setLoading(false);
+      return undefined;
+    }
 
     console.log('[useRotaShifts] fetching, tenantId:', tenantId);
     setLoading(true);
