@@ -132,21 +132,32 @@ export function useRotaShifts() {
     let cancelled = false;
     if (!tenantId) { setLoading(false); return undefined; }
 
+    console.log('[useRotaShifts] fetching, tenantId:', tenantId);
     setLoading(true);
     setError(null);
 
     (async () => {
       try {
-        // 1 — crew: active tenant_members + department + profile fallback
+        // 1 — crew: active tenant_members + plain table-name embeds.
+        // PostgREST resolves the embed by table name when there's a
+        // single FK from tenant_members to that table.
         const { data: members, error: mErr } = await supabase
           .from('tenant_members')
           .select(`
-            id, user_id, display_name, role, permission_tier, department_id, active,
-            departments:department_id ( id, name, color ),
-            profiles:user_id ( id, full_name )
+            id,
+            user_id,
+            display_name,
+            role,
+            permission_tier,
+            department_id,
+            role_id,
+            departments ( name, color ),
+            profiles ( full_name, avatar_url ),
+            roles ( name )
           `)
           .eq('tenant_id', tenantId)
           .eq('active', true);
+        console.log('[useRotaShifts] crew result:', members?.length, 'error:', mErr);
         if (mErr) throw mErr;
         if (cancelled) return;
 
@@ -154,9 +165,11 @@ export function useRotaShifts() {
           id: m.id,
           userId: m.user_id,
           name: m.display_name || m.profiles?.full_name || 'Unknown',
-          role: m.role,
-          department: m.departments?.name || 'Other',
-          departmentColor: m.departments?.color || null,
+          // Friendly job title from roles.name ("Chief Stewardess"),
+          // falling back to the permission role string.
+          role: m.roles?.name || m.role || '',
+          department: m.departments?.name || '',
+          departmentColor: m.departments?.color || '#5F5E5A',
           permissionTier: m.permission_tier,
         }));
 
@@ -192,6 +205,7 @@ export function useRotaShifts() {
           .eq('tenant_id', tenantId)
           .gte('shift_date', windowStartStr)
           .lte('shift_date', effDate);
+        console.log('[useRotaShifts] shifts result:', shiftRows?.length, 'error:', sErr, 'effectiveDate:', effDate);
         if (sErr) throw sErr;
         if (cancelled) return;
 
