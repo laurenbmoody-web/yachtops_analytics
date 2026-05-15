@@ -74,6 +74,252 @@ const MOCK_REST_DATA = {
       },
     ],
   },
+  // ── Claire — Chief stew, on duty, split shift, compliant ──
+  claire: {
+    fullName: 'Claire Dubois',
+    mlcWarning: false,
+    onUntil: '22:00',
+    rest24hLabel: '8h 30m rest so far',
+    pastWeekLabel: 'Past week 64h',
+    bannerHeadline: null,
+    bannerBody: null,
+    timelineMeta: '18:30 yesterday → now',
+    timelineSummary: '8h 30m rest · 12h on duty · 3h 30m other off-time',
+    timeline: [
+      { label: '4h rest', sub: '18:30 — 22:30 yest', flex: 4, type: 'rest' },
+      { label: '4h 30m rest', sub: '22:30 yest — 03:00', flex: 4.5, type: 'rest' },
+      { label: '5h off-duty', sub: '03:00 — 08:00', flex: 5, type: 'off' },
+      { label: '6h on duty', sub: 'duty · service', flex: 6, type: 'on' },
+      { label: '4h sched', sub: 'duty · evening service', flex: 4, type: 'scheduled' },
+    ],
+    chartMeta: 'Rolling 7d rest · evolving by day',
+    chartSummary: '80h projected by tonight',
+    chartShort: null,
+    chartShortOf: null,
+    weekChart: [
+      { day: 'Sat', hours: 82, status: 'ok' },
+      { day: 'Sun', hours: 80, status: 'ok' },
+      { day: 'Wed', hours: 78, status: 'ok' },
+      { day: 'Thu', hours: 79, status: 'ok' },
+      { day: 'Fri', hours: 80, status: 'ok', isToday: true },
+      { day: 'Sat', hours: 82, status: 'ok', projected: true, label: 'Sat · proj' },
+      { day: 'Sun', hours: 84, status: 'ok', projected: true, label: 'Sun · proj' },
+    ],
+    tripMeta: 'This trip so far · day 3 of 5',
+    tripSummary: 'Claire has worked <em>36 hours</em> across the first three days of the Marchetti charter.',
+    tripStats: [
+      { num: '36h', label: 'Duty', sub: '100% of her trip work' },
+      { num: '0h', label: 'Watch', sub: 'None this trip' },
+      { num: '0h', label: 'Standby', sub: 'None this trip' },
+    ],
+    suggestions: [],
+  },
+
+  // ── Marco — 2nd stew, off duty now, single shift, compliant ──
+  marco: {
+    fullName: 'Marco Rossi',
+    mlcWarning: false,
+    onUntil: null,
+    rest24hLabel: '9h rest today',
+    pastWeekLabel: 'Past week 70h',
+    bannerHeadline: null,
+    bannerBody: null,
+    timelineMeta: '18:30 yesterday → now',
+    timelineSummary: '9h rest · 8h on duty · 7h other off-time',
+    timeline: [
+      { label: '6h rest', sub: '18:30 — 00:30', flex: 6, type: 'rest' },
+      { label: '3h rest', sub: '00:30 — 03:30', flex: 3, type: 'rest' },
+      { label: '6h 30m off-duty', sub: '03:30 — 10:00', flex: 6.5, type: 'off' },
+      { label: '8h on duty', sub: 'duty · service', flex: 8, type: 'on' },
+      { label: '0h 30m', sub: 'just finished', flex: 0.5, type: 'off' },
+    ],
+    chartMeta: 'Rolling 7d rest · evolving by day',
+    chartSummary: '88h projected by tonight',
+    chartShort: null,
+    chartShortOf: null,
+    weekChart: [
+      { day: 'Sat', hours: 85, status: 'ok' },
+      { day: 'Sun', hours: 88, status: 'ok' },
+      { day: 'Wed', hours: 86, status: 'ok' },
+      { day: 'Thu', hours: 87, status: 'ok' },
+      { day: 'Fri', hours: 88, status: 'ok', isToday: true },
+      { day: 'Sat', hours: 90, status: 'ok', projected: true, label: 'Sat · proj' },
+      { day: 'Sun', hours: 91, status: 'ok', projected: true, label: 'Sun · proj' },
+    ],
+    tripMeta: 'This trip so far · day 3 of 5',
+    tripSummary: 'Marco has worked <em>24 hours</em> across the first three days of the Marchetti charter.',
+    tripStats: [
+      { num: '24h', label: 'Duty', sub: '100% of his trip work' },
+      { num: '0h', label: 'Watch', sub: 'None this trip' },
+      { num: '0h', label: 'Standby', sub: 'None this trip' },
+    ],
+    suggestions: [],
+  },
+
+  // ── Sophie — Laundry, OFF TODAY, no shifts ──
+  sophie: {
+    fullName: 'Sophie van Dijk',
+    mlcWarning: false,
+    onUntil: null,
+    offToday: true,
+    rest24hLabel: 'Off duty today',
+    pastWeekLabel: 'Past week 77h',
+    bannerHeadline: null,
+    bannerBody: null,
+    timelineMeta: '18:30 yesterday → now',
+    timelineSummary: '24h off duty · no shifts today',
+    timeline: [
+      { label: '24h off duty · back Saturday 08:00', sub: 'day off', flex: 24, type: 'rest' },
+    ],
+    chartMeta: 'Rolling 7d rest · evolving by day',
+    chartSummary: '96h projected by tonight',
+    chartShort: null,
+    chartShortOf: null,
+    weekChart: [
+      { day: 'Sat', hours: 88, status: 'ok' },
+      { day: 'Sun', hours: 90, status: 'ok' },
+      { day: 'Wed', hours: 92, status: 'ok' },
+      { day: 'Thu', hours: 94, status: 'ok' },
+      { day: 'Fri', hours: 96, status: 'ok', isToday: true },
+      { day: 'Sat', hours: 90, status: 'ok', projected: true, label: 'Sat · proj' },
+      { day: 'Sun', hours: 88, status: 'ok', projected: true, label: 'Sun · proj' },
+    ],
+    tripMeta: 'This trip so far · day 3 of 5',
+    tripSummary: 'Sophie has worked <em>16 hours</em> across the first two days. Day off today.',
+    tripStats: [
+      { num: '16h', label: 'Duty', sub: '100% of her trip work' },
+      { num: '0h', label: 'Watch', sub: 'None this trip' },
+      { num: '0', label: 'Days off', sub: 'Today · back Saturday' },
+    ],
+    suggestions: [],
+  },
+
+  // ── James — Bosun, on watch, single shift, compliant ──
+  james: {
+    fullName: 'James Taylor',
+    mlcWarning: false,
+    onUntil: '16:00',
+    rest24hLabel: '9h 15m rest so far',
+    pastWeekLabel: 'Past week 67h',
+    bannerHeadline: null,
+    bannerBody: null,
+    timelineMeta: '18:30 yesterday → now',
+    timelineSummary: '9h 15m rest · 8h on duty · 6h 45m other off-time',
+    timeline: [
+      { label: '5h rest', sub: '18:30 — 23:30 yest', flex: 5, type: 'rest' },
+      { label: '4h 15m rest', sub: '23:30 — 03:45', flex: 4.25, type: 'rest' },
+      { label: '4h 15m off-duty', sub: '03:45 — 08:00', flex: 4.25, type: 'off' },
+      { label: '8h on duty', sub: 'watch · anchor', flex: 8, type: 'on' },
+      { label: '2h 30m off', sub: 'finished 16:00', flex: 2.5, type: 'off' },
+    ],
+    chartMeta: 'Rolling 7d rest · evolving by day',
+    chartSummary: '82h projected by tonight',
+    chartShort: null,
+    chartShortOf: null,
+    weekChart: [
+      { day: 'Sat', hours: 80, status: 'ok' },
+      { day: 'Sun', hours: 82, status: 'ok' },
+      { day: 'Wed', hours: 81, status: 'ok' },
+      { day: 'Thu', hours: 80, status: 'ok' },
+      { day: 'Fri', hours: 82, status: 'ok', isToday: true },
+      { day: 'Sat', hours: 84, status: 'ok', projected: true, label: 'Sat · proj' },
+      { day: 'Sun', hours: 85, status: 'ok', projected: true, label: 'Sun · proj' },
+    ],
+    tripMeta: 'This trip so far · day 3 of 5',
+    tripSummary: 'James has worked <em>28 hours</em> across the first three days of the Marchetti charter.',
+    tripStats: [
+      { num: '16h', label: 'Duty', sub: '57% of his trip work' },
+      { num: '12h', label: 'Watch · anchor', sub: '43% · overnight cover' },
+      { num: '0h', label: 'Standby', sub: 'None this trip' },
+    ],
+    suggestions: [],
+  },
+
+  // ── Tom — Deckhand, off now (finished at 18:00), compliant ──
+  tom: {
+    fullName: 'Tom Bennett',
+    mlcWarning: false,
+    onUntil: null,
+    rest24hLabel: '10h rest today',
+    pastWeekLabel: 'Past week 62h',
+    bannerHeadline: null,
+    bannerBody: null,
+    timelineMeta: '18:30 yesterday → now',
+    timelineSummary: '10h rest · 10h on duty · 4h other off-time',
+    timeline: [
+      { label: '6h rest', sub: '18:30 — 00:30', flex: 6, type: 'rest' },
+      { label: '4h rest', sub: '00:30 — 04:30', flex: 4, type: 'rest' },
+      { label: '3h 30m off-duty', sub: '04:30 — 08:00', flex: 3.5, type: 'off' },
+      { label: '10h on duty', sub: 'duty · deck work', flex: 10, type: 'on' },
+      { label: '0h 30m off', sub: 'just finished', flex: 0.5, type: 'off' },
+    ],
+    chartMeta: 'Rolling 7d rest · evolving by day',
+    chartSummary: '78h projected by tonight',
+    chartShort: null,
+    chartShortOf: null,
+    weekChart: [
+      { day: 'Sat', hours: 80, status: 'ok' },
+      { day: 'Sun', hours: 79, status: 'ok' },
+      { day: 'Wed', hours: 78, status: 'ok' },
+      { day: 'Thu', hours: 77, status: 'ok' },
+      { day: 'Fri', hours: 78, status: 'ok', isToday: true },
+      { day: 'Sat', hours: 80, status: 'ok', projected: true, label: 'Sat · proj' },
+      { day: 'Sun', hours: 82, status: 'ok', projected: true, label: 'Sun · proj' },
+    ],
+    tripMeta: 'This trip so far · day 3 of 5',
+    tripSummary: 'Tom has worked <em>30 hours</em> across the first three days of the Marchetti charter.',
+    tripStats: [
+      { num: '22h', label: 'Duty', sub: '73% of his trip work' },
+      { num: '4h', label: 'Watch · anchor', sub: '13% · night watch' },
+      { num: '4h', label: 'Standby · tender', sub: '13% · guest tender runs' },
+    ],
+    suggestions: [],
+  },
+
+  // ── Anders — Head chef, on duty, split shift, compliant ──
+  anders: {
+    fullName: 'Anders Lindqvist',
+    mlcWarning: false,
+    onUntil: '22:00',
+    rest24hLabel: '9h 30m rest so far',
+    pastWeekLabel: 'Past week 68h',
+    bannerHeadline: null,
+    bannerBody: null,
+    timelineMeta: '18:30 yesterday → now',
+    timelineSummary: '9h 30m rest · 9h 30m on duty · 5h other off-time',
+    timeline: [
+      { label: '4h rest', sub: '18:30 — 22:30 yest', flex: 4, type: 'rest' },
+      { label: '5h 30m rest', sub: '22:30 yest — 04:00', flex: 5.5, type: 'rest' },
+      { label: '3h 30m off-duty', sub: '04:00 — 07:30', flex: 3.5, type: 'off' },
+      { label: '5h on duty', sub: 'duty · breakfast + lunch', flex: 5, type: 'on' },
+      { label: '5h off-duty', sub: '12:30 — 17:30', flex: 5, type: 'off' },
+      { label: '1h on duty', sub: 'duty · dinner service · on now', flex: 1, type: 'on' },
+    ],
+    chartMeta: 'Rolling 7d rest · evolving by day',
+    chartSummary: '84h projected by tonight',
+    chartShort: null,
+    chartShortOf: null,
+    weekChart: [
+      { day: 'Sat', hours: 82, status: 'ok' },
+      { day: 'Sun', hours: 84, status: 'ok' },
+      { day: 'Wed', hours: 83, status: 'ok' },
+      { day: 'Thu', hours: 82, status: 'ok' },
+      { day: 'Fri', hours: 84, status: 'ok', isToday: true },
+      { day: 'Sat', hours: 85, status: 'ok', projected: true, label: 'Sat · proj' },
+      { day: 'Sun', hours: 86, status: 'ok', projected: true, label: 'Sun · proj' },
+    ],
+    tripMeta: 'This trip so far · day 3 of 5',
+    tripSummary: 'Anders has worked <em>28 hours</em> across the first three days of the Marchetti charter.',
+    tripStats: [
+      { num: '28h', label: 'Duty', sub: '100% of his trip work' },
+      { num: '0h', label: 'Watch', sub: 'None this trip' },
+      { num: '0h', label: 'Standby', sub: 'None this trip' },
+    ],
+    suggestions: [],
+  },
+
+  // Safety fallback only — every MOCK_CREW member now has an explicit
+  // entry above, so this should not normally render.
   _default: {
     fullName: '',
     mlcWarning: false,
@@ -160,10 +406,19 @@ export default function RestPanelPopover({ crew, onClose }) {
   const warn = data.mlcWarning;
 
   const initials = crew.initials || crew.name?.slice(0, 2).toUpperCase() || '??';
+  // Status segment of the role line, driven by the live MOCK_CREW flags:
+  //  - off today        → OFF DUTY
+  //  - on now           → ON DUTY NOW [UNTIL hh:mm] (until time from rest data)
+  //  - otherwise        → OFF NOW (shift finished earlier today)
+  const statusLabel = crew.offToday
+    ? 'OFF DUTY'
+    : crew.onNow
+      ? (data.onUntil ? `ON DUTY NOW UNTIL ${data.onUntil}` : 'ON DUTY NOW')
+      : 'OFF NOW';
   const roleLine = [
     crew.department,
     crew.role,
-    warn && data.onUntil ? `ON DUTY NOW UNTIL ${data.onUntil}` : (crew.onNow ? 'ON DUTY NOW' : 'OFF DUTY'),
+    statusLabel,
   ].filter(Boolean).join(' · ').toUpperCase();
 
   const tripSummaryHtml = data.tripSummary
