@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import EditorialMetaStrip from '../../components/editorial/EditorialMetaStrip';
@@ -185,7 +185,7 @@ function LifecycleTimeline({ order }) {
 // /provisioning/suppliers/:id), this can be replaced with a direct
 // navigate without disturbing any of the row interactivity around it.
 
-function SupplierInfoPopover({ order, onClose, onViewAll }) {
+function SupplierInfoPopover({ order, onClose }) {
   const profile = order.supplier_profile || {};
   const name = profile.name || order.supplier_name || 'Supplier';
   const isoCountry = profile.business_country || null;
@@ -251,14 +251,6 @@ function SupplierInfoPopover({ order, onClose, onViewAll }) {
           No contact details on file.
         </p>
       )}
-
-      <button
-        type="button"
-        className="cargo-od-supplier-popover-link"
-        onClick={onViewAll}
-      >
-        View all orders ›
-      </button>
     </div>
   );
 }
@@ -850,6 +842,9 @@ export default function SupplierOrderPage() {
   // Sprint 9c.2 Commit 2 — interactive surface state.
   // Supplier-name popover anchored to the headline.
   const [supplierPopoverOpen, setSupplierPopoverOpen] = useState(false);
+  // ~120ms grace timer so the cursor can travel from the supplier name
+  // into the popover (which sits below it) without it closing en route.
+  const supplierHoverTimer = useRef(null);
   // Delivery-note "awaiting signature" inline popover (open unsigned / resend).
   const [dnPopoverOpen, setDnPopoverOpen] = useState(false);
   // Invoiced over-budget breakdown dialog.
@@ -1029,6 +1024,11 @@ export default function SupplierOrderPage() {
     return () => document.removeEventListener('mousedown', onDocClick);
   }, [supplierPopoverOpen, dnPopoverOpen]);
 
+  // Clear the hover grace timer if the page unmounts mid-delay.
+  useEffect(() => () => {
+    if (supplierHoverTimer.current) clearTimeout(supplierHoverTimer.current);
+  }, []);
+
   // ── Render ──────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -1047,6 +1047,9 @@ export default function SupplierOrderPage() {
   }
 
   const supplierName = order.supplier_profile?.name || order.supplier_name || 'Supplier';
+  // Modern orders carry a supplier_profile_id; legacy rows don't. When
+  // absent the name is inert static text (no hover popover, no click).
+  const supplierProfileId = order.supplier_profile?.id || order.supplier_profile_id || null;
   const boardType = list?.board_type || 'general';
   const country = order.supplier_profile?.business_country || null;
   const flag = flagEmoji(country);
@@ -1100,30 +1103,42 @@ export default function SupplierOrderPage() {
                 lives where a comma should live, and the trigger is
                 otherwise indistinguishable from static headline text. */}
             <h1 className="p-greeting">
-              <span className="cargo-od-supplier-trigger-wrap" data-popover-anchor><button
-                type="button"
-                className="cargo-od-supplier-trigger"
-                onClick={() => setSupplierPopoverOpen((v) => !v)}
-                aria-haspopup="dialog"
-                aria-expanded={supplierPopoverOpen}
-              >{supplierName}</button>{supplierPopoverOpen && (
-                <SupplierInfoPopover
-                  order={order}
-                  onClose={() => setSupplierPopoverOpen(false)}
-                  onViewAll={() => {
-                    setSupplierPopoverOpen(false);
-                    // Prefer the supplier_profile detail page when the order
-                    // carries a supplier_profile_id (modern path). Fall back
-                    // to the unfiltered directory for legacy rows.
-                    const supplierProfileId = order.supplier_profile?.id || order.supplier_profile_id;
-                    if (supplierProfileId) {
-                      navigate(`/provisioning/suppliers/${supplierProfileId}`);
-                    } else {
-                      navigate('/provisioning/suppliers');
+              {supplierProfileId ? (
+                <span
+                  className="cargo-od-supplier-trigger-wrap"
+                  data-popover-anchor
+                  onMouseEnter={() => {
+                    if (supplierHoverTimer.current) {
+                      clearTimeout(supplierHoverTimer.current);
+                      supplierHoverTimer.current = null;
                     }
+                    setSupplierPopoverOpen(true);
                   }}
-                />
-              )}</span><span className="p-greeting-punctuation">,</span>{' '}
+                  onMouseLeave={() => {
+                    // Brief grace period: the popover sits below the name,
+                    // so the cursor must cross a gap to reach it. Closing
+                    // immediately would make it unreachable.
+                    if (supplierHoverTimer.current) clearTimeout(supplierHoverTimer.current);
+                    supplierHoverTimer.current = setTimeout(() => {
+                      setSupplierPopoverOpen(false);
+                      supplierHoverTimer.current = null;
+                    }, 120);
+                  }}
+                ><button
+                  type="button"
+                  className="cargo-od-supplier-trigger"
+                  onClick={() => navigate(`/provisioning/suppliers/${supplierProfileId}`)}
+                  aria-haspopup="dialog"
+                  aria-expanded={supplierPopoverOpen}
+                >{supplierName}</button>{supplierPopoverOpen && (
+                  <SupplierInfoPopover
+                    order={order}
+                    onClose={() => setSupplierPopoverOpen(false)}
+                  />
+                )}</span>
+              ) : (
+                <span>{supplierName}</span>
+              )}<span className="p-greeting-punctuation">,</span>{' '}
               <em>{boardType}</em><span className="p-greeting-punctuation">.</span>
             </h1>
             <p style={{
