@@ -1,0 +1,287 @@
+/* ============================================================
+   Suppliers Directory — Sprint 9c.3 Phase 5
+   Page-scoped under `.sd-dir`. Mirrors docs/three_categorisation_options.html
+   (Option C) — the mockup is the visual source of truth.
+
+   Tokens kept page-scoped (same approach as the 9c.2 supplier-detail
+   page) so the dashboard-style surface doesn't bleed into the warmer
+   editorial pages.
+   ============================================================ */
+
+.sd-dir {
+  --d-bg:          #F8FAFC;
+  --d-card:        #FFFFFF;
+  --d-card-edge:   #C8CBDA;
+  --d-border:      #E5E7EB;
+  --d-border-soft: #EEF0F4;
+  --d-navy:        #262A53;
+  --d-navy-deep:   #1A1D3F;
+  --d-orange:      #C65A1A;
+  --d-cream:       #FCFAF6;
+  --d-cream-warm:  #FAEEDA;
+  --d-lavender:    #EEEDFE;
+  --d-muted:       #7C7E9B;
+  --d-muted-soft:  #9098B1;
+  --d-gold:        #D4A93B;
+  --d-shadow:      0 2px 6px rgba(38, 42, 83, 0.04);
+
+  background: var(--d-bg);
+  color: var(--d-navy);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+.sd-dir-inner { max-width: 1280px; margin: 0 auto; padding: 56px 48px 80px; }
+
+/* ─── Editorial header ─────────────────────────────────────── */
+.sd-dir-header-row {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 24px;
+}
+.sd-dir-back {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
+  color: var(--d-navy); background: transparent; border: 0; padding: 0;
+  cursor: pointer; font-family: inherit; margin-bottom: 28px;
+  display: inline-block;
+}
+.sd-dir-meta {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
+  color: var(--d-navy); margin-bottom: 14px;
+}
+.sd-dir-meta .dot { color: var(--d-orange); }
+.sd-dir-meta .sep { color: #B4B2A9; font-weight: 400; }
+.sd-dir-add {
+  font-family: inherit; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.12em;
+  background: var(--d-navy); color: var(--d-bg);
+  border: 0; border-radius: 12px; padding: 12px 20px;
+  cursor: pointer;
+}
+.sd-dir-add:hover { background: var(--d-navy-deep); }
+.sd-dir-headline {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 56px; line-height: 1; color: var(--d-navy-deep);
+  font-weight: 500; margin: 0 0 10px; text-transform: none;
+  letter-spacing: 0;
+}
+.sd-dir-headline .period { color: var(--d-navy); }
+.sd-dir-headline .accent { font-style: italic; color: var(--d-orange); font-weight: 500; }
+.sd-dir-subline {
+  font-size: 13px; color: var(--d-muted); margin-bottom: 28px;
+}
+
+/* ─── Search ───────────────────────────────────────────────── */
+.sd-dir-search {
+  width: 100%; font-family: inherit; font-size: 13px;
+  padding: 14px 18px; border-radius: 14px;
+  border: 1px solid var(--d-border);
+  border-bottom: 3px solid var(--d-card-edge);
+  background: var(--d-card); color: var(--d-navy);
+  outline: none; margin-bottom: 22px;
+  transition: border-color 0.12s;
+}
+.sd-dir-search:focus { border-color: var(--d-orange); }
+.sd-dir-search::placeholder { color: var(--d-muted-soft); }
+
+/* ─── Filter chip rows ─────────────────────────────────────── */
+.sd-dir-filter-label {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
+  color: var(--d-muted); margin: 4px 0 12px;
+}
+.sd-dir-chip-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+.sd-dir-chip {
+  padding: 6px 14px; border-radius: 11px;
+  background: var(--d-card); border: 1px solid var(--d-border);
+  font-size: 11px; font-weight: 600; letter-spacing: 0.10em;
+  color: var(--d-navy); cursor: pointer; font-family: inherit;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.sd-dir-chip:hover { border-color: var(--d-muted-soft); }
+.sd-dir-chip.active {
+  background: var(--d-navy); color: var(--d-bg); border-color: var(--d-navy);
+}
+.sd-dir-chip .count { color: var(--d-muted-soft); font-weight: 500; margin-left: 6px; }
+.sd-dir-chip.active .count { color: rgba(255, 255, 255, 0.7); }
+
+/* ─── Section headings ─────────────────────────────────────── */
+.sd-dir-section-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 24px; color: var(--d-navy-deep); font-weight: 500;
+  margin: 30px 0 16px; display: flex; align-items: center; gap: 10px;
+}
+.sd-dir-section-title .period { color: var(--d-navy); }
+.sd-dir-section-title .star { color: var(--d-gold); font-size: 18px; }
+.sd-dir-section-title .count {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 13px; font-weight: 500; color: var(--d-muted);
+  letter-spacing: 0;
+}
+
+/* ─── Card grid ────────────────────────────────────────────── */
+.sd-dir-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;
+  margin-bottom: 8px;
+}
+.sd-dir-card {
+  background: var(--d-card); border: 1px solid var(--d-border);
+  border-bottom: 5px solid var(--d-card-edge); border-radius: 18px;
+  padding: 24px; min-height: 200px;
+  display: flex; flex-direction: column; position: relative;
+  cursor: pointer; box-shadow: var(--d-shadow);
+  transition: transform 0.12s, box-shadow 0.12s;
+  text-align: left; font-family: inherit;
+}
+.sd-dir-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(38,42,83,0.08); }
+.sd-dir-card-actions {
+  position: absolute; top: 18px; right: 18px;
+  display: flex; gap: 2px; align-items: center;
+}
+.sd-dir-icon-btn {
+  width: 28px; height: 28px; display: flex; align-items: center;
+  justify-content: center; background: transparent; border: 0;
+  cursor: pointer; border-radius: 7px; font-size: 14px;
+  font-family: inherit; line-height: 1;
+  color: var(--d-muted-soft); transition: background 0.12s, color 0.12s, opacity 0.15s;
+}
+.sd-dir-icon-btn:hover { background: var(--d-border-soft); color: var(--d-navy); }
+.sd-dir-icon-btn.danger:hover { color: #A32D2D; }
+.sd-dir-star { color: var(--d-muted-soft); }
+.sd-dir-star.is-fav { color: var(--d-gold); }
+/* edit + delete reveal on card hover; star is always visible */
+.sd-dir-icon-btn.reveal { opacity: 0; }
+.sd-dir-card:hover .sd-dir-icon-btn.reveal { opacity: 1; }
+.sd-dir-icon-btn.danger.is-confirming {
+  opacity: 1; width: auto; padding: 0 9px; font-size: 10px;
+  font-weight: 700; letter-spacing: 0.06em;
+  background: #FCEBEB; color: #A32D2D;
+}
+
+.sd-dir-card-name {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 22px; color: var(--d-navy-deep); line-height: 1.1;
+  margin-bottom: 6px; padding-right: 72px;
+}
+.sd-dir-card-loc {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
+  color: var(--d-muted); margin-bottom: 14px;
+  display: flex; align-items: center; gap: 6px;
+}
+.sd-dir-card-loc .dot { color: var(--d-orange); }
+.sd-dir-card-type-row { margin-bottom: 8px; }
+.sd-dir-card-type {
+  display: inline-flex; align-items: center; background: transparent;
+  color: var(--d-navy-deep); font-size: 10px; font-weight: 700;
+  letter-spacing: 0.18em; padding: 4px 0; text-transform: uppercase;
+  border-bottom: 2px solid var(--d-orange);
+}
+.sd-dir-card-roles { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.sd-dir-role {
+  font-size: 11px; color: var(--d-navy); background: var(--d-bg);
+  padding: 4px 10px; border-radius: 9px; border: 1px solid var(--d-border);
+  font-weight: 500;
+}
+.sd-dir-role.primary {
+  background: var(--d-cream-warm); color: var(--d-orange);
+  font-weight: 600; border-color: transparent;
+}
+.sd-dir-subroles { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 14px; }
+.sd-dir-subrole {
+  font-size: 10px; color: var(--d-muted); background: transparent;
+  padding: 3px 8px; border-radius: 8px; border: 1px solid var(--d-border-soft);
+}
+.sd-dir-card-divider { border-top: 1px solid var(--d-border-soft); margin: auto 0 12px; }
+.sd-dir-card-meta {
+  font-size: 11px; color: var(--d-muted);
+  display: flex; justify-content: space-between; align-items: baseline;
+}
+.sd-dir-card-meta .strong { color: var(--d-navy); font-weight: 600; }
+
+/* ─── Skeleton loading ─────────────────────────────────────── */
+.sd-dir-skel {
+  background: var(--d-card); border: 1px solid var(--d-border);
+  border-bottom: 5px solid var(--d-card-edge); border-radius: 18px;
+  padding: 24px; min-height: 200px;
+}
+.sd-dir-skel-block {
+  display: block; border-radius: 6px; margin-bottom: 10px;
+  background: linear-gradient(90deg,
+    rgba(38,42,83,0.06) 25%, rgba(38,42,83,0.10) 37%, rgba(38,42,83,0.06) 63%);
+  background-size: 400% 100%;
+  animation: sd-dir-pulse 1.4s ease-in-out infinite;
+}
+@keyframes sd-dir-pulse {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+/* ─── Empty states ─────────────────────────────────────────── */
+.sd-dir-empty {
+  text-align: center; padding: 80px 24px; color: var(--d-muted);
+}
+.sd-dir-empty h3 {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 24px; color: var(--d-navy-deep); font-weight: 500;
+  margin-bottom: 8px;
+}
+.sd-dir-empty p { font-size: 13px; margin-bottom: 20px; }
+.sd-dir-empty .sd-dir-add { display: inline-block; }
+.sd-dir-clear {
+  background: transparent; border: 0; color: var(--d-orange);
+  font-weight: 600; font-size: 13px; cursor: pointer; font-family: inherit;
+}
+
+/* ─── Archive link ─────────────────────────────────────────── */
+.sd-dir-archive-link {
+  display: inline-block; margin-top: 28px;
+  font-size: 12px; font-weight: 600; color: var(--d-muted);
+  background: transparent; border: 0; cursor: pointer; font-family: inherit;
+}
+.sd-dir-archive-link:hover { color: var(--d-orange); }
+
+/* ─── Add/Edit drawer (Phase 6 builds the form body) ──────── */
+.sd-dir-drawer-backdrop {
+  position: fixed; inset: 0; background: rgba(26, 29, 63, 0.32);
+  z-index: 9000; display: flex; justify-content: flex-end;
+}
+.sd-dir-drawer {
+  width: 540px; max-width: 92vw; height: 100%;
+  background: var(--d-card); box-shadow: -16px 0 40px rgba(26,29,63,0.16);
+  display: flex; flex-direction: column; overflow-y: auto;
+  padding: 32px;
+}
+.sd-dir-drawer h2 {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 28px; color: var(--d-navy-deep); font-weight: 500;
+  margin-bottom: 6px;
+}
+.sd-dir-drawer h2 .period { color: var(--d-navy); }
+.sd-dir-drawer h2 .accent { font-style: italic; color: var(--d-orange); }
+.sd-dir-drawer-placeholder {
+  margin-top: 24px; font-size: 13px; color: var(--d-muted);
+  line-height: 1.6;
+}
+.sd-dir-drawer-actions {
+  margin-top: auto; display: flex; justify-content: flex-end; gap: 10px;
+  padding-top: 24px;
+}
+.sd-dir-btn {
+  font-family: inherit; font-size: 12px; font-weight: 600;
+  letter-spacing: 0.08em; padding: 10px 18px; border-radius: 10px;
+  cursor: pointer; border: 1px solid var(--d-border);
+  background: var(--d-card); color: var(--d-navy);
+}
+.sd-dir-btn-primary {
+  background: var(--d-navy); color: var(--d-bg); border-color: var(--d-navy);
+}
+.sd-dir-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ─── Archived view greying ────────────────────────────────── */
+.sd-dir-card.is-archived { opacity: 0.55; cursor: default; }
+.sd-dir-card.is-archived:hover { transform: none; box-shadow: var(--d-shadow); }
+.sd-dir-restore {
+  margin-top: 14px; align-self: flex-start;
+  font-family: inherit; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.10em; padding: 8px 14px; border-radius: 10px;
+  background: var(--d-navy); color: var(--d-bg); border: 0; cursor: pointer;
+}
