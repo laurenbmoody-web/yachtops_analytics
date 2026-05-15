@@ -2143,8 +2143,10 @@ export const fetchSupplierOrderActivity = async (orderId) => {
 // for the dedicated SupplierDetailPage at /provisioning/suppliers/:id.
 // Returns null on no-match; throws on RLS / network errors.
 //
-// Sprint 9c.2 Phase 4 — selects notes + contacts + edit-tracking
-// columns added by 20260514100000_supplier_profiles_notes_and_contacts.
+// Sprint 9c.2 Phase 4 — selects notes + contacts + edit-tracking columns.
+// Sprint 9c.3 Phase 3 — also selects the vendor-model columns added by
+// 20260515120000_supplier_profiles_consolidation. Return contract kept
+// as-is (throws / null) — SupplierDetailPage depends on it.
 export const fetchSupplierProfileById = async (supplierProfileId) => {
   const { data, error } = await supabase
     .from('supplier_profiles')
@@ -2152,7 +2154,9 @@ export const fetchSupplierProfileById = async (supplierProfileId) => {
       id, name, business_country, business_city, business_state_region,
       business_postal_code, business_address_line1, business_address_line2,
       notes, contacts, notes_updated_at, notes_updated_by,
-      invoice_payment_terms_days, default_currency
+      invoice_payment_terms_days, default_currency,
+      tenant_id, vendor_type, categories, subcategories, primary_category,
+      is_favourite, archived_at
     `)
     .eq('id', supplierProfileId)
     .maybeSingle();
@@ -2317,6 +2321,163 @@ export const updateSupplierContacts = async (supplierProfileId, contacts) => {
     .select('id, contacts')
     .single();
   return { data, error };
+};
+
+// ════════════════════════════════════════════════════════════
+// Sprint 9c.3 — Vendor directory helpers (supplier_profiles)
+// ════════════════════════════════════════════════════════════
+//
+// Naming rationale: these are fetchVendors / createVendor / etc., NOT
+// fetchSupplierProfiles. A "vendor" is the broader business-relationship
+// model — any supplier / service-provider / contractor / agent / broker.
+// The underlying table stays `supplier_profiles` for now; this helper
+// layer is the abstraction boundary. When the table is eventually
+// renamed (future sprint, once a contracts/services module ships), only
+// the SQL strings inside these helpers change — call sites don't move.
+//
+// The legacy fetchSuppliers / createSupplier / updateSupplier /
+// deleteSupplier helpers (provisioning_suppliers) are intentionally NOT
+// touched here. Phase 8 (consumer repoint) rewrites them to hit
+// supplier_profiles with legacy-shape mapping; until then they keep the
+// legacy directory + supplier-picker dropdowns working unchanged.
+//
+// All return { data, error } and never throw. Explicit column lists,
+// no SELECT *. RLS (the crew_* tenant-scoped policies from migration
+// 20260515120000) is the security boundary — no tenant_id filter is
+// needed in these read queries.
+
+const VENDOR_COLUMNS = `
+  id, name, vendor_type, primary_category, categories, subcategories,
+  is_favourite, archived_at, tenant_id,
+  business_country, business_city, business_address_line1,
+  contact_email, contact_phone,
+  default_currency, invoice_payment_terms_days,
+  created_at, updated_at
+`;
+
+// Active (non-archived) vendors for the caller's tenant. RLS-scoped.
+export const fetchVendors = async () => {
+  const { data, error } = await supabase
+    .from('supplier_profiles')
+    .select(VENDOR_COLUMNS)
+    .is('archived_at', null)
+    .order('name', { ascending: true });
+  return { data: data || [], error };
+};
+
+// Archived (soft-deleted) vendors, for the archive view.
+export const fetchArchivedVendors = async () => {
+  const { data, error } = await supabase
+    .from('supplier_profiles')
+    .select(VENDOR_COLUMNS)
+    .not('archived_at', 'is', null)
+    .order('name', { ascending: true });
+  return { data: data || [], error };
+};
+
+// Create a vendor. The caller MUST include `tenant_id` in the payload
+// (from the page's activeTenantId) — the crew_insert_supplier_profiles
+// RLS WITH CHECK requires tenant_id ∈ the caller's active tenant_members,
+// so an INSERT without it is rejected. Convention: payload.categories
+// should be [primary_category] so the categories[] always carries the
+// primary; subcategories go in payload.subcategories.
+export const createVendor = async (payload) => {
+  const { data, error } = await supabase
+    .from('supplier_profiles')
+    .insert([payload])
+    .select(VENDOR_COLUMNS)
+    .single();
+  return { data, error };
+};
+
+// Patch mutable vendor fields. Stamps updated_at.
+export const updateVendor = async (id, patch) => {
+  const { data, error } = await supabase
+    .from('supplier_profiles')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select(VENDOR_COLUMNS)
+    .single();
+  return { data, error };
+};
+
+// Toggle the per-tenant favourite flag (any crew member's toggle
+// persists for the whole tenant — favourites are not per-user in v1).
+export const toggleVendorFavourite = async (id, value) => {
+  const { data, error } = await supabase
+    .from('supplier_profiles')
+    .update({ is_favourite: !!value })
+    .eq('id', id)
+    .select('id, is_favourite')
+    .single();
+  return { data, error };
+};
+
+// Soft delete — stamps archived_at. Restorable via restoreVendor.
+export const archiveVendor = async (id) => {
+  const { data, error } = await supabase
+    .from('supplier_profiles')
+    .update({ archived_at: new Date().toISOString() })
+    .eq('id', id)
+    .select('id, archived_at')
+    .single();
+  return { data, error };
+};
+
+// Restore from archive — clears archived_at.
+export const restoreVendor = async (id) => {
+  const { data, error } = await supabase
+    .from('supplier_profiles')
+    .update({ archived_at: null })
+    .eq('id', id)
+    .select('id, archived_at')
+    .single();
+  return { data, error };
+};
+
+// Union of categories + subcategories across the tenant's active
+// vendors. Drives the directory's filter chips and the form's picker
+// autocomplete. Subcategories have no parent column of their own — the
+// only parent signal is the row's primary_category, so a row's
+// subcategories are attributed to its primary_category. Returns
+// { categories: string[], subcategories: { [parent]: string[] } },
+// shaped for vendorConstants.mergeTaxonomy().
+export const fetchKnownCategoryTaxonomy = async () => {
+  const { data, error } = await supabase
+    .from('supplier_profiles')
+    .select('primary_category, categories, subcategories')
+    .is('archived_at', null);
+  if (error) return { data: null, error };
+
+  const categoriesSet = new Set();
+  const subByParent = {};
+  for (const row of data || []) {
+    if (row.primary_category) categoriesSet.add(row.primary_category);
+    for (const c of row.categories || []) if (c) categoriesSet.add(c);
+    // Defensive: subcategories have no parent column of their own — they
+    // hang off the row's primary_category. If primary_category is null
+    // (only reachable via a direct Studio edit that bypasses the Phase 6
+    // form's required-field validation), the row's subcategories are
+    // orphans and are intentionally dropped from the taxonomy rather
+    // than mis-attributed. The row's `categories` values still count —
+    // they don't need a parent.
+    if (!row.primary_category) continue;
+    if (Array.isArray(row.subcategories)) {
+      if (!subByParent[row.primary_category]) subByParent[row.primary_category] = new Set();
+      for (const s of row.subcategories) if (s) subByParent[row.primary_category].add(s);
+    }
+  }
+  const subcategories = {};
+  for (const [parent, set] of Object.entries(subByParent)) {
+    subcategories[parent] = [...set].sort((a, b) => a.localeCompare(b));
+  }
+  return {
+    data: {
+      categories: [...categoriesSet].sort((a, b) => a.localeCompare(b)),
+      subcategories,
+    },
+    error: null,
+  };
 };
 
 export const fetchOrderByToken = async (token) => {
