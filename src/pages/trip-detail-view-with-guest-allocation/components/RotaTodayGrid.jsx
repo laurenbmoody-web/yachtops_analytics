@@ -95,7 +95,7 @@ const MlcTriangle = () => (
 
 // ── Crew row ────────────────────────────────────────────────────────────────
 
-function CrewRow({ crew, currentSlot }) {
+function CrewRow({ crew, currentSlot, onCrewClick }) {
   const cells = [];
   for (let i = 0; i < SLOTS; i += 1) {
     const filled = isSlotInAnyShift(i, crew.shifts);
@@ -126,7 +126,15 @@ function CrewRow({ crew, currentSlot }) {
 
   return (
     <div className={`rota-row${isOffDay ? ' off-day' : ''}`}>
-      <div className={nameCls.join(' ')}>
+      <div
+        className={nameCls.join(' ')}
+        onClick={onCrewClick ? () => onCrewClick(crew) : undefined}
+        role={onCrewClick ? 'button' : undefined}
+        tabIndex={onCrewClick ? 0 : undefined}
+        onKeyDown={onCrewClick ? (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCrewClick(crew); }
+        } : undefined}
+      >
         <div className="rota-name-title">
           {crew.name}
           {isWarningRow && <MlcTriangle />}
@@ -170,14 +178,16 @@ function TotalsRow({ crew }) {
 
 // ── Department section ──────────────────────────────────────────────────────
 
-function DepartmentSection({ label, crew, currentSlot }) {
+function DepartmentSection({ label, crew, currentSlot, onCrewClick }) {
   return (
     <>
       <div className="rota-dept-row">
         <div className="rota-dept">{label}</div>
         <div className="rota-dept-rule" />
       </div>
-      {crew.map(c => <CrewRow key={c.id} crew={c} currentSlot={currentSlot} />)}
+      {crew.map(c => (
+        <CrewRow key={c.id} crew={c} currentSlot={currentSlot} onCrewClick={onCrewClick} />
+      ))}
     </>
   );
 }
@@ -186,7 +196,7 @@ function DepartmentSection({ label, crew, currentSlot }) {
 
 const DEPT_ORDER = ['Interior', 'Deck', 'Galley', 'Engineering'];
 
-export default function RotaTodayGrid({ now = new Date() }) {
+export default function RotaTodayGrid({ now = new Date(), onCrewClick }) {
   const crew = MOCK_CREW;
   const currentSlot = nowSlot(now);
   const currentHour = now.getHours();
@@ -219,6 +229,7 @@ export default function RotaTodayGrid({ now = new Date() }) {
             label={dept}
             crew={byDept.get(dept)}
             currentSlot={currentSlot}
+            onCrewClick={onCrewClick}
           />
         ))}
         <TotalsRow crew={crew} />
