@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Supplier Categorisation Models · Cargo</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #F8FAFC; --card: #FFFFFF; --card-edge: #C8CBDA; --border: #E5E7EB;
+    --border-soft: #EEF0F4; --navy: #262A53; --navy-deep: #1A1D3F;
+    --orange: #C65A1A; --cream: #FCFAF6; --cream-warm: #FAEEDA;
+    --lavender: #EEEDFE; --muted: #7C7E9B; --muted-soft: #9098B1;
+    --gold: #D4A93B; --green-soft: #E1F5EE; --green-deep: #0F6E56;
+  }
+  body { background: var(--bg); font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: var(--navy); padding: 56px 48px 80px; -webkit-font-smoothing: antialiased; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 24px; }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-bottom: 5px solid var(--card-edge); border-radius: 18px;
+    padding: 24px; min-height: 200px; display: flex; flex-direction: column;
+    position: relative;
+  }
+  .card-actions { position: absolute; top: 18px; right: 18px; display: flex; gap: 4px; }
+  .star { color: var(--gold); font-size: 14px; line-height: 28px; height: 28px; width: 28px; text-align: center; }
+  .card-name { font-family: 'DM Serif Display', Georgia, serif; font-size: 22px; color: var(--navy-deep); line-height: 1.1; margin-bottom: 6px; padding-right: 40px; }
+  .card-loc { font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: var(--muted); margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+  .card-loc .dot { color: var(--orange); }
+  .card-divider { border-top: 1px solid var(--border-soft); margin: auto 0 12px; }
+  .card-meta { font-size: 11px; color: var(--muted); display: flex; justify-content: space-between; }
+  .card-meta .strong { color: var(--navy); font-weight: 600; }
+  .c-type-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .c-type { display: inline-flex; align-items: center; background: transparent; color: var(--navy-deep); font-size: 10px; font-weight: 700; letter-spacing: 0.18em; padding: 4px 0; text-transform: uppercase; border-bottom: 2px solid var(--orange); }
+  .c-roles { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .c-role { font-size: 11px; color: var(--navy); background: var(--bg); padding: 4px 10px; border-radius: 9px; border: 1px solid var(--border); font-weight: 500; }
+  .c-role.primary { background: var(--cream-warm); color: var(--orange); font-weight: 600; border-color: transparent; }
+  .chip-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .chip { padding: 6px 14px; border-radius: 11px; background: var(--card); border: 1px solid var(--border); font-size: 11px; font-weight: 600; letter-spacing: 0.10em; color: var(--navy); }
+  .chip.active { background: var(--navy); color: var(--bg); border-color: var(--navy); }
+  .chip .count { color: var(--muted-soft); font-weight: 500; margin-left: 6px; }
+  .chip.active .count { color: rgba(255,255,255,0.7); }
+  .form-preview { background: var(--card); border: 1px solid var(--border); border-bottom: 5px solid var(--card-edge); border-radius: 18px; padding: 28px; margin-top: 24px; max-width: 540px; }
+  .form-label { font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: var(--muted); margin-bottom: 10px; }
+  .form-pill { display: inline-block; padding: 6px 12px; border-radius: 11px; font-size: 11px; font-weight: 600; letter-spacing: 0.10em; margin-right: 6px; margin-bottom: 6px; border: 1px solid var(--border); color: var(--navy); background: var(--card); cursor: pointer; }
+  .form-pill.selected { background: var(--cream-warm); color: var(--orange); border-color: transparent; }
+  .form-pill.selected.primary { box-shadow: 0 0 0 2px var(--orange); }
+  .form-add { display: inline-block; padding: 6px 12px; border-radius: 11px; font-size: 11px; font-weight: 500; background: transparent; color: var(--muted); border: 1px dashed var(--border); cursor: pointer; }
+  .form-section { margin-bottom: 24px; }
+  .form-help { font-size: 11px; color: var(--muted); font-style: italic; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<div class="grid-3">
+  <div class="card">
+    <div class="card-actions"><span class="star">★</span></div>
+    <div class="card-name">Source and Supply</div>
+    <div class="card-loc"><span class="dot">●</span><span>ANTIBES, FRANCE</span></div>
+    <div class="c-type-row"><span class="c-type">SUPPLIER</span></div>
+    <div class="c-roles">
+      <span class="c-role primary">Provisions</span>
+      <span class="c-role">Galley</span>
+      <span class="c-role">Spirits</span>
+    </div>
+    <div class="card-divider"></div>
+    <div class="card-meta"><span><span class="strong">47</span> orders · last 3d</span><span class="strong">€48,920</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-actions"><span class="star">★</span></div>
+    <div class="card-name">Riviera Yacht Services</div>
+    <div class="card-loc"><span class="dot">●</span><span>NICE, FRANCE</span></div>
+    <div class="c-type-row"><span class="c-type">SERVICE PROVIDER</span></div>
+    <div class="c-roles">
+      <span class="c-role primary">Engineering</span>
+      <span class="c-role">Maintenance</span>
+      <span class="c-role">Refit</span>
+    </div>
+    <div class="card-divider"></div>
+    <div class="card-meta"><span><span class="strong">12</span> jobs · last 18d</span><span class="strong">€84,200</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-name">Med Insurance Brokers</div>
+    <div class="card-loc"><span class="dot">●</span><span>MONACO</span></div>
+    <div class="c-type-row"><span class="c-type">BROKER</span></div>
+    <div class="c-roles">
+      <span class="c-role primary">Insurance</span>
+      <span class="c-role">Hull &amp; Machinery</span>
+    </div>
+    <div class="card-divider"></div>
+    <div class="card-meta"><span><span class="strong">2</span> contracts</span><span class="strong">—</span></div>
+  </div>
+</div>
+
+<div style="font-size:11px;font-weight:600;letter-spacing:0.14em;color:var(--muted);margin:24px 0 12px;">FILTER BY VENDOR TYPE</div>
+<div class="chip-row">
+  <div class="chip active">All<span class="count">14</span></div>
+  <div class="chip">Suppliers<span class="count">7</span></div>
+  <div class="chip">Service providers<span class="count">3</span></div>
+  <div class="chip">Brokers<span class="count">2</span></div>
+  <div class="chip">Agents<span class="count">1</span></div>
+  <div class="chip">Contractors<span class="count">1</span></div>
+</div>
+
+<div style="font-size:11px;font-weight:600;letter-spacing:0.14em;color:var(--muted);margin:24px 0 12px;">FILTER BY PRIMARY CATEGORY</div>
+<div class="chip-row">
+  <div class="chip">Provisions<span class="count">4</span></div>
+  <div class="chip">Engineering<span class="count">3</span></div>
+  <div class="chip">Insurance<span class="count">2</span></div>
+  <div class="chip">Legal<span class="count">1</span></div>
+  <div class="chip">Spirits<span class="count">2</span></div>
+  <div class="chip">Galley<span class="count">3</span></div>
+</div>
+
+<div class="form-preview">
+  <div class="form-label">VENDOR TYPE — pick one</div>
+  <div class="form-section">
+    <span class="form-pill selected primary">SUPPLIER</span>
+    <span class="form-pill">SERVICE PROVIDER</span>
+    <span class="form-pill">CONTRACTOR</span>
+    <span class="form-pill">AGENT</span>
+    <span class="form-pill">BROKER</span>
+  </div>
+
+  <div class="form-label">PRIMARY CATEGORY — pick exactly one</div>
+  <div class="form-section">
+    <span class="form-pill selected primary">Provisions</span>
+    <span class="form-pill">Spirits</span>
+    <span class="form-pill">Galley</span>
+    <span class="form-pill">Deck</span>
+    <span class="form-pill">Uniforms</span>
+    <span class="form-pill">Spa</span>
+    <span class="form-pill">Medical</span>
+    <span class="form-pill">Tech</span>
+    <span class="form-pill">Aviation</span>
+    <span class="form-pill">Bridge</span>
+    <span class="form-pill">Engineering</span>
+    <span class="form-pill">Interior</span>
+    <span class="form-add">+ ADD CATEGORY</span>
+  </div>
+
+  <div class="form-label">SUBCATEGORIES under Provisions (optional, multi-select)</div>
+  <div class="form-section">
+    <span class="form-pill selected">Dry stores</span>
+    <span class="form-pill selected">Fresh produce</span>
+    <span class="form-pill">Frozen</span>
+    <span class="form-pill">Dairy</span>
+    <span class="form-pill">Bakery</span>
+    <span class="form-add">+ ADD SUBCATEGORY</span>
+  </div>
+
+  <div class="form-help">
+    Vendor type fixes the relationship model — Suppliers have orders, Service
+    Providers have jobs, Contractors have contracts. Categories describe
+    domain (Provisions, Engineering, etc). Subcategories drill into the
+    primary category. Both type and primary category are required.
+  </div>
+</div>
+
+</body>
+</html>
