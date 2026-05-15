@@ -72,8 +72,8 @@ function buildSubtitle({ trip, phase, days, dayN, totalDays, now = new Date() })
   return '';
 }
 
-function PhaseRightRail({ phase, trip, days, now = new Date(), onOpenRota }) {
-  if (phase === TRIP_PHASE.ABOARD) return <NowAndDutyStack onDutyClick={onOpenRota} />;
+function PhaseRightRail({ phase, trip, days, now = new Date() }) {
+  if (phase === TRIP_PHASE.ABOARD) return <NowAndDutyStack />;
   if (phase === TRIP_PHASE.PLANNING) {
     const dOut = trip?.startDate ? daysBetween(now, trip.startDate) : null;
     const guestCount = Array.isArray(trip?.guests) ? trip.guests.length : 0;
@@ -211,7 +211,7 @@ function TripSummaryBand({ phase, trip, days, now = new Date() }) {
   return null;
 }
 
-export default function SectionHeader({ trip, days = [], onOpenRota }) {
+export default function SectionHeader({ trip, days = [] }) {
   const now = new Date();
   const phase = computeTripPhase(trip, now);
   const totalDays = totalTripDays(trip);
@@ -221,7 +221,7 @@ export default function SectionHeader({ trip, days = [], onOpenRota }) {
   const location = pickHeaderLocation(trip, days, phase, now);
   const meta = buildHeaderMeta({ trip, phase, location, dayOfTrip: dayN, totalDays });
   const subtitle = buildSubtitle({ trip, phase, days, dayN, totalDays, now });
-  const rightRail = <PhaseRightRail phase={phase} trip={trip} days={days} now={now} onOpenRota={onOpenRota} />;
+  const rightRail = <PhaseRightRail phase={phase} trip={trip} days={days} now={now} />;
   const summaryBand = <TripSummaryBand phase={phase} trip={trip} days={days} now={now} />;
 
   return (
