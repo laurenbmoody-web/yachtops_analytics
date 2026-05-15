@@ -16,7 +16,10 @@ function fullDateLabel(d) {
   return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
 }
 
-function RotaLegend() {
+function RotaLegend({ now }) {
+  const hhmm = now
+    ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+    : '';
   return (
     <div className="crew-rota-legend">
       <div className="crew-rota-legend-item">
@@ -24,12 +27,16 @@ function RotaLegend() {
         <span>Scheduled</span>
       </div>
       <div className="crew-rota-legend-item">
-        <span className="crew-rota-legend-swatch" style={{ background: '#C65A1A' }} />
-        <span>On now</span>
+        <span className="crew-rota-legend-swatch" style={{ background: '#F7F5F0' }} />
+        <span>Off</span>
       </div>
       <div className="crew-rota-legend-item">
-        <span className="crew-rota-legend-swatch" style={{ background: '#FAF8F2', border: '0.5px solid #DFD8CC' }} />
+        <span className="crew-rota-legend-swatch" style={{ background: '#EDEAE3' }} />
         <span>Saturday</span>
+      </div>
+      <div className="crew-rota-legend-item">
+        <span style={{ width: 1.5, height: 14, background: '#C65A1A', opacity: 0.5, borderRadius: 1 }} />
+        <span>Now ({hhmm})</span>
       </div>
       <div className="crew-rota-legend-item">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
@@ -92,7 +99,7 @@ export default function CrewRotaPage() {
             <span className="crew-rota-stepper-date">{fullDateLabel(now)}</span>
             <button type="button" className="crew-rota-stepper-btn" aria-label="Next day" disabled>→</button>
             <span className="crew-rota-stepper-helper">
-              04:00 Fri — 04:00 Sat · 30-min cells · click any name for the rest panel
+              06:00 Fri — 06:00 Sat · 30-min cells · click any name for the rest panel
             </span>
           </div>
         </div>
@@ -117,13 +124,13 @@ export default function CrewRotaPage() {
 
           <div className="crew-rota-card-body">
             {view === 'grid'
-              ? <RotaTodayGrid now={now} onCrewClick={setSelectedCrew} />
+              ? <RotaTodayGrid now={now} gridStartHour={6} onCrewClick={setSelectedCrew} />
               : <CrewListView onCrewClick={setSelectedCrew} />}
           </div>
 
           <div className="crew-rota-card-footer">
             {view === 'grid'
-              ? <RotaLegend />
+              ? <RotaLegend now={now} />
               : <span>Click a name for their rest panel.</span>}
             <span style={{ fontStyle: 'italic' }}>
               1 pending correction ·{' '}
