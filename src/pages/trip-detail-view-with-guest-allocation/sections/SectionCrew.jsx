@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import SectionCard from './_SectionCard';
 
 // ── Mock crew data ──────────────────────────────────────────────────────────
@@ -89,7 +90,8 @@ export const MlcTriangle = ({ size = 11 }) => (
 
 // ── Section ─────────────────────────────────────────────────────────────────
 
-export default function SectionCrew({ onOpenRota }) {
+export default function SectionCrew() {
+  const navigate = useNavigate();
   const crew = MOCK_CREW;
   const total = crew.length;
   const onDuty = crew.filter(c => c.onNow && !c.offToday).length;
@@ -113,7 +115,6 @@ export default function SectionCrew({ onOpenRota }) {
   return (
     <SectionCard
       accent="brass"
-      meta={`${total} crew`}
       titleNode={<>Crew on <em>this trip</em>.</>}
       style={{ maxWidth: 220 }}
     >
@@ -179,17 +180,9 @@ export default function SectionCrew({ onOpenRota }) {
       {/* Rota link */}
       <button
         type="button"
-        onClick={onOpenRota}
-        style={{
-          marginTop: 12, width: '100%',
-          background: 'transparent',
-          border: '0.5px solid #DFD8CC',
-          borderRadius: 999,
-          padding: '6px 14px',
-          fontFamily: 'var(--font-sans)',
-          fontSize: 11, fontWeight: 500, color: '#1C1B3A',
-          cursor: 'pointer',
-        }}
+        className="v2-btn-ghost"
+        onClick={() => navigate('/crew')}
+        style={{ width: '100%', marginTop: 12 }}
       >
         Open the rota →
       </button>
