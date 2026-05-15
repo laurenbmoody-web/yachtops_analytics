@@ -263,10 +263,8 @@ export default function SupplierDetailPage() {
   // delete; second × click confirms. Resets on any other interaction.
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
 
-  // Dev role override — lets Lauren flip the role on Netlify without
-  // touching DB state. Defaults to the auth role.
-  const [roleOverride, setRoleOverride] = useState(null);
-  const effectiveRole = (roleOverride || tenantRole || 'CHIEF').toUpperCase();
+  // Page scoping flows directly from the logged-in user's tenant role.
+  const effectiveRole = (tenantRole || 'CHIEF').toUpperCase();
   const isCommand = effectiveRole === 'COMMAND';
 
   // Chief view defaults to interior in this mock pass. Live impl will
@@ -503,21 +501,6 @@ export default function SupplierDetailPage() {
     <>
       <Header />
       <div className="sd-page">
-
-        {/* Dev role switcher — top-right fixed widget. Toggles
-            roleOverride; null override falls back to auth tenantRole. */}
-        <div className="sd-role-switcher" role="group" aria-label="Role view (dev)">
-          <button
-            type="button"
-            className={isCommand ? 'active' : ''}
-            onClick={() => setRoleOverride('COMMAND')}
-          >COMMAND</button>
-          <button
-            type="button"
-            className={!isCommand ? 'active' : ''}
-            onClick={() => setRoleOverride('CHIEF')}
-          >CHIEF STEW</button>
-        </div>
 
         <div className="sd-inner">
 
