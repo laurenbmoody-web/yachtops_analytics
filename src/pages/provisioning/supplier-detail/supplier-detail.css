@@ -1,0 +1,640 @@
+/* ============================================================
+   Supplier Detail Page — Sprint 9c.2 Phase 4
+   src/pages/provisioning/supplier-detail/supplier-detail.css
+
+   Page-scoped under `.sd-page`. Mirrors docs/supplier_detail_page.html
+   tokens + section styles exactly — the mockup HTML is the visual
+   source of truth and these styles are its React translation.
+
+   The tokens are intentionally distinct from `.editorial-page`'s
+   pantry.css tokens. The supplier detail page is a sharper, more
+   dashboard-style surface (saturated navy, cleaner card-edge 3D)
+   while the order/board pages stay in the warmer editorial mode.
+   ============================================================ */
+
+.sd-page {
+  /* Surface tokens — page-scoped, do not bleed into other surfaces. */
+  --sd-bg:           #F8FAFC;
+  --sd-card:         #FFFFFF;
+  --sd-card-edge:    #C8CBDA;
+  --sd-border:       #E5E7EB;
+  --sd-border-soft:  #EEF0F4;
+  --sd-navy:         #262A53;
+  --sd-navy-deep:    #1A1D3F;
+  --sd-orange:       #C65A1A;
+  --sd-cream:        #FCFAF6;
+  --sd-cream-warm:   #FAEEDA;
+  --sd-lavender:     #EEEDFE;
+  --sd-lavender-deep:#3C3489;
+  --sd-muted:        #7C7E9B;
+  --sd-muted-soft:   #9098B1;
+  --sd-green:        #1D9E75;
+  --sd-green-deep:   #0F6E56;
+  --sd-green-soft:   #E1F5EE;
+  --sd-red:          #A32D2D;
+  --sd-red-soft:     #FCEBEB;
+  --sd-shadow:       0 2px 6px rgba(38, 42, 83, 0.04);
+
+  background: var(--sd-bg);
+  color: var(--sd-navy);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+.sd-inner { max-width: 1280px; margin: 0 auto; padding: 56px 48px 80px; }
+
+/* ─── Editorial header ───────────────────────────────────────
+   Top row is a flex split (left col stacks back-link/meta/scope,
+   right col stacks currency-toggle label + control). Headline
+   sits on its own row beneath, full-width DM Serif Display 68px.
+   `.p-greeting` is the canonical class but inside `.sd-page` we
+   override font-size for this specific surface — supplier names
+   are longer than "STANDBY" and 58px is too cramped at this depth. */
+.sd-back-link {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
+  color: var(--sd-navy);
+  background: transparent; border: 0; padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  margin-bottom: 28px;
+  align-self: flex-start;
+}
+.sd-meta-strip {
+  display: flex; align-items: center; gap: 14px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
+  color: var(--sd-navy); margin-bottom: 18px;
+}
+.sd-meta-strip .sd-dot { color: var(--sd-orange); }
+.sd-meta-strip .sd-sep { color: #B4B2A9; font-weight: 400; }
+.sd-scope-pill {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 11px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.14em;
+  align-self: flex-start;
+}
+.sd-scope-pill-chief   { background: var(--sd-cream-warm); color: var(--sd-orange); }
+.sd-scope-pill-command { background: var(--sd-lavender);   color: var(--sd-lavender-deep); }
+.sd-header-top-row {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 24px;
+}
+.sd-header-top-left { display: flex; flex-direction: column; }
+.sd-headline {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 68px; line-height: 1;
+  color: var(--sd-navy-deep); font-weight: 500;
+  margin: 0 0 14px;
+  white-space: nowrap;
+  /* Override `.p-greeting`'s text-transform: uppercase — this surface
+     wants the supplier name in display-case per the mockup. The italic
+     accent word ("overview") inherits text-transform: none from
+     `.p-greeting em` already, but the supplier name needs an explicit
+     reset because it's not inside an <em>. */
+  text-transform: none;
+  letter-spacing: 0;
+}
+.sd-headline .period { color: var(--sd-navy); }
+.sd-headline .accent {
+  font-style: italic;
+  color: var(--sd-orange);
+  font-weight: 500;
+}
+.sd-currency-toggle-wrap { display: flex; flex-direction: column; gap: 8px; }
+.sd-currency-toggle-label {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.16em;
+  color: var(--sd-muted-soft);
+}
+.sd-currency-toggle {
+  display: inline-flex;
+  background: var(--sd-card);
+  border: 1px solid var(--sd-border);
+  border-bottom: 3px solid var(--sd-card-edge);
+  border-radius: 14px;
+  padding: 4px; gap: 2px;
+}
+.sd-currency-toggle .opt {
+  padding: 8px 16px; border-radius: 10px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.10em;
+  cursor: pointer; color: var(--sd-muted);
+  background: transparent; border: 0; font-family: inherit;
+}
+.sd-currency-toggle .opt.active { background: var(--sd-navy); color: var(--sd-bg); }
+.sd-address-subline {
+  font-size: 12px; font-weight: 500; letter-spacing: 0.16em;
+  color: var(--sd-muted); margin-bottom: 40px;
+}
+
+/* ─── Card system (3D bottom edge) ───────────────────────────
+   Canonical card shape: 1px navy-tinted top/side border, 5px
+   navy-tinted bottom edge for the slight 3D lift, 18px radius. */
+.sd-card {
+  background: var(--sd-card);
+  border: 1px solid var(--sd-border);
+  border-bottom: 5px solid var(--sd-card-edge);
+  border-radius: 18px;
+  padding: 22px 24px;
+  box-shadow: var(--sd-shadow);
+}
+.sd-card-lg { padding: 26px 28px; }
+
+/* ─── Section titles ─────────────────────────────────────────
+   DM Serif Display 28px display-case. `.period` span keeps the
+   period in navy ink instead of inheriting display colour. */
+.sd-section-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 28px; color: var(--sd-navy-deep);
+  font-weight: 500; margin: 0 0 18px;
+}
+.sd-section-title .period { color: var(--sd-navy); }
+.sd-section-title-row {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  margin-bottom: 18px;
+}
+.sd-section-title-row .sd-section-title { margin: 0; }
+.sd-label-cap {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.16em;
+  color: var(--sd-muted-soft);
+}
+
+/* ─── Essential KPI row (3 cards above orders) ───────────────
+   Big DM Serif numerals + small context line. */
+.sd-essential-kpis {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;
+  margin-bottom: 34px;
+}
+.sd-kpi-essential { padding: 20px 24px; }
+.sd-kpi-essential .sd-label-cap { margin-bottom: 12px; }
+.sd-kpi-essential .value {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 34px; color: var(--sd-navy-deep);
+  line-height: 1; margin-bottom: 8px;
+}
+.sd-kpi-essential .context { font-size: 12px; color: var(--sd-muted); }
+
+/* ─── Orders table ───────────────────────────────────────────
+   Grid-based rows. Hover lifts row with faint navy tint.
+   Status pills carry tonal-cream/green/red variants. */
+.sd-orders-meta {
+  font-size: 12px; color: var(--sd-muted);
+  display: flex; align-items: center; gap: 14px;
+}
+.sd-orders-meta .sd-filter-link {
+  color: var(--sd-navy); font-weight: 600;
+  background: transparent; border: 0; cursor: pointer;
+  font-family: inherit;
+}
+.sd-orders-card { padding: 8px 4px; margin-bottom: 56px; }
+.sd-orders-row {
+  display: grid;
+  grid-template-columns: 130px 1fr 1fr 130px 110px 90px;
+  gap: 16px; padding: 16px 24px;
+  font-size: 13px; align-items: center;
+  border-bottom: 1px solid var(--sd-border-soft);
+}
+.sd-orders-row:last-of-type { border-bottom: none; }
+.sd-orders-body-row { cursor: pointer; }
+.sd-orders-body-row:hover { background: rgba(38, 42, 83, 0.02); }
+.sd-orders-header {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.16em;
+  color: var(--sd-muted-soft);
+}
+.sd-orders-header span:nth-child(5),
+.sd-orders-header span:nth-child(6) { text-align: right; }
+.sd-order-ref     { font-weight: 600; }
+.sd-order-total   { font-weight: 600; text-align: right; }
+.sd-order-created { color: var(--sd-muted); text-align: right; }
+
+.sd-pill {
+  display: inline-block; padding: 4px 10px; border-radius: 11px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.10em;
+}
+.sd-pill-confirmed     { background: var(--sd-cream-warm); color: var(--sd-orange); }
+.sd-pill-paid          { background: var(--sd-green-soft); color: var(--sd-green-deep); }
+.sd-pill-discrepancies { background: var(--sd-red-soft);   color: var(--sd-red); }
+.sd-pill-neutral       { background: #F1F0EB;              color: var(--sd-muted); }
+
+.sd-orders-empty {
+  padding: 24px;
+  font-size: 13px;
+  color: var(--sd-muted);
+  text-align: center;
+}
+
+.sd-show-all {
+  text-align: center; margin-top: 22px;
+  font-size: 13px; font-weight: 600; color: var(--sd-orange);
+  cursor: pointer; background: transparent; border: 0;
+  font-family: inherit; padding: 6px 12px; width: 100%;
+}
+
+/* ─── Secondary KPIs + right rail ────────────────────────────
+   Left side is 2-col grid for AVG / DISCREPANCY, with a
+   full-width TREND card spanning beneath. Right rail is the
+   currency mix donut card. */
+.sd-lower-grid {
+  display: grid; grid-template-columns: 1fr 360px; gap: 24px;
+  margin-bottom: 44px;
+}
+.sd-secondary-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.sd-secondary-kpis .sd-card { padding: 22px 24px; }
+.sd-secondary-kpis .sd-label-cap { margin-bottom: 16px; }
+.sd-secondary-kpis .value {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 28px; color: var(--sd-navy-deep);
+  line-height: 1; margin-bottom: 10px;
+}
+.sd-secondary-kpis .context { font-size: 12px; color: var(--sd-muted); margin-bottom: 14px; }
+.sd-secondary-kpis .footer-line {
+  border-top: 1px solid var(--sd-border-soft);
+  padding-top: 12px; font-size: 11px;
+}
+.sd-secondary-kpis .delta-up { color: var(--sd-green); font-weight: 600; }
+.sd-secondary-kpis .delta-neutral { color: var(--sd-muted); }
+
+.sd-trend-card { grid-column: 1 / -1; padding: 22px 24px; }
+.sd-trend-header {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 12px;
+}
+.sd-trend-card .sd-label-cap { margin-bottom: 0; }
+.sd-trend-card .context { font-size: 11px; color: var(--sd-muted); }
+.sd-trend-axis {
+  display: flex; justify-content: space-between;
+  font-size: 10px; color: var(--sd-muted-soft); letter-spacing: 0.12em;
+  margin-top: 6px;
+}
+
+.sd-currency-mix-card { display: flex; gap: 18px; align-items: center; }
+.sd-currency-mix-card .legend { flex: 1; }
+.sd-currency-mix-card .legend .sd-label-cap { margin-bottom: 10px; }
+.sd-currency-mix-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 11px; padding: 4px 0;
+}
+.sd-currency-mix-row .swatch {
+  display: inline-block; width: 8px; height: 8px;
+  border-radius: 2px; margin-right: 8px;
+}
+.sd-currency-mix-row .pct { color: var(--sd-muted); }
+.sd-mix-disclaimer {
+  font-size: 11px; color: var(--sd-muted-soft); font-style: italic;
+  margin-top: 14px;
+}
+
+/* ─── Department spend section (Command only) ────────────────
+   Two-column grid that animates from 1fr/0fr → 1fr/420px when a
+   dept row is clicked. The right panel fades in synchronously
+   (opacity 0→1 over 320ms). Both transitions on the same easing. */
+.sd-dept-section { margin-bottom: 44px; }
+.sd-dept-layout {
+  display: grid;
+  grid-template-columns: 1fr 0fr;
+  gap: 0;
+  transition: grid-template-columns 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+              gap 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sd-dept-layout.panel-open {
+  grid-template-columns: minmax(0, 1fr) 420px;
+  gap: 18px;
+}
+.sd-dept-card .role-pill {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 11px;
+  margin-bottom: 18px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.14em;
+  background: var(--sd-lavender);
+  color: var(--sd-lavender-deep);
+}
+.sd-dept-card .context {
+  font-size: 12px; color: var(--sd-muted); margin-bottom: 18px;
+}
+.sd-dept-card .total-line {
+  display: flex; align-items: baseline; gap: 12px;
+  margin-bottom: 18px;
+}
+.sd-dept-card .total-value {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 30px; color: var(--sd-navy-deep); line-height: 1;
+}
+.sd-dept-card .total-context { font-size: 12px; color: var(--sd-muted); }
+.sd-stacked-bar {
+  display: flex; height: 22px; border-radius: 6px;
+  overflow: hidden; margin-bottom: 18px;
+}
+.sd-stacked-bar > div { height: 100%; }
+.sd-dept-legend {
+  display: flex; flex-direction: column; gap: 4px;
+  font-size: 12px;
+}
+.sd-dept-legend-row {
+  display: grid;
+  grid-template-columns: 14px 1fr auto auto 14px;
+  gap: 10px; align-items: center;
+  padding: 10px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  background: transparent; border: 0; font-family: inherit;
+  text-align: left; width: 100%;
+}
+.sd-dept-legend-row:hover { background: rgba(38, 42, 83, 0.03); }
+.sd-dept-legend-row.active { background: rgba(38, 42, 83, 0.06); }
+.sd-dept-legend-row .swatch { width: 10px; height: 10px; border-radius: 2px; }
+.sd-dept-legend-row .name { font-weight: 600; color: var(--sd-navy); }
+.sd-dept-legend-row .stats { color: var(--sd-muted); font-size: 11px; }
+.sd-dept-legend-row .total {
+  font-weight: 600; min-width: 90px; text-align: right;
+  color: var(--sd-navy);
+}
+.sd-dept-legend-row .chev {
+  color: var(--sd-muted-soft); font-size: 14px;
+  transition: transform 0.2s, color 0.2s;
+}
+.sd-dept-legend-row.active .chev { transform: rotate(90deg); color: var(--sd-orange); }
+
+/* Deep-dive panel — slides in from the right via grid sizing. */
+.sd-dept-panel {
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sd-dept-layout.panel-open .sd-dept-panel { opacity: 1; }
+.sd-dept-panel-inner {
+  background: var(--sd-card);
+  border: 1px solid var(--sd-border);
+  border-bottom: 5px solid var(--sd-card-edge);
+  border-radius: 18px;
+  padding: 26px 24px;
+  box-shadow: var(--sd-shadow);
+  min-width: 0;
+}
+.sd-dept-panel .panel-pill {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 11px;
+  margin-bottom: 14px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.14em;
+}
+.sd-dept-panel .panel-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 26px; color: var(--sd-navy-deep);
+  margin-bottom: 4px; line-height: 1.1;
+}
+.sd-dept-panel .panel-sub {
+  font-size: 12px; color: var(--sd-muted); margin-bottom: 18px;
+}
+.sd-panel-kpi-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 10px; margin-bottom: 18px;
+}
+.sd-panel-kpi {
+  background: var(--sd-cream);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.sd-panel-kpi .sd-label-cap { margin-bottom: 6px; }
+.sd-panel-kpi .v {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 20px; color: var(--sd-navy-deep); line-height: 1;
+}
+.sd-panel-kpi .c { font-size: 10px; color: var(--sd-muted); margin-top: 4px; }
+.sd-panel-trend-label {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.16em;
+  color: var(--sd-muted-soft); margin-bottom: 8px;
+}
+.sd-panel-trend-svg { width: 100%; height: 50px; display: block; }
+.sd-panel-trend-axis {
+  display: flex; justify-content: space-between;
+  font-size: 9px; color: var(--sd-muted-soft); letter-spacing: 0.12em;
+  margin-top: 4px; margin-bottom: 18px;
+}
+.sd-top-items-header {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 10px;
+}
+.sd-top-items-header .sd-label-cap { margin-bottom: 0; }
+.sd-top-items-header .by {
+  font-size: 10px; color: var(--sd-muted-soft); letter-spacing: 0.10em;
+}
+.sd-top-items { display: flex; flex-direction: column; gap: 6px; }
+.sd-top-item-row {
+  display: grid; grid-template-columns: 1fr auto auto;
+  gap: 10px; font-size: 12px; padding: 6px 0;
+  border-bottom: 1px solid var(--sd-border-soft);
+}
+.sd-top-item-row:last-child { border-bottom: none; }
+.sd-top-item-row .qty { color: var(--sd-muted); font-size: 11px; }
+.sd-top-item-row .total {
+  font-weight: 600; min-width: 70px; text-align: right;
+  color: var(--sd-navy);
+}
+
+/* ─── Notes & contacts ───────────────────────────────────────
+   2-col grid below dept section. Notes is a cream-bg contenteditable
+   textarea; contacts is a row stack with hover edit/delete affordances.
+   Avatar pastels are hash-picked from the AVATAR_PALETTE in JS. */
+.sd-notes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 24px; }
+.sd-notes-textarea {
+  background: var(--sd-cream);
+  border: 1px solid var(--sd-border-soft);
+  border-radius: 12px;
+  padding: 16px;
+  min-height: 130px;
+  font-size: 13px; line-height: 1.6;
+  color: var(--sd-navy);
+  width: 100%;
+  resize: vertical;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.12s;
+}
+.sd-notes-textarea:focus { border-color: var(--sd-orange); }
+.sd-notes-textarea::placeholder { color: var(--sd-muted-soft); font-style: italic; }
+.sd-notes-footer {
+  border-top: 1px solid var(--sd-border-soft);
+  margin-top: 16px; padding-top: 14px;
+  font-size: 11px; color: var(--sd-muted-soft);
+}
+
+.sd-contact-row {
+  display: flex; gap: 12px; align-items: center;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--sd-border-soft);
+  position: relative;
+}
+.sd-contact-row:first-of-type { padding-top: 0; }
+.sd-contact-row:last-of-type { border-bottom: none; }
+
+.sd-avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600;
+  flex-shrink: 0;
+}
+
+.sd-contact-info { flex: 1; min-width: 0; }
+.sd-contact-name { font-size: 13px; font-weight: 600; color: var(--sd-navy); }
+.sd-contact-role { font-size: 11px; color: var(--sd-muted); }
+.sd-primary-tag {
+  font-size: 10px; color: var(--sd-orange); font-weight: 600;
+  letter-spacing: 0.10em; margin-left: 6px;
+}
+
+.sd-contact-details { text-align: right; }
+.sd-contact-email {
+  font-size: 12px; color: var(--sd-navy);
+  text-decoration: none;
+}
+.sd-contact-email:hover { color: var(--sd-orange); }
+.sd-contact-phone {
+  font-size: 11px; color: var(--sd-muted);
+  text-decoration: none;
+}
+.sd-contact-phone:hover { color: var(--sd-orange); }
+
+/* Edit / delete affordances reveal on row hover. */
+.sd-contact-actions {
+  position: absolute;
+  right: 0; top: 50%; transform: translateY(-50%);
+  display: flex; gap: 4px;
+  opacity: 0; transition: opacity 0.15s;
+  background: var(--sd-card);
+  padding-left: 8px;
+}
+.sd-contact-row:hover .sd-contact-actions { opacity: 1; }
+.sd-contact-action-btn {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; border: 0;
+  color: var(--sd-muted-soft);
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  transition: background 0.12s, color 0.12s;
+}
+.sd-contact-action-btn:hover { background: var(--sd-border-soft); color: var(--sd-navy); }
+.sd-contact-action-btn.danger:hover { color: var(--sd-red); }
+/* First-click confirm state — × becomes "Sure?". Widens automatically
+   to fit the longer label; stays terracotta-tinted as a danger cue. */
+.sd-contact-action-btn.danger.is-confirming {
+  width: auto; padding: 0 10px;
+  background: var(--sd-red-soft); color: var(--sd-red);
+  font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
+  opacity: 1;
+}
+.sd-contact-action-btn.danger.is-confirming:hover { background: var(--sd-red-soft); }
+
+.sd-contacts-empty {
+  font-size: 13px;
+  color: var(--sd-muted);
+  font-style: italic;
+  margin-bottom: 14px;
+}
+
+.sd-add-contact {
+  margin-top: 16px; font-size: 12px; font-weight: 600;
+  color: var(--sd-orange); cursor: pointer;
+  background: transparent; border: 0; padding: 0;
+  font-family: inherit;
+}
+
+/* Inline contact form — shown when adding or editing. */
+.sd-contact-form {
+  margin-top: 14px;
+  padding: 16px;
+  background: var(--sd-cream);
+  border: 1px solid var(--sd-border-soft);
+  border-radius: 12px;
+  display: grid; gap: 8px;
+}
+.sd-contact-form input {
+  font: inherit; font-size: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--sd-border);
+  border-radius: 8px;
+  background: var(--sd-card);
+  color: var(--sd-navy);
+  outline: none;
+}
+.sd-contact-form input:focus { border-color: var(--sd-orange); }
+.sd-contact-form-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+}
+.sd-contact-form-actions {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 4px;
+}
+.sd-contact-form-actions .left { display: flex; gap: 8px; align-items: center; }
+.sd-contact-form-actions label {
+  font-size: 11px; color: var(--sd-muted);
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer;
+}
+.sd-contact-form-actions .btn {
+  font: inherit; font-size: 11px; font-weight: 600;
+  letter-spacing: 0.10em;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid var(--sd-border);
+  background: var(--sd-card); color: var(--sd-navy);
+}
+.sd-contact-form-actions .btn-primary {
+  background: var(--sd-navy); color: var(--sd-bg);
+  border-color: var(--sd-navy);
+}
+.sd-contact-form-actions .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.sd-contact-form-buttons { display: flex; gap: 6px; }
+
+/* ─── Loading / not-found shells ─────────────────────────────  */
+.sd-loading {
+  padding: 60px 0; text-align: center; font-size: 13px;
+  color: var(--sd-muted);
+}
+
+/* Skeleton block — pulses while the async metrics bundle resolves
+   underneath the synchronous profile/contacts content. */
+.sd-skel {
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(90deg,
+    rgba(38, 42, 83, 0.06) 25%,
+    rgba(38, 42, 83, 0.10) 37%,
+    rgba(38, 42, 83, 0.06) 63%);
+  background-size: 400% 100%;
+  animation: sd-skel-pulse 1.4s ease-in-out infinite;
+}
+@keyframes sd-skel-pulse {
+  0%   { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+/* AS TRANSACTED multi-currency stack — replaces the single hero number
+   on Total Spend / Avg Order / dept total + legend rows. */
+.sd-currency-stack { display: flex; flex-direction: column; gap: 2px; }
+.sd-currency-stack .sd-stack-line { font-size: 22px; line-height: 1.2; }
+.sd-kpi-essential .sd-currency-stack .sd-stack-line { font-size: 26px; }
+.sd-stack-more {
+  font-size: 11px; color: var(--sd-muted-soft); margin-top: 2px;
+  font-weight: 600; letter-spacing: 0.04em;
+}
+.sd-dept-legend-row .total .sd-currency-stack { align-items: flex-end; }
+.sd-dept-legend-row .total .sd-currency-stack .sd-stack-line {
+  font-size: 12px; font-weight: 600; color: var(--sd-navy);
+}
+
+/* Note shown in place of charts/bars in AS TRANSACTED mode. */
+.sd-trend-note {
+  font-size: 12px; color: var(--sd-muted); font-style: italic;
+  padding: 22px 4px; text-align: center;
+}
+
+/* Uncategorised legend row — rendered as a static div (no clickthrough);
+   kill the button affordances so it reads as informational only. */
+.sd-dept-legend-row.is-static {
+  cursor: default;
+}
+.sd-dept-legend-row.is-static:hover { background: transparent; }
