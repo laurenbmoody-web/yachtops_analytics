@@ -43,31 +43,6 @@
 }
 .sd-inner { max-width: 1280px; margin: 0 auto; padding: 56px 48px 80px; }
 
-/* ─── Dev role switcher (top-right, fixed) ───────────────────
-   Only renders when a `?role` query param is present or in dev.
-   Lauren toggles between Command and Chief Stew views without
-   needing to change tenant_members.permission_tier in the DB. */
-.sd-role-switcher {
-  position: fixed; top: 16px; right: 16px;
-  background: var(--sd-card);
-  border: 1px solid var(--sd-border);
-  border-bottom: 3px solid var(--sd-card-edge);
-  border-radius: 14px;
-  padding: 6px;
-  display: flex; gap: 4px;
-  z-index: 100;
-  box-shadow: var(--sd-shadow);
-}
-.sd-role-switcher button {
-  background: transparent; border: none;
-  padding: 8px 14px;
-  border-radius: 10px;
-  font: inherit; font-size: 11px;
-  font-weight: 600; letter-spacing: 0.10em;
-  color: var(--sd-muted); cursor: pointer;
-}
-.sd-role-switcher button.active { background: var(--sd-navy); color: var(--sd-bg); }
-
 /* ─── Editorial header ───────────────────────────────────────
    Top row is a flex split (left col stacks back-link/meta/scope,
    right col stacks currency-toggle label + control). Headline
