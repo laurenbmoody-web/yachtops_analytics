@@ -40,6 +40,68 @@ const VESSEL_LAST_ORDER = {
   daysAgo: 3,
 };
 
+// ─── Mocked orders for the orders table ──────────────────────
+//
+// Carries the same shape the real Supabase query returns (id, status,
+// vessel_name, list join, items array, currency, created_at) so the
+// page's render code transitions to live data without component changes.
+//
+// Each source row also carries a `department` tag. Command sees the
+// full vessel-wide array; Chief sees only its department's rows —
+// mirroring the role-scoping pattern the KPI bundle already follows.
+// Interior is padded to 5 rows so both Command (first 5 of all) AND
+// Chief-Interior (5 interior rows) render full 5-row tables — a design
+// preview should always look complete.
+//
+// list_id values are plausible UUIDs grouped by board so hover-preview
+// URLs read realistically. The fake order ids mean a click 404s the
+// order-detail route in dev (acceptable for a preview) — not a no-op.
+//
+// daysAgo is converted to a created_at ISO at module-load time so
+// `fmtRelative` reads naturally. Item stub uses agreed_price + qty=1
+// so computeOrderTotal yields the canonical total directly. Note:
+// fmtRelative renders ≥30-day rows as "Nmo ago" (the shared util's
+// threshold), so rows ≥35 days read "1mo ago" rather than "Nd ago".
+const LIST_CHARTER = 'c4a17b20-3f8e-4d92-a1c6-7b9e0d2f5a31';
+const LIST_OWNER   = 'd8f3e904-2a61-4c7b-9e05-1f6a8b3c0d72';
+const ordersFromOffsets = (rows) => {
+  const now = Date.now();
+  const day = 86400000;
+  return rows.map((r) => ({
+    id: r.id,
+    status: r.status,
+    currency: r.currency || 'EUR',
+    list_id: r.list_id,
+    vessel_name: r.vessel_name,
+    supplier_profile_id: null,
+    department: r.department,
+    supplier_order_items: [
+      { id: 'mock-item', quantity: 1, agreed_price: r.total, quoted_price: null, estimated_price: r.total },
+    ],
+    provisioning_lists: r.board ? { id: r.list_id, title: r.board } : null,
+    created_at: new Date(now - r.daysAgo * day).toISOString(),
+  }));
+};
+const VESSEL_ORDERS = ordersFromOffsets([
+  // First 5 = the canonical mockup rows (Command view = slice(0,5)).
+  { id: '893871fb-a04d-4b97-b8bb-d32c14000001', status: 'confirmed',          department: 'interior', vessel_name: 'M/Y Belongers', board: 'Charter',    list_id: LIST_CHARTER, total: 190.50,  daysAgo: 3  },
+  { id: '7c2401a9-0000-0000-0000-000000000002', status: 'paid',               department: 'galley',   vessel_name: 'M/Y Belongers', board: 'Owner trip', list_id: LIST_OWNER,   total: 2140.00, daysAgo: 12 },
+  { id: '5bd1fe43-0000-0000-0000-000000000003', status: 'partially_received', department: 'interior', vessel_name: 'M/Y Belongers', board: 'Charter',    list_id: LIST_CHARTER, total: 840.20,  daysAgo: 21 },
+  { id: '3fa0cb17-0000-0000-0000-000000000004', status: 'paid',               department: 'interior', vessel_name: 'M/Y Belongers', board: 'Owner trip', list_id: LIST_OWNER,   total: 1420.50, daysAgo: 28 },
+  { id: '1e48bc02-0000-0000-0000-000000000005', status: 'paid',               department: 'deck',     vessel_name: 'M/Y Belongers', board: 'Charter',    list_id: LIST_CHARTER, total: 680.00,  daysAgo: 35 },
+  // Interior padding rows 4 + 5 — keep Chief-Interior at a full 5-row table.
+  { id: '2d90af34-0000-0000-0000-000000000006', status: 'paid',               department: 'interior', vessel_name: 'M/Y Belongers', board: 'Charter',    list_id: LIST_CHARTER, total: 1180.00, daysAgo: 42 },
+  { id: '4b7c1e08-0000-0000-0000-000000000007', status: 'confirmed',          department: 'interior', vessel_name: 'M/Y Belongers', board: 'Owner trip', list_id: LIST_OWNER,   total: 560.40,  daysAgo: 51 },
+]);
+
+// Deep-clone helper so each bundle gets its own array/objects (no
+// shared references leaking across role flips).
+const cloneOrders = (arr) => arr.map((o) => ({
+  ...o,
+  supplier_order_items: o.supplier_order_items.map((i) => ({ ...i })),
+  provisioning_lists: o.provisioning_lists ? { ...o.provisioning_lists } : null,
+}));
+
 const VESSEL_CURRENCY_MIX = [
   { code: 'EUR', percent: 78 },
   { code: 'USD', percent: 15 },
@@ -232,6 +294,8 @@ function buildCommandBundle() {
       points: [...VESSEL_TREND_POINTS],
     },
     currencyMix: VESSEL_CURRENCY_MIX.map((c) => ({ ...c })),
+    // Command sees the full vessel-wide orders array.
+    orders: cloneOrders(VESSEL_ORDERS),
     departmentBreakdown: DEPARTMENTS.map((d) => ({
       key: d.key,
       name: d.name,
@@ -295,6 +359,11 @@ function buildChiefBundle(dept) {
       points: [...dept.trendPoints],
     },
     currencyMix: dept.currencyMix.map((c) => ({ ...c })),
+    // Chief sees ONLY its department's orders — mirrors the KPI
+    // role-scoping. Interior tags 5 of the 7 vessel rows, so the
+    // Chief-Interior table renders a full "Showing 5 of 22 · Interior
+    // only" (other depts have fewer and would show their real count).
+    orders: cloneOrders(VESSEL_ORDERS.filter((o) => o.department === dept.key)),
     departmentBreakdown: null,
   };
 }

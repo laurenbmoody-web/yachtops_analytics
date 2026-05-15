@@ -2142,12 +2142,16 @@ export const fetchSupplierOrderActivity = async (orderId) => {
 // Sprint 9c.2 Commit 2 follow-up — fetch a single supplier_profiles row
 // for the dedicated SupplierDetailPage at /provisioning/suppliers/:id.
 // Returns null on no-match; throws on RLS / network errors.
+//
+// Sprint 9c.2 Phase 4 — selects notes + contacts + edit-tracking
+// columns added by 20260514100000_supplier_profiles_notes_and_contacts.
 export const fetchSupplierProfileById = async (supplierProfileId) => {
   const { data, error } = await supabase
     .from('supplier_profiles')
     .select(`
       id, name, business_country, business_city, business_state_region,
       business_postal_code, business_address_line1, business_address_line2,
+      notes, contacts, notes_updated_at, notes_updated_by,
       invoice_payment_terms_days, default_currency
     `)
     .eq('id', supplierProfileId)
@@ -2265,6 +2269,54 @@ export const markInvoicePaid = async (invoiceId) => {
       .eq('id', invoice.order_id);
   }
   return invoice;
+};
+
+// Sprint 9c.2 Phase 5 — vessel-side editable surfaces on supplier_profiles.
+//
+// Both helpers write to the four crew-writable columns added by migration
+// 20260514100000. Authorization runs at two layers:
+//   - GRANT UPDATE (notes, contacts, notes_updated_at, notes_updated_by)
+//     restricts the column subset
+//   - RLS policy crew_update_supplier_notes restricts row eligibility to
+//     active tenant_members
+// Both functions return { data, error } rather than throwing, so callers
+// can render inline error states without try/catch boilerplate.
+
+// Update the notes text. Stamps notes_updated_at + notes_updated_by so the
+// "Last edited by X · time ago" footer can reflect provenance.
+export const updateSupplierNotes = async (supplierProfileId, notes) => {
+  const { data: { user } = {} } = await supabase.auth.getUser();
+  const userId = user?.id || null;
+  const { data, error } = await supabase
+    .from('supplier_profiles')
+    .update({
+      notes,
+      notes_updated_at: new Date().toISOString(),
+      notes_updated_by: userId,
+    })
+    .eq('id', supplierProfileId)
+    .select('id, notes, notes_updated_at, notes_updated_by')
+    .single();
+  return { data, error };
+};
+
+// Replace the entire contacts jsonb array. No partial merge — callers
+// pass the full array (with any add/edit/delete already applied).
+//
+// Note: this helper does NOT stamp contacts_updated_at / contacts_
+// updated_by — those columns don't exist. The only edit-tracking columns
+// in this migration are notes-scoped (notes_updated_at, notes_updated_by).
+// Backlog: if we want symmetric provenance on contacts changes, either
+// add contacts_updated_at/by columns, or rename the existing pair to
+// supplier_meta_updated_at/by and bump it on both writes.
+export const updateSupplierContacts = async (supplierProfileId, contacts) => {
+  const { data, error } = await supabase
+    .from('supplier_profiles')
+    .update({ contacts })
+    .eq('id', supplierProfileId)
+    .select('id, contacts')
+    .single();
+  return { data, error };
 };
 
 export const fetchOrderByToken = async (token) => {
