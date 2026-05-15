@@ -16,24 +16,6 @@ import {
   markInvoicePaid,
 } from './utils/provisioningStorage';
 import { showToast } from '../../utils/toast';
-import { listSupportedCountries } from '../../data/countryTaxPresets';
-
-// Build the ISO2 → display-name lookup once. Falls back to the raw code
-// when a country is outside the supported set (rare, but won't crash).
-const COUNTRY_NAMES_BY_ISO2 = (() => {
-  const out = {};
-  try {
-    for (const { iso2, name } of listSupportedCountries()) {
-      if (iso2) out[iso2.toUpperCase()] = name;
-    }
-  } catch { /* presets unavailable — fall through to raw codes */ }
-  return out;
-})();
-const countryName = (iso) => {
-  if (!iso) return null;
-  const code = String(iso).toUpperCase();
-  return COUNTRY_NAMES_BY_ISO2[code] || code;
-};
 
 // Sprint 9c.2 — supplier order detail page (replaces the drawer architecture).
 //
@@ -175,93 +157,11 @@ function LifecycleTimeline({ order }) {
   );
 }
 
-// ───────────────────────────────────────────────────────────
-// Supplier info popover (anchored to the headline)
-// ───────────────────────────────────────────────────────────
-//
-// No supplier-detail page exists yet, so the supplier name opens a
-// lightweight popover with the contact card + a link out to the
-// suppliers list. Once a per-supplier detail page lands (e.g.
-// /provisioning/suppliers/:id), this can be replaced with a direct
-// navigate without disturbing any of the row interactivity around it.
-
-function SupplierInfoPopover({ order, onClose, onViewAll }) {
-  const profile = order.supplier_profile || {};
-  const name = profile.name || order.supplier_name || 'Supplier';
-  const isoCountry = profile.business_country || null;
-  const city = profile.business_city || null;
-  const flag = flagEmoji(isoCountry);
-  const email = order.supplier_email || null;
-  const phone = order.supplier_phone || null;
-  const address = order.supplier_address || null;
-  const paymentTerms = profile.invoice_payment_terms_days != null
-    ? `Net ${profile.invoice_payment_terms_days} days`
-    : null;
-
-  // Locale line: prefer "{country full name} · {city}" when both exist,
-  // else whichever is present. Country code is resolved to its display
-  // name so the chip doesn't read like a stray ISO code ("FR").
-  const fullCountry = isoCountry ? countryName(isoCountry) : null;
-  const localePieces = [fullCountry, city].filter(Boolean);
-  const localeLine = localePieces.length > 0 ? localePieces.join(' · ') : null;
-
-  // Each row is [label, value] — falsy values drop the entire row.
-  const rows = [
-    email && ['Email', <a key="e" href={`mailto:${email}`}>{email}</a>],
-    phone && ['Phone', <a key="p" href={`tel:${phone}`}>{phone}</a>],
-    address && ['Address', <span key="a">{address}</span>],
-    paymentTerms && ['Payment terms', <span key="t">{paymentTerms}</span>],
-  ].filter(Boolean);
-
-  // v3 spacing: the popover is a flex column with explicit `gap: 16px`
-  // between major blocks (name, locale, each row, footer link). Within
-  // each label/value row the internal gap is 4px. No dividers — gap
-  // alone supplies the breathing room. See pantry.css:
-  //   .cargo-od-supplier-popover { display:flex; flex-direction:column;
-  //                                gap:16px; padding:20px; ... }
-  //   .cargo-od-supplier-popover-row { display:flex; flex-direction:column;
-  //                                    gap:4px; }
-  return (
-    <div className="cargo-od-supplier-popover" role="dialog" aria-label={`${name} contact details`}>
-      <button
-        type="button"
-        className="cargo-od-supplier-popover-close"
-        onClick={onClose}
-        aria-label="Close"
-      >×</button>
-
-      <h4 className="cargo-od-supplier-popover-name">
-        <span>{name}</span>
-        {flag && <span className="cargo-od-supplier-popover-flag" aria-hidden="true">{flag}</span>}
-      </h4>
-
-      {localeLine && (
-        <p className="cargo-od-supplier-popover-locale">{localeLine}</p>
-      )}
-
-      {rows.map(([label, value]) => (
-        <div className="cargo-od-supplier-popover-row" key={label}>
-          <div className="cargo-od-supplier-popover-label">{label}</div>
-          <div className="cargo-od-supplier-popover-value">{value}</div>
-        </div>
-      ))}
-
-      {rows.length === 0 && (
-        <p className="cargo-od-supplier-popover-empty">
-          No contact details on file.
-        </p>
-      )}
-
-      <button
-        type="button"
-        className="cargo-od-supplier-popover-link"
-        onClick={onViewAll}
-      >
-        View all orders ›
-      </button>
-    </div>
-  );
-}
+// (SupplierInfoPopover removed in 9c.2 FIX 1 — the headline supplier name
+// now navigates straight to the supplier overview dashboard at
+// /provisioning/suppliers/:id, which superseded this pre-overview-page
+// contact popover. Its .cargo-od-supplier-popover* CSS is left in
+// pantry.css untouched; harmless and out of scope for this PR.)
 
 // ───────────────────────────────────────────────────────────
 // Hero stat cards
@@ -848,8 +748,6 @@ export default function SupplierOrderPage() {
   const [queryModalItem, setQueryModalItem] = useState(null);
 
   // Sprint 9c.2 Commit 2 — interactive surface state.
-  // Supplier-name popover anchored to the headline.
-  const [supplierPopoverOpen, setSupplierPopoverOpen] = useState(false);
   // Delivery-note "awaiting signature" inline popover (open unsigned / resend).
   const [dnPopoverOpen, setDnPopoverOpen] = useState(false);
   // Invoiced over-budget breakdown dialog.
@@ -1015,19 +913,18 @@ export default function SupplierOrderPage() {
     }
   }, []);
 
-  // Click-outside dismissal for supplier + delivery-note popovers. Both
-  // panels carry a data attribute so a single document listener can decide
-  // whether the click originated inside any open popover.
+  // Click-outside dismissal for the delivery-note popover. The anchor
+  // carries a data attribute so the document listener can tell whether
+  // the click originated inside the open popover.
   useEffect(() => {
-    if (!supplierPopoverOpen && !dnPopoverOpen) return;
+    if (!dnPopoverOpen) return undefined;
     const onDocClick = (e) => {
       if (e.target.closest('[data-popover-anchor]')) return;
-      setSupplierPopoverOpen(false);
       setDnPopoverOpen(false);
     };
     document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
-  }, [supplierPopoverOpen, dnPopoverOpen]);
+  }, [dnPopoverOpen]);
 
   // ── Render ──────────────────────────────────────────────────────────
   if (loading) {
@@ -1047,6 +944,9 @@ export default function SupplierOrderPage() {
   }
 
   const supplierName = order.supplier_profile?.name || order.supplier_name || 'Supplier';
+  // FK to supplier_profiles. Null on legacy orders that predate the
+  // unified supplier directory — those render the name as static text.
+  const supplierProfileId = order.supplier_profile?.id || order.supplier_profile_id || null;
   const boardType = list?.board_type || 'general';
   const country = order.supplier_profile?.business_country || null;
   const flag = flagEmoji(country);
@@ -1091,39 +991,27 @@ export default function SupplierOrderPage() {
                 stays display-case via `.p-greeting em { text-transform:
                 none }`. Punctuation spans inherit navy from the parent.
 
-                The supplier name is wrapped in a clickable trigger that
-                opens an info popover. Working rule: interactive triggers
-                in editorial typography render visually identical to the
-                original text at rest — the hover affordance (terracotta
-                underline) is the ONLY place the clickable cue appears.
-                There is intentionally NO chevron arrow here; the comma
-                lives where a comma should live, and the trigger is
-                otherwise indistinguishable from static headline text. */}
+                FIX 1 (9c.2): the supplier name navigates to the supplier
+                overview dashboard (/provisioning/suppliers/:id) when the
+                order carries a supplier_profile_id. Legacy orders with a
+                null supplier_profile_id render the name as static text —
+                no button, no hover affordance, cursor default. The
+                two-tone editorial pattern is unchanged either way; only
+                the name portion's interactivity differs. The hover cue
+                (terracotta underline) is the only at-rest signal — no
+                chevron — so the headline reads identically to plain text
+                until hovered. */}
             <h1 className="p-greeting">
-              <span className="cargo-od-supplier-trigger-wrap" data-popover-anchor><button
-                type="button"
-                className="cargo-od-supplier-trigger"
-                onClick={() => setSupplierPopoverOpen((v) => !v)}
-                aria-haspopup="dialog"
-                aria-expanded={supplierPopoverOpen}
-              >{supplierName}</button>{supplierPopoverOpen && (
-                <SupplierInfoPopover
-                  order={order}
-                  onClose={() => setSupplierPopoverOpen(false)}
-                  onViewAll={() => {
-                    setSupplierPopoverOpen(false);
-                    // Prefer the supplier_profile detail page when the order
-                    // carries a supplier_profile_id (modern path). Fall back
-                    // to the unfiltered directory for legacy rows.
-                    const supplierProfileId = order.supplier_profile?.id || order.supplier_profile_id;
-                    if (supplierProfileId) {
-                      navigate(`/provisioning/suppliers/${supplierProfileId}`);
-                    } else {
-                      navigate('/provisioning/suppliers');
-                    }
-                  }}
-                />
-              )}</span><span className="p-greeting-punctuation">,</span>{' '}
+              {supplierProfileId ? (
+                <button
+                  type="button"
+                  className="cargo-od-supplier-trigger"
+                  onClick={() => navigate(`/provisioning/suppliers/${supplierProfileId}`)}
+                  aria-label={`View ${supplierName} supplier overview`}
+                >{supplierName}</button>
+              ) : (
+                <span className="cargo-od-supplier-static">{supplierName}</span>
+              )}<span className="p-greeting-punctuation">,</span>{' '}
               <em>{boardType}</em><span className="p-greeting-punctuation">.</span>
             </h1>
             <p style={{
