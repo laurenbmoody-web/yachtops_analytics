@@ -43,11 +43,11 @@ const AddVendorForm = ({ vendor, activeTenantId, taxonomy, onClose, onSaved }) =
         className="sd-dir-drawer"
         role="dialog"
         aria-modal="true"
-        aria-label={isEdit ? 'Edit vendor' : 'Add vendor'}
+        aria-label={isEdit ? 'Edit supplier' : 'Add supplier'}
         onClick={(e) => e.stopPropagation()}
       >
         <h2>
-          {isEdit ? 'Edit' : 'Add'} <span className="accent">vendor</span>
+          {isEdit ? 'Edit' : 'Add'} <span className="accent">supplier</span>
           <span className="period">.</span>
         </h2>
         <div className="sd-dir-subline" style={{ marginBottom: 0 }}>
@@ -55,7 +55,7 @@ const AddVendorForm = ({ vendor, activeTenantId, taxonomy, onClose, onSaved }) =
         </div>
 
         <div className="sd-dir-drawer-placeholder">
-          The vendor form lands in <strong>Phase 6</strong> — vendor type,
+          The supplier form lands in <strong>Phase 6</strong> — type,
           primary category (with add-new), subcategories, contacts,
           location, default currency and payment terms, wired to
           {' '}<code>createVendor</code> / <code>updateVendor</code>.
@@ -86,7 +86,7 @@ const AddVendorForm = ({ vendor, activeTenantId, taxonomy, onClose, onSaved }) =
             title="The form is built in Phase 6"
             onClick={onSaved}
           >
-            {isEdit ? 'Save changes' : 'Add vendor'}
+            {isEdit ? 'Save changes' : 'Add supplier'}
           </button>
         </div>
       </div>

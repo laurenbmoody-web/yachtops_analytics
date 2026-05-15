@@ -20,6 +20,7 @@ import {
   fetchVendors,
   fetchVendorOrderStats,
   fetchKnownCategoryTaxonomy,
+  fetchTenantName,
   toggleVendorFavourite,
   archiveVendor,
 } from '../utils/provisioningStorage';
@@ -125,8 +126,8 @@ const VendorCard = ({
         <button
           type="button"
           className="sd-dir-icon-btn reveal"
-          title="Edit vendor"
-          aria-label="Edit vendor"
+          title="Edit supplier"
+          aria-label="Edit supplier"
           onClick={() => onEdit(vendor)}
         >
           ✎
@@ -144,8 +145,8 @@ const VendorCard = ({
           <button
             type="button"
             className="sd-dir-icon-btn reveal danger"
-            title="Archive vendor"
-            aria-label="Archive vendor"
+            title="Archive supplier"
+            aria-label="Archive supplier"
             onClick={() => onRequestDelete(vendor)}
           >
             ✕
@@ -215,6 +216,7 @@ const SuppliersDirectoryPage = () => {
   const [vendors, setVendors] = useState([]);
   const [orderStats, setOrderStats] = useState({});
   const [taxonomy, setTaxonomy] = useState({ categories: [], subcategories: {} });
+  const [vesselName, setVesselName] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -238,13 +240,14 @@ const SuppliersDirectoryPage = () => {
   const loadAll = async () => {
     setLoading(true);
     setError(null);
-    const [vRes, sRes, tRes] = await Promise.all([
+    const [vRes, sRes, tRes, nRes] = await Promise.all([
       fetchVendors(),
       fetchVendorOrderStats(),
       fetchKnownCategoryTaxonomy(),
+      fetchTenantName(activeTenantId),
     ]);
     if (vRes.error) {
-      setError(vRes.error.message || 'Could not load the vendor directory.');
+      setError(vRes.error.message || 'Could not load the supplier directory.');
       setVendors([]);
       setLoading(false);
       return;
@@ -252,6 +255,7 @@ const SuppliersDirectoryPage = () => {
     setVendors(vRes.data || []);
     setOrderStats(sRes.data || {});
     setTaxonomy(mergeTaxonomy(tRes && !tRes.error ? tRes.data : undefined));
+    setVesselName(nRes && !nRes.error ? nRes.data : null);
     setLoading(false);
   };
 
@@ -330,6 +334,13 @@ const SuppliersDirectoryPage = () => {
   const favourites = useMemo(() => visible.filter((v) => v.is_favourite), [visible]);
   const rest = useMemo(() => visible.filter((v) => !v.is_favourite), [visible]);
 
+  // Directory-wide favourite total for the meta strip (independent of
+  // the active search / chip filters).
+  const favouriteCount = useMemo(
+    () => vendors.filter((v) => v.is_favourite).length,
+    [vendors],
+  );
+
   const anyFilterActive = !!(search.trim() || typeFilter || categoryFilter || subFilter);
 
   const clearFilters = () => {
@@ -364,7 +375,7 @@ const SuppliersDirectoryPage = () => {
     const { error: e } = await archiveVendor(v.id);
     if (e) {
       setVendors(snapshot);
-      showToast('Could not archive vendor', 'error');
+      showToast('Could not archive supplier', 'error');
     } else {
       showToast(`${v.name} archived`, 'success');
     }
@@ -423,24 +434,26 @@ const SuppliersDirectoryPage = () => {
             <div>
               <div className="sd-dir-meta">
                 <span className="dot">●</span>
-                <span>VENDOR DIRECTORY</span>
+                <span>{(vesselName || 'VESSEL').toUpperCase()}</span>
                 {!loading && (
                   <>
                     <span className="sep">·</span>
-                    <span>{vendors.length} ACTIVE</span>
+                    <span>{vendors.length} {vendors.length === 1 ? 'SUPPLIER' : 'SUPPLIERS'}</span>
+                    <span className="sep">·</span>
+                    <span>{favouriteCount} {favouriteCount === 1 ? 'FAVOURITE' : 'FAVOURITES'}</span>
                   </>
                 )}
               </div>
               <h1 className="sd-dir-headline">
-                Every vendor, <span className="accent">in one berth</span>
+                Supplier <span className="accent">directory</span>
                 <span className="period">.</span>
               </h1>
-              <div className="sd-dir-subline">
-                Suppliers, service providers, contractors, agents and brokers — the full book.
+              <div className="sd-dir-tagline">
+                Every supplier you work with · click any card to open the overview
               </div>
             </div>
             <button type="button" className="sd-dir-add" onClick={openAdd}>
-              + ADD VENDOR
+              + ADD SUPPLIER
             </button>
           </div>
 
@@ -452,7 +465,7 @@ const SuppliersDirectoryPage = () => {
             onChange={(e) => setSearch(e.target.value)}
           />
 
-          <div className="sd-dir-filter-label">FILTER BY VENDOR TYPE</div>
+          <div className="sd-dir-filter-label">FILTER BY TYPE</div>
           <div className="sd-dir-chip-row">
             <button
               type="button"
@@ -524,9 +537,9 @@ const SuppliersDirectoryPage = () => {
             </div>
           ) : vendors.length === 0 ? (
             <div className="sd-dir-empty">
-              <h3>No vendors yet</h3>
+              <h3>No suppliers yet</h3>
               <p>Add your first supplier, service provider or broker to get started.</p>
-              <button type="button" className="sd-dir-add" onClick={openAdd}>+ ADD VENDOR</button>
+              <button type="button" className="sd-dir-add" onClick={openAdd}>+ ADD SUPPLIER</button>
             </div>
           ) : visible.length === 0 ? (
             <div className="sd-dir-empty">
@@ -550,7 +563,7 @@ const SuppliersDirectoryPage = () => {
               )}
 
               <div className="sd-dir-section-title">
-                {favourites.length > 0 ? 'All vendors' : 'Vendors'}
+                {favourites.length > 0 ? 'All suppliers' : 'Suppliers'}
                 <span className="period">.</span>
                 <span className="count">{rest.length}</span>
               </div>
@@ -576,7 +589,7 @@ const SuppliersDirectoryPage = () => {
               className="sd-dir-archive-link"
               onClick={() => navigate('/provisioning/suppliers/archive')}
             >
-              View archived vendors  ›
+              View archived suppliers  ›
             </button>
           </div>
         </div>
