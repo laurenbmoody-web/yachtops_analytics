@@ -2307,6 +2307,12 @@
   text-decoration-thickness: 1.5px;
   text-underline-offset: 4px;
 }
+/* 9c.2 FIX 1 — legacy orders with a null supplier_profile_id render the
+   headline supplier name as static text: no pointer, no hover affordance,
+   visually identical to the rest of the editorial headline. */
+.cargo-od-supplier-static {
+  cursor: default;
+}
 
 /* Sprint 9c.2 Commit 2 (follow-up v3) — supplier info popover.
    Component-level spacing system using flex gap. The popover is a flex
