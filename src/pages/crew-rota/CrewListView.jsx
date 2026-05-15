@@ -7,11 +7,23 @@ function avatarColors(onDuty) {
     : { bg: '#ECE6DC', fg: '#5C5440' };
 }
 
+// "today 08:00–14:00, 18:00–22:00" → "08:00–14:00 · 18:00–22:00"
+// Strips the leading "today ", swaps comma separators for middots,
+// normalises hyphen ranges to en-dashes. Non-time shift text
+// (e.g. "off today, back Saturday 08:00") is left readable.
+function formatShift(shiftText) {
+  if (!shiftText) return '';
+  const cleaned = shiftText.replace(/^today\s+/i, '');
+  return cleaned
+    .split(', ')
+    .map(s => s.replace(/-/g, '–'))
+    .join(' · ');
+}
+
 function CrewRow({ crew, onClick }) {
   const isOff = crew.offToday;
   const onDuty = crew.onNow && !isOff;
   const { bg, fg } = avatarColors(onDuty);
-  const restColor = crew.mlcWarning ? 'warning' : '';
 
   const pill = isOff
     ? { cls: 'off', label: 'Off' }
@@ -19,9 +31,15 @@ function CrewRow({ crew, onClick }) {
       ? { cls: 'on', label: 'On now' }
       : { cls: 'off', label: 'Off now' };
 
+  const rowCls = [
+    'crew-list-row',
+    isOff ? 'off-day' : '',
+    crew.mlcWarning ? 'mlc-warn' : '',
+  ].filter(Boolean).join(' ');
+
   return (
     <div
-      className={`crew-list-row${isOff ? ' off-day' : ''}`}
+      className={rowCls}
       onClick={() => onClick?.(crew)}
       role="button"
       tabIndex={0}
@@ -39,7 +57,7 @@ function CrewRow({ crew, onClick }) {
           {crew.mlcWarning && <MlcTriangle />}
         </div>
         <div className="crew-list-role">
-          {crew.role} · {crew.shiftText}
+          {crew.role} · {formatShift(crew.shiftText)}
           {crew.mlcWarning && (
             <span style={{ color: '#C65A1A', fontWeight: 500 }}> · rest below MLC</span>
           )}
@@ -50,7 +68,9 @@ function CrewRow({ crew, onClick }) {
         <div />
       ) : (
         <div className="crew-list-rest">
-          <div className={`crew-list-rest-num ${restColor}`}>{crew.rest24h || '—'}</div>
+          <div className={`crew-list-rest-num ${crew.mlcWarning ? 'warning' : ''}`}>
+            {crew.rest24h || '—'}
+          </div>
           <div className="crew-list-rest-cap">Rest 24h</div>
         </div>
       )}
@@ -76,9 +96,9 @@ export default function CrewListView({ onCrewClick }) {
 
   return (
     <div>
-      {orderedDepts.map(dept => (
+      {orderedDepts.map((dept, idx) => (
         <div key={dept}>
-          <div className="crew-list-dept">
+          <div className={`crew-list-dept${idx === 0 ? ' first' : ''}`}>
             <span className="crew-list-dept-label">{dept} · {byDept.get(dept).length} crew</span>
             <span className="crew-list-dept-rule" />
           </div>
@@ -87,13 +107,6 @@ export default function CrewListView({ onCrewClick }) {
           ))}
         </div>
       ))}
-
-      <div className="crew-rota-foot">
-        <span>Tap a crew member for their week.</span>
-        <span style={{ fontStyle: 'italic' }}>
-          1 pending correction · <a href="#review" onClick={(e) => e.preventDefault()}>review</a>
-        </span>
-      </div>
     </div>
   );
 }

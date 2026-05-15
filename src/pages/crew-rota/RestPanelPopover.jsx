@@ -66,6 +66,14 @@ const WarnTriangle = ({ size = 16, color = '#7A2E1E' }) => (
   </svg>
 );
 
+const CloseIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
 const MAX_BAR_HOURS = 12;
 
 export default function RestPanelPopover({ crew, onClose }) {
@@ -98,10 +106,17 @@ export default function RestPanelPopover({ crew, onClose }) {
     warn && data.onUntil ? `ON NOW UNTIL ${data.onUntil}` : (crew.onNow ? 'ON NOW' : 'OFF NOW'),
   ].filter(Boolean).join(' · ').toUpperCase();
 
+  const firstName = data.fullName.split(' ')[0];
+
   return (
     <>
       <div className="rest-popover-backdrop" onClick={onClose} />
-      <div className="rest-popover-panel" role="dialog" aria-modal="true" aria-label={`${data.fullName} rest`}>
+      <div
+        className={`rest-popover-panel${warn ? '' : ' compliant'}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${data.fullName} rest`}
+      >
 
         {/* Identity header */}
         <div className="rest-id-row">
@@ -113,12 +128,14 @@ export default function RestPanelPopover({ crew, onClose }) {
             </div>
             <div className="rest-id-role">{roleLine}</div>
           </div>
-          <button type="button" className="rest-close" onClick={onClose} aria-label="Close">×</button>
+          <button type="button" className="rest-close" onClick={onClose} aria-label="Close">
+            <CloseIcon />
+          </button>
         </div>
 
         {/* Summary cards */}
         <div className="rest-cards">
-          <div className={`rest-card ${warn ? 'warn' : 'plain'}`}>
+          <div className={`rest-card ${warn ? 'warn' : 'sage'}`}>
             <div className="rest-card-label">Rest in the last 24h</div>
             <div className="rest-card-num">
               {data.rest24h}
@@ -167,6 +184,15 @@ export default function RestPanelPopover({ crew, onClose }) {
         <div className="rest-week">
           <div className="rest-timeline-label">Rest by day · last 7</div>
           <div className="rest-week-grid">
+            {/* Axis column — "10h" marker aligned to each bar's dashed line */}
+            <div className="rest-week-col axis">
+              <div className="rest-week-spacer-day" />
+              <div className="rest-week-axis-box">
+                <span className="rest-week-axis-10h">10h</span>
+              </div>
+              <div className="rest-week-spacer-hours" />
+            </div>
+
             {data.weekDays.map((d) => {
               const pct = Math.min(100, (d.hours / MAX_BAR_HOURS) * 100);
               const fillClass =
@@ -176,7 +202,8 @@ export default function RestPanelPopover({ crew, onClose }) {
               return (
                 <div key={d.day} className={`rest-week-col${d.isToday ? ' today' : ''}`}>
                   <div className="rest-week-day">{d.day}</div>
-                  <div className="rest-week-bar">
+                  <div className={`rest-week-bar${d.isToday ? ' today' : ''}`}>
+                    <div className="rest-week-mlc-line" />
                     <div
                       className={`rest-week-fill ${fillClass}`}
                       style={{ height: `${pct}%` }}
@@ -191,16 +218,16 @@ export default function RestPanelPopover({ crew, onClose }) {
           </div>
         </div>
 
-        {/* MLC warning banner */}
+        {/* MLC warning banner — only when below MLC */}
         {warn && (
           <div className="rest-banner">
             <WarnTriangle />
             <div>
               <div className="rest-banner-title">MLC daily rest below 10 hours.</div>
               <div className="rest-banner-body">
-                {data.fullName.split(' ')[0]} cannot start her next shift before{' '}
-                {data.nextSafe} without a logged operational reason. The system will
-                require an approver and reason on save.
+                {firstName} cannot start her next shift before {data.nextSafe} without a
+                logged operational reason. The system will require an approver and
+                reason on save.
               </div>
             </div>
           </div>
@@ -208,8 +235,12 @@ export default function RestPanelPopover({ crew, onClose }) {
 
         {/* Actions */}
         <div className="rest-actions">
-          <button type="button" className="rest-btn primary">Adjust her shift</button>
-          <button type="button" className="rest-btn ghost">Log violation reason</button>
+          <button type="button" className="rest-btn primary">
+            {warn ? 'Adjust shift' : 'View full schedule'}
+          </button>
+          {warn && (
+            <button type="button" className="rest-btn ghost">Log violation reason</button>
+          )}
           <button type="button" className="rest-btn ghost push">Hours of rest log →</button>
         </div>
 
