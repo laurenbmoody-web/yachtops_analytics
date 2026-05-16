@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import LogoSpinner from '../../../components/LogoSpinner';
 import {
+  CREW_STATUSES,
   getStatusLabel, getStatusDotClass, getStatusCellClass,
   buildStatusPeriods, getStatusForDay,
 } from '../../../utils/crewStatus';
@@ -93,16 +94,9 @@ function MonthCalendar({ periods }) {
 
       {/* Legend */}
       <div className="flex flex-wrap gap-3 mt-4">
-        {[
-          { status: 'active',           label: 'Active' },
-          { status: 'on_leave',         label: 'On Leave' },
-          { status: 'rotational_leave', label: 'Rotational Leave' },
-          { status: 'medical_leave',    label: 'Medical Leave' },
-          { status: 'training',         label: 'Training' },
-          { status: 'invited',          label: 'Invited' },
-        ].map(({ status, label }) => (
-          <div key={status} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className={`w-3 h-3 rounded-sm ${getStatusCellClass(status)}`} />
+        {CREW_STATUSES.map(({ value, label }) => (
+          <div key={value} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className={`w-3 h-3 rounded-sm ${getStatusCellClass(value)}`} />
             {label}
           </div>
         ))}
