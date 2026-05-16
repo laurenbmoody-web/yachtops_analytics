@@ -12,7 +12,7 @@
 // loading / empty states) and a working Add/Edit *drawer shell*.
 // The drawer's form body is built in Phase 6 (AddVendorForm).
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../../components/navigation/Header';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -223,12 +223,14 @@ const SuppliersDirectoryPage = () => {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState(null);       // vendor_type | null (= All)
   const [categoryFilter, setCategoryFilter] = useState(null); // primary/category | null
-  const [subFilter, setSubFilter] = useState(null);          // subcategory | null
+  const [filterOpen, setFilterOpen] = useState(false);       // filters popover
 
   const [confirmingDeleteId, setConfirmingDeleteId] = useState(null);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingVendor, setEditingVendor] = useState(null); // null = add mode
+
+  const filterAnchorRef = useRef(null);
 
   // Body bg lift (same approach as the 9c.2 supplier-detail page).
   useEffect(() => {
@@ -284,52 +286,39 @@ const SuppliersDirectoryPage = () => {
     });
   }, [vendors, search]);
 
-  const typeFiltered = useMemo(
-    () => (typeFilter ? searchFiltered.filter((v) => v.vendor_type === typeFilter) : searchFiltered),
-    [searchFiltered, typeFilter],
-  );
-
   const matchesCategory = (v, cat) =>
     v.primary_category === cat || (v.categories || []).includes(cat);
 
-  const categoryFiltered = useMemo(
-    () => (categoryFilter ? typeFiltered.filter((v) => matchesCategory(v, categoryFilter)) : typeFiltered),
-    [typeFiltered, categoryFilter],
-  );
+  const visible = useMemo(() => {
+    let r = searchFiltered;
+    if (typeFilter) r = r.filter((v) => v.vendor_type === typeFilter);
+    if (categoryFilter) r = r.filter((v) => matchesCategory(v, categoryFilter));
+    return r;
+  }, [searchFiltered, typeFilter, categoryFilter]);
 
-  const visible = useMemo(
-    () => (subFilter ? categoryFiltered.filter((v) => (v.subcategories || []).includes(subFilter)) : categoryFiltered),
-    [categoryFiltered, subFilter],
-  );
-
-  // Faceted counts.
+  // Faceted counts — each axis counts against the search + the OTHER
+  // selected axis (so the numbers reflect what picking a chip would
+  // actually yield given the rest of the active filter state).
   const typeCounts = useMemo(() => {
-    const m = {};
-    for (const v of searchFiltered) m[v.vendor_type] = (m[v.vendor_type] || 0) + 1;
+    const base = categoryFilter
+      ? searchFiltered.filter((v) => matchesCategory(v, categoryFilter))
+      : searchFiltered;
+    const m = { __all: base.length };
+    for (const v of base) m[v.vendor_type] = (m[v.vendor_type] || 0) + 1;
     return m;
-  }, [searchFiltered]);
+  }, [searchFiltered, categoryFilter]);
 
   const categoryCounts = useMemo(() => {
+    const base = typeFilter
+      ? searchFiltered.filter((v) => v.vendor_type === typeFilter)
+      : searchFiltered;
     const m = {};
-    for (const v of typeFiltered) {
+    for (const v of base) {
       const cats = new Set([v.primary_category, ...(v.categories || [])].filter(Boolean));
       for (const c of cats) m[c] = (m[c] || 0) + 1;
     }
     return m;
-  }, [typeFiltered]);
-
-  const subOptions = useMemo(() => {
-    if (!categoryFilter) return [];
-    return taxonomy.subcategories?.[categoryFilter] || [];
-  }, [categoryFilter, taxonomy]);
-
-  const subCounts = useMemo(() => {
-    const m = {};
-    for (const v of categoryFiltered) {
-      for (const s of v.subcategories || []) m[s] = (m[s] || 0) + 1;
-    }
-    return m;
-  }, [categoryFiltered]);
+  }, [searchFiltered, typeFilter]);
 
   const favourites = useMemo(() => visible.filter((v) => v.is_favourite), [visible]);
   const rest = useMemo(() => visible.filter((v) => !v.is_favourite), [visible]);
@@ -341,14 +330,40 @@ const SuppliersDirectoryPage = () => {
     [vendors],
   );
 
-  const anyFilterActive = !!(search.trim() || typeFilter || categoryFilter || subFilter);
+  const activeFilters = useMemo(() => {
+    const out = [];
+    if (typeFilter) out.push({ kind: 'type', label: `Type: ${typeFilter}` });
+    if (categoryFilter) out.push({ kind: 'category', label: `Category: ${categoryFilter}` });
+    return out;
+  }, [typeFilter, categoryFilter]);
+  const activeFilterCount = activeFilters.length;
+  const hasActiveFilters = activeFilterCount > 0;
 
   const clearFilters = () => {
-    setSearch('');
     setTypeFilter(null);
     setCategoryFilter(null);
-    setSubFilter(null);
   };
+  const removeFilter = (kind) => {
+    if (kind === 'type') setTypeFilter(null);
+    if (kind === 'category') setCategoryFilter(null);
+  };
+
+  // Close the filters popover on outside click / Esc / re-click.
+  useEffect(() => {
+    if (!filterOpen) return undefined;
+    const onDown = (e) => {
+      if (filterAnchorRef.current && !filterAnchorRef.current.contains(e.target)) {
+        setFilterOpen(false);
+      }
+    };
+    const onKey = (e) => { if (e.key === 'Escape') setFilterOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [filterOpen]);
 
   // ─── Card actions ──────────────────────────────────────────────
 
@@ -457,71 +472,109 @@ const SuppliersDirectoryPage = () => {
             </button>
           </div>
 
-          <input
-            className="sd-dir-search"
-            type="text"
-            placeholder="Search by name, port, category…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-
-          <div className="sd-dir-filter-label">FILTER BY TYPE</div>
-          <div className="sd-dir-chip-row">
-            <button
-              type="button"
-              className={`sd-dir-chip${!typeFilter ? ' active' : ''}`}
-              onClick={() => setTypeFilter(null)}
-            >
-              All<span className="count">{searchFiltered.length}</span>
-            </button>
-            {VENDOR_TYPES.map((t) => (
+          <div className="sd-dir-search-row">
+            <input
+              className="sd-dir-search"
+              type="text"
+              placeholder="Search by name, port, category…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <div className="sd-dir-filter-anchor" ref={filterAnchorRef}>
               <button
-                key={t.value}
                 type="button"
-                className={`sd-dir-chip${typeFilter === t.value ? ' active' : ''}`}
-                onClick={() => setTypeFilter(typeFilter === t.value ? null : t.value)}
+                className={`sd-dir-filter-btn${filterOpen ? ' is-open' : ''}`}
+                aria-expanded={filterOpen}
+                onClick={() => setFilterOpen((v) => !v)}
               >
-                {t.label}<span className="count">{typeCounts[t.value] || 0}</span>
+                <svg viewBox="0 0 24 24" fill="none" strokeWidth="2"
+                  strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <line x1="4" y1="6" x2="20" y2="6" />
+                  <line x1="4" y1="12" x2="20" y2="12" />
+                  <line x1="4" y1="18" x2="20" y2="18" />
+                  <circle cx="9" cy="6" r="2.4" fill="currentColor" stroke="none" />
+                  <circle cx="15" cy="12" r="2.4" fill="currentColor" stroke="none" />
+                  <circle cx="8" cy="18" r="2.4" fill="currentColor" stroke="none" />
+                </svg>
+                Filters
+                {activeFilterCount > 0 && (
+                  <span className="sd-dir-filter-badge">({activeFilterCount})</span>
+                )}
               </button>
-            ))}
+
+              {filterOpen && (
+                <div className="sd-dir-filter-pop" role="dialog" aria-label="Filter suppliers">
+                  <div className="sd-dir-filter-pop-head">
+                    <span className="sd-dir-filter-pop-title">Filter suppliers</span>
+                    {hasActiveFilters && (
+                      <button type="button" className="sd-dir-clear" onClick={clearFilters}>
+                        Clear all
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="sd-dir-fsection">
+                    <div className="sd-dir-fsection-label">TYPE</div>
+                    <div className="sd-dir-fchips">
+                      <button
+                        type="button"
+                        className={`sd-dir-fchip${!typeFilter ? ' is-on' : ''}`}
+                        onClick={() => setTypeFilter(null)}
+                      >
+                        All<span className="count">{typeCounts.__all || 0}</span>
+                      </button>
+                      {VENDOR_TYPES.map((t) => (
+                        <button
+                          key={t.value}
+                          type="button"
+                          className={`sd-dir-fchip${typeFilter === t.value ? ' is-on' : ''}`}
+                          onClick={() => setTypeFilter(typeFilter === t.value ? null : t.value)}
+                        >
+                          {t.label}<span className="count">{typeCounts[t.value] || 0}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="sd-dir-fsection">
+                    <div className="sd-dir-fsection-label">CATEGORY</div>
+                    <div className="sd-dir-fchips">
+                      {taxonomy.categories.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          className={`sd-dir-fchip${categoryFilter === c ? ' is-on' : ''}`}
+                          onClick={() => setCategoryFilter(categoryFilter === c ? null : c)}
+                        >
+                          {c}<span className="count">{categoryCounts[c] || 0}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="sd-dir-filter-label">FILTER BY CATEGORY</div>
-          <div className="sd-dir-chip-row">
-            {taxonomy.categories.map((c) => (
-              <button
-                key={c}
-                type="button"
-                className={`sd-dir-chip${categoryFilter === c ? ' active' : ''}`}
-                onClick={() => {
-                  const next = categoryFilter === c ? null : c;
-                  setCategoryFilter(next);
-                  setSubFilter(null);
-                }}
-              >
-                {c}<span className="count">{categoryCounts[c] || 0}</span>
-              </button>
-            ))}
-          </div>
-
-          {categoryFilter && subOptions.length > 0 && (
-            <>
-              <div className="sd-dir-filter-label">
-                SUBCATEGORIES UNDER {categoryFilter.toUpperCase()}
-              </div>
-              <div className="sd-dir-chip-row">
-                {subOptions.map((s) => (
+          {hasActiveFilters && (
+            <div className="sd-dir-active-filters">
+              {activeFilters.map((f) => (
+                <span key={f.kind} className="sd-dir-afchip">
+                  {f.label}
                   <button
-                    key={s}
                     type="button"
-                    className={`sd-dir-chip${subFilter === s ? ' active' : ''}`}
-                    onClick={() => setSubFilter(subFilter === s ? null : s)}
+                    className="sd-dir-afchip-x"
+                    aria-label={`Remove ${f.label} filter`}
+                    onClick={() => removeFilter(f.kind)}
                   >
-                    {s}<span className="count">{subCounts[s] || 0}</span>
+                    ×
                   </button>
-                ))}
-              </div>
-            </>
+                </span>
+              ))}
+              <button type="button" className="sd-dir-clear" onClick={clearFilters}>
+                Clear all
+              </button>
+            </div>
           )}
 
           {/* ── Body ─────────────────────────────────────────── */}
@@ -575,12 +628,6 @@ const SuppliersDirectoryPage = () => {
                   </div>
                 )}
             </>
-          )}
-
-          {anyFilterActive && !loading && !error && (
-            <button type="button" className="sd-dir-clear" onClick={clearFilters} style={{ marginTop: 8 }}>
-              Clear all filters
-            </button>
           )}
 
           <div>

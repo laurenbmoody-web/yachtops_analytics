@@ -90,38 +90,95 @@
   margin-bottom: 20px;
 }
 
-/* ─── Search ───────────────────────────────────────────────── */
+/* ─── Search + Filters row ─────────────────────────────────── */
+.sd-dir-search-row {
+  display: flex; gap: 10px; align-items: stretch; margin-bottom: 14px;
+}
 .sd-dir-search {
-  width: 100%; font-family: inherit; font-size: 13px;
-  padding: 14px 18px; border-radius: 14px;
+  flex: 1; font-family: inherit; font-size: 13px;
+  padding: 12px 18px; border-radius: 14px;
   border: 1px solid var(--d-border);
   border-bottom: 3px solid var(--d-card-edge);
   background: var(--d-card); color: var(--d-navy);
-  outline: none; margin-bottom: 22px;
-  transition: border-color 0.12s;
+  outline: none; transition: border-color 0.12s;
 }
 .sd-dir-search:focus { border-color: var(--d-orange); }
 .sd-dir-search::placeholder { color: var(--d-muted-soft); }
 
-/* ─── Filter chip rows ─────────────────────────────────────── */
-.sd-dir-filter-label {
-  font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
-  color: var(--d-muted); margin: 4px 0 12px;
+.sd-dir-filter-anchor { position: relative; flex: 0 0 auto; }
+.sd-dir-filter-btn {
+  height: 100%; display: inline-flex; align-items: center; gap: 8px;
+  padding: 0 18px; border-radius: 14px;
+  border: 1px solid var(--d-border);
+  border-bottom: 3px solid var(--d-card-edge);
+  background: var(--d-card); color: var(--d-navy);
+  font-family: inherit; font-size: 12px; font-weight: 600;
+  letter-spacing: 0.06em; cursor: pointer; white-space: nowrap;
+  transition: border-color 0.12s, background 0.12s;
 }
-.sd-dir-chip-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
-.sd-dir-chip {
-  padding: 6px 14px; border-radius: 11px;
+.sd-dir-filter-btn:hover { border-color: var(--d-muted-soft); }
+.sd-dir-filter-btn.is-open { border-color: var(--d-orange); }
+.sd-dir-filter-btn svg {
+  width: 16px; height: 16px; stroke: currentColor;
+}
+.sd-dir-filter-badge { color: var(--d-orange); font-weight: 700; }
+
+.sd-dir-filter-pop {
+  position: absolute; top: calc(100% + 8px); right: 0;
+  width: 340px; background: var(--d-card);
+  border: 1px solid var(--d-border); border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(26, 29, 63, 0.16);
+  padding: 18px; z-index: 60;
+}
+.sd-dir-filter-pop-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 16px;
+}
+.sd-dir-filter-pop-title {
+  font-size: 13px; font-weight: 500; color: var(--d-navy-deep);
+}
+.sd-dir-fsection { margin-bottom: 16px; }
+.sd-dir-fsection:last-child { margin-bottom: 0; }
+.sd-dir-fsection-label {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
+  color: var(--d-muted); margin-bottom: 10px;
+}
+.sd-dir-fchips { display: flex; flex-wrap: wrap; gap: 6px; }
+.sd-dir-fchip {
+  display: inline-flex; align-items: center;
+  padding: 6px 12px; border-radius: 11px;
   background: var(--d-card); border: 1px solid var(--d-border);
-  font-size: 11px; font-weight: 600; letter-spacing: 0.10em;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
   color: var(--d-navy); cursor: pointer; font-family: inherit;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
-.sd-dir-chip:hover { border-color: var(--d-muted-soft); }
-.sd-dir-chip.active {
-  background: var(--d-navy); color: var(--d-bg); border-color: var(--d-navy);
+.sd-dir-fchip:hover { border-color: var(--d-muted-soft); }
+.sd-dir-fchip.is-on {
+  background: var(--d-cream-warm); color: var(--d-orange);
+  border-color: transparent;
 }
-.sd-dir-chip .count { color: var(--d-muted-soft); font-weight: 500; margin-left: 6px; }
-.sd-dir-chip.active .count { color: rgba(255, 255, 255, 0.7); }
+.sd-dir-fchip .count { color: var(--d-muted-soft); font-weight: 500; margin-left: 6px; }
+.sd-dir-fchip.is-on .count { color: var(--d-orange); opacity: 0.7; }
+
+/* Active-filter chips under the search row */
+.sd-dir-active-filters {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin-bottom: 18px;
+}
+.sd-dir-afchip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 6px 6px 12px; border-radius: 11px;
+  background: var(--d-cream-warm); color: var(--d-orange);
+  font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+  border: 1px solid transparent;
+}
+.sd-dir-afchip-x {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: transparent; border: 0; color: var(--d-orange);
+  font-size: 13px; line-height: 1; cursor: pointer; font-family: inherit;
+}
+.sd-dir-afchip-x:hover { background: rgba(198, 90, 26, 0.14); }
 
 /* ─── Section headings ─────────────────────────────────────── */
 .sd-dir-section-title {
