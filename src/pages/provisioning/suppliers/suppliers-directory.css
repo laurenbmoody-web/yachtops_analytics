@@ -301,3 +301,78 @@
   letter-spacing: 0.10em; padding: 8px 14px; border-radius: 10px;
   background: var(--d-navy); color: var(--d-bg); border: 0; cursor: pointer;
 }
+
+/* ─── Add / Edit form (Phase 6) ─────────────────────────────────
+   Picker styling mirrors the form-preview section of
+   docs/three_categorisation_options.html (the visual source of
+   truth): cream-warm "selected" pills, an orange ring on the single
+   primary choice, dashed "+ ADD" affordances. */
+.sd-dir-form { margin-top: 26px; }
+.sd-dir-form-section { margin-bottom: 22px; }
+.sd-dir-form-label {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
+  color: var(--d-muted); margin-bottom: 10px; display: block;
+}
+.sd-dir-form-label .req { color: var(--d-orange); margin-left: 3px; }
+
+.sd-dir-pill-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+.sd-dir-form-pill {
+  display: inline-flex; align-items: center;
+  padding: 6px 12px; border-radius: 11px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.10em;
+  border: 1px solid var(--d-border); color: var(--d-navy);
+  background: var(--d-card); cursor: pointer; font-family: inherit;
+  transition: background 0.12s, color 0.12s, border-color 0.12s, box-shadow 0.12s;
+}
+.sd-dir-form-pill:hover { border-color: var(--d-muted-soft); }
+.sd-dir-form-pill.selected {
+  background: var(--d-cream-warm); color: var(--d-orange);
+  border-color: transparent;
+}
+.sd-dir-form-pill.selected.is-primary {
+  box-shadow: 0 0 0 2px var(--d-orange);
+}
+.sd-dir-form-add {
+  display: inline-flex; align-items: center;
+  padding: 6px 12px; border-radius: 11px;
+  font-size: 11px; font-weight: 500; letter-spacing: 0.06em;
+  background: transparent; color: var(--d-muted);
+  border: 1px dashed var(--d-border); cursor: pointer; font-family: inherit;
+}
+.sd-dir-form-add:hover { color: var(--d-orange); border-color: var(--d-orange); }
+.sd-dir-form-add-row { display: flex; gap: 6px; margin-top: 8px; }
+
+.sd-dir-input {
+  width: 100%; font-family: inherit; font-size: 13px;
+  padding: 11px 14px; border-radius: 12px;
+  border: 1px solid var(--d-border);
+  border-bottom: 3px solid var(--d-card-edge);
+  background: var(--d-card); color: var(--d-navy);
+  outline: none; transition: border-color 0.12s;
+}
+.sd-dir-input:focus { border-color: var(--d-orange); }
+.sd-dir-input::placeholder { color: var(--d-muted-soft); }
+.sd-dir-input--inline { width: auto; flex: 1; padding: 7px 12px; font-size: 12px; border-bottom-width: 2px; }
+.sd-dir-input--mini { padding: 7px 12px; font-size: 12px; }
+
+.sd-dir-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.sd-dir-form-field { margin-bottom: 14px; }
+.sd-dir-form-help {
+  font-size: 11px; color: var(--d-muted); font-style: italic; margin-top: 8px;
+}
+
+.sd-dir-collapse {
+  width: 100%; display: flex; justify-content: space-between;
+  align-items: center; background: transparent; border: 0;
+  border-top: 1px solid var(--d-border-soft); padding: 18px 0 0;
+  cursor: pointer; font-family: inherit;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
+  color: var(--d-navy);
+}
+.sd-dir-collapse .chev { color: var(--d-muted-soft); font-size: 12px; }
+.sd-dir-collapse-body { padding-top: 16px; }
+
+.sd-dir-form-error {
+  font-size: 12px; color: #A32D2D; margin-top: 4px;
+  background: #FCEBEB; border-radius: 8px; padding: 8px 12px;
+}
