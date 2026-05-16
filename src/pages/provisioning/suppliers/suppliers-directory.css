@@ -8,7 +8,13 @@
    editorial pages.
    ============================================================ */
 
-.sd-dir {
+/* Design tokens are shared by the page (.sd-dir) AND the Add/Edit
+   drawer. The drawer renders as a SIBLING of .sd-dir (a React portal-
+   style overlay in SuppliersDirectoryPage), not a descendant, so the
+   custom properties must be declared on the drawer's root element too
+   — CSS variables inherit down the DOM tree, not across siblings. */
+.sd-dir,
+.sd-dir-drawer-backdrop {
   --d-bg:          #F8FAFC;
   --d-card:        #FFFFFF;
   --d-card-edge:   #C8CBDA;
@@ -24,7 +30,8 @@
   --d-muted-soft:  #9098B1;
   --d-gold:        #D4A93B;
   --d-shadow:      0 2px 6px rgba(38, 42, 83, 0.04);
-
+}
+.sd-dir {
   background: var(--d-bg);
   color: var(--d-navy);
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
@@ -41,13 +48,13 @@
 .sd-dir-back {
   font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
   color: var(--d-navy); background: transparent; border: 0; padding: 0;
-  cursor: pointer; font-family: inherit; margin-bottom: 28px;
+  cursor: pointer; font-family: inherit; margin-bottom: 20px;
   display: inline-block;
 }
 .sd-dir-meta {
   display: flex; align-items: center; gap: 12px;
   font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
-  color: var(--d-navy); margin-bottom: 14px;
+  color: var(--d-navy); margin-bottom: 8px;
 }
 .sd-dir-meta .dot { color: var(--d-orange); }
 .sd-dir-meta .sep { color: #B4B2A9; font-weight: 400; }
@@ -62,8 +69,12 @@
 .sd-dir-headline {
   font-family: 'DM Serif Display', Georgia, serif;
   font-size: 56px; line-height: 1; color: var(--d-navy);
-  font-weight: 500; margin: 0 0 10px; text-transform: none;
-  letter-spacing: 0;
+  font-weight: 500; margin: 0 0 8px; text-transform: none;
+  /* "Supplier directory." reads as one phrase (no comma) — pull the
+     kerning + word gap in so the two words don't drift apart, matching
+     the tighter 9c.2 headline rhythm. nowrap keeps it on one line. */
+  letter-spacing: -0.5px; word-spacing: -0.07em;
+  white-space: nowrap;
 }
 .sd-dir-headline .period { color: var(--d-navy); }
 .sd-dir-headline .accent { font-style: italic; color: var(--d-orange); font-weight: 500; }
@@ -76,7 +87,7 @@
 .sd-dir-tagline {
   font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
   text-transform: uppercase; color: var(--d-muted);
-  margin-bottom: 28px;
+  margin-bottom: 20px;
 }
 
 /* ─── Search ───────────────────────────────────────────────── */
@@ -259,6 +270,11 @@
 .sd-dir-drawer-backdrop {
   position: fixed; inset: 0; background: rgba(26, 29, 63, 0.32);
   z-index: 9000; display: flex; justify-content: flex-end;
+  /* Outside .sd-dir, so set the base typography here too — the page
+     normally supplies these via the .sd-dir rule. */
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: var(--d-navy);
+  -webkit-font-smoothing: antialiased;
 }
 .sd-dir-drawer {
   width: 540px; max-width: 92vw; height: 100%;
