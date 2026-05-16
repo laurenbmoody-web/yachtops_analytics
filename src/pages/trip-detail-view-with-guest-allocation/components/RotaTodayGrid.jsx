@@ -115,6 +115,7 @@ function CrewRow({ crew, gridStartHour, onCrewClick }) {
     <div className={`rota-row${isOffDay ? ' off' : ''}`}>
       <div
         className="rota-nm"
+        style={{ borderLeft: `3px solid ${crew.departmentColor || '#5F5E5A'}` }}
         onClick={onCrewClick ? () => onCrewClick(crew) : undefined}
         role={onCrewClick ? 'button' : undefined}
         tabIndex={onCrewClick ? 0 : undefined}
@@ -159,14 +160,13 @@ function TotalsRow({ crew, gridStartHour }) {
 }
 
 // ── Department section ──────────────────────────────────────────────────────
+// No eyebrow header — the coloured left border (per-crew departmentColor)
+// is the only department divider; the colour change at a group boundary
+// reads as the separator.
 
-function DepartmentSection({ label, crew, gridStartHour, onCrewClick }) {
+function DepartmentSection({ crew, gridStartHour, onCrewClick }) {
   return (
     <>
-      <div className="rota-dept-row">
-        <div className="rota-dept">{label}</div>
-        <div className="rota-dept-rule" />
-      </div>
       {crew.map(c => (
         <CrewRow key={c.id} crew={c} gridStartHour={gridStartHour} onCrewClick={onCrewClick} />
       ))}
@@ -220,7 +220,6 @@ export default function RotaTodayGrid({ crew = [], now = new Date(), onCrewClick
         {orderedDepts.map(dept => (
           <DepartmentSection
             key={dept}
-            label={dept}
             crew={byDept.get(dept)}
             gridStartHour={gridStartHour}
             onCrewClick={onCrewClick}
