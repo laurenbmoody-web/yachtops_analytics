@@ -152,7 +152,7 @@ export function useRotaShifts() {
         // 1 — crew: active tenant_members + plain table-name embeds.
         // PostgREST resolves the embed by table name when there's a
         // single FK from tenant_members to that table.
-        const { data: members, error: mErr } = await supabase
+        const { data: members, error: mErr, status: mStatus, statusText: mStatusText } = await supabase
           .from('tenant_members')
           .select(`
             id,
@@ -168,7 +168,14 @@ export function useRotaShifts() {
           `)
           .eq('tenant_id', tenantId)
           .eq('active', true);
-        console.log('[useRotaShifts] crew result:', members?.length, 'error:', mErr);
+        console.log('[useRotaShifts] RAW crew response:', {
+          count: members?.length,
+          error: mErr,
+          status: mStatus,
+          statusText: mStatusText,
+          firstRow: members?.[0],
+          rawData: members,
+        });
         if (mErr) throw mErr;
         if (cancelled) return;
 
@@ -187,12 +194,15 @@ export function useRotaShifts() {
         // 2 — effective date: today, else the most recent dated shift
         const today = new Date().toISOString().slice(0, 10);
         let effDate = today;
-        const { data: todayRows, error: tErr } = await supabase
+        const { data: todayRows, error: tErr, status: tStatus } = await supabase
           .from('rota_shifts')
           .select('id')
           .eq('tenant_id', tenantId)
           .eq('shift_date', today)
           .limit(1);
+        console.log('[useRotaShifts] RAW today-probe response:', {
+          today, count: todayRows?.length, error: tErr, status: tStatus, rawData: todayRows,
+        });
         if (tErr) throw tErr;
         if ((todayRows ?? []).length === 0) {
           const { data: latest } = await supabase
@@ -210,13 +220,22 @@ export function useRotaShifts() {
         windowStart.setDate(windowStart.getDate() - 6);
         const windowStartStr = windowStart.toISOString().slice(0, 10);
 
-        const { data: shiftRows, error: sErr } = await supabase
+        const { data: shiftRows, error: sErr, status: sStatus, statusText: sStatusText } = await supabase
           .from('rota_shifts')
           .select('id, member_id, shift_date, start_time, end_time, shift_type, sub_type, notes')
           .eq('tenant_id', tenantId)
           .gte('shift_date', windowStartStr)
           .lte('shift_date', effDate);
-        console.log('[useRotaShifts] shifts result:', shiftRows?.length, 'error:', sErr, 'effectiveDate:', effDate);
+        console.log('[useRotaShifts] RAW shifts response:', {
+          count: shiftRows?.length,
+          error: sErr,
+          status: sStatus,
+          statusText: sStatusText,
+          effectiveDate: effDate,
+          windowStart: windowStartStr,
+          firstRow: shiftRows?.[0],
+          rawData: shiftRows,
+        });
         if (sErr) throw sErr;
         if (cancelled) return;
 
