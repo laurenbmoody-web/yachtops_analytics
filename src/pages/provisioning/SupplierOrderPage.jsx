@@ -926,11 +926,6 @@ export default function SupplierOrderPage() {
     return () => document.removeEventListener('mousedown', onDocClick);
   }, [dnPopoverOpen]);
 
-  // Clear the hover grace timer if the page unmounts mid-delay.
-  useEffect(() => () => {
-    if (supplierHoverTimer.current) clearTimeout(supplierHoverTimer.current);
-  }, []);
-
   // ── Render ──────────────────────────────────────────────────────────
   if (loading) {
     return (
