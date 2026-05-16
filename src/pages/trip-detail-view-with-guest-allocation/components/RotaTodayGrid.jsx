@@ -1,4 +1,5 @@
 import React from 'react';
+import { getRoleDisplayName } from '../../crew-rota/crewDisplay';
 
 // ── Time / shift helpers ────────────────────────────────────────────────────
 //
@@ -80,14 +81,15 @@ const MlcTriangle = () => (
 );
 
 function RestLine({ rest24h, pastWeek, warning }) {
+  // Off-duty on-board: no rest figures to show.
   if (!rest24h && !pastWeek) {
-    return <div className="rota-nm-rest">Off today</div>;
+    return <div className="rota-nm-rest">Off duty · on-board</div>;
   }
   return (
     <div className={`rota-nm-rest${warning ? ' w' : ''}`}>
       Rest <b>{rest24h || '—'}</b>
-      <span className="rota-pipe">|</span>
-      Week <b>{pastWeek || '—'}</b>
+      <span className="rota-pipe">·</span>
+      <b>{pastWeek || '—'}</b> / 77h
     </div>
   );
 }
@@ -121,9 +123,9 @@ function CrewRow({ crew, gridStartHour, onCrewClick }) {
         } : undefined}
       >
         <div className="rota-nm-line">
-          {crew.name}
+          <span className="rota-nm-name">{crew.name}</span>
           <span className="rota-dot" />
-          <span className="rota-role">{crew.role}</span>
+          <span className="rota-role">{getRoleDisplayName(crew.role)}</span>
           {isWarning && <MlcTriangle />}
         </div>
         <RestLine rest24h={crew.rest24h} pastWeek={crew.pastWeek} warning={isWarning} />
