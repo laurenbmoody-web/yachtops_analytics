@@ -497,47 +497,77 @@ export const fetchSuppliers = async (vesselId) => {
   }
 };
 
-export const createSupplier = async (supplierData) => {
-  try {
-    const { data, error } = await supabase
-      ?.from('provisioning_suppliers')
-      ?.insert([supplierData])
-      ?.select()
-      ?.single();
-    if (error) throw error;
-    return data;
-  } catch (err) {
-    console.error('[provisioningStorage] createSupplier error:', err);
-    throw err;
+// Sprint 9c.3 Phase 8 Batch 2 — the write helpers now target
+// supplier_profiles via the Phase 3 vendor helpers, but keep the
+// legacy call/return shape so the only remaining caller (the legacy
+// ProvisioningSuppliers directory + SendToSupplierModal "+ add new")
+// is untouched. Throw-on-error contract preserved.
+//
+// Legacy `department` was a single string (legacy form <select>) or a
+// text[]; supplier_profiles models it as categories[] + primary_category.
+
+const legacyDepartmentToCategories = (dept) =>
+  Array.isArray(dept) ? dept.filter(Boolean) : (dept ? [dept] : []);
+
+const legacyToProfilePayload = (s) => {
+  const categories = legacyDepartmentToCategories(s.department);
+  return {
+    tenant_id:        s.tenant_id,
+    name:             s.name,
+    contact_email:    s.email || null,
+    contact_phone:    s.phone || null,
+    business_city:    s.port_location || null,
+    categories,
+    primary_category: categories[0] || null,
+    notes:            s.notes || null,
+    vendor_type:      'Supplier',
+    is_favourite:     false,
+    archived_at:      null,
+  };
+};
+
+const legacyPatchToProfile = (u) => {
+  const p = {};
+  if ('name' in u) p.name = u.name;
+  if ('email' in u) p.contact_email = u.email || null;
+  if ('phone' in u) p.contact_phone = u.phone || null;
+  if ('port_location' in u) p.business_city = u.port_location || null;
+  if ('notes' in u) p.notes = u.notes || null;
+  if ('department' in u) {
+    const categories = legacyDepartmentToCategories(u.department);
+    p.categories = categories;
+    p.primary_category = categories[0] || null;
   }
+  return p;
+};
+
+// caller MUST supply tenant_id (crew_insert_supplier_profiles RLS).
+export const createSupplier = async (supplierData) => {
+  const { data, error } = await createVendor(legacyToProfilePayload(supplierData));
+  if (error) {
+    console.error('[provisioningStorage] createSupplier error:', error);
+    throw error;
+  }
+  return toLegacySupplierShape(data);
 };
 
 export const updateSupplier = async (supplierId, updates) => {
-  try {
-    const { data, error } = await supabase
-      ?.from('provisioning_suppliers')
-      ?.update(updates)
-      ?.eq('id', supplierId)
-      ?.select()
-      ?.single();
-    if (error) throw error;
-    return data;
-  } catch (err) {
-    console.error('[provisioningStorage] updateSupplier error:', err);
-    throw err;
+  const { data, error } = await updateVendor(supplierId, legacyPatchToProfile(updates));
+  if (error) {
+    console.error('[provisioningStorage] updateSupplier error:', error);
+    throw error;
   }
+  return toLegacySupplierShape(data);
 };
 
+// Soft-delete (archived_at = now) — NOT a hard delete. A hard delete
+// would orphan provisioning_lists.supplier_id / supplier_orders FKs.
+// Matches the directory's archive behaviour.
 export const deleteSupplier = async (supplierId) => {
-  try {
-    const { error } = await supabase
-      ?.from('provisioning_suppliers')
-      ?.delete()
-      ?.eq('id', supplierId);
-    if (error) throw error;
-  } catch (err) {
-    console.error('[provisioningStorage] deleteSupplier error:', err);
-    throw err;
+  const { error } = await archiveVendor(supplierId);
+  if (error) {
+    console.error('[provisioningStorage] deleteSupplier error:', error);
+    throw error;
   }
 };
 

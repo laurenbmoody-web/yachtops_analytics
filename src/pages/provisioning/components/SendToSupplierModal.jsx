@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient';
-import { createSupplierOrder, markOrderSent, fetchSuppliers } from '../utils/provisioningStorage';
+import { createSupplierOrder, markOrderSent, fetchSuppliers, createSupplier } from '../utils/provisioningStorage';
 import { useAuth } from '../../../contexts/AuthContext';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
@@ -188,7 +188,10 @@ const SendToSupplierModal = ({
   const saveNewSupplierToDirectory = async () => {
     if (supplierMode !== 'new' || !supplierName) return;
     try {
-      await supabase.from('provisioning_suppliers').insert({
+      // Sprint 9c.3 Phase 8 — writes to supplier_profiles via the
+      // legacy-shape createSupplier adapter (was a direct
+      // provisioning_suppliers insert).
+      await createSupplier({
         tenant_id: tenantId,
         name: supplierName,
         email: supplierEmail || null,
