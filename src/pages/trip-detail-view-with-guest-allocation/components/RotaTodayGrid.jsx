@@ -193,16 +193,29 @@ export default function RotaTodayGrid({ crew = [], now = new Date(), onCrewClick
     ...Array.from(byDept.keys()).filter(d => !DEPT_ORDER.includes(d)),
   ];
 
-  // Now-line: 200px name col + (slot / 48) of the remaining width.
-  // Gaps are 2px and ignored here — the approximation is within a pixel
-  // or two and matches the prior behaviour.
+  // Adaptive crew-column width (Correction 4). Pure CSS can't fit a
+  // shared content width across the many independent .rota-row grids,
+  // so measure the longest "Name · Role" string heuristically and pin
+  // a clamped px width as a CSS var the sticky tracks all reference —
+  // this keeps every row's first column identical (sticky alignment).
+  // ~6.6px/char @13px + fixed chrome (padding 24 + dot/gaps ~20 + MLC
+  // triangle slack ~16); clamped to [220, 320].
+  const longestChars = crew.reduce((mx, c) => {
+    const chars = String(c.name || '').length + getRoleDisplayName(c.role).length;
+    return Math.max(mx, chars);
+  }, 0);
+  const nameColW = Math.max(220, Math.min(320, Math.round(60 + longestChars * 6.6)));
+  const innerStyle = { '--rota-nm-w': `${nameColW}px` };
+
+  // Now-line: name col (the CSS var) + (slot / 48) of the remaining
+  // width. Gaps are 2px and ignored here — within a pixel of prior.
   const nowLineStyle = currentSlot != null
-    ? { left: `calc(200px + (${currentSlot + 0.5} / 48) * (100% - 200px))` }
+    ? { left: `calc(var(--rota-nm-w, 220px) + (${currentSlot + 0.5} / 48) * (100% - var(--rota-nm-w, 220px)))` }
     : null;
 
   return (
     <div className="rota-grid-wrap">
-      <div className="rota-grid-inner">
+      <div className="rota-grid-inner" style={innerStyle}>
         <HourHeader gridStartHour={gridStartHour} currentHour={currentHour} />
         {orderedDepts.map(dept => (
           <DepartmentSection

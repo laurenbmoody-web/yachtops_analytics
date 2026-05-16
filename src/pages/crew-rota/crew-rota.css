@@ -689,7 +689,7 @@
 /* Hour labels — 24 cols above the 48-col grid */
 .rota-hour-row {
   display: grid;
-  grid-template-columns: 200px repeat(24, 1fr);
+  grid-template-columns: var(--rota-nm-w, 220px) repeat(24, 1fr);
   padding-bottom: 10px;
   margin-bottom: 4px;
 }
@@ -719,7 +719,7 @@
 /* Department divider */
 .rota-dept-row {
   display: grid;
-  grid-template-columns: 200px 1fr;
+  grid-template-columns: var(--rota-nm-w, 220px) 1fr;
   align-items: center;
   margin: 12px 0 6px;
 }
@@ -741,14 +741,14 @@
 /* Crew row — 48 cells, 2px gaps everywhere */
 .rota-row {
   display: grid;
-  grid-template-columns: 200px repeat(48, 1fr);
+  grid-template-columns: var(--rota-nm-w, 220px) repeat(48, 1fr);
   gap: 2px;
   margin-bottom: 2px;
 }
 .rota-row.off { opacity: 0.45; }
 
 .rota-c {
-  height: 48px;
+  height: 56px;
   background: #F7F5F0;
   border-radius: 4px;
 }
@@ -758,7 +758,7 @@
 /* Name cell — always white, Name · Role one line + rest line */
 .rota-nm {
   padding: 10px 12px;
-  height: 48px;
+  height: 56px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -776,6 +776,7 @@
   display: flex;
   align-items: center;
   line-height: 1;
+  white-space: nowrap;
 }
 .rota-nm-name {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
@@ -811,7 +812,7 @@
 /* Totals row */
 .rota-totals {
   display: grid;
-  grid-template-columns: 200px repeat(48, 1fr);
+  grid-template-columns: var(--rota-nm-w, 220px) repeat(48, 1fr);
   gap: 2px;
   margin-top: 10px;
   padding-top: 10px;
