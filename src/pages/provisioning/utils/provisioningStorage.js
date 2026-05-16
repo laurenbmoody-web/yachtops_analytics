@@ -2128,8 +2128,12 @@ export const createSupplierOrder = async ({
   tenantId, listId, supplierName, supplierEmail, supplierPhone,
   deliveryPort, deliveryDate, deliveryTime, deliveryContact,
   specialInstructions, currency = 'USD', items = [], createdBy,
-  sentVia = 'email', vesselName = null,
+  sentVia = 'email', vesselName = null, supplierProfileId = null,
 }) => {
+  // Sprint 9c.3 Phase 8 — persist the FK when the order targets a
+  // known supplier_profiles row. Previously omitted, which is why
+  // order→supplier-overview navigation was broken for every new
+  // order (supplier_profile_id was always null).
   const { data: order, error: orderErr } = await supabase
     .from('supplier_orders')
     .insert({
@@ -2140,6 +2144,7 @@ export const createSupplierOrder = async ({
       delivery_contact: deliveryContact, special_instructions: specialInstructions,
       currency, created_by: createdBy, sent_via: sentVia,
       vessel_name: vesselName || null,
+      supplier_profile_id: supplierProfileId || null,
     })
     .select()
     .single();
