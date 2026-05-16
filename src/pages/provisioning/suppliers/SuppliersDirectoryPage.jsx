@@ -20,11 +20,11 @@ import {
   fetchVendors,
   fetchVendorOrderStats,
   fetchKnownCategoryTaxonomy,
-  fetchTenantName,
   toggleVendorFavourite,
   archiveVendor,
 } from '../utils/provisioningStorage';
 import { VENDOR_TYPES, mergeTaxonomy } from './vendorConstants';
+import { summariseRegions } from './regionGrouping';
 import AddVendorForm from './AddVendorForm';
 import { showToast } from '../../../utils/toast';
 import '../../../styles/editorial.css';
@@ -217,7 +217,6 @@ const SuppliersDirectoryPage = () => {
   const [vendors, setVendors] = useState([]);
   const [orderStats, setOrderStats] = useState({});
   const [taxonomy, setTaxonomy] = useState({ categories: [], subcategories: {} });
-  const [vesselName, setVesselName] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -245,11 +244,10 @@ const SuppliersDirectoryPage = () => {
   const loadAll = async () => {
     setLoading(true);
     setError(null);
-    const [vRes, sRes, tRes, nRes] = await Promise.all([
+    const [vRes, sRes, tRes] = await Promise.all([
       fetchVendors(),
       fetchVendorOrderStats(),
       fetchKnownCategoryTaxonomy(),
-      fetchTenantName(activeTenantId),
     ]);
     if (vRes.error) {
       setError(vRes.error.message || 'Could not load the supplier directory.');
@@ -260,7 +258,6 @@ const SuppliersDirectoryPage = () => {
     setVendors(vRes.data || []);
     setOrderStats(sRes.data || {});
     setTaxonomy(mergeTaxonomy(tRes && !tRes.error ? tRes.data : undefined));
-    setVesselName(nRes && !nRes.error ? nRes.data : null);
     setLoading(false);
   };
 
@@ -332,12 +329,9 @@ const SuppliersDirectoryPage = () => {
   const favourites = useMemo(() => visible.filter((v) => v.is_favourite), [visible]);
   const rest = useMemo(() => visible.filter((v) => !v.is_favourite), [visible]);
 
-  // Directory-wide favourite total for the meta strip (independent of
-  // the active search / chip filters).
-  const favouriteCount = useMemo(
-    () => vendors.filter((v) => v.is_favourite).length,
-    [vendors],
-  );
+  // Directory-wide geographic breakdown for the meta strip
+  // (total + region split, independent of the active filters).
+  const regionSummary = useMemo(() => summariseRegions(vendors), [vendors]);
 
   const toggleCategory = (c) => {
     setCategoryFilters((prev) =>
@@ -470,23 +464,28 @@ const SuppliersDirectoryPage = () => {
           <div className="sd-dir-headblock">
             <div className="editorial-meta">
               <span className="dot">●</span>
-              <span>{(vesselName || 'VESSEL').toUpperCase()}</span>
               {!loading && (
                 <>
-                  <span className="bar" />
-                  <span>{vendors.length} {vendors.length === 1 ? 'SUPPLIER' : 'SUPPLIERS'}</span>
-                  <span className="bar" />
-                  <span>{favouriteCount} {favouriteCount === 1 ? 'FAVOURITE' : 'FAVOURITES'}</span>
+                  <span>
+                    {regionSummary.total} {regionSummary.total === 1 ? 'VENDOR' : 'VENDORS'}
+                  </span>
+                  {regionSummary.parts.length > 0 && (
+                    <>
+                      <span className="bar" />
+                      <span>
+                        {regionSummary.parts
+                          .map((p) => `${p.count} ${p.region}`)
+                          .join(' · ')}
+                      </span>
+                    </>
+                  )}
                 </>
               )}
             </div>
             <h1 className="editorial-greeting">
-              Suppliers<span className="period">,</span>{' '}
+              Vendors<span className="period">,</span>{' '}
               <em>directory</em><span className="period">.</span>
             </h1>
-            <p className="editorial-subline">
-              Every supplier you work with — click any card to open the overview.
-            </p>
           </div>
 
           <div className="sd-dir-search-row">
