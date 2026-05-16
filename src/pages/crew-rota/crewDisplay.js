@@ -131,3 +131,19 @@ export function getRoleDisplayName(role) {
   }
   return result;
 }
+
+// Pick black/white text for a given hex background by perceived
+// luminance (0..1). > 0.5 → black, else white. Tolerates #rgb, #rrggbb,
+// missing '#'. Falls back to white on unparseable input.
+export function getContrastText(hex) {
+  if (!hex) return '#fff';
+  let h = String(hex).trim().replace(/^#/, '');
+  if (h.length === 3) h = h.split('').map(c => c + c).join('');
+  if (h.length !== 6) return '#fff';
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  if ([r, g, b].some(Number.isNaN)) return '#fff';
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.5 ? '#000' : '#fff';
+}

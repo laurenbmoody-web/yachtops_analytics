@@ -747,6 +747,45 @@
 }
 .rota-row.off { opacity: 0.45; }
 
+/* Department group — flex: 22px sticky colour strip + the crew rows.
+   Strip + (name track) = var(--rota-nm-w), so shift cells still begin
+   at x = var, aligned with the (strip-less) hour header / totals. */
+.rota-dept-group {
+  display: flex;
+  align-items: stretch;
+  margin-bottom: 2px;
+}
+.rota-dept-strip {
+  flex: 0 0 22px;
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 1px 0 2px -1px rgba(28,27,58,0.12);
+}
+.rota-dept-strip-text {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.rota-dept-rows { flex: 1; min-width: 0; }
+/* Inside a group the name track loses 22px to the strip; the name
+   cell pins just right of the strip (sticky left: 22px). */
+.rota-dept-group .rota-row {
+  grid-template-columns: calc(var(--rota-nm-w, 220px) - 22px) repeat(48, 1fr);
+}
+.rota-dept-group .rota-nm {
+  left: 22px;
+  z-index: 4;
+}
+
 .rota-c {
   height: 56px;
   background: #F7F5F0;

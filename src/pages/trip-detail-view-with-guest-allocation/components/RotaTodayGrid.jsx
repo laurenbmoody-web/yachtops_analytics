@@ -1,5 +1,5 @@
 import React from 'react';
-import { getRoleDisplayName } from '../../crew-rota/crewDisplay';
+import { getRoleDisplayName, getContrastText } from '../../crew-rota/crewDisplay';
 
 // ── Time / shift helpers ────────────────────────────────────────────────────
 //
@@ -115,7 +115,6 @@ function CrewRow({ crew, gridStartHour, onCrewClick }) {
     <div className={`rota-row${isOffDay ? ' off' : ''}`}>
       <div
         className="rota-nm"
-        style={{ borderLeft: `3px solid ${crew.departmentColor || '#5F5E5A'}` }}
         onClick={onCrewClick ? () => onCrewClick(crew) : undefined}
         role={onCrewClick ? 'button' : undefined}
         tabIndex={onCrewClick ? 0 : undefined}
@@ -160,17 +159,29 @@ function TotalsRow({ crew, gridStartHour }) {
 }
 
 // ── Department section ──────────────────────────────────────────────────────
-// No eyebrow header — the coloured left border (per-crew departmentColor)
-// is the only department divider; the colour change at a group boundary
-// reads as the separator.
+// A 22px sticky vertical strip carries the department name (rotated),
+// spanning the full height of the group. Background = the group's
+// departmentColor; text colour auto-contrasts. The strip replaces the
+// old eyebrow row AND the Phase-2 per-cell left border.
 
-function DepartmentSection({ crew, gridStartHour, onCrewClick }) {
+function DepartmentSection({ deptName, crew, gridStartHour, onCrewClick }) {
+  const color = crew[0]?.departmentColor || '#5F5E5A';
   return (
-    <>
-      {crew.map(c => (
-        <CrewRow key={c.id} crew={c} gridStartHour={gridStartHour} onCrewClick={onCrewClick} />
-      ))}
-    </>
+    <div className="rota-dept-group">
+      <div
+        className="rota-dept-strip"
+        style={{ background: color, color: getContrastText(color) }}
+        role="rowheader"
+        aria-label={`${deptName} department`}
+      >
+        <span className="rota-dept-strip-text">{deptName}</span>
+      </div>
+      <div className="rota-dept-rows">
+        {crew.map(c => (
+          <CrewRow key={c.id} crew={c} gridStartHour={gridStartHour} onCrewClick={onCrewClick} />
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -220,6 +231,7 @@ export default function RotaTodayGrid({ crew = [], now = new Date(), onCrewClick
         {orderedDepts.map(dept => (
           <DepartmentSection
             key={dept}
+            deptName={dept}
             crew={byDept.get(dept)}
             gridStartHour={gridStartHour}
             onCrewClick={onCrewClick}
