@@ -154,8 +154,6 @@ const CreateProvisioningListModal = ({
   isOpen,
   onClose,
   onSuccess,
-  suppliers: suppliersProp = [],
-  onSuppliersChange,
 }) => {
   const { activeTenantId } = useTenant();
   const { session } = useAuth();
@@ -174,7 +172,6 @@ const CreateProvisioningListModal = ({
     trip_id: '',
     departments: [],
     port_location: '',
-    supplier_id: '',
     estimated_cost: '',
     currency: 'GBP',
     order_by_date: '',
@@ -201,10 +198,6 @@ const CreateProvisioningListModal = ({
     })();
     return () => { cancelled = true; };
   }, []);
-  const [suppliers, setSuppliers] = useState(suppliersProp);
-  const [addingSupplier, setAddingSupplier] = useState(false);
-  const [newSupplierName, setNewSupplierName] = useState('');
-
   // ─── Save state
   const [saving, setSaving] = useState(false);
 
@@ -229,21 +222,16 @@ const CreateProvisioningListModal = ({
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [selectedSuggestions, setSelectedSuggestions] = useState(new Set());
 
-  // Sync suppliers prop
-  useEffect(() => { setSuppliers(suppliersProp); }, [suppliersProp]);
-
   // Reset on open
   useEffect(() => {
     if (isOpen) {
       setActiveTab('manual');
-      setForm({ title: '', board_type: 'general', trip_id: '', departments: [], port_location: '', supplier_id: '', estimated_cost: '', currency: 'GBP', order_by_date: '', notes: '' });
+      setForm({ title: '', board_type: 'general', trip_id: '', departments: [], port_location: '', estimated_cost: '', currency: 'GBP', order_by_date: '', notes: '' });
       setItems([BLANK_ITEM()]);
       setFormErrors({});
       setSaving(false);
       setSuggestions({ guestPreferences: [], lowStock: [], orderPatterns: [], masterHistory: [] });
       setSelectedSuggestions(new Set());
-      setAddingSupplier(false);
-      setNewSupplierName('');
       setCheckedHistory(new Set());
       setHistorySearch('');
       setHistoryDept('');
@@ -482,23 +470,6 @@ const CreateProvisioningListModal = ({
     setItems(prev => prev.map(i => i._id === id ? { ...i, [field]: val } : i));
   };
 
-  // ─── Inline add supplier ─────────────────────────────────────────────────────
-  const saveNewSupplier = async () => {
-    if (!newSupplierName.trim() || !activeTenantId) return;
-    const { data, error } = await supabase
-      ?.from('provisioning_suppliers')
-      ?.insert({ tenant_id: activeTenantId, name: newSupplierName.trim() })
-      ?.select()
-      ?.single();
-    if (error) { showToast('Could not add supplier', 'error'); return; }
-    const updated = [...suppliers, data];
-    setSuppliers(updated);
-    setField('supplier_id', data.id);
-    setAddingSupplier(false);
-    setNewSupplierName('');
-    onSuppliersChange?.();
-  };
-
   // ─── Validation ──────────────────────────────────────────────────────────────
   const validate = () => {
     const errs = {};
@@ -532,7 +503,6 @@ const CreateProvisioningListModal = ({
         trip_id:        tripIdForWire,
         department:     form.departments,
         port_location:  form.port_location.trim() || null,
-        supplier_id:    form.supplier_id || null,
         estimated_cost: form.estimated_cost ? Number(form.estimated_cost) : null,
         currency:       form.currency || 'GBP',
         order_by_date:  form.order_by_date || null,
@@ -865,36 +835,6 @@ const CreateProvisioningListModal = ({
                       onChange={e => setField('estimated_cost', e.target.value)}
                     />
                   </div>
-                </div>
-                <div>
-                  <label style={labelStyle}>Supplier</label>
-                  {addingSupplier ? (
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <input
-                        style={{ ...inputStyle, flex: 1 }}
-                        placeholder="Supplier name"
-                        value={newSupplierName}
-                        autoFocus
-                        onChange={e => setNewSupplierName(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') saveNewSupplier(); if (e.key === 'Escape') setAddingSupplier(false); }}
-                      />
-                      <button style={{ ...btnBlue, padding: '8px 12px', fontSize: 12 }} onClick={saveNewSupplier}>Add</button>
-                      <button style={{ ...btnGhost, padding: '8px 10px', fontSize: 12 }} onClick={() => setAddingSupplier(false)}>✕</button>
-                    </div>
-                  ) : (
-                    <select
-                      style={{ ...inputStyle, color: form.supplier_id ? 'white' : 'rgba(255,255,255,0.35)' }}
-                      value={form.supplier_id}
-                      onChange={e => {
-                        if (e.target.value === '__add__') { setAddingSupplier(true); return; }
-                        setField('supplier_id', e.target.value);
-                      }}
-                    >
-                      <option value="">No supplier</option>
-                      {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                      <option value="__add__">+ Add new supplier</option>
-                    </select>
-                  )}
                 </div>
               </div>
 

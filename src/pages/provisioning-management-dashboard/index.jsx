@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { fetchSuppliers } from '../provisioning/utils/provisioningStorage';
 import { useTenant } from '../../contexts/TenantContext';
 import { showToast } from '../../utils/toast';
 import CreateProvisioningListModal from './components/CreateProvisioningListModal';
@@ -55,10 +54,8 @@ const ProvisioningManagementDashboard = () => {
   const { activeTenantId } = useTenant();
 
   const [lists, setLists] = useState([]);
-  const [suppliers, setSuppliers] = useState([]);
   const [itemCounts, setItemCounts] = useState({});
   const [loading, setLoading] = useState(true);
-  const [suppliersLoading, setSuppliersLoading] = useState(true);
   const [error, setError] = useState(null);
   // Trips hydrated from the async loadTrips (Supabase + LS merge).
   const [localTrips, setLocalTrips] = useState([]);
@@ -104,27 +101,9 @@ const ProvisioningManagementDashboard = () => {
     }
   }, [activeTenantId]);
 
-  // ─── Load suppliers ──────────────────────────────────────────────────────────
-  const loadSuppliers = useCallback(async () => {
-    if (!activeTenantId) return;
-    setSuppliersLoading(true);
-    try {
-      // Sprint 9c.3 Phase 8 — reads supplier_profiles via the legacy-
-      // shape mapper instead of provisioning_suppliers directly.
-      const data = await fetchSuppliers(activeTenantId);
-      setSuppliers(data || []);
-    } catch (err) {
-      console.error('[Provisioning] loadSuppliers error:', err?.message);
-      // Suppress — suppliers loading failure is non-critical
-    } finally {
-      setSuppliersLoading(false);
-    }
-  }, [activeTenantId]);
-
   useEffect(() => {
     loadLists();
-    loadSuppliers();
-  }, [loadLists, loadSuppliers]);
+  }, [loadLists]);
 
   // Hydrate trips for the trip-name lookup map. loadTrips is async
   // post-A3.1; cancellation guard prevents stale state on unmount.
@@ -144,7 +123,6 @@ const ProvisioningManagementDashboard = () => {
 
   // ─── Filtered lists ──────────────────────────────────────────────────────────
   const tripMap = Object.fromEntries(localTrips.map(t => [t.id, t]));
-  const supplierMap = Object.fromEntries(suppliers.map(s => [s.id, s]));
 
   const filtered = lists.filter(l => {
     if (statusFilter !== 'all' && l.status !== statusFilter) return false;
@@ -152,8 +130,7 @@ const ProvisioningManagementDashboard = () => {
       const q = searchQuery.toLowerCase();
       const matchTitle = l.title?.toLowerCase().includes(q);
       const matchPort = l.port_location?.toLowerCase().includes(q);
-      const matchSupplier = supplierMap[l.supplier_id]?.name?.toLowerCase().includes(q);
-      if (!matchTitle && !matchPort && !matchSupplier) return false;
+      if (!matchTitle && !matchPort) return false;
     }
     return true;
   });
@@ -358,7 +335,6 @@ const ProvisioningManagementDashboard = () => {
               <th style={s.th}>Trip</th>
               <th style={s.th}>Departments</th>
               <th style={s.th}>Port / Location</th>
-              <th style={s.th}>Supplier</th>
               <th style={s.th}>Est. Cost</th>
               <th style={s.th}>Items</th>
               <th style={s.th}>Created</th>
@@ -367,7 +343,6 @@ const ProvisioningManagementDashboard = () => {
           <tbody>
             {filtered.map(list => {
               const trip = tripMap[list.trip_id];
-              const supplier = supplierMap[list.supplier_id];
               return (
                 <tr
                   key={list.id}
@@ -388,7 +363,6 @@ const ProvisioningManagementDashboard = () => {
                       : '—'}
                   </td>
                   <td style={s.tdMuted}>{list.port_location || '—'}</td>
-                  <td style={s.tdMuted}>{supplier?.name || '—'}</td>
                   <td style={s.tdMuted}>{fmtCost(list.estimated_cost)}</td>
                   <td style={{ ...s.td, color: 'rgba(255,255,255,0.5)' }}>
                     {itemCounts[list.id] ?? 0}
@@ -411,8 +385,6 @@ const ProvisioningManagementDashboard = () => {
             showToast('Provisioning list created', 'success');
             loadLists();
           }}
-          suppliers={suppliers}
-          onSuppliersChange={loadSuppliers}
         />
       )}
     </div>

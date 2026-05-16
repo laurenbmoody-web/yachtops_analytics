@@ -598,7 +598,6 @@ const ProvisioningWorkspace = () => {
         currency: 'USD',
         estimated_cost: null,
         actual_cost: null,
-        supplier_id: null,
         is_private: is_private,
         is_template: false,
       });
@@ -1108,7 +1107,6 @@ const ProvisioningWorkspace = () => {
         open={boardDrawer.open}
         mode={boardDrawer.mode}
         list={activeBoardList}
-        suppliers={suppliers}
         trips={trips}
         tenantId={activeTenantId}
         departments={departments.map(d => d.name)}
