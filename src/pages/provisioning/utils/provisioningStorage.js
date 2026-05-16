@@ -1397,26 +1397,11 @@ export const quickReceiveItem = async ({ item, listId, tenantId, userId }) => {
   }
 };
 
-/**
- * Fetch distinct supplier names used in provisioning items for a tenant.
- * Used to populate the supplier combobox suggestions.
- */
-export const fetchDistinctSuppliers = async (tenantId) => {
-  if (!tenantId) return [];
-  try {
-    const { data, error } = await supabase
-      ?.from('provisioning_items')
-      ?.select('supplier_name')
-      ?.eq('tenant_id', tenantId)
-      ?.not('supplier_name', 'is', null)
-      ?.neq('supplier_name', '');
-    if (error) throw error;
-    const names = [...new Set((data || []).map(r => r.supplier_name).filter(Boolean))].sort();
-    return names;
-  } catch {
-    return [];
-  }
-};
+// Sprint 9c.3 Phase 8 Batch 2 commit 4 — fetchDistinctSuppliers
+// removed. It queried provisioning_items.supplier_name which 400'd
+// (the column the query filtered doesn't behave as assumed), and the
+// only consumer (ItemDrawer's free-text datalist) is replaced by a
+// structured supplier_profiles picker via fetchVendors().
 
 /**
  * Fetch all delivery batches for a provisioning list, newest first.
