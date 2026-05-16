@@ -15,7 +15,7 @@
 // recent shift_date that does — the grid is never silently empty.
 
 import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 
 const ON_DUTY_TYPES = new Set(['duty', 'watch', 'standby', 'training']);
@@ -125,9 +125,9 @@ export function useRotaShifts() {
   // pattern used by useTripGuests / useTripsMigration. Destructuring
   // `tenantId` here was always undefined, so the effect bailed before
   // it could even log.
-  const { activeTenantId } = useAuth();
+  const { user, activeTenantId } = useAuth();
   const tenantId = activeTenantId;
-  console.log('[useRotaShifts] hook called, activeTenantId:', activeTenantId);
+  console.log('[useRotaShifts] hook called, activeTenantId:', activeTenantId, 'hasUser:', !!user);
   const [crew, setCrew] = useState([]);
   const [shifts, setShifts] = useState([]);
   const [effectiveDate, setEffectiveDate] = useState(null);
@@ -136,9 +136,11 @@ export function useRotaShifts() {
 
   useEffect(() => {
     let cancelled = false;
-    console.log('[useRotaShifts] effect, tenantId:', tenantId);
-    if (!tenantId) {
-      console.log('[useRotaShifts] BAILING — no tenantId');
+    console.log('[useRotaShifts] effect, tenantId:', tenantId, 'hasUser:', !!user);
+    // Gate on user too — querying before the session hydrates would
+    // send an anon request that RLS ({authenticated}) returns empty.
+    if (!user || !tenantId) {
+      console.log('[useRotaShifts] BAILING — no user/tenantId');
       setLoading(false);
       return undefined;
     }
@@ -270,7 +272,7 @@ export function useRotaShifts() {
     })();
 
     return () => { cancelled = true; };
-  }, [tenantId]);
+  }, [user, tenantId]);
 
   return { crew, shifts, effectiveDate, loading, error };
 }

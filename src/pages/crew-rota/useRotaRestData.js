@@ -7,7 +7,7 @@
 // hardcoded placeholders per spec (trip + AI engine are later steps).
 
 import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import { hhmmToDecimal } from './useRotaShifts';
 
@@ -51,7 +51,7 @@ function staticTripInsights(firstName) {
 
 export function useRotaRestData(memberId) {
   // AuthContext exposes `activeTenantId`, not `tenantId`.
-  const { activeTenantId } = useAuth();
+  const { user, activeTenantId } = useAuth();
   const tenantId = activeTenantId;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -59,7 +59,7 @@ export function useRotaRestData(memberId) {
 
   useEffect(() => {
     let cancelled = false;
-    if (!tenantId || !memberId) { setData(null); return undefined; }
+    if (!user || !tenantId || !memberId) { setData(null); return undefined; }
 
     setLoading(true);
     setError(null);
@@ -228,7 +228,7 @@ export function useRotaRestData(memberId) {
     })();
 
     return () => { cancelled = true; };
-  }, [tenantId, memberId]);
+  }, [user, tenantId, memberId]);
 
   return { data, loading, error };
 }
