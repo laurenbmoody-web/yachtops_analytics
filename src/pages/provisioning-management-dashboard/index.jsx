@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabaseClient';
+import { fetchSuppliers } from '../provisioning/utils/provisioningStorage';
 import { useTenant } from '../../contexts/TenantContext';
 import { showToast } from '../../utils/toast';
 import CreateProvisioningListModal from './components/CreateProvisioningListModal';
@@ -108,13 +109,9 @@ const ProvisioningManagementDashboard = () => {
     if (!activeTenantId) return;
     setSuppliersLoading(true);
     try {
-      const { data, error: err } = await supabase
-        ?.from('provisioning_suppliers')
-        ?.select('*')
-        ?.eq('tenant_id', activeTenantId)
-        ?.order('name', { ascending: true });
-
-      if (err) throw err;
+      // Sprint 9c.3 Phase 8 — reads supplier_profiles via the legacy-
+      // shape mapper instead of provisioning_suppliers directly.
+      const data = await fetchSuppliers(activeTenantId);
       setSuppliers(data || []);
     } catch (err) {
       console.error('[Provisioning] loadSuppliers error:', err?.message);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient';
-import { createSupplierOrder, markOrderSent } from '../utils/provisioningStorage';
+import { createSupplierOrder, markOrderSent, fetchSuppliers } from '../utils/provisioningStorage';
 import { useAuth } from '../../../contexts/AuthContext';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
@@ -114,11 +114,13 @@ const SendToSupplierModal = ({
   useEffect(() => {
     if (!isOpen || !tenantId) return;
     setSuppliersLoading(true);
-    supabase.from('provisioning_suppliers')
-      .select('id, name, email, phone')
-      .eq('tenant_id', tenantId)
-      .order('name')
-      .then(({ data }) => { setSuppliers(data || []); setSuppliersLoading(false); });
+    // Sprint 9c.3 Phase 8 — reads supplier_profiles via the legacy-
+    // shape mapper (id/name/email/phone preserved) instead of
+    // provisioning_suppliers directly.
+    fetchSuppliers(tenantId)
+      .then((data) => { setSuppliers(data || []); })
+      .catch(() => { setSuppliers([]); })
+      .finally(() => { setSuppliersLoading(false); });
   }, [isOpen, tenantId]);
 
   if (!isOpen) return null;

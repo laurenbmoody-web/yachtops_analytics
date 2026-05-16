@@ -450,16 +450,47 @@ export const receiveItems = async (updates) => {
 };
 
 // ── Suppliers ─────────────────────────────────────────────────────────────────
+//
+// Sprint 9c.3 Phase 8 (Batch 1 — read repoint): the legacy
+// provisioning_suppliers table is consolidated into supplier_profiles.
+// fetchSuppliers now reads supplier_profiles and maps each row back to
+// the legacy provisioning_suppliers shape so the ~5 existing read
+// consumers (provisioning form/board/detail pickers, legacy directory,
+// list dashboard, send-to-supplier modal) keep working untouched.
+//
+// Field mapping (supplier_profiles → legacy provisioning_suppliers):
+//   contact_email  → email
+//   contact_phone  → phone
+//   business_city  → port_location   (Phase 2 migration mapping)
+//   categories[]   → department      (Phase 2 migrated department→categories[])
+// id / tenant_id / name / notes are 1:1. Archived (soft-deleted)
+// profiles are excluded — they must not surface in supplier pickers
+// (legacy table had no archive concept; this is the intended modern
+// behaviour, not a regression). createSupplier / updateSupplier /
+// deleteSupplier still hit the legacy table — repointed in Batch 2/3.
+
+const toLegacySupplierShape = (row) => ({
+  id: row.id,
+  tenant_id: row.tenant_id,
+  name: row.name,
+  email: row.contact_email ?? null,
+  phone: row.contact_phone ?? null,
+  port_location: row.business_city ?? null,
+  department: Array.isArray(row.categories) ? row.categories : [],
+  notes: row.notes ?? null,
+  _legacy_shape: true,
+});
 
 export const fetchSuppliers = async (vesselId) => {
   try {
     const { data, error } = await supabase
-      ?.from('provisioning_suppliers')
-      ?.select('*')
+      ?.from('supplier_profiles')
+      ?.select('id, tenant_id, name, contact_email, contact_phone, business_city, categories, notes, archived_at')
       ?.eq('tenant_id', vesselId)
+      ?.is('archived_at', null)
       ?.order('name');
     if (error) throw error;
-    return data || [];
+    return (data || []).map(toLegacySupplierShape);
   } catch (err) {
     console.error('[provisioningStorage] fetchSuppliers error:', err);
     throw err;
