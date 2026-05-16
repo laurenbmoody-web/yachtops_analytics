@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../../../components/navigation/Header';
 import { fetchArchivedVendors, restoreVendor } from '../utils/provisioningStorage';
 import { showToast } from '../../../utils/toast';
+import '../../../styles/editorial.css';
 import './suppliers-directory.css';
 
 const locationLine = (v) => {
@@ -84,22 +85,20 @@ const ArchivedVendorsView = () => {
             onClick={() => navigate('/provisioning/suppliers')}
           >‹  BACK TO DIRECTORY</button>
 
-          <div className="sd-dir-header-row">
-            <div>
-              <div className="sd-dir-meta">
-                <span className="dot">●</span>
-                <span>SUPPLIER DIRECTORY</span>
-                <span className="sep">·</span>
-                <span>ARCHIVE</span>
-              </div>
-              <h1 className="sd-dir-headline">
-                Archived <span className="accent">suppliers</span>
-                <span className="period">.</span>
-              </h1>
-              <div className="sd-dir-subline">
-                Soft-deleted suppliers. Restore one to bring it back into the directory.
-              </div>
+          <div className="sd-dir-headblock">
+            <div className="editorial-meta">
+              <span className="dot">●</span>
+              <span>SUPPLIER DIRECTORY</span>
+              <span className="bar" />
+              <span>ARCHIVE</span>
             </div>
+            <h1 className="editorial-greeting">
+              Archived<span className="period">,</span>{' '}
+              <em>suppliers</em><span className="period">.</span>
+            </h1>
+            <p className="editorial-subline">
+              Soft-deleted suppliers. Restore one to bring it back into the directory.
+            </p>
           </div>
 
           {loading ? (

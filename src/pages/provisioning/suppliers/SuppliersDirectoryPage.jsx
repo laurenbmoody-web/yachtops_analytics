@@ -27,6 +27,7 @@ import {
 import { VENDOR_TYPES, mergeTaxonomy } from './vendorConstants';
 import AddVendorForm from './AddVendorForm';
 import { showToast } from '../../../utils/toast';
+import '../../../styles/editorial.css';
 import './suppliers-directory.css';
 
 // ─── Small presentational helpers (page-local, intentionally not
@@ -221,9 +222,11 @@ const SuppliersDirectoryPage = () => {
   const [error, setError] = useState(null);
 
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState(null);       // vendor_type | null (= All)
-  const [categoryFilter, setCategoryFilter] = useState(null); // primary/category | null
+  const [typeFilter, setTypeFilter] = useState(null);        // vendor_type | null (= All)
+  const [categoryFilters, setCategoryFilters] = useState([]); // multi-select categories
   const [filterOpen, setFilterOpen] = useState(false);       // filters popover
+  const [catDropdownOpen, setCatDropdownOpen] = useState(false); // category list expanded
+  const [catSearch, setCatSearch] = useState('');            // dropdown's own search
 
   const [confirmingDeleteId, setConfirmingDeleteId] = useState(null);
 
@@ -289,24 +292,30 @@ const SuppliersDirectoryPage = () => {
   const matchesCategory = (v, cat) =>
     v.primary_category === cat || (v.categories || []).includes(cat);
 
+  // A vendor matches the category filter if it matches ANY selected
+  // category (OR semantics — standard multi-select facet).
+  const matchesAnyCategory = (v) =>
+    categoryFilters.length === 0 || categoryFilters.some((c) => matchesCategory(v, c));
+
   const visible = useMemo(() => {
     let r = searchFiltered;
     if (typeFilter) r = r.filter((v) => v.vendor_type === typeFilter);
-    if (categoryFilter) r = r.filter((v) => matchesCategory(v, categoryFilter));
+    if (categoryFilters.length) r = r.filter(matchesAnyCategory);
     return r;
-  }, [searchFiltered, typeFilter, categoryFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchFiltered, typeFilter, categoryFilters]);
 
   // Faceted counts — each axis counts against the search + the OTHER
   // selected axis (so the numbers reflect what picking a chip would
   // actually yield given the rest of the active filter state).
   const typeCounts = useMemo(() => {
-    const base = categoryFilter
-      ? searchFiltered.filter((v) => matchesCategory(v, categoryFilter))
+    const base = categoryFilters.length
+      ? searchFiltered.filter((v) => categoryFilters.some((c) => matchesCategory(v, c)))
       : searchFiltered;
     const m = { __all: base.length };
     for (const v of base) m[v.vendor_type] = (m[v.vendor_type] || 0) + 1;
     return m;
-  }, [searchFiltered, categoryFilter]);
+  }, [searchFiltered, categoryFilters]);
 
   const categoryCounts = useMemo(() => {
     const base = typeFilter
@@ -330,22 +339,30 @@ const SuppliersDirectoryPage = () => {
     [vendors],
   );
 
+  const toggleCategory = (c) => {
+    setCategoryFilters((prev) =>
+      prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c],
+    );
+  };
+
   const activeFilters = useMemo(() => {
     const out = [];
-    if (typeFilter) out.push({ kind: 'type', label: `Type: ${typeFilter}` });
-    if (categoryFilter) out.push({ kind: 'category', label: `Category: ${categoryFilter}` });
+    if (typeFilter) out.push({ id: 'type', kind: 'type', label: `Type: ${typeFilter}` });
+    for (const c of categoryFilters) {
+      out.push({ id: `cat:${c}`, kind: 'category', value: c, label: `Category: ${c}` });
+    }
     return out;
-  }, [typeFilter, categoryFilter]);
+  }, [typeFilter, categoryFilters]);
   const activeFilterCount = activeFilters.length;
   const hasActiveFilters = activeFilterCount > 0;
 
   const clearFilters = () => {
     setTypeFilter(null);
-    setCategoryFilter(null);
+    setCategoryFilters([]);
   };
-  const removeFilter = (kind) => {
-    if (kind === 'type') setTypeFilter(null);
-    if (kind === 'category') setCategoryFilter(null);
+  const removeFilter = (f) => {
+    if (f.kind === 'type') setTypeFilter(null);
+    if (f.kind === 'category') setCategoryFilters((prev) => prev.filter((x) => x !== f.value));
   };
 
   // Close the filters popover on outside click / Esc / re-click.
@@ -363,6 +380,11 @@ const SuppliersDirectoryPage = () => {
       document.removeEventListener('mousedown', onDown);
       document.removeEventListener('keydown', onKey);
     };
+  }, [filterOpen]);
+
+  // Reopening the popover always starts with the category list collapsed.
+  useEffect(() => {
+    if (!filterOpen) { setCatDropdownOpen(false); setCatSearch(''); }
   }, [filterOpen]);
 
   // ─── Card actions ──────────────────────────────────────────────
@@ -445,31 +467,26 @@ const SuppliersDirectoryPage = () => {
             onClick={() => navigate('/provisioning')}
           >‹  BACK TO PROVISIONING</button>
 
-          <div className="sd-dir-header-row">
-            <div>
-              <div className="sd-dir-meta">
-                <span className="dot">●</span>
-                <span>{(vesselName || 'VESSEL').toUpperCase()}</span>
-                {!loading && (
-                  <>
-                    <span className="sep">·</span>
-                    <span>{vendors.length} {vendors.length === 1 ? 'SUPPLIER' : 'SUPPLIERS'}</span>
-                    <span className="sep">·</span>
-                    <span>{favouriteCount} {favouriteCount === 1 ? 'FAVOURITE' : 'FAVOURITES'}</span>
-                  </>
-                )}
-              </div>
-              <h1 className="sd-dir-headline">
-                Supplier <span className="accent">directory</span>
-                <span className="period">.</span>
-              </h1>
-              <div className="sd-dir-tagline">
-                Every supplier you work with · click any card to open the overview
-              </div>
+          <div className="sd-dir-headblock">
+            <div className="editorial-meta">
+              <span className="dot">●</span>
+              <span>{(vesselName || 'VESSEL').toUpperCase()}</span>
+              {!loading && (
+                <>
+                  <span className="bar" />
+                  <span>{vendors.length} {vendors.length === 1 ? 'SUPPLIER' : 'SUPPLIERS'}</span>
+                  <span className="bar" />
+                  <span>{favouriteCount} {favouriteCount === 1 ? 'FAVOURITE' : 'FAVOURITES'}</span>
+                </>
+              )}
             </div>
-            <button type="button" className="sd-dir-add" onClick={openAdd}>
-              + ADD SUPPLIER
-            </button>
+            <h1 className="editorial-greeting">
+              Suppliers<span className="period">,</span>{' '}
+              <em>directory</em><span className="period">.</span>
+            </h1>
+            <p className="editorial-subline">
+              Every supplier you work with — click any card to open the overview.
+            </p>
           </div>
 
           <div className="sd-dir-search-row">
@@ -538,34 +555,90 @@ const SuppliersDirectoryPage = () => {
 
                   <div className="sd-dir-fsection">
                     <div className="sd-dir-fsection-label">CATEGORY</div>
-                    <div className="sd-dir-fchips">
-                      {taxonomy.categories.map((c) => (
-                        <button
-                          key={c}
-                          type="button"
-                          className={`sd-dir-fchip${categoryFilter === c ? ' is-on' : ''}`}
-                          onClick={() => setCategoryFilter(categoryFilter === c ? null : c)}
-                        >
-                          {c}<span className="count">{categoryCounts[c] || 0}</span>
-                        </button>
-                      ))}
-                    </div>
+
+                    <button
+                      type="button"
+                      className={`sd-dir-cattrigger${catDropdownOpen ? ' is-open' : ''}`}
+                      onClick={() => setCatDropdownOpen((v) => !v)}
+                    >
+                      <span className={categoryFilters.length ? 'sel' : 'placeholder'}>
+                        {categoryFilters.length ? categoryFilters.join(', ') : 'All categories'}
+                      </span>
+                      <span className="chev">{catDropdownOpen ? '▴' : '▾'}</span>
+                    </button>
+
+                    {!catDropdownOpen ? (
+                      <div className="sd-dir-cathint">
+                        {categoryFilters.length
+                          ? `${categoryFilters.length} ${categoryFilters.length === 1 ? 'category' : 'categories'} selected · click to change`
+                          : 'Click to filter by category'}
+                      </div>
+                    ) : (
+                      <div className="sd-dir-catdd">
+                        <input
+                          className="sd-dir-catdd-search"
+                          type="text"
+                          placeholder="Search categories…"
+                          value={catSearch}
+                          autoFocus
+                          onChange={(e) => setCatSearch(e.target.value)}
+                        />
+                        <div className="sd-dir-catdd-list">
+                          {(() => {
+                            const q = catSearch.trim().toLowerCase();
+                            const opts = taxonomy.categories.filter(
+                              (c) => !q || c.toLowerCase().includes(q),
+                            );
+                            if (opts.length === 0) {
+                              return (
+                                <div className="sd-dir-catempty">
+                                  No categories match “{catSearch}”.
+                                </div>
+                              );
+                            }
+                            return opts.map((c) => {
+                              const on = categoryFilters.includes(c);
+                              const n = categoryCounts[c] || 0;
+                              return (
+                                <button
+                                  key={c}
+                                  type="button"
+                                  className={`sd-dir-catrow${on ? ' is-on' : ''}`}
+                                  onClick={() => toggleCategory(c)}
+                                >
+                                  <span className={`sd-dir-catbox${on ? ' is-checked' : ''}`}>
+                                    {on ? '✓' : ''}
+                                  </span>
+                                  <span className="sd-dir-catname">{c}</span>
+                                  <span className={`sd-dir-catcount${n === 0 ? ' zero' : ''}`}>
+                                    {n}
+                                  </span>
+                                </button>
+                              );
+                            });
+                          })()}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
             </div>
+            <button type="button" className="sd-dir-add" onClick={openAdd}>
+              + ADD SUPPLIER
+            </button>
           </div>
 
           {hasActiveFilters && (
             <div className="sd-dir-active-filters">
               {activeFilters.map((f) => (
-                <span key={f.kind} className="sd-dir-afchip">
+                <span key={f.id} className="sd-dir-afchip">
                   {f.label}
                   <button
                     type="button"
                     className="sd-dir-afchip-x"
                     aria-label={`Remove ${f.label} filter`}
-                    onClick={() => removeFilter(f.kind)}
+                    onClick={() => removeFilter(f)}
                   >
                     ×
                   </button>

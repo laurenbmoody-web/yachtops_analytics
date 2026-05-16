@@ -1,0 +1,78 @@
+/* ============================================================
+   Cargo editorial typography — shared source of truth
+   ============================================================
+   The canonical "WORD, *qualifier*." headline + meta strip +
+   subline used across editorial surfaces (Standby, Supplier
+   overview, Suppliers directory, …).
+
+   These mirror pantry.css's .p-greeting / .p-context-bar / the
+   EditorialHeadline subtitle, but are TOKEN-FREE (literal values,
+   not var(--ink)/var(--accent)) so any page can opt in by adding
+   the class — no need to inherit the .editorial-page token scope
+   or import the whole pantry stylesheet.
+
+   If the canonical values change, change them HERE. Standby /
+   supplier-overview can migrate onto these classes in a follow-up
+   so there is exactly one definition.
+
+   Canonical values (from pantry.css):
+     ink      #1C1B3A   ink-muted #695880   accent #C65A1A
+     serif    'DM Serif Display'   sans 'Plus Jakarta Sans'
+     border   #DFD8CC
+   ============================================================ */
+
+.editorial-greeting {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-weight: 500;
+  font-size: 58px;
+  line-height: 0.96;
+  letter-spacing: -1.5px;
+  color: #1C1B3A;
+  text-transform: uppercase;
+  margin: 0 0 16px;
+  white-space: nowrap;
+}
+.editorial-greeting em,
+.editorial-greeting .accent {
+  font-style: italic;
+  font-weight: 400;
+  color: #C65A1A;
+  text-transform: none;
+}
+.editorial-greeting .period {
+  color: #1C1B3A;
+  font-style: normal;
+}
+
+.editorial-subline {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  color: #695880;
+  margin: 0;
+}
+
+.editorial-meta {
+  display: flex;
+  align-items: center;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #1C1B3A;
+  margin: 0 0 10px;
+  white-space: nowrap;
+}
+.editorial-meta .dot { color: #C65A1A; }
+.editorial-meta .muted { color: #695880; }
+.editorial-meta .bar {
+  display: inline-block;
+  width: 1px;
+  height: 10px;
+  background: #DFD8CC;
+  margin: 0 10px;
+  flex-shrink: 0;
+}
