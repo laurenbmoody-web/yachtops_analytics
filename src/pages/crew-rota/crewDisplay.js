@@ -102,6 +102,37 @@ function normaliseRole(role) {
     .trim();
 }
 
+// Within-department sort rank. Lower = higher up. Uses the same
+// normalisation pipeline so /ess + word-form variants rank correctly.
+// Unknown roles get UNKNOWN_RANK and tie-break alphabetically by the
+// raw role string (handled by the caller's comparator).
+const ROLE_RANK = {
+  'captain':      1,
+  'chief stew':   2,
+  '2nd stew':     3,
+  '3rd stew':     4,
+  'laundry stew': 5,
+  'laundry':      5,
+  'junior stew':  6,
+  'service stew': 7,
+  'sole stew':    8,
+  'head chef':    9,
+  'sous chef':    10,
+  'bosun':        11,
+  'deckhand':     12,
+  'chief eng':    13,
+  '2nd eng':      14,
+  '3rd eng':      15,
+  'housekeeper':  16,
+};
+export const UNKNOWN_RANK = 17;
+
+export function getRoleRank(role) {
+  if (!role) return UNKNOWN_RANK;
+  const n = normaliseRole(role);
+  return ROLE_RANK[n] ?? UNKNOWN_RANK;
+}
+
 // TODO(remove-after-role-audit): temporary production audit. Logs each
 // distinct role string the first time it's seen (raw → normalised →
 // result) so we can decide whether the maps need more entries or a

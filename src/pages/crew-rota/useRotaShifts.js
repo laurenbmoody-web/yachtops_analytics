@@ -47,11 +47,35 @@ function fmtClock(decimal) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+// Resolve one crew member's status as of a date — the most recent
+// crew_status_history row with changed_at <= asOf. Parameterised by
+// date so future Week / Trip-span views can pass other dates; the
+// Today view defaults to today. (The hook resolves all crew in one
+// batched query for perf; this is for single ad-hoc lookups.)
+// Signature note: tenantId is explicit since this runs outside React
+// context. Returns lowercase snake_case new_status, or null.
+export async function getStatusAsOf(userId, tenantId, asOfDate = new Date().toISOString().slice(0, 10)) {
+  if (!userId || !tenantId) return null;
+  const asOfIso = `${asOfDate}T23:59:59.999Z`;
+  const { data } = await supabase
+    .from('crew_status_history')
+    .select('new_status, changed_at')
+    .eq('tenant_id', tenantId)
+    .eq('user_id', userId)
+    .lte('changed_at', asOfIso)
+    .order('changed_at', { ascending: false })
+    .limit(1);
+  return (data ?? [])[0]?.new_status ?? null;
+}
+
 // Build the derived per-crew object the grid + list + popover expect.
 export function deriveCrew(member, memberShifts, weekShifts, now = new Date()) {
   const todayOnDuty = memberShifts.filter(s => ON_DUTY_TYPES.has(s.shiftType));
   const offToday =
     memberShifts.length > 0 && memberShifts.every(s => s.shiftType === 'off');
+  // Render-state inputs for the on-vessel sub-section split.
+  const medicalToday = memberShifts.some(s => s.shiftType === 'medical');
+  const activeOnShift = todayOnDuty.length > 0;
 
   // Decimal-hour ranges for the grid. Overnight shifts (end <= start)
   // extend past midnight; the grid clamps to its 48-slot window.
@@ -104,8 +128,14 @@ export function deriveCrew(member, memberShifts, weekShifts, now = new Date()) {
     initials: initialsFromName(member.name),
     role: member.role,
     department: member.department,
+    departmentId: member.departmentId,
     departmentColor: member.departmentColor,
     permissionTier: member.permissionTier,
+    // Render-state + status (currentStatus filled by the hook after
+    // resolving crew_status_history).
+    medicalToday,
+    activeOnShift,
+    currentStatus: null,
     // Derived UI fields (shape-compatible with the old MOCK_CREW)
     shifts: shiftRanges,
     shiftText,
@@ -189,6 +219,7 @@ export function useRotaShifts() {
           // falling back to the permission role string.
           role: m.roles?.name || m.role || '',
           department: m.departments?.name || '',
+          departmentId: m.department_id || null,
           departmentColor: m.departments?.color || '#5F5E5A',
           permissionTier: m.permission_tier,
         }));
@@ -254,10 +285,34 @@ export function useRotaShifts() {
 
         const dayShifts = mappedShifts.filter(s => s.date === effDate);
 
+        // ── Current crew status as of the effective date ──
+        // Mirrors crew-management/index.jsx:265-279 — most recent
+        // crew_status_history row per user_id with changed_at <= asOf.
+        const asOfIso = `${effDate}T23:59:59.999Z`;
+        const userIds = mappedMembers.map(m => m.userId).filter(Boolean);
+        const statusByUser = new Map();
+        if (userIds.length > 0) {
+          const { data: history, error: hErr } = await supabase
+            .from('crew_status_history')
+            .select('user_id, new_status, changed_at')
+            .eq('tenant_id', tenantId)
+            .in('user_id', userIds)
+            .lte('changed_at', asOfIso)
+            .order('changed_at', { ascending: false });
+          console.log('[useRotaShifts] crew_status_history:', history?.length, 'error:', hErr);
+          if (hErr) throw hErr;
+          for (const row of (history ?? [])) {
+            if (!statusByUser.has(row.user_id)) statusByUser.set(row.user_id, row.new_status);
+          }
+        }
+        if (cancelled) return;
+
         const derived = mappedMembers.map(m => {
           const todayS = dayShifts.filter(s => s.memberId === m.id);
           const weekS = mappedShifts.filter(s => s.memberId === m.id);
-          return deriveCrew(m, todayS, weekS);
+          const c = deriveCrew(m, todayS, weekS);
+          c.currentStatus = statusByUser.get(m.userId) ?? null;
+          return c;
         });
 
         if (cancelled) return;

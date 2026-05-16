@@ -1,5 +1,46 @@
 import React from 'react';
-import { getRoleDisplayName, getContrastText } from '../../crew-rota/crewDisplay';
+import { useAuth } from '../../../contexts/AuthContext';
+import { getRoleDisplayName, getContrastText, getRoleRank, UNKNOWN_RANK } from '../../crew-rota/crewDisplay';
+
+// currentStatus → section. null history falls back to on-vessel
+// (treat unknown as active until we know otherwise).
+const OFF_VESSEL_STATUSES = new Set([
+  'on_leave', 'rotational_leave', 'medical_leave', 'training_leave', 'travelling', 'invited',
+]);
+const OFF_VESSEL_LABEL = {
+  on_leave: 'On leave',
+  rotational_leave: 'Rotational leave',
+  medical_leave: 'Medical leave',
+  training_leave: 'Training leave',
+  travelling: 'Travelling',
+  invited: 'Invited',
+};
+// Department canonical fallback order (signed-in-user rules layered on top).
+const CANONICAL_DEPTS = ['Deck', 'Interior', 'Galley', 'Engineering', 'Bridge', 'Shore'];
+
+// On-vessel render state from today's shift.
+function renderStateOf(crew) {
+  if (crew.activeOnShift) return 'active';
+  if (crew.medicalToday) return 'medical';
+  return 'off'; // shift_type 'off' OR no shift row
+}
+const STATE_RANK = { active: 0, off: 1, medical: 2 };
+
+function sortWithinDept(a, b) {
+  const sa = STATE_RANK[renderStateOf(a)];
+  const sb = STATE_RANK[renderStateOf(b)];
+  if (sa !== sb) return sa - sb;
+  const ra = getRoleRank(a.role);
+  const rb = getRoleRank(b.role);
+  if (ra !== rb) return ra - rb;
+  if (ra === UNKNOWN_RANK) {
+    const byRole = String(a.role || '').localeCompare(String(b.role || ''));
+    if (byRole !== 0) return byRole;
+  }
+  return String(a.name || '').localeCompare(String(b.name || ''));
+}
+
+function firstName(n) { return String(n || '').trim().split(/\s+/)[0] || ''; }
 
 // ── Time / shift helpers ────────────────────────────────────────────────────
 //
@@ -80,13 +121,19 @@ const MlcTriangle = () => (
   </svg>
 );
 
-function RestLine({ rest24h, pastWeek, warning }) {
-  // Off-duty on-board: no rest figures to show.
-  if (!rest24h && !pastWeek) {
+function RestLine({ crew, mode, statusLabel }) {
+  if (mode === 'offvessel') {
+    return <div className="rota-nm-rest">{statusLabel}</div>;
+  }
+  if (mode === 'medical') {
+    return <div className="rota-nm-rest">Medical · on-board</div>;
+  }
+  if (mode === 'off') {
     return <div className="rota-nm-rest">Off duty · on-board</div>;
   }
+  const { rest24h, pastWeek, mlcWarning } = crew;
   return (
-    <div className={`rota-nm-rest${warning ? ' w' : ''}`}>
+    <div className={`rota-nm-rest${mlcWarning ? ' w' : ''}`}>
       Rest <b>{rest24h || '—'}</b>
       <span className="rota-pipe">·</span>
       <b>{pastWeek || '—'}</b> / 77h
@@ -96,11 +143,12 @@ function RestLine({ rest24h, pastWeek, warning }) {
 
 // ── Crew row ────────────────────────────────────────────────────────────────
 
-function CrewRow({ crew, gridStartHour, onCrewClick }) {
+// mode: 'active' | 'off' | 'medical' (on-vessel) | 'offvessel'
+function CrewRow({ crew, gridStartHour, onCrewClick, mode = 'active', statusLabel }) {
   const satStart = saturdayFirstSlot(gridStartHour);
   const cells = [];
   for (let i = 0; i < SLOTS; i += 1) {
-    const filled = isSlotInAnyShift(i, crew.shifts, gridStartHour);
+    const filled = mode === 'active' && isSlotInAnyShift(i, crew.shifts, gridStartHour);
     const isSat = i >= satStart;
     const cls = ['rota-c'];
     if (filled) cls.push('f');
@@ -108,11 +156,16 @@ function CrewRow({ crew, gridStartHour, onCrewClick }) {
     cells.push(<div key={i} className={cls.join(' ')} />);
   }
 
-  const isOffDay = crew.offToday;
-  const isWarning = crew.mlcWarning;
+  const isWarning = mode === 'active' && crew.mlcWarning;
+  const rowCls = [
+    'rota-row',
+    mode === 'off' ? 'dim-off' : '',
+    mode === 'medical' ? 'dim-off is-medical' : '',
+    mode === 'offvessel' ? 'dim-offvessel' : '',
+  ].filter(Boolean).join(' ');
 
   return (
-    <div className={`rota-row${isOffDay ? ' off' : ''}`}>
+    <div className={rowCls}>
       <div
         className="rota-nm"
         onClick={onCrewClick ? () => onCrewClick(crew) : undefined}
@@ -128,7 +181,7 @@ function CrewRow({ crew, gridStartHour, onCrewClick }) {
           <span className="rota-role">{getRoleDisplayName(crew.role)}</span>
           {isWarning && <MlcTriangle />}
         </div>
-        <RestLine rest24h={crew.rest24h} pastWeek={crew.pastWeek} warning={isWarning} />
+        <RestLine crew={crew} mode={mode} statusLabel={statusLabel} />
       </div>
       {cells}
     </div>
@@ -178,31 +231,100 @@ function DepartmentSection({ deptName, crew, gridStartHour, onCrewClick }) {
       </div>
       <div className="rota-dept-rows">
         {crew.map(c => (
-          <CrewRow key={c.id} crew={c} gridStartHour={gridStartHour} onCrewClick={onCrewClick} />
+          <CrewRow
+            key={c.id}
+            crew={c}
+            gridStartHour={gridStartHour}
+            onCrewClick={onCrewClick}
+            mode={renderStateOf(c)}
+          />
         ))}
       </div>
     </div>
   );
 }
 
+// ── Off-vessel section ──────────────────────────────────────────────────────
+// No strip, no coloured border — these crew aren't on a department
+// today. Eyebrow header + each row at 0.4 opacity, status label in
+// place of the rest line, sorted alphabetically by first name.
+
+function OffVesselSection({ crew, gridStartHour, onCrewClick }) {
+  if (crew.length === 0) return null;
+  const sorted = [...crew].sort((a, b) =>
+    firstName(a.name).localeCompare(firstName(b.name)));
+  return (
+    <div className="rota-offvessel">
+      <div className="rota-offvessel-eyebrow">Off vessel</div>
+      {sorted.map(c => (
+        <CrewRow
+          key={c.id}
+          crew={c}
+          gridStartHour={gridStartHour}
+          onCrewClick={onCrewClick}
+          mode="offvessel"
+          statusLabel={OFF_VESSEL_LABEL[c.currentStatus] || 'Off vessel'}
+        />
+      ))}
+    </div>
+  );
+}
+
 // ── Grid ────────────────────────────────────────────────────────────────────
 
-const DEPT_ORDER = ['Interior', 'Deck', 'Galley', 'Engineering'];
+// Department order for the signed-in user:
+//  - COMMAND, or no own department → canonical order
+//  - CHIEF/HOD/CREW with a department → own dept first, then the rest
+//    by crew-count desc, ties broken by canonical index then name
+function orderDepartments(byDept, crew, tenantRole, ownDeptId) {
+  const present = Array.from(byDept.keys());
+  const canonIdx = (n) => {
+    const i = CANONICAL_DEPTS.indexOf(n);
+    return i === -1 ? 999 : i;
+  };
+  const canonicalSort = (a, b) => canonIdx(a) - canonIdx(b) || a.localeCompare(b);
+
+  const isCommand = String(tenantRole || '').toUpperCase() === 'COMMAND';
+  let ownDeptName = null;
+  if (ownDeptId) {
+    const m = crew.find(c => c.departmentId === ownDeptId);
+    ownDeptName = m?.department || null;
+  }
+
+  if (isCommand || !ownDeptName || !byDept.has(ownDeptName)) {
+    return [...present].sort(canonicalSort);
+  }
+  const rest = present
+    .filter(d => d !== ownDeptName)
+    .sort((a, b) =>
+      (byDept.get(b).length - byDept.get(a).length)
+      || canonIdx(a) - canonIdx(b)
+      || a.localeCompare(b));
+  return [ownDeptName, ...rest];
+}
 
 export default function RotaTodayGrid({ crew = [], now = new Date(), onCrewClick, gridStartHour = 6 }) {
+  const { user, tenantRole } = useAuth();
   const currentSlot = nowSlot(now, gridStartHour);
   const currentHour = now.getHours();
 
+  // Section split. currentStatus null → on-vessel (treat unknown as
+  // active until we have reason otherwise).
+  const onVessel = crew.filter(c => !OFF_VESSEL_STATUSES.has(c.currentStatus));
+  const offVessel = crew.filter(c => OFF_VESSEL_STATUSES.has(c.currentStatus));
+
   const byDept = new Map();
-  for (const c of crew) {
+  for (const c of onVessel) {
     const d = c.department || 'Other';
     if (!byDept.has(d)) byDept.set(d, []);
     byDept.get(d).push(c);
   }
-  const orderedDepts = [
-    ...DEPT_ORDER.filter(d => byDept.has(d)),
-    ...Array.from(byDept.keys()).filter(d => !DEPT_ORDER.includes(d)),
-  ];
+  // Sort crew within each department (state rank → role rank → name).
+  for (const arr of byDept.values()) arr.sort(sortWithinDept);
+
+  const orderedDepts = orderDepartments(
+    byDept, onVessel, tenantRole, user?.department_id || null,
+  );
 
   // Adaptive crew-column width (Correction 4). Pure CSS can't fit a
   // shared content width across the many independent .rota-row grids,
@@ -237,7 +359,12 @@ export default function RotaTodayGrid({ crew = [], now = new Date(), onCrewClick
             onCrewClick={onCrewClick}
           />
         ))}
-        <TotalsRow crew={crew} gridStartHour={gridStartHour} />
+        <OffVesselSection
+          crew={offVessel}
+          gridStartHour={gridStartHour}
+          onCrewClick={onCrewClick}
+        />
+        <TotalsRow crew={onVessel} gridStartHour={gridStartHour} />
         {nowLineStyle && <div className="rota-now-line" style={nowLineStyle} />}
       </div>
     </div>

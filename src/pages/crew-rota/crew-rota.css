@@ -746,6 +746,28 @@
   margin-bottom: 2px;
 }
 .rota-row.off { opacity: 0.45; }
+/* Phase 4 visual states. Opacity is on the row (name + shift cells);
+   the dept strip is a sibling of .rota-row inside .rota-dept-group so
+   it stays full opacity. */
+.rota-row.dim-off { opacity: 0.6; }
+.rota-row.dim-offvessel { opacity: 0.4; }
+.rota-row.is-medical .rota-nm-name { text-decoration: line-through; }
+
+/* Off-vessel section — no strip, no coloured border. */
+.rota-offvessel { margin-top: 6px; }
+.rota-offvessel-eyebrow {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  padding: 10px 12px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8B8478;
+  background: #FFFFFF;
+  width: max-content;
+}
 
 /* Department group — flex: 22px sticky colour strip + the crew rows.
    Strip + (name track) = var(--rota-nm-w), so shift cells still begin
