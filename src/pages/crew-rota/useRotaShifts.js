@@ -288,7 +288,13 @@ export function useRotaShifts() {
         // ── Current crew status as of the effective date ──
         // Mirrors crew-management/index.jsx:265-279 — most recent
         // crew_status_history row per user_id with changed_at <= asOf.
-        const asOfIso = `${effDate}T23:59:59.999Z`;
+        //
+        // Status resolves as of real today, independent of which date
+        // the grid is rendering. The Today view always shows current
+        // operational state. Week/Trip views will pass per-date status
+        // via getStatusAsOf(userId, tenantId, date) so they can resolve
+        // historical status per day. Do not re-couple to effDate.
+        const asOfIso = `${today}T23:59:59.999Z`;
         const userIds = mappedMembers.map(m => m.userId).filter(Boolean);
         const statusByUser = new Map();
         if (userIds.length > 0) {
@@ -299,24 +305,10 @@ export function useRotaShifts() {
             .in('user_id', userIds)
             .lte('changed_at', asOfIso)
             .order('changed_at', { ascending: false });
-          // [DIAG cdb72e0-bug] effDate may be an OLD seed shift date when
-          // there's no rota_shifts row for real-today → asOf cutoff sits
-          // in the past → status changes dated real-today get excluded.
-          console.log('[useRotaShifts][DIAG] status fetch', {
-            today, effDate, asOfIso,
-            userIds,
-            historyCount: history?.length,
-            error: hErr,
-            historyRows: (history ?? []).map(r => ({
-              user_id: r.user_id, new_status: r.new_status, changed_at: r.changed_at,
-            })),
-          });
           if (hErr) throw hErr;
           for (const row of (history ?? [])) {
             if (!statusByUser.has(row.user_id)) statusByUser.set(row.user_id, row.new_status);
           }
-          console.log('[useRotaShifts][DIAG] statusByUser',
-            Array.from(statusByUser.entries()));
         }
         if (cancelled) return;
 
@@ -327,9 +319,6 @@ export function useRotaShifts() {
           c.currentStatus = statusByUser.get(m.userId) ?? null;
           return c;
         });
-        // [DIAG cdb72e0-bug] resolved status per crew
-        console.log('[useRotaShifts][DIAG] derived currentStatus',
-          derived.map(c => ({ name: c.name, userId: c.userId, currentStatus: c.currentStatus })));
 
         if (cancelled) return;
         setCrew(derived);
