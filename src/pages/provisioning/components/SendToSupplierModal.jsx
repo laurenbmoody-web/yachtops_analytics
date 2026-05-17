@@ -63,10 +63,10 @@ const SendToSupplierModal = ({
   const [deliveryDate, setDeliveryDate] = useState('');
   const [deliveryTime, setDeliveryTime] = useState('');
   const [deliveryContact, setDeliveryContact] = useState('');
-  const [specialInstructions, setSpecialInstructions] = useState('');
   const [currency, setCurrency] = useState('USD');
 
   const [sentItemKeys, setSentItemKeys] = useState(() => new Set());
+  const [sentOrderCount, setSentOrderCount] = useState(0);
   const [sendingKey, setSendingKey] = useState(null);   // group key being sent
   const [unassignedSupplierId, setUnassignedSupplierId] = useState('');
 
@@ -76,9 +76,9 @@ const SendToSupplierModal = ({
     setDeliveryContact(
       user?.user_metadata?.full_name || user?.user_metadata?.first_name || user?.email || '',
     );
-    setSpecialInstructions('');
     setCurrency('USD');
     setSentItemKeys(new Set());
+    setSentOrderCount(0);
     setSendingKey(null);
     setUnassignedSupplierId('');
   }, [isOpen]);
@@ -124,7 +124,7 @@ const SendToSupplierModal = ({
   const deliveryCtx = {
     vesselName, prefixedVesselName, orderRef,
     deliveryPort, deliveryDate, deliveryTime, deliveryContact,
-    specialInstructions, currency,
+    specialInstructions: '', currency,
   };
 
   // ── Send one group's order ──────────────────────────────────────
@@ -159,7 +159,7 @@ const SendToSupplierModal = ({
       const order = await createSupplierOrder({
         tenantId, listId, supplierName, supplierEmail, supplierPhone,
         deliveryPort, deliveryDate: deliveryDate || null, deliveryTime: deliveryTime || null,
-        deliveryContact, specialInstructions, currency,
+        deliveryContact, specialInstructions: '', currency,
         items: orderItems, createdBy,
         sentVia: via, vesselName: prefixedVesselName,
         supplierProfileId: supplier.id || null,
@@ -196,6 +196,7 @@ const SendToSupplierModal = ({
         unsent.forEach(r => next.add(r.key));
         return next;
       });
+      setSentOrderCount(c => c + 1);
       showToast(
         via === 'email'
           ? `Order sent to ${supplierName}`
@@ -231,78 +232,98 @@ const SendToSupplierModal = ({
 
   // ── Render ──────────────────────────────────────────────────────
   const inputCls = 'w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary';
-  const HEADER_BG = '#FAEEDA';
-  const ACCENT = '#C65A1A';
-  const NAVY = '#262A53';
+  const ACCENT = '#C65A1A';        // terracotta
+  const INK = '#1C1B3A';           // navy ink
+  const MUTED = '#695880';         // muted navy
+  const CREAM = '#F4EEE4';         // ready-group surface
+  const HAIRLINE = '#DFD8CC';
+  const FAINT = '#B4B2A9';
+  const SERIF = "'DM Serif Display', Georgia, serif";
 
-  const ItemRow = ({ row }) => {
-    const sent = isSent(row.key);
+  const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+
+  const SerifTitle = ({ text }) => (
+    <span style={{ fontFamily: SERIF, fontSize: 26, fontWeight: 500, color: INK, lineHeight: 1.1 }}>
+      {text}<span style={{ color: ACCENT }}>.</span>
+    </span>
+  );
+
+  const subtitle = allDone
+    ? plural(sentOrderCount, 'order') + ' created'
+    : plural(readySupplierCount, 'supplier') + ' ready'
+      + (unassignedUnsent.length > 0 ? ` · ${plural(unassignedUnsent.length, 'item')} unassigned` : '');
+
+  const ActionButtons = ({ supplier, groupKey, rows, busy, showWhatsApp = true }) => {
+    const hasContact = Boolean(supplier?.email) || Boolean(supplier?.phone);
+    const disabled = busy || !!sendingKey || !hasContact;
     return (
-      <div className="flex items-center justify-between px-3 py-1.5 text-xs border-t border-border/60"
-        style={sent ? { opacity: 0.5 } : undefined}>
-        <span style={sent ? { textDecoration: 'line-through' } : undefined} className="text-foreground">
-          {row.item.name}
-          {row.archivedOrigin && (
-            <span className="ml-2 text-[10px] italic text-amber-600">Original supplier archived</span>
-          )}
-        </span>
-        <span className="flex items-center gap-2 text-muted-foreground">
-          {row.item.quantity ?? '—'} {row.item.unit || ''}
-          {sent && (
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold"
-              style={{ background: '#E1F5EE', color: '#0F6E56' }}>Sent</span>
-          )}
-        </span>
+      <div className="flex items-center gap-1.5">
+        {showWhatsApp && (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => sendGroup({ key: groupKey, supplier, rows, via: 'whatsapp' })}
+            className="px-3 text-[11px] font-semibold rounded-lg border"
+            style={hasContact && !busy && !sendingKey
+              ? { height: 30, borderColor: INK, color: INK, background: 'transparent' }
+              : { height: 30, borderColor: HAIRLINE, color: FAINT, background: 'transparent', cursor: 'not-allowed' }}
+          >
+            WhatsApp
+          </button>
+        )}
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => sendGroup({ key: groupKey, supplier, rows, via: 'email' })}
+          className="px-3 text-[11px] font-semibold rounded-lg text-white flex items-center gap-1.5"
+          style={hasContact && !busy && !sendingKey
+            ? { height: 30, background: INK }
+            : { height: 30, background: '#D3D1C7', color: '#fff', cursor: 'not-allowed' }}
+        >
+          {busy
+            ? <><span className="animate-spin rounded-full h-3 w-3 border-b-2 border-white" /> Sending…</>
+            : 'Send'}
+        </button>
       </div>
     );
   };
 
-  const GroupCard = ({ groupKey, supplier, rows }) => {
-    const unsent = rows.filter(r => !isSent(r.key));
-    const fullySent = unsent.length === 0;
-    const busy = sendingKey === groupKey;
+  const GroupCard = ({ supplier, rows }) => {
+    const fullySent = rows.filter(r => !isSent(r.key)).length === 0;
+    const busy = sendingKey === supplier.id;
+    const hasContact = Boolean(supplier.email) || Boolean(supplier.phone);
     return (
-      <div className="border border-border rounded-xl overflow-hidden mb-3"
-        style={fullySent ? { opacity: 0.6 } : undefined}>
-        <div className="px-3 py-2.5 flex items-center justify-between"
-          style={{ background: HEADER_BG }}>
-          <div>
-            <p className="text-sm font-semibold" style={{ color: NAVY }}>{supplier?.name || 'Supplier'}</p>
-            <p className="text-[11px]" style={{ color: ACCENT }}>
-              {[supplier?.email, supplier?.phone].filter(Boolean).join(' · ') || 'No contact on file'}
+      <div className="flex items-center justify-between mb-2.5"
+        style={{ background: CREAM, borderRadius: 12, padding: '14px 16px', opacity: fullySent ? 0.6 : 1 }}>
+        <div style={{ minWidth: 0 }}>
+          <p className="text-sm truncate">
+            <span style={{ color: INK, fontWeight: 500 }}>{supplier.name || 'Supplier'}</span>
+            <span style={{ color: MUTED, fontWeight: 400 }}> · {plural(rows.length, 'item')}</span>
+          </p>
+          {hasContact ? (
+            <p className="text-[11px] truncate" style={{ color: MUTED }}>
+              {[supplier.email, supplier.phone].filter(Boolean).join(' · ')}
             </p>
-          </div>
-          {fullySent ? (
-            <span className="text-xs font-semibold flex items-center gap-1" style={{ color: '#0F6E56' }}>
-              <Icon name="Check" size={14} /> Sent
-            </span>
           ) : (
-            <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={busy || !!sendingKey}
-                onClick={() => sendGroup({ key: groupKey, supplier, rows, via: 'whatsapp' })}
-                className="px-2.5 py-1.5 text-xs font-semibold rounded-lg border disabled:opacity-50"
-                style={{ borderColor: NAVY, color: NAVY }}
-              >
-                WhatsApp
-              </button>
-              <button
-                type="button"
-                disabled={busy || !!sendingKey}
-                onClick={() => sendGroup({ key: groupKey, supplier, rows, via: 'email' })}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg text-white disabled:opacity-50 flex items-center gap-1.5"
-                style={{ background: NAVY }}
-              >
-                {busy ? <><span className="animate-spin rounded-full h-3 w-3 border-b-2 border-white" /> Sending…</>
-                  : <>Send to {supplier?.name?.split(' ')[0] || 'supplier'}</>}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => window.open(`/provisioning/suppliers/${supplier.id}`, '_blank', 'noopener')}
+              className="text-[11px] flex items-center gap-1 mt-0.5"
+              style={{ color: ACCENT, fontWeight: 500 }}
+            >
+              <Icon name="Plus" size={11} /> Add contact
+            </button>
           )}
         </div>
-        <div className="bg-card">
-          {rows.map(r => <ItemRow key={r.key} row={r} />)}
-        </div>
+        {fullySent ? (
+          <span className="text-xs font-semibold flex items-center gap-1 flex-shrink-0" style={{ color: '#0F6E56' }}>
+            <Icon name="Check" size={14} /> Sent
+          </span>
+        ) : (
+          <div className="flex-shrink-0 ml-3">
+            <ActionButtons supplier={supplier} groupKey={supplier.id} rows={rows} busy={busy} />
+          </div>
+        )}
       </div>
     );
   };
@@ -310,37 +331,31 @@ const SendToSupplierModal = ({
   const modal = (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-1">
-          <h3 className="text-base font-semibold text-foreground">Send orders</h3>
+        {/* Header */}
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <SerifTitle text={allDone ? 'All orders sent' : 'Send orders'} />
+            <p className="text-[13px] mt-1.5" style={{ color: MUTED }}>{subtitle}</p>
+          </div>
           <button onClick={onClose} disabled={!!sendingKey}
-            className="text-muted-foreground hover:text-foreground transition-colors">
+            className="text-muted-foreground hover:text-foreground transition-colors mt-1">
             <Icon name="X" size={18} />
           </button>
         </div>
-        <p className="text-sm text-muted-foreground mb-5">
-          {items.length === 0
-            ? 'Nothing to send'
-            : `${readySupplierCount} ${readySupplierCount === 1 ? 'supplier' : 'suppliers'} ready · ${unassignedUnsent.length} ${unassignedUnsent.length === 1 ? 'item' : 'items'} unassigned`}
-        </p>
 
         {items.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">
+          <p className="text-sm text-center py-8" style={{ color: MUTED }}>
             No items on this board are ready to order.
           </p>
         ) : allDone ? (
-          <div className="text-center py-8">
-            <div className="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center"
-              style={{ background: '#E1F5EE', color: '#0F6E56' }}>
-              <Icon name="Check" size={22} />
-            </div>
-            <p className="text-sm font-semibold text-foreground">All orders sent</p>
-            <p className="text-xs text-muted-foreground mt-1">Every item has been ordered.</p>
+          <div className="text-center py-6">
+            <p className="text-sm" style={{ color: MUTED }}>{plural(sentOrderCount, 'order')} created.</p>
             <Button onClick={onClose} className="mt-5">Done</Button>
           </div>
         ) : (
           <>
-            {/* Shared delivery context */}
-            <div className="grid grid-cols-2 gap-2 mb-4">
+            {/* Shared delivery context (no special instructions — per spec) */}
+            <div className="grid grid-cols-2 gap-2 mb-5">
               <input className={inputCls} placeholder="Delivery port"
                 value={deliveryPort} onChange={e => setDeliveryPort(e.target.value)} />
               <select className={inputCls} value={currency} onChange={e => setCurrency(e.target.value)}>
@@ -352,63 +367,60 @@ const SendToSupplierModal = ({
                 value={deliveryTime} onChange={e => setDeliveryTime(e.target.value)} />
               <input className={`${inputCls} col-span-2`} placeholder="Contact on board"
                 value={deliveryContact} onChange={e => setDeliveryContact(e.target.value)} />
-              <textarea className={`${inputCls} col-span-2`} rows={2}
-                placeholder="Special instructions (optional)"
-                value={specialInstructions} onChange={e => setSpecialInstructions(e.target.value)} />
             </div>
 
             {groups.map(gi => (
-              <GroupCard
-                key={gi.supplier.id}
-                groupKey={gi.supplier.id}
-                supplier={gi.supplier}
-                rows={gi.items}
-              />
+              <GroupCard key={gi.supplier.id} supplier={gi.supplier} rows={gi.items} />
             ))}
 
             {unassigned.length > 0 && (
-              <div className="border border-dashed border-border rounded-xl overflow-hidden mb-3">
-                <div className="px-3 py-2.5" style={{ background: '#F8FAFC' }}>
-                  <p className="text-sm font-semibold text-foreground">Unassigned items</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    Pick a supplier — it’s saved onto these items when you send.
-                  </p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <div className="flex-1">
-                      <SupplierPicker
-                        value={unassignedSupplierId}
-                        suppliers={suppliers}
-                        inputClassName={inputCls}
-                        placeholder={suppliersLoading ? 'Loading…' : 'Choose supplier'}
-                        onChange={(p) => setUnassignedSupplierId(p ? p.id : '')}
-                        allowAddNew
-                        onAddNew={handleAddNewSupplier}
-                      />
-                    </div>
+              <div className="mb-2.5"
+                style={{ background: '#fff', border: `1px dashed ${HAIRLINE}`, borderRadius: 12, padding: '14px 16px' }}>
+                <p className="text-sm">
+                  <span style={{ color: INK, fontWeight: 500 }}>Unassigned</span>
+                  <span style={{ color: MUTED, fontWeight: 400 }}> · {plural(unassigned.length, 'item')}</span>
+                </p>
+                <div className="mt-2.5 flex items-center gap-2">
+                  <div className="flex-1 min-w-0">
+                    <SupplierPicker
+                      value={unassignedSupplierId}
+                      suppliers={suppliers}
+                      inputClassName={inputCls}
+                      placeholder={suppliersLoading ? 'Loading…' : 'Pick a supplier…'}
+                      onChange={(p) => setUnassignedSupplierId(p ? p.id : '')}
+                      allowAddNew
+                      onAddNew={handleAddNewSupplier}
+                    />
+                  </div>
+                  {unassignedSupplier && unassignedSupplier.phone && (
                     <button
                       type="button"
-                      disabled={!unassignedSupplier || unassignedUnsent.length === 0 || !!sendingKey}
-                      onClick={() => sendGroup({
-                        key: '__unassigned__', supplier: unassignedSupplier,
-                        rows: unassigned, via: 'email',
-                      })}
-                      className="px-3 py-2 text-xs font-semibold rounded-lg text-white disabled:opacity-50 whitespace-nowrap"
-                      style={{ background: NAVY }}
+                      disabled={unassignedUnsent.length === 0 || !!sendingKey}
+                      onClick={() => sendGroup({ key: '__unassigned__', supplier: unassignedSupplier, rows: unassigned, via: 'whatsapp' })}
+                      className="px-3 text-[11px] font-semibold rounded-lg border flex-shrink-0"
+                      style={{ height: 38, borderColor: INK, color: INK, background: 'transparent' }}
                     >
-                      {sendingKey === '__unassigned__'
-                        ? 'Sending…'
-                        : `Send (${unassignedUnsent.length})`}
+                      WhatsApp
                     </button>
-                  </div>
-                </div>
-                <div className="bg-card">
-                  {unassigned.map(r => <ItemRow key={r.key} row={r} />)}
+                  )}
+                  <button
+                    type="button"
+                    disabled={!unassignedSupplier || unassignedUnsent.length === 0 || !!sendingKey}
+                    onClick={() => sendGroup({ key: '__unassigned__', supplier: unassignedSupplier, rows: unassigned, via: 'email' })}
+                    className="px-4 text-[11px] font-semibold rounded-lg text-white flex-shrink-0"
+                    style={unassignedSupplier && !sendingKey
+                      ? { height: 38, background: INK }
+                      : { height: 38, background: '#D3D1C7', color: '#fff', cursor: 'not-allowed' }}
+                  >
+                    {sendingKey === '__unassigned__' ? 'Sending…' : 'Send'}
+                  </button>
                 </div>
               </div>
             )}
 
             <button onClick={onClose} disabled={!!sendingKey}
-              className="w-full mt-2 py-2 text-sm text-muted-foreground hover:text-foreground">
+              className="w-full mt-4 pt-3 text-[13px] italic"
+              style={{ color: FAINT, borderTop: `1px solid ${HAIRLINE}` }}>
               Close — I’ll send the rest later
             </button>
           </>
