@@ -1,65 +1,52 @@
-import React, { useState, useEffect } from 'react';
+// Send orders to suppliers — Sprint 9c.3 Phase 8 (Batch 2, commit 5b).
+//
+// Auto-grouping redesign: the board's items are grouped by their
+// supplier_profile_id. Each supplier group is one order, sent on its
+// own. Items with no (or an archived) supplier_profile_id fall into an
+// "Unassigned" bucket with an inline structured picker (+ add new);
+// sending it back-fills the chosen supplier onto those items.
+//
+// First-pass visual — data flow is the priority; the editorial look is
+// an iteration baseline (cream-warm group headers, navy actions).
+
+import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient';
-import { createSupplierOrder, markOrderSent, fetchSuppliers, createSupplier } from '../utils/provisioningStorage';
+import {
+  createSupplierOrder,
+  markOrderSent,
+  fetchSuppliers,
+  createSupplier,
+  setItemsSupplierProfile,
+} from '../utils/provisioningStorage';
 import { useAuth } from '../../../contexts/AuthContext';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
+import SupplierPicker from './SupplierPicker';
 import { showToast } from '../../../utils/toast';
 
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'AED', 'CHF', 'SGD', 'AUD'];
 
-const WHATSAPP_TEMPLATE = (order, items) => {
+const WHATSAPP_TEMPLATE = (ctx, items) => {
   const lines = [
-    `*Order Request — ${order.prefixedVesselName || order.vesselName || 'Vessel'}*`,
-    order.orderRef ? `Ref: ${order.orderRef}` : null,
+    `*Order Request — ${ctx.prefixedVesselName || ctx.vesselName || 'Vessel'}*`,
+    ctx.orderRef ? `Ref: ${ctx.orderRef}` : null,
     '',
     '*Delivery Details*',
-    order.deliveryPort    ? `Port: ${order.deliveryPort}` : null,
-    order.deliveryDate    ? `Date: ${order.deliveryDate}` : null,
-    order.deliveryTime    ? `Time: ${order.deliveryTime}` : null,
-    order.deliveryContact ? `Contact: ${order.deliveryContact}` : null,
-    order.specialInstructions ? `\n*Special Instructions*\n${order.specialInstructions}` : null,
+    ctx.deliveryPort ? `Port: ${ctx.deliveryPort}` : null,
+    ctx.deliveryDate ? `Date: ${ctx.deliveryDate}` : null,
+    ctx.deliveryTime ? `Time: ${ctx.deliveryTime}` : null,
+    ctx.deliveryContact ? `Contact: ${ctx.deliveryContact}` : null,
+    ctx.specialInstructions ? `\n*Special Instructions*\n${ctx.specialInstructions}` : null,
     '',
     '*Items*',
     ...items.map((it, i) =>
-      `${i + 1}. ${it.name || it.item_name} — ${it.quantity ?? it.qty ?? '?'} ${it.unit || ''}${it.notes ? ` (${it.notes})` : ''}`.trim()
-    ),
+      `${i + 1}. ${it.name || it.item_name} — ${it.quantity ?? it.qty ?? '?'} ${it.unit || ''}${it.notes ? ` (${it.notes})` : ''}`.trim()),
   ];
   return lines.filter(l => l !== null).join('\n');
 };
 
-// ── Step indicators ──────────────────────────────────────────────────────────
-
-const steps = ['Supplier', 'Delivery', 'Review & Send'];
-
-function StepBar({ current }) {
-  return (
-    <div className="flex items-center gap-0 mb-6">
-      {steps.map((label, i) => (
-        <React.Fragment key={i}>
-          <div className="flex flex-col items-center gap-1">
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
-              i < current  ? 'bg-primary text-primary-foreground' :
-              i === current ? 'bg-primary text-primary-foreground ring-2 ring-primary/30' :
-              'bg-muted text-muted-foreground'
-            }`}>
-              {i < current ? <Icon name="Check" size={12} /> : i + 1}
-            </div>
-            <span className={`text-[10px] whitespace-nowrap ${i === current ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
-              {label}
-            </span>
-          </div>
-          {i < steps.length - 1 && (
-            <div className={`flex-1 h-0.5 mx-1 mb-4 ${i < current ? 'bg-primary' : 'bg-border'}`} />
-          )}
-        </React.Fragment>
-      ))}
-    </div>
-  );
-}
-
-// ── Main component ────────────────────────────────────────────────────────────
+const itemKey = (it, i) => it.id || `${it.name}-${i}`;
 
 const SendToSupplierModal = ({
   isOpen, onClose, onSent,
@@ -68,570 +55,363 @@ const SendToSupplierModal = ({
 }) => {
   const { user } = useAuth();
 
-  const [step, setStep] = useState(0);
-  const [sending, setSending] = useState(false);
-  const [whatsappCopied, setWhatsappCopied] = useState(false);
-  const [sentMethods, setSentMethods] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [suppliersLoading, setSuppliersLoading] = useState(false);
 
-  // Step 0 — supplier
-  const [supplierMode, setSupplierMode] = useState('existing');
-  const [selectedSupplierId, setSelectedSupplierId] = useState('');
-  const [newName,  setNewName]  = useState('');
-  const [newEmail, setNewEmail] = useState('');
-  const [newPhone, setNewPhone] = useState('');
-
-  // Step 1 — delivery
-  const [deliveryPort,    setDeliveryPort]    = useState('');
-  const [deliveryDate,    setDeliveryDate]    = useState('');
-  const [deliveryTime,    setDeliveryTime]    = useState('');
+  // Shared delivery context (applies to every order sent this session)
+  const [deliveryPort, setDeliveryPort] = useState('');
+  const [deliveryDate, setDeliveryDate] = useState('');
+  const [deliveryTime, setDeliveryTime] = useState('');
   const [deliveryContact, setDeliveryContact] = useState('');
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [currency, setCurrency] = useState('USD');
 
-  // Reset all state when modal opens; default contact to current user's name
+  const [sentItemKeys, setSentItemKeys] = useState(() => new Set());
+  const [sendingKey, setSendingKey] = useState(null);   // group key being sent
+  const [unassignedSupplierId, setUnassignedSupplierId] = useState('');
+
   useEffect(() => {
     if (!isOpen) return;
-    setStep(0);
-    setSending(false);
-    setWhatsappCopied(false);
-    setSentMethods([]);
-    setSupplierMode('existing');
-    setSelectedSupplierId('');
-    setNewName(''); setNewEmail(''); setNewPhone('');
     setDeliveryPort(''); setDeliveryDate(''); setDeliveryTime('');
-    const defaultContact =
-      user?.user_metadata?.full_name ||
-      user?.user_metadata?.first_name ||
-      user?.email ||
-      '';
-    setDeliveryContact(defaultContact);
+    setDeliveryContact(
+      user?.user_metadata?.full_name || user?.user_metadata?.first_name || user?.email || '',
+    );
     setSpecialInstructions('');
     setCurrency('USD');
+    setSentItemKeys(new Set());
+    setSendingKey(null);
+    setUnassignedSupplierId('');
   }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen || !tenantId) return;
     setSuppliersLoading(true);
-    // Sprint 9c.3 Phase 8 — reads supplier_profiles via the legacy-
-    // shape mapper (id/name/email/phone preserved) instead of
-    // provisioning_suppliers directly.
     fetchSuppliers(tenantId)
-      .then((data) => { setSuppliers(data || []); })
-      .catch(() => { setSuppliers([]); })
-      .finally(() => { setSuppliersLoading(false); });
+      .then((data) => setSuppliers(data || []))
+      .catch(() => setSuppliers([]))
+      .finally(() => setSuppliersLoading(false));
   }, [isOpen, tenantId]);
 
-  if (!isOpen) return null;
-
-  // Derive vessel type abbreviation (M/Y or S/Y) from the raw DB label
-  const rawVesselType     = (vesselTypeLabel || '').toLowerCase().trim();
-  const vesselPfx         = rawVesselType.includes('sail') ? 'S/Y' : 'M/Y';
+  const rawVesselType = (vesselTypeLabel || '').toLowerCase().trim();
+  const vesselPfx = rawVesselType.includes('sail') ? 'S/Y' : 'M/Y';
   const prefixedVesselName = `${vesselPfx} ${vesselName || 'Vessel'}`;
 
-  // Resolve supplier details
-  const selectedSupplier = suppliers.find(s => s.id === selectedSupplierId);
-  const supplierName  = supplierMode === 'existing' ? (selectedSupplier?.name  || '') : newName;
-  const supplierEmail = supplierMode === 'existing' ? (selectedSupplier?.email || '') : newEmail;
-  const supplierPhone = supplierMode === 'existing' ? (selectedSupplier?.phone || '') : newPhone;
-  // Sprint 9c.3 Phase 8 — link the order to the supplier_profiles row
-  // when picked from the directory (selectedSupplierId IS the
-  // supplier_profiles id; fetchSuppliers maps it 1:1). Manual entry
-  // has no profile id at send time → null (directory row is created
-  // separately by saveNewSupplierToDirectory).
-  const supplierProfileId = supplierMode === 'existing' ? (selectedSupplierId || null) : null;
+  // ── Grouping ────────────────────────────────────────────────────
+  const { groups, unassigned } = useMemo(() => {
+    const byId = new Map(suppliers.map(s => [s.id, s]));
+    const g = new Map();   // supplierId → { supplier, items: [{item,key}] }
+    const un = [];          // { item, key, archivedOrigin }
+    items.forEach((it, i) => {
+      const key = itemKey(it, i);
+      const spid = it.supplier_profile_id;
+      if (spid && byId.has(spid)) {
+        if (!g.has(spid)) g.set(spid, { supplier: byId.get(spid), items: [] });
+        g.get(spid).items.push({ item: it, key });
+      } else {
+        un.push({ item: it, key, archivedOrigin: Boolean(spid) });
+      }
+    });
+    return { groups: [...g.values()], unassigned: un };
+  }, [items, suppliers]);
 
-  // Step 0 is valid when: existing supplier selected, OR manual entry has name + valid email
-  const step0Valid = supplierMode === 'existing'
-    ? Boolean(selectedSupplierId)
-    : Boolean(newName.trim()) && Boolean(newEmail.trim()) && newEmail.includes('@');
+  const isSent = (k) => sentItemKeys.has(k);
+  const groupUnsent = (gi) => gi.items.filter(x => !isSent(x.key));
+  const unassignedUnsent = unassigned.filter(x => !isSent(x.key));
+  const totalUnsent = items.length - sentItemKeys.size;
+  const allDone = items.length > 0 && totalUnsent === 0;
+  const readySupplierCount = groups.filter(gi => groupUnsent(gi).length > 0).length;
 
-  const orderPayload = {
-    vesselName, prefixedVesselName, orderRef, supplierName, supplierEmail, supplierPhone,
+  const deliveryCtx = {
+    vesselName, prefixedVesselName, orderRef,
     deliveryPort, deliveryDate, deliveryTime, deliveryContact,
     specialInstructions, currency,
   };
 
-  // Advance step with validation gate on step 0 → 1 transition
-  const handleNext = () => {
-    if (step === 0) {
-      if (!step0Valid) return;
-      // For existing suppliers without email, warn but allow through
-      if (supplierMode === 'existing' && !supplierEmail) {
-        showToast('No email on file for this supplier — you can still copy via WhatsApp', 'error');
-      }
+  // ── Send one group's order ──────────────────────────────────────
+  const sendGroup = async ({ key, supplier, rows, via }) => {
+    const unsent = rows.filter(r => !isSent(r.key));
+    if (unsent.length === 0 || !supplier) return;
+    const supplierName = supplier.name || '';
+    const supplierEmail = supplier.email || '';
+    const supplierPhone = supplier.phone || '';
+    const orderItems = unsent.map(r => ({
+      name: r.item.name, quantity: r.item.quantity, unit: r.item.unit,
+      notes: r.item.notes, estimated_price: r.item.estimated_price ?? null,
+    }));
+
+    if (via === 'email' && (!supplierEmail || !supplierEmail.includes('@'))) {
+      showToast(`${supplierName || 'This supplier'} has no email — use WhatsApp copy`, 'error');
+      return;
     }
-    setStep(s => s + 1);
+
+    setSendingKey(key);
+    try {
+      // Unassigned bucket: persist the chosen supplier onto the items
+      // before the order is created so the data stays consistent.
+      if (key === '__unassigned__') {
+        const ids = unsent.map(r => r.item.id).filter(Boolean);
+        if (ids.length) {
+          const { error } = await setItemsSupplierProfile(ids, supplier.id, supplierName);
+          if (error) console.warn('[SendToSupplierModal] back-fill failed (non-fatal):', error);
+        }
+      }
+
+      const order = await createSupplierOrder({
+        tenantId, listId, supplierName, supplierEmail, supplierPhone,
+        deliveryPort, deliveryDate: deliveryDate || null, deliveryTime: deliveryTime || null,
+        deliveryContact, specialInstructions, currency,
+        items: orderItems, createdBy,
+        sentVia: via, vesselName: prefixedVesselName,
+        supplierProfileId: supplier.id || null,
+      });
+
+      if (via === 'email') {
+        const { error: fnError } = await supabase.functions.invoke('sendSupplierOrder', {
+          body: {
+            to: supplierEmail,
+            publicToken: order.public_token,
+            supplierProfileId: order.supplier_profile_id || null,
+            orderId: order.id,
+            replyTo: user?.email || null,
+            senderName: user?.user_metadata?.full_name || user?.email || null,
+            ...deliveryCtx, supplierName, supplierEmail, supplierPhone,
+            vesselName: prefixedVesselName,
+            items: orderItems.map(it => ({
+              name: it.name, quantity: it.quantity, unit: it.unit,
+              notes: it.notes, estimatedPrice: it.estimated_price ?? null,
+            })),
+          },
+        });
+        if (fnError) throw fnError;
+      } else {
+        await navigator.clipboard.writeText(WHATSAPP_TEMPLATE(deliveryCtx, orderItems));
+      }
+
+      await markOrderSent(order.id, via);
+      await supabase.from('provisioning_lists')
+        .update({ status: 'sent_to_supplier' }).eq('id', listId);
+
+      setSentItemKeys(prev => {
+        const next = new Set(prev);
+        unsent.forEach(r => next.add(r.key));
+        return next;
+      });
+      showToast(
+        via === 'email'
+          ? `Order sent to ${supplierName}`
+          : `${supplierName} order copied for WhatsApp`,
+        'success',
+      );
+      onSent && onSent(order);
+    } catch (err) {
+      console.error('[SendToSupplierModal] send error:', err);
+      showToast(`Failed to send: ${err.message || err}`, 'error');
+    } finally {
+      setSendingKey(null);
+    }
   };
 
-  // If an order already exists for this list + supplier, update sent_via to
-  // 'both' instead of creating a duplicate row. Returns the existing order
-  // if found (updated), or null if a new order should be created.
-  const dedupeOrCreateOrder = async (newSentVia) => {
-    if (supplierEmail) {
-      const { data: existing } = await supabase
-        .from('supplier_orders')
-        .select('id, sent_via')
-        .eq('list_id', listId)
-        .eq('supplier_email', supplierEmail)
-        .in('status', ['sent', 'draft'])
-        .maybeSingle();
-      if (existing?.id) {
-        const mergedVia = existing.sent_via === newSentVia ? newSentVia : 'both';
-        const { data: updated } = await supabase
-          .from('supplier_orders')
-          .update({ sent_via: mergedVia })
-          .eq('id', existing.id)
-          .select()
-          .single();
-        return updated || existing;
+  const handleAddNewSupplier = async (name) => {
+    try {
+      const created = await createSupplier({ tenant_id: tenantId, name });
+      if (created?.id) {
+        setSuppliers(prev => [...prev, created]);
+        setUnassignedSupplierId(created.id);
+        return created;
       }
+    } catch (err) {
+      showToast('Could not add supplier', 'error');
     }
     return null;
   };
 
-  const saveNewSupplierToDirectory = async () => {
-    if (supplierMode !== 'new' || !supplierName) return;
-    try {
-      // Sprint 9c.3 Phase 8 — writes to supplier_profiles via the
-      // legacy-shape createSupplier adapter (was a direct
-      // provisioning_suppliers insert).
-      await createSupplier({
-        tenant_id: tenantId,
-        name: supplierName,
-        email: supplierEmail || null,
-        phone: supplierPhone || null,
-      });
-    } catch (err) {
-      console.warn('[SendToSupplierModal] supplier directory save failed (non-fatal):', err);
-    }
-  };
+  if (!isOpen) return null;
 
-  const handleSendEmail = async () => {
-    if (!supplierEmail || !supplierEmail.includes('@')) {
-      showToast('Please enter a valid supplier email', 'error');
-      return;
-    }
-    setSending(true);
-    try {
-      // Use existing order if one was already created for this supplier (dedup)
-      let order = await dedupeOrCreateOrder('email');
-      if (!order) {
-        order = await createSupplierOrder({
-          tenantId, listId, supplierName, supplierEmail, supplierPhone,
-          deliveryPort, deliveryDate: deliveryDate || null, deliveryTime: deliveryTime || null,
-          deliveryContact, specialInstructions, currency, items, createdBy,
-          sentVia: 'email', vesselName: prefixedVesselName, supplierProfileId,
-        });
-      }
+  const unassignedSupplier = suppliers.find(s => s.id === unassignedSupplierId) || null;
 
-      const { error: fnError } = await supabase.functions.invoke('sendSupplierOrder', {
-        body: {
-          to: supplierEmail,
-          publicToken: order.public_token,
-          supplierProfileId: order.supplier_profile_id || null,
-          orderId: order.id,
-          replyTo: user?.email || null,
-          senderName: user?.user_metadata?.full_name || user?.email || null,
-          ...orderPayload,
-          vesselName: prefixedVesselName,  // always send the pre-prefixed name
-          items: items.map(it => ({
-            name: it.name, quantity: it.quantity, unit: it.unit, notes: it.notes,
-            estimatedPrice: it.estimated_price ?? null,
-          })),
-        },
-      });
+  // ── Render ──────────────────────────────────────────────────────
+  const inputCls = 'w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary';
+  const HEADER_BG = '#FAEEDA';
+  const ACCENT = '#C65A1A';
+  const NAVY = '#262A53';
 
-      if (fnError) throw fnError;
-      // Use order.sent_via so a deduped 'both' order isn't overwritten with 'email'
-      await markOrderSent(order.id, order.sent_via || 'email');
-
-      await supabase.from('provisioning_lists').update({ status: 'sent_to_supplier' }).eq('id', listId);
-      await saveNewSupplierToDirectory();
-
-      setSentMethods(prev => prev.includes('email') ? prev : [...prev, 'email']);
-      showToast('Order sent to supplier!', 'success');
-      onSent && onSent(order);
-    } catch (err) {
-      console.error('[SendToSupplierModal] send error:', err);
-      showToast(`Failed to send order: ${err.message || err}`, 'error');
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const handleCopyWhatsApp = async () => {
-    const text = WHATSAPP_TEMPLATE(orderPayload, items);
-    try {
-      await navigator.clipboard.writeText(text);
-      setWhatsappCopied(true);
-      setTimeout(() => setWhatsappCopied(false), 2500);
-
-      // Record the order as sent via WhatsApp (non-blocking)
-      try {
-        let order = await dedupeOrCreateOrder('whatsapp');
-        if (!order) {
-          order = await createSupplierOrder({
-            tenantId, listId, supplierName, supplierEmail, supplierPhone,
-            deliveryPort, deliveryDate: deliveryDate || null, deliveryTime: deliveryTime || null,
-            deliveryContact, specialInstructions, currency, items, createdBy,
-            sentVia: 'whatsapp', vesselName: prefixedVesselName, supplierProfileId,
-          });
-        }
-        await markOrderSent(order.id, order.sent_via || 'whatsapp');
-
-        // Update provisioning list status to sent_to_supplier
-        await supabase.from('provisioning_lists')
-          .update({ status: 'sent_to_supplier' })
-          .eq('id', listId);
-
-        await saveNewSupplierToDirectory();
-        setSentMethods(prev => prev.includes('whatsapp') ? prev : [...prev, 'whatsapp']);
-        onSent && onSent(order);
-      } catch (orderErr) {
-        console.warn('[SendToSupplierModal] WhatsApp order record failed (non-fatal):', orderErr);
-      }
-    } catch {
-      showToast('Could not copy to clipboard.', 'error');
-    }
-  };
-
-  // Price helpers for review table
-  const hasAnyPrices = items.some(it => it.estimated_price != null && it.estimated_price > 0);
-  const estimatedTotal = items.reduce((sum, it) => {
-    return sum + (Number(it.estimated_price || 0) * Number(it.quantity || 0));
-  }, 0);
-
-  // ── Render steps ─────────────────────────────────────────────────────────
-
-  const renderStep0 = () => (
-    <div className="space-y-4">
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => setSupplierMode('existing')}
-          className={`flex-1 py-2 text-sm rounded-lg border transition-colors ${
-            supplierMode === 'existing' ? 'border-primary bg-primary/5 text-foreground font-medium' : 'border-border text-muted-foreground hover:bg-muted/50'
-          }`}
-        >
-          From directory
-        </button>
-        <button
-          type="button"
-          onClick={() => setSupplierMode('new')}
-          className={`flex-1 py-2 text-sm rounded-lg border transition-colors ${
-            supplierMode === 'new' ? 'border-primary bg-primary/5 text-foreground font-medium' : 'border-border text-muted-foreground hover:bg-muted/50'
-          }`}
-        >
-          Enter manually
-        </button>
+  const ItemRow = ({ row }) => {
+    const sent = isSent(row.key);
+    return (
+      <div className="flex items-center justify-between px-3 py-1.5 text-xs border-t border-border/60"
+        style={sent ? { opacity: 0.5 } : undefined}>
+        <span style={sent ? { textDecoration: 'line-through' } : undefined} className="text-foreground">
+          {row.item.name}
+          {row.archivedOrigin && (
+            <span className="ml-2 text-[10px] italic text-amber-600">Original supplier archived</span>
+          )}
+        </span>
+        <span className="flex items-center gap-2 text-muted-foreground">
+          {row.item.quantity ?? '—'} {row.item.unit || ''}
+          {sent && (
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold"
+              style={{ background: '#E1F5EE', color: '#0F6E56' }}>Sent</span>
+          )}
+        </span>
       </div>
+    );
+  };
 
-      {supplierMode === 'existing' ? (
-        suppliersLoading ? (
-          <div className="flex justify-center py-6">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" />
+  const GroupCard = ({ groupKey, supplier, rows }) => {
+    const unsent = rows.filter(r => !isSent(r.key));
+    const fullySent = unsent.length === 0;
+    const busy = sendingKey === groupKey;
+    return (
+      <div className="border border-border rounded-xl overflow-hidden mb-3"
+        style={fullySent ? { opacity: 0.6 } : undefined}>
+        <div className="px-3 py-2.5 flex items-center justify-between"
+          style={{ background: HEADER_BG }}>
+          <div>
+            <p className="text-sm font-semibold" style={{ color: NAVY }}>{supplier?.name || 'Supplier'}</p>
+            <p className="text-[11px]" style={{ color: ACCENT }}>
+              {[supplier?.email, supplier?.phone].filter(Boolean).join(' · ') || 'No contact on file'}
+            </p>
           </div>
-        ) : suppliers.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">No suppliers in directory. Switch to manual entry.</p>
-        ) : (
-          <div className="space-y-1 max-h-56 overflow-y-auto">
-            {suppliers.map(s => (
+          {fullySent ? (
+            <span className="text-xs font-semibold flex items-center gap-1" style={{ color: '#0F6E56' }}>
+              <Icon name="Check" size={14} /> Sent
+            </span>
+          ) : (
+            <div className="flex gap-2">
               <button
-                key={s.id}
                 type="button"
-                onClick={() => setSelectedSupplierId(s.id)}
-                className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg border text-left transition-colors ${
-                  selectedSupplierId === s.id
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border hover:bg-muted/40'
-                }`}
+                disabled={busy || !!sendingKey}
+                onClick={() => sendGroup({ key: groupKey, supplier, rows, via: 'whatsapp' })}
+                className="px-2.5 py-1.5 text-xs font-semibold rounded-lg border disabled:opacity-50"
+                style={{ borderColor: NAVY, color: NAVY }}
               >
-                <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Icon name="Package" size={13} className="text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">{s.name}</p>
-                  {(s.email || s.phone) && (
-                    <p className="text-xs text-muted-foreground">{[s.email, s.phone].filter(Boolean).join(' · ')}</p>
-                  )}
-                </div>
+                WhatsApp
               </button>
-            ))}
-          </div>
-        )
-      ) : (
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs font-medium text-foreground mb-1 block">Name <span className="text-destructive">*</span></label>
-            <input
-              value={newName}
-              onChange={e => setNewName(e.target.value)}
-              placeholder="e.g. Marina Provisions Ltd"
-              className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-foreground mb-1 block">Email <span className="text-destructive">*</span></label>
-            <input
-              type="email"
-              value={newEmail}
-              onChange={e => setNewEmail(e.target.value)}
-              placeholder="orders@supplier.com"
-              className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-foreground mb-1 block">Phone / WhatsApp</label>
-            <input
-              value={newPhone}
-              onChange={e => setNewPhone(e.target.value)}
-              placeholder="+1 234 567 8900"
-              className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
-  const renderStep1 = () => (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="text-xs font-medium text-foreground mb-1 block">Port / Location</label>
-          <input
-            value={deliveryPort}
-            onChange={e => setDeliveryPort(e.target.value)}
-            placeholder="e.g. Monaco"
-            className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-          />
-        </div>
-        <div>
-          <label className="text-xs font-medium text-foreground mb-1 block">Currency</label>
-          <select
-            value={currency}
-            onChange={e => setCurrency(e.target.value)}
-            className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-          >
-            {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="text-xs font-medium text-foreground mb-1 block">Delivery Date</label>
-          <input
-            type="date"
-            value={deliveryDate}
-            onChange={e => setDeliveryDate(e.target.value)}
-            className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-          />
-        </div>
-        <div>
-          <label className="text-xs font-medium text-foreground mb-1 block">Delivery Time</label>
-          <input
-            type="time"
-            value={deliveryTime}
-            onChange={e => setDeliveryTime(e.target.value)}
-            className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-          />
-        </div>
-      </div>
-      <div>
-        <label className="text-xs font-medium text-foreground mb-1 block">Contact on board</label>
-        <input
-          value={deliveryContact}
-          onChange={e => setDeliveryContact(e.target.value)}
-          placeholder="Name or phone number"
-          className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-        />
-      </div>
-      <div>
-        <label className="text-xs font-medium text-foreground mb-1 block">
-          Special Instructions <span className="font-normal text-muted-foreground">(optional)</span>
-        </label>
-        <textarea
-          value={specialInstructions}
-          onChange={e => setSpecialInstructions(e.target.value)}
-          rows={3}
-          placeholder="e.g. Deliver to port gate 3, call on arrival"
-          className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary placeholder:text-muted-foreground"
-        />
-      </div>
-    </div>
-  );
-
-  const renderStep2 = () => (
-    <div className="space-y-4">
-      {/* Supplier summary */}
-      <div className="p-3 bg-muted/40 rounded-lg space-y-0.5">
-        <p className="text-xs font-semibold text-foreground">{supplierName || '—'}</p>
-        {supplierEmail && <p className="text-xs text-muted-foreground">{supplierEmail}</p>}
-        {supplierPhone && <p className="text-xs text-muted-foreground">{supplierPhone}</p>}
-      </div>
-
-      {/* Delivery summary */}
-      {(deliveryPort || deliveryDate) && (
-        <div className="p-3 bg-teal-50 dark:bg-teal-900/20 border-l-2 border-teal-500 rounded-r-lg space-y-0.5">
-          {deliveryPort    && <p className="text-xs text-foreground">Port: <span className="font-medium">{deliveryPort}</span></p>}
-          {deliveryDate    && <p className="text-xs text-foreground">Date: <span className="font-medium">{deliveryDate}{deliveryTime ? ` at ${deliveryTime}` : ''}</span></p>}
-          {deliveryContact && <p className="text-xs text-foreground">Contact: <span className="font-medium">{deliveryContact}</span></p>}
-        </div>
-      )}
-
-      {/* Items table */}
-      <div>
-        <p className="text-xs font-semibold text-foreground mb-2">Items ({items.length})</p>
-        <div className="border border-border rounded-lg overflow-hidden max-h-48 overflow-y-auto">
-          <table className="w-full text-xs">
-            <thead className="bg-muted/60 sticky top-0">
-              <tr>
-                <th className="px-3 py-2 text-left font-medium text-muted-foreground">Item</th>
-                <th className="px-3 py-2 text-center font-medium text-muted-foreground">Qty</th>
-                <th className="px-3 py-2 text-left font-medium text-muted-foreground">Unit</th>
-                {hasAnyPrices && <th className="px-3 py-2 text-right font-medium text-muted-foreground">Est. Price</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((it, i) => (
-                <tr key={i} className={i % 2 === 0 ? 'bg-background' : 'bg-muted/20'}>
-                  <td className="px-3 py-1.5 text-foreground">{it.name}</td>
-                  <td className="px-3 py-1.5 text-center text-foreground">{it.quantity ?? '—'}</td>
-                  <td className="px-3 py-1.5 text-muted-foreground">{it.unit || '—'}</td>
-                  {hasAnyPrices && (
-                    <td className="px-3 py-1.5 text-right text-foreground">
-                      {it.estimated_price ? `${currency} ${Number(it.estimated_price).toFixed(2)}` : '—'}
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-            {hasAnyPrices && estimatedTotal > 0 && (
-              <tfoot>
-                <tr className="border-t-2 border-border bg-muted/30">
-                  <td colSpan={3} className="px-3 py-2 text-xs font-semibold text-foreground text-right">Estimated Total</td>
-                  <td className="px-3 py-2 text-xs font-semibold text-foreground text-right">
-                    {currency} {estimatedTotal.toFixed(2)}
-                  </td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
-        </div>
-      </div>
-
-      {/* Success banner */}
-      {sentMethods.length > 0 && (
-        <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-          <p className="text-xs font-semibold text-green-800 dark:text-green-200 mb-0.5">Order sent!</p>
-          <p className="text-xs text-green-700 dark:text-green-300">
-            {sentMethods.includes('email') && sentMethods.includes('whatsapp')
-              ? 'Sent via email and copied for WhatsApp.'
-              : sentMethods.includes('email')
-                ? 'Email sent. You can also copy for WhatsApp below.'
-                : 'Copied for WhatsApp. You can also send via email above.'}
-          </p>
-        </div>
-      )}
-
-      {/* Send buttons */}
-      <div className="flex flex-col gap-2 pt-1">
-        <button
-          type="button"
-          onClick={handleSendEmail}
-          disabled={sending || !supplierEmail || sentMethods.includes('email')}
-          className="w-full py-2.5 text-sm font-semibold text-white rounded-lg transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-          style={{ background: sentMethods.includes('email') ? '#64748B' : '#00A8CC', cursor: sentMethods.includes('email') ? 'not-allowed' : undefined }}
-          title={!supplierEmail ? 'No email address for this supplier' : sentMethods.includes('email') ? 'Email already sent' : undefined}
-        >
-          {sentMethods.includes('email') ? (
-            <><Icon name="Check" size={15} /> Email Sent</>
-          ) : sending ? (
-            <><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> Sending…</>
-          ) : (
-            <><Icon name="Mail" size={15} /> Send via Email</>
+              <button
+                type="button"
+                disabled={busy || !!sendingKey}
+                onClick={() => sendGroup({ key: groupKey, supplier, rows, via: 'email' })}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg text-white disabled:opacity-50 flex items-center gap-1.5"
+                style={{ background: NAVY }}
+              >
+                {busy ? <><span className="animate-spin rounded-full h-3 w-3 border-b-2 border-white" /> Sending…</>
+                  : <>Send to {supplier?.name?.split(' ')[0] || 'supplier'}</>}
+              </button>
+            </div>
           )}
-        </button>
-
-        <button
-          type="button"
-          onClick={handleCopyWhatsApp}
-          disabled={sending || sentMethods.includes('whatsapp')}
-          className="w-full py-2.5 text-sm font-semibold text-white rounded-lg transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-          style={{ background: sentMethods.includes('whatsapp') ? '#64748B' : whatsappCopied ? '#128C7E' : '#25D366', cursor: sentMethods.includes('whatsapp') ? 'not-allowed' : undefined }}
-        >
-          {sentMethods.includes('whatsapp') ? (
-            <><Icon name="Check" size={15} /> WhatsApp Copied</>
-          ) : whatsappCopied ? (
-            <><Icon name="Check" size={15} /> Copied!</>
-          ) : (
-            <><Icon name="MessageCircle" size={15} /> Copy for WhatsApp</>
-          )}
-        </button>
-
-        {!supplierEmail && !sentMethods.includes('whatsapp') && (
-          <p className="text-xs text-amber-600 dark:text-amber-400 text-center">
-            No email on file — use WhatsApp copy or go back to add one.
-          </p>
-        )}
+        </div>
+        <div className="bg-card">
+          {rows.map(r => <ItemRow key={r.key} row={r} />)}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const modal = (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-md p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h3 className="text-base font-semibold text-foreground">Send Order to Supplier</h3>
-            {vesselName && <p className="text-sm text-muted-foreground mt-0.5">{vesselName}</p>}
-          </div>
-          <button
-            onClick={onClose}
-            disabled={sending}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-          >
+      <div className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-base font-semibold text-foreground">Send orders</h3>
+          <button onClick={onClose} disabled={!!sendingKey}
+            className="text-muted-foreground hover:text-foreground transition-colors">
             <Icon name="X" size={18} />
           </button>
         </div>
+        <p className="text-sm text-muted-foreground mb-5">
+          {items.length === 0
+            ? 'Nothing to send'
+            : `${readySupplierCount} ${readySupplierCount === 1 ? 'supplier' : 'suppliers'} ready · ${unassignedUnsent.length} ${unassignedUnsent.length === 1 ? 'item' : 'items'} unassigned`}
+        </p>
 
-        <StepBar current={step} />
-
-        {step === 0 && renderStep0()}
-        {step === 1 && renderStep1()}
-        {step === 2 && renderStep2()}
-
-        {/* Navigation */}
-        {step < 2 && (
-          <div className="flex gap-3 mt-5">
-            {step > 0 && (
-              <Button variant="outline" onClick={() => setStep(s => s - 1)} className="flex-1" disabled={sending}>
-                Back
-              </Button>
-            )}
-            <Button
-              onClick={handleNext}
-              disabled={step === 0 && !step0Valid}
-              className="flex-1"
-            >
-              Next
-            </Button>
+        {items.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">
+            No items on this board are ready to order.
+          </p>
+        ) : allDone ? (
+          <div className="text-center py-8">
+            <div className="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center"
+              style={{ background: '#E1F5EE', color: '#0F6E56' }}>
+              <Icon name="Check" size={22} />
+            </div>
+            <p className="text-sm font-semibold text-foreground">All orders sent</p>
+            <p className="text-xs text-muted-foreground mt-1">Every item has been ordered.</p>
+            <Button onClick={onClose} className="mt-5">Done</Button>
           </div>
-        )}
+        ) : (
+          <>
+            {/* Shared delivery context */}
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <input className={inputCls} placeholder="Delivery port"
+                value={deliveryPort} onChange={e => setDeliveryPort(e.target.value)} />
+              <select className={inputCls} value={currency} onChange={e => setCurrency(e.target.value)}>
+                {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <input className={inputCls} type="date"
+                value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)} />
+              <input className={inputCls} type="time"
+                value={deliveryTime} onChange={e => setDeliveryTime(e.target.value)} />
+              <input className={`${inputCls} col-span-2`} placeholder="Contact on board"
+                value={deliveryContact} onChange={e => setDeliveryContact(e.target.value)} />
+              <textarea className={`${inputCls} col-span-2`} rows={2}
+                placeholder="Special instructions (optional)"
+                value={specialInstructions} onChange={e => setSpecialInstructions(e.target.value)} />
+            </div>
 
-        {step === 2 && (
-          sentMethods.length > 0 ? (
-            <Button onClick={onClose} className="w-full mt-4">
-              Done
-            </Button>
-          ) : (
-            <Button variant="outline" onClick={() => setStep(1)} className="w-full mt-4" disabled={sending}>
-              Back
-            </Button>
-          )
+            {groups.map(gi => (
+              <GroupCard
+                key={gi.supplier.id}
+                groupKey={gi.supplier.id}
+                supplier={gi.supplier}
+                rows={gi.items}
+              />
+            ))}
+
+            {unassigned.length > 0 && (
+              <div className="border border-dashed border-border rounded-xl overflow-hidden mb-3">
+                <div className="px-3 py-2.5" style={{ background: '#F8FAFC' }}>
+                  <p className="text-sm font-semibold text-foreground">Unassigned items</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Pick a supplier — it’s saved onto these items when you send.
+                  </p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="flex-1">
+                      <SupplierPicker
+                        value={unassignedSupplierId}
+                        suppliers={suppliers}
+                        inputClassName={inputCls}
+                        placeholder={suppliersLoading ? 'Loading…' : 'Choose supplier'}
+                        onChange={(p) => setUnassignedSupplierId(p ? p.id : '')}
+                        allowAddNew
+                        onAddNew={handleAddNewSupplier}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!unassignedSupplier || unassignedUnsent.length === 0 || !!sendingKey}
+                      onClick={() => sendGroup({
+                        key: '__unassigned__', supplier: unassignedSupplier,
+                        rows: unassigned, via: 'email',
+                      })}
+                      className="px-3 py-2 text-xs font-semibold rounded-lg text-white disabled:opacity-50 whitespace-nowrap"
+                      style={{ background: NAVY }}
+                    >
+                      {sendingKey === '__unassigned__'
+                        ? 'Sending…'
+                        : `Send (${unassignedUnsent.length})`}
+                    </button>
+                  </div>
+                </div>
+                <div className="bg-card">
+                  {unassigned.map(r => <ItemRow key={r.key} row={r} />)}
+                </div>
+              </div>
+            )}
+
+            <button onClick={onClose} disabled={!!sendingKey}
+              className="w-full mt-2 py-2 text-sm text-muted-foreground hover:text-foreground">
+              Close — I’ll send the rest later
+            </button>
+          </>
         )}
       </div>
     </div>
