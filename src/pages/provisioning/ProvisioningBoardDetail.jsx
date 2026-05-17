@@ -12,7 +12,6 @@ import { useTenant } from '../../contexts/TenantContext';
 import {
   fetchProvisioningList,
   fetchListItems,
-  fetchSuppliers,
   upsertItems,
   updateProvisioningItem,
   deleteProvisioningItem,
@@ -221,7 +220,6 @@ const ProvisioningBoardDetail = () => {
 
   const [list, setList] = useState(null);
   const [items, setItems] = useState([]);
-  const [suppliers, setSuppliers] = useState([]);
   const [trip, setTrip] = useState(null);
   const [allergenGuests, setAllergenGuests] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -472,16 +470,14 @@ const ProvisioningBoardDetail = () => {
     setLoading(true);
     setError(null);
     try {
-      const [fetchedList, fetchedItems, fetchedSuppliers, fetchedOrders] = await Promise.all([
+      const [fetchedList, fetchedItems, fetchedOrders] = await Promise.all([
         fetchProvisioningList(id),
         fetchListItems(id),
-        activeTenantId ? fetchSuppliers(activeTenantId).catch(() => []) : Promise.resolve([]),
         fetchSupplierOrders(id).catch(() => []),
       ]);
       setList(fetchedList);
       setDisplayCurrency(fetchedList?.currency || 'GBP');
       setItems(fetchedItems || []);
-      setSuppliers(fetchedSuppliers || []);
       setSupplierOrders(fetchedOrders || []);
 
       if (fetchedList?.trip_id) {
@@ -1068,7 +1064,6 @@ const ProvisioningBoardDetail = () => {
 
   // ── Meta helpers ──────────────────────────────────────────────────────────
 
-  const supplierName = list?.supplier_id ? (suppliers.find(s => s.id === list.supplier_id)?.name || null) : null;
   const deptTags = useMemo(() => {
     if (!list?.department) return [];
     return Array.isArray(list.department) ? list.department.filter(Boolean) : list.department.split(',').map(d => d.trim()).filter(Boolean);
@@ -1149,7 +1144,6 @@ const ProvisioningBoardDetail = () => {
   const metaItems = [
     trip && { icon: 'Calendar', content: trip.title || trip.name },
     list?.port_location && { icon: 'MapPin', content: list.port_location },
-    supplierName && { icon: 'User', content: supplierName },
     deptTags.length > 0 && { type: 'chips', content: deptTags },
   ].filter(Boolean);
 
@@ -1180,7 +1174,6 @@ const ProvisioningBoardDetail = () => {
   const editorialMeta = [
     list?.port_location && { icon: 'MapPin', label: list.port_location },
     trip && { label: trip.title || trip.name },
-    supplierName && { label: supplierName, muted: true },
   ].filter(Boolean);
 
   // ── States ────────────────────────────────────────────────────────────────

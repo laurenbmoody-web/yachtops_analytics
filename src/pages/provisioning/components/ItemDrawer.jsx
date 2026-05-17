@@ -7,7 +7,7 @@ import {
   upsertItems,
   deleteProvisioningItem,
   fetchAllInventoryLocations,
-  fetchDistinctSuppliers,
+  fetchVendors,
   searchInventoryItems,
   fetchInventoryItemById,
   updateItemPaymentStatus,
@@ -196,7 +196,7 @@ const FIELD_CSS = `
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', departments = [], suppliers = [], theme = 'dark', onSaved, onDeleted, onClose }) => {
+const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', departments = [], theme = 'dark', onSaved, onDeleted, onClose }) => {
   const isLight = theme === 'light';
   const navigate = useNavigate();
   const { user, tenantRole } = useAuth();
@@ -205,7 +205,10 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
 
   const [form, setForm] = useState({});
   const [allCategoryPaths, setAllCategoryPaths] = useState([]);
-  const [knownSuppliers, setKnownSuppliers] = useState([]);
+  // Sprint 9c.3 Phase 8 — structured supplier picker (supplier_profiles).
+  const [supplierProfiles, setSupplierProfiles] = useState([]);
+  const [supplierQuery, setSupplierQuery] = useState('');
+  const [supplierMenuOpen, setSupplierMenuOpen] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [accountingOpen, setAccountingOpen] = useState(false);
@@ -243,6 +246,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
         source: item.source || 'manual',
         accounting_description: item.accounting_description || '',
         supplier_id: item.supplier_id || '',
+        supplier_profile_id: item.supplier_profile_id || '',
         supplier_name: item.supplier_name || '',
         port_location: item.port_location || '',
         inventory_item_id: item.inventory_item_id || null,
@@ -268,8 +272,18 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
         setAllCategoryPaths(fallback);
       }
     });
-    fetchDistinctSuppliers(tenantId).then(names => setKnownSuppliers(names || []));
   }, [tenantId]);
+
+  // Active (non-archived) supplier_profiles for the structured picker.
+  // One query when the drawer opens; refreshed on reopen.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    fetchVendors().then(({ data }) => {
+      if (!cancelled) setSupplierProfiles(data || []);
+    });
+    return () => { cancelled = true; };
+  }, [open]);
 
   // Reset search state when item changes; fetch inventory item data if already linked
   useEffect(() => {
@@ -391,6 +405,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
       item_notes:             base.item_notes          || null,
       accounting_description: base.accounting_description || null,
       supplier_id:            base.supplier_id         || null,
+      supplier_profile_id:    base.supplier_profile_id || null,
       supplier_name:          base.supplier_name       || null,
       port_location:          base.port_location       || null,
       inventory_item_id:      base.inventory_item_id   || null,
@@ -422,6 +437,19 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
     const updated = { [key]: val };
     setForm(prev => ({ ...prev, ...updated }));
     saveField(updated);
+  };
+
+  // Structured supplier pick: persist the FK + mirror the resolved
+  // name into supplier_name (back-compat / display fallback). Pass
+  // null to clear. Both fields saved atomically.
+  const chooseSupplier = (profile) => {
+    const updated = profile
+      ? { supplier_profile_id: profile.id, supplier_name: profile.name || '' }
+      : { supplier_profile_id: '', supplier_name: '' };
+    setForm(prev => ({ ...prev, ...updated }));
+    saveField(updated);
+    setSupplierMenuOpen(false);
+    setSupplierQuery('');
   };
 
   const toggleAllergen = (a) => {
@@ -805,24 +833,88 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
               </select>
             </div>
 
-            {/* Supplier */}
+            {/* Supplier — structured picker over active supplier_profiles */}
             <div style={{ marginTop: 8 }}>
               <Field isLight={isLight} labelCls={labelCls} label="Supplier">
-                <input
-                  type="text"
-                  list="supplier-suggestions"
-                  value={form.supplier_name || ''}
-                  onChange={e => set('supplier_name', e.target.value)}
-                  onBlur={() => saveField()}
-                  className={inputCls}
-                  placeholder="e.g. Metro Cash & Carry"
-                  disabled={isReadOnly}
-                />
-                {knownSuppliers.length > 0 && (
-                  <datalist id="supplier-suggestions">
-                    {knownSuppliers.map(s => <option key={s} value={s} />)}
-                  </datalist>
-                )}
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="text"
+                    value={supplierMenuOpen ? supplierQuery : (form.supplier_name || '')}
+                    onFocus={() => {
+                      if (isReadOnly) return;
+                      setSupplierQuery('');
+                      setSupplierMenuOpen(true);
+                    }}
+                    onChange={e => { setSupplierQuery(e.target.value); setSupplierMenuOpen(true); }}
+                    onBlur={() => setTimeout(() => setSupplierMenuOpen(false), 120)}
+                    className={inputCls}
+                    placeholder="No supplier"
+                    disabled={isReadOnly}
+                    autoComplete="off"
+                  />
+                  {supplierMenuOpen && !isReadOnly && (
+                    <div
+                      style={{
+                        position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
+                        zIndex: 50, maxHeight: 240, overflowY: 'auto',
+                        background: '#fff', border: '1px solid #E5E7EB',
+                        borderRadius: 10, boxShadow: '0 10px 28px rgba(26,29,63,0.16)',
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onMouseDown={e => { e.preventDefault(); chooseSupplier(null); }}
+                        style={{
+                          display: 'block', width: '100%', textAlign: 'left',
+                          padding: '9px 12px', fontSize: 13, background: 'transparent',
+                          border: 0, cursor: 'pointer',
+                          color: !form.supplier_profile_id ? '#C65A1A' : '#262A53',
+                          fontWeight: !form.supplier_profile_id ? 600 : 400,
+                        }}
+                      >
+                        No supplier
+                      </button>
+                      {(() => {
+                        const q = supplierQuery.trim().toLowerCase();
+                        const opts = supplierProfiles.filter(
+                          p => !q || (p.name || '').toLowerCase().includes(q),
+                        );
+                        if (opts.length === 0) {
+                          return (
+                            <div style={{ padding: '10px 12px', fontSize: 12, color: '#7C7E9B' }}>
+                              {supplierProfiles.length === 0
+                                ? 'No suppliers in the directory yet'
+                                : `No suppliers match “${supplierQuery}”`}
+                            </div>
+                          );
+                        }
+                        return opts.map(p => {
+                          const on = p.id === form.supplier_profile_id;
+                          const loc = [p.business_city, p.business_country].filter(Boolean).join(', ');
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onMouseDown={e => { e.preventDefault(); chooseSupplier(p); }}
+                              style={{
+                                display: 'block', width: '100%', textAlign: 'left',
+                                padding: '9px 12px', background: on ? '#FAEEDA' : 'transparent',
+                                border: 0, borderTop: '1px solid #EEF0F4', cursor: 'pointer',
+                              }}
+                            >
+                              <div style={{ fontSize: 13, color: on ? '#C65A1A' : '#262A53', fontWeight: on ? 600 : 500 }}>
+                                {p.name}
+                              </div>
+                              {loc && (
+                                <div style={{ fontSize: 11, color: '#7C7E9B', marginTop: 1 }}>{loc}</div>
+                              )}
+                            </button>
+                          );
+                        });
+                      })()}
+                    </div>
+                  )}
+                </div>
               </Field>
             </div>
 

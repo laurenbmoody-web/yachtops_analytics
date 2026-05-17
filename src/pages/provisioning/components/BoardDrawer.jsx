@@ -189,7 +189,7 @@ const BD_STYLES = `
 
 // ── Edit mode ────────────────────────────────────────────────────────────────
 
-const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved, onDeleted, onClose }) => {
+const EditMode = ({ list, trips, tenantId, departments = [], onSaved, onDeleted, onClose }) => {
   const [form, setForm] = useState({
     title: '',
     board_type: 'general',
@@ -197,7 +197,6 @@ const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved,
     department: '',
     port_location: '',
     order_by_date: '',
-    supplier_id: '',
     estimated_cost: '',
     currency: 'USD',
     notes: '',
@@ -223,7 +222,6 @@ const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved,
         department: normDept(list.department),
         port_location: list.port_location || '',
         order_by_date: list.order_by_date || '',
-        supplier_id: list.supplier_id || '',
         estimated_cost: list.estimated_cost || '',
         currency: list.currency || 'USD',
         notes: list.notes || '',
@@ -249,7 +247,6 @@ const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved,
         department: deptArray,
         port_location: form.port_location,
         order_by_date: form.order_by_date || null,
-        supplier_id: form.supplier_id || null,
         estimated_cost: form.estimated_cost ? parseFloat(form.estimated_cost) : null,
         currency: form.currency,
         notes: form.notes,
@@ -366,14 +363,6 @@ const EditMode = ({ list, suppliers, trips, tenantId, departments = [], onSaved,
         </div>
       </div>
 
-      {/* Supplier */}
-      <div>
-        <label className={labelCls}>Supplier</label>
-        <select value={form.supplier_id} onChange={e => set('supplier_id', e.target.value)} className={inputCls}>
-          <option value="">No supplier</option>
-          {(suppliers || []).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-      </div>
 
       {/* Port */}
       <div>
@@ -887,7 +876,7 @@ const DRAWER_TITLES = {
   templates: 'Templates & History',
 };
 
-const BoardDrawer = ({ open, mode, list, suppliers, trips, tenantId, departments = [], onSaved, onDeleted, onAddItems, onClose }) => {
+const BoardDrawer = ({ open, mode, list, trips, tenantId, departments = [], onSaved, onDeleted, onAddItems, onClose }) => {
   if (!list) return null;
 
   return (
@@ -896,7 +885,6 @@ const BoardDrawer = ({ open, mode, list, suppliers, trips, tenantId, departments
       {mode === 'edit' && (
         <EditMode
           list={list}
-          suppliers={suppliers}
           trips={trips}
           tenantId={tenantId}
           departments={departments}

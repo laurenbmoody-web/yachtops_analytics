@@ -23,7 +23,6 @@ import {
   duplicateList,
   upsertItems,
   updateProvisioningItem,
-  fetchSuppliers,
   fetchVesselDepartments,
   fetchCrewMembers,
   fetchCollaborators,
@@ -362,7 +361,6 @@ const ProvisioningWorkspace = () => {
   // Data
   const [lists, setLists] = useState([]);
   const [itemsByList, setItemsByList] = useState({});
-  const [suppliers, setSuppliers] = useState([]);
   const [trips, setTrips] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -500,12 +498,8 @@ const ProvisioningWorkspace = () => {
       let fetchedTrips = [];
       try { fetchedTrips = (await loadTrips()) || []; } catch { fetchedTrips = []; }
 
-      const [fetchedLists, fetchedSuppliers] = await Promise.all([
-        fetchProvisioningLists(activeTenantId, userId, deptId, userTier),
-        fetchSuppliers(activeTenantId).catch(() => []),
-      ]);
+      const fetchedLists = await fetchProvisioningLists(activeTenantId, userId, deptId, userTier);
       setLists(fetchedLists || []);
-      setSuppliers(fetchedSuppliers || []);
       setTrips(Array.isArray(fetchedTrips) ? fetchedTrips : []);
 
       // Load items + collaborators for all lists in parallel
@@ -598,7 +592,6 @@ const ProvisioningWorkspace = () => {
         currency: 'USD',
         estimated_cost: null,
         actual_cost: null,
-        supplier_id: null,
         is_private: is_private,
         is_template: false,
       });
@@ -1108,7 +1101,6 @@ const ProvisioningWorkspace = () => {
         open={boardDrawer.open}
         mode={boardDrawer.mode}
         list={activeBoardList}
-        suppliers={suppliers}
         trips={trips}
         tenantId={activeTenantId}
         departments={departments.map(d => d.name)}
@@ -1125,7 +1117,6 @@ const ProvisioningWorkspace = () => {
         listId={itemDrawer.listId}
         tenantId={activeTenantId}
         departments={departments.map(d => d.name)}
-        suppliers={suppliers}
         theme="light"
         onSaved={handleItemSaved}
         onDeleted={handleItemDeleted}

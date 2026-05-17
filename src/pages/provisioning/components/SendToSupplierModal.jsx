@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient';
-import { createSupplierOrder, markOrderSent, fetchSuppliers } from '../utils/provisioningStorage';
+import { createSupplierOrder, markOrderSent, fetchSuppliers, createSupplier } from '../utils/provisioningStorage';
 import { useAuth } from '../../../contexts/AuthContext';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
@@ -135,6 +135,12 @@ const SendToSupplierModal = ({
   const supplierName  = supplierMode === 'existing' ? (selectedSupplier?.name  || '') : newName;
   const supplierEmail = supplierMode === 'existing' ? (selectedSupplier?.email || '') : newEmail;
   const supplierPhone = supplierMode === 'existing' ? (selectedSupplier?.phone || '') : newPhone;
+  // Sprint 9c.3 Phase 8 — link the order to the supplier_profiles row
+  // when picked from the directory (selectedSupplierId IS the
+  // supplier_profiles id; fetchSuppliers maps it 1:1). Manual entry
+  // has no profile id at send time → null (directory row is created
+  // separately by saveNewSupplierToDirectory).
+  const supplierProfileId = supplierMode === 'existing' ? (selectedSupplierId || null) : null;
 
   // Step 0 is valid when: existing supplier selected, OR manual entry has name + valid email
   const step0Valid = supplierMode === 'existing'
@@ -188,7 +194,10 @@ const SendToSupplierModal = ({
   const saveNewSupplierToDirectory = async () => {
     if (supplierMode !== 'new' || !supplierName) return;
     try {
-      await supabase.from('provisioning_suppliers').insert({
+      // Sprint 9c.3 Phase 8 — writes to supplier_profiles via the
+      // legacy-shape createSupplier adapter (was a direct
+      // provisioning_suppliers insert).
+      await createSupplier({
         tenant_id: tenantId,
         name: supplierName,
         email: supplierEmail || null,
@@ -213,7 +222,7 @@ const SendToSupplierModal = ({
           tenantId, listId, supplierName, supplierEmail, supplierPhone,
           deliveryPort, deliveryDate: deliveryDate || null, deliveryTime: deliveryTime || null,
           deliveryContact, specialInstructions, currency, items, createdBy,
-          sentVia: 'email', vesselName: prefixedVesselName,
+          sentVia: 'email', vesselName: prefixedVesselName, supplierProfileId,
         });
       }
 
@@ -267,7 +276,7 @@ const SendToSupplierModal = ({
             tenantId, listId, supplierName, supplierEmail, supplierPhone,
             deliveryPort, deliveryDate: deliveryDate || null, deliveryTime: deliveryTime || null,
             deliveryContact, specialInstructions, currency, items, createdBy,
-            sentVia: 'whatsapp', vesselName: prefixedVesselName,
+            sentVia: 'whatsapp', vesselName: prefixedVesselName, supplierProfileId,
           });
         }
         await markOrderSent(order.id, order.sent_via || 'whatsapp');
