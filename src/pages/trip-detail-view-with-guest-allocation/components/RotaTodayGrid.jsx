@@ -312,6 +312,12 @@ export default function RotaTodayGrid({ crew = [], now = new Date(), onCrewClick
   // active until we have reason otherwise).
   const onVessel = crew.filter(c => !OFF_VESSEL_STATUSES.has(c.currentStatus));
   const offVessel = crew.filter(c => OFF_VESSEL_STATUSES.has(c.currentStatus));
+  // [DIAG cdb72e0-bug] section split outcome
+  console.log('[RotaTodayGrid][DIAG] split', {
+    total: crew.length,
+    onVessel: onVessel.map(c => `${c.name}:${c.currentStatus}`),
+    offVessel: offVessel.map(c => `${c.name}:${c.currentStatus}`),
+  });
 
   const byDept = new Map();
   for (const c of onVessel) {
