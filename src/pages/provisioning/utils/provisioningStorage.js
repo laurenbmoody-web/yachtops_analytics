@@ -356,6 +356,22 @@ export const updateProvisioningItem = async (itemId, updates) => {
   }
 };
 
+// Sprint 9c.3 Phase 8 5b — bulk back-fill the structured supplier link
+// on a set of provisioning_items (used when the SendToSupplierModal
+// "Unassigned" bucket assigns a supplier to its items at send time).
+// { data, error }, no throw — caller treats failure as non-fatal.
+export const setItemsSupplierProfile = async (itemIds, supplierProfileId, supplierName = null) => {
+  if (!itemIds || itemIds.length === 0) return { data: [], error: null };
+  const patch = { supplier_profile_id: supplierProfileId || null };
+  if (supplierName != null) patch.supplier_name = supplierName;
+  const { data, error } = await supabase
+    .from('provisioning_items')
+    .update(patch)
+    .in('id', itemIds)
+    .select('id');
+  return { data: data || [], error };
+};
+
 export const upsertItems = async (items) => {
   try {
     const { data, error } = await supabase

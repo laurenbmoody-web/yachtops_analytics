@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import Drawer from './Drawer';
+import SupplierPicker from './SupplierPicker';
 import { ITEM_STATUS_CONFIG } from './StatusBadge';
 import {
   upsertItems,
@@ -207,8 +208,6 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
   const [allCategoryPaths, setAllCategoryPaths] = useState([]);
   // Sprint 9c.3 Phase 8 — structured supplier picker (supplier_profiles).
   const [supplierProfiles, setSupplierProfiles] = useState([]);
-  const [supplierQuery, setSupplierQuery] = useState('');
-  const [supplierMenuOpen, setSupplierMenuOpen] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [accountingOpen, setAccountingOpen] = useState(false);
@@ -448,8 +447,6 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
       : { supplier_profile_id: '', supplier_name: '' };
     setForm(prev => ({ ...prev, ...updated }));
     saveField(updated);
-    setSupplierMenuOpen(false);
-    setSupplierQuery('');
   };
 
   const toggleAllergen = (a) => {
@@ -833,88 +830,16 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
               </select>
             </div>
 
-            {/* Supplier — structured picker over active supplier_profiles */}
+            {/* Supplier — shared structured picker over supplier_profiles */}
             <div style={{ marginTop: 8 }}>
               <Field isLight={isLight} labelCls={labelCls} label="Supplier">
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type="text"
-                    value={supplierMenuOpen ? supplierQuery : (form.supplier_name || '')}
-                    onFocus={() => {
-                      if (isReadOnly) return;
-                      setSupplierQuery('');
-                      setSupplierMenuOpen(true);
-                    }}
-                    onChange={e => { setSupplierQuery(e.target.value); setSupplierMenuOpen(true); }}
-                    onBlur={() => setTimeout(() => setSupplierMenuOpen(false), 120)}
-                    className={inputCls}
-                    placeholder="No supplier"
-                    disabled={isReadOnly}
-                    autoComplete="off"
-                  />
-                  {supplierMenuOpen && !isReadOnly && (
-                    <div
-                      style={{
-                        position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
-                        zIndex: 50, maxHeight: 240, overflowY: 'auto',
-                        background: '#fff', border: '1px solid #E5E7EB',
-                        borderRadius: 10, boxShadow: '0 10px 28px rgba(26,29,63,0.16)',
-                      }}
-                    >
-                      <button
-                        type="button"
-                        onMouseDown={e => { e.preventDefault(); chooseSupplier(null); }}
-                        style={{
-                          display: 'block', width: '100%', textAlign: 'left',
-                          padding: '9px 12px', fontSize: 13, background: 'transparent',
-                          border: 0, cursor: 'pointer',
-                          color: !form.supplier_profile_id ? '#C65A1A' : '#262A53',
-                          fontWeight: !form.supplier_profile_id ? 600 : 400,
-                        }}
-                      >
-                        No supplier
-                      </button>
-                      {(() => {
-                        const q = supplierQuery.trim().toLowerCase();
-                        const opts = supplierProfiles.filter(
-                          p => !q || (p.name || '').toLowerCase().includes(q),
-                        );
-                        if (opts.length === 0) {
-                          return (
-                            <div style={{ padding: '10px 12px', fontSize: 12, color: '#7C7E9B' }}>
-                              {supplierProfiles.length === 0
-                                ? 'No suppliers in the directory yet'
-                                : `No suppliers match “${supplierQuery}”`}
-                            </div>
-                          );
-                        }
-                        return opts.map(p => {
-                          const on = p.id === form.supplier_profile_id;
-                          const loc = [p.business_city, p.business_country].filter(Boolean).join(', ');
-                          return (
-                            <button
-                              key={p.id}
-                              type="button"
-                              onMouseDown={e => { e.preventDefault(); chooseSupplier(p); }}
-                              style={{
-                                display: 'block', width: '100%', textAlign: 'left',
-                                padding: '9px 12px', background: on ? '#FAEEDA' : 'transparent',
-                                border: 0, borderTop: '1px solid #EEF0F4', cursor: 'pointer',
-                              }}
-                            >
-                              <div style={{ fontSize: 13, color: on ? '#C65A1A' : '#262A53', fontWeight: on ? 600 : 500 }}>
-                                {p.name}
-                              </div>
-                              {loc && (
-                                <div style={{ fontSize: 11, color: '#7C7E9B', marginTop: 1 }}>{loc}</div>
-                              )}
-                            </button>
-                          );
-                        });
-                      })()}
-                    </div>
-                  )}
-                </div>
+                <SupplierPicker
+                  value={form.supplier_profile_id || ''}
+                  suppliers={supplierProfiles}
+                  disabled={isReadOnly}
+                  inputClassName={inputCls}
+                  onChange={chooseSupplier}
+                />
               </Field>
             </div>
 

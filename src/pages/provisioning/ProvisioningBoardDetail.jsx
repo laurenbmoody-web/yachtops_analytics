@@ -2695,11 +2695,14 @@ const ProvisioningBoardDetail = () => {
               return !oi;
             })
             .map(i => ({
+              id: i.id,
               name: i.name,
               quantity: i.quantity_ordered,
               unit: i.unit,
               notes: i.notes,
               estimated_price: i.estimated_unit_cost || null,
+              supplier_profile_id: i.supplier_profile_id || null,
+              supplier_name: i.supplier_name || null,
             }))}
           vesselName={tenantVesselName || list?.title}
           vesselTypeLabel={tenantVesselTypeLabel}
