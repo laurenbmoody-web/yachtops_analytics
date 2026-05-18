@@ -171,10 +171,8 @@ const CreateProvisioningListModal = ({
     board_type: 'general',
     trip_id: '',
     departments: [],
-    port_location: '',
     estimated_cost: '',
     currency: 'GBP',
-    order_by_date: '',
     notes: '',
   });
   const [formErrors, setFormErrors] = useState({});
@@ -226,7 +224,7 @@ const CreateProvisioningListModal = ({
   useEffect(() => {
     if (isOpen) {
       setActiveTab('manual');
-      setForm({ title: '', board_type: 'general', trip_id: '', departments: [], port_location: '', estimated_cost: '', currency: 'GBP', order_by_date: '', notes: '' });
+      setForm({ title: '', board_type: 'general', trip_id: '', departments: [], estimated_cost: '', currency: 'GBP', notes: '' });
       setItems([BLANK_ITEM()]);
       setFormErrors({});
       setSaving(false);
@@ -502,10 +500,8 @@ const CreateProvisioningListModal = ({
         board_type:     form.board_type || 'general',
         trip_id:        tripIdForWire,
         department:     form.departments,
-        port_location:  form.port_location.trim() || null,
         estimated_cost: form.estimated_cost ? Number(form.estimated_cost) : null,
         currency:       form.currency || 'GBP',
-        order_by_date:  form.order_by_date || null,
         notes:          form.notes.trim() || null,
         status,
         created_by:     userId,
@@ -774,29 +770,7 @@ const CreateProvisioningListModal = ({
                 )}
               </div>
 
-              {/* Order By Date / Port row */}
-              <div style={{ ...rowGrid('1fr 1fr'), ...fieldWrap }}>
-                <div>
-                  <label style={labelStyle}>Order By Date</label>
-                  <input
-                    type="date"
-                    style={inputStyle}
-                    value={form.order_by_date}
-                    onChange={e => setField('order_by_date', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label style={labelStyle}>Port / Location</label>
-                  <input
-                    style={inputStyle}
-                    placeholder="e.g. Palma de Mallorca"
-                    value={form.port_location}
-                    onChange={e => setField('port_location', e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* Supplier row */}
+              {/* Estimated cost row */}
               <div style={{ ...rowGrid('1fr 1fr'), ...fieldWrap }}>
                 <div>
                   <label style={labelStyle}>Estimated Cost</label>

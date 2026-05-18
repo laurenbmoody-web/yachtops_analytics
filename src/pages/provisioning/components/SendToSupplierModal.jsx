@@ -68,6 +68,7 @@ const SendToSupplierModal = ({
   const [sentItemKeys, setSentItemKeys] = useState(() => new Set());
   const [sentOrderCount, setSentOrderCount] = useState(0);
   const [sendingKey, setSendingKey] = useState(null);   // group key being sent
+  const [sendingAll, setSendingAll] = useState(false);
   const [unassignedSupplierId, setUnassignedSupplierId] = useState('');
 
   useEffect(() => {
@@ -80,6 +81,7 @@ const SendToSupplierModal = ({
     setSentItemKeys(new Set());
     setSentOrderCount(0);
     setSendingKey(null);
+    setSendingAll(false);
     setUnassignedSupplierId('');
   }, [isOpen]);
 
@@ -128,9 +130,14 @@ const SendToSupplierModal = ({
   };
 
   // ── Send one group's order ──────────────────────────────────────
-  const sendGroup = async ({ key, supplier, rows, via }) => {
+  // silent: suppress per-call toast / sendingKey spinner and return a
+  // result (used by Send all so it can show one consolidated toast).
+  // skipClipboard: Send all's WhatsApp path opens wa.me instead of
+  // copying (a batched clipboard write is meaningless / can throw).
+  // Per-group callers pass neither → behaviour unchanged.
+  const sendGroup = async ({ key, supplier, rows, via, silent = false, skipClipboard = false }) => {
     const unsent = rows.filter(r => !isSent(r.key));
-    if (unsent.length === 0 || !supplier) return;
+    if (unsent.length === 0 || !supplier) return { ok: false, via, reason: 'empty' };
     const supplierName = supplier.name || '';
     const supplierEmail = supplier.email || '';
     const supplierPhone = supplier.phone || '';
@@ -140,11 +147,11 @@ const SendToSupplierModal = ({
     }));
 
     if (via === 'email' && (!supplierEmail || !supplierEmail.includes('@'))) {
-      showToast(`${supplierName || 'This supplier'} has no email — use WhatsApp copy`, 'error');
-      return;
+      if (!silent) showToast(`${supplierName || 'This supplier'} has no email — use WhatsApp copy`, 'error');
+      return { ok: false, via, reason: 'no-email' };
     }
 
-    setSendingKey(key);
+    if (!silent) setSendingKey(key);
     try {
       // Unassigned bucket: persist the chosen supplier onto the items
       // before the order is created so the data stays consistent.
@@ -183,7 +190,7 @@ const SendToSupplierModal = ({
           },
         });
         if (fnError) throw fnError;
-      } else {
+      } else if (!skipClipboard) {
         await navigator.clipboard.writeText(WHATSAPP_TEMPLATE(deliveryCtx, orderItems));
       }
 
@@ -197,20 +204,94 @@ const SendToSupplierModal = ({
         return next;
       });
       setSentOrderCount(c => c + 1);
-      showToast(
-        via === 'email'
-          ? `Order sent to ${supplierName}`
-          : `${supplierName} order copied for WhatsApp`,
-        'success',
-      );
+      if (!silent) {
+        showToast(
+          via === 'email'
+            ? `Order sent to ${supplierName}`
+            : `${supplierName} order copied for WhatsApp`,
+          'success',
+        );
+      }
       onSent && onSent(order);
+      return { ok: true, via, order };
     } catch (err) {
       console.error('[SendToSupplierModal] send error:', err);
-      showToast(`Failed to send: ${err.message || err}`, 'error');
+      if (!silent) showToast(`Failed to send: ${err.message || err}`, 'error');
+      return { ok: false, via, reason: 'error', error: err };
     } finally {
-      setSendingKey(null);
+      if (!silent) setSendingKey(null);
     }
   };
+
+  // ── Send all — orchestrate every ready group ───────────────────
+  // Email-capable suppliers fire in parallel; WhatsApp-only ones open
+  // wa.me sequentially (200ms stagger so the browser doesn't block
+  // the tabs). Never touches the Unassigned bucket. One consolidated
+  // toast at the end.
+  const sendAll = async () => {
+    const ready = groups
+      .map(gi => ({ supplier: gi.supplier, rows: gi.items }))
+      .filter(g => g.rows.some(r => !isSent(r.key)));
+
+    const emailGroups = [];
+    const waGroups = [];
+    let skipped = 0;
+    for (const g of ready) {
+      const hasEmail = g.supplier.email && g.supplier.email.includes('@');
+      const hasPhone = !!g.supplier.phone;
+      if (hasEmail) emailGroups.push(g);
+      else if (hasPhone) waGroups.push(g);
+      else skipped += 1;
+    }
+
+    if (emailGroups.length === 0 && waGroups.length === 0) {
+      showToast('No suppliers have contact info — add contact and try again', 'error');
+      return;
+    }
+
+    setSendingAll(true);
+    try {
+      const emailResults = await Promise.all(emailGroups.map(g =>
+        sendGroup({ key: g.supplier.id, supplier: g.supplier, rows: g.rows, via: 'email', silent: true })));
+
+      const waResults = [];
+      for (const g of waGroups) {
+        // eslint-disable-next-line no-await-in-loop
+        const res = await sendGroup({
+          key: g.supplier.id, supplier: g.supplier, rows: g.rows,
+          via: 'whatsapp', silent: true, skipClipboard: true,
+        });
+        waResults.push(res);
+        if (res.ok) {
+          const digits = String(g.supplier.phone || '').replace(/[^\d]/g, '');
+          if (digits) window.open(`https://wa.me/${digits}`, '_blank', 'noopener');
+        }
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise(r => setTimeout(r, 200));
+      }
+
+      const emailOk = emailResults.filter(r => r && r.ok).length;
+      const waOk = waResults.filter(r => r && r.ok).length;
+      const sentN = emailOk + waOk;
+      const totalAttempted = emailResults.length + waResults.length;
+      const failed = totalAttempted - sentN;
+
+      if (sentN === 0) {
+        showToast('Send all failed — no orders went out', 'error');
+      } else {
+        let msg = failed > 0
+          ? `Sent ${sentN} of ${totalAttempted} orders · ${failed} failed`
+          : `Sent ${sentN} ${sentN === 1 ? 'order' : 'orders'} · ${emailOk} via email · ${waOk} via WhatsApp`;
+        if (skipped > 0) msg += ` · ${skipped} skipped — add contact info to send`;
+        showToast(msg, failed > 0 ? 'error' : 'success');
+      }
+    } finally {
+      setSendingAll(false);
+    }
+  };
+
+  const sendableCount = groups.filter(gi =>
+    groupUnsent(gi).length > 0 && (gi.supplier.email || gi.supplier.phone)).length;
 
   const handleAddNewSupplier = async (name) => {
     try {
@@ -255,7 +336,7 @@ const SendToSupplierModal = ({
 
   const ActionButtons = ({ supplier, groupKey, rows, busy, showWhatsApp = true }) => {
     const hasContact = Boolean(supplier?.email) || Boolean(supplier?.phone);
-    const disabled = busy || !!sendingKey || !hasContact;
+    const disabled = busy || !!sendingKey || sendingAll || !hasContact;
     return (
       <div className="flex items-center gap-1.5">
         {showWhatsApp && (
@@ -264,7 +345,7 @@ const SendToSupplierModal = ({
             disabled={disabled}
             onClick={() => sendGroup({ key: groupKey, supplier, rows, via: 'whatsapp' })}
             className="px-3 text-[11px] font-semibold rounded-lg border"
-            style={hasContact && !busy && !sendingKey
+            style={hasContact && !disabled
               ? { height: 30, borderColor: INK, color: INK, background: 'transparent' }
               : { height: 30, borderColor: HAIRLINE, color: FAINT, background: 'transparent', cursor: 'not-allowed' }}
           >
@@ -276,7 +357,7 @@ const SendToSupplierModal = ({
           disabled={disabled}
           onClick={() => sendGroup({ key: groupKey, supplier, rows, via: 'email' })}
           className="px-3 text-[11px] font-semibold rounded-lg text-white flex items-center gap-1.5"
-          style={hasContact && !busy && !sendingKey
+          style={hasContact && !disabled
             ? { height: 30, background: INK }
             : { height: 30, background: '#D3D1C7', color: '#fff', cursor: 'not-allowed' }}
         >
@@ -337,10 +418,27 @@ const SendToSupplierModal = ({
             <SerifTitle text={allDone ? 'All orders sent' : 'Send orders'} />
             <p className="text-[13px] mt-1.5" style={{ color: MUTED }}>{subtitle}</p>
           </div>
-          <button onClick={onClose} disabled={!!sendingKey}
-            className="text-muted-foreground hover:text-foreground transition-colors mt-1">
-            <Icon name="X" size={18} />
-          </button>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            {!allDone && items.length > 0 && groups.length > 0 && (
+              <button
+                type="button"
+                disabled={sendableCount === 0 || sendingAll || !!sendingKey}
+                onClick={sendAll}
+                className="text-[12px] font-semibold rounded-lg text-white flex items-center gap-1.5"
+                style={sendableCount > 0 && !sendingAll && !sendingKey
+                  ? { height: 32, padding: '0 16px', background: INK }
+                  : { height: 32, padding: '0 16px', background: '#D3D1C7', color: '#fff', cursor: 'not-allowed' }}
+              >
+                {sendingAll
+                  ? <><span className="animate-spin rounded-full h-3 w-3 border-b-2 border-white" /> Sending…</>
+                  : 'Send all'}
+              </button>
+            )}
+            <button onClick={onClose} disabled={!!sendingKey || sendingAll}
+              className="text-muted-foreground hover:text-foreground transition-colors">
+              <Icon name="X" size={18} />
+            </button>
+          </div>
         </div>
 
         {items.length === 0 ? (
@@ -395,7 +493,7 @@ const SendToSupplierModal = ({
                   {unassignedSupplier && unassignedSupplier.phone && (
                     <button
                       type="button"
-                      disabled={unassignedUnsent.length === 0 || !!sendingKey}
+                      disabled={unassignedUnsent.length === 0 || !!sendingKey || sendingAll}
                       onClick={() => sendGroup({ key: '__unassigned__', supplier: unassignedSupplier, rows: unassigned, via: 'whatsapp' })}
                       className="px-3 text-[11px] font-semibold rounded-lg border flex-shrink-0"
                       style={{ height: 38, borderColor: INK, color: INK, background: 'transparent' }}
@@ -405,10 +503,10 @@ const SendToSupplierModal = ({
                   )}
                   <button
                     type="button"
-                    disabled={!unassignedSupplier || unassignedUnsent.length === 0 || !!sendingKey}
+                    disabled={!unassignedSupplier || unassignedUnsent.length === 0 || !!sendingKey || sendingAll}
                     onClick={() => sendGroup({ key: '__unassigned__', supplier: unassignedSupplier, rows: unassigned, via: 'email' })}
                     className="px-4 text-[11px] font-semibold rounded-lg text-white flex-shrink-0"
-                    style={unassignedSupplier && !sendingKey
+                    style={unassignedSupplier && !sendingKey && !sendingAll
                       ? { height: 38, background: INK }
                       : { height: 38, background: '#D3D1C7', color: '#fff', cursor: 'not-allowed' }}
                   >
@@ -418,7 +516,7 @@ const SendToSupplierModal = ({
               </div>
             )}
 
-            <button onClick={onClose} disabled={!!sendingKey}
+            <button onClick={onClose} disabled={!!sendingKey || sendingAll}
               className="w-full mt-4 pt-3 text-[13px] italic"
               style={{ color: FAINT, borderTop: `1px solid ${HAIRLINE}` }}>
               Close — I’ll send the rest later

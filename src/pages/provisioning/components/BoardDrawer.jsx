@@ -195,8 +195,6 @@ const EditMode = ({ list, trips, tenantId, departments = [], onSaved, onDeleted,
     board_type: 'general',
     trip_id: '',
     department: '',
-    port_location: '',
-    order_by_date: '',
     estimated_cost: '',
     currency: 'USD',
     notes: '',
@@ -220,8 +218,6 @@ const EditMode = ({ list, trips, tenantId, departments = [], onSaved, onDeleted,
         board_type: list.board_type || 'general',
         trip_id: list.trip_id || '',
         department: normDept(list.department),
-        port_location: list.port_location || '',
-        order_by_date: list.order_by_date || '',
         estimated_cost: list.estimated_cost || '',
         currency: list.currency || 'USD',
         notes: list.notes || '',
@@ -245,8 +241,6 @@ const EditMode = ({ list, trips, tenantId, departments = [], onSaved, onDeleted,
         board_type: form.board_type || 'general',
         trip_id: form.trip_id || null,
         department: deptArray,
-        port_location: form.port_location,
-        order_by_date: form.order_by_date || null,
         estimated_cost: form.estimated_cost ? parseFloat(form.estimated_cost) : null,
         currency: form.currency,
         notes: form.notes,
@@ -363,18 +357,6 @@ const EditMode = ({ list, trips, tenantId, departments = [], onSaved, onDeleted,
         </div>
       </div>
 
-
-      {/* Port */}
-      <div>
-        <label className={labelCls}>Port / Location</label>
-        <input value={form.port_location} onChange={e => set('port_location', e.target.value)} className={inputCls} placeholder="e.g. Palma, FR" />
-      </div>
-
-      {/* Order by date */}
-      <div>
-        <label className={labelCls}>Order By Date</label>
-        <input type="date" value={form.order_by_date} onChange={e => set('order_by_date', e.target.value)} className={inputCls} />
-      </div>
 
       {/* Cost + Currency */}
       <div className="flex gap-3">

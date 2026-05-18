@@ -25,33 +25,6 @@ const DragHandle = ({ dragHandleProps }) => (
   </div>
 );
 
-// ── Order-by date badge ──────────────────────────────────────────────────────
-
-const OrderByBadge = ({ date }) => {
-  if (!date) return null;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const d = new Date(date); d.setHours(0, 0, 0, 0);
-  const diff = Math.round((d - today) / 86400000);
-  let cls, label;
-  if (diff < 0) {
-    cls = 'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400 border border-red-200 dark:border-red-500/30';
-    label = `Overdue ${Math.abs(diff)}d`;
-  } else if (diff === 0) {
-    cls = 'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400 border border-red-200 dark:border-red-500/30';
-    label = 'Due today';
-  } else if (diff <= 3) {
-    cls = 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30';
-    label = `Due in ${diff}d`;
-  } else {
-    cls = 'bg-muted text-muted-foreground border border-border';
-    label = new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-  }
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${cls}`}>
-      <Icon name="Calendar" className="w-3 h-3 mr-1" />{label}
-    </span>
-  );
-};
 
 // ── Colour picker ────────────────────────────────────────────────────────────
 
@@ -351,7 +324,6 @@ const BoardColumn = ({
             </div>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               <StatusBadge status={list.status} size="sm" />
-              {list.order_by_date && <OrderByBadge date={list.order_by_date} />}
             </div>
           </div>
 
