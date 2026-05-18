@@ -129,8 +129,7 @@ const ProvisioningManagementDashboard = () => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       const matchTitle = l.title?.toLowerCase().includes(q);
-      const matchPort = l.port_location?.toLowerCase().includes(q);
-      if (!matchTitle && !matchPort) return false;
+      if (!matchTitle) return false;
     }
     return true;
   });
@@ -334,7 +333,6 @@ const ProvisioningManagementDashboard = () => {
               <th style={s.th}>Status</th>
               <th style={s.th}>Trip</th>
               <th style={s.th}>Departments</th>
-              <th style={s.th}>Port / Location</th>
               <th style={s.th}>Est. Cost</th>
               <th style={s.th}>Items</th>
               <th style={s.th}>Created</th>
@@ -362,7 +360,6 @@ const ProvisioningManagementDashboard = () => {
                       ? list.department.join(', ')
                       : '—'}
                   </td>
-                  <td style={s.tdMuted}>{list.port_location || '—'}</td>
                   <td style={s.tdMuted}>{fmtCost(list.estimated_cost)}</td>
                   <td style={{ ...s.td, color: 'rgba(255,255,255,0.5)' }}>
                     {itemCounts[list.id] ?? 0}

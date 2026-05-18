@@ -564,7 +564,7 @@ const ProvisioningWorkspace = () => {
 
   // ── Board actions ────────────────────────────────────────────────────────
 
-  const handleCreateBoard = async ({ title, board_type, trip_id, order_by_date, is_private = true, preloadedItems = [] }) => {
+  const handleCreateBoard = async ({ title, board_type, trip_id, is_private = true, preloadedItems = [] }) => {
     try {
       console.log('[Provisioning] createBoard — tenant_id:', activeTenantId, 'userId:', userId);
 
@@ -580,14 +580,12 @@ const ProvisioningWorkspace = () => {
         title,
         board_type: board_type || null,
         trip_id: trip_id || null,
-        order_by_date: order_by_date || null,
         status: PROVISIONING_STATUS.DRAFT,
         created_by: userId,
         owner_id: userId,
         department_id: userDeptId || null,
         visibility: is_private ? 'private' : 'department',
         department: resolvedDeptName ? [resolvedDeptName] : [],
-        port_location: '',
         notes: '',
         currency: 'USD',
         estimated_cost: null,

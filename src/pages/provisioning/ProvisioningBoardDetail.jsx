@@ -100,8 +100,6 @@ const EditBoardModal = ({ list, onSaved, onClose }) => {
     title: list.title || '',
     board_type: list.board_type || 'general',
     status: list.status || PROVISIONING_STATUS.DRAFT,
-    port_location: list.port_location || '',
-    order_by_date: list.order_by_date || '',
     notes: list.notes || '',
   });
   const [saving, setSaving] = useState(false);
@@ -114,8 +112,6 @@ const EditBoardModal = ({ list, onSaved, onClose }) => {
         title: form.title.trim(),
         board_type: form.board_type,
         status: form.status,
-        port_location: form.port_location,
-        order_by_date: form.order_by_date || null,
         notes: form.notes,
       });
       onSaved(updated);
@@ -151,15 +147,6 @@ const EditBoardModal = ({ list, onSaved, onClose }) => {
               ))}
             </select>
           </div>
-          {[
-            { label: 'Port / Location', key: 'port_location', type: 'text' },
-            { label: 'Order By Date', key: 'order_by_date', type: 'date' },
-          ].map(({ label, key, type }) => (
-            <div key={key}>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">{label}</label>
-              <input type={type} value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} className={fieldCls} />
-            </div>
-          ))}
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Status</label>
             <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={fieldCls}>
@@ -1099,10 +1086,6 @@ const ProvisioningBoardDetail = () => {
 
   // ── Additional computed values ────────────────────────────────────────────
 
-  const isOverdue = list?.order_by_date
-    ? new Date(list.order_by_date) < new Date(new Date().setHours(0, 0, 0, 0))
-    : false;
-
   const heroStatus = STATUS_HERO_COLOR[list?.status] || { dot: '#94A3B8', text: '#94A3B8' };
   const statusLabel = (list?.status || '').replace(/_/g, ' ').toUpperCase();
 
@@ -1122,7 +1105,6 @@ const ProvisioningBoardDetail = () => {
 
   const metaItems = [
     trip && { icon: 'Calendar', content: trip.title || trip.name },
-    list?.port_location && { icon: 'MapPin', content: list.port_location },
     deptTags.length > 0 && { type: 'chips', content: deptTags },
   ].filter(Boolean);
 
@@ -1145,13 +1127,11 @@ const ProvisioningBoardDetail = () => {
   // used to live as inline chips next to the H1 in the predecessor design.
   const editorialSubtitle = [
     statusLabel,
-    isOverdue && 'Overdue',
   ].filter(Boolean).join(' · ');
   // Meta strip — translates the existing metaItems to the editorial segment
   // shape. Dept chips are dropped from the strip (they were a different
   // visual pattern); first dept lands in the qualifier instead.
   const editorialMeta = [
-    list?.port_location && { icon: 'MapPin', label: list.port_location },
     trip && { label: trip.title || trip.name },
   ].filter(Boolean);
 
@@ -2666,7 +2646,7 @@ const ProvisioningBoardDetail = () => {
             }))}
           vesselName={tenantVesselName || list?.title}
           vesselTypeLabel={tenantVesselTypeLabel}
-          orderRef={list?.port_location}
+          orderRef={null}
           createdBy={user?.id}
         />
       )}
