@@ -37,6 +37,7 @@ const WHATSAPP_TEMPLATE = (ctx, items) => {
     ctx.deliveryDate ? `Date: ${ctx.deliveryDate}` : null,
     ctx.deliveryTime ? `Time: ${ctx.deliveryTime}` : null,
     ctx.deliveryContact ? `Contact: ${ctx.deliveryContact}` : null,
+    ctx.requestedDeliveryLine ? `\n${ctx.requestedDeliveryLine}` : null,
     ctx.specialInstructions ? `\n*Special Instructions*\n${ctx.specialInstructions}` : null,
     '',
     '*Items*',
@@ -63,7 +64,7 @@ const SendToSupplierModal = ({
   const [deliveryDate, setDeliveryDate] = useState('');
   const [deliveryTime, setDeliveryTime] = useState('');
   const [deliveryContact, setDeliveryContact] = useState('');
-  const [currency, setCurrency] = useState('USD');
+  const [currency, setCurrency] = useState('');   // optional — supplier may propose their own
 
   const [sentItemKeys, setSentItemKeys] = useState(() => new Set());
   const [sentOrderCount, setSentOrderCount] = useState(0);
@@ -77,7 +78,7 @@ const SendToSupplierModal = ({
     setDeliveryContact(
       user?.user_metadata?.full_name || user?.user_metadata?.first_name || user?.email || '',
     );
-    setCurrency('USD');
+    setCurrency('');
     setSentItemKeys(new Set());
     setSentOrderCount(0);
     setSendingKey(null);
@@ -123,10 +124,33 @@ const SendToSupplierModal = ({
   const allDone = items.length > 0 && totalUnsent === 0;
   const readySupplierCount = groups.filter(gi => groupUnsent(gi).length > 0).length;
 
+  // Port / date / requester are mandatory so a supplier never receives
+  // an order with no delivery context. Currency + time stay optional
+  // (currency: supplier may counter-propose; time: defaults to 09:00).
+  const requiredComplete =
+    deliveryPort.trim() !== '' &&
+    deliveryDate.trim() !== '' &&
+    deliveryContact.trim() !== '';
+
+  const fmtReqDate = (d) => {
+    if (!d) return '';
+    const dt = new Date(`${d}T00:00:00`);
+    return Number.isNaN(dt.getTime())
+      ? d
+      : dt.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+  const requestedDeliveryLine = (deliveryPort.trim() && deliveryDate.trim())
+    ? `Requested delivery: ${fmtReqDate(deliveryDate)} at ${deliveryPort.trim()}. Please confirm or propose alternatives.`
+    : '';
+
   const deliveryCtx = {
     vesselName, prefixedVesselName, orderRef,
-    deliveryPort, deliveryDate, deliveryTime, deliveryContact,
-    specialInstructions: '', currency,
+    deliveryPort, deliveryDate,
+    deliveryTime: deliveryTime || '09:00',   // morning-delivery default
+    deliveryContact,
+    specialInstructions: '',
+    currency: currency || null,
+    requestedDeliveryLine,
   };
 
   // ── Send one group's order ──────────────────────────────────────
@@ -138,6 +162,13 @@ const SendToSupplierModal = ({
   const sendGroup = async ({ key, supplier, rows, via, silent = false, skipClipboard = false }) => {
     const unsent = rows.filter(r => !isSent(r.key));
     if (unsent.length === 0 || !supplier) return { ok: false, via, reason: 'empty' };
+    // Safety net — buttons are disabled when this is false, but guard
+    // here too so no path (incl. the Unassigned bucket) can send an
+    // order missing its delivery context.
+    if (!requiredComplete) {
+      if (!silent) showToast('Complete the order context above to send', 'error');
+      return { ok: false, via, reason: 'missing-fields' };
+    }
     const supplierName = supplier.name || '';
     const supplierEmail = supplier.email || '';
     const supplierPhone = supplier.phone || '';
@@ -165,14 +196,21 @@ const SendToSupplierModal = ({
 
       const order = await createSupplierOrder({
         tenantId, listId, supplierName, supplierEmail, supplierPhone,
-        deliveryPort, deliveryDate: deliveryDate || null, deliveryTime: deliveryTime || null,
-        deliveryContact, specialInstructions: '', currency,
+        deliveryPort, deliveryDate: deliveryDate || null,
+        deliveryTime: deliveryTime || '09:00',
+        deliveryContact, specialInstructions: '', currency: currency || null,
         items: orderItems, createdBy,
         sentVia: via, vesselName: prefixedVesselName,
         supplierProfileId: supplier.id || null,
       });
 
       if (via === 'email') {
+        // TODO(9c.3): the supplier email body is composed server-side in
+        // the `sendSupplierOrder` edge function — NOT redeployed this
+        // sprint. `requestedDeliveryLine` ("Requested delivery: {date}
+        // at {port}. Please confirm or propose alternatives.") is passed
+        // below via ...deliveryCtx; wire it into the email template on
+        // the next edge-function deploy. WhatsApp already includes it.
         const { error: fnError } = await supabase.functions.invoke('sendSupplierOrder', {
           body: {
             to: supplierEmail,
@@ -229,6 +267,10 @@ const SendToSupplierModal = ({
   // the tabs). Never touches the Unassigned bucket. One consolidated
   // toast at the end.
   const sendAll = async () => {
+    if (!requiredComplete) {
+      showToast('Complete the order context to send all', 'error');
+      return;
+    }
     const ready = groups
       .map(gi => ({ supplier: gi.supplier, rows: gi.items }))
       .filter(g => g.rows.some(r => !isSent(r.key)));
@@ -313,6 +355,7 @@ const SendToSupplierModal = ({
 
   // ── Render ──────────────────────────────────────────────────────
   const inputCls = 'w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary';
+  const labelCls = 'block text-[11px] font-medium mb-1';
   const ACCENT = '#C65A1A';        // terracotta
   const INK = '#1C1B3A';           // navy ink
   const MUTED = '#695880';         // muted navy
@@ -336,7 +379,7 @@ const SendToSupplierModal = ({
 
   const ActionButtons = ({ supplier, groupKey, rows, busy, showWhatsApp = true }) => {
     const hasContact = Boolean(supplier?.email) || Boolean(supplier?.phone);
-    const disabled = busy || !!sendingKey || sendingAll || !hasContact;
+    const disabled = busy || !!sendingKey || sendingAll || !hasContact || !requiredComplete;
     return (
       <div className="flex items-center gap-1.5">
         {showWhatsApp && (
@@ -401,8 +444,13 @@ const SendToSupplierModal = ({
             <Icon name="Check" size={14} /> Sent
           </span>
         ) : (
-          <div className="flex-shrink-0 ml-3">
+          <div className="flex-shrink-0 ml-3 flex flex-col items-end gap-1">
             <ActionButtons supplier={supplier} groupKey={supplier.id} rows={rows} busy={busy} />
+            {hasContact && !requiredComplete && (
+              <span className="text-[10px] italic text-right" style={{ color: MUTED }}>
+                Complete the order context above to send
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -420,19 +468,26 @@ const SendToSupplierModal = ({
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">
             {!allDone && items.length > 0 && groups.length > 0 && (
-              <button
-                type="button"
-                disabled={sendableCount === 0 || sendingAll || !!sendingKey}
-                onClick={sendAll}
-                className="text-[12px] font-semibold rounded-lg text-white flex items-center gap-1.5"
-                style={sendableCount > 0 && !sendingAll && !sendingKey
-                  ? { height: 32, padding: '0 16px', background: INK }
-                  : { height: 32, padding: '0 16px', background: '#D3D1C7', color: '#fff', cursor: 'not-allowed' }}
-              >
-                {sendingAll
-                  ? <><span className="animate-spin rounded-full h-3 w-3 border-b-2 border-white" /> Sending…</>
-                  : 'Send all'}
-              </button>
+              <div className="flex flex-col items-end gap-1">
+                <button
+                  type="button"
+                  disabled={sendableCount === 0 || sendingAll || !!sendingKey || !requiredComplete}
+                  onClick={sendAll}
+                  className="text-[12px] font-semibold rounded-lg text-white flex items-center gap-1.5"
+                  style={sendableCount > 0 && requiredComplete && !sendingAll && !sendingKey
+                    ? { height: 32, padding: '0 16px', background: INK }
+                    : { height: 32, padding: '0 16px', background: '#D3D1C7', color: '#fff', cursor: 'not-allowed' }}
+                >
+                  {sendingAll
+                    ? <><span className="animate-spin rounded-full h-3 w-3 border-b-2 border-white" /> Sending…</>
+                    : 'Send all'}
+                </button>
+                {sendableCount > 0 && !requiredComplete && !sendingAll && !sendingKey && (
+                  <span className="text-[10px] italic text-right" style={{ color: MUTED }}>
+                    Complete the order context to send all
+                  </span>
+                )}
+              </div>
             )}
             <button onClick={onClose} disabled={!!sendingKey || sendingAll}
               className="text-muted-foreground hover:text-foreground transition-colors">
@@ -452,20 +507,51 @@ const SendToSupplierModal = ({
           </div>
         ) : (
           <>
-            {/* Shared delivery context (no special instructions — per spec) */}
-            <div className="grid grid-cols-2 gap-2 mb-5">
-              <input className={inputCls} placeholder="Delivery port"
-                value={deliveryPort} onChange={e => setDeliveryPort(e.target.value)} />
-              <select className={inputCls} value={currency} onChange={e => setCurrency(e.target.value)}>
-                {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-              <input className={inputCls} type="date"
-                value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)} />
-              <input className={inputCls} type="time"
-                value={deliveryTime} onChange={e => setDeliveryTime(e.target.value)} />
-              <input className={`${inputCls} col-span-2`} placeholder="Contact on board"
-                value={deliveryContact} onChange={e => setDeliveryContact(e.target.value)} />
+            {/* Shared delivery context — applies to every order sent this
+                session. Port / date / requester required; currency + time
+                optional (estimates the supplier confirms on receipt). */}
+            <div className="grid grid-cols-2 gap-3 mb-2">
+              <div>
+                <label className={labelCls} style={{ color: MUTED }}>
+                  Delivery port<span style={{ color: ACCENT }}> *</span>
+                </label>
+                <input className={inputCls} placeholder="e.g. Antibes"
+                  value={deliveryPort} onChange={e => setDeliveryPort(e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls} style={{ color: MUTED }}>
+                  Currency<span style={{ color: MUTED, fontSize: 10 }}> (optional)</span>
+                </label>
+                <select className={inputCls} value={currency} onChange={e => setCurrency(e.target.value)}>
+                  <option value="">—</option>
+                  {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls} style={{ color: MUTED }}>
+                  Order By Date<span style={{ color: ACCENT }}> *</span>
+                </label>
+                <input className={inputCls} type="date"
+                  value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls} style={{ color: MUTED }}>
+                  Time<span style={{ color: MUTED, fontSize: 10 }}> (optional)</span>
+                </label>
+                <input className={inputCls} type="time"
+                  value={deliveryTime} onChange={e => setDeliveryTime(e.target.value)} />
+              </div>
+              <div className="col-span-2">
+                <label className={labelCls} style={{ color: MUTED }}>
+                  Requester Name<span style={{ color: ACCENT }}> *</span>
+                </label>
+                <input className={inputCls} placeholder="Who placed this order"
+                  value={deliveryContact} onChange={e => setDeliveryContact(e.target.value)} />
+              </div>
             </div>
+            <p className="text-[11px] italic mb-5" style={{ color: MUTED }}>
+              Times, dates, and currency are estimates — confirm with supplier on receipt.
+            </p>
 
             {groups.map(gi => (
               <GroupCard key={gi.supplier.id} supplier={gi.supplier} rows={gi.items} />
