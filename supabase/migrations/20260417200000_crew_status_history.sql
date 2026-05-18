@@ -1,6 +1,19 @@
 -- Migration: Crew status history audit log
 -- Date: 2026-04-17
 --
+-- ⚠️  SCHEMA DRIFT NOTE (recorded 2026-05-17, do not edit the SQL below):
+--     The DEPLOYED production table has 8 columns and NO `changed_by_name`
+--     column — it diverges from the CREATE TABLE statement in this file
+--     (which declares 9 columns incl. changed_by_name) and from the
+--     log_crew_status_initial() trigger (which INSERTs changed_by_name).
+--     The deployed table/trigger were evidently adjusted out-of-band.
+--     The executable SQL here is left UNCHANGED so historical
+--     reproducibility on a fresh environment is preserved, but readers
+--     and any future migration MUST treat the live shape as the 8-column
+--     form (no changed_by_name). Consumers should not select or write
+--     changed_by_name against production. Reconcile in a dedicated
+--     follow-up migration if/when the schema is formally re-baselined.
+--
 -- Creates crew_status_history table, RLS policies, and an INSERT trigger on
 -- tenant_members so that every new member's initial status is logged automatically.
 -- Status *changes* are logged by the application layer (no UPDATE trigger) to

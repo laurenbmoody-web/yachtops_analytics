@@ -133,34 +133,13 @@ export function getRoleRank(role) {
   return ROLE_RANK[n] ?? UNKNOWN_RANK;
 }
 
-// TODO(remove-after-role-audit): temporary production audit. Logs each
-// distinct role string the first time it's seen (raw → normalised →
-// result) so we can decide whether the maps need more entries or a
-// DB-side role_aliases table. Remove this Set + console.info once done.
-const seenRoles = new Set();
-
 export function getRoleDisplayName(role) {
   if (!role) return '';
   const raw = String(role).trim();
   const normalised = normaliseRole(raw);
-
-  let result;
-  if (CANONICAL[normalised]) {
-    result = CANONICAL[normalised];
-  } else if (ROLE_ALIASES[raw.toLowerCase()]) {
-    result = ROLE_ALIASES[raw.toLowerCase()];
-  } else {
-    result = raw; // unknown — pass through unchanged, no truncation
-  }
-
-  if (!seenRoles.has(role)) {
-    seenRoles.add(role);
-    // eslint-disable-next-line no-console
-    console.info(
-      `[getRoleDisplayName] new role: "${role}" → normalised "${normalised}" → "${result}"`
-    );
-  }
-  return result;
+  if (CANONICAL[normalised]) return CANONICAL[normalised];
+  if (ROLE_ALIASES[raw.toLowerCase()]) return ROLE_ALIASES[raw.toLowerCase()];
+  return raw; // unknown — pass through unchanged, no truncation
 }
 
 // Pick black/white text for a given hex background by perceived
