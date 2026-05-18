@@ -136,10 +136,9 @@ export const fetchInventoryLocationChildren = async (tenantId, location) => {
 
 /**
  * Fetch active departments for this tenant via the get_tenant_departments RPC.
- * Falls back to vessels.departments_in_use if the RPC fails.
- * Returns { id, name, color }[] sorted by name. Legacy-fallback rows
- * (where only the name is known) get id=null and color='#5F5E5A' so
- * consumers can rely on the shape.
+ * Falls back to vessels.departments_in_use (a uuid[]) if the RPC fails,
+ * resolving those ids to names via the shared departments table.
+ * Returns { id, name, color }[] sorted by name.
  */
 export const fetchVesselDepartments = async (tenantId) => {
   if (!tenantId) return [];
@@ -155,7 +154,8 @@ export const fetchVesselDepartments = async (tenantId) => {
     }
   } catch { /* fall through to legacy approach */ }
 
-  // Legacy fallback: read departments_in_use JSON from vessels table
+  // Legacy fallback: departments_in_use is a uuid[] — resolve ids → names
+  // via the shared departments table.
   try {
     const { data, error } = await supabase
       ?.from('vessels')
@@ -163,13 +163,17 @@ export const fetchVesselDepartments = async (tenantId) => {
       ?.eq('tenant_id', tenantId)
       ?.limit(1)
       ?.single();
-    if (error || !data?.departments_in_use) return [];
-    const raw = data.departments_in_use;
-    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter(Boolean)
-      .map(name => ({ id: null, name, color: '#5F5E5A' }));
+    const ids = Array.isArray(data?.departments_in_use) ? data.departments_in_use : [];
+    if (error || ids.length === 0) return [];
+    const { data: deptRows } = await supabase
+      ?.from('departments')
+      ?.select('id, name, color')
+      ?.in('id', ids);
+    if (!Array.isArray(deptRows)) return [];
+    return deptRows
+      .filter(d => d?.name)
+      .map(d => ({ id: d.id ?? null, name: d.name, color: d.color || '#5F5E5A' }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   } catch (err) {
     console.warn('[provisioningStorage] fetchVesselDepartments error:', err);
     return [];

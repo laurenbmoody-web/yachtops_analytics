@@ -98,13 +98,9 @@ const VesselSettings = () => {
     { value: 'Unlimited', label: 'Unlimited' }
   ];
 
-  const departmentOptions = [
-    { value: 'Interior', label: 'Interior' },
-    { value: 'Galley', label: 'Galley' },
-    { value: 'Deck', label: 'Deck' },
-    { value: 'Engineering', label: 'Engineering' },
-    { value: 'Shore', label: 'Shore' }
-  ];
+  // departments_in_use stores department UUIDs, so the toggle options must
+  // be keyed by id (not name). Source from the shared departments table.
+  const [departmentOptions, setDepartmentOptions] = useState([]);
 
   // Check if user has COMMAND role
   const role = userRole?.toUpperCase();
@@ -114,19 +110,43 @@ const VesselSettings = () => {
     loadVesselSettings();
   }, []);
 
+  // Load the department options (id → label) once the tenant is known.
+  useEffect(() => {
+    if (!tenantId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: rpcDepts, error: rpcError } = await supabase
+          ?.rpc('get_tenant_departments', { p_tenant_id: tenantId });
+        let rows = (!rpcError && Array.isArray(rpcDepts) && rpcDepts.length > 0)
+          ? rpcDepts
+          : null;
+        if (!rows) {
+          const { data: directDepts } = await supabase
+            ?.from('departments')
+            ?.select('id, name')
+            ?.order('name', { ascending: true });
+          rows = Array.isArray(directDepts) ? directDepts : [];
+        }
+        if (cancelled) return;
+        setDepartmentOptions(
+          rows
+            .filter(d => d?.id && d?.name)
+            .map(d => ({ value: d.id, label: d.name }))
+        );
+      } catch (err) {
+        console.warn('[VESSEL SETTINGS] fetchDepartments error:', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [tenantId]);
+
   useEffect(() => {
     if (vesselData && !formInitialized) {
       console.log('[VESSEL SETTINGS] Loading vessel data:', vesselData);
       
-      // Parse departments_in_use from text to array
-      let departmentsArray = [];
-      if (vesselData?.departments_in_use) {
-        try {
-          departmentsArray = JSON.parse(vesselData.departments_in_use);
-        } catch {
-          departmentsArray = vesselData.departments_in_use.split(',').map(d => d.trim()).filter(Boolean);
-        }
-      }
+      // departments_in_use is a uuid[] — PostgREST returns it as a JS array
+      const departmentsArray = vesselData?.departments_in_use ?? [];
 
       const initialFormData = {
         vessel_type_label: vesselData?.vessel_type_label || '',
@@ -320,7 +340,7 @@ const VesselSettings = () => {
         typical_crew_count: formState?.typical_crew_count ? parseInt(formState?.typical_crew_count, 10) : null,
         ism_applicable: formState?.ism_applicable || false,
         isps_applicable: formState?.isps_applicable || false,
-        departments_in_use: JSON.stringify(formState?.departments_in_use || []),
+        departments_in_use: formState?.departments_in_use || [],
         bonded_stores_enabled: formState?.bonded_stores_enabled || false,
         multi_location_storage: formState?.multi_location_storage || false,
         hero_image_url: formState?.hero_image_url || null,
