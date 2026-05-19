@@ -168,10 +168,12 @@ export function useRotaShifts() {
   const [error, setError] = useState(null);
   const [draftCount, setDraftCount] = useState(0);
 
-  // Extracted so mutations can await a refresh. Race note: rapid
-  // successive loads are last-write-wins into state, acceptable for
-  // Phase 1 (matches the spec's last-write-wins concurrency stance).
-  const load = useCallback(async () => {
+  // Extracted so mutations can await a refresh. `silent` keeps the grid
+  // mounted during a post-mutation refetch (no loading placeholder swap —
+  // that blank/scroll-reset read as a full page refresh). Race note: rapid
+  // successive loads are last-write-wins into state, acceptable for Phase 1.
+  const load = useCallback(async (opts) => {
+    const silent = opts?.silent === true;
     // Gate on user too — querying before the session hydrates would
     // send an anon request that RLS ({authenticated}) returns empty.
     if (!user || !tenantId) {
@@ -180,8 +182,8 @@ export function useRotaShifts() {
       return;
     }
 
-    console.log('[useRotaShifts] fetching, tenantId:', tenantId);
-    setLoading(true);
+    console.log('[useRotaShifts] fetching, tenantId:', tenantId, 'silent:', silent);
+    if (!silent) setLoading(true);
     setError(null);
 
     {
@@ -335,7 +337,7 @@ export function useRotaShifts() {
       } catch (e) {
         if (!cancelled) setError(e?.message ?? String(e));
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && !silent) setLoading(false);
       }
     }
   }, [user, tenantId]);
@@ -372,7 +374,7 @@ export function useRotaShifts() {
     const { data, error: insErr } = await supabase
       .from('rota_shifts').insert(row).select('id').maybeSingle();
     if (insErr) return { ok: false, error: insErr.message };
-    await load();
+    await load({ silent: true });
     return { ok: true, id: data?.id };
   }, [tenantId, load]);
 
@@ -381,7 +383,7 @@ export function useRotaShifts() {
     const { error: delErr } = await supabase
       .from('rota_shifts').delete().eq('id', shiftId);
     if (delErr) return { ok: false, error: delErr.message };
-    await load();
+    await load({ silent: true });
     return { ok: true };
   }, [load]);
 
@@ -392,7 +394,7 @@ export function useRotaShifts() {
       .update({ ...patch, status: 'draft' })
       .eq('id', shiftId);
     if (updErr) return { ok: false, error: updErr.message };
-    await load();
+    await load({ silent: true });
     return { ok: true };
   }, [load]);
 

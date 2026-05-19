@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { getRoleDisplayName, getContrastText, getRoleRank, UNKNOWN_RANK } from '../../crew-rota/crewDisplay';
 
@@ -146,30 +146,43 @@ function RestLine({ crew, mode, statusLabel }) {
 // mode: 'active' | 'off' | 'medical' (on-vessel) | 'offvessel'
 function CrewRow({
   crew, gridStartHour, onCrewClick, mode = 'active', statusLabel,
-  editMode = false, onCellClick,
+  editMode = false, onCellPointerDown, onCellPointerEnter, onCellKey, dragRange,
 }) {
   const satStart = saturdayFirstSlot(gridStartHour);
   // Phase 1: cell editing is enabled for on-vessel department rows only
   // (off-vessel crew have no department-today context — see report).
-  const cellEditable = editMode && mode !== 'offvessel' && !!onCellClick;
+  const cellEditable = editMode && mode !== 'offvessel' && !!onCellPointerDown;
   const cells = [];
   for (let i = 0; i < SLOTS; i += 1) {
     const filled = mode === 'active' && isSlotInAnyShift(i, crew.shifts, gridStartHour);
     const isSat = i >= satStart;
+    const inPreview = dragRange && i >= dragRange.lo && i <= dragRange.hi;
     const cls = ['rota-c'];
     if (filled) cls.push('f');
     else if (isSat) cls.push('sat');
     if (cellEditable) cls.push('rota-c-edit');
+    if (inPreview) cls.push(dragRange.invalid ? 'rota-c-drag-bad' : 'rota-c-drag');
     cells.push(
       <div
         key={i}
         className={cls.join(' ')}
-        onClick={cellEditable ? () => onCellClick(crew, i) : undefined}
         role={cellEditable ? 'button' : undefined}
         tabIndex={cellEditable ? 0 : undefined}
-        aria-label={cellEditable ? `Toggle slot ${i} for ${crew.name}` : undefined}
+        aria-label={cellEditable ? `Slot ${i} for ${crew.name}` : undefined}
+        onPointerDown={cellEditable ? (e) => {
+          e.preventDefault();
+          // Release implicit pointer capture so pointerenter fires on
+          // sibling cells during a TOUCH drag (else mobile can't paint).
+          try {
+            if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+              e.currentTarget.releasePointerCapture(e.pointerId);
+            }
+          } catch { /* no-op */ }
+          onCellPointerDown(crew, i, filled);
+        } : undefined}
+        onPointerEnter={cellEditable ? () => onCellPointerEnter(crew, i) : undefined}
         onKeyDown={cellEditable ? (e) => {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCellClick(crew, i); }
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCellKey(crew, i); }
         } : undefined}
       />,
     );
@@ -244,7 +257,8 @@ const DEPT_BADGE_LABEL = {
 
 function DepartmentSection({
   deptName, crew, gridStartHour, onCrewClick,
-  editMode = false, onCellClick, deptStatusRow,
+  editMode = false, deptStatusRow,
+  onCellPointerDown, onCellPointerEnter, onCellKey, drag,
 }) {
   const color = crew[0]?.departmentColor || '#5F5E5A';
   const badge = deptStatusRow?.status
@@ -274,7 +288,12 @@ function DepartmentSection({
             onCrewClick={onCrewClick}
             mode={renderStateOf(c)}
             editMode={editMode}
-            onCellClick={onCellClick}
+            onCellPointerDown={onCellPointerDown}
+            onCellPointerEnter={onCellPointerEnter}
+            onCellKey={onCellKey}
+            dragRange={drag && drag.crewId === c.id
+              ? { lo: Math.min(drag.start, drag.cur), hi: Math.max(drag.start, drag.cur), invalid: drag.invalid }
+              : null}
           />
         ))}
       </div>
@@ -343,9 +362,66 @@ function orderDepartments(byDept, crew, tenantRole, ownDeptId) {
 
 export default function RotaTodayGrid({
   crew = [], now = new Date(), onCrewClick, gridStartHour = 6,
-  editMode = false, onCellClick, deptStatus,
+  editMode = false, onCellClick, onCommitRange, deptStatus,
 }) {
   const { user, tenantRole } = useAuth();
+
+  // ── Drag-paint (Issue 2) ──────────────────────────────────────────────────
+  // Pointer down → begin; pointer enter cells in the SAME row → extend
+  // preview; pointer up inside the grid → commit ONE shift across the
+  // range; pointer leaving the grid → cancel. Single down+up (no move) on
+  // an empty cell falls through to the existing single-cell path
+  // (onCellClick), so click behaviour is unchanged.
+  const [drag, setDragState] = useState(null);
+  const dragRef = useRef(null);
+  const setDrag = useCallback((v) => {
+    dragRef.current = typeof v === 'function' ? v(dragRef.current) : v;
+    setDragState(dragRef.current);
+  }, []);
+
+  const rangeHasFilled = useCallback((cm, lo, hi) => {
+    for (let i = lo; i <= hi; i += 1) {
+      if (isSlotInAnyShift(i, cm.shifts, gridStartHour)) return true;
+    }
+    return false;
+  }, [gridStartHour]);
+
+  const beginDrag = useCallback((cm, i, filled) => {
+    setDrag({ crewId: cm.id, crew: cm, start: i, cur: i, startFilled: filled, invalid: false });
+  }, [setDrag]);
+
+  const extendDrag = useCallback((cm, i) => {
+    const d = dragRef.current;
+    if (!d || d.crewId !== cm.id) return;                // row-independent; no-op when idle
+    const lo = Math.min(d.start, i);
+    const hi = Math.max(d.start, i);
+    const moved = i !== d.start;
+    const invalid = d.startFilled ? moved : (moved && rangeHasFilled(cm, lo, hi));
+    setDrag({ ...d, cur: i, invalid });
+  }, [setDrag, rangeHasFilled]);
+
+  const endDrag = useCallback(() => {
+    const d = dragRef.current;
+    if (!d) return;
+    setDrag(null);
+    const moved = d.start !== d.cur;
+    const lo = Math.min(d.start, d.cur);
+    const hi = Math.max(d.start, d.cur);
+    if (d.startFilled) {
+      // Click on an existing shift → editor/toggle path; drag from it → cancel.
+      if (!moved) onCellClick?.(d.crew, d.start);
+      return;
+    }
+    if (rangeHasFilled(d.crew, lo, hi)) return;          // dragged over a shift → cancel
+    if (!moved) { onCellClick?.(d.crew, d.start); return; } // single click unchanged
+    onCommitRange?.(d.crew, lo, hi);                     // one continuous shift
+  }, [setDrag, rangeHasFilled, onCellClick, onCommitRange]);
+
+  const cancelDrag = useCallback(() => {
+    if (dragRef.current) setDrag(null);
+  }, [setDrag]);
+
+  const onCellKey = useCallback((cm, i) => { onCellClick?.(cm, i); }, [onCellClick]);
   const currentSlot = nowSlot(now, gridStartHour);
   const currentHour = now.getHours();
 
@@ -389,7 +465,13 @@ export default function RotaTodayGrid({
 
   return (
     <div className="rota-grid-wrap">
-      <div className="rota-grid-inner" style={innerStyle}>
+      <div
+        className="rota-grid-inner"
+        style={innerStyle}
+        onPointerUp={editMode ? endDrag : undefined}
+        onPointerLeave={editMode ? cancelDrag : undefined}
+        onPointerCancel={editMode ? cancelDrag : undefined}
+      >
         <HourHeader gridStartHour={gridStartHour} currentHour={currentHour} />
         {orderedDepts.map(dept => {
           const deptCrew = byDept.get(dept);
@@ -402,7 +484,10 @@ export default function RotaTodayGrid({
               gridStartHour={gridStartHour}
               onCrewClick={onCrewClick}
               editMode={editMode}
-              onCellClick={onCellClick}
+              onCellPointerDown={beginDrag}
+              onCellPointerEnter={extendDrag}
+              onCellKey={onCellKey}
+              drag={drag}
               deptStatusRow={deptId && deptStatus ? deptStatus.get(deptId) : null}
             />
           );
