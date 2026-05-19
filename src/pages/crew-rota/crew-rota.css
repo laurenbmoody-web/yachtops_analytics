@@ -911,11 +911,29 @@
   gap: 5px;
 }
 
-/* Editable cells: pointer + terracotta hover ring. */
-.rota-c-edit { cursor: pointer; }
+/* Editable cells: pointer + terracotta hover ring. touch-action:none so
+   touch-drag paints instead of scrolling; user-select:none stops text
+   selection while dragging across cells. */
+.rota-c-edit {
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
 .rota-c-edit:hover {
   outline: 1.5px solid #C65A1A;
   outline-offset: -1.5px;
+}
+
+/* Drag-paint preview (before pointer release). */
+.rota-c-drag {
+  background: #C65A1A !important;
+  opacity: 0.55;
+}
+.rota-c-drag-bad {
+  background: #E7C6BC !important;
+  outline: 1px solid #C65A1A;
+  outline-offset: -1px;
 }
 
 /* Per-department state badge (small caps, above the dept's rows). */

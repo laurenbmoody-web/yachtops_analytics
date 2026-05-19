@@ -273,6 +273,30 @@ export default function CrewRotaPage() {
     await syncDeptDraft(crewMember);
   }, [rota, effectiveDate, myMemberId, upsertCellShift, removeShift, syncDeptDraft, showToast]);
 
+  // Drag-paint commit: ONE continuous draft shift over slots [lo, hi].
+  const handleCommitRange = useCallback(async (crewMember, loSlot, hiSlot) => {
+    if (!rota?.id) { showToast('No active rota resolved — cannot edit yet.'); return; }
+    const startDec = GRID_START_HOUR + loSlot * 0.5;
+    let endDec = GRID_START_HOUR + (hiSlot + 1) * 0.5;
+    if (startDec >= 24) {
+      showToast('Editing the post-midnight window ships in a later phase.');
+      return;
+    }
+    if (endDec > 24) endDec = 24; // clamp to the 06:00 next-day boundary
+    const res = await upsertCellShift({
+      rotaId: rota.id,
+      memberId: crewMember.id,
+      shiftDate: effectiveDate,
+      startTime: decToHHMM(startDec),
+      endTime: decToHHMM(endDec),
+      shiftType: 'duty',
+      tripId: rota.ownerType === 'trip' ? rota.tripId : null,
+      createdByMemberId: myMemberId,
+    });
+    if (!res.ok) { showToast(`Couldn’t save shift: ${res.error}`); return; }
+    await syncDeptDraft(crewMember);
+  }, [rota, effectiveDate, myMemberId, upsertCellShift, syncDeptDraft, showToast]);
+
   const handleEditorSave = useCallback(async (shift, patch) => {
     const r = await updateShift(shift.id, patch);
     if (!r.ok) { showToast(`Couldn’t save: ${r.error}`); return; }
@@ -380,6 +404,7 @@ export default function CrewRotaPage() {
                 onCrewClick={setSelectedCrew}
                 editMode={editMode}
                 onCellClick={handleCellClick}
+                onCommitRange={handleCommitRange}
                 deptStatus={statusByDept}
               />
             ) : (
