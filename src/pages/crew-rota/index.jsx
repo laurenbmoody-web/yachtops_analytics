@@ -15,7 +15,16 @@ import { useRotaDepartmentStatus } from './useRotaDepartmentStatus';
 
 const EDITORIAL_BG = '#F5F1EA';
 const GRID_START_HOUR = 6;
-const SHIFT_TYPES = ['duty', 'watch', 'standby', 'training', 'off', 'medical'];
+const SHIFT_TYPE_PILLS = [
+  ['duty', 'Duty'], ['watch', 'Watch'], ['standby', 'Standby'],
+  ['training', 'Training'], ['off', 'Off'], ['medical', 'Medical'],
+];
+// Sub-type defaults applied to newly-created shifts.
+function subTypeFor(type) {
+  if (type === 'watch') return 'navigation';
+  if (type === 'standby') return 'maintenance';
+  return null;
+}
 
 function fullDateLabel(d) {
   const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -35,10 +44,9 @@ function decToHHMM(dec) {
   const m = Math.round((d - h) * 60);
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
-function hhmm(t) { return t ? String(t).slice(0, 5) : ''; }
-
-// Decimal [start,end) of a raw shift row, overnight-aware (mirrors deriveCrew).
-function shiftSlotRange(s) {
+// Unclamped, overnight-aware decimal + slot span of a raw shift row
+// (mirrors deriveCrew). Used for hole-punch start/middle/end math.
+function shiftDecRange(s) {
   const toDec = (t) => {
     if (!t) return null;
     const [h, m] = String(t).split(':').map(Number);
@@ -46,11 +54,14 @@ function shiftSlotRange(s) {
   };
   let st = toDec(s.startTime);
   let en = toDec(s.endTime);
-  if (en != null && st != null && en <= st) en += 24;
   if (st == null || en == null) return null;
-  const sSlot = Math.max(0, Math.round((st - GRID_START_HOUR) * 2));
-  const eSlot = Math.min(48, Math.round((en - GRID_START_HOUR) * 2));
-  return [sSlot, eSlot];
+  if (en <= st) en += 24;
+  return {
+    startDec: st,
+    endDec: en,
+    sSlot: Math.round((st - GRID_START_HOUR) * 2),
+    eSlot: Math.round((en - GRID_START_HOUR) * 2), // exclusive
+  };
 }
 
 function RotaLegend({ now }) {
@@ -122,47 +133,6 @@ function EditFooterCTA({ tier, draftCount, onStub }) {
   );
 }
 
-// Compact inline shift editor (Phase 1: time + type). Opened by clicking an
-// existing shift block in edit mode.
-function ShiftInlineEditor({ crew, shift, onSave, onDelete, onClose }) {
-  const [start, setStart] = useState(hhmm(shift.startTime));
-  const [end, setEnd] = useState(hhmm(shift.endTime));
-  const [type, setType] = useState(shift.shiftType || 'duty');
-  return (
-    <>
-      <div className="rest-popover-backdrop" onClick={onClose} />
-      <div className="rota-edit-pop" role="dialog" aria-label={`Edit shift for ${crew.name}`}>
-        <div className="rota-edit-pop-title">{crew.name}</div>
-        <div className="rota-edit-pop-sub">Editing a draft shift</div>
-        <div className="rota-edit-pop-row">
-          <label>Start
-            <input type="time" step="1800" value={start}
-              onChange={(e) => setStart(e.target.value)} />
-          </label>
-          <label>End
-            <input type="time" step="1800" value={end}
-              onChange={(e) => setEnd(e.target.value)} />
-          </label>
-        </div>
-        <label className="rota-edit-pop-type">Type
-          <select value={type} onChange={(e) => setType(e.target.value)}>
-            {SHIFT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </label>
-        <div className="rota-edit-pop-actions">
-          <button type="button" className="v2-btn-ghost" onClick={onClose}>Cancel</button>
-          <button type="button" className="v2-btn-ghost rota-edit-del"
-            onClick={() => onDelete(shift)}>Delete</button>
-          <button type="button" className="v2-btn-filled"
-            onClick={() => onSave(shift, {
-              start_time: start, end_time: end, shift_type: type,
-            })}>Save draft</button>
-        </div>
-      </div>
-    </>
-  );
-}
-
 export default function CrewRotaPage() {
   const navigate = useNavigate();
   const now = new Date();
@@ -170,7 +140,7 @@ export default function CrewRotaPage() {
   const [view, setView] = useState('grid');      // 'grid' | 'list'
   const [selectedCrew, setSelectedCrew] = useState(null);
   const [editMode, setEditMode] = useState(false);
-  const [editor, setEditor] = useState(null);    // { crew, shift } | null
+  const [shiftType, setShiftType] = useState('duty'); // active type for new shifts
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
 
@@ -192,7 +162,7 @@ export default function CrewRotaPage() {
 
   const {
     crew, loading, error, effectiveDate, draftCount,
-    upsertCellShift, removeShift, updateShift,
+    upsertCellShift, removeShift, updateShift, splitShift,
   } = useRotaShifts();
   const { rota } = useCurrentRota();
   const { statusByDept, ensureDraft } = useRotaDepartmentStatus(rota?.id);
@@ -228,50 +198,83 @@ export default function CrewRotaPage() {
     }
   }, [ensureDraft, rota, activeTenantId, showToast]);
 
-  // Cell click in edit mode: toggle a 30-min draft duty cell, or open the
-  // inline editor when the slot is inside a larger existing shift.
+  // Cell click in edit mode. On an existing shift → punch a hole
+  // (shrink start/end, split the middle, or delete a single cell). On an
+  // empty cell → create a 30-min draft shift of the active type.
   const handleCellClick = useCallback(async (crewMember, slotIdx) => {
     if (!rota?.id) { showToast('No active rota resolved — cannot edit yet.'); return; }
-    const { startDec, endDec } = slotDecimals(slotIdx);
+    const { startDec } = slotDecimals(slotIdx);
     if (startDec >= 24) {
       // Post-midnight (Saturday) slots need next-day handling — Phase 1
       // edits the pre-midnight window only (documented limitation).
       showToast('Editing the post-midnight window ships in a later phase.');
       return;
     }
-    const cellStart = decToHHMM(startDec);
-    const cellEnd = decToHHMM(endDec);
     const raws = crewMember.rawShifts || [];
 
-    const exact = raws.find(s => hhmm(s.startTime) === cellStart && hhmm(s.endTime) === cellEnd);
-    if (exact) {
-      const r = await removeShift(exact.id);
-      if (!r.ok) { showToast(`Couldn’t remove shift: ${r.error}`); return; }
+    // Covering shift for this slot (overnight-aware, any type).
+    let cover = null;
+    for (const s of raws) {
+      const r = shiftDecRange(s);
+      if (r && slotIdx >= r.sSlot && slotIdx < r.eSlot) { cover = { s, ...r }; break; }
+    }
+
+    if (cover) {
+      const { s, sSlot, eSlot, startDec: shStart, endDec: shEnd } = cover;
+      let r;
+      if (eSlot - sSlot <= 1) {
+        // Only cell → delete the whole shift.
+        r = await removeShift(s.id);
+      } else if (slotIdx === sSlot) {
+        // Start cell → shrink start by 30 min.
+        r = await updateShift(s.id, { start_time: decToHHMM(shStart + 0.5) });
+      } else if (slotIdx === eSlot - 1) {
+        // End cell → shrink end by 30 min.
+        r = await updateShift(s.id, { end_time: decToHHMM(shEnd - 0.5) });
+      } else {
+        // Middle cell → delete + recreate the two surviving pieces.
+        // Punches exactly the clicked 30-min cell (consistent with the
+        // start/end rules; see report re: the spec's middle example).
+        const leftEndDec = GRID_START_HOUR + slotIdx * 0.5;
+        const rightStartDec = GRID_START_HOUR + (slotIdx + 1) * 0.5;
+        r = await splitShift({
+          shiftId: s.id,
+          meta: {
+            rotaId: rota.id,
+            memberId: crewMember.id,
+            shiftDate: effectiveDate,
+            shiftType: s.shiftType || 'duty',
+            subType: s.subType ?? null,
+            tripId: rota.ownerType === 'trip' ? rota.tripId : null,
+            createdByMemberId: myMemberId,
+          },
+          pieces: [
+            { startTime: decToHHMM(shStart), endTime: decToHHMM(leftEndDec) },
+            { startTime: decToHHMM(rightStartDec), endTime: decToHHMM(shEnd) },
+          ],
+        });
+      }
+      if (!r.ok) { showToast(`Couldn’t edit shift: ${r.error}`); return; }
       await syncDeptDraft(crewMember);
       return;
     }
 
-    // Inside a larger shift → open the inline editor instead of fragmenting.
-    const covering = raws.find(s => {
-      const range = shiftSlotRange(s);
-      return range && slotIdx >= range[0] && slotIdx < range[1];
-    });
-    if (covering) { setEditor({ crew: crewMember, shift: covering }); return; }
-
-    // Empty slot → create a 30-min draft duty, then sync dept state.
+    // Empty cell → create a 30-min draft of the active type.
     const res = await upsertCellShift({
       rotaId: rota.id,
       memberId: crewMember.id,
       shiftDate: effectiveDate,
-      startTime: cellStart,
-      endTime: cellEnd,
-      shiftType: 'duty',
+      startTime: decToHHMM(startDec),
+      endTime: decToHHMM(startDec + 0.5),
+      shiftType,
+      subType: subTypeFor(shiftType),
       tripId: rota.ownerType === 'trip' ? rota.tripId : null,
       createdByMemberId: myMemberId,
     });
     if (!res.ok) { showToast(`Couldn’t save shift: ${res.error}`); return; }
     await syncDeptDraft(crewMember);
-  }, [rota, effectiveDate, myMemberId, upsertCellShift, removeShift, syncDeptDraft, showToast]);
+  }, [rota, effectiveDate, myMemberId, shiftType, upsertCellShift, removeShift,
+      updateShift, splitShift, syncDeptDraft, showToast]);
 
   // Drag-paint commit: ONE continuous draft shift over slots [lo, hi].
   const handleCommitRange = useCallback(async (crewMember, loSlot, hiSlot) => {
@@ -289,27 +292,14 @@ export default function CrewRotaPage() {
       shiftDate: effectiveDate,
       startTime: decToHHMM(startDec),
       endTime: decToHHMM(endDec),
-      shiftType: 'duty',
+      shiftType,
+      subType: subTypeFor(shiftType),
       tripId: rota.ownerType === 'trip' ? rota.tripId : null,
       createdByMemberId: myMemberId,
     });
     if (!res.ok) { showToast(`Couldn’t save shift: ${res.error}`); return; }
     await syncDeptDraft(crewMember);
-  }, [rota, effectiveDate, myMemberId, upsertCellShift, syncDeptDraft, showToast]);
-
-  const handleEditorSave = useCallback(async (shift, patch) => {
-    const r = await updateShift(shift.id, patch);
-    if (!r.ok) { showToast(`Couldn’t save: ${r.error}`); return; }
-    if (editor?.crew) await syncDeptDraft(editor.crew);
-    setEditor(null);
-  }, [updateShift, syncDeptDraft, editor, showToast]);
-
-  const handleEditorDelete = useCallback(async (shift) => {
-    const r = await removeShift(shift.id);
-    if (!r.ok) { showToast(`Couldn’t delete: ${r.error}`); return; }
-    if (editor?.crew) await syncDeptDraft(editor.crew);
-    setEditor(null);
-  }, [removeShift, syncDeptDraft, editor, showToast]);
+  }, [rota, effectiveDate, myMemberId, shiftType, upsertCellShift, syncDeptDraft, showToast]);
 
   const canEdit = !!rota?.id && !loading && !error;
 
@@ -366,7 +356,7 @@ export default function CrewRotaPage() {
                 <button
                   type="button"
                   className="crew-rota-pill active edit-pill"
-                  onClick={() => { setEditMode(false); setEditor(null); }}
+                  onClick={() => setEditMode(false)}
                 >Done</button>
               ) : (
                 <button
@@ -379,6 +369,22 @@ export default function CrewRotaPage() {
               )}
             </div>
           </div>
+
+          {editMode && view === 'grid' && (
+            <div className="crew-rota-typebar" role="radiogroup" aria-label="Shift type">
+              <span className="crew-rota-typebar-label">New shift</span>
+              {SHIFT_TYPE_PILLS.map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="radio"
+                  aria-checked={shiftType === key}
+                  className={`crew-rota-pill${shiftType === key ? ' active' : ''}`}
+                  onClick={() => setShiftType(key)}
+                >{label}</button>
+              ))}
+            </div>
+          )}
 
           <div className="crew-rota-card-body">
             {loading ? (
@@ -436,16 +442,6 @@ export default function CrewRotaPage() {
             )}
           </div>
         </div>
-
-        {editor && (
-          <ShiftInlineEditor
-            crew={editor.crew}
-            shift={editor.shift}
-            onSave={handleEditorSave}
-            onDelete={handleEditorDelete}
-            onClose={() => setEditor(null)}
-          />
-        )}
 
         {toast && <div className="crew-rota-toast" role="status">{toast}</div>}
 
