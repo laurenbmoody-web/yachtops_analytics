@@ -1,3 +1,15 @@
+// ⚠️ DEPRECATED — Sprint 9c.3 Phase 9 (legacy decommission).
+//
+// Superseded by SuppliersDirectoryPage
+// (src/pages/provisioning/suppliers/SuppliersDirectoryPage.jsx), which
+// is the only component wired to the /provisioning/suppliers route.
+// This file has ZERO imports anywhere in the codebase and is retained
+// only for reference / rollback safety. Do not import or extend it.
+//
+// Backing data (provisioning_suppliers table, provisioning_lists
+// .supplier_id / .port_location / .order_by_date) is intentionally NOT
+// dropped — that is a separate, later sprint.
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';

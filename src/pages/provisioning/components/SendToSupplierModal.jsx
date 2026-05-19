@@ -604,7 +604,7 @@ const SendToSupplierModal = ({
 
             <button onClick={onClose} disabled={!!sendingKey || sendingAll}
               className="w-full mt-4 pt-3 text-[13px] italic"
-              style={{ color: FAINT, borderTop: `1px solid ${HAIRLINE}` }}>
+              style={{ color: INK, borderTop: `1px solid ${HAIRLINE}` }}>
               Close — I’ll send the rest later
             </button>
           </>
