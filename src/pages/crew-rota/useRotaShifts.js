@@ -14,7 +14,7 @@
 // runtime clock, so when today has no rows we fall back to the most
 // recent shift_date that does — the grid is never silently empty.
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -136,6 +136,9 @@ export function deriveCrew(member, memberShifts, weekShifts, now = new Date()) {
     medicalToday,
     activeOnShift,
     currentStatus: null,
+    // Raw effective-day rota_shifts rows for this member (edit mode needs
+    // ids + status to toggle/patch cells). Read-mode components ignore it.
+    rawShifts: memberShifts,
     // Derived UI fields (shape-compatible with the old MOCK_CREW)
     shifts: shiftRanges,
     shiftText,
@@ -163,23 +166,26 @@ export function useRotaShifts() {
   const [effectiveDate, setEffectiveDate] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [draftCount, setDraftCount] = useState(0);
 
-  useEffect(() => {
-    let cancelled = false;
-    console.log('[useRotaShifts] effect, tenantId:', tenantId, 'hasUser:', !!user);
+  // Extracted so mutations can await a refresh. Race note: rapid
+  // successive loads are last-write-wins into state, acceptable for
+  // Phase 1 (matches the spec's last-write-wins concurrency stance).
+  const load = useCallback(async () => {
     // Gate on user too — querying before the session hydrates would
     // send an anon request that RLS ({authenticated}) returns empty.
     if (!user || !tenantId) {
       console.log('[useRotaShifts] BAILING — no user/tenantId');
       setLoading(false);
-      return undefined;
+      return;
     }
 
     console.log('[useRotaShifts] fetching, tenantId:', tenantId);
     setLoading(true);
     setError(null);
 
-    (async () => {
+    {
+      const cancelled = false;
       try {
         // 1 — crew: active tenant_members + plain table-name embeds.
         // PostgREST resolves the embed by table name when there's a
@@ -255,7 +261,7 @@ export function useRotaShifts() {
 
         const { data: shiftRows, error: sErr, status: sStatus, statusText: sStatusText } = await supabase
           .from('rota_shifts')
-          .select('id, member_id, shift_date, start_time, end_time, shift_type, sub_type, notes')
+          .select('id, member_id, shift_date, start_time, end_time, shift_type, sub_type, notes, status')
           .eq('tenant_id', tenantId)
           .gte('shift_date', windowStartStr)
           .lte('shift_date', effDate);
@@ -281,6 +287,7 @@ export function useRotaShifts() {
           shiftType: s.shift_type,
           subType: s.sub_type,
           notes: s.notes,
+          status: s.status,
         }));
 
         const dayShifts = mappedShifts.filter(s => s.date === effDate);
@@ -324,15 +331,73 @@ export function useRotaShifts() {
         setCrew(derived);
         setShifts(dayShifts);
         setEffectiveDate(effDate);
+        setDraftCount(dayShifts.filter(s => s.status === 'draft').length);
       } catch (e) {
         if (!cancelled) setError(e?.message ?? String(e));
       } finally {
         if (!cancelled) setLoading(false);
       }
-    })();
-
-    return () => { cancelled = true; };
+    }
   }, [user, tenantId]);
 
-  return { crew, shifts, effectiveDate, loading, error };
+  useEffect(() => { load(); }, [load]);
+
+  // ── Mutations (Phase 1 auto-save) ──────────────────────────────────────────
+  // Each write tags status='draft' and rota_id (NOT NULL, no default — see
+  // migration 20260518000003_alter_rota_shifts_add_rota_id.sql) and refetches
+  // on success. The caller (CrewRotaPage) orchestrates the companion
+  // rota_department_status ensureDraft. Mutations never throw — they return
+  // { ok, error? } so the auto-save flow can surface a toast.
+
+  const upsertCellShift = useCallback(async ({
+    rotaId, memberId, shiftDate, startTime, endTime,
+    shiftType = 'duty', subType = null, tripId = null, createdByMemberId = null,
+  }) => {
+    if (!tenantId || !rotaId || !memberId || !shiftDate) {
+      return { ok: false, error: 'missing-context' };
+    }
+    const row = {
+      tenant_id: tenantId,
+      rota_id: rotaId,
+      member_id: memberId,
+      shift_date: shiftDate,
+      start_time: startTime,
+      end_time: endTime,
+      shift_type: shiftType,
+      sub_type: subType,
+      status: 'draft',
+    };
+    if (tripId) row.trip_id = tripId;
+    if (createdByMemberId) row.created_by = createdByMemberId;
+    const { data, error: insErr } = await supabase
+      .from('rota_shifts').insert(row).select('id').maybeSingle();
+    if (insErr) return { ok: false, error: insErr.message };
+    await load();
+    return { ok: true, id: data?.id };
+  }, [tenantId, load]);
+
+  const removeShift = useCallback(async (shiftId) => {
+    if (!shiftId) return { ok: false, error: 'no-id' };
+    const { error: delErr } = await supabase
+      .from('rota_shifts').delete().eq('id', shiftId);
+    if (delErr) return { ok: false, error: delErr.message };
+    await load();
+    return { ok: true };
+  }, [load]);
+
+  const updateShift = useCallback(async (shiftId, patch) => {
+    if (!shiftId) return { ok: false, error: 'no-id' };
+    const { error: updErr } = await supabase
+      .from('rota_shifts')
+      .update({ ...patch, status: 'draft' })
+      .eq('id', shiftId);
+    if (updErr) return { ok: false, error: updErr.message };
+    await load();
+    return { ok: true };
+  }, [load]);
+
+  return {
+    crew, shifts, effectiveDate, loading, error, draftCount,
+    refetch: load, upsertCellShift, removeShift, updateShift,
+  };
 }
