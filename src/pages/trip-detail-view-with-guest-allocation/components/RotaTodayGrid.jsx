@@ -144,8 +144,14 @@ function RestLine({ crew, mode, statusLabel }) {
 // ── Crew row ────────────────────────────────────────────────────────────────
 
 // mode: 'active' | 'off' | 'medical' (on-vessel) | 'offvessel'
-function CrewRow({ crew, gridStartHour, onCrewClick, mode = 'active', statusLabel }) {
+function CrewRow({
+  crew, gridStartHour, onCrewClick, mode = 'active', statusLabel,
+  editMode = false, onCellClick,
+}) {
   const satStart = saturdayFirstSlot(gridStartHour);
+  // Phase 1: cell editing is enabled for on-vessel department rows only
+  // (off-vessel crew have no department-today context — see report).
+  const cellEditable = editMode && mode !== 'offvessel' && !!onCellClick;
   const cells = [];
   for (let i = 0; i < SLOTS; i += 1) {
     const filled = mode === 'active' && isSlotInAnyShift(i, crew.shifts, gridStartHour);
@@ -153,7 +159,20 @@ function CrewRow({ crew, gridStartHour, onCrewClick, mode = 'active', statusLabe
     const cls = ['rota-c'];
     if (filled) cls.push('f');
     else if (isSat) cls.push('sat');
-    cells.push(<div key={i} className={cls.join(' ')} />);
+    if (cellEditable) cls.push('rota-c-edit');
+    cells.push(
+      <div
+        key={i}
+        className={cls.join(' ')}
+        onClick={cellEditable ? () => onCellClick(crew, i) : undefined}
+        role={cellEditable ? 'button' : undefined}
+        tabIndex={cellEditable ? 0 : undefined}
+        aria-label={cellEditable ? `Toggle slot ${i} for ${crew.name}` : undefined}
+        onKeyDown={cellEditable ? (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCellClick(crew, i); }
+        } : undefined}
+      />,
+    );
   }
 
   const isWarning = mode === 'active' && crew.mlcWarning;
@@ -217,19 +236,36 @@ function TotalsRow({ crew, gridStartHour }) {
 // departmentColor; text colour auto-contrasts. The strip replaces the
 // old eyebrow row AND the Phase-2 per-cell left border.
 
-function DepartmentSection({ deptName, crew, gridStartHour, onCrewClick }) {
+const DEPT_BADGE_LABEL = {
+  draft: 'Draft',
+  pending_approval: 'Pending',
+  published: 'Published',
+};
+
+function DepartmentSection({
+  deptName, crew, gridStartHour, onCrewClick,
+  editMode = false, onCellClick, deptStatusRow,
+}) {
   const color = crew[0]?.departmentColor || '#5F5E5A';
+  const badge = deptStatusRow?.status
+    ? (DEPT_BADGE_LABEL[deptStatusRow.status] || deptStatusRow.status)
+    : null;
   return (
     <div className="rota-dept-group">
       <div
         className="rota-dept-strip"
         style={{ background: color, color: getContrastText(color) }}
         role="rowheader"
-        aria-label={`${deptName} department`}
+        aria-label={`${deptName} department${badge ? ` — ${badge}` : ''}`}
       >
         <span className="rota-dept-strip-text">{deptName}</span>
       </div>
       <div className="rota-dept-rows">
+        {badge && (
+          <div className={`rota-dept-badge st-${deptStatusRow.status}`}>
+            {badge}
+          </div>
+        )}
         {crew.map(c => (
           <CrewRow
             key={c.id}
@@ -237,6 +273,8 @@ function DepartmentSection({ deptName, crew, gridStartHour, onCrewClick }) {
             gridStartHour={gridStartHour}
             onCrewClick={onCrewClick}
             mode={renderStateOf(c)}
+            editMode={editMode}
+            onCellClick={onCellClick}
           />
         ))}
       </div>
@@ -303,7 +341,10 @@ function orderDepartments(byDept, crew, tenantRole, ownDeptId) {
   return [ownDeptName, ...rest];
 }
 
-export default function RotaTodayGrid({ crew = [], now = new Date(), onCrewClick, gridStartHour = 6 }) {
+export default function RotaTodayGrid({
+  crew = [], now = new Date(), onCrewClick, gridStartHour = 6,
+  editMode = false, onCellClick, deptStatus,
+}) {
   const { user, tenantRole } = useAuth();
   const currentSlot = nowSlot(now, gridStartHour);
   const currentHour = now.getHours();
@@ -350,15 +391,22 @@ export default function RotaTodayGrid({ crew = [], now = new Date(), onCrewClick
     <div className="rota-grid-wrap">
       <div className="rota-grid-inner" style={innerStyle}>
         <HourHeader gridStartHour={gridStartHour} currentHour={currentHour} />
-        {orderedDepts.map(dept => (
-          <DepartmentSection
-            key={dept}
-            deptName={dept}
-            crew={byDept.get(dept)}
-            gridStartHour={gridStartHour}
-            onCrewClick={onCrewClick}
-          />
-        ))}
+        {orderedDepts.map(dept => {
+          const deptCrew = byDept.get(dept);
+          const deptId = deptCrew[0]?.departmentId || null;
+          return (
+            <DepartmentSection
+              key={dept}
+              deptName={dept}
+              crew={deptCrew}
+              gridStartHour={gridStartHour}
+              onCrewClick={onCrewClick}
+              editMode={editMode}
+              onCellClick={onCellClick}
+              deptStatusRow={deptId && deptStatus ? deptStatus.get(deptId) : null}
+            />
+          );
+        })}
         <OffVesselSection
           crew={offVessel}
           gridStartHour={gridStartHour}

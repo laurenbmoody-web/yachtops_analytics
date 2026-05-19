@@ -896,3 +896,131 @@
   pointer-events: none;
   opacity: 0.5;
 }
+
+/* ============================================================
+   Phase 1 — rota edit mode
+   ============================================================ */
+
+/* Edit-state card accent: left border terracotta (border-top stays). */
+.crew-rota-card.is-editing { border-left: 2px solid #C65A1A; }
+
+/* Edit / Done pill — pencil icon alignment. */
+.crew-rota-pill.edit-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Editable cells: pointer + terracotta hover ring. */
+.rota-c-edit { cursor: pointer; }
+.rota-c-edit:hover {
+  outline: 1.5px solid #C65A1A;
+  outline-offset: -1.5px;
+}
+
+/* Per-department state badge (small caps, above the dept's rows). */
+.rota-dept-badge {
+  display: inline-block;
+  margin: 2px 0 4px 12px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  position: sticky;
+  left: 22px;
+  z-index: 4;
+  width: max-content;
+}
+.rota-dept-badge.st-draft            { background: #FAECE7; color: #7A2E1E; }
+.rota-dept-badge.st-pending_approval { background: #FBEFD2; color: #8A6D1A; }
+.rota-dept-badge.st-published        { background: #E8F1E9; color: #2D5A3A; }
+
+/* Footer CTA group (edit mode). */
+.crew-rota-cta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  justify-content: flex-end;
+}
+
+/* Inline shift editor (compact centred dialog; backdrop reuses
+   .rest-popover-backdrop). */
+.rota-edit-pop {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 320px;
+  max-width: calc(100% - 48px);
+  background: #FFFFFF;
+  border-top: 2px solid #C65A1A;
+  border-radius: 14px;
+  padding: 22px 24px;
+  z-index: 1000;
+  box-shadow: 0 24px 60px -12px rgba(28, 27, 58, 0.28);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: #1C1B3A;
+}
+.rota-edit-pop-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 20px;
+  line-height: 1.1;
+}
+.rota-edit-pop-sub {
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #8B8478;
+  margin: 4px 0 16px;
+}
+.rota-edit-pop-row { display: flex; gap: 12px; }
+.rota-edit-pop-row label,
+.rota-edit-pop-type {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #8B8478;
+  flex: 1;
+}
+.rota-edit-pop-type { margin-top: 12px; }
+.rota-edit-pop input,
+.rota-edit-pop select {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px;
+  color: #1C1B3A;
+  border: 0.5px solid #DFD8CC;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #FFFFFF;
+}
+.rota-edit-pop-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 20px;
+}
+.rota-edit-pop-actions .v2-btn-filled { margin-left: auto; }
+.rota-edit-del { color: #7A2E1E; }
+
+/* Transient toast (no notification integration in Phase 1). */
+.crew-rota-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  background: #1C1B3A;
+  color: #F5F1EA;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px;
+  z-index: 1200;
+  box-shadow: 0 12px 32px -10px rgba(28, 27, 58, 0.4);
+}
