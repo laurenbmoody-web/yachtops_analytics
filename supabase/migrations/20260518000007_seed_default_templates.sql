@@ -1,27 +1,32 @@
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 20260518000007_seed_default_templates.sql
 --
--- WHAT: Seeds the 21 default rota_shift_templates (2 vessel-scope + 19
+-- WHAT: Seeds the 20 default rota_shift_templates (1 vessel-scope + 19
 --       department-scope) for every tenant that currently has ZERO templates.
 --       department_id is resolved BY NAME against the global departments table
 --       (no hardcoded UUIDs). Department-scope rows are seeded only for
 --       departments the tenant actually uses (vessels.departments_in_use).
 --
--- RECOVERY MIGRATION: NO-OP ON PROD. All 5 live tenants already have exactly
---       21 templates each (B3-Q3), so the per-tenant NOT EXISTS guard inserts
---       zero rows. This file exists so a fresh environment reproduces the live
---       seed.
+-- RECOVERY MIGRATION: NO-OP ON PROD. All 5 live tenants already have these
+--       templates seeded; the per-tenant NOT EXISTS guard inserts zero rows.
+--       This file exists so a fresh environment reproduces the live seed.
+--
+-- 2026-05-20 UPDATE: removed the "Off" vessel-scope row from the catalog.
+--       "Off" was retired as a shift type — an empty cell now represents
+--       the off state. The companion migration
+--       20260520000002_remove_off_seed_template.sql clears the existing
+--       per-tenant rows from live. On a fresh apply, this seed now
+--       produces 20 templates per tenant (was 21).
 --
 -- IDEMPOTENCY: single INSERT…SELECT guarded by
 --       `NOT EXISTS (templates for this tenant)` — re-running never duplicates
 --       (a tenant with ≥1 template is skipped entirely).
 --
 -- AUDIT NOTES / QUIRKS — READ THIS:
---   * Catalog transcribed VERBATIM from B3-Q1 (test tenant). The set is
---     identical across all 5 live tenants (B3-Q3). `name` is NOT unique
---     ("Full day" exists in both Galley and Interior) — disambiguated by the
---     dept_name column in the VALUES list.
---   * is_default=true and created_by=NULL for all 21 (matches live).
+--   * Catalog transcribed VERBATIM from B3-Q1 (test tenant), minus "Off".
+--     `name` is NOT unique ("Full day" exists in both Galley and Interior) —
+--     disambiguated by the dept_name column in the VALUES list.
+--   * is_default=true and created_by=NULL for all 20 (matches live).
 --   * vessel_id is set to the tenant id (tenant↔vessel id reuse, same pattern
 --     as the standing-rota trigger).
 --   * DEPARTMENT-AWARE (locked decision): a department-scope template is
@@ -52,8 +57,7 @@ SELECT
   true
 FROM public.tenants t
 CROSS JOIN (VALUES
-  -- vessel-scope (always seeded)
-  ('Off',                  'simple', 'vessel',      NULL,          '{"shift_type":"off"}'),
+  -- vessel-scope (always seeded). "Off" was removed 2026-05-20 — see header.
   ('Training',             'simple', 'vessel',      NULL,          '{"shift_type":"training"}'),
   -- Bridge
   ('Bridge watch (day)',   'simple', 'department',  'Bridge',      '{"end_time":"18:00","sub_type":"navigation","shift_type":"watch","start_time":"06:00"}'),
