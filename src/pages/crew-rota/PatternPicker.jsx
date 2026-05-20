@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import { Star, X, Pencil } from 'lucide-react';
-import { useRotaTemplates } from './useRotaTemplates';
 
 // Cell colours from Phase 1 — the swatch on each simple-template row
 // mirrors what the shift would render as on the grid.
@@ -100,9 +99,10 @@ function TemplateRow({ template, onToggleStar, onEdit, onPick }) {
   );
 }
 
-export default function PatternPicker({ open, onClose, onEdit, onNew, onPick }) {
-  const { templates, loading, error, toggleStar } = useRotaTemplates();
-
+export default function PatternPicker({
+  open, onClose, onEdit, onNew, onPick,
+  templates = [], loading = false, error = null, toggleStar,
+}) {
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
