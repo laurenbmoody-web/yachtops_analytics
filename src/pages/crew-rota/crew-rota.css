@@ -1011,3 +1011,521 @@
   z-index: 1200;
   box-shadow: 0 12px 32px -10px rgba(28, 27, 58, 0.4);
 }
+
+/* Typebar separator between brush pills and the Templates button. */
+.crew-rota-typebar-sep {
+  display: inline-block;
+  width: 1px;
+  height: 18px;
+  background: #DFD8CC;
+  margin: 0 6px;
+}
+
+/* ============================================================
+   Phase 2 — Pattern picker modal
+   ============================================================ */
+
+/* Centered panel; reuses .rest-popover-backdrop for the blurred backdrop. */
+.tp-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 640px;
+  max-width: calc(100% - 48px);
+  max-height: calc(100vh - 64px);
+  background: #FFFFFF;
+  border-top: 2px solid #C65A1A;
+  border-radius: 16px;
+  z-index: 1000;
+  box-shadow: 0 24px 60px -12px rgba(28, 27, 58, 0.28),
+              0 8px 24px -8px rgba(28, 27, 58, 0.14);
+  display: flex;
+  flex-direction: column;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: #1C1B3A;
+}
+.tp-header {
+  padding: 22px 24px 18px;
+  border-bottom: 0.5px solid #ECE6DC;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.tp-eyebrow {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #8B8478;
+}
+.tp-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-weight: 500;
+  font-size: 26px;
+  line-height: 1.05;
+  margin: 4px 0 0;
+  color: #1C1B3A;
+}
+.tp-title em { color: #C65A1A; font-weight: 400; font-style: italic; }
+.tp-header-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.tp-close {
+  background: transparent;
+  border: 0.5px solid #DFD8CC;
+  border-radius: 999px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #695880;
+  margin-left: 4px;
+}
+.tp-close:hover { background: #FAFAF7; color: #1C1B3A; }
+
+.tp-body-scroll {
+  padding: 10px 12px 18px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+}
+.tp-state {
+  padding: 36px 12px;
+  text-align: center;
+  font-size: 12px;
+  font-style: italic;
+  color: #8B8478;
+}
+.tp-state-err { color: #7A2E1E; font-style: normal; }
+
+/* Row: star + body (clickable) + edit. */
+.tp-row {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 8px;
+  border-radius: 10px;
+}
+.tp-row:hover { background: #FAFAF7; }
+.tp-star,
+.tp-edit {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  width: 32px;
+  border-radius: 999px;
+  color: #695880;
+}
+.tp-star:hover,
+.tp-edit:hover { background: #ECE6DC; color: #1C1B3A; }
+/* Tactile pulse on click — confirms the toggle landed. The fill colour
+   change is driven by React state; this gives the click a tiny haptic. */
+.tp-star svg {
+  transition: transform 160ms cubic-bezier(0.2, 0.7, 0.2, 1),
+              fill 120ms ease;
+}
+.tp-star:active svg { transform: scale(1.25); }
+.tp-body {
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 6px;
+  min-width: 0;
+}
+.tp-emblem {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tp-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  display: inline-block;
+}
+.tp-rot-badge {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 12px;
+  color: #695880;
+  background: #FAECE7;
+  border: 0.5px solid #F5C9B8;
+  border-radius: 6px;
+  padding: 2px 6px;
+  line-height: 1;
+}
+.tp-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.tp-name {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 16px;
+  line-height: 1.1;
+  color: #1C1B3A;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tp-sub {
+  font-size: 10px;
+  color: #8B8478;
+  letter-spacing: 0.3px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.tp-dot { color: #C9C0AE; }
+.tp-kind {
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+  font-size: 9px;
+  color: #695880;
+}
+.tp-default {
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-weight: 600;
+  background: #ECE6DC;
+  color: #695880;
+  border-radius: 999px;
+  padding: 1px 7px;
+  margin-left: 4px;
+}
+
+/* ============================================================
+   Phase 2 — Template editors (simple + rotation, shared .te-* base)
+   ============================================================ */
+.te-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 520px;
+  max-width: calc(100% - 48px);
+  max-height: calc(100vh - 64px);
+  background: #FFFFFF;
+  border-top: 2px solid #C65A1A;
+  border-radius: 16px;
+  z-index: 1001;
+  box-shadow: 0 24px 60px -12px rgba(28, 27, 58, 0.28),
+              0 8px 24px -8px rgba(28, 27, 58, 0.14);
+  display: flex;
+  flex-direction: column;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: #1C1B3A;
+}
+.te-body {
+  padding: 16px 24px 4px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.te-field { display: flex; flex-direction: column; gap: 6px; }
+.te-field-label {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: #8B8478;
+}
+.te-input {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px;
+  color: #1C1B3A;
+  background: #FFFFFF;
+  border: 0.5px solid #DFD8CC;
+  border-radius: 8px;
+  padding: 9px 12px;
+  width: 100%;
+}
+.te-input:focus {
+  outline: none;
+  border-color: #C65A1A;
+  box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.12);
+}
+.te-input:disabled { background: #FAFAF7; color: #B4B2A9; }
+
+.te-dept-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 0.5px solid #ECE6DC;
+  border-radius: 10px;
+  padding: 6px;
+}
+.te-dept-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.te-dept-row:hover { background: #FAFAF7; }
+.te-dept-row.is-selected { background: #FAECE7; color: #7A2E1E; }
+.te-dept-row.is-locked {
+  color: #B4B2A9;
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.te-dept-row input[type='checkbox'] { accent-color: #C65A1A; }
+
+.te-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.te-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #1C1B3A;
+  cursor: pointer;
+}
+.te-toggle input[type='checkbox'] { accent-color: #C65A1A; }
+
+.te-times { flex-direction: row; gap: 12px; }
+.te-field-sub { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.te-times[aria-disabled='true'] .te-field-label { color: #C9C0AE; }
+
+.te-preview {
+  margin-top: 4px;
+  border: 0.5px dashed #DFD8CC;
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #FAFAF7;
+}
+.te-preview-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+}
+.te-preview-name {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 14px;
+  color: #1C1B3A;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.te-preview-time {
+  font-size: 11px;
+  color: #695880;
+  letter-spacing: 0.5px;
+}
+
+.te-footer {
+  padding: 14px 24px 18px;
+  border-top: 0.5px solid #ECE6DC;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.te-footer-actions { display: flex; gap: 8px; }
+.te-delete {
+  background: transparent;
+  border: none;
+  color: #7A2E1E;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+}
+.te-delete:hover { text-decoration: underline; }
+.te-delete:disabled { color: #C9C0AE; cursor: not-allowed; }
+
+/* ============================================================
+   Phase 2 sub-piece 4 — Rotation editor (extends .te-* base)
+   ============================================================ */
+.rt-panel { width: 820px; }
+
+.rt-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.rt-add,
+.rt-add-role {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  font-size: 11px;
+}
+
+.rt-duty-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rt-duty-row {
+  display: grid;
+  grid-template-columns: 18px 1.5fr 110px 95px 95px 56px 32px;
+  gap: 6px;
+  align-items: center;
+  padding: 6px;
+  background: #FAFAF7;
+  border: 0.5px solid #ECE6DC;
+  border-radius: 10px;
+}
+.rt-duty-row.is-dragging { opacity: 0.5; }
+.rt-grip {
+  background: transparent;
+  border: none;
+  color: #B4B2A9;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.rt-duty-label,
+.rt-duty-type,
+.rt-duty-time { padding: 7px 8px; font-size: 12px; }
+
+.rt-duty-move {
+  display: flex;
+  gap: 2px;
+}
+.rt-duty-move button {
+  background: transparent;
+  border: 0.5px solid #DFD8CC;
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  font-size: 11px;
+  color: #695880;
+  cursor: pointer;
+}
+.rt-duty-move button:disabled { color: #C9C0AE; cursor: not-allowed; }
+.rt-duty-move button:hover:not(:disabled) { background: #FAFAF7; color: #1C1B3A; }
+
+.rt-remove {
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #7A2E1E;
+}
+.rt-remove:hover:not(:disabled) { background: #FAECE7; }
+.rt-remove:disabled { color: #C9C0AE; cursor: not-allowed; }
+
+/* Cycle info bar */
+.rt-info {
+  font-size: 11px;
+  color: #695880;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  padding: 8px 12px;
+  background: #FAFAF7;
+  border-radius: 8px;
+}
+.rt-info strong {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-weight: 500;
+  font-size: 13px;
+  color: #1C1B3A;
+}
+.rt-info-dot { color: #C9C0AE; }
+.rt-warn { color: #7A2E1E; }
+
+/* Preview matrix */
+.rt-matrix-wrap { overflow-x: auto; }
+.rt-matrix {
+  border-collapse: separate;
+  border-spacing: 4px;
+  width: 100%;
+  table-layout: fixed;
+}
+.rt-matrix thead th {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #8B8478;
+  font-weight: 600;
+  text-align: center;
+  padding: 4px 0;
+}
+.rt-matrix tbody td { vertical-align: middle; }
+.rt-role-cell {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  min-width: 180px;
+}
+.rt-role-input { padding: 6px 8px; font-size: 12px; flex: 1; }
+.rt-role-remove { width: 22px; height: 22px; }
+.rt-role-remove svg { width: 12px; height: 12px; }
+.rt-cell {
+  background: #FAFAF7;
+  border-radius: 6px;
+  padding: 6px 8px;
+  text-align: center;
+  min-width: 96px;
+  height: 48px;
+  color: #1C1B3A;
+}
+.rt-cell-empty {
+  background: #FFFFFF;
+  border: 0.5px dashed #DFD8CC;
+  color: #C9C0AE;
+}
+.rt-cell-label {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 12px;
+  line-height: 1.05;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rt-cell-time {
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+  opacity: 0.85;
+}
+
+.rt-add-role { align-self: flex-start; margin-top: 8px; }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Pencil } from 'lucide-react';
 import Header from '../../components/navigation/Header';
@@ -9,7 +9,11 @@ import RotaTodayGrid from '../trip-detail-view-with-guest-allocation/components/
 import { DEPT_ORDER } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
 import CrewListView from './CrewListView';
 import RestPanelPopover from './RestPanelPopover';
+import PatternPicker from './PatternPicker';
+import SimpleTemplateEditor from './SimpleTemplateEditor';
+import RotationTemplateEditor from './RotationTemplateEditor';
 import { useRotaShifts } from './useRotaShifts';
+import { useRotaTemplates } from './useRotaTemplates';
 import { useCurrentRota } from './useCurrentRota';
 import { useRotaDepartmentStatus } from './useRotaDepartmentStatus';
 
@@ -112,6 +116,9 @@ export default function CrewRotaPage() {
   const [selectedCrew, setSelectedCrew] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [shiftType, setShiftType] = useState('duty'); // active type for new shifts
+  const [pickerOpen, setPickerOpen] = useState(false);
+  // editor: null | { kind: 'simple'|'rotation', template: object|null }
+  const [editor, setEditor] = useState(null);
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
 
@@ -137,6 +144,28 @@ export default function CrewRotaPage() {
   } = useRotaShifts();
   const { rota } = useCurrentRota();
   const { statusByDept, ensureDraft } = useRotaDepartmentStatus(rota?.id);
+  const {
+    templates, loading: templatesLoading, error: templatesError,
+    toggleStar, createTemplate, updateTemplate, deleteTemplate,
+  } = useRotaTemplates();
+
+  // Distinct departments derived from crew (used by template editors).
+  const departments = useMemo(() => {
+    const seen = new Map();
+    for (const c of crew) {
+      if (c.departmentId && !seen.has(c.departmentId)) {
+        seen.set(c.departmentId, { id: c.departmentId, name: c.department });
+      }
+    }
+    return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [crew]);
+
+  // Distinct role-name suggestions (datalist source for the rotation editor).
+  const roleSuggestions = useMemo(() => {
+    const set = new Set();
+    for (const c of crew) if (c.role) set.add(String(c.role));
+    return Array.from(set);
+  }, [crew]);
 
   const total = crew.length;
   const onDuty = crew.filter(c => c.onNow && !c.offToday).length;
@@ -295,6 +324,13 @@ export default function CrewRotaPage() {
                   onClick={() => setShiftType(key)}
                 >{label}</button>
               ))}
+              <span className="crew-rota-typebar-sep" aria-hidden />
+              <button
+                type="button"
+                className="crew-rota-pill"
+                onClick={() => setPickerOpen(true)}
+                title="Open template library"
+              >Templates</button>
             </div>
           )}
 
@@ -353,6 +389,52 @@ export default function CrewRotaPage() {
             )}
           </div>
         </div>
+
+        <PatternPicker
+          open={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          templates={templates}
+          loading={templatesLoading}
+          error={templatesError}
+          toggleStar={toggleStar}
+          onToast={showToast}
+          onPick={() => showToast('Applying templates ships in Phase 3.')}
+          onEdit={(t) => {
+            setPickerOpen(false);
+            setEditor({ kind: t.kind === 'rotation' ? 'rotation' : 'simple', template: t });
+          }}
+          onNew={(kind) => {
+            setPickerOpen(false);
+            setEditor({ kind: kind === 'rotation' ? 'rotation' : 'simple', template: null });
+          }}
+        />
+
+        <SimpleTemplateEditor
+          open={editor?.kind === 'simple'}
+          template={editor?.template || null}
+          departments={departments}
+          myDeptId={user?.department_id || null}
+          vesselId={rota?.vesselId || null}
+          onClose={() => { setEditor(null); setPickerOpen(true); }}
+          createTemplate={createTemplate}
+          updateTemplate={updateTemplate}
+          deleteTemplate={deleteTemplate}
+          onToast={showToast}
+        />
+
+        <RotationTemplateEditor
+          open={editor?.kind === 'rotation'}
+          template={editor?.template || null}
+          departments={departments}
+          myDeptId={user?.department_id || null}
+          vesselId={rota?.vesselId || null}
+          roleSuggestions={roleSuggestions}
+          onClose={() => { setEditor(null); setPickerOpen(true); }}
+          createTemplate={createTemplate}
+          updateTemplate={updateTemplate}
+          deleteTemplate={deleteTemplate}
+          onToast={showToast}
+        />
 
         {toast && <div className="crew-rota-toast" role="status">{toast}</div>}
 
