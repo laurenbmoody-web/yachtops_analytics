@@ -991,12 +991,10 @@
 .rota-c.shift-cell--standby  { background: #B8935E; }
 .rota-c.shift-cell--training { background: #6B7F6B; }
 .rota-c.shift-cell--medical  { background: #7A2E1E; }
-/* Off: cream tint; inset ring (not border — avoids grid layout shift)
-   so the cell stays visible against the canvas. */
-.rota-c.shift-cell--off {
-  background: #ECE6DC;
-  box-shadow: inset 0 0 0 0.5px #DFD8CC;
-}
+/* No .shift-cell--off rule — Off was removed as a shift type on
+   2026-05-20. An empty cell IS the off state; any pre-existing rows with
+   shift_type='off' render with the base .rota-c background until they're
+   purged by 20260520000001_remove_off_shift_rows.sql. */
 
 /* Transient toast (no notification integration in Phase 1). */
 .crew-rota-toast {

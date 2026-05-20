@@ -15,11 +15,12 @@ import { useRotaDepartmentStatus } from './useRotaDepartmentStatus';
 
 const EDITORIAL_BG = '#F5F1EA';
 const GRID_START_HOUR = 6;
-// 7th pill is "Erase" — the active brush; clears whatever the paint
-// covers. Sub-types for new shifts are applied inside useRotaShifts.applyPaint.
+// Brush pills. "Off" is no longer a shift type — an empty cell IS the off
+// state (absence of a working shift). Erase removes the working shift,
+// which is how you "set someone to off."
 const SHIFT_TYPE_PILLS = [
   ['duty', 'Duty'], ['watch', 'Watch'], ['standby', 'Standby'],
-  ['training', 'Training'], ['off', 'Off'], ['medical', 'Medical'],
+  ['training', 'Training'], ['medical', 'Medical'],
   ['erase', 'Erase'],
 ];
 // Last paintable slot index (pre-midnight, given a 06:00 grid start).
