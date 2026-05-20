@@ -67,6 +67,34 @@ function isSlotInAnyShift(slotIdx, shifts, gridStartHour) {
   return false;
 }
 
+// Slot span [sSlot, eSlot) of a raw rota_shifts row, overnight-aware
+// (mirrors deriveCrew). Drives per-type cell colour + hole-punch math.
+function rawShiftSpan(s, gridStartHour) {
+  const toDec = (t) => {
+    if (!t) return null;
+    const [h, m] = String(t).split(':').map(Number);
+    return h + (m || 0) / 60;
+  };
+  let st = toDec(s.startTime);
+  let en = toDec(s.endTime);
+  if (st == null || en == null) return null;
+  if (en <= st) en += 24;
+  return {
+    sSlot: Math.round((st - gridStartHour) * 2),
+    eSlot: Math.round((en - gridStartHour) * 2), // exclusive
+    shift: s,
+  };
+}
+
+// The raw shift covering a given slot for this crew member (or null).
+function coveringSpan(crew, slot, gridStartHour) {
+  for (const s of crew.rawShifts || []) {
+    const sp = rawShiftSpan(s, gridStartHour);
+    if (sp && slot >= sp.sSlot && slot < sp.eSlot) return sp;
+  }
+  return null;
+}
+
 // First slot that falls on the next calendar day (Saturday).
 function saturdayFirstSlot(gridStartHour) {
   return (24 - gridStartHour) * 2;
@@ -154,11 +182,13 @@ function CrewRow({
   const cellEditable = editMode && mode !== 'offvessel' && !!onCellPointerDown;
   const cells = [];
   for (let i = 0; i < SLOTS; i += 1) {
-    const filled = mode === 'active' && isSlotInAnyShift(i, crew.shifts, gridStartHour);
+    // Colour by the stored shift_type of whatever raw shift covers this
+    // slot (any type incl. off/medical), not just on-duty ranges.
+    const cover = coveringSpan(crew, i, gridStartHour);
     const isSat = i >= satStart;
     const inPreview = dragRange && i >= dragRange.lo && i <= dragRange.hi;
     const cls = ['rota-c'];
-    if (filled) cls.push('f');
+    if (cover) cls.push(`shift-cell--${cover.shift.shiftType || 'duty'}`);
     else if (isSat) cls.push('sat');
     if (cellEditable) cls.push('rota-c-edit');
     if (inPreview) cls.push(dragRange.invalid ? 'rota-c-drag-bad' : 'rota-c-drag');
@@ -178,7 +208,7 @@ function CrewRow({
               e.currentTarget.releasePointerCapture(e.pointerId);
             }
           } catch { /* no-op */ }
-          onCellPointerDown(crew, i, filled);
+          onCellPointerDown(crew, i, !!cover);
         } : undefined}
         onPointerEnter={cellEditable ? () => onCellPointerEnter(crew, i) : undefined}
         onKeyDown={cellEditable ? (e) => {
@@ -381,7 +411,7 @@ export default function RotaTodayGrid({
 
   const rangeHasFilled = useCallback((cm, lo, hi) => {
     for (let i = lo; i <= hi; i += 1) {
-      if (isSlotInAnyShift(i, cm.shifts, gridStartHour)) return true;
+      if (coveringSpan(cm, i, gridStartHour)) return true;
     }
     return false;
   }, [gridStartHour]);

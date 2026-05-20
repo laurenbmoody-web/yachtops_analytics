@@ -398,8 +398,43 @@ export function useRotaShifts() {
     return { ok: true };
   }, [load]);
 
+  // Split a shift around a punched-out cell: insert the surviving piece(s)
+  // FIRST, then delete the original — so a partial failure can never lose
+  // the shift (worst case: a transient visual overlap, recoverable). No DB
+  // transaction in Phase 1 (matches the last-write-wins stance).
+  const splitShift = useCallback(async ({ shiftId, meta, pieces }) => {
+    if (!shiftId || !meta?.rotaId || !meta?.memberId || !tenantId) {
+      return { ok: false, error: 'missing-context' };
+    }
+    const rows = (pieces || []).map((p) => {
+      const r = {
+        tenant_id: tenantId,
+        rota_id: meta.rotaId,
+        member_id: meta.memberId,
+        shift_date: meta.shiftDate,
+        start_time: p.startTime,
+        end_time: p.endTime,
+        shift_type: meta.shiftType || 'duty',
+        sub_type: meta.subType ?? null,
+        status: 'draft',
+      };
+      if (meta.tripId) r.trip_id = meta.tripId;
+      if (meta.createdByMemberId) r.created_by = meta.createdByMemberId;
+      return r;
+    });
+    if (rows.length > 0) {
+      const { error: insErr } = await supabase.from('rota_shifts').insert(rows);
+      if (insErr) return { ok: false, error: insErr.message };
+    }
+    const { error: delErr } = await supabase
+      .from('rota_shifts').delete().eq('id', shiftId);
+    if (delErr) return { ok: false, error: delErr.message, overlap: true };
+    await load({ silent: true });
+    return { ok: true };
+  }, [tenantId, load]);
+
   return {
     crew, shifts, effectiveDate, loading, error, draftCount,
-    refetch: load, upsertCellShift, removeShift, updateShift,
+    refetch: load, upsertCellShift, removeShift, updateShift, splitShift,
   };
 }
