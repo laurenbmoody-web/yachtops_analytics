@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Pencil } from 'lucide-react';
 import Header from '../../components/navigation/Header';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabaseClient';
 import '../pantry/pantry.css';
 import './crew-rota.css';
 import RotaTodayGrid from '../trip-detail-view-with-guest-allocation/components/RotaTodayGrid';
@@ -149,16 +150,29 @@ export default function CrewRotaPage() {
     toggleStar, createTemplate, updateTemplate, deleteTemplate,
   } = useRotaTemplates();
 
-  // Distinct departments derived from crew (used by template editors).
-  const departments = useMemo(() => {
-    const seen = new Map();
-    for (const c of crew) {
-      if (c.departmentId && !seen.has(c.departmentId)) {
-        seen.set(c.departmentId, { id: c.departmentId, name: c.department });
-      }
-    }
-    return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [crew]);
+  // Departments for the template editors. Fetched via get_tenant_departments
+  // (same RPC every other department picker in the app uses) so the list
+  // shows EVERY department the tenant uses — not only ones with crew on the
+  // current rota. Templates are reusable, vessel-wide patterns applied to
+  // future rotas with different crew; a chief must be able to author e.g.
+  // an Engineering template even when no engineer is rostered today.
+  const [departments, setDepartments] = useState([]);
+  useEffect(() => {
+    if (!activeTenantId) { setDepartments([]); return; }
+    let alive = true;
+    supabase
+      .rpc('get_tenant_departments', { p_tenant_id: activeTenantId })
+      .then(({ data, error }) => {
+        if (!alive) return;
+        if (error) {
+          console.error('[crew-rota] get_tenant_departments error:', error);
+          setDepartments([]);
+          return;
+        }
+        setDepartments((data || []).map(d => ({ id: d.id, name: d.name })));
+      });
+    return () => { alive = false; };
+  }, [activeTenantId]);
 
   // Distinct role-name suggestions (datalist source for the rotation editor).
   const roleSuggestions = useMemo(() => {
