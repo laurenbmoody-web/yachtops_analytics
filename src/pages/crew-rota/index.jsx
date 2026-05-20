@@ -11,6 +11,7 @@ import CrewListView from './CrewListView';
 import RestPanelPopover from './RestPanelPopover';
 import PatternPicker from './PatternPicker';
 import SimpleTemplateEditor from './SimpleTemplateEditor';
+import RotationTemplateEditor from './RotationTemplateEditor';
 import { useRotaShifts } from './useRotaShifts';
 import { useRotaTemplates } from './useRotaTemplates';
 import { useCurrentRota } from './useCurrentRota';
@@ -157,6 +158,13 @@ export default function CrewRotaPage() {
       }
     }
     return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [crew]);
+
+  // Distinct role-name suggestions (datalist source for the rotation editor).
+  const roleSuggestions = useMemo(() => {
+    const set = new Set();
+    for (const c of crew) if (c.role) set.add(String(c.role));
+    return Array.from(set);
   }, [crew]);
 
   const total = crew.length;
@@ -392,20 +400,12 @@ export default function CrewRotaPage() {
           onToast={showToast}
           onPick={() => showToast('Applying templates ships in Phase 3.')}
           onEdit={(t) => {
-            if (t.kind === 'rotation') {
-              showToast('Rotation template editor ships in Phase 2 sub-piece 4.');
-              return;
-            }
             setPickerOpen(false);
-            setEditor({ kind: 'simple', template: t });
+            setEditor({ kind: t.kind === 'rotation' ? 'rotation' : 'simple', template: t });
           }}
           onNew={(kind) => {
-            if (kind === 'rotation') {
-              showToast('Rotation template editor ships in Phase 2 sub-piece 4.');
-              return;
-            }
             setPickerOpen(false);
-            setEditor({ kind: 'simple', template: null });
+            setEditor({ kind: kind === 'rotation' ? 'rotation' : 'simple', template: null });
           }}
         />
 
@@ -415,6 +415,20 @@ export default function CrewRotaPage() {
           departments={departments}
           myDeptId={user?.department_id || null}
           vesselId={rota?.vesselId || null}
+          onClose={() => { setEditor(null); setPickerOpen(true); }}
+          createTemplate={createTemplate}
+          updateTemplate={updateTemplate}
+          deleteTemplate={deleteTemplate}
+          onToast={showToast}
+        />
+
+        <RotationTemplateEditor
+          open={editor?.kind === 'rotation'}
+          template={editor?.template || null}
+          departments={departments}
+          myDeptId={user?.department_id || null}
+          vesselId={rota?.vesselId || null}
+          roleSuggestions={roleSuggestions}
           onClose={() => { setEditor(null); setPickerOpen(true); }}
           createTemplate={createTemplate}
           updateTemplate={updateTemplate}
