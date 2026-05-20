@@ -191,7 +191,7 @@ function CrewRow({
     if (cover) cls.push(`shift-cell--${cover.shift.shiftType || 'duty'}`);
     else if (isSat) cls.push('sat');
     if (cellEditable) cls.push('rota-c-edit');
-    if (inPreview) cls.push(dragRange.invalid ? 'rota-c-drag-bad' : 'rota-c-drag');
+    if (inPreview) cls.push('rota-c-drag');                 // paint preview
     cells.push(
       <div
         key={i}
@@ -208,7 +208,7 @@ function CrewRow({
               e.currentTarget.releasePointerCapture(e.pointerId);
             }
           } catch { /* no-op */ }
-          onCellPointerDown(crew, i, !!cover);
+          onCellPointerDown(crew, i);
         } : undefined}
         onPointerEnter={cellEditable ? () => onCellPointerEnter(crew, i) : undefined}
         onKeyDown={cellEditable ? (e) => {
@@ -322,7 +322,7 @@ function DepartmentSection({
             onCellPointerEnter={onCellPointerEnter}
             onCellKey={onCellKey}
             dragRange={drag && drag.crewId === c.id
-              ? { lo: Math.min(drag.start, drag.cur), hi: Math.max(drag.start, drag.cur), invalid: drag.invalid }
+              ? { lo: Math.min(drag.start, drag.cur), hi: Math.max(drag.start, drag.cur) }
               : null}
           />
         ))}
@@ -392,16 +392,17 @@ function orderDepartments(byDept, crew, tenantRole, ownDeptId) {
 
 export default function RotaTodayGrid({
   crew = [], now = new Date(), onCrewClick, gridStartHour = 6,
-  editMode = false, onCellClick, onCommitRange, deptStatus,
+  editMode = false, onPaint, deptStatus,
 }) {
   const { user, tenantRole } = useAuth();
 
-  // ── Drag-paint (Issue 2) ──────────────────────────────────────────────────
+  // ── Paint-brush drag ──────────────────────────────────────────────────────
   // Pointer down → begin; pointer enter cells in the SAME row → extend
-  // preview; pointer up inside the grid → commit ONE shift across the
-  // range; pointer leaving the grid → cancel. Single down+up (no move) on
-  // an empty cell falls through to the existing single-cell path
-  // (onCellClick), so click behaviour is unchanged.
+  // preview; pointer up inside the grid → call onPaint(crew, lo, hi) once
+  // for the whole range; pointer leaving the grid → cancel. Drag is
+  // row-scoped (different crew ignored). Single click is just a range
+  // where lo === hi. The active "brush" (shift type / Erase) lives at the
+  // page level; the grid is paint-action-agnostic.
   const [drag, setDragState] = useState(null);
   const dragRef = useRef(null);
   const setDrag = useCallback((v) => {
@@ -409,49 +410,30 @@ export default function RotaTodayGrid({
     setDragState(dragRef.current);
   }, []);
 
-  const rangeHasFilled = useCallback((cm, lo, hi) => {
-    for (let i = lo; i <= hi; i += 1) {
-      if (coveringSpan(cm, i, gridStartHour)) return true;
-    }
-    return false;
-  }, [gridStartHour]);
-
-  const beginDrag = useCallback((cm, i, filled) => {
-    setDrag({ crewId: cm.id, crew: cm, start: i, cur: i, startFilled: filled, invalid: false });
+  const beginDrag = useCallback((cm, i) => {
+    setDrag({ crewId: cm.id, crew: cm, start: i, cur: i });
   }, [setDrag]);
 
   const extendDrag = useCallback((cm, i) => {
     const d = dragRef.current;
     if (!d || d.crewId !== cm.id) return;                // row-independent; no-op when idle
-    const lo = Math.min(d.start, i);
-    const hi = Math.max(d.start, i);
-    const moved = i !== d.start;
-    const invalid = d.startFilled ? moved : (moved && rangeHasFilled(cm, lo, hi));
-    setDrag({ ...d, cur: i, invalid });
-  }, [setDrag, rangeHasFilled]);
+    setDrag({ ...d, cur: i });
+  }, [setDrag]);
 
   const endDrag = useCallback(() => {
     const d = dragRef.current;
     if (!d) return;
     setDrag(null);
-    const moved = d.start !== d.cur;
     const lo = Math.min(d.start, d.cur);
     const hi = Math.max(d.start, d.cur);
-    if (d.startFilled) {
-      // Click on an existing shift → editor/toggle path; drag from it → cancel.
-      if (!moved) onCellClick?.(d.crew, d.start);
-      return;
-    }
-    if (rangeHasFilled(d.crew, lo, hi)) return;          // dragged over a shift → cancel
-    if (!moved) { onCellClick?.(d.crew, d.start); return; } // single click unchanged
-    onCommitRange?.(d.crew, lo, hi);                     // one continuous shift
-  }, [setDrag, rangeHasFilled, onCellClick, onCommitRange]);
+    onPaint?.(d.crew, lo, hi);                           // ALWAYS paints (or erases)
+  }, [setDrag, onPaint]);
 
   const cancelDrag = useCallback(() => {
     if (dragRef.current) setDrag(null);
   }, [setDrag]);
 
-  const onCellKey = useCallback((cm, i) => { onCellClick?.(cm, i); }, [onCellClick]);
+  const onCellKey = useCallback((cm, i) => { onPaint?.(cm, i, i); }, [onPaint]);
   const currentSlot = nowSlot(now, gridStartHour);
   const currentHour = now.getHours();
 
