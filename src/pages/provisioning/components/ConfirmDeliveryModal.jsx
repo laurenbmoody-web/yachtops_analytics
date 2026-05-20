@@ -208,7 +208,7 @@ const ConfirmDeliveryModal = ({ userId, onClose, onConfirmed }) => {
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 9000,
+      position: 'fixed', inset: 0, zIndex: 'var(--z-overlay)',
       background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: 16,
     }}>

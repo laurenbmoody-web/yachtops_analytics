@@ -188,7 +188,7 @@ const EditCrewModal = ({ isOpen, onClose, member, onSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-6">
       <div className="bg-card border border-border rounded-2xl w-full max-w-md">
         <div className="bg-card border-b border-border p-6 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-foreground">

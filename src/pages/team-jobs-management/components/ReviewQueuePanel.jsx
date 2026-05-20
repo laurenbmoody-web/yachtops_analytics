@@ -123,7 +123,7 @@ const ReviewQueuePanel = ({ cards, onAccept, onReject, onEdit, onConvertToPlanne
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full h-[90vh] flex flex-col">
         {/* Header */}
         <div className="border-b border-gray-200 px-6 py-4">
@@ -471,7 +471,7 @@ const ReviewQueuePanel = ({ cards, onAccept, onReject, onEdit, onConvertToPlanne
 
       {/* Reject Modal (for handoff) */}
       {showRejectModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               {showRejectModal?.jobType === 'handoff' ? 'Reject Handoff' : 'Reject Task'}
@@ -512,7 +512,7 @@ const ReviewQueuePanel = ({ cards, onAccept, onReject, onEdit, onConvertToPlanne
 
       {/* Return Modal */}
       {showReturnModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Return Handoff for More Info

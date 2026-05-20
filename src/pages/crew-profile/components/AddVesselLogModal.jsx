@@ -63,7 +63,7 @@ const AddVesselLogModal = ({ isOpen, onClose, onSuccess }) => {
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-black/50 z-[var(--z-overlay)] flex items-center justify-center p-4"
         onClick={handleClose}
       >
         {/* Modal */}

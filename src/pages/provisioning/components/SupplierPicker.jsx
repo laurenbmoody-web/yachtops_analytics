@@ -84,7 +84,7 @@ const SupplierPicker = ({
         <div
           style={{
             position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
-            zIndex: 50, maxHeight: 240, overflowY: 'auto',
+            zIndex: 'var(--z-dropdown)', maxHeight: 240, overflowY: 'auto',
             background: '#fff', border: '1px solid #E5E7EB',
             borderRadius: 10, boxShadow: '0 10px 28px rgba(26,29,63,0.16)',
           }}

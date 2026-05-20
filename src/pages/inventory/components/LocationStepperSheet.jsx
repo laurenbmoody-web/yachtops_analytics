@@ -73,12 +73,12 @@ const LocationStepperSheet = ({ item, onClose, onUpdate }) => {
     <>
       {/* Backdrop - clicking does NOT close */}
       <div
-        className="fixed inset-0 bg-black/30 z-50 transition-opacity"
+        className="fixed inset-0 bg-black/30 z-[var(--z-overlay)] transition-opacity"
         onClick={handleBackdropClick}
       />
 
       {/* Bottom Sheet */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-50 max-h-[80vh] overflow-hidden flex flex-col animate-slide-up">
+      <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-[var(--z-overlay)] max-h-[80vh] overflow-hidden flex flex-col animate-slide-up">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">Adjust stock by location</h3>

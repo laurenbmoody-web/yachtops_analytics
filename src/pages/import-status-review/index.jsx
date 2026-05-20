@@ -600,7 +600,7 @@ const ImportStatusReview = () => {
       </div>
       {/* Success Modal */}
       {showSuccessModal && results && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
           <div className="bg-card rounded-2xl border border-border shadow-xl max-w-md w-full p-8 animate-in fade-in zoom-in duration-200">
             {/* Success Icon */}
             <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-6">

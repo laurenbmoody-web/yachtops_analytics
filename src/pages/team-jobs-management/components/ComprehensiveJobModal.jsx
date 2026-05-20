@@ -672,7 +672,7 @@ const ComprehensiveJobModal = ({ boards, selectedDate, defaultBoardId, onClose, 
   // non-COMMAND cannot change department
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4" onClick={onClose}>
       <div
         className="bg-card rounded-xl border border-border shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
         onClick={(e) => e?.stopPropagation()}

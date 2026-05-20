@@ -8,7 +8,7 @@ import { Plus, RotateCcw, Check } from 'lucide-react';
  */
 const DashboardEditBar = ({ hiddenWidgets, onAdd, onReset, onDone }) => {
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border shadow-2xl">
+    <div className="fixed bottom-0 left-0 right-0 z-[var(--z-nav)] bg-card border-t border-border shadow-2xl">
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-4">
         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide shrink-0">
           Add widgets

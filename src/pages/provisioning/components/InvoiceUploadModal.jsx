@@ -180,7 +180,7 @@ const InvoiceUploadModal = ({ batch, batchItems = [], onClose, onComplete }) => 
   // ── Render ─────────────────────────────────────────────────────────────────
 
   const backdrop = {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000,
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 'var(--z-overlay)',
     display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
   };
   const card = {

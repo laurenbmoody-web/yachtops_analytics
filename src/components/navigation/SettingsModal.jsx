@@ -241,7 +241,7 @@ const SettingsModal = ({ isOpen, onClose }) => {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -799,7 +799,7 @@ const SettingsModal = ({ isOpen, onClose }) => {
 
       {/* Unsaved Changes Confirmation Dialog */}
       {showUnsavedDialog && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+        <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center">
           <div 
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setShowUnsavedDialog(false)}

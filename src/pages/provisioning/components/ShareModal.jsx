@@ -155,7 +155,7 @@ const CrewSearch = ({ crewMembers, existingUserIds, onSelect }) => {
       />
       {open && filtered.length > 0 && (
         <div style={{
-          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, marginTop: 4,
+          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 'var(--z-dropdown)', marginTop: 4,
           background: 'var(--color-card, #fff)', border: '1px solid var(--color-border, #E2E8F0)',
           borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', overflow: 'hidden',
         }}
@@ -238,7 +238,7 @@ const ShareModal = ({ list, crewMembers, currentUserId, onClose }) => {
 
   return (
     <div
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: 16 }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 'var(--z-overlay)', padding: 16 }}
       onMouseDown={e => e.target === e.currentTarget && onClose()}
     >
       <div

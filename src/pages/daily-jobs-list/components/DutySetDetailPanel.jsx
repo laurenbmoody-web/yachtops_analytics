@@ -75,12 +75,12 @@ const DutySetDetailPanel = ({ dutySet, userId, hasFullAccess, getCrewMember, onC
     <>
       {/* Overlay */}
       <div 
-        className="fixed inset-0 bg-black/50 z-40 transition-opacity duration-300"
+        className="fixed inset-0 bg-black/50 z-[var(--z-overlay)] transition-opacity duration-300"
         onClick={onClose}
       />
       
       {/* Side Panel */}
-      <div className="fixed right-0 top-0 h-full w-full max-w-2xl bg-background shadow-2xl z-50 overflow-y-auto">
+      <div className="fixed right-0 top-0 h-full w-full max-w-2xl bg-background shadow-2xl z-[var(--z-overlay)] overflow-y-auto">
         <div className="sticky top-0 bg-background border-b border-border z-10">
           {/* Header */}
           <div className="flex items-center justify-between p-6 pb-4">

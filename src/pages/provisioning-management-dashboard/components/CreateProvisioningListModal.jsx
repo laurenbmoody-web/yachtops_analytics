@@ -60,7 +60,7 @@ const loadLocalPreferences = () => {
 const OVERLAY = {
   position: 'fixed', inset: 0,
   backgroundColor: 'rgba(0,0,0,0.7)',
-  zIndex: 1000,
+  zIndex: 'var(--z-overlay)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',

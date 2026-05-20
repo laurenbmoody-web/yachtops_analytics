@@ -90,7 +90,7 @@ const LocationPicker = ({ value, onChange, locations = [], borderColor = '#e2e8f
       </button>
       {open && (
         <div style={{
-          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200,
+          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 'var(--z-dropdown)',
           background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8,
           boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 2,
           maxHeight: 200, display: 'flex', flexDirection: 'column', overflow: 'hidden',
@@ -247,7 +247,7 @@ const VesselLocationPicker = ({ value, onChange, vesselLocations = [], borderCol
       </button>
       {open && (
         <div style={{
-          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200,
+          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 'var(--z-dropdown)',
           background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8,
           boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 2,
           maxHeight: 220, display: 'flex', flexDirection: 'column', overflow: 'hidden',
@@ -786,7 +786,7 @@ const PushStep = ({
                     />
                     {search.loading && <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#94A3B8' }}>…</span>}
                     {(search.results || []).length > 0 && (
-                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, boxShadow: '0 8px 20px rgba(0,0,0,0.1)', marginTop: 2, maxHeight: 160, overflowY: 'auto' }}>
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 'var(--z-dropdown)', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, boxShadow: '0 8px 20px rgba(0,0,0,0.1)', marginTop: 2, maxHeight: 160, overflowY: 'auto' }}>
                         {(search.results || []).map(inv => (
                           <button
                             key={inv.id}
@@ -1715,7 +1715,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
 
   return (
     <div
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: 16 }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 'var(--z-overlay)', padding: 16 }}
       onMouseDown={e => e.target === e.currentTarget && onClose()}
     >
       <div

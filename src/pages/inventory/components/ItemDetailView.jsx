@@ -96,7 +96,7 @@ const ItemDetailView = ({ item, onClose, onUpdate }) => {
           <div 
             className={`relative bg-gray-50 rounded-xl overflow-hidden ${
               photoSrc ? 'cursor-zoom-in' : ''
-            } ${imageZoomed ? 'fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center' : 'h-80'}`}
+            } ${imageZoomed ? 'fixed inset-0 z-[var(--z-overlay)] bg-black bg-opacity-90 flex items-center justify-center' : 'h-80'}`}
             onClick={handleImageClick}
           >
             {photoSrc ? (

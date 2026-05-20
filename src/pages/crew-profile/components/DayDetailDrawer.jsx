@@ -43,11 +43,11 @@ const DayDetailDrawer = ({ isOpen, onClose, selectedDate, dayData, onUpdate }) =
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 z-40 transition-opacity"
+        className="fixed inset-0 bg-black/50 z-[var(--z-overlay)] transition-opacity"
         onClick={onClose}
       ></div>
       {/* Drawer */}
-      <div className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-background border-l border-border z-50 overflow-y-auto">
+      <div className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-background border-l border-border z-[var(--z-overlay)] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-background border-b border-border p-6 flex items-center justify-between">
           <div>

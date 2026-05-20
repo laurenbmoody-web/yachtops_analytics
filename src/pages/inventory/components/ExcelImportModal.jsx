@@ -254,7 +254,7 @@ const ExcelImportModal = ({ onClose, onSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[var(--z-overlay)] p-4">
       <div className="bg-white rounded-2xl shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -727,7 +727,7 @@ const BulkResolveModal = ({ group, onApply, onClose }) => {
     (resolution?.categoryL2Id || (resolution?.createNewL2 && resolution?.newL2Name?.trim()));
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[var(--z-overlay)] p-4">
       <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full">
         <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <h3 className="text-lg font-bold text-gray-900">

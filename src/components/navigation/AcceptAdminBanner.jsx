@@ -174,7 +174,7 @@ const AcceptAdminBanner = ({ onAccept, onRefresh }) => {
   if (!pendingTransfer) return null;
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500 dark:bg-amber-600 shadow-lg">
+    <div className="fixed top-0 left-0 right-0 z-[var(--z-nav)] bg-amber-500 dark:bg-amber-600 shadow-lg">
       <div className="max-w-[1800px] mx-auto px-6 py-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3 flex-1">

@@ -1856,7 +1856,7 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
   const isStep3 = step === 3;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className={`bg-card border border-border rounded-2xl shadow-2xl w-full flex flex-col ${isStep3 ? 'max-w-4xl max-h-[92vh]' : 'max-w-3xl max-h-[90vh]'}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
