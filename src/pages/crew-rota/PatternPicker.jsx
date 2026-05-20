@@ -46,9 +46,16 @@ function RotationBadge({ body }) {
   return <span className="tp-rot-badge">{n || '?'}↻</span>;
 }
 
-function TemplateRow({ template, onToggleStar, onEdit, onPick }) {
+function TemplateRow({ template, onToggleStar, onEdit, onPick, onToast }) {
   const t = template;
   const isSimple = t.kind === 'simple';
+  const handleStar = async (e) => {
+    e.stopPropagation();
+    const res = await onToggleStar(t.id);
+    if (res && res.ok === false) {
+      onToast?.(`Couldn’t update star — ${res.error || 'try again'}`);
+    }
+  };
   return (
     <div className="tp-row">
       <button
@@ -56,7 +63,7 @@ function TemplateRow({ template, onToggleStar, onEdit, onPick }) {
         className="tp-star"
         aria-label={t.isStarred ? 'Unstar template' : 'Star template'}
         aria-pressed={t.isStarred}
-        onClick={(e) => { e.stopPropagation(); onToggleStar(t.id); }}
+        onClick={handleStar}
       >
         <StarIcon filled={t.isStarred} />
       </button>
@@ -100,7 +107,7 @@ function TemplateRow({ template, onToggleStar, onEdit, onPick }) {
 }
 
 export default function PatternPicker({
-  open, onClose, onEdit, onNew, onPick,
+  open, onClose, onEdit, onNew, onPick, onToast,
   templates = [], loading = false, error = null, toggleStar,
 }) {
   useEffect(() => {
@@ -157,6 +164,7 @@ export default function PatternPicker({
               onToggleStar={toggleStar}
               onEdit={onEdit}
               onPick={onPick}
+              onToast={onToast}
             />
           ))}
         </div>

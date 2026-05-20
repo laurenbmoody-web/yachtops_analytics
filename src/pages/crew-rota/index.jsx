@@ -389,6 +389,7 @@ export default function CrewRotaPage() {
           loading={templatesLoading}
           error={templatesError}
           toggleStar={toggleStar}
+          onToast={showToast}
           onPick={() => showToast('Applying templates ships in Phase 3.')}
           onEdit={(t) => {
             if (t.kind === 'rotation') {
