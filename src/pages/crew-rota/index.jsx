@@ -9,6 +9,7 @@ import RotaTodayGrid from '../trip-detail-view-with-guest-allocation/components/
 import { DEPT_ORDER } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
 import CrewListView from './CrewListView';
 import RestPanelPopover from './RestPanelPopover';
+import PatternPicker from './PatternPicker';
 import { useRotaShifts } from './useRotaShifts';
 import { useCurrentRota } from './useCurrentRota';
 import { useRotaDepartmentStatus } from './useRotaDepartmentStatus';
@@ -112,6 +113,7 @@ export default function CrewRotaPage() {
   const [selectedCrew, setSelectedCrew] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [shiftType, setShiftType] = useState('duty'); // active type for new shifts
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
 
@@ -295,6 +297,13 @@ export default function CrewRotaPage() {
                   onClick={() => setShiftType(key)}
                 >{label}</button>
               ))}
+              <span className="crew-rota-typebar-sep" aria-hidden />
+              <button
+                type="button"
+                className="crew-rota-pill"
+                onClick={() => setPickerOpen(true)}
+                title="Open template library"
+              >Templates</button>
             </div>
           )}
 
@@ -353,6 +362,18 @@ export default function CrewRotaPage() {
             )}
           </div>
         </div>
+
+        <PatternPicker
+          open={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          onPick={() => showToast('Applying templates ships in Phase 3.')}
+          onEdit={() => showToast('Template editor ships in the next commit.')}
+          onNew={(kind) => showToast(
+            kind === 'rotation'
+              ? 'Rotation template editor ships in Phase 2 sub-piece 4.'
+              : 'Simple template editor ships in the next commit.',
+          )}
+        />
 
         {toast && <div className="crew-rota-toast" role="status">{toast}</div>}
 

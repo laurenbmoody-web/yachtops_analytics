@@ -1011,3 +1011,199 @@
   z-index: 1200;
   box-shadow: 0 12px 32px -10px rgba(28, 27, 58, 0.4);
 }
+
+/* Typebar separator between brush pills and the Templates button. */
+.crew-rota-typebar-sep {
+  display: inline-block;
+  width: 1px;
+  height: 18px;
+  background: #DFD8CC;
+  margin: 0 6px;
+}
+
+/* ============================================================
+   Phase 2 — Pattern picker modal
+   ============================================================ */
+
+/* Centered panel; reuses .rest-popover-backdrop for the blurred backdrop. */
+.tp-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 640px;
+  max-width: calc(100% - 48px);
+  max-height: calc(100vh - 64px);
+  background: #FFFFFF;
+  border-top: 2px solid #C65A1A;
+  border-radius: 16px;
+  z-index: 1000;
+  box-shadow: 0 24px 60px -12px rgba(28, 27, 58, 0.28),
+              0 8px 24px -8px rgba(28, 27, 58, 0.14);
+  display: flex;
+  flex-direction: column;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: #1C1B3A;
+}
+.tp-header {
+  padding: 22px 24px 18px;
+  border-bottom: 0.5px solid #ECE6DC;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.tp-eyebrow {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #8B8478;
+}
+.tp-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-weight: 500;
+  font-size: 26px;
+  line-height: 1.05;
+  margin: 4px 0 0;
+  color: #1C1B3A;
+}
+.tp-title em { color: #C65A1A; font-weight: 400; font-style: italic; }
+.tp-header-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.tp-close {
+  background: transparent;
+  border: 0.5px solid #DFD8CC;
+  border-radius: 999px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #695880;
+  margin-left: 4px;
+}
+.tp-close:hover { background: #FAFAF7; color: #1C1B3A; }
+
+.tp-body-scroll {
+  padding: 10px 12px 18px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+}
+.tp-state {
+  padding: 36px 12px;
+  text-align: center;
+  font-size: 12px;
+  font-style: italic;
+  color: #8B8478;
+}
+.tp-state-err { color: #7A2E1E; font-style: normal; }
+
+/* Row: star + body (clickable) + edit. */
+.tp-row {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 8px;
+  border-radius: 10px;
+}
+.tp-row:hover { background: #FAFAF7; }
+.tp-star,
+.tp-edit {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  width: 32px;
+  border-radius: 999px;
+  color: #695880;
+}
+.tp-star:hover,
+.tp-edit:hover { background: #ECE6DC; color: #1C1B3A; }
+.tp-body {
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 6px;
+  min-width: 0;
+}
+.tp-emblem {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tp-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  display: inline-block;
+}
+.tp-rot-badge {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 12px;
+  color: #695880;
+  background: #FAECE7;
+  border: 0.5px solid #F5C9B8;
+  border-radius: 6px;
+  padding: 2px 6px;
+  line-height: 1;
+}
+.tp-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.tp-name {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 16px;
+  line-height: 1.1;
+  color: #1C1B3A;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tp-sub {
+  font-size: 10px;
+  color: #8B8478;
+  letter-spacing: 0.3px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.tp-dot { color: #C9C0AE; }
+.tp-kind {
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+  font-size: 9px;
+  color: #695880;
+}
+.tp-default {
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-weight: 600;
+  background: #ECE6DC;
+  color: #695880;
+  border-radius: 999px;
+  padding: 1px 7px;
+  margin-left: 4px;
+}
