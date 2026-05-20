@@ -850,7 +850,7 @@ const TripsManagementDashboard = () => {
       )}
       {/* End Trip Confirmation Modal */}
       {showEndTripModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
           <div className="bg-card border border-border rounded-xl shadow-xl max-w-md w-full p-6">
             <h3 className="text-lg font-semibold text-foreground mb-2">End this trip?</h3>
             <p className="text-sm text-muted-foreground mb-6">
@@ -875,7 +875,7 @@ const TripsManagementDashboard = () => {
       )}
       {/* Mark as Completed Confirmation Modal */}
       {showMarkCompletedModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
           <div className="bg-card border border-border rounded-xl shadow-xl max-w-md w-full p-6">
             <h3 className="text-lg font-semibold text-foreground mb-2">Mark trip as completed?</h3>
             <p className="text-sm text-muted-foreground mb-6">
@@ -900,7 +900,7 @@ const TripsManagementDashboard = () => {
       )}
       {/* View Summary Slide-over Panel */}
       {showSummaryPanel && summaryTrip && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-end z-50" onClick={() => setShowSummaryPanel(false)}>
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-end z-[var(--z-overlay)]" onClick={() => setShowSummaryPanel(false)}>
           <div 
             className="bg-card border-l border-border w-full sm:w-[480px] h-[80vh] sm:h-full shadow-2xl overflow-y-auto"
             onClick={(e) => e?.stopPropagation()}
@@ -1005,7 +1005,7 @@ const TripsManagementDashboard = () => {
       )}
       {/* Trip Photos Modal */}
       {showPhotosModal && photosTrip && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowPhotosModal(false)}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4" onClick={() => setShowPhotosModal(false)}>
           <div 
             className="bg-card border border-border rounded-xl shadow-xl max-w-3xl w-full max-h-[80vh] overflow-hidden flex flex-col"
             onClick={(e) => e?.stopPropagation()}
@@ -1051,7 +1051,7 @@ const TripsManagementDashboard = () => {
       )}
       {/* Trip Laundry Slide-over Drawer */}
       {showLaundryDrawer && laundryTrip && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-end z-50" onClick={() => setShowLaundryDrawer(false)}>
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-end z-[var(--z-overlay)]" onClick={() => setShowLaundryDrawer(false)}>
           <div 
             className="bg-card border-l border-border w-full sm:w-[480px] h-[80vh] sm:h-full shadow-2xl overflow-y-auto"
             onClick={(e) => e?.stopPropagation()}

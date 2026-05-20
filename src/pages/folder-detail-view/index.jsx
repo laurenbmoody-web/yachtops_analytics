@@ -318,10 +318,10 @@ const FolderDetailView = () => {
       {showDeleteFolderModal && (
         <>
           <div
-            className="fixed inset-0 bg-black/50 z-40"
+            className="fixed inset-0 bg-black/50 z-[var(--z-overlay)]"
             onClick={() => setShowDeleteFolderModal(false)}
           />
-          <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 flex items-center justify-center z-[var(--z-overlay)] p-4">
             <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl">
               <div className="flex items-start gap-4 mb-4">
                 <div className="w-12 h-12 rounded-xl bg-error/10 flex items-center justify-center flex-shrink-0">
@@ -359,10 +359,10 @@ const FolderDetailView = () => {
       {showDeleteCategoryModal && categoryToDelete && (
         <>
           <div
-            className="fixed inset-0 bg-black/50 z-40"
+            className="fixed inset-0 bg-black/50 z-[var(--z-overlay)]"
             onClick={() => setShowDeleteCategoryModal(false)}
           />
-          <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 flex items-center justify-center z-[var(--z-overlay)] p-4">
             <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl">
               <div className="flex items-start gap-4 mb-4">
                 <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center flex-shrink-0">

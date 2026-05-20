@@ -107,7 +107,7 @@
   width: 340px; background: var(--d-card);
   border: 1px solid var(--d-border); border-radius: 16px;
   box-shadow: 0 16px 40px rgba(26, 29, 63, 0.16);
-  padding: 18px; z-index: 60;
+  padding: 18px; z-index: var(--z-dropdown);
 }
 .sd-dir-filter-pop-head {
   display: flex; justify-content: space-between; align-items: center;
@@ -375,7 +375,7 @@
 /* ─── Add/Edit drawer (Phase 6 builds the form body) ──────── */
 .sd-dir-drawer-backdrop {
   position: fixed; inset: 0; background: rgba(26, 29, 63, 0.32);
-  z-index: 9000; display: flex; justify-content: flex-end;
+  z-index: var(--z-overlay); display: flex; justify-content: flex-end;
   /* Outside .sd-dir, so set the base typography here too — the page
      normally supplies these via the .sd-dir rule. */
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;

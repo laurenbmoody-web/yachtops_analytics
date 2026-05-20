@@ -770,7 +770,7 @@ export const AuthProvider = ({ children }) => {
     >
       <TenantProvider authSession={session} authUser={user}>
         {tenantError && (
-          <div className="fixed top-0 left-0 right-0 z-50 bg-red-50 border-b border-red-200 p-4">
+          <div className="fixed top-0 left-0 right-0 z-[var(--z-nav)] bg-red-50 border-b border-red-200 p-4">
             <div className="max-w-7xl mx-auto flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
@@ -815,7 +815,7 @@ export const AuthProvider = ({ children }) => {
 // Failsafe Debug Panel Component
 const FailsafeDebugPanel = ({ session, user, tenantId, tenantRole, lastBootstrapStep, tenantError, onRetry }) => {
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[var(--z-overlay)] p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">

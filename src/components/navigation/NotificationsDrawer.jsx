@@ -109,12 +109,12 @@ const NotificationsDrawer = ({ isOpen, onClose }) => {
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black/50 z-40 transition-opacity"
+        className="fixed inset-0 bg-black/50 z-[var(--z-dropdown)] transition-opacity"
         onClick={onClose}
       />
       
       {/* Drawer */}
-      <div className="fixed right-0 top-16 h-[calc(100vh-4rem)] w-full sm:w-96 bg-card border-l border-border z-50 flex flex-col shadow-2xl">
+      <div className="fixed right-0 top-16 h-[calc(100vh-4rem)] w-full sm:w-96 bg-card border-l border-border z-[var(--z-dropdown)] flex flex-col shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h2 className="text-lg font-semibold text-foreground">Notifications</h2>

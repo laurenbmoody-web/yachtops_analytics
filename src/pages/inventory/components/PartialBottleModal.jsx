@@ -19,7 +19,7 @@ const PartialBottleModal = ({ itemName, initialValue, onSave, onClear, onClose }
         position: 'fixed', inset: 0,
         background: 'rgba(0,0,0,0.55)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 9000, padding: 16,
+        zIndex: 'var(--z-overlay)', padding: 16,
       }}
       onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}
     >

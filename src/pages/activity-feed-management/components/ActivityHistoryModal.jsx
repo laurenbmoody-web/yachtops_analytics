@@ -75,11 +75,11 @@ const ActivityHistoryModal = ({ isOpen, onClose, entityType, entityId, entityLab
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black/50 z-50 transition-opacity"
+        className="fixed inset-0 bg-black/50 z-[var(--z-overlay)] transition-opacity"
         onClick={onClose}
       />
       {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+      <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center p-4 pointer-events-none">
         <div 
           className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col pointer-events-auto"
           onClick={(e) => e?.stopPropagation()}

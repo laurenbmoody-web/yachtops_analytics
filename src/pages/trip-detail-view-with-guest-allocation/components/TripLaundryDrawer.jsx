@@ -176,12 +176,12 @@ const TripLaundryDrawer = ({ isOpen, onClose, trip }) => {
     <>
       {/* Overlay */}
       <div 
-        className="fixed inset-0 bg-black/50 z-40 transition-opacity"
+        className="fixed inset-0 bg-black/50 z-[var(--z-overlay)] transition-opacity"
         onClick={onClose}
       />
       
       {/* Drawer */}
-      <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-card shadow-2xl z-50 flex flex-col animate-slide-in-right">
+      <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-card shadow-2xl z-[var(--z-overlay)] flex flex-col animate-slide-in-right">
         {/* Header */}
         <div className="flex-shrink-0 border-b border-border p-6">
           <div className="flex items-start justify-between mb-2">

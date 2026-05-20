@@ -160,7 +160,7 @@ const DefectDetailView = ({ defect: initialDefect, onClose, onUpdate }) => {
   };
   
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
       <div className="bg-card border border-border rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-card border-b border-border p-6 flex items-center justify-between">
@@ -476,7 +476,7 @@ const DefectDetailView = ({ defect: initialDefect, onClose, onUpdate }) => {
       {/* Photo Lightbox */}
       {selectedPhotoIndex !== null && (
         <div 
-          className="fixed inset-0 bg-black/90 flex items-center justify-center z-[60]"
+          className="fixed inset-0 bg-black/90 flex items-center justify-center z-[var(--z-overlay)]"
           onClick={() => setSelectedPhotoIndex(null)}
         >
           <button

@@ -245,7 +245,7 @@ const AddFolderModal = ({ parentPath, onClose, onSave }) => {
   const previewIcon = selectedIcon || 'FolderOpen';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-foreground">Add Sub-folder</h2>
@@ -389,7 +389,7 @@ const EditFolderModal = ({ currentName, onClose, onSave }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-foreground">Rename Folder</h2>
@@ -429,7 +429,7 @@ const EditFolderAppearanceModal = ({ folderName, currentIcon, currentColor, onCl
   const previewIcon = selectedIcon || 'FolderOpen';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-foreground">Edit Appearance</h2>
@@ -545,7 +545,7 @@ const FolderSettingsModal = ({ folderName, parentSegments, currentVisibility, on
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -700,7 +700,7 @@ const MoveFolderModal = ({ folderName, currentPathSegments, folderTree, onClose,
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -825,7 +825,7 @@ const BulkMoveItemsModal = ({ selectedCount, folderTree, currentPathSegments, on
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -917,7 +917,7 @@ const BulkDeleteConfirmModal = ({ selectedCount, onClose, onConfirm }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -1147,7 +1147,7 @@ const ItemAppearancePopover = ({ item, anchorRect, onClose, onSave }) => {
     let left = anchorRect?.left;
     if (left + 296 > W - 8) left = W - 296 - 8;
     if (top + 320 > H - 8) top = anchorRect?.top - 326;
-    return { position: 'fixed', top, left, zIndex: 9999, width: 296 };
+    return { position: 'fixed', top, left, zIndex: 'var(--z-overlay)', width: 296 };
   })();
 
   const filteredIcons = FOLDER_ICON_PALETTE?.filter(n => !iconSearch || n?.toLowerCase()?.includes(iconSearch?.toLowerCase()));
@@ -1909,7 +1909,7 @@ const SortableFolderCard = ({ id, name, icon, color, itemCount, subFolderCount, 
 
 // ─── Delete Folder Confirmation Modal ────────────────────────────────────────
 const DeleteFolderModal = ({ folderName, onClose, onConfirm }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+  <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
     <div className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-foreground">Delete Folder</h2>
@@ -1936,7 +1936,7 @@ const DeleteFolderModal = ({ folderName, onClose, onConfirm }) => (
 
 // ─── Archive Folder Confirmation Modal ────────────────────────────────────────
 const ArchiveFolderModal = ({ folderName, onClose, onConfirm }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+  <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
     <div className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-foreground">Archive Folder</h2>
@@ -3005,7 +3005,7 @@ const LocationFirstInventory = () => {
       'tenantId': localStorage.getItem('cargo_active_tenant_id') ?? ctxActiveTenantId ?? '(missing)',
     };
     return (
-      <div className="fixed bottom-4 right-4 z-[9999] w-80 bg-gray-900 text-green-400 rounded-xl border border-green-500/40 shadow-2xl font-mono text-xs overflow-hidden">
+      <div className="fixed bottom-4 right-4 z-[var(--z-toast)] w-80 bg-gray-900 text-green-400 rounded-xl border border-green-500/40 shadow-2xl font-mono text-xs overflow-hidden">
         <div className="flex items-center justify-between px-3 py-2 bg-gray-800 border-b border-green-500/30">
           <span className="font-bold text-green-300 flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block"></span>

@@ -111,11 +111,11 @@ const ItemQuickViewPanel = ({ item, onClose, vesselLocations = [] }) => {
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/40 z-[var(--z-overlay)]" onClick={onClose} />
       {/* Slide-in Panel */}
       <div
         ref={panelRef}
-        className="fixed right-0 top-0 h-full w-full max-w-sm bg-white shadow-2xl z-50 flex flex-col overflow-hidden"
+        className="fixed right-0 top-0 h-full w-full max-w-sm bg-white shadow-2xl z-[var(--z-overlay)] flex flex-col overflow-hidden"
         style={{ animation: 'slideInRight 0.25s ease-out' }}
       >
         {/* Header */}

@@ -103,7 +103,7 @@ const InventoryFolderPicker = ({ tree, onSelect, onClose, onFolderCreated }) => 
   }, [creatingFolder]);
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[var(--z-overlay)] p-4">
       <div className="bg-card rounded-2xl shadow-2xl w-full max-w-md flex flex-col" style={{ maxHeight: '80vh' }}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div className="flex items-center gap-2">
@@ -290,7 +290,7 @@ const LocationPicker = ({ vesselLocations, selectedId, onSelect, onClose }) => {
     : selectedDeck ? selectedDeck?.name : null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[var(--z-overlay)] p-4">
       <div className="bg-card rounded-2xl shadow-2xl w-full max-w-sm flex flex-col" style={{ maxHeight: '70vh' }}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div className="flex items-center gap-2">
@@ -808,7 +808,7 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
         <div className="bg-card rounded-2xl shadow-xl w-full max-w-lg max-h-[92vh] overflow-y-auto">
           {/* Header */}
           <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">

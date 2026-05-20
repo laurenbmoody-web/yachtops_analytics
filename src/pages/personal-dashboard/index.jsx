@@ -594,7 +594,7 @@ const PersonalDashboard = () => {
 
       {/* Add Task Modal */}
       {showAddTaskModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[var(--z-overlay)] p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Add task</h3>
             <form onSubmit={handleAddTask}>
@@ -644,7 +644,7 @@ const PersonalDashboard = () => {
 
       {/* Add Event Modal */}
       {showAddEventModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[var(--z-overlay)] p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Add event</h3>
             <form onSubmit={handleAddEvent}>
@@ -694,7 +694,7 @@ const PersonalDashboard = () => {
 
       {/* Create List Modal */}
       {showNewListModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[var(--z-overlay)] p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Create list</h3>
             <form onSubmit={handleCreateList}>

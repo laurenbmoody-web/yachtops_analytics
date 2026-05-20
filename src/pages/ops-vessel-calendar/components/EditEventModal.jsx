@@ -147,7 +147,7 @@ const EditEventModal = ({ event, onClose, onSuccess }) => {
 
   if (showAllHandsConfirm) {
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
         <div className="bg-card rounded-xl border border-border shadow-xl max-w-md w-full p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-3 rounded-full bg-warning/10">
@@ -173,7 +173,7 @@ const EditEventModal = ({ event, onClose, onSuccess }) => {
 
   if (showDeleteConfirm) {
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
         <div className="bg-card rounded-xl border border-border shadow-xl max-w-md w-full p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-3 rounded-full bg-error/10">
@@ -198,7 +198,7 @@ const EditEventModal = ({ event, onClose, onSuccess }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4 overflow-y-auto">
       <div className="bg-card rounded-xl border border-border shadow-xl max-w-2xl w-full my-8">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">

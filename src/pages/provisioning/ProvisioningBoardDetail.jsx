@@ -126,7 +126,7 @@ const EditBoardModal = ({ list, onSaved, onClose }) => {
   const fieldCls = 'w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:border-primary';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-black/50" onClick={onClose}>
       <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-bold text-foreground">Edit Board</h2>
@@ -2716,7 +2716,7 @@ const ProvisioningBoardDetail = () => {
           style={{
             position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.45)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 9000, padding: 16,
+            zIndex: 'var(--z-overlay)', padding: 16,
           }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{

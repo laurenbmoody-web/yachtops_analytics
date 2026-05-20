@@ -273,8 +273,8 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
   // If showing success confirmation panel
   if (showSuccess) {
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" style={{ pointerEvents: 'auto' }}>
-        <div className="bg-card border border-border rounded-2xl shadow-xl max-w-md w-full p-6" style={{ zIndex: 60 }}>
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4" style={{ pointerEvents: 'auto' }}>
+        <div className="bg-card border border-border rounded-2xl shadow-xl max-w-md w-full p-6">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
@@ -344,7 +344,7 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
 
   // Main invite form modal
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
       <div className="bg-card border border-border rounded-2xl shadow-xl max-w-md w-full p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-foreground">Invite Crew Member</h2>

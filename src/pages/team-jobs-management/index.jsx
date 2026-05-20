@@ -2437,7 +2437,7 @@ onClick={() => canToggleDept && departments?.length > 0 && setShowDeptDropdown(!
                 const movingBoardName = movingBoard ? ((deptId && movingBoard?.names?.[deptId]) ? movingBoard?.names?.[deptId] : (movingBoard?.name || 'Board')) : '';
                 const currentIndex = orderedBoards?.findIndex(b => b?.id === moveBoardId);
                 return (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setMoveBoardId(null)}>
+                  <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-black/50 p-4" onClick={() => setMoveBoardId(null)}>
                     <div className="bg-card rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={e => e?.stopPropagation()}>
                       <div className="flex items-center justify-between mb-4">
                         <h2 className="text-lg font-semibold text-foreground">Move Board</h2>
