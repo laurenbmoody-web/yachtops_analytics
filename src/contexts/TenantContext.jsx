@@ -17,7 +17,7 @@ export const useTenant = () => {
 
 // ─── Vessel Chooser UI ───────────────────────────────────────────────────────
 const VesselChooserModal = ({ options, onSelect }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 p-4">
+  <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-black bg-opacity-60 p-4">
     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
       <div className="flex items-center gap-3 mb-5">
         <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
@@ -67,7 +67,7 @@ const NoVesselAccessScreen = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-50 p-4">
+    <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-gray-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8 text-center">
         <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <svg className="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

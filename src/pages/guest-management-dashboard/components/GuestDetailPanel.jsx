@@ -1538,7 +1538,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
       </div>
       {/* Delete Confirmation Modal - COMMAND ONLY */}
       {showDeleteConfirm && canDelete && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
           <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 rounded-full bg-error/20 flex items-center justify-center">
@@ -1592,7 +1592,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
 
       {/* Kids Linking Modal */}
       {showKidsModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
           <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-foreground">Link Children</h3>

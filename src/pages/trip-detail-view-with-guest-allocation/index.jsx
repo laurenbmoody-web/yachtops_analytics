@@ -2355,7 +2355,7 @@ const AddReminderModal = ({ isOpen, onClose, trip, editingReminder, onSave }) =>
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
       <div className="bg-card rounded-xl shadow-xl max-w-md w-full p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-foreground">
@@ -2453,7 +2453,7 @@ const AddSpecialModal = ({ isOpen, onClose, trip, guests, editingSpecial, onSave
   const tripGuests = guests?.filter(g => trip?.guests?.some(tg => tg?.guestId === g?.id && tg?.isActive));
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
       <div className="bg-card rounded-xl shadow-xl max-w-md w-full p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-foreground">
@@ -2544,7 +2544,7 @@ const AddSpecialModal = ({ isOpen, onClose, trip, guests, editingSpecial, onSave
 // Event Detail Popover
 const EventDetailPopover = ({ event, onClose }) => {
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4" onClick={onClose}>
       <div className="bg-card rounded-xl shadow-xl max-w-md w-full p-6" onClick={(e) => e?.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-foreground">Event Details</h3>
@@ -2599,7 +2599,7 @@ const SpecialDetailPopover = ({ special, guests, permissions, onClose, onEdit, o
   const guest = guests?.find(g => g?.id === special?.guestId);
   
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4" onClick={onClose}>
       <div className="bg-card rounded-xl shadow-xl max-w-md w-full p-6" onClick={(e) => e?.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-foreground">Special Occasion</h3>
@@ -2662,7 +2662,7 @@ const ReminderDetailPopover = ({ reminder, guests, permissions, onClose, onEdit,
   const guest = guests?.find(g => g?.id === reminder?.guestId);
   
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4" onClick={onClose}>
       <div className="bg-card rounded-xl shadow-xl max-w-md w-full p-6" onClick={(e) => e?.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-foreground">Reminder Details</h3>

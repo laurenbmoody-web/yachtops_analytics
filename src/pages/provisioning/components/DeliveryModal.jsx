@@ -179,7 +179,7 @@ const DeliveryModal = ({ list, items, onClose, onComplete }) => {
   const missing = matchedItems.filter(i => i.status === ITEM_STATUS.NOT_DELIVERED || i.status === ITEM_STATUS.PENDING).length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+    <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center p-4 bg-black/50">
       <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">

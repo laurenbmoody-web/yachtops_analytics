@@ -467,7 +467,7 @@ const BulkBar = ({ count, boards, onClaimAll, onReturnAll, onDismissAll, onClear
       position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
       background: '#1E3A5F', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
       padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12,
-      zIndex: 100, minWidth: 360, maxWidth: 620,
+      zIndex: 'var(--z-nav)', minWidth: 360, maxWidth: 620,
     }}>
       <span style={{ fontSize: 13, fontWeight: 600, color: 'white', whiteSpace: 'nowrap', flexShrink: 0 }}>
         {count} item{count !== 1 ? 's' : ''} selected
@@ -938,7 +938,7 @@ const ReturnsView = ({ tenantId, userId, tenantName, userFullName, showArchived 
           position: 'fixed', bottom: 0, left: 0, right: 0,
           background: 'white', borderTop: '1px solid #E2E8F0',
           padding: '12px 24px', display: 'flex', alignItems: 'center', gap: 10,
-          zIndex: 100, boxShadow: '0 -4px 16px rgba(0,0,0,0.06)',
+          zIndex: 'var(--z-nav)', boxShadow: '0 -4px 16px rgba(0,0,0,0.06)',
         }}>
           <span style={{ fontSize: 12, color: '#64748B', fontWeight: 500, flexShrink: 0 }}>
             {selectedIds.size} item{selectedIds.size !== 1 ? 's' : ''} selected

@@ -330,11 +330,11 @@ const AddItemDrawer = ({ isOpen, onClose, mode = 'add', initialData = null, cate
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black/50 z-40 transition-opacity"
+        className="fixed inset-0 bg-black/50 z-[var(--z-overlay)] transition-opacity"
         onClick={onClose}
       />
       {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-full md:w-[600px] lg:w-[700px] bg-background z-50 shadow-2xl overflow-y-auto">
+      <div className="fixed right-0 top-0 h-full w-full md:w-[600px] lg:w-[700px] bg-background z-[var(--z-overlay)] shadow-2xl overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-background border-b border-border p-6 z-10">
           <div className="flex items-center justify-between">

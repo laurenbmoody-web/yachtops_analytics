@@ -113,7 +113,7 @@ const BulkActionsModal = ({ selectedItems, items, onClose, onComplete }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[var(--z-overlay)] p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">

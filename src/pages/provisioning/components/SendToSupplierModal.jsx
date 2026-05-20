@@ -458,7 +458,7 @@ const SendToSupplierModal = ({
   };
 
   const modal = (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
       <div className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-start justify-between mb-5">

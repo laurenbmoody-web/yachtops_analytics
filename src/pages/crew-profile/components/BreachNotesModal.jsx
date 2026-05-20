@@ -92,7 +92,7 @@ const BreachNotesModal = ({ isOpen, onClose, breachedDates, userId, currentUserI
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+        className="fixed inset-0 bg-black/50 z-[var(--z-overlay)] flex items-center justify-center"
         onClick={handleBackdropClick}
       >
         {/* Modal */}

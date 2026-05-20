@@ -629,7 +629,7 @@ const ExportPreferencesModal = ({ isOpen, onClose, guest, preferences }) => {
   if (showPreview) {
     return (
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center p-4"
         style={{ background: 'rgba(0,0,0,0.7)' }}
       >
         <div className="bg-card border border-border rounded-2xl shadow-2xl flex flex-col" style={{ width: '700px', maxWidth: '95vw', height: '90vh' }}>
@@ -699,7 +699,7 @@ const ExportPreferencesModal = ({ isOpen, onClose, guest, preferences }) => {
   // ── Selection Screen ────────────────────────────────────────────────────────
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.5)' }}
       onClick={(e) => { if (e?.target === e?.currentTarget) onClose(); }}
     >

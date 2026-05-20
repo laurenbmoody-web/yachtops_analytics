@@ -791,7 +791,7 @@ const InventoryCategorySettings = () => {
       </div>
       {/* Add Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[var(--z-overlay)] p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
             <h3 className="text-xl font-bold text-gray-900 mb-4">
               Add {modalContext?.level === 'L1' ? 'Inventory Group' : modalContext?.level === 'L2' ? 'Category' : modalContext?.level === 'L3' ? 'Sub-Category' : 'Type'}
@@ -821,7 +821,7 @@ const InventoryCategorySettings = () => {
       )}
       {/* Archive Modal */}
       {showArchiveModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[var(--z-overlay)] p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
             <h3 className="text-xl font-bold text-gray-900 mb-4">Archive Category</h3>
             <p className="text-gray-600 mb-4">

@@ -179,7 +179,7 @@ const QuickEntryModal = ({ isOpen, onClose, onSave, initialDate, crewId }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onMouseUp={handleMouseUp}>
+    <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center p-4" onMouseUp={handleMouseUp}>
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -367,7 +367,7 @@ const QuickEntryModal = ({ isOpen, onClose, onSave, initialDate, crewId }) => {
       </div>
       {/* Save Preset Modal */}
       {showSavePresetModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center p-4">
           <div 
             className="absolute inset-0 bg-black/50"
             onClick={() => {
@@ -405,7 +405,7 @@ const QuickEntryModal = ({ isOpen, onClose, onSave, initialDate, crewId }) => {
 
       {/* Edit Preset Modal */}
       {showEditPresetModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center p-4">
           <div 
             className="absolute inset-0 bg-black/50"
             onClick={() => {
@@ -445,7 +445,7 @@ const QuickEntryModal = ({ isOpen, onClose, onSave, initialDate, crewId }) => {
 
       {/* Select Preset Modal */}
       {showPresetModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center p-4">
           <div 
             className="absolute inset-0 bg-black/50"
             onClick={() => setShowPresetModal(false)}

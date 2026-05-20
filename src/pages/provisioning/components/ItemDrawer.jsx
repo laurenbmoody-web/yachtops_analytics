@@ -673,7 +673,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                 </div>
                 {invDropdownOpen && invResults.length > 0 && (
                   <div style={{
-                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 'var(--z-dropdown)',
                     background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8,
                     boxShadow: '0 8px 24px rgba(0,0,0,0.1)', marginTop: 4, overflow: 'hidden',
                   }}>

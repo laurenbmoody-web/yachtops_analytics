@@ -61,12 +61,12 @@ const CrewHORDrawer = ({ isOpen, onClose, crew, currentMonth, onMonthChange, onN
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black/50 z-40"
+        className="fixed inset-0 bg-black/50 z-[var(--z-overlay)]"
         onClick={onClose}
       />
       
       {/* Drawer */}
-      <div className="fixed top-0 right-0 h-full w-full max-w-3xl bg-background z-50 shadow-2xl overflow-y-auto animate-slide-in-right">
+      <div className="fixed top-0 right-0 h-full w-full max-w-3xl bg-background z-[var(--z-overlay)] shadow-2xl overflow-y-auto animate-slide-in-right">
         <div className="flex flex-col h-full">
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-border">
