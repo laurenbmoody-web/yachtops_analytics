@@ -61,34 +61,43 @@ export function useRotaDepartmentStatus(rotaId) {
 
   useEffect(() => { refetch(); }, [refetch]);
 
+  // Optimistic ensureDraft — set the badge to 'draft' in local state
+  // SYNCHRONOUSLY, then fire the DB write in the background. On failure:
+  // silent refetch (server truth wins) + return reason.
+  //
   // Returns { ok, reason? }. Never throws.
   const ensureDraft = useCallback(
     async ({ departmentId, vesselId, tenantId }) => {
       if (!rotaId || !departmentId) return { ok: false, reason: 'no-context' };
-      try {
-        const { data: existing, error: selErr } = await supabase
-          .from('rota_department_status')
-          .select('id, status')
-          .eq('rota_id', rotaId)
-          .eq('department_id', departmentId)
-          .maybeSingle();
-        if (selErr) throw selErr;
 
-        if (existing) {
-          if (REVERTS_TO_DRAFT.has(existing.status)) {
-            const { error: updErr } = await supabase
-              .from('rota_department_status')
-              .update({ status: 'draft', updated_at: new Date().toISOString() })
-              .eq('id', existing.id);
-            if (updErr) throw updErr;
-            await refetch();
-          }
+      // Read current entry (closure value; fine for our purposes).
+      let existing = null;
+      setStatusByDept((prev) => {
+        existing = prev.get(departmentId) || null;
+        if (existing && existing.status === 'draft') return prev; // no-op
+        const m = new Map(prev);
+        m.set(departmentId, {
+          id: existing?.id ?? `tmp-${Math.random().toString(36).slice(2, 10)}`,
+          status: 'draft',
+          hasUnpublishedChanges: existing?.hasUnpublishedChanges ?? true,
+        });
+        return m;
+      });
+
+      // No-op when already draft.
+      if (existing && existing.status === 'draft') return { ok: true, noop: true };
+
+      try {
+        if (existing && REVERTS_TO_DRAFT.has(existing.status)) {
+          const { error: updErr } = await supabase
+            .from('rota_department_status')
+            .update({ status: 'draft', updated_at: new Date().toISOString() })
+            .eq('id', existing.id);
+          if (updErr) throw updErr;
           return { ok: true };
         }
-
-        // No row — INSERT as draft. RLS: succeeds for COMMAND/CHIEF; HOD has
-        // no INSERT policy, so this errors and we report 'no-init'.
-        const { error: insErr } = await supabase
+        // No row → INSERT (RLS: COMMAND/CHIEF succeed; HOD has no INSERT policy).
+        const { data, error: insErr } = await supabase
           .from('rota_department_status')
           .insert({
             rota_id: rotaId,
@@ -96,13 +105,28 @@ export function useRotaDepartmentStatus(rotaId) {
             tenant_id: tenantId,
             vessel_id: vesselId,
             status: 'draft',
-          });
+          })
+          .select('id')
+          .maybeSingle();
         if (insErr) {
+          // Revert optimistic badge to server truth.
+          refetch();
           return { ok: false, reason: 'no-init', detail: insErr.message };
         }
-        await refetch();
+        // Reconcile temp id → real id (best-effort; refetch on Done is the
+        // safety net if this slot is empty for any reason).
+        if (data?.id) {
+          setStatusByDept((prev) => {
+            const cur = prev.get(departmentId);
+            if (!cur || !String(cur.id).startsWith('tmp-')) return prev;
+            const m = new Map(prev);
+            m.set(departmentId, { ...cur, id: data.id });
+            return m;
+          });
+        }
         return { ok: true };
       } catch (e) {
+        refetch();
         return { ok: false, reason: 'error', detail: e?.message ?? String(e) };
       }
     },

@@ -15,16 +15,15 @@ import { useRotaDepartmentStatus } from './useRotaDepartmentStatus';
 
 const EDITORIAL_BG = '#F5F1EA';
 const GRID_START_HOUR = 6;
+// 7th pill is "Erase" — the active brush; clears whatever the paint
+// covers. Sub-types for new shifts are applied inside useRotaShifts.applyPaint.
 const SHIFT_TYPE_PILLS = [
   ['duty', 'Duty'], ['watch', 'Watch'], ['standby', 'Standby'],
   ['training', 'Training'], ['off', 'Off'], ['medical', 'Medical'],
+  ['erase', 'Erase'],
 ];
-// Sub-type defaults applied to newly-created shifts.
-function subTypeFor(type) {
-  if (type === 'watch') return 'navigation';
-  if (type === 'standby') return 'maintenance';
-  return null;
-}
+// Last paintable slot index (pre-midnight, given a 06:00 grid start).
+const LAST_PRE_MIDNIGHT_SLOT = (24 - GRID_START_HOUR) * 2 - 1; // 35
 
 function fullDateLabel(d) {
   const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -32,37 +31,8 @@ function fullDateLabel(d) {
   return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
 }
 
-// Slot i (30-min) → wall-clock decimals in the 06:00→06:00 window.
-function slotDecimals(i) {
-  const startDec = GRID_START_HOUR + i * 0.5;
-  return { startDec, endDec: startDec + 0.5 };
-}
-function decToHHMM(dec) {
-  let d = dec % 24;
-  if (d < 0) d += 24;
-  const h = Math.floor(d);
-  const m = Math.round((d - h) * 60);
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
-// Unclamped, overnight-aware decimal + slot span of a raw shift row
-// (mirrors deriveCrew). Used for hole-punch start/middle/end math.
-function shiftDecRange(s) {
-  const toDec = (t) => {
-    if (!t) return null;
-    const [h, m] = String(t).split(':').map(Number);
-    return h + (m || 0) / 60;
-  };
-  let st = toDec(s.startTime);
-  let en = toDec(s.endTime);
-  if (st == null || en == null) return null;
-  if (en <= st) en += 24;
-  return {
-    startDec: st,
-    endDec: en,
-    sSlot: Math.round((st - GRID_START_HOUR) * 2),
-    eSlot: Math.round((en - GRID_START_HOUR) * 2), // exclusive
-  };
-}
+// (slot ↔ decimal helpers and shift-range math are now owned by
+// useRotaShifts.applyPaint — the page only deals in slot indices.)
 
 function RotaLegend({ now }) {
   const hhmmNow = now
@@ -162,7 +132,7 @@ export default function CrewRotaPage() {
 
   const {
     crew, loading, error, effectiveDate, draftCount,
-    upsertCellShift, removeShift, updateShift, splitShift,
+    applyPaint, refetch,
   } = useRotaShifts();
   const { rota } = useCurrentRota();
   const { statusByDept, ensureDraft } = useRotaDepartmentStatus(rota?.id);
@@ -198,110 +168,51 @@ export default function CrewRotaPage() {
     }
   }, [ensureDraft, rota, activeTenantId, showToast]);
 
-  // Cell click in edit mode. On an existing shift → punch a hole
-  // (shrink start/end, split the middle, or delete a single cell). On an
-  // empty cell → create a 30-min draft shift of the active type.
-  const handleCellClick = useCallback(async (crewMember, slotIdx) => {
+  // Single paint handler — used for both single click (lo === hi) and drag
+  // ranges. Clamps to the pre-midnight window (Phase 1 limitation) and
+  // routes to useRotaShifts.applyPaint, which does the optimistic local
+  // update + background DB write. ensureDraft is fired in parallel so the
+  // dept badge updates in the same frame as the cells.
+  const handlePaint = useCallback(async (crewMember, loSlot, hiSlot) => {
     if (!rota?.id) { showToast('No active rota resolved — cannot edit yet.'); return; }
-    const { startDec } = slotDecimals(slotIdx);
-    if (startDec >= 24) {
-      // Post-midnight (Saturday) slots need next-day handling — Phase 1
-      // edits the pre-midnight window only (documented limitation).
+    const lo0 = Math.min(loSlot, hiSlot);
+    const hi0 = Math.max(loSlot, hiSlot);
+    if (lo0 > LAST_PRE_MIDNIGHT_SLOT) {
       showToast('Editing the post-midnight window ships in a later phase.');
       return;
     }
-    const raws = crewMember.rawShifts || [];
+    const lo = lo0;
+    const hi = Math.min(hi0, LAST_PRE_MIDNIGHT_SLOT); // silently clamp range
+    const erase = shiftType === 'erase';
 
-    // Covering shift for this slot (overnight-aware, any type).
-    let cover = null;
-    for (const s of raws) {
-      const r = shiftDecRange(s);
-      if (r && slotIdx >= r.sSlot && slotIdx < r.eSlot) { cover = { s, ...r }; break; }
-    }
+    // Dept draft sync runs in parallel — its result only matters for the
+    // HOD-no-init error toast; it does NOT block the paint.
+    syncDeptDraft(crewMember);
 
-    if (cover) {
-      const { s, sSlot, eSlot, startDec: shStart, endDec: shEnd } = cover;
-      let r;
-      if (eSlot - sSlot <= 1) {
-        // Only cell → delete the whole shift.
-        r = await removeShift(s.id);
-      } else if (slotIdx === sSlot) {
-        // Start cell → shrink start by 30 min.
-        r = await updateShift(s.id, { start_time: decToHHMM(shStart + 0.5) });
-      } else if (slotIdx === eSlot - 1) {
-        // End cell → shrink end by 30 min.
-        r = await updateShift(s.id, { end_time: decToHHMM(shEnd - 0.5) });
-      } else {
-        // Middle cell → delete + recreate the two surviving pieces.
-        // Punches exactly the clicked 30-min cell (consistent with the
-        // start/end rules; see report re: the spec's middle example).
-        const leftEndDec = GRID_START_HOUR + slotIdx * 0.5;
-        const rightStartDec = GRID_START_HOUR + (slotIdx + 1) * 0.5;
-        r = await splitShift({
-          shiftId: s.id,
-          meta: {
-            rotaId: rota.id,
-            memberId: crewMember.id,
-            shiftDate: effectiveDate,
-            shiftType: s.shiftType || 'duty',
-            subType: s.subType ?? null,
-            tripId: rota.ownerType === 'trip' ? rota.tripId : null,
-            createdByMemberId: myMemberId,
-          },
-          pieces: [
-            { startTime: decToHHMM(shStart), endTime: decToHHMM(leftEndDec) },
-            { startTime: decToHHMM(rightStartDec), endTime: decToHHMM(shEnd) },
-          ],
-        });
-      }
-      if (!r.ok) { showToast(`Couldn’t edit shift: ${r.error}`); return; }
-      await syncDeptDraft(crewMember);
-      return;
-    }
-
-    // Empty cell → create a 30-min draft of the active type.
-    const res = await upsertCellShift({
+    const res = await applyPaint({
+      crewMember,
+      loSlot: lo,
+      hiSlot: hi,
+      type: erase ? null : shiftType,
+      erase,
       rotaId: rota.id,
-      memberId: crewMember.id,
-      shiftDate: effectiveDate,
-      startTime: decToHHMM(startDec),
-      endTime: decToHHMM(startDec + 0.5),
-      shiftType,
-      subType: subTypeFor(shiftType),
       tripId: rota.ownerType === 'trip' ? rota.tripId : null,
       createdByMemberId: myMemberId,
+      gridStartHour: GRID_START_HOUR,
     });
-    if (!res.ok) { showToast(`Couldn’t save shift: ${res.error}`); return; }
-    await syncDeptDraft(crewMember);
-  }, [rota, effectiveDate, myMemberId, shiftType, upsertCellShift, removeShift,
-      updateShift, splitShift, syncDeptDraft, showToast]);
-
-  // Drag-paint commit: ONE continuous draft shift over slots [lo, hi].
-  const handleCommitRange = useCallback(async (crewMember, loSlot, hiSlot) => {
-    if (!rota?.id) { showToast('No active rota resolved — cannot edit yet.'); return; }
-    const startDec = GRID_START_HOUR + loSlot * 0.5;
-    let endDec = GRID_START_HOUR + (hiSlot + 1) * 0.5;
-    if (startDec >= 24) {
-      showToast('Editing the post-midnight window ships in a later phase.');
-      return;
-    }
-    if (endDec > 24) endDec = 24; // clamp to the 06:00 next-day boundary
-    const res = await upsertCellShift({
-      rotaId: rota.id,
-      memberId: crewMember.id,
-      shiftDate: effectiveDate,
-      startTime: decToHHMM(startDec),
-      endTime: decToHHMM(endDec),
-      shiftType,
-      subType: subTypeFor(shiftType),
-      tripId: rota.ownerType === 'trip' ? rota.tripId : null,
-      createdByMemberId: myMemberId,
-    });
-    if (!res.ok) { showToast(`Couldn’t save shift: ${res.error}`); return; }
-    await syncDeptDraft(crewMember);
-  }, [rota, effectiveDate, myMemberId, shiftType, upsertCellShift, syncDeptDraft, showToast]);
+    if (!res.ok) showToast(`Couldn’t save that change — try again. (${res.error})`);
+  }, [rota, shiftType, myMemberId, applyPaint, syncDeptDraft, showToast]);
 
   const canEdit = !!rota?.id && !loading && !error;
+  const enterEdit = useCallback(() => {
+    if (!canEdit) return;
+    setEditMode(true);
+    refetch({ silent: true });
+  }, [canEdit, refetch]);
+  const exitEdit = useCallback(() => {
+    setEditMode(false);
+    refetch({ silent: true });
+  }, [refetch]);
 
   return (
     <>
@@ -356,7 +267,7 @@ export default function CrewRotaPage() {
                 <button
                   type="button"
                   className="crew-rota-pill active edit-pill"
-                  onClick={() => setEditMode(false)}
+                  onClick={exitEdit}
                 >Done</button>
               ) : (
                 <button
@@ -364,7 +275,7 @@ export default function CrewRotaPage() {
                   className={`crew-rota-pill edit-pill${canEdit ? '' : ' disabled'}`}
                   aria-disabled={!canEdit}
                   title={canEdit ? 'Edit the rota' : 'Rota not ready'}
-                  onClick={() => { if (canEdit) setEditMode(true); }}
+                  onClick={enterEdit}
                 ><Pencil size={12} /> Edit</button>
               )}
             </div>
@@ -409,8 +320,7 @@ export default function CrewRotaPage() {
                 gridStartHour={GRID_START_HOUR}
                 onCrewClick={setSelectedCrew}
                 editMode={editMode}
-                onCellClick={handleCellClick}
-                onCommitRange={handleCommitRange}
+                onPaint={handlePaint}
                 deptStatus={statusByDept}
               />
             ) : (

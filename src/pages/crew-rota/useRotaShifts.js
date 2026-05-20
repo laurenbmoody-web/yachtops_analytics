@@ -14,7 +14,7 @@
 // runtime clock, so when today has no rows we fall back to the most
 // recent shift_date that does — the grid is never silently empty.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -161,12 +161,15 @@ export function useRotaShifts() {
   const { user, activeTenantId } = useAuth();
   const tenantId = activeTenantId;
   console.log('[useRotaShifts] hook called, activeTenantId:', activeTenantId, 'hasUser:', !!user);
-  const [crew, setCrew] = useState([]);
-  const [shifts, setShifts] = useState([]);
+  // Raw state — optimistic mutations modify these; `crew`, `shifts`,
+  // `draftCount` derive via useMemo so cell edits flow to the UI in the
+  // same React render that fires the (background) DB write.
+  const [members, setMembers] = useState([]);
+  const [windowShifts, setWindowShifts] = useState([]); // 7-day rolling window
+  const [statusByUser, setStatusByUser] = useState(() => new Map());
   const [effectiveDate, setEffectiveDate] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [draftCount, setDraftCount] = useState(0);
 
   // Extracted so mutations can await a refresh. `silent` keeps the grid
   // mounted during a post-mutation refetch (no loading placeholder swap —
@@ -292,8 +295,6 @@ export function useRotaShifts() {
           status: s.status,
         }));
 
-        const dayShifts = mappedShifts.filter(s => s.date === effDate);
-
         // ── Current crew status as of the effective date ──
         // Mirrors crew-management/index.jsx:265-279 — most recent
         // crew_status_history row per user_id with changed_at <= asOf.
@@ -305,7 +306,7 @@ export function useRotaShifts() {
         // historical status per day. Do not re-couple to effDate.
         const asOfIso = `${today}T23:59:59.999Z`;
         const userIds = mappedMembers.map(m => m.userId).filter(Boolean);
-        const statusByUser = new Map();
+        const nextStatusByUser = new Map();
         if (userIds.length > 0) {
           const { data: history, error: hErr } = await supabase
             .from('crew_status_history')
@@ -316,24 +317,15 @@ export function useRotaShifts() {
             .order('changed_at', { ascending: false });
           if (hErr) throw hErr;
           for (const row of (history ?? [])) {
-            if (!statusByUser.has(row.user_id)) statusByUser.set(row.user_id, row.new_status);
+            if (!nextStatusByUser.has(row.user_id)) nextStatusByUser.set(row.user_id, row.new_status);
           }
         }
         if (cancelled) return;
 
-        const derived = mappedMembers.map(m => {
-          const todayS = dayShifts.filter(s => s.memberId === m.id);
-          const weekS = mappedShifts.filter(s => s.memberId === m.id);
-          const c = deriveCrew(m, todayS, weekS);
-          c.currentStatus = statusByUser.get(m.userId) ?? null;
-          return c;
-        });
-
-        if (cancelled) return;
-        setCrew(derived);
-        setShifts(dayShifts);
+        setMembers(mappedMembers);
+        setWindowShifts(mappedShifts);
+        setStatusByUser(nextStatusByUser);
         setEffectiveDate(effDate);
-        setDraftCount(dayShifts.filter(s => s.status === 'draft').length);
       } catch (e) {
         if (!cancelled) setError(e?.message ?? String(e));
       } finally {
@@ -344,97 +336,215 @@ export function useRotaShifts() {
 
   useEffect(() => { load(); }, [load]);
 
-  // ── Mutations (Phase 1 auto-save) ──────────────────────────────────────────
-  // Each write tags status='draft' and rota_id (NOT NULL, no default — see
-  // migration 20260518000003_alter_rota_shifts_add_rota_id.sql) and refetches
-  // on success. The caller (CrewRotaPage) orchestrates the companion
-  // rota_department_status ensureDraft. Mutations never throw — they return
-  // { ok, error? } so the auto-save flow can surface a toast.
+  // ── Derived state (memoised) ───────────────────────────────────────────────
+  // `windowShifts` is the source of truth during an edit session; optimistic
+  // mutations modify it directly so cells re-render on the same render the
+  // event handler dispatches (no await on the DB before UI updates).
 
-  const upsertCellShift = useCallback(async ({
-    rotaId, memberId, shiftDate, startTime, endTime,
-    shiftType = 'duty', subType = null, tripId = null, createdByMemberId = null,
+  const shifts = useMemo(
+    () => (effectiveDate ? windowShifts.filter(s => s.date === effectiveDate) : []),
+    [windowShifts, effectiveDate],
+  );
+
+  const crew = useMemo(
+    () => members.map((m) => {
+      const todayS = shifts.filter(s => s.memberId === m.id);
+      const weekS = windowShifts.filter(s => s.memberId === m.id);
+      const c = deriveCrew(m, todayS, weekS);
+      c.currentStatus = statusByUser.get(m.userId) ?? null;
+      return c;
+    }),
+    [members, windowShifts, shifts, statusByUser],
+  );
+
+  const draftCount = useMemo(
+    () => shifts.filter(s => s.status === 'draft').length,
+    [shifts],
+  );
+
+  // ── Paint-brush mutation (optimistic) ─────────────────────────────────────
+  // ONE entrypoint for the grid. Computes the overlapping shifts in
+  // [loSlot, hiSlot+1), replaces them with surviving outside-fragments plus
+  // (when not erasing) a new shift of the active type, updates local state
+  // SYNCHRONOUSLY for an instant-paint feel, then fires the DB writes in
+  // the background. On failure: silent refetch from server + error to the
+  // caller. No awaited refetch on success — server truth reconciles when
+  // the user clicks Edit/Done (page-level refetch).
+  //
+  // Same-type no-op: painting a range already covered entirely by the
+  // same active type does no work and no DB write. Erase on an empty
+  // range is likewise a no-op.
+
+  const applyPaint = useCallback(async ({
+    crewMember, loSlot, hiSlot, type, erase = false,
+    rotaId, tripId = null, createdByMemberId = null, gridStartHour = 6,
   }) => {
-    if (!tenantId || !rotaId || !memberId || !shiftDate) {
+    if (!tenantId || !rotaId || !crewMember?.id || !effectiveDate) {
       return { ok: false, error: 'missing-context' };
     }
-    const row = {
-      tenant_id: tenantId,
-      rota_id: rotaId,
-      member_id: memberId,
-      shift_date: shiftDate,
-      start_time: startTime,
-      end_time: endTime,
-      shift_type: shiftType,
-      sub_type: subType,
-      status: 'draft',
+    const lo = Math.min(loSlot, hiSlot);
+    const hi = Math.max(loSlot, hiSlot);
+    const newLo = lo;          // inclusive slot index
+    const newHi = hi + 1;      // exclusive slot index
+
+    const toDec = (t) => {
+      if (!t) return null;
+      const [h, m] = String(t).split(':').map(Number);
+      return h + (m || 0) / 60;
     };
-    if (tripId) row.trip_id = tripId;
-    if (createdByMemberId) row.created_by = createdByMemberId;
-    const { data, error: insErr } = await supabase
-      .from('rota_shifts').insert(row).select('id').maybeSingle();
-    if (insErr) return { ok: false, error: insErr.message };
-    await load({ silent: true });
-    return { ok: true, id: data?.id };
-  }, [tenantId, load]);
-
-  const removeShift = useCallback(async (shiftId) => {
-    if (!shiftId) return { ok: false, error: 'no-id' };
-    const { error: delErr } = await supabase
-      .from('rota_shifts').delete().eq('id', shiftId);
-    if (delErr) return { ok: false, error: delErr.message };
-    await load({ silent: true });
-    return { ok: true };
-  }, [load]);
-
-  const updateShift = useCallback(async (shiftId, patch) => {
-    if (!shiftId) return { ok: false, error: 'no-id' };
-    const { error: updErr } = await supabase
-      .from('rota_shifts')
-      .update({ ...patch, status: 'draft' })
-      .eq('id', shiftId);
-    if (updErr) return { ok: false, error: updErr.message };
-    await load({ silent: true });
-    return { ok: true };
-  }, [load]);
-
-  // Split a shift around a punched-out cell: insert the surviving piece(s)
-  // FIRST, then delete the original — so a partial failure can never lose
-  // the shift (worst case: a transient visual overlap, recoverable). No DB
-  // transaction in Phase 1 (matches the last-write-wins stance).
-  const splitShift = useCallback(async ({ shiftId, meta, pieces }) => {
-    if (!shiftId || !meta?.rotaId || !meta?.memberId || !tenantId) {
-      return { ok: false, error: 'missing-context' };
-    }
-    const rows = (pieces || []).map((p) => {
-      const r = {
-        tenant_id: tenantId,
-        rota_id: meta.rotaId,
-        member_id: meta.memberId,
-        shift_date: meta.shiftDate,
-        start_time: p.startTime,
-        end_time: p.endTime,
-        shift_type: meta.shiftType || 'duty',
-        sub_type: meta.subType ?? null,
-        status: 'draft',
+    const spanOf = (s) => {
+      let st = toDec(s.startTime);
+      let en = toDec(s.endTime);
+      if (st == null || en == null) return null;
+      if (en <= st) en += 24;
+      return {
+        sSlot: Math.round((st - gridStartHour) * 2),
+        eSlot: Math.round((en - gridStartHour) * 2),
       };
-      if (meta.tripId) r.trip_id = meta.tripId;
-      if (meta.createdByMemberId) r.created_by = meta.createdByMemberId;
-      return r;
-    });
-    if (rows.length > 0) {
-      const { error: insErr } = await supabase.from('rota_shifts').insert(rows);
-      if (insErr) return { ok: false, error: insErr.message };
+    };
+    const dec = (slot) => {
+      const d = (gridStartHour + slot * 0.5) % 24;
+      const h = Math.floor(d);
+      const mm = Math.round((d - h) * 60);
+      return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+    };
+    const subTypeFor = (t) => (t === 'watch' ? 'navigation' : t === 'standby' ? 'maintenance' : null);
+
+    // Member's shifts on the effective date (everything else is untouched).
+    const memberDay = windowShifts.filter(
+      s => s.memberId === crewMember.id && s.date === effectiveDate,
+    );
+
+    // Partition into untouched, overlapping (to delete), and surviving fragments.
+    const overlappingIds = [];
+    const survivingFragments = []; // new rows for outside-of-paint slivers
+    const untouched = [];
+    for (const s of memberDay) {
+      const span = spanOf(s);
+      if (!span) { untouched.push(s); continue; }
+      if (span.eSlot <= newLo || span.sSlot >= newHi) {
+        untouched.push(s);
+        continue;
+      }
+      overlappingIds.push(s.id);
+      if (span.sSlot < newLo) {
+        survivingFragments.push({
+          startTime: s.startTime, endTime: dec(newLo),
+          shiftType: s.shiftType, subType: s.subType ?? null,
+        });
+      }
+      if (span.eSlot > newHi) {
+        survivingFragments.push({
+          startTime: dec(newHi), endTime: s.endTime,
+          shiftType: s.shiftType, subType: s.subType ?? null,
+        });
+      }
     }
-    const { error: delErr } = await supabase
-      .from('rota_shifts').delete().eq('id', shiftId);
-    if (delErr) return { ok: false, error: delErr.message, overlap: true };
-    await load({ silent: true });
-    return { ok: true };
-  }, [tenantId, load]);
+
+    // No-op short-circuits.
+    if (erase && overlappingIds.length === 0) {
+      return { ok: true, noop: true };
+    }
+    if (!erase) {
+      let allSame = true;
+      for (let i = lo; i <= hi; i += 1) {
+        let cov = null;
+        for (const s of memberDay) {
+          const sp = spanOf(s);
+          if (sp && i >= sp.sSlot && i < sp.eSlot) { cov = s; break; }
+        }
+        if (!cov || cov.shiftType !== type) { allSame = false; break; }
+      }
+      if (allSame) return { ok: true, noop: true };
+    }
+
+    // Build optimistic rows (temp ids — reconciled to real ids on insert).
+    const tmpId = () => `tmp-${Math.random().toString(36).slice(2, 10)}`;
+    const optimisticInserts = [
+      ...survivingFragments.map(f => ({
+        id: tmpId(),
+        memberId: crewMember.id,
+        date: effectiveDate,
+        startTime: f.startTime,
+        endTime: f.endTime,
+        shiftType: f.shiftType,
+        subType: f.subType,
+        notes: null,
+        status: 'draft',
+      })),
+      ...(erase ? [] : [{
+        id: tmpId(),
+        memberId: crewMember.id,
+        date: effectiveDate,
+        startTime: dec(newLo),
+        endTime: dec(newHi),
+        shiftType: type,
+        subType: subTypeFor(type),
+        notes: null,
+        status: 'draft',
+      }]),
+    ];
+
+    // 1. Optimistic local update — runs synchronously, paints the grid now.
+    setWindowShifts((prev) => {
+      const others = prev.filter(
+        s => !(s.memberId === crewMember.id && s.date === effectiveDate),
+      );
+      const keep = memberDay.filter(s => !overlappingIds.includes(s.id));
+      return [...others, ...keep, ...optimisticInserts];
+    });
+
+    // 2. Background DB writes. Insert first, then delete — a partial
+    // failure leaves an overlap (recoverable) rather than a hole.
+    try {
+      let realIds = [];
+      if (optimisticInserts.length > 0) {
+        const dbRows = optimisticInserts.map((opt) => {
+          const row = {
+            tenant_id: tenantId,
+            rota_id: rotaId,
+            member_id: crewMember.id,
+            shift_date: effectiveDate,
+            start_time: opt.startTime,
+            end_time: opt.endTime,
+            shift_type: opt.shiftType || 'duty',
+            sub_type: opt.subType ?? null,
+            status: 'draft',
+          };
+          if (tripId) row.trip_id = tripId;
+          if (createdByMemberId) row.created_by = createdByMemberId;
+          return row;
+        });
+        const { data, error: insErr } = await supabase
+          .from('rota_shifts').insert(dbRows).select('id');
+        if (insErr) throw new Error(insErr.message);
+        realIds = (data || []).map(d => d.id);
+      }
+      if (overlappingIds.length > 0) {
+        const { error: delErr } = await supabase
+          .from('rota_shifts').delete().in('id', overlappingIds);
+        if (delErr) throw new Error(delErr.message);
+      }
+      // 3. Reconcile temp ids → real ids. Position-aligned with optimisticInserts.
+      if (realIds.length === optimisticInserts.length) {
+        const idMap = new Map();
+        for (let i = 0; i < realIds.length; i += 1) {
+          idMap.set(optimisticInserts[i].id, realIds[i]);
+        }
+        setWindowShifts(prev => prev.map(
+          s => (idMap.has(s.id) ? { ...s, id: idMap.get(s.id) } : s),
+        ));
+      }
+      return { ok: true };
+    } catch (e) {
+      // 4. Failure: server truth wins. Silent refetch wipes optimistic state.
+      load({ silent: true });
+      return { ok: false, error: e.message || String(e) };
+    }
+  }, [tenantId, effectiveDate, windowShifts, load]);
 
   return {
     crew, shifts, effectiveDate, loading, error, draftCount,
-    refetch: load, upsertCellShift, removeShift, updateShift, splitShift,
+    refetch: load, applyPaint,
   };
 }
