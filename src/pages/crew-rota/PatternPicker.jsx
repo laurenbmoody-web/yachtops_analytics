@@ -94,7 +94,6 @@ function TemplateRow({ template, onToggleStar, onEdit, onPick, onToast }) {
                 <span>{fmtTime(t.body)}</span>
               </>
             )}
-            {t.isDefault && <span className="tp-default">Default</span>}
           </span>
         </span>
       </button>
