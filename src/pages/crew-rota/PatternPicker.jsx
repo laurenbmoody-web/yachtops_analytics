@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { Star, X, Pencil, RefreshCw } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Star, X, Pencil, RefreshCw, ChevronRight } from 'lucide-react';
 
 // Cell colours from Phase 1 — the swatch on each simple-template row
 // mirrors what the shift would render as on the grid.
@@ -111,10 +111,94 @@ function TemplateRow({ template, onToggleStar, onEdit, onPick, onToast }) {
   );
 }
 
+function PickerGroup({
+  groupKey, name, count, isOpen, onToggle, children,
+}) {
+  if (count === 0) return null;                 // hide empty groups
+  return (
+    <div className="tp-group">
+      <button
+        type="button"
+        className="tp-group-head"
+        aria-expanded={isOpen}
+        aria-controls={`tp-group-${groupKey}`}
+        onClick={() => onToggle(groupKey)}
+      >
+        <ChevronRight
+          size={14}
+          className={`tp-group-chev${isOpen ? ' is-open' : ''}`}
+        />
+        <span className="tp-group-name">{name}</span>
+        <span className="tp-group-count">{count}</span>
+      </button>
+      {isOpen && (
+        <div id={`tp-group-${groupKey}`} className="tp-group-body">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PatternPicker({
   open, onClose, onEdit, onNew, onPick, onToast,
   templates = [], loading = false, error = null, toggleStar,
+  departments = [], myDeptId = null,
 }) {
+  // Bucket templates by group. `templates` is pre-sorted starred-first,
+  // then alphabetical (by useRotaTemplates) — sub-buckets preserve that.
+  const groups = useMemo(() => {
+    const starred = [];
+    const vessel = [];
+    const deptMap = new Map();                  // deptId -> { id, name, items }
+    for (const t of templates) {
+      if (t.isStarred) starred.push(t);
+      if (t.scope === 'vessel') {
+        vessel.push(t);
+      } else if (t.departmentId) {
+        let bucket = deptMap.get(t.departmentId);
+        if (!bucket) {
+          bucket = { id: t.departmentId, name: t.departmentName || 'Department', items: [] };
+          deptMap.set(t.departmentId, bucket);
+        }
+        bucket.items.push(t);
+      }
+    }
+    // Prefer canonical names from the `departments` prop where available
+    // (in case a row's join didn't return departmentName).
+    for (const d of departments) {
+      const b = deptMap.get(d.id);
+      if (b) b.name = d.name;
+    }
+    const deptGroups = Array.from(deptMap.values())
+      .sort((a, b) => a.name.localeCompare(b.name));
+    return { starred, deptGroups, vessel };
+  }, [templates, departments]);
+
+  // Expanded-group state. Re-initialises every time the picker opens
+  // (Starred + user's own department auto-expand; others collapsed). A
+  // ref gates the re-init so manual toggles persist while the modal is
+  // open. Closing + reopening resets to the auto-expand rule.
+  const [expanded, setExpanded] = useState(() => new Set());
+  const initRef = useRef(false);
+  useEffect(() => {
+    if (open && !initRef.current) {
+      const next = new Set();
+      if (groups.starred.length > 0) next.add('starred');
+      if (myDeptId) next.add(myDeptId);
+      setExpanded(next);
+      initRef.current = true;
+    } else if (!open) {
+      initRef.current = false;
+    }
+  }, [open, myDeptId, groups.starred.length]);
+
+  const toggle = (key) => setExpanded((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
@@ -123,6 +207,17 @@ export default function PatternPicker({
   }, [open, onClose]);
 
   if (!open) return null;
+
+  const renderRow = (t) => (
+    <TemplateRow
+      key={t.id}
+      template={t}
+      onToggleStar={toggleStar}
+      onEdit={onEdit}
+      onPick={onPick}
+      onToast={onToast}
+    />
+  );
 
   return (
     <>
@@ -162,16 +257,43 @@ export default function PatternPicker({
               No templates yet. Use “+ Simple” or “+ Shift pattern” to create one.
             </div>
           )}
-          {!loading && !error && templates.map((t) => (
-            <TemplateRow
-              key={t.id}
-              template={t}
-              onToggleStar={toggleStar}
-              onEdit={onEdit}
-              onPick={onPick}
-              onToast={onToast}
-            />
-          ))}
+
+          {!loading && !error && (
+            <>
+              <PickerGroup
+                groupKey="starred"
+                name="Starred"
+                count={groups.starred.length}
+                isOpen={expanded.has('starred')}
+                onToggle={toggle}
+              >
+                {groups.starred.map(renderRow)}
+              </PickerGroup>
+
+              {groups.deptGroups.map((g) => (
+                <PickerGroup
+                  key={g.id}
+                  groupKey={g.id}
+                  name={g.name}
+                  count={g.items.length}
+                  isOpen={expanded.has(g.id)}
+                  onToggle={toggle}
+                >
+                  {g.items.map(renderRow)}
+                </PickerGroup>
+              ))}
+
+              <PickerGroup
+                groupKey="vessel"
+                name="Vessel-wide"
+                count={groups.vessel.length}
+                isOpen={expanded.has('vessel')}
+                onToggle={toggle}
+              >
+                {groups.vessel.map(renderRow)}
+              </PickerGroup>
+            </>
+          )}
         </div>
       </div>
     </>
