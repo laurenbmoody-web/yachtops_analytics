@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import Icon from '../../../components/AppIcon';
+import ModalShell from '../../../components/ui/ModalShell';
 import { updateItemPaymentStatus, updateDeliveryBatch, uploadInvoiceFile } from '../utils/provisioningStorage';
 
 // ── Upload source buttons ─────────────────────────────────────────────────────
@@ -198,9 +199,12 @@ const InvoiceUploadModal = ({ batch, batchItems = [], onClose, onComplete }) => 
     padding: '14px 24px', borderTop: '1px solid #F1F5F9', flexShrink: 0,
   };
 
+  // Dirty signal — user has selected a file or progressed past the
+  // initial upload step.
+  const isDirty = step !== 'upload' || !!file;
+
   return (
-    <div style={backdrop} onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={card}>
+    <ModalShell onClose={onClose} isDirty={isDirty} isBusy={saving} panelStyle={card}>
 
         {/* Header */}
         <div style={header}>
@@ -472,8 +476,7 @@ const InvoiceUploadModal = ({ batch, batchItems = [], onClose, onComplete }) => 
           )}
         </div>
 
-      </div>
-    </div>
+    </ModalShell>
   );
 };
 

@@ -5,6 +5,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { showToast } from '../../../utils/toast';
 import { BOARD_TYPES } from '../../provisioning/data/templates';
 import { loadTrips, findTripByAnyId } from '../../trips-management-dashboard/utils/tripStorage';
+import ModalShell from '../../../components/ui/ModalShell';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DEPARTMENTS = ['Galley', 'Interior', 'Deck', 'Engineering', 'Admin'];
@@ -641,9 +642,26 @@ const CreateProvisioningListModal = ({
     );
   };
 
+  // Dirty signal — form fields differ from their reset defaults, or items
+  // has grown / its single row carries any non-default field.
+  const isDirty = (
+    form.title !== '' ||
+    form.board_type !== 'general' ||
+    form.trip_id !== '' ||
+    (form.departments && form.departments.length > 0) ||
+    form.estimated_cost !== '' ||
+    form.currency !== 'GBP' ||
+    form.notes !== '' ||
+    items.length > 1 ||
+    items.some(it =>
+      it.name || it.brand || it.size || it.category || it.sub_category ||
+      it.department || it.quantity_ordered || it.unit ||
+      it.estimated_unit_cost || it.item_notes
+    )
+  );
+
   return (
-    <div style={OVERLAY} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={MODAL}>
+    <ModalShell onClose={onClose} isDirty={isDirty} isBusy={saving} panelStyle={MODAL}>
 
         {/* Header */}
         <div style={HEADER}>
@@ -1162,8 +1180,7 @@ const CreateProvisioningListModal = ({
           </button>
         </div>
 
-      </div>
-    </div>
+    </ModalShell>
   );
 };
 

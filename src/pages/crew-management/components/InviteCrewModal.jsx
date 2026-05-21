@@ -341,9 +341,20 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
     );
   }
 
+  // Dirty signal — any required input has been filled.
+  const isDirty = (
+    inviteeName.trim() !== '' ||
+    email.trim() !== '' ||
+    startDate !== '' ||
+    customRoleName.trim() !== '' ||
+    !!formData?.department_id ||
+    !!formData?.role_id ||
+    !!formData?.permission_tier
+  );
+
   // Main invite form modal
   return (
-    <ModalShell onClose={handleCloseModal} panelClassName="bg-card border border-border rounded-2xl shadow-xl max-w-md w-full p-6">
+    <ModalShell onClose={handleCloseModal} isDirty={isDirty} isBusy={loading || sendingEmail} panelClassName="bg-card border border-border rounded-2xl shadow-xl max-w-md w-full p-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold text-foreground">Invite Crew Member</h2>
         <button

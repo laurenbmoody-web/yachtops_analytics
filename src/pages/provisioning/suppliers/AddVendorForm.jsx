@@ -28,6 +28,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createVendor, updateVendor } from '../utils/provisioningStorage';
 import { VENDOR_TYPES } from './vendorConstants';
 import { showToast } from '../../../utils/toast';
+import useDismissable from '../../../components/ui/useDismissable';
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'AUD', 'CAD', 'CHF', 'JPY', 'AED'];
 
@@ -101,15 +102,33 @@ const AddVendorForm = ({ vendor, activeTenantId, taxonomy, onClose, onSaved }) =
     nameRef.current?.focus();
   }, []);
 
-  const closeIfIdle = () => { if (!saving) onClose(); };
+  // Dirty signal — any form field differs from the loaded vendor (edit
+  // mode) or from defaults (create mode). Compared with the same fallbacks
+  // the useState initializers used so a freshly-opened drawer reads as
+  // clean.
+  const initialSubs = useMemo(
+    () => (Array.isArray(vendor?.subcategories) ? [...vendor.subcategories] : []).slice().sort(),
+    [vendor],
+  );
+  const isDirty = (
+    vendorType !== (vendor?.vendor_type || 'Supplier') ||
+    name !== (vendor?.name || '') ||
+    country !== (vendor?.business_country || '') ||
+    city !== (vendor?.business_city || '') ||
+    address !== (vendor?.business_address_line1 || '') ||
+    primaryCategory !== (vendor?.primary_category || '') ||
+    email !== (vendor?.contact_email || '') ||
+    phone !== (vendor?.contact_phone || '') ||
+    currency !== (vendor?.default_currency || 'EUR') ||
+    terms !== (vendor?.invoice_payment_terms_days == null ? '' : String(vendor.invoice_payment_terms_days)) ||
+    JSON.stringify([...subcategories].sort()) !== JSON.stringify(initialSubs)
+  );
 
-  // Esc closes (not while saving).
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') closeIfIdle(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saving]);
+  // Single source of truth for the close gate — Esc, backdrop click, and
+  // the Cancel button all route through tryClose, which honours both the
+  // in-flight save (isBusy) and the unsaved-input prompt (isDirty).
+  const { tryClose } = useDismissable({ onClose, isDirty, isBusy: saving });
+  const closeIfIdle = tryClose;
 
   const categoryOptions = useMemo(
     () => uniqMerge(taxoCats, extraCategories),

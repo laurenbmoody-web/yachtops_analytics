@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Icon from '../../../components/AppIcon';
+import ModalShell from '../../../components/ui/ModalShell';
 import { showToast } from '../../../utils/toast';
 import { supabase } from '../../../lib/supabaseClient';
 import {
@@ -1713,15 +1714,18 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
 
   const checkedCount = items.filter(i => receiving[i.id]?.checked).length;
 
+  // Dirty signal — user has progressed past the initial upload step, or
+  // ticked / typed into any receiving row, or attached a delivery note,
+  // or added an unmatched item.
+  const isDirty = (
+    step > 1 ||
+    !!deliveryNoteFile ||
+    addedItems.length > 0 ||
+    Object.values(receiving || {}).some(r => r && (r.checked || (r.qty != null && r.qty !== '') || (r.notes || '').length > 0))
+  );
+
   return (
-    <div
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 'var(--z-overlay)', padding: 16 }}
-      onMouseDown={e => e.target === e.currentTarget && onClose()}
-    >
-      <div
-        style={{ background: 'white', borderRadius: 16, boxShadow: '0 24px 64px rgba(0,0,0,0.18)', width: '100%', maxWidth: 680, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
-        onMouseDown={e => e.stopPropagation()}
-      >
+    <ModalShell onClose={onClose} isDirty={isDirty} isBusy={saving || pushing} panelStyle={{ background: 'white', borderRadius: 16, boxShadow: '0 24px 64px rgba(0,0,0,0.18)', width: '100%', maxWidth: 680, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {/* Modal header */}
         <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
@@ -1803,11 +1807,9 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
             pushing={pushing}
           />
         )}
-      </div>
-
       {/* Spinner keyframe */}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
+    </ModalShell>
   );
 };
 

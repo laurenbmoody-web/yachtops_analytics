@@ -503,12 +503,51 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
   // When received, all fields are read-only (layered on top of isLinked)
   const isReadOnly = isLinked || isReceived;
 
+  // Dirty signal — any form field differs from the loaded item (same
+  // fallbacks the hydrate effect uses). Field-level autosave keeps `item`
+  // in sync after each save; the predicate goes back to false once the
+  // parent re-renders with the saved values, so a partially-saved drawer
+  // closes cleanly between keystrokes and prompts during in-flight saves.
+  const itemBaseline = item ? {
+    name: item.name || '',
+    brand: item.brand || '',
+    size: item.size || '',
+    department: item.department || '',
+    category: item.category || '',
+    sub_category: item.sub_category || '',
+    quantity_ordered: item.quantity_ordered ?? 1,
+    unit: item.unit || 'each',
+    estimated_unit_cost: item.estimated_unit_cost || '',
+    currency: item.currency || null,
+    status: item.status || 'draft',
+    quantity_received: item.quantity_received ?? '',
+    allergen_flags: item.allergen_flags || [],
+    item_notes: item.item_notes || '',
+    notes: item.notes || '',
+    source: item.source || 'manual',
+    accounting_description: item.accounting_description || '',
+    supplier_id: item.supplier_id || '',
+    supplier_profile_id: item.supplier_profile_id || '',
+    supplier_name: item.supplier_name || '',
+    port_location: item.port_location || '',
+    inventory_item_id: item.inventory_item_id || null,
+    cargo_item_id: item.cargo_item_id || '',
+    barcode: item.barcode || '',
+  } : null;
+  const isDirty = !!itemBaseline && Object.keys(itemBaseline).some(k => {
+    const a = form[k]; const b = itemBaseline[k];
+    if (Array.isArray(a) || Array.isArray(b)) return JSON.stringify(a || []) !== JSON.stringify(b || []);
+    return a !== b;
+  });
+
   return (
     <>
       {isLight && <style>{FIELD_CSS}</style>}
       <Drawer
         open={open}
         onClose={onClose}
+        isDirty={isDirty}
+        isBusy={deleting}
         theme={theme}
         title={
           isLight ? (
