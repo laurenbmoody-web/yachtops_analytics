@@ -10,6 +10,7 @@ import { loadCards, saveCards, createCard, updateCard, deleteCard, completeCard 
 import { loadTeamMembers } from '../team-jobs-management/utils/teamStorage';
 import CardDetailModal from '../team-jobs-management/components/CardDetailModal';
 
+import ModalShell from '../../components/ui/ModalShell';
 const TeamJobsBoardManagement = () => {
   const { boardId } = useParams();
   const navigate = useNavigate();
@@ -336,121 +337,126 @@ const TeamJobsBoardManagement = () => {
 
       {/* Create Card Modal */}
       {showCreateCard && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-          <div className="bg-card rounded-xl border border-border shadow-xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-foreground">Add Card</h2>
-              <button
-                onClick={() => {
+        <ModalShell onClose={() => {
                   setShowCreateCard(null);
                   setNewCardTitle('');
                   setNewCardDescription('');
                   setNewCardAssignees([]);
                   setNewCardDueDate(new Date()?.toISOString()?.split('T')?.[0]);
                   setNewCardPriority('medium');
-                }}
-                className="text-muted-foreground hover:text-foreground transition-smooth"
-              >
-                <Icon name="X" size={20} />
-              </button>
+                }} panelClassName="bg-card rounded-xl border border-border shadow-xl max-w-md w-full p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-foreground">Add Card</h2>
+            <button
+              onClick={() => {
+                setShowCreateCard(null);
+                setNewCardTitle('');
+                setNewCardDescription('');
+                setNewCardAssignees([]);
+                setNewCardDueDate(new Date()?.toISOString()?.split('T')?.[0]);
+                setNewCardPriority('medium');
+              }}
+              className="text-muted-foreground hover:text-foreground transition-smooth"
+            >
+              <Icon name="X" size={20} />
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Title *</label>
+              <input
+                type="text"
+                value={newCardTitle}
+                onChange={(e) => setNewCardTitle(e?.target?.value)}
+                placeholder="Enter card title"
+                className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              />
             </div>
 
-            <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Description</label>
+              <textarea
+                value={newCardDescription}
+                onChange={(e) => setNewCardDescription(e?.target?.value)}
+                placeholder="Enter description"
+                rows={3}
+                className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Assign To</label>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {teamMembers?.filter(m => m?.department === 'Interior')?.map(member => (
+                  <label key={member?.id} className="flex items-center gap-3 p-2 hover:bg-muted rounded-lg cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newCardAssignees?.includes(member?.id)}
+                      onChange={(e) => {
+                        if (e?.target?.checked) {
+                          setNewCardAssignees(prev => [...prev, member?.id]);
+                        } else {
+                          setNewCardAssignees(prev => prev?.filter(id => id !== member?.id));
+                        }
+                      }}
+                      className="w-4 h-4"
+                    />
+                    <img src={member?.avatar} alt={member?.name} className="w-6 h-6 rounded-full" />
+                    <span className="text-sm text-foreground">{member?.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Title *</label>
+                <label className="block text-sm font-medium text-foreground mb-2">Due Date</label>
                 <input
-                  type="text"
-                  value={newCardTitle}
-                  onChange={(e) => setNewCardTitle(e?.target?.value)}
-                  placeholder="Enter card title"
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  type="date"
+                  value={newCardDueDate}
+                  onChange={(e) => setNewCardDueDate(e?.target?.value)}
+                  className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Description</label>
-                <textarea
-                  value={newCardDescription}
-                  onChange={(e) => setNewCardDescription(e?.target?.value)}
-                  placeholder="Enter description"
-                  rows={3}
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-                />
+                <label className="block text-sm font-medium text-foreground mb-2">Priority</label>
+                <select
+                  value={newCardPriority}
+                  onChange={(e) => setNewCardPriority(e?.target?.value)}
+                  className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Assign To</label>
-                <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {teamMembers?.filter(m => m?.department === 'Interior')?.map(member => (
-                    <label key={member?.id} className="flex items-center gap-3 p-2 hover:bg-muted rounded-lg cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={newCardAssignees?.includes(member?.id)}
-                        onChange={(e) => {
-                          if (e?.target?.checked) {
-                            setNewCardAssignees(prev => [...prev, member?.id]);
-                          } else {
-                            setNewCardAssignees(prev => prev?.filter(id => id !== member?.id));
-                          }
-                        }}
-                        className="w-4 h-4"
-                      />
-                      <img src={member?.avatar} alt={member?.name} className="w-6 h-6 rounded-full" />
-                      <span className="text-sm text-foreground">{member?.name}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Due Date</label>
-                  <input
-                    type="date"
-                    value={newCardDueDate}
-                    onChange={(e) => setNewCardDueDate(e?.target?.value)}
-                    className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Priority</label>
-                  <select
-                    value={newCardPriority}
-                    onChange={(e) => setNewCardPriority(e?.target?.value)}
-                    className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowCreateCard(null);
-                  setNewCardTitle('');
-                  setNewCardDescription('');
-                  setNewCardAssignees([]);
-                  setNewCardDueDate(new Date()?.toISOString()?.split('T')?.[0]);
-                  setNewCardPriority('medium');
-                }}
-                className="flex-1 px-4 py-2 bg-muted text-foreground rounded-lg hover:bg-muted/80 transition-smooth"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleCreateCard(showCreateCard)}
-                disabled={!newCardTitle?.trim()}
-                className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-smooth disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Add Card
-              </button>
             </div>
           </div>
-        </div>
+
+          <div className="flex gap-3 mt-6">
+            <button
+              onClick={() => {
+                setShowCreateCard(null);
+                setNewCardTitle('');
+                setNewCardDescription('');
+                setNewCardAssignees([]);
+                setNewCardDueDate(new Date()?.toISOString()?.split('T')?.[0]);
+                setNewCardPriority('medium');
+              }}
+              className="flex-1 px-4 py-2 bg-muted text-foreground rounded-lg hover:bg-muted/80 transition-smooth"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => handleCreateCard(showCreateCard)}
+              disabled={!newCardTitle?.trim()}
+              className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-smooth disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Add Card
+            </button>
+          </div>
+        </ModalShell>
       )}
     </div>
   );

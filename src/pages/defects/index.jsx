@@ -8,6 +8,7 @@ import { loadAllTypes } from './utils/defectTypeTaxonomy';
 import ReportDefectModal from './components/ReportDefectModal';
 import ViewDefectModal from './components/ViewDefectModal';
 
+import ModalShell from '../../components/ui/ModalShell';
 const DefectsDashboard = () => {
   const navigate = useNavigate();
   const { defectId } = useParams();
@@ -731,127 +732,127 @@ const DefectsDashboard = () => {
       )}
       {/* Accept/Decline Modal */}
       {showAcceptDeclineModal && selectedPendingDefect && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-          <div className="bg-card border border-border rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-card border-b border-border p-6 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-foreground">Review Defect</h2>
-              <button
-                onClick={() => {
+        <ModalShell onClose={() => {
                   setShowAcceptDeclineModal(false);
                   setSelectedPendingDefect(null);
                   setDeclineNotes('');
-                }}
-                className="p-2 hover:bg-muted rounded-lg transition-smooth"
-              >
-                <Icon name="X" size={20} className="text-muted-foreground" />
-              </button>
+                }} panelClassName="bg-card border border-border rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="sticky top-0 bg-card border-b border-border p-6 flex items-center justify-between">
+            <h2 className="text-xl font-bold text-foreground">Review Defect</h2>
+            <button
+              onClick={() => {
+                setShowAcceptDeclineModal(false);
+                setSelectedPendingDefect(null);
+                setDeclineNotes('');
+              }}
+              className="p-2 hover:bg-muted rounded-lg transition-smooth"
+            >
+              <Icon name="X" size={20} className="text-muted-foreground" />
+            </button>
+          </div>
+          
+          <div className="p-6 space-y-4">
+            <div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">{selectedPendingDefect?.title}</h3>
+              {selectedPendingDefect?.description && (
+                <p className="text-sm text-muted-foreground mb-4">{selectedPendingDefect?.description}</p>
+              )}
             </div>
             
-            <div className="p-6 space-y-4">
+            <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <h3 className="text-lg font-semibold text-foreground mb-2">{selectedPendingDefect?.title}</h3>
-                {selectedPendingDefect?.description && (
-                  <p className="text-sm text-muted-foreground mb-4">{selectedPendingDefect?.description}</p>
-                )}
+                <span className="text-muted-foreground">Location:</span>
+                <p className="text-foreground font-medium">{selectedPendingDefect?.locationPathLabel}</p>
               </div>
-              
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Location:</span>
-                  <p className="text-foreground font-medium">{selectedPendingDefect?.locationPathLabel}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Submitted by:</span>
-                  <p className="text-foreground font-medium">{selectedPendingDefect?.submittedByName}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Department:</span>
-                  <p className="text-foreground font-medium">{selectedPendingDefect?.departmentOwner}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Priority:</span>
-                  <p className="text-foreground font-medium">{selectedPendingDefect?.priority}</p>
-                </div>
-              </div>
-              
-              {selectedPendingDefect?.photos?.length > 0 && (
-                <div>
-                  <span className="text-sm text-muted-foreground">Photo:</span>
-                  <img
-                    src={selectedPendingDefect?.photos?.[0]}
-                    alt="Defect"
-                    className="w-full h-48 object-cover rounded-lg border border-border mt-2"
-                  />
-                </div>
-              )}
-              
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Decline reason (optional if accepting)
-                </label>
-                <textarea
-                  value={declineNotes}
-                  onChange={(e) => setDeclineNotes(e?.target?.value)}
-                  placeholder="Provide reason if declining..."
-                  rows={3}
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-                />
+                <span className="text-muted-foreground">Submitted by:</span>
+                <p className="text-foreground font-medium">{selectedPendingDefect?.submittedByName}</p>
               </div>
-              
-              <div className="flex items-center gap-3 pt-4">
-                <button
-                  onClick={() => handleDeclineDefect(selectedPendingDefect)}
-                  className="flex-1 px-4 py-2 bg-error text-white rounded-lg hover:bg-error/90 transition-smooth"
-                >
-                  Decline
-                </button>
-                <button
-                  onClick={() => handleAcceptDefect(selectedPendingDefect)}
-                  className="flex-1 px-4 py-2 bg-success text-white rounded-lg hover:bg-success/90 transition-smooth"
-                >
-                  Accept
-                </button>
+              <div>
+                <span className="text-muted-foreground">Department:</span>
+                <p className="text-foreground font-medium">{selectedPendingDefect?.departmentOwner}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Priority:</span>
+                <p className="text-foreground font-medium">{selectedPendingDefect?.priority}</p>
               </div>
             </div>
+            
+            {selectedPendingDefect?.photos?.length > 0 && (
+              <div>
+                <span className="text-sm text-muted-foreground">Photo:</span>
+                <img
+                  src={selectedPendingDefect?.photos?.[0]}
+                  alt="Defect"
+                  className="w-full h-48 object-cover rounded-lg border border-border mt-2"
+                />
+              </div>
+            )}
+            
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Decline reason (optional if accepting)
+              </label>
+              <textarea
+                value={declineNotes}
+                onChange={(e) => setDeclineNotes(e?.target?.value)}
+                placeholder="Provide reason if declining..."
+                rows={3}
+                className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+              />
+            </div>
+            
+            <div className="flex items-center gap-3 pt-4">
+              <button
+                onClick={() => handleDeclineDefect(selectedPendingDefect)}
+                className="flex-1 px-4 py-2 bg-error text-white rounded-lg hover:bg-error/90 transition-smooth"
+              >
+                Decline
+              </button>
+              <button
+                onClick={() => handleAcceptDefect(selectedPendingDefect)}
+                className="flex-1 px-4 py-2 bg-success text-white rounded-lg hover:bg-success/90 transition-smooth"
+              >
+                Accept
+              </button>
+            </div>
           </div>
-        </div>
+        </ModalShell>
       )}
       {/* Decline Modal */}
       {acceptDeclineModal?.type === 'decline' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-          <div className="bg-card border border-border rounded-2xl shadow-xl max-w-md w-full">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4">Decline Defect</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Please provide a reason for declining this defect:
-              </p>
-              <textarea
-                value={declineReason}
-                onChange={(e) => setDeclineReason(e?.target?.value)}
-                placeholder="Enter decline reason..."
-                rows={4}
-                className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none mb-4"
-              />
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => {
-                    setAcceptDeclineModal(null);
-                    setDeclineReason('');
-                  }}
-                  className="flex-1 px-4 py-2 border border-border text-foreground rounded-lg hover:bg-muted transition-smooth"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => handleDeclineDefect(acceptDeclineModal?.defectId)}
-                  className="flex-1 px-4 py-2 bg-error text-white rounded-lg hover:bg-error/90 transition-smooth"
-                >
-                  Decline
-                </button>
-              </div>
+        <ModalShell onClose={onClose} panelClassName="bg-card border border-border rounded-2xl shadow-xl max-w-md w-full">
+          <div className="p-6">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Decline Defect</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Please provide a reason for declining this defect:
+            </p>
+            <textarea
+              value={declineReason}
+              onChange={(e) => setDeclineReason(e?.target?.value)}
+              placeholder="Enter decline reason..."
+              rows={4}
+              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none mb-4"
+            />
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  setAcceptDeclineModal(null);
+                  setDeclineReason('');
+                }}
+                className="flex-1 px-4 py-2 border border-border text-foreground rounded-lg hover:bg-muted transition-smooth"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeclineDefect(acceptDeclineModal?.defectId)}
+                className="flex-1 px-4 py-2 bg-error text-white rounded-lg hover:bg-error/90 transition-smooth"
+              >
+                Decline
+              </button>
             </div>
           </div>
-        </div>
+        </ModalShell>
       )}
     </div>
   );

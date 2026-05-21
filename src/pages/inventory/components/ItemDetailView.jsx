@@ -5,10 +5,16 @@ import Icon from '../../../components/AppIcon';
 import AddEditItemModal from './AddEditItemModal';
 import { getCategoryL1ById, getCategoryL2ById, getCategoryL3ById, getCategoryL4ById } from '../utils/taxonomyStorage';
 import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess } from '../../../utils/authStorage';
+import useDismissable from '../../../components/ui/useDismissable';
 
 const ItemDetailView = ({ item, onClose, onUpdate }) => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [imageZoomed, setImageZoomed] = useState(false);
+  // The product image inflates to a fullscreen overlay via className toggle
+  // (not a true modal); wire Esc-to-unzoom so it matches the rest of the
+  // app's dismiss-on-Esc convention. Click anywhere on the image toggles
+  // back via handleImageClick.
+  useDismissable({ onClose: () => setImageZoomed(false), enabled: imageZoomed });
   const navigate = useNavigate();
   const currentUser = getCurrentUser();
 

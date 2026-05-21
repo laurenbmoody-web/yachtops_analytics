@@ -7,6 +7,7 @@ import { Checkbox } from '../../../components/ui/Checkbox';
 import { showToast } from '../../../utils/toast';
 
 import { shareMultipleHORAuditPDFs } from '../utils/horPDFGenerator';
+import ModalShell from '../../../components/ui/ModalShell';
 
 const ExportAuditModal = ({ isOpen, onClose, currentMonth, crewList }) => {
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
@@ -165,14 +166,7 @@ const ExportAuditModal = ({ isOpen, onClose, currentMonth, crewList }) => {
   const monthName = selectedMonth?.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
   return (
-    <>
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/50 z-[var(--z-overlay)]"
-        onClick={handleClose}
-      />
-      {/* Modal */}
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl bg-card border border-border rounded-2xl shadow-2xl z-[var(--z-overlay)] max-h-[90vh] overflow-y-auto">
+    <ModalShell onClose={handleClose} panelClassName="w-full max-w-2xl bg-card border border-border rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
@@ -367,8 +361,7 @@ const ExportAuditModal = ({ isOpen, onClose, currentMonth, crewList }) => {
             </div>)
           )}
         </div>
-      </div>
-    </>
+    </ModalShell>
   );
 };
 

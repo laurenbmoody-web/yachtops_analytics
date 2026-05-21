@@ -4,6 +4,7 @@ import Button from '../ui/Button';
 import { useNavigate } from 'react-router-dom';
 import { getCurrentUser, hasCommandAccess, hasChiefAccess } from '../../utils/authStorage';
 
+import ModalShell from '../ui/ModalShell';
 const SettingsModal = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const currentUser = getCurrentUser();
@@ -241,14 +242,8 @@ const SettingsModal = ({ isOpen, onClose }) => {
   ];
 
   return (
-    <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={handleClose}
-      />
-      {/* Modal */}
-      <div className="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col m-4">
+    <>
+    <ModalShell onClose={handleClose} panelClassName="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col m-4">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-3">
@@ -795,46 +790,40 @@ const SettingsModal = ({ isOpen, onClose }) => {
             </Button>
           </div>
         </div>
-      </div>
+    </ModalShell>
 
       {/* Unsaved Changes Confirmation Dialog */}
       {showUnsavedDialog && (
-        <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center">
-          <div 
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setShowUnsavedDialog(false)}
-          />
-          <div className="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-md m-4 p-6">
-            <div className="flex items-start gap-4 mb-6">
-              <div className="p-3 bg-amber-500/10 rounded-lg">
-                <Icon name="AlertTriangle" size={24} className="text-amber-500" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-foreground mb-2">Unsaved Changes</h3>
-                <p className="text-sm text-muted-foreground">
-                  You have unsaved changes. Are you sure you want to close without saving?
-                </p>
-              </div>
+        <ModalShell onClose={() => setShowUnsavedDialog(false)} panelClassName="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-md m-4 p-6">
+          <div className="flex items-start gap-4 mb-6">
+            <div className="p-3 bg-amber-500/10 rounded-lg">
+              <Icon name="AlertTriangle" size={24} className="text-amber-500" />
             </div>
-            <div className="flex items-center justify-end gap-3">
-              <Button
-                onClick={() => setShowUnsavedDialog(false)}
-                variant="outline"
-                className="px-4 py-2"
-              >
-                Continue Editing
-              </Button>
-              <Button
-                onClick={handleDiscardChanges}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700"
-              >
-                Discard Changes
-              </Button>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-foreground mb-2">Unsaved Changes</h3>
+              <p className="text-sm text-muted-foreground">
+                You have unsaved changes. Are you sure you want to close without saving?
+              </p>
             </div>
           </div>
-        </div>
+          <div className="flex items-center justify-end gap-3">
+            <Button
+              onClick={() => setShowUnsavedDialog(false)}
+              variant="outline"
+              className="px-4 py-2"
+            >
+              Continue Editing
+            </Button>
+            <Button
+              onClick={handleDiscardChanges}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700"
+            >
+              Discard Changes
+            </Button>
+          </div>
+        </ModalShell>
       )}
-    </div>
+    </>
   );
 };
 

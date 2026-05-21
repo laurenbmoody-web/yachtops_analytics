@@ -6,6 +6,7 @@ import Icon from '../../components/AppIcon';
 import { getAllTaxonomyL1, getTaxonomyL2ByL1, getTaxonomyL3ByL2, getTaxonomyL4ByL3, createTaxonomyL1, createTaxonomyL2, createTaxonomyL3, createTaxonomyL4, renameTaxonomyL1, renameTaxonomyL2, renameTaxonomyL3, renameTaxonomyL4, archiveTaxonomyL2, archiveTaxonomyL3, archiveTaxonomyL4, setTaxonomyL2IsAlcohol, getItemCountForL1, getItemCountForL2, getItemCountForL3, getItemCountForL4, canCreateL1, canCreateL2L3L4, migrateOldTaxonomyToNew } from '../inventory/utils/taxonomyStorage';
 import { getCurrentUser, hasCommandAccess, hasChiefAccess } from '../../utils/authStorage';
 
+import ModalShell from '../../components/ui/ModalShell';
 const InventoryCategorySettings = () => {
   const navigate = useNavigate();
   const currentUser = getCurrentUser();
@@ -791,55 +792,51 @@ const InventoryCategorySettings = () => {
       </div>
       {/* Add Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">
-              Add {modalContext?.level === 'L1' ? 'Inventory Group' : modalContext?.level === 'L2' ? 'Category' : modalContext?.level === 'L3' ? 'Sub-Category' : 'Type'}
-            </h3>
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e?.target?.value)}
-              placeholder="Enter name"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
-              autoFocus
-            />
-            <div className="flex gap-2 justify-end">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowAddModal(false);
-                  setInputValue('');
-                }}
-              >
-                Cancel
-              </Button>
-              <Button onClick={handleAddSubmit}>Add</Button>
-            </div>
+        <ModalShell onClose={() => setShowAddModal(false)} panelClassName="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+          <h3 className="text-xl font-bold text-gray-900 mb-4">
+            Add {modalContext?.level === 'L1' ? 'Inventory Group' : modalContext?.level === 'L2' ? 'Category' : modalContext?.level === 'L3' ? 'Sub-Category' : 'Type'}
+          </h3>
+          <input
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e?.target?.value)}
+            placeholder="Enter name"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
+            autoFocus
+          />
+          <div className="flex gap-2 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowAddModal(false);
+                setInputValue('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleAddSubmit}>Add</Button>
           </div>
-        </div>
+        </ModalShell>
       )}
       {/* Archive Modal */}
       {showArchiveModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Archive Category</h3>
-            <p className="text-gray-600 mb-4">
-              Are you sure you want to archive "{modalContext?.category?.name}"? Items will retain their historical link.
-            </p>
-            <div className="flex gap-2 justify-end">
-              <Button
-                variant="outline"
-                onClick={() => setShowArchiveModal(false)}
-              >
-                Cancel
-              </Button>
-              <Button variant="danger" onClick={handleArchiveSubmit}>
-                Archive
-              </Button>
-            </div>
+        <ModalShell onClose={() => setShowArchiveModal(false)} panelClassName="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+          <h3 className="text-xl font-bold text-gray-900 mb-4">Archive Category</h3>
+          <p className="text-gray-600 mb-4">
+            Are you sure you want to archive "{modalContext?.category?.name}"? Items will retain their historical link.
+          </p>
+          <div className="flex gap-2 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setShowArchiveModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleArchiveSubmit}>
+              Archive
+            </Button>
           </div>
-        </div>
+        </ModalShell>
       )}
     </div>
   );

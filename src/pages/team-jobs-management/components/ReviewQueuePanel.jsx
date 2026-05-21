@@ -7,6 +7,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 
 import { normalizeTier, isCommand, isChief } from '../utils/tierPermissions';
 
+import ModalShell from '../../../components/ui/ModalShell';
 const ReviewQueuePanel = ({ cards, onAccept, onReject, onEdit, onConvertToPlanned, onAcceptHandoff, onRejectHandoff, onReturnHandoff, onAcceptWithEdit, onClose, currentTenantMember, selectedDepartmentId }) => {
   const { currentUser } = useAuth();
   const [selectedCard, setSelectedCard] = useState(null);
@@ -123,8 +124,8 @@ const ReviewQueuePanel = ({ cards, onAccept, onReject, onEdit, onConvertToPlanne
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full h-[90vh] flex flex-col">
+    <>
+    <ModalShell onClose={onClose} panelClassName="bg-white rounded-lg shadow-xl max-w-6xl w-full h-[90vh] flex flex-col">
         {/* Header */}
         <div className="border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between mb-4">
@@ -467,90 +468,86 @@ const ReviewQueuePanel = ({ cards, onAccept, onReject, onEdit, onConvertToPlanne
             )}
           </div>
         </div>
-      </div>
+    </ModalShell>
 
       {/* Reject Modal (for handoff) */}
       {showRejectModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              {showRejectModal?.jobType === 'handoff' ? 'Reject Handoff' : 'Reject Task'}
-            </h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Please provide a reason for rejection:
-            </p>
-            <textarea
-              value={rejectReason}
-              onChange={(e) => setRejectReason(e?.target?.value)}
-              placeholder="Enter rejection reason..."
-              rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 mb-4"
-            />
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowRejectModal(null);
-                  setRejectReason('');
-                }}
-                fullWidth
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="default"
-                onClick={handleReject}
-                disabled={!rejectReason?.trim()}
-                fullWidth
-              >
-                Confirm Rejection
-              </Button>
-            </div>
+        <ModalShell onClose={() => setShowRejectModal(null)} panelClassName="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            {showRejectModal?.jobType === 'handoff' ? 'Reject Handoff' : 'Reject Task'}
+          </h3>
+          <p className="text-sm text-gray-600 mb-4">
+            Please provide a reason for rejection:
+          </p>
+          <textarea
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e?.target?.value)}
+            placeholder="Enter rejection reason..."
+            rows={4}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 mb-4"
+          />
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowRejectModal(null);
+                setRejectReason('');
+              }}
+              fullWidth
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleReject}
+              disabled={!rejectReason?.trim()}
+              fullWidth
+            >
+              Confirm Rejection
+            </Button>
           </div>
-        </div>
+        </ModalShell>
       )}
 
       {/* Return Modal */}
       {showReturnModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Return Handoff for More Info
-            </h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Provide feedback on what additional information is needed:
-            </p>
-            <textarea
-              value={returnComment}
-              onChange={(e) => setReturnComment(e?.target?.value)}
-              placeholder="Enter feedback or questions..."
-              rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
-            />
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowReturnModal(null);
-                  setReturnComment('');
-                }}
-                fullWidth
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="default"
-                onClick={handleReturn}
-                disabled={!returnComment?.trim()}
-                fullWidth
-              >
-                Return to Sender
-              </Button>
-            </div>
+        <ModalShell onClose={() => setShowReturnModal(null)} panelClassName="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            Return Handoff for More Info
+          </h3>
+          <p className="text-sm text-gray-600 mb-4">
+            Provide feedback on what additional information is needed:
+          </p>
+          <textarea
+            value={returnComment}
+            onChange={(e) => setReturnComment(e?.target?.value)}
+            placeholder="Enter feedback or questions..."
+            rows={4}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+          />
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowReturnModal(null);
+                setReturnComment('');
+              }}
+              fullWidth
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleReturn}
+              disabled={!returnComment?.trim()}
+              fullWidth
+            >
+              Return to Sender
+            </Button>
           </div>
-        </div>
+        </ModalShell>
       )}
-    </div>
+    </>
   );
 };
 

@@ -12,6 +12,7 @@ import { loadTrips, toggleGuestActiveStatus } from '../../trips-management-dashb
 import { getAllDecks, getZonesByDeck, getSpacesByZone } from '../../locations-management-settings/utils/locationsHierarchyStorage';
 
 
+import ModalShell from '../../../components/ui/ModalShell';
 // Helper function to format cabin display to show only Level 3 (final segment)
 const formatCabinLevel3 = (cabinValue) => {
   if (!cabinValue) return 'Not assigned';
@@ -1564,116 +1565,112 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
       </div>
       {/* Delete Confirmation Modal - COMMAND ONLY */}
       {showDeleteConfirm && canDelete && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-          <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-full bg-error/20 flex items-center justify-center">
-                <Icon name="AlertTriangle" size={24} className="text-error" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">Delete guest?</h3>
-              </div>
+        <ModalShell onClose={() => setShowDeleteConfirm(false)} panelClassName="bg-card border border-border rounded-2xl w-full max-w-md p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 rounded-full bg-error/20 flex items-center justify-center">
+              <Icon name="AlertTriangle" size={24} className="text-error" />
             </div>
-            <div className="space-y-3 mb-6">
-              <p className="text-sm text-foreground">
-                This will remove the guest profile from Guest Management.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                This cannot be undone unless restored from audit history.
-              </p>
-              <label className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={deleteConfirmChecked}
-                  onChange={(e) => setDeleteConfirmChecked(e?.target?.checked)}
-                  className="mt-0.5 w-4 h-4 rounded border-border text-error focus:ring-2 focus:ring-error"
-                />
-                <span className="text-sm text-foreground">
-                  I understand this will delete the guest profile.
-                </span>
-              </label>
-            </div>
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowDeleteConfirm(false);
-                  setDeleteConfirmChecked(false);
-                }}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleDelete}
-                disabled={!deleteConfirmChecked}
-                className="flex-1 bg-error hover:bg-error/90 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Delete guest
-              </Button>
+            <div>
+              <h3 className="text-lg font-semibold text-foreground">Delete guest?</h3>
             </div>
           </div>
-        </div>
+          <div className="space-y-3 mb-6">
+            <p className="text-sm text-foreground">
+              This will remove the guest profile from Guest Management.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              This cannot be undone unless restored from audit history.
+            </p>
+            <label className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+              <input
+                type="checkbox"
+                checked={deleteConfirmChecked}
+                onChange={(e) => setDeleteConfirmChecked(e?.target?.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-border text-error focus:ring-2 focus:ring-error"
+              />
+              <span className="text-sm text-foreground">
+                I understand this will delete the guest profile.
+              </span>
+            </label>
+          </div>
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteConfirm(false);
+                setDeleteConfirmChecked(false);
+              }}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDelete}
+              disabled={!deleteConfirmChecked}
+              className="flex-1 bg-error hover:bg-error/90 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Delete guest
+            </Button>
+          </div>
+        </ModalShell>
       )}
 
       {/* Kids Linking Modal */}
       {showKidsModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-          <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-foreground">Link Children</h3>
-              <button
-                type="button"
-                onClick={() => setShowKidsModal(false)}
-                className="p-1 rounded-lg hover:bg-muted transition-colors"
-              >
-                <Icon name="X" size={18} className="text-muted-foreground" />
-              </button>
-            </div>
-            <p className="text-sm text-muted-foreground mb-4">
-              Select existing guest profiles to link as children of {formData?.firstName} {formData?.lastName}.
-            </p>
-            {kidsLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : kidsOptions?.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">No other guests available to link.</p>
-            ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {kidsOptions?.map(kid => {
-                  const isLinked = linkedKidIds?.includes(kid?.id);
-                  return (
-                    <button
-                      key={kid?.id}
-                      type="button"
-                      onClick={() => handleToggleKid(kid?.id)}
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border transition-colors ${
-                        isLinked
-                          ? 'border-primary bg-primary/10 text-primary' :'border-border bg-muted/30 text-foreground hover:bg-muted/50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                          <Icon name="User" size={14} className="text-primary" />
-                        </div>
-                        <span className="text-sm font-medium">{kid?.firstName} {kid?.lastName}</span>
-                      </div>
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                        isLinked ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
-                      }`}>
-                        {isLinked ? 'Linked' : 'Unlinked'}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            <div className="mt-4 flex justify-end">
-              <Button size="sm" onClick={() => setShowKidsModal(false)}>Done</Button>
-            </div>
+        <ModalShell onClose={() => setShowKidsModal(false)} panelClassName="bg-card border border-border rounded-2xl w-full max-w-md p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-foreground">Link Children</h3>
+            <button
+              type="button"
+              onClick={() => setShowKidsModal(false)}
+              className="p-1 rounded-lg hover:bg-muted transition-colors"
+            >
+              <Icon name="X" size={18} className="text-muted-foreground" />
+            </button>
           </div>
-        </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            Select existing guest profiles to link as children of {formData?.firstName} {formData?.lastName}.
+          </p>
+          {kidsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : kidsOptions?.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">No other guests available to link.</p>
+          ) : (
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {kidsOptions?.map(kid => {
+                const isLinked = linkedKidIds?.includes(kid?.id);
+                return (
+                  <button
+                    key={kid?.id}
+                    type="button"
+                    onClick={() => handleToggleKid(kid?.id)}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border transition-colors ${
+                      isLinked
+                        ? 'border-primary bg-primary/10 text-primary' :'border-border bg-muted/30 text-foreground hover:bg-muted/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                        <Icon name="User" size={14} className="text-primary" />
+                      </div>
+                      <span className="text-sm font-medium">{kid?.firstName} {kid?.lastName}</span>
+                    </div>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                      isLinked ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
+                    }`}>
+                      {isLinked ? 'Linked' : 'Unlinked'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <div className="mt-4 flex justify-end">
+            <Button size="sm" onClick={() => setShowKidsModal(false)}>Done</Button>
+          </div>
+        </ModalShell>
       )}
     </div>
   );

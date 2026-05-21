@@ -6,6 +6,7 @@ import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess } from '
 import { getAllCategoriesL1, getCategoriesL2ByL1, getCategoriesL3ByL2 } from '../utils/taxonomyStorage';
 import { logActivity, InventoryActions } from '../../../utils/activityStorage';
 
+import ModalShell from '../../../components/ui/ModalShell';
 const ExcelImportModal = ({ onClose, onSuccess }) => {
   const [step, setStep] = useState('upload'); // upload, preview, processing, complete
   const [file, setFile] = useState(null);
@@ -254,8 +255,8 @@ const ExcelImportModal = ({ onClose, onSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-      <div className="bg-white rounded-2xl shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+    <>
+    <ModalShell onClose={onClose} panelClassName="bg-white rounded-2xl shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <h2 className="text-2xl font-bold text-gray-900">Import Inventory</h2>
@@ -521,7 +522,7 @@ const ExcelImportModal = ({ onClose, onSuccess }) => {
             </div>
           )}
         </div>
-      </div>
+    </ModalShell>
 
       {/* Bulk Resolution Modal */}
       {showBulkResolve && selectedGroup && (
@@ -534,7 +535,7 @@ const ExcelImportModal = ({ onClose, onSuccess }) => {
           }}
         />
       )}
-    </div>
+    </>
   );
 };
 
@@ -727,141 +728,139 @@ const BulkResolveModal = ({ group, onApply, onClose }) => {
     (resolution?.categoryL2Id || (resolution?.createNewL2 && resolution?.newL2Name?.trim()));
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-      <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full">
-        <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-gray-900">
-            Bulk Resolve {group?.rowIndices?.length} Rows
-          </h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <Icon name="X" size={20} />
-          </button>
+    <ModalShell onClose={onClose} panelClassName="bg-white rounded-xl shadow-xl max-w-2xl w-full">
+      <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <h3 className="text-lg font-bold text-gray-900">
+          Bulk Resolve {group?.rowIndices?.length} Rows
+        </h3>
+        <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <Icon name="X" size={20} />
+        </button>
+      </div>
+
+      <div className="p-6 space-y-4">
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm">
+          <p className="text-gray-700 mb-1">Applying to rows with:</p>
+          <div className="text-xs text-gray-600 space-y-0.5">
+            {group?.category && <p>Inventory Group: <span className="font-medium">{group?.category}</span></p>}
+            {group?.subcategoryL2 && <p>Category: <span className="font-medium">{group?.subcategoryL2}</span></p>}
+            {group?.subcategoryL3 && <p>Sub-Category: <span className="font-medium">{group?.subcategoryL3}</span></p>}
+          </div>
         </div>
 
-        <div className="p-6 space-y-4">
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm">
-            <p className="text-gray-700 mb-1">Applying to rows with:</p>
-            <div className="text-xs text-gray-600 space-y-0.5">
-              {group?.category && <p>Inventory Group: <span className="font-medium">{group?.category}</span></p>}
-              {group?.subcategoryL2 && <p>Category: <span className="font-medium">{group?.subcategoryL2}</span></p>}
-              {group?.subcategoryL3 && <p>Sub-Category: <span className="font-medium">{group?.subcategoryL3}</span></p>}
-            </div>
+        {/* Resolution fields */}
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Inventory Group <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={resolution?.categoryL1Id || ''}
+              onChange={(e) => setResolution(prev => ({ ...prev, categoryL1Id: e?.target?.value, categoryL2Id: '', categoryL3Id: '' }))}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select Inventory Group...</option>
+              {categoriesL1?.map(cat => (
+                <option key={cat?.id} value={cat?.id}>{cat?.name}</option>
+              ))}
+            </select>
           </div>
 
-          {/* Resolution fields */}
-          <div className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Inventory Group <span className="text-red-500">*</span>
-              </label>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Category <span className="text-red-500">*</span>
+            </label>
+            {resolution?.createNewL2 ? (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={resolution?.newL2Name || ''}
+                  onChange={(e) => setResolution(prev => ({ ...prev, newL2Name: e?.target?.value }))}
+                  placeholder="New Category name"
+                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  onClick={() => setResolution(prev => ({ ...prev, createNewL2: false }))}
+                  className="px-2 py-2 text-gray-500 hover:text-gray-700"
+                >
+                  <Icon name="X" size={16} />
+                </button>
+              </div>
+            ) : (
               <select
-                value={resolution?.categoryL1Id || ''}
-                onChange={(e) => setResolution(prev => ({ ...prev, categoryL1Id: e?.target?.value, categoryL2Id: '', categoryL3Id: '' }))}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={resolution?.categoryL2Id || ''}
+                onChange={(e) => {
+                  if (e?.target?.value === '__CREATE_NEW__') {
+                    setResolution(prev => ({ ...prev, createNewL2: true, categoryL2Id: '' }));
+                  } else {
+                    setResolution(prev => ({ ...prev, categoryL2Id: e?.target?.value, categoryL3Id: '' }));
+                  }
+                }}
+                disabled={!resolution?.categoryL1Id}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
               >
-                <option value="">Select Inventory Group...</option>
-                {categoriesL1?.map(cat => (
+                <option value="">Select Category...</option>
+                {categoriesL2?.map(cat => (
                   <option key={cat?.id} value={cat?.id}>{cat?.name}</option>
                 ))}
+                <option value="__CREATE_NEW__">+ Create new Category...</option>
               </select>
-            </div>
+            )}
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Category <span className="text-red-500">*</span>
-              </label>
-              {resolution?.createNewL2 ? (
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={resolution?.newL2Name || ''}
-                    onChange={(e) => setResolution(prev => ({ ...prev, newL2Name: e?.target?.value }))}
-                    placeholder="New Category name"
-                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button
-                    onClick={() => setResolution(prev => ({ ...prev, createNewL2: false }))}
-                    className="px-2 py-2 text-gray-500 hover:text-gray-700"
-                  >
-                    <Icon name="X" size={16} />
-                  </button>
-                </div>
-              ) : (
-                <select
-                  value={resolution?.categoryL2Id || ''}
-                  onChange={(e) => {
-                    if (e?.target?.value === '__CREATE_NEW__') {
-                      setResolution(prev => ({ ...prev, createNewL2: true, categoryL2Id: '' }));
-                    } else {
-                      setResolution(prev => ({ ...prev, categoryL2Id: e?.target?.value, categoryL3Id: '' }));
-                    }
-                  }}
-                  disabled={!resolution?.categoryL1Id}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Sub-Category (optional)
+            </label>
+            {resolution?.createNewL3 ? (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={resolution?.newL3Name || ''}
+                  onChange={(e) => setResolution(prev => ({ ...prev, newL3Name: e?.target?.value }))}
+                  placeholder="New Sub-Category name"
+                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  onClick={() => setResolution(prev => ({ ...prev, createNewL3: false }))}
+                  className="px-2 py-2 text-gray-500 hover:text-gray-700"
                 >
-                  <option value="">Select Category...</option>
-                  {categoriesL2?.map(cat => (
-                    <option key={cat?.id} value={cat?.id}>{cat?.name}</option>
-                  ))}
-                  <option value="__CREATE_NEW__">+ Create new Category...</option>
-                </select>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Sub-Category (optional)
-              </label>
-              {resolution?.createNewL3 ? (
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={resolution?.newL3Name || ''}
-                    onChange={(e) => setResolution(prev => ({ ...prev, newL3Name: e?.target?.value }))}
-                    placeholder="New Sub-Category name"
-                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button
-                    onClick={() => setResolution(prev => ({ ...prev, createNewL3: false }))}
-                    className="px-2 py-2 text-gray-500 hover:text-gray-700"
-                  >
-                    <Icon name="X" size={16} />
-                  </button>
-                </div>
-              ) : (
-                <select
-                  value={resolution?.categoryL3Id || ''}
-                  onChange={(e) => {
-                    if (e?.target?.value === '__CREATE_NEW__') {
-                      setResolution(prev => ({ ...prev, createNewL3: true, categoryL3Id: '' }));
-                    } else {
-                      setResolution(prev => ({ ...prev, categoryL3Id: e?.target?.value }));
-                    }
-                  }}
-                  disabled={!resolution?.categoryL2Id || resolution?.createNewL2}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                >
-                  <option value="">None / Leave blank</option>
-                  {categoriesL3?.map(cat => (
-                    <option key={cat?.id} value={cat?.id}>{cat?.name}</option>
-                  ))}
-                  <option value="__CREATE_NEW__">+ Create new Sub-Category...</option>
-                </select>
-              )}
-            </div>
+                  <Icon name="X" size={16} />
+                </button>
+              </div>
+            ) : (
+              <select
+                value={resolution?.categoryL3Id || ''}
+                onChange={(e) => {
+                  if (e?.target?.value === '__CREATE_NEW__') {
+                    setResolution(prev => ({ ...prev, createNewL3: true, categoryL3Id: '' }));
+                  } else {
+                    setResolution(prev => ({ ...prev, categoryL3Id: e?.target?.value }));
+                  }
+                }}
+                disabled={!resolution?.categoryL2Id || resolution?.createNewL2}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              >
+                <option value="">None / Leave blank</option>
+                {categoriesL3?.map(cat => (
+                  <option key={cat?.id} value={cat?.id}>{cat?.name}</option>
+                ))}
+                <option value="__CREATE_NEW__">+ Create new Sub-Category...</option>
+              </select>
+            )}
           </div>
         </div>
-
-        <div className="border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3">
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={() => onApply(resolution)} disabled={!canApply}>
-            Apply to All {group?.rowIndices?.length} Rows
-          </Button>
-        </div>
       </div>
-    </div>
+
+      <div className="border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3">
+        <Button variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button onClick={() => onApply(resolution)} disabled={!canApply}>
+          Apply to All {group?.rowIndices?.length} Rows
+        </Button>
+      </div>
+    </ModalShell>
   );
 };
 

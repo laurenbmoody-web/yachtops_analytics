@@ -6,6 +6,7 @@ import Icon from '../../../components/AppIcon';
 import { showToast } from '../../../utils/toast';
 import { addSpecialDate, updateSpecialDate, SpecialDateType } from '../../trips-management-dashboard/utils/tripStorage';
 
+import ModalShell from '../../../components/ui/ModalShell';
 const AddSpecialDateModal = ({ isOpen, onClose, onSave, tripId, guests, editingDate }) => {
   const [formData, setFormData] = useState({
     date: '',
@@ -98,101 +99,99 @@ const AddSpecialDateModal = ({ isOpen, onClose, onSave, tripId, guests, editingD
   ];
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-      <div className="bg-card rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <h2 className="text-xl font-semibold text-foreground">
-            {editingDate ? 'Edit Special Occasion' : 'Add Special Occasion'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-muted rounded-lg transition-smooth"
-          >
-            <Icon name="X" size={20} className="text-muted-foreground" />
-          </button>
+    <ModalShell onClose={onClose} panelClassName="bg-card rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between p-6 border-b border-border">
+        <h2 className="text-xl font-semibold text-foreground">
+          {editingDate ? 'Edit Special Occasion' : 'Add Special Occasion'}
+        </h2>
+        <button
+          onClick={onClose}
+          className="p-2 hover:bg-muted rounded-lg transition-smooth"
+        >
+          <Icon name="X" size={20} className="text-muted-foreground" />
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        {/* Date */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1.5">
+            Date <span className="text-destructive">*</span>
+          </label>
+          <Input
+            type="date"
+            value={formData?.date}
+            onChange={(e) => handleChange('date', e?.target?.value)}
+            error={errors?.date}
+          />
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {/* Date */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              Date <span className="text-destructive">*</span>
-            </label>
-            <Input
-              type="date"
-              value={formData?.date}
-              onChange={(e) => handleChange('date', e?.target?.value)}
-              error={errors?.date}
-            />
-          </div>
-
-          {/* Type */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              Type <span className="text-destructive">*</span>
-            </label>
-            <Select
-              options={typeOptions}
-              value={formData?.type}
-              onChange={(value) => handleChange('type', value)}
-              placeholder="Select type"
-            />
-          </div>
-
-          {/* Guest */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              Linked Guest (Optional)
-            </label>
-            <Select
-              options={guestOptions}
-              value={formData?.guestId}
-              onChange={(value) => handleChange('guestId', value)}
-              placeholder="Select guest"
-            />
-          </div>
-
-          {/* Title */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              Title <span className="text-destructive">*</span>
-            </label>
-            <Input
-              value={formData?.title}
-              onChange={(e) => handleChange('title', e?.target?.value)}
-              placeholder="e.g., John's 50th Birthday"
-              error={errors?.title}
-            />
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              Notes (Optional)
-            </label>
-            <textarea
-              value={formData?.notes}
-              onChange={(e) => handleChange('notes', e?.target?.value)}
-              placeholder="Additional notes"
-              rows={3}
-              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-            />
-          </div>
+        {/* Type */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1.5">
+            Type <span className="text-destructive">*</span>
+          </label>
+          <Select
+            options={typeOptions}
+            value={formData?.type}
+            onChange={(value) => handleChange('type', value)}
+            placeholder="Select type"
+          />
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-border">
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit}>
-            {editingDate ? 'Update Occasion' : 'Add Occasion'}
-          </Button>
+        {/* Guest */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1.5">
+            Linked Guest (Optional)
+          </label>
+          <Select
+            options={guestOptions}
+            value={formData?.guestId}
+            onChange={(value) => handleChange('guestId', value)}
+            placeholder="Select guest"
+          />
+        </div>
+
+        {/* Title */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1.5">
+            Title <span className="text-destructive">*</span>
+          </label>
+          <Input
+            value={formData?.title}
+            onChange={(e) => handleChange('title', e?.target?.value)}
+            placeholder="e.g., John's 50th Birthday"
+            error={errors?.title}
+          />
+        </div>
+
+        {/* Notes */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1.5">
+            Notes (Optional)
+          </label>
+          <textarea
+            value={formData?.notes}
+            onChange={(e) => handleChange('notes', e?.target?.value)}
+            placeholder="Additional notes"
+            rows={3}
+            className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+          />
         </div>
       </div>
-    </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-end gap-3 p-6 border-t border-border">
+        <Button variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button onClick={handleSubmit}>
+          {editingDate ? 'Update Occasion' : 'Add Occasion'}
+        </Button>
+      </div>
+    </ModalShell>
   );
 };
 

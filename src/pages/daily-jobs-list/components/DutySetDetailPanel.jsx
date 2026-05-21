@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import { Checkbox } from '../../../components/ui/Checkbox';
+import useDismissable from '../../../components/ui/useDismissable';
 
 const DutySetDetailPanel = ({ dutySet, userId, hasFullAccess, getCrewMember, onClose, onToggleTask }) => {
+  useDismissable({ onClose });
   const [activeTab, setActiveTab] = useState('all');
 
   const today = new Date();

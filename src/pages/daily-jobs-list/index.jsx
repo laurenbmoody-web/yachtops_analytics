@@ -12,6 +12,7 @@ import { loadCards, saveCards } from '../team-jobs-management/utils/cardStorage'
 
 import { mockDutySets, mockTasks, crewMembers, mockCustomBoards } from './data/mockData';
 
+import ModalShell from '../../components/ui/ModalShell';
 const DailyJobsList = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
@@ -499,82 +500,80 @@ const DailyJobsList = () => {
       )}
       {/* Create Board Modal */}
       {showCreateBoardModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-          <div className="bg-card rounded-2xl border-2 border-border p-6 w-full max-w-md">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-foreground">Create Board</h2>
-              <button
-                onClick={() => setShowCreateBoardModal(false)}
-                className="w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center transition-colors"
-              >
-                <Icon name="X" size={20} className="text-muted-foreground" />
-              </button>
+        <ModalShell onClose={() => setShowCreateBoardModal(false)} panelClassName="bg-card rounded-2xl border-2 border-border p-6 w-full max-w-md">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold text-foreground">Create Board</h2>
+            <button
+              onClick={() => setShowCreateBoardModal(false)}
+              className="w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center transition-colors"
+            >
+              <Icon name="X" size={20} className="text-muted-foreground" />
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Board Name *</label>
+              <input
+                type="text"
+                value={newBoardName}
+                onChange={(e) => setNewBoardName(e?.target?.value)}
+                placeholder="e.g. Deep Clean Week"
+                className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Board Name *</label>
-                <input
-                  type="text"
-                  value={newBoardName}
-                  onChange={(e) => setNewBoardName(e?.target?.value)}
-                  placeholder="e.g. Deep Clean Week"
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Board Type</label>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setNewBoardType('interior')}
-                    className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
-                      newBoardType === 'interior' ? 'bg-primary text-white border-primary' : 'bg-background text-foreground border-border hover:border-primary/50'
-                    }`}
-                  >
-                    Interior Board
-                  </button>
-                  <button
-                    onClick={() => setNewBoardType('hod')}
-                    className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
-                      newBoardType === 'hod' ? 'bg-primary text-white border-primary' : 'bg-background text-foreground border-border hover:border-primary/50'
-                    }`}
-                  >
-                    HOD Board
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Description (Optional)</label>
-                <textarea
-                  value={newBoardDescription}
-                  onChange={(e) => setNewBoardDescription(e?.target?.value)}
-                  placeholder="Brief description of this board's purpose"
-                  rows={3}
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
-                />
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Board Type</label>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setNewBoardType('interior')}
+                  className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
+                    newBoardType === 'interior' ? 'bg-primary text-white border-primary' : 'bg-background text-foreground border-border hover:border-primary/50'
+                  }`}
+                >
+                  Interior Board
+                </button>
+                <button
+                  onClick={() => setNewBoardType('hod')}
+                  className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
+                    newBoardType === 'hod' ? 'bg-primary text-white border-primary' : 'bg-background text-foreground border-border hover:border-primary/50'
+                  }`}
+                >
+                  HOD Board
+                </button>
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6">
-              <Button
-                variant="outline"
-                onClick={() => setShowCreateBoardModal(false)}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleCreateBoard}
-                disabled={!newBoardName?.trim()}
-                className="flex-1"
-              >
-                Create Board
-              </Button>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Description (Optional)</label>
+              <textarea
+                value={newBoardDescription}
+                onChange={(e) => setNewBoardDescription(e?.target?.value)}
+                placeholder="Brief description of this board's purpose"
+                rows={3}
+                className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+              />
             </div>
           </div>
-        </div>
+
+          <div className="flex gap-3 mt-6">
+            <Button
+              variant="outline"
+              onClick={() => setShowCreateBoardModal(false)}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateBoard}
+              disabled={!newBoardName?.trim()}
+              className="flex-1"
+            >
+              Create Board
+            </Button>
+          </div>
+        </ModalShell>
       )}
       {/* Add Card Modal */}
       {showAddCardModal && (

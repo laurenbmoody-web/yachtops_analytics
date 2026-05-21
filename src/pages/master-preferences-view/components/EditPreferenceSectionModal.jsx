@@ -8,6 +8,7 @@ import { createPreference, updatePreference, deletePreference, PreferencePriorit
 import { createAuditLog, EntityType, AuditAction } from '../../../utils/auditLogger';
 import { supabase } from '../../../lib/supabaseClient';
 
+import ModalShell from '../../../components/ui/ModalShell';
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -384,185 +385,183 @@ const EditPreferenceSectionModal = ({ isOpen, onClose, onSave, guestId, tenantId
   const currentImageSrc = imagePreview || (removeExistingImage ? null : existingImageUrl);
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-      <div className="bg-card rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-              section?.isPriority ? 'bg-red-100 dark:bg-red-900/30' : 'bg-primary/10'
-            }`}>
-              <Icon
-                name={section?.icon}
-                size={20}
-                className={section?.isPriority ? 'text-red-600 dark:text-red-400' : 'text-primary'}
+    <ModalShell onClose={onClose} panelClassName="bg-card rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between p-6 border-b border-border">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+            section?.isPriority ? 'bg-red-100 dark:bg-red-900/30' : 'bg-primary/10'
+          }`}>
+            <Icon
+              name={section?.icon}
+              size={20}
+              className={section?.isPriority ? 'text-red-600 dark:text-red-400' : 'text-primary'}
+            />
+          </div>
+          <h2 className="text-xl font-semibold text-foreground">
+            Edit {section?.title}
+          </h2>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-2 hover:bg-muted rounded-lg transition-smooth"
+        >
+          <Icon name="X" size={20} className="text-muted-foreground" />
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        {/* Add/Edit Form */}
+        <div className="bg-muted/30 rounded-lg p-4 space-y-4 overflow-visible">
+          <h3 className="text-sm font-semibold text-foreground">
+            {editingIndex !== null ? 'Edit Entry' : (formData?.prefType === 'avoid' ? 'Add Avoid Item' : 'Add New Preference')}
+          </h3>
+
+          {/* Type selector */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setFormData(prev => ({ ...prev, prefType: 'preference' }))}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                formData?.prefType === 'preference' ?'bg-primary text-primary-foreground border-primary' :'bg-background text-muted-foreground border-border hover:border-primary/50'
+              }`}
+            >
+              Preference
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormData(prev => ({ ...prev, prefType: 'avoid' }))}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                formData?.prefType === 'avoid' ?'bg-red-500/10 text-red-600 border-red-400/60' :'bg-background text-muted-foreground border-border hover:border-red-400/50'
+              }`}
+            >
+              Avoid / Do Not
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Description"
+              value={formData?.key}
+              onChange={(e) => handleChange('key', e?.target?.value)}
+              placeholder="e.g., Coffee, Pillow type"
+            />
+            <Select
+              label="Priority"
+              options={priorityOptions}
+              value={formData?.priority}
+              onChange={(value) => handleChange('priority', value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">Further Information</label>
+              <textarea
+                value={formData?.value}
+                onChange={(e) => handleChange('value', e?.target?.value)}
+                placeholder="Describe the preference in detail"
+                rows={3}
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
               />
             </div>
-            <h2 className="text-xl font-semibold text-foreground">
-              Edit {section?.title}
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-muted rounded-lg transition-smooth"
-          >
-            <Icon name="X" size={20} className="text-muted-foreground" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Add/Edit Form */}
-          <div className="bg-muted/30 rounded-lg p-4 space-y-4 overflow-visible">
-            <h3 className="text-sm font-semibold text-foreground">
-              {editingIndex !== null ? 'Edit Entry' : (formData?.prefType === 'avoid' ? 'Add Avoid Item' : 'Add New Preference')}
-            </h3>
-
-            {/* Type selector */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setFormData(prev => ({ ...prev, prefType: 'preference' }))}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                  formData?.prefType === 'preference' ?'bg-primary text-primary-foreground border-primary' :'bg-background text-muted-foreground border-border hover:border-primary/50'
-                }`}
-              >
-                Preference
-              </button>
-              <button
-                type="button"
-                onClick={() => setFormData(prev => ({ ...prev, prefType: 'avoid' }))}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                  formData?.prefType === 'avoid' ?'bg-red-500/10 text-red-600 border-red-400/60' :'bg-background text-muted-foreground border-border hover:border-red-400/50'
-                }`}
-              >
-                Avoid / Do Not
-              </button>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Description"
-                value={formData?.key}
-                onChange={(e) => handleChange('key', e?.target?.value)}
-                placeholder="e.g., Coffee, Pillow type"
+            <div className="space-y-4">
+              <Select
+                label="Confidence"
+                options={confidenceOptions}
+                value={formData?.confidence}
+                onChange={(value) => handleChange('confidence', value)}
               />
               <Select
-                label="Priority"
-                options={priorityOptions}
-                value={formData?.priority}
-                onChange={(value) => handleChange('priority', value)}
+                label="Time of Day"
+                options={timeOfDayOptions}
+                value={formData?.timeOfDay}
+                onChange={(value) => handleChange('timeOfDay', value)}
               />
             </div>
+          </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">Further Information</label>
-                <textarea
-                  value={formData?.value}
-                  onChange={(e) => handleChange('value', e?.target?.value)}
-                  placeholder="Describe the preference in detail"
-                  rows={3}
-                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-                />
-              </div>
-              <div className="space-y-4">
-                <Select
-                  label="Confidence"
-                  options={confidenceOptions}
-                  value={formData?.confidence}
-                  onChange={(value) => handleChange('confidence', value)}
-                />
-                <Select
-                  label="Time of Day"
-                  options={timeOfDayOptions}
-                  value={formData?.timeOfDay}
-                  onChange={(value) => handleChange('timeOfDay', value)}
-                />
-              </div>
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">Tags</label>
+            <div className="flex gap-2 mb-2">
+              <Input
+                value={tagInput}
+                onChange={(e) => setTagInput(e?.target?.value)}
+                placeholder="Add a tag"
+                onKeyPress={(e) => {
+                  if (e?.key === 'Enter') {
+                    e?.preventDefault();
+                    handleAddTag();
+                  }
+                }}
+              />
+              <Button variant="outline" size="sm" onClick={handleAddTag}>Add</Button>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">Tags</label>
-              <div className="flex gap-2 mb-2">
-                <Input
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e?.target?.value)}
-                  placeholder="Add a tag"
-                  onKeyPress={(e) => {
-                    if (e?.key === 'Enter') {
-                      e?.preventDefault();
-                      handleAddTag();
-                    }
-                  }}
-                />
-                <Button variant="outline" size="sm" onClick={handleAddTag}>Add</Button>
-              </div>
-              {formData?.tags?.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {formData?.tags?.map((tag, idx) => (
-                    <span
-                      key={idx}
-                      className="flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs"
-                    >
-                      {tag}
-                      <button onClick={() => handleRemoveTag(tag)} className="hover:text-red-500">
-                        <Icon name="X" size={10} />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Image Upload Section */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">Image <span className="text-xs text-muted-foreground font-normal">(optional, not included in exports)</span></label>
-              {currentImageSrc ? (
-                <div className="relative inline-block">
-                  <img
-                    src={currentImageSrc}
-                    alt="Preference image preview"
-                    className="h-32 w-auto max-w-full rounded-lg object-cover border border-border"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleRemoveImage}
-                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-md transition-colors"
-                    title="Remove image"
+            {formData?.tags?.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {formData?.tags?.map((tag, idx) => (
+                  <span
+                    key={idx}
+                    className="flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs"
                   >
-                    <Icon name="X" size={12} />
-                  </button>
-                </div>
-              ) : (
+                    {tag}
+                    <button onClick={() => handleRemoveTag(tag)} className="hover:text-red-500">
+                      <Icon name="X" size={10} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Image Upload Section */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">Image <span className="text-xs text-muted-foreground font-normal">(optional, not included in exports)</span></label>
+            {currentImageSrc ? (
+              <div className="relative inline-block">
+                <img
+                  src={currentImageSrc}
+                  alt="Preference image preview"
+                  className="h-32 w-auto max-w-full rounded-lg object-cover border border-border"
+                />
                 <button
                   type="button"
-                  onClick={() => fileInputRef?.current?.click()}
-                  className="flex items-center gap-2 px-4 py-2.5 border border-dashed border-border rounded-lg text-sm text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors bg-background"
+                  onClick={handleRemoveImage}
+                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-md transition-colors"
+                  title="Remove image"
                 >
-                  <Icon name="ImagePlus" size={16} />
-                  <span>Upload image (JPG, PNG, WebP, GIF · max 5MB)</span>
+                  <Icon name="X" size={12} />
                 </button>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                onChange={handleImageSelect}
-                className="hidden"
-              />
-            </div>
-
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef?.current?.click()}
+                className="flex items-center gap-2 px-4 py-2.5 border border-dashed border-border rounded-lg text-sm text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors bg-background"
+              >
+                <Icon name="ImagePlus" size={16} />
+                <span>Upload image (JPG, PNG, WebP, GIF · max 5MB)</span>
+              </button>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={handleImageSelect}
+              className="hidden"
+            />
           </div>
-        </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-border">
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button variant="primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Update'}</Button>
         </div>
       </div>
-    </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-end gap-3 p-6 border-t border-border">
+        <Button variant="ghost" onClick={onClose}>Cancel</Button>
+        <Button variant="primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Update'}</Button>
+      </div>
+    </ModalShell>
   );
 };
 

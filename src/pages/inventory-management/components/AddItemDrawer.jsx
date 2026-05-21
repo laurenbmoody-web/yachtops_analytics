@@ -10,8 +10,10 @@ import {
   saveSubcategoryL3
 } from '../utils/taxonomyStorage';
 import { getCurrentUser, hasHODAccess } from '../../../utils/authStorage';
+import useDismissable from '../../../components/ui/useDismissable';
 
 const AddItemDrawer = ({ isOpen, onClose, mode = 'add', initialData = null, categoryId = null, subcategoryL2Id = null, subcategoryL3Id = null, onSave }) => {
+  useDismissable({ onClose, enabled: isOpen });
   const fileInputRef = useRef(null);
   const currentUser = getCurrentUser();
   const canCreateTaxonomy = hasHODAccess(currentUser);

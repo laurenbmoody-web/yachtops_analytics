@@ -6,6 +6,7 @@ import Icon from '../../components/AppIcon';
 import { supabase } from '../../lib/supabaseClient';
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday } from 'date-fns';
 
+import ModalShell from '../../components/ui/ModalShell';
 const PersonalDashboard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -594,141 +595,135 @@ const PersonalDashboard = () => {
 
       {/* Add Task Modal */}
       {showAddTaskModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Add task</h3>
-            <form onSubmit={handleAddTask}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Task
-                  </label>
-                  <input
-                    type="text"
-                    value={taskText}
-                    onChange={(e) => setTaskText(e?.target?.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A7C9B] bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                    placeholder="Enter task..."
-                    autoFocus
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Due Date
-                  </label>
-                  <input
-                    type="date"
-                    value={taskDueDate}
-                    onChange={(e) => setTaskDueDate(e?.target?.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A7C9B] bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                  />
-                </div>
+        <ModalShell onClose={() => setShowAddTaskModal(false)} panelClassName="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Add task</h3>
+          <form onSubmit={handleAddTask}>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Task
+                </label>
+                <input
+                  type="text"
+                  value={taskText}
+                  onChange={(e) => setTaskText(e?.target?.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A7C9B] bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  placeholder="Enter task..."
+                  autoFocus
+                />
               </div>
-              <div className="flex gap-3 mt-6">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowAddTaskModal(false)}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" className="flex-1 bg-[#4A7C9B] hover:bg-[#3d6680] text-white">
-                  Add Task
-                </Button>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Due Date
+                </label>
+                <input
+                  type="date"
+                  value={taskDueDate}
+                  onChange={(e) => setTaskDueDate(e?.target?.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A7C9B] bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                />
               </div>
-            </form>
-          </div>
-        </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowAddTaskModal(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" className="flex-1 bg-[#4A7C9B] hover:bg-[#3d6680] text-white">
+                Add Task
+              </Button>
+            </div>
+          </form>
+        </ModalShell>
       )}
 
       {/* Add Event Modal */}
       {showAddEventModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Add event</h3>
-            <form onSubmit={handleAddEvent}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Event Title
-                  </label>
-                  <input
-                    type="text"
-                    value={eventTitle}
-                    onChange={(e) => setEventTitle(e?.target?.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A7C9B] bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                    placeholder="Enter event title..."
-                    autoFocus
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Start Date & Time
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={eventStartAt}
-                    onChange={(e) => setEventStartAt(e?.target?.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A7C9B] bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                  />
-                </div>
+        <ModalShell onClose={() => setShowAddEventModal(false)} panelClassName="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Add event</h3>
+          <form onSubmit={handleAddEvent}>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Event Title
+                </label>
+                <input
+                  type="text"
+                  value={eventTitle}
+                  onChange={(e) => setEventTitle(e?.target?.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A7C9B] bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  placeholder="Enter event title..."
+                  autoFocus
+                />
               </div>
-              <div className="flex gap-3 mt-6">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowAddEventModal(false)}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" className="flex-1 bg-[#4A7C9B] hover:bg-[#3d6680] text-white">
-                  Add Event
-                </Button>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Start Date & Time
+                </label>
+                <input
+                  type="datetime-local"
+                  value={eventStartAt}
+                  onChange={(e) => setEventStartAt(e?.target?.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A7C9B] bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                />
               </div>
-            </form>
-          </div>
-        </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowAddEventModal(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" className="flex-1 bg-[#4A7C9B] hover:bg-[#3d6680] text-white">
+                Add Event
+              </Button>
+            </div>
+          </form>
+        </ModalShell>
       )}
 
       {/* Create List Modal */}
       {showNewListModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Create list</h3>
-            <form onSubmit={handleCreateList}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    List Name
-                  </label>
-                  <input
-                    type="text"
-                    value={newListTitle}
-                    onChange={(e) => setNewListTitle(e?.target?.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A7C9B] bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                    placeholder="Enter list name..."
-                    autoFocus
-                  />
-                </div>
+        <ModalShell onClose={() => setShowNewListModal(false)} panelClassName="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Create list</h3>
+          <form onSubmit={handleCreateList}>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  List Name
+                </label>
+                <input
+                  type="text"
+                  value={newListTitle}
+                  onChange={(e) => setNewListTitle(e?.target?.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4A7C9B] bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  placeholder="Enter list name..."
+                  autoFocus
+                />
               </div>
-              <div className="flex gap-3 mt-6">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowNewListModal(false)}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" className="flex-1 bg-[#4A7C9B] hover:bg-[#3d6680] text-white">
-                  Create List
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowNewListModal(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" className="flex-1 bg-[#4A7C9B] hover:bg-[#3d6680] text-white">
+                Create List
+              </Button>
+            </div>
+          </form>
+        </ModalShell>
       )}
     </div>
   );

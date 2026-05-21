@@ -14,6 +14,7 @@ import { notifyChiefsPendingAcceptance, notifyJobAssigned } from '../utils/notif
 import { logActivity, JobActions } from '../../../utils/activityStorage';
 import { normalizeTier, canAssignTo } from '../utils/tierPermissions';
 
+import ModalShell from '../../../components/ui/ModalShell';
 // Helper to normalize department names for comparison
 const normalizeDept = (dept) => {
   return dept?.toUpperCase()?.trim() || '';
@@ -672,582 +673,577 @@ const ComprehensiveJobModal = ({ boards, selectedDate, defaultBoardId, onClose, 
   // non-COMMAND cannot change department
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4" onClick={onClose}>
-      <div
-        className="bg-card rounded-xl border border-border shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
-        onClick={(e) => e?.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border bg-card sticky top-0 z-10">
-          <div>
-            <h2 className="text-xl font-semibold text-foreground">Create New Job</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              {selectedDate ? format(selectedDate, 'EEEE, MMMM d, yyyy') : 'Full feature job creation'}
-            </p>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-accent rounded-lg transition-smooth">
-            <Icon name="X" size={20} className="text-muted-foreground" />
-          </button>
+    <ModalShell onClose={onClose} panelClassName="bg-card rounded-xl border border-border shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between p-6 border-b border-border bg-card sticky top-0 z-10">
+        <div>
+          <h2 className="text-xl font-semibold text-foreground">Create New Job</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            {selectedDate ? format(selectedDate, 'EEEE, MMMM d, yyyy') : 'Full feature job creation'}
+          </p>
         </div>
+        <button onClick={onClose} className="p-2 hover:bg-accent rounded-lg transition-smooth">
+          <Icon name="X" size={20} className="text-muted-foreground" />
+        </button>
+      </div>
 
-        {/* Form - Scrollable */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Error Display */}
-          {submitError && (
-            <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-              <div className="flex items-start gap-2 text-red-700 dark:text-red-400">
-                <Icon name="AlertCircle" size={16} className="flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium">Error</p>
-                  <p className="text-xs mt-1">{submitError}</p>
-                </div>
+      {/* Form - Scrollable */}
+      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+        {/* Error Display */}
+        {submitError && (
+          <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+            <div className="flex items-start gap-2 text-red-700 dark:text-red-400">
+              <Icon name="AlertCircle" size={16} className="flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium">Error</p>
+                <p className="text-xs mt-1">{submitError}</p>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* VIEW_ONLY notice */}
-          {isViewOnly && (
-            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
-              <div className="flex items-start gap-2 text-amber-700 dark:text-amber-400">
-                <Icon name="Lock" size={16} className="flex-shrink-0 mt-0.5" />
-                <p className="text-sm">You have view-only access and cannot create jobs.</p>
-              </div>
+        {/* VIEW_ONLY notice */}
+        {isViewOnly && (
+          <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+            <div className="flex items-start gap-2 text-amber-700 dark:text-amber-400">
+              <Icon name="Lock" size={16} className="flex-shrink-0 mt-0.5" />
+              <p className="text-sm">You have view-only access and cannot create jobs.</p>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* ========== CORE FIELDS ========== */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
-              <Icon name="FileText" size={16} />
-              Core Information
-            </h3>
+        {/* ========== CORE FIELDS ========== */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
+            <Icon name="FileText" size={16} />
+            Core Information
+          </h3>
 
-            {/* Title */}
-            <Input
-              label="Job Title"
-              required
-              value={formData?.title}
-              onChange={(e) => setFormData(prev => ({ ...prev, title: e?.target?.value }))}
-              placeholder="Enter job title"
+          {/* Title */}
+          <Input
+            label="Job Title"
+            required
+            value={formData?.title}
+            onChange={(e) => setFormData(prev => ({ ...prev, title: e?.target?.value }))}
+            placeholder="Enter job title"
+            disabled={isViewOnly}
+          />
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">Description / Notes</label>
+            <textarea
+              value={formData?.description}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e?.target?.value }))}
+              placeholder="Add detailed description or notes"
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-smooth"
+              rows={4}
               disabled={isViewOnly}
             />
+          </div>
 
-            {/* Description */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Description / Notes</label>
-              <textarea
-                value={formData?.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e?.target?.value }))}
-                placeholder="Add detailed description or notes"
-                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-smooth"
-                rows={4}
-                disabled={isViewOnly}
-              />
-            </div>
-
-            {/* Department */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Department *
-              </label>
-              {canSelectDept ? (
-                loadingDepts ? (
-                  <div className="px-3 py-2 bg-muted rounded-lg border border-border text-sm text-muted-foreground">
-                    Loading departments...
-                  </div>
-                ) : (
-                  <Select
-                    value={selectedDeptId || ''}
-                    onChange={(value) => {
-                      setSelectedDeptId(value);
-                      setFormData(prev => ({ ...prev, assignees: [], boardId: '' }));
-                      setShowCrossDeptPopover(false);
-                    }}
-                    options={supabaseDeptOptions}
-                    placeholder="Select department"
-                  />
-                )
+          {/* Department */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Department *
+            </label>
+            {canSelectDept ? (
+              loadingDepts ? (
+                <div className="px-3 py-2 bg-muted rounded-lg border border-border text-sm text-muted-foreground">
+                  Loading departments...
+                </div>
               ) : (
-                <div className="px-3 py-2 bg-muted rounded-lg border border-border text-sm text-foreground">
-                  {getDeptName(myTenantMember?.department_id) || 'Your Department'}
-                  <span className="text-xs text-muted-foreground ml-2">(locked to your department)</span>
+                <Select
+                  value={selectedDeptId || ''}
+                  onChange={(value) => {
+                    setSelectedDeptId(value);
+                    setFormData(prev => ({ ...prev, assignees: [], boardId: '' }));
+                    setShowCrossDeptPopover(false);
+                  }}
+                  options={supabaseDeptOptions}
+                  placeholder="Select department"
+                />
+              )
+            ) : (
+              <div className="px-3 py-2 bg-muted rounded-lg border border-border text-sm text-foreground">
+                {getDeptName(myTenantMember?.department_id) || 'Your Department'}
+                <span className="text-xs text-muted-foreground ml-2">(locked to your department)</span>
+              </div>
+            )}
+          </div>
+
+          {/* Cross-department popover trigger + popover */}
+          {isCrossDeptSelected && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowCrossDeptPopover(prev => !prev)}
+                className="w-full flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg hover:bg-amber-500/15 transition-colors text-left"
+              >
+                <Icon name="Send" size={16} className="text-amber-500 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                    Cross-Department Job — Send to <strong>{getDeptName(selectedDeptId)}</strong> Chief
+                  </p>
+                  <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">
+                    Click to add notes and confirm sending for acceptance
+                  </p>
+                </div>
+                <Icon name={showCrossDeptPopover ? 'ChevronUp' : 'ChevronDown'} size={16} className="text-amber-500 shrink-0" />
+              </button>
+
+              {showCrossDeptPopover && (
+                <div className="mt-2 p-4 bg-card border border-amber-500/40 rounded-lg shadow-lg space-y-3">
+                  <div className="flex items-start gap-2">
+                    <Icon name="AlertTriangle" size={16} className="text-amber-500 mt-0.5 shrink-0" />
+                    <p className="text-sm text-amber-700 dark:text-amber-400">
+                      This job will be sent to the <strong>{getDeptName(selectedDeptId)}</strong> Chief for acceptance. The receiving Chief will decide who it is assigned to.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Notes for Receiving Chief <span className="text-xs text-muted-foreground">(Optional)</span>
+                    </label>
+                    <textarea
+                      value={formData?.pendingReasonNotes}
+                      onChange={(e) => setFormData(prev => ({ ...prev, pendingReasonNotes: e?.target?.value }))}
+                      placeholder={`Add context or instructions for the ${getDeptName(selectedDeptId)} Chief`}
+                      className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-smooth"
+                      rows={3}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between pt-1">
+                    <p className="text-xs text-muted-foreground">
+                      Job will be created with status: <span className="font-medium text-amber-600">Pending Acceptance</span>
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowCrossDeptPopover(false)}
+                      className="text-xs text-muted-foreground hover:text-foreground underline"
+                    >
+                      Collapse
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
+          )}
 
-            {/* Cross-department popover trigger + popover */}
-            {isCrossDeptSelected && (
-              <div className="relative">
+          {/* Board Selection */}
+{!isCrossDeptSelected && (
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">Board *</label>
+            <Select
+              value={formData?.boardId}
+              onChange={(value) => setFormData(prev => ({ ...prev, boardId: value }))}
+              options={filteredBoards?.map(b => {
+                // Use department-scoped board name if available
+                const deptId = effectiveDepartmentId;
+                const displayName = (deptId && b?.names?.[deptId]) ? b?.names?.[deptId] : (b?.name || 'Board');
+                return { value: b?.id, label: displayName };
+              })}
+            />
+          </div>
+)}
+
+          {/* Assign To — COMMAND and CHIEF/HOD only, hidden for cross-dept */}
+          {canShowAssignee && (
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Assign To {effectiveDepartmentId && `(${getDeptName(effectiveDepartmentId)})`}
+              </label>
+              {isPrivate ? (
+                <div className="px-3 py-2 bg-muted rounded-lg border border-border text-sm text-muted-foreground">
+                  Private job — assigned to you automatically
+                </div>
+              ) : loadingAssignees ? (
+                <div className="px-3 py-2 bg-muted rounded-lg border border-border text-sm text-muted-foreground">
+                  Loading team members...
+                </div>
+              ) : assigneeOptions?.length === 0 ? (
+                <div className="px-3 py-2 bg-muted rounded-lg border border-border text-sm text-muted-foreground">
+                  {effectiveDepartmentId
+                    ? 'No eligible crew in this department' : 'Select a department first to load assignees'}
+                </div>
+              ) : (
+                <SearchableAssigneeDropdown
+                  crewMembers={assigneeOptions}
+                  selectedAssignees={formData?.assignees}
+                  onChange={(assignees) => {
+                    setFormData(prev => ({ ...prev, assignees }));
+                  }}
+                  department={effectiveDepartmentId}
+                />
+              )}
+            </div>
+          )}
+
+          {/* CREW: cannot assign, show helper text */}
+          {isCrew && (
+            <div className="px-3 py-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+              <div className="flex items-start gap-2">
+                <Icon name="Info" size={15} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-amber-700 dark:text-amber-400">
+                  Crew can't assign jobs — create a private job for yourself.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Private Toggle — available to all tiers (in core section for visibility) */}
+          <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border">
+            <div>
+              <label className="text-sm font-medium text-foreground">Private Job</label>
+              <p className="text-xs text-muted-foreground mt-1">
+                {isPrivate
+                  ? 'Only you will see this job — assigned to you automatically' :'Toggle to make this job private and self-assigned'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const next = !isPrivate;
+                setIsPrivate(next);
+                if (next) {
+                  const myUserId = currentUser?.id || myTenantMember?.user_id || supabaseUserId;
+                  setFormData(prev => ({ ...prev, assignees: myUserId ? [myUserId] : [] }));
+                }
+              }}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                isPrivate ? 'bg-primary' : 'bg-gray-300'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  isPrivate ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Due Date & Time */}
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Due Date"
+              type="date"
+              required
+              value={formData?.dueDate}
+              onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e?.target?.value }))}
+            />
+            <Input
+              label="Time (Optional)"
+              type="time"
+              value={formData?.dueTime}
+              onChange={(e) => setFormData(prev => ({ ...prev, dueTime: e?.target?.value }))}
+            />
+          </div>
+
+          {/* Priority */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">Priority / Importance *</label>
+            <Select
+              value={formData?.priority}
+              onChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}
+              options={priorityOptions}
+            />
+          </div>
+        </div>
+
+        {/* ========== CHECKLISTS ========== */}
+        <div className="space-y-4 border-t border-border pt-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
+              <Icon name="CheckSquare" size={16} />
+              Checklists
+            </h3>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              iconName="Plus"
+              onClick={() => {
+                const name = prompt('Checklist name:');
+                if (name?.trim()) {
+                  setFormData(prev => ({
+                    ...prev,
+                    checklists: [...prev?.checklists, {
+                      id: crypto.randomUUID(),
+                      name: name?.trim(),
+                      items: []
+                    }]
+                  }));
+                  setActiveChecklistIndex(formData?.checklists?.length);
+                }
+              }}
+            >
+              Add Checklist
+            </Button>
+          </div>
+
+          {formData?.checklists?.map((checklist, checklistIndex) => (
+            <div key={checklist?.id} className="bg-background rounded-lg border border-border p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-foreground">{checklist?.name}</h4>
                 <button
                   type="button"
-                  onClick={() => setShowCrossDeptPopover(prev => !prev)}
-                  className="w-full flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg hover:bg-amber-500/15 transition-colors text-left"
+                  onClick={() => handleRemoveChecklist(checklistIndex)}
+                  className="p-1 hover:bg-red-500/10 rounded transition-smooth"
                 >
-                  <Icon name="Send" size={16} className="text-amber-500 shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
-                      Cross-Department Job — Send to <strong>{getDeptName(selectedDeptId)}</strong> Chief
-                    </p>
-                    <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">
-                      Click to add notes and confirm sending for acceptance
-                    </p>
-                  </div>
-                  <Icon name={showCrossDeptPopover ? 'ChevronUp' : 'ChevronDown'} size={16} className="text-amber-500 shrink-0" />
+                  <Icon name="Trash2" size={14} className="text-red-500" />
                 </button>
-
-                {showCrossDeptPopover && (
-                  <div className="mt-2 p-4 bg-card border border-amber-500/40 rounded-lg shadow-lg space-y-3">
-                    <div className="flex items-start gap-2">
-                      <Icon name="AlertTriangle" size={16} className="text-amber-500 mt-0.5 shrink-0" />
-                      <p className="text-sm text-amber-700 dark:text-amber-400">
-                        This job will be sent to the <strong>{getDeptName(selectedDeptId)}</strong> Chief for acceptance. The receiving Chief will decide who it is assigned to.
-                      </p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-1">
-                        Notes for Receiving Chief <span className="text-xs text-muted-foreground">(Optional)</span>
-                      </label>
-                      <textarea
-                        value={formData?.pendingReasonNotes}
-                        onChange={(e) => setFormData(prev => ({ ...prev, pendingReasonNotes: e?.target?.value }))}
-                        placeholder={`Add context or instructions for the ${getDeptName(selectedDeptId)} Chief`}
-                        className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-smooth"
-                        rows={3}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between pt-1">
-                      <p className="text-xs text-muted-foreground">
-                        Job will be created with status: <span className="font-medium text-amber-600">Pending Acceptance</span>
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => setShowCrossDeptPopover(false)}
-                        className="text-xs text-muted-foreground hover:text-foreground underline"
-                      >
-                        Collapse
+              </div>
+              <div className="space-y-2">
+                {checklist?.items?.map((item, itemIndex) => (
+                  <div key={item?.id} className="flex items-center gap-2 bg-card p-2 rounded-lg">
+                    <Checkbox checked={item?.completed} disabled />
+                    <span className="flex-1 text-sm text-foreground">{item?.text}</span>
+                    <div className="flex items-center gap-1">
+                      <button type="button" onClick={() => handleMoveChecklistItem(checklistIndex, itemIndex, 'up')} disabled={itemIndex === 0} className="p-1 hover:bg-muted rounded disabled:opacity-30">
+                        <Icon name="ChevronUp" size={14} />
+                      </button>
+                      <button type="button" onClick={() => handleMoveChecklistItem(checklistIndex, itemIndex, 'down')} disabled={itemIndex === checklist?.items?.length - 1} className="p-1 hover:bg-muted rounded disabled:opacity-30">
+                        <Icon name="ChevronDown" size={14} />
+                      </button>
+                      <button type="button" onClick={() => handleRemoveChecklistItem(checklistIndex, item?.id)} className="p-1 hover:bg-red-500/10 rounded">
+                        <Icon name="X" size={14} className="text-red-500" />
                       </button>
                     </div>
                   </div>
-                )}
-              </div>
-            )}
-
-            {/* Board Selection */}
-{!isCrossDeptSelected && (
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Board *</label>
-              <Select
-                value={formData?.boardId}
-                onChange={(value) => setFormData(prev => ({ ...prev, boardId: value }))}
-                options={filteredBoards?.map(b => {
-                  // Use department-scoped board name if available
-                  const deptId = effectiveDepartmentId;
-                  const displayName = (deptId && b?.names?.[deptId]) ? b?.names?.[deptId] : (b?.name || 'Board');
-                  return { value: b?.id, label: displayName };
-                })}
-              />
-            </div>
-)}
-
-            {/* Assign To — COMMAND and CHIEF/HOD only, hidden for cross-dept */}
-            {canShowAssignee && (
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Assign To {effectiveDepartmentId && `(${getDeptName(effectiveDepartmentId)})`}
-                </label>
-                {isPrivate ? (
-                  <div className="px-3 py-2 bg-muted rounded-lg border border-border text-sm text-muted-foreground">
-                    Private job — assigned to you automatically
-                  </div>
-                ) : loadingAssignees ? (
-                  <div className="px-3 py-2 bg-muted rounded-lg border border-border text-sm text-muted-foreground">
-                    Loading team members...
-                  </div>
-                ) : assigneeOptions?.length === 0 ? (
-                  <div className="px-3 py-2 bg-muted rounded-lg border border-border text-sm text-muted-foreground">
-                    {effectiveDepartmentId
-                      ? 'No eligible crew in this department' : 'Select a department first to load assignees'}
-                  </div>
-                ) : (
-                  <SearchableAssigneeDropdown
-                    crewMembers={assigneeOptions}
-                    selectedAssignees={formData?.assignees}
-                    onChange={(assignees) => {
-                      setFormData(prev => ({ ...prev, assignees }));
-                    }}
-                    department={effectiveDepartmentId}
-                  />
-                )}
-              </div>
-            )}
-
-            {/* CREW: cannot assign, show helper text */}
-            {isCrew && (
-              <div className="px-3 py-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <Icon name="Info" size={15} className="text-amber-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-amber-700 dark:text-amber-400">
-                    Crew can't assign jobs — create a private job for yourself.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Private Toggle — available to all tiers (in core section for visibility) */}
-            <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border">
-              <div>
-                <label className="text-sm font-medium text-foreground">Private Job</label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {isPrivate
-                    ? 'Only you will see this job — assigned to you automatically' :'Toggle to make this job private and self-assigned'}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  const next = !isPrivate;
-                  setIsPrivate(next);
-                  if (next) {
-                    const myUserId = currentUser?.id || myTenantMember?.user_id || supabaseUserId;
-                    setFormData(prev => ({ ...prev, assignees: myUserId ? [myUserId] : [] }));
-                  }
-                }}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  isPrivate ? 'bg-primary' : 'bg-gray-300'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    isPrivate ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-            </div>
-
-            {/* Due Date & Time */}
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Due Date"
-                type="date"
-                required
-                value={formData?.dueDate}
-                onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e?.target?.value }))}
-              />
-              <Input
-                label="Time (Optional)"
-                type="time"
-                value={formData?.dueTime}
-                onChange={(e) => setFormData(prev => ({ ...prev, dueTime: e?.target?.value }))}
-              />
-            </div>
-
-            {/* Priority */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Priority / Importance *</label>
-              <Select
-                value={formData?.priority}
-                onChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}
-                options={priorityOptions}
-              />
-            </div>
-          </div>
-
-          {/* ========== CHECKLISTS ========== */}
-          <div className="space-y-4 border-t border-border pt-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
-                <Icon name="CheckSquare" size={16} />
-                Checklists
-              </h3>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                iconName="Plus"
-                onClick={() => {
-                  const name = prompt('Checklist name:');
-                  if (name?.trim()) {
-                    setFormData(prev => ({
-                      ...prev,
-                      checklists: [...prev?.checklists, {
-                        id: crypto.randomUUID(),
-                        name: name?.trim(),
-                        items: []
-                      }]
-                    }));
-                    setActiveChecklistIndex(formData?.checklists?.length);
-                  }
-                }}
-              >
-                Add Checklist
-              </Button>
-            </div>
-
-            {formData?.checklists?.map((checklist, checklistIndex) => (
-              <div key={checklist?.id} className="bg-background rounded-lg border border-border p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium text-foreground">{checklist?.name}</h4>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveChecklist(checklistIndex)}
-                    className="p-1 hover:bg-red-500/10 rounded transition-smooth"
-                  >
-                    <Icon name="Trash2" size={14} className="text-red-500" />
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {checklist?.items?.map((item, itemIndex) => (
-                    <div key={item?.id} className="flex items-center gap-2 bg-card p-2 rounded-lg">
-                      <Checkbox checked={item?.completed} disabled />
-                      <span className="flex-1 text-sm text-foreground">{item?.text}</span>
-                      <div className="flex items-center gap-1">
-                        <button type="button" onClick={() => handleMoveChecklistItem(checklistIndex, itemIndex, 'up')} disabled={itemIndex === 0} className="p-1 hover:bg-muted rounded disabled:opacity-30">
-                          <Icon name="ChevronUp" size={14} />
-                        </button>
-                        <button type="button" onClick={() => handleMoveChecklistItem(checklistIndex, itemIndex, 'down')} disabled={itemIndex === checklist?.items?.length - 1} className="p-1 hover:bg-muted rounded disabled:opacity-30">
-                          <Icon name="ChevronDown" size={14} />
-                        </button>
-                        <button type="button" onClick={() => handleRemoveChecklistItem(checklistIndex, item?.id)} className="p-1 hover:bg-red-500/10 rounded">
-                          <Icon name="X" size={14} className="text-red-500" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Input
-                    placeholder="Add checklist item"
-                    value={activeChecklistIndex === checklistIndex ? newChecklistItem : ''}
-                    onChange={(e) => { setNewChecklistItem(e?.target?.value); setActiveChecklistIndex(checklistIndex); }}
-                    onKeyDown={(e) => { if (e?.key === 'Enter') { e?.preventDefault(); handleAddChecklistItem(checklistIndex); } }}
-                  />
-                  <Button type="button" size="sm" onClick={() => handleAddChecklistItem(checklistIndex)} disabled={!newChecklistItem?.trim() || activeChecklistIndex !== checklistIndex}>
-                    Add
-                  </Button>
-                </div>
-              </div>
-            ))}
-
-            {formData?.checklists?.length > 0 && (
-              <Checkbox
-                label="Auto-complete card when all checklist items are complete"
-                checked={formData?.autoCompleteOnChecklist}
-                onChange={(e) => setFormData(prev => ({ ...prev, autoCompleteOnChecklist: e?.target?.checked }))}
-              />
-            )}
-          </div>
-
-          {/* ========== RECURRENCE ========== */}
-          <div className="space-y-4 border-t border-border pt-6">
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
-              <Icon name="Repeat" size={16} />
-              Recurrence
-            </h3>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Repeat</label>
-              <Select
-                value={formData?.recurrence}
-                onChange={(value) => setFormData(prev => ({ ...prev, recurrence: value }))}
-                options={[
-                  { value: 'none', label: 'None (One-time job)' },
-                  { value: 'daily', label: 'Daily' },
-                  { value: 'weekly', label: 'Weekly' },
-                  { value: 'monthly', label: 'Monthly' }
-                ]}
-              />
-            </div>
-            {formData?.recurrence === 'weekly' && (
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Select Day(s) of Week</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {weekDays?.map(day => (
-                    <button
-                      key={day}
-                      type="button"
-                      onClick={() => toggleWeekDay(day?.toLowerCase())}
-                      className={`px-3 py-2 rounded-lg border text-sm font-medium transition-smooth ${
-                        formData?.recurrenceWeekDays?.includes(day?.toLowerCase())
-                          ? 'border-primary bg-primary/10 text-primary' :'border-border text-foreground hover:border-primary/50'
-                      }`}
-                    >
-                      {day?.substring(0, 3)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            {formData?.recurrence === 'monthly' && (
-              <Input
-                label="Day of Month"
-                type="number"
-                min="1"
-                max="31"
-                value={formData?.recurrenceMonthDay}
-                onChange={(e) => setFormData(prev => ({ ...prev, recurrenceMonthDay: parseInt(e?.target?.value) || 1 }))}
-              />
-            )}
-          </div>
-
-          {/* ========== DUTY SET ========== */}
-          {!isCrossDeptSelected && (
-          <div className="space-y-4 border-t border-border pt-6">
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
-              <Icon name="Briefcase" size={16} />
-              Duty Set (Optional)
-            </h3>
-            <Input
-              label="Duty Set Name"
-              placeholder="e.g., Morning Duties"
-              value={formData?.dutySetName}
-              onChange={(e) => setFormData(prev => ({ ...prev, dutySetName: e?.target?.value }))}
-              description="Link this job to a grouped operational duty"
-            />
-          </div>
-          )}
-
-          {/* ========== ATTACHMENTS ========== */}
-          <div className="space-y-4 border-t border-border pt-6">
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
-              <Icon name="Paperclip" size={16} />
-              Attachments
-            </h3>
-            <div>
-              <input type="file" id="file-upload" multiple accept="image/*,.pdf,.doc,.docx,.txt" onChange={handleFileUpload} className="hidden" />
-              <label htmlFor="file-upload">
-                <Button type="button" variant="outline" iconName="Upload" onClick={() => document.getElementById('file-upload')?.click()} loading={uploadingFile}>
-                  Upload Files
-                </Button>
-              </label>
-            </div>
-            {formData?.attachments?.length > 0 && (
-              <div className="grid grid-cols-2 gap-3">
-                {formData?.attachments?.map(attachment => (
-                  <div key={attachment?.id} className="relative bg-background rounded-lg border border-border p-3 flex items-center gap-3">
-                    {attachment?.type?.startsWith('image/') ? (
-                      <img src={attachment?.url} alt={attachment?.name} className="w-12 h-12 rounded object-cover" />
-                    ) : (
-                      <div className="w-12 h-12 rounded bg-muted flex items-center justify-center">
-                        <Icon name="File" size={20} className="text-muted-foreground" />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{attachment?.name}</p>
-                      <p className="text-xs text-muted-foreground">{(attachment?.size / 1024)?.toFixed(1)} KB</p>
-                    </div>
-                    <button type="button" onClick={() => handleRemoveAttachment(attachment?.id)} className="p-1 hover:bg-red-500/10 rounded transition-smooth">
-                      <Icon name="X" size={14} className="text-red-500" />
-                    </button>
-                  </div>
                 ))}
               </div>
-            )}
-          </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Add checklist item"
+                  value={activeChecklistIndex === checklistIndex ? newChecklistItem : ''}
+                  onChange={(e) => { setNewChecklistItem(e?.target?.value); setActiveChecklistIndex(checklistIndex); }}
+                  onKeyDown={(e) => { if (e?.key === 'Enter') { e?.preventDefault(); handleAddChecklistItem(checklistIndex); } }}
+                />
+                <Button type="button" size="sm" onClick={() => handleAddChecklistItem(checklistIndex)} disabled={!newChecklistItem?.trim() || activeChecklistIndex !== checklistIndex}>
+                  Add
+                </Button>
+              </div>
+            </div>
+          ))}
 
-          {/* ========== COMMENTS ========== */}
-          <div className="space-y-4 border-t border-border pt-6">
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
-              <Icon name="MessageSquare" size={16} />
-              Initial Comment (Optional)
-            </h3>
-            <textarea
-              value={formData?.initialComment}
-              onChange={(e) => setFormData(prev => ({ ...prev, initialComment: e?.target?.value }))}
-              placeholder="Add an initial comment or handover note"
-              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-smooth"
-              rows={3}
+          {formData?.checklists?.length > 0 && (
+            <Checkbox
+              label="Auto-complete card when all checklist items are complete"
+              checked={formData?.autoCompleteOnChecklist}
+              onChange={(e) => setFormData(prev => ({ ...prev, autoCompleteOnChecklist: e?.target?.checked }))}
+            />
+          )}
+        </div>
+
+        {/* ========== RECURRENCE ========== */}
+        <div className="space-y-4 border-t border-border pt-6">
+          <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
+            <Icon name="Repeat" size={16} />
+            Recurrence
+          </h3>
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">Repeat</label>
+            <Select
+              value={formData?.recurrence}
+              onChange={(value) => setFormData(prev => ({ ...prev, recurrence: value }))}
+              options={[
+                { value: 'none', label: 'None (One-time job)' },
+                { value: 'daily', label: 'Daily' },
+                { value: 'weekly', label: 'Weekly' },
+                { value: 'monthly', label: 'Monthly' }
+              ]}
             />
           </div>
+          {formData?.recurrence === 'weekly' && (
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Select Day(s) of Week</label>
+              <div className="grid grid-cols-4 gap-2">
+                {weekDays?.map(day => (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => toggleWeekDay(day?.toLowerCase())}
+                    className={`px-3 py-2 rounded-lg border text-sm font-medium transition-smooth ${
+                      formData?.recurrenceWeekDays?.includes(day?.toLowerCase())
+                        ? 'border-primary bg-primary/10 text-primary' :'border-border text-foreground hover:border-primary/50'
+                    }`}
+                  >
+                    {day?.substring(0, 3)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {formData?.recurrence === 'monthly' && (
+            <Input
+              label="Day of Month"
+              type="number"
+              min="1"
+              max="31"
+              value={formData?.recurrenceMonthDay}
+              onChange={(e) => setFormData(prev => ({ ...prev, recurrenceMonthDay: parseInt(e?.target?.value) || 1 }))}
+            />
+          )}
+        </div>
 
-          {/* ========== ADVANCED OPTIONS ========== */}
-          <div className="space-y-4 border-t border-border pt-6">
-            <button
-              type="button"
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className="flex items-center justify-between w-full text-left"
-            >
-              <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
-                <Icon name="Settings" size={16} />
-                Advanced Options
-              </h3>
-              <Icon name={showAdvanced ? 'ChevronUp' : 'ChevronDown'} size={16} className="text-muted-foreground" />
-            </button>
+        {/* ========== DUTY SET ========== */}
+        {!isCrossDeptSelected && (
+        <div className="space-y-4 border-t border-border pt-6">
+          <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
+            <Icon name="Briefcase" size={16} />
+            Duty Set (Optional)
+          </h3>
+          <Input
+            label="Duty Set Name"
+            placeholder="e.g., Morning Duties"
+            value={formData?.dutySetName}
+            onChange={(e) => setFormData(prev => ({ ...prev, dutySetName: e?.target?.value }))}
+            description="Link this job to a grouped operational duty"
+          />
+        </div>
+        )}
 
-            {showAdvanced && (
-              <div className="space-y-4 pl-6">
-                {/* Labels */}
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Labels / Tags</label>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Input
-                      placeholder="Add label"
-                      value={newLabel}
-                      onChange={(e) => setNewLabel(e?.target?.value)}
-                      onKeyDown={(e) => { if (e?.key === 'Enter') { e?.preventDefault(); handleAddLabel(); } }}
-                    />
-                    <Button type="button" size="sm" onClick={handleAddLabel}>Add</Button>
-                  </div>
-                  {formData?.labels?.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {formData?.labels?.map(label => (
-                        <span key={label} className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium">
-                          {label}
-                          <button type="button" onClick={() => handleRemoveLabel(label)} className="hover:bg-primary/20 rounded-full p-0.5">
-                            <Icon name="X" size={12} />
-                          </button>
-                        </span>
-                      ))}
+        {/* ========== ATTACHMENTS ========== */}
+        <div className="space-y-4 border-t border-border pt-6">
+          <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
+            <Icon name="Paperclip" size={16} />
+            Attachments
+          </h3>
+          <div>
+            <input type="file" id="file-upload" multiple accept="image/*,.pdf,.doc,.docx,.txt" onChange={handleFileUpload} className="hidden" />
+            <label htmlFor="file-upload">
+              <Button type="button" variant="outline" iconName="Upload" onClick={() => document.getElementById('file-upload')?.click()} loading={uploadingFile}>
+                Upload Files
+              </Button>
+            </label>
+          </div>
+          {formData?.attachments?.length > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              {formData?.attachments?.map(attachment => (
+                <div key={attachment?.id} className="relative bg-background rounded-lg border border-border p-3 flex items-center gap-3">
+                  {attachment?.type?.startsWith('image/') ? (
+                    <img src={attachment?.url} alt={attachment?.name} className="w-12 h-12 rounded object-cover" />
+                  ) : (
+                    <div className="w-12 h-12 rounded bg-muted flex items-center justify-center">
+                      <Icon name="File" size={20} className="text-muted-foreground" />
                     </div>
                   )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{attachment?.name}</p>
+                    <p className="text-xs text-muted-foreground">{(attachment?.size / 1024)?.toFixed(1)} KB</p>
+                  </div>
+                  <button type="button" onClick={() => handleRemoveAttachment(attachment?.id)} className="p-1 hover:bg-red-500/10 rounded transition-smooth">
+                    <Icon name="X" size={14} className="text-red-500" />
+                  </button>
                 </div>
-
-                {/* Internal Notes */}
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Internal Reference / Notes
-                    <span className="text-xs text-muted-foreground ml-2">(Command/Chief only)</span>
-                  </label>
-                  <textarea
-                    value={formData?.internalNotes}
-                    onChange={(e) => setFormData(prev => ({ ...prev, internalNotes: e?.target?.value }))}
-                    placeholder="Private notes visible only to Command/Chief"
-                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-smooth"
-                    rows={2}
-                  />
-                </div>
-
-                {/* Visibility Toggle */}
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Visibility</label>
-                  <Select
-                    value={formData?.visibility}
-                    onChange={(value) => setFormData(prev => ({ ...prev, visibility: value }))}
-                    options={[
-                      { value: 'crew-visible', label: 'Crew Visible' },
-                      { value: 'internal', label: 'Internal Only (Command/Chief)' }
-                    ]}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        </form>
-
-        {/* Footer Actions */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-border bg-card sticky bottom-0">
-          <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            onClick={handleSubmit}
-            disabled={!formData?.title?.trim() || isSubmitting || isViewOnly}
-            loading={isSubmitting}
-          >
-            {isSubmitting ? 'Saving...' : getButtonLabel()}
-          </Button>
+              ))}
+            </div>
+          )}
         </div>
+
+        {/* ========== COMMENTS ========== */}
+        <div className="space-y-4 border-t border-border pt-6">
+          <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
+            <Icon name="MessageSquare" size={16} />
+            Initial Comment (Optional)
+          </h3>
+          <textarea
+            value={formData?.initialComment}
+            onChange={(e) => setFormData(prev => ({ ...prev, initialComment: e?.target?.value }))}
+            placeholder="Add an initial comment or handover note"
+            className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-smooth"
+            rows={3}
+          />
+        </div>
+
+        {/* ========== ADVANCED OPTIONS ========== */}
+        <div className="space-y-4 border-t border-border pt-6">
+          <button
+            type="button"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="flex items-center justify-between w-full text-left"
+          >
+            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
+              <Icon name="Settings" size={16} />
+              Advanced Options
+            </h3>
+            <Icon name={showAdvanced ? 'ChevronUp' : 'ChevronDown'} size={16} className="text-muted-foreground" />
+          </button>
+
+          {showAdvanced && (
+            <div className="space-y-4 pl-6">
+              {/* Labels */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Labels / Tags</label>
+                <div className="flex items-center gap-2 mb-2">
+                  <Input
+                    placeholder="Add label"
+                    value={newLabel}
+                    onChange={(e) => setNewLabel(e?.target?.value)}
+                    onKeyDown={(e) => { if (e?.key === 'Enter') { e?.preventDefault(); handleAddLabel(); } }}
+                  />
+                  <Button type="button" size="sm" onClick={handleAddLabel}>Add</Button>
+                </div>
+                {formData?.labels?.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {formData?.labels?.map(label => (
+                      <span key={label} className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium">
+                        {label}
+                        <button type="button" onClick={() => handleRemoveLabel(label)} className="hover:bg-primary/20 rounded-full p-0.5">
+                          <Icon name="X" size={12} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Internal Notes */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Internal Reference / Notes
+                  <span className="text-xs text-muted-foreground ml-2">(Command/Chief only)</span>
+                </label>
+                <textarea
+                  value={formData?.internalNotes}
+                  onChange={(e) => setFormData(prev => ({ ...prev, internalNotes: e?.target?.value }))}
+                  placeholder="Private notes visible only to Command/Chief"
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-smooth"
+                  rows={2}
+                />
+              </div>
+
+              {/* Visibility Toggle */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Visibility</label>
+                <Select
+                  value={formData?.visibility}
+                  onChange={(value) => setFormData(prev => ({ ...prev, visibility: value }))}
+                  options={[
+                    { value: 'crew-visible', label: 'Crew Visible' },
+                    { value: 'internal', label: 'Internal Only (Command/Chief)' }
+                  ]}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </form>
+
+      {/* Footer Actions */}
+      <div className="flex items-center justify-end gap-3 p-6 border-t border-border bg-card sticky bottom-0">
+        <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          onClick={handleSubmit}
+          disabled={!formData?.title?.trim() || isSubmitting || isViewOnly}
+          loading={isSubmitting}
+        >
+          {isSubmitting ? 'Saving...' : getButtonLabel()}
+        </Button>
       </div>
-    </div>
+    </ModalShell>
   );
 };
 

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
+import useDismissable from '../../../components/ui/useDismissable';
 import Button from '../../../components/ui/Button';
 import { loadAllLaundryItems, LaundryStatus } from '../../laundry-management-dashboard/utils/laundryStorage';
 import { loadGuests } from '../../guest-management-dashboard/utils/guestStorage';
 
 const TripLaundryDrawer = ({ isOpen, onClose, trip }) => {
+  useDismissable({ onClose, enabled: isOpen && !!trip });
   const navigate = useNavigate();
   const [laundryItems, setLaundryItems] = useState([]);
   const [filteredItems, setFilteredItems] = useState([]);

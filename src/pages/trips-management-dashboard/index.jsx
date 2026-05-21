@@ -12,6 +12,7 @@ import { loadGuests } from '../guest-management-dashboard/utils/guestStorage';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 
+import ModalShell from '../../components/ui/ModalShell';
 const DEV_MODE = true;
 
 const TripsManagementDashboard = () => {
@@ -850,327 +851,308 @@ const TripsManagementDashboard = () => {
       )}
       {/* End Trip Confirmation Modal */}
       {showEndTripModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-          <div className="bg-card border border-border rounded-xl shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-2">End this trip?</h3>
-            <p className="text-sm text-muted-foreground mb-6">
-              This will set the trip status to Completed and lock the trip workspace as read-only.
-            </p>
-            <div className="flex gap-3 justify-end">
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setShowEndTripModal(false);
-                  setTripToComplete(null);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button onClick={confirmEndTrip}>
-                End Trip
-              </Button>
-            </div>
+        <ModalShell onClose={() => setShowEndTripModal(false)} panelClassName="bg-card border border-border rounded-xl shadow-xl max-w-md w-full p-6">
+          <h3 className="text-lg font-semibold text-foreground mb-2">End this trip?</h3>
+          <p className="text-sm text-muted-foreground mb-6">
+            This will set the trip status to Completed and lock the trip workspace as read-only.
+          </p>
+          <div className="flex gap-3 justify-end">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowEndTripModal(false);
+                setTripToComplete(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={confirmEndTrip}>
+              End Trip
+            </Button>
           </div>
-        </div>
+        </ModalShell>
       )}
       {/* Mark as Completed Confirmation Modal */}
       {showMarkCompletedModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-          <div className="bg-card border border-border rounded-xl shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-2">Mark trip as completed?</h3>
-            <p className="text-sm text-muted-foreground mb-6">
-              This will set the trip status to Completed and lock the trip workspace as read-only.
-            </p>
-            <div className="flex gap-3 justify-end">
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setShowMarkCompletedModal(false);
-                  setTripToComplete(null);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button onClick={confirmMarkCompleted}>
-                Mark as Completed
-              </Button>
-            </div>
+        <ModalShell onClose={() => setShowMarkCompletedModal(false)} panelClassName="bg-card border border-border rounded-xl shadow-xl max-w-md w-full p-6">
+          <h3 className="text-lg font-semibold text-foreground mb-2">Mark trip as completed?</h3>
+          <p className="text-sm text-muted-foreground mb-6">
+            This will set the trip status to Completed and lock the trip workspace as read-only.
+          </p>
+          <div className="flex gap-3 justify-end">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowMarkCompletedModal(false);
+                setTripToComplete(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={confirmMarkCompleted}>
+              Mark as Completed
+            </Button>
           </div>
-        </div>
+        </ModalShell>
       )}
       {/* View Summary Slide-over Panel */}
       {showSummaryPanel && summaryTrip && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-end z-[var(--z-overlay)]" onClick={() => setShowSummaryPanel(false)}>
-          <div 
-            className="bg-card border-l border-border w-full sm:w-[480px] h-[80vh] sm:h-full shadow-2xl overflow-y-auto"
-            onClick={(e) => e?.stopPropagation()}
-          >
-            <div className="sticky top-0 bg-card border-b border-border p-6 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-foreground">Trip Summary</h2>
-              <button onClick={() => setShowSummaryPanel(false)} className="text-muted-foreground hover:text-foreground">
-                <Icon name="X" size={20} />
-              </button>
-            </div>
-            
-            <div className="p-6 space-y-6">
-              {/* Trip Info */}
-              <div>
-                <h3 className="text-lg font-semibold text-foreground mb-2">{summaryTrip?.name}</h3>
-                <p className="text-sm text-muted-foreground mb-1">{formatDateRange(summaryTrip?.startDate, summaryTrip?.endDate)}</p>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mt-2"
-                  style={{
-                    backgroundColor: summaryTrip?.status === TripStatus?.ACTIVE ? 'rgb(var(--primary) / 0.1)' : 
-                                     summaryTrip?.status === TripStatus?.UPCOMING ? 'rgb(59 130 246 / 0.1)': 'rgb(156 163 175 / 0.1)',
-                    color: summaryTrip?.status === TripStatus?.ACTIVE ? 'rgb(var(--primary))' : 
-                           summaryTrip?.status === TripStatus?.UPCOMING ? 'rgb(59 130 246)': 'rgb(107 114 128)'
-                  }}
-                >
-                  {summaryTrip?.status}
-                </div>
-              </div>
-              
-              {/* Quick Stats */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-accent/50 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Icon name="Users" size={16} className="text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Guests</span>
-                  </div>
-                  <p className="text-2xl font-semibold text-foreground">{getGuestsCount(summaryTrip)}</p>
-                </div>
-                <div className="bg-accent/50 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Icon name="Heart" size={16} className="text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Preferences</span>
-                  </div>
-                  <p className="text-2xl font-semibold text-foreground">{getPreferencesCoverage(summaryTrip)}%</p>
-                </div>
-                <div className="bg-accent/50 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Icon name="Camera" size={16} className="text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Photos</span>
-                  </div>
-                  <p className="text-2xl font-semibold text-foreground">{getPhotosCount(summaryTrip)}</p>
-                </div>
-                <div className="bg-accent/50 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Icon name="Shirt" size={16} className="text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Laundry</span>
-                  </div>
-                  <p className="text-sm font-medium text-foreground">{getLaundryStatus(summaryTrip)}</p>
-                </div>
-              </div>
-              
-              {/* Assigned Guests */}
-              <div>
-                <h4 className="text-sm font-semibold text-foreground mb-3">Assigned Guests</h4>
-                {summaryTrip?.guests?.length > 0 ? (
-                  <div className="space-y-2">
-                    {summaryTrip?.guests?.map(tg => {
-                      const guest = guests?.find(g => g?.id === tg?.guestId);
-                      if (!guest) return null;
-                      return (
-                        <div key={tg?.guestId} className="flex items-center gap-3 p-3 bg-accent/30 rounded-lg">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            <span className="text-sm font-medium text-primary">
-                              {guest?.firstName?.[0]}{guest?.lastName?.[0]}
-                            </span>
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-foreground">{guest?.firstName} {guest?.lastName}</p>
-                            {!tg?.isActive && <span className="text-xs text-muted-foreground">(Inactive)</span>}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No guests assigned</p>
-                )}
-              </div>
-              
-              {/* Action Button */}
-              <Button 
-                onClick={() => {
-                  setShowSummaryPanel(false);
-                  handleOpenTrip(summaryTrip?.id);
-                }}
-                className="w-full"
-              >
-                Open full trip
-              </Button>
-            </div>
+        <ModalShell onClose={() => setShowSummaryPanel(false)} panelClassName="bg-card border-l border-border w-full sm:w-[480px] h-[80vh] sm:h-full shadow-2xl overflow-y-auto">
+          <div className="sticky top-0 bg-card border-b border-border p-6 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-foreground">Trip Summary</h2>
+            <button onClick={() => setShowSummaryPanel(false)} className="text-muted-foreground hover:text-foreground">
+              <Icon name="X" size={20} />
+            </button>
           </div>
-        </div>
-      )}
-      {/* Trip Photos Modal */}
-      {showPhotosModal && photosTrip && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4" onClick={() => setShowPhotosModal(false)}>
-          <div 
-            className="bg-card border border-border rounded-xl shadow-xl max-w-3xl w-full max-h-[80vh] overflow-hidden flex flex-col"
-            onClick={(e) => e?.stopPropagation()}
-          >
-            <div className="p-6 border-b border-border flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-foreground">Trip Photos - {photosTrip?.name}</h2>
-              <button onClick={() => setShowPhotosModal(false)} className="text-muted-foreground hover:text-foreground">
-                <Icon name="X" size={20} />
-              </button>
+          
+          <div className="p-6 space-y-6">
+            {/* Trip Info */}
+            <div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">{summaryTrip?.name}</h3>
+              <p className="text-sm text-muted-foreground mb-1">{formatDateRange(summaryTrip?.startDate, summaryTrip?.endDate)}</p>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mt-2"
+                style={{
+                  backgroundColor: summaryTrip?.status === TripStatus?.ACTIVE ? 'rgb(var(--primary) / 0.1)' : 
+                                   summaryTrip?.status === TripStatus?.UPCOMING ? 'rgb(59 130 246 / 0.1)': 'rgb(156 163 175 / 0.1)',
+                  color: summaryTrip?.status === TripStatus?.ACTIVE ? 'rgb(var(--primary))' : 
+                         summaryTrip?.status === TripStatus?.UPCOMING ? 'rgb(59 130 246)': 'rgb(107 114 128)'
+                }}
+              >
+                {summaryTrip?.status}
+              </div>
             </div>
             
-            <div className="p-6 overflow-y-auto flex-1">
-              {photosTrip?.photos?.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  {photosTrip?.photos?.map((photo, idx) => (
-                    <div key={idx} className="aspect-square bg-accent rounded-lg overflow-hidden">
-                      <img src={photo?.url} alt={photo?.caption || `Trip photo ${idx + 1}`} className="w-full h-full object-cover" />
-                    </div>
-                  ))}
+            {/* Quick Stats */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-accent/50 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Icon name="Users" size={16} className="text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Guests</span>
+                </div>
+                <p className="text-2xl font-semibold text-foreground">{getGuestsCount(summaryTrip)}</p>
+              </div>
+              <div className="bg-accent/50 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Icon name="Heart" size={16} className="text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Preferences</span>
+                </div>
+                <p className="text-2xl font-semibold text-foreground">{getPreferencesCoverage(summaryTrip)}%</p>
+              </div>
+              <div className="bg-accent/50 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Icon name="Camera" size={16} className="text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Photos</span>
+                </div>
+                <p className="text-2xl font-semibold text-foreground">{getPhotosCount(summaryTrip)}</p>
+              </div>
+              <div className="bg-accent/50 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Icon name="Shirt" size={16} className="text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Laundry</span>
+                </div>
+                <p className="text-sm font-medium text-foreground">{getLaundryStatus(summaryTrip)}</p>
+              </div>
+            </div>
+            
+            {/* Assigned Guests */}
+            <div>
+              <h4 className="text-sm font-semibold text-foreground mb-3">Assigned Guests</h4>
+              {summaryTrip?.guests?.length > 0 ? (
+                <div className="space-y-2">
+                  {summaryTrip?.guests?.map(tg => {
+                    const guest = guests?.find(g => g?.id === tg?.guestId);
+                    if (!guest) return null;
+                    return (
+                      <div key={tg?.guestId} className="flex items-center gap-3 p-3 bg-accent/30 rounded-lg">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                          <span className="text-sm font-medium text-primary">
+                            {guest?.firstName?.[0]}{guest?.lastName?.[0]}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{guest?.firstName} {guest?.lastName}</p>
+                          {!tg?.isActive && <span className="text-xs text-muted-foreground">(Inactive)</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
-                <div className="text-center py-12">
-                  <Icon name="Camera" size={48} className="text-muted-foreground/30 mx-auto mb-3" />
-                  <p className="text-muted-foreground mb-4">No photos uploaded yet</p>
-                </div>
+                <p className="text-sm text-muted-foreground">No guests assigned</p>
               )}
             </div>
             
-            <div className="p-6 border-t border-border">
-              <Button 
-                onClick={() => {
-                  setShowPhotosModal(false);
-                  navigate(`/trips/${photosTrip?.id}?tab=photos`);
-                }}
-                className="w-full"
-              >
-                <Icon name="Upload" size={18} />
-                Upload Photos
-              </Button>
-            </div>
+            {/* Action Button */}
+            <Button 
+              onClick={() => {
+                setShowSummaryPanel(false);
+                handleOpenTrip(summaryTrip?.id);
+              }}
+              className="w-full"
+            >
+              Open full trip
+            </Button>
           </div>
-        </div>
+        </ModalShell>
+      )}
+      {/* Trip Photos Modal */}
+      {showPhotosModal && photosTrip && (
+        <ModalShell onClose={() => setShowPhotosModal(false)} panelClassName="bg-card border border-border rounded-xl shadow-xl max-w-3xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+          <div className="p-6 border-b border-border flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-foreground">Trip Photos - {photosTrip?.name}</h2>
+            <button onClick={() => setShowPhotosModal(false)} className="text-muted-foreground hover:text-foreground">
+              <Icon name="X" size={20} />
+            </button>
+          </div>
+          
+          <div className="p-6 overflow-y-auto flex-1">
+            {photosTrip?.photos?.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {photosTrip?.photos?.map((photo, idx) => (
+                  <div key={idx} className="aspect-square bg-accent rounded-lg overflow-hidden">
+                    <img src={photo?.url} alt={photo?.caption || `Trip photo ${idx + 1}`} className="w-full h-full object-cover" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <Icon name="Camera" size={48} className="text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-muted-foreground mb-4">No photos uploaded yet</p>
+              </div>
+            )}
+          </div>
+          
+          <div className="p-6 border-t border-border">
+            <Button 
+              onClick={() => {
+                setShowPhotosModal(false);
+                navigate(`/trips/${photosTrip?.id}?tab=photos`);
+              }}
+              className="w-full"
+            >
+              <Icon name="Upload" size={18} />
+              Upload Photos
+            </Button>
+          </div>
+        </ModalShell>
       )}
       {/* Trip Laundry Slide-over Drawer */}
       {showLaundryDrawer && laundryTrip && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-end z-[var(--z-overlay)]" onClick={() => setShowLaundryDrawer(false)}>
-          <div 
-            className="bg-card border-l border-border w-full sm:w-[480px] h-[80vh] sm:h-full shadow-2xl overflow-y-auto"
-            onClick={(e) => e?.stopPropagation()}
-          >
-            <div className="sticky top-0 bg-card border-b border-border p-6 flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-semibold text-foreground">Trip Laundry</h2>
-                <p className="text-sm text-muted-foreground mt-1">{laundryTrip?.name}</p>
-              </div>
-              <button onClick={() => setShowLaundryDrawer(false)} className="text-muted-foreground hover:text-foreground">
-                <Icon name="X" size={20} />
+        <ModalShell onClose={() => setShowLaundryDrawer(false)} panelClassName="bg-card border-l border-border w-full sm:w-[480px] h-[80vh] sm:h-full shadow-2xl overflow-y-auto">
+          <div className="sticky top-0 bg-card border-b border-border p-6 flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-foreground">Trip Laundry</h2>
+              <p className="text-sm text-muted-foreground mt-1">{laundryTrip?.name}</p>
+            </div>
+            <button onClick={() => setShowLaundryDrawer(false)} className="text-muted-foreground hover:text-foreground">
+              <Icon name="X" size={20} />
+            </button>
+          </div>
+          
+          <div className="p-6">
+            {/* Status Summary */}
+            <div className="bg-accent/50 rounded-lg p-4 mb-6">
+              {(() => {
+                const allItems = getTripLaundryItems(laundryTrip);
+                const outstanding = allItems?.filter(item => item?.status !== 'Delivered')?.length || 0;
+                
+                return outstanding > 0 ? (
+                  <div className="flex items-center gap-2">
+                    <Icon name="AlertCircle" size={20} className="text-orange-500" />
+                    <span className="text-sm font-medium text-foreground">{outstanding} outstanding item{outstanding !== 1 ? 's' : ''}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Icon name="CheckCircle2" size={20} className="text-green-500" />
+                    <span className="text-sm font-medium text-foreground">All returned</span>
+                  </div>
+                );
+              })()}
+            </div>
+            
+            {/* Filter Buttons */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setLaundryFilter('all')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  laundryFilter === 'all' ? 'bg-primary text-white' : 'bg-accent text-foreground hover:bg-accent/80'
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setLaundryFilter('outstanding')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  laundryFilter === 'outstanding' ? 'bg-primary text-white' : 'bg-accent text-foreground hover:bg-accent/80'
+                }`}
+              >
+                Outstanding
+              </button>
+              <button
+                onClick={() => setLaundryFilter('delivered')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  laundryFilter === 'delivered' ? 'bg-primary text-white' : 'bg-accent text-foreground hover:bg-accent/80'
+                }`}
+              >
+                Delivered
               </button>
             </div>
             
-            <div className="p-6">
-              {/* Status Summary */}
-              <div className="bg-accent/50 rounded-lg p-4 mb-6">
-                {(() => {
-                  const allItems = getTripLaundryItems(laundryTrip);
-                  const outstanding = allItems?.filter(item => item?.status !== 'Delivered')?.length || 0;
-                  
-                  return outstanding > 0 ? (
-                    <div className="flex items-center gap-2">
-                      <Icon name="AlertCircle" size={20} className="text-orange-500" />
-                      <span className="text-sm font-medium text-foreground">{outstanding} outstanding item{outstanding !== 1 ? 's' : ''}</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <Icon name="CheckCircle2" size={20} className="text-green-500" />
-                      <span className="text-sm font-medium text-foreground">All returned</span>
+            {/* Laundry Items List */}
+            <div className="space-y-2">
+              {(() => {
+                const items = getTripLaundryItems(laundryTrip);
+                
+                if (items?.length === 0) {
+                  return (
+                    <div className="text-center py-8">
+                      <Icon name="Shirt" size={48} className="text-muted-foreground/30 mx-auto mb-3" />
+                      <p className="text-sm text-muted-foreground">No laundry items found</p>
                     </div>
                   );
-                })()}
-              </div>
-              
-              {/* Filter Buttons */}
-              <div className="flex gap-2 mb-4">
-                <button
-                  onClick={() => setLaundryFilter('all')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    laundryFilter === 'all' ? 'bg-primary text-white' : 'bg-accent text-foreground hover:bg-accent/80'
-                  }`}
-                >
-                  All
-                </button>
-                <button
-                  onClick={() => setLaundryFilter('outstanding')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    laundryFilter === 'outstanding' ? 'bg-primary text-white' : 'bg-accent text-foreground hover:bg-accent/80'
-                  }`}
-                >
-                  Outstanding
-                </button>
-                <button
-                  onClick={() => setLaundryFilter('delivered')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    laundryFilter === 'delivered' ? 'bg-primary text-white' : 'bg-accent text-foreground hover:bg-accent/80'
-                  }`}
-                >
-                  Delivered
-                </button>
-              </div>
-              
-              {/* Laundry Items List */}
-              <div className="space-y-2">
-                {(() => {
-                  const items = getTripLaundryItems(laundryTrip);
-                  
-                  if (items?.length === 0) {
-                    return (
-                      <div className="text-center py-8">
-                        <Icon name="Shirt" size={48} className="text-muted-foreground/30 mx-auto mb-3" />
-                        <p className="text-sm text-muted-foreground">No laundry items found</p>
-                      </div>
-                    );
-                  }
-                  
-                  return items?.map(item => {
-                    const guest = guests?.find(g => g?.id === item?.ownerGuestId);
-                    return (
-                      <div key={item?.id} className="bg-accent/30 rounded-lg p-3">
-                        <div className="flex items-start justify-between mb-1">
-                          <div>
-                            <p className="text-sm font-medium text-foreground">{item?.itemName || 'Unnamed item'}</p>
-                            {guest && (
-                              <p className="text-xs text-muted-foreground">{guest?.firstName} {guest?.lastName}</p>
-                            )}
-                          </div>
-                          <span className={`text-xs px-2 py-1 rounded-full ${
-                            item?.status === 'Delivered' ? 'bg-green-500/10 text-green-600' : 'bg-orange-500/10 text-orange-600'
-                          }`}>
-                            {item?.status || 'Pending'}
-                          </span>
+                }
+                
+                return items?.map(item => {
+                  const guest = guests?.find(g => g?.id === item?.ownerGuestId);
+                  return (
+                    <div key={item?.id} className="bg-accent/30 rounded-lg p-3">
+                      <div className="flex items-start justify-between mb-1">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{item?.itemName || 'Unnamed item'}</p>
+                          {guest && (
+                            <p className="text-xs text-muted-foreground">{guest?.firstName} {guest?.lastName}</p>
+                          )}
                         </div>
-                        {item?.notes && (
-                          <p className="text-xs text-muted-foreground mt-1">{item?.notes}</p>
-                        )}
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          item?.status === 'Delivered' ? 'bg-green-500/10 text-green-600' : 'bg-orange-500/10 text-orange-600'
+                        }`}>
+                          {item?.status || 'Pending'}
+                        </span>
                       </div>
-                    );
-                  });
-                })()}
-              </div>
-              
-              {/* Open Full Laundry Log Button */}
-              <div className="mt-6">
-                <Button 
-                  onClick={() => {
-                    setShowLaundryDrawer(false);
-                    navigate(`/laundry-management-dashboard?tripId=${laundryTrip?.id}`);
-                  }}
-                  variant="outline"
-                  className="w-full"
-                >
-                  Open full Laundry Log
-                </Button>
-              </div>
+                      {item?.notes && (
+                        <p className="text-xs text-muted-foreground mt-1">{item?.notes}</p>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+            
+            {/* Open Full Laundry Log Button */}
+            <div className="mt-6">
+              <Button 
+                onClick={() => {
+                  setShowLaundryDrawer(false);
+                  navigate(`/laundry-management-dashboard?tripId=${laundryTrip?.id}`);
+                }}
+                variant="outline"
+                className="w-full"
+              >
+                Open full Laundry Log
+              </Button>
             </div>
           </div>
-        </div>
+        </ModalShell>
       )}
     </div>
   );

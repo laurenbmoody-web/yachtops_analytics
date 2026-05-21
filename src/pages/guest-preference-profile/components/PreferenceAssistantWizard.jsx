@@ -6,6 +6,7 @@ import { appendGuestHistory } from '../../../utils/guestHistoryLog';
 import { useAuth } from '../../../contexts/AuthContext';
 import { showToast } from '../../../utils/toast';
 
+import ModalShell from '../../../components/ui/ModalShell';
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const TOTAL_STEPS = 10;
@@ -1373,95 +1374,93 @@ const PreferenceAssistantWizard = ({ isOpen, onClose, onComplete, guestId }) => 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Icon name="Wand2" size={18} className="text-primary" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-foreground">Preference Assistant</h2>
-              <p className="text-xs text-muted-foreground">Step {currentStep + 1} of {TOTAL_STEPS} — {STEP_LABELS?.[currentStep]}</p>
-            </div>
+    <ModalShell onClose={onClose} panelClassName="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Icon name="Wand2" size={18} className="text-primary" />
           </div>
-          <div className="flex items-center gap-3">
-            {saving && (
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <div className="w-3 h-3 border border-muted-foreground/40 border-t-primary rounded-full animate-spin" />
-                Saving...
-              </span>
-            )}
-            <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-1 rounded-full">{completionPct}%</span>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <Icon name="X" size={18} />
-            </button>
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Preference Assistant</h2>
+            <p className="text-xs text-muted-foreground">Step {currentStep + 1} of {TOTAL_STEPS} — {STEP_LABELS?.[currentStep]}</p>
           </div>
         </div>
-
-        {/* Progress bar */}
-        <div className="px-6 pt-3 flex-shrink-0">
-          <div className="flex gap-1">
-            {Array.from({ length: TOTAL_STEPS })?.map((_, i) => (
-              <div
-                key={i}
-                className={`h-1 flex-1 rounded-full transition-colors ${
-                  i < currentStep ? 'bg-primary' : i === currentStep ? 'bg-primary/50' : 'bg-border'
-                }`}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Step content */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          <h3 className="text-lg font-semibold text-foreground mb-1">{STEP_LABELS?.[currentStep]}</h3>
-          <StepComponent answers={answers} setField={setField} />
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-border flex-shrink-0">
-          <button
-            onClick={handleBack}
-            disabled={currentStep === 0}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground border border-border rounded-lg hover:bg-muted/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <Icon name="ChevronLeft" size={16} />
-            Back
-          </button>
-
-          <span className="text-xs text-muted-foreground">
-            {completionPct}% complete
-          </span>
-
-          {isLastStep ? (
-            <button
-              onClick={handleComplete}
-              disabled={completing}
-              className="flex items-center gap-2 px-5 py-2 text-sm font-semibold bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {completing ? (
-                <><div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" /> Completing...</>
-              ) : (
-                <><Icon name="CheckCircle" size={16} /> Complete Wizard</>
-              )}
-            </button>
-          ) : (
-            <button
-              onClick={handleNext}
-              className="flex items-center gap-2 px-5 py-2 text-sm font-semibold bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              Next
-              <Icon name="ChevronRight" size={16} />
-            </button>
+        <div className="flex items-center gap-3">
+          {saving && (
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <div className="w-3 h-3 border border-muted-foreground/40 border-t-primary rounded-full animate-spin" />
+              Saving...
+            </span>
           )}
+          <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-1 rounded-full">{completionPct}%</span>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Icon name="X" size={18} />
+          </button>
         </div>
       </div>
-    </div>
+
+      {/* Progress bar */}
+      <div className="px-6 pt-3 flex-shrink-0">
+        <div className="flex gap-1">
+          {Array.from({ length: TOTAL_STEPS })?.map((_, i) => (
+            <div
+              key={i}
+              className={`h-1 flex-1 rounded-full transition-colors ${
+                i < currentStep ? 'bg-primary' : i === currentStep ? 'bg-primary/50' : 'bg-border'
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Step content */}
+      <div className="flex-1 overflow-y-auto px-6 py-5">
+        <h3 className="text-lg font-semibold text-foreground mb-1">{STEP_LABELS?.[currentStep]}</h3>
+        <StepComponent answers={answers} setField={setField} />
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between px-6 py-4 border-t border-border flex-shrink-0">
+        <button
+          onClick={handleBack}
+          disabled={currentStep === 0}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground border border-border rounded-lg hover:bg-muted/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <Icon name="ChevronLeft" size={16} />
+          Back
+        </button>
+
+        <span className="text-xs text-muted-foreground">
+          {completionPct}% complete
+        </span>
+
+        {isLastStep ? (
+          <button
+            onClick={handleComplete}
+            disabled={completing}
+            className="flex items-center gap-2 px-5 py-2 text-sm font-semibold bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {completing ? (
+              <><div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" /> Completing...</>
+            ) : (
+              <><Icon name="CheckCircle" size={16} /> Complete Wizard</>
+            )}
+          </button>
+        ) : (
+          <button
+            onClick={handleNext}
+            className="flex items-center gap-2 px-5 py-2 text-sm font-semibold bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+          >
+            Next
+            <Icon name="ChevronRight" size={16} />
+          </button>
+        )}
+      </div>
+    </ModalShell>
   );
 };
 

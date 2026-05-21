@@ -6,6 +6,7 @@ import { getAllDecks, getZonesByDeck, getSpacesByZone } from '../../locations-ma
 import { showToast } from '../../../utils/toast';
 import { loadAllTypes, getSubtypesForType, addCustomType, addCustomSubtype, canAddCustom } from '../utils/defectTypeTaxonomy';
 
+import ModalShell from '../../../components/ui/ModalShell';
 const ReportDefectModal = ({ onClose, onSuccess }) => {
   const currentUser = getCurrentUser();
   
@@ -301,104 +302,156 @@ const ReportDefectModal = ({ onClose, onSuccess }) => {
   };
   
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-      <div className="bg-card border border-border rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-card border-b border-border p-6 flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-foreground">Report Defect</h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-muted rounded-lg transition-smooth"
-          >
-            <Icon name="X" size={20} className="text-muted-foreground" />
-          </button>
+    <ModalShell onClose={onClose} panelClassName="bg-card border border-border rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="sticky top-0 bg-card border-b border-border p-6 flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-foreground">Report Defect</h2>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-2 hover:bg-muted rounded-lg transition-smooth"
+        >
+          <Icon name="X" size={20} className="text-muted-foreground" />
+        </button>
+      </div>
+      
+      <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        {/* Photo Upload */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Photo (optional)
+          </label>
+          {photoPreview ? (
+            <div className="relative">
+              <img
+                src={photoPreview}
+                alt="Defect preview"
+                className="w-full h-48 object-cover rounded-lg border border-border"
+              />
+              <button
+                type="button"
+                onClick={handleRemovePhoto}
+                className="absolute top-2 right-2 p-2 bg-error text-white rounded-lg hover:bg-error/90 transition-smooth"
+              >
+                <Icon name="Trash2" size={16} />
+              </button>
+            </div>
+          ) : (
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoUpload}
+                className="hidden"
+                id="defect-photo-upload"
+              />
+              <label
+                htmlFor="defect-photo-upload"
+                className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-border rounded-lg cursor-pointer hover:bg-muted/30 transition-smooth"
+              >
+                <Icon name="Camera" size={32} className="text-muted-foreground mb-2" />
+                <span className="text-sm text-muted-foreground mb-1">Tap to add photo</span>
+                <span className="text-xs text-muted-foreground">Camera • Photo Library • Files</span>
+              </label>
+            </div>
+          )}
         </div>
         
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Photo Upload */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Photo (optional)
-            </label>
-            {photoPreview ? (
-              <div className="relative">
-                <img
-                  src={photoPreview}
-                  alt="Defect preview"
-                  className="w-full h-48 object-cover rounded-lg border border-border"
-                />
+        {/* Title */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Title <span className="text-error">*</span>
+          </label>
+          <input
+            type="text"
+            value={formData?.title}
+            onChange={(e) => setFormData(prev => ({ ...prev, title: e?.target?.value }))}
+            placeholder="Brief description of the defect"
+            className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            required
+          />
+        </div>
+        
+        {/* Type */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Type <span className="text-error">*</span>
+          </label>
+          {showTypeInput ? (
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={customTypeInput}
+                onChange={(e) => setCustomTypeInput(e?.target?.value)}
+                placeholder="Enter custom type name"
+                className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                autoFocus
+              />
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={handleRemovePhoto}
-                  className="absolute top-2 right-2 p-2 bg-error text-white rounded-lg hover:bg-error/90 transition-smooth"
+                  onClick={handleAddCustomType}
+                  className="px-3 py-1.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition-smooth text-sm"
                 >
-                  <Icon name="Trash2" size={16} />
+                  Add
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelCustomType}
+                  className="px-3 py-1.5 border border-border text-foreground rounded-lg hover:bg-muted transition-smooth text-sm"
+                >
+                  Cancel
                 </button>
               </div>
-            ) : (
-              <div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhotoUpload}
-                  className="hidden"
-                  id="defect-photo-upload"
-                />
-                <label
-                  htmlFor="defect-photo-upload"
-                  className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-border rounded-lg cursor-pointer hover:bg-muted/30 transition-smooth"
-                >
-                  <Icon name="Camera" size={32} className="text-muted-foreground mb-2" />
-                  <span className="text-sm text-muted-foreground mb-1">Tap to add photo</span>
-                  <span className="text-xs text-muted-foreground">Camera • Photo Library • Files</span>
-                </label>
-              </div>
-            )}
-          </div>
-          
-          {/* Title */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Title <span className="text-error">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData?.title}
-              onChange={(e) => setFormData(prev => ({ ...prev, title: e?.target?.value }))}
-              placeholder="Brief description of the defect"
-              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            </div>
+          ) : (
+            <select
+              value={formData?.defectType}
+              onChange={(e) => handleTypeChange(e?.target?.value)}
+              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               required
-            />
-          </div>
-          
-          {/* Type */}
+            >
+              <option value="">Select type</option>
+              {defectTypes?.map(type => (
+                <option key={type?.id} value={type?.name}>
+                  {type?.name}{type?.isCustom ? ' (Custom)' : ''}
+                </option>
+              ))}
+              {canAddCustomTypes && (
+                <option value="__add_new__">+ Add new...</option>
+              )}
+            </select>
+          )}
+        </div>
+        
+        {/* Sub-Type */}
+        {formData?.defectType && !showTypeInput && (
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Type <span className="text-error">*</span>
+              Sub-Type (optional)
             </label>
-            {showTypeInput ? (
+            {showSubtypeInput ? (
               <div className="space-y-2">
                 <input
                   type="text"
-                  value={customTypeInput}
-                  onChange={(e) => setCustomTypeInput(e?.target?.value)}
-                  placeholder="Enter custom type name"
+                  value={customSubtypeInput}
+                  onChange={(e) => setCustomSubtypeInput(e?.target?.value)}
+                  placeholder="Enter custom sub-type name"
                   className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   autoFocus
                 />
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={handleAddCustomType}
+                    onClick={handleAddCustomSubtype}
                     className="px-3 py-1.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition-smooth text-sm"
                   >
                     Add
                   </button>
                   <button
                     type="button"
-                    onClick={handleCancelCustomType}
+                    onClick={handleCancelCustomSubtype}
                     className="px-3 py-1.5 border border-border text-foreground rounded-lg hover:bg-muted transition-smooth text-sm"
                   >
                     Cancel
@@ -407,15 +460,14 @@ const ReportDefectModal = ({ onClose, onSuccess }) => {
               </div>
             ) : (
               <select
-                value={formData?.defectType}
-                onChange={(e) => handleTypeChange(e?.target?.value)}
+                value={formData?.defectSubType}
+                onChange={(e) => handleSubtypeChange(e?.target?.value)}
                 className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                required
               >
-                <option value="">Select type</option>
-                {defectTypes?.map(type => (
-                  <option key={type?.id} value={type?.name}>
-                    {type?.name}{type?.isCustom ? ' (Custom)' : ''}
+                <option value="">Select sub-type (optional)</option>
+                {defectSubtypes?.map(subtype => (
+                  <option key={subtype?.id} value={subtype?.name}>
+                    {subtype?.name}{subtype?.isCustom ? ' (Custom)' : ''}
                   </option>
                 ))}
                 {canAddCustomTypes && (
@@ -424,218 +476,165 @@ const ReportDefectModal = ({ onClose, onSuccess }) => {
               </select>
             )}
           </div>
+        )}
+        
+        {/* Location Picker */}
+        <div className="space-y-4">
+          <label className="block text-sm font-medium text-foreground">
+            Location <span className="text-error">*</span>
+          </label>
           
-          {/* Sub-Type */}
-          {formData?.defectType && !showTypeInput && (
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Sub-Type (optional)
-              </label>
-              {showSubtypeInput ? (
-                <div className="space-y-2">
-                  <input
-                    type="text"
-                    value={customSubtypeInput}
-                    onChange={(e) => setCustomSubtypeInput(e?.target?.value)}
-                    placeholder="Enter custom sub-type name"
-                    className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    autoFocus
-                  />
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleAddCustomSubtype}
-                      className="px-3 py-1.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition-smooth text-sm"
-                    >
-                      Add
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleCancelCustomSubtype}
-                      className="px-3 py-1.5 border border-border text-foreground rounded-lg hover:bg-muted transition-smooth text-sm"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <select
-                  value={formData?.defectSubType}
-                  onChange={(e) => handleSubtypeChange(e?.target?.value)}
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="">Select sub-type (optional)</option>
-                  {defectSubtypes?.map(subtype => (
-                    <option key={subtype?.id} value={subtype?.name}>
-                      {subtype?.name}{subtype?.isCustom ? ' (Custom)' : ''}
-                    </option>
-                  ))}
-                  {canAddCustomTypes && (
-                    <option value="__add_new__">+ Add new...</option>
-                  )}
-                </select>
-              )}
-            </div>
-          )}
-          
-          {/* Location Picker */}
-          <div className="space-y-4">
-            <label className="block text-sm font-medium text-foreground">
-              Location <span className="text-error">*</span>
-            </label>
-            
-            {/* Deck */}
-            <div>
-              <label className="block text-xs text-muted-foreground mb-1">Deck</label>
-              <select
-                value={formData?.locationDeckId}
-                onChange={(e) => setFormData(prev => ({ ...prev, locationDeckId: e?.target?.value }))}
-                className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                required
-              >
-                <option value="">Select deck</option>
-                {decks?.map(deck => (
-                  <option key={deck?.id} value={deck?.id}>{deck?.name}</option>
-                ))}
-              </select>
-            </div>
-            
-            {/* Zone */}
-            {formData?.locationDeckId && (
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1">Zone</label>
-                <select
-                  value={formData?.locationZoneId}
-                  onChange={(e) => setFormData(prev => ({ ...prev, locationZoneId: e?.target?.value }))}
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  required
-                >
-                  <option value="">Select zone</option>
-                  {zones?.map(zone => (
-                    <option key={zone?.id} value={zone?.id}>{zone?.name}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-            
-            {/* Space */}
-            {formData?.locationZoneId && (
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1">Space (optional)</label>
-                <select
-                  value={showFreeText ? 'other' : formData?.locationSpaceId}
-                  onChange={(e) => handleSpaceChange(e?.target?.value)}
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="">Select space</option>
-                  {spaces?.map(space => (
-                    <option key={space?.id} value={space?.id}>{space?.name}</option>
-                  ))}
-                  <option value="other">Other / Not listed</option>
-                </select>
-              </div>
-            )}
-            
-            {/* Free Text Location */}
-            {showFreeText && (
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1">Describe location</label>
-                <input
-                  type="text"
-                  value={formData?.locationFreeText}
-                  onChange={(e) => setFormData(prev => ({ ...prev, locationFreeText: e?.target?.value }))}
-                  placeholder="e.g., Near the main staircase"
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  required
-                />
-              </div>
-            )}
-          </div>
-          
-          {/* Department Owner */}
+          {/* Deck */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Department <span className="text-error">*</span>
-            </label>
-            <div className="relative">
-              <select
-                value={formData?.departmentOwner}
-                onChange={(e) => setFormData(prev => ({ ...prev, departmentOwner: e?.target?.value }))}
-                className={`w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary ${
-                  isLockedToDept ? 'cursor-not-allowed opacity-60' : ''
-                }`}
-                disabled={isLockedToDept}
-                required
-              >
-                {!formData?.departmentOwner && <option value="">Select department</option>}
-                {Object.values(DefectDepartment)?.map(dept => (
-                  <option key={dept} value={dept}>{dept}</option>
-                ))}
-              </select>
-              {isLockedToDept && (
-                <div className="absolute right-10 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <Icon name="Lock" size={16} className="text-muted-foreground" />
-                </div>
-              )}
-            </div>
-            {isLockedToDept && (
-              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                <Icon name="Info" size={12} />
-                Locked to your department
-              </p>
-            )}
-          </div>
-          
-          {/* Priority */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Priority
-            </label>
+            <label className="block text-xs text-muted-foreground mb-1">Deck</label>
             <select
-              value={formData?.priority}
-              onChange={(e) => setFormData(prev => ({ ...prev, priority: e?.target?.value }))}
+              value={formData?.locationDeckId}
+              onChange={(e) => setFormData(prev => ({ ...prev, locationDeckId: e?.target?.value }))}
               className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              required
             >
-              {Object.values(DefectPriority)?.map(priority => (
-                <option key={priority} value={priority}>{priority}</option>
+              <option value="">Select deck</option>
+              {decks?.map(deck => (
+                <option key={deck?.id} value={deck?.id}>{deck?.name}</option>
               ))}
             </select>
           </div>
           
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Description / Notes (optional)
-            </label>
-            <textarea
-              value={formData?.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e?.target?.value }))}
-              placeholder="Additional details about the defect"
-              rows={4}
-              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-            />
-          </div>
+          {/* Zone */}
+          {formData?.locationDeckId && (
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Zone</label>
+              <select
+                value={formData?.locationZoneId}
+                onChange={(e) => setFormData(prev => ({ ...prev, locationZoneId: e?.target?.value }))}
+                className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                required
+              >
+                <option value="">Select zone</option>
+                {zones?.map(zone => (
+                  <option key={zone?.id} value={zone?.id}>{zone?.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           
-          {/* Actions */}
-          <div className="flex items-center gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 border border-border rounded-lg text-foreground hover:bg-muted transition-smooth"
+          {/* Space */}
+          {formData?.locationZoneId && (
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Space (optional)</label>
+              <select
+                value={showFreeText ? 'other' : formData?.locationSpaceId}
+                onChange={(e) => handleSpaceChange(e?.target?.value)}
+                className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="">Select space</option>
+                {spaces?.map(space => (
+                  <option key={space?.id} value={space?.id}>{space?.name}</option>
+                ))}
+                <option value="other">Other / Not listed</option>
+              </select>
+            </div>
+          )}
+          
+          {/* Free Text Location */}
+          {showFreeText && (
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Describe location</label>
+              <input
+                type="text"
+                value={formData?.locationFreeText}
+                onChange={(e) => setFormData(prev => ({ ...prev, locationFreeText: e?.target?.value }))}
+                placeholder="e.g., Near the main staircase"
+                className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                required
+              />
+            </div>
+          )}
+        </div>
+        
+        {/* Department Owner */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Department <span className="text-error">*</span>
+          </label>
+          <div className="relative">
+            <select
+              value={formData?.departmentOwner}
+              onChange={(e) => setFormData(prev => ({ ...prev, departmentOwner: e?.target?.value }))}
+              className={`w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary ${
+                isLockedToDept ? 'cursor-not-allowed opacity-60' : ''
+              }`}
+              disabled={isLockedToDept}
+              required
             >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-smooth disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? 'Submitting...' : 'Submit'}
-            </button>
+              {!formData?.departmentOwner && <option value="">Select department</option>}
+              {Object.values(DefectDepartment)?.map(dept => (
+                <option key={dept} value={dept}>{dept}</option>
+              ))}
+            </select>
+            {isLockedToDept && (
+              <div className="absolute right-10 top-1/2 -translate-y-1/2 pointer-events-none">
+                <Icon name="Lock" size={16} className="text-muted-foreground" />
+              </div>
+            )}
           </div>
-        </form>
-      </div>
-    </div>
+          {isLockedToDept && (
+            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+              <Icon name="Info" size={12} />
+              Locked to your department
+            </p>
+          )}
+        </div>
+        
+        {/* Priority */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Priority
+          </label>
+          <select
+            value={formData?.priority}
+            onChange={(e) => setFormData(prev => ({ ...prev, priority: e?.target?.value }))}
+            className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            {Object.values(DefectPriority)?.map(priority => (
+              <option key={priority} value={priority}>{priority}</option>
+            ))}
+          </select>
+        </div>
+        
+        {/* Description */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Description / Notes (optional)
+          </label>
+          <textarea
+            value={formData?.description}
+            onChange={(e) => setFormData(prev => ({ ...prev, description: e?.target?.value }))}
+            placeholder="Additional details about the defect"
+            rows={4}
+            className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+          />
+        </div>
+        
+        {/* Actions */}
+        <div className="flex items-center gap-3 pt-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 px-4 py-2 border border-border rounded-lg text-foreground hover:bg-muted transition-smooth"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-smooth disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? 'Submitting...' : 'Submit'}
+          </button>
+        </div>
+      </form>
+    </ModalShell>
   );
 };
 

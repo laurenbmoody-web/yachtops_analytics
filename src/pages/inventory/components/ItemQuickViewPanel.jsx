@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import Icon from '../../../components/AppIcon';
+import useDismissable from '../../../components/ui/useDismissable';
 
 // Resolve a location name from a loc object, falling back to vesselLocations lookup
 const resolveLocationName = (loc, vesselLocations, idx) => {
@@ -20,6 +21,7 @@ const resolveLocationName = (loc, vesselLocations, idx) => {
 };
 
 const ItemQuickViewPanel = ({ item, onClose, vesselLocations = [] }) => {
+  useDismissable({ onClose });
   const panelRef = useRef(null);
 
   useEffect(() => {

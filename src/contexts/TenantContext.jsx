@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { supabase } from '../lib/supabaseClient';
 import { isDevMode } from '../utils/devMode';
 
+import ModalShell from '../components/ui/ModalShell';
 // DEV_MODE fallback for tenant resolution
 const DEV_MODE = true;
 
@@ -17,37 +18,35 @@ export const useTenant = () => {
 
 // ─── Vessel Chooser UI ───────────────────────────────────────────────────────
 const VesselChooserModal = ({ options, onSelect }) => (
-  <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-black bg-opacity-60 p-4">
-    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-      <div className="flex items-center gap-3 mb-5">
-        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-          </svg>
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">Select Vessel</h2>
-          <p className="text-sm text-gray-500">Choose the vessel you want to access</p>
-        </div>
+  <ModalShell onClose={onClose} panelClassName="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+    <div className="flex items-center gap-3 mb-5">
+      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+        </svg>
       </div>
-      <div className="space-y-2">
-        {options?.map((m) => (
-          <button
-            key={m?.tenant_id}
-            onClick={() => onSelect(m?.tenant_id)}
-            className="w-full text-left px-4 py-3 rounded-xl border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all group"
-          >
-            <div className="font-medium text-gray-900 group-hover:text-blue-700">
-              {m?.tenants?.name || m?.tenant_id}
-            </div>
-            {m?.tenants?.type && (
-              <div className="text-xs text-gray-400 mt-0.5 capitalize">{m?.tenants?.type}</div>
-            )}
-          </button>
-        ))}
+      <div>
+        <h2 className="text-lg font-semibold text-gray-900">Select Vessel</h2>
+        <p className="text-sm text-gray-500">Choose the vessel you want to access</p>
       </div>
     </div>
-  </div>
+    <div className="space-y-2">
+      {options?.map((m) => (
+        <button
+          key={m?.tenant_id}
+          onClick={() => onSelect(m?.tenant_id)}
+          className="w-full text-left px-4 py-3 rounded-xl border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all group"
+        >
+          <div className="font-medium text-gray-900 group-hover:text-blue-700">
+            {m?.tenants?.name || m?.tenant_id}
+          </div>
+          {m?.tenants?.type && (
+            <div className="text-xs text-gray-400 mt-0.5 capitalize">{m?.tenants?.type}</div>
+          )}
+        </button>
+      ))}
+    </div>
+  </ModalShell>
 );
 
 // ─── No Vessel Access UI ─────────────────────────────────────────────────────
@@ -67,25 +66,23 @@ const NoVesselAccessScreen = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-gray-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8 text-center">
-        <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg className="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-          </svg>
-        </div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">No Active Vessel Access</h2>
-        <p className="text-sm text-gray-500 leading-relaxed mb-6">
-          You don't have an active membership on any vessel. Please contact your vessel administrator to be added.
-        </p>
-        <button
-          onClick={handleSignOut}
-          className="px-5 py-2.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/80 transition-colors"
-        >
-          Sign Out
-        </button>
+    <ModalShell onClose={onClose} panelClassName="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8 text-center">
+      <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg className="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+        </svg>
       </div>
-    </div>
+      <h2 className="text-xl font-semibold text-gray-900 mb-2">No Active Vessel Access</h2>
+      <p className="text-sm text-gray-500 leading-relaxed mb-6">
+        You don't have an active membership on any vessel. Please contact your vessel administrator to be added.
+      </p>
+      <button
+        onClick={handleSignOut}
+        className="px-5 py-2.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/80 transition-colors"
+      >
+        Sign Out
+      </button>
+    </ModalShell>
   );
 };
 

@@ -4,6 +4,7 @@ import Icon from '../../../components/AppIcon';
 import { saveItem, getFolderTree, createFolder } from '../utils/inventoryStorage';
 import { supabase } from '../../../lib/supabaseClient';
 
+import ModalShell from '../../../components/ui/ModalShell';
 const UNIT_OPTIONS = ['each', 'bottle', 'box', 'kg', 'litre', 'pack', 'case', 'bag', 'roll', 'pair', 'set', 'tin', 'jar', 'tube', 'sachet', 'piece'];
 
 const SUGGESTED_TAGS = ['drinks', 'wine', 'cleaning', 'spares', 'linen', 'snacks', 'bar', 'medical', 'food', 'tools', 'safety', 'toiletries', 'laundry'];
@@ -103,118 +104,116 @@ const InventoryFolderPicker = ({ tree, onSelect, onClose, onFolderCreated }) => 
   }, [creatingFolder]);
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[var(--z-overlay)] p-4">
-      <div className="bg-card rounded-2xl shadow-2xl w-full max-w-md flex flex-col" style={{ maxHeight: '80vh' }}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-          <div className="flex items-center gap-2">
-            {pathSegments?.length > 0 && (
-              <button onClick={handleBack} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
-                <Icon name="ChevronLeft" size={18} />
-              </button>
-            )}
-            <h3 className="text-base font-semibold text-foreground">Select Inventory Folder</h3>
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
-            <Icon name="X" size={18} />
-          </button>
+    <ModalShell onClose={onClose} panelClassName="bg-card rounded-2xl shadow-2xl w-full max-w-md flex flex-col" panelStyle={{ maxHeight: '80vh' }}>
+      <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+        <div className="flex items-center gap-2">
+          {pathSegments?.length > 0 && (
+            <button onClick={handleBack} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
+              <Icon name="ChevronLeft" size={18} />
+            </button>
+          )}
+          <h3 className="text-base font-semibold text-foreground">Select Inventory Folder</h3>
         </div>
+        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
+          <Icon name="X" size={18} />
+        </button>
+      </div>
 
-        {pathSegments?.length > 0 && (
-          <div className="px-5 py-2.5 bg-muted/40 border-b border-border shrink-0">
-            <div className="flex items-center gap-2">
-              <p className="text-xs text-muted-foreground font-medium truncate flex-1">
-                <span className="text-foreground/60">📁</span>{' '}{currentPath}
-              </p>
+      {pathSegments?.length > 0 && (
+        <div className="px-5 py-2.5 bg-muted/40 border-b border-border shrink-0">
+          <div className="flex items-center gap-2">
+            <p className="text-xs text-muted-foreground font-medium truncate flex-1">
+              <span className="text-foreground/60">📁</span>{' '}{currentPath}
+            </p>
+            <button
+              onClick={handleSelectCurrent}
+              className="shrink-0 px-3 py-1 text-xs font-semibold text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Select this folder
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="flex-1 overflow-y-auto py-2">
+        {currentFolders?.length === 0 && !creatingFolder && (
+          <div className="px-5 py-8 text-center">
+            <Icon name="FolderOpen" size={32} className="mx-auto text-muted-foreground/40 mb-2" />
+            <p className="text-sm text-muted-foreground">No sub-folders here yet.</p>
+            {pathSegments?.length > 0 && (
               <button
                 onClick={handleSelectCurrent}
-                className="shrink-0 px-3 py-1 text-xs font-semibold text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-colors"
+                className="mt-3 px-4 py-2 text-sm font-semibold text-primary-foreground bg-primary rounded-xl hover:bg-primary/90 transition-colors"
               >
-                Select this folder
+                Select "{pathSegments?.[pathSegments?.length - 1]}"
               </button>
-            </div>
+            )}
+            <p className="text-xs text-muted-foreground mt-3">Or create a sub-folder below.</p>
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto py-2">
-          {currentFolders?.length === 0 && !creatingFolder && (
-            <div className="px-5 py-8 text-center">
-              <Icon name="FolderOpen" size={32} className="mx-auto text-muted-foreground/40 mb-2" />
-              <p className="text-sm text-muted-foreground">No sub-folders here yet.</p>
-              {pathSegments?.length > 0 && (
-                <button
-                  onClick={handleSelectCurrent}
-                  className="mt-3 px-4 py-2 text-sm font-semibold text-primary-foreground bg-primary rounded-xl hover:bg-primary/90 transition-colors"
-                >
-                  Select "{pathSegments?.[pathSegments?.length - 1]}"
-                </button>
-              )}
-              <p className="text-xs text-muted-foreground mt-3">Or create a sub-folder below.</p>
-            </div>
-          )}
-
-          {currentFolders?.map((folder) => (
-            <div key={folder} className="flex items-center px-3 mx-2 rounded-xl hover:bg-muted/60 transition-colors">
-              <button
-                onClick={() => handleDrillDown(folder)}
-                className="flex-1 flex items-center gap-3 py-3.5 text-left"
-              >
-                <Icon name="Folder" size={18} className="text-primary/70 shrink-0" />
-                <span className="text-sm font-medium text-foreground">{folder}</span>
-                {hasSubFolders(folder) && (
-                  <Icon name="ChevronRight" size={14} className="text-muted-foreground ml-auto shrink-0" />
-                )}
-              </button>
-              <button
-                onClick={() => handleSelectFolder(folder)}
-                className="ml-2 shrink-0 px-3 py-1.5 text-xs font-semibold text-primary bg-primary/10 rounded-lg hover:bg-primary/20 transition-colors"
-              >
-                Select
-              </button>
-            </div>
-          ))}
-
-          {creatingFolder ? (
-            <div className="mx-3 mt-2 p-3 bg-muted/40 rounded-xl border border-border">
-              <p className="text-xs font-medium text-muted-foreground mb-2">
-                New folder {pathSegments?.length > 0 ? `inside "${pathSegments?.[pathSegments?.length - 1]}"` : 'at root'}
-              </p>
-              <div className="flex gap-2">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={newFolderName}
-                  onChange={(e) => { setNewFolderName(e?.target?.value); setCreateError(''); }}
-                  onKeyDown={(e) => { if (e?.key === 'Enter') handleCreateFolder(); if (e?.key === 'Escape') { setCreatingFolder(false); setNewFolderName(''); } }}
-                  placeholder="Folder name..."
-                  className="flex-1 px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-                <button onClick={handleCreateFolder} disabled={creating} className="px-3 py-2 text-xs font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50">
-                  {creating ? '...' : 'Create'}
-                </button>
-                <button onClick={() => { setCreatingFolder(false); setNewFolderName(''); setCreateError(''); }} className="px-3 py-2 text-xs font-medium text-muted-foreground bg-muted rounded-lg hover:bg-muted/80 transition-colors">
-                  Cancel
-                </button>
-              </div>
-              {createError && <p className="text-xs text-red-500 mt-1.5">{createError}</p>}
-            </div>
-          ) : (
+        {currentFolders?.map((folder) => (
+          <div key={folder} className="flex items-center px-3 mx-2 rounded-xl hover:bg-muted/60 transition-colors">
             <button
-              onClick={() => setCreatingFolder(true)}
-              className="flex items-center gap-2 mx-3 mt-2 px-3 py-2.5 w-[calc(100%-1.5rem)] text-sm font-medium text-primary border border-dashed border-primary/40 rounded-xl hover:bg-primary/5 transition-colors"
+              onClick={() => handleDrillDown(folder)}
+              className="flex-1 flex items-center gap-3 py-3.5 text-left"
             >
-              <Icon name="FolderPlus" size={16} />
-              + Create new folder here
+              <Icon name="Folder" size={18} className="text-primary/70 shrink-0" />
+              <span className="text-sm font-medium text-foreground">{folder}</span>
+              {hasSubFolders(folder) && (
+                <Icon name="ChevronRight" size={14} className="text-muted-foreground ml-auto shrink-0" />
+              )}
             </button>
-          )}
-        </div>
+            <button
+              onClick={() => handleSelectFolder(folder)}
+              className="ml-2 shrink-0 px-3 py-1.5 text-xs font-semibold text-primary bg-primary/10 rounded-lg hover:bg-primary/20 transition-colors"
+            >
+              Select
+            </button>
+          </div>
+        ))}
 
-        <div className="px-5 py-3 border-t border-border shrink-0">
-          <button onClick={onClose} className="w-full py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-            Cancel
+        {creatingFolder ? (
+          <div className="mx-3 mt-2 p-3 bg-muted/40 rounded-xl border border-border">
+            <p className="text-xs font-medium text-muted-foreground mb-2">
+              New folder {pathSegments?.length > 0 ? `inside "${pathSegments?.[pathSegments?.length - 1]}"` : 'at root'}
+            </p>
+            <div className="flex gap-2">
+              <input
+                ref={inputRef}
+                type="text"
+                value={newFolderName}
+                onChange={(e) => { setNewFolderName(e?.target?.value); setCreateError(''); }}
+                onKeyDown={(e) => { if (e?.key === 'Enter') handleCreateFolder(); if (e?.key === 'Escape') { setCreatingFolder(false); setNewFolderName(''); } }}
+                placeholder="Folder name..."
+                className="flex-1 px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <button onClick={handleCreateFolder} disabled={creating} className="px-3 py-2 text-xs font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50">
+                {creating ? '...' : 'Create'}
+              </button>
+              <button onClick={() => { setCreatingFolder(false); setNewFolderName(''); setCreateError(''); }} className="px-3 py-2 text-xs font-medium text-muted-foreground bg-muted rounded-lg hover:bg-muted/80 transition-colors">
+                Cancel
+              </button>
+            </div>
+            {createError && <p className="text-xs text-red-500 mt-1.5">{createError}</p>}
+          </div>
+        ) : (
+          <button
+            onClick={() => setCreatingFolder(true)}
+            className="flex items-center gap-2 mx-3 mt-2 px-3 py-2.5 w-[calc(100%-1.5rem)] text-sm font-medium text-primary border border-dashed border-primary/40 rounded-xl hover:bg-primary/5 transition-colors"
+          >
+            <Icon name="FolderPlus" size={16} />
+            + Create new folder here
           </button>
-        </div>
+        )}
       </div>
-    </div>
+
+      <div className="px-5 py-3 border-t border-border shrink-0">
+        <button onClick={onClose} className="w-full py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          Cancel
+        </button>
+      </div>
+    </ModalShell>
   );
 };
 
@@ -290,88 +289,86 @@ const LocationPicker = ({ vesselLocations, selectedId, onSelect, onClose }) => {
     : selectedDeck ? selectedDeck?.name : null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[var(--z-overlay)] p-4">
-      <div className="bg-card rounded-2xl shadow-2xl w-full max-w-sm flex flex-col" style={{ maxHeight: '70vh' }}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-          <div className="flex items-center gap-2">
-            {(selectedDeck || selectedZone) && (
-              <button onClick={handleBack} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
-                <Icon name="ChevronLeft" size={18} />
-              </button>
-            )}
-            <h3 className="text-base font-semibold text-foreground">Select Location</h3>
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
-            <Icon name="X" size={18} />
-          </button>
+    <ModalShell onClose={onClose} panelClassName="bg-card rounded-2xl shadow-2xl w-full max-w-sm flex flex-col" panelStyle={{ maxHeight: '70vh' }}>
+      <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+        <div className="flex items-center gap-2">
+          {(selectedDeck || selectedZone) && (
+            <button onClick={handleBack} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
+              <Icon name="ChevronLeft" size={18} />
+            </button>
+          )}
+          <h3 className="text-base font-semibold text-foreground">Select Location</h3>
         </div>
+        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
+          <Icon name="X" size={18} />
+        </button>
+      </div>
 
-        {breadcrumb && (
-          <div className="px-5 py-2.5 bg-muted/40 border-b border-border shrink-0">
-            <p className="text-xs text-muted-foreground font-medium truncate">
-              <span className="text-foreground/60">📍</span>{' '}{breadcrumb}
-            </p>
-          </div>
-        )}
-
-        <div className="px-5 pt-3 pb-1 shrink-0">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            {level === 'deck' ? 'Deck / Area' : level === 'zone' ? 'Zone' : 'Space'}
+      {breadcrumb && (
+        <div className="px-5 py-2.5 bg-muted/40 border-b border-border shrink-0">
+          <p className="text-xs text-muted-foreground font-medium truncate">
+            <span className="text-foreground/60">📍</span>{' '}{breadcrumb}
           </p>
         </div>
+      )}
 
-        <div className="flex-1 overflow-y-auto pb-3">
-          {items?.length === 0 ? (
-            <div className="px-5 py-6 text-center">
-              <p className="text-sm text-muted-foreground">No locations found at this level.</p>
-            </div>
-          ) : (
-            items?.map((loc) => {
-              const isSelected = loc?.id === selectedId;
-              const childCount = level === 'deck'
-                ? zones?.filter(z => z?.parent_id === loc?.id)?.length
-                : level === 'zone'
-                ? spaces?.filter(s => s?.parent_id === loc?.id)?.length
-                : 0;
-              return (
-                <button
-                  key={loc?.id}
-                  onClick={() => {
-                    if (level === 'deck') handleSelectDeck(loc);
-                    else if (level === 'zone') handleSelectZone(loc);
-                    else onSelect({ id: loc?.id, label: buildLabel(loc) });
-                  }}
-                  className={`w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-muted/60 transition-colors ${isSelected ? 'bg-primary/10' : ''}`}
-                >
-                  <Icon
-                    name={level === 'deck' ? 'Layers' : level === 'zone' ? 'MapPin' : 'Box'}
-                    size={16}
-                    className={isSelected ? 'text-primary' : 'text-muted-foreground'}
-                  />
-                  <span className={`flex-1 text-sm font-medium ${isSelected ? 'text-primary' : 'text-foreground'}`}>
-                    {loc?.name}
-                  </span>
-                  {childCount > 0 ? (
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <span className="text-xs">{childCount}</span>
-                      <Icon name="ChevronRight" size={14} />
-                    </div>
-                  ) : isSelected ? (
-                    <Icon name="Check" size={14} className="text-primary" />
-                  ) : null}
-                </button>
-              );
-            })
-          )}
-        </div>
-
-        <div className="px-5 py-3 border-t border-border shrink-0">
-          <button onClick={onClose} className="w-full py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-            Cancel
-          </button>
-        </div>
+      <div className="px-5 pt-3 pb-1 shrink-0">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          {level === 'deck' ? 'Deck / Area' : level === 'zone' ? 'Zone' : 'Space'}
+        </p>
       </div>
-    </div>
+
+      <div className="flex-1 overflow-y-auto pb-3">
+        {items?.length === 0 ? (
+          <div className="px-5 py-6 text-center">
+            <p className="text-sm text-muted-foreground">No locations found at this level.</p>
+          </div>
+        ) : (
+          items?.map((loc) => {
+            const isSelected = loc?.id === selectedId;
+            const childCount = level === 'deck'
+              ? zones?.filter(z => z?.parent_id === loc?.id)?.length
+              : level === 'zone'
+              ? spaces?.filter(s => s?.parent_id === loc?.id)?.length
+              : 0;
+            return (
+              <button
+                key={loc?.id}
+                onClick={() => {
+                  if (level === 'deck') handleSelectDeck(loc);
+                  else if (level === 'zone') handleSelectZone(loc);
+                  else onSelect({ id: loc?.id, label: buildLabel(loc) });
+                }}
+                className={`w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-muted/60 transition-colors ${isSelected ? 'bg-primary/10' : ''}`}
+              >
+                <Icon
+                  name={level === 'deck' ? 'Layers' : level === 'zone' ? 'MapPin' : 'Box'}
+                  size={16}
+                  className={isSelected ? 'text-primary' : 'text-muted-foreground'}
+                />
+                <span className={`flex-1 text-sm font-medium ${isSelected ? 'text-primary' : 'text-foreground'}`}>
+                  {loc?.name}
+                </span>
+                {childCount > 0 ? (
+                  <div className="flex items-center gap-1 text-muted-foreground">
+                    <span className="text-xs">{childCount}</span>
+                    <Icon name="ChevronRight" size={14} />
+                  </div>
+                ) : isSelected ? (
+                  <Icon name="Check" size={14} className="text-primary" />
+                ) : null}
+              </button>
+            );
+          })
+        )}
+      </div>
+
+      <div className="px-5 py-3 border-t border-border shrink-0">
+        <button onClick={onClose} className="w-full py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          Cancel
+        </button>
+      </div>
+    </ModalShell>
   );
 };
 
@@ -808,441 +805,439 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-        <div className="bg-card rounded-2xl shadow-xl w-full max-w-lg max-h-[92vh] overflow-y-auto">
-          {/* Header */}
-          <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
-            <h2 className="text-xl font-bold text-foreground">{isEdit ? 'Edit Item' : 'Add Item'}</h2>
-            <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors p-1">
-              <Icon name="X" size={22} />
-            </button>
+      <ModalShell onClose={onClose} panelClassName="bg-card rounded-2xl shadow-xl w-full max-w-lg max-h-[92vh] overflow-y-auto">
+        {/* Header */}
+        <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
+          <h2 className="text-xl font-bold text-foreground">{isEdit ? 'Edit Item' : 'Add Item'}</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors p-1">
+            <Icon name="X" size={22} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+
+          {/* ── Item Name ── */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              Item Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={formData?.name}
+              onChange={(e) => handleChange('name', e?.target?.value)}
+              placeholder="e.g. Tignanello"
+              className={`w-full px-3 py-2.5 text-sm bg-background border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+                errors?.name ? 'border-red-400' : 'border-border'
+              }`}
+            />
+            {errors?.name && <p className="mt-1 text-xs text-red-500">{errors?.name}</p>}
           </div>
 
-          <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {/* ── Item Image ── */}
+          <ImageUploadSection
+            imageUrl={formData?.imageUrl}
+            onImageChange={(url) => handleChange('imageUrl', url)}
+          />
 
-            {/* ── Item Name ── */}
+          {/* ── Description ── */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              Description <span className="text-muted-foreground font-normal">(optional)</span>
+            </label>
+            <textarea
+              value={formData?.description}
+              onChange={(e) => handleChange('description', e?.target?.value)}
+              placeholder="e.g. Sparkling mineral water 500ml glass bottles"
+              rows={2}
+              className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+            />
+          </div>
+
+          {/* ── Brand + Supplier ── */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">
-                Item Name <span className="text-red-500">*</span>
+                Brand <span className="text-muted-foreground font-normal">(optional)</span>
               </label>
               <input
                 type="text"
-                value={formData?.name}
-                onChange={(e) => handleChange('name', e?.target?.value)}
-                placeholder="e.g. Tignanello"
-                className={`w-full px-3 py-2.5 text-sm bg-background border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 ${
-                  errors?.name ? 'border-red-400' : 'border-border'
-                }`}
-              />
-              {errors?.name && <p className="mt-1 text-xs text-red-500">{errors?.name}</p>}
-            </div>
-
-            {/* ── Item Image ── */}
-            <ImageUploadSection
-              imageUrl={formData?.imageUrl}
-              onImageChange={(url) => handleChange('imageUrl', url)}
-            />
-
-            {/* ── Description ── */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Description <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
-              <textarea
-                value={formData?.description}
-                onChange={(e) => handleChange('description', e?.target?.value)}
-                placeholder="e.g. Sparkling mineral water 500ml glass bottles"
-                rows={2}
-                className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
-              />
-            </div>
-
-            {/* ── Brand + Supplier ── */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">
-                  Brand <span className="text-muted-foreground font-normal">(optional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData?.brand}
-                  onChange={(e) => handleChange('brand', e?.target?.value)}
-                  placeholder="e.g. San Pellegrino"
-                  className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">
-                  Supplier <span className="text-muted-foreground font-normal">(optional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData?.supplier}
-                  onChange={(e) => handleChange('supplier', e?.target?.value)}
-                  placeholder="e.g. Metro Cash & Carry"
-                  className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-              </div>
-            </div>
-
-            {/* ── Inventory Folder ── */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Inventory Folder
-                <span className="ml-1.5 text-xs font-normal text-muted-foreground">(category in inventory tree)</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => setShowFolderPicker(true)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 text-sm bg-background border rounded-xl hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors text-left ${
-                  errors?.inventoryFolder ? 'border-red-400' : 'border-border'
-                }`}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <Icon name="Folder" size={16} className="text-primary/70 shrink-0" />
-                  {formData?.inventoryFolderDisplay ? (
-                    <span className="text-foreground truncate">{formData?.inventoryFolderDisplay}</span>
-                  ) : (
-                    <span className="text-muted-foreground">Select folder...</span>
-                  )}
-                </div>
-                <Icon name="ChevronRight" size={16} className="text-muted-foreground shrink-0" />
-              </button>
-              {errors?.inventoryFolder && <p className="mt-1 text-xs text-red-500">{errors?.inventoryFolder}</p>}
-            </div>
-
-            {/* ── Alcohol Toggle ── */}
-            <div className="flex items-center justify-between py-2.5 px-3 bg-muted/40 rounded-xl border border-border">
-              <div>
-                <p className="text-sm font-medium text-foreground">Alcoholic beverage</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Enables partial bottle tracking</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleChange('isAlcohol', !formData?.isAlcohol)}
-                style={{
-                  width: 44, height: 24, borderRadius: 12, flexShrink: 0,
-                  background: formData?.isAlcohol ? '#8B1538' : 'var(--color-border, #CBD5E1)',
-                  border: 'none', cursor: 'pointer', position: 'relative',
-                  transition: 'background 0.2s',
-                }}
-                aria-checked={formData?.isAlcohol}
-                role="switch"
-              >
-                <span style={{
-                  position: 'absolute', top: 3, left: formData?.isAlcohol ? 23 : 3,
-                  width: 18, height: 18, borderRadius: '50%', background: '#fff',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s',
-                }} />
-              </button>
-            </div>
-
-            {/* ── Year / Vintage ── */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Year / Vintage
-              </label>
-              <input
-                type="number"
-                value={formData?.year}
-                onChange={(e) => handleChange('year', e?.target?.value)}
-                placeholder="e.g. 2019"
-                min="1900"
-                max={new Date()?.getFullYear()}
+                value={formData?.brand}
+                onChange={(e) => handleChange('brand', e?.target?.value)}
+                placeholder="e.g. San Pellegrino"
                 className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
-
-            {/* ── Wine-only fields ── */}
-            {showWineFields && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-base">🍷</span>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Wine Details</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">
-                    Tasting Notes <span className="text-muted-foreground font-normal">(Wine Only)</span>
-                  </label>
-                  <textarea
-                    value={formData?.tastingNotes}
-                    onChange={(e) => handleChange('tastingNotes', e?.target?.value)}
-                    placeholder="e.g. Full-bodied red with notes of dark cherry and tobacco."
-                    rows={2}
-                    className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* ── Unit ── */}
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Unit</label>
-              <div className="flex gap-2">
-                <select
-                  value={UNIT_OPTIONS?.includes(formData?.unit) ? formData?.unit : '__custom__'}
-                  onChange={(e) => {
-                    if (e?.target?.value !== '__custom__') handleChange('unit', e?.target?.value);
-                  }}
-                  className="flex-1 px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
-                >
-                  {UNIT_OPTIONS?.map(u => <option key={u} value={u}>{u}</option>)}
-                  {!UNIT_OPTIONS?.includes(formData?.unit) && formData?.unit && (
-                    <option value="__custom__">{formData?.unit}</option>
-                  )}
-                </select>
-                <input
-                  type="text"
-                  value={UNIT_OPTIONS?.includes(formData?.unit) ? '' : formData?.unit}
-                  onChange={(e) => handleChange('unit', e?.target?.value)}
-                  placeholder="Custom unit..."
-                  className="w-32 px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
+              <label className="block text-sm font-medium text-foreground mb-1.5">
+                Supplier <span className="text-muted-foreground font-normal">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={formData?.supplier}
+                onChange={(e) => handleChange('supplier', e?.target?.value)}
+                placeholder="e.g. Metro Cash & Carry"
+                className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+          </div>
+
+          {/* ── Inventory Folder ── */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              Inventory Folder
+              <span className="ml-1.5 text-xs font-normal text-muted-foreground">(category in inventory tree)</span>
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowFolderPicker(true)}
+              className={`w-full flex items-center justify-between px-3 py-2.5 text-sm bg-background border rounded-xl hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors text-left ${
+                errors?.inventoryFolder ? 'border-red-400' : 'border-border'
+              }`}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <Icon name="Folder" size={16} className="text-primary/70 shrink-0" />
+                {formData?.inventoryFolderDisplay ? (
+                  <span className="text-foreground truncate">{formData?.inventoryFolderDisplay}</span>
+                ) : (
+                  <span className="text-muted-foreground">Select folder...</span>
+                )}
+              </div>
+              <Icon name="ChevronRight" size={16} className="text-muted-foreground shrink-0" />
+            </button>
+            {errors?.inventoryFolder && <p className="mt-1 text-xs text-red-500">{errors?.inventoryFolder}</p>}
+          </div>
+
+          {/* ── Alcohol Toggle ── */}
+          <div className="flex items-center justify-between py-2.5 px-3 bg-muted/40 rounded-xl border border-border">
+            <div>
+              <p className="text-sm font-medium text-foreground">Alcoholic beverage</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Enables partial bottle tracking</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleChange('isAlcohol', !formData?.isAlcohol)}
+              style={{
+                width: 44, height: 24, borderRadius: 12, flexShrink: 0,
+                background: formData?.isAlcohol ? '#8B1538' : 'var(--color-border, #CBD5E1)',
+                border: 'none', cursor: 'pointer', position: 'relative',
+                transition: 'background 0.2s',
+              }}
+              aria-checked={formData?.isAlcohol}
+              role="switch"
+            >
+              <span style={{
+                position: 'absolute', top: 3, left: formData?.isAlcohol ? 23 : 3,
+                width: 18, height: 18, borderRadius: '50%', background: '#fff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s',
+              }} />
+            </button>
+          </div>
+
+          {/* ── Year / Vintage ── */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              Year / Vintage
+            </label>
+            <input
+              type="number"
+              value={formData?.year}
+              onChange={(e) => handleChange('year', e?.target?.value)}
+              placeholder="e.g. 2019"
+              min="1900"
+              max={new Date()?.getFullYear()}
+              className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+
+          {/* ── Wine-only fields ── */}
+          {showWineFields && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-base">🍷</span>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Wine Details</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">
+                  Tasting Notes <span className="text-muted-foreground font-normal">(Wine Only)</span>
+                </label>
+                <textarea
+                  value={formData?.tastingNotes}
+                  onChange={(e) => handleChange('tastingNotes', e?.target?.value)}
+                  placeholder="e.g. Full-bodied red with notes of dark cherry and tobacco."
+                  rows={2}
+                  className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
                 />
               </div>
             </div>
+          )}
 
-            {/* ── Restock Level ── */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">
-                Restock Level <span className="text-muted-foreground font-normal">(optional)</span>
+          {/* ── Unit ── */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1">Unit</label>
+            <div className="flex gap-2">
+              <select
+                value={UNIT_OPTIONS?.includes(formData?.unit) ? formData?.unit : '__custom__'}
+                onChange={(e) => {
+                  if (e?.target?.value !== '__custom__') handleChange('unit', e?.target?.value);
+                }}
+                className="flex-1 px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
+              >
+                {UNIT_OPTIONS?.map(u => <option key={u} value={u}>{u}</option>)}
+                {!UNIT_OPTIONS?.includes(formData?.unit) && formData?.unit && (
+                  <option value="__custom__">{formData?.unit}</option>
+                )}
+              </select>
+              <input
+                type="text"
+                value={UNIT_OPTIONS?.includes(formData?.unit) ? '' : formData?.unit}
+                onChange={(e) => handleChange('unit', e?.target?.value)}
+                placeholder="Custom unit..."
+                className="w-32 px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+          </div>
+
+          {/* ── Restock Level ── */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1">
+              Restock Level <span className="text-muted-foreground font-normal">(optional)</span>
+            </label>
+            <p className="text-xs text-muted-foreground mb-1.5">Minimum quantity to keep in stock.</p>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={formData?.restockLevel}
+              onChange={(e) => handleChange('restockLevel', e?.target?.value)}
+              placeholder="e.g. 12"
+              className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+
+          {/* ── Default Location ── */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              Default Location <span className="text-muted-foreground font-normal">(optional)</span>
+            </label>
+            <button
+              type="button"
+              onClick={() => setPickingDefaultLocation(true)}
+              disabled={vesselLocationsLoading}
+              className="w-full flex items-center justify-between px-3 py-2.5 text-sm bg-background border border-border rounded-xl hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors text-left disabled:opacity-50"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <Icon name="MapPin" size={16} className="text-muted-foreground shrink-0" />
+                {formData?.defaultLocationId ? (
+                  <span className="text-foreground truncate">{defaultLocationLabel || getVesselLocationLabel(formData?.defaultLocationId)}</span>
+                ) : (
+                  <span className="text-muted-foreground">
+                    {vesselLocationsLoading ? 'Loading...' : 'Select default location...'}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                {formData?.defaultLocationId && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e?.stopPropagation(); setFormData(prev => ({ ...prev, defaultLocationId: '' })); setDefaultLocationLabel(''); }}
+                    className="p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Icon name="X" size={14} />
+                  </button>
+                )}
+                <Icon name="ChevronRight" size={16} className="text-muted-foreground" />
+              </div>
+            </button>
+          </div>
+
+          {/* ── Locations with Quantity Stepper ── */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-foreground">
+                Locations
+                <span className="ml-1.5 text-xs font-normal text-muted-foreground">(physical storage onboard)</span>
               </label>
-              <p className="text-xs text-muted-foreground mb-1.5">Minimum quantity to keep in stock.</p>
+            </div>
+
+            <div className="space-y-2">
+              {locationRows?.map((row, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPickingLocationRowIndex(index)}
+                    disabled={vesselLocationsLoading}
+                    className="flex-1 min-w-0 flex items-center justify-between px-3 py-2.5 text-sm bg-background border border-border rounded-xl hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors text-left disabled:opacity-50"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Icon name="MapPin" size={14} className="text-muted-foreground shrink-0" />
+                      {row?.vesselLocationId ? (
+                        <span className="text-foreground text-xs truncate">
+                          {getVesselLocationLabel(row?.vesselLocationId)}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">
+                          {vesselLocationsLoading ? 'Loading...' : 'Select location...'}
+                        </span>
+                      )}
+                    </div>
+                    <Icon name="ChevronRight" size={14} className="text-muted-foreground shrink-0" />
+                  </button>
+
+                  <QuantityStepper
+                    value={row?.quantity}
+                    onChange={(val) => updateRow(index, 'quantity', val)}
+                  />
+
+                  <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:block shrink-0 min-w-[2rem]">
+                    {formData?.unit}
+                  </span>
+
+                  {hasMultipleRows && (
+                    <button
+                      type="button"
+                      onClick={() => removeRow(index)}
+                      title="Remove this row"
+                      className="p-2 text-muted-foreground hover:text-red-500 border border-border rounded-xl hover:border-red-300 transition-colors shrink-0"
+                    >
+                      <Icon name="Trash2" size={14} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={addRow}
+              className="mt-2 flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+            >
+              <Icon name="Plus" size={14} />
+              Add location
+            </button>
+          </div>
+
+          {/* ── Expiry Date ── */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              Expiry Date <span className="text-muted-foreground font-normal">(optional)</span>
+            </label>
+            <input
+              type="date"
+              value={formData?.expiryDate}
+              onChange={(e) => handleChange('expiryDate', e?.target?.value)}
+              className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+
+          {/* ── Barcode / QR Code ── */}
+          <BarcodeField
+            value={formData?.barcode}
+            onChange={(val) => handleChange('barcode', val)}
+          />
+
+          {/* ── Unit Cost ── */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              Unit Cost <span className="text-muted-foreground font-normal">(optional)</span>
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">€</span>
               <input
                 type="number"
                 min="0"
-                step="1"
-                value={formData?.restockLevel}
-                onChange={(e) => handleChange('restockLevel', e?.target?.value)}
-                placeholder="e.g. 12"
-                className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
+                step="0.01"
+                value={formData?.unitCost}
+                onChange={(e) => handleChange('unitCost', e?.target?.value)}
+                placeholder="0.00"
+                className="w-full pl-7 pr-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
+          </div>
 
-            {/* ── Default Location ── */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Default Location <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => setPickingDefaultLocation(true)}
-                disabled={vesselLocationsLoading}
-                className="w-full flex items-center justify-between px-3 py-2.5 text-sm bg-background border border-border rounded-xl hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors text-left disabled:opacity-50"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <Icon name="MapPin" size={16} className="text-muted-foreground shrink-0" />
-                  {formData?.defaultLocationId ? (
-                    <span className="text-foreground truncate">{defaultLocationLabel || getVesselLocationLabel(formData?.defaultLocationId)}</span>
-                  ) : (
-                    <span className="text-muted-foreground">
-                      {vesselLocationsLoading ? 'Loading...' : 'Select default location...'}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  {formData?.defaultLocationId && (
-                    <button
-                      type="button"
-                      onClick={(e) => { e?.stopPropagation(); setFormData(prev => ({ ...prev, defaultLocationId: '' })); setDefaultLocationLabel(''); }}
-                      className="p-0.5 text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <Icon name="X" size={14} />
-                    </button>
-                  )}
-                  <Icon name="ChevronRight" size={16} className="text-muted-foreground" />
-                </div>
-              </button>
-            </div>
-
-            {/* ── Locations with Quantity Stepper ── */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-foreground">
-                  Locations
-                  <span className="ml-1.5 text-xs font-normal text-muted-foreground">(physical storage onboard)</span>
-                </label>
-              </div>
-
-              <div className="space-y-2">
-                {locationRows?.map((row, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setPickingLocationRowIndex(index)}
-                      disabled={vesselLocationsLoading}
-                      className="flex-1 min-w-0 flex items-center justify-between px-3 py-2.5 text-sm bg-background border border-border rounded-xl hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors text-left disabled:opacity-50"
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Icon name="MapPin" size={14} className="text-muted-foreground shrink-0" />
-                        {row?.vesselLocationId ? (
-                          <span className="text-foreground text-xs truncate">
-                            {getVesselLocationLabel(row?.vesselLocationId)}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">
-                            {vesselLocationsLoading ? 'Loading...' : 'Select location...'}
-                          </span>
-                        )}
-                      </div>
-                      <Icon name="ChevronRight" size={14} className="text-muted-foreground shrink-0" />
-                    </button>
-
-                    <QuantityStepper
-                      value={row?.quantity}
-                      onChange={(val) => updateRow(index, 'quantity', val)}
-                    />
-
-                    <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:block shrink-0 min-w-[2rem]">
-                      {formData?.unit}
-                    </span>
-
-                    {hasMultipleRows && (
-                      <button
-                        type="button"
-                        onClick={() => removeRow(index)}
-                        title="Remove this row"
-                        className="p-2 text-muted-foreground hover:text-red-500 border border-border rounded-xl hover:border-red-300 transition-colors shrink-0"
-                      >
-                        <Icon name="Trash2" size={14} />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                onClick={addRow}
-                className="mt-2 flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
-              >
-                <Icon name="Plus" size={14} />
-                Add location
-              </button>
-            </div>
-
-            {/* ── Expiry Date ── */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Expiry Date <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
-              <input
-                type="date"
-                value={formData?.expiryDate}
-                onChange={(e) => handleChange('expiryDate', e?.target?.value)}
-                className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
-            </div>
-
-            {/* ── Barcode / QR Code ── */}
-            <BarcodeField
-              value={formData?.barcode}
-              onChange={(val) => handleChange('barcode', val)}
-            />
-
-            {/* ── Unit Cost ── */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Unit Cost <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">€</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={formData?.unitCost}
-                  onChange={(e) => handleChange('unitCost', e?.target?.value)}
-                  placeholder="0.00"
-                  className="w-full pl-7 pr-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-              </div>
-            </div>
-
-            {/* ── Tags ── */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Tags <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
-              {formData?.tags?.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {formData?.tags?.map(tag => (
-                    <span key={tag} className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium bg-primary/10 text-primary rounded-full">
-                      {tag}
-                      <button type="button" onClick={() => removeTag(tag)} className="hover:text-red-500 transition-colors">
-                        <Icon name="X" size={10} />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
+          {/* ── Tags ── */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              Tags <span className="text-muted-foreground font-normal">(optional)</span>
+            </label>
+            {formData?.tags?.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-2">
-                {SUGGESTED_TAGS?.filter(t => !formData?.tags?.includes(t))?.map(tag => (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => toggleTag(tag)}
-                    className="px-2.5 py-1 text-xs font-medium bg-muted text-muted-foreground rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
-                  >
-                    + {tag}
-                  </button>
+                {formData?.tags?.map(tag => (
+                  <span key={tag} className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium bg-primary/10 text-primary rounded-full">
+                    {tag}
+                    <button type="button" onClick={() => removeTag(tag)} className="hover:text-red-500 transition-colors">
+                      <Icon name="X" size={10} />
+                    </button>
+                  </span>
                 ))}
               </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e?.target?.value)}
-                  onKeyDown={(e) => { if (e?.key === 'Enter') { e?.preventDefault(); addCustomTag(); } }}
-                  placeholder="Add custom tag..."
-                  className="flex-1 px-3 py-2 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
+            )}
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {SUGGESTED_TAGS?.filter(t => !formData?.tags?.includes(t))?.map(tag => (
                 <button
+                  key={tag}
                   type="button"
-                  onClick={addCustomTag}
-                  className="px-3 py-2 text-xs font-medium text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition-colors"
+                  onClick={() => toggleTag(tag)}
+                  className="px-2.5 py-1 text-xs font-medium bg-muted text-muted-foreground rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
                 >
-                  Add
+                  + {tag}
                 </button>
-              </div>
+              ))}
             </div>
-
-            {/* ── Notes ── */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Notes <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
-              <textarea
-                value={formData?.notes}
-                onChange={(e) => handleChange('notes', e?.target?.value)}
-                placeholder="Any additional notes..."
-                rows={2}
-                className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e?.target?.value)}
+                onKeyDown={(e) => { if (e?.key === 'Enter') { e?.preventDefault(); addCustomTag(); } }}
+                placeholder="Add custom tag..."
+                className="flex-1 px-3 py-2 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
+              <button
+                type="button"
+                onClick={addCustomTag}
+                className="px-3 py-2 text-xs font-medium text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition-colors"
+              >
+                Add
+              </button>
             </div>
+          </div>
 
-            {/* ── Cargo Item ID (read-only, edit mode only) ── */}
-            {isEdit && formData?.cargoItemId && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-muted/40 border border-border/60 rounded-xl">
-                <Icon name="Hash" size={13} className="text-muted-foreground shrink-0" />
-                <span className="text-xs text-muted-foreground">Cargo Item ID:</span>
-                <span className="text-xs font-mono font-semibold text-foreground tracking-wide">{formData?.cargoItemId}</span>
-              </div>
-            )}
+          {/* ── Notes ── */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              Notes <span className="text-muted-foreground font-normal">(optional)</span>
+            </label>
+            <textarea
+              value={formData?.notes}
+              onChange={(e) => handleChange('notes', e?.target?.value)}
+              placeholder="Any additional notes..."
+              rows={2}
+              className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+            />
+          </div>
 
-            {errors?.submit && (
-              <p className="text-sm text-red-500 bg-red-50 dark:bg-red-950/30 px-3 py-2 rounded-lg">{errors?.submit}</p>
-            )}
-
-            {/* Actions */}
-            <div className="flex gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
-              <Button type="submit" disabled={saving} className="flex-1">
-                {saving ? 'Saving...' : isEdit ? 'Save Changes' : 'Add Item'}
-              </Button>
+          {/* ── Cargo Item ID (read-only, edit mode only) ── */}
+          {isEdit && formData?.cargoItemId && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-muted/40 border border-border/60 rounded-xl">
+              <Icon name="Hash" size={13} className="text-muted-foreground shrink-0" />
+              <span className="text-xs text-muted-foreground">Cargo Item ID:</span>
+              <span className="text-xs font-mono font-semibold text-foreground tracking-wide">{formData?.cargoItemId}</span>
             </div>
-          </form>
-        </div>
-      </div>
+          )}
+
+          {errors?.submit && (
+            <p className="text-sm text-red-500 bg-red-50 dark:bg-red-950/30 px-3 py-2 rounded-lg">{errors?.submit}</p>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
+            <Button type="submit" disabled={saving} className="flex-1">
+              {saving ? 'Saving...' : isEdit ? 'Save Changes' : 'Add Item'}
+            </Button>
+          </div>
+        </form>
+      </ModalShell>
 
       {/* Inventory Folder Picker Modal */}
       {showFolderPicker && (

@@ -3,6 +3,7 @@ import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import { loadTrips } from '../../trips-management-dashboard/utils/tripStorage';
 
+import ModalShell from '../../../components/ui/ModalShell';
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const EXPORT_MEAL_ORDER = ['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Late Night'];
@@ -628,92 +629,20 @@ const ExportPreferencesModal = ({ isOpen, onClose, guest, preferences }) => {
   // ── Preview Screen ──────────────────────────────────────────────────────────
   if (showPreview) {
     return (
-      <div
-        className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center p-4"
-        style={{ background: 'rgba(0,0,0,0.7)' }}
-      >
-        <div className="bg-card border border-border rounded-2xl shadow-2xl flex flex-col" style={{ width: '700px', maxWidth: '95vw', height: '90vh' }}>
-          {/* Preview Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowPreview(false)}
-                className="p-1.5 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Icon name="ArrowLeft" size={18} />
-              </button>
-              <div>
-                <h2 className="text-base font-semibold text-foreground">Report Preview</h2>
-                <p className="text-xs text-muted-foreground">
-                  {reportType === 'full' ? 'Guest Preferences Report' : 'Chef Report'} — {guest?.firstName} {guest?.lastName}
-                </p>
-              </div>
-            </div>
+      <ModalShell onClose={onClose} panelClassName="bg-card border border-border rounded-2xl shadow-2xl flex flex-col" panelStyle={{ width: '700px', maxWidth: '95vw', height: '90vh' }}>
+        {/* Preview Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
+          <div className="flex items-center gap-3">
             <button
-              onClick={onClose}
+              onClick={() => setShowPreview(false)}
               className="p-1.5 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
             >
-              <Icon name="X" size={18} />
+              <Icon name="ArrowLeft" size={18} />
             </button>
-          </div>
-
-          {/* Preview Body — white background, scrollable */}
-          <div className="flex-1 overflow-y-auto" style={{ background: '#f1f5f9' }}>
-            <div
-              ref={previewRef}
-              style={{
-                background: '#ffffff',
-                color: '#1a1a1a',
-                margin: '16px auto',
-                padding: '20mm 16mm',
-                maxWidth: '210mm',
-                minHeight: '297mm',
-                boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
-                borderRadius: '4px',
-              }}
-            >
-              <ReportContent reportType={reportType} guest={guest} preferences={preferences} includeImages={includeImages} guestTrips={guestTrips} />
-            </div>
-          </div>
-
-          {/* Preview Footer */}
-          <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-border flex-shrink-0">
-            <p className="text-xs text-muted-foreground">Looking good? Click Print to open the print dialog.</p>
-            <div className="flex items-center gap-3">
-              <Button variant="outline" onClick={() => setShowPreview(false)}>Back</Button>
-              <Button
-                variant="primary"
-                iconName="Printer"
-                onClick={handlePrint}
-                disabled={isPrinting}
-              >
-                {isPrinting ? 'Opening...' : 'Print / Save PDF'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Selection Screen ────────────────────────────────────────────────────────
-  return (
-    <div
-      className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.5)' }}
-      onClick={(e) => { if (e?.target === e?.currentTarget) onClose(); }}
-    >
-      <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-lg">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Icon name="Download" size={18} className="text-primary" />
-            </div>
             <div>
-              <h2 className="text-base font-semibold text-foreground">Export Guest Preferences</h2>
+              <h2 className="text-base font-semibold text-foreground">Report Preview</h2>
               <p className="text-xs text-muted-foreground">
-                {guest?.firstName} {guest?.lastName}
+                {reportType === 'full' ? 'Guest Preferences Report' : 'Chef Report'} — {guest?.firstName} {guest?.lastName}
               </p>
             </div>
           </div>
@@ -725,83 +654,144 @@ const ExportPreferencesModal = ({ isOpen, onClose, guest, preferences }) => {
           </button>
         </div>
 
-        {/* Body */}
-        <div className="px-6 py-5 space-y-5">
-          {/* Report Type */}
-          <div>
-            <p className="text-sm font-medium text-foreground mb-3">Report Type</p>
-            <div className="space-y-2">
-              {reportOptions?.map(opt => (
-                <button
-                  key={opt?.id}
-                  onClick={() => setReportType(opt?.id)}
-                  className={`w-full flex items-start gap-3 p-3.5 rounded-xl border-2 text-left transition-all ${
-                    reportType === opt?.id
-                      ? 'border-primary bg-primary/5' :'border-border hover:border-primary/40 hover:bg-muted/30'
-                  }`}
-                >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                    reportType === opt?.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-                  }`}>
-                    <Icon name={opt?.icon} size={16} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className={`text-sm font-semibold ${
-                        reportType === opt?.id ? 'text-primary' : 'text-foreground'
-                      }`}>{opt?.label}</p>
-                      {reportType === opt?.id && (
-                        <Icon name="CheckCircle" size={14} className="text-primary flex-shrink-0" />
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">{opt?.description}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
+        {/* Preview Body — white background, scrollable */}
+        <div className="flex-1 overflow-y-auto" style={{ background: '#f1f5f9' }}>
+          <div
+            ref={previewRef}
+            style={{
+              background: '#ffffff',
+              color: '#1a1a1a',
+              margin: '16px auto',
+              padding: '20mm 16mm',
+              maxWidth: '210mm',
+              minHeight: '297mm',
+              boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
+              borderRadius: '4px',
+            }}
+          >
+            <ReportContent reportType={reportType} guest={guest} preferences={preferences} includeImages={includeImages} guestTrips={guestTrips} />
           </div>
+        </div>
 
-          {/* Include Images Checkbox */}
-          <div>
-            <label className="flex items-center gap-3 cursor-pointer group">
-              <div
-                onClick={() => setIncludeImages(v => !v)}
-                className={`w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 transition-colors ${
-                  includeImages
-                    ? 'bg-primary border-primary' :'border-border bg-background group-hover:border-primary/50'
-                }`}
-              >
-                {includeImages && <Icon name="Check" size={12} className="text-primary-foreground" />}
-              </div>
-              <div onClick={() => setIncludeImages(v => !v)} className="flex-1">
-                <p className="text-sm font-medium text-foreground">Include uploaded images</p>
-                <p className="text-xs text-muted-foreground">Preference cards with an attached image will display it inline in the report.</p>
-              </div>
-            </label>
+        {/* Preview Footer */}
+        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-border flex-shrink-0">
+          <p className="text-xs text-muted-foreground">Looking good? Click Print to open the print dialog.</p>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" onClick={() => setShowPreview(false)}>Back</Button>
+            <Button
+              variant="primary"
+              iconName="Printer"
+              onClick={handlePrint}
+              disabled={isPrinting}
+            >
+              {isPrinting ? 'Opening...' : 'Print / Save PDF'}
+            </Button>
           </div>
+        </div>
+      </ModalShell>
+    );
+  }
 
-          {/* Info note */}
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
-            <Icon name="Info" size={14} className="text-blue-500 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-blue-700 dark:text-blue-400">
-              Preview the report first, then print or save as PDF from the preview screen.
+  // ── Selection Screen ────────────────────────────────────────────────────────
+  return (
+    <ModalShell onClose={onClose} panelClassName="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-lg">
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Icon name="Download" size={18} className="text-primary" />
+          </div>
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Export Guest Preferences</h2>
+            <p className="text-xs text-muted-foreground">
+              {guest?.firstName} {guest?.lastName}
             </p>
           </div>
         </div>
+        <button
+          onClick={onClose}
+          className="p-1.5 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Icon name="X" size={18} />
+        </button>
+      </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button
-            variant="primary"
-            iconName="Eye"
-            onClick={() => setShowPreview(true)}
-          >
-            Preview Report
-          </Button>
+      {/* Body */}
+      <div className="px-6 py-5 space-y-5">
+        {/* Report Type */}
+        <div>
+          <p className="text-sm font-medium text-foreground mb-3">Report Type</p>
+          <div className="space-y-2">
+            {reportOptions?.map(opt => (
+              <button
+                key={opt?.id}
+                onClick={() => setReportType(opt?.id)}
+                className={`w-full flex items-start gap-3 p-3.5 rounded-xl border-2 text-left transition-all ${
+                  reportType === opt?.id
+                    ? 'border-primary bg-primary/5' :'border-border hover:border-primary/40 hover:bg-muted/30'
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                  reportType === opt?.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                }`}>
+                  <Icon name={opt?.icon} size={16} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className={`text-sm font-semibold ${
+                      reportType === opt?.id ? 'text-primary' : 'text-foreground'
+                    }`}>{opt?.label}</p>
+                    {reportType === opt?.id && (
+                      <Icon name="CheckCircle" size={14} className="text-primary flex-shrink-0" />
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">{opt?.description}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Include Images Checkbox */}
+        <div>
+          <label className="flex items-center gap-3 cursor-pointer group">
+            <div
+              onClick={() => setIncludeImages(v => !v)}
+              className={`w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 transition-colors ${
+                includeImages
+                  ? 'bg-primary border-primary' :'border-border bg-background group-hover:border-primary/50'
+              }`}
+            >
+              {includeImages && <Icon name="Check" size={12} className="text-primary-foreground" />}
+            </div>
+            <div onClick={() => setIncludeImages(v => !v)} className="flex-1">
+              <p className="text-sm font-medium text-foreground">Include uploaded images</p>
+              <p className="text-xs text-muted-foreground">Preference cards with an attached image will display it inline in the report.</p>
+            </div>
+          </label>
+        </div>
+
+        {/* Info note */}
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
+          <Icon name="Info" size={14} className="text-blue-500 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-blue-700 dark:text-blue-400">
+            Preview the report first, then print or save as PDF from the preview screen.
+          </p>
         </div>
       </div>
-    </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border">
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button
+          variant="primary"
+          iconName="Eye"
+          onClick={() => setShowPreview(true)}
+        >
+          Preview Report
+        </Button>
+      </div>
+    </ModalShell>
   );
 };
 

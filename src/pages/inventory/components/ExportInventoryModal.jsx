@@ -9,6 +9,7 @@ import { getDepartmentScope, filterByDepartmentScope } from '../../../utils/depa
 import { getCurrentUser } from '../../../utils/authStorage';
 import { canViewCost } from '../../../utils/costPermissions';
 
+import ModalShell from '../../../components/ui/ModalShell';
 const ExportInventoryModal = ({ onClose, currentTaxonomyPath, currentItems, searchQuery }) => {
   const [scope, setScope] = useState('current');
   const [includeImages, setIncludeImages] = useState(false);
@@ -272,231 +273,229 @@ const ExportInventoryModal = ({ onClose, currentTaxonomyPath, currentItems, sear
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900">Export Inventory</h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <Icon name="X" size={20} className="text-gray-600" />
-          </button>
-        </div>
+    <ModalShell onClose={onClose} panelClassName="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-900">Export Inventory</h2>
+        <button
+          onClick={onClose}
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          <Icon name="X" size={20} className="text-gray-600" />
+        </button>
+      </div>
 
-        {/* Content */}
-        <div className="p-6 space-y-6">
-          {/* Body copy */}
-          <p className="text-gray-600 text-sm">
-            This will generate a PDF of the inventory.
-          </p>
+      {/* Content */}
+      <div className="p-6 space-y-6">
+        {/* Body copy */}
+        <p className="text-gray-600 text-sm">
+          This will generate a PDF of the inventory.
+        </p>
 
-          {/* Scope Section */}
-          <div className="space-y-3">
-            <label className="block text-sm font-semibold text-gray-900">Scope</label>
-            
-            {/* Current view */}
-            <label className="flex items-start gap-3 p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-all">
-              <input
-                type="radio"
-                name="scope"
-                value="current"
-                checked={scope === 'current'}
-                onChange={(e) => setScope(e?.target?.value)}
-                className="mt-0.5 w-4 h-4 text-blue-600 focus:ring-blue-500"
-              />
-              <div className="flex-1">
-                <div className="font-medium text-gray-900">Current view (recommended)</div>
-                <div className="text-xs text-gray-500 mt-0.5">
-                  Exports exactly what you're viewing now, including filters
-                </div>
+        {/* Scope Section */}
+        <div className="space-y-3">
+          <label className="block text-sm font-semibold text-gray-900">Scope</label>
+          
+          {/* Current view */}
+          <label className="flex items-start gap-3 p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-all">
+            <input
+              type="radio"
+              name="scope"
+              value="current"
+              checked={scope === 'current'}
+              onChange={(e) => setScope(e?.target?.value)}
+              className="mt-0.5 w-4 h-4 text-blue-600 focus:ring-blue-500"
+            />
+            <div className="flex-1">
+              <div className="font-medium text-gray-900">Current view (recommended)</div>
+              <div className="text-xs text-gray-500 mt-0.5">
+                Exports exactly what you're viewing now, including filters
               </div>
-            </label>
+            </div>
+          </label>
 
-            {/* Entire inventory */}
-            <label className="flex items-start gap-3 p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-all">
-              <input
-                type="radio"
-                name="scope"
-                value="entire"
-                checked={scope === 'entire'}
-                onChange={(e) => setScope(e?.target?.value)}
-                className="mt-0.5 w-4 h-4 text-blue-600 focus:ring-blue-500"
-              />
-              <div className="flex-1">
-                <div className="font-medium text-gray-900">Entire inventory</div>
-                <div className="text-xs text-gray-500 mt-0.5">
-                  Exports all items you have permission to see
-                </div>
+          {/* Entire inventory */}
+          <label className="flex items-start gap-3 p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-all">
+            <input
+              type="radio"
+              name="scope"
+              value="entire"
+              checked={scope === 'entire'}
+              onChange={(e) => setScope(e?.target?.value)}
+              className="mt-0.5 w-4 h-4 text-blue-600 focus:ring-blue-500"
+            />
+            <div className="flex-1">
+              <div className="font-medium text-gray-900">Entire inventory</div>
+              <div className="text-xs text-gray-500 mt-0.5">
+                Exports all items you have permission to see
               </div>
-            </label>
+            </div>
+          </label>
 
-            {/* Choose a section */}
-            <label className="flex items-start gap-3 p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-all">
-              <input
-                type="radio"
-                name="scope"
-                value="section"
-                checked={scope === 'section'}
-                onChange={(e) => setScope(e?.target?.value)}
-                className="mt-0.5 w-4 h-4 text-blue-600 focus:ring-blue-500"
-              />
-              <div className="flex-1">
-                <div className="font-medium text-gray-900">Choose a section…</div>
-                <div className="text-xs text-gray-500 mt-0.5">
-                  Select a specific section to export
-                </div>
+          {/* Choose a section */}
+          <label className="flex items-start gap-3 p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-all">
+            <input
+              type="radio"
+              name="scope"
+              value="section"
+              checked={scope === 'section'}
+              onChange={(e) => setScope(e?.target?.value)}
+              className="mt-0.5 w-4 h-4 text-blue-600 focus:ring-blue-500"
+            />
+            <div className="flex-1">
+              <div className="font-medium text-gray-900">Choose a section…</div>
+              <div className="text-xs text-gray-500 mt-0.5">
+                Select a specific section to export
               </div>
-            </label>
+            </div>
+          </label>
 
-            {/* Section Selector (shown when 'section' is selected) */}
-            {scope === 'section' && (
-              <div className="ml-7 mt-3 space-y-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                {/* Inventory Group */}
+          {/* Section Selector (shown when 'section' is selected) */}
+          {scope === 'section' && (
+            <div className="ml-7 mt-3 space-y-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              {/* Inventory Group */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Inventory Group</label>
+                <Select
+                  value={selectedL1}
+                  onChange={(e) => setSelectedL1(e?.target?.value)}
+                  className="w-full"
+                >
+                  <option value="">Select Inventory Group</option>
+                  {taxonomyL1?.map((l1) => (
+                    <option key={l1?.id} value={l1?.id}>
+                      {l1?.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+
+              {/* Category */}
+              {selectedL1 && taxonomyL2?.length > 0 && (
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Inventory Group</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Category (optional)</label>
                   <Select
-                    value={selectedL1}
-                    onChange={(e) => setSelectedL1(e?.target?.value)}
+                    value={selectedL2}
+                    onChange={(e) => setSelectedL2(e?.target?.value)}
                     className="w-full"
                   >
-                    <option value="">Select Inventory Group</option>
-                    {taxonomyL1?.map((l1) => (
-                      <option key={l1?.id} value={l1?.id}>
-                        {l1?.name}
+                    <option value="">All Categories</option>
+                    {taxonomyL2?.map((l2) => (
+                      <option key={l2?.id} value={l2?.id}>
+                        {l2?.name}
                       </option>
                     ))}
                   </Select>
                 </div>
+              )}
 
-                {/* Category */}
-                {selectedL1 && taxonomyL2?.length > 0 && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Category (optional)</label>
-                    <Select
-                      value={selectedL2}
-                      onChange={(e) => setSelectedL2(e?.target?.value)}
-                      className="w-full"
-                    >
-                      <option value="">All Categories</option>
-                      {taxonomyL2?.map((l2) => (
-                        <option key={l2?.id} value={l2?.id}>
-                          {l2?.name}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                )}
+              {/* Sub-Category */}
+              {selectedL2 && taxonomyL3?.length > 0 && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Sub-Category (optional)</label>
+                  <Select
+                    value={selectedL3}
+                    onChange={(e) => setSelectedL3(e?.target?.value)}
+                    className="w-full"
+                  >
+                    <option value="">All Sub-Categories</option>
+                    {taxonomyL3?.map((l3) => (
+                      <option key={l3?.id} value={l3?.id}>
+                        {l3?.name}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              )}
 
-                {/* Sub-Category */}
-                {selectedL2 && taxonomyL3?.length > 0 && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Sub-Category (optional)</label>
-                    <Select
-                      value={selectedL3}
-                      onChange={(e) => setSelectedL3(e?.target?.value)}
-                      className="w-full"
-                    >
-                      <option value="">All Sub-Categories</option>
-                      {taxonomyL3?.map((l3) => (
-                        <option key={l3?.id} value={l3?.id}>
-                          {l3?.name}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                )}
+              {/* Type */}
+              {selectedL3 && taxonomyL4?.length > 0 && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Type (optional)</label>
+                  <Select
+                    value={selectedL4}
+                    onChange={(e) => setSelectedL4(e?.target?.value)}
+                    className="w-full"
+                  >
+                    <option value="">All Types</option>
+                    {taxonomyL4?.map((l4) => (
+                      <option key={l4?.id} value={l4?.id}>
+                        {l4?.name}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
-                {/* Type */}
-                {selectedL3 && taxonomyL4?.length > 0 && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Type (optional)</label>
-                    <Select
-                      value={selectedL4}
-                      onChange={(e) => setSelectedL4(e?.target?.value)}
-                      className="w-full"
-                    >
-                      <option value="">All Types</option>
-                      {taxonomyL4?.map((l4) => (
-                        <option key={l4?.id} value={l4?.id}>
-                          {l4?.name}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                )}
+        {/* Include images toggle */}
+        <div className="space-y-2">
+          <label className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="flex-1">
+              <div className="font-medium text-gray-900 text-sm">Include images</div>
+              <div className="text-xs text-gray-500 mt-0.5">
+                Including images increases file size
               </div>
-            )}
-          </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIncludeImages(!includeImages)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                includeImages ? 'bg-blue-600' : 'bg-gray-300'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  includeImages ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </label>
 
-          {/* Include images toggle */}
-          <div className="space-y-2">
-            <label className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+          {/* Include cost & value toggle - Only visible to Command/Chief/HOD */}
+          {canSeeCost && (
+            <label className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
               <div className="flex-1">
-                <div className="font-medium text-gray-900 text-sm">Include images</div>
+                <div className="font-medium text-gray-900 text-sm">Include cost & value</div>
                 <div className="text-xs text-gray-500 mt-0.5">
-                  Including images increases file size
+                  Shows unit cost and total value for each item
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setIncludeImages(!includeImages)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                  includeImages ? 'bg-blue-600' : 'bg-gray-300'
+                onClick={() => setIncludeCost(!includeCost)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
+                  includeCost ? 'bg-green-600' : 'bg-gray-300'
                 }`}
               >
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    includeImages ? 'translate-x-6' : 'translate-x-1'
+                    includeCost ? 'translate-x-6' : 'translate-x-1'
                   }`}
                 />
               </button>
             </label>
-
-            {/* Include cost & value toggle - Only visible to Command/Chief/HOD */}
-            {canSeeCost && (
-              <label className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
-                <div className="flex-1">
-                  <div className="font-medium text-gray-900 text-sm">Include cost & value</div>
-                  <div className="text-xs text-gray-500 mt-0.5">
-                    Shows unit cost and total value for each item
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIncludeCost(!includeCost)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
-                    includeCost ? 'bg-green-600' : 'bg-gray-300'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      includeCost ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
-              </label>
-            )}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end gap-3">
-          <Button onClick={onClose} variant="outline">
-            Cancel
-          </Button>
-          <Button
-            onClick={handleGeneratePDF}
-            disabled={isGenerating}
-            loading={isGenerating}
-            iconName={isGenerating ? null : 'Download'}
-          >
-            {isGenerating ? 'Generating...' : 'Generate PDF'}
-          </Button>
+          )}
         </div>
       </div>
-    </div>
+
+      {/* Footer */}
+      <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end gap-3">
+        <Button onClick={onClose} variant="outline">
+          Cancel
+        </Button>
+        <Button
+          onClick={handleGeneratePDF}
+          disabled={isGenerating}
+          loading={isGenerating}
+          iconName={isGenerating ? null : 'Download'}
+        >
+          {isGenerating ? 'Generating...' : 'Generate PDF'}
+        </Button>
+      </div>
+    </ModalShell>
   );
 };
 

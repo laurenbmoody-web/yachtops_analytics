@@ -6,6 +6,7 @@ import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useTenant } from '../../../contexts/TenantContext';
 
+import ModalShell from '../../../components/ui/ModalShell';
 const showToast = (message, type = 'info') => {
   console.log(`[${type?.toUpperCase()}] ${message}`);
 };
@@ -313,146 +314,144 @@ const EditEmploymentModal = ({ isOpen, onClose, member, onSuccess }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-      <div className="bg-card border border-border rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <div>
-            <h2 className="text-xl font-semibold text-foreground">Edit Employment Details</h2>
-            <p className="text-sm text-muted-foreground mt-1">{member?.fullName || member?.email}</p>
+    <ModalShell onClose={handleClose} panelClassName="bg-card border border-border rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between p-6 border-b border-border">
+        <div>
+          <h2 className="text-xl font-semibold text-foreground">Edit Employment Details</h2>
+          <p className="text-sm text-muted-foreground mt-1">{member?.fullName || member?.email}</p>
+        </div>
+        <button
+          onClick={handleClose}
+          className="text-muted-foreground hover:text-foreground transition-colors"
+          disabled={loading}
+        >
+          <Icon name="X" size={20} />
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="p-6 space-y-4">
+        {error && (
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2">
+            <Icon name="AlertCircle" size={18} className="text-destructive mt-0.5" />
+            <p className="text-sm text-destructive">{error}</p>
           </div>
-          <button
-            onClick={handleClose}
-            className="text-muted-foreground hover:text-foreground transition-colors"
+        )}
+
+        {/* Department - Controlled with value prop */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Department <span className="text-destructive">*</span>
+          </label>
+          <Select
+            options={departmentOptions}
+            value={selectedDepartmentId}
+            onChange={handleDepartmentChange}
             disabled={loading}
-          >
-            <Icon name="X" size={20} />
-          </button>
+            searchable
+            placeholder="Select department"
+          />
+          {departments?.length === 0 && (
+            <p className="text-xs text-amber-500 mt-1">No departments available</p>
+          )}
         </div>
 
-        {/* Body */}
-        <div className="p-6 space-y-4">
-          {error && (
-            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2">
-              <Icon name="AlertCircle" size={18} className="text-destructive mt-0.5" />
-              <p className="text-sm text-destructive">{error}</p>
+        {/* Job Role - Controlled with value prop */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Role <span className="text-destructive">*</span>
+          </label>
+          <Select
+            options={roleOptions}
+            value={selectedRoleId}
+            onChange={(value) => setSelectedRoleId(value)}
+            disabled={loading || !selectedDepartmentId}
+            searchable
+            placeholder="Select role"
+          />
+          {!selectedDepartmentId && (
+            <p className="text-xs text-muted-foreground mt-1">Select a department first</p>
+          )}
+          {selectedDepartmentId && filteredRoles?.length === 0 && (
+            <p className="text-xs text-amber-500 mt-1">No roles available for this department</p>
+          )}
+        </div>
+
+        {/* Default Permission Tier (read-only) */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Default Permission Tier
+          </label>
+          <input
+            type="text"
+            value={defaultPermissionTier || ''}
+            disabled
+            placeholder="Select a role to see default permission"
+            className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed"
+          />
+          {selectedRoleId && !defaultPermissionTier && (
+            <div className="flex items-start gap-2 mt-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-md">
+              <Icon name="AlertTriangle" size={16} className="text-amber-500 mt-0.5" />
+              <p className="text-xs text-amber-500">Default permission tier not set for this role. Cannot save until role has a default permission tier.</p>
             </div>
           )}
-
-          {/* Department - Controlled with value prop */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Department <span className="text-destructive">*</span>
-            </label>
-            <Select
-              options={departmentOptions}
-              value={selectedDepartmentId}
-              onChange={handleDepartmentChange}
-              disabled={loading}
-              searchable
-              placeholder="Select department"
-            />
-            {departments?.length === 0 && (
-              <p className="text-xs text-amber-500 mt-1">No departments available</p>
-            )}
-          </div>
-
-          {/* Job Role - Controlled with value prop */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Role <span className="text-destructive">*</span>
-            </label>
-            <Select
-              options={roleOptions}
-              value={selectedRoleId}
-              onChange={(value) => setSelectedRoleId(value)}
-              disabled={loading || !selectedDepartmentId}
-              searchable
-              placeholder="Select role"
-            />
-            {!selectedDepartmentId && (
-              <p className="text-xs text-muted-foreground mt-1">Select a department first</p>
-            )}
-            {selectedDepartmentId && filteredRoles?.length === 0 && (
-              <p className="text-xs text-amber-500 mt-1">No roles available for this department</p>
-            )}
-          </div>
-
-          {/* Default Permission Tier (read-only) */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Default Permission Tier
-            </label>
-            <input
-              type="text"
-              value={defaultPermissionTier || ''}
-              disabled
-              placeholder="Select a role to see default permission"
-              className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed"
-            />
-            {selectedRoleId && !defaultPermissionTier && (
-              <div className="flex items-start gap-2 mt-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-md">
-                <Icon name="AlertTriangle" size={16} className="text-amber-500 mt-0.5" />
-                <p className="text-xs text-amber-500">Default permission tier not set for this role. Cannot save until role has a default permission tier.</p>
-              </div>
-            )}
-          </div>
-
-          {/* Override Permission Tier (optional) */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Override Permission Tier (Optional)
-            </label>
-            <Select
-              options={overridePermissionOptions}
-              value={overridePermissionTier}
-              onChange={(value) => setOverridePermissionTier(value)}
-              disabled={loading || !selectedRoleId}
-              placeholder="Use role default"
-            />
-            {!selectedRoleId && (
-              <p className="text-xs text-muted-foreground mt-1">Select a role first</p>
-            )}
-            {overridePermissionTier && overridePermissionTier !== 'DEFAULT' && (
-              <p className="text-xs text-blue-500 mt-1">
-                Override active: Using {overridePermissionTier} instead of role default
-              </p>
-            )}
-          </div>
-
-          {/* Status */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Status <span className="text-destructive">*</span>
-            </label>
-            <Select
-              options={statusOptions}
-              value={selectedStatus}
-              onChange={(value) => setSelectedStatus(value)}
-              disabled={loading}
-              placeholder="Select status"
-            />
-          </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-border">
-          <Button
-            variant="ghost"
-            onClick={handleClose}
+        {/* Override Permission Tier (optional) */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Override Permission Tier (Optional)
+          </label>
+          <Select
+            options={overridePermissionOptions}
+            value={overridePermissionTier}
+            onChange={(value) => setOverridePermissionTier(value)}
+            disabled={loading || !selectedRoleId}
+            placeholder="Use role default"
+          />
+          {!selectedRoleId && (
+            <p className="text-xs text-muted-foreground mt-1">Select a role first</p>
+          )}
+          {overridePermissionTier && overridePermissionTier !== 'DEFAULT' && (
+            <p className="text-xs text-blue-500 mt-1">
+              Override active: Using {overridePermissionTier} instead of role default
+            </p>
+          )}
+        </div>
+
+        {/* Status */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Status <span className="text-destructive">*</span>
+          </label>
+          <Select
+            options={statusOptions}
+            value={selectedStatus}
+            onChange={(value) => setSelectedStatus(value)}
             disabled={loading}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={isSaveDisabled}
-          >
-            {loading ? 'Saving...' : 'Save'}
-          </Button>
+            placeholder="Select status"
+          />
         </div>
       </div>
-    </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-end gap-3 p-6 border-t border-border">
+        <Button
+          variant="ghost"
+          onClick={handleClose}
+          disabled={loading}
+        >
+          Cancel
+        </Button>
+        <Button
+          onClick={handleSave}
+          disabled={isSaveDisabled}
+        >
+          {loading ? 'Saving...' : 'Save'}
+        </Button>
+      </div>
+    </ModalShell>
   );
 };
 

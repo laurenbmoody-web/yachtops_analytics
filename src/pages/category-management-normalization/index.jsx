@@ -7,6 +7,7 @@ import { getAllItems, deleteCategory } from '../inventory-management/utils/inven
 import { normalizeCategoryName, getCategoryDisplayName, getFolderForCategory, FOLDERS } from '../inventory-management/utils/folderMapping';
 import { getCurrentUser, hasCommandAccess } from '../../utils/authStorage';
 
+import ModalShell from '../../components/ui/ModalShell';
 const CategoryManagementNormalization = () => {
   const navigate = useNavigate();
   const [categories, setCategories] = useState([]);
@@ -330,57 +331,55 @@ const CategoryManagementNormalization = () => {
             className="fixed inset-0 bg-black/50 z-[var(--z-overlay)]"
             onClick={() => setShowMergeModal(false)}
           />
-          <div className="fixed inset-0 flex items-center justify-center z-[var(--z-overlay)] p-4">
-            <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl">
-              <div className="mb-4">
-                <h3 className="text-xl font-semibold text-foreground mb-2 font-heading">
-                  Merge Categories
-                </h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Merging {selectedCategories?.length} categories. Select the target category:
-                </p>
-                
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {selectedCategories?.map(catName => {
-                    const cat = categories?.find(c => c?.rawName === catName);
-                    return (
-                      <label
-                        key={catName}
-                        className="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-smooth"
-                      >
-                        <input
-                          type="radio"
-                          name="mergeTarget"
-                          value={catName}
-                          checked={mergeTarget === catName}
-                          onChange={(e) => setMergeTarget(e?.target?.value)}
-                        />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-foreground">{catName}</p>
-                          <p className="text-xs text-muted-foreground">{cat?.itemCount} items</p>
-                        </div>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="flex gap-3 justify-end">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowMergeModal(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="default"
-                  onClick={handleConfirmMerge}
-                  disabled={!mergeTarget}
-                >
-                  Merge Categories
-                </Button>
+          <ModalShell onClose={onClose} panelClassName="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <div className="mb-4">
+              <h3 className="text-xl font-semibold text-foreground mb-2 font-heading">
+                Merge Categories
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Merging {selectedCategories?.length} categories. Select the target category:
+              </p>
+              
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {selectedCategories?.map(catName => {
+                  const cat = categories?.find(c => c?.rawName === catName);
+                  return (
+                    <label
+                      key={catName}
+                      className="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-smooth"
+                    >
+                      <input
+                        type="radio"
+                        name="mergeTarget"
+                        value={catName}
+                        checked={mergeTarget === catName}
+                        onChange={(e) => setMergeTarget(e?.target?.value)}
+                      />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-foreground">{catName}</p>
+                        <p className="text-xs text-muted-foreground">{cat?.itemCount} items</p>
+                      </div>
+                    </label>
+                  );
+                })}
               </div>
             </div>
-          </div>
+            <div className="flex gap-3 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setShowMergeModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="default"
+                onClick={handleConfirmMerge}
+                disabled={!mergeTarget}
+              >
+                Merge Categories
+              </Button>
+            </div>
+          </ModalShell>
         </>
       )}
     </div>
