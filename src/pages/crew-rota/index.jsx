@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Pencil } from 'lucide-react';
 import Header from '../../components/navigation/Header';
@@ -150,36 +150,45 @@ export default function CrewRotaPage() {
     toggleStar, createTemplate, updateTemplate, deleteTemplate,
   } = useRotaTemplates();
 
-  // Departments for the template editors. Fetched via get_tenant_departments
-  // (same RPC every other department picker in the app uses) so the list
-  // shows EVERY department the tenant uses — not only ones with crew on the
-  // current rota. Templates are reusable, vessel-wide patterns applied to
-  // future rotas with different crew; a chief must be able to author e.g.
-  // an Engineering template even when no engineer is rostered today.
+  // Departments for the template editors. Fetched via get_tenant_departments,
+  // then INTERSECTED with vessels.departments_in_use so the list shows only
+  // the departments this tenant actually uses (5 for the test tenant, not
+  // the 11-row global table). The RPC's p_tenant_id is a membership gate,
+  // not a real scope filter (TODO(backlog) on migration 20260430110100);
+  // until that lands at the schema level, intersect client-side.
   const [departments, setDepartments] = useState([]);
   useEffect(() => {
     if (!activeTenantId) { setDepartments([]); return; }
     let alive = true;
-    supabase
-      .rpc('get_tenant_departments', { p_tenant_id: activeTenantId })
-      .then(({ data, error }) => {
-        if (!alive) return;
-        if (error) {
-          console.error('[crew-rota] get_tenant_departments error:', error);
-          setDepartments([]);
-          return;
-        }
-        setDepartments((data || []).map(d => ({ id: d.id, name: d.name })));
-      });
+    (async () => {
+      const [veRes, dpRes] = await Promise.all([
+        supabase.from('vessels')
+          .select('departments_in_use').eq('tenant_id', activeTenantId).maybeSingle(),
+        supabase.rpc('get_tenant_departments', { p_tenant_id: activeTenantId }),
+      ]);
+      if (!alive) return;
+      if (dpRes.error) {
+        console.error('[crew-rota] get_tenant_departments error:', dpRes.error);
+        setDepartments([]);
+        return;
+      }
+      const all = (dpRes.data || []).map((d) => ({ id: d.id, name: d.name }));
+      const inUse = Array.isArray(veRes.data?.departments_in_use)
+        ? veRes.data.departments_in_use
+        : null;
+      // If departments_in_use is populated, filter strictly; otherwise fall
+      // back to the full RPC list (covers any tenant that hasn't migrated
+      // to the uuid[] column yet, so the picker never goes empty).
+      let list = all;
+      if (inUse && inUse.length > 0) {
+        const set = new Set(inUse);
+        list = all.filter((d) => set.has(d.id));
+      }
+      list.sort((a, b) => a.name.localeCompare(b.name));
+      setDepartments(list);
+    })();
     return () => { alive = false; };
   }, [activeTenantId]);
-
-  // Distinct role-name suggestions (datalist source for the rotation editor).
-  const roleSuggestions = useMemo(() => {
-    const set = new Set();
-    for (const c of crew) if (c.role) set.add(String(c.role));
-    return Array.from(set);
-  }, [crew]);
 
   const total = crew.length;
   const onDuty = crew.filter(c => c.onNow && !c.offToday).length;
@@ -442,7 +451,7 @@ export default function CrewRotaPage() {
           departments={departments}
           myDeptId={user?.department_id || null}
           vesselId={rota?.vesselId || null}
-          roleSuggestions={roleSuggestions}
+          crew={crew}
           onClose={() => { setEditor(null); setPickerOpen(true); }}
           createTemplate={createTemplate}
           updateTemplate={updateTemplate}

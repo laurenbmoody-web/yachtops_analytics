@@ -1295,6 +1295,12 @@
   cursor: not-allowed;
 }
 .te-dept-row input[type='checkbox'] { accent-color: #C65A1A; }
+.te-dept-hint {
+  margin-top: 6px;
+  font-size: 11px;
+  font-style: italic;
+  color: #7A2E1E;
+}
 
 .te-pills {
   display: flex;
@@ -1540,3 +1546,80 @@
 }
 
 .rt-add-role { align-self: flex-start; margin-top: 8px; }
+
+/* ============================================================
+   TimeSelect — Cargo-styled 30-min time picker (reusable)
+   ============================================================ */
+.time-select { position: relative; min-width: 0; }
+.time-select-trigger {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px;
+  color: #1C1B3A;
+  background: #FFFFFF;
+  border: 0.5px solid #DFD8CC;
+  border-radius: 8px;
+  padding: 7px 10px;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  cursor: pointer;
+  text-align: left;
+}
+.time-select-trigger:hover:not(:disabled) { border-color: #C65A1A; }
+.time-select.is-open .time-select-trigger,
+.time-select-trigger:focus {
+  outline: none;
+  border-color: #C65A1A;
+  box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.12);
+}
+.time-select-trigger:disabled {
+  background: #FAFAF7;
+  color: #B4B2A9;
+  cursor: not-allowed;
+}
+.time-select-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.time-select-chevron { color: #8B8478; flex-shrink: 0; }
+
+.time-select-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  min-width: 96px;
+  background: #FFFFFF;
+  border: 0.5px solid #DFD8CC;
+  border-radius: 8px;
+  box-shadow: 0 12px 32px -10px rgba(28, 27, 58, 0.18),
+              0 4px 12px -6px rgba(28, 27, 58, 0.08);
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 1010;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+.time-select-opt {
+  background: transparent;
+  border: none;
+  padding: 6px 10px;
+  text-align: left;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px;
+  color: #1C1B3A;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.time-select-opt:hover { background: #FAFAF7; }
+.time-select-opt.is-active {
+  background: #FAECE7;
+  color: #7A2E1E;
+  font-weight: 600;
+}

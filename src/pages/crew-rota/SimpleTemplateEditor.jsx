@@ -27,7 +27,9 @@ function subTypeFor(t) {
 }
 function fmtTime(t) { return t ? String(t).slice(0, 5) : ''; }
 
-// Selection state value: 'all' | departmentId(string).
+// Selection state value: 'all' | departmentId(string) | null. null
+// happens when the user unticks "All departments" before picking one;
+// canSave gates so we never persist a no-scope save.
 function initialSelection(template, myDeptId) {
   if (template) {
     if (template.scope === 'vessel') return 'all';
@@ -78,10 +80,11 @@ export default function SimpleTemplateEditor({
 
   const canSave = useMemo(() => {
     if (!name.trim()) return false;
+    if (selection == null) return false;
     if (!noFixedHours && (!startTime || !endTime)) return false;
     if (editingLocked) return false;
     return true;
-  }, [name, noFixedHours, startTime, endTime, editingLocked]);
+  }, [name, selection, noFixedHours, startTime, endTime, editingLocked]);
 
   if (!open) return null;
 
@@ -167,7 +170,7 @@ export default function SimpleTemplateEditor({
                 <input
                   type="checkbox"
                   checked={selection === 'all'}
-                  onChange={() => setSelection('all')}
+                  onChange={() => setSelection((cur) => (cur === 'all' ? null : 'all'))}
                 />
                 <span>All departments</span>
               </label>
@@ -187,13 +190,16 @@ export default function SimpleTemplateEditor({
                       type="checkbox"
                       checked={checked}
                       disabled={lockedByAll}
-                      onChange={() => setSelection(d.id)}
+                      onChange={() => setSelection((cur) => (cur === d.id ? null : d.id))}
                     />
                     <span>{d.name}</span>
                   </label>
                 );
               })}
             </div>
+            {selection == null && (
+              <div className="te-dept-hint">Pick a department or “All departments”.</div>
+            )}
           </div>
 
           <div className="te-field">
