@@ -11,6 +11,7 @@ import {
 import { saveItem, deleteItem } from '../utils/inventoryStorage';
 import { getCurrentUser, hasCommandAccess, hasChiefAccess } from '../../../utils/authStorage';
 
+import ModalShell from '../../../components/ui/ModalShell';
 const BulkActionsModal = ({ selectedItems, items, onClose, onComplete }) => {
   const [action, setAction] = useState(''); // 'move', 'delete'
   const [targetL1, setTargetL1] = useState('');
@@ -113,148 +114,146 @@ const BulkActionsModal = ({ selectedItems, items, onClose, onComplete }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900">
-            Bulk Actions ({selectedItems?.length} items)
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <Icon name="X" size={20} className="text-gray-600" />
-          </button>
-        </div>
+    <ModalShell onClose={onClose} panelClassName="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-900">
+          Bulk Actions ({selectedItems?.length} items)
+        </h2>
+        <button
+          onClick={onClose}
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          <Icon name="X" size={20} className="text-gray-600" />
+        </button>
+      </div>
 
-        {/* Content */}
-        <div className="p-6 space-y-4">
-          {/* Action Selection */}
-          {!action && (
-            <div className="space-y-3">
+      {/* Content */}
+      <div className="p-6 space-y-4">
+        {/* Action Selection */}
+        {!action && (
+          <div className="space-y-3">
+            <button
+              onClick={() => setAction('move')}
+              className="w-full p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-left"
+            >
+              <div className="flex items-center gap-3">
+                <Icon name="FolderTree" size={24} className="text-blue-600" />
+                <div>
+                  <h3 className="font-semibold text-gray-900">Move Items</h3>
+                  <p className="text-sm text-gray-600">Change taxonomy category</p>
+                </div>
+              </div>
+            </button>
+            {canDelete && (
               <button
-                onClick={() => setAction('move')}
-                className="w-full p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-left"
+                onClick={() => setAction('delete')}
+                className="w-full p-4 border-2 border-gray-200 rounded-lg hover:border-red-500 hover:bg-red-50 transition-all text-left"
               >
                 <div className="flex items-center gap-3">
-                  <Icon name="FolderTree" size={24} className="text-blue-600" />
+                  <Icon name="Trash2" size={24} className="text-red-600" />
                   <div>
-                    <h3 className="font-semibold text-gray-900">Move Items</h3>
-                    <p className="text-sm text-gray-600">Change taxonomy category</p>
+                    <h3 className="font-semibold text-gray-900">Delete Items</h3>
+                    <p className="text-sm text-gray-600">Permanently remove items</p>
                   </div>
                 </div>
               </button>
-              {canDelete && (
-                <button
-                  onClick={() => setAction('delete')}
-                  className="w-full p-4 border-2 border-gray-200 rounded-lg hover:border-red-500 hover:bg-red-50 transition-all text-left"
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon name="Trash2" size={24} className="text-red-600" />
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Delete Items</h3>
-                      <p className="text-sm text-gray-600">Permanently remove items</p>
-                    </div>
-                  </div>
-                </button>
-              )}
-            </div>
-          )}
+            )}
+          </div>
+        )}
 
-          {/* Move Action */}
-          {action === 'move' && (
-            <div className="space-y-4">
+        {/* Move Action */}
+        {action === 'move' && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Level 1 Category *</label>
+              <Select
+                value={targetL1}
+                onChange={(e) => setTargetL1(e?.target?.value)}
+                options={[
+                  { value: '', label: 'Select L1...' },
+                  ...taxonomyL1?.map(cat => ({ value: cat?.id, label: cat?.name }))
+                ]}
+              />
+            </div>
+            {targetL1 && taxonomyL2?.length > 0 && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Level 1 Category *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Level 2 Category</label>
                 <Select
-                  value={targetL1}
-                  onChange={(e) => setTargetL1(e?.target?.value)}
+                  value={targetL2}
+                  onChange={(e) => setTargetL2(e?.target?.value)}
                   options={[
-                    { value: '', label: 'Select L1...' },
-                    ...taxonomyL1?.map(cat => ({ value: cat?.id, label: cat?.name }))
+                    { value: '', label: 'Select L2...' },
+                    ...taxonomyL2?.map(cat => ({ value: cat?.id, label: cat?.name }))
                   ]}
                 />
               </div>
-              {targetL1 && taxonomyL2?.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Level 2 Category</label>
-                  <Select
-                    value={targetL2}
-                    onChange={(e) => setTargetL2(e?.target?.value)}
-                    options={[
-                      { value: '', label: 'Select L2...' },
-                      ...taxonomyL2?.map(cat => ({ value: cat?.id, label: cat?.name }))
-                    ]}
-                  />
-                </div>
-              )}
-              {targetL2 && taxonomyL3?.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Level 3 Category</label>
-                  <Select
-                    value={targetL3}
-                    onChange={(e) => setTargetL3(e?.target?.value)}
-                    options={[
-                      { value: '', label: 'Select L3...' },
-                      ...taxonomyL3?.map(cat => ({ value: cat?.id, label: cat?.name }))
-                    ]}
-                  />
-                </div>
-              )}
-              {targetL3 && taxonomyL4?.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Level 4 Category</label>
-                  <Select
-                    value={targetL4}
-                    onChange={(e) => setTargetL4(e?.target?.value)}
-                    options={[
-                      { value: '', label: 'Select L4...' },
-                      ...taxonomyL4?.map(cat => ({ value: cat?.id, label: cat?.name }))
-                    ]}
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Delete Action */}
-          {action === 'delete' && (
-            <div className="space-y-4">
-              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-red-800 font-medium">⚠️ Warning: This action cannot be undone</p>
-                <p className="text-red-700 text-sm mt-2">
-                  You are about to permanently delete {selectedItems?.length} item(s).
-                </p>
+            )}
+            {targetL2 && taxonomyL3?.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Level 3 Category</label>
+                <Select
+                  value={targetL3}
+                  onChange={(e) => setTargetL3(e?.target?.value)}
+                  options={[
+                    { value: '', label: 'Select L3...' },
+                    ...taxonomyL3?.map(cat => ({ value: cat?.id, label: cat?.name }))
+                  ]}
+                />
               </div>
-              {!confirmDelete && (
-                <p className="text-gray-600 text-sm">Click Delete again to confirm.</p>
-              )}
-            </div>
-          )}
-        </div>
+            )}
+            {targetL3 && taxonomyL4?.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Level 4 Category</label>
+                <Select
+                  value={targetL4}
+                  onChange={(e) => setTargetL4(e?.target?.value)}
+                  options={[
+                    { value: '', label: 'Select L4...' },
+                    ...taxonomyL4?.map(cat => ({ value: cat?.id, label: cat?.name }))
+                  ]}
+                />
+              </div>
+            )}
+          </div>
+        )}
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end gap-3">
-          <Button
-            onClick={onClose}
-            variant="outline"
-            disabled={isProcessing}
-          >
-            Cancel
-          </Button>
-          {action && (
-            <Button
-              onClick={handleExecute}
-              disabled={isProcessing}
-              className={action === 'delete' ? 'bg-red-600 hover:bg-red-700' : ''}
-            >
-              {isProcessing ? 'Processing...' : action === 'delete' ? 'Delete' : 'Move'}
-            </Button>
-          )}
-        </div>
+        {/* Delete Action */}
+        {action === 'delete' && (
+          <div className="space-y-4">
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-800 font-medium">⚠️ Warning: This action cannot be undone</p>
+              <p className="text-red-700 text-sm mt-2">
+                You are about to permanently delete {selectedItems?.length} item(s).
+              </p>
+            </div>
+            {!confirmDelete && (
+              <p className="text-gray-600 text-sm">Click Delete again to confirm.</p>
+            )}
+          </div>
+        )}
       </div>
-    </div>
+
+      {/* Footer */}
+      <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end gap-3">
+        <Button
+          onClick={onClose}
+          variant="outline"
+          disabled={isProcessing}
+        >
+          Cancel
+        </Button>
+        {action && (
+          <Button
+            onClick={handleExecute}
+            disabled={isProcessing}
+            className={action === 'delete' ? 'bg-red-600 hover:bg-red-700' : ''}
+          >
+            {isProcessing ? 'Processing...' : action === 'delete' ? 'Delete' : 'Move'}
+          </Button>
+        )}
+      </div>
+    </ModalShell>
   );
 };
 

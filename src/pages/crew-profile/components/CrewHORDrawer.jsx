@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import { getComplianceStatus, getMonthCalendarData, detectBreaches } from '../utils/horStorage';
+import useDismissable from '../../../components/ui/useDismissable';
 
 const CrewHORDrawer = ({ isOpen, onClose, crew, currentMonth, onMonthChange, onNudge, onRequestCorrection }) => {
+  useDismissable({ onClose, enabled: isOpen });
   const [horData, setHorData] = useState(null);
   const [localMonth, setLocalMonth] = useState(currentMonth);
 

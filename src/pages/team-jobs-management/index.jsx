@@ -47,6 +47,7 @@ import { notifySenderDeclined, notifySenderAccepted } from './utils/notification
 import { normalizeTier, isCommand, isChief, isHod, isCrew, isViewOnly, isOwnDepartmentView as calcIsOwnDeptView, canEditDepartment, canAddJob, canCompleteJob, canComment, canCreateBoard, canDeleteBoard, canRenameBoard, jobModalMode as calcJobModalMode, isPrivateJobOwner, isPrivateBoardOwner, getUserCapabilities } from './utils/tierPermissions';
 import { showToast } from '../../utils/toast';
 
+import ModalShell from '../../components/ui/ModalShell';
 const notifyJobAssigned = (assigneeIds, jobTitle, jobId, dueDate) => {
   console.log('Job assigned notification:', { assigneeIds, jobTitle, jobId, dueDate });
 };
@@ -2437,41 +2438,39 @@ onClick={() => canToggleDept && departments?.length > 0 && setShowDeptDropdown(!
                 const movingBoardName = movingBoard ? ((deptId && movingBoard?.names?.[deptId]) ? movingBoard?.names?.[deptId] : (movingBoard?.name || 'Board')) : '';
                 const currentIndex = orderedBoards?.findIndex(b => b?.id === moveBoardId);
                 return (
-                  <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-black/50 p-4" onClick={() => setMoveBoardId(null)}>
-                    <div className="bg-card rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={e => e?.stopPropagation()}>
-                      <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-semibold text-foreground">Move Board</h2>
-                        <button onClick={() => setMoveBoardId(null)} className="text-muted-foreground hover:text-foreground">
-                          <Icon name="X" size={20} />
-                        </button>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-4">Move <strong className="text-foreground">{movingBoardName}</strong> to position:</p>
-                      <div className="space-y-1 max-h-64 overflow-y-auto">
-                        {orderedBoards?.map((b, idx) => {
-                          const bName = (deptId && b?.names?.[deptId]) ? b?.names?.[deptId] : (b?.name || 'Board');
-                          const isCurrent = b?.id === moveBoardId;
-                          return (
-                            <button
-                              key={b?.id}
-                              disabled={isCurrent}
-                              onClick={() => handleMoveBoard(moveBoardId, idx)}
-                              className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center gap-2 ${
-                                isCurrent
-                                  ? 'bg-primary/10 text-primary font-medium cursor-default' :'hover:bg-muted text-foreground'
-                              }`}
-                            >
-                              <span className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground flex-shrink-0">{idx + 1}</span>
-                              {bName}
-                              {isCurrent && <span className="ml-auto text-xs text-primary">(current)</span>}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <div className="mt-4">
-                        <Button variant="outline" className="w-full" onClick={() => setMoveBoardId(null)}>Cancel</Button>
-                      </div>
+                  <ModalShell onClose={() => setMoveBoardId(null)} panelClassName="bg-card rounded-2xl shadow-2xl w-full max-w-sm p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-lg font-semibold text-foreground">Move Board</h2>
+                      <button onClick={() => setMoveBoardId(null)} className="text-muted-foreground hover:text-foreground">
+                        <Icon name="X" size={20} />
+                      </button>
                     </div>
-                  </div>
+                    <p className="text-sm text-muted-foreground mb-4">Move <strong className="text-foreground">{movingBoardName}</strong> to position:</p>
+                    <div className="space-y-1 max-h-64 overflow-y-auto">
+                      {orderedBoards?.map((b, idx) => {
+                        const bName = (deptId && b?.names?.[deptId]) ? b?.names?.[deptId] : (b?.name || 'Board');
+                        const isCurrent = b?.id === moveBoardId;
+                        return (
+                          <button
+                            key={b?.id}
+                            disabled={isCurrent}
+                            onClick={() => handleMoveBoard(moveBoardId, idx)}
+                            className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center gap-2 ${
+                              isCurrent
+                                ? 'bg-primary/10 text-primary font-medium cursor-default' :'hover:bg-muted text-foreground'
+                            }`}
+                          >
+                            <span className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground flex-shrink-0">{idx + 1}</span>
+                            {bName}
+                            {isCurrent && <span className="ml-auto text-xs text-primary">(current)</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-4">
+                      <Button variant="outline" className="w-full" onClick={() => setMoveBoardId(null)}>Cancel</Button>
+                    </div>
+                  </ModalShell>
                 );
               })()}
             </>)

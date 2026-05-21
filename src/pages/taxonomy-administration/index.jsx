@@ -6,6 +6,7 @@ import Button from '../../components/ui/Button';
 import { getAllCategories, getAllSubcategoriesL2, getAllSubcategoriesL3, saveCategory, deleteCategory, deleteSubcategoryL2, deleteSubcategoryL3, getItemCountForCategory, getItemCountForSubcategoryL2, getItemCountForSubcategoryL3 } from '../inventory-management/utils/taxonomyStorage';
 import { getCurrentUser, hasCommandAccess } from '../../utils/authStorage';
 
+import ModalShell from '../../components/ui/ModalShell';
 const TaxonomyAdministration = () => {
   const navigate = useNavigate();
   const currentUser = getCurrentUser();
@@ -306,72 +307,70 @@ const TaxonomyAdministration = () => {
             className="fixed inset-0 bg-black/50 z-[var(--z-overlay)]"
             onClick={() => setShowCreateCategory(false)}
           />
-          <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center p-6">
-            <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md">
-              <div className="p-6 border-b border-border">
-                <h3 className="text-xl font-semibold text-foreground">Create Category</h3>
+          <ModalShell onClose={onClose} panelClassName="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="p-6 border-b border-border">
+              <h3 className="text-xl font-semibold text-foreground">Create Category</h3>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Category Name <span className="text-error">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e?.target?.value)}
+                  placeholder="e.g., Galley, Interior"
+                  className="w-full px-4 py-2.5 bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  autoFocus
+                />
               </div>
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Category Name <span className="text-error">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={newCategoryName}
-                    onChange={(e) => setNewCategoryName(e?.target?.value)}
-                    placeholder="e.g., Galley, Interior"
-                    className="w-full px-4 py-2.5 bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    autoFocus
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Icon
-                  </label>
-                  <select
-                    value={newCategoryIcon}
-                    onChange={(e) => setNewCategoryIcon(e?.target?.value)}
-                    className="w-full px-4 py-2.5 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    {iconOptions?.map(icon => (
-                      <option key={icon} value={icon}>{icon}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Department
-                  </label>
-                  <select
-                    value={newCategoryDepartment}
-                    onChange={(e) => setNewCategoryDepartment(e?.target?.value)}
-                    className="w-full px-4 py-2.5 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    {departmentOptions?.map(dept => (
-                      <option key={dept?.value} value={dept?.value}>{dept?.label}</option>
-                    ))}
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Icon
+                </label>
+                <select
+                  value={newCategoryIcon}
+                  onChange={(e) => setNewCategoryIcon(e?.target?.value)}
+                  className="w-full px-4 py-2.5 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  {iconOptions?.map(icon => (
+                    <option key={icon} value={icon}>{icon}</option>
+                  ))}
+                </select>
               </div>
-              <div className="p-6 border-t border-border flex gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowCreateCategory(false)}
-                  className="flex-1"
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Department
+                </label>
+                <select
+                  value={newCategoryDepartment}
+                  onChange={(e) => setNewCategoryDepartment(e?.target?.value)}
+                  className="w-full px-4 py-2.5 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 >
-                  Cancel
-                </Button>
-                <Button
-                  variant="default"
-                  onClick={handleCreateCategory}
-                  className="flex-1"
-                >
-                  Create
-                </Button>
+                  {departmentOptions?.map(dept => (
+                    <option key={dept?.value} value={dept?.value}>{dept?.label}</option>
+                  ))}
+                </select>
               </div>
             </div>
-          </div>
+            <div className="p-6 border-t border-border flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowCreateCategory(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="default"
+                onClick={handleCreateCategory}
+                className="flex-1"
+              >
+                Create
+              </Button>
+            </div>
+          </ModalShell>
         </>
       )}
     </div>

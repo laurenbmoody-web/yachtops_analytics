@@ -189,7 +189,7 @@ const BD_STYLES = `
 
 // ── Edit mode ────────────────────────────────────────────────────────────────
 
-const EditMode = ({ list, trips, tenantId, departments = [], onSaved, onDeleted, onClose }) => {
+const EditMode = ({ list, trips, tenantId, departments = [], onSaved, onDeleted, onClose, onDirtyChange, onBusyChange }) => {
   const [form, setForm] = useState({
     title: '',
     board_type: 'general',
@@ -292,6 +292,23 @@ const EditMode = ({ list, trips, tenantId, departments = [], onSaved, onDeleted,
   };
 
   const set = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
+
+  // Dirty signal — any form field differs from the loaded list (using the
+  // same fallbacks the hydrate effect applies, so a freshly-opened drawer
+  // reads clean). Published to BoardDrawer so it can pass it to Drawer's
+  // close gate.
+  const isDirty = !!list && (
+    form.title !== (list.title || '') ||
+    form.board_type !== (list.board_type || 'general') ||
+    form.trip_id !== (list.trip_id || '') ||
+    form.department !== normDept(list.department) ||
+    form.estimated_cost !== (list.estimated_cost || '') ||
+    form.currency !== (list.currency || 'USD') ||
+    form.notes !== (list.notes || '') ||
+    form.visibility !== (list.visibility || (list.is_private ? 'private' : 'shared'))
+  );
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
+  useEffect(() => { onBusyChange?.(saving || deleting); }, [saving, deleting, onBusyChange]);
 
   const inputCls = 'bd-input';
   const labelCls = 'bd-label';
@@ -859,10 +876,18 @@ const DRAWER_TITLES = {
 };
 
 const BoardDrawer = ({ open, mode, list, trips, tenantId, departments = [], onSaved, onDeleted, onAddItems, onClose }) => {
+  // EditMode publishes its dirty / busy state up so Drawer's close gate can
+  // see it. Suggestions / Templates modes don't carry user input that
+  // needs guarding; we leave the gate at false for those.
+  const [editDirty, setEditDirty] = useState(false);
+  const [editBusy, setEditBusy] = useState(false);
+  const isDirty = mode === 'edit' && editDirty;
+  const isBusy = mode === 'edit' && editBusy;
+
   if (!list) return null;
 
   return (
-    <Drawer open={open} onClose={onClose} title={DRAWER_TITLES[mode] || 'Board'}>
+    <Drawer open={open} onClose={onClose} isDirty={isDirty} isBusy={isBusy} title={DRAWER_TITLES[mode] || 'Board'}>
       <style>{BD_STYLES}</style>
       {mode === 'edit' && (
         <EditMode
@@ -873,6 +898,8 @@ const BoardDrawer = ({ open, mode, list, trips, tenantId, departments = [], onSa
           onSaved={onSaved}
           onDeleted={onDeleted}
           onClose={onClose}
+          onDirtyChange={setEditDirty}
+          onBusyChange={setEditBusy}
         />
       )}
       {mode === 'suggestions' && (

@@ -5,6 +5,7 @@ import { supabase } from '../../../lib/supabaseClient';
 import { showToast } from '../../../utils/toast';
 
 
+import ModalShell from '../../../components/ui/ModalShell';
 const EditAssignmentModal = ({ isOpen, onClose, member, onSuccess }) => {
   const [departmentId, setDepartmentId] = useState('');
   const [roleId, setRoleId] = useState('');
@@ -201,141 +202,139 @@ const EditAssignmentModal = ({ isOpen, onClose, member, onSuccess }) => {
   if (!isOpen || !member) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-6">
-      <div className="bg-card border border-border rounded-2xl w-full max-w-md">
-        {/* Header */}
-        <div className="bg-card border-b border-border p-6 flex items-center justify-between">
+    <ModalShell onClose={handleClose} panelClassName="bg-card border border-border rounded-2xl w-full max-w-md">
+      {/* Header */}
+      <div className="bg-card border-b border-border p-6 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+            <Icon name="Edit" size={20} className="text-primary" />
+          </div>
+          <h2 className="text-xl font-semibold text-foreground">
+            Edit Assignment
+          </h2>
+        </div>
+        <button
+          onClick={handleClose}
+          className="p-2 hover:bg-muted rounded-lg transition-smooth"
+        >
+          <Icon name="X" size={20} className="text-muted-foreground" />
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        {/* Member Info (Read-only) */}
+        <div className="bg-muted/20 border border-border rounded-lg p-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <Icon name="Edit" size={20} className="text-primary" />
+              <Icon name="User" size={18} className="text-primary" />
             </div>
-            <h2 className="text-xl font-semibold text-foreground">
-              Edit Assignment
-            </h2>
+            <div>
+              <p className="text-sm font-medium text-foreground">{member?.fullName}</p>
+              <p className="text-xs text-muted-foreground">{member?.email}</p>
+            </div>
           </div>
-          <button
-            onClick={handleClose}
-            className="p-2 hover:bg-muted rounded-lg transition-smooth"
-          >
-            <Icon name="X" size={20} className="text-muted-foreground" />
-          </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {/* Member Info (Read-only) */}
-          <div className="bg-muted/20 border border-border rounded-lg p-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Icon name="User" size={18} className="text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">{member?.fullName}</p>
-                <p className="text-xs text-muted-foreground">{member?.email}</p>
-              </div>
-            </div>
-          </div>
+        {/* Department */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Department
+          </label>
+          <select
+            value={departmentId}
+            onChange={handleDepartmentChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={loading || loadingDepartments}
+          >
+            <option value="">Select Department</option>
+            {departments?.map(dept => (
+              <option key={dept?.id} value={dept?.id}>{dept?.name}</option>
+            ))}
+          </select>
+        </div>
 
-          {/* Department */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Department
-            </label>
-            <select
-              value={departmentId}
-              onChange={handleDepartmentChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={loading || loadingDepartments}
-            >
-              <option value="">Select Department</option>
-              {departments?.map(dept => (
-                <option key={dept?.id} value={dept?.id}>{dept?.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Role */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Role {departmentId && <span className="text-red-500">*</span>}
-            </label>
-            <select
-              value={roleId}
-              onChange={(e) => setRoleId(e?.target?.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={loading || loadingJobTitles || !departmentId}
-            >
-              <option value="">Select Role</option>
-              {roles?.map(role => (
-                <option key={role?.id} value={role?.id}>{role?.name}</option>
-              ))}
-            </select>
-            {loadingJobTitles && (
-              <p className="text-xs text-gray-500 mt-1">Loading roles...</p>
-            )}
-          </div>
-
-          {/* Permission Role */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Permission Role <span className="text-error">*</span>
-            </label>
-            <select
-              value={permissionRole}
-              onChange={(e) => setPermissionRole(e?.target?.value)}
-              required
-              disabled={loading}
-              className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-white text-black px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <option value="">Select a role</option>
-              <option value="COMMAND">Command</option>
-              <option value="CHIEF">Chief</option>
-              <option value="HOD">Head of Department</option>
-              <option value="CREW">Crew</option>
-            </select>
-          </div>
-
-          {/* Status */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Status <span className="text-error">*</span>
-            </label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e?.target?.value)}
-              required
-              disabled={loading}
-              className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-white text-black px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Archived</option>
-            </select>
-          </div>
-
-          {/* Error Message */}
-          {error && (
-            <div className="bg-error/10 border border-error/20 rounded-lg p-3 flex items-start gap-2">
-              <Icon name="AlertCircle" size={18} className="text-error mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-error">{error}</p>
-            </div>
+        {/* Role */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Role {departmentId && <span className="text-red-500">*</span>}
+          </label>
+          <select
+            value={roleId}
+            onChange={(e) => setRoleId(e?.target?.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={loading || loadingJobTitles || !departmentId}
+          >
+            <option value="">Select Role</option>
+            {roles?.map(role => (
+              <option key={role?.id} value={role?.id}>{role?.name}</option>
+            ))}
+          </select>
+          {loadingJobTitles && (
+            <p className="text-xs text-gray-500 mt-1">Loading roles...</p>
           )}
+        </div>
 
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={handleClose}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Saving...' : 'Save Changes'}
-            </Button>
+        {/* Permission Role */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Permission Role <span className="text-error">*</span>
+          </label>
+          <select
+            value={permissionRole}
+            onChange={(e) => setPermissionRole(e?.target?.value)}
+            required
+            disabled={loading}
+            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-white text-black px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <option value="">Select a role</option>
+            <option value="COMMAND">Command</option>
+            <option value="CHIEF">Chief</option>
+            <option value="HOD">Head of Department</option>
+            <option value="CREW">Crew</option>
+          </select>
+        </div>
+
+        {/* Status */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Status <span className="text-error">*</span>
+          </label>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e?.target?.value)}
+            required
+            disabled={loading}
+            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-white text-black px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <option value="ACTIVE">Active</option>
+            <option value="INACTIVE">Archived</option>
+          </select>
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-error/10 border border-error/20 rounded-lg p-3 flex items-start gap-2">
+            <Icon name="AlertCircle" size={18} className="text-error mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-error">{error}</p>
           </div>
-        </form>
-      </div>
-    </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={handleClose}
+            disabled={loading}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={loading}>
+            {loading ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </div>
+      </form>
+    </ModalShell>
   );
 };
 

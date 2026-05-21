@@ -5,6 +5,7 @@ import Button from '../../components/ui/Button';
 import Header from '../../components/navigation/Header';
 import { saveItem, getAllItems } from '../inventory-management/utils/inventoryStorage';
 
+import ModalShell from '../../components/ui/ModalShell';
 const ImportStatusReview = () => {
   const navigate = useNavigate();
   const [importData, setImportData] = useState(null);
@@ -600,74 +601,72 @@ const ImportStatusReview = () => {
       </div>
       {/* Success Modal */}
       {showSuccessModal && results && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-          <div className="bg-card rounded-2xl border border-border shadow-xl max-w-md w-full p-8 animate-in fade-in zoom-in duration-200">
-            {/* Success Icon */}
-            <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-6">
-              <Icon name="CheckCircle2" size={32} className="text-success" />
-            </div>
-            
-            {/* Title */}
-            <h2 className="text-2xl font-semibold text-foreground text-center mb-2">
-              Inventory Imported Successfully
-            </h2>
-            <p className="text-sm text-muted-foreground text-center mb-6">
-              Your inventory data has been committed to the live system and is now visible in the Inventory dashboard
-            </p>
-            
-            {/* Statistics */}
-            <div className="space-y-3 mb-6">
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <span className="text-sm text-muted-foreground">Items Added</span>
-                <span className="text-lg font-semibold text-foreground">{results?.itemsCreated}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <span className="text-sm text-muted-foreground">Items Updated</span>
-                <span className="text-lg font-semibold text-foreground">{results?.itemsUpdated}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <span className="text-sm text-muted-foreground">Categories Updated</span>
-                <span className="text-lg font-semibold text-foreground">{results?.categoriesUpdated}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <span className="text-sm text-muted-foreground">Locations Added</span>
-                <span className="text-lg font-semibold text-foreground">{results?.locationsCreated}</span>
-              </div>
-              
-              {/* LIVE VERIFICATION DISPLAY */}
-              {liveVerification && (
-                <div className="border-t border-border pt-3 mt-3">
-                  <div className="flex items-center justify-between p-3 bg-success/10 rounded-lg">
-                    <span className="text-sm font-medium text-success">Live Items Now</span>
-                    <span className="text-lg font-semibold text-success">{liveVerification?.liveItemsForCurrentAsset}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground text-center mt-2">
-                    Verified in live inventory for asset: {liveVerification?.assetId}
-                  </p>
-                </div>
-              )}
-            </div>
-            
-            {/* Actions */}
-            <div className="space-y-3">
-              <Button
-                onClick={handleViewInventory}
-                variant="primary"
-                className="w-full"
-              >
-                <Icon name="Package" size={16} />
-                View Inventory
-              </Button>
-              <Button
-                onClick={() => setShowSuccessModal(false)}
-                variant="outline"
-                className="w-full"
-              >
-                Review Details
-              </Button>
-            </div>
+        <ModalShell onClose={() => setShowSuccessModal(false)} panelClassName="bg-card rounded-2xl border border-border shadow-xl max-w-md w-full p-8 animate-in fade-in zoom-in duration-200">
+          {/* Success Icon */}
+          <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-6">
+            <Icon name="CheckCircle2" size={32} className="text-success" />
           </div>
-        </div>
+          
+          {/* Title */}
+          <h2 className="text-2xl font-semibold text-foreground text-center mb-2">
+            Inventory Imported Successfully
+          </h2>
+          <p className="text-sm text-muted-foreground text-center mb-6">
+            Your inventory data has been committed to the live system and is now visible in the Inventory dashboard
+          </p>
+          
+          {/* Statistics */}
+          <div className="space-y-3 mb-6">
+            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+              <span className="text-sm text-muted-foreground">Items Added</span>
+              <span className="text-lg font-semibold text-foreground">{results?.itemsCreated}</span>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+              <span className="text-sm text-muted-foreground">Items Updated</span>
+              <span className="text-lg font-semibold text-foreground">{results?.itemsUpdated}</span>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+              <span className="text-sm text-muted-foreground">Categories Updated</span>
+              <span className="text-lg font-semibold text-foreground">{results?.categoriesUpdated}</span>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+              <span className="text-sm text-muted-foreground">Locations Added</span>
+              <span className="text-lg font-semibold text-foreground">{results?.locationsCreated}</span>
+            </div>
+            
+            {/* LIVE VERIFICATION DISPLAY */}
+            {liveVerification && (
+              <div className="border-t border-border pt-3 mt-3">
+                <div className="flex items-center justify-between p-3 bg-success/10 rounded-lg">
+                  <span className="text-sm font-medium text-success">Live Items Now</span>
+                  <span className="text-lg font-semibold text-success">{liveVerification?.liveItemsForCurrentAsset}</span>
+                </div>
+                <p className="text-xs text-muted-foreground text-center mt-2">
+                  Verified in live inventory for asset: {liveVerification?.assetId}
+                </p>
+              </div>
+            )}
+          </div>
+          
+          {/* Actions */}
+          <div className="space-y-3">
+            <Button
+              onClick={handleViewInventory}
+              variant="primary"
+              className="w-full"
+            >
+              <Icon name="Package" size={16} />
+              View Inventory
+            </Button>
+            <Button
+              onClick={() => setShowSuccessModal(false)}
+              variant="outline"
+              className="w-full"
+            >
+              Review Details
+            </Button>
+          </div>
+        </ModalShell>
       )}
     </div>
   );

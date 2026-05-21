@@ -13,6 +13,7 @@ import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
 
 
 
+import ModalShell from '../../components/ui/ModalShell';
 const LaundryManagementDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -354,27 +355,25 @@ const LaundryManagementDashboard = () => {
       
       {/* Reset Day Confirmation Modal */}
       {showResetModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)]">
-          <div className="bg-card border border-border rounded-xl p-6 max-w-md w-full mx-4">
-            <h3 className="text-xl font-semibold text-foreground mb-2">Reset day?</h3>
-            <p className="text-sm text-muted-foreground mb-6">
-              This will clear 'Delivered Today' from the operational view. Open items remain.
-            </p>
-            <div className="flex items-center gap-3 justify-end">
-              <Button
-                variant="outline"
-                onClick={() => setShowResetModal(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={confirmResetDay}
-              >
-                Reset
-              </Button>
-            </div>
+        <ModalShell onClose={() => setShowResetModal(false)} panelClassName="bg-card border border-border rounded-xl p-6 max-w-md w-full mx-4">
+          <h3 className="text-xl font-semibold text-foreground mb-2">Reset day?</h3>
+          <p className="text-sm text-muted-foreground mb-6">
+            This will clear 'Delivered Today' from the operational view. Open items remain.
+          </p>
+          <div className="flex items-center gap-3 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setShowResetModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmResetDay}
+            >
+              Reset
+            </Button>
           </div>
-        </div>
+        </ModalShell>
       )}
     </div>
   );

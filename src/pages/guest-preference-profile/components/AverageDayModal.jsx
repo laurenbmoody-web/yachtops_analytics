@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import Icon from '../../../components/AppIcon';
 
+import ModalShell from '../../../components/ui/ModalShell';
 // ─── Tag → Section fallback mapping ──────────────────────────────────────────
 const TAG_SECTION_MAP = {
   coffee: 'morning',
@@ -184,108 +185,100 @@ const AverageDayModal = ({ isOpen, onClose, preferences, guestName }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      {/* Modal */}
-      <div className="relative bg-card border border-border rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Icon name="CalendarDays" size={18} className="text-primary" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-foreground">Average Day</h2>
-              {guestName && (
-                <p className="text-xs text-muted-foreground">{guestName}</p>
+    <ModalShell onClose={onClose} panelClassName="relative bg-card border border-border rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Icon name="CalendarDays" size={18} className="text-primary" />
+          </div>
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Average Day</h2>
+            {guestName && (
+              <p className="text-xs text-muted-foreground">{guestName}</p>
+            )}
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-1.5 rounded-lg hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Icon name="X" size={18} />
+        </button>
+      </div>
+
+      {/* Read-only badge */}
+      <div className="px-6 pt-3 pb-0 flex-shrink-0">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+          <Icon name="Eye" size={11} />
+          Read-only snapshot from saved preferences
+        </span>
+      </div>
+
+      {/* Body */}
+      <div className="overflow-y-auto flex-1 px-6 py-4 space-y-5">
+        {SECTIONS?.map((sec) => {
+          const data = snapshot?.[sec?.key];
+          const hasItems = data?.timed?.length > 0 || data?.untimed?.length > 0;
+
+          return (
+            <div key={sec?.key}>
+              {/* Section heading */}
+              <div className="flex items-center gap-2 mb-2">
+                <Icon name={sec?.icon} size={14} className="text-primary" />
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-primary">
+                  {sec?.label}
+                </h3>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+              {!hasItems ? (
+                <p className="text-xs text-muted-foreground italic pl-1">Nothing recorded</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {/* Timed items first */}
+                  {data?.timed?.map((item) => (
+                    <div key={item?.id} className="flex items-start gap-3">
+                      <span className="text-xs font-mono font-semibold text-foreground w-11 flex-shrink-0 pt-0.5">
+                        {item?.time}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-foreground leading-snug">{item?.label}</p>
+                        {item?.subtitle && (
+                          <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{item?.subtitle}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Untimed items */}
+                  {data?.untimed?.map((item) => (
+                    <div key={item?.id} className="flex items-start gap-3">
+                      <span className="w-11 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-foreground leading-snug">{item?.label}</p>
+                        {item?.subtitle && (
+                          <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{item?.subtitle}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Icon name="X" size={18} />
-          </button>
-        </div>
-
-        {/* Read-only badge */}
-        <div className="px-6 pt-3 pb-0 flex-shrink-0">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground">
-            <Icon name="Eye" size={11} />
-            Read-only snapshot from saved preferences
-          </span>
-        </div>
-
-        {/* Body */}
-        <div className="overflow-y-auto flex-1 px-6 py-4 space-y-5">
-          {SECTIONS?.map((sec) => {
-            const data = snapshot?.[sec?.key];
-            const hasItems = data?.timed?.length > 0 || data?.untimed?.length > 0;
-
-            return (
-              <div key={sec?.key}>
-                {/* Section heading */}
-                <div className="flex items-center gap-2 mb-2">
-                  <Icon name={sec?.icon} size={14} className="text-primary" />
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-primary">
-                    {sec?.label}
-                  </h3>
-                  <div className="flex-1 h-px bg-border" />
-                </div>
-                {!hasItems ? (
-                  <p className="text-xs text-muted-foreground italic pl-1">Nothing recorded</p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {/* Timed items first */}
-                    {data?.timed?.map((item) => (
-                      <div key={item?.id} className="flex items-start gap-3">
-                        <span className="text-xs font-mono font-semibold text-foreground w-11 flex-shrink-0 pt-0.5">
-                          {item?.time}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-foreground leading-snug">{item?.label}</p>
-                          {item?.subtitle && (
-                            <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{item?.subtitle}</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-
-                    {/* Untimed items */}
-                    {data?.untimed?.map((item) => (
-                      <div key={item?.id} className="flex items-start gap-3">
-                        <span className="w-11 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-foreground leading-snug">{item?.label}</p>
-                          {item?.subtitle && (
-                            <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{item?.subtitle}</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-border flex-shrink-0">
-          <button
-            onClick={onClose}
-            className="w-full py-2 rounded-lg bg-muted hover:bg-muted/80 text-sm font-medium text-foreground transition-colors"
-          >
-            Close
-          </button>
-        </div>
+          );
+        })}
       </div>
-    </div>
+
+      {/* Footer */}
+      <div className="px-6 py-4 border-t border-border flex-shrink-0">
+        <button
+          onClick={onClose}
+          className="w-full py-2 rounded-lg bg-muted hover:bg-muted/80 text-sm font-medium text-foreground transition-colors"
+        >
+          Close
+        </button>
+      </div>
+    </ModalShell>
   );
 };
 

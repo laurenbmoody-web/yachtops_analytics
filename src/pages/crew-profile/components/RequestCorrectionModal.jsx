@@ -3,6 +3,7 @@ import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import { showToast } from '../../../utils/toast';
 import { createCorrectionRequest } from '../utils/horStorage';
+import ModalShell from '../../../components/ui/ModalShell';
 
 const RequestCorrectionModal = ({ isOpen, onClose, crew, currentMonth }) => {
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
@@ -55,15 +56,7 @@ const RequestCorrectionModal = ({ isOpen, onClose, crew, currentMonth }) => {
   };
 
   return (
-    <>
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/50 z-[var(--z-overlay)]"
-        onClick={onClose}
-      />
-      
-      {/* Modal */}
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl bg-card border border-border rounded-2xl shadow-2xl z-[var(--z-overlay)] max-h-[90vh] overflow-y-auto">
+    <ModalShell onClose={onClose} panelClassName="w-full max-w-2xl bg-card border border-border rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
@@ -187,8 +180,7 @@ const RequestCorrectionModal = ({ isOpen, onClose, crew, currentMonth }) => {
             </div>
           </div>
         </div>
-      </div>
-    </>
+    </ModalShell>
   );
 };
 

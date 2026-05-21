@@ -4,6 +4,7 @@ import Button from '../../../components/ui/Button';
 import { supabase } from '../../../lib/supabaseClient';
 import { getTierDisplayName } from '../../../utils/authStorage';
 
+import ModalShell from '../../../components/ui/ModalShell';
 const EditCrewModal = ({ isOpen, onClose, member, onSuccess }) => {
   const [departmentId, setDepartmentId] = useState('');
   const [roleId, setRoleId] = useState('');
@@ -188,182 +189,180 @@ const EditCrewModal = ({ isOpen, onClose, member, onSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-6">
-      <div className="bg-card border border-border rounded-2xl w-full max-w-md">
-        <div className="bg-card border-b border-border p-6 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-foreground">
-            Edit Crew Member
-          </h2>
-          <button
-            onClick={handleClose}
-            className="p-2 hover:bg-muted rounded-lg transition-smooth"
-          >
-            <Icon name="X" size={20} className="text-muted-foreground" />
-          </button>
-        </div>
+    <ModalShell onClose={handleClose} panelClassName="bg-card border border-border rounded-2xl w-full max-w-md">
+      <div className="bg-card border-b border-border p-6 flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-foreground">
+          Edit Crew Member
+        </h2>
+        <button
+          onClick={handleClose}
+          className="p-2 hover:bg-muted rounded-lg transition-smooth"
+        >
+          <Icon name="X" size={20} className="text-muted-foreground" />
+        </button>
+      </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {/* Member Info (Read-only) */}
-          <div className="bg-muted/20 border border-border rounded-lg p-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Icon name="User" size={18} className="text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">{member?.fullName}</p>
-                <p className="text-xs text-muted-foreground">{member?.email}</p>
-              </div>
+      <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        {/* Member Info (Read-only) */}
+        <div className="bg-muted/20 border border-border rounded-lg p-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <Icon name="User" size={18} className="text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">{member?.fullName}</p>
+              <p className="text-xs text-muted-foreground">{member?.email}</p>
             </div>
           </div>
+        </div>
 
-          {/* Department (Dropdown from public.departments) */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Department <span className="text-error">*</span>
+        {/* Department (Dropdown from public.departments) */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Department <span className="text-error">*</span>
+          </label>
+          {loadingDepartments ? (
+            <select
+              disabled
+              className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-white text-black px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option>Loading departments...</option>
+            </select>
+          ) : departments?.length === 0 ? (
+            <select
+              disabled
+              className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-white text-black px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option>No departments available</option>
+            </select>
+          ) : (
+            <select
+              value={departmentId}
+              onChange={(e) => setDepartmentId(e?.target?.value)}
+              disabled={loading}
+              required
+              className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-white text-black px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="">Select a department</option>
+              {departments?.map(dept => (
+                <option key={dept?.id} value={dept?.id}>{dept?.name}</option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        {/* Job Title (Dropdown from public.roles filtered by department_id) */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Role <span className="text-error">*</span>
+          </label>
+          {loadingRoles ? (
+            <select
+              disabled
+              className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-white text-black px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option>Loading roles...</option>
+            </select>
+          ) : filteredRoles?.length === 0 ? (
+            <select
+              disabled
+              className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-white text-black px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option>No roles available for this department</option>
+            </select>
+          ) : (
+            <select
+              value={roleId}
+              onChange={(e) => setRoleId(e?.target?.value)}
+              required
+              disabled={loading}
+              className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-white text-black px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="">Select a role</option>
+              {filteredRoles?.map(r => (
+                <option key={r?.id} value={r?.id}>
+                  {r?.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        {/* Permission Role Section */}
+        <div className="border border-border rounded-lg p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-foreground">Permission Role</h3>
+          
+          {/* Override Toggle */}
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="overrideToggle"
+              checked={overrideEnabled}
+              onChange={(e) => setOverrideEnabled(e?.target?.checked)}
+              disabled={loading}
+              className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+            />
+            <label htmlFor="overrideToggle" className="text-sm font-medium text-foreground">
+              Override default permissions
             </label>
-            {loadingDepartments ? (
-              <select
-                disabled
-                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-white text-black px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <option>Loading departments...</option>
-              </select>
-            ) : departments?.length === 0 ? (
-              <select
-                disabled
-                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-white text-black px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <option>No departments available</option>
-              </select>
-            ) : (
-              <select
-                value={departmentId}
-                onChange={(e) => setDepartmentId(e?.target?.value)}
-                disabled={loading}
-                required
-                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-white text-black px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <option value="">Select a department</option>
-                {departments?.map(dept => (
-                  <option key={dept?.id} value={dept?.id}>{dept?.name}</option>
-                ))}
-              </select>
-            )}
           </div>
 
-          {/* Job Title (Dropdown from public.roles filtered by department_id) */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Role <span className="text-error">*</span>
-            </label>
-            {loadingRoles ? (
+          {/* Default Role Display (when override OFF) */}
+          {!overrideEnabled && defaultRole && (
+            <div className="bg-muted/20 border border-border rounded-lg p-3">
+              <p className="text-sm text-muted-foreground">
+                Using default: <span className="font-medium text-foreground">{getTierDisplayName(defaultRole)}</span> (from Role Management)
+              </p>
+            </div>
+          )}
+
+          {/* Override Role Dropdown (when override ON) */}
+          {overrideEnabled && (
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Select Permission Role <span className="text-error">*</span>
+              </label>
               <select
-                disabled
-                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-white text-black px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <option>Loading roles...</option>
-              </select>
-            ) : filteredRoles?.length === 0 ? (
-              <select
-                disabled
-                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-white text-black px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <option>No roles available for this department</option>
-              </select>
-            ) : (
-              <select
-                value={roleId}
-                onChange={(e) => setRoleId(e?.target?.value)}
-                required
+                value={overrideRole}
+                onChange={(e) => setOverrideRole(e?.target?.value)}
+                required={overrideEnabled}
                 disabled={loading}
                 className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-white text-black px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="">Select a role</option>
-                {filteredRoles?.map(r => (
-                  <option key={r?.id} value={r?.id}>
-                    {r?.name}
-                  </option>
-                ))}
+                <option value="COMMAND">Command</option>
+                <option value="CHIEF">Chief</option>
+                <option value="HOD">Head of Department</option>
+                <option value="CREW">Crew</option>
               </select>
-            )}
-          </div>
-
-          {/* Permission Role Section */}
-          <div className="border border-border rounded-lg p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-foreground">Permission Role</h3>
-            
-            {/* Override Toggle */}
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="overrideToggle"
-                checked={overrideEnabled}
-                onChange={(e) => setOverrideEnabled(e?.target?.checked)}
-                disabled={loading}
-                className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
-              />
-              <label htmlFor="overrideToggle" className="text-sm font-medium text-foreground">
-                Override default permissions
-              </label>
-            </div>
-
-            {/* Default Role Display (when override OFF) */}
-            {!overrideEnabled && defaultRole && (
-              <div className="bg-muted/20 border border-border rounded-lg p-3">
-                <p className="text-sm text-muted-foreground">
-                  Using default: <span className="font-medium text-foreground">{getTierDisplayName(defaultRole)}</span> (from Role Management)
-                </p>
-              </div>
-            )}
-
-            {/* Override Role Dropdown (when override ON) */}
-            {overrideEnabled && (
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Select Permission Role <span className="text-error">*</span>
-                </label>
-                <select
-                  value={overrideRole}
-                  onChange={(e) => setOverrideRole(e?.target?.value)}
-                  required={overrideEnabled}
-                  disabled={loading}
-                  className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-white text-black px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <option value="">Select a role</option>
-                  <option value="COMMAND">Command</option>
-                  <option value="CHIEF">Chief</option>
-                  <option value="HOD">Head of Department</option>
-                  <option value="CREW">Crew</option>
-                </select>
-              </div>
-            )}
-          </div>
-
-          {/* Error Message */}
-          {error && (
-            <div className="bg-error/10 border border-error/20 rounded-lg p-3 flex items-start gap-2">
-              <Icon name="AlertCircle" size={18} className="text-error mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-error">{error}</p>
             </div>
           )}
+        </div>
 
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={handleClose}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Saving...' : 'Save Changes'}
-            </Button>
+        {/* Error Message */}
+        {error && (
+          <div className="bg-error/10 border border-error/20 rounded-lg p-3 flex items-start gap-2">
+            <Icon name="AlertCircle" size={18} className="text-error mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-error">{error}</p>
           </div>
-        </form>
-      </div>
-    </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={handleClose}
+            disabled={loading}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={loading}>
+            {loading ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </div>
+      </form>
+    </ModalShell>
   );
 };
 

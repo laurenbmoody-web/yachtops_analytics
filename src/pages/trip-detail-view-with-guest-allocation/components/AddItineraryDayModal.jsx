@@ -5,6 +5,7 @@ import Icon from '../../../components/AppIcon';
 import { showToast } from '../../../utils/toast';
 import { setItineraryDayLegacyExtras } from '../../trips-management-dashboard/utils/tripStorage';
 
+import ModalShell from '../../../components/ui/ModalShell';
 // Overview-tab modal — simpler shape than the timeline modal. Writes
 // the Supabase day record (date, location, notes) via the hook's
 // addDay/updateDay, plus the legacy keyEvents / guestMovements to a
@@ -138,128 +139,126 @@ const AddItineraryDayModal = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-      <div className="bg-card rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <h2 className="text-xl font-semibold text-foreground">
-            {editingDay ? 'Edit Itinerary Day' : 'Add Itinerary Day'}
-          </h2>
-          <button onClick={onClose} className="p-2 hover:bg-muted rounded-lg transition-smooth">
-            <Icon name="X" size={20} className="text-muted-foreground" />
-          </button>
+    <ModalShell onClose={onClose} panelClassName="bg-card rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+      <div className="flex items-center justify-between p-6 border-b border-border">
+        <h2 className="text-xl font-semibold text-foreground">
+          {editingDay ? 'Edit Itinerary Day' : 'Add Itinerary Day'}
+        </h2>
+        <button onClick={onClose} className="p-2 hover:bg-muted rounded-lg transition-smooth">
+          <Icon name="X" size={20} className="text-muted-foreground" />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1.5">
+            Date <span className="text-destructive">*</span>
+          </label>
+          <Input
+            type="date"
+            value={formData?.date}
+            onChange={(e) => handleChange('date', e?.target?.value)}
+            error={errors?.date}
+          />
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              Date <span className="text-destructive">*</span>
-            </label>
-            <Input
-              type="date"
-              value={formData?.date}
-              onChange={(e) => handleChange('date', e?.target?.value)}
-              error={errors?.date}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              Location <span className="text-destructive">*</span>
-            </label>
-            <Input
-              value={formData?.locationTitle}
-              onChange={(e) => handleChange('locationTitle', e?.target?.value)}
-              placeholder="e.g., Porto Cervo"
-              error={errors?.locationTitle}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              Key Events (Optional)
-            </label>
-            <div className="flex gap-2 mb-2">
-              <Input
-                value={keyEventInput}
-                onChange={(e) => setKeyEventInput(e?.target?.value)}
-                placeholder="Add an event"
-                onKeyPress={(e) => {
-                  if (e?.key === 'Enter') { e.preventDefault(); handleAddKeyEvent(); }
-                }}
-              />
-              <Button onClick={handleAddKeyEvent} variant="outline" className="flex-shrink-0">Add</Button>
-            </div>
-            {formData?.keyEvents?.length > 0 && (
-              <div className="space-y-1">
-                {formData.keyEvents.map((event, idx) => (
-                  <div key={idx} className="flex items-center gap-2 p-2 bg-muted/30 rounded">
-                    <span className="flex-1 text-sm text-foreground">- {event}</span>
-                    <button
-                      onClick={() => handleRemoveKeyEvent(idx)}
-                      className="p-1 hover:bg-destructive/10 rounded transition-smooth"
-                    >
-                      <Icon name="X" size={14} className="text-destructive" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              Guest Movements (Optional)
-            </label>
-            <div className="flex gap-2 mb-2">
-              <Input
-                value={guestMovementInput}
-                onChange={(e) => setGuestMovementInput(e?.target?.value)}
-                placeholder="Add a movement"
-                onKeyPress={(e) => {
-                  if (e?.key === 'Enter') { e.preventDefault(); handleAddGuestMovement(); }
-                }}
-              />
-              <Button onClick={handleAddGuestMovement} variant="outline" className="flex-shrink-0">Add</Button>
-            </div>
-            {formData?.guestMovements?.length > 0 && (
-              <div className="space-y-1">
-                {formData.guestMovements.map((movement, idx) => (
-                  <div key={idx} className="flex items-center gap-2 p-2 bg-muted/30 rounded">
-                    <span className="flex-1 text-sm text-foreground">- {movement}</span>
-                    <button
-                      onClick={() => handleRemoveGuestMovement(idx)}
-                      className="p-1 hover:bg-destructive/10 rounded transition-smooth"
-                    >
-                      <Icon name="X" size={14} className="text-destructive" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              Notes (Optional)
-            </label>
-            <textarea
-              value={formData?.notes}
-              onChange={(e) => handleChange('notes', e?.target?.value)}
-              placeholder="Additional notes for this day"
-              rows={3}
-              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-            />
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1.5">
+            Location <span className="text-destructive">*</span>
+          </label>
+          <Input
+            value={formData?.locationTitle}
+            onChange={(e) => handleChange('locationTitle', e?.target?.value)}
+            placeholder="e.g., Porto Cervo"
+            error={errors?.locationTitle}
+          />
         </div>
 
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-border">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSubmit}>
-            {editingDay ? 'Update Day' : 'Add Day'}
-          </Button>
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1.5">
+            Key Events (Optional)
+          </label>
+          <div className="flex gap-2 mb-2">
+            <Input
+              value={keyEventInput}
+              onChange={(e) => setKeyEventInput(e?.target?.value)}
+              placeholder="Add an event"
+              onKeyPress={(e) => {
+                if (e?.key === 'Enter') { e.preventDefault(); handleAddKeyEvent(); }
+              }}
+            />
+            <Button onClick={handleAddKeyEvent} variant="outline" className="flex-shrink-0">Add</Button>
+          </div>
+          {formData?.keyEvents?.length > 0 && (
+            <div className="space-y-1">
+              {formData.keyEvents.map((event, idx) => (
+                <div key={idx} className="flex items-center gap-2 p-2 bg-muted/30 rounded">
+                  <span className="flex-1 text-sm text-foreground">- {event}</span>
+                  <button
+                    onClick={() => handleRemoveKeyEvent(idx)}
+                    className="p-1 hover:bg-destructive/10 rounded transition-smooth"
+                  >
+                    <Icon name="X" size={14} className="text-destructive" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1.5">
+            Guest Movements (Optional)
+          </label>
+          <div className="flex gap-2 mb-2">
+            <Input
+              value={guestMovementInput}
+              onChange={(e) => setGuestMovementInput(e?.target?.value)}
+              placeholder="Add a movement"
+              onKeyPress={(e) => {
+                if (e?.key === 'Enter') { e.preventDefault(); handleAddGuestMovement(); }
+              }}
+            />
+            <Button onClick={handleAddGuestMovement} variant="outline" className="flex-shrink-0">Add</Button>
+          </div>
+          {formData?.guestMovements?.length > 0 && (
+            <div className="space-y-1">
+              {formData.guestMovements.map((movement, idx) => (
+                <div key={idx} className="flex items-center gap-2 p-2 bg-muted/30 rounded">
+                  <span className="flex-1 text-sm text-foreground">- {movement}</span>
+                  <button
+                    onClick={() => handleRemoveGuestMovement(idx)}
+                    className="p-1 hover:bg-destructive/10 rounded transition-smooth"
+                  >
+                    <Icon name="X" size={14} className="text-destructive" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-1.5">
+            Notes (Optional)
+          </label>
+          <textarea
+            value={formData?.notes}
+            onChange={(e) => handleChange('notes', e?.target?.value)}
+            placeholder="Additional notes for this day"
+            rows={3}
+            className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+          />
         </div>
       </div>
-    </div>
+
+      <div className="flex items-center justify-end gap-3 p-6 border-t border-border">
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button onClick={handleSubmit}>
+          {editingDay ? 'Update Day' : 'Add Day'}
+        </Button>
+      </div>
+    </ModalShell>
   );
 };
 

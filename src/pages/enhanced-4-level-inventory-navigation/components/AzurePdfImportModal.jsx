@@ -19,6 +19,7 @@ import { useTenant } from '../../../contexts/TenantContext';
 import { extractCellColors, getDominantColumnColor, isColourColumn } from '../utils/cellColorDetection';
 import SaveAndOrganiseStep from './SaveAndOrganiseStep';
 
+import ModalShell from '../../../components/ui/ModalShell';
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -1856,79 +1857,77 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
   const isStep3 = step === 3;
 
   return (
-    <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className={`bg-card border border-border rounded-2xl shadow-2xl w-full flex flex-col ${isStep3 ? 'max-w-4xl max-h-[92vh]' : 'max-w-3xl max-h-[90vh]'}`}>
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Icon name="FileText" size={16} className="text-primary" />
-            </div>
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">Import from document</h2>
-              <p className="text-xs text-muted-foreground">Upload a document to extract and organise your inventory automatically</p>
-            </div>
+    <ModalShell onClose={onClose} panelClassName="`bg-card border border-border rounded-2xl shadow-2xl w-full flex flex-col ${isStep3 ? 'max-w-4xl max-h-[92vh]' : 'max-w-3xl max-h-[90vh]'}`">
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Icon name="FileText" size={16} className="text-primary" />
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-xl hover:bg-muted flex items-center justify-center transition-colors">
-            <Icon name="X" size={16} className="text-muted-foreground" />
-          </button>
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Import from document</h2>
+            <p className="text-xs text-muted-foreground">Upload a document to extract and organise your inventory automatically</p>
+          </div>
         </div>
-
-        {/* Body */}
-        <div className={`flex-1 overflow-y-auto px-6 py-5 ${isStep3 ? 'relative pb-20' : ''}`}>
-          {step < 5 && <StepIndicator currentStep={step} />}
-
-          {step === 1 && (
-            <UploadStep onFileUploaded={handleFileSelected} parseError={parseError} isLoading={isLoading} />
-          )}
-
-          {step === 2 && azureResult && (
-            <TableSessionStep
-              tables={azureResult?.tables}
-              tableStates={tableStates}
-              onToggleInclude={handleToggleInclude}
-              onNext={() => setStep(3)}
-              onBack={() => setStep(1)}
-              similarGroups={similarGroups}
-            />
-          )}
-
-          {step === 3 && azureResult && (
-            <PerTableReviewStep
-              tables={azureResult?.tables}
-              tableStates={tableStates}
-              onTableStateChange={handleTableStateChange}
-              onNext={handleGoToSaveAndOrganise}
-              onBack={() => setStep(2)}
-              similarGroups={similarGroups}
-              colorMap={colorMap}
-              isColorDetecting={isColorDetecting}
-            />
-          )}
-
-          {step === 4 && azureResult && (
-            <SaveAndOrganiseStep
-              tables={azureResult?.tables}
-              tableStates={tableStates}
-              onTableSaveToChange={handleTableSaveToChange}
-              onTableGroupingChange={handleTableGroupingChange}
-              onNext={handleRunImport}
-              onBack={() => setStep(3)}
-            />
-          )}
-
-          {step === 5 && (
-            <ImportingStep
-              progress={importProgress}
-              total={allNormalizedRows?.length}
-              done={importDone}
-              importedCount={importedCount}
-              importError={importError}
-              onClose={handleImportDone}
-            />
-          )}
-        </div>
+        <button onClick={onClose} className="w-8 h-8 rounded-xl hover:bg-muted flex items-center justify-center transition-colors">
+          <Icon name="X" size={16} className="text-muted-foreground" />
+        </button>
       </div>
-    </div>
+
+      {/* Body */}
+      <div className={`flex-1 overflow-y-auto px-6 py-5 ${isStep3 ? 'relative pb-20' : ''}`}>
+        {step < 5 && <StepIndicator currentStep={step} />}
+
+        {step === 1 && (
+          <UploadStep onFileUploaded={handleFileSelected} parseError={parseError} isLoading={isLoading} />
+        )}
+
+        {step === 2 && azureResult && (
+          <TableSessionStep
+            tables={azureResult?.tables}
+            tableStates={tableStates}
+            onToggleInclude={handleToggleInclude}
+            onNext={() => setStep(3)}
+            onBack={() => setStep(1)}
+            similarGroups={similarGroups}
+          />
+        )}
+
+        {step === 3 && azureResult && (
+          <PerTableReviewStep
+            tables={azureResult?.tables}
+            tableStates={tableStates}
+            onTableStateChange={handleTableStateChange}
+            onNext={handleGoToSaveAndOrganise}
+            onBack={() => setStep(2)}
+            similarGroups={similarGroups}
+            colorMap={colorMap}
+            isColorDetecting={isColorDetecting}
+          />
+        )}
+
+        {step === 4 && azureResult && (
+          <SaveAndOrganiseStep
+            tables={azureResult?.tables}
+            tableStates={tableStates}
+            onTableSaveToChange={handleTableSaveToChange}
+            onTableGroupingChange={handleTableGroupingChange}
+            onNext={handleRunImport}
+            onBack={() => setStep(3)}
+          />
+        )}
+
+        {step === 5 && (
+          <ImportingStep
+            progress={importProgress}
+            total={allNormalizedRows?.length}
+            done={importDone}
+            importedCount={importedCount}
+            importError={importError}
+            onClose={handleImportDone}
+          />
+        )}
+      </div>
+    </ModalShell>
   );
 }

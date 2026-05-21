@@ -4,9 +4,15 @@ import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import { loadPresets, addPreset, updatePreset, deletePreset, getCrewWorkEntries } from '../utils/horStorage';
 
+import ModalShell from '../../../components/ui/ModalShell';
+import useDismissable from '../../../components/ui/useDismissable';
 const QuickEntryModal = ({ isOpen, onClose, onSave, initialDate, crewId }) => {
   const [selectedDates, setSelectedDates] = useState([]);
   const [selectedSegments, setSelectedSegments] = useState([]);
+  // The main quick-entry modal has an onMouseUp handler on its outer for the
+  // drag-to-select calendar — doesn't fit ModalShell's panel/stopPropagation
+  // model, so left hand-rolled. Wire Esc-to-close here.
+  useDismissable({ onClose, enabled: isOpen });
   const [isDragging, setIsDragging] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [showPresetModal, setShowPresetModal] = useState(false);
@@ -367,137 +373,119 @@ const QuickEntryModal = ({ isOpen, onClose, onSave, initialDate, crewId }) => {
       </div>
       {/* Save Preset Modal */}
       {showSavePresetModal && (
-        <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center p-4">
-          <div 
-            className="absolute inset-0 bg-black/50"
-            onClick={() => {
+        <ModalShell onClose={() => {
               setShowSavePresetModal(false);
               setPresetName('');
-            }}
+            }} panelClassName="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-6">
+          <h3 className="text-xl font-semibold text-foreground mb-4">Save Shift Pattern</h3>
+          <Input
+            label="Pattern Name"
+            value={presetName}
+            onChange={(e) => setPresetName(e?.target?.value)}
+            placeholder="e.g. Morning Shift"
           />
-          <div className="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-6">
-            <h3 className="text-xl font-semibold text-foreground mb-4">Save Shift Pattern</h3>
-            <Input
-              label="Pattern Name"
-              value={presetName}
-              onChange={(e) => setPresetName(e?.target?.value)}
-              placeholder="e.g. Morning Shift"
-            />
-            <div className="flex items-center gap-3 mt-6">
-              <Button variant="outline" onClick={() => {
-                setShowSavePresetModal(false);
-                setPresetName('');
-              }} fullWidth>
-                Cancel
-              </Button>
-              <Button 
-                variant="default" 
-                onClick={handleSavePreset}
-                disabled={!presetName?.trim()}
-                fullWidth
-              >
-                Save Pattern
-              </Button>
-            </div>
+          <div className="flex items-center gap-3 mt-6">
+            <Button variant="outline" onClick={() => {
+              setShowSavePresetModal(false);
+              setPresetName('');
+            }} fullWidth>
+              Cancel
+            </Button>
+            <Button 
+              variant="default" 
+              onClick={handleSavePreset}
+              disabled={!presetName?.trim()}
+              fullWidth
+            >
+              Save Pattern
+            </Button>
           </div>
-        </div>
+        </ModalShell>
       )}
 
       {/* Edit Preset Modal */}
       {showEditPresetModal && (
-        <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center p-4">
-          <div 
-            className="absolute inset-0 bg-black/50"
-            onClick={() => {
+        <ModalShell onClose={() => {
               setShowEditPresetModal(false);
               setEditingPreset(null);
               setPresetName('');
-            }}
+            }} panelClassName="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-6">
+          <h3 className="text-xl font-semibold text-foreground mb-4">Edit Shift Pattern</h3>
+          <Input
+            label="Pattern Name"
+            value={presetName}
+            onChange={(e) => setPresetName(e?.target?.value)}
+            placeholder="e.g. Morning Shift"
           />
-          <div className="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-6">
-            <h3 className="text-xl font-semibold text-foreground mb-4">Edit Shift Pattern</h3>
-            <Input
-              label="Pattern Name"
-              value={presetName}
-              onChange={(e) => setPresetName(e?.target?.value)}
-              placeholder="e.g. Morning Shift"
-            />
-            <div className="flex items-center gap-3 mt-6">
-              <Button variant="outline" onClick={() => {
-                setShowEditPresetModal(false);
-                setEditingPreset(null);
-                setPresetName('');
-              }} fullWidth>
-                Cancel
-              </Button>
-              <Button 
-                variant="default" 
-                onClick={handleUpdatePreset}
-                disabled={!presetName?.trim()}
-                fullWidth
-              >
-                Update Pattern
-              </Button>
-            </div>
+          <div className="flex items-center gap-3 mt-6">
+            <Button variant="outline" onClick={() => {
+              setShowEditPresetModal(false);
+              setEditingPreset(null);
+              setPresetName('');
+            }} fullWidth>
+              Cancel
+            </Button>
+            <Button 
+              variant="default" 
+              onClick={handleUpdatePreset}
+              disabled={!presetName?.trim()}
+              fullWidth
+            >
+              Update Pattern
+            </Button>
           </div>
-        </div>
+        </ModalShell>
       )}
 
       {/* Select Preset Modal */}
       {showPresetModal && (
-        <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center p-4">
-          <div 
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setShowPresetModal(false)}
-          />
-          <div className="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-6">
-            <h3 className="text-xl font-semibold text-foreground mb-4">Select Shift Pattern</h3>
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
-              {savedPresets?.length > 0 ? (
-                savedPresets?.map(preset => (
-                  <div
-                    key={preset?.id}
-                    className="flex items-center gap-2 w-full px-4 py-3 bg-muted/50 hover:bg-muted rounded-lg transition-smooth"
+        <ModalShell onClose={() => setShowPresetModal(false)} panelClassName="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-6">
+          <h3 className="text-xl font-semibold text-foreground mb-4">Select Shift Pattern</h3>
+          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            {savedPresets?.length > 0 ? (
+              savedPresets?.map(preset => (
+                <div
+                  key={preset?.id}
+                  className="flex items-center gap-2 w-full px-4 py-3 bg-muted/50 hover:bg-muted rounded-lg transition-smooth"
+                >
+                  <button
+                    onClick={() => handleApplyPreset(preset)}
+                    className="flex-1 text-left"
                   >
-                    <button
-                      onClick={() => handleApplyPreset(preset)}
-                      className="flex-1 text-left"
-                    >
-                      <div className="font-medium text-foreground">{preset?.name}</div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {preset?.segments?.length * 0.5} hours
-                      </div>
-                    </button>
-                    <button
-                      onClick={() => handleEditPreset(preset)}
-                      className="p-2 hover:bg-background rounded-lg transition-smooth"
-                      title="Edit preset"
-                    >
-                      <Icon name="Edit" size={16} className="text-muted-foreground hover:text-foreground" />
-                    </button>
-                    <button
-                      onClick={() => handleDeletePreset(preset?.id)}
-                      className="p-2 hover:bg-background rounded-lg transition-smooth"
-                      title="Delete preset"
-                    >
-                      <Icon name="Trash2" size={16} className="text-red-600 dark:text-red-400" />
-                    </button>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-sm text-muted-foreground">No saved presets yet</p>
-                  <p className="text-xs text-muted-foreground mt-1">Create a shift pattern to get started</p>
+                    <div className="font-medium text-foreground">{preset?.name}</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {preset?.segments?.length * 0.5} hours
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => handleEditPreset(preset)}
+                    className="p-2 hover:bg-background rounded-lg transition-smooth"
+                    title="Edit preset"
+                  >
+                    <Icon name="Edit" size={16} className="text-muted-foreground hover:text-foreground" />
+                  </button>
+                  <button
+                    onClick={() => handleDeletePreset(preset?.id)}
+                    className="p-2 hover:bg-background rounded-lg transition-smooth"
+                    title="Delete preset"
+                  >
+                    <Icon name="Trash2" size={16} className="text-red-600 dark:text-red-400" />
+                  </button>
                 </div>
-              )}
-            </div>
-            <div className="mt-4">
-              <Button variant="outline" onClick={() => setShowPresetModal(false)} fullWidth>
-                Cancel
-              </Button>
-            </div>
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-sm text-muted-foreground">No saved presets yet</p>
+                <p className="text-xs text-muted-foreground mt-1">Create a shift pattern to get started</p>
+              </div>
+            )}
           </div>
-        </div>
+          <div className="mt-4">
+            <Button variant="outline" onClick={() => setShowPresetModal(false)} fullWidth>
+              Cancel
+            </Button>
+          </div>
+        </ModalShell>
       )}
     </div>
   );

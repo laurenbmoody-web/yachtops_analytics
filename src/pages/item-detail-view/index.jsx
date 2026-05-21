@@ -13,6 +13,7 @@ import {
 import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess } from '../../utils/authStorage';
 import AddEditItemModal from '../inventory/components/AddEditItemModal';
 import { canViewCost, formatCurrency, calculateTotalValue } from '../../utils/costPermissions';
+import useDismissable from '../../components/ui/useDismissable';
 
 const ItemDetailView = () => {
   const { itemId } = useParams();
@@ -21,6 +22,9 @@ const ItemDetailView = () => {
   const [item, setItem] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [photoZoom, setPhotoZoom] = useState(false);
+  // Photo zoom is a click-anywhere-closes overlay (doesn't fit ModalShell's
+  // stop-propagation panel). Wire Esc-to-close here.
+  useDismissable({ onClose: () => setPhotoZoom(false), enabled: photoZoom });
   const [loading, setLoading] = useState(true);
 
   const currentUser = getCurrentUser();

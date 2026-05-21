@@ -25,6 +25,7 @@ import Button from '../../../components/ui/Button';
 import SupplierPicker from './SupplierPicker';
 import { showToast } from '../../../utils/toast';
 
+import ModalShell from '../../../components/ui/ModalShell';
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'AED', 'CHF', 'SGD', 'AUD'];
 
 const WHATSAPP_TEMPLATE = (ctx, items) => {
@@ -123,6 +124,24 @@ const SendToSupplierModal = ({
   const totalUnsent = items.length - sentItemKeys.size;
   const allDone = items.length > 0 && totalUnsent === 0;
   const readySupplierCount = groups.filter(gi => groupUnsent(gi).length > 0).length;
+
+  // Dismiss gate — backdrop / Esc / × all prompt "Discard changes?" when
+  // the user has typed something into the order context fields, or picked
+  // a supplier for items still sitting in the Unassigned bucket. Sent
+  // groups are committed progress, not unsaved input — closing a partly-
+  // sent modal where nothing new has been typed should close cleanly.
+  // isBusy holds the modal open during any send (per-group OR Send all).
+  const defaultRequester =
+    user?.user_metadata?.full_name || user?.user_metadata?.first_name || user?.email || '';
+  const isDirty = (
+    deliveryPort.trim() !== '' ||
+    deliveryDate !== '' ||
+    deliveryTime !== '' ||
+    currency !== '' ||
+    deliveryContact !== defaultRequester ||
+    (unassigned.length > 0 && unassignedSupplierId !== '')
+  );
+  const isBusy = !!sendingKey || sendingAll;
 
   // Port / date / requester are mandatory so a supplier never receives
   // an order with no delivery context. Currency + time stay optional
@@ -458,159 +477,157 @@ const SendToSupplierModal = ({
   };
 
   const modal = (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-      <div className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-5">
-          <div>
-            <SerifTitle text={allDone ? 'All orders sent' : 'Send orders'} />
-            <p className="text-[13px] mt-1.5" style={{ color: MUTED }}>{subtitle}</p>
-          </div>
-          <div className="flex items-center gap-3 flex-shrink-0">
-            {!allDone && items.length > 0 && groups.length > 0 && (
-              <div className="flex flex-col items-end gap-1">
-                <button
-                  type="button"
-                  disabled={sendableCount === 0 || sendingAll || !!sendingKey || !requiredComplete}
-                  onClick={sendAll}
-                  className="text-[12px] font-semibold rounded-lg text-white flex items-center gap-1.5"
-                  style={sendableCount > 0 && requiredComplete && !sendingAll && !sendingKey
-                    ? { height: 32, padding: '0 16px', background: INK }
-                    : { height: 32, padding: '0 16px', background: '#D3D1C7', color: '#fff', cursor: 'not-allowed' }}
-                >
-                  {sendingAll
-                    ? <><span className="animate-spin rounded-full h-3 w-3 border-b-2 border-white" /> Sending…</>
-                    : 'Send all'}
-                </button>
-                {sendableCount > 0 && !requiredComplete && !sendingAll && !sendingKey && (
-                  <span className="text-[10px] italic text-right" style={{ color: MUTED }}>
-                    Complete the order context to send all
-                  </span>
-                )}
-              </div>
-            )}
-            <button onClick={onClose} disabled={!!sendingKey || sendingAll}
-              className="text-muted-foreground hover:text-foreground transition-colors">
-              <Icon name="X" size={18} />
-            </button>
-          </div>
+    <ModalShell onClose={onClose} isDirty={isDirty} isBusy={isBusy} panelClassName="bg-card border border-border rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-5">
+        <div>
+          <SerifTitle text={allDone ? 'All orders sent' : 'Send orders'} />
+          <p className="text-[13px] mt-1.5" style={{ color: MUTED }}>{subtitle}</p>
         </div>
-
-        {items.length === 0 ? (
-          <p className="text-sm text-center py-8" style={{ color: MUTED }}>
-            No items on this board are ready to order.
-          </p>
-        ) : allDone ? (
-          <div className="text-center py-6">
-            <p className="text-sm" style={{ color: MUTED }}>{plural(sentOrderCount, 'order')} created.</p>
-            <Button onClick={onClose} className="mt-5">Done</Button>
-          </div>
-        ) : (
-          <>
-            {/* Shared delivery context — applies to every order sent this
-                session. Port / date / requester required; currency + time
-                optional (estimates the supplier confirms on receipt). */}
-            <div className="grid grid-cols-2 gap-3 mb-2">
-              <div>
-                <label className={labelCls} style={{ color: MUTED }}>
-                  Delivery port<span style={{ color: ACCENT }}> *</span>
-                </label>
-                <input className={inputCls} placeholder="e.g. Antibes"
-                  value={deliveryPort} onChange={e => setDeliveryPort(e.target.value)} />
-              </div>
-              <div>
-                <label className={labelCls} style={{ color: MUTED }}>
-                  Currency<span style={{ color: MUTED, fontSize: 10 }}> (optional)</span>
-                </label>
-                <select className={inputCls} value={currency} onChange={e => setCurrency(e.target.value)}>
-                  <option value="">—</option>
-                  {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className={labelCls} style={{ color: MUTED }}>
-                  Order By Date<span style={{ color: ACCENT }}> *</span>
-                </label>
-                <input className={inputCls} type="date"
-                  value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)} />
-              </div>
-              <div>
-                <label className={labelCls} style={{ color: MUTED }}>
-                  Time<span style={{ color: MUTED, fontSize: 10 }}> (optional)</span>
-                </label>
-                <input className={inputCls} type="time"
-                  value={deliveryTime} onChange={e => setDeliveryTime(e.target.value)} />
-              </div>
-              <div className="col-span-2">
-                <label className={labelCls} style={{ color: MUTED }}>
-                  Requester Name<span style={{ color: ACCENT }}> *</span>
-                </label>
-                <input className={inputCls} placeholder="Who placed this order"
-                  value={deliveryContact} onChange={e => setDeliveryContact(e.target.value)} />
-              </div>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          {!allDone && items.length > 0 && groups.length > 0 && (
+            <div className="flex flex-col items-end gap-1">
+              <button
+                type="button"
+                disabled={sendableCount === 0 || sendingAll || !!sendingKey || !requiredComplete}
+                onClick={sendAll}
+                className="text-[12px] font-semibold rounded-lg text-white flex items-center gap-1.5"
+                style={sendableCount > 0 && requiredComplete && !sendingAll && !sendingKey
+                  ? { height: 32, padding: '0 16px', background: INK }
+                  : { height: 32, padding: '0 16px', background: '#D3D1C7', color: '#fff', cursor: 'not-allowed' }}
+              >
+                {sendingAll
+                  ? <><span className="animate-spin rounded-full h-3 w-3 border-b-2 border-white" /> Sending…</>
+                  : 'Send all'}
+              </button>
+              {sendableCount > 0 && !requiredComplete && !sendingAll && !sendingKey && (
+                <span className="text-[10px] italic text-right" style={{ color: MUTED }}>
+                  Complete the order context to send all
+                </span>
+              )}
             </div>
-            <p className="text-[11px] italic mb-5" style={{ color: MUTED }}>
-              Times, dates, and currency are estimates — confirm with supplier on receipt.
-            </p>
+          )}
+          <button onClick={onClose} disabled={!!sendingKey || sendingAll}
+            className="text-muted-foreground hover:text-foreground transition-colors">
+            <Icon name="X" size={18} />
+          </button>
+        </div>
+      </div>
 
-            {groups.map(gi => (
-              <GroupCard key={gi.supplier.id} supplier={gi.supplier} rows={gi.items} />
-            ))}
+      {items.length === 0 ? (
+        <p className="text-sm text-center py-8" style={{ color: MUTED }}>
+          No items on this board are ready to order.
+        </p>
+      ) : allDone ? (
+        <div className="text-center py-6">
+          <p className="text-sm" style={{ color: MUTED }}>{plural(sentOrderCount, 'order')} created.</p>
+          <Button onClick={onClose} className="mt-5">Done</Button>
+        </div>
+      ) : (
+        <>
+          {/* Shared delivery context — applies to every order sent this
+              session. Port / date / requester required; currency + time
+              optional (estimates the supplier confirms on receipt). */}
+          <div className="grid grid-cols-2 gap-3 mb-2">
+            <div>
+              <label className={labelCls} style={{ color: MUTED }}>
+                Delivery port<span style={{ color: ACCENT }}> *</span>
+              </label>
+              <input className={inputCls} placeholder="e.g. Antibes"
+                value={deliveryPort} onChange={e => setDeliveryPort(e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls} style={{ color: MUTED }}>
+                Currency<span style={{ color: MUTED, fontSize: 10 }}> (optional)</span>
+              </label>
+              <select className={inputCls} value={currency} onChange={e => setCurrency(e.target.value)}>
+                <option value="">—</option>
+                {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls} style={{ color: MUTED }}>
+                Order By Date<span style={{ color: ACCENT }}> *</span>
+              </label>
+              <input className={inputCls} type="date"
+                value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls} style={{ color: MUTED }}>
+                Time<span style={{ color: MUTED, fontSize: 10 }}> (optional)</span>
+              </label>
+              <input className={inputCls} type="time"
+                value={deliveryTime} onChange={e => setDeliveryTime(e.target.value)} />
+            </div>
+            <div className="col-span-2">
+              <label className={labelCls} style={{ color: MUTED }}>
+                Requester Name<span style={{ color: ACCENT }}> *</span>
+              </label>
+              <input className={inputCls} placeholder="Who placed this order"
+                value={deliveryContact} onChange={e => setDeliveryContact(e.target.value)} />
+            </div>
+          </div>
+          <p className="text-[11px] italic mb-5" style={{ color: MUTED }}>
+            Times, dates, and currency are estimates — confirm with supplier on receipt.
+          </p>
 
-            {unassigned.length > 0 && (
-              <div className="mb-2.5"
-                style={{ background: '#fff', border: `1px dashed ${HAIRLINE}`, borderRadius: 12, padding: '14px 16px' }}>
-                <p className="text-sm">
-                  <span style={{ color: INK, fontWeight: 500 }}>Unassigned</span>
-                  <span style={{ color: MUTED, fontWeight: 400 }}> · {plural(unassigned.length, 'item')}</span>
-                </p>
-                <div className="mt-2.5 flex items-center gap-2">
-                  <div className="flex-1 min-w-0">
-                    <SupplierPicker
-                      value={unassignedSupplierId}
-                      suppliers={suppliers}
-                      inputClassName={inputCls}
-                      placeholder={suppliersLoading ? 'Loading…' : 'Pick a supplier…'}
-                      onChange={(p) => setUnassignedSupplierId(p ? p.id : '')}
-                      allowAddNew
-                      onAddNew={handleAddNewSupplier}
-                    />
-                  </div>
-                  {unassignedSupplier && unassignedSupplier.phone && (
-                    <button
-                      type="button"
-                      disabled={unassignedUnsent.length === 0 || !!sendingKey || sendingAll}
-                      onClick={() => sendGroup({ key: '__unassigned__', supplier: unassignedSupplier, rows: unassigned, via: 'whatsapp' })}
-                      className="px-3 text-[11px] font-semibold rounded-lg border flex-shrink-0"
-                      style={{ height: 38, borderColor: INK, color: INK, background: 'transparent' }}
-                    >
-                      WhatsApp
-                    </button>
-                  )}
+          {groups.map(gi => (
+            <GroupCard key={gi.supplier.id} supplier={gi.supplier} rows={gi.items} />
+          ))}
+
+          {unassigned.length > 0 && (
+            <div className="mb-2.5"
+              style={{ background: '#fff', border: `1px dashed ${HAIRLINE}`, borderRadius: 12, padding: '14px 16px' }}>
+              <p className="text-sm">
+                <span style={{ color: INK, fontWeight: 500 }}>Unassigned</span>
+                <span style={{ color: MUTED, fontWeight: 400 }}> · {plural(unassigned.length, 'item')}</span>
+              </p>
+              <div className="mt-2.5 flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <SupplierPicker
+                    value={unassignedSupplierId}
+                    suppliers={suppliers}
+                    inputClassName={inputCls}
+                    placeholder={suppliersLoading ? 'Loading…' : 'Pick a supplier…'}
+                    onChange={(p) => setUnassignedSupplierId(p ? p.id : '')}
+                    allowAddNew
+                    onAddNew={handleAddNewSupplier}
+                  />
+                </div>
+                {unassignedSupplier && unassignedSupplier.phone && (
                   <button
                     type="button"
-                    disabled={!unassignedSupplier || unassignedUnsent.length === 0 || !!sendingKey || sendingAll}
-                    onClick={() => sendGroup({ key: '__unassigned__', supplier: unassignedSupplier, rows: unassigned, via: 'email' })}
-                    className="px-4 text-[11px] font-semibold rounded-lg text-white flex-shrink-0"
-                    style={unassignedSupplier && !sendingKey && !sendingAll
-                      ? { height: 38, background: INK }
-                      : { height: 38, background: '#D3D1C7', color: '#fff', cursor: 'not-allowed' }}
+                    disabled={unassignedUnsent.length === 0 || !!sendingKey || sendingAll}
+                    onClick={() => sendGroup({ key: '__unassigned__', supplier: unassignedSupplier, rows: unassigned, via: 'whatsapp' })}
+                    className="px-3 text-[11px] font-semibold rounded-lg border flex-shrink-0"
+                    style={{ height: 38, borderColor: INK, color: INK, background: 'transparent' }}
                   >
-                    {sendingKey === '__unassigned__' ? 'Sending…' : 'Send'}
+                    WhatsApp
                   </button>
-                </div>
+                )}
+                <button
+                  type="button"
+                  disabled={!unassignedSupplier || unassignedUnsent.length === 0 || !!sendingKey || sendingAll}
+                  onClick={() => sendGroup({ key: '__unassigned__', supplier: unassignedSupplier, rows: unassigned, via: 'email' })}
+                  className="px-4 text-[11px] font-semibold rounded-lg text-white flex-shrink-0"
+                  style={unassignedSupplier && !sendingKey && !sendingAll
+                    ? { height: 38, background: INK }
+                    : { height: 38, background: '#D3D1C7', color: '#fff', cursor: 'not-allowed' }}
+                >
+                  {sendingKey === '__unassigned__' ? 'Sending…' : 'Send'}
+                </button>
               </div>
-            )}
+            </div>
+          )}
 
-            <button onClick={onClose} disabled={!!sendingKey || sendingAll}
-              className="w-full mt-4 pt-3 text-[13px] italic"
-              style={{ color: INK, borderTop: `1px solid ${HAIRLINE}` }}>
-              Close — I’ll send the rest later
-            </button>
-          </>
-        )}
-      </div>
-    </div>
+          <button onClick={onClose} disabled={!!sendingKey || sendingAll}
+            className="w-full mt-4 pt-3 text-[13px] italic"
+            style={{ color: INK, borderTop: `1px solid ${HAIRLINE}` }}>
+            Close — I’ll send the rest later
+          </button>
+        </>
+      )}
+    </ModalShell>
   );
 
   return createPortal(modal, document.body);

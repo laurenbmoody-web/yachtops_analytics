@@ -26,6 +26,7 @@ import AzurePdfImportModal from './components/AzurePdfImportModal';
 import { exportInventoryToPDF } from './utils/inventoryPdfExport';
 import { exportInventoryToXLSX } from './utils/inventoryXlsxExport';
 
+import ModalShell from '../../components/ui/ModalShell';
 const SLASH_PLACEHOLDER = '__FWDSLASH__';
 
 // ─── Folder Icon Suggestions ───────────────────────────────────────────────────
@@ -245,223 +246,63 @@ const AddFolderModal = ({ parentPath, onClose, onSave }) => {
   const previewIcon = selectedIcon || 'FolderOpen';
 
   return (
-    <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-foreground">Add Sub-folder</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
-            <Icon name="X" size={18} />
-          </button>
-        </div>
-        {parentLabel && (
-          <p className="text-sm text-muted-foreground mb-3">Inside: <span className="font-medium text-foreground">{parentLabel}</span></p>
-        )}
-
-        {/* Name input */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-foreground mb-1.5">Folder name</label>
-          <input
-            ref={inputRef}
-            type="text"
-            value={name}
-            onChange={handleNameChange}
-            onKeyDown={(e) => { if (e?.key === 'Enter') handleSave(); if (e?.key === 'Escape') onClose(); }}
-            placeholder="e.g. Linen & Towels"
-            className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground"
-          />
-          {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
-        </div>
-
-        {/* Preview + Icon/Color selectors */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-foreground mb-2">Appearance</label>
-          <div className="flex items-center gap-3">
-            {/* Preview circle */}
-            <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: previewColor + '22', border: `2px solid ${previewColor}44` }}
-            >
-              <Icon name={previewIcon} size={22} style={{ color: previewColor }} />
-            </div>
-
-            {/* Icon picker toggle */}
-            <div className="flex-1">
-              <button
-                type="button"
-                onClick={() => setShowIconPicker(v => !v)}
-                className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm bg-background border border-border rounded-xl hover:border-primary/50 transition-colors text-foreground"
-              >
-                <div className="flex items-center gap-2">
-                  <Icon name={previewIcon} size={14} className="text-muted-foreground" />
-                  <span className="text-muted-foreground text-xs">{previewIcon}</span>
-                </div>
-                <Icon name={showIconPicker ? 'ChevronUp' : 'ChevronDown'} size={14} className="text-muted-foreground" />
-              </button>
-            </div>
-          </div>
-
-          {/* Icon grid */}
-          {showIconPicker && (
-            <div className="mt-2 p-3 bg-background border border-border rounded-xl">
-              <input
-                type="text"
-                value={iconSearch}
-                onChange={e => setIconSearch(e?.target?.value)}
-                placeholder="Search icons…"
-                className="w-full px-2.5 py-1.5 text-xs bg-background border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/30 text-foreground mb-2"
-              />
-              <div className="grid grid-cols-8 gap-1 max-h-40 overflow-y-auto">
-                {FOLDER_ICON_PALETTE?.filter(n => !iconSearch || n?.toLowerCase()?.includes(iconSearch?.toLowerCase()))?.map(iconName => (
-                  <button
-                    key={iconName}
-                    type="button"
-                    onClick={() => { setSelectedIcon(iconName); setShowIconPicker(false); setIconSearch(''); }}
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                      selectedIcon === iconName
-                        ? 'bg-primary text-primary-foreground'
-                        : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                    }`}
-                    title={iconName}
-                  >
-                    <Icon name={iconName} size={14} />
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Color swatches */}
-          <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-            {FOLDER_COLOR_PALETTE?.map(c => (
-              <button
-                key={c?.value}
-                type="button"
-                onClick={() => setSelectedColor(selectedColor === c?.value ? null : c?.value)}
-                className="w-6 h-6 rounded-full transition-transform hover:scale-110 flex-shrink-0"
-                style={{
-                  backgroundColor: c?.value,
-                  outline: selectedColor === c?.value ? `2px solid ${c?.value}` : '2px solid transparent',
-                  outlineOffset: 2,
-                }}
-                title={c?.label}
-              />
-            ))}
-            {selectedColor && (
-              <button
-                type="button"
-                onClick={() => setSelectedColor(null)}
-                className="text-xs text-muted-foreground hover:text-foreground ml-1 underline"
-              >
-                Reset
-              </button>
-            )}
-          </div>
-          {name && suggestIconForName(name) && selectedIcon === suggestIconForName(name) && (
-            <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
-              <Icon name="Sparkles" size={10} />
-              Icon suggested based on folder name
-            </p>
-          )}
-        </div>
-
-        <div className="flex gap-2 justify-end">
-          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors">Cancel</button>
-          <button onClick={handleSave} className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors">Create</button>
-        </div>
+    <ModalShell onClose={onClose} panelClassName="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-foreground">Add Sub-folder</h2>
+        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
+          <Icon name="X" size={18} />
+        </button>
       </div>
-    </div>
-  );
-};
+      {parentLabel && (
+        <p className="text-sm text-muted-foreground mb-3">Inside: <span className="font-medium text-foreground">{parentLabel}</span></p>
+      )}
 
-// ─── Edit Folder Modal ────────────────────────────────────────────────────────
-const EditFolderModal = ({ currentName, onClose, onSave }) => {
-  const [name, setName] = useState(currentName || '');
-  const [error, setError] = useState('');
-  const inputRef = useRef(null);
-
-  useEffect(() => { setTimeout(() => { inputRef?.current?.focus(); inputRef?.current?.select(); }, 100); }, []);
-
-  const handleSave = () => {
-    const trimmed = name?.trim();
-    if (!trimmed) { setError('Please enter a name'); return; }
-    if (trimmed === currentName) { onClose(); return; }
-    onSave(trimmed);
-  };
-
-  return (
-    <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-foreground">Rename Folder</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
-            <Icon name="X" size={18} />
-          </button>
-        </div>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-foreground mb-1.5">New name</label>
-          <input
-            ref={inputRef}
-            type="text"
-            value={name}
-            onChange={(e) => { setName(e?.target?.value); setError(''); }}
-            onKeyDown={(e) => { if (e?.key === 'Enter') handleSave(); if (e?.key === 'Escape') onClose(); }}
-            className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground"
-          />
-          {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
-        </div>
-        <div className="flex gap-2 justify-end">
-          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors">Cancel</button>
-          <button onClick={handleSave} className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors">Save</button>
-        </div>
+      {/* Name input */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-foreground mb-1.5">Folder name</label>
+        <input
+          ref={inputRef}
+          type="text"
+          value={name}
+          onChange={handleNameChange}
+          onKeyDown={(e) => { if (e?.key === 'Enter') handleSave(); if (e?.key === 'Escape') onClose(); }}
+          placeholder="e.g. Linen & Towels"
+          className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground"
+        />
+        {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
       </div>
-    </div>
-  );
-};
 
-// ─── Edit Folder Appearance Modal ────────────────────────────────────────────
-const EditFolderAppearanceModal = ({ folderName, currentIcon, currentColor, onClose, onSave }) => {
-  const [selectedIcon, setSelectedIcon] = useState(currentIcon || null);
-  const [selectedColor, setSelectedColor] = useState(currentColor || null);
-  const [showIconPicker, setShowIconPicker] = useState(false);
-  const [iconSearch, setIconSearch] = useState('');
-
-  const previewColor = selectedColor || '#4A90E2';
-  const previewIcon = selectedIcon || 'FolderOpen';
-
-  return (
-    <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-foreground">Edit Appearance</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
-            <Icon name="X" size={18} />
-          </button>
-        </div>
-        <p className="text-sm text-muted-foreground mb-4">{folderName}</p>
-
-        {/* Preview + Icon toggle */}
-        <div className="flex items-center gap-3 mb-4">
+      {/* Preview + Icon/Color selectors */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-foreground mb-2">Appearance</label>
+        <div className="flex items-center gap-3">
+          {/* Preview circle */}
           <div
             className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
             style={{ backgroundColor: previewColor + '22', border: `2px solid ${previewColor}44` }}
           >
             <Icon name={previewIcon} size={22} style={{ color: previewColor }} />
           </div>
-          <button
-            type="button"
-            onClick={() => setShowIconPicker(v => !v)}
-            className="flex-1 flex items-center justify-between gap-2 px-3 py-2 text-sm bg-background border border-border rounded-xl hover:border-primary/50 transition-colors text-foreground"
-          >
-            <div className="flex items-center gap-2">
-              <Icon name={previewIcon} size={14} className="text-muted-foreground" />
-              <span className="text-muted-foreground text-xs">{previewIcon}</span>
-            </div>
-            <Icon name={showIconPicker ? 'ChevronUp' : 'ChevronDown'} size={14} className="text-muted-foreground" />
-          </button>
+
+          {/* Icon picker toggle */}
+          <div className="flex-1">
+            <button
+              type="button"
+              onClick={() => setShowIconPicker(v => !v)}
+              className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm bg-background border border-border rounded-xl hover:border-primary/50 transition-colors text-foreground"
+            >
+              <div className="flex items-center gap-2">
+                <Icon name={previewIcon} size={14} className="text-muted-foreground" />
+                <span className="text-muted-foreground text-xs">{previewIcon}</span>
+              </div>
+              <Icon name={showIconPicker ? 'ChevronUp' : 'ChevronDown'} size={14} className="text-muted-foreground" />
+            </button>
+          </div>
         </div>
 
+        {/* Icon grid */}
         {showIconPicker && (
-          <div className="mb-4 p-3 bg-background border border-border rounded-xl">
+          <div className="mt-2 p-3 bg-background border border-border rounded-xl">
             <input
               type="text"
               value={iconSearch}
@@ -469,7 +310,7 @@ const EditFolderAppearanceModal = ({ folderName, currentIcon, currentColor, onCl
               placeholder="Search icons…"
               className="w-full px-2.5 py-1.5 text-xs bg-background border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/30 text-foreground mb-2"
             />
-            <div className="grid grid-cols-8 gap-1 max-h-44 overflow-y-auto">
+            <div className="grid grid-cols-8 gap-1 max-h-40 overflow-y-auto">
               {FOLDER_ICON_PALETTE?.filter(n => !iconSearch || n?.toLowerCase()?.includes(iconSearch?.toLowerCase()))?.map(iconName => (
                 <button
                   key={iconName}
@@ -489,46 +330,200 @@ const EditFolderAppearanceModal = ({ folderName, currentIcon, currentColor, onCl
           </div>
         )}
 
-        <div className="mb-5">
-          <p className="text-xs font-medium text-muted-foreground mb-2">Colour</p>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {FOLDER_COLOR_PALETTE?.map(c => (
+        {/* Color swatches */}
+        <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+          {FOLDER_COLOR_PALETTE?.map(c => (
+            <button
+              key={c?.value}
+              type="button"
+              onClick={() => setSelectedColor(selectedColor === c?.value ? null : c?.value)}
+              className="w-6 h-6 rounded-full transition-transform hover:scale-110 flex-shrink-0"
+              style={{
+                backgroundColor: c?.value,
+                outline: selectedColor === c?.value ? `2px solid ${c?.value}` : '2px solid transparent',
+                outlineOffset: 2,
+              }}
+              title={c?.label}
+            />
+          ))}
+          {selectedColor && (
+            <button
+              type="button"
+              onClick={() => setSelectedColor(null)}
+              className="text-xs text-muted-foreground hover:text-foreground ml-1 underline"
+            >
+              Reset
+            </button>
+          )}
+        </div>
+        {name && suggestIconForName(name) && selectedIcon === suggestIconForName(name) && (
+          <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
+            <Icon name="Sparkles" size={10} />
+            Icon suggested based on folder name
+          </p>
+        )}
+      </div>
+
+      <div className="flex gap-2 justify-end">
+        <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors">Cancel</button>
+        <button onClick={handleSave} className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors">Create</button>
+      </div>
+    </ModalShell>
+  );
+};
+
+// ─── Edit Folder Modal ────────────────────────────────────────────────────────
+const EditFolderModal = ({ currentName, onClose, onSave }) => {
+  const [name, setName] = useState(currentName || '');
+  const [error, setError] = useState('');
+  const inputRef = useRef(null);
+
+  useEffect(() => { setTimeout(() => { inputRef?.current?.focus(); inputRef?.current?.select(); }, 100); }, []);
+
+  const handleSave = () => {
+    const trimmed = name?.trim();
+    if (!trimmed) { setError('Please enter a name'); return; }
+    if (trimmed === currentName) { onClose(); return; }
+    onSave(trimmed);
+  };
+
+  return (
+    <ModalShell onClose={onClose} panelClassName="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-foreground">Rename Folder</h2>
+        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
+          <Icon name="X" size={18} />
+        </button>
+      </div>
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-foreground mb-1.5">New name</label>
+        <input
+          ref={inputRef}
+          type="text"
+          value={name}
+          onChange={(e) => { setName(e?.target?.value); setError(''); }}
+          onKeyDown={(e) => { if (e?.key === 'Enter') handleSave(); if (e?.key === 'Escape') onClose(); }}
+          className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground"
+        />
+        {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+      </div>
+      <div className="flex gap-2 justify-end">
+        <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors">Cancel</button>
+        <button onClick={handleSave} className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors">Save</button>
+      </div>
+    </ModalShell>
+  );
+};
+
+// ─── Edit Folder Appearance Modal ────────────────────────────────────────────
+const EditFolderAppearanceModal = ({ folderName, currentIcon, currentColor, onClose, onSave }) => {
+  const [selectedIcon, setSelectedIcon] = useState(currentIcon || null);
+  const [selectedColor, setSelectedColor] = useState(currentColor || null);
+  const [showIconPicker, setShowIconPicker] = useState(false);
+  const [iconSearch, setIconSearch] = useState('');
+
+  const previewColor = selectedColor || '#4A90E2';
+  const previewIcon = selectedIcon || 'FolderOpen';
+
+  return (
+    <ModalShell onClose={onClose} panelClassName="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-foreground">Edit Appearance</h2>
+        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
+          <Icon name="X" size={18} />
+        </button>
+      </div>
+      <p className="text-sm text-muted-foreground mb-4">{folderName}</p>
+
+      {/* Preview + Icon toggle */}
+      <div className="flex items-center gap-3 mb-4">
+        <div
+          className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: previewColor + '22', border: `2px solid ${previewColor}44` }}
+        >
+          <Icon name={previewIcon} size={22} style={{ color: previewColor }} />
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowIconPicker(v => !v)}
+          className="flex-1 flex items-center justify-between gap-2 px-3 py-2 text-sm bg-background border border-border rounded-xl hover:border-primary/50 transition-colors text-foreground"
+        >
+          <div className="flex items-center gap-2">
+            <Icon name={previewIcon} size={14} className="text-muted-foreground" />
+            <span className="text-muted-foreground text-xs">{previewIcon}</span>
+          </div>
+          <Icon name={showIconPicker ? 'ChevronUp' : 'ChevronDown'} size={14} className="text-muted-foreground" />
+        </button>
+      </div>
+
+      {showIconPicker && (
+        <div className="mb-4 p-3 bg-background border border-border rounded-xl">
+          <input
+            type="text"
+            value={iconSearch}
+            onChange={e => setIconSearch(e?.target?.value)}
+            placeholder="Search icons…"
+            className="w-full px-2.5 py-1.5 text-xs bg-background border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/30 text-foreground mb-2"
+          />
+          <div className="grid grid-cols-8 gap-1 max-h-44 overflow-y-auto">
+            {FOLDER_ICON_PALETTE?.filter(n => !iconSearch || n?.toLowerCase()?.includes(iconSearch?.toLowerCase()))?.map(iconName => (
               <button
-                key={c?.value}
+                key={iconName}
                 type="button"
-                onClick={() => setSelectedColor(selectedColor === c?.value ? null : c?.value)}
-                className="w-6 h-6 rounded-full transition-transform hover:scale-110 flex-shrink-0"
-                style={{
-                  backgroundColor: c?.value,
-                  outline: selectedColor === c?.value ? `2px solid ${c?.value}` : '2px solid transparent',
-                  outlineOffset: 2,
-                }}
-                title={c?.label}
-              />
-            ))}
-            {selectedColor && (
-              <button
-                type="button"
-                onClick={() => setSelectedColor(null)}
-                className="text-xs text-muted-foreground hover:text-foreground ml-1 underline"
+                onClick={() => { setSelectedIcon(iconName); setShowIconPicker(false); setIconSearch(''); }}
+                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                  selectedIcon === iconName
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                }`}
+                title={iconName}
               >
-                Reset
+                <Icon name={iconName} size={14} />
               </button>
-            )}
+            ))}
           </div>
         </div>
+      )}
 
-        <div className="flex gap-2 justify-end">
-          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors">Cancel</button>
-          <button
-            onClick={() => onSave({ icon: selectedIcon, color: selectedColor })}
-            className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors"
-          >
-            Save
-          </button>
+      <div className="mb-5">
+        <p className="text-xs font-medium text-muted-foreground mb-2">Colour</p>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {FOLDER_COLOR_PALETTE?.map(c => (
+            <button
+              key={c?.value}
+              type="button"
+              onClick={() => setSelectedColor(selectedColor === c?.value ? null : c?.value)}
+              className="w-6 h-6 rounded-full transition-transform hover:scale-110 flex-shrink-0"
+              style={{
+                backgroundColor: c?.value,
+                outline: selectedColor === c?.value ? `2px solid ${c?.value}` : '2px solid transparent',
+                outlineOffset: 2,
+              }}
+              title={c?.label}
+            />
+          ))}
+          {selectedColor && (
+            <button
+              type="button"
+              onClick={() => setSelectedColor(null)}
+              className="text-xs text-muted-foreground hover:text-foreground ml-1 underline"
+            >
+              Reset
+            </button>
+          )}
         </div>
       </div>
-    </div>
+
+      <div className="flex gap-2 justify-end">
+        <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors">Cancel</button>
+        <button
+          onClick={() => onSave({ icon: selectedIcon, color: selectedColor })}
+          className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors"
+        >
+          Save
+        </button>
+      </div>
+    </ModalShell>
   );
 };
 
@@ -545,109 +540,107 @@ const FolderSettingsModal = ({ folderName, parentSegments, currentVisibility, on
   };
 
   return (
-    <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-              <Icon name="Settings" size={16} className="text-muted-foreground" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-foreground">Folder Settings</h2>
-              <p className="text-xs text-muted-foreground">{folderName}</p>
-            </div>
+    <ModalShell onClose={onClose} panelClassName="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+            <Icon name="Settings" size={16} className="text-muted-foreground" />
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
-            <Icon name="X" size={18} />
-          </button>
-        </div>
-
-        <div className="space-y-1">
-          {/* Rename */}
-          <button
-            onClick={() => { onClose(); onRename(); }}
-            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-foreground hover:bg-muted rounded-xl transition-colors text-left"
-          >
-            <Icon name="Pencil" size={15} className="text-muted-foreground" />
-            Rename folder
-          </button>
-
-          {/* Edit Appearance */}
-          {onEditAppearance && (
-            <button
-              onClick={() => { onClose(); onEditAppearance(); }}
-              className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-foreground hover:bg-muted rounded-xl transition-colors text-left"
-            >
-              <Icon name="Palette" size={15} className="text-muted-foreground" />
-              Edit icon &amp; colour
-            </button>
-          )}
-
-          {/* Move */}
-          {canMove !== false && (
-          <button
-            onClick={() => { onClose(); onMove(); }}
-            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-foreground hover:bg-muted rounded-xl transition-colors text-left"
-          >
-            <Icon name="FolderInput" size={15} className="text-muted-foreground" />
-            Move folder
-          </button>
-          )}
-
-          {/* Visibility */}
           <div>
-            <button
-              onClick={() => setShowVisibilityMenu(prev => !prev)}
-              className="w-full flex items-center justify-between gap-3 px-3 py-2.5 text-sm text-foreground hover:bg-muted rounded-xl transition-colors text-left"
-            >
-              <div className="flex items-center gap-3">
-                <Icon name="Eye" size={15} className="text-muted-foreground" />
-                Visibility restriction
-              </div>
-              <Icon name={showVisibilityMenu ? 'ChevronUp' : 'ChevronDown'} size={14} className="text-muted-foreground" />
-            </button>
-            {showVisibilityMenu && (
-              <div className="ml-6 mt-1 space-y-0.5">
-                {VISIBILITY_OPTIONS?.map(opt => (
-                  <button
-                    key={opt?.value}
-                    onClick={() => handleVisibility(opt?.value)}
-                    disabled={savingVisibility}
-                    className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-xs rounded-lg transition-colors text-left ${
-                      currentVisibility === opt?.value
-                        ? 'bg-primary/10 text-primary font-medium' :'text-muted-foreground hover:bg-muted hover:text-foreground'
-                    }`}
-                  >
-                    {opt?.label}
-                    {currentVisibility === opt?.value && <Icon name="Check" size={12} />}
-                  </button>
-                ))}
-              </div>
-            )}
+            <h2 className="text-base font-semibold text-foreground">Folder Settings</h2>
+            <p className="text-xs text-muted-foreground">{folderName}</p>
           </div>
-
-          <div className="h-px bg-border my-1" />
-
-          {/* Archive */}
-          <button
-            onClick={() => { onClose(); onArchive(); }}
-            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-amber-600 hover:bg-amber-50 rounded-xl transition-colors text-left"
-          >
-            <Icon name="Archive" size={15} className="text-amber-500" />
-            Archive folder
-          </button>
-
-          {/* Delete */}
-          <button
-            onClick={() => { onClose(); onDelete(); }}
-            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-xl transition-colors text-left"
-          >
-            <Icon name="Trash2" size={15} className="text-red-500" />
-            Delete folder
-          </button>
         </div>
+        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
+          <Icon name="X" size={18} />
+        </button>
       </div>
-    </div>
+
+      <div className="space-y-1">
+        {/* Rename */}
+        <button
+          onClick={() => { onClose(); onRename(); }}
+          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-foreground hover:bg-muted rounded-xl transition-colors text-left"
+        >
+          <Icon name="Pencil" size={15} className="text-muted-foreground" />
+          Rename folder
+        </button>
+
+        {/* Edit Appearance */}
+        {onEditAppearance && (
+          <button
+            onClick={() => { onClose(); onEditAppearance(); }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-foreground hover:bg-muted rounded-xl transition-colors text-left"
+          >
+            <Icon name="Palette" size={15} className="text-muted-foreground" />
+            Edit icon &amp; colour
+          </button>
+        )}
+
+        {/* Move */}
+        {canMove !== false && (
+        <button
+          onClick={() => { onClose(); onMove(); }}
+          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-foreground hover:bg-muted rounded-xl transition-colors text-left"
+        >
+          <Icon name="FolderInput" size={15} className="text-muted-foreground" />
+          Move folder
+        </button>
+        )}
+
+        {/* Visibility */}
+        <div>
+          <button
+            onClick={() => setShowVisibilityMenu(prev => !prev)}
+            className="w-full flex items-center justify-between gap-3 px-3 py-2.5 text-sm text-foreground hover:bg-muted rounded-xl transition-colors text-left"
+          >
+            <div className="flex items-center gap-3">
+              <Icon name="Eye" size={15} className="text-muted-foreground" />
+              Visibility restriction
+            </div>
+            <Icon name={showVisibilityMenu ? 'ChevronUp' : 'ChevronDown'} size={14} className="text-muted-foreground" />
+          </button>
+          {showVisibilityMenu && (
+            <div className="ml-6 mt-1 space-y-0.5">
+              {VISIBILITY_OPTIONS?.map(opt => (
+                <button
+                  key={opt?.value}
+                  onClick={() => handleVisibility(opt?.value)}
+                  disabled={savingVisibility}
+                  className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-xs rounded-lg transition-colors text-left ${
+                    currentVisibility === opt?.value
+                      ? 'bg-primary/10 text-primary font-medium' :'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }`}
+                >
+                  {opt?.label}
+                  {currentVisibility === opt?.value && <Icon name="Check" size={12} />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="h-px bg-border my-1" />
+
+        {/* Archive */}
+        <button
+          onClick={() => { onClose(); onArchive(); }}
+          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-amber-600 hover:bg-amber-50 rounded-xl transition-colors text-left"
+        >
+          <Icon name="Archive" size={15} className="text-amber-500" />
+          Archive folder
+        </button>
+
+        {/* Delete */}
+        <button
+          onClick={() => { onClose(); onDelete(); }}
+          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-xl transition-colors text-left"
+        >
+          <Icon name="Trash2" size={15} className="text-red-500" />
+          Delete folder
+        </button>
+      </div>
+    </ModalShell>
   );
 };
 
@@ -700,83 +693,81 @@ const MoveFolderModal = ({ folderName, currentPathSegments, folderTree, onClose,
   };
 
   return (
-    <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Icon name="FolderInput" size={16} className="text-primary" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-foreground">Move Folder</h2>
-              <p className="text-xs text-muted-foreground truncate max-w-[180px]">{folderName}</p>
-            </div>
+    <ModalShell onClose={onClose} panelClassName="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Icon name="FolderInput" size={16} className="text-primary" />
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
-            <Icon name="X" size={18} />
-          </button>
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Move Folder</h2>
+            <p className="text-xs text-muted-foreground truncate max-w-[180px]">{folderName}</p>
+          </div>
         </div>
-
-        <p className="text-xs text-muted-foreground mb-3">Select a destination folder:</p>
-
-        <div className="max-h-64 overflow-y-auto space-y-0.5 border border-border rounded-xl p-2 bg-background">
-          {destinations?.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">No other folders available</p>
-          ) : (
-            destinations?.map((dest) => {
-              const isSelected = selectedPath?.path === dest?.path;
-              return (
-                <button
-                  key={dest?.path}
-                  onClick={() => setSelectedPath(dest)}
-                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors text-left ${
-                    isSelected
-                      ? 'bg-primary/10 text-primary font-medium' :'text-foreground hover:bg-muted'
-                  }`}
-                  style={{ paddingLeft: `${12 + dest?.depth * 16}px` }}
-                >
-                  <Icon
-                    name={isSelected ? 'FolderOpen' : 'Folder'}
-                    size={14}
-                    className={isSelected ? 'text-primary' : 'text-muted-foreground'}
-                  />
-                  <span className="truncate">{dest?.label}</span>
-                  {dest?.depth > 0 && (
-                    <span className="ml-auto text-xs text-muted-foreground truncate max-w-[100px]">
-                      {dest?.segments?.slice(0, -1)?.join(' › ')}
-                    </span>
-                  )}
-                  {isSelected && <Icon name="Check" size={13} className="ml-auto text-primary shrink-0" />}
-                </button>
-              );
-            })
-          )}
-        </div>
-
-        {selectedPath && (
-          <p className="text-xs text-muted-foreground mt-2">
-            Moving to: <span className="font-medium text-foreground">{selectedPath?.segments?.join(' › ')}</span>
-          </p>
-        )}
-
-        <div className="flex gap-2 justify-end mt-4">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={!selectedPath || moving}
-            className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {moving && <LogoSpinner size={14} />}
-            {moving ? 'Moving…' : 'Move Here'}
-          </button>
-        </div>
+        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
+          <Icon name="X" size={18} />
+        </button>
       </div>
-    </div>
+
+      <p className="text-xs text-muted-foreground mb-3">Select a destination folder:</p>
+
+      <div className="max-h-64 overflow-y-auto space-y-0.5 border border-border rounded-xl p-2 bg-background">
+        {destinations?.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">No other folders available</p>
+        ) : (
+          destinations?.map((dest) => {
+            const isSelected = selectedPath?.path === dest?.path;
+            return (
+              <button
+                key={dest?.path}
+                onClick={() => setSelectedPath(dest)}
+                className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors text-left ${
+                  isSelected
+                    ? 'bg-primary/10 text-primary font-medium' :'text-foreground hover:bg-muted'
+                }`}
+                style={{ paddingLeft: `${12 + dest?.depth * 16}px` }}
+              >
+                <Icon
+                  name={isSelected ? 'FolderOpen' : 'Folder'}
+                  size={14}
+                  className={isSelected ? 'text-primary' : 'text-muted-foreground'}
+                />
+                <span className="truncate">{dest?.label}</span>
+                {dest?.depth > 0 && (
+                  <span className="ml-auto text-xs text-muted-foreground truncate max-w-[100px]">
+                    {dest?.segments?.slice(0, -1)?.join(' › ')}
+                  </span>
+                )}
+                {isSelected && <Icon name="Check" size={13} className="ml-auto text-primary shrink-0" />}
+              </button>
+            );
+          })
+        )}
+      </div>
+
+      {selectedPath && (
+        <p className="text-xs text-muted-foreground mt-2">
+          Moving to: <span className="font-medium text-foreground">{selectedPath?.segments?.join(' › ')}</span>
+        </p>
+      )}
+
+      <div className="flex gap-2 justify-end mt-4">
+        <button
+          onClick={onClose}
+          className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleConfirm}
+          disabled={!selectedPath || moving}
+          className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          {moving && <LogoSpinner size={14} />}
+          {moving ? 'Moving…' : 'Move Here'}
+        </button>
+      </div>
+    </ModalShell>
   );
 };
 
@@ -825,83 +816,81 @@ const BulkMoveItemsModal = ({ selectedCount, folderTree, currentPathSegments, on
   };
 
   return (
-    <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Icon name="FolderInput" size={16} className="text-primary" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-foreground">Move Items</h2>
-              <p className="text-xs text-muted-foreground">{selectedCount} item{selectedCount !== 1 ? 's' : ''} selected</p>
-            </div>
+    <ModalShell onClose={onClose} panelClassName="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Icon name="FolderInput" size={16} className="text-primary" />
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
-            <Icon name="X" size={18} />
-          </button>
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Move Items</h2>
+            <p className="text-xs text-muted-foreground">{selectedCount} item{selectedCount !== 1 ? 's' : ''} selected</p>
+          </div>
         </div>
-
-        <p className="text-xs text-muted-foreground mb-3">Select a destination folder:</p>
-
-        <div className="max-h-64 overflow-y-auto space-y-0.5 border border-border rounded-xl p-2 bg-background">
-          {destinations?.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">No other folders available</p>
-          ) : (
-            destinations?.map((dest) => {
-              const isSelected = selectedPath?.path === dest?.path;
-              return (
-                <button
-                  key={dest?.path}
-                  onClick={() => setSelectedPath(dest)}
-                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors text-left ${
-                    isSelected
-                      ? 'bg-primary/10 text-primary font-medium' :'text-foreground hover:bg-muted'
-                  }`}
-                  style={{ paddingLeft: `${12 + dest?.depth * 16}px` }}
-                >
-                  <Icon
-                    name={isSelected ? 'FolderOpen' : 'Folder'}
-                    size={14}
-                    className={isSelected ? 'text-primary' : 'text-muted-foreground'}
-                  />
-                  <span className="truncate">{dest?.label}</span>
-                  {dest?.depth > 0 && (
-                    <span className="ml-auto text-xs text-muted-foreground truncate max-w-[100px]">
-                      {dest?.segments?.slice(0, -1)?.join(' › ')}
-                    </span>
-                  )}
-                  {isSelected && <Icon name="Check" size={13} className="ml-auto text-primary shrink-0" />}
-                </button>
-              );
-            })
-          )}
-        </div>
-
-        {selectedPath && (
-          <p className="text-xs text-muted-foreground mt-2">
-            Moving to: <span className="font-medium text-foreground">{selectedPath?.segments?.join(' › ')}</span>
-          </p>
-        )}
-
-        <div className="flex gap-2 justify-end mt-4">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={!selectedPath || moving}
-            className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {moving && <LogoSpinner size={14} />}
-            {moving ? 'Moving…' : 'Move Here'}
-          </button>
-        </div>
+        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
+          <Icon name="X" size={18} />
+        </button>
       </div>
-    </div>
+
+      <p className="text-xs text-muted-foreground mb-3">Select a destination folder:</p>
+
+      <div className="max-h-64 overflow-y-auto space-y-0.5 border border-border rounded-xl p-2 bg-background">
+        {destinations?.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">No other folders available</p>
+        ) : (
+          destinations?.map((dest) => {
+            const isSelected = selectedPath?.path === dest?.path;
+            return (
+              <button
+                key={dest?.path}
+                onClick={() => setSelectedPath(dest)}
+                className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors text-left ${
+                  isSelected
+                    ? 'bg-primary/10 text-primary font-medium' :'text-foreground hover:bg-muted'
+                }`}
+                style={{ paddingLeft: `${12 + dest?.depth * 16}px` }}
+              >
+                <Icon
+                  name={isSelected ? 'FolderOpen' : 'Folder'}
+                  size={14}
+                  className={isSelected ? 'text-primary' : 'text-muted-foreground'}
+                />
+                <span className="truncate">{dest?.label}</span>
+                {dest?.depth > 0 && (
+                  <span className="ml-auto text-xs text-muted-foreground truncate max-w-[100px]">
+                    {dest?.segments?.slice(0, -1)?.join(' › ')}
+                  </span>
+                )}
+                {isSelected && <Icon name="Check" size={13} className="ml-auto text-primary shrink-0" />}
+              </button>
+            );
+          })
+        )}
+      </div>
+
+      {selectedPath && (
+        <p className="text-xs text-muted-foreground mt-2">
+          Moving to: <span className="font-medium text-foreground">{selectedPath?.segments?.join(' › ')}</span>
+        </p>
+      )}
+
+      <div className="flex gap-2 justify-end mt-4">
+        <button
+          onClick={onClose}
+          className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleConfirm}
+          disabled={!selectedPath || moving}
+          className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          {moving && <LogoSpinner size={14} />}
+          {moving ? 'Moving…' : 'Move Here'}
+        </button>
+      </div>
+    </ModalShell>
   );
 };
 
@@ -917,31 +906,29 @@ const BulkDeleteConfirmModal = ({ selectedCount, onClose, onConfirm }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
-              <Icon name="Trash2" size={16} className="text-red-600" />
-            </div>
-            <h2 className="text-lg font-semibold text-foreground">Delete Items</h2>
+    <ModalShell onClose={onClose} panelClassName="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
+            <Icon name="Trash2" size={16} className="text-red-600" />
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
-            <Icon name="X" size={18} />
-          </button>
+          <h2 className="text-lg font-semibold text-foreground">Delete Items</h2>
         </div>
-        <p className="text-sm text-muted-foreground mb-5">
-          Are you sure you want to permanently delete <span className="font-semibold text-foreground">{selectedCount} item{selectedCount !== 1 ? 's' : ''}</span>? This cannot be undone.
-        </p>
-        <div className="flex gap-2 justify-end">
-          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors">Cancel</button>
-          <button onClick={handleConfirm} disabled={deleting} className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-            {deleting && <LogoSpinner size={14} />}
-            {deleting ? 'Deleting…' : `Delete ${selectedCount} item${selectedCount !== 1 ? 's' : ''}`}
-          </button>
-        </div>
+        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
+          <Icon name="X" size={18} />
+        </button>
       </div>
-    </div>
+      <p className="text-sm text-muted-foreground mb-5">
+        Are you sure you want to permanently delete <span className="font-semibold text-foreground">{selectedCount} item{selectedCount !== 1 ? 's' : ''}</span>? This cannot be undone.
+      </p>
+      <div className="flex gap-2 justify-end">
+        <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors">Cancel</button>
+        <button onClick={handleConfirm} disabled={deleting} className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+          {deleting && <LogoSpinner size={14} />}
+          {deleting ? 'Deleting…' : `Delete ${selectedCount} item${selectedCount !== 1 ? 's' : ''}`}
+        </button>
+      </div>
+    </ModalShell>
   );
 };
 
@@ -1909,56 +1896,52 @@ const SortableFolderCard = ({ id, name, icon, color, itemCount, subFolderCount, 
 
 // ─── Delete Folder Confirmation Modal ────────────────────────────────────────
 const DeleteFolderModal = ({ folderName, onClose, onConfirm }) => (
-  <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-    <div className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-foreground">Delete Folder</h2>
-        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
-          <Icon name="X" size={18} />
-        </button>
+  <ModalShell onClose={onClose} panelClassName="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
+    <div className="flex items-center justify-between mb-4">
+      <h2 className="text-lg font-semibold text-foreground">Delete Folder</h2>
+      <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
+        <Icon name="X" size={18} />
+      </button>
+    </div>
+    <div className="flex items-start gap-3 mb-5">
+      <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+        <Icon name="Trash2" size={18} className="text-red-600" />
       </div>
-      <div className="flex items-start gap-3 mb-5">
-        <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
-          <Icon name="Trash2" size={18} className="text-red-600" />
-        </div>
-        <div>
-          <p className="text-sm font-medium text-foreground mb-1">Delete folder and all its contents?</p>
-          <p className="text-sm text-muted-foreground">"<span className="font-medium text-foreground">{folderName}</span>" and all its sub-folders and items will be permanently removed.</p>
-        </div>
-      </div>
-      <div className="flex gap-2 justify-end">
-        <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors">Cancel</button>
-        <button onClick={onConfirm} className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors">Delete</button>
+      <div>
+        <p className="text-sm font-medium text-foreground mb-1">Delete folder and all its contents?</p>
+        <p className="text-sm text-muted-foreground">"<span className="font-medium text-foreground">{folderName}</span>" and all its sub-folders and items will be permanently removed.</p>
       </div>
     </div>
-  </div>
+    <div className="flex gap-2 justify-end">
+      <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors">Cancel</button>
+      <button onClick={onConfirm} className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors">Delete</button>
+    </div>
+  </ModalShell>
 );
 
 // ─── Archive Folder Confirmation Modal ────────────────────────────────────────
 const ArchiveFolderModal = ({ folderName, onClose, onConfirm }) => (
-  <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-    <div className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-foreground">Archive Folder</h2>
-        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
-          <Icon name="X" size={18} />
-        </button>
+  <ModalShell onClose={onClose} panelClassName="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
+    <div className="flex items-center justify-between mb-4">
+      <h2 className="text-lg font-semibold text-foreground">Archive Folder</h2>
+      <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
+        <Icon name="X" size={18} />
+      </button>
+    </div>
+    <div className="flex items-start gap-3 mb-5">
+      <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+        <Icon name="Archive" size={18} className="text-amber-600" />
       </div>
-      <div className="flex items-start gap-3 mb-5">
-        <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
-          <Icon name="Archive" size={18} className="text-amber-600" />
-        </div>
-        <div>
-          <p className="text-sm font-medium text-foreground mb-1">Archive this folder?</p>
-          <p className="text-sm text-muted-foreground">"<span className="font-medium text-foreground">{folderName}</span>" will be hidden from normal view. All data is preserved.</p>
-        </div>
-      </div>
-      <div className="flex gap-2 justify-end">
-        <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors">Cancel</button>
-        <button onClick={onConfirm} className="px-4 py-2 text-sm font-medium bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-colors">Archive</button>
+      <div>
+        <p className="text-sm font-medium text-foreground mb-1">Archive this folder?</p>
+        <p className="text-sm text-muted-foreground">"<span className="font-medium text-foreground">{folderName}</span>" will be hidden from normal view. All data is preserved.</p>
       </div>
     </div>
-  </div>
+    <div className="flex gap-2 justify-end">
+      <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors">Cancel</button>
+      <button onClick={onConfirm} className="px-4 py-2 text-sm font-medium bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-colors">Archive</button>
+    </div>
+  </ModalShell>
 );
 
 // ─── Health Summary ────────────────────────────────────────────────────────────

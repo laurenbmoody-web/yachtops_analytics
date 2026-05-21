@@ -5,6 +5,8 @@ import { getDefectById, updateDefect, addDefectComment, addDefectPhoto, canEditD
 import { getActivityForEntity } from '../../../utils/activityStorage';
 import { showToast } from '../../../utils/toast';
 import { formatDistanceToNow } from 'date-fns';
+import ModalShell from '../../../components/ui/ModalShell';
+import useDismissable from '../../../components/ui/useDismissable';
 
 const DefectDetailView = ({ defect: initialDefect, onClose, onUpdate }) => {
   const currentUser = getCurrentUser();
@@ -14,6 +16,12 @@ const DefectDetailView = ({ defect: initialDefect, onClose, onUpdate }) => {
   const [newComment, setNewComment] = useState('');
   const [activityLog, setActivityLog] = useState([]);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(null);
+  // Photo lightbox stays hand-rolled (click-anywhere-closes pattern doesn't
+  // fit ModalShell's stop-propagation panel). Wire Esc-to-close here.
+  useDismissable({
+    onClose: () => setSelectedPhotoIndex(null),
+    enabled: selectedPhotoIndex !== null,
+  });
   const [allUsers, setAllUsers] = useState([]);
   
   const canEdit = canEditDefect(currentUser, defect);
@@ -160,8 +168,8 @@ const DefectDetailView = ({ defect: initialDefect, onClose, onUpdate }) => {
   };
   
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-      <div className="bg-card border border-border rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <>
+    <ModalShell onClose={onClose} panelClassName="bg-card border border-border rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-card border-b border-border p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -472,7 +480,7 @@ const DefectDetailView = ({ defect: initialDefect, onClose, onUpdate }) => {
             )}
           </div>
         </div>
-      </div>
+    </ModalShell>
       {/* Photo Lightbox */}
       {selectedPhotoIndex !== null && (
         <div 
@@ -492,7 +500,7 @@ const DefectDetailView = ({ defect: initialDefect, onClose, onUpdate }) => {
           />
         </div>
       )}
-    </div>
+    </>
   );
 };
 

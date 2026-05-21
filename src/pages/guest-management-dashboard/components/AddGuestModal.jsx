@@ -11,6 +11,7 @@ import { getCurrentUser } from '../../../utils/authStorage';
 import { supabase } from '../../../lib/supabaseClient';
 
 
+import ModalShell from '../../../components/ui/ModalShell';
 const PASSPORT_NATIONALITIES = [
   'Afghan', 'Albanian', 'Algerian', 'American', 'Andorran', 'Angolan', 'Antiguan',
   'Argentine', 'Armenian', 'Australian', 'Austrian', 'Azerbaijani', 'Bahamian',
@@ -538,675 +539,671 @@ const AddGuestModal = ({ isOpen, onClose, onSave, editingGuest }) => {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-        <div className="bg-card border border-border rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-          {/* Header */}
-          <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between rounded-t-2xl">
-            <h2 className="text-xl font-semibold text-foreground">{editingGuest ? 'Edit Guest' : 'Add Guest'}</h2>
+      <ModalShell onClose={handleClose} panelClassName="bg-card border border-border rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between rounded-t-2xl">
+          <h2 className="text-xl font-semibold text-foreground">{editingGuest ? 'Edit Guest' : 'Add Guest'}</h2>
+          <button
+            onClick={handleClose}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Icon name="X" size={20} />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-8">
+
+          {/* ── Photo Upload ── */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">Guest Photo</label>
+            {formData?.photo ? (
+              <div className="relative w-32 h-32 rounded-lg overflow-hidden border-2 border-border">
+                <img
+                  src={formData?.photo?.dataUrl}
+                  alt="Guest"
+                  className="w-full h-full object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={handleRemovePhoto}
+                  className="absolute top-2 right-2 bg-destructive text-destructive-foreground p-1.5 rounded-full hover:bg-destructive/90 transition-colors"
+                >
+                  <Icon name="X" size={16} />
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowPhotoPicker(!showPhotoPicker)}
+                  className="w-32 h-32 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-2 hover:border-primary transition-colors"
+                >
+                  <Icon name="Camera" size={24} className="text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Add Photo</span>
+                </button>
+                {showPhotoPicker && (
+                  <div className="absolute top-full left-0 mt-2 bg-card border border-border rounded-lg shadow-lg p-2 z-10 space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef?.current?.click()}
+                      className="w-full px-4 py-2 text-sm text-left hover:bg-accent rounded flex items-center gap-2"
+                    >
+                      <Icon name="Upload" size={16} />
+                      Upload from device
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => cameraInputRef?.current?.click()}
+                      className="w-full px-4 py-2 text-sm text-left hover:bg-accent rounded flex items-center gap-2"
+                    >
+                      <Icon name="Camera" size={16} />
+                      Take photo
+                    </button>
+                  </div>
+                )}
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={(e) => handlePhotoUpload(e, 'file')} className="hidden" />
+                <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={(e) => handlePhotoUpload(e, 'camera')} className="hidden" />
+              </div>
+            )}
+          </div>
+
+          {/* ── Personal Info ── */}
+          <div className="space-y-4">
+            <SectionHeader icon="User" title="Personal Information" />
+
+            {/* Name */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">First Name *</label>
+                <Input
+                  value={formData?.firstName}
+                  onChange={(e) => handleChange('firstName', e?.target?.value)}
+                  placeholder="Enter first name"
+                  error={errors?.firstName}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Last Name *</label>
+                <Input
+                  value={formData?.lastName}
+                  onChange={(e) => handleChange('lastName', e?.target?.value)}
+                  placeholder="Enter last name"
+                  error={errors?.lastName}
+                />
+              </div>
+            </div>
+
+            {/* Guest Type */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Guest Type</label>
+              <Select
+                value={formData?.guestType}
+                onChange={(value) => handleChange('guestType', value)}
+                options={[
+                  { value: GuestType?.OWNER, label: 'Owner' },
+                  { value: GuestType?.CHARTER, label: 'Charter' },
+                  { value: GuestType?.UNKNOWN, label: 'Unknown' }
+                ]}
+              />
+            </div>
+
+            {/* DOB & Cake */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Date of Birth</label>
+                <Input type="date" value={formData?.dateOfBirth} onChange={(e) => handleChange('dateOfBirth', e?.target?.value)} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Cake Preference</label>
+                <Input value={formData?.cakePreference} onChange={(e) => handleChange('cakePreference', e?.target?.value)} placeholder="e.g., Chocolate, Vanilla" />
+              </div>
+            </div>
+
+            {/* Marital Status */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Marital Status</label>
+              <Select
+                value={formData?.maritalStatus}
+                onChange={(value) => handleChange('maritalStatus', value)}
+                options={[
+                  { value: MaritalStatus?.SINGLE, label: 'Single' },
+                  { value: MaritalStatus?.MARRIED, label: 'Married' },
+                  { value: MaritalStatus?.PARTNERED, label: 'Partnered' },
+                  { value: MaritalStatus?.DIVORCED, label: 'Divorced' },
+                  { value: MaritalStatus?.WIDOWED, label: 'Widowed' },
+                  { value: MaritalStatus?.UNKNOWN, label: 'Prefer not to say' }
+                ]}
+              />
+            </div>
+
+            {/* Spouse Link */}
+            {formData?.maritalStatus === MaritalStatus?.MARRIED && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Connect Spouse (optional)</label>
+                <Select
+                  value={formData?.spouseGuestId || ''}
+                  onChange={(value) => handleChange('spouseGuestId', value)}
+                  options={[
+                    { value: '', label: 'No spouse linked' },
+                    ...spouseOptions?.map(guest => ({
+                      value: guest?.id,
+                      label: `${guest?.firstName} ${guest?.lastName}${guest?.cabinLocationPath ? ` (${guest?.cabinLocationPath})` : ''}`
+                    }))
+                  ]}
+                  searchable
+                />
+              </div>
+            )}
+
+            {/* Connect Kids */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Connect Kids (optional)</label>
+              <button
+                type="button"
+                onClick={handleOpenKidsModal}
+                className="flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors"
+              >
+                <Icon name="Users" size={14} />
+                <span>{getLinkedKidsDisplay()}</span>
+                <Icon name="ChevronRight" size={14} className="text-muted-foreground" />
+              </button>
+            </div>
+          </div>
+
+          {/* ── Contact Information ── */}
+          <div className="space-y-4">
+            <SectionHeader icon="Mail" title="Contact Information" />
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Email</label>
+              <Input type="email" value={formData?.contactEmail} onChange={(e) => handleChange('contactEmail', e?.target?.value)} placeholder="guest@example.com" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Phone</label>
+              <Input type="tel" value={formData?.contactPhone} onChange={(e) => handleChange('contactPhone', e?.target?.value)} placeholder="+1 (555) 000-0000" />
+            </div>
+          </div>
+
+          {/* ── Travel & Documents ── */}
+          <div className="space-y-4">
+            <SectionHeader icon="FileText" title="Travel & Documents" />
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Passport Number</label>
+              <Input value={formData?.passportNumber} onChange={(e) => handleChange('passportNumber', e?.target?.value)} placeholder="e.g., AB1234567" />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Passport Nationality</label>
+              <Select
+                value={formData?.passportNationality}
+                onChange={(value) => handleChange('passportNationality', value)}
+                options={[
+                  { value: '', label: 'Select nationality' },
+                  ...PASSPORT_NATIONALITIES?.map(n => ({ value: n, label: n }))
+                ]}
+                searchable
+              />
+            </div>
+
+            {formData?.passportNationality === 'Other' && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Nationality (specify)</label>
+                <Input value={formData?.passportNationalityOther} onChange={(e) => handleChange('passportNationalityOther', e?.target?.value)} placeholder="Enter nationality" />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Passport Expiry Date</label>
+              <Input type="date" value={formData?.passportExpiryDate} onChange={(e) => handleChange('passportExpiryDate', e?.target?.value)} />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Visa Notes</label>
+              <textarea
+                value={formData?.visaNotes}
+                onChange={(e) => handleChange('visaNotes', e?.target?.value)}
+                placeholder="Visa requirements, restrictions, notes..."
+                rows={3}
+                className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+              />
+            </div>
+
+            {/* Passport Document Upload */}
+            <div>
+              <label className="text-sm font-medium text-muted-foreground mb-2 block">Passport Document</label>
+              {(formData?.passportDocumentUrl) ? (
+                <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border border-border">
+                  <Icon name="FileText" size={18} className="text-primary flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    {passportSignedUrl ? (
+                      <a
+                        href={passportSignedUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-primary hover:underline truncate block"
+                      >
+                        View Passport Document
+                      </a>
+                    ) : (
+                      <span className="text-sm text-foreground">Passport Document</span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => passportFileInputRef?.current?.click()}
+                    className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded border border-border hover:bg-muted transition-colors"
+                  >
+                    Replace
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePassportRemove}
+                    className="text-xs text-destructive hover:text-destructive/80 px-2 py-1 rounded border border-destructive/30 hover:bg-destructive/10 transition-colors"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => passportFileInputRef?.current?.click()}
+                  disabled={passportUploading}
+                  className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted/80 text-foreground text-sm rounded-lg border border-border transition-colors disabled:opacity-50"
+                >
+                  {passportUploading ? (
+                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Icon name="Upload" size={16} />
+                  )}
+                  <span>{passportUploading ? 'Uploading...' : 'Upload Passport'}</span>
+                </button>
+              )}
+              <input
+                ref={passportFileInputRef}
+                type="file"
+                accept=".pdf,image/jpeg,image/png,image/webp"
+                onChange={handlePassportUpload}
+                className="hidden"
+              />
+            </div>
+
+            <div className="pt-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Emergency Contact</p>
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Name</label>
+                  <Input value={formData?.emergencyContactName} onChange={(e) => handleChange('emergencyContactName', e?.target?.value)} placeholder="Full name" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Phone</label>
+                  <Input type="tel" value={formData?.emergencyContactPhone} onChange={(e) => handleChange('emergencyContactPhone', e?.target?.value)} placeholder="+1 (555) 000-0000" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Relationship</label>
+                  <Select
+                    value={formData?.emergencyContactRelationship}
+                    onChange={(value) => handleChange('emergencyContactRelationship', value)}
+                    options={[
+                      { value: '', label: 'Select relationship' },
+                      ...EMERGENCY_RELATIONSHIPS?.map(r => ({ value: r, label: r }))
+                    ]}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Health Information ── */}
+          <div className="space-y-4">
+            <SectionHeader icon="Heart" title="Health Information" />
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Health Conditions</label>
+              <Input value={formData?.healthConditions} onChange={(e) => handleChange('healthConditions', e?.target?.value)} placeholder="Any medical conditions to note" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Allergies</label>
+              <Input value={formData?.allergies} onChange={(e) => handleChange('allergies', e?.target?.value)} placeholder="Food or other allergies" />
+            </div>
+          </div>
+
+          {/* ── Cabin Allocation ── */}
+          <div className="space-y-3">
+            <SectionHeader icon="Home" title="Cabin Allocation" />
+            
+            {locationNotFound && formData?.cabinLocationPath && (
+              <div className="px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-800">
+                <span className="font-medium">⚠ Previously selected cabin no longer exists.</span> Please select a new cabin.
+              </div>
+            )}
+            
+            {getAllDecks()?.length > 0 ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-900 mb-1">Deck</label>
+                  <select
+                    value={formData?.cabinLocationIds?.deckId || ''}
+                    onChange={(e) => handleLocationHierarchyChange('deck', e?.target?.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select deck</option>
+                    {getAllDecks()?.map(deck => (
+                      <option key={deck?.id} value={deck?.id}>{deck?.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                {/* Zone Dropdown */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-900 mb-1">Zone</label>
+                  <select
+                    value={formData?.cabinLocationIds?.zoneId || ''}
+                    onChange={(e) => handleLocationHierarchyChange('zone', e?.target?.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    disabled={!formData?.cabinLocationIds?.deckId}
+                  >
+                    <option value="">Select zone</option>
+                    {getZonesByDeck(formData?.cabinLocationIds?.deckId)?.map(zone => (
+                      <option key={zone?.id} value={zone?.id}>{zone?.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                {/* Space Dropdown */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-900 mb-1">Space</label>
+                  <select
+                    value={formData?.cabinLocationIds?.spaceId || ''}
+                    onChange={(e) => handleLocationHierarchyChange('space', e?.target?.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    disabled={!formData?.cabinLocationIds?.zoneId}
+                  >
+                    <option value="">Select space</option>
+                    {getSpacesByZone(formData?.cabinLocationIds?.zoneId)?.map(space => (
+                      <option key={space?.id} value={space?.id}>{space?.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            ) : (
+              <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600">
+                No locations configured. Add cabins in Location Management.
+              </div>
+            )}
+            
+            {/* Display selected location */}
+            {formData?.cabinLocationPath && (
+              <div className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-gray-700">
+                <span className="font-medium">Selected: </span>{formData?.cabinLocationPath}
+              </div>
+            )}
+          </div>
+
+          {/* ── Payment & APA ── */}
+          <div className="space-y-4">
+            <SectionHeader icon="DollarSign" title="Payment & APA" />
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Client Type</label>
+              <Select
+                value={formData?.clientType}
+                onChange={(value) => handleChange('clientType', value)}
+                options={[
+                  { value: '', label: 'Select client type' },
+                  ...CLIENT_TYPES?.map(t => ({ value: t, label: t }))
+                ]}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Billing Contact Name</label>
+              <Input value={formData?.billingContactName} onChange={(e) => handleChange('billingContactName', e?.target?.value)} placeholder="Full name" />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Billing Contact Email</label>
+              <Input type="email" value={formData?.billingContactEmail} onChange={(e) => handleChange('billingContactEmail', e?.target?.value)} placeholder="billing@example.com" />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Preferred Currency</label>
+              <Select
+                value={formData?.preferredCurrency}
+                onChange={(value) => handleChange('preferredCurrency', value)}
+                options={[
+                  { value: '', label: 'Select currency' },
+                  ...CURRENCIES?.map(c => ({ value: c, label: c }))
+                ]}
+              />
+            </div>
+
+            <Toggle
+              checked={formData?.apaRequired}
+              onChange={(checked) => handleChange('apaRequired', checked)}
+              label="APA Required"
+            />
+
+            {formData?.apaRequired && (
+              <>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">APA Amount</label>
+                  <Input type="number" value={formData?.apaAmount} onChange={(e) => handleChange('apaAmount', e?.target?.value)} placeholder="0.00" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">APA Notes</label>
+                  <textarea
+                    value={formData?.apaNotes}
+                    onChange={(e) => handleChange('apaNotes', e?.target?.value)}
+                    placeholder="APA terms, conditions, notes..."
+                    rows={3}
+                    className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                  />
+                </div>
+              </>
+            )}
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Payment Notes</label>
+              <textarea
+                value={formData?.paymentNotes}
+                onChange={(e) => handleChange('paymentNotes', e?.target?.value)}
+                placeholder="Payment terms, history, special arrangements..."
+                rows={3}
+                className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+              />
+            </div>
+          </div>
+
+          {/* ── NDA & Privacy ── */}
+          <div className="space-y-4">
+            <SectionHeader icon="Shield" title="NDA &amp; Privacy" />
+
+            <Toggle
+              checked={formData?.ndaSigned}
+              onChange={(checked) => handleChange('ndaSigned', checked)}
+              label="NDA Signed"
+            />
+
+            {formData?.ndaSigned && (
+              <>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">NDA Expiry Date</label>
+                  <Input type="date" value={formData?.ndaExpiryDate} onChange={(e) => handleChange('ndaExpiryDate', e?.target?.value)} />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">NDA Document</label>
+                  {formData?.ndaDocumentUrl ? (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-accent border border-border rounded-lg">
+                      <Icon name="FileText" size={16} className="text-muted-foreground" />
+                      <span className="text-sm text-foreground flex-1 truncate">{ndaFileName}</span>
+                      <button
+                        type="button"
+                        onClick={handleNdaRemove}
+                        className="text-destructive hover:text-destructive/80"
+                      >
+                        <Icon name="X" size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <input
+                        ref={ndaFileInputRef}
+                        type="file"
+                        accept=".pdf,.doc,.docx"
+                        onChange={handleNdaUpload}
+                        className="hidden"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => ndaFileInputRef?.current?.click()}
+                        disabled={ndaUploading}
+                      >
+                        {ndaUploading ? 'Uploading...' : 'Upload NDA Document'}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Privacy Level</label>
+              <Select
+                value={formData?.privacyLevel}
+                onChange={(value) => handleChange('privacyLevel', value)}
+                options={PRIVACY_LEVELS?.map(p => ({ value: p, label: p }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Photo Permission</label>
+              <Select
+                value={formData?.photoPermission}
+                onChange={(value) => handleChange('photoPermission', value)}
+                options={PHOTO_PERMISSIONS?.map(p => ({ value: p, label: p }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Share Guest Info with Crew</label>
+              <Select
+                value={formData?.shareGuestInfoWithCrew}
+                onChange={(value) => handleChange('shareGuestInfoWithCrew', value)}
+                options={SHARE_INFO_OPTIONS?.map(o => ({ value: o, label: o }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Privacy Notes</label>
+              <textarea
+                value={formData?.privacyNotes}
+                onChange={(e) => handleChange('privacyNotes', e?.target?.value)}
+                placeholder="Privacy preferences, restrictions, special considerations..."
+                rows={3}
+                className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+              />
+            </div>
+          </div>
+
+          {/* Preferences Summary */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 pb-1 border-b border-border">
+              <Icon name="Star" size={15} className="text-muted-foreground" />
+              Preferences
+            </h3>
             <button
-              onClick={handleClose}
+              type="button"
+              onClick={() => navigate('/preferences')}
+              className="w-full px-4 py-3 bg-muted/50 hover:bg-muted rounded-lg text-left flex items-center justify-between transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Icon name="Settings" size={16} className="text-foreground" />
+                <span className="text-sm font-medium text-foreground">Preferences</span>
+              </div>
+              <Icon name="ChevronRight" size={16} className="text-muted-foreground" />
+            </button>
+          </div>
+
+          {/* Active Status */}
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="isActiveOnTrip"
+              checked={formData?.isActiveOnTrip}
+              onChange={(e) => handleChange('isActiveOnTrip', e?.target?.checked)}
+              className="w-4 h-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
+            />
+            <label htmlFor="isActiveOnTrip" className="text-sm font-medium text-foreground cursor-pointer">
+              Active on current trip
+            </label>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-4">
+            <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
+              Cancel
+            </Button>
+            <Button type="submit" className="flex-1">
+              {editingGuest ? 'Save Changes' : 'Add Guest'}
+            </Button>
+          </div>
+        </form>
+      </ModalShell>
+      {/* Kids Modal */}
+      {showKidsModal && (
+        <ModalShell onClose={() => setShowKidsModal(false)} panelClassName="bg-card border border-border rounded-2xl w-full max-w-md max-h-[80vh] overflow-y-auto">
+          <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between rounded-t-2xl">
+            <h3 className="text-lg font-semibold text-foreground">Connect Kids</h3>
+            <button
+              onClick={() => setShowKidsModal(false)}
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
               <Icon name="X" size={20} />
             </button>
           </div>
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="p-6 space-y-8">
-
-            {/* ── Photo Upload ── */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Guest Photo</label>
-              {formData?.photo ? (
-                <div className="relative w-32 h-32 rounded-lg overflow-hidden border-2 border-border">
-                  <img
-                    src={formData?.photo?.dataUrl}
-                    alt="Guest"
-                    className="w-full h-full object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleRemovePhoto}
-                    className="absolute top-2 right-2 bg-destructive text-destructive-foreground p-1.5 rounded-full hover:bg-destructive/90 transition-colors"
+          <div className="p-6">
+            {kidsLoading ? (
+              <div className="text-center py-8 text-muted-foreground">Loading...</div>
+            ) : kidsOptions?.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">No kids available to link</div>
+            ) : (
+              <div className="space-y-2">
+                {kidsOptions?.map(kid => (
+                  <label
+                    key={kid?.id}
+                    className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-accent cursor-pointer"
                   >
-                    <Icon name="X" size={16} />
-                  </button>
-                </div>
-              ) : (
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setShowPhotoPicker(!showPhotoPicker)}
-                    className="w-32 h-32 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-2 hover:border-primary transition-colors"
-                  >
-                    <Icon name="Camera" size={24} className="text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Add Photo</span>
-                  </button>
-                  {showPhotoPicker && (
-                    <div className="absolute top-full left-0 mt-2 bg-card border border-border rounded-lg shadow-lg p-2 z-10 space-y-2">
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef?.current?.click()}
-                        className="w-full px-4 py-2 text-sm text-left hover:bg-accent rounded flex items-center gap-2"
-                      >
-                        <Icon name="Upload" size={16} />
-                        Upload from device
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => cameraInputRef?.current?.click()}
-                        className="w-full px-4 py-2 text-sm text-left hover:bg-accent rounded flex items-center gap-2"
-                      >
-                        <Icon name="Camera" size={16} />
-                        Take photo
-                      </button>
-                    </div>
-                  )}
-                  <input ref={fileInputRef} type="file" accept="image/*" onChange={(e) => handlePhotoUpload(e, 'file')} className="hidden" />
-                  <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={(e) => handlePhotoUpload(e, 'camera')} className="hidden" />
-                </div>
-              )}
-            </div>
-
-            {/* ── Personal Info ── */}
-            <div className="space-y-4">
-              <SectionHeader icon="User" title="Personal Information" />
-
-              {/* Name */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">First Name *</label>
-                  <Input
-                    value={formData?.firstName}
-                    onChange={(e) => handleChange('firstName', e?.target?.value)}
-                    placeholder="Enter first name"
-                    error={errors?.firstName}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Last Name *</label>
-                  <Input
-                    value={formData?.lastName}
-                    onChange={(e) => handleChange('lastName', e?.target?.value)}
-                    placeholder="Enter last name"
-                    error={errors?.lastName}
-                  />
-                </div>
-              </div>
-
-              {/* Guest Type */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Guest Type</label>
-                <Select
-                  value={formData?.guestType}
-                  onChange={(value) => handleChange('guestType', value)}
-                  options={[
-                    { value: GuestType?.OWNER, label: 'Owner' },
-                    { value: GuestType?.CHARTER, label: 'Charter' },
-                    { value: GuestType?.UNKNOWN, label: 'Unknown' }
-                  ]}
-                />
-              </div>
-
-              {/* DOB & Cake */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Date of Birth</label>
-                  <Input type="date" value={formData?.dateOfBirth} onChange={(e) => handleChange('dateOfBirth', e?.target?.value)} />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Cake Preference</label>
-                  <Input value={formData?.cakePreference} onChange={(e) => handleChange('cakePreference', e?.target?.value)} placeholder="e.g., Chocolate, Vanilla" />
-                </div>
-              </div>
-
-              {/* Marital Status */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Marital Status</label>
-                <Select
-                  value={formData?.maritalStatus}
-                  onChange={(value) => handleChange('maritalStatus', value)}
-                  options={[
-                    { value: MaritalStatus?.SINGLE, label: 'Single' },
-                    { value: MaritalStatus?.MARRIED, label: 'Married' },
-                    { value: MaritalStatus?.PARTNERED, label: 'Partnered' },
-                    { value: MaritalStatus?.DIVORCED, label: 'Divorced' },
-                    { value: MaritalStatus?.WIDOWED, label: 'Widowed' },
-                    { value: MaritalStatus?.UNKNOWN, label: 'Prefer not to say' }
-                  ]}
-                />
-              </div>
-
-              {/* Spouse Link */}
-              {formData?.maritalStatus === MaritalStatus?.MARRIED && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Connect Spouse (optional)</label>
-                  <Select
-                    value={formData?.spouseGuestId || ''}
-                    onChange={(value) => handleChange('spouseGuestId', value)}
-                    options={[
-                      { value: '', label: 'No spouse linked' },
-                      ...spouseOptions?.map(guest => ({
-                        value: guest?.id,
-                        label: `${guest?.firstName} ${guest?.lastName}${guest?.cabinLocationPath ? ` (${guest?.cabinLocationPath})` : ''}`
-                      }))
-                    ]}
-                    searchable
-                  />
-                </div>
-              )}
-
-              {/* Connect Kids */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Connect Kids (optional)</label>
-                <button
-                  type="button"
-                  onClick={handleOpenKidsModal}
-                  className="flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors"
-                >
-                  <Icon name="Users" size={14} />
-                  <span>{getLinkedKidsDisplay()}</span>
-                  <Icon name="ChevronRight" size={14} className="text-muted-foreground" />
-                </button>
-              </div>
-            </div>
-
-            {/* ── Contact Information ── */}
-            <div className="space-y-4">
-              <SectionHeader icon="Mail" title="Contact Information" />
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Email</label>
-                <Input type="email" value={formData?.contactEmail} onChange={(e) => handleChange('contactEmail', e?.target?.value)} placeholder="guest@example.com" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Phone</label>
-                <Input type="tel" value={formData?.contactPhone} onChange={(e) => handleChange('contactPhone', e?.target?.value)} placeholder="+1 (555) 000-0000" />
-              </div>
-            </div>
-
-            {/* ── Travel & Documents ── */}
-            <div className="space-y-4">
-              <SectionHeader icon="FileText" title="Travel & Documents" />
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Passport Number</label>
-                <Input value={formData?.passportNumber} onChange={(e) => handleChange('passportNumber', e?.target?.value)} placeholder="e.g., AB1234567" />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Passport Nationality</label>
-                <Select
-                  value={formData?.passportNationality}
-                  onChange={(value) => handleChange('passportNationality', value)}
-                  options={[
-                    { value: '', label: 'Select nationality' },
-                    ...PASSPORT_NATIONALITIES?.map(n => ({ value: n, label: n }))
-                  ]}
-                  searchable
-                />
-              </div>
-
-              {formData?.passportNationality === 'Other' && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Nationality (specify)</label>
-                  <Input value={formData?.passportNationalityOther} onChange={(e) => handleChange('passportNationalityOther', e?.target?.value)} placeholder="Enter nationality" />
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Passport Expiry Date</label>
-                <Input type="date" value={formData?.passportExpiryDate} onChange={(e) => handleChange('passportExpiryDate', e?.target?.value)} />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Visa Notes</label>
-                <textarea
-                  value={formData?.visaNotes}
-                  onChange={(e) => handleChange('visaNotes', e?.target?.value)}
-                  placeholder="Visa requirements, restrictions, notes..."
-                  rows={3}
-                  className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-                />
-              </div>
-
-              {/* Passport Document Upload */}
-              <div>
-                <label className="text-sm font-medium text-muted-foreground mb-2 block">Passport Document</label>
-                {(formData?.passportDocumentUrl) ? (
-                  <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border border-border">
-                    <Icon name="FileText" size={18} className="text-primary flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      {passportSignedUrl ? (
-                        <a
-                          href={passportSignedUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-primary hover:underline truncate block"
-                        >
-                          View Passport Document
-                        </a>
-                      ) : (
-                        <span className="text-sm text-foreground">Passport Document</span>
+                    <input
+                      type="checkbox"
+                      checked={linkedKidIds?.includes(kid?.id)}
+                      onChange={() => handleToggleKid(kid?.id)}
+                      className="w-4 h-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
+                    />
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-foreground">
+                        {kid?.firstName} {kid?.lastName}
+                      </div>
+                      {kid?.cabinLocationPath && (
+                        <div className="text-xs text-muted-foreground">{kid?.cabinLocationPath}</div>
                       )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => passportFileInputRef?.current?.click()}
-                      className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded border border-border hover:bg-muted transition-colors"
-                    >
-                      Replace
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handlePassportRemove}
-                      className="text-xs text-destructive hover:text-destructive/80 px-2 py-1 rounded border border-destructive/30 hover:bg-destructive/10 transition-colors"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => passportFileInputRef?.current?.click()}
-                    disabled={passportUploading}
-                    className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted/80 text-foreground text-sm rounded-lg border border-border transition-colors disabled:opacity-50"
-                  >
-                    {passportUploading ? (
-                      <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <Icon name="Upload" size={16} />
-                    )}
-                    <span>{passportUploading ? 'Uploading...' : 'Upload Passport'}</span>
-                  </button>
-                )}
-                <input
-                  ref={passportFileInputRef}
-                  type="file"
-                  accept=".pdf,image/jpeg,image/png,image/webp"
-                  onChange={handlePassportUpload}
-                  className="hidden"
-                />
+                  </label>
+                ))}
               </div>
-
-              <div className="pt-1">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Emergency Contact</p>
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">Name</label>
-                    <Input value={formData?.emergencyContactName} onChange={(e) => handleChange('emergencyContactName', e?.target?.value)} placeholder="Full name" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">Phone</label>
-                    <Input type="tel" value={formData?.emergencyContactPhone} onChange={(e) => handleChange('emergencyContactPhone', e?.target?.value)} placeholder="+1 (555) 000-0000" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">Relationship</label>
-                    <Select
-                      value={formData?.emergencyContactRelationship}
-                      onChange={(value) => handleChange('emergencyContactRelationship', value)}
-                      options={[
-                        { value: '', label: 'Select relationship' },
-                        ...EMERGENCY_RELATIONSHIPS?.map(r => ({ value: r, label: r }))
-                      ]}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ── Health Information ── */}
-            <div className="space-y-4">
-              <SectionHeader icon="Heart" title="Health Information" />
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Health Conditions</label>
-                <Input value={formData?.healthConditions} onChange={(e) => handleChange('healthConditions', e?.target?.value)} placeholder="Any medical conditions to note" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Allergies</label>
-                <Input value={formData?.allergies} onChange={(e) => handleChange('allergies', e?.target?.value)} placeholder="Food or other allergies" />
-              </div>
-            </div>
-
-            {/* ── Cabin Allocation ── */}
-            <div className="space-y-3">
-              <SectionHeader icon="Home" title="Cabin Allocation" />
-              
-              {locationNotFound && formData?.cabinLocationPath && (
-                <div className="px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-800">
-                  <span className="font-medium">⚠ Previously selected cabin no longer exists.</span> Please select a new cabin.
-                </div>
-              )}
-              
-              {getAllDecks()?.length > 0 ? (
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-900 mb-1">Deck</label>
-                    <select
-                      value={formData?.cabinLocationIds?.deckId || ''}
-                      onChange={(e) => handleLocationHierarchyChange('deck', e?.target?.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="">Select deck</option>
-                      {getAllDecks()?.map(deck => (
-                        <option key={deck?.id} value={deck?.id}>{deck?.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  {/* Zone Dropdown */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-900 mb-1">Zone</label>
-                    <select
-                      value={formData?.cabinLocationIds?.zoneId || ''}
-                      onChange={(e) => handleLocationHierarchyChange('zone', e?.target?.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      disabled={!formData?.cabinLocationIds?.deckId}
-                    >
-                      <option value="">Select zone</option>
-                      {getZonesByDeck(formData?.cabinLocationIds?.deckId)?.map(zone => (
-                        <option key={zone?.id} value={zone?.id}>{zone?.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  {/* Space Dropdown */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-900 mb-1">Space</label>
-                    <select
-                      value={formData?.cabinLocationIds?.spaceId || ''}
-                      onChange={(e) => handleLocationHierarchyChange('space', e?.target?.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      disabled={!formData?.cabinLocationIds?.zoneId}
-                    >
-                      <option value="">Select space</option>
-                      {getSpacesByZone(formData?.cabinLocationIds?.zoneId)?.map(space => (
-                        <option key={space?.id} value={space?.id}>{space?.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              ) : (
-                <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600">
-                  No locations configured. Add cabins in Location Management.
-                </div>
-              )}
-              
-              {/* Display selected location */}
-              {formData?.cabinLocationPath && (
-                <div className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-gray-700">
-                  <span className="font-medium">Selected: </span>{formData?.cabinLocationPath}
-                </div>
-              )}
-            </div>
-
-            {/* ── Payment & APA ── */}
-            <div className="space-y-4">
-              <SectionHeader icon="DollarSign" title="Payment & APA" />
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Client Type</label>
-                <Select
-                  value={formData?.clientType}
-                  onChange={(value) => handleChange('clientType', value)}
-                  options={[
-                    { value: '', label: 'Select client type' },
-                    ...CLIENT_TYPES?.map(t => ({ value: t, label: t }))
-                  ]}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Billing Contact Name</label>
-                <Input value={formData?.billingContactName} onChange={(e) => handleChange('billingContactName', e?.target?.value)} placeholder="Full name" />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Billing Contact Email</label>
-                <Input type="email" value={formData?.billingContactEmail} onChange={(e) => handleChange('billingContactEmail', e?.target?.value)} placeholder="billing@example.com" />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Preferred Currency</label>
-                <Select
-                  value={formData?.preferredCurrency}
-                  onChange={(value) => handleChange('preferredCurrency', value)}
-                  options={[
-                    { value: '', label: 'Select currency' },
-                    ...CURRENCIES?.map(c => ({ value: c, label: c }))
-                  ]}
-                />
-              </div>
-
-              <Toggle
-                checked={formData?.apaRequired}
-                onChange={(checked) => handleChange('apaRequired', checked)}
-                label="APA Required"
-              />
-
-              {formData?.apaRequired && (
-                <>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">APA Amount</label>
-                    <Input type="number" value={formData?.apaAmount} onChange={(e) => handleChange('apaAmount', e?.target?.value)} placeholder="0.00" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">APA Notes</label>
-                    <textarea
-                      value={formData?.apaNotes}
-                      onChange={(e) => handleChange('apaNotes', e?.target?.value)}
-                      placeholder="APA terms, conditions, notes..."
-                      rows={3}
-                      className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-                    />
-                  </div>
-                </>
-              )}
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Payment Notes</label>
-                <textarea
-                  value={formData?.paymentNotes}
-                  onChange={(e) => handleChange('paymentNotes', e?.target?.value)}
-                  placeholder="Payment terms, history, special arrangements..."
-                  rows={3}
-                  className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-                />
-              </div>
-            </div>
-
-            {/* ── NDA & Privacy ── */}
-            <div className="space-y-4">
-              <SectionHeader icon="Shield" title="NDA &amp; Privacy" />
-
-              <Toggle
-                checked={formData?.ndaSigned}
-                onChange={(checked) => handleChange('ndaSigned', checked)}
-                label="NDA Signed"
-              />
-
-              {formData?.ndaSigned && (
-                <>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">NDA Expiry Date</label>
-                    <Input type="date" value={formData?.ndaExpiryDate} onChange={(e) => handleChange('ndaExpiryDate', e?.target?.value)} />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">NDA Document</label>
-                    {formData?.ndaDocumentUrl ? (
-                      <div className="flex items-center gap-2 px-3 py-2 bg-accent border border-border rounded-lg">
-                        <Icon name="FileText" size={16} className="text-muted-foreground" />
-                        <span className="text-sm text-foreground flex-1 truncate">{ndaFileName}</span>
-                        <button
-                          type="button"
-                          onClick={handleNdaRemove}
-                          className="text-destructive hover:text-destructive/80"
-                        >
-                          <Icon name="X" size={16} />
-                        </button>
-                      </div>
-                    ) : (
-                      <div>
-                        <input
-                          ref={ndaFileInputRef}
-                          type="file"
-                          accept=".pdf,.doc,.docx"
-                          onChange={handleNdaUpload}
-                          className="hidden"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => ndaFileInputRef?.current?.click()}
-                          disabled={ndaUploading}
-                        >
-                          {ndaUploading ? 'Uploading...' : 'Upload NDA Document'}
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Privacy Level</label>
-                <Select
-                  value={formData?.privacyLevel}
-                  onChange={(value) => handleChange('privacyLevel', value)}
-                  options={PRIVACY_LEVELS?.map(p => ({ value: p, label: p }))}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Photo Permission</label>
-                <Select
-                  value={formData?.photoPermission}
-                  onChange={(value) => handleChange('photoPermission', value)}
-                  options={PHOTO_PERMISSIONS?.map(p => ({ value: p, label: p }))}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Share Guest Info with Crew</label>
-                <Select
-                  value={formData?.shareGuestInfoWithCrew}
-                  onChange={(value) => handleChange('shareGuestInfoWithCrew', value)}
-                  options={SHARE_INFO_OPTIONS?.map(o => ({ value: o, label: o }))}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Privacy Notes</label>
-                <textarea
-                  value={formData?.privacyNotes}
-                  onChange={(e) => handleChange('privacyNotes', e?.target?.value)}
-                  placeholder="Privacy preferences, restrictions, special considerations..."
-                  rows={3}
-                  className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-                />
-              </div>
-            </div>
-
-            {/* Preferences Summary */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 pb-1 border-b border-border">
-                <Icon name="Star" size={15} className="text-muted-foreground" />
-                Preferences
-              </h3>
-              <button
+            )}
+            <div className="mt-6">
+              <Button
                 type="button"
-                onClick={() => navigate('/preferences')}
-                className="w-full px-4 py-3 bg-muted/50 hover:bg-muted rounded-lg text-left flex items-center justify-between transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <Icon name="Settings" size={16} className="text-foreground" />
-                  <span className="text-sm font-medium text-foreground">Preferences</span>
-                </div>
-                <Icon name="ChevronRight" size={16} className="text-muted-foreground" />
-              </button>
-            </div>
-
-            {/* Active Status */}
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="isActiveOnTrip"
-                checked={formData?.isActiveOnTrip}
-                onChange={(e) => handleChange('isActiveOnTrip', e?.target?.checked)}
-                className="w-4 h-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
-              />
-              <label htmlFor="isActiveOnTrip" className="text-sm font-medium text-foreground cursor-pointer">
-                Active on current trip
-              </label>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-3 pt-4">
-              <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
-                Cancel
-              </Button>
-              <Button type="submit" className="flex-1">
-                {editingGuest ? 'Save Changes' : 'Add Guest'}
-              </Button>
-            </div>
-          </form>
-        </div>
-      </div>
-      {/* Kids Modal */}
-      {showKidsModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-          <div className="bg-card border border-border rounded-2xl w-full max-w-md max-h-[80vh] overflow-y-auto">
-            <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between rounded-t-2xl">
-              <h3 className="text-lg font-semibold text-foreground">Connect Kids</h3>
-              <button
                 onClick={() => setShowKidsModal(false)}
-                className="text-muted-foreground hover:text-foreground transition-colors"
+                className="w-full"
               >
-                <Icon name="X" size={20} />
-              </button>
-            </div>
-            <div className="p-6">
-              {kidsLoading ? (
-                <div className="text-center py-8 text-muted-foreground">Loading...</div>
-              ) : kidsOptions?.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">No kids available to link</div>
-              ) : (
-                <div className="space-y-2">
-                  {kidsOptions?.map(kid => (
-                    <label
-                      key={kid?.id}
-                      className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-accent cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={linkedKidIds?.includes(kid?.id)}
-                        onChange={() => handleToggleKid(kid?.id)}
-                        className="w-4 h-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
-                      />
-                      <div className="flex-1">
-                        <div className="text-sm font-medium text-foreground">
-                          {kid?.firstName} {kid?.lastName}
-                        </div>
-                        {kid?.cabinLocationPath && (
-                          <div className="text-xs text-muted-foreground">{kid?.cabinLocationPath}</div>
-                        )}
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              )}
-              <div className="mt-6">
-                <Button
-                  type="button"
-                  onClick={() => setShowKidsModal(false)}
-                  className="w-full"
-                >
-                  Done
-                </Button>
-              </div>
+                Done
+              </Button>
             </div>
           </div>
-        </div>
+        </ModalShell>
       )}
     </>
   );

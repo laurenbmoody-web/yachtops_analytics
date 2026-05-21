@@ -12,6 +12,7 @@ import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useTenant } from '../../../contexts/TenantContext';
 
+import ModalShell from '../../../components/ui/ModalShell';
 // Roles live in two tables:
 //   public.roles               — app-wide catalog, read-only here, source='global'
 //   public.tenant_custom_roles — this tenant's custom roles, CRUD here, source='custom'
@@ -405,77 +406,75 @@ const RoleManagement = () => {
            vessel-settings or its sidebar. Matches the standalone modals used
            elsewhere in the app (e.g. InviteCrewModal). */}
       {showAddModal && createPortal(
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-          <div className="bg-card border border-border rounded-2xl w-full max-w-lg">
-            <div className="border-b border-border p-6 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-foreground">
-                {editingRole ? 'Edit Custom Role' : 'Add Custom Role'}
-              </h2>
-              <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-muted rounded-lg transition-smooth">
-                <Icon name="X" size={20} className="text-muted-foreground" />
-              </button>
+        <ModalShell onClose={() => setShowAddModal(false)} panelClassName="bg-card border border-border rounded-2xl w-full max-w-lg">
+          <div className="border-b border-border p-6 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-foreground">
+              {editingRole ? 'Edit Custom Role' : 'Add Custom Role'}
+            </h2>
+            <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-muted rounded-lg transition-smooth">
+              <Icon name="X" size={20} className="text-muted-foreground" />
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-6 space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Role Name <span className="text-error">*</span>
+              </label>
+              <Input
+                value={formData?.name}
+                onChange={(e) => handleFormChange('name', e?.target?.value)}
+                placeholder="e.g., Second Stewardess"
+                required
+              />
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-5">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Role Name <span className="text-error">*</span>
-                </label>
-                <Input
-                  value={formData?.name}
-                  onChange={(e) => handleFormChange('name', e?.target?.value)}
-                  placeholder="e.g., Second Stewardess"
-                  required
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Department <span className="text-error">*</span>
+              </label>
+              <Select
+                value={formData?.department_id}
+                onChange={(value) => handleFormChange('department_id', value)}
+                options={departmentOptions}
+                placeholder="Select a department"
+                required
+              />
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Department <span className="text-error">*</span>
-                </label>
-                <Select
-                  value={formData?.department_id}
-                  onChange={(value) => handleFormChange('department_id', value)}
-                  options={departmentOptions}
-                  placeholder="Select a department"
-                  required
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Permission Tier <span className="text-error">*</span>
+              </label>
+              <Select
+                value={formData?.default_permission_tier}
+                onChange={(value) => handleFormChange('default_permission_tier', value)}
+                options={tierOptions}
+                placeholder="Select a permission tier"
+                required
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Default access level for anyone assigned this role
+              </p>
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Permission Tier <span className="text-error">*</span>
-                </label>
-                <Select
-                  value={formData?.default_permission_tier}
-                  onChange={(value) => handleFormChange('default_permission_tier', value)}
-                  options={tierOptions}
-                  placeholder="Select a permission tier"
-                  required
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Default access level for anyone assigned this role
-                </p>
+            {formError && (
+              <div className="bg-error/10 border border-error/20 rounded-lg p-3 flex items-start gap-2">
+                <Icon name="AlertCircle" size={18} className="text-error mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-error">{formError}</p>
               </div>
+            )}
 
-              {formError && (
-                <div className="bg-error/10 border border-error/20 rounded-lg p-3 flex items-start gap-2">
-                  <Icon name="AlertCircle" size={18} className="text-error mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-error">{formError}</p>
-                </div>
-              )}
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
-                <Button type="button" variant="ghost" onClick={() => setShowAddModal(false)} disabled={saving}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={saving}>
-                  {saving ? 'Saving…' : (editingRole ? 'Save Changes' : 'Add Role')}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>,
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
+              <Button type="button" variant="ghost" onClick={() => setShowAddModal(false)} disabled={saving}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Saving…' : (editingRole ? 'Save Changes' : 'Add Role')}
+              </Button>
+            </div>
+          </form>
+        </ModalShell>,
         document.body
       )}
     </div>

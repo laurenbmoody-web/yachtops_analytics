@@ -9,6 +9,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { updateOpsEvent, deleteOpsEvent } from '../utils/opsEventStorage';
 import { DEPARTMENTS } from '../../../utils/authStorage';
 
+import ModalShell from '../../../components/ui/ModalShell';
 const EditEventModal = ({ event, onClose, onSuccess }) => {
   const { currentUser, isCommand, isChief, isHOD } = useAuth();
   const [showAllHandsConfirm, setShowAllHandsConfirm] = useState(false);
@@ -147,204 +148,198 @@ const EditEventModal = ({ event, onClose, onSuccess }) => {
 
   if (showAllHandsConfirm) {
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-        <div className="bg-card rounded-xl border border-border shadow-xl max-w-md w-full p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 rounded-full bg-warning/10">
-              <Icon name="AlertTriangle" size={24} className="text-warning" />
-            </div>
-            <h2 className="text-xl font-semibold text-foreground">All Hands Confirmation</h2>
+      <ModalShell onClose={onClose} panelClassName="bg-card rounded-xl border border-border shadow-xl max-w-md w-full p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-3 rounded-full bg-warning/10">
+            <Icon name="AlertTriangle" size={24} className="text-warning" />
           </div>
-          <p className="text-muted-foreground mb-6">
-            This event will be visible to <strong>ALL crew members</strong>. Are you sure you want to proceed?
-          </p>
-          <div className="flex gap-3 justify-end">
-            <Button variant="outline" onClick={() => setShowAllHandsConfirm(false)}>
-              Cancel
-            </Button>
-            <Button variant="warning" onClick={handleAllHandsConfirm}>
-              Confirm & Save
-            </Button>
-          </div>
+          <h2 className="text-xl font-semibold text-foreground">All Hands Confirmation</h2>
         </div>
-      </div>
+        <p className="text-muted-foreground mb-6">
+          This event will be visible to <strong>ALL crew members</strong>. Are you sure you want to proceed?
+        </p>
+        <div className="flex gap-3 justify-end">
+          <Button variant="outline" onClick={() => setShowAllHandsConfirm(false)}>
+            Cancel
+          </Button>
+          <Button variant="warning" onClick={handleAllHandsConfirm}>
+            Confirm & Save
+          </Button>
+        </div>
+      </ModalShell>
     );
   }
 
   if (showDeleteConfirm) {
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4">
-        <div className="bg-card rounded-xl border border-border shadow-xl max-w-md w-full p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 rounded-full bg-error/10">
-              <Icon name="Trash2" size={24} className="text-error" />
-            </div>
-            <h2 className="text-xl font-semibold text-foreground">Delete Event</h2>
+      <ModalShell onClose={onClose} panelClassName="bg-card rounded-xl border border-border shadow-xl max-w-md w-full p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-3 rounded-full bg-error/10">
+            <Icon name="Trash2" size={24} className="text-error" />
           </div>
-          <p className="text-muted-foreground mb-6">
-            Are you sure you want to delete this event? This action cannot be undone.
-          </p>
-          <div className="flex gap-3 justify-end">
-            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDelete}>
-              Delete Event
-            </Button>
-          </div>
+          <h2 className="text-xl font-semibold text-foreground">Delete Event</h2>
         </div>
-      </div>
+        <p className="text-muted-foreground mb-6">
+          Are you sure you want to delete this event? This action cannot be undone.
+        </p>
+        <div className="flex gap-3 justify-end">
+          <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={handleDelete}>
+            Delete Event
+          </Button>
+        </div>
+      </ModalShell>
     );
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-overlay)] p-4 overflow-y-auto">
-      <div className="bg-card rounded-xl border border-border shadow-xl max-w-2xl w-full my-8">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <div>
-            <h2 className="text-xl font-semibold text-foreground">Edit Event</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Update event details
-            </p>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-accent rounded-lg transition-smooth">
-            <Icon name="X" size={20} className="text-muted-foreground" />
-          </button>
+    <ModalShell onClose={onClose} panelClassName="bg-card rounded-xl border border-border shadow-xl max-w-2xl w-full my-8">
+      {/* Header */}
+      <div className="flex items-center justify-between p-6 border-b border-border">
+        <div>
+          <h2 className="text-xl font-semibold text-foreground">Edit Event</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Update event details
+          </p>
+        </div>
+        <button onClick={onClose} className="p-2 hover:bg-accent rounded-lg transition-smooth">
+          <Icon name="X" size={20} className="text-muted-foreground" />
+        </button>
+      </div>
+
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+        {/* Title */}
+        <Input
+          label="Title"
+          value={formData?.title}
+          onChange={(e) => setFormData(prev => ({ ...prev, title: e?.target?.value }))}
+          placeholder="Enter event title"
+          required
+        />
+
+        {/* Description */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">Description / Notes</label>
+          <textarea
+            value={formData?.description}
+            onChange={(e) => setFormData(prev => ({ ...prev, description: e?.target?.value }))}
+            placeholder="Enter event description"
+            rows={3}
+            className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          />
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-          {/* Title */}
+        {/* Start Date & Time */}
+        <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Title"
-            value={formData?.title}
-            onChange={(e) => setFormData(prev => ({ ...prev, title: e?.target?.value }))}
-            placeholder="Enter event title"
+            label="Start Date"
+            type="date"
+            value={formData?.startDate}
+            onChange={(e) => setFormData(prev => ({ ...prev, startDate: e?.target?.value }))}
             required
           />
-
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">Description / Notes</label>
-            <textarea
-              value={formData?.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e?.target?.value }))}
-              placeholder="Enter event description"
-              rows={3}
-              className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-
-          {/* Start Date & Time */}
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Start Date"
-              type="date"
-              value={formData?.startDate}
-              onChange={(e) => setFormData(prev => ({ ...prev, startDate: e?.target?.value }))}
-              required
-            />
-            <Input
-              label="Start Time"
-              type="time"
-              value={formData?.startTime}
-              onChange={handleStartTimeChange}
-              required
-            />
-          </div>
-
-          {/* End Date & Time */}
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="End Date"
-              type="date"
-              value={formData?.endDate}
-              onChange={handleEndDateChange}
-            />
-            <Input
-              label="End Time"
-              type="time"
-              value={formData?.endTime}
-              onChange={handleEndTimeChange}
-            />
-          </div>
-
-          {/* Location */}
           <Input
-            label="Location"
-            value={formData?.location}
-            onChange={(e) => setFormData(prev => ({ ...prev, location: e?.target?.value }))}
-            placeholder="Enter location"
+            label="Start Time"
+            type="time"
+            value={formData?.startTime}
+            onChange={handleStartTimeChange}
+            required
           />
+        </div>
 
-          {/* Category */}
+        {/* End Date & Time */}
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            label="End Date"
+            type="date"
+            value={formData?.endDate}
+            onChange={handleEndDateChange}
+          />
+          <Input
+            label="End Time"
+            type="time"
+            value={formData?.endTime}
+            onChange={handleEndTimeChange}
+          />
+        </div>
+
+        {/* Location */}
+        <Input
+          label="Location"
+          value={formData?.location}
+          onChange={(e) => setFormData(prev => ({ ...prev, location: e?.target?.value }))}
+          placeholder="Enter location"
+        />
+
+        {/* Category */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">Category</label>
+          <Select
+            options={categoryOptions}
+            value={formData?.category}
+            onChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+            placeholder="Select category"
+          />
+        </div>
+
+        {/* Private Toggle */}
+        <div className="p-4 rounded-lg border border-border bg-muted/30">
+          <Checkbox
+            checked={formData?.isPrivate}
+            onChange={(e) => setFormData(prev => ({ ...prev, isPrivate: e?.target?.checked, visibility: e?.target?.checked ? [] : prev?.visibility }))}
+            label="Private Event"
+            description="Only you will be able to see this event"
+          />
+        </div>
+
+        {/* Visibility Selector */}
+        {!formData?.isPrivate && (
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">Category</label>
+            <label className="block text-sm font-medium text-foreground mb-2">Visibility</label>
             <Select
-              options={categoryOptions}
-              value={formData?.category}
-              onChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
-              placeholder="Select category"
+              options={getVisibilityOptions()}
+              value={formData?.visibility}
+              onChange={(value) => setFormData(prev => ({ ...prev, visibility: value }))}
+              placeholder="Select who can see this event"
+              multiple
+              searchable
             />
           </div>
+        )}
 
-          {/* Private Toggle */}
+        {/* Activity Log */}
+        {(isCommand || isChief) && event?.activity?.length > 0 && (
           <div className="p-4 rounded-lg border border-border bg-muted/30">
-            <Checkbox
-              checked={formData?.isPrivate}
-              onChange={(e) => setFormData(prev => ({ ...prev, isPrivate: e?.target?.checked, visibility: e?.target?.checked ? [] : prev?.visibility }))}
-              label="Private Event"
-              description="Only you will be able to see this event"
-            />
+            <h4 className="text-sm font-medium text-foreground mb-2">Activity Log</h4>
+            <div className="space-y-2 max-h-32 overflow-y-auto">
+              {event?.activity?.map((log, idx) => (
+                <div key={idx} className="text-xs text-muted-foreground">
+                  <span className="font-medium">{log?.userName}</span> {log?.action} - {format(parseISO(log?.timestamp), 'MMM d, h:mm a')}
+                </div>
+              ))}
+            </div>
           </div>
+        )}
+      </form>
 
-          {/* Visibility Selector */}
-          {!formData?.isPrivate && (
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Visibility</label>
-              <Select
-                options={getVisibilityOptions()}
-                value={formData?.visibility}
-                onChange={(value) => setFormData(prev => ({ ...prev, visibility: value }))}
-                placeholder="Select who can see this event"
-                multiple
-                searchable
-              />
-            </div>
-          )}
-
-          {/* Activity Log */}
-          {(isCommand || isChief) && event?.activity?.length > 0 && (
-            <div className="p-4 rounded-lg border border-border bg-muted/30">
-              <h4 className="text-sm font-medium text-foreground mb-2">Activity Log</h4>
-              <div className="space-y-2 max-h-32 overflow-y-auto">
-                {event?.activity?.map((log, idx) => (
-                  <div key={idx} className="text-xs text-muted-foreground">
-                    <span className="font-medium">{log?.userName}</span> {log?.action} - {format(parseISO(log?.timestamp), 'MMM d, h:mm a')}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </form>
-
-        {/* Footer */}
-        <div className="flex gap-3 justify-between p-6 border-t border-border">
-          <Button variant="danger" onClick={() => setShowDeleteConfirm(true)}>
-            Delete Event
+      {/* Footer */}
+      <div className="flex gap-3 justify-between p-6 border-t border-border">
+        <Button variant="danger" onClick={() => setShowDeleteConfirm(true)}>
+          Delete Event
+        </Button>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
           </Button>
-          <div className="flex gap-3">
-            <Button variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button onClick={handleSubmit}>
-              Save Changes
-            </Button>
-          </div>
+          <Button onClick={handleSubmit}>
+            Save Changes
+          </Button>
         </div>
       </div>
-    </div>
+    </ModalShell>
   );
 };
 

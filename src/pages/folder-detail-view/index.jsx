@@ -8,6 +8,7 @@ import { getAllItems } from '../inventory/utils/inventoryStorage';
 import { FOLDERS, getCategoriesGroupedByFolder } from '../inventory-management/utils/folderMapping';
 import { getCurrentUser, hasCommandAccess } from '../../utils/authStorage';
 
+import ModalShell from '../../components/ui/ModalShell';
 // ---------------------------------------------------------------------------
 // Colour palette — maps import colour labels to subtle, dark-mode-safe values
 // ---------------------------------------------------------------------------
@@ -321,38 +322,36 @@ const FolderDetailView = () => {
             className="fixed inset-0 bg-black/50 z-[var(--z-overlay)]"
             onClick={() => setShowDeleteFolderModal(false)}
           />
-          <div className="fixed inset-0 flex items-center justify-center z-[var(--z-overlay)] p-4">
-            <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl">
-              <div className="flex items-start gap-4 mb-4">
-                <div className="w-12 h-12 rounded-xl bg-error/10 flex items-center justify-center flex-shrink-0">
-                  <Icon name="AlertTriangle" size={24} className="text-error" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-2 font-heading">
-                    Delete Folder?
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Deleting "{folderInfo?.name}" will move all {folderInfo?.categoryCount} categories to the Vessel folder. Items will not be deleted.
-                  </p>
-                </div>
+          <ModalShell onClose={onClose} panelClassName="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <div className="flex items-start gap-4 mb-4">
+              <div className="w-12 h-12 rounded-xl bg-error/10 flex items-center justify-center flex-shrink-0">
+                <Icon name="AlertTriangle" size={24} className="text-error" />
               </div>
-              <div className="flex gap-3 justify-end">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowDeleteFolderModal(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="default"
-                  onClick={handleDeleteFolder}
-                  className="bg-error hover:bg-error/90"
-                >
-                  Delete Folder
-                </Button>
+              <div>
+                <h3 className="text-xl font-semibold text-foreground mb-2 font-heading">
+                  Delete Folder?
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Deleting "{folderInfo?.name}" will move all {folderInfo?.categoryCount} categories to the Vessel folder. Items will not be deleted.
+                </p>
               </div>
             </div>
-          </div>
+            <div className="flex gap-3 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteFolderModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="default"
+                onClick={handleDeleteFolder}
+                className="bg-error hover:bg-error/90"
+              >
+                Delete Folder
+              </Button>
+            </div>
+          </ModalShell>
         </>
       )}
       {/* Delete Category Confirmation Modal */}
@@ -362,71 +361,69 @@ const FolderDetailView = () => {
             className="fixed inset-0 bg-black/50 z-[var(--z-overlay)]"
             onClick={() => setShowDeleteCategoryModal(false)}
           />
-          <div className="fixed inset-0 flex items-center justify-center z-[var(--z-overlay)] p-4">
-            <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl">
-              <div className="flex items-start gap-4 mb-4">
-                <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center flex-shrink-0">
-                  <Icon name="AlertTriangle" size={24} className="text-warning" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-2 font-heading">
-                    Delete Category?
-                  </h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    You are about to delete "{categoryToDelete?.name}" with {categoryToDelete?.itemCount} items.
-                  </p>
-                  
-                  {/* Delete Options */}
-                  <div className="space-y-3">
-                    <label className="flex items-start gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-smooth">
-                      <input
-                        type="radio"
-                        name="deleteOption"
-                        value="category-only"
-                        checked={deleteCategoryOption === 'category-only'}
-                        onChange={(e) => setDeleteCategoryOption(e?.target?.value)}
-                        className="mt-1"
-                      />
-                      <div>
-                        <p className="text-sm font-medium text-foreground">Delete category only</p>
-                        <p className="text-xs text-muted-foreground">Items will be moved to "Imported" category</p>
-                      </div>
-                    </label>
-                    
-                    <label className="flex items-start gap-3 p-3 border border-error/50 rounded-lg cursor-pointer hover:bg-error/5 transition-smooth">
-                      <input
-                        type="radio"
-                        name="deleteOption"
-                        value="category-and-items"
-                        checked={deleteCategoryOption === 'category-and-items'}
-                        onChange={(e) => setDeleteCategoryOption(e?.target?.value)}
-                        className="mt-1"
-                      />
-                      <div>
-                        <p className="text-sm font-medium text-error">Delete category and all items</p>
-                        <p className="text-xs text-muted-foreground">This action cannot be undone</p>
-                      </div>
-                    </label>
-                  </div>
-                </div>
+          <ModalShell onClose={onClose} panelClassName="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <div className="flex items-start gap-4 mb-4">
+              <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center flex-shrink-0">
+                <Icon name="AlertTriangle" size={24} className="text-warning" />
               </div>
-              <div className="flex gap-3 justify-end mt-6">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowDeleteCategoryModal(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="default"
-                  onClick={handleConfirmDeleteCategory}
-                  className={deleteCategoryOption === 'category-and-items' ? 'bg-error hover:bg-error/90' : ''}
-                >
-                  Delete
-                </Button>
+              <div>
+                <h3 className="text-xl font-semibold text-foreground mb-2 font-heading">
+                  Delete Category?
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  You are about to delete "{categoryToDelete?.name}" with {categoryToDelete?.itemCount} items.
+                </p>
+                
+                {/* Delete Options */}
+                <div className="space-y-3">
+                  <label className="flex items-start gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-smooth">
+                    <input
+                      type="radio"
+                      name="deleteOption"
+                      value="category-only"
+                      checked={deleteCategoryOption === 'category-only'}
+                      onChange={(e) => setDeleteCategoryOption(e?.target?.value)}
+                      className="mt-1"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Delete category only</p>
+                      <p className="text-xs text-muted-foreground">Items will be moved to "Imported" category</p>
+                    </div>
+                  </label>
+                  
+                  <label className="flex items-start gap-3 p-3 border border-error/50 rounded-lg cursor-pointer hover:bg-error/5 transition-smooth">
+                    <input
+                      type="radio"
+                      name="deleteOption"
+                      value="category-and-items"
+                      checked={deleteCategoryOption === 'category-and-items'}
+                      onChange={(e) => setDeleteCategoryOption(e?.target?.value)}
+                      className="mt-1"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-error">Delete category and all items</p>
+                      <p className="text-xs text-muted-foreground">This action cannot be undone</p>
+                    </div>
+                  </label>
+                </div>
               </div>
             </div>
-          </div>
+            <div className="flex gap-3 justify-end mt-6">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteCategoryModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="default"
+                onClick={handleConfirmDeleteCategory}
+                className={deleteCategoryOption === 'category-and-items' ? 'bg-error hover:bg-error/90' : ''}
+              >
+                Delete
+              </Button>
+            </div>
+          </ModalShell>
         </>
       )}
     </div>

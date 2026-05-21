@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
+import useDismissable from '../../../components/ui/useDismissable';
 
 // Sprint 9c.1a follow-up: this file had two layered bugs.
 //
@@ -55,10 +56,17 @@ const Drawer = ({
   // When the consumer wants edge-to-edge content (e.g. hero section
   // bleeding to drawer edges), pass null to drop padding entirely.
   bodyClassName = 'flex-1 overflow-y-auto px-6 py-5',
+  // Dismiss gate — same semantics as ModalShell: skip close while busy,
+  // confirm before discarding unsaved input. Defaults preserve the old
+  // close-anywhere behaviour for existing consumers.
+  isDirty = false,
+  isBusy = false,
 }) => {
   const isLight = theme === 'light';
   const maxWidth = typeof width === 'number' ? `${width}px` : width;
   const backdropBg = isLight ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.5)';
+
+  const { tryClose } = useDismissable({ onClose, isDirty, isBusy, enabled: open });
 
   useEffect(() => {
     if (open) document.body.style.overflow = 'hidden';
@@ -72,7 +80,7 @@ const Drawer = ({
       <div
         className={`fixed inset-0 z-[var(--z-overlay)] transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         style={{ background: backdropBg }}
-        onClick={onClose}
+        onClick={tryClose}
       />
       {/* Panel */}
       <div
@@ -94,7 +102,7 @@ const Drawer = ({
                 style={{ color: TITLE_INK }}
               >{title}</h2>
               <button
-                onClick={onClose}
+                onClick={tryClose}
                 className="p-1.5 rounded-lg transition-colors"
                 style={{ color: CLOSE_INK }}
                 onMouseEnter={(e) => { e.currentTarget.style.color = CLOSE_HOVER; }}
