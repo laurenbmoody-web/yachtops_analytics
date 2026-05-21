@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Star, X, Pencil } from 'lucide-react';
+import { Star, X, Pencil, RefreshCw } from 'lucide-react';
 
 // Cell colours from Phase 1 — the swatch on each simple-template row
 // mirrors what the shift would render as on the grid.
@@ -41,9 +41,15 @@ function SimpleSwatch({ body }) {
   return <span className="tp-swatch" style={{ background: c }} aria-hidden />;
 }
 
-function RotationBadge({ body }) {
-  const n = Array.isArray(body?.duties) ? body.duties.length : 0;
-  return <span className="tp-rot-badge">{n || '?'}↻</span>;
+// Shift-pattern slot indicator — same 18px footprint as the simple-shift
+// colour swatch so picker rows stay aligned. No count text; the "SHIFT
+// PATTERN · …" metadata line carries the meaning.
+function PatternIcon() {
+  return (
+    <span className="tp-pattern-icon" aria-hidden="true">
+      <RefreshCw size={12} strokeWidth={2} />
+    </span>
+  );
 }
 
 function TemplateRow({ template, onToggleStar, onEdit, onPick, onToast }) {
@@ -74,12 +80,12 @@ function TemplateRow({ template, onToggleStar, onEdit, onPick, onToast }) {
         title="Applying templates ships in Phase 3"
       >
         <span className="tp-emblem">
-          {isSimple ? <SimpleSwatch body={t.body} /> : <RotationBadge body={t.body} />}
+          {isSimple ? <SimpleSwatch body={t.body} /> : <PatternIcon />}
         </span>
         <span className="tp-meta">
           <span className="tp-name">{t.name}</span>
           <span className="tp-sub">
-            <span className="tp-kind">{isSimple ? 'Simple' : 'Rotation'}</span>
+            <span className="tp-kind">{isSimple ? 'Simple' : 'Shift pattern'}</span>
             <span className="tp-dot">·</span>
             <span>{scopeChipText(t)}</span>
             {isSimple && (
@@ -137,7 +143,7 @@ export default function PatternPicker({
             <button type="button" className="v2-btn-ghost"
               onClick={() => onNew?.('simple')}>+ Simple</button>
             <button type="button" className="v2-btn-ghost"
-              onClick={() => onNew?.('rotation')}>+ Rotation</button>
+              onClick={() => onNew?.('rotation')}>+ Shift pattern</button>
             <button type="button" className="tp-close"
               aria-label="Close" onClick={onClose}>
               <X size={16} />
@@ -154,7 +160,7 @@ export default function PatternPicker({
           )}
           {!loading && !error && templates.length === 0 && (
             <div className="tp-state">
-              No templates yet. Use “+ Simple” or “+ Rotation” to create one.
+              No templates yet. Use “+ Simple” or “+ Shift pattern” to create one.
             </div>
           )}
           {!loading && !error && templates.map((t) => (

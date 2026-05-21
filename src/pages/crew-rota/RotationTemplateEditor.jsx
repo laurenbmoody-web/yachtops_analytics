@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { X, GripVertical, Trash2, Plus } from 'lucide-react';
 import TimeSelect from './TimeSelect';
 
-// Phase 2 sub-piece 4 — Rotation template editor modal.
+// Phase 2 — Shift-pattern template editor modal.
+// (Internal kind stays 'rotation' in the DB — user-facing strings only
+// were renamed; see commit message for the renaming pass.)
 //
 // Body shape produced on save:
 //   {
@@ -142,7 +144,6 @@ export default function RotationTemplateEditor({
   onClose, createTemplate, updateTemplate, deleteTemplate, onToast,
 }) {
   const isEdit = !!template;
-  const editingLocked = isEdit && template?.isDefault === true;
 
   const [name, setName] = useState('');
   const [selection, setSelection] = useState('all');
@@ -218,7 +219,6 @@ export default function RotationTemplateEditor({
   const removeRole = (i) => setRoles((prev) => prev.length > 1 ? prev.filter((_, k) => k !== i) : prev);
 
   const canSave = useMemo(() => {
-    if (editingLocked) return false;
     if (!name.trim()) return false;
     if (selection == null) return false;  // user must pick All or a dept
     if (duties.length < 2) return false;
@@ -228,7 +228,7 @@ export default function RotationTemplateEditor({
     if (roles.length < 1) return false;
     for (const r of roles) { if (!String(r || '').trim()) return false; }
     return true;
-  }, [name, duties, roles, selection, editingLocked]);
+  }, [name, duties, roles, selection]);
 
   if (!open) return null;
 
@@ -260,7 +260,7 @@ export default function RotationTemplateEditor({
         });
     setBusy(false);
     if (!res.ok) {
-      onToast?.(`Couldn’t save rotation — ${res.error || 'try again'}`);
+      onToast?.(`Couldn’t save shift pattern — ${res.error || 'try again'}`);
       return;
     }
     onClose?.();
@@ -299,12 +299,12 @@ export default function RotationTemplateEditor({
         className="te-panel rt-panel"
         role="dialog"
         aria-modal="true"
-        aria-label={isEdit ? `Edit rotation ${template?.name}` : 'New rotation template'}
+        aria-label={isEdit ? `Edit shift pattern ${template?.name}` : 'New shift pattern'}
       >
         <div className="tp-header">
           <div>
-            <div className="tp-eyebrow">{isEdit ? 'Edit rotation' : 'New rotation'}</div>
-            <h2 className="tp-title">A <em>rotation</em>.</h2>
+            <div className="tp-eyebrow">{isEdit ? 'Edit shift pattern' : 'New shift pattern'}</div>
+            <h2 className="tp-title">A <em>shift pattern</em>.</h2>
           </div>
           <button type="button" className="tp-close"
             aria-label="Close" onClick={onClose}><X size={16} /></button>
@@ -315,7 +315,7 @@ export default function RotationTemplateEditor({
             <span className="te-field-label">Name</span>
             <input
               type="text" className="te-input"
-              placeholder="e.g. Interior 3-stew rotation"
+              placeholder="e.g. Interior 3-stew pattern"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -417,7 +417,7 @@ export default function RotationTemplateEditor({
             className="rt-matrix"
             style={{ gridTemplateColumns: `minmax(200px, 1.4fr) repeat(${N}, minmax(96px, 1fr))` }}
             role="grid"
-            aria-label="Rotation preview matrix"
+            aria-label="Shift pattern preview matrix"
           >
             <div className="rt-matrix-corner" role="columnheader" />
             {duties.map((_, k) => (
@@ -484,13 +484,13 @@ export default function RotationTemplateEditor({
         </div>
 
         <div className="te-footer">
-          {isEdit && !editingLocked ? (
+          {isEdit ? (
             <button
               type="button"
               className="te-delete"
               disabled={busy}
               onClick={handleDelete}
-            >Delete rotation</button>
+            >Delete shift pattern</button>
           ) : <span />}
           <div className="te-footer-actions">
             <button type="button" className="v2-btn-ghost"
@@ -498,7 +498,7 @@ export default function RotationTemplateEditor({
             <button type="button" className="v2-btn-filled"
               onClick={handleSave}
               disabled={!canSave || busy}>
-              {busy ? 'Saving…' : isEdit ? 'Save rotation' : 'Create rotation'}
+              {busy ? 'Saving…' : isEdit ? 'Save shift pattern' : 'Create shift pattern'}
             </button>
           </div>
         </div>

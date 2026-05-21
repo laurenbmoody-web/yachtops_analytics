@@ -66,7 +66,10 @@ export function useRotaTemplates() {
     .map((r) => {
       const isDefault = !!r.is_default;
       const ownDeptMatch = myDeptId && r.department_id === myDeptId;
-      const isEditable = !isDefault && (
+      // is_default is now a LABEL only (kept on the row as the DEFAULT
+      // badge); it no longer restricts edit/delete. Each tenant has its
+      // own seeded copy of the row, so in-place updates are safe.
+      const isEditable = (
         tier === 'COMMAND' || tier === 'CHIEF'
         || (tier === 'HOD' && r.scope === 'department' && ownDeptMatch)
       );

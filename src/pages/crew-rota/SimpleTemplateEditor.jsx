@@ -43,7 +43,6 @@ export default function SimpleTemplateEditor({
   onClose, createTemplate, updateTemplate, deleteTemplate, onToast,
 }) {
   const isEdit = !!template;
-  const editingLocked = isEdit && template?.isDefault === true;
 
   const [name, setName] = useState(template?.name || '');
   const [selection, setSelection] = useState(() => initialSelection(template, myDeptId));
@@ -82,9 +81,8 @@ export default function SimpleTemplateEditor({
     if (!name.trim()) return false;
     if (selection == null) return false;
     if (!noFixedHours && (!startTime || !endTime)) return false;
-    if (editingLocked) return false;
     return true;
-  }, [name, selection, noFixedHours, startTime, endTime, editingLocked]);
+  }, [name, selection, noFixedHours, startTime, endTime]);
 
   if (!open) return null;
 
@@ -260,7 +258,7 @@ export default function SimpleTemplateEditor({
         </div>
 
         <div className="te-footer">
-          {isEdit && !editingLocked ? (
+          {isEdit ? (
             <button
               type="button"
               className="te-delete"
