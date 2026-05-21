@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { X, GripVertical, Trash2, Plus } from 'lucide-react';
+import TimeSelect from './TimeSelect';
 
 // Phase 2 sub-piece 4 — Rotation template editor modal.
 //
@@ -41,13 +42,15 @@ function subTypeFor(t) {
 function fmtTime(t) { return t ? String(t).slice(0, 5) : ''; }
 function tid() { return `tmp-${Math.random().toString(36).slice(2, 9)}`; }
 
+// Fresh-rotation defaults: 2 empty-labeled duties (user types their own
+// labels in via the placeholder) and 2 empty role rows.
 function defaultDuties() {
   return [
-    { _k: tid(), label: 'Day shift', shift_type: 'duty', start_time: '06:00', end_time: '14:00' },
-    { _k: tid(), label: 'Evening shift', shift_type: 'duty', start_time: '14:00', end_time: '22:00' },
+    { _k: tid(), label: '', shift_type: 'duty', start_time: '06:00', end_time: '14:00' },
+    { _k: tid(), label: '', shift_type: 'duty', start_time: '14:00', end_time: '22:00' },
   ];
 }
-function defaultRoles() { return ['Role 1', 'Role 2']; }
+function defaultRoles() { return ['', '']; }
 
 function normaliseDuty(d) {
   return {
@@ -59,7 +62,9 @@ function normaliseDuty(d) {
   };
 }
 
-// Selection state: 'all' | departmentId
+// Selection state: 'all' | departmentId | null (null = "no scope picked
+// yet" — happens when the user unticks "All departments" and hasn't
+// picked an individual department yet; canSave gates this).
 function initialSelection(template, myDeptId) {
   if (template) {
     if (template.scope === 'vessel') return 'all';
@@ -100,17 +105,17 @@ function DutyRow({
       >
         {distinctTypes.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
       </select>
-      <input
-        type="time" step="1800" className="te-input rt-duty-time"
+      <TimeSelect
+        className="rt-duty-time"
+        ariaLabel="Start"
         value={duty.start_time}
-        onChange={(e) => onChange({ ...duty, start_time: e.target.value })}
-        aria-label="Start"
+        onChange={(v) => onChange({ ...duty, start_time: v })}
       />
-      <input
-        type="time" step="1800" className="te-input rt-duty-time"
+      <TimeSelect
+        className="rt-duty-time"
+        ariaLabel="End"
         value={duty.end_time}
-        onChange={(e) => onChange({ ...duty, end_time: e.target.value })}
-        aria-label="End"
+        onChange={(v) => onChange({ ...duty, end_time: v })}
       />
       <div className="rt-duty-move">
         <button type="button"
@@ -133,7 +138,7 @@ function DutyRow({
 }
 
 export default function RotationTemplateEditor({
-  open, template, departments = [], myDeptId, vesselId, roleSuggestions = [],
+  open, template, departments = [], myDeptId, vesselId, crew = [],
   onClose, createTemplate, updateTemplate, deleteTemplate, onToast,
 }) {
   const isEdit = !!template;
@@ -175,18 +180,29 @@ export default function RotationTemplateEditor({
   // cell(j, k) = duty index for role j on day k, or null when over-rolled.
   const cell = (j, k) => (j < N ? ((j - k + N) % N) : null);
 
-  // Distinct role suggestions for the role-label datalist.
+  // Role-label datalist suggestions — SCOPED to the current department
+  // selection. 'all' → every distinct role onboard; a specific dept →
+  // distinct roles of crew in that department. null → no suggestions
+  // (user hasn't picked a scope yet). Recomputes reactively when the
+  // user changes the Departments selection.
   const datalistId = 'rt-role-suggestions';
   const distinctRoles = useMemo(() => {
+    if (selection == null) return [];
     const set = new Set();
-    for (const r of roleSuggestions) if (r) set.add(String(r));
+    for (const c of crew) {
+      if (!c.role) continue;
+      if (selection === 'all' || c.departmentId === selection) {
+        set.add(String(c.role));
+      }
+    }
     return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [roleSuggestions]);
+  }, [crew, selection]);
 
   const updateDuty = (i, d) => setDuties((prev) => prev.map((x, k) => (k === i ? d : x)));
   const addDuty = () => setDuties((prev) => [
     ...prev,
-    { _k: tid(), label: `Duty ${prev.length + 1}`, shift_type: 'duty', start_time: '06:00', end_time: '14:00' },
+    // Empty label — user types via placeholder. canSave gates on non-empty.
+    { _k: tid(), label: '', shift_type: 'duty', start_time: '06:00', end_time: '14:00' },
   ]);
   const removeDuty = (i) => setDuties((prev) => prev.length > 2 ? prev.filter((_, k) => k !== i) : prev);
   const moveDuty = (from, to) => setDuties((prev) => {
@@ -204,6 +220,7 @@ export default function RotationTemplateEditor({
   const canSave = useMemo(() => {
     if (editingLocked) return false;
     if (!name.trim()) return false;
+    if (selection == null) return false;  // user must pick All or a dept
     if (duties.length < 2) return false;
     for (const d of duties) {
       if (!d.label.trim() || !d.shift_type || !d.start_time || !d.end_time) return false;
@@ -211,7 +228,7 @@ export default function RotationTemplateEditor({
     if (roles.length < 1) return false;
     for (const r of roles) { if (!String(r || '').trim()) return false; }
     return true;
-  }, [name, duties, roles, editingLocked]);
+  }, [name, duties, roles, selection, editingLocked]);
 
   if (!open) return null;
 
@@ -311,7 +328,7 @@ export default function RotationTemplateEditor({
                 <input
                   type="checkbox"
                   checked={selection === 'all'}
-                  onChange={() => setSelection('all')}
+                  onChange={() => setSelection((cur) => (cur === 'all' ? null : 'all'))}
                 />
                 <span>All departments</span>
               </label>
@@ -331,13 +348,16 @@ export default function RotationTemplateEditor({
                       type="checkbox"
                       checked={checked}
                       disabled={lockedByAll}
-                      onChange={() => setSelection(d.id)}
+                      onChange={() => setSelection((cur) => (cur === d.id ? null : d.id))}
                     />
                     <span>{d.name}</span>
                   </label>
                 );
               })}
             </div>
+            {selection == null && (
+              <div className="te-dept-hint">Pick a department or “All departments”.</div>
+            )}
           </div>
 
           {/* ── Section 1: Duties ─────────────────────────────────────── */}
