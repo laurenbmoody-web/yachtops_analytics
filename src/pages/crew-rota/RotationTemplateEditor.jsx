@@ -78,6 +78,7 @@ function DutyRow({
     <div
       className="rt-duty-row"
       draggable
+      style={{ '--rt-duty-color': TYPE_COLOR[duty.shift_type] || '#B4B2A9' }}
       onDragStart={(e) => onDragStart(e, index)}
       onDragOver={(e) => { e.preventDefault(); onDragOver(e, index); }}
       onDrop={(e) => { e.preventDefault(); onDrop(e, index); }}
@@ -87,7 +88,7 @@ function DutyRow({
       </button>
       <input
         type="text" className="te-input rt-duty-label"
-        placeholder="Duty label"
+        placeholder="e.g. Early"
         value={duty.label}
         onChange={(e) => onChange({ ...duty, label: e.target.value })}
       />
@@ -386,58 +387,76 @@ export default function RotationTemplateEditor({
             )}
           </div>
 
-          <div className="rt-matrix-wrap">
-            <table className="rt-matrix">
-              <thead>
-                <tr>
-                  <th aria-label="Role" />
-                  {duties.map((_, k) => (
-                    <th key={k} className="rt-day-h">Day {k + 1}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {roles.map((role, j) => (
-                  <tr key={j}>
-                    <td className="rt-role-cell">
-                      <input
-                        type="text"
-                        className="te-input rt-role-input"
-                        list={datalistId}
-                        value={role}
-                        onChange={(e) => updateRole(j, e.target.value)}
-                        aria-label={`Role ${j + 1} label`}
-                      />
-                      <button
-                        type="button"
-                        className="rt-remove rt-role-remove"
-                        aria-label="Remove role"
-                        disabled={roles.length <= 1}
-                        onClick={() => removeRole(j)}
-                      ><Trash2 size={12} /></button>
-                    </td>
-                    {duties.map((_, k) => {
-                      const di = cell(j, k);
-                      if (di == null) {
-                        return <td key={k} className="rt-cell rt-cell-empty">—</td>;
-                      }
-                      const d = duties[di];
-                      const c = TYPE_COLOR[d.shift_type] || '#B4B2A9';
-                      return (
-                        <td key={k} className="rt-cell" style={{ background: c, color: '#F5F1EA' }}>
-                          <div className="rt-cell-label">{d.label || 'Duty'}</div>
-                          <div className="rt-cell-time">{d.start_time}–{d.end_time}</div>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <datalist id={datalistId}>
-              {distinctRoles.map((r) => <option key={r} value={r} />)}
-            </datalist>
+          {/*
+            CSS grid (not a <table>): one big grid with (N+1) columns and
+            (M+1) rows including header. Avoids the table+display:flex
+            interaction that previously collapsed the role column on some
+            browsers and made the whole matrix appear missing.
+          */}
+          <div
+            className="rt-matrix"
+            style={{ gridTemplateColumns: `minmax(200px, 1.4fr) repeat(${N}, minmax(96px, 1fr))` }}
+            role="grid"
+            aria-label="Rotation preview matrix"
+          >
+            <div className="rt-matrix-corner" role="columnheader" />
+            {duties.map((_, k) => (
+              <div key={`h-${k}`} className="rt-day-h" role="columnheader">
+                Day {k + 1}
+              </div>
+            ))}
+
+            {roles.map((role, j) => (
+              <React.Fragment key={`row-${j}`}>
+                <div className="rt-role-cell" role="rowheader">
+                  <input
+                    type="text"
+                    className="te-input rt-role-input"
+                    list={datalistId}
+                    value={role}
+                    placeholder={`Role ${j + 1}`}
+                    onChange={(e) => updateRole(j, e.target.value)}
+                    aria-label={`Role ${j + 1} label`}
+                  />
+                  <button
+                    type="button"
+                    className="rt-remove rt-role-remove"
+                    aria-label="Remove role"
+                    disabled={roles.length <= 1}
+                    onClick={() => removeRole(j)}
+                  ><Trash2 size={12} /></button>
+                </div>
+                {duties.map((_, k) => {
+                  const di = cell(j, k);
+                  if (di == null) {
+                    return (
+                      <div
+                        key={`c-${j}-${k}`}
+                        className="rt-cell rt-cell-empty"
+                        role="gridcell"
+                      >—</div>
+                    );
+                  }
+                  const d = duties[di];
+                  const c = TYPE_COLOR[d.shift_type] || '#B4B2A9';
+                  return (
+                    <div
+                      key={`c-${j}-${k}`}
+                      className="rt-cell"
+                      role="gridcell"
+                      style={{ background: c, color: '#F5F1EA' }}
+                    >
+                      <div className="rt-cell-label">{d.label || 'Duty'}</div>
+                      <div className="rt-cell-time">{d.start_time}–{d.end_time}</div>
+                    </div>
+                  );
+                })}
+              </React.Fragment>
+            ))}
           </div>
+          <datalist id={datalistId}>
+            {distinctRoles.map((r) => <option key={r} value={r} />)}
+          </datalist>
 
           <button type="button" className="v2-btn-ghost rt-add-role" onClick={addRole}>
             <Plus size={12} /> Add role row
