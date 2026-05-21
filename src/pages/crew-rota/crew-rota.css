@@ -1396,12 +1396,15 @@
 }
 .rt-duty-row {
   display: grid;
-  grid-template-columns: 18px 1.5fr 110px 95px 95px 56px 32px;
+  grid-template-columns: 18px 1.5fr 110px 130px 130px 56px 32px;
   gap: 6px;
   align-items: center;
-  padding: 6px;
+  padding: 6px 6px 6px 9px;
   background: #FAFAF7;
   border: 0.5px solid #ECE6DC;
+  /* Coloured left edge = shift-type swatch (Item 4). The colour is
+     supplied per-row via the inline --rt-duty-color custom property. */
+  border-left: 3px solid var(--rt-duty-color, #B4B2A9);
   border-radius: 10px;
 }
 .rt-duty-row.is-dragging { opacity: 0.5; }
@@ -1472,15 +1475,20 @@
 .rt-info-dot { color: #C9C0AE; }
 .rt-warn { color: #7A2E1E; }
 
-/* Preview matrix */
-.rt-matrix-wrap { overflow-x: auto; }
+/* Preview matrix — CSS grid (not a <table>). One big grid; grid-
+   template-columns is supplied inline as
+       minmax(200px,1.4fr) repeat(N, minmax(96px,1fr))
+   where N = duties.length. Header row + role rows all live in the
+   same grid so columns line up automatically without table layout. */
 .rt-matrix {
-  border-collapse: separate;
-  border-spacing: 4px;
+  display: grid;
+  gap: 4px;
   width: 100%;
-  table-layout: fixed;
+  align-items: stretch;
 }
-.rt-matrix thead th {
+.rt-matrix-corner { /* empty top-left cell above the role-label column */ }
+.rt-day-h {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 9px;
   letter-spacing: 1.5px;
   text-transform: uppercase;
@@ -1488,25 +1496,27 @@
   font-weight: 600;
   text-align: center;
   padding: 4px 0;
+  align-self: end;
 }
-.rt-matrix tbody td { vertical-align: middle; }
 .rt-role-cell {
   display: flex;
   gap: 4px;
   align-items: center;
-  min-width: 180px;
 }
-.rt-role-input { padding: 6px 8px; font-size: 12px; flex: 1; }
-.rt-role-remove { width: 22px; height: 22px; }
+.rt-role-input { padding: 6px 8px; font-size: 12px; flex: 1; min-width: 0; }
+.rt-role-remove { width: 22px; height: 22px; flex-shrink: 0; }
 .rt-role-remove svg { width: 12px; height: 12px; }
 .rt-cell {
   background: #FAFAF7;
   border-radius: 6px;
   padding: 6px 8px;
   text-align: center;
-  min-width: 96px;
   height: 48px;
   color: #1C1B3A;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 .rt-cell-empty {
   background: #FFFFFF;
@@ -1520,6 +1530,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
 }
 .rt-cell-time {
   font-size: 9px;
