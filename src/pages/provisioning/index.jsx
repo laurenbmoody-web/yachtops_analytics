@@ -48,6 +48,8 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import './provisioning-board.css';
+import '../../styles/editorial.css';
 
 // ── Sortable wrapper for each board column ───────────────────────────────────
 
@@ -78,29 +80,13 @@ const SortableBoardColumn = ({ list, ...props }) => {
 
 // ── Ghost "add new board" column ─────────────────────────────────────────────
 
-const GhostBoardColumn = ({ onClick }) => {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <div
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className="flex flex-col w-[340px] min-w-[340px] flex-shrink-0 rounded-xl transition-colors"
-      style={{
-        height: 'calc(100vh - 160px)',
-        border: `2px ${hovered ? 'solid' : 'dashed'} rgba(0,0,0,0.12)`,
-        background: hovered ? 'rgba(0,0,0,0.03)' : 'transparent',
-        cursor: 'pointer',
-      }}
-    >
-      <div className="flex-1 flex flex-col items-center justify-center gap-2">
-        <Icon name="Plus" className="w-6 h-6 text-muted-foreground" />
-        <p className="text-sm font-semibold text-muted-foreground">New Board</p>
-        <p className="text-xs text-muted-foreground/60">Click to add a board</p>
-      </div>
-    </div>
-  );
-};
+const GhostBoardColumn = ({ onClick }) => (
+  <div onClick={onClick} className="pv-ghost-column">
+    <Icon name="Plus" className="w-6 h-6" />
+    <p style={{ fontSize: 13, fontWeight: 600, margin: 0 }}>New Board</p>
+    <p style={{ fontSize: 11, margin: 0, opacity: 0.7 }}>Click to add a board</p>
+  </div>
+);
 
 // ── New Board inline form ────────────────────────────────────────────────────
 
@@ -847,11 +833,16 @@ const ProvisioningWorkspace = () => {
 
   // ── Render ───────────────────────────────────────────────────────────────
 
+  // Editorial meta-strip counts derived from existing state.
+  const boardCount = visibleLists.length;
+  const awaitingDeliveryCount = visibleLists.filter(l => l.status === 'sent_to_supplier').length;
+  const itemCount = visibleLists.reduce((sum, l) => sum + (itemsByList[l.id]?.length || 0), 0);
+
   if (loading) {
     return (
       <>
         <Header />
-        <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="pv-board" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       </>
@@ -861,136 +852,132 @@ const ProvisioningWorkspace = () => {
   return (
     <>
       <Header />
-      <div className="min-h-screen bg-background">
-        {/* Toolbar */}
-        <div className="sticky top-0 z-20 bg-background border-b border-border px-6 py-3">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <h1 className="text-lg font-bold text-foreground">Provisioning</h1>
-              {/* Search */}
-              <div className="relative">
-                <Icon name="Search" className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Search items..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="pl-8 pr-3 py-1.5 text-sm bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary w-48"
-                />
-              </div>
-              {/* Status filter */}
-              <select
-                value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value)}
-                className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary"
-              >
-                <option value="all">All statuses</option>
-                {Object.entries(ITEM_STATUS_CONFIG).map(([val, cfg]) => (
-                  <option key={val} value={val}>{cfg.label}</option>
-                ))}
-              </select>
-              {/* Dept filter */}
-              <select
-                value={deptFilter}
-                onChange={e => setDeptFilter(e.target.value)}
-                className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary"
-              >
-                <option value="all">All depts</option>
-                {departments.map(d => <option key={d.id || d.name} value={d.name}>{d.name}</option>)}
-              </select>
-              {hasActiveFilters && (
-                <button
-                  onClick={() => { setSearchQuery(''); setStatusFilter('all'); setDeptFilter('all'); }}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Clear filters
-                </button>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {userTier !== 'CREW' && <button
-                onClick={() => navigate('/provisioning/inbox')}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground border border-border rounded-lg hover:bg-muted transition-colors"
-                style={{ position: 'relative' }}
-              >
-                <Icon name="Inbox" className="w-4 h-4" />
-                Delivery Inbox
-                {inboxCount > 0 && (
-                  <span style={{
-                    position: 'absolute', top: -6, right: -6,
-                    minWidth: 16, height: 16, borderRadius: 8, background: '#DC2626',
-                    color: 'white', fontSize: 9, fontWeight: 700,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px',
-                  }}>
-                    {inboxCount > 99 ? '99+' : inboxCount}
-                  </span>
-                )}
-              </button>}
-              {canViewDeliveryHistory && (
-                <button
-                  onClick={() => navigate('/provisioning/history')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground border border-border rounded-lg hover:bg-muted transition-colors"
-                >
-                  <Icon name="BookOpen" className="w-4 h-4" />
-                  Delivery History
-                </button>
-              )}
-              <button
-                onClick={() => navigate('/provisioning/suppliers')}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground border border-border rounded-lg hover:bg-muted transition-colors"
-              >
-                <Icon name="Users" className="w-4 h-4" />
-                Suppliers
-              </button>
-              <button
-                onClick={handleOpenWorkspaceReceive}
-                disabled={workspaceItemsLoading || loading}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors"
-                style={{ border: '1px solid #1D9E75', color: '#1D9E75', background: 'transparent' }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#F0FDF4'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-              >
-                <Icon name="PackageOpen" className="w-4 h-4" />
-                {workspaceItemsLoading ? 'Loading…' : 'Receive Items'}
-              </button>
-              {canCreate && (
-                <button
-                  onClick={() => setShowNewBoard(true)}
-                  className="flex items-center gap-1.5 px-4 py-1.5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/80 transition-colors"
-                >
-                  <Icon name="Plus" className="w-4 h-4" />
-                  New Board
-                </button>
-              )}
-            </div>
+      <div className="pv-board">
+        {/* Editorial header — meta strip + headline + action buttons */}
+        <div className="pv-board-headblock">
+          <div className="pv-board-headblock-left">
+            <p className="editorial-meta">
+              <span className="dot">●</span>
+              <span>Provisioning</span>
+              <span className="bar" />
+              <span className="muted">{boardCount} board{boardCount === 1 ? '' : 's'}</span>
+              <span className="bar" />
+              <span className="muted">{awaitingDeliveryCount} awaiting delivery</span>
+              <span className="bar" />
+              <span className="muted">{itemCount} item{itemCount === 1 ? '' : 's'}</span>
+            </p>
+            <h1 className="editorial-greeting">
+              BOARDS<span className="period">,</span> <em>in progress</em><span className="period">.</span>
+            </h1>
           </div>
+          <div className="pv-board-headblock-actions">
+            {canCreate && (
+              <button
+                onClick={() => setShowNewBoard(true)}
+                className="pv-btn pv-btn-primary"
+              >
+                <Icon name="Plus" className="w-4 h-4" />
+                New board
+              </button>
+            )}
+            <button
+              onClick={handleOpenWorkspaceReceive}
+              disabled={workspaceItemsLoading || loading}
+              className="pv-btn pv-btn-secondary"
+            >
+              <Icon name="PackageOpen" className="w-4 h-4" />
+              {workspaceItemsLoading ? 'Loading…' : 'Receive items'}
+            </button>
+          </div>
+        </div>
+
+        {/* Toolbar row: search + filters + spacer + hairline + quiet nav links */}
+        <div className="pv-toolbar">
+          <div className="pv-toolbar-search">
+            <span className="pv-toolbar-search-icon"><Icon name="Search" className="w-4 h-4" /></span>
+            <input
+              type="text"
+              placeholder="Search items"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="pv-toolbar-search-input"
+            />
+          </div>
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            className="pv-toolbar-select"
+          >
+            <option value="all">All statuses</option>
+            {Object.entries(ITEM_STATUS_CONFIG).map(([val, cfg]) => (
+              <option key={val} value={val}>{cfg.label}</option>
+            ))}
+          </select>
+          <select
+            value={deptFilter}
+            onChange={e => setDeptFilter(e.target.value)}
+            className="pv-toolbar-select"
+          >
+            <option value="all">All depts</option>
+            {departments.map(d => <option key={d.id || d.name} value={d.name}>{d.name}</option>)}
+          </select>
+          {hasActiveFilters && (
+            <button
+              onClick={() => { setSearchQuery(''); setStatusFilter('all'); setDeptFilter('all'); }}
+              className="pv-toolbar-clear"
+            >
+              Clear filters
+            </button>
+          )}
+
+          <div className="pv-toolbar-spacer" />
+          <div className="pv-toolbar-divider" />
+
+          {userTier !== 'CREW' && (
+            <button onClick={() => navigate('/provisioning/inbox')} className="pv-toolbar-link">
+              <Icon name="Inbox" className="w-4 h-4" />
+              Delivery inbox
+              {inboxCount > 0 && (
+                <span className="pv-toolbar-link-badge">{inboxCount > 99 ? '99+' : inboxCount}</span>
+              )}
+            </button>
+          )}
+          {canViewDeliveryHistory && (
+            <button onClick={() => navigate('/provisioning/history')} className="pv-toolbar-link">
+              <Icon name="BookOpen" className="w-4 h-4" />
+              Delivery history
+            </button>
+          )}
+          <button onClick={() => navigate('/provisioning/suppliers')} className="pv-toolbar-link">
+            <Icon name="Users" className="w-4 h-4" />
+            Suppliers
+          </button>
         </div>
 
         {/* Error */}
         {error && (
-          <div className="mx-6 mt-4 bg-red-500/10 border border-red-500/20 rounded-xl p-4">
-            <p className="text-sm text-red-400">{error}</p>
-            <button onClick={loadAll} className="text-xs text-red-400 underline mt-1">Retry</button>
+          <div className="pv-error">
+            <p style={{ fontSize: 13, margin: 0 }}>{error}</p>
+            <button onClick={loadAll} className="pv-error-retry">Retry</button>
           </div>
         )}
 
         {/* Shared with me */}
         {sharedWithMe.length > 0 && (
-          <div className="px-6 pt-4 pb-2">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Shared with me</h2>
-            <div className="flex gap-3 flex-wrap">
+          <div className="pv-shared">
+            <h2 className="pv-shared-title">Shared with me</h2>
+            <div className="pv-shared-cards">
               {sharedWithMe.map(list => (
                 <button
                   key={list.id}
                   onClick={() => navigate('/provisioning/' + list.id)}
-                  className="flex items-center gap-2.5 px-4 py-2.5 bg-card border border-border rounded-xl text-sm hover:bg-muted transition-colors text-left"
-                  style={{ borderTop: list.board_colour ? `3px solid ${list.board_colour}` : undefined }}
+                  className="pv-shared-card"
                 >
-                  <div className="min-w-0">
-                    <p className="font-medium text-foreground truncate">{list.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 capitalize">{list.myPermission || 'view'} access</p>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="pv-shared-card-name">{list.title}</div>
+                    <div className="pv-shared-card-perm">{list.myPermission || 'view'} access</div>
                   </div>
-                  <Icon name="ChevronRight" className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                  <Icon name="ChevronRight" className="w-3.5 h-3.5" />
                 </button>
               ))}
             </div>
@@ -999,30 +986,21 @@ const ProvisioningWorkspace = () => {
 
         {/* Empty state — only for users who cannot create boards */}
         {!error && visibleLists.length === 0 && !showNewBoard && !canCreate && (
-          <div className="flex items-center justify-center" style={{ minHeight: 'calc(100vh - 130px)' }}>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                <Icon name="ShoppingBag" className="w-8 h-8 text-muted-foreground" />
-              </div>
-              <h3 className="text-base font-semibold text-foreground mb-1">No provisioning boards yet</h3>
-              <p className="text-sm text-muted-foreground mb-4">Create your first board to get started.</p>
-              {canCreate && (
-                <button
-                  onClick={() => setShowNewBoard(true)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/80 transition-colors"
-                >
-                  <Icon name="Plus" className="w-4 h-4" />
-                  New Board
-                </button>
-              )}
-            </div>
+          <div className="pv-empty" style={{ minHeight: 'calc(100vh - 240px)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+            <div className="pv-empty-title">No provisioning boards yet</div>
+            <div className="pv-empty-body">Create your first board to get started.</div>
+            {canCreate && (
+              <button onClick={() => setShowNewBoard(true)} className="pv-btn pv-btn-primary">
+                <Icon name="Plus" className="w-4 h-4" /> New board
+              </button>
+            )}
           </div>
         )}
 
         {/* Board workspace — horizontal scroll */}
         {(visibleLists.length > 0 || showNewBoard || canCreate) && (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <div className="flex gap-4 overflow-x-auto px-6 py-4" style={{ minHeight: 'calc(100vh - 130px)' }}>
+            <div className="pv-lanes">
               <SortableContext items={visibleLists.map(l => l.id)} strategy={horizontalListSortingStrategy}>
                 {visibleLists.map(list => {
                   const allItems = itemsByList[list.id] || [];
@@ -1076,7 +1054,7 @@ const ProvisioningWorkspace = () => {
 
         {/* ── Cross-board summary gauges — below kanban boards ─────────────── */}
         {!loading && crossBoardTotals.totalItems > 0 && (
-          <div style={{ padding: '0 24px 32px' }}>
+          <div style={{ padding: '0 32px 32px' }}>
             <SummaryGauges
               leftToReceive={crossBoardTotals.pendingItems}
               totalCount={crossBoardTotals.totalItems}

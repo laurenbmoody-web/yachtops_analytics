@@ -11,13 +11,6 @@ const STATUS_CONFIG = {
 
 const STATUS_ORDER = ['pending', 'ordered', 'received', 'short_delivered', 'not_delivered'];
 
-const BTN_STYLE = {
-  width: 26, height: 26, borderRadius: '50%', cursor: 'pointer',
-  background: '#F5F4F1', border: '1px solid #E8E6E1', color: '#8C877D',
-  fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center',
-  lineHeight: 1, padding: 0, flexShrink: 0,
-};
-
 const ItemCard = ({ item, onClick, onStatusChange, onQuantityChange }) => {
   const cfg = STATUS_CONFIG[item.status] || STATUS_CONFIG.pending;
   const [menu, setMenu] = useState(null);
@@ -61,33 +54,27 @@ const ItemCard = ({ item, onClick, onStatusChange, onQuantityChange }) => {
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         onTouchMove={handleTouchEnd}
-        className="flex items-center cursor-pointer bg-card hover:bg-muted/60 transition-colors"
-        style={{ padding: '8px 10px', marginBottom: 4, borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)', gap: 8 }}
+        className="pv-item"
       >
-        {/* Name — takes all remaining space, truncates with ellipsis */}
-        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13, fontWeight: 500 }}
-          className="text-foreground">
+        {/* Name takes the freed width — single line, ellipsis only in the extreme */}
+        <span className="pv-item-name">
           {item.name || 'Untitled'}
         </span>
 
-        {/* Qty controls — fixed width, never squished */}
-        <div
-          style={{ width: 96, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-          onClick={e => e.stopPropagation()}
-        >
-          <button onClick={(e) => handleQty(e, -1)} style={BTN_STYLE}>−</button>
-          <span style={{ width: 24, textAlign: 'center', fontSize: 13, fontWeight: 600 }} className="text-foreground">
-            {item.quantity_ordered ?? 0}
-          </span>
-          <button onClick={(e) => handleQty(e, 1)} style={BTN_STYLE}>+</button>
+        {/* Qty controls — stop propagation so taps on the stepper don't open the drawer */}
+        <div className="pv-item-stepper" onClick={e => e.stopPropagation()}>
+          <button onClick={(e) => handleQty(e, -1)} className="pv-item-stepbtn">−</button>
+          <span className="pv-item-qty">{item.quantity_ordered ?? 0}</span>
+          <button onClick={(e) => handleQty(e, 1)} className="pv-item-stepbtn">+</button>
         </div>
 
-        {/* Status badge — fixed width, right-aligned text */}
-        <div style={{ width: 76, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
-          <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: cfg.bg, color: cfg.color, whiteSpace: 'nowrap' }}>
-            {cfg.label}
-          </span>
-        </div>
+        {/* Status badge — colour pulls from STATUS_CONFIG so per-status hue is preserved */}
+        <span
+          className="pv-item-status"
+          style={{ background: cfg.bg, color: cfg.color }}
+        >
+          {cfg.label}
+        </span>
       </div>
 
       {/* Status context menu */}

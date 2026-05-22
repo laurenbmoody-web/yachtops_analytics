@@ -1,8 +1,21 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
-import StatusBadge from './StatusBadge';
 import ItemCard from './ItemCard';
 import { updateProvisioningList } from '../utils/provisioningStorage';
+
+// Board status → { dot colour, label } for the refined status line. The
+// 3D bottom-edge of the lane gets its colour from the same status via
+// data-status (see provisioning-board.css). pending_approval and any
+// unknown status fall through to sand (treated as draft-equivalent —
+// "nothing has gone out yet").
+const STATUS_VISUALS = {
+  draft:                          { color: '#DFD7C8', label: 'Draft' },
+  pending_approval:               { color: '#DFD7C8', label: 'Pending approval' },
+  sent_to_supplier:               { color: '#C65A1A', label: 'Sent to supplier' },
+  partially_delivered:            { color: '#5C9B6A', label: 'Partially delivered' },
+  delivered_with_discrepancies:   { color: '#5C9B6A', label: 'With discrepancies' },
+  delivered:                      { color: '#5C9B6A', label: 'Delivered' },
+};
 
 // ── Drag handle (six-dot grip) ───────────────────────────────────────────────
 
@@ -10,11 +23,10 @@ const DragHandle = ({ dragHandleProps }) => (
   <div
     {...dragHandleProps}
     title="Drag to reorder"
-    className="flex-shrink-0 flex items-center justify-center w-5 h-full cursor-grab active:cursor-grabbing group/drag"
+    className="pv-lane-grip"
     style={{ touchAction: 'none' }}
   >
-    <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor"
-      className="text-muted-foreground group-hover/drag:text-foreground transition-colors">
+    <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor">
       <circle cx="2.5" cy="2.5" r="1.5" />
       <circle cx="7.5" cy="2.5" r="1.5" />
       <circle cx="2.5" cy="7.5" r="1.5" />
@@ -265,37 +277,51 @@ const BoardColumn = ({
   // ── Delete confirmation ─────────────────────────────────────────────────
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  // ── Derived styles ──────────────────────────────────────────────────────
+  // ── Derived values ──────────────────────────────────────────────────────
   const colour = list.board_colour || null;
-  const containerStyle = {
-    height: 'calc(100vh - 160px)',
-    opacity: isDragging ? 0.5 : 1,
-    transition: 'opacity 0.15s',
-    overflow: 'hidden',
-  };
-  const headerStyle = colour ? { backgroundColor: `${colour}14` } : {};
+  const statusVisual = STATUS_VISUALS[list.status] || { color: '#DFD7C8', label: list.status || '—' };
+
+  // Subline: DEPT · N ITEMS. department may be text[] or comma-string.
+  const deptList = Array.isArray(list.department)
+    ? list.department.filter(Boolean)
+    : (list.department ? String(list.department).split(',').map(s => s.trim()).filter(Boolean) : []);
+  const deptLabel = deptList[0] || '';
+  const itemTotal = items.length;
+  const sublineParts = [];
+  if (deptLabel) sublineParts.push(deptLabel);
+  sublineParts.push(`${itemTotal} item${itemTotal === 1 ? '' : 's'}`);
+  const subline = sublineParts.join(' · ');
+
+  // Progress: only shown once at least one item has been received/partial.
+  // Matches the workspace's existing "received-or-partial" definition.
+  const receivedCount = items.filter(i => ['received', 'partial'].includes(i.status)).length;
+  const showProgress = receivedCount > 0 && items.length > 0;
+  const progressPct = items.length > 0 ? Math.round((receivedCount / items.length) * 100) : 0;
+
+  const isPrivate = list.visibility === 'private' || (!list.visibility && list.is_private);
 
   return (
     <div
-      className="flex flex-col w-[340px] min-w-[340px] flex-shrink-0 bg-card border border-border rounded-xl shadow-sm"
-      style={containerStyle}
+      className="pv-lane"
+      data-status={list.status}
+      style={{ opacity: isDragging ? 0.5 : 1 }}
     >
-      {/* Top accent bar */}
-      {colour && (
-        <div style={{ height: 3, background: colour, borderRadius: '10px 10px 0 0', flexShrink: 0 }} />
-      )}
       {/* Header */}
-      <div
-        className="px-2 pt-3 pb-2 flex-shrink-0 border-b border-border"
-        style={{ ...headerStyle, minHeight: 80 }}
-      >
-        <div className="flex items-start gap-1">
-          {/* Drag handle */}
+      <div className="pv-lane-header">
+        <div className="pv-lane-header-top">
+          {/* Drag handle (hover-fade) */}
           <DragHandle dragHandleProps={dragHandleProps} />
 
-          {/* Title + badges */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5">
+          {/* Title block: palette dot + name + flash + lock, then subline */}
+          <div className="pv-lane-title-block">
+            <div className="pv-lane-title-row">
+              {colour && (
+                <span
+                  className="pv-lane-palette-dot"
+                  style={{ background: colour }}
+                  title="Board colour"
+                />
+              )}
               {editingTitle ? (
                 <input
                   ref={titleInputRef}
@@ -306,11 +332,11 @@ const BoardColumn = ({
                     if (e.key === 'Escape') { setTitleValue(list.title); setEditingTitle(false); }
                   }}
                   onBlur={handleTitleCommit}
-                  className="text-sm font-bold bg-transparent border-b border-primary text-foreground outline-none w-full leading-tight pb-0.5"
+                  className="pv-lane-name-input"
                 />
               ) : (
                 <h3
-                  className="text-sm font-bold text-foreground truncate cursor-pointer hover:underline decoration-dotted underline-offset-2"
+                  className="pv-lane-name"
                   onClick={() => setEditingTitle(true)}
                   title={list.title}
                 >
@@ -318,63 +344,51 @@ const BoardColumn = ({
                 </h3>
               )}
               {savedFlash && (
-                <span className="text-[10px] text-green-400 font-semibold whitespace-nowrap flex-shrink-0">Saved ✓</span>
+                <span className="pv-lane-saved-flash">Saved ✓</span>
               )}
-              {(list.visibility === 'private' || (!list.visibility && list.is_private)) && <Icon name="Lock" className="w-3 h-3 text-amber-500 flex-shrink-0" />}
+              {isPrivate && (
+                <span className="pv-lane-lock"><Icon name="Lock" className="w-3 h-3" /></span>
+              )}
             </div>
-            <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <StatusBadge status={list.status} size="sm" />
-            </div>
+            <p className="pv-lane-subline">{subline}</p>
           </div>
 
-          {/* Right actions: collaborators, count, expand, palette, share, menu */}
-          <div className="flex items-center gap-0.5 flex-shrink-0">
-            {/* Collaborator avatars */}
+          {/* Header right actions: collaborators, item count, open-detail, palette, menu */}
+          <div className="pv-lane-actions">
             {collaborators?.length > 0 && (
-              <div className="flex items-center -space-x-1.5 mr-1">
+              <div className="pv-lane-avatars">
                 {collaborators.slice(0, 3).map((c, i) => (
                   <div
                     key={c.user_id || i}
                     title={c.full_name || c.email || 'Collaborator'}
+                    className="pv-lane-avatar"
                     style={{
-                      width: 20, height: 20, borderRadius: '50%',
-                      background: c.avatar_url ? 'transparent' : '#4A90E2',
-                      border: '1.5px solid var(--color-card, #fff)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 8, fontWeight: 700, color: '#fff',
-                      overflow: 'hidden', flexShrink: 0,
                       backgroundImage: c.avatar_url ? `url(${c.avatar_url})` : undefined,
-                      backgroundSize: 'cover',
                     }}
                   >
                     {!c.avatar_url && (c.full_name?.[0] || c.email?.[0] || '?').toUpperCase()}
                   </div>
                 ))}
                 {collaborators.length > 3 && (
-                  <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#E2E8F0', border: '1.5px solid var(--color-card, #fff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700, color: '#64748B', flexShrink: 0 }}>
-                    +{collaborators.length - 3}
-                  </div>
+                  <div className="pv-lane-avatar pv-lane-avatar-more">+{collaborators.length - 3}</div>
                 )}
               </div>
             )}
-            <span className="text-[10px] font-medium bg-muted text-muted-foreground rounded-full px-1.5 py-0.5">
-              {filteredItems.length}
-            </span>
+            <span className="pv-lane-count">{filteredItems.length}</span>
             <button
               onClick={() => onNavigate(list.id)}
               title="Open full detail"
-              className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              className="pv-lane-action-btn"
             >
               <Icon name="ExternalLink" className="w-3.5 h-3.5" />
             </button>
             {/* Palette button */}
-            <div className="relative" ref={colourBtnRef}>
+            <div style={{ position: 'relative' }} ref={colourBtnRef}>
               <button
                 onClick={() => setColourOpen(v => !v)}
                 title="Board colour"
-                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                className="pv-lane-action-btn"
               >
-                {/* Palette SVG */}
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" stroke="none" />
                   <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" stroke="none" />
@@ -403,8 +417,21 @@ const BoardColumn = ({
           </div>
         </div>
 
+        {/* Refined status line: 6px dot + tracked-caps label + 3px progress bar */}
+        <div className="pv-lane-statusline">
+          <span className="pv-lane-statusdot" style={{ background: statusVisual.color }} />
+          <span className="pv-lane-statuslabel" style={{ color: statusVisual.color }}>
+            {statusVisual.label}
+          </span>
+          {showProgress && (
+            <div className="pv-lane-progress" title={`${receivedCount} of ${items.length} received`}>
+              <div className="pv-lane-progress-fill" style={{ width: `${progressPct}%` }} />
+            </div>
+          )}
+        </div>
+
         {list.estimated_cost > 0 && (
-          <p className="text-xs text-muted-foreground mt-1 pl-6">
+          <p className="pv-lane-cost">
             {currencySymbol}{Math.round(list.estimated_cost).toLocaleString()} est.
           </p>
         )}
@@ -412,22 +439,28 @@ const BoardColumn = ({
 
       {/* Delete confirmation banner — replaces items area */}
       {confirmDelete ? (
-        <div className="flex-1 flex items-start p-4">
-          <div className="w-full bg-red-500/10 border border-red-500/30 rounded-xl p-4">
-            <p className="text-sm font-semibold text-red-400 mb-1">Delete this board?</p>
-            <p className="text-xs text-muted-foreground mb-4">
+        <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', padding: 14 }}>
+          <div style={{
+            width: '100%',
+            background: 'rgba(220, 38, 38, 0.06)',
+            border: '0.5px solid rgba(220, 38, 38, 0.35)',
+            borderRadius: 12,
+            padding: 14,
+          }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#B91C1C', margin: '0 0 4px' }}>Delete this board?</p>
+            <p style={{ fontSize: 11, color: '#695880', margin: '0 0 12px' }}>
               This will permanently delete the board and all its items. This cannot be undone.
             </p>
-            <div className="flex gap-2">
+            <div style={{ display: 'flex', gap: 8 }}>
               <button
                 onClick={() => { setConfirmDelete(false); onDelete(); }}
-                className="flex-1 py-2 bg-red-500 text-white text-sm font-semibold rounded-lg hover:bg-red-600 transition-colors"
+                style={{ flex: 1, padding: '8px 0', background: '#B91C1C', color: 'white', fontSize: 13, fontWeight: 600, border: 0, borderRadius: 9, cursor: 'pointer' }}
               >
                 Delete
               </button>
               <button
                 onClick={() => setConfirmDelete(false)}
-                className="flex-1 py-2 bg-muted text-foreground text-sm rounded-lg hover:bg-muted/80 transition-colors"
+                style={{ flex: 1, padding: '8px 0', background: 'transparent', color: '#262A53', fontSize: 13, border: '0.5px solid #D4CCBB', borderRadius: 9, cursor: 'pointer' }}
               >
                 Cancel
               </button>
@@ -437,7 +470,7 @@ const BoardColumn = ({
       ) : (
         <>
           {/* Items — scrollable */}
-          <div className="flex-1 overflow-y-auto px-2 pt-2 min-h-0">
+          <div className="pv-lane-items">
             {filteredItems.map(item => (
               <ItemCard
                 key={item.id}
@@ -448,26 +481,26 @@ const BoardColumn = ({
               />
             ))}
             {filteredItems.length === 0 && hiddenCount === 0 && (
-              <div className="flex items-center justify-center py-8 text-center px-4">
+              <div className="pv-lane-empty">
                 {items.length > 0 && items.every(i => i.status === 'received') ? (
-                  <div>
-                    <p className="text-xs font-semibold text-green-500 mb-0.5">All items received ✓</p>
-                    <p className="text-[10px] text-muted-foreground">Open board for details</p>
-                  </div>
+                  <>
+                    <p className="pv-lane-empty-done" style={{ margin: 0 }}>All items received ✓</p>
+                    <p style={{ fontSize: 10, margin: '4px 0 0' }}>Open board for details</p>
+                  </>
                 ) : (
-                  <p className="text-xs text-muted-foreground">No items yet</p>
+                  <p style={{ margin: 0 }}>No items yet</p>
                 )}
               </div>
             )}
             {hiddenCount > 0 && (
-              <p className="text-[10px] text-muted-foreground text-center py-1">
+              <p className="pv-lane-hidden-count">
                 {hiddenCount} item{hiddenCount !== 1 ? 's' : ''} hidden by filter
               </p>
             )}
           </div>
 
           {/* Quick-add — always visible */}
-          <div className="px-2 pb-2 pt-1 flex-shrink-0">
+          <div className="pv-lane-quickadd">
             <QuickAddItem onAdd={onQuickAdd} />
           </div>
         </>
