@@ -394,7 +394,7 @@ export default function RotaTodayGrid({
   crew = [], now = new Date(), onCrewClick, gridStartHour = 6,
   editMode = false, onPaint, deptStatus,
 }) {
-  const { user, tenantRole } = useAuth();
+  const { user, currentUser, tenantRole } = useAuth();
 
   // ── Paint-brush drag ──────────────────────────────────────────────────────
   // Pointer down → begin; pointer enter cells in the SAME row → extend
@@ -452,7 +452,7 @@ export default function RotaTodayGrid({
   for (const arr of byDept.values()) arr.sort(sortWithinDept);
 
   const orderedDepts = orderDepartments(
-    byDept, onVessel, tenantRole, user?.department_id || null,
+    byDept, onVessel, tenantRole, currentUser?.department_id || null,
   );
 
   // Adaptive crew-column width (Correction 4). Pure CSS can't fit a
