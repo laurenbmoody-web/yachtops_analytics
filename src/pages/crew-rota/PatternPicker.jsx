@@ -67,7 +67,7 @@ function TemplateRow({ template, onToggleStar, onEdit, onPick, onToast }) {
       <button
         type="button"
         className="tp-star"
-        aria-label={t.isStarred ? 'Unstar template' : 'Star template'}
+        aria-label={t.isStarred ? 'Remove from favourites' : 'Add to favourites'}
         aria-pressed={t.isStarred}
         onClick={handleStar}
       >
@@ -262,7 +262,7 @@ export default function PatternPicker({
             <>
               <PickerGroup
                 groupKey="starred"
-                name="Starred"
+                name="Favourites"
                 count={groups.starred.length}
                 isOpen={expanded.has('starred')}
                 onToggle={toggle}
