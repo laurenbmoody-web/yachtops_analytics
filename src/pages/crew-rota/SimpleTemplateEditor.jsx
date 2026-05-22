@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
+import TimeSelect from './TimeSelect';
 
 // Phase 2 sub-piece 2 — Simple template editor modal.
 //
@@ -228,22 +229,20 @@ export default function SimpleTemplateEditor({
           <div className="te-field te-times" aria-disabled={noFixedHours}>
             <label className="te-field-sub">
               <span className="te-field-label">Start</span>
-              <input
-                type="time" step="1800"
-                className="te-input"
+              <TimeSelect
                 value={startTime}
+                onChange={setStartTime}
                 disabled={noFixedHours}
-                onChange={(e) => setStartTime(e.target.value)}
+                ariaLabel="Start time"
               />
             </label>
             <label className="te-field-sub">
               <span className="te-field-label">End</span>
-              <input
-                type="time" step="1800"
-                className="te-input"
+              <TimeSelect
                 value={endTime}
+                onChange={setEndTime}
                 disabled={noFixedHours}
-                onChange={(e) => setEndTime(e.target.value)}
+                ariaLabel="End time"
               />
             </label>
           </div>

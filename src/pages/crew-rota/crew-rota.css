@@ -1104,6 +1104,47 @@
 }
 .tp-state-err { color: #7A2E1E; font-style: normal; }
 
+/* ── Group (collapsible) headers + bodies ───────────────────── */
+.tp-group + .tp-group .tp-group-head { border-top: 0.5px solid #ECE6DC; }
+.tp-group-head {
+  background: transparent;
+  border: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  text-align: left;
+}
+.tp-group-head:hover { background: #FAFAF7; }
+.tp-group-chev {
+  color: #8B8478;
+  transition: transform 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  flex-shrink: 0;
+}
+.tp-group-chev.is-open { transform: rotate(90deg); }
+.tp-group-name {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: #1C1B3A;
+  flex: 1;
+}
+.tp-group-count {
+  font-size: 10px;
+  font-weight: 500;
+  color: #8B8478;
+  background: #F5F1EA;
+  border-radius: 999px;
+  padding: 1px 8px;
+  min-width: 18px;
+  text-align: center;
+}
+.tp-group-body { padding: 2px 0 6px; }
+
 /* Row: star + body (clickable) + edit. */
 .tp-row {
   display: grid;

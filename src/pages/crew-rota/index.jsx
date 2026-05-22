@@ -420,6 +420,8 @@ export default function CrewRotaPage() {
           loading={templatesLoading}
           error={templatesError}
           toggleStar={toggleStar}
+          departments={departments}
+          myDeptId={user?.department_id || null}
           onToast={showToast}
           onPick={() => showToast('Applying templates ships in Phase 3.')}
           onEdit={(t) => {
