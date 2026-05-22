@@ -5,7 +5,7 @@
    .pv-lane (white card, radius 18, status-driven 5px bottom edge).
    ============================================================ */
 
-.di {
+.di, .di-slip {
   --di-cream:       #F4EEE4;
   --di-card:        #FFFFFF;
   --di-band:        #FCFAF5;
@@ -25,7 +25,9 @@
   --di-faint:       #94A3B8;
   --di-hairline:    #D4CCBB;
   --di-shadow:      0 1px 2px rgba(38, 42, 83, 0.04);
+}
 
+.di {
   background: var(--di-cream);
   color: var(--di-navy);
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
@@ -755,3 +757,439 @@
   background: none; border: 0; cursor: pointer;
 }
 .di-blocked-back:hover { color: var(--di-rust); }
+
+/* ── Richer editorial empty state (Inbox + Returns) ──────────
+   Replaces the bare-card .di-empty. DM Serif Display headline,
+   soft icon tile, 3D sand bottom edge — matches the suppliers-
+   directory editorial empty-state language. */
+.di-empty-card {
+  text-align: center;
+  background: var(--di-card);
+  border-radius: 18px;
+  border-bottom: 5px solid var(--di-sand);
+  box-shadow: var(--di-shadow);
+  padding: 72px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.di-empty-tile {
+  width: 46px; height: 46px;
+  border-radius: 12px;
+  background: rgba(38, 42, 83, 0.06);
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--di-navy);
+}
+.di-empty-headline {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--di-navy);
+  margin: 0;
+  letter-spacing: -0.3px;
+  line-height: 1.1;
+}
+.di-empty-headline .di-empty-period { color: var(--di-rust); }
+.di-empty-text {
+  font-size: 13px;
+  color: var(--di-muted);
+  max-width: 380px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RETURN-SLIP PAGE — editorial reskin.
+   Page-scoped under .di-slip. Token block above is shared with .di.
+   The page is also printable; print rules below flip the canvas to
+   white and hide .no-print controls without affecting the surface
+   styling on screen.
+   ══════════════════════════════════════════════════════════════ */
+.di-slip {
+  background: var(--di-cream);
+  color: var(--di-navy);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+.di-slip-page {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 32px 32px 80px;
+}
+
+.di-slip-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none; border: 0; padding: 0;
+  font-family: inherit;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--di-navy);
+  cursor: pointer;
+  margin-bottom: 18px;
+}
+.di-slip-back:hover { color: var(--di-rust); }
+
+.di-slip-meta {
+  display: flex;
+  align-items: center;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--di-navy);
+  margin: 0 0 10px;
+}
+.di-slip-meta .di-slip-meta-dot { color: var(--di-rust); margin-right: 5px; }
+.di-slip-meta .di-slip-meta-muted { color: var(--di-muted); }
+.di-slip-meta .di-slip-meta-bar {
+  display: inline-block;
+  width: 1px; height: 10px;
+  background: var(--di-hairline);
+  margin: 0 10px;
+  flex-shrink: 0;
+}
+
+.di-slip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+.di-slip-headline {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 36px;
+  font-weight: 500;
+  color: var(--di-navy);
+  text-transform: uppercase;
+  letter-spacing: -0.8px;
+  line-height: 1;
+  margin: 0;
+}
+.di-slip-headline em {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--di-rust);
+  text-transform: none;
+}
+.di-slip-headline .di-slip-period { color: var(--di-navy); font-style: normal; }
+.di-slip-vessel-line {
+  font-size: 12px;
+  color: var(--di-muted);
+  margin: 6px 0 0;
+}
+.di-slip-doc-meta {
+  text-align: right;
+  font-size: 11px;
+  color: var(--di-muted);
+  font-family: inherit;
+}
+.di-slip-doc-meta p { margin: 0; }
+.di-slip-doc-meta p + p { margin-top: 4px; }
+
+/* Form section */
+.di-slip-section {
+  background: var(--di-card);
+  border: 0.5px solid var(--di-hairline);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 18px;
+  box-shadow: var(--di-shadow);
+}
+.di-slip-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--di-muted);
+  margin: 0 0 12px;
+}
+.di-slip-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 640px) {
+  .di-slip-form-grid { grid-template-columns: 1fr; }
+}
+.di-slip-field { display: flex; flex-direction: column; gap: 4px; }
+.di-slip-field-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--di-muted);
+}
+.di-slip-input,
+.di-slip-textarea {
+  width: 100%;
+  border: 0.5px solid var(--di-hairline);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--di-navy);
+  background: var(--di-card);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.12s;
+}
+.di-slip-input:hover,
+.di-slip-textarea:hover { border-color: var(--di-muted); }
+.di-slip-input:focus,
+.di-slip-textarea:focus { border-color: var(--di-navy); }
+.di-slip-input:disabled,
+.di-slip-textarea:disabled {
+  background: var(--di-band);
+  color: var(--di-muted);
+  cursor: default;
+}
+.di-slip-textarea { resize: vertical; min-height: 60px; line-height: 1.5; }
+
+/* Inline order-reference row */
+.di-slip-order-row {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--di-muted);
+  margin-bottom: 18px;
+  padding: 0 4px;
+}
+.di-slip-order-row strong {
+  font-weight: 600;
+  color: var(--di-navy);
+}
+.di-slip-order-link {
+  color: var(--di-rust);
+  text-decoration: none;
+  font-weight: 600;
+}
+.di-slip-order-link:hover { text-decoration: underline; }
+
+/* Items table */
+.di-slip-table-wrap {
+  background: var(--di-card);
+  border: 0.5px solid var(--di-hairline);
+  border-radius: 12px;
+  padding: 4px 0;
+  margin-bottom: 28px;
+  box-shadow: var(--di-shadow);
+  overflow-x: auto;
+}
+.di-slip-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.di-slip-table th {
+  text-align: left;
+  padding: 12px 14px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--di-muted);
+  border-bottom: 0.5px solid var(--di-hairline);
+  white-space: nowrap;
+}
+.di-slip-table td {
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--di-navy);
+  border-bottom: 0.5px solid var(--di-sand-soft);
+  vertical-align: middle;
+}
+.di-slip-table tbody tr:last-child td { border-bottom: 0; }
+.di-slip-table tbody tr.di-slip-total-row {
+  background: var(--di-band);
+}
+.di-slip-table tbody tr.di-slip-total-row td {
+  border-top: 0.5px solid var(--di-hairline);
+  border-bottom: 0;
+  font-weight: 600;
+}
+.di-slip-td-center { text-align: center; }
+.di-slip-td-right { text-align: right; }
+.di-slip-td-muted { color: var(--di-muted); }
+.di-slip-td-ref { color: var(--di-faint); font-size: 11px; }
+
+.di-slip-table-input,
+.di-slip-table-select {
+  width: 100%;
+  border: 0.5px solid var(--di-hairline);
+  border-radius: 7px;
+  padding: 5px 8px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--di-navy);
+  background: var(--di-card);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.12s;
+}
+.di-slip-table-input:focus,
+.di-slip-table-select:focus { border-color: var(--di-navy); }
+.di-slip-table-input:disabled,
+.di-slip-table-select:disabled {
+  background: var(--di-band);
+  color: var(--di-muted);
+}
+.di-slip-table-qty {
+  width: 64px;
+  text-align: center;
+}
+
+/* Signature pads */
+.di-slip-sig-row {
+  display: flex;
+  gap: 48px;
+  margin-top: 36px;
+  padding-top: 24px;
+  border-top: 0.5px solid var(--di-hairline);
+  flex-wrap: wrap;
+}
+.di-slip-sig {
+  flex: 1 1 280px;
+  max-width: 320px;
+}
+.di-slip-sig-frame { position: relative; }
+.di-slip-canvas {
+  width: 100%;
+  height: 80px;
+  border-bottom: 1px solid var(--di-hairline);
+  cursor: crosshair;
+  touch-action: none;
+  display: block;
+}
+.di-slip-canvas-placeholder {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 11px;
+  color: var(--di-faint);
+  pointer-events: none;
+  user-select: none;
+  font-style: italic;
+}
+.di-slip-sig-clear {
+  position: absolute;
+  top: 4px; right: 4px;
+  background: none; border: 0;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--di-muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  transition: color 0.12s;
+}
+.di-slip-sig-clear:hover { color: var(--di-rust); }
+.di-slip-sig-img {
+  width: 100%;
+  height: 80px;
+  object-fit: contain;
+  border-bottom: 1px solid var(--di-hairline);
+  display: block;
+}
+.di-slip-sig-empty {
+  height: 80px;
+  border-bottom: 1px solid var(--di-hairline);
+}
+.di-slip-sig-label {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--di-muted);
+}
+.di-slip-sig-sub {
+  margin: 3px 0 0;
+  font-size: 11px;
+  color: var(--di-navy);
+  font-style: italic;
+}
+
+/* Action bar */
+.di-slip-actions {
+  margin-top: 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.di-slip-actions-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.di-slip-actions-sep {
+  width: 1px;
+  height: 32px;
+  background: var(--di-hairline);
+  margin: 0 6px;
+}
+.di-slip-status-line {
+  font-size: 11px;
+  color: var(--di-muted);
+  margin: 0;
+  text-align: center;
+}
+.di-slip-status-line.is-error { color: var(--di-rust); }
+.di-slip-status-line.is-success { color: var(--di-sage-deep); }
+.di-slip-locked-banner {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--di-sage-soft);
+  border: 0.5px solid #BBF7D0;
+  border-radius: 12px;
+  padding: 14px 20px;
+  font-size: 13px;
+  color: var(--di-sage-deep);
+  max-width: 600px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.di-slip-locked-banner strong { font-weight: 600; }
+
+/* Disabled "no supplier email" button */
+.di-btn-disabled-static {
+  background: var(--di-band);
+  color: var(--di-faint);
+  border: 0;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: default;
+}
+
+/* Reused .di-btn variants from .di scope work here because the token
+   block is shared. The slip page just opts into them via className. */
+
+/* Print rules — preserve A4 sizing, hide controls, white canvas */
+@media print {
+  .di-slip { background: #FFFFFF; }
+  .di-slip-page { padding: 0; max-width: none; }
+  .di-slip-back, .di-slip-actions, .no-print { display: none !important; }
+  .di-slip-section,
+  .di-slip-table-wrap { box-shadow: none; border-color: #E2E8F0; }
+  .di-slip-input,
+  .di-slip-textarea,
+  .di-slip-table-input,
+  .di-slip-table-select {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+  body { margin: 0; }
+}
+@page { size: A4; margin: 20mm; }
