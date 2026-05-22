@@ -1,4 +1,19 @@
-import React, { useState, useEffect, useCallback } from 'react';
+// ─────────────────────────────────────────────────────────────────────────────
+// Delivery Inbox — editorial redesign.
+// Two-region layout (wide main + 290px rail), editorial header system
+// (.editorial-meta + .editorial-greeting from src/styles/editorial.css), page-
+// scoped styles in delivery-inbox.css under .di. The Inbox tab keeps the
+// existing group-by-scanner+date logic; the Returns tab now splits into three
+// lifecycle stages (slip / awaiting signature / supplier confirmed).
+//
+// Every claim / dismiss / return / generate-slip / mark-archived / cancel-
+// return action reuses the existing storage helpers verbatim. The CHIEF / HOD
+// `scanned_by || department` filter is preserved as-is (a separate PR removes
+// it; that PR and this redesign land independently). CREW remains hard-blocked
+// and `canReturn` (COMMAND + CHIEF only) still gates the Return action.
+// ─────────────────────────────────────────────────────────────────────────────
+
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
@@ -17,41 +32,156 @@ import {
 } from './utils/provisioningStorage';
 import { logActivity } from '../../utils/activityStorage';
 import { supabase } from '../../lib/supabaseClient';
+import './delivery-inbox.css';
+import '../../styles/editorial.css';
 
-// ── Expiry badge ──────────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const ExpiryBadge = ({ expiresAt }) => {
+const fmtCurrency = (val) => {
+  if (val == null || val === '') return null;
+  const n = Number(val);
+  if (Number.isNaN(n)) return null;
+  return `£${n.toFixed(2)}`;
+};
+
+const fmtDate = (iso) => {
+  if (!iso) return '—';
+  try {
+    return new Date(typeof iso === 'string' && iso.length === 10 ? iso + 'T12:00:00' : iso)
+      .toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  } catch { return String(iso); }
+};
+
+const fmtDateShort = (iso) => {
+  if (!iso) return '—';
+  try { return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); }
+  catch { return '—'; }
+};
+
+// Expiry chip + group bottom-edge predicate. ≤2 days (including expired) =
+// rust signal; the group card edge goes rust if any item triggers this.
+const expiryDays = (expiresAt) => {
   if (!expiresAt) return null;
-  const diffMs = new Date(expiresAt) - Date.now();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays < 0) return (
-    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: '#FEF2F2', color: '#DC2626' }}>Expired</span>
-  );
-  if (diffDays <= 2) return (
-    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 12, background: '#FEF3E2', color: '#B45309' }}>
-      Expires in {diffDays} day{diffDays !== 1 ? 's' : ''}
-    </span>
-  );
+  return Math.ceil((new Date(expiresAt) - Date.now()) / (1000 * 60 * 60 * 24));
+};
+const expiringSoonForCardEdge = (item) => {
+  const d = expiryDays(item.expires_at);
+  return d != null && d <= 2;
+};
+
+// Returns lifecycle. Only `status === 'pending_return'` rows ever land in a
+// stage; archived returns surface separately under "Show archived".
+const stageOf = (item) => {
+  if (item.status !== 'pending_return') return null;
+  if (item.supplier_confirmed_at) return 3;
+  if (item.return_slip_token) return 2;
+  return 1;
+};
+
+const STAGE_SECTION_LABEL = {
+  1: 'Needs a return slip',
+  2: 'Awaiting supplier signature',
+  3: 'Supplier confirmed',
+};
+const STAGE_PILL_LABEL = {
+  1: 'Slip not generated',
+  2: 'Awaiting signature',
+  3: 'Supplier signed',
+};
+const STAGE_EDGE_CLASS = {
+  1: 'di-card',           // sand default
+  2: 'di-card di-card-amber',
+  3: 'di-card di-card-sage',
+};
+
+// Return-reason → short readable tag.
+const REASON_TAGS = {
+  damaged: 'Damaged',
+  short: 'Short-delivered',
+  wrong: 'Wrong item',
+  over: 'Over-delivered',
+  other: 'Other',
+};
+const formatReasonTag = (reason) => {
+  if (!reason) return null;
+  const key = String(reason).toLowerCase().trim();
+  if (REASON_TAGS[key]) return REASON_TAGS[key];
+  // Best-effort title-case for free-text reasons.
+  return key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
+};
+
+// ─── ExpiryBadge ─────────────────────────────────────────────────────────────
+const ExpiryBadge = ({ expiresAt }) => {
+  const d = expiryDays(expiresAt);
+  if (d == null) return null;
+  if (d < 0) return <span className="di-chip di-chip-rust">Expired</span>;
+  if (d === 0) return <span className="di-chip di-chip-rust">Expires today</span>;
+  if (d <= 1) return <span className="di-chip di-chip-rust">Expires 1d</span>;
+  if (d <= 3) return <span className="di-chip di-chip-amber">Expires {d}d</span>;
+  return <span className="di-chip di-chip-quiet">Expires {d}d</span>;
+};
+
+// ─── Detail panel (expandable below a row) ───────────────────────────────────
+const DetailField = ({ label, value }) => {
+  if (value == null || value === '') return null;
   return (
-    <span style={{ fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 12, background: '#F1F5F9', color: '#94A3B8' }}>
-      Expires in {diffDays} days
-    </span>
+    <div className="di-detail-field">
+      <p className="di-detail-label">{label}</p>
+      <p className="di-detail-value">{value}</p>
+    </div>
   );
 };
 
-// ── Inline board pill claim ───────────────────────────────────────────────────
+const ItemDetailPanel = ({ item }) => {
+  const hasSupplierInfo = item.supplier_name || item.supplier_phone || item.supplier_email || item.supplier_address;
+  const hasOrderInfo = item.order_ref || item.order_date || item.item_reference || item.delivery_note_ref;
+  const hasPricing = item.unit_price || item.line_total || item.ordered_qty;
 
+  return (
+    <div className="di-detail-panel">
+      <div className="di-detail-card">
+        {hasSupplierInfo && (
+          <div className="di-detail-row">
+            <DetailField label="Supplier" value={item.supplier_name} />
+            <DetailField label="Phone" value={item.supplier_phone} />
+            <DetailField label="Email" value={item.supplier_email} />
+            {item.supplier_address && !item.supplier_name && (
+              <DetailField label="Address" value={item.supplier_address} />
+            )}
+          </div>
+        )}
+        {hasPricing && (
+          <div className="di-detail-row">
+            <DetailField label="Unit price" value={fmtCurrency(item.unit_price)} />
+            <DetailField label="Line total" value={fmtCurrency(item.line_total)} />
+            <DetailField label="Ordered qty" value={item.ordered_qty} />
+            <DetailField label="Unit" value={item.unit} />
+          </div>
+        )}
+        {hasOrderInfo && (
+          <div className="di-detail-row">
+            <DetailField label="Item ref" value={item.item_reference} />
+            <DetailField label="Order ref" value={item.order_ref} />
+            <DetailField label="Order date" value={item.order_date} />
+            <DetailField label="Delivery note ref" value={item.delivery_note_ref} />
+          </div>
+        )}
+        {item.supplier_address && hasSupplierInfo && item.supplier_name && (
+          <DetailField label="Supplier address" value={item.supplier_address} />
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── Per-row claim flow (idle → boards → qty) ────────────────────────────────
 const ClaimInline = ({ item, boards, userId, onClaimed, onPartialClaim, onExpandChange }) => {
-  // step: 'idle' | 'boards' | 'qty'
-  const [step, setStep] = useState('idle');
+  const [step, setStep] = useState('idle'); // 'idle' | 'boards' | 'qty'
   const [selectedBoard, setSelectedBoard] = useState(null);
   const [claimQty, setClaimQty] = useState(item.quantity ?? 1);
   const [claiming, setClaiming] = useState(false);
 
-  const goToStep = (s) => {
-    setStep(s);
-    onExpandChange?.(s !== 'idle');
-  };
+  const goToStep = (s) => { setStep(s); onExpandChange?.(s !== 'idle'); };
 
   const handleBoardSelect = (board) => {
     setSelectedBoard(board);
@@ -91,21 +221,11 @@ const ClaimInline = ({ item, boards, userId, onClaimed, onPartialClaim, onExpand
     }
   };
 
-  if (claiming) return <span style={{ fontSize: 12, color: '#94A3B8' }}>Claiming…</span>;
+  if (claiming) return <span className="di-claim-step-label">Claiming…</span>;
 
   if (step === 'idle') {
     return (
-      <button
-        onClick={() => goToStep('boards')}
-        style={{
-          padding: '5px 14px', borderRadius: 7,
-          border: '1.5px solid #1E3A5F', background: 'transparent',
-          color: '#1E3A5F', fontSize: 12, fontWeight: 600,
-          cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
-        }}
-        onMouseEnter={e => { e.currentTarget.style.background = '#F0F4FF'; }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-      >
+      <button onClick={() => goToStep('boards')} className="di-btn di-btn-primary di-btn-sm">
         Claim
       </button>
     );
@@ -113,336 +233,184 @@ const ClaimInline = ({ item, boards, userId, onClaimed, onPartialClaim, onExpand
 
   if (step === 'boards') {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+      <div className="di-claim-step">
         {boards.length === 0 ? (
-          <span style={{ fontSize: 12, color: '#94A3B8' }}>No boards</span>
+          <span className="di-claim-step-label">No boards</span>
         ) : boards.map(b => (
-          <button
-            key={b.id}
-            onClick={() => handleBoardSelect(b)}
-            style={{
-              padding: '4px 12px', borderRadius: 20,
-              background: '#F1F5F9', border: '1px solid #E2E8F0',
-              color: '#334155', fontSize: 12, fontWeight: 500,
-              cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#E2E8F0'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#F1F5F9'; }}
-          >
+          <button key={b.id} onClick={() => handleBoardSelect(b)} className="di-claim-board-pill">
             {b.title}
           </button>
         ))}
-        <button
-          onClick={() => goToStep('idle')}
-          style={{ fontSize: 12, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px', flexShrink: 0 }}
-        >
-          Cancel
-        </button>
+        <button onClick={() => goToStep('idle')} className="di-btn di-btn-quiet di-btn-sm">Cancel</button>
       </div>
     );
   }
 
-  // step === 'qty'
+  // qty
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-      <span style={{ fontSize: 11, color: '#64748B', whiteSpace: 'nowrap', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        → {selectedBoard?.title}
-      </span>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-        <span style={{ fontSize: 11, color: '#94A3B8' }}>Qty</span>
-        <input
-          type="number"
-          min={1}
-          max={item.quantity ?? undefined}
-          value={claimQty}
-          onChange={e => setClaimQty(Math.max(1, parseInt(e.target.value, 10) || 1))}
-          style={{
-            width: 52, padding: '3px 6px', border: '1px solid #CBD5E1',
-            borderRadius: 6, fontSize: 13, textAlign: 'center', outline: 'none',
-          }}
-        />
-        {(item.quantity ?? 1) > 1 && (
-          <span style={{ fontSize: 11, color: '#94A3B8', whiteSpace: 'nowrap' }}>of {item.quantity}</span>
-        )}
-      </div>
-      <button
-        onClick={handleConfirm}
-        style={{
-          padding: '4px 12px', borderRadius: 7, border: 'none',
-          background: '#1E3A5F', color: 'white',
-          fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
-        }}
-      >
-        Confirm
+    <div className="di-claim-step">
+      <span className="di-claim-step-label">To {selectedBoard.title} · qty</span>
+      <input
+        type="number" min="1" max={item.quantity ?? 1}
+        value={claimQty}
+        onChange={e => setClaimQty(Math.max(1, Math.min(item.quantity ?? 1, Number(e.target.value) || 1)))}
+        className="di-claim-qty-input"
+      />
+      <button onClick={handleConfirm} className="di-btn di-btn-primary di-btn-sm">Confirm</button>
+      <button onClick={() => goToStep('boards')} className="di-btn di-btn-quiet di-btn-sm">Back</button>
+    </div>
+  );
+};
+
+// ─── Group-level "Claim all to a board" picker ───────────────────────────────
+const ClaimAllToBoard = ({ groupItems, boards, userId, onAllSucceeded }) => {
+  const [open, setOpen] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+
+  const claimable = groupItems.filter(i => i.status === 'pending');
+
+  const handlePick = async (board) => {
+    setClaiming(true);
+    setOpen(false);
+    const ids = claimable.map(i => i.id);
+    const results = await Promise.allSettled(ids.map(id => claimInboxItem(id, userId, board.id)));
+    const succeededIds = ids.filter((_, i) => results[i].status === 'fulfilled' && results[i].value);
+    succeededIds.forEach(id => {
+      const item = claimable.find(i => i.id === id);
+      if (!item) return;
+      logActivity({
+        module: 'provisioning',
+        action: 'PROVISION_INBOX_CLAIMED',
+        entityType: 'provisioning_list',
+        entityId: board.id,
+        summary: `claimed "${item.raw_name}" from Delivery Inbox`,
+        meta: { inbox_item_id: id, raw_name: item.raw_name, quantity: item.quantity, board_id: board.id, original_scanned_by: item.scanned_by },
+      });
+    });
+    if (succeededIds.length > 0) {
+      showToast(`${succeededIds.length} item${succeededIds.length !== 1 ? 's' : ''} claimed to ${board.title}`, 'success');
+      onAllSucceeded(succeededIds);
+    }
+    if (succeededIds.length < ids.length) {
+      showToast(`${ids.length - succeededIds.length} failed to claim`, 'error');
+    }
+    setClaiming(false);
+  };
+
+  // Click-away.
+  useEffect(() => {
+    if (!open) return;
+    const h = (e) => {
+      if (!e.target.closest('.di-claim-all')) setOpen(false);
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open]);
+
+  if (claimable.length === 0) return null;
+
+  return (
+    <div className="di-claim-all">
+      <button onClick={() => setOpen(v => !v)} disabled={claiming} className="di-btn di-btn-ghost di-btn-sm">
+        <Icon name="Inbox" style={{ width: 12, height: 12 }} />
+        {claiming ? 'Claiming…' : 'Claim all to a board'}
+        <Icon name="ChevronDown" style={{ width: 12, height: 12 }} />
       </button>
-      <button
-        onClick={() => goToStep('boards')}
-        style={{ fontSize: 12, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px', flexShrink: 0 }}
-      >
-        Back
-      </button>
+      {open && !claiming && (
+        <div className="di-claim-all-pop">
+          {boards.length === 0
+            ? <div className="di-claim-all-empty">No boards available</div>
+            : boards.map(b => (
+              <button key={b.id} onClick={() => handlePick(b)} className="di-claim-all-opt">{b.title}</button>
+            ))}
+        </div>
+      )}
     </div>
   );
 };
 
-// ── Item row ──────────────────────────────────────────────────────────────────
-
-// ── Detail field helper ───────────────────────────────────────────────────────
-
-const DetailField = ({ label, value }) => {
-  if (!value) return null;
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-      <span style={{ fontSize: 10, fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
-      <span style={{ fontSize: 12, fontWeight: 500, color: '#334155' }}>{value}</span>
-    </div>
-  );
-};
-
-// ── Expandable detail panel ──────────────────────────────────────────────────
-
-const ItemDetailPanel = ({ item, docUrl }) => {
-  const hasSupplierInfo = item.supplier_name || item.supplier_phone || item.supplier_email || item.supplier_address;
-  const hasOrderInfo = item.order_ref || item.order_date || item.item_reference || item.delivery_note_ref;
-  const hasPricing = item.unit_price || item.line_total || item.ordered_qty;
-
-  return (
-    <div style={{
-      padding: '0 20px 14px 47px',
-      overflow: 'hidden',
-      animation: 'detailSlideIn 0.2s ease-out',
-    }}>
-      <style>{`
-        @keyframes detailSlideIn {
-          from { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; }
-          to   { opacity: 1; max-height: 300px; padding-top: 0; padding-bottom: 14px; }
-        }
-      `}</style>
-      <div style={{
-        background: '#F8FAFC', borderRadius: 8, padding: '12px 16px',
-        border: '1px solid #F1F5F9',
-        display: 'flex', flexDirection: 'column', gap: 10,
-      }}>
-        {/* Supplier row */}
-        {hasSupplierInfo && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, rowGap: 8 }}>
-            <DetailField label="Supplier" value={item.supplier_name} />
-            <DetailField label="Phone" value={item.supplier_phone} />
-            <DetailField label="Email" value={item.supplier_email} />
-            {item.supplier_address && !item.supplier_name && (
-              <DetailField label="Address" value={item.supplier_address} />
-            )}
-          </div>
-        )}
-
-        {/* Pricing row */}
-        {hasPricing && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, rowGap: 8 }}>
-            <DetailField label="Unit price" value={item.unit_price ? `£${item.unit_price}` : null} />
-            <DetailField label="Line total" value={item.line_total ? `£${item.line_total}` : null} />
-            <DetailField label="Ordered qty" value={item.ordered_qty} />
-            <DetailField label="Unit" value={item.unit} />
-          </div>
-        )}
-
-        {/* Reference row */}
-        {hasOrderInfo && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, rowGap: 8 }}>
-            <DetailField label="Item ref" value={item.item_reference} />
-            <DetailField label="Order ref" value={item.order_ref} />
-            <DetailField label="Order date" value={item.order_date} />
-            <DetailField label="Delivery note ref" value={item.delivery_note_ref} />
-          </div>
-        )}
-
-        {/* Supplier address — own row if other supplier info exists */}
-        {item.supplier_address && hasSupplierInfo && item.supplier_name && (
-          <DetailField label="Supplier address" value={item.supplier_address} />
-        )}
-
-        {/* Doc link inside detail panel too */}
-        {docUrl && (
-          <a
-            href={docUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 500, color: '#2563EB', textDecoration: 'none', marginTop: 2 }}
-            onMouseEnter={e => { e.currentTarget.style.textDecoration = 'underline'; }}
-            onMouseLeave={e => { e.currentTarget.style.textDecoration = 'none'; }}
-          >
-            <Icon name="FileText" style={{ width: 11, height: 11 }} />
-            View original document
-          </a>
-        )}
-
-        {/* Empty state — nothing extra was parsed */}
-        {!hasSupplierInfo && !hasOrderInfo && !hasPricing && !docUrl && (
-          <p style={{ margin: 0, fontSize: 12, color: '#94A3B8', fontStyle: 'italic' }}>
-            No additional details were parsed for this item.
-          </p>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// ── Item row ──────────────────────────────────────────────────────────────────
-
-const ItemRow = ({ item, boards, userId, isLast, selected, onToggle, onClaimed, onPartialClaim, onDismiss, onReturn, canReturn, bulkFading, docUrl, archived }) => {
+// ─── Inbox item row ──────────────────────────────────────────────────────────
+const InboxItemRow = ({
+  item, boards, userId, selected, onToggle,
+  onClaimed, onPartialClaim, onDismiss, onReturn,
+  canReturn, bulkFading, docUrl, archived,
+}) => {
   const [indivFading, setIndivFading] = useState(false);
   const [claimExpanded, setClaimExpanded] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [returning, setReturning] = useState(false);
   const [dismissing, setDismissing] = useState(false);
-  const opacity = (bulkFading || indivFading) ? 0 : 1;
 
-  const handleClaimed = (id) => {
+  const handleClaimedLocal = (id) => {
     setIndivFading(true);
     setTimeout(() => onClaimed(id), 320);
   };
-
-  const handleReturn = async () => {
+  const handleReturnLocal = async () => {
     setReturning(true);
     const ok = await onReturn(item.id);
     if (!ok) setReturning(false);
-    // on success, parent removes item from list
   };
-
-  const handleDismiss = async () => {
+  const handleDismissLocal = async () => {
     setDismissing(true);
     const ok = await onDismiss(item.id);
     if (!ok) setDismissing(false);
   };
 
-  return (
-    <div style={{
-      borderBottom: isLast ? 'none' : '1px solid #F1F5F9',
-      opacity, transition: 'opacity 0.3s ease',
-      background: archived ? '#FAFAFA' : selected ? '#F0F6FF' : 'transparent',
-    }}>
-      <div style={{
-        display: 'flex', alignItems: 'flex-start', gap: 12,
-        padding: '14px 20px',
-      }}>
-        {/* Checkbox — hidden for archived items */}
-        {archived ? (
-          <div style={{ width: 15, flexShrink: 0, marginTop: 2 }} />
-        ) : (
-          <input
-            type="checkbox"
-            checked={selected}
-            onChange={onToggle}
-            style={{ width: 15, height: 15, accentColor: '#1E3A5F', cursor: 'pointer', flexShrink: 0, marginTop: 2 }}
-          />
-        )}
+  const fading = bulkFading || indivFading;
+  const qty = item.quantity ?? '—';
+  const orderedQty = item.ordered_qty;
+  const isShort = orderedQty != null && item.quantity != null && Number(item.quantity) < Number(orderedQty);
+  const shortBy = isShort ? Number(orderedQty) - Number(item.quantity) : 0;
+  const detailLine = isShort
+    ? `${qty} ${item.unit || ''} received · ${orderedQty} ordered`
+    : `${qty} ${item.unit || ''}${item.unit_price ? ` · ${fmtCurrency(item.unit_price)} each` : ''}${item.line_total ? ` · ${fmtCurrency(item.line_total)} total` : ''}`;
 
-        {/* Name + qty — name is now clickable */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <button
-              onClick={() => setDetailOpen(v => !v)}
-              style={{
-                margin: 0, padding: 0, border: 'none', background: 'none',
-                fontSize: 14, fontWeight: 600, color: '#0F172A',
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                cursor: 'pointer', textAlign: 'left', maxWidth: '100%',
-                display: 'inline-flex', alignItems: 'center', gap: 5,
-                transition: 'color 0.15s',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.color = '#C65A1A'; }}
-              onMouseLeave={e => { e.currentTarget.style.color = '#0F172A'; }}
-              title="Click to view parsed details"
-            >
-              {item.raw_name}
-              <Icon
-                name={detailOpen ? 'ChevronUp' : 'ChevronDown'}
-                style={{ width: 12, height: 12, color: '#94A3B8', flexShrink: 0, transition: 'transform 0.2s' }}
-              />
-            </button>
-            {docUrl && !detailOpen && (
-              <a
-                href={docUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={e => e.stopPropagation()}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 500, color: '#2563EB', textDecoration: 'none', flexShrink: 0 }}
-                onMouseEnter={e => { e.currentTarget.style.textDecoration = 'underline'; }}
-                onMouseLeave={e => { e.currentTarget.style.textDecoration = 'none'; }}
-              >
-                <Icon name="FileText" style={{ width: 11, height: 11 }} />
-                View doc
-              </a>
-            )}
-          </div>
-          <p style={{ margin: '3px 0 0', fontSize: 12, color: '#64748B' }}>
-            Qty: {item.quantity ?? '—'}{item.unit ? ` ${item.unit}` : ''}
-            {item.unit_price ? ` · £${item.unit_price}` : ''}
-            {item.supplier_name ? ` · ${item.supplier_name}` : ''}
+  return (
+    <>
+      <div className={`di-row${selected ? ' is-selected' : ''}${fading ? ' is-fading' : ''}${archived ? ' is-archived' : ''}`}>
+        {archived
+          ? <div className="di-row-spacer-check" />
+          : <input type="checkbox" checked={selected} onChange={onToggle} className="di-row-check" />}
+        <div className="di-row-main">
+          <button onClick={() => setDetailOpen(v => !v)} className="di-row-name" title="Click to view parsed details">
+            {item.raw_name}
+            <Icon name={detailOpen ? 'ChevronUp' : 'ChevronDown'} style={{ width: 12, height: 12, opacity: 0.6 }} />
+          </button>
+          {docUrl && !detailOpen && (
+            <a href={docUrl} target="_blank" rel="noopener noreferrer" className="di-row-doc-link" onClick={e => e.stopPropagation()}>
+              <Icon name="FileText" style={{ width: 11, height: 11 }} />
+              View doc
+            </a>
+          )}
+          <p className="di-row-detail">
+            {detailLine}
+            {isShort && <span className="di-row-shortfall"> — {shortBy} short</span>}
+            {item.supplier_name && !isShort && ` · ${item.supplier_name}`}
           </p>
         </div>
-
-        {/* Right-side: badge + actions */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
-          {/* Expiry / Archived / Returning badge */}
-          {archived ? (
-            <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 12, background: '#F1F5F9', color: '#94A3B8', whiteSpace: 'nowrap' }}>
-              {item.archive_reason === 'returned' ? 'Return to supplier' : 'Archived'}
-            </span>
-          ) : (
-            <ExpiryBadge expiresAt={item.expires_at} />
-          )}
-
-          {/* Action row — hidden for archived */}
+        <div className="di-row-right">
+          {archived
+            ? <span className="di-chip di-chip-archived">{item.archive_reason === 'returned' ? 'Returned' : 'Archived'}</span>
+            : <ExpiryBadge expiresAt={item.expires_at} />}
           {!archived && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              {/* Claim flow */}
+            <div className="di-row-actions">
               <ClaimInline
                 item={item}
                 boards={boards}
                 userId={userId}
-                onClaimed={handleClaimed}
+                onClaimed={handleClaimedLocal}
                 onPartialClaim={onPartialClaim}
                 onExpandChange={setClaimExpanded}
               />
-
-              {/* Secondary actions — hidden while claim flow is open */}
               {!claimExpanded && (
                 <>
                   {canReturn && (
-                    <>
-                      <div style={{ width: 1, height: 16, background: '#E2E8F0', flexShrink: 0 }} />
-                      <button
-                        onClick={handleReturn}
-                        disabled={returning}
-                        title="Flag for return to supplier"
-                        style={{
-                          padding: '4px 10px', borderRadius: 7,
-                          border: '1px solid #E2E8F0', background: 'white',
-                          color: '#64748B', fontSize: 11, fontWeight: 500,
-                          cursor: returning ? 'default' : 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
-                          opacity: returning ? 0.5 : 1,
-                        }}
-                        onMouseEnter={e => { if (!returning) e.currentTarget.style.borderColor = '#CBD5E1'; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0'; }}
-                      >
-                        {returning ? 'Returning…' : 'Return to supplier'}
-                      </button>
-                    </>
+                    <button onClick={handleReturnLocal} disabled={returning} className="di-btn di-btn-ghost di-btn-sm">
+                      {returning ? 'Returning…' : 'Return'}
+                    </button>
                   )}
-                  <button
-                    onClick={handleDismiss}
-                    disabled={dismissing}
-                    title="Not relevant to me — stays visible for others"
-                    style={{
-                      padding: '4px 8px', borderRadius: 7, border: 'none',
-                      background: 'none', color: '#94A3B8', fontSize: 11, fontWeight: 500,
-                      cursor: dismissing ? 'default' : 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
-                      opacity: dismissing ? 0.5 : 1,
-                    }}
-                    onMouseEnter={e => { if (!dismissing) e.currentTarget.style.color = '#64748B'; }}
-                    onMouseLeave={e => { e.currentTarget.style.color = '#94A3B8'; }}
-                  >
-                    {dismissing ? 'Dismissing…' : 'Not my order'}
+                  <button onClick={handleDismissLocal} disabled={dismissing} className="di-btn di-btn-quiet di-btn-sm">
+                    {dismissing ? 'Hiding…' : 'Not my order'}
                   </button>
                 </>
               )}
@@ -450,346 +418,397 @@ const ItemRow = ({ item, boards, userId, isLast, selected, onToggle, onClaimed, 
           )}
         </div>
       </div>
-
-      {/* Expandable detail panel */}
-      {detailOpen && <ItemDetailPanel item={item} docUrl={docUrl} />}
-    </div>
+      {detailOpen && <ItemDetailPanel item={item} />}
+    </>
   );
 };
 
-// ── Bulk action bar ───────────────────────────────────────────────────────────
-
-const BulkBar = ({ count, boards, onClaimAll, onReturnAll, onDismissAll, onClear, claiming }) => {
-  const [boardsOpen, setBoardsOpen] = useState(false);
+// ─── Inbox group card ────────────────────────────────────────────────────────
+const InboxGroupCard = ({
+  group, boards, userId, scannerNames, selectedIds, batchDocUrls,
+  onToggleSelect, onToggleGroup, onItemClaimed, onPartialClaim, onItemDismiss, onItemReturn,
+  onGroupClaimAllSucceeded, canReturn, bulkFadingIds,
+}) => {
+  const claimable = group.items.filter(i => i.status === 'pending');
+  const allSelected = claimable.length > 0 && claimable.every(i => selectedIds.has(i.id));
+  const hasUrgent = group.items.some(i => i.status !== 'archived' && expiringSoonForCardEdge(i));
+  const scannerName = group.scannedBy && scannerNames[group.scannedBy] ? scannerNames[group.scannedBy] : null;
+  const titleText = group.supplierName && group.supplierName !== 'Manual receive'
+    ? group.supplierName
+    : (scannerName ? `Scanned by ${scannerName}` : 'Unknown source');
+  const subText = scannerName
+    ? `Scanned by ${scannerName} · ${fmtDate(group.date)}`
+    : fmtDate(group.date);
 
   return (
-    <div style={{
-      position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
-      background: '#1E3A5F', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-      padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12,
-      zIndex: 'var(--z-nav)', minWidth: 360, maxWidth: 620,
-    }}>
-      <span style={{ fontSize: 13, fontWeight: 600, color: 'white', whiteSpace: 'nowrap', flexShrink: 0 }}>
-        {count} item{count !== 1 ? 's' : ''} selected
-      </span>
-      <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.2)', flexShrink: 0 }} />
-
-      {/* Board selector */}
-      <div style={{ position: 'relative', flex: 1 }}>
-        <button
-          onClick={() => setBoardsOpen(v => !v)}
-          disabled={claiming}
-          style={{
-            width: '100%', padding: '6px 12px', borderRadius: 7,
-            background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)',
-            color: 'white', fontSize: 12, fontWeight: 500, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-          }}
-        >
-          <span>{claiming ? 'Claiming…' : 'Claim to board…'}</span>
-          <Icon name="ChevronDown" style={{ width: 12, height: 12, color: 'rgba(255,255,255,0.6)' }} />
-        </button>
-        {boardsOpen && !claiming && (
-          <div style={{
-            position: 'absolute', bottom: '100%', left: 0, right: 0, marginBottom: 6,
-            background: 'white', borderRadius: 10, border: '1px solid #E2E8F0',
-            boxShadow: '0 -8px 24px rgba(0,0,0,0.15)', maxHeight: 200, overflowY: 'auto', zIndex: 10,
-          }}>
-            <p style={{ margin: 0, padding: '8px 12px 6px', fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid #F1F5F9' }}>
-              Select board
-            </p>
-            {boards.length === 0 ? (
-              <p style={{ padding: '10px 12px', fontSize: 12, color: '#94A3B8' }}>No boards available</p>
-            ) : boards.map(b => (
-              <button
-                key={b.id}
-                onClick={() => { setBoardsOpen(false); onClaimAll(b); }}
-                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '9px 12px', border: 'none', background: 'none', fontSize: 13, color: '#0F172A', cursor: 'pointer' }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#F8FAFC'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
-              >
-                {b.title}
-              </button>
-            ))}
-          </div>
-        )}
+    <div className={`di-card${hasUrgent ? ' di-card-rust' : ''}`}>
+      <div className="di-card-band">
+        <input type="checkbox" className="di-card-band-check" checked={allSelected} onChange={() => onToggleGroup(claimable, allSelected)} />
+        <div className="di-card-band-icon"><Icon name="Package" style={{ width: 16, height: 16 }} /></div>
+        <div className="di-card-band-text">
+          <p className="di-card-band-title">{titleText}</p>
+          <p className="di-card-band-sub">{subText}</p>
+        </div>
+        <div className="di-card-band-actions">
+          <span className="di-card-band-count">{group.items.length} item{group.items.length === 1 ? '' : 's'}</span>
+          {claimable.length > 0 && (
+            <ClaimAllToBoard
+              groupItems={claimable}
+              boards={boards}
+              userId={userId}
+              onAllSucceeded={onGroupClaimAllSucceeded}
+            />
+          )}
+        </div>
       </div>
-
-      <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.2)', flexShrink: 0 }} />
-
-      {/* Return to supplier */}
-      <button
-        onClick={onReturnAll}
-        disabled={claiming}
-        style={{
-          padding: '6px 14px', borderRadius: 7,
-          background: 'rgba(220,38,38,0.18)', border: '1px solid rgba(220,38,38,0.4)',
-          color: '#FCA5A5', fontSize: 12, fontWeight: 600, cursor: claiming ? 'default' : 'pointer',
-          whiteSpace: 'nowrap', flexShrink: 0,
-        }}
-        onMouseEnter={e => { if (!claiming) { e.currentTarget.style.background = 'rgba(220,38,38,0.28)'; e.currentTarget.style.color = '#FECACA'; } }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.18)'; e.currentTarget.style.color = '#FCA5A5'; }}
-      >
-        Return to supplier
-      </button>
-
-      {/* Not my order */}
-      <button
-        onClick={onDismissAll}
-        disabled={claiming}
-        style={{
-          padding: '6px 14px', borderRadius: 7,
-          background: 'none', border: 'none',
-          color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: 500,
-          cursor: claiming ? 'default' : 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
-        }}
-        onMouseEnter={e => { if (!claiming) e.currentTarget.style.color = 'rgba(255,255,255,0.85)'; }}
-        onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; }}
-      >
-        Not my order
-      </button>
-
-      <button
-        onClick={onClear}
-        style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px', flexShrink: 0, whiteSpace: 'nowrap' }}
-        onMouseEnter={e => { e.currentTarget.style.color = 'white'; }}
-        onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.6)'; }}
-      >
-        Clear
-      </button>
+      <div className="di-card-body">
+        {group.items.map(item => (
+          <InboxItemRow
+            key={item.id}
+            item={item}
+            boards={boards}
+            userId={userId}
+            selected={selectedIds.has(item.id)}
+            onToggle={() => onToggleSelect(item.id)}
+            onClaimed={onItemClaimed}
+            onPartialClaim={onPartialClaim}
+            onDismiss={onItemDismiss}
+            onReturn={onItemReturn}
+            canReturn={canReturn}
+            bulkFading={bulkFadingIds.has(item.id)}
+            docUrl={item.delivery_batch_id ? batchDocUrls[item.delivery_batch_id] : null}
+            archived={item.status === 'archived'}
+          />
+        ))}
+      </div>
     </div>
   );
 };
 
-// ── Returns view ─────────────────────────────────────────────────────────────
+// ─── Side rail: Inbox tab ───────────────────────────────────────────────────
+const ExpiringSoonCard = ({ items }) => {
+  const expiring = items
+    .filter(i => i.status === 'pending')
+    .map(i => ({ item: i, days: expiryDays(i.expires_at) }))
+    .filter(x => x.days != null && x.days <= 2)
+    .sort((a, b) => a.days - b.days)
+    .slice(0, 8);
 
-const fmtCurrency = (val) => {
-  const n = parseFloat(val);
-  if (isNaN(n)) return '—';
-  return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
+  if (expiring.length === 0) return null;
+
+  return (
+    <div className="di-rail-card di-rail-card-rust">
+      <p className="di-rail-title">Expiring soon</p>
+      <div>
+        {expiring.map(({ item }) => (
+          <div key={item.id} className="di-rail-expiring-item">
+            <span className="di-rail-expiring-name" title={item.raw_name}>{item.raw_name}</span>
+            <ExpiryBadge expiresAt={item.expires_at} />
+          </div>
+        ))}
+      </div>
+      <p className="di-rail-explainer">
+        Unclaimed items archive automatically 7 days after scanning. Claim or return these before they go.
+      </p>
+    </div>
+  );
 };
 
-const generateReturnSlipHTML = (bySupplier, tenantName, generatedBy, vessel = null) => {
-  const rows = Object.entries(bySupplier).map(([supplier, items]) => {
-    // Collect unique supplier contact / order metadata from items
-    const first = items[0] || {};
-    const supplierAddress = first.supplier_address || null;
-    const supplierPhone   = first.supplier_phone   || null;
-    const supplierEmail   = first.supplier_email   || null;
-    const orderRefs  = [...new Set(items.map(i => i.order_ref).filter(Boolean))];
-    const orderDates = [...new Set(items.map(i => i.order_date).filter(Boolean))];
-    const noteRefs   = [...new Set(items.map(i => i.delivery_note_ref).filter(Boolean))];
-    const noteUrls   = [...new Set(items.map(i => i.delivery_note_url).filter(Boolean))];
-
-    const supplierTotal = items.reduce((sum, i) => {
-      const n = parseFloat(i.line_total);
-      return sum + (isNaN(n) ? 0 : n);
-    }, 0);
-    const showPricing = items.some(i => i.unit_price || i.line_total);
-    const showRef     = items.some(i => i.item_reference);
-    const showOrdered = items.some(i => i.ordered_qty != null);
-    // col span for subtotal row: ref? + item + ordered? + delivered + pricing(2)? + reason
-    const colCount = (showRef ? 1 : 0) + 1 + (showOrdered ? 1 : 0) + 1 + (showPricing ? 2 : 0) + 1;
-
-    return `
-    <div style="margin-bottom:32px">
-      <div style="border-bottom:2px solid #1E3A5F;padding-bottom:8px;margin-bottom:10px">
-        <h3 style="margin:0 0 2px;font-size:14px;font-weight:700;color:#1E3A5F">${supplier}</h3>
-        ${supplierAddress ? `<p style="margin:2px 0;font-size:11px;color:#475569">${supplierAddress}</p>` : ''}
-        <div style="display:flex;gap:20px;margin-top:4px;font-size:11px;color:#475569">
-          ${supplierPhone ? `<span>Tel: ${supplierPhone}</span>` : ''}
-          ${supplierEmail ? `<span>Email: ${supplierEmail}</span>` : ''}
+const InboxStatsCard = ({ items, deliveryCount }) => {
+  const totalUnclaimed = items.filter(i => i.status === 'pending').length;
+  const totalValue = items
+    .filter(i => i.status === 'pending')
+    .reduce((sum, i) => sum + (Number(i.line_total) || 0), 0);
+  return (
+    <div className="di-rail-card">
+      <p className="di-rail-title">This inbox</p>
+      <div className="di-rail-stats-grid">
+        <div>
+          <span className="di-rail-stat">{totalUnclaimed}</span>
+          <span className="di-rail-stat-label">Items unclaimed</span>
+        </div>
+        <div>
+          <span className="di-rail-stat">{deliveryCount}</span>
+          <span className="di-rail-stat-label">Deliveries waiting</span>
+        </div>
+        <div style={{ gridColumn: '1 / -1' }}>
+          <span className="di-rail-stat">{totalValue > 0 ? fmtCurrency(totalValue) : '—'}</span>
+          <span className="di-rail-stat-label">Estimated value held</span>
         </div>
       </div>
-      ${orderRefs.length > 0 || orderDates.length > 0 || noteRefs.length > 0 || noteUrls.length > 0 ? `
-      <div style="display:flex;gap:24px;margin-bottom:10px;font-size:11px;color:#475569;flex-wrap:wrap">
-        ${orderRefs.length  > 0 ? `<span><strong>Order ref:</strong> ${orderRefs.join(', ')}</span>`           : ''}
-        ${orderDates.length > 0 ? `<span><strong>Order date:</strong> ${orderDates.join(', ')}</span>`         : ''}
-        ${noteRefs.length   > 0 ? `<span><strong>Delivery note ref:</strong> ${noteRefs.join(', ')}</span>`    : ''}
-        ${noteUrls.length   > 0 ? noteUrls.map(u => `<a href="${u}" style="color:#1E3A5F">View delivery note ↗</a>`).join(' ') : ''}
-      </div>` : ''}
-      <table style="width:100%;border-collapse:collapse;font-size:12px">
-        <thead>
-          <tr style="background:#F8FAFC">
-            ${showRef     ? `<th style="text-align:left;padding:6px 8px;font-weight:600;width:80px;color:#64748B">Ref</th>` : ''}
-            <th style="text-align:left;padding:6px 8px;font-weight:600">Description</th>
-            ${showOrdered ? `<th style="text-align:center;padding:6px 8px;font-weight:600;width:65px">Ordered</th>` : ''}
-            <th style="text-align:center;padding:6px 8px;font-weight:600;width:70px">Delivered</th>
-            ${showPricing ? `<th style="text-align:right;padding:6px 8px;font-weight:600;width:80px">Unit price</th>
-            <th style="text-align:right;padding:6px 8px;font-weight:600;width:80px">Total</th>` : ''}
-            <th style="text-align:left;padding:6px 8px;font-weight:600">Reason</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${items.map(i => `
-            <tr style="border-top:1px solid #F1F5F9">
-              ${showRef     ? `<td style="padding:7px 8px;color:#94A3B8;font-size:11px">${i.item_reference || '—'}</td>` : ''}
-              <td style="padding:7px 8px">${i.raw_name}</td>
-              ${showOrdered ? `<td style="padding:7px 8px;text-align:center;color:#64748B">${i.ordered_qty ?? '—'}</td>` : ''}
-              <td style="padding:7px 8px;text-align:center">${i.quantity ?? '—'}${i.unit ? ' ' + i.unit : ''}</td>
-              ${showPricing ? `<td style="padding:7px 8px;text-align:right;color:#475569">${fmtCurrency(i.unit_price)}</td>
-              <td style="padding:7px 8px;text-align:right;font-weight:500">${fmtCurrency(i.line_total)}</td>` : ''}
-              <td style="padding:7px 8px;color:#64748B">Not ordered / Overage</td>
-            </tr>
-          `).join('')}
-          ${showPricing && supplierTotal > 0 ? `
-          <tr style="border-top:2px solid #E2E8F0;background:#F8FAFC">
-            <td colspan="${colCount - 2}" style="padding:7px 8px;font-weight:600;text-align:right">Supplier subtotal</td>
-            <td style="padding:7px 8px;text-align:right;font-weight:700">${fmtCurrency(supplierTotal)}</td>
-            <td></td>
-          </tr>` : ''}
-        </tbody>
-      </table>
-    </div>`;
-  }).join('');
-
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8"/>
-  <title>Return Slip</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 40px; color: #0F172A; max-width: 740px; margin: 0 auto; }
-    @media print { body { padding: 20px; } button { display: none; } }
-  </style>
-</head>
-<body>
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px">
-    <div>
-      <h1 style="margin:0;font-size:22px;font-weight:700;color:#1E3A5F">Return Slip</h1>
-      <p style="margin:4px 0 0;font-size:13px;color:#64748B">${vessel?.vessel_type_label || tenantName || 'Vessel'}${vessel?.imo_number ? ` &nbsp;·&nbsp; IMO: ${vessel.imo_number}` : ''}</p>
     </div>
-    <div style="text-align:right;font-size:12px;color:#64748B">
-      <p style="margin:0">Date: ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-      <p style="margin:4px 0 0">Prepared by: ${generatedBy || 'Unknown'}</p>
-    </div>
-  </div>
-  ${vessel ? `
-  <div style="margin-bottom:24px;padding:14px 16px;background:#F8FAFC;border-radius:8px;font-size:12px;color:#334155">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 24px">
-      <div><span style="color:#94A3B8">Flag:</span> ${vessel.flag || '—'}</div>
-      <div><span style="color:#94A3B8">Official Number:</span> ${vessel.official_number || '—'}</div>
-      <div><span style="color:#94A3B8">Port of Registry:</span> ${vessel.port_of_registry || '—'}</div>
-      <div><span style="color:#94A3B8">LOA:</span> ${vessel.loa_m ? vessel.loa_m + 'm' : '—'}</div>
-      <div><span style="color:#94A3B8">IMO Number:</span> ${vessel.imo_number || '—'}</div>
-      <div><span style="color:#94A3B8">Gross Tonnage:</span> ${vessel.gt || '—'}</div>
-    </div>
-  </div>` : ''}
-  ${rows}
-  <div style="margin-top:40px;padding-top:16px;border-top:1px solid #E2E8F0;display:flex;gap:60px;font-size:12px;color:#64748B">
-    <div>
-      <div style="margin-bottom:28px;border-bottom:1px solid #CBD5E1;width:200px"></div>
-      <p style="margin:0 0 2px">Vessel authorisation signature</p>
-      <p style="margin:0;color:#94A3B8">Name &amp; date</p>
-    </div>
-    <div>
-      <div style="margin-bottom:28px;border-bottom:1px solid #CBD5E1;width:200px"></div>
-      <p style="margin:0 0 2px">Supplier acknowledgement</p>
-      <p style="margin:0;color:#94A3B8">Name &amp; date</p>
-    </div>
-  </div>
-  <div style="text-align:center;margin-top:20px">
-    <button onclick="window.print()" style="padding:10px 24px;background:#1E3A5F;color:white;border:none;border-radius:8px;font-size:14px;cursor:pointer">
-      Print / Save PDF
-    </button>
-  </div>
-</body>
-</html>`;
+  );
 };
 
-const ReturnsView = ({ tenantId, userId, tenantName, userFullName, showArchived = false }) => {
+const FilterBySupplierCard = ({ items, selected, onSelect }) => {
+  const counts = useMemo(() => {
+    const map = new Map();
+    items.filter(i => i.status === 'pending').forEach(i => {
+      const s = i.supplier_name || 'Unknown supplier';
+      map.set(s, (map.get(s) || 0) + 1);
+    });
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [items]);
+
+  if (counts.length === 0) return null;
+
+  return (
+    <div className="di-rail-card">
+      <p className="di-rail-title">Filter by supplier</p>
+      <div className="di-rail-list">
+        {counts.map(([supplier, count]) => (
+          <button
+            key={supplier}
+            onClick={() => onSelect(selected === supplier ? null : supplier)}
+            className={`di-rail-list-item${selected === supplier ? ' is-active' : ''}`}
+          >
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{supplier}</span>
+            <span className="di-rail-list-item-count">{count}</span>
+          </button>
+        ))}
+      </div>
+      {selected && (
+        <button onClick={() => onSelect(null)} className="di-rail-clear-filter">Clear filter ↺</button>
+      )}
+    </div>
+  );
+};
+
+// ─── Side rail: Returns tab ─────────────────────────────────────────────────
+const ReturnPipelineCard = ({ stages }) => (
+  <div className="di-rail-card">
+    <p className="di-rail-title">Return pipeline</p>
+    <div className="di-rail-stats-grid">
+      <div>
+        <span className="di-rail-stat">{stages[1].length}</span>
+        <span className="di-rail-stat-label">Need a slip</span>
+      </div>
+      <div>
+        <span className="di-rail-stat">{stages[2].length}</span>
+        <span className="di-rail-stat-label">Awaiting supplier</span>
+      </div>
+      <div style={{ gridColumn: '1 / -1' }}>
+        <span className="di-rail-stat">{stages[3].length}</span>
+        <span className="di-rail-stat-label">Signed, ready to archive</span>
+      </div>
+    </div>
+  </div>
+);
+
+const NeedsActionCard = ({ stages }) => {
+  const supplierActions = useMemo(() => {
+    const out = [];
+    // Stage 1: needs slip
+    const stage1Groups = groupBySupplier(stages[1]);
+    Object.entries(stage1Groups).forEach(([supplier, items]) => {
+      out.push({ supplier, label: 'Send slip', count: items.length });
+    });
+    // Stage 3: needs archive
+    const stage3Groups = groupBySupplier(stages[3]);
+    Object.entries(stage3Groups).forEach(([supplier, items]) => {
+      out.push({ supplier, label: 'Archive', count: items.length });
+    });
+    return out;
+  }, [stages]);
+
+  if (supplierActions.length === 0 && stages[2].length === 0) return null;
+
+  return (
+    <div className="di-rail-card">
+      <p className="di-rail-title">Needs your action</p>
+      {supplierActions.length > 0 ? (
+        <div>
+          {supplierActions.map((a, i) => (
+            <div key={`${a.supplier}-${a.label}-${i}`} className="di-rail-action-item">
+              <span className="di-rail-action-supplier" title={a.supplier}>
+                {a.supplier} <span style={{ color: 'var(--di-muted)' }}>({a.count})</span>
+              </span>
+              <span className="di-rail-action-label">{a.label}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="di-rail-explainer" style={{ margin: 0 }}>Nothing waiting on you right now.</p>
+      )}
+      {stages[2].length > 0 && (
+        <p className="di-rail-explainer">
+          {stages[2].length} item{stages[2].length === 1 ? '' : 's'} awaiting the supplier’s signature don’t need you.
+        </p>
+      )}
+    </div>
+  );
+};
+
+// ─── Returns: stage classification + grouping ───────────────────────────────
+const groupBySupplier = (items) => {
+  return items.reduce((acc, i) => {
+    const s = i.supplier_name || 'Unknown supplier';
+    if (!acc[s]) acc[s] = [];
+    acc[s].push(i);
+    return acc;
+  }, {});
+};
+
+// ─── Returns: stage-aware group card ────────────────────────────────────────
+const ReturnsGroupCard = ({
+  supplier, items, stage, selectedIds, requesterNames,
+  onToggleSelect, onToggleGroup, onCancelReturn, onGenerateSlip, onMarkArchived, acting,
+}) => {
+  const allSelected = items.length > 0 && items.every(i => selectedIds.has(i.id));
+  const requesterIds = [...new Set(items.map(i => i.return_requested_by).filter(Boolean))];
+  const requesterName = requesterIds.length === 1 ? (requesterNames[requesterIds[0]] || 'someone') : null;
+  const requestedAtDates = items.map(i => i.return_requested_at).filter(Boolean).sort();
+  const earliest = requestedAtDates[0];
+  const subParts = [
+    `${items.length} item${items.length === 1 ? '' : 's'}`,
+    requesterName && `requested by ${requesterName}`,
+    earliest && fmtDateShort(earliest),
+  ].filter(Boolean);
+
+  return (
+    <div className={STAGE_EDGE_CLASS[stage]}>
+      <div className="di-card-band">
+        <input type="checkbox" className="di-card-band-check" checked={allSelected} onChange={() => onToggleGroup(items, allSelected)} />
+        <div className="di-card-band-icon">
+          <Icon name={stage === 3 ? 'CheckCircle' : 'PackageX'} style={{ width: 16, height: 16 }} />
+        </div>
+        <div className="di-card-band-text">
+          <p className="di-card-band-title">{supplier}</p>
+          <p className="di-card-band-sub">{subParts.join(' · ')}</p>
+        </div>
+        <div className="di-card-band-actions">
+          <span className={`di-stage-pill di-stage-pill-${stage}`}>{STAGE_PILL_LABEL[stage]}</span>
+        </div>
+      </div>
+      <div className="di-card-body">
+        {items.map(item => {
+          const reasonTag = formatReasonTag(item.return_reason);
+          const detailLine = `Qty: ${item.return_qty ?? item.quantity ?? '—'}${item.unit ? ` ${item.unit}` : ''}${item.return_notes ? ` · ${item.return_notes}` : ''}${stage === 3 && item.supplier_signer_name ? ` · Signed by ${item.supplier_signer_name}` : ''}`;
+          return (
+            <div key={item.id} className={`di-row${selectedIds.has(item.id) ? ' is-selected' : ''}`}>
+              <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => onToggleSelect(item.id)} className="di-row-check" />
+              <div className="di-row-main">
+                <div className="di-row-name">
+                  <span>{item.raw_name}</span>
+                  {reasonTag && <span className="di-reason-tag">{reasonTag}</span>}
+                </div>
+                <p className="di-row-detail">{detailLine}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="di-card-footer">
+        {stage === 1 && (
+          <>
+            <button onClick={() => onCancelReturn(items)} disabled={acting} className="di-btn di-btn-ghost">Cancel return</button>
+            <button onClick={() => onGenerateSlip(items)} disabled={acting} className="di-btn di-btn-primary">Generate &amp; send slip</button>
+          </>
+        )}
+        {stage === 2 && (
+          <>
+            <button onClick={() => onGenerateSlip(items)} disabled={acting} className="di-btn di-btn-ghost">Resend slip</button>
+            <button onClick={() => onMarkArchived(items)} disabled={acting} className="di-btn di-btn-sage">Mark returned &amp; archive</button>
+          </>
+        )}
+        {stage === 3 && (
+          <button onClick={() => onMarkArchived(items)} disabled={acting} className="di-btn di-btn-sage">Mark returned &amp; archive</button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── Error card (reused by both tabs) ───────────────────────────────────────
+const ErrorCard = ({ onRetry, message }) => (
+  <div className="di-error-card">
+    <div className="di-error-icon-tile"><Icon name="AlertCircle" style={{ width: 18, height: 18 }} /></div>
+    <p className="di-error-title">{message || "Couldn't load the delivery inbox"}</p>
+    <p className="di-error-body">
+      A query against Supabase failed. Check your connection and try again.
+    </p>
+    <button onClick={onRetry} className="di-btn di-btn-primary">Retry</button>
+  </div>
+);
+
+// ─── Returns view ───────────────────────────────────────────────────────────
+const ReturnsView = ({
+  tenantId, userId, userFullName, showArchived, supplierFilter, setSupplierFilter,
+  selectedIds, setSelectedIds,
+}) => {
   const navigate = useNavigate();
   const [returnItems, setReturnItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedIds, setSelectedIds] = useState(new Set());
   const [acting, setActing] = useState(false);
   const [requesterNames, setRequesterNames] = useState({});
+  const [loadError, setLoadError] = useState(null);
 
   const load = useCallback(async () => {
     if (!tenantId) return;
     setLoading(true);
-    const items = await fetchPendingReturns(tenantId, showArchived);
-    setReturnItems(items);
-
-    // Resolve return_requested_by UUIDs → names
-    const reqIds = [...new Set(items.map(i => i.return_requested_by).filter(Boolean))];
-    if (reqIds.length > 0) {
-      const { data: profiles } = await supabase
-        ?.from('profiles')?.select('id, full_name')?.in('id', reqIds);
-      const map = {};
-      (profiles || []).forEach(p => { map[p.id] = p.full_name; });
-      setRequesterNames(map);
+    setLoadError(null);
+    try {
+      const items = await fetchPendingReturns(tenantId, showArchived);
+      setReturnItems(items);
+      const reqIds = [...new Set(items.map(i => i.return_requested_by).filter(Boolean))];
+      if (reqIds.length > 0) {
+        const { data: profiles } = await supabase
+          ?.from('profiles')?.select('id, full_name')?.in('id', reqIds);
+        const map = {};
+        (profiles || []).forEach(p => { map[p.id] = p.full_name; });
+        setRequesterNames(map);
+      } else {
+        setRequesterNames({});
+      }
+    } catch (err) {
+      console.error('[ReturnsView load]', err);
+      setLoadError(err?.message || 'fetch failed');
+      setReturnItems([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [tenantId, showArchived]);
 
   useEffect(() => { load(); }, [load]);
 
-  const bySupplier = returnItems.reduce((acc, item) => {
-    const s = item.supplier_name || 'Unknown supplier';
-    if (!acc[s]) acc[s] = [];
-    acc[s].push(item);
-    return acc;
-  }, {});
+  // ── Stage classification ─────────────────────────────────────────────────
+  const filteredItems = supplierFilter
+    ? returnItems.filter(i => (i.supplier_name || 'Unknown supplier') === supplierFilter)
+    : returnItems;
 
-  // Map return_slip_token → all sibling item IDs (for confirmed-item links)
-  const tokenGroups = returnItems.reduce((acc, item) => {
-    if (item.return_slip_token) {
-      if (!acc[item.return_slip_token]) acc[item.return_slip_token] = [];
-      acc[item.return_slip_token].push(item.id);
-    }
-    return acc;
-  }, {});
-
-  const toggleItem = (id) => setSelectedIds(prev => {
-    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
-  });
-
-  const toggleSupplier = (items) => {
-    const allIds = items.map(i => i.id);
-    const allSel = allIds.every(id => selectedIds.has(id));
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      allIds.forEach(id => allSel ? next.delete(id) : next.add(id));
-      return next;
+  const stages = useMemo(() => {
+    const s = { 1: [], 2: [], 3: [], archived: [] };
+    filteredItems.forEach(item => {
+      if (item.status === 'archived') { s.archived.push(item); return; }
+      const stg = stageOf(item);
+      if (stg) s[stg].push(item);
     });
+    return s;
+  }, [filteredItems]);
+
+  // ── Actions ──────────────────────────────────────────────────────────────
+  const handleGenerateSlip = (items) => {
+    const ids = items.map(i => i.id);
+    navigate(`/provisioning/return-slip?items=${ids.join(',')}`);
   };
 
-  const handleGenerateSlip = () => {
-    const selected = returnItems.filter(i => selectedIds.has(i.id));
-    // Group by supplier
-    const bySupplier = selected.reduce((acc, item) => {
-      const s = item.supplier_name || 'Unknown supplier';
-      if (!acc[s]) acc[s] = [];
-      acc[s].push(item);
-      return acc;
-    }, {});
-    const groups = Object.values(bySupplier);
-    // Navigate to first supplier's slip (keeps auth session in SPA)
-    const firstItems = groups[0];
-    const params = new URLSearchParams({ items: firstItems.map(i => i.id).join(',') });
-    navigate(`/provisioning/return-slip?${params.toString()}`);
-  };
-
-  const handleConfirmReturned = async () => {
+  const handleMarkArchived = async (items) => {
     setActing(true);
-    const ok = await confirmReturned([...selectedIds], userId);
+    const ok = await confirmReturned(items.map(i => i.id), userId);
     if (ok) {
-      showToast(`${selectedIds.size} item${selectedIds.size !== 1 ? 's' : ''} marked as returned`, 'success');
-      setSelectedIds(new Set());
+      showToast(`${items.length} item${items.length === 1 ? '' : 's'} archived`, 'success');
       await load();
     } else {
-      showToast('Failed to confirm returns', 'error');
+      showToast('Failed to archive', 'error');
     }
     setActing(false);
   };
 
-  const handleCancelReturns = async () => {
+  const handleCancelReturn = async (items) => {
     setActing(true);
-    const ok = await cancelReturns([...selectedIds]);
+    const ok = await cancelReturns(items.map(i => i.id));
     if (ok) {
       showToast('Items moved back to inbox', 'info');
-      setSelectedIds(new Set());
       await load();
     } else {
       showToast('Failed to cancel returns', 'error');
@@ -797,258 +816,267 @@ const ReturnsView = ({ tenantId, userId, tenantName, userFullName, showArchived 
     setActing(false);
   };
 
-  const formatDate = (iso) => {
-    try { return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); }
-    catch { return '—'; }
+  const handleToggleSelect = (itemId) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(itemId) ? next.delete(itemId) : next.add(itemId);
+      return next;
+    });
+  };
+  const handleToggleGroup = (groupItems, allSelected) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      groupItems.forEach(i => allSelected ? next.delete(i.id) : next.add(i.id));
+      return next;
+    });
   };
 
-  if (loading) return <div style={{ textAlign: 'center', padding: '60px 0', color: '#94A3B8', fontSize: 14 }}>Loading…</div>;
-
-  if (returnItems.length === 0) return (
-    <div style={{ textAlign: 'center', padding: '80px 0' }}>
-      <Icon name="PackageX" style={{ width: 40, height: 40, color: '#CBD5E1', display: 'block', margin: '0 auto 16px' }} />
-      <p style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#0F172A' }}>No pending returns</p>
-      <p style={{ margin: '6px 0 0', fontSize: 13, color: '#94A3B8' }}>Items flagged for return will appear here</p>
-    </div>
-  );
+  // ── Render ───────────────────────────────────────────────────────────────
+  if (loadError) {
+    return (
+      <div className="di-layout">
+        <div className="di-main"><ErrorCard onRetry={load} message="Couldn't load returns" /></div>
+      </div>
+    );
+  }
+  if (loading) {
+    return (
+      <div className="di-layout">
+        <div className="di-main"><div className="di-loading">Loading…</div></div>
+      </div>
+    );
+  }
+  const totalActive = stages[1].length + stages[2].length + stages[3].length;
+  if (totalActive === 0 && (!showArchived || stages.archived.length === 0)) {
+    return (
+      <div className="di-layout">
+        <div className="di-main">
+          <div className="di-empty">
+            <Icon name="PackageX" className="di-empty-icon" />
+            <p className="di-empty-title">No pending returns</p>
+            <p className="di-empty-body">Anything you flag for return shows up here, grouped by lifecycle stage.</p>
+          </div>
+        </div>
+        <div className="di-rail">
+          <FilterBySupplierCard
+            items={returnItems}
+            selected={supplierFilter}
+            onSelect={setSupplierFilter}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ paddingBottom: selectedIds.size > 0 ? 100 : 24 }}>
-      {Object.entries(bySupplier).map(([supplier, items]) => {
-        const allSel = items.every(i => selectedIds.has(i.id));
-        return (
-          <div key={supplier} style={{
-            background: 'white', borderRadius: 12, border: '1px solid #E2E8F0',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden', marginBottom: 16,
-          }}>
-            {/* Supplier header */}
-            <div style={{ padding: '10px 20px', background: '#F8FAFC', borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <input
-                type="checkbox"
-                checked={allSel}
-                onChange={() => toggleSupplier(items)}
-                style={{ width: 13, height: 13, accentColor: '#1E3A5F', cursor: 'pointer', flexShrink: 0 }}
-              />
-              <Icon name="Truck" style={{ width: 13, height: 13, color: '#94A3B8', flexShrink: 0 }} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#0F172A', flex: 1 }}>{supplier}</span>
-              <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: '#FEF2F2', color: '#DC2626', flexShrink: 0 }}>
-                {items.length} item{items.length !== 1 ? 's' : ''}
-              </span>
-            </div>
-
-            {/* Items */}
-            {items.map((item, idx) => {
-              const requesterName = requesterNames[item.return_requested_by] || null;
-              const isArchived = item.status === 'archived';
-              const isConfirmed = !!item.supplier_confirmed_at;
-              const isClickable = (isConfirmed || isArchived) && item.return_slip_token;
-              return (
-                <div key={item.id} style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '12px 20px',
-                  borderBottom: idx < items.length - 1 ? '1px solid #F1F5F9' : 'none',
-                  background: isArchived ? '#FAFAFA' : selectedIds.has(item.id) ? '#FFF5F5' : 'transparent',
-                }}>
-                  {isArchived ? (
-                    <div style={{ width: 13, flexShrink: 0 }} />
-                  ) : (
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(item.id)}
-                      onChange={() => toggleItem(item.id)}
-                      style={{ width: 13, height: 13, accentColor: '#DC2626', cursor: 'pointer', flexShrink: 0 }}
-                    />
-                  )}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      {isClickable ? (
-                        <p
-                          style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#1E3A5F', cursor: 'pointer', textDecoration: 'underline', opacity: isArchived ? 0.6 : 1 }}
-                          onClick={() => {
-                            const ids = tokenGroups[item.return_slip_token] || [item.id];
-                            navigate(`/provisioning/return-slip?items=${ids.join(',')}`);
-                          }}
-                          onMouseEnter={e => { e.currentTarget.style.opacity = '0.5'; }}
-                          onMouseLeave={e => { e.currentTarget.style.opacity = isArchived ? '0.6' : '1'; }}
-                        >
-                          {item.raw_name}
-                        </p>
-                      ) : (
-                        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#0F172A' }}>{item.raw_name}</p>
-                      )}
-                      {isArchived ? (
-                        <span style={{
-                          fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20,
-                          background: '#F1F5F9', color: '#94A3B8', border: '1px solid #E2E8F0',
-                          flexShrink: 0,
-                        }}>
-                          Completed
-                        </span>
-                      ) : isConfirmed && (
-                        <span style={{
-                          fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20,
-                          background: '#F0FDF4', color: '#059669', border: '1px solid #BBF7D0',
-                          flexShrink: 0,
-                        }}>
-                          Confirmed
-                        </span>
-                      )}
-                    </div>
-                    {isArchived ? (
-                      <p style={{ margin: '3px 0 0', fontSize: 11, color: '#94A3B8' }}>
-                        {item.supplier_confirmed_at && <>
-                          Confirmed by {item.supplier_signer_name || 'supplier'} · {formatDate(item.supplier_confirmed_at)}
-                          {item.return_slip_token && (
-                            <>
-                              {' · '}
-                              <span
-                                style={{ color: '#1E3A5F', textDecoration: 'none', cursor: 'pointer' }}
-                                onClick={() => {
-                                  const ids = tokenGroups[item.return_slip_token] || [item.id];
-                                  navigate(`/provisioning/return-slip?items=${ids.join(',')}`);
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.textDecoration = 'underline'; }}
-                                onMouseLeave={e => { e.currentTarget.style.textDecoration = 'none'; }}
-                              >
-                                View return slip →
-                              </span>
-                            </>
-                          )}
-                        </>}
-                      </p>
-                    ) : (
-                      <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94A3B8' }}>
-                        Qty: {item.quantity ?? '—'}{item.unit ? ` ${item.unit}` : ''}
-                        {requesterName ? ` · Requested by ${requesterName}` : ''}
-                        {item.return_requested_at ? ` · ${formatDate(item.return_requested_at)}` : ''}
-                        {item.supplier_confirmed_at ? ` · Confirmed by ${item.supplier_signer_name || 'supplier'} ${formatDate(item.supplier_confirmed_at)}` : ''}
-                      </p>
-                    )}
+    <div className="di-layout">
+      <div className="di-main">
+        {[1, 2, 3].map(stage => (
+          <section key={stage} className="di-stage-section">
+            <p className="di-stage-section-label">
+              {STAGE_SECTION_LABEL[stage]}
+              <span className="di-stage-section-label-count">{stages[stage].length}</span>
+            </p>
+            {stages[stage].length === 0 ? (
+              <p className="di-stage-section-empty">Nothing in this stage.</p>
+            ) : (
+              Object.entries(groupBySupplier(stages[stage])).map(([supplier, items]) => (
+                <ReturnsGroupCard
+                  key={`${stage}-${supplier}`}
+                  supplier={supplier}
+                  items={items}
+                  stage={stage}
+                  selectedIds={selectedIds}
+                  requesterNames={requesterNames}
+                  onToggleSelect={handleToggleSelect}
+                  onToggleGroup={handleToggleGroup}
+                  onCancelReturn={handleCancelReturn}
+                  onGenerateSlip={handleGenerateSlip}
+                  onMarkArchived={handleMarkArchived}
+                  acting={acting}
+                />
+              ))
+            )}
+          </section>
+        ))}
+        {showArchived && stages.archived.length > 0 && (
+          <section className="di-stage-section">
+            <p className="di-stage-section-label">
+              Archived returns
+              <span className="di-stage-section-label-count">{stages.archived.length}</span>
+            </p>
+            {Object.entries(groupBySupplier(stages.archived)).map(([supplier, items]) => (
+              <div key={`archived-${supplier}`} className="di-card">
+                <div className="di-card-band">
+                  <div className="di-card-band-icon"><Icon name="Archive" style={{ width: 16, height: 16 }} /></div>
+                  <div className="di-card-band-text">
+                    <p className="di-card-band-title">{supplier}</p>
+                    <p className="di-card-band-sub">{items.length} item{items.length === 1 ? '' : 's'} · archived</p>
+                  </div>
+                  <div className="di-card-band-actions">
+                    <span className="di-chip di-chip-archived">Archived</span>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        );
-      })}
-
-      {/* Sticky action bar */}
-      {selectedIds.size > 0 && (
-        <div style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0,
-          background: 'white', borderTop: '1px solid #E2E8F0',
-          padding: '12px 24px', display: 'flex', alignItems: 'center', gap: 10,
-          zIndex: 'var(--z-nav)', boxShadow: '0 -4px 16px rgba(0,0,0,0.06)',
-        }}>
-          <span style={{ fontSize: 12, color: '#64748B', fontWeight: 500, flexShrink: 0 }}>
-            {selectedIds.size} item{selectedIds.size !== 1 ? 's' : ''} selected
-          </span>
-          <div style={{ flex: 1 }} />
-          <button
-            onClick={handleGenerateSlip}
-            style={{
-              padding: '8px 16px', borderRadius: 8, border: 'none',
-              background: '#1E3A5F', color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
-            }}
-          >
-            Return slip ({selectedIds.size})
-          </button>
-          <button
-            onClick={handleConfirmReturned}
-            disabled={acting}
-            style={{
-              padding: '8px 14px', borderRadius: 8, border: '1px solid #E2E8F0',
-              background: 'white', color: '#0F172A', fontSize: 12, fontWeight: 500,
-              cursor: acting ? 'default' : 'pointer', flexShrink: 0, opacity: acting ? 0.6 : 1,
-            }}
-          >
-            Mark as returned
-          </button>
-          <button
-            onClick={handleCancelReturns}
-            disabled={acting}
-            style={{
-              padding: '8px 14px', borderRadius: 8, border: 'none',
-              background: 'none', color: '#94A3B8', fontSize: 12, fontWeight: 500,
-              cursor: acting ? 'default' : 'pointer', flexShrink: 0, opacity: acting ? 0.6 : 1,
-            }}
-          >
-            Cancel returns
-          </button>
-        </div>
-      )}
+                <div className="di-card-body">
+                  {items.map(item => (
+                    <div key={item.id} className="di-row is-archived">
+                      <div className="di-row-spacer-check" />
+                      <div className="di-row-main">
+                        <div className="di-row-name"><span>{item.raw_name}</span></div>
+                        <p className="di-row-detail">
+                          Qty: {item.return_qty ?? item.quantity ?? '—'}{item.unit ? ` ${item.unit}` : ''}
+                          {item.return_confirmed_at && ` · archived ${fmtDateShort(item.return_confirmed_at)}`}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </section>
+        )}
+      </div>
+      <div className="di-rail">
+        <ReturnPipelineCard stages={stages} />
+        <NeedsActionCard stages={stages} />
+        <FilterBySupplierCard items={returnItems} selected={supplierFilter} onSelect={setSupplierFilter} />
+      </div>
     </div>
   );
 };
 
-// ── Main page ─────────────────────────────────────────────────────────────────
+// ─── Bulk bar ───────────────────────────────────────────────────────────────
+const BulkBar = ({ count, deliveryCount, boards, onClaimAll, onReturnAll, onDismissAll, onClear, claiming, tab, canReturn }) => {
+  const [boardsOpen, setBoardsOpen] = useState(false);
 
+  useEffect(() => {
+    if (!boardsOpen) return;
+    const h = (e) => { if (!e.target.closest('.di-bulkbar')) setBoardsOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [boardsOpen]);
+
+  // The bar appears on the inbox tab for claim/return/dismiss bulk actions.
+  // Returns-tab bulk is handled by its own per-stage footer actions.
+  if (tab !== 'inbox') return null;
+
+  return (
+    <div className="di-bulkbar">
+      <span className="di-bulkbar-label">
+        {count} item{count === 1 ? '' : 's'} selected{deliveryCount > 0 ? ` across ${deliveryCount} deliver${deliveryCount === 1 ? 'y' : 'ies'}` : ''}
+      </span>
+      <div className="di-bulkbar-sep" />
+      <div style={{ position: 'relative' }}>
+        <button
+          onClick={() => setBoardsOpen(v => !v)}
+          disabled={claiming}
+          className="di-bulkbar-btn di-bulkbar-btn-primary"
+        >
+          {claiming ? 'Claiming…' : 'Claim to board…'}
+        </button>
+        {boardsOpen && !claiming && (
+          <div className="di-claim-all-pop" style={{ bottom: 'calc(100% + 6px)', top: 'auto' }}>
+            {boards.length === 0
+              ? <div className="di-claim-all-empty">No boards</div>
+              : boards.map(b => (
+                <button key={b.id} onClick={() => { setBoardsOpen(false); onClaimAll(b); }} className="di-claim-all-opt">
+                  {b.title}
+                </button>
+              ))}
+          </div>
+        )}
+      </div>
+      {canReturn && (
+        <button onClick={onReturnAll} disabled={claiming} className="di-bulkbar-btn di-bulkbar-btn-ghost">
+          Return to supplier
+        </button>
+      )}
+      <button onClick={onDismissAll} disabled={claiming} className="di-bulkbar-btn di-bulkbar-btn-ghost">
+        Not my orders
+      </button>
+      <div className="di-bulkbar-spacer" />
+      <button onClick={onClear} className="di-bulkbar-btn di-bulkbar-btn-quiet">Clear</button>
+    </div>
+  );
+};
+
+// ─── Main page ──────────────────────────────────────────────────────────────
 const DeliveryInbox = () => {
   const navigate = useNavigate();
   const { user, tenantRole } = useAuth();
   const { activeTenantId } = useTenant();
 
   const userTier = (tenantRole || '').toUpperCase();
+  const userDept = (user?.department || '').trim();
   const isCrew = userTier === 'CREW';
-  // COMMAND + CHIEF can initiate returns; HOD + CREW cannot
   const canReturn = userTier === 'COMMAND' || userTier === 'CHIEF';
 
-  const [activeTab, setActiveTab] = useState('inbox'); // 'inbox' | 'returns'
+  const [activeTab, setActiveTab] = useState('inbox');
   const [items, setItems] = useState([]);
   const [returnsCount, setReturnsCount] = useState(0);
   const [boards, setBoards] = useState([]);
   const [scannerNames, setScannerNames] = useState({});
-  const [batchDocUrls, setBatchDocUrls] = useState({}); // { delivery_batch_id: invoice_file_url }
+  const [batchDocUrls, setBatchDocUrls] = useState({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkFadingIds, setBulkFadingIds] = useState(new Set());
   const [bulkClaiming, setBulkClaiming] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [userFullName, setUserFullName] = useState('');
+  const [inboxSupplierFilter, setInboxSupplierFilter] = useState(null);
+  const [returnsSupplierFilter, setReturnsSupplierFilter] = useState(null);
 
   const load = useCallback(async () => {
     if (!activeTenantId) return;
     setLoading(true);
-    const [inboxItems, userBoards, pendingReturns] = await Promise.all([
-      fetchDeliveryInbox(activeTenantId, showArchived, user?.id),
-      fetchProvisioningLists(activeTenantId, user?.id).catch(() => []),
-      fetchPendingReturns(activeTenantId),
-    ]);
-    setItems(inboxItems || []);
-    setBoards(userBoards || []);
-    setReturnsCount((pendingReturns || []).length);
+    setLoadError(null);
+    try {
+      const [inboxItems, userBoards, pendingReturns] = await Promise.all([
+        fetchDeliveryInbox(activeTenantId, showArchived, user?.id),
+        fetchProvisioningLists(activeTenantId, user?.id).catch(() => []),
+        fetchPendingReturns(activeTenantId).catch(() => []),
+      ]);
+      setItems(inboxItems || []);
+      setBoards(userBoards || []);
+      setReturnsCount((pendingReturns || []).length);
 
-    // Resolve current user's full name for return slips
-    if (user?.id && !userFullName) {
-      const { data: profile } = await supabase?.from('profiles')?.select('full_name')?.eq('id', user.id)?.maybeSingle();
-      if (profile?.full_name) setUserFullName(profile.full_name);
+      if (user?.id && !userFullName) {
+        const { data: profile } = await supabase?.from('profiles')?.select('full_name')?.eq('id', user.id)?.maybeSingle();
+        if (profile?.full_name) setUserFullName(profile.full_name);
+      }
+
+      const scannerIds = [...new Set((inboxItems || []).map(i => i.scanned_by).filter(Boolean))];
+      if (scannerIds.length > 0) {
+        const { data: profiles } = await supabase?.from('profiles')?.select('id, full_name')?.in('id', scannerIds);
+        const nameMap = {};
+        (profiles || []).forEach(p => { nameMap[p.id] = p.full_name; });
+        setScannerNames(nameMap);
+      }
+
+      const batchIds = [...new Set((inboxItems || []).map(i => i.delivery_batch_id).filter(Boolean))];
+      if (batchIds.length > 0) {
+        const { data: batches } = await supabase
+          ?.from('provisioning_deliveries')?.select('id, invoice_file_url')?.in('id', batchIds);
+        const urlMap = {};
+        (batches || []).forEach(b => { if (b.invoice_file_url) urlMap[b.id] = b.invoice_file_url; });
+        setBatchDocUrls(urlMap);
+      }
+    } catch (err) {
+      console.error('[DeliveryInbox load]', err);
+      setLoadError(err?.message || 'fetch failed');
+      setItems([]);
+    } finally {
+      setLoading(false);
     }
-
-    // Resolve scanner UUIDs → full names
-    const scannerIds = [...new Set((inboxItems || []).map(i => i.scanned_by).filter(Boolean))];
-    if (scannerIds.length > 0) {
-      const { data: profiles } = await supabase
-        ?.from('profiles')?.select('id, full_name')?.in('id', scannerIds);
-      const nameMap = {};
-      (profiles || []).forEach(p => { nameMap[p.id] = p.full_name; });
-      setScannerNames(nameMap);
-    }
-
-    // Resolve delivery_batch_id → invoice_file_url for document links
-    const batchIds = [...new Set((inboxItems || []).map(i => i.delivery_batch_id).filter(Boolean))];
-    if (batchIds.length > 0) {
-      const { data: batches } = await supabase
-        ?.from('provisioning_deliveries')?.select('id, invoice_file_url')?.in('id', batchIds);
-      const urlMap = {};
-      (batches || []).forEach(b => { if (b.invoice_file_url) urlMap[b.id] = b.invoice_file_url; });
-      setBatchDocUrls(urlMap);
-    }
-
-    setLoading(false);
-  }, [activeTenantId, user?.id, showArchived]);
+  }, [activeTenantId, user?.id, showArchived, userFullName]);
 
   useEffect(() => { load(); }, [load]);
 
+  // ── Reset selection when switching tabs ──────────────────────────────────
+  useEffect(() => { setSelectedIds(new Set()); }, [activeTab]);
+
+  // ── Action handlers (existing logic preserved verbatim) ──────────────────
   const handleClaimed = (itemId) => {
     setItems(prev => prev.filter(i => i.id !== itemId));
     setSelectedIds(prev => { const next = new Set(prev); next.delete(itemId); return next; });
@@ -1086,24 +1114,29 @@ const DeliveryInbox = () => {
       return next;
     });
   };
+  const handleToggleGroup = (groupItems, allSelected) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      groupItems.forEach(i => allSelected ? next.delete(i.id) : next.add(i.id));
+      return next;
+    });
+  };
 
   const handleBulkReturn = async () => {
     const selected = items.filter(i => selectedIds.has(i.id));
     if (!selected.length) return;
-
     const results = await Promise.allSettled(selected.map(item => returnInboxItem(item.id, user?.id)));
     const succeededItems = selected.filter((_, i) => results[i].status === 'fulfilled' && results[i].value);
     const succeededIds = new Set(succeededItems.map(i => i.id));
-
     if (succeededItems.length > 0) {
       setItems(prev => prev.filter(i => !succeededIds.has(i.id)));
       setSelectedIds(new Set());
       setReturnsCount(c => c + succeededItems.length);
       setActiveTab('returns');
-      showToast(`${succeededItems.length} item${succeededItems.length !== 1 ? 's' : ''} queued for return`, 'info');
+      showToast(`${succeededItems.length} queued for return`, 'info');
     }
     if (succeededItems.length < selected.length) {
-      showToast(`${selected.length - succeededItems.length} item${selected.length - succeededItems.length !== 1 ? 's' : ''} failed to queue`, 'error');
+      showToast(`${selected.length - succeededItems.length} failed`, 'error');
     }
   };
 
@@ -1115,10 +1148,10 @@ const DeliveryInbox = () => {
     if (succeededIds.length > 0) {
       setItems(prev => prev.filter(i => !succeededIds.includes(i.id)));
       setSelectedIds(new Set());
-      showToast(`${succeededIds.length} item${succeededIds.length !== 1 ? 's' : ''} hidden from your inbox`, 'info');
+      showToast(`${succeededIds.length} hidden`, 'info');
     }
     if (succeededIds.length < ids.length) {
-      showToast(`${ids.length - succeededIds.length} item${ids.length - succeededIds.length !== 1 ? 's' : ''} failed`, 'error');
+      showToast(`${ids.length - succeededIds.length} failed`, 'error');
     }
   };
 
@@ -1127,7 +1160,6 @@ const DeliveryInbox = () => {
     const ids = [...selectedIds];
     const results = await Promise.allSettled(ids.map(id => claimInboxItem(id, user?.id, board.id)));
     const succeededIds = ids.filter((_, i) => results[i].status === 'fulfilled' && results[i].value);
-
     succeededIds.forEach(id => {
       const item = items.find(i => i.id === id);
       if (!item) return;
@@ -1140,9 +1172,8 @@ const DeliveryInbox = () => {
         meta: { inbox_item_id: id, raw_name: item.raw_name, quantity: item.quantity, board_id: board.id, original_scanned_by: item.scanned_by },
       });
     });
-
     if (succeededIds.length > 0) {
-      showToast(`${succeededIds.length} item${succeededIds.length !== 1 ? 's' : ''} claimed to ${board.title}`, 'success');
+      showToast(`${succeededIds.length} claimed to ${board.title}`, 'success');
       setBulkFadingIds(new Set(succeededIds));
       setTimeout(() => {
         setItems(prev => prev.filter(i => !succeededIds.includes(i.id)));
@@ -1151,219 +1182,229 @@ const DeliveryInbox = () => {
       }, 340);
     }
     if (succeededIds.length < ids.length) {
-      showToast(`${ids.length - succeededIds.length} item${ids.length - succeededIds.length !== 1 ? 's' : ''} failed`, 'error');
+      showToast(`${ids.length - succeededIds.length} failed`, 'error');
     }
     setBulkClaiming(false);
   };
 
-  // CREW: access denied — render after all hooks
+  // Group-level "Claim all" — uses the same path as bulk-claim but scoped to
+  // one group's items, no checkbox selection required.
+  const handleGroupClaimAllSucceeded = (succeededIds) => {
+    setBulkFadingIds(new Set(succeededIds));
+    setTimeout(() => {
+      setItems(prev => prev.filter(i => !succeededIds.includes(i.id)));
+      setSelectedIds(prev => { const next = new Set(prev); succeededIds.forEach(id => next.delete(id)); return next; });
+      setBulkFadingIds(new Set());
+    }, 340);
+  };
+
+  // ── CREW: hard-blocked (must come after hooks) ───────────────────────────
   if (isCrew) {
     return (
       <>
         <Header />
-        <div style={{ minHeight: '100vh', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
-          <div style={{ textAlign: 'center' }}>
-            <p style={{ fontSize: 15, color: '#0F172A', fontWeight: 500, margin: '0 0 8px' }}>You don't have permission to view the Delivery Inbox.</p>
-            <p style={{ fontSize: 13, color: '#94A3B8', margin: '0 0 20px' }}>The Delivery Inbox is available to Command, Chief, and HOD officers.</p>
-            <button onClick={() => navigate('/provisioning')} style={{ fontSize: 13, color: '#1E3A5F', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
-              ← Back to Provisioning
-            </button>
+        <div className="di-blocked">
+          <div className="di-blocked-card">
+            <p className="di-blocked-title">You don’t have permission to view the Delivery Inbox.</p>
+            <p className="di-blocked-body">It’s available to Command, Chief, and HOD officers.</p>
+            <button onClick={() => navigate('/provisioning')} className="di-blocked-back">‹ Back to Provisioning</button>
           </div>
         </div>
       </>
     );
   }
 
-  // The Delivery Inbox is a shared vessel-level pool — one user scans a
-  // delivery note and other HODs claim their items from the same list.
-  // COMMAND / CHIEF / HOD all see the same full pending pool (minus each
-  // user's own dismissals, which fetchDeliveryInbox already filters out
-  // via dismissed_by). CREW is hard-blocked above. The previous
-  // scanned_by + department filter for CHIEF/HOD broke this entirely —
-  // no code path writes `department` to delivery_inbox, so the dept
-  // half never matched and CHIEF/HOD could only see their own scans.
-  const visibleItems = items;
+  // ── CHIEF/HOD filter (preserved verbatim from current main — separate
+  //     PR removes the broken department side of this OR) ────────────────
+  const visibleItems = ['CHIEF', 'HOD'].includes(userTier)
+    ? items.filter(i => i.scanned_by === user?.id || (userDept && i.department === userDept))
+    : items;
 
-  // Group by scanned_by + date
-  const groups = visibleItems.reduce((acc, item) => {
+  // ── Inbox-tab: filter + group ────────────────────────────────────────────
+  const inboxItems = inboxSupplierFilter
+    ? visibleItems.filter(i => (i.supplier_name || 'Unknown supplier') === inboxSupplierFilter)
+    : visibleItems;
+
+  const groups = inboxItems.reduce((acc, item) => {
     const date = item.scanned_at ? new Date(item.scanned_at).toISOString().split('T')[0] : '1970-01-01';
     const key = `${item.scanned_by || 'unknown'}__${date}`;
     if (!acc[key]) acc[key] = { date, scannedBy: item.scanned_by, supplierName: item.supplier_name, items: [] };
     acc[key].items.push(item);
     return acc;
   }, {});
-
   const sortedGroups = Object.values(groups).sort((a, b) => b.date.localeCompare(a.date));
 
-  const formatDate = (iso) => {
-    try {
-      return new Date(iso + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-    } catch { return iso; }
-  };
+  // ── Meta-strip counts (derived from already-loaded data) ─────────────────
+  const pendingCount = visibleItems.filter(i => i.status === 'pending').length;
+  const expiringSoonCount = visibleItems.filter(i => i.status === 'pending' && expiringSoonForCardEdge(i)).length;
+  const deliveryCount = sortedGroups.length;
 
-  const scannerLabel = (scannedBy, supplierName) => {
-    if (scannedBy && scannerNames[scannedBy]) return `Scanned by ${scannerNames[scannedBy]}`;
-    if (supplierName && supplierName !== 'Manual receive') return supplierName;
-    return 'Unknown source';
-  };
+  // ── Selected items live across groups ─────────────────────────────────────
+  const selectedItemsAcrossGroups = visibleItems.filter(i => selectedIds.has(i.id));
+  const selectedDeliveryCount = new Set(
+    selectedItemsAcrossGroups.map(i =>
+      `${i.scanned_by || 'unknown'}__${i.scanned_at ? new Date(i.scanned_at).toISOString().split('T')[0] : '1970-01-01'}`)
+  ).size;
+
+  // ── Render ───────────────────────────────────────────────────────────────
+  const inboxTabCount = pendingCount;
+  const returnsTabCount = returnsCount;
 
   return (
     <>
       <Header />
-      <div style={{ minHeight: '100vh', background: '#F8FAFC' }}>
+      <div className="di">
+        <div className="di-page">
+          <button className="di-back" onClick={() => navigate('/provisioning')}>
+            ‹ Back to Provisioning
+          </button>
 
-        {/* Page header */}
-        <div style={{ background: 'white', borderBottom: '1px solid #F1F5F9', padding: '14px 24px 0' }}>
-          {/* Breadcrumb row */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          {/* Editorial header — meta strip + serif headline (per tab) */}
+          <div className="di-headblock">
+            <p className="editorial-meta">
+              <span className="dot">●</span>
+              <span>Delivery Inbox</span>
+              {activeTab === 'inbox' ? (
+                <>
+                  <span className="bar" />
+                  <span className="muted">{deliveryCount} deliver{deliveryCount === 1 ? 'y' : 'ies'}</span>
+                  <span className="bar" />
+                  <span className="muted">{pendingCount} unclaimed item{pendingCount === 1 ? '' : 's'}</span>
+                  <span className="bar" />
+                  <span className="muted">{expiringSoonCount} expiring soon</span>
+                </>
+              ) : (
+                <>
+                  <span className="bar" />
+                  <span className="muted">{returnsCount} item{returnsCount === 1 ? '' : 's'} to return</span>
+                </>
+              )}
+            </p>
+            <h1 className="editorial-greeting">
+              {activeTab === 'inbox' ? (
+                <>INBOX<span className="period">,</span> <em>unclaimed</em><span className="period">.</span></>
+              ) : (
+                <>RETURNS<span className="period">,</span> <em>in flight</em><span className="period">.</span></>
+              )}
+            </h1>
+          </div>
+
+          {/* Tabs */}
+          <div className="di-tabs">
             <button
-              onClick={() => navigate('/provisioning')}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B', padding: 0, display: 'flex', alignItems: 'center', gap: 3, fontSize: 13 }}
+              onClick={() => setActiveTab('inbox')}
+              className={`di-tab${activeTab === 'inbox' ? ' is-active' : ''}`}
             >
-              <Icon name="ChevronLeft" style={{ width: 14, height: 14 }} />
-              Provisioning
+              Inbox
+              {inboxTabCount > 0 && <span className="di-tab-count">{inboxTabCount}</span>}
             </button>
-            <span style={{ color: '#CBD5E1', fontSize: 13 }}>›</span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>Delivery Inbox</span>
-            <div style={{ flex: 1 }} />
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#64748B', cursor: 'pointer', userSelect: 'none' }}>
+            <button
+              onClick={() => setActiveTab('returns')}
+              className={`di-tab${activeTab === 'returns' ? ' is-active' : ''}`}
+            >
+              Returns
+              {returnsTabCount > 0 && <span className="di-tab-count">{returnsTabCount}</span>}
+            </button>
+            <div className="di-tabs-spacer" />
+            <label className="di-archive-toggle">
               <input
                 type="checkbox"
                 checked={showArchived}
                 onChange={e => setShowArchived(e.target.checked)}
-                style={{ width: 13, height: 13, accentColor: '#64748B', cursor: 'pointer' }}
               />
               Show archived
             </label>
           </div>
 
-          {/* Tabs */}
-          <div style={{ display: 'flex', gap: 0 }}>
-            {[
-              { key: 'inbox', label: 'Inbox', count: items.filter(i => i.status === 'pending').length, countStyle: { background: '#FEF3E2', color: '#B45309' } },
-              { key: 'returns', label: 'Returns', count: returnsCount, countStyle: { background: '#FEF2F2', color: '#DC2626' } },
-            ].map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                style={{
-                  padding: '8px 16px', border: 'none', background: 'none', cursor: 'pointer',
-                  fontSize: 13, fontWeight: activeTab === tab.key ? 600 : 400,
-                  color: activeTab === tab.key ? '#0F172A' : '#64748B',
-                  borderBottom: activeTab === tab.key ? '2px solid #1E3A5F' : '2px solid transparent',
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  transition: 'color 0.15s',
-                }}
-              >
-                {tab.label}
-                {tab.count > 0 && (
-                  <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 20, ...tab.countStyle }}>
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Content */}
-        <div style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px', paddingBottom: selectedIds.size > 0 ? 96 : 24 }}>
+          {/* Main + Rail */}
           {activeTab === 'returns' ? (
             <ReturnsView
               tenantId={activeTenantId}
               userId={user?.id}
-              tenantName={null}
               userFullName={userFullName}
               showArchived={showArchived}
+              supplierFilter={returnsSupplierFilter}
+              setSupplierFilter={setReturnsSupplierFilter}
+              selectedIds={selectedIds}
+              setSelectedIds={setSelectedIds}
             />
+          ) : loadError ? (
+            <div className="di-layout">
+              <div className="di-main"><ErrorCard onRetry={load} message="Couldn't load the delivery inbox" /></div>
+            </div>
           ) : loading ? (
-            <div style={{ textAlign: 'center', padding: '60px 0', color: '#94A3B8', fontSize: 14 }}>Loading…</div>
-          ) : items.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '80px 0' }}>
-              <Icon name="Inbox" style={{ width: 40, height: 40, color: '#CBD5E1', display: 'block', margin: '0 auto 16px' }} />
-              <p style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#0F172A' }}>All clear</p>
-              <p style={{ margin: '6px 0 0', fontSize: 13, color: '#94A3B8' }}>No unclaimed delivery items</p>
+            <div className="di-layout">
+              <div className="di-main"><div className="di-loading">Loading…</div></div>
+            </div>
+          ) : sortedGroups.length === 0 ? (
+            <div className="di-layout">
+              <div className="di-main">
+                <div className="di-empty">
+                  <Icon name="Inbox" className="di-empty-icon" />
+                  <p className="di-empty-title">{inboxSupplierFilter ? 'Nothing from this supplier' : 'All clear'}</p>
+                  <p className="di-empty-body">
+                    {inboxSupplierFilter
+                      ? 'Try clearing the supplier filter.'
+                      : 'No unclaimed delivery items. New scans land here for the whole vessel to triage.'}
+                  </p>
+                </div>
+              </div>
+              <div className="di-rail">
+                <InboxStatsCard items={visibleItems} deliveryCount={deliveryCount} />
+                <FilterBySupplierCard items={visibleItems} selected={inboxSupplierFilter} onSelect={setInboxSupplierFilter} />
+              </div>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {sortedGroups.map(group => {
-                const groupKey = `${group.scannedBy || 'unknown'}__${group.date}`;
-                const claimableItems = group.items.filter(i => i.status !== 'archived');
-                const groupSelectedCount = claimableItems.filter(i => selectedIds.has(i.id)).length;
-                const allSelected = claimableItems.length > 0 && groupSelectedCount === claimableItems.length;
-
-                return (
-                  <div key={groupKey} style={{
-                    background: 'white', borderRadius: 12,
-                    border: '1px solid #E2E8F0',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                    overflow: 'hidden',
-                  }}>
-                    {/* Group header */}
-                    <div style={{ padding: '10px 20px', background: '#F8FAFC', borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      {/* Select-all for this group */}
-                      <input
-                        type="checkbox"
-                        checked={allSelected}
-                        onChange={() => {
-                          setSelectedIds(prev => {
-                            const next = new Set(prev);
-                            claimableItems.forEach(i => allSelected ? next.delete(i.id) : next.add(i.id));
-                            return next;
-                          });
-                        }}
-                        style={{ width: 13, height: 13, accentColor: '#1E3A5F', cursor: 'pointer', flexShrink: 0 }}
-                      />
-                      <Icon name="Package" style={{ width: 13, height: 13, color: '#94A3B8', flexShrink: 0 }} />
-                      <span style={{ fontSize: 12, fontWeight: 500, color: '#64748B', letterSpacing: '0.01em', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {scannerLabel(group.scannedBy, group.supplierName)}
-                      </span>
-                      <span style={{ fontSize: 11, color: '#94A3B8', whiteSpace: 'nowrap', flexShrink: 0 }}>{formatDate(group.date)}</span>
-                      <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: '#F1F5F9', color: '#64748B', flexShrink: 0 }}>
-                        {group.items.length} item{group.items.length !== 1 ? 's' : ''}
-                      </span>
-                    </div>
-
-                    {/* Items */}
-                    {group.items.map((item, idx) => (
-                      <ItemRow
-                        key={item.id}
-                        item={item}
-                        boards={boards}
-                        userId={user?.id}
-                        isLast={idx === group.items.length - 1}
-                        selected={selectedIds.has(item.id)}
-                        onToggle={() => handleToggleSelect(item.id)}
-                        onClaimed={handleClaimed}
-                        onPartialClaim={load}
-                        onDismiss={handleDismiss}
-                        onReturn={handleReturn}
-                        canReturn={canReturn}
-                        bulkFading={bulkFadingIds.has(item.id)}
-                        docUrl={item.delivery_batch_id ? batchDocUrls[item.delivery_batch_id] : null}
-                        archived={item.status === 'archived'}
-                      />
-                    ))}
-                  </div>
-                );
-              })}
+            <div className="di-layout">
+              <div className="di-main">
+                {sortedGroups.map(group => {
+                  const groupKey = `${group.scannedBy || 'unknown'}__${group.date}`;
+                  return (
+                    <InboxGroupCard
+                      key={groupKey}
+                      group={group}
+                      boards={boards}
+                      userId={user?.id}
+                      scannerNames={scannerNames}
+                      selectedIds={selectedIds}
+                      batchDocUrls={batchDocUrls}
+                      onToggleSelect={handleToggleSelect}
+                      onToggleGroup={handleToggleGroup}
+                      onItemClaimed={handleClaimed}
+                      onPartialClaim={load}
+                      onItemDismiss={handleDismiss}
+                      onItemReturn={handleReturn}
+                      onGroupClaimAllSucceeded={handleGroupClaimAllSucceeded}
+                      canReturn={canReturn}
+                      bulkFadingIds={bulkFadingIds}
+                    />
+                  );
+                })}
+              </div>
+              <div className="di-rail">
+                <ExpiringSoonCard items={visibleItems} />
+                <InboxStatsCard items={visibleItems} deliveryCount={deliveryCount} />
+                <FilterBySupplierCard items={visibleItems} selected={inboxSupplierFilter} onSelect={setInboxSupplierFilter} />
+              </div>
             </div>
           )}
         </div>
-      </div>
 
-      {/* Bulk action bar */}
-      {selectedIds.size > 0 && (
-        <BulkBar
-          count={selectedIds.size}
-          boards={boards}
-          onClaimAll={handleBulkClaim}
-          onReturnAll={handleBulkReturn}
-          onDismissAll={handleBulkDismiss}
-          onClear={() => setSelectedIds(new Set())}
-          claiming={bulkClaiming}
-        />
-      )}
+        {selectedIds.size > 0 && (
+          <BulkBar
+            count={selectedIds.size}
+            deliveryCount={selectedDeliveryCount}
+            boards={boards}
+            onClaimAll={handleBulkClaim}
+            onReturnAll={handleBulkReturn}
+            onDismissAll={handleBulkDismiss}
+            onClear={() => setSelectedIds(new Set())}
+            claiming={bulkClaiming}
+            tab={activeTab}
+            canReturn={canReturn}
+          />
+        )}
+      </div>
     </>
   );
 };

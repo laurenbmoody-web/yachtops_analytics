@@ -1818,20 +1818,25 @@ export const archiveExpiredInboxItems = async (tenantId) => {
 export const fetchDeliveryInbox = async (tenantId, includeArchived = false, currentUserId = null) => {
   if (!tenantId) return [];
   await archiveExpiredInboxItems(tenantId);
-  try {
-    let query = supabase?.from('delivery_inbox')?.select('*')?.eq('tenant_id', tenantId);
-    query = includeArchived
-      ? query?.in('status', ['pending', 'archived'])
-      : query?.eq('status', 'pending');
-    const { data, error } = await query?.order('scanned_at', { ascending: false });
-    if (error) throw error;
-    // Filter out items this user has personally dismissed
-    const rows = data || [];
-    if (currentUserId) {
-      return rows.filter(item => !(item.dismissed_by || []).includes(currentUserId));
-    }
-    return rows;
-  } catch (err) { console.error('[fetchDeliveryInbox]', err); return []; }
+  // Errors are NOT swallowed — re-thrown so the page can render a real
+  // error state. The previous `catch { return []; }` made a failed query
+  // indistinguishable from "all clear". The page wraps load() in try/catch
+  // and surfaces the error.
+  let query = supabase?.from('delivery_inbox')?.select('*')?.eq('tenant_id', tenantId);
+  query = includeArchived
+    ? query?.in('status', ['pending', 'archived'])
+    : query?.eq('status', 'pending');
+  const { data, error } = await query?.order('scanned_at', { ascending: false });
+  if (error) {
+    console.error('[fetchDeliveryInbox]', error);
+    throw error;
+  }
+  const rows = data || [];
+  // Per-user dismissals stay filtered client-side.
+  if (currentUserId) {
+    return rows.filter(item => !(item.dismissed_by || []).includes(currentUserId));
+  }
+  return rows;
 };
 
 /** Mark delivery_inbox item as "not my order" for this user — stays visible to others. */
@@ -1865,20 +1870,22 @@ export const returnInboxItem = async (itemId, requestedBy = null) => {
   } catch (err) { console.error('[returnInboxItem]', err); return false; }
 };
 
-/** Fetch items queued for supplier return. Pass includeArchived=true to also show archived returns. */
+/** Fetch items queued for supplier return. Pass includeArchived=true to also show archived returns.
+    Re-throws on Supabase error so the page can show a real error state. */
 export const fetchPendingReturns = async (tenantId, includeArchived = false) => {
   if (!tenantId) return [];
-  try {
-    let query = supabase?.from('delivery_inbox')?.select('*')?.eq('tenant_id', tenantId);
-    if (includeArchived) {
-      query = query?.or('status.eq.pending_return,and(status.eq.archived,archive_reason.eq.returned)');
-    } else {
-      query = query?.eq('status', 'pending_return');
-    }
-    const { data, error } = await query?.order('supplier_name', { ascending: true });
-    if (error) throw error;
-    return data || [];
-  } catch (err) { console.error('[fetchPendingReturns]', err); return []; }
+  let query = supabase?.from('delivery_inbox')?.select('*')?.eq('tenant_id', tenantId);
+  if (includeArchived) {
+    query = query?.or('status.eq.pending_return,and(status.eq.archived,archive_reason.eq.returned)');
+  } else {
+    query = query?.eq('status', 'pending_return');
+  }
+  const { data, error } = await query?.order('supplier_name', { ascending: true });
+  if (error) {
+    console.error('[fetchPendingReturns]', error);
+    throw error;
+  }
+  return data || [];
 };
 
 /** Confirm items have been physically returned — archives them. */
