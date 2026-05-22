@@ -20,8 +20,14 @@ const STATUS_VISUALS = {
 // ── Drag handle (six-dot grip) ───────────────────────────────────────────────
 
 const DragHandle = ({ dragHandleProps }) => (
+  // stopPropagation on click — dnd-kit's PointerSensor fires a synthetic
+  // click on press-without-drag (movement < activation distance 8). That
+  // click must never bubble to the lane's onClick → onNavigate route.
+  // Drag itself is unaffected (the listeners in dragHandleProps are
+  // pointerdown/move/up, not click).
   <div
     {...dragHandleProps}
+    onClick={e => e.stopPropagation()}
     title="Drag to reorder"
     className="pv-lane-grip"
     style={{ touchAction: 'none' }}
@@ -39,20 +45,17 @@ const DragHandle = ({ dragHandleProps }) => (
 
 
 // ── Colour picker ────────────────────────────────────────────────────────────
+// Pale-wash palette only — navy editorial text sits on the tinted header
+// and must remain readable. Saturated hues would clash with the body text.
 
 const SWATCHES = [
-  { label: 'Navy',   value: '#1E3A5F' },
-  { label: 'Blue',   value: '#4A90E2' },
-  { label: 'Teal',   value: '#0D9488' },
-  { label: 'Green',  value: '#16A34A' },
-  { label: 'Lime',   value: '#65A30D' },
-  { label: 'Amber',  value: '#D97706' },
-  { label: 'Orange', value: '#EA580C' },
-  { label: 'Red',    value: '#DC2626' },
-  { label: 'Pink',   value: '#DB2777' },
-  { label: 'Purple', value: '#9333EA' },
-  { label: 'Slate',  value: '#475569' },
-  { label: 'Default', value: null },
+  { label: 'Blue',      value: '#E4ECF4' },
+  { label: 'Green',     value: '#E7F0E7' },
+  { label: 'Amber',     value: '#FAEEDA' },
+  { label: 'Pink',      value: '#F4E4EC' },
+  { label: 'Lilac',     value: '#EDE9F4' },
+  { label: 'Warm grey', value: '#F0EBE0' },
+  { label: 'Default',   value: null },
 ];
 
 const ColourPicker = ({ current, onSelect, onClose }) => {
@@ -67,16 +70,23 @@ const ColourPicker = ({ current, onSelect, onClose }) => {
   return (
     <div
       ref={ref}
+      onClick={e => e.stopPropagation()}
       className="absolute right-0 top-8 z-50"
       style={{
-        background: '#1a2540',
-        border: '1px solid rgba(255,255,255,0.12)',
-        borderRadius: 10,
-        padding: 10,
-        width: 132,
+        background: '#FFFFFF',
+        border: '0.5px solid #D4CCBB',
+        borderRadius: 11,
+        padding: 12,
+        width: 184,
+        boxShadow: '0 12px 28px rgba(38,42,83,0.10)',
       }}
     >
-      <div className="grid grid-cols-4 gap-1.5">
+      <p style={{
+        fontSize: 9, fontWeight: 700, letterSpacing: '0.13em',
+        textTransform: 'uppercase', color: '#695880',
+        margin: '0 0 8px',
+      }}>Board colour</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
         {SWATCHES.map((s) => {
           const isSelected = s.value === current || (!s.value && !current);
           return (
@@ -85,17 +95,17 @@ const ColourPicker = ({ current, onSelect, onClose }) => {
               title={s.label}
               onClick={() => { onSelect(s.value); onClose(); }}
               style={{
-                width: 24, height: 24, borderRadius: '50%',
-                background: s.value || 'white',
-                border: isSelected ? '2px solid white' : '2px solid transparent',
+                width: 32, height: 32, borderRadius: '50%',
+                background: s.value || '#FFFFFF',
+                border: isSelected ? '2px solid #262A53' : '0.5px solid #D4CCBB',
                 cursor: 'pointer', padding: 0, position: 'relative', flexShrink: 0,
                 outline: 'none',
               }}
             >
-              {/* Default swatch — diagonal line */}
+              {/* Default swatch — diagonal slash */}
               {!s.value && (
                 <svg viewBox="0 0 24 24" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
-                  <line x1="4" y1="4" x2="20" y2="20" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" />
+                  <line x1="5" y1="5" x2="19" y2="19" stroke="#C65A1A" strokeWidth="2" strokeLinecap="round" />
                 </svg>
               )}
             </button>
@@ -108,8 +118,12 @@ const ColourPicker = ({ current, onSelect, onClose }) => {
 
 // ── Three-dot menu ───────────────────────────────────────────────────────────
 
-const BoardMenu = ({ canEdit, canCommandDelete, onEdit, onDuplicate, onDeleteClick, onShare }) => {
+// stopPropagation wraps the whole BoardMenu so the trigger, dropdown,
+// every menu item, and the colour-picker swatches it can open never
+// bubble to the .pv-lane click → onNavigate route.
+const BoardMenu = ({ canEdit, canCommandDelete, onEdit, onDuplicate, onDeleteClick, onShare, currentColour, onColourSelect }) => {
   const [open, setOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const ref = useRef(null);
 
   useEffect(() => {
@@ -120,9 +134,9 @@ const BoardMenu = ({ canEdit, canCommandDelete, onEdit, onDuplicate, onDeleteCli
   }, [open]);
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative" ref={ref} onClick={e => e.stopPropagation()}>
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => { setOpen(!open); setPaletteOpen(false); }}
         className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
       >
         <Icon name="MoreVertical" className="w-4 h-4" />
@@ -142,6 +156,20 @@ const BoardMenu = ({ canEdit, canCommandDelete, onEdit, onDuplicate, onDeleteCli
               <Icon name="Share2" className="w-3.5 h-3.5" /> Share board
             </button>
           )}
+          <button
+            onClick={() => { setOpen(false); setPaletteOpen(true); }}
+            className="w-full text-left mx-1 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md flex items-center gap-2"
+          >
+            {/* Palette icon */}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" stroke="none" />
+              <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" stroke="none" />
+              <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" stroke="none" />
+              <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" stroke="none" />
+              <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
+            </svg>
+            Board colour
+          </button>
           <div className="border-t border-border my-1" />
           <button
             onClick={() => { setOpen(false); onDeleteClick(); }}
@@ -150,6 +178,13 @@ const BoardMenu = ({ canEdit, canCommandDelete, onEdit, onDuplicate, onDeleteCli
             <Icon name="Trash2" className="w-3.5 h-3.5" /> Delete board
           </button>
         </div>
+      )}
+      {paletteOpen && (
+        <ColourPicker
+          current={currentColour}
+          onSelect={onColourSelect}
+          onClose={() => setPaletteOpen(false)}
+        />
       )}
     </div>
   );
@@ -177,7 +212,7 @@ const QuickAddItem = ({ onAdd }) => {
   if (!open) {
     return (
       <button
-        onClick={() => setOpen(true)}
+        onClick={e => { e.stopPropagation(); setOpen(true); }}
         className="w-full text-left px-3 py-2 border border-dashed border-border text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 rounded-lg transition-colors"
       >
         + Add item
@@ -186,7 +221,7 @@ const QuickAddItem = ({ onAdd }) => {
   }
 
   return (
-    <div className="px-1 pb-1">
+    <div className="px-1 pb-1" onClick={e => e.stopPropagation()}>
       <div className="bg-muted border border-border rounded-lg px-3 py-2 flex items-center gap-2">
         <input
           ref={inputRef}
@@ -267,9 +302,8 @@ const BoardColumn = ({
   };
 
   // ── Colour picker ───────────────────────────────────────────────────────
-  const [colourOpen, setColourOpen] = useState(false);
-  const colourBtnRef = useRef(null);
-
+  // Entry point now lives inside BoardMenu ("Board colour" menu item).
+  // Selection still calls the prop the workspace wires up.
   const handleColourSelect = (colour) => {
     onColourChange(list.id, colour);
   };
@@ -300,28 +334,29 @@ const BoardColumn = ({
 
   const isPrivate = list.visibility === 'private' || (!list.visibility && list.is_private);
 
+  // Whole-card click routes to the board detail. Excluded zones (name,
+  // grip, items, stepper, +Add item, three-dot menu / its picker) each
+  // call stopPropagation so they don't bubble here. Drag-in-progress is
+  // skipped — dnd-kit suppresses click during an active drag, this is a
+  // belt-and-suspenders guard for synthetic clicks at drag-end.
+  const handleCardClick = () => { if (!isDragging) onNavigate(list.id); };
+
   return (
     <div
       className="pv-lane"
       data-status={list.status}
-      style={{ opacity: isDragging ? 0.5 : 1 }}
+      style={{ opacity: isDragging ? 0.5 : 1, cursor: 'pointer' }}
+      onClick={handleCardClick}
     >
-      {/* Header */}
-      <div className="pv-lane-header">
+      {/* Header — tinted with the user's chosen pale wash when set */}
+      <div className="pv-lane-header" style={colour ? { background: colour } : undefined}>
         <div className="pv-lane-header-top">
           {/* Drag handle (hover-fade) */}
           <DragHandle dragHandleProps={dragHandleProps} />
 
-          {/* Title block: palette dot + name + flash + lock, then subline */}
+          {/* Title block: name + flash + lock, then subline */}
           <div className="pv-lane-title-block">
             <div className="pv-lane-title-row">
-              {colour && (
-                <span
-                  className="pv-lane-palette-dot"
-                  style={{ background: colour }}
-                  title="Board colour"
-                />
-              )}
               {editingTitle ? (
                 <input
                   ref={titleInputRef}
@@ -332,12 +367,14 @@ const BoardColumn = ({
                     if (e.key === 'Escape') { setTitleValue(list.title); setEditingTitle(false); }
                   }}
                   onBlur={handleTitleCommit}
+                  onClick={e => e.stopPropagation()}
+                  onMouseDown={e => e.stopPropagation()}
                   className="pv-lane-name-input"
                 />
               ) : (
                 <h3
                   className="pv-lane-name"
-                  onClick={() => setEditingTitle(true)}
+                  onClick={e => { e.stopPropagation(); setEditingTitle(true); }}
                   title={list.title}
                 >
                   {list.title}
@@ -353,7 +390,7 @@ const BoardColumn = ({
             <p className="pv-lane-subline">{subline}</p>
           </div>
 
-          {/* Header right actions: collaborators, item count, open-detail, palette, menu */}
+          {/* Header right: collaborators (decorative) + three-dot menu (sole top-right control) */}
           <div className="pv-lane-actions">
             {collaborators?.length > 0 && (
               <div className="pv-lane-avatars">
@@ -374,38 +411,6 @@ const BoardColumn = ({
                 )}
               </div>
             )}
-            <span className="pv-lane-count">{filteredItems.length}</span>
-            <button
-              onClick={() => onNavigate(list.id)}
-              title="Open full detail"
-              className="pv-lane-action-btn"
-            >
-              <Icon name="ExternalLink" className="w-3.5 h-3.5" />
-            </button>
-            {/* Palette button */}
-            <div style={{ position: 'relative' }} ref={colourBtnRef}>
-              <button
-                onClick={() => setColourOpen(v => !v)}
-                title="Board colour"
-                className="pv-lane-action-btn"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" stroke="none" />
-                  <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" stroke="none" />
-                  <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" stroke="none" />
-                  <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" stroke="none" />
-                  <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
-                </svg>
-              </button>
-              {colourOpen && (
-                <ColourPicker
-                  current={colour}
-                  onSelect={handleColourSelect}
-                  onClose={() => setColourOpen(false)}
-                />
-              )}
-            </div>
-
             <BoardMenu
               canEdit={canEdit}
               canCommandDelete={canCommandDelete}
@@ -413,6 +418,8 @@ const BoardColumn = ({
               onDuplicate={onDuplicate}
               onDeleteClick={() => setConfirmDelete(true)}
               onShare={onShare ? () => onShare(list) : undefined}
+              currentColour={colour}
+              onColourSelect={handleColourSelect}
             />
           </div>
         </div>
@@ -439,7 +446,10 @@ const BoardColumn = ({
 
       {/* Delete confirmation banner — replaces items area */}
       {confirmDelete ? (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', padding: 14 }}>
+        <div
+          style={{ flex: 1, display: 'flex', alignItems: 'flex-start', padding: 14 }}
+          onClick={e => e.stopPropagation()}
+        >
           <div style={{
             width: '100%',
             background: 'rgba(220, 38, 38, 0.06)',
@@ -453,13 +463,13 @@ const BoardColumn = ({
             </p>
             <div style={{ display: 'flex', gap: 8 }}>
               <button
-                onClick={() => { setConfirmDelete(false); onDelete(); }}
+                onClick={e => { e.stopPropagation(); setConfirmDelete(false); onDelete(); }}
                 style={{ flex: 1, padding: '8px 0', background: '#B91C1C', color: 'white', fontSize: 13, fontWeight: 600, border: 0, borderRadius: 9, cursor: 'pointer' }}
               >
                 Delete
               </button>
               <button
-                onClick={() => setConfirmDelete(false)}
+                onClick={e => { e.stopPropagation(); setConfirmDelete(false); }}
                 style={{ flex: 1, padding: '8px 0', background: 'transparent', color: '#262A53', fontSize: 13, border: '0.5px solid #D4CCBB', borderRadius: 9, cursor: 'pointer' }}
               >
                 Cancel
