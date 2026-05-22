@@ -2115,14 +2115,73 @@
 }
 .ap-slot-row {
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: 200px 1fr auto;
   gap: 12px;
-  align-items: center;
-  padding: 6px 8px;
+  align-items: start;
+  padding: 10px 12px;
   border: 0.5px solid #ECE6DC;
   border-radius: 10px;
   background: #FAFAF7;
 }
+.ap-slot-row.is-dropped { background: #F7F5F0; }
+.ap-slot-role-dropped { text-decoration: line-through; color: #B4B2A9; }
+.ap-slot-dropped-note {
+  font-size: 11px;
+  color: #8B8478;
+  font-style: italic;
+  align-self: center;
+}
+
+.ap-slot-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.ap-slot-double-row {
+  display: grid;
+  grid-template-columns: 1fr 28px;
+  gap: 6px;
+  align-items: center;
+}
+.ap-slot-inline-btn {
+  background: transparent;
+  border: 0.5px solid #DFD8CC;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #7A2E1E;
+}
+.ap-slot-inline-btn:hover { background: #FAECE7; }
+
+.ap-slot-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 2px;
+}
+.ap-slot-action {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11px;
+  color: #695880;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.ap-slot-action:hover { color: #1C1B3A; text-decoration: underline; }
+.ap-slot-action.ap-slot-action-drop { color: #7A2E1E; }
+.ap-slot-action.ap-slot-action-drop:hover { color: #C65A1A; }
+.ap-slot-foot .ap-slot-action-drop { margin-left: auto; }
 .ap-slot-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ap-slot-idx {
   font-size: 9px;
@@ -2155,6 +2214,11 @@
   font-size: 12px;
   color: #7A2E1E;
   line-height: 1.45;
+}
+.ap-mismatch.ap-mismatch-ok {
+  background: #EAF3EC;
+  border-color: #C7DCC9;
+  color: #2D5A3A;
 }
 
 .ap-preview-wrap { overflow-x: auto; }
@@ -2202,6 +2266,20 @@
   margin-top: 2px;
 }
 .ap-preview-role-crew em { color: #B4B2A9; font-style: italic; }
+.ap-preview-double-tag {
+  display: inline-block;
+  background: #FAECE7;
+  color: #7A2E1E;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 1px 6px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
 .ap-preview-cell {
   border-radius: 6px;
   padding: 6px 8px;
