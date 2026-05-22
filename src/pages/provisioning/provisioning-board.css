@@ -231,20 +231,21 @@
   display: flex; align-items: flex-start; gap: 6px;
 }
 
-/* Drag grip — hidden until lane hover */
+/* Drag grip — sits inline beside the board name, hidden until card hover.
+   Sand at rest (visible only on card hover), rust on direct hover. */
 .pv-lane-grip {
-  width: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--pv-muted);
+  width: 14px;
+  color: #C4BBA8;
   opacity: 0;
-  transition: opacity 0.15s;
+  transition: opacity 0.15s ease, color 0.15s ease;
   cursor: grab;
-  align-self: stretch;
-  padding-top: 6px;
 }
-.pv-lane:hover .pv-lane-grip { opacity: 0.55; }
-.pv-lane-grip:hover { opacity: 1; }
+.pv-lane:hover .pv-lane-grip { opacity: 1; }
+.pv-lane-grip:hover { color: var(--pv-rust); }
 .pv-lane-grip:active { cursor: grabbing; }
 
 /* Title block */
@@ -298,7 +299,11 @@
   display: flex;
 }
 
-/* Tracked-caps subline: DEPT · N ITEMS */
+/* Tracked-caps subline: DEPT · N ITEMS. Left-padded so it aligns with
+   the name's left position past the grip column (14px grip + 6px gap).
+   The grip lives inline at the start of the title row; this padding
+   keeps the subline visually tracking the name even when the grip is
+   invisible (the grip still occupies its column at rest). */
 .pv-lane-subline {
   font-size: 10.5px;
   font-weight: 500;
@@ -306,7 +311,76 @@
   text-transform: uppercase;
   color: var(--pv-muted);
   margin: 4px 0 0;
+  padding-left: 20px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ── Three-dot menu — editorial dropdown ─────────────────────
+   The trigger is a small square; the dropdown is a white card with a
+   hairline border + soft shadow. Menu items use Plus Jakarta Sans,
+   navy text, faint cream hover. Destructive item (Delete) is rust
+   above a hairline divider. The colour-picker the menu can open
+   already wears the same surface treatment (white / hairline / soft
+   shadow), so the menu and the picker read as one editorial system. */
+.pv-menu-trigger {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px;
+  background: none; border: 0;
+  border-radius: 7px;
+  color: var(--pv-muted);
+  cursor: pointer;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+.pv-menu-trigger:hover {
+  color: var(--pv-navy);
+  background: rgba(38, 42, 83, 0.05);
+}
+.pv-menu-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  min-width: 208px;
+  background: var(--pv-card);
+  border: 0.5px solid var(--pv-hairline);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(38, 42, 83, 0.10);
+  padding: 6px;
+  z-index: 30;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.pv-menu-item {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  background: none; border: 0;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--pv-navy);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.pv-menu-item:hover { background: #FBF7EF; }
+.pv-menu-item-icon {
+  width: 14px; height: 14px;
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--pv-muted);
+  transition: color 0.12s ease;
+}
+.pv-menu-item:hover .pv-menu-item-icon { color: var(--pv-navy); }
+.pv-menu-item-destructive,
+.pv-menu-item-destructive .pv-menu-item-icon { color: var(--pv-rust); }
+.pv-menu-item-destructive:hover {
+  background: rgba(198, 90, 26, 0.06);
+  color: var(--pv-rust);
+}
+.pv-menu-item-destructive:hover .pv-menu-item-icon { color: var(--pv-rust); }
+.pv-menu-divider {
+  height: 0.5px;
+  background: var(--pv-hairline);
+  margin: 6px 4px;
 }
 
 /* Header right actions */

@@ -20,11 +20,13 @@ const STATUS_VISUALS = {
 // ── Drag handle (six-dot grip) ───────────────────────────────────────────────
 
 const DragHandle = ({ dragHandleProps }) => (
+  // Sits inline beside the board name (top-left of the header), aligned
+  // to the name's vertical centre via .pv-lane-title-row's align-items.
   // stopPropagation on click — dnd-kit's PointerSensor fires a synthetic
-  // click on press-without-drag (movement < activation distance 8). That
+  // click on press-without-drag (movement < activation distance 8); that
   // click must never bubble to the lane's onClick → onNavigate route.
-  // Drag itself is unaffected (the listeners in dragHandleProps are
-  // pointerdown/move/up, not click).
+  // Drag itself is unaffected (dragHandleProps' listeners are pointer*,
+  // not click).
   <div
     {...dragHandleProps}
     onClick={e => e.stopPropagation()}
@@ -32,13 +34,14 @@ const DragHandle = ({ dragHandleProps }) => (
     className="pv-lane-grip"
     style={{ touchAction: 'none' }}
   >
+    {/* 2-col × 3-row dot grid. Smaller radius for a lighter weight. */}
     <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor">
-      <circle cx="2.5" cy="2.5" r="1.5" />
-      <circle cx="7.5" cy="2.5" r="1.5" />
-      <circle cx="2.5" cy="7.5" r="1.5" />
-      <circle cx="7.5" cy="7.5" r="1.5" />
-      <circle cx="2.5" cy="12.5" r="1.5" />
-      <circle cx="7.5" cy="12.5" r="1.5" />
+      <circle cx="2.5" cy="3"  r="1.25" />
+      <circle cx="7.5" cy="3"  r="1.25" />
+      <circle cx="2.5" cy="8"  r="1.25" />
+      <circle cx="7.5" cy="8"  r="1.25" />
+      <circle cx="2.5" cy="13" r="1.25" />
+      <circle cx="7.5" cy="13" r="1.25" />
     </svg>
   </div>
 );
@@ -137,45 +140,48 @@ const BoardMenu = ({ canEdit, canCommandDelete, onEdit, onDuplicate, onDeleteCli
     <div className="relative" ref={ref} onClick={e => e.stopPropagation()}>
       <button
         onClick={() => { setOpen(!open); setPaletteOpen(false); }}
-        className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+        className="pv-menu-trigger"
+        title="Board actions"
       >
         <Icon name="MoreVertical" className="w-4 h-4" />
       </button>
       {open && (
-        <div className="absolute right-0 top-7 w-48 bg-card border border-border rounded-lg shadow-xl z-30 py-1 overflow-hidden">
+        <div className="pv-menu-dropdown">
           {canEdit && (
-            <button onClick={() => { setOpen(false); onEdit(); }} className="w-full text-left mx-1 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md flex items-center gap-2">
-              <Icon name="Pencil" className="w-3.5 h-3.5" /> Edit board details
+            <button onClick={() => { setOpen(false); onEdit(); }} className="pv-menu-item">
+              <span className="pv-menu-item-icon"><Icon name="Pencil" className="w-3.5 h-3.5" /></span>
+              Edit board details
             </button>
           )}
-          <button onClick={() => { setOpen(false); onDuplicate(); }} className="w-full text-left mx-1 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md flex items-center gap-2">
-            <Icon name="Copy" className="w-3.5 h-3.5" /> Duplicate
+          <button onClick={() => { setOpen(false); onDuplicate(); }} className="pv-menu-item">
+            <span className="pv-menu-item-icon"><Icon name="Copy" className="w-3.5 h-3.5" /></span>
+            Duplicate
           </button>
           {onShare && (
-            <button onClick={() => { setOpen(false); onShare(); }} className="w-full text-left mx-1 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md flex items-center gap-2">
-              <Icon name="Share2" className="w-3.5 h-3.5" /> Share board
+            <button onClick={() => { setOpen(false); onShare(); }} className="pv-menu-item">
+              <span className="pv-menu-item-icon"><Icon name="Share2" className="w-3.5 h-3.5" /></span>
+              Share board
             </button>
           )}
-          <button
-            onClick={() => { setOpen(false); setPaletteOpen(true); }}
-            className="w-full text-left mx-1 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-md flex items-center gap-2"
-          >
-            {/* Palette icon */}
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" stroke="none" />
-              <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" stroke="none" />
-              <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" stroke="none" />
-              <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" stroke="none" />
-              <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
-            </svg>
+          <button onClick={() => { setOpen(false); setPaletteOpen(true); }} className="pv-menu-item">
+            <span className="pv-menu-item-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" stroke="none" />
+                <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" stroke="none" />
+                <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" stroke="none" />
+                <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" stroke="none" />
+                <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
+              </svg>
+            </span>
             Board colour
           </button>
-          <div className="border-t border-border my-1" />
+          <div className="pv-menu-divider" />
           <button
             onClick={() => { setOpen(false); onDeleteClick(); }}
-            className="w-full text-left mx-1 px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md flex items-center gap-2"
+            className="pv-menu-item pv-menu-item-destructive"
           >
-            <Icon name="Trash2" className="w-3.5 h-3.5" /> Delete board
+            <span className="pv-menu-item-icon"><Icon name="Trash2" className="w-3.5 h-3.5" /></span>
+            Delete board
           </button>
         </div>
       )}
@@ -351,12 +357,11 @@ const BoardColumn = ({
       {/* Header — tinted with the user's chosen pale wash when set */}
       <div className="pv-lane-header" style={colour ? { background: colour } : undefined}>
         <div className="pv-lane-header-top">
-          {/* Drag handle (hover-fade) */}
-          <DragHandle dragHandleProps={dragHandleProps} />
-
-          {/* Title block: name + flash + lock, then subline */}
+          {/* Title block: grip + name + flash + lock, then subline */}
           <div className="pv-lane-title-block">
             <div className="pv-lane-title-row">
+              {/* Drag handle sits inline beside the name (hover-fade) */}
+              <DragHandle dragHandleProps={dragHandleProps} />
               {editingTitle ? (
                 <input
                   ref={titleInputRef}
