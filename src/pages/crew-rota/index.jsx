@@ -112,7 +112,7 @@ function EditFooterCTA({ tier, draftCount, onStub }) {
 export default function CrewRotaPage() {
   const navigate = useNavigate();
   const now = new Date();
-  const { user, tenantRole, activeTenantId } = useAuth();
+  const { user, currentUser, tenantRole, activeTenantId } = useAuth();
   const [view, setView] = useState('grid');      // 'grid' | 'list'
   const [selectedCrew, setSelectedCrew] = useState(null);
   const [editMode, setEditMode] = useState(false);
@@ -421,7 +421,7 @@ export default function CrewRotaPage() {
           error={templatesError}
           toggleStar={toggleStar}
           departments={departments}
-          myDeptId={user?.department_id || null}
+          myDeptId={currentUser?.department_id || null}
           onToast={showToast}
           onPick={() => showToast('Applying templates ships in Phase 3.')}
           onEdit={(t) => {
@@ -438,7 +438,7 @@ export default function CrewRotaPage() {
           open={editor?.kind === 'simple'}
           template={editor?.template || null}
           departments={departments}
-          myDeptId={user?.department_id || null}
+          myDeptId={currentUser?.department_id || null}
           vesselId={rota?.vesselId || null}
           onClose={() => { setEditor(null); setPickerOpen(true); }}
           createTemplate={createTemplate}
@@ -451,7 +451,7 @@ export default function CrewRotaPage() {
           open={editor?.kind === 'rotation'}
           template={editor?.template || null}
           departments={departments}
-          myDeptId={user?.department_id || null}
+          myDeptId={currentUser?.department_id || null}
           vesselId={rota?.vesselId || null}
           crew={crew}
           onClose={() => { setEditor(null); setPickerOpen(true); }}
