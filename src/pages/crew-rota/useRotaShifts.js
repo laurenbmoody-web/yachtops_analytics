@@ -192,22 +192,29 @@ export function useRotaShifts() {
     {
       const cancelled = false;
       try {
-        // 1 — crew: active tenant_members + plain table-name embeds.
-        // PostgREST resolves the embed by table name when there's a
-        // single FK from tenant_members to that table.
+        // 1 — crew: active tenant_members. Job title resolves from the
+        // GLOBAL roles catalog first, then the per-tenant custom roles
+        // catalog (exactly one of role_id / custom_role_id is populated
+        // per crew member — see crew-management/index.jsx:174). The
+        // explicit `role:roles!role_id(...)` and `custom_role:tenant_
+        // custom_roles!custom_role_id(...)` aliases disambiguate the two
+        // FK paths and surface them as `m.role` / `m.custom_role`. No
+        // tier fallback — a member with neither role_id nor
+        // custom_role_id has null title, not their permission_tier.
         const { data: members, error: mErr, status: mStatus, statusText: mStatusText } = await supabase
           .from('tenant_members')
           .select(`
             id,
             user_id,
             display_name,
-            role,
             permission_tier,
             department_id,
             role_id,
+            custom_role_id,
             departments ( name, color ),
             profiles ( full_name, avatar_url ),
-            roles ( name )
+            role:roles!role_id ( name ),
+            custom_role:tenant_custom_roles!custom_role_id ( name )
           `)
           .eq('tenant_id', tenantId)
           .eq('active', true);
@@ -226,9 +233,9 @@ export function useRotaShifts() {
           id: m.id,
           userId: m.user_id,
           name: m.display_name || m.profiles?.full_name || 'Unknown',
-          // Friendly job title from roles.name ("Chief Stewardess"),
-          // falling back to the permission role string.
-          role: m.roles?.name || m.role || '',
+          // Job title: global role first, then tenant custom role. No tier
+          // fallback — a member with neither linked has a null title.
+          role: m.role?.name || m.custom_role?.name || null,
           department: m.departments?.name || '',
           departmentId: m.department_id || null,
           departmentColor: m.departments?.color || '#5F5E5A',
