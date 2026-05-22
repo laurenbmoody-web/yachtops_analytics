@@ -989,7 +989,6 @@ const DeliveryInbox = () => {
   const { activeTenantId } = useTenant();
 
   const userTier = (tenantRole || '').toUpperCase();
-  const userDept = (user?.department || '').trim();
   const isCrew = userTier === 'CREW';
   // COMMAND + CHIEF can initiate returns; HOD + CREW cannot
   const canReturn = userTier === 'COMMAND' || userTier === 'CHIEF';
@@ -1175,10 +1174,15 @@ const DeliveryInbox = () => {
     );
   }
 
-  // CHIEF/HOD: filter to own scans + department items only
-  const visibleItems = ['CHIEF', 'HOD'].includes(userTier)
-    ? items.filter(i => i.scanned_by === user?.id || (userDept && i.department === userDept))
-    : items;
+  // The Delivery Inbox is a shared vessel-level pool — one user scans a
+  // delivery note and other HODs claim their items from the same list.
+  // COMMAND / CHIEF / HOD all see the same full pending pool (minus each
+  // user's own dismissals, which fetchDeliveryInbox already filters out
+  // via dismissed_by). CREW is hard-blocked above. The previous
+  // scanned_by + department filter for CHIEF/HOD broke this entirely —
+  // no code path writes `department` to delivery_inbox, so the dept
+  // half never matched and CHIEF/HOD could only see their own scans.
+  const visibleItems = items;
 
   // Group by scanned_by + date
   const groups = visibleItems.reduce((acc, item) => {
