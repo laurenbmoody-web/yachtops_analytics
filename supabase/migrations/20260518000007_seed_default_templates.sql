@@ -11,6 +11,12 @@
 --       templates seeded; the per-tenant NOT EXISTS guard inserts zero rows.
 --       This file exists so a fresh environment reproduces the live seed.
 --
+-- 2026-05-22 UPDATE: "no fixed hours" was retired as a template shape.
+--       The Training row now carries 09:00–17:00 and the On-call standby
+--       row carries 08:00–20:00 in this seed (matching the indicative-
+--       times convention). The companion migration
+--       20260522000001_set_template_default_times.sql patches live rows.
+--
 -- 2026-05-20 UPDATE: removed the "Off" vessel-scope row from the catalog.
 --       "Off" was retired as a shift type — an empty cell now represents
 --       the off state. The companion migration
@@ -58,7 +64,7 @@ SELECT
 FROM public.tenants t
 CROSS JOIN (VALUES
   -- vessel-scope (always seeded). "Off" was removed 2026-05-20 — see header.
-  ('Training',             'simple', 'vessel',      NULL,          '{"shift_type":"training"}'),
+  ('Training',             'simple', 'vessel',      NULL,          '{"shift_type":"training","start_time":"09:00","end_time":"17:00"}'),
   -- Bridge
   ('Bridge watch (day)',   'simple', 'department',  'Bridge',      '{"end_time":"18:00","sub_type":"navigation","shift_type":"watch","start_time":"06:00"}'),
   ('Bridge watch (night)', 'simple', 'department',  'Bridge',      '{"end_time":"06:00","sub_type":"navigation","shift_type":"watch","start_time":"18:00"}'),
@@ -71,7 +77,7 @@ CROSS JOIN (VALUES
   -- Engineering
   ('Day engineer',         'simple', 'department',  'Engineering', '{"end_time":"18:00","shift_type":"duty","start_time":"08:00"}'),
   ('Engine watch (night)', 'simple', 'department',  'Engineering', '{"end_time":"06:00","sub_type":"engine","shift_type":"watch","start_time":"18:00"}'),
-  ('On-call standby',      'simple', 'department',  'Engineering', '{"sub_type":"maintenance","shift_type":"standby"}'),
+  ('On-call standby',      'simple', 'department',  'Engineering', '{"sub_type":"maintenance","shift_type":"standby","start_time":"08:00","end_time":"20:00"}'),
   -- Galley
   ('Breakfast',            'simple', 'department',  'Galley',      '{"end_time":"11:00","shift_type":"duty","start_time":"05:00"}'),
   ('Dinner service',       'simple', 'department',  'Galley',      '{"end_time":"22:00","shift_type":"duty","start_time":"16:00"}'),

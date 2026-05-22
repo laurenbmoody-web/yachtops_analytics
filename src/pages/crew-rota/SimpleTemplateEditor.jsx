@@ -48,11 +48,10 @@ export default function SimpleTemplateEditor({
   const [name, setName] = useState(template?.name || '');
   const [selection, setSelection] = useState(() => initialSelection(template, myDeptId));
   const [type, setType] = useState(template?.body?.shift_type || 'duty');
-  const [noFixedHours, setNoFixedHours] = useState(
-    isEdit ? !(template?.body?.start_time && template?.body?.end_time) : false,
-  );
-  const [startTime, setStartTime] = useState(fmtTime(template?.body?.start_time) || '08:00');
-  const [endTime, setEndTime] = useState(fmtTime(template?.body?.end_time) || '18:00');
+  // Every template carries indicative times now ("no fixed hours" retired
+  // 2026-05-22). Fresh template defaults to 09:00–17:00.
+  const [startTime, setStartTime] = useState(fmtTime(template?.body?.start_time) || '09:00');
+  const [endTime, setEndTime] = useState(fmtTime(template?.body?.end_time) || '17:00');
   const [busy, setBusy] = useState(false);
 
   // Re-seed when the modal opens with a different template (the parent
@@ -63,12 +62,8 @@ export default function SimpleTemplateEditor({
     setName(template?.name || '');
     setSelection(initialSelection(template, myDeptId));
     setType(template?.body?.shift_type || 'duty');
-    setNoFixedHours(template
-      ? !(template?.body?.start_time && template?.body?.end_time)
-      : false,
-    );
-    setStartTime(fmtTime(template?.body?.start_time) || '08:00');
-    setEndTime(fmtTime(template?.body?.end_time) || '18:00');
+    setStartTime(fmtTime(template?.body?.start_time) || '09:00');
+    setEndTime(fmtTime(template?.body?.end_time) || '17:00');
   }, [open, template, myDeptId]);
 
   useEffect(() => {
@@ -81,9 +76,9 @@ export default function SimpleTemplateEditor({
   const canSave = useMemo(() => {
     if (!name.trim()) return false;
     if (selection == null) return false;
-    if (!noFixedHours && (!startTime || !endTime)) return false;
+    if (!startTime || !endTime) return false;
     return true;
-  }, [name, selection, noFixedHours, startTime, endTime]);
+  }, [name, selection, startTime, endTime]);
 
   if (!open) return null;
 
@@ -92,13 +87,13 @@ export default function SimpleTemplateEditor({
   const departmentId = selection === 'all' ? null : selection;
 
   const buildBody = () => {
-    const body = { shift_type: type };
+    const body = {
+      shift_type: type,
+      start_time: startTime,
+      end_time: endTime,
+    };
     const sub = subTypeFor(type);
     if (sub) body.sub_type = sub;
-    if (!noFixedHours) {
-      body.start_time = startTime;
-      body.end_time = endTime;
-    }
     return body;
   };
 
@@ -217,22 +212,12 @@ export default function SimpleTemplateEditor({
             </div>
           </div>
 
-          <label className="te-toggle">
-            <input
-              type="checkbox"
-              checked={noFixedHours}
-              onChange={(e) => setNoFixedHours(e.target.checked)}
-            />
-            <span>No fixed hours</span>
-          </label>
-
-          <div className="te-field te-times" aria-disabled={noFixedHours}>
+          <div className="te-field te-times">
             <label className="te-field-sub">
               <span className="te-field-label">Start</span>
               <TimeSelect
                 value={startTime}
                 onChange={setStartTime}
-                disabled={noFixedHours}
                 ariaLabel="Start time"
               />
             </label>
@@ -241,7 +226,6 @@ export default function SimpleTemplateEditor({
               <TimeSelect
                 value={endTime}
                 onChange={setEndTime}
-                disabled={noFixedHours}
                 ariaLabel="End time"
               />
             </label>
@@ -250,9 +234,7 @@ export default function SimpleTemplateEditor({
           <div className="te-preview">
             <span className="te-preview-swatch" style={{ background: previewColor }} />
             <span className="te-preview-name">{name || 'Template preview'}</span>
-            <span className="te-preview-time">
-              {noFixedHours ? 'No fixed hours' : `${startTime} – ${endTime}`}
-            </span>
+            <span className="te-preview-time">{startTime} – {endTime}</span>
           </div>
         </div>
 

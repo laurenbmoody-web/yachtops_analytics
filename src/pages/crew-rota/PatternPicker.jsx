@@ -11,11 +11,13 @@ const TYPE_COLOR = {
   medical: '#7A2E1E',
 };
 
+// Every template carries times now ("no fixed hours" retired 2026-05-22);
+// the dash fallback is a defensive last resort if data is malformed.
 function fmtTime(b) {
   const s = b?.start_time ? String(b.start_time).slice(0, 5) : null;
   const e = b?.end_time ? String(b.end_time).slice(0, 5) : null;
   if (s && e) return `${s} – ${e}`;
-  return 'No fixed hours';
+  return '—';
 }
 
 function scopeChipText(t) {
