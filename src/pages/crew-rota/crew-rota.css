@@ -2166,6 +2166,18 @@
   flex-wrap: wrap;
   padding-top: 2px;
 }
+.ap-slot-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: #695880;
+  font-style: italic;
+  padding: 4px 2px 0;
+}
+.ap-slot-action-widen { font-style: normal; }
 .ap-slot-action {
   background: transparent;
   border: none;

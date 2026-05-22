@@ -217,7 +217,7 @@ function CrewCollapsible({ visibleCrew, ticked, setTicked, hodHint }) {
 // ── Main modal ─────────────────────────────────────────────────────────────
 export default function ApplyTemplateModal({
   open, template, rota, trip, crew = [], currentUser, tier, myMemberId,
-  applyTemplate, ensureDraft, onClose, onToast,
+  applyTemplate, ensureDraft, onClose, onApplied, onToast,
 }) {
   const isPattern = template?.kind === 'rotation';
   const hodDeptId = tier === 'HOD' ? (currentUser?.department_id || null) : null;
@@ -262,7 +262,7 @@ export default function ApplyTemplateModal({
           (c.role || '') === (title || '')
           && (c.currentStatus === 'active' || c.currentStatus == null),
         );
-        return { title, members: [eligible?.id || null], dropped: false };
+        return { title, members: [eligible?.id || null], dropped: false, widen: false };
       });
       setSlots(seeded);
       setTicked(new Set());
@@ -326,6 +326,38 @@ export default function ApplyTemplateModal({
       .sort((a, b) => a.name.localeCompare(b.name));
   }), [slotTitles, visibleCrew]);
 
+  // Fallback pools for slots whose job title matches NO active crew
+  // (placeholder labels like "Role 3", or a real title with no current
+  // active holder). The dropdown is never dead — the user can pick from
+  // the template's department crew (default), or widen to all vessel
+  // crew. The subtitle in fallback shows the crew's REAL job title so
+  // the user can tell who they're picking.
+  const fallbackDept = useMemo(() => {
+    if (template?.scope !== 'department' || !template?.departmentId) return null;
+    return visibleCrew
+      .filter((c) => c.departmentId === template.departmentId)
+      .map((c) => ({
+        id: c.id, name: c.name, subtitle: c.role || c.department || '',
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [template, visibleCrew]);
+  const fallbackAll = useMemo(() => visibleCrew
+    .map((c) => ({
+      id: c.id, name: c.name, subtitle: c.role || c.department || '',
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name)),
+  [visibleCrew]);
+
+  // Returns { items, source: 'match' | 'dept' | 'all' } for a slot.
+  const resolveSlotCandidates = (j) => {
+    const matches = candidatesPerSlot[j] || [];
+    if (matches.length > 0) return { items: matches, source: 'match' };
+    const slot = slots[j];
+    if (slot?.widen) return { items: fallbackAll, source: 'all' };
+    if (fallbackDept) return { items: fallbackDept, source: 'dept' };
+    return { items: fallbackAll, source: 'all' };
+  };
+
   // ── Pattern duty resolution: duty[(j - k + N) mod N] ───────────────
   const N = duties.length;
   const M = slotTitles.length;                            // template-defined slot count
@@ -353,6 +385,26 @@ export default function ApplyTemplateModal({
     prev.map((s, i) => (i === j
       ? { ...s, members: s.members.slice(0, 1) }
       : s)));
+  // Widen toggle for no-match / placeholder slots. When narrowing back to
+  // the template's department, any previously-picked crew member who isn't
+  // in that department is cleared from the slot so the dropdown trigger
+  // doesn't silently show a placeholder while the assignment quietly
+  // persists. The opposite direction (widen on) keeps all picks.
+  const toggleWiden = (j) => setSlots((prev) => prev.map((s, i) => {
+    if (i !== j) return s;
+    const nextWiden = !s.widen;
+    if (!nextWiden && template?.scope === 'department' && template?.departmentId) {
+      const eligible = new Set(visibleCrew
+        .filter((c) => c.departmentId === template.departmentId)
+        .map((c) => c.id));
+      return {
+        ...s,
+        widen: false,
+        members: s.members.map((mid) => (mid && eligible.has(mid) ? mid : null)),
+      };
+    }
+    return { ...s, widen: nextWiden };
+  }));
 
   // ── Row builder ────────────────────────────────────────────────────
   const buildSimpleRow = (memberId, dateStr) => {
@@ -512,7 +564,11 @@ export default function ApplyTemplateModal({
       `Wrote ${res.inserted} draft shift${res.inserted === 1 ? '' : 's'}` +
       (res.deleted ? ` (overwrote ${res.deleted}).` : '.'),
     );
-    onClose?.();
+    // Successful apply → return the user to the rota grid (close BOTH the
+    // apply modal and the picker). Cancel/X/Esc paths still use onClose,
+    // which the page wires to "back to picker" — the distinction lives at
+    // the call site, not here.
+    (onApplied || onClose)?.();
   };
 
   // ── Pattern preview matrix (roles × first N days, capped to range) ─
@@ -605,8 +661,6 @@ export default function ApplyTemplateModal({
                   )}
                   <div className="ap-slot-list">
                     {slots.map((slot, j) => {
-                      const cands = candidatesPerSlot[j] || [];
-                      const noMatch = cands.length === 0;
                       if (slot.dropped) {
                         return (
                           <div key={`slot-${j}`} className="ap-slot-row is-dropped">
@@ -630,8 +684,13 @@ export default function ApplyTemplateModal({
                       }
                       const m1 = slot.members[0] || null;
                       const m2 = slot.members[1] || null;
+                      const resolved = resolveSlotCandidates(j);
+                      const effCands = resolved.items;
+                      const isFallback = resolved.source !== 'match';
                       // Second-position candidates: filter out the first pick.
-                      const candsForSecond = cands.filter((c) => c.id !== m1);
+                      const candsForSecond = effCands.filter((c) => c.id !== m1);
+                      const noUsable = effCands.length === 0;
+                      const deptName = template?.departmentName || 'the department';
                       return (
                         <div key={`slot-${j}`} className="ap-slot-row">
                           <div className="ap-slot-title">
@@ -641,10 +700,10 @@ export default function ApplyTemplateModal({
                           <div className="ap-slot-controls">
                             <CrewSelect
                               value={m1}
-                              candidates={cands}
+                              candidates={effCands}
                               onChange={(id) => setSlotMember(j, 0, id)}
-                              placeholder={noMatch ? '— no crew with this job title —' : 'Assign…'}
-                              disabled={noMatch}
+                              placeholder={noUsable ? '— no crew available —' : 'Assign…'}
+                              disabled={noUsable}
                             />
                             {slot.members.length === 2 && (
                               <div className="ap-slot-double-row">
@@ -664,18 +723,30 @@ export default function ApplyTemplateModal({
                                 ><X size={12} /></button>
                               </div>
                             )}
+                            {isFallback && (
+                              <div className="ap-slot-fallback">
+                                <span>
+                                  No exact job-title match — showing{' '}
+                                  {resolved.source === 'dept' ? `${deptName} crew` : 'all vessel crew'}.
+                                </span>
+                                {fallbackDept && (
+                                  <button
+                                    type="button"
+                                    className="ap-slot-action ap-slot-action-widen"
+                                    onClick={() => toggleWiden(j)}
+                                  >{slot.widen
+                                    ? `Just ${deptName} crew`
+                                    : 'Show all vessel crew'}</button>
+                                )}
+                              </div>
+                            )}
                             <div className="ap-slot-foot">
-                              {slot.members.length < 2 && !noMatch && (
+                              {slot.members.length < 2 && !noUsable && (
                                 <button
                                   type="button"
                                   className="ap-slot-action"
                                   onClick={() => addDouble(j)}
                                 ><Plus size={12} /> Add another crew to this slot</button>
-                              )}
-                              {noMatch && (
-                                <div className="ap-slot-flag">
-                                  No active crew with this job title — assign someone or leave empty.
-                                </div>
                               )}
                               <button
                                 type="button"

@@ -483,6 +483,7 @@ export default function CrewRotaPage() {
           ensureDraft={ensureDraft}
           onToast={showToast}
           onClose={() => { setApplyTarget(null); setPickerOpen(true); }}
+          onApplied={() => { setApplyTarget(null); setPickerOpen(false); }}
         />
 
         {toast && <div className="crew-rota-toast" role="status">{toast}</div>}
