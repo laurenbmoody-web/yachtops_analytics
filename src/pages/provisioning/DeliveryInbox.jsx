@@ -1014,7 +1014,6 @@ const DeliveryInbox = () => {
   const { activeTenantId } = useTenant();
 
   const userTier = (tenantRole || '').toUpperCase();
-  const userDept = (user?.department || '').trim();
   const isCrew = userTier === 'CREW';
   const canReturn = userTier === 'COMMAND' || userTier === 'CHIEF';
 
@@ -1221,11 +1220,14 @@ const DeliveryInbox = () => {
     );
   }
 
-  // ── CHIEF/HOD filter (preserved verbatim from current main — separate
-  //     PR removes the broken department side of this OR) ────────────────
-  const visibleItems = ['CHIEF', 'HOD'].includes(userTier)
-    ? items.filter(i => i.scanned_by === user?.id || (userDept && i.department === userDept))
-    : items;
+  // The Delivery Inbox is a shared vessel-level pool — COMMAND / CHIEF /
+  // HOD all see the same full pending pool (minus each user's own
+  // dismissals, which fetchDeliveryInbox already filters out via
+  // dismissed_by). CREW is hard-blocked above. PR #685 stripped this
+  // filter once; the inbox editorial redesign (PR #692) accidentally
+  // reintroduced it by rewriting the page with the filter copy-pasted
+  // back in. This restores the fix.
+  const visibleItems = items;
 
   // ── Inbox-tab: filter + group ────────────────────────────────────────────
   const inboxItems = inboxSupplierFilter
