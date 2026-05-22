@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { X, AlertTriangle, ChevronDown, RefreshCw } from 'lucide-react';
+import { X, AlertTriangle, ChevronDown, RefreshCw, Trash2, Plus, RotateCcw, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import DateRangePicker from './DateRangePicker';
 
@@ -232,8 +232,13 @@ export default function ApplyTemplateModal({
   // ── Simple-apply state: who's ticked ───────────────────────────────
   const [ticked, setTicked] = useState(() => new Set());
 
-  // ── Pattern-apply state: per-slot assignments [memberId | null] ────
-  const [assignments, setAssignments] = useState([]);
+  // ── Pattern-apply WORK MODEL (in-memory, this-apply-only) ─────────
+  // slots[] mirrors template.body.roles[] by position so the pass-the-
+  // baton math (cellDutyIndex(j, k) using slot index j) still works
+  // unchanged. The template row is NEVER mutated — drop / double / un-
+  // drop affect this state only.
+  //   { title, members: [memberId|null] (1 or 2), dropped: bool }
+  const [slots, setSlots] = useState([]);
 
   // ── Modal-phase state (shared) ─────────────────────────────────────
   const [phase, setPhase] = useState('select');  // 'select' | 'conflicts' | 'applying'
@@ -250,15 +255,16 @@ export default function ApplyTemplateModal({
 
     if (template?.kind === 'rotation') {
       // Auto-match per slot — pre-pick the first candidate currently active.
-      const slots = Array.isArray(template?.body?.roles) ? template.body.roles : [];
-      const seeded = slots.map((slotTitle) => {
-        const eligible = visibleCrew.filter((c) =>
-          (c.role || '') === (slotTitle || '')
+      // Each slot starts un-dropped with one member position.
+      const titles = Array.isArray(template?.body?.roles) ? template.body.roles : [];
+      const seeded = titles.map((title) => {
+        const eligible = visibleCrew.find((c) =>
+          (c.role || '') === (title || '')
           && (c.currentStatus === 'active' || c.currentStatus == null),
         );
-        return eligible[0]?.id || null;
+        return { title, members: [eligible?.id || null], dropped: false };
       });
-      setAssignments(seeded);
+      setSlots(seeded);
       setTicked(new Set());
     } else {
       let initialTicked;
@@ -270,7 +276,7 @@ export default function ApplyTemplateModal({
         initialTicked = new Set();
       }
       setTicked(initialTicked);
-      setAssignments([]);
+      setSlots([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, template?.id]);
@@ -322,8 +328,31 @@ export default function ApplyTemplateModal({
 
   // ── Pattern duty resolution: duty[(j - k + N) mod N] ───────────────
   const N = duties.length;
-  const M = slotTitles.length;
+  const M = slotTitles.length;                            // template-defined slot count
+  const effectiveM = slots.filter((s) => !s.dropped).length;  // live, this-apply only
   const cellDutyIndex = (j, k) => (j < N ? ((j - k + N) % N) : null);
+
+  // ── Slot mutators (in-memory, never touch the template) ────────────
+  const dropSlot = (j) => setSlots((prev) =>
+    prev.map((s, i) => (i === j ? { ...s, dropped: true } : s)));
+  const restoreSlot = (j) => setSlots((prev) =>
+    prev.map((s, i) => (i === j ? { ...s, dropped: false } : s)));
+  const setSlotMember = (j, mIdx, memberId) => setSlots((prev) =>
+    prev.map((s, i) => {
+      if (i !== j) return s;
+      const members = [...s.members];
+      while (members.length <= mIdx) members.push(null);
+      members[mIdx] = memberId;
+      return { ...s, members };
+    }));
+  const addDouble = (j) => setSlots((prev) =>
+    prev.map((s, i) => (i === j && s.members.length < 2
+      ? { ...s, members: [...s.members, null] }
+      : s)));
+  const removeDouble = (j) => setSlots((prev) =>
+    prev.map((s, i) => (i === j
+      ? { ...s, members: s.members.slice(0, 1) }
+      : s)));
 
   // ── Row builder ────────────────────────────────────────────────────
   const buildSimpleRow = (memberId, dateStr) => {
@@ -366,13 +395,16 @@ export default function ApplyTemplateModal({
     if (isPattern) {
       for (let k = 0; k < dates.length; k += 1) {
         const dateStr = dates[k];
-        for (let j = 0; j < assignments.length; j += 1) {
-          const mid = assignments[j];
-          if (!mid) continue;
+        for (let j = 0; j < slots.length; j += 1) {
+          const slot = slots[j];
+          if (slot.dropped) continue;
           const di = cellDutyIndex(j, k);
           if (di == null) continue;
-          rows.push(buildPatternRow(mid, dateStr, duties[di]));
-          memberSet.add(mid);
+          for (const memberId of slot.members) {
+            if (!memberId) continue;
+            rows.push(buildPatternRow(memberId, dateStr, duties[di]));
+            memberSet.add(memberId);
+          }
         }
       }
     } else {
@@ -383,7 +415,7 @@ export default function ApplyTemplateModal({
     }
     return { rows, memberIds: Array.from(memberSet) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [template, dates, isPattern, assignments, ticked, duties]);
+  }, [template, dates, isPattern, slots, ticked, duties]);
 
   if (!open || !template) return null;
 
@@ -520,7 +552,11 @@ export default function ApplyTemplateModal({
               {isPattern && (
                 <>
                   <span className="tp-dot">·</span>
-                  <span>{N} {N === 1 ? 'duty' : 'duties'} · {M} role{M === 1 ? '' : 's'}</span>
+                  <span>
+                    {N} {N === 1 ? 'duty' : 'duties'} · {effectiveM}
+                    {effectiveM !== slots.length ? ` of ${slots.length}` : ''}
+                    {' '}slot{effectiveM === 1 ? '' : 's'}
+                  </span>
                 </>
               )}
             </div>
@@ -568,45 +604,118 @@ export default function ApplyTemplateModal({
                     </div>
                   )}
                   <div className="ap-slot-list">
-                    {slotTitles.map((slotTitle, j) => {
+                    {slots.map((slot, j) => {
                       const cands = candidatesPerSlot[j] || [];
                       const noMatch = cands.length === 0;
+                      if (slot.dropped) {
+                        return (
+                          <div key={`slot-${j}`} className="ap-slot-row is-dropped">
+                            <div className="ap-slot-title">
+                              <span className="ap-slot-idx">Slot {j + 1}</span>
+                              <span className="ap-slot-role ap-slot-role-dropped">
+                                {slot.title || <em>Untitled</em>}
+                              </span>
+                            </div>
+                            <div className="ap-slot-dropped-note">
+                              Dropped from this apply.
+                            </div>
+                            <button
+                              type="button"
+                              className="ap-slot-action"
+                              onClick={() => restoreSlot(j)}
+                              aria-label={`Restore slot ${j + 1}`}
+                            ><RotateCcw size={12} /> Restore</button>
+                          </div>
+                        );
+                      }
+                      const m1 = slot.members[0] || null;
+                      const m2 = slot.members[1] || null;
+                      // Second-position candidates: filter out the first pick.
+                      const candsForSecond = cands.filter((c) => c.id !== m1);
                       return (
                         <div key={`slot-${j}`} className="ap-slot-row">
                           <div className="ap-slot-title">
                             <span className="ap-slot-idx">Slot {j + 1}</span>
-                            <span className="ap-slot-role">{slotTitle || <em>Untitled</em>}</span>
+                            <span className="ap-slot-role">{slot.title || <em>Untitled</em>}</span>
                           </div>
-                          <CrewSelect
-                            value={assignments[j] || null}
-                            candidates={cands}
-                            onChange={(id) => setAssignments((prev) => {
-                              const next = [...prev];
-                              while (next.length <= j) next.push(null);
-                              next[j] = id;
-                              return next;
-                            })}
-                            placeholder={noMatch ? '— no crew with this job title —' : 'Assign…'}
-                            disabled={noMatch}
-                          />
-                          {noMatch && (
-                            <div className="ap-slot-flag">
-                              No active crew with this job title — assign someone or leave empty.
+                          <div className="ap-slot-controls">
+                            <CrewSelect
+                              value={m1}
+                              candidates={cands}
+                              onChange={(id) => setSlotMember(j, 0, id)}
+                              placeholder={noMatch ? '— no crew with this job title —' : 'Assign…'}
+                              disabled={noMatch}
+                            />
+                            {slot.members.length === 2 && (
+                              <div className="ap-slot-double-row">
+                                <CrewSelect
+                                  value={m2}
+                                  candidates={candsForSecond}
+                                  onChange={(id) => setSlotMember(j, 1, id)}
+                                  placeholder="Assign second crew…"
+                                  disabled={candsForSecond.length === 0}
+                                />
+                                <button
+                                  type="button"
+                                  className="ap-slot-inline-btn"
+                                  onClick={() => removeDouble(j)}
+                                  aria-label={`Remove second crew from slot ${j + 1}`}
+                                  title="Remove second crew"
+                                ><X size={12} /></button>
+                              </div>
+                            )}
+                            <div className="ap-slot-foot">
+                              {slot.members.length < 2 && !noMatch && (
+                                <button
+                                  type="button"
+                                  className="ap-slot-action"
+                                  onClick={() => addDouble(j)}
+                                ><Plus size={12} /> Add another crew to this slot</button>
+                              )}
+                              {noMatch && (
+                                <div className="ap-slot-flag">
+                                  No active crew with this job title — assign someone or leave empty.
+                                </div>
+                              )}
+                              <button
+                                type="button"
+                                className="ap-slot-action ap-slot-action-drop"
+                                onClick={() => dropSlot(j)}
+                                aria-label={`Drop slot ${j + 1} from this apply`}
+                              ><Trash2 size={12} /> Drop slot</button>
                             </div>
-                          )}
+                          </div>
                         </div>
                       );
                     })}
                   </div>
                 </div>
 
-                {(M !== N) && (
+                {/* Live mismatch banner. effectiveM = live, non-dropped slot
+                    count (this-apply only). The template's M/N are unchanged. */}
+                {effectiveM === N && N > 0 && (slots.length !== N || slots.some((s) => s.dropped)) && (
+                  <div className="ap-mismatch ap-mismatch-ok">
+                    <CheckCircle2 size={14} color="#2D5A3A" />
+                    <span>Evened up: {N} active slot{N === 1 ? '' : 's'} matching {N} dut{N === 1 ? 'y' : 'ies'} this apply.</span>
+                  </div>
+                )}
+                {effectiveM > N && (
                   <div className="ap-mismatch">
                     <AlertTriangle size={14} color="#7A2E1E" />
-                    {M > N
-                      ? <span>More roles ({M}) than duties ({N}) — slot{M - N === 1 ? '' : 's'} {Array.from({ length: M - N }, (_, i) => N + i + 1).join(', ')} have no duty in this cycle. They’ll be skipped on write. (Add a duty or drop the extra role to even up.)</span>
-                      : <span>Fewer roles ({M}) than duties ({N}) — {N - M} dut{N - M === 1 ? 'y goes' : 'ies go'} uncovered each day. (Add a role or drop a duty to even up.)</span>
-                    }
+                    <span>
+                      More active slots ({effectiveM}) than duties ({N}) — {effectiveM - N} over-rolled this cycle.
+                      Use <strong>Drop slot</strong> above to remove a slot from this apply, or apply as-is
+                      (over-rolled slots produce no rows).
+                    </span>
+                  </div>
+                )}
+                {effectiveM < N && effectiveM > 0 && (
+                  <div className="ap-mismatch">
+                    <AlertTriangle size={14} color="#7A2E1E" />
+                    <span>
+                      This pattern has more duties ({N}) than active slots ({effectiveM}) — {N - effectiveM} dut{N - effectiveM === 1 ? 'y goes' : 'ies go'} uncovered each day.
+                      To add a duty, <strong>edit the shift pattern</strong> (apply doesn't change the template).
+                    </span>
                   </div>
                 )}
 
@@ -630,39 +739,55 @@ export default function ApplyTemplateModal({
                           </tr>
                         </thead>
                         <tbody>
-                          {slotTitles.map((slotTitle, j) => {
-                            const assignedId = assignments[j] || null;
-                            const assignedCrew = assignedId
-                              ? visibleCrew.find((c) => c.id === assignedId)
-                              : null;
-                            return (
-                              <tr key={`pr-${j}`}>
-                                <td className="ap-preview-role">
-                                  <div className="ap-preview-role-title">{slotTitle}</div>
-                                  <div className="ap-preview-role-crew">
-                                    {assignedCrew ? assignedCrew.name : <em>unassigned</em>}
-                                  </div>
-                                </td>
-                                {previewDates.map((d, k) => {
-                                  const di = cellDutyIndex(j, k);
-                                  if (di == null) {
-                                    return <td key={`c-${j}-${k}`} className="ap-preview-empty">—</td>;
-                                  }
-                                  const duty = duties[di];
-                                  const c = TYPE_COLOR[duty?.shift_type] || '#B4B2A9';
-                                  return (
-                                    <td key={`c-${j}-${k}`} className="ap-preview-cell"
-                                      style={{ background: c, color: '#F5F1EA' }}>
-                                      <div className="ap-preview-cell-label">{duty?.label || 'Duty'}</div>
-                                      <div className="ap-preview-cell-time">
-                                        {fmtTime(duty?.start_time)}–{fmtTime(duty?.end_time)}
-                                      </div>
-                                    </td>
-                                  );
-                                })}
-                              </tr>
-                            );
-                          })}
+                          {(() => {
+                            // Flatten to one preview row per (non-dropped slot,
+                            // member position). Doubled slots appear twice;
+                            // dropped slots are skipped entirely (per spec).
+                            const previewRows = [];
+                            slots.forEach((s, j) => {
+                              if (s.dropped) return;
+                              s.members.forEach((mid, i) => {
+                                previewRows.push({ slotIdx: j, memberIdx: i, memberId: mid, title: s.title });
+                              });
+                            });
+                            return previewRows.map((pr) => {
+                              const assignedCrew = pr.memberId
+                                ? visibleCrew.find((c) => c.id === pr.memberId)
+                                : null;
+                              return (
+                                <tr key={`pr-${pr.slotIdx}-${pr.memberIdx}`}>
+                                  <td className="ap-preview-role">
+                                    <div className="ap-preview-role-title">
+                                      {pr.title}
+                                      {pr.memberIdx > 0 && (
+                                        <span className="ap-preview-double-tag">2nd</span>
+                                      )}
+                                    </div>
+                                    <div className="ap-preview-role-crew">
+                                      {assignedCrew ? assignedCrew.name : <em>unassigned</em>}
+                                    </div>
+                                  </td>
+                                  {previewDates.map((d, k) => {
+                                    const di = cellDutyIndex(pr.slotIdx, k);
+                                    if (di == null) {
+                                      return <td key={`c-${pr.slotIdx}-${pr.memberIdx}-${k}`} className="ap-preview-empty">—</td>;
+                                    }
+                                    const duty = duties[di];
+                                    const c = TYPE_COLOR[duty?.shift_type] || '#B4B2A9';
+                                    return (
+                                      <td key={`c-${pr.slotIdx}-${pr.memberIdx}-${k}`} className="ap-preview-cell"
+                                        style={{ background: c, color: '#F5F1EA' }}>
+                                        <div className="ap-preview-cell-label">{duty?.label || 'Duty'}</div>
+                                        <div className="ap-preview-cell-time">
+                                          {fmtTime(duty?.start_time)}–{fmtTime(duty?.end_time)}
+                                        </div>
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              );
+                            });
+                          })()}
                         </tbody>
                       </table>
                     </div>
