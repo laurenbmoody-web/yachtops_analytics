@@ -49,7 +49,7 @@ const ItemCard = ({ item, onClick, onStatusChange, onQuantityChange }) => {
   return (
     <>
       <div
-        onClick={() => { if (!menu) onClick(item); }}
+        onClick={e => { e.stopPropagation(); if (!menu) onClick(item); }}
         onContextMenu={handleContextMenu}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
@@ -81,6 +81,7 @@ const ItemCard = ({ item, onClick, onStatusChange, onQuantityChange }) => {
       {menu && (
         <div
           ref={menuRef}
+          onClick={e => e.stopPropagation()}
           className="fixed z-50 py-1 rounded-lg shadow-2xl border border-border bg-card"
           style={{ top: menu.y, left: menu.x, minWidth: 160 }}
         >
