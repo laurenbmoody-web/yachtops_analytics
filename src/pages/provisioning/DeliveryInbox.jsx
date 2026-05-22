@@ -851,13 +851,20 @@ const ReturnsView = ({
     return (
       <div className="di-layout">
         <div className="di-main">
-          <div className="di-empty">
-            <Icon name="PackageX" className="di-empty-icon" />
-            <p className="di-empty-title">No pending returns</p>
-            <p className="di-empty-body">Anything you flag for return shows up here, grouped by lifecycle stage.</p>
+          <div className="di-empty-card">
+            <div className="di-empty-tile"><Icon name="PackageX" style={{ width: 20, height: 20 }} /></div>
+            <h2 className="di-empty-headline">
+              No pending returns<span className="di-empty-period">.</span>
+            </h2>
+            <p className="di-empty-text">
+              Anything you flag for return shows up here, grouped by lifecycle stage.
+            </p>
           </div>
         </div>
         <div className="di-rail">
+          {/* Honest-zeros rail — pipeline reads 0/0/0; the filter and
+              needs-action cards auto-collapse when there's nothing. */}
+          <ReturnPipelineCard stages={stages} />
           <FilterBySupplierCard
             items={returnItems}
             selected={supplierFilter}
@@ -1339,12 +1346,14 @@ const DeliveryInbox = () => {
           ) : sortedGroups.length === 0 ? (
             <div className="di-layout">
               <div className="di-main">
-                <div className="di-empty">
-                  <Icon name="Inbox" className="di-empty-icon" />
-                  <p className="di-empty-title">{inboxSupplierFilter ? 'Nothing from this supplier' : 'All clear'}</p>
-                  <p className="di-empty-body">
+                <div className="di-empty-card">
+                  <div className="di-empty-tile"><Icon name="Inbox" style={{ width: 20, height: 20 }} /></div>
+                  <h2 className="di-empty-headline">
+                    {inboxSupplierFilter ? 'Nothing from this supplier' : 'All clear'}<span className="di-empty-period">.</span>
+                  </h2>
+                  <p className="di-empty-text">
                     {inboxSupplierFilter
-                      ? 'Try clearing the supplier filter.'
+                      ? 'Try clearing the supplier filter to see the rest of the inbox.'
                       : 'No unclaimed delivery items. New scans land here for the whole vessel to triage.'}
                   </p>
                 </div>
