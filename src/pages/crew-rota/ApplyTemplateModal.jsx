@@ -195,9 +195,11 @@ export default function ApplyTemplateModal({
   const headerScope = template.scope === 'vessel'
     ? 'All departments'
     : (template.departmentName || 'Department');
+  // Every template now carries times (no-fixed-hours retired 2026-05-22).
+  // Show "—" as a defensive fallback only if data is somehow malformed.
   const headerHours = template.body?.start_time && template.body?.end_time
     ? `${fmtTime(template.body.start_time)} – ${fmtTime(template.body.end_time)}`
-    : 'No fixed hours';
+    : '—';
   const headerType = template.body?.shift_type || 'duty';
 
   // ── Build target rows the apply WOULD insert ─────────────────────────────
@@ -226,10 +228,6 @@ export default function ApplyTemplateModal({
   const runConflictCheck = async () => {
     if (totalToWrite === 0) {
       onToast?.('Pick at least one crew member to apply this template.');
-      return;
-    }
-    if (!template.body?.start_time || !template.body?.end_time) {
-      onToast?.('This template has no fixed hours and can’t be applied yet.');
       return;
     }
     setBusy(true);
