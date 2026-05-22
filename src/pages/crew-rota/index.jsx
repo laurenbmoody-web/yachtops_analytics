@@ -13,6 +13,7 @@ import RestPanelPopover from './RestPanelPopover';
 import PatternPicker from './PatternPicker';
 import SimpleTemplateEditor from './SimpleTemplateEditor';
 import RotationTemplateEditor from './RotationTemplateEditor';
+import ApplyTemplateModal from './ApplyTemplateModal';
 import { useRotaShifts } from './useRotaShifts';
 import { useRotaTemplates } from './useRotaTemplates';
 import { useCurrentRota } from './useCurrentRota';
@@ -120,6 +121,8 @@ export default function CrewRotaPage() {
   const [pickerOpen, setPickerOpen] = useState(false);
   // editor: null | { kind: 'simple'|'rotation', template: object|null }
   const [editor, setEditor] = useState(null);
+  // applyTarget: the template a user clicked to apply (3a). null = closed.
+  const [applyTarget, setApplyTarget] = useState(null);
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
 
@@ -141,7 +144,7 @@ export default function CrewRotaPage() {
 
   const {
     crew, loading, error, effectiveDate, draftCount,
-    applyPaint, refetch,
+    applyPaint, applyTemplate, refetch,
   } = useRotaShifts();
   const { rota } = useCurrentRota();
   const { statusByDept, ensureDraft } = useRotaDepartmentStatus(rota?.id);
@@ -423,7 +426,13 @@ export default function CrewRotaPage() {
           departments={departments}
           myDeptId={currentUser?.department_id || null}
           onToast={showToast}
-          onPick={() => showToast('Applying templates ships in Phase 3.')}
+          onPick={(t) => {
+            // Phase 3a — open apply modal for any kind. Simple flows
+            // through to a working apply; shift patterns render the 3b
+            // stub inside the modal until that path lands.
+            setPickerOpen(false);
+            setApplyTarget(t);
+          }}
           onEdit={(t) => {
             setPickerOpen(false);
             setEditor({ kind: t.kind === 'rotation' ? 'rotation' : 'simple', template: t });
@@ -459,6 +468,21 @@ export default function CrewRotaPage() {
           updateTemplate={updateTemplate}
           deleteTemplate={deleteTemplate}
           onToast={showToast}
+        />
+
+        <ApplyTemplateModal
+          open={!!applyTarget}
+          template={applyTarget}
+          rota={rota}
+          trip={null /* /crew is the standing rota — no trip context. Trip rotas land in a later phase. */}
+          crew={crew}
+          currentUser={currentUser}
+          tier={tier}
+          myMemberId={myMemberId}
+          applyTemplate={applyTemplate}
+          ensureDraft={ensureDraft}
+          onToast={showToast}
+          onClose={() => { setApplyTarget(null); setPickerOpen(true); }}
         />
 
         {toast && <div className="crew-rota-toast" role="status">{toast}</div>}
