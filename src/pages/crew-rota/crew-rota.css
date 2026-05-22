@@ -1819,3 +1819,416 @@
 }
 .ap-stub-body p { margin: 0 0 8px; }
 .ap-stub-sub { color: #695880; font-size: 12px; }
+
+/* ============================================================
+   Phase 3b — DateRangePicker (used by both apply paths)
+   ============================================================ */
+.dp-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.dp-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.dp-calendars {
+  display: grid;
+  grid-template-columns: 28px 1fr 1fr 28px;
+  gap: 16px;
+  align-items: flex-start;
+  background: #FAFAF7;
+  border: 0.5px solid #ECE6DC;
+  border-radius: 12px;
+  padding: 14px 12px;
+}
+.dp-nav {
+  background: transparent;
+  border: 0.5px solid #DFD8CC;
+  border-radius: 999px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #695880;
+  cursor: pointer;
+  margin-top: 6px;
+}
+.dp-nav:hover { background: #FFFFFF; color: #1C1B3A; }
+.dp-month {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.dp-month-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 15px;
+  color: #1C1B3A;
+  text-align: center;
+}
+.dp-week-header,
+.dp-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.dp-wh {
+  text-align: center;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #8B8478;
+  font-weight: 600;
+  padding: 2px 0 4px;
+}
+.dp-cell {
+  background: #FFFFFF;
+  border: 0.5px solid #ECE6DC;
+  border-radius: 6px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11px;
+  color: #1C1B3A;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+.dp-cell:hover:not(.dp-cell-empty):not(.is-start):not(.is-end) {
+  background: #FAFAF7;
+  border-color: #C9C0AE;
+}
+.dp-cell-empty {
+  background: transparent;
+  border-color: transparent;
+  cursor: default;
+}
+.dp-cell.is-today {
+  font-weight: 600;
+  color: #C65A1A;
+}
+.dp-cell.is-range {
+  background: #FAECE7;
+  border-color: #F5C9B8;
+  color: #7A2E1E;
+}
+.dp-cell.is-start,
+.dp-cell.is-end {
+  background: #C65A1A;
+  border-color: #C65A1A;
+  color: #F5F1EA;
+  font-weight: 600;
+}
+.dp-summary {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px;
+  color: #1C1B3A;
+  padding: 4px 2px;
+}
+.dp-summary em { color: #8B8478; font-style: italic; }
+
+/* ============================================================
+   Phase 3b — CrewSelect (per-slot assignment dropdown)
+   ============================================================ */
+.cs-wrap { position: relative; min-width: 0; }
+.cs-trigger {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px;
+  color: #1C1B3A;
+  background: #FFFFFF;
+  border: 0.5px solid #DFD8CC;
+  border-radius: 8px;
+  padding: 8px 10px;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  cursor: pointer;
+  text-align: left;
+}
+.cs-trigger:hover:not(:disabled) { border-color: #C65A1A; }
+.cs-wrap.is-open .cs-trigger,
+.cs-trigger:focus {
+  outline: none;
+  border-color: #C65A1A;
+  box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.12);
+}
+.cs-trigger:disabled {
+  background: #FAFAF7;
+  color: #B4B2A9;
+  cursor: not-allowed;
+}
+.cs-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cs-chev { color: #8B8478; flex-shrink: 0; }
+.cs-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  min-width: 200px;
+  background: #FFFFFF;
+  border: 0.5px solid #DFD8CC;
+  border-radius: 8px;
+  box-shadow: 0 12px 32px -10px rgba(28, 27, 58, 0.2);
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 1010;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+.cs-opt {
+  background: transparent;
+  border: none;
+  padding: 6px 10px;
+  text-align: left;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px;
+  color: #1C1B3A;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cs-opt:hover { background: #FAFAF7; }
+.cs-opt.is-active { background: #FAECE7; color: #7A2E1E; font-weight: 600; }
+.cs-opt-sub { font-size: 10px; color: #8B8478; }
+.cs-opt-clear {
+  border-top: 0.5px solid #ECE6DC;
+  margin-top: 4px;
+  padding-top: 8px;
+  color: #7A2E1E;
+  font-style: italic;
+}
+.cs-empty {
+  padding: 12px;
+  text-align: center;
+  color: #8B8478;
+  font-style: italic;
+  font-size: 12px;
+}
+
+/* ============================================================
+   Phase 3b — simple-apply collapsible crew section (Part C)
+   ============================================================ */
+.ap-crew-collapsible { display: flex; flex-direction: column; gap: 6px; }
+.ap-crew-trigger {
+  background: #FFFFFF;
+  border: 0.5px solid #DFD8CC;
+  border-radius: 10px;
+  padding: 10px 12px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px;
+  color: #1C1B3A;
+  text-align: left;
+}
+.ap-crew-trigger:hover { border-color: #C65A1A; }
+.ap-crew-trigger.is-open {
+  border-color: #C65A1A;
+  box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.12);
+}
+.ap-crew-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+.ap-crew-count {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 13px;
+  background: #FAECE7;
+  color: #7A2E1E;
+  border-radius: 999px;
+  padding: 1px 9px;
+  flex-shrink: 0;
+  min-width: 22px;
+  text-align: center;
+}
+.ap-crew-names {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #695880;
+}
+.ap-crew-chev {
+  color: #8B8478;
+  flex-shrink: 0;
+  transition: transform 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.ap-crew-trigger.is-open .ap-crew-chev { transform: rotate(180deg); }
+.ap-crew-expanded {
+  border: 0.5px solid #ECE6DC;
+  border-radius: 10px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ap-crew-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  padding: 2px 8px;
+}
+
+/* ============================================================
+   Phase 3b — pattern-apply slots + preview matrix
+   ============================================================ */
+.ap-panel-pattern { width: 720px; }
+.ap-pattern-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background: #FAECE7;
+  color: #C65A1A;
+  border-radius: 4px;
+}
+.ap-slot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ap-slot-row {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 6px 8px;
+  border: 0.5px solid #ECE6DC;
+  border-radius: 10px;
+  background: #FAFAF7;
+}
+.ap-slot-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ap-slot-idx {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #8B8478;
+  font-weight: 600;
+}
+.ap-slot-role {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 14px;
+  color: #1C1B3A;
+  line-height: 1.1;
+}
+.ap-slot-flag {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  font-style: italic;
+  color: #7A2E1E;
+  padding: 2px 0 0 4px;
+}
+.ap-mismatch {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #FAECE7;
+  border: 0.5px solid #F5C9B8;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #7A2E1E;
+  line-height: 1.45;
+}
+
+.ap-preview-wrap { overflow-x: auto; }
+.ap-preview {
+  border-collapse: separate;
+  border-spacing: 4px;
+  width: 100%;
+}
+.ap-preview thead th {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #8B8478;
+  font-weight: 600;
+  padding: 4px 0;
+  text-align: left;
+}
+.ap-preview-dh { text-align: center !important; }
+.ap-preview-date {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 11px;
+  font-weight: 400;
+  color: #695880;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-top: 2px;
+}
+.ap-preview-role {
+  background: #FAFAF7;
+  border-radius: 6px;
+  padding: 6px 8px;
+  vertical-align: middle;
+  min-width: 180px;
+}
+.ap-preview-role-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 13px;
+  color: #1C1B3A;
+  line-height: 1.05;
+}
+.ap-preview-role-crew {
+  font-size: 11px;
+  color: #695880;
+  margin-top: 2px;
+}
+.ap-preview-role-crew em { color: #B4B2A9; font-style: italic; }
+.ap-preview-cell {
+  border-radius: 6px;
+  padding: 6px 8px;
+  text-align: center;
+  height: 56px;
+  vertical-align: middle;
+  min-width: 90px;
+}
+.ap-preview-cell-label {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 12px;
+  line-height: 1.05;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ap-preview-cell-time {
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+  opacity: 0.85;
+}
+.ap-preview-empty {
+  border: 0.5px dashed #DFD8CC;
+  border-radius: 6px;
+  text-align: center;
+  color: #C9C0AE;
+  vertical-align: middle;
+  font-style: italic;
+}
