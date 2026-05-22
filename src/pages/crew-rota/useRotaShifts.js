@@ -543,8 +543,80 @@ export function useRotaShifts() {
     }
   }, [tenantId, effectiveDate, windowShifts, load]);
 
+  // ── Phase 3a — applyTemplate (multi-row write) ────────────────────────────
+  // The apply flow precomputes the exact rows to INSERT (with status=
+  // 'draft', tenant/rota/member/dates/times all filled per the verified
+  // schema) and the existing shift ids to DELETE (overwrite case). We do
+  // insert-then-delete in the background (same pattern as splitShift —
+  // partial failure leaves an overlap, never data loss). Optimistic local
+  // state update is filtered to the loaded 7-day window so the rolling
+  // rest calc in deriveCrew never sees out-of-window rows; out-of-window
+  // inserts become visible on the next refetch. Failure → silent refetch +
+  // return error.
+
+  const applyTemplate = useCallback(async ({ rows = [], deleteIds = [] } = {}) => {
+    if (!tenantId) return { ok: false, error: 'missing-context' };
+    if (rows.length === 0 && deleteIds.length === 0) {
+      return { ok: true, noop: true, inserted: 0, deleted: 0 };
+    }
+
+    // Window predicate for optimistic local rendering — [effDate-6 .. effDate]
+    // (lexical YYYY-MM-DD comparison is correct here).
+    let inWindow = () => false;
+    if (effectiveDate) {
+      const end = new Date(`${effectiveDate}T00:00:00`);
+      const start = new Date(end); start.setDate(start.getDate() - 6);
+      const pad = (n) => String(n).padStart(2, '0');
+      const startStr = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`;
+      inWindow = (d) => d >= startStr && d <= effectiveDate;
+    }
+
+    setWindowShifts((prev) => {
+      const filtered = deleteIds.length
+        ? prev.filter((s) => !deleteIds.includes(s.id))
+        : prev;
+      const optimistic = rows
+        .filter((r) => inWindow(r.shift_date))
+        .map((r) => ({
+          id: `tmp-${Math.random().toString(36).slice(2, 10)}`,
+          memberId: r.member_id,
+          date: r.shift_date,
+          startTime: r.start_time,
+          endTime: r.end_time,
+          shiftType: r.shift_type,
+          subType: r.sub_type ?? null,
+          notes: r.notes ?? null,
+          status: r.status || 'draft',
+        }));
+      return [...filtered, ...optimistic];
+    });
+
+    try {
+      let inserted = 0;
+      if (rows.length > 0) {
+        const { data, error: insErr } = await supabase
+          .from('rota_shifts').insert(rows).select('id');
+        if (insErr) throw new Error(insErr.message);
+        inserted = (data || []).length;
+      }
+      if (deleteIds.length > 0) {
+        const { error: delErr } = await supabase
+          .from('rota_shifts').delete().in('id', deleteIds);
+        if (delErr) throw new Error(delErr.message);
+      }
+      // Reconcile temp ids — a silent refetch is cleaner than threading
+      // N temp-id maps across a batch. Out-of-window rows are also
+      // unobservable in local state anyway; refetch realigns everything.
+      await load({ silent: true });
+      return { ok: true, inserted, deleted: deleteIds.length };
+    } catch (e) {
+      load({ silent: true });
+      return { ok: false, error: e.message || String(e) };
+    }
+  }, [tenantId, effectiveDate, load]);
+
   return {
     crew, shifts, effectiveDate, loading, error, draftCount,
-    refetch: load, applyPaint,
+    refetch: load, applyPaint, applyTemplate,
   };
 }
