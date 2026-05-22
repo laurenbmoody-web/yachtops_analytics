@@ -176,22 +176,22 @@ export default function PatternPicker({
   }, [templates, departments]);
 
   // Expanded-group state. Re-initialises every time the picker opens
-  // (Starred + user's own department auto-expand; others collapsed). A
-  // ref gates the re-init so manual toggles persist while the modal is
-  // open. Closing + reopening resets to the auto-expand rule.
+  // (Favourites auto-expands when present; all department groups —
+  // including the user's own — start collapsed). A ref gates the
+  // re-init so manual toggles persist while the modal is open. Closing
+  // + reopening resets to the auto-expand rule.
   const [expanded, setExpanded] = useState(() => new Set());
   const initRef = useRef(false);
   useEffect(() => {
     if (open && !initRef.current) {
       const next = new Set();
       if (groups.starred.length > 0) next.add('starred');
-      if (myDeptId) next.add(myDeptId);
       setExpanded(next);
       initRef.current = true;
     } else if (!open) {
       initRef.current = false;
     }
-  }, [open, myDeptId, groups.starred.length]);
+  }, [open, groups.starred.length]);
 
   const toggle = (key) => setExpanded((prev) => {
     const next = new Set(prev);
