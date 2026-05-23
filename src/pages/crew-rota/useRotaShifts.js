@@ -592,11 +592,14 @@ export function useRotaShifts() {
 
     try {
       let inserted = 0;
+      let insertedIds = [];
       if (rows.length > 0) {
         const { data, error: insErr } = await supabase
           .from('rota_shifts').insert(rows).select('id');
         if (insErr) throw new Error(insErr.message);
         inserted = (data || []).length;
+        // Position-aligned with `rows` — supabase preserves input order.
+        insertedIds = (data || []).map((d) => d.id);
       }
       if (deleteIds.length > 0) {
         const { error: delErr } = await supabase
@@ -607,7 +610,7 @@ export function useRotaShifts() {
       // N temp-id maps across a batch. Out-of-window rows are also
       // unobservable in local state anyway; refetch realigns everything.
       await load({ silent: true });
-      return { ok: true, inserted, deleted: deleteIds.length };
+      return { ok: true, inserted, insertedIds, deleted: deleteIds.length };
     } catch (e) {
       load({ silent: true });
       return { ok: false, error: e.message || String(e) };
