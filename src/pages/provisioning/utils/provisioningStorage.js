@@ -1529,6 +1529,41 @@ export const uploadInvoiceFile = async (file, batchId) => {
 
 // ── Smart Delivery ────────────────────────────────────────────────────────────
 
+// Best-effort lookup: given identifying fields from an upstream context
+// (delivery-note OCR, a cross_department_matches row, etc.), find the
+// matching supplier_profiles.id. Email match takes priority; name match
+// only commits when unambiguous, so we never silently route to the wrong
+// supplier. Mirrors the SQL backfill in migration
+// 20260523120000_supplier_return_tasks_and_inbox_supplier_link.sql.
+// Returns the matched supplier_profiles.id, or null.
+export const resolveSupplierProfileId = async ({ name = null, email = null } = {}) => {
+  const cleanEmail = (email || '').trim();
+  const cleanName  = (name  || '').trim();
+  if (!cleanEmail && !cleanName) return null;
+  try {
+    if (cleanEmail) {
+      const { data } = await supabase
+        ?.from('supplier_profiles')
+        ?.select('id')
+        ?.ilike('contact_email', cleanEmail)
+        ?.limit(1);
+      if (data?.[0]?.id) return data[0].id;
+    }
+    if (cleanName) {
+      // Pull two rows — if both come back, the name is ambiguous and we abstain.
+      const { data } = await supabase
+        ?.from('supplier_profiles')
+        ?.select('id')
+        ?.ilike('name', cleanName)
+        ?.limit(2);
+      if (data?.length === 1) return data[0].id;
+    }
+  } catch (err) {
+    console.error('[resolveSupplierProfileId]', err);
+  }
+  return null;
+};
+
 /**
  * Tier 2 cross-department matching — client-side implementation.
  * For each unmatched item from a delivery note scan:
@@ -1652,6 +1687,10 @@ export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, sc
     const unmatched = unmatchedItems.filter(i => !matchedRawNames.has(i.raw_name));
     console.log('[Tier2] Unmatched items going to inbox:', unmatched.map(i => i.raw_name));
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    // Resolve once per batch — every unmatched item shares the same supplier.
+    const resolvedSupplierProfileId = unmatched.length > 0
+      ? await resolveSupplierProfileId({ name: supplierName, email: supplierEmail })
+      : null;
     for (const item of unmatched) {
       console.log('[Inbox Insert] Data:', {
         raw_name: item.raw_name,
@@ -1685,6 +1724,7 @@ export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, sc
         supplier_phone: supplierPhone || null,
         supplier_email: supplierEmail || null,
         supplier_address: supplierAddress || null,
+        supplier_profile_id: resolvedSupplierProfileId,
         order_ref: orderRef || null,
         order_date: orderDate || null,
         delivery_note_url: deliveryNoteUrl || null,
@@ -1759,6 +1799,10 @@ export const dismissCrossMatch = async (matchId) => {
     const { data: match } = await supabase?.from('cross_department_matches')?.select('*')?.eq('id', matchId)?.single();
     await supabase?.from('cross_department_matches')?.update({ status: 'dismissed' })?.eq('id', matchId);
     if (match) {
+      const resolvedSupplierProfileId = await resolveSupplierProfileId({
+        name: match.supplier_name,
+        email: match.supplier_email,
+      });
       await supabase?.from('delivery_inbox')?.insert({
         tenant_id: match.tenant_id,
         raw_name: match.raw_name,
@@ -1772,6 +1816,7 @@ export const dismissCrossMatch = async (matchId) => {
         supplier_phone: match.supplier_phone || null,
         supplier_email: match.supplier_email || null,
         supplier_address: match.supplier_address || null,
+        supplier_profile_id: resolvedSupplierProfileId,
         order_ref: match.order_ref || null,
         order_date: match.order_date || null,
         delivery_note_url: match.delivery_note_url || null,
