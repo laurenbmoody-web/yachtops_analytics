@@ -21,6 +21,11 @@ export const MLC_MAX_REST_PERIODS = 2;
 export const MLC_LONGEST_REST_PERIOD_MIN = 6;
 export const MLC_MAX_WORK_STRETCH = 14;     // hours
 
+// Circadian (soft, net-new). Tune by editing here — single source of truth.
+export const CIRCADIAN_MIDPOINT_DELTA_H = 8;   // ≥ this midpoint shift = a "swing"
+export const CIRCADIAN_SWING_THRESHOLD = 2;    // ≥ this many in the window = flag
+export const CIRCADIAN_WINDOW_DAYS = 7;        // rolling window size
+
 function hhmmToDecimal(t) {
   if (!t) return null;
   const [h, m] = String(t).split(':').map(Number);
@@ -182,5 +187,173 @@ export function assessMlc({ dayShifts = [], weekShifts = [] } = {}) {
     rules,
     breaches,
     anyBreach: breaches.length > 0,
+  };
+}
+
+// ── Forward-looking apply-time compliance check ────────────────────────────
+// Called once before the apply commits. For each proposed (member, date) it
+// re-runs assessMlc against `existing ∪ proposed` for that member, anchoring
+// the 7-day rolling window on each apply date. Breaches and circadian
+// "swings" (≥CIRCADIAN_MIDPOINT_DELTA_H midpoint shift between consecutive
+// on-duty shifts) are aggregated per member.
+//
+// Inputs are intentionally permissive — `proposedRows` can be the modal's
+// row builder output (snake_case `member_id`, `shift_date`, `start_time`,
+// etc.) and `existingWindowShifts` can be raw DB rows in the same shape.
+// We normalise to camelCase internally.
+//
+// Returns:
+//   {
+//     byMember: { [memberId]: { mlcBreaches: [...], circadianFlags: [...] } },
+//     hasMlc:   boolean,
+//     hasCircadian: boolean,
+//     totalMlcBreaches: number,
+//     totalCircadianFlags: number,
+//   }
+
+function pad(n) { return String(n).padStart(2, '0'); }
+function toLocalDateStr(d) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+function addLocalDays(dateStr, n) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const x = new Date(y, m - 1, d);
+  x.setDate(x.getDate() + n);
+  return toLocalDateStr(x);
+}
+
+function normalise(rows) {
+  return (rows || []).map((r) => ({
+    memberId: r.member_id ?? r.memberId,
+    date: r.shift_date ?? r.date,
+    startTime: r.start_time ?? r.startTime,
+    endTime: r.end_time ?? r.endTime,
+    shiftType: r.shift_type ?? r.shiftType,
+    subType: r.sub_type ?? r.subType ?? null,
+  })).filter((s) => s.memberId && s.date);
+}
+
+export function assessApply({
+  memberIds = [],
+  dates = [],
+  proposedRows = [],
+  existingWindowShifts = [],
+} = {}) {
+  if (memberIds.length === 0 || dates.length === 0) {
+    return { byMember: {}, hasMlc: false, hasCircadian: false, totalMlcBreaches: 0, totalCircadianFlags: 0 };
+  }
+  const existing = normalise(existingWindowShifts);
+  const proposed = normalise(proposedRows);
+  const dateSet = new Set(dates);
+
+  const byMember = {};
+  let totalMlcBreaches = 0;
+  let totalCircadianFlags = 0;
+
+  for (const memberId of memberIds) {
+    const existingMine = existing.filter((s) => s.memberId === memberId);
+    const proposedMine = proposed.filter((s) => s.memberId === memberId);
+
+    const mlcBreaches = [];
+    const seenBreach = new Set();
+
+    for (const date of dates) {
+      // Only assess apply dates that actually have a proposed shift for
+      // this member — we don't want to surface pre-existing breaches the
+      // apply didn't cause.
+      const hasProposedToday = proposedMine.some((s) => s.date === date);
+      if (!hasProposedToday) continue;
+
+      const winStart = addLocalDays(date, -(CIRCADIAN_WINDOW_DAYS - 1));
+      const inWindow = (s) => s.date >= winStart && s.date <= date;
+
+      // Worst-case union: existing + proposed. Skip-vs-overwrite is decided
+      // after this check, so the conservative view is the most useful one.
+      const weekShifts = [
+        ...existingMine.filter(inWindow),
+        ...proposedMine.filter(inWindow),
+      ];
+      const dayShifts = [
+        ...existingMine.filter((s) => s.date === date),
+        ...proposedMine.filter((s) => s.date === date),
+      ];
+      const report = assessMlc({ dayShifts, weekShifts });
+      for (const b of report.breaches) {
+        const key = `${date}|${b.rule}`;
+        if (seenBreach.has(key)) continue;
+        seenBreach.add(key);
+        mlcBreaches.push({
+          date,
+          rule: b.rule,
+          label: b.label,
+          projected: b.actual,
+          limit: b.limit,
+        });
+      }
+    }
+
+    // Circadian — only count swings whose later shift is on an apply date
+    // (i.e., a swing the apply introduced or contributed to).
+    const allOnDuty = [...existingMine, ...proposedMine]
+      .filter((s) => ON_DUTY_TYPES.has(s.shiftType))
+      .map((s) => {
+        const startDec = hhmmToDecimal(s.startTime);
+        let endDec = hhmmToDecimal(s.endTime);
+        if (startDec == null || endDec == null) return null;
+        if (endDec <= startDec) endDec += 24;
+        const [y, m, d] = String(s.date).split('-').map(Number);
+        if (!y) return null;
+        const dayMs = new Date(y, m - 1, d).getTime();
+        const midOfDay = ((startDec + endDec) / 2) % 24;
+        return {
+          date: s.date,
+          startMs: dayMs + startDec * 3_600_000,
+          midOfDay,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.startMs - b.startMs);
+
+    const swings = [];
+    for (let i = 1; i < allOnDuty.length; i += 1) {
+      const a = allOnDuty[i - 1];
+      const b = allOnDuty[i];
+      const raw = Math.abs(a.midOfDay - b.midOfDay);
+      const delta = Math.min(raw, 24 - raw);
+      if (delta >= CIRCADIAN_MIDPOINT_DELTA_H) {
+        swings.push({ fromDate: a.date, toDate: b.date, deltaHours: delta });
+      }
+    }
+
+    const circadianFlags = [];
+    for (const date of dates) {
+      const winStart = addLocalDays(date, -(CIRCADIAN_WINDOW_DAYS - 1));
+      const inWin = swings.filter((sw) => sw.toDate >= winStart && sw.toDate <= date);
+      if (inWin.length < CIRCADIAN_SWING_THRESHOLD) continue;
+      // Only flag if at least one swing's second shift is on an apply date.
+      const involvesApply = inWin.some((sw) => dateSet.has(sw.toDate));
+      if (!involvesApply) continue;
+      circadianFlags.push({
+        date,
+        count: inWin.length,
+        detail: `${inWin.length} schedule swings in past ${CIRCADIAN_WINDOW_DAYS} days (last on ${inWin[inWin.length - 1].toDate})`,
+        swings: inWin,
+      });
+      break; // one flag per member is enough — UI is per-member anyway
+    }
+
+    if (mlcBreaches.length > 0 || circadianFlags.length > 0) {
+      byMember[memberId] = { mlcBreaches, circadianFlags };
+      totalMlcBreaches += mlcBreaches.length;
+      totalCircadianFlags += circadianFlags.length;
+    }
+  }
+
+  return {
+    byMember,
+    hasMlc: totalMlcBreaches > 0,
+    hasCircadian: totalCircadianFlags > 0,
+    totalMlcBreaches,
+    totalCircadianFlags,
   };
 }

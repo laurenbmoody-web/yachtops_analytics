@@ -1809,6 +1809,116 @@
   color: #1C1B3A;
 }
 
+/* MLC breach — hard warning. Shares the terracotta language of conflicts. */
+.ap-mlc-hard {
+  background: #FAECE7;
+  border: 0.5px solid #F5C9B8;
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-top: 12px;
+}
+.ap-mlc-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: #7A2E1E;
+}
+.ap-mlc-body {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 16px;
+  line-height: 1.35;
+  color: #1C1B3A;
+  margin: 10px 0 6px;
+}
+.ap-mlc-list {
+  margin: 0 0 12px;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #1C1B3A;
+}
+.ap-mlc-list li { margin: 4px 0; }
+.ap-mlc-list strong { font-weight: 600; }
+.ap-override-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: #7A2E1E;
+}
+.ap-override-label em {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  font-style: normal;
+  color: #695880;
+}
+.ap-override-reason {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px 12px;
+  border: 0.5px solid #D9CCB9;
+  border-radius: 8px;
+  background: #FFFEF9;
+  color: #1C1B3A;
+  resize: vertical;
+  min-height: 56px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+.ap-override-reason:focus {
+  outline: none;
+  border-color: #C65A1A;
+  box-shadow: 0 0 0 2px rgba(198, 90, 26, 0.15);
+}
+
+/* Circadian — soft flag. Gentler colour language, no urgency. */
+.ap-circadian-soft {
+  background: #FFF7EA;
+  border: 0.5px dashed #E6CFA3;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-top: 12px;
+}
+.ap-circadian-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: #8A6D3B;
+}
+.ap-circadian-body {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #5F5E5A;
+  margin: 8px 0 6px;
+}
+.ap-circadian-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #1C1B3A;
+}
+.ap-circadian-list li { margin: 3px 0; }
+.ap-circadian-list strong { font-weight: 600; }
+
 /* 3b stub body */
 .ap-stub-body {
   padding: 24px 24px 6px;

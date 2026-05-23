@@ -1,7 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { X, AlertTriangle, ChevronDown, RefreshCw, Trash2, Plus, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { X, AlertTriangle, ChevronDown, RefreshCw, Trash2, Plus, RotateCcw, CheckCircle2, Activity } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import DateRangePicker from './DateRangePicker';
+import {
+  assessApply,
+  CIRCADIAN_SWING_THRESHOLD,
+  CIRCADIAN_WINDOW_DAYS,
+} from './restHours';
 
 // Phase 3a + 3b — Apply-template modal (simple + shift-pattern paths).
 //
@@ -68,6 +73,41 @@ function defaultRange() {
 }
 function fmtTime(t) { return t ? String(t).slice(0, 5) : ''; }
 function firstName(n) { return String(n || '').trim().split(/\s+/)[0] || ''; }
+
+// "28 May" — from a plain 'YYYY-MM-DD' string. Local components only.
+function fmtDateShort(dateStr) {
+  if (!dateStr) return '';
+  const d = fromStr(dateStr);
+  return `${d.getDate()} ${MONTH_SHORT[d.getMonth()]}`;
+}
+
+function fmtHoursH(decimal) {
+  if (decimal == null || Number.isNaN(decimal)) return '—';
+  const total = Math.max(0, Math.round(Number(decimal) * 60));
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+// Honest one-liner per rule (used in the hard-warning list).
+function formatMlcBreachPhrase(breach) {
+  const { rule, projected, limit } = breach;
+  if (rule === 'daily_rest_10h') {
+    return `only ${fmtHoursH(projected)} rest — MLC minimum ${limit}h`;
+  }
+  if (rule === 'weekly_rest_77h') {
+    return `${fmtHoursH(projected)} rolling 7-day rest — MLC minimum ${limit}h`;
+  }
+  if (rule === 'rest_period_split') {
+    const pc = projected?.periodCount ?? '?';
+    const longest = projected?.longest ?? 0;
+    return `rest split into ${pc} period${pc === 1 ? '' : 's'}, longest ${fmtHoursH(longest)} — MLC requires ≤${limit?.maxPeriods} periods with one ≥${limit?.longestMin}h`;
+  }
+  if (rule === 'max_work_stretch_14h') {
+    return `${fmtHoursH(projected)} continuous on-duty — MLC maximum ${limit}h`;
+  }
+  return `breach of ${rule}`;
+}
 
 // ── Crew-row inline-select (used by the pattern-apply role slots) ──────────
 function CrewSelect({ value, candidates, onChange, placeholder, disabled }) {
@@ -241,8 +281,13 @@ export default function ApplyTemplateModal({
   const [slots, setSlots] = useState([]);
 
   // ── Modal-phase state (shared) ─────────────────────────────────────
+  // 'conflicts' here is the combined review phase — it surfaces shift
+  // conflicts AND MLC breaches AND circadian flags. Kept as the same
+  // state value to minimise churn from earlier phases.
   const [phase, setPhase] = useState('select');  // 'select' | 'conflicts' | 'applying'
   const [conflicts, setConflicts] = useState(null);
+  const [assessment, setAssessment] = useState(null);
+  const [overrideReason, setOverrideReason] = useState('');
   const [busy, setBusy] = useState(false);
 
   // ── Re-seed on open / template change ──────────────────────────────
@@ -251,6 +296,8 @@ export default function ApplyTemplateModal({
     setRange(defaultRange());
     setPhase('select');
     setConflicts(null);
+    setAssessment(null);
+    setOverrideReason('');
     setBusy(false);
 
     if (template?.kind === 'rotation') {
@@ -485,7 +532,7 @@ export default function ApplyTemplateModal({
         : '—')
     : null;
 
-  // ── Apply (conflict check then commit) ─────────────────────────────
+  // ── Apply (conflict + MLC/circadian check then commit) ─────────────
   const runConflictCheck = async () => {
     const { rows, memberIds } = targetRowsAndMembers;
     if (rows.length === 0) {
@@ -496,6 +543,7 @@ export default function ApplyTemplateModal({
     }
     setBusy(true);
     try {
+      // 1 — same-day conflicts (existing behaviour).
       const { data, error: qErr } = await supabase
         .from('rota_shifts')
         .select('id, member_id, shift_date')
@@ -509,16 +557,48 @@ export default function ApplyTemplateModal({
         targetKeys.has(`${r.member_id}|${r.shift_date}`),
       );
 
-      if (conflictRows.length === 0) {
-        await commit({ mode: 'skip', conflictKeys: new Set(), conflictIds: [] });
+      // 2 — 7-day-back history window for MLC + circadian assessment.
+      // Local date components only — no UTC conversion.
+      const earliest = dates[0];
+      const latest = dates[dates.length - 1];
+      const [ey, em, ed] = earliest.split('-').map(Number);
+      const histStart = new Date(ey, em - 1, ed);
+      histStart.setDate(histStart.getDate() - 6);
+      const histStartStr = `${histStart.getFullYear()}-${pad(histStart.getMonth() + 1)}-${pad(histStart.getDate())}`;
+
+      const { data: histData, error: hErr } = await supabase
+        .from('rota_shifts')
+        .select('member_id, shift_date, start_time, end_time, shift_type, sub_type')
+        .eq('tenant_id', rota.tenantId)
+        .in('member_id', memberIds)
+        .gte('shift_date', histStartStr)
+        .lte('shift_date', latest);
+      if (hErr) throw hErr;
+
+      const nextAssessment = assessApply({
+        memberIds,
+        dates,
+        proposedRows: rows,
+        existingWindowShifts: histData || [],
+      });
+
+      const nextConflicts = conflictRows.length > 0
+        ? {
+            total: rows.length,
+            clashes: conflictRows.length,
+            conflictKeys: new Set(conflictRows.map((r) => `${r.member_id}|${r.shift_date}`)),
+            conflictIds: conflictRows.map((r) => r.id),
+          }
+        : null;
+
+      // Nothing to review → commit straight through.
+      if (!nextConflicts && !nextAssessment.hasMlc && !nextAssessment.hasCircadian) {
+        setAssessment(null);
+        await commit({ mode: 'skip', conflictKeys: new Set(), conflictIds: [], assessmentOverride: null });
         return;
       }
-      setConflicts({
-        total: rows.length,
-        clashes: conflictRows.length,
-        conflictKeys: new Set(conflictRows.map((r) => `${r.member_id}|${r.shift_date}`)),
-        conflictIds: conflictRows.map((r) => r.id),
-      });
+      setConflicts(nextConflicts);
+      setAssessment(nextAssessment);
       setPhase('conflicts');
     } catch (e) {
       onToast?.(`Conflict check failed — ${e.message || 'try again'}`);
@@ -557,6 +637,70 @@ export default function ApplyTemplateModal({
       });
       if (!er.ok && er.reason === 'no-init') {
         onToast?.('Department status not initialized — ask a CHIEF or COMMAND to enable editing.');
+      }
+    }
+
+    // ── MLC override audit ─────────────────────────────────────────
+    // One rota_approval_events row per affected department, scoped to
+    // that department's crew. context.shift_ids is the set of inserted
+    // shifts in that department; context.breaches is the per-rule list.
+    // RLS requires actor_id = auth.uid(), so we fetch the session user.
+    if (assessment?.hasMlc && overrideReason.trim()) {
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        const actorId = authData?.user?.id;
+        if (actorId) {
+          const insertedIds = res.insertedIds || [];
+          const idsByDept = new Map();
+          for (let i = 0; i < rows.length; i += 1) {
+            const did = memberDeptMap.get(rows[i].member_id);
+            if (!did) continue;
+            const id = insertedIds[i];
+            if (!id) continue;
+            if (!idsByDept.has(did)) idsByDept.set(did, []);
+            idsByDept.get(did).push(id);
+          }
+          const breachesByDept = new Map();
+          const memberNameMap = new Map(visibleCrew.map((c) => [c.id, c.name]));
+          for (const [memberId, info] of Object.entries(assessment.byMember)) {
+            if (!info.mlcBreaches || info.mlcBreaches.length === 0) continue;
+            const did = memberDeptMap.get(memberId);
+            if (!did) continue;
+            if (!breachesByDept.has(did)) breachesByDept.set(did, []);
+            for (const b of info.mlcBreaches) {
+              breachesByDept.get(did).push({
+                member_id: memberId,
+                member: memberNameMap.get(memberId) || '',
+                date: b.date,
+                rule: b.rule,
+                projected: b.projected,
+                limit: b.limit,
+              });
+            }
+          }
+          const eventRows = [];
+          for (const [departmentId, breaches] of breachesByDept) {
+            eventRows.push({
+              rota_id: rota.id,
+              department_id: departmentId,
+              tenant_id: rota.tenantId,
+              vessel_id: rota.vesselId,
+              event_type: 'mlc_override',
+              actor_id: actorId,
+              actor_tier: tier,
+              note: overrideReason.trim(),
+              context: { shift_ids: idsByDept.get(departmentId) || [], breaches },
+            });
+          }
+          if (eventRows.length > 0) {
+            const { error: evErr } = await supabase
+              .from('rota_approval_events').insert(eventRows);
+            if (evErr) console.warn('mlc_override event insert failed:', evErr.message);
+          }
+        }
+      } catch (e) {
+        // Audit failure must not block the apply — log and move on.
+        console.warn('mlc_override audit threw:', e);
       }
     }
 
@@ -872,23 +1016,83 @@ export default function ApplyTemplateModal({
           </div>
         )}
 
-        {phase === 'conflicts' && conflicts && (
+        {phase === 'conflicts' && (
           <div className="te-body ap-body">
-            <div className="ap-conflict">
-              <div className="ap-conflict-head">
-                <AlertTriangle size={16} color="#7A2E1E" />
-                <span>Existing shifts in this range</span>
+            {conflicts && (
+              <div className="ap-conflict">
+                <div className="ap-conflict-head">
+                  <AlertTriangle size={16} color="#7A2E1E" />
+                  <span>Existing shifts in this range</span>
+                </div>
+                <div className="ap-conflict-body">
+                  This will create <strong>{conflicts.total}</strong> shift{conflicts.total === 1 ? '' : 's'}.
+                  {' '}<strong>{conflicts.clashes}</strong> of them clash with an existing shift.
+                </div>
+                <div className="ap-conflict-help">Pick one rule for the whole batch:</div>
+                <ul className="ap-conflict-options">
+                  <li><strong>Skip the clashing days</strong> — only write where the crew member is free; existing shifts stay.</li>
+                  <li><strong>Overwrite</strong> — replace the clashing shifts with this template (still as drafts).</li>
+                </ul>
               </div>
-              <div className="ap-conflict-body">
-                This will create <strong>{conflicts.total}</strong> shift{conflicts.total === 1 ? '' : 's'}.
-                {' '}<strong>{conflicts.clashes}</strong> of them clash with an existing shift.
+            )}
+
+            {assessment?.hasMlc && (
+              <div className="ap-mlc-hard">
+                <div className="ap-mlc-head">
+                  <AlertTriangle size={16} color="#7A2E1E" />
+                  <span>MLC rest-hour breaches</span>
+                </div>
+                <div className="ap-mlc-body">
+                  This apply would create the following MLC rest-hour breaches:
+                </div>
+                <ul className="ap-mlc-list">
+                  {Object.entries(assessment.byMember).flatMap(([memberId, info]) => {
+                    const c = visibleCrew.find((x) => x.id === memberId);
+                    const name = c?.name || 'Unknown';
+                    return info.mlcBreaches.map((b, i) => (
+                      <li key={`mlc-${memberId}-${i}`}>
+                        <strong>{name}</strong> — {formatMlcBreachPhrase(b)} on{' '}
+                        <strong>{fmtDateShort(b.date)}</strong>.
+                      </li>
+                    ));
+                  })}
+                </ul>
+                <label className="ap-override-label">
+                  <span>Reason for override <em>(required to proceed)</em></span>
+                  <textarea
+                    className="ap-override-reason"
+                    rows={2}
+                    value={overrideReason}
+                    onChange={(e) => setOverrideReason(e.target.value)}
+                    placeholder="e.g. departure window — crew rotates off in two days"
+                  />
+                </label>
               </div>
-              <div className="ap-conflict-help">Pick one rule for the whole batch:</div>
-              <ul className="ap-conflict-options">
-                <li><strong>Skip the clashing days</strong> — only write where the crew member is free; existing shifts stay.</li>
-                <li><strong>Overwrite</strong> — replace the clashing shifts with this template (still as drafts).</li>
-              </ul>
-            </div>
+            )}
+
+            {assessment?.hasCircadian && (
+              <div className="ap-circadian-soft">
+                <div className="ap-circadian-head">
+                  <Activity size={14} />
+                  <span>Circadian rhythm — schedule swings</span>
+                </div>
+                <div className="ap-circadian-body">
+                  Heads-up: ≥{CIRCADIAN_SWING_THRESHOLD} schedule swings in {CIRCADIAN_WINDOW_DAYS} days for these crew. Soft flag — doesn’t block apply.
+                </div>
+                <ul className="ap-circadian-list">
+                  {Object.entries(assessment.byMember).flatMap(([memberId, info]) => {
+                    if (!info.circadianFlags || info.circadianFlags.length === 0) return [];
+                    const c = visibleCrew.find((x) => x.id === memberId);
+                    const name = c?.name || 'Unknown';
+                    return info.circadianFlags.map((f, i) => (
+                      <li key={`circ-${memberId}-${i}`}>
+                        <strong>{name}</strong> — {f.count} schedule swings in the past {CIRCADIAN_WINDOW_DAYS} days.
+                      </li>
+                    ));
+                  })}
+                </ul>
+              </div>
+            )}
           </div>
         )}
 
@@ -906,26 +1110,46 @@ export default function ApplyTemplateModal({
                 </button>
               </>
             )}
-            {phase === 'conflicts' && conflicts && (
-              <>
-                <button type="button" className="v2-btn-ghost"
-                  onClick={() => setPhase('select')} disabled={busy}>Back</button>
-                <button type="button" className="v2-btn-ghost"
-                  onClick={() => commit({
-                    mode: 'skip',
-                    conflictKeys: conflicts.conflictKeys,
-                    conflictIds: [],
-                  })}
-                  disabled={busy}>Skip conflicts</button>
-                <button type="button" className="v2-btn-filled"
-                  onClick={() => commit({
-                    mode: 'overwrite',
-                    conflictKeys: new Set(),
-                    conflictIds: conflicts.conflictIds,
-                  })}
-                  disabled={busy}>Overwrite</button>
-              </>
-            )}
+            {phase === 'conflicts' && (() => {
+              const needsReason = !!assessment?.hasMlc;
+              const reasonOk = !needsReason || overrideReason.trim().length > 0;
+              const blocked = busy || !reasonOk;
+              const applyLabel = needsReason ? 'Override + apply' : 'Apply';
+              const skipLabel = needsReason ? 'Override + skip conflicts' : 'Skip conflicts';
+              const overwriteLabel = needsReason ? 'Override + overwrite' : 'Overwrite';
+              return (
+                <>
+                  <button type="button" className="v2-btn-ghost"
+                    onClick={() => setPhase('select')} disabled={busy}>Back</button>
+                  {conflicts ? (
+                    <>
+                      <button type="button" className="v2-btn-ghost"
+                        onClick={() => commit({
+                          mode: 'skip',
+                          conflictKeys: conflicts.conflictKeys,
+                          conflictIds: [],
+                        })}
+                        disabled={blocked}>{skipLabel}</button>
+                      <button type="button" className="v2-btn-filled"
+                        onClick={() => commit({
+                          mode: 'overwrite',
+                          conflictKeys: new Set(),
+                          conflictIds: conflicts.conflictIds,
+                        })}
+                        disabled={blocked}>{overwriteLabel}</button>
+                    </>
+                  ) : (
+                    <button type="button" className="v2-btn-filled"
+                      onClick={() => commit({
+                        mode: 'skip',
+                        conflictKeys: new Set(),
+                        conflictIds: [],
+                      })}
+                      disabled={blocked}>{applyLabel}</button>
+                  )}
+                </>
+              );
+            })()}
             {phase === 'applying' && (
               <button type="button" className="v2-btn-filled" disabled>Applying…</button>
             )}
