@@ -17,8 +17,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
-
-const ON_DUTY_TYPES = new Set(['duty', 'watch', 'standby', 'training']);
+import { ON_DUTY_TYPES, assessMlc } from './restHours';
 
 export function hhmmToDecimal(t) {
   if (!t) return null;
@@ -86,21 +85,13 @@ export function deriveCrew(member, memberShifts, weekShifts, now = new Date()) {
     return { start, end, type: s.shiftType, subType: s.subType };
   }).filter(r => r.start != null && r.end != null);
 
-  const onDutyHoursToday = shiftRanges.reduce((sum, r) => sum + (r.end - r.start), 0);
-  const rest24hDecimal = Math.max(0, 24 - onDutyHoursToday);
-
-  // Rolling 7-day rest: 7*24 minus on-duty hours across the window.
-  const weekOnDutyHours = weekShifts
-    .filter(s => ON_DUTY_TYPES.has(s.shiftType))
-    .reduce((sum, s) => {
-      let start = hhmmToDecimal(s.startTime);
-      let end = hhmmToDecimal(s.endTime);
-      if (end != null && start != null && end <= start) end += 24;
-      return sum + ((end != null && start != null) ? (end - start) : 0);
-    }, 0);
-  const pastWeekHours = Math.max(0, 7 * 24 - weekOnDutyHours);
-
-  const mlcWarning = rest24hDecimal < 10 || pastWeekHours < 77;
+  // Rest-hour math via the shared MLC utility. Covers all four rules
+  // (10h/24h, 77h/7d, ≤2 rest periods one ≥6h, ≤14h continuous on-duty);
+  // mlcWarning trips if any rule breaches.
+  const mlcReport = assessMlc({ dayShifts: memberShifts, weekShifts });
+  const rest24hDecimal = mlcReport.rest24h;
+  const pastWeekHours = mlcReport.pastWeekHours;
+  const mlcWarning = mlcReport.anyBreach;
 
   // onNow: current wall-clock falls inside an on-duty window today.
   const nowDec = now.getHours() + now.getMinutes() / 60;
@@ -146,6 +137,7 @@ export function deriveCrew(member, memberShifts, weekShifts, now = new Date()) {
     pastWeek: fmtHours(pastWeekHours),
     rest24hDecimal,
     pastWeekHours,
+    mlcReport,
     mlcWarning: offToday ? false : mlcWarning,
     onNow,
     onUntil,

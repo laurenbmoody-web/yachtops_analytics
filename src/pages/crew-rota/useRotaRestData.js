@@ -10,9 +10,20 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import { hhmmToDecimal } from './useRotaShifts';
+import { ON_DUTY_TYPES, assessMlc } from './restHours';
 
-const ON_DUTY_TYPES = new Set(['duty', 'watch', 'standby', 'training']);
 const WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+// DB rows arrive snake_case; the shared MLC utility expects camelCase.
+function toCamelShift(s) {
+  return {
+    date: s.shift_date,
+    startTime: s.start_time,
+    endTime: s.end_time,
+    shiftType: s.shift_type,
+    subType: s.sub_type,
+  };
+}
 
 function fmtHours(decimal) {
   if (decimal == null) return '—';
@@ -98,19 +109,18 @@ export function useRotaRestData(memberId) {
         const todayRows = all.filter(s => s.shift_date === effDate);
         const offToday = todayRows.length > 0 && todayRows.every(s => s.shift_type === 'off');
 
-        const onDutyToday = todayRows
-          .filter(s => ON_DUTY_TYPES.has(s.shift_type))
-          .reduce((sum, s) => sum + shiftHours(s), 0);
-        const rest24h = Math.max(0, 24 - onDutyToday);
-
-        const weekOnDuty = all
-          .filter(s => ON_DUTY_TYPES.has(s.shift_type))
-          .reduce((sum, s) => sum + shiftHours(s), 0);
-        const pastWeekHours = Math.max(0, 7 * 24 - weekOnDuty);
-
+        // Shared MLC assessment — totals stay identical to the prior
+        // inline math; rules 3 + 4 are now also reflected in mlcWarning.
+        const mlcReport = assessMlc({
+          dayShifts: todayRows.map(toCamelShift),
+          weekShifts: all.map(toCamelShift),
+        });
+        const onDutyToday = mlcReport.onDutyToday;
+        const rest24h = mlcReport.rest24h;
+        const pastWeekHours = mlcReport.pastWeekHours;
         const dailyBelow = rest24h < 10;
         const weeklyBelow = pastWeekHours < 77;
-        const mlcWarning = !offToday && (dailyBelow || weeklyBelow);
+        const mlcWarning = !offToday && mlcReport.anyBreach;
 
         // ── 24h timeline: rest gaps + on-duty blocks across the day ──
         const onDutySorted = todayRows
@@ -190,9 +200,18 @@ export function useRotaRestData(memberId) {
                   body: `The last 24 hours show <strong>${fmtHours(rest24h)}</strong> of rest. MLC requires 10 hours in any 24-hour window. The next shift cannot start until the daily minimum is recoverable.`,
                 };
               }
+              if (weeklyBelow) {
+                return {
+                  headline: 'Weekly rest is <em>below the 77-hour MLC minimum</em>.',
+                  body: `The rolling 7-day rest total is <strong>${fmtHours(pastWeekHours)}</strong> against the 77h weekly minimum. The cumulative shortfall needs reducing over the coming days.`,
+                };
+              }
+              // Structural breach only — daily/weekly totals are fine but
+              // rule 3 (period split) or rule 4 (14h stretch) is broken.
+              const breachLabels = mlcReport.breaches.map(b => b.label).join(' · ');
               return {
-                headline: 'Weekly rest is <em>below the 77-hour MLC minimum</em>.',
-                body: `The rolling 7-day rest total is <strong>${fmtHours(pastWeekHours)}</strong> against the 77h weekly minimum. The cumulative shortfall needs reducing over the coming days.`,
+                headline: 'Rest pattern <em>breaches MLC structural rules</em>.',
+                body: `Daily and weekly totals are within MLC, but rest does not split as required: ${breachLabels}.`,
               };
             })()
           : { headline: null, body: null };
