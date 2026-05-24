@@ -1564,6 +1564,58 @@ export const resolveSupplierProfileId = async ({ name = null, email = null } = {
   return null;
 };
 
+// Given an array of supplier_profiles.id, return the Set of those that
+// have at least one active supplier_contacts row with a non-null user_id
+// (i.e. a real linked Cargo portal account). One query, not per-row.
+// Used by the Returns view to decide which return groups get the portal-
+// routing treatment instead of the email-slip flow.
+export const fetchPortalEnabledSupplierIds = async (supplierProfileIds = []) => {
+  const ids = [...new Set((supplierProfileIds || []).filter(Boolean))];
+  if (ids.length === 0) return new Set();
+  try {
+    const { data, error } = await supabase
+      ?.from('supplier_contacts')
+      ?.select('supplier_id')
+      ?.in('supplier_id', ids)
+      ?.eq('active', true)
+      ?.not('user_id', 'is', null);
+    if (error) throw error;
+    return new Set((data || []).map(r => r.supplier_id));
+  } catch (err) {
+    console.error('[fetchPortalEnabledSupplierIds]', err);
+    return new Set();
+  }
+};
+
+// Atomically route a return to the supplier's Cargo portal — single RPC
+// call wrapping (a) FOR UPDATE lock on the originating inbox rows,
+// (b) double-submit guard, (c) INSERT supplier_return_tasks, (d) UPDATE
+// delivery_inbox rows to archived/routed_to_portal. The whole thing runs
+// in one Postgres transaction so no partial state is possible.
+// Returns { ok: true, taskId } on success, { ok: false } on any failure.
+export const sendReturnToPortal = async ({ supplierProfileId, tenantId, inboxIds, items, createdBy }) => {
+  try {
+    const { data, error } = await supabase?.rpc('route_return_to_portal', {
+      p_supplier_id: supplierProfileId,
+      p_tenant_id:   tenantId,
+      p_inbox_ids:   inboxIds,
+      p_items:       items,
+      p_created_by:  createdBy,
+    });
+    if (error) throw error;
+    // TODO(notification): when the sendReturnTaskNotification edge
+    //   function exists, invoke it here with { taskId: data,
+    //   supplierProfileId, tenantId } so the supplier learns the task
+    //   landed in their portal. Failure of the email send must NOT
+    //   roll the task back — the task is in the supplier portal either
+    //   way; the email is just the push.
+    return { ok: true, taskId: data };
+  } catch (err) {
+    console.error('[sendReturnToPortal]', err);
+    return { ok: false };
+  }
+};
+
 /**
  * Tier 2 cross-department matching — client-side implementation.
  * For each unmatched item from a delivery note scan:

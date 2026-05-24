@@ -26,6 +26,8 @@ import {
   dismissInboxItem,
   returnInboxItem,
   fetchPendingReturns,
+  fetchPortalEnabledSupplierIds,
+  sendReturnToPortal,
   confirmReturned,
   cancelReturns,
   fetchProvisioningLists,
@@ -652,7 +654,8 @@ const groupBySupplier = (items) => {
 // ─── Returns: stage-aware group card ────────────────────────────────────────
 const ReturnsGroupCard = ({
   supplier, items, stage, selectedIds, requesterNames,
-  onToggleSelect, onToggleGroup, onCancelReturn, onGenerateSlip, onMarkArchived, acting,
+  onToggleSelect, onToggleGroup, onCancelReturn, onGenerateSlip, onMarkArchived,
+  onSendToPortal, isPortalEnabled, acting,
 }) => {
   const allSelected = items.length > 0 && items.every(i => selectedIds.has(i.id));
   const requesterIds = [...new Set(items.map(i => i.return_requested_by).filter(Boolean))];
@@ -698,11 +701,22 @@ const ReturnsGroupCard = ({
           );
         })}
       </div>
+      {stage === 1 && isPortalEnabled && (
+        <p className="di-portal-route-note">
+          This supplier uses Cargo — the return goes to their portal.
+        </p>
+      )}
       <div className="di-card-footer">
         {stage === 1 && (
           <>
             <button onClick={() => onCancelReturn(items)} disabled={acting} className="di-btn di-btn-ghost">Cancel return</button>
-            <button onClick={() => onGenerateSlip(items)} disabled={acting} className="di-btn di-btn-primary">Generate &amp; send slip</button>
+            {isPortalEnabled ? (
+              <button onClick={() => onSendToPortal(items)} disabled={acting} className="di-btn di-btn-primary">
+                Send return to {supplier}&rsquo;s Cargo portal
+              </button>
+            ) : (
+              <button onClick={() => onGenerateSlip(items)} disabled={acting} className="di-btn di-btn-primary">Generate &amp; send slip</button>
+            )}
           </>
         )}
         {stage === 2 && (
@@ -741,6 +755,7 @@ const ReturnsView = ({
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
   const [requesterNames, setRequesterNames] = useState({});
+  const [portalEnabledIds, setPortalEnabledIds] = useState(() => new Set());
   const [loadError, setLoadError] = useState(null);
 
   const load = useCallback(async () => {
@@ -760,10 +775,16 @@ const ReturnsView = ({
       } else {
         setRequesterNames({});
       }
+      // Which of the distinct supplier_profile_ids on these returns have an
+      // active Cargo portal account? Drives the stage-1 footer branch.
+      const supplierProfileIds = [...new Set(items.map(i => i.supplier_profile_id).filter(Boolean))];
+      const portalIds = await fetchPortalEnabledSupplierIds(supplierProfileIds);
+      setPortalEnabledIds(portalIds);
     } catch (err) {
       console.error('[ReturnsView load]', err);
       setLoadError(err?.message || 'fetch failed');
       setReturnItems([]);
+      setPortalEnabledIds(new Set());
     } finally {
       setLoading(false);
     }
@@ -812,6 +833,46 @@ const ReturnsView = ({
       await load();
     } else {
       showToast('Failed to cancel returns', 'error');
+    }
+    setActing(false);
+  };
+
+  // Pick the single non-null supplier_profile_id shared across the group.
+  // If items in the group disagree (mixed ids or any null), return null so
+  // the group falls through to the slip flow — never silently route the
+  // wrong supplier.
+  const getGroupSupplierProfileId = (groupItems) => {
+    const ids = new Set(groupItems.map(i => i.supplier_profile_id).filter(Boolean));
+    return ids.size === 1 ? [...ids][0] : null;
+  };
+
+  const handleSendToPortal = async (items) => {
+    const supplierProfileId = getGroupSupplierProfileId(items);
+    if (!supplierProfileId) {
+      showToast('Cannot route — supplier ambiguous on this return', 'error');
+      return;
+    }
+    const supplierName = items[0]?.supplier_name || 'supplier';
+    const itemsSnapshot = items.map(i => ({
+      raw_name:      i.raw_name,
+      quantity:      i.return_qty ?? i.quantity ?? null,
+      unit:          i.unit ?? null,
+      unit_price:    i.unit_price ?? null,
+      return_reason: i.return_reason ?? null,
+    }));
+    setActing(true);
+    const result = await sendReturnToPortal({
+      supplierProfileId,
+      tenantId,
+      inboxIds: items.map(i => i.id),
+      items:    itemsSnapshot,
+      createdBy: userId,
+    });
+    if (result.ok) {
+      showToast(`Return routed to ${supplierName}'s Cargo portal.`, 'success');
+      await load();
+    } else {
+      showToast('Failed to route return — please try again.', 'error');
     }
     setActing(false);
   };
@@ -887,22 +948,28 @@ const ReturnsView = ({
             {stages[stage].length === 0 ? (
               <p className="di-stage-section-empty">Nothing in this stage.</p>
             ) : (
-              Object.entries(groupBySupplier(stages[stage])).map(([supplier, items]) => (
-                <ReturnsGroupCard
-                  key={`${stage}-${supplier}`}
-                  supplier={supplier}
-                  items={items}
-                  stage={stage}
-                  selectedIds={selectedIds}
-                  requesterNames={requesterNames}
-                  onToggleSelect={handleToggleSelect}
-                  onToggleGroup={handleToggleGroup}
-                  onCancelReturn={handleCancelReturn}
-                  onGenerateSlip={handleGenerateSlip}
-                  onMarkArchived={handleMarkArchived}
-                  acting={acting}
-                />
-              ))
+              Object.entries(groupBySupplier(stages[stage])).map(([supplier, items]) => {
+                const groupSupplierProfileId = getGroupSupplierProfileId(items);
+                const isPortalEnabled = !!groupSupplierProfileId && portalEnabledIds.has(groupSupplierProfileId);
+                return (
+                  <ReturnsGroupCard
+                    key={`${stage}-${supplier}`}
+                    supplier={supplier}
+                    items={items}
+                    stage={stage}
+                    selectedIds={selectedIds}
+                    requesterNames={requesterNames}
+                    onToggleSelect={handleToggleSelect}
+                    onToggleGroup={handleToggleGroup}
+                    onCancelReturn={handleCancelReturn}
+                    onGenerateSlip={handleGenerateSlip}
+                    onMarkArchived={handleMarkArchived}
+                    onSendToPortal={handleSendToPortal}
+                    isPortalEnabled={isPortalEnabled}
+                    acting={acting}
+                  />
+                );
+              })
             )}
           </section>
         ))}
