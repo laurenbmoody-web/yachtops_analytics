@@ -2,11 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { X, AlertTriangle, ChevronDown, RefreshCw, Trash2, Plus, RotateCcw, CheckCircle2, Activity } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import DateRangePicker from './DateRangePicker';
-import {
-  assessApply,
-  CIRCADIAN_SWING_THRESHOLD,
-  CIRCADIAN_WINDOW_DAYS,
-} from './restHours';
+import { assessApply, CIRCADIAN_WINDOW_DAYS } from './restHours';
 
 // Phase 3a + 3b — Apply-template modal (simple + shift-pattern paths).
 //
@@ -112,7 +108,7 @@ function formatMlcBreachPhrase(breach) {
 // Concise per-rule labels for the collapsed summary line. Kept short
 // enough to chain inline; still recognisable as the four MLC rules.
 const MLC_RULE_SHORT_LABEL = {
-  daily_rest_10h:       'rest under 10h in 24h',
+  daily_rest_10h:       'rest under 10h',
   weekly_rest_77h:      '7-day rest under 77h',
   rest_period_split:    'rest split breaks ≤2 / one ≥6h rule',
   max_work_stretch_14h: '14h+ continuous on-duty',
@@ -1146,7 +1142,7 @@ export default function ApplyTemplateModal({
                   <span>Circadian rhythm — schedule swings</span>
                 </div>
                 <div className="ap-circadian-body">
-                  Heads-up: ≥{CIRCADIAN_SWING_THRESHOLD} schedule swings in {CIRCADIAN_WINDOW_DAYS} days for these crew. Soft flag — doesn’t block apply.
+                  These crew swing between day and night work several times in a week — worth a glance before you apply
                 </div>
                 <ul className="ap-circadian-list">
                   {Object.entries(assessment.byMember).flatMap(([memberId, info]) => {
