@@ -73,12 +73,14 @@ export default function SimpleTemplateEditor({
     return () => document.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
+  const sameTimes = !!startTime && !!endTime && startTime === endTime;
   const canSave = useMemo(() => {
     if (!name.trim()) return false;
     if (selection == null) return false;
     if (!startTime || !endTime) return false;
+    if (sameTimes) return false;
     return true;
-  }, [name, selection, startTime, endTime]);
+  }, [name, selection, startTime, endTime, sameTimes]);
 
   if (!open) return null;
 
@@ -230,6 +232,9 @@ export default function SimpleTemplateEditor({
               />
             </label>
           </div>
+          {sameTimes && (
+            <div className="te-field-error">Start and end time cannot be the same.</div>
+          )}
 
           <div className="te-preview">
             <span className="te-preview-swatch" style={{ background: previewColor }} />
