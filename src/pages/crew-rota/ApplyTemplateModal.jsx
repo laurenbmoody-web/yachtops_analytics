@@ -105,38 +105,46 @@ function formatMlcBreachPhrase(breach) {
   return `breach of ${rule}`;
 }
 
-// Concise per-rule labels for the collapsed summary line. Kept short
-// enough to chain inline; still recognisable as the four MLC rules.
-const MLC_RULE_SHORT_LABEL = {
-  daily_rest_10h:       'rest under 10h',
-  weekly_rest_77h:      '7-day rest under 77h',
-  rest_period_split:    'rest split breaks ≤2 / one ≥6h rule',
-  max_work_stretch_14h: '14h+ continuous on-duty',
-};
+// Short, scannable chip labels — no math symbols. Canonical order:
+// daily, weekly, structural split, max stretch. Renderers iterate this
+// list so chip order is identical row-to-row.
+const MLC_RULE_CHIPS = [
+  { rule: 'daily_rest_10h',       label: '10h rest' },
+  { rule: 'weekly_rest_77h',      label: '77h/week' },
+  { rule: 'rest_period_split',    label: 'rest breaks' },
+  { rule: 'max_work_stretch_14h', label: '14h max' },
+];
 
-// Group one member's breaches by rule, preserving rule order. Returns
-// [{ rule, label, dayCount, breaches: [...] }].
-function summariseMemberBreaches(mlcBreaches) {
-  const ruleOrder = ['daily_rest_10h', 'weekly_rest_77h', 'rest_period_split', 'max_work_stretch_14h'];
+// Day-count → chip severity tier. Drives the chip fill intensity so
+// "bad" reads before the text does. Four tiers in the Cargo terracotta
+// family, lightest → deepest. Tunable in CSS.
+function chipSeverity(dayCount) {
+  if (dayCount >= 7) return 'extreme';
+  if (dayCount >= 5) return 'high';
+  if (dayCount >= 3) return 'medium';
+  return 'low';
+}
+
+// Per-member breach summary keyed by rule. Missing rules → 0 days.
+function ruleSummary(mlcBreaches) {
   const byRule = new Map();
   for (const b of mlcBreaches) {
-    if (!byRule.has(b.rule)) byRule.set(b.rule, []);
-    byRule.get(b.rule).push(b);
+    byRule.set(b.rule, (byRule.get(b.rule) || 0) + 1);
   }
-  return ruleOrder
-    .filter((r) => byRule.has(r))
-    .map((r) => ({
-      rule: r,
-      label: MLC_RULE_SHORT_LABEL[r] || r,
-      dayCount: byRule.get(r).length,
-      breaches: byRule.get(r),
-    }));
+  return MLC_RULE_CHIPS
+    .map(({ rule, label }) => ({ rule, label, dayCount: byRule.get(rule) || 0 }))
+    .filter((r) => r.dayCount > 0);
+}
+
+// Total day-count weight for row sorting (worst-first).
+function memberSeverity(mlcBreaches) {
+  return mlcBreaches.length;
 }
 
 // One collapsible member row in the MLC breach list. Defaults collapsed.
 function MlcMemberRow({ name, mlcBreaches }) {
   const [open, setOpen] = useState(false);
-  const ruleSummary = useMemo(() => summariseMemberBreaches(mlcBreaches), [mlcBreaches]);
+  const chips = useMemo(() => ruleSummary(mlcBreaches), [mlcBreaches]);
   return (
     <li className={`ap-mlc-member${open ? ' is-open' : ''}`}>
       <button
@@ -147,14 +155,16 @@ function MlcMemberRow({ name, mlcBreaches }) {
       >
         <ChevronDown size={12} className="ap-mlc-member-chev" />
         <span className="ap-mlc-member-name">{name}</span>
-        <span className="ap-mlc-member-summary">
-          {ruleSummary.map((rs, i) => (
-            <React.Fragment key={rs.rule}>
-              {i > 0 && <span className="ap-mlc-sep"> · </span>}
-              <span className="ap-mlc-rule">
-                {rs.label} <span className="ap-mlc-rule-days">({rs.dayCount} day{rs.dayCount === 1 ? '' : 's'})</span>
-              </span>
-            </React.Fragment>
+        <span className="ap-mlc-chips">
+          {chips.map((c) => (
+            <span
+              key={c.rule}
+              className={`ap-mlc-chip ap-mlc-chip-${chipSeverity(c.dayCount)}`}
+            >
+              <span className="ap-mlc-chip-label">{c.label}</span>
+              <span className="ap-mlc-chip-sep">·</span>
+              <span className="ap-mlc-chip-days">{c.dayCount}d</span>
+            </span>
           ))}
         </span>
       </button>
@@ -1110,6 +1120,7 @@ export default function ApplyTemplateModal({
                 <ul className="ap-mlc-list">
                   {Object.entries(assessment.byMember)
                     .filter(([, info]) => info.mlcBreaches && info.mlcBreaches.length > 0)
+                    .sort((a, b) => memberSeverity(b[1].mlcBreaches) - memberSeverity(a[1].mlcBreaches))
                     .map(([memberId, info]) => {
                       const c = visibleCrew.find((x) => x.id === memberId);
                       const name = c?.name || 'Unknown';
