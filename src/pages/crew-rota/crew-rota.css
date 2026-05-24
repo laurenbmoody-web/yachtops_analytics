@@ -1809,6 +1809,26 @@
   color: #1C1B3A;
 }
 
+/* Stage 2 breadcrumb — small note recapping the Stage 1 choice. */
+.ap-stage-crumb {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11px;
+  color: #695880;
+  padding: 2px 0 10px;
+}
+.ap-stage-crumb-link {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: #7A2E1E;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ap-stage-crumb-link:hover { color: #5C2316; }
+.ap-stage-crumb-link:disabled { opacity: 0.5; cursor: default; }
+
 /* MLC breach — hard warning. Shares the terracotta language of conflicts. */
 .ap-mlc-hard {
   background: #FAECE7;

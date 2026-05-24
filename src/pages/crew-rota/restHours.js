@@ -222,7 +222,7 @@ function addLocalDays(dateStr, n) {
   return toLocalDateStr(x);
 }
 
-function normalise(rows) {
+function normalise(rows, source) {
   return (rows || []).map((r) => ({
     memberId: r.member_id ?? r.memberId,
     date: r.shift_date ?? r.date,
@@ -230,6 +230,7 @@ function normalise(rows) {
     endTime: r.end_time ?? r.endTime,
     shiftType: r.shift_type ?? r.shiftType,
     subType: r.sub_type ?? r.subType ?? null,
+    source,
   })).filter((s) => s.memberId && s.date);
 }
 
@@ -242,8 +243,8 @@ export function assessApply({
   if (memberIds.length === 0 || dates.length === 0) {
     return { byMember: {}, hasMlc: false, hasCircadian: false, totalMlcBreaches: 0, totalCircadianFlags: 0 };
   }
-  const existing = normalise(existingWindowShifts);
-  const proposed = normalise(proposedRows);
+  const existing = normalise(existingWindowShifts, 'existing');
+  const proposed = normalise(proposedRows, 'proposed');
   const dateSet = new Set(dates);
 
   const byMember = {};
