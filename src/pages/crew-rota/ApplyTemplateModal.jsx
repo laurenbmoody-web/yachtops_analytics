@@ -116,6 +116,44 @@ const MLC_RULE_CHIPS = [
   { rule: 'max_work_stretch_14h', label: 'too long without a break' },
 ];
 
+// Numbers spelt out for the piled-up template (max 8 shifts is plenty).
+const NUMBER_WORD = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight'];
+function numberWord(n) { return NUMBER_WORD[n] || String(n); }
+
+// UX copy for the breach advisory. restHours.js emits the diagnosis;
+// this function renders the human sentence. Returns null for diagnoses
+// out of v1 scope (structural rules).
+function adviseBreach(diagnosis) {
+  if (!diagnosis) return null;
+  if (diagnosis.rule === 'daily_rest_10h') {
+    const date = fmtDateShort(diagnosis.date);
+    if (diagnosis.cause === 'single_long_shift') {
+      const k = diagnosis.culprits[0];
+      const hours = Math.round(k.durationHours);
+      const subject = k.source === 'proposed' ? 'the pattern adds' : 'the crew already has';
+      return `Why — ${subject} a ${hours}h shift on ${fmtDateShort(k.date)}; on its own that leaves under 10h rest. A shorter shift, or splitting it across two crew, would ease this.`;
+    }
+    if (diagnosis.cause === 'two_shifts_too_close') {
+      const gap = Math.round(diagnosis.gapHours);
+      return `Why — two shifts on ${date} fall only ${gap}h apart. More space between them would bring the rest back up.`;
+    }
+    if (diagnosis.cause === 'piled_up') {
+      return `Why — ${numberWord(diagnosis.shiftCount)} shifts stack up on ${date}. Dropping or reassigning one would ease the load.`;
+    }
+    // ambiguous
+    return `Why — rest is short across several shifts on ${date}, with no single one driving it.`;
+  }
+  if (diagnosis.rule === 'weekly_rest_77h') {
+    if (diagnosis.cause === 'one_spike_day' && diagnosis.heaviestDay) {
+      const hd = diagnosis.heaviestDay;
+      const hours = Math.round(hd.hours);
+      return `Why — ${fmtDateShort(hd.date)} carries ${hours}h, most of this week’s load. Lightening that day would help most.`;
+    }
+    return 'Why — the load is heavy right across the week, with no single day standing out. Spreading work to other crew would bring it down.';
+  }
+  return null;
+}
+
 // Sentence-case rule title for the per-rule summary line.
 const MLC_RULE_TITLE = {
   daily_rest_10h:       'Not enough rest per day',
@@ -166,38 +204,62 @@ function daysClauseStructural(dayCount) {
   return `${dayCount} day${dayCount === 1 ? '' : 's'}`;
 }
 
-// Single sentence summarising one member's breaches of one rule.
-// Identifies the worst-case day from the breach list and names the limit.
-function summariseRule(rule, breaches, applyDates) {
-  const title = MLC_RULE_TITLE[rule] || rule;
-  if (breaches.length === 0) return null;
-
-  if (rule === 'daily_rest_10h') {
-    const worst = breaches.reduce((a, b) =>
+// Per-rule worst-breach pick. Worst = least-rest / longest-stretch /
+// most-broken-rest day for each rule respectively.
+function pickWorstBreach(rule, breaches) {
+  if (rule === 'daily_rest_10h' || rule === 'weekly_rest_77h') {
+    return breaches.reduce((a, b) =>
       (a == null || Number(b.projected) < Number(a.projected)) ? b : a, null);
-    return `${title} — fell short on ${daysClauseTotals(breaches.length, applyDates)}. Worst was ${fmtHoursH(worst.projected)} rest on ${fmtDateShort(worst.date)} (${worst.limit}h required).`;
-  }
-  if (rule === 'weekly_rest_77h') {
-    const worst = breaches.reduce((a, b) =>
-      (a == null || Number(b.projected) < Number(a.projected)) ? b : a, null);
-    return `${title} — fell short on ${daysClauseTotals(breaches.length, applyDates)}. Lowest was ${fmtHoursH(worst.projected)} on ${fmtDateShort(worst.date)} (${worst.limit}h required).`;
   }
   if (rule === 'rest_period_split') {
-    const worst = breaches.reduce((a, b) => {
+    return breaches.reduce((a, b) => {
       const cur = Number(b.projected?.longest ?? 999);
       const prev = a ? Number(a.projected?.longest ?? 999) : 999;
       return cur < prev ? b : a;
     }, null);
+  }
+  if (rule === 'max_work_stretch_14h') {
+    return breaches.reduce((a, b) =>
+      (a == null || Number(b.projected) > Number(a.projected)) ? b : a, null);
+  }
+  return breaches[0] || null;
+}
+
+// Per-rule summary sentence. `worst` is exposed so the caller can pass
+// its diagnosis to adviseBreach — the advisory should describe the same
+// day the sentence highlights.
+function summariseRule(rule, breaches, applyDates) {
+  const title = MLC_RULE_TITLE[rule] || rule;
+  if (breaches.length === 0) return null;
+  const worst = pickWorstBreach(rule, breaches);
+
+  if (rule === 'daily_rest_10h') {
+    return {
+      sentence: `${title} — fell short on ${daysClauseTotals(breaches.length, applyDates)}. Worst was ${fmtHoursH(worst.projected)} rest on ${fmtDateShort(worst.date)} (${worst.limit}h required).`,
+      worst,
+    };
+  }
+  if (rule === 'weekly_rest_77h') {
+    return {
+      sentence: `${title} — fell short on ${daysClauseTotals(breaches.length, applyDates)}. Lowest was ${fmtHoursH(worst.projected)} on ${fmtDateShort(worst.date)} (${worst.limit}h required).`,
+      worst,
+    };
+  }
+  if (rule === 'rest_period_split') {
     const longest = Number(worst?.projected?.longest ?? 0);
     const tail = longest < 0.01
       ? 'it split with none reaching 6h'
       : `the longest rest was only ${fmtHoursH(longest)} (6h needed)`;
-    return `${title} — rest too broken up on ${daysClauseStructural(breaches.length)}. On ${fmtDateShort(worst.date)} ${tail}.`;
+    return {
+      sentence: `${title} — rest too broken up on ${daysClauseStructural(breaches.length)}. On ${fmtDateShort(worst.date)} ${tail}.`,
+      worst,
+    };
   }
   if (rule === 'max_work_stretch_14h') {
-    const worst = breaches.reduce((a, b) =>
-      (a == null || Number(b.projected) > Number(a.projected)) ? b : a, null);
-    return `${title} — worked too long in one stretch on ${daysClauseStructural(breaches.length)}. Longest was ${fmtHoursH(worst.projected)} continuous on ${fmtDateShort(worst.date)} (${worst.limit}h max).`;
+    return {
+      sentence: `${title} — worked too long in one stretch on ${daysClauseStructural(breaches.length)}. Longest was ${fmtHoursH(worst.projected)} continuous on ${fmtDateShort(worst.date)} (${worst.limit}h max).`,
+      worst,
+    };
   }
   return null;
 }
@@ -218,11 +280,16 @@ function MlcMemberRow({ name, mlcBreaches, applyDates }) {
     }
     return MLC_RULE_CHIPS
       .filter(({ rule }) => byRule.has(rule))
-      .map(({ rule }) => ({
-        rule,
-        sentence: summariseRule(rule, byRule.get(rule), applyDates),
-      }))
-      .filter((r) => r.sentence);
+      .map(({ rule }) => {
+        const summary = summariseRule(rule, byRule.get(rule), applyDates);
+        if (!summary) return null;
+        return {
+          rule,
+          sentence: summary.sentence,
+          advisory: adviseBreach(summary.worst?.diagnosis),
+        };
+      })
+      .filter(Boolean);
   }, [mlcBreaches, applyDates]);
   return (
     <li className={`ap-mlc-member${open ? ' is-open' : ''}`}>
@@ -251,7 +318,12 @@ function MlcMemberRow({ name, mlcBreaches, applyDates }) {
         <div className="ap-mlc-member-expand">
           <ul className="ap-mlc-rule-summary">
             {ruleSummaries.map((rs) => (
-              <li key={rs.rule}>{rs.sentence}</li>
+              <li key={rs.rule}>
+                <div className="ap-mlc-rule-sentence">{rs.sentence}</div>
+                {rs.advisory && (
+                  <div className="ap-mlc-rule-advisory">{rs.advisory}</div>
+                )}
+              </li>
             ))}
           </ul>
           <button
@@ -449,11 +521,20 @@ export default function ApplyTemplateModal({
   const [slots, setSlots] = useState([]);
 
   // ── Modal-phase state (shared) ─────────────────────────────────────
-  // 'conflicts' here is the combined review phase — it surfaces shift
-  // conflicts AND MLC breaches AND circadian flags. Kept as the same
-  // state value to minimise churn from earlier phases.
-  const [phase, setPhase] = useState('select');  // 'select' | 'conflicts' | 'applying'
+  // Staged review flow:
+  //   'select'    → user is configuring the apply
+  //   'conflicts' → Stage 1: resolve shift conflicts (skip vs overwrite)
+  //   'mlc'       → Stage 2: MLC + circadian against the post-resolution
+  //                  roster; mandatory reason on MLC breaches
+  //   'applying'  → DB write in flight
+  //
+  // The breach analysis on Stage 2 is recomputed against the chosen
+  // resolution, so the advisory describes the roster that will actually
+  // land — not a worst-case union.
+  const [phase, setPhase] = useState('select');
   const [conflicts, setConflicts] = useState(null);
+  const [historyShifts, setHistoryShifts] = useState([]);
+  const [resolutionMode, setResolutionMode] = useState(null); // 'skip' | 'overwrite' | null
   const [assessment, setAssessment] = useState(null);
   const [overrideReason, setOverrideReason] = useState('');
   const [busy, setBusy] = useState(false);
@@ -464,6 +545,8 @@ export default function ApplyTemplateModal({
     setRange(defaultRange());
     setPhase('select');
     setConflicts(null);
+    setHistoryShifts([]);
+    setResolutionMode(null);
     setAssessment(null);
     setOverrideReason('');
     setBusy(false);
@@ -700,7 +783,27 @@ export default function ApplyTemplateModal({
         : '—')
     : null;
 
-  // ── Apply (conflict + MLC/circadian check then commit) ─────────────
+  // ── Assessment helper — runs assessApply against the post-resolution
+  // roster the chosen mode would produce. `mode` is 'skip' | 'overwrite'
+  // | 'none' (no conflicts present). conflictKeys / conflictIdSet drive
+  // the filtering so the breach analysis describes what will actually land.
+  const computeAssessmentFor = ({ memberIds, proposedRows, existingShifts, mode, conflictKeys, conflictIdSet }) => {
+    let effProposed = proposedRows;
+    let effExisting = existingShifts;
+    if (mode === 'skip') {
+      effProposed = proposedRows.filter((r) => !conflictKeys.has(`${r.member_id}|${r.shift_date}`));
+    } else if (mode === 'overwrite') {
+      effExisting = existingShifts.filter((s) => !conflictIdSet.has(s.id));
+    }
+    return assessApply({
+      memberIds,
+      dates,
+      proposedRows: effProposed,
+      existingWindowShifts: effExisting,
+    });
+  };
+
+  // ── Apply (route into the staged review or commit straight through) ─
   const runConflictCheck = async () => {
     const { rows, memberIds } = targetRowsAndMembers;
     if (rows.length === 0) {
@@ -711,7 +814,7 @@ export default function ApplyTemplateModal({
     }
     setBusy(true);
     try {
-      // 1 — same-day conflicts (existing behaviour).
+      // 1 — same-day conflicts.
       const { data, error: qErr } = await supabase
         .from('rota_shifts')
         .select('id, member_id, shift_date')
@@ -725,8 +828,8 @@ export default function ApplyTemplateModal({
         targetKeys.has(`${r.member_id}|${r.shift_date}`),
       );
 
-      // 2 — 7-day-back history window for MLC + circadian assessment.
-      // Local date components only — no UTC conversion.
+      // 2 — 7-day-back history window. `id` included so overwrite-mode
+      // recomputes can filter it. Local date components only — no UTC.
       const earliest = dates[0];
       const latest = dates[dates.length - 1];
       const [ey, em, ed] = earliest.split('-').map(Number);
@@ -736,19 +839,15 @@ export default function ApplyTemplateModal({
 
       const { data: histData, error: hErr } = await supabase
         .from('rota_shifts')
-        .select('member_id, shift_date, start_time, end_time, shift_type, sub_type')
+        .select('id, member_id, shift_date, start_time, end_time, shift_type, sub_type')
         .eq('tenant_id', rota.tenantId)
         .in('member_id', memberIds)
         .gte('shift_date', histStartStr)
         .lte('shift_date', latest);
       if (hErr) throw hErr;
 
-      const nextAssessment = assessApply({
-        memberIds,
-        dates,
-        proposedRows: rows,
-        existingWindowShifts: histData || [],
-      });
+      const history = histData || [];
+      setHistoryShifts(history);
 
       const nextConflicts = conflictRows.length > 0
         ? {
@@ -758,16 +857,41 @@ export default function ApplyTemplateModal({
             conflictIds: conflictRows.map((r) => r.id),
           }
         : null;
+      setConflicts(nextConflicts);
 
-      // Nothing to review → commit straight through.
-      if (!nextConflicts && !nextAssessment.hasMlc && !nextAssessment.hasCircadian) {
+      // Stage 1 path: conflicts exist → resolve first, defer MLC analysis.
+      if (nextConflicts) {
+        setResolutionMode(null);
         setAssessment(null);
-        await commit({ mode: 'skip', conflictKeys: new Set(), conflictIds: [], assessmentOverride: null });
+        setPhase('conflicts');
         return;
       }
-      setConflicts(nextConflicts);
-      setAssessment(nextAssessment);
-      setPhase('conflicts');
+
+      // No conflicts → analyse straight against existing + proposed.
+      const initialAssessment = computeAssessmentFor({
+        memberIds,
+        proposedRows: rows,
+        existingShifts: history,
+        mode: 'none',
+        conflictKeys: new Set(),
+        conflictIdSet: new Set(),
+      });
+
+      if (!initialAssessment.hasMlc && !initialAssessment.hasCircadian) {
+        // Clean apply — commit straight through.
+        setAssessment(null);
+        setResolutionMode('skip');
+        await commit({
+          mode: 'skip',
+          conflictKeys: new Set(),
+          conflictIds: [],
+          assessmentForAudit: null,
+        });
+        return;
+      }
+      setAssessment(initialAssessment);
+      setResolutionMode('skip'); // implicit — nothing to skip
+      setPhase('mlc');
     } catch (e) {
       onToast?.(`Conflict check failed — ${e.message || 'try again'}`);
     } finally {
@@ -775,9 +899,52 @@ export default function ApplyTemplateModal({
     }
   };
 
-  const commit = async ({ mode, conflictKeys, conflictIds }) => {
+  // ── Stage 1 → Stage 2 (or direct commit) ───────────────────────────
+  // Locks the resolution choice, then recomputes the assessment against
+  // the post-resolution roster. If that resolution produces no MLC and
+  // no circadian flags, we commit straight through — the chief doesn't
+  // need to look at a Stage 2 with nothing on it.
+  const pickResolution = async (mode) => {
+    if (!conflicts) return;
+    setBusy(true);
+    try {
+      setResolutionMode(mode);
+      const conflictKeys = mode === 'skip' ? conflicts.conflictKeys : new Set();
+      const conflictIds = mode === 'overwrite' ? conflicts.conflictIds : [];
+      const conflictIdSet = new Set(conflicts.conflictIds);
+      const { rows, memberIds } = targetRowsAndMembers;
+      const next = computeAssessmentFor({
+        memberIds,
+        proposedRows: rows,
+        existingShifts: historyShifts,
+        mode,
+        conflictKeys: conflicts.conflictKeys,
+        conflictIdSet,
+      });
+      if (!next.hasMlc && !next.hasCircadian) {
+        setAssessment(null);
+        await commit({
+          mode,
+          conflictKeys,
+          conflictIds,
+          assessmentForAudit: null,
+        });
+        return;
+      }
+      setAssessment(next);
+      setOverrideReason('');
+      setPhase('mlc');
+    } catch (e) {
+      onToast?.(`Couldn’t analyse rest hours — ${e.message || 'try again'}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const commit = async ({ mode, conflictKeys, conflictIds, assessmentForAudit }) => {
     setBusy(true);
     setPhase('applying');
+    const auditAssessment = assessmentForAudit !== undefined ? assessmentForAudit : assessment;
     const allRows = targetRowsAndMembers.rows;
     const rows = mode === 'skip'
       ? allRows.filter((r) => !conflictKeys.has(`${r.member_id}|${r.shift_date}`))
@@ -787,7 +954,7 @@ export default function ApplyTemplateModal({
     if (!res.ok) {
       onToast?.(`Couldn’t apply — ${res.error || 'try again'}`);
       setBusy(false);
-      setPhase(conflicts ? 'conflicts' : 'select');
+      setPhase(auditAssessment ? 'mlc' : (conflicts ? 'conflicts' : 'select'));
       return;
     }
 
@@ -813,7 +980,7 @@ export default function ApplyTemplateModal({
     // that department's crew. context.shift_ids is the set of inserted
     // shifts in that department; context.breaches is the per-rule list.
     // RLS requires actor_id = auth.uid(), so we fetch the session user.
-    if (assessment?.hasMlc && overrideReason.trim()) {
+    if (auditAssessment?.hasMlc && overrideReason.trim()) {
       try {
         const { data: authData } = await supabase.auth.getUser();
         const actorId = authData?.user?.id;
@@ -830,7 +997,7 @@ export default function ApplyTemplateModal({
           }
           const breachesByDept = new Map();
           const memberNameMap = new Map(visibleCrew.map((c) => [c.id, c.name]));
-          for (const [memberId, info] of Object.entries(assessment.byMember)) {
+          for (const [memberId, info] of Object.entries(auditAssessment.byMember)) {
             if (!info.mlcBreaches || info.mlcBreaches.length === 0) continue;
             const did = memberDeptMap.get(memberId);
             if (!did) continue;
@@ -1184,26 +1351,39 @@ export default function ApplyTemplateModal({
           </div>
         )}
 
-        {phase === 'conflicts' && (
+        {phase === 'conflicts' && conflicts && (
           <div className="te-body ap-body">
-            {conflicts && (
-              <div className="ap-conflict">
-                <div className="ap-conflict-head">
-                  <AlertTriangle size={16} color="#7A2E1E" />
-                  <span>Existing shifts in this range</span>
-                </div>
-                <div className="ap-conflict-body">
-                  This will create <strong>{conflicts.total}</strong> shift{conflicts.total === 1 ? '' : 's'}.
-                  {' '}<strong>{conflicts.clashes}</strong> of them clash with an existing shift.
-                </div>
-                <div className="ap-conflict-help">Pick one rule for the whole batch:</div>
-                <ul className="ap-conflict-options">
-                  <li><strong>Skip the clashing days</strong> — only write where the crew member is free; existing shifts stay.</li>
-                  <li><strong>Overwrite</strong> — replace the clashing shifts with this template (still as drafts).</li>
-                </ul>
+            <div className="ap-conflict">
+              <div className="ap-conflict-head">
+                <AlertTriangle size={16} color="#7A2E1E" />
+                <span>Existing shifts in this range</span>
+              </div>
+              <div className="ap-conflict-body">
+                This will create <strong>{conflicts.total}</strong> shift{conflicts.total === 1 ? '' : 's'}.
+                {' '}<strong>{conflicts.clashes}</strong> of them clash with an existing shift.
+              </div>
+              <div className="ap-conflict-help">Pick one rule for the whole batch:</div>
+              <ul className="ap-conflict-options">
+                <li><strong>Skip the clashing days</strong> — only write where the crew member is free; existing shifts stay.</li>
+                <li><strong>Overwrite</strong> — replace the clashing shifts with this template (still as drafts).</li>
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {phase === 'mlc' && (
+          <div className="te-body ap-body">
+            {conflicts && resolutionMode && (
+              <div className="ap-stage-crumb">
+                Conflicts {resolutionMode === 'skip' ? 'will be skipped' : 'will be overwritten'} ·{' '}
+                <button
+                  type="button"
+                  className="ap-stage-crumb-link"
+                  onClick={() => setPhase('conflicts')}
+                  disabled={busy}
+                >Change</button>
               </div>
             )}
-
             {assessment?.hasMlc && (
               <div className="ap-mlc-hard">
                 <div className="ap-mlc-head">
@@ -1283,43 +1463,37 @@ export default function ApplyTemplateModal({
                 </button>
               </>
             )}
-            {phase === 'conflicts' && (() => {
+            {phase === 'conflicts' && conflicts && (
+              <>
+                <button type="button" className="v2-btn-ghost"
+                  onClick={() => setPhase('select')} disabled={busy}>Back</button>
+                <button type="button" className="v2-btn-ghost"
+                  onClick={() => pickResolution('skip')}
+                  disabled={busy}>Skip conflicts</button>
+                <button type="button" className="v2-btn-filled"
+                  onClick={() => pickResolution('overwrite')}
+                  disabled={busy}>Overwrite</button>
+              </>
+            )}
+            {phase === 'mlc' && (() => {
               const needsReason = !!assessment?.hasMlc;
               const reasonOk = !needsReason || overrideReason.trim().length > 0;
               const blocked = busy || !reasonOk;
               const applyLabel = needsReason ? 'Override + apply' : 'Apply';
-              const skipLabel = needsReason ? 'Override + skip conflicts' : 'Skip conflicts';
-              const overwriteLabel = needsReason ? 'Override + overwrite' : 'Overwrite';
+              const mode = resolutionMode || 'skip';
+              const conflictKeys = (conflicts && mode === 'skip') ? conflicts.conflictKeys : new Set();
+              const conflictIds = (conflicts && mode === 'overwrite') ? conflicts.conflictIds : [];
               return (
                 <>
                   <button type="button" className="v2-btn-ghost"
-                    onClick={() => setPhase('select')} disabled={busy}>Back</button>
-                  {conflicts ? (
-                    <>
-                      <button type="button" className="v2-btn-ghost"
-                        onClick={() => commit({
-                          mode: 'skip',
-                          conflictKeys: conflicts.conflictKeys,
-                          conflictIds: [],
-                        })}
-                        disabled={blocked}>{skipLabel}</button>
-                      <button type="button" className="v2-btn-filled"
-                        onClick={() => commit({
-                          mode: 'overwrite',
-                          conflictKeys: new Set(),
-                          conflictIds: conflicts.conflictIds,
-                        })}
-                        disabled={blocked}>{overwriteLabel}</button>
-                    </>
-                  ) : (
-                    <button type="button" className="v2-btn-filled"
-                      onClick={() => commit({
-                        mode: 'skip',
-                        conflictKeys: new Set(),
-                        conflictIds: [],
-                      })}
-                      disabled={blocked}>{applyLabel}</button>
-                  )}
+                    onClick={() => setPhase(conflicts ? 'conflicts' : 'select')}
+                    disabled={busy}>Back</button>
+                  <button type="button" className="v2-btn-filled"
+                    onClick={() => commit({
+                      mode, conflictKeys, conflictIds,
+                      assessmentForAudit: assessment,
+                    })}
+                    disabled={blocked}>{applyLabel}</button>
                 </>
               );
             })()}
