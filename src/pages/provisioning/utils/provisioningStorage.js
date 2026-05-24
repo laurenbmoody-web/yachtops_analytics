@@ -1602,18 +1602,27 @@ export const fetchPortalEnabledSuppliers = async (supplierProfileIds = []) => {
 
 // Atomically route a return to the supplier's Cargo portal — single RPC
 // call wrapping (a) FOR UPDATE lock on the originating inbox rows,
-// (b) double-submit guard, (c) INSERT supplier_return_tasks, (d) UPDATE
-// delivery_inbox rows to archived/routed_to_portal. The whole thing runs
-// in one Postgres transaction so no partial state is possible.
+// (b) double-submit guard, (c) INSERT supplier_return_tasks with the
+// slip metadata snapshot, (d) UPDATE delivery_inbox rows to archived/
+// routed_to_portal. The whole thing runs in one Postgres transaction
+// so no partial state is possible.
+//
+// slipMetadata snapshots the signed-slip context (vessel name + IMO +
+// flag, signer name + job title, slip date, vessel signature data URL)
+// so the supplier portal can render an audit-equivalent view to what
+// an email recipient would see. Frozen at creation — see the
+// 20260526120000 migration's comments for the why.
+//
 // Returns { ok: true, taskId } on success, { ok: false } on any failure.
-export const sendReturnToPortal = async ({ supplierProfileId, tenantId, inboxIds, items, createdBy }) => {
+export const sendReturnToPortal = async ({ supplierProfileId, tenantId, inboxIds, items, createdBy, slipMetadata }) => {
   try {
     const { data, error } = await supabase?.rpc('route_return_to_portal', {
-      p_supplier_id: supplierProfileId,
-      p_tenant_id:   tenantId,
-      p_inbox_ids:   inboxIds,
-      p_items:       items,
-      p_created_by:  createdBy,
+      p_supplier_id:   supplierProfileId,
+      p_tenant_id:     tenantId,
+      p_inbox_ids:     inboxIds,
+      p_items:         items,
+      p_created_by:    createdBy,
+      p_slip_metadata: slipMetadata,
     });
     if (error) throw error;
     // TODO(notification): when the sendReturnTaskNotification edge

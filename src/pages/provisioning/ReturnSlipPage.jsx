@@ -1,12 +1,18 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Return Slip page — editorial reskin (visuals only).
-// Cream canvas, DM Serif Display headline, editorial form fields + table,
-// shared .di / .di-slip token block + helpers from delivery-inbox.css.
+// Return Slip page.
 //
-// Every functional surface is frozen: slip generation, signature pad, email-
-// send via the sendReturnSlip edge function, save, print, the return_slip_
-// token flow, and the supplier-confirm lock state. Only the JSX markup and
-// styling change.
+// Every return — Cargo supplier or not — goes through this page with the
+// same fields, reasons, and vessel signature. The only branch is at the
+// final Send action, decided silently on load from the supplier's Cargo
+// portal-account status:
+//   - Cargo supplier  → Send creates a supplier_return_tasks row via the
+//                       route_return_to_portal RPC, carrying the signature
+//                       and a frozen slip_metadata snapshot. No email.
+//   - Non-Cargo       → Send fires the existing sendReturnSlip edge
+//                       function exactly as before. Untouched.
+// Both paths require the vessel signature before the confirm dialog will
+// let Send proceed (unsigned return defeats the audit-trail purpose on
+// either channel).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -14,6 +20,10 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
+import {
+  fetchPortalEnabledSuppliers,
+  sendReturnToPortal,
+} from './utils/provisioningStorage';
 import './delivery-inbox.css';
 
 const CheckIcon = () => (
@@ -168,6 +178,14 @@ export default function ReturnSlipPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState(null);
+  // Decided silently on load; drives which dialog the Send button opens.
+  // portalSupplierName carries the canonical supplier_profiles.name for
+  // dialog wording.
+  const [isPortalEnabled, setIsPortalEnabled] = useState(false);
+  const [portalSupplierName, setPortalSupplierName] = useState(null);
+  // 'cargo' | 'email' | null. The confirmation dialog is also the gate
+  // where the signature requirement is enforced (both paths).
+  const [confirmDialog, setConfirmDialog] = useState(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -219,6 +237,22 @@ export default function ReturnSlipPage() {
           .sort()
           .pop();
         if (lastGen) setLastSavedAt(new Date(lastGen));
+
+        // Silent portal-eligibility lookup. Drives which path Send takes
+        // when the crew commit; not surfaced in the UI before they press.
+        // Defensive: only resolve when all rows share a single non-null
+        // supplier_profile_id (mixed ids → ambiguous → fall through to
+        // email flow rather than route to the wrong supplier).
+        const supplierIds = new Set(rows.map(r => r.supplier_profile_id).filter(Boolean));
+        if (supplierIds.size === 1) {
+          const [supplierProfileId] = [...supplierIds];
+          const portalMap = await fetchPortalEnabledSuppliers([supplierProfileId]);
+          const canonical = portalMap.get(supplierProfileId);
+          if (canonical) {
+            setIsPortalEnabled(true);
+            setPortalSupplierName(canonical);
+          }
+        }
       }
 
       const tid = tenantId || rows?.[0]?.tenant_id;
@@ -358,6 +392,81 @@ export default function ReturnSlipPage() {
       setSubmitError(err.message || 'Failed to send');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Cargo path — routes the return into the supplier's portal via the
+  // route_return_to_portal RPC. The RPC handles the FOR UPDATE lock,
+  // double-submit guard, supplier_return_tasks INSERT (with the slip
+  // metadata snapshot below), and the delivery_inbox archive — all in
+  // one transaction. No email is sent on this path.
+  const handleSendToCargoPortal = async () => {
+    if (!items.length) return;
+    // Defensive — same uniformity check as the load-time resolution.
+    const supplierIds = new Set(items.map(i => i.supplier_profile_id).filter(Boolean));
+    if (supplierIds.size !== 1) {
+      setSubmitError('Cannot route — supplier ambiguous on this return.');
+      return;
+    }
+    const [supplierProfileId] = [...supplierIds];
+
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      await saveChanges();
+      const slipMetadata = {
+        vessel_name:      vesselName || '',
+        vessel_imo:       vessel?.imo_number || null,
+        vessel_flag:      vessel?.flag || null,
+        signer_name:      preparedBy || '',
+        signer_job_title: signerJobTitle || null,
+        slip_date:        slipDate || '',
+        vessel_signature: vesselSig || null,
+      };
+      const itemsSnapshot = items.map(i => ({
+        raw_name:       i.raw_name,
+        item_reference: i.item_reference || null,
+        quantity:       i.quantity || null,
+        ordered_qty:    i.ordered_qty || null,
+        return_qty:     i.return_qty ?? i.quantity ?? null,
+        return_reason:  i.return_reason ?? null,
+        return_notes:   i.return_notes ?? null,
+        unit:           i.unit || null,
+        unit_price:     i.unit_price || null,
+        line_total:     i.line_total || null,
+      }));
+      const result = await sendReturnToPortal({
+        supplierProfileId,
+        tenantId:  tenantId || items[0]?.tenant_id,
+        inboxIds:  items.map(i => i.id),
+        items:     itemsSnapshot,
+        createdBy: authUser?.id || null,
+        slipMetadata,
+      });
+      if (!result.ok) throw new Error('Failed to route return to portal');
+      setSubmitted(true);
+    } catch (err) {
+      console.error('[ReturnSlip] portal route error:', err);
+      setSubmitError(err.message || 'Failed to send');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // The single Send button just opens the path-appropriate dialog. The
+  // signature gate fires inside the dialog so the crew see exactly why
+  // Send is blocked instead of a silently-disabled button.
+  const openSendDialog = () => {
+    setSubmitError(null);
+    setConfirmDialog(isPortalEnabled ? 'cargo' : 'email');
+  };
+  const closeSendDialog = () => setConfirmDialog(null);
+  const confirmSend = async () => {
+    setConfirmDialog(null);
+    if (isPortalEnabled) {
+      await handleSendToCargoPortal();
+    } else {
+      await handleSubmitToSupplier();
     }
   };
 
@@ -630,15 +739,16 @@ export default function ReturnSlipPage() {
                 {saving ? 'Saving…' : 'Save & print'}
               </button>
               <div className="di-slip-actions-sep" />
-              {supplierInfo.email ? (
+              {(isPortalEnabled || supplierInfo.email) ? (
                 <button
-                  onClick={handleSubmitToSupplier}
+                  onClick={openSendDialog}
                   disabled={submitting || submitted}
                   className="di-btn di-btn-rust"
-                  title={`Send to ${supplierInfo.email}`}
-                  style={{ maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  title={isPortalEnabled
+                    ? `Send to ${portalSupplierName || supplierInfo.name || 'supplier'}'s Cargo portal`
+                    : `Email to ${supplierInfo.email}`}
                 >
-                  {submitting ? 'Sending…' : submitted ? 'Sent ✓' : `Email to ${supplierInfo.email}`}
+                  {submitting ? 'Sending…' : submitted ? 'Sent ✓' : 'Send return'}
                 </button>
               ) : (
                 <button disabled className="di-btn-disabled-static">No supplier email</button>
@@ -654,7 +764,9 @@ export default function ReturnSlipPage() {
             )}
             {submitted && (
               <p className="di-slip-status-line is-success">
-                Return slip sent to {supplierInfo.email} — replies will come to your email.
+                {isPortalEnabled
+                  ? `Return routed to ${portalSupplierName || supplierInfo.name || 'supplier'}'s Cargo portal.`
+                  : `Return slip sent to ${supplierInfo.email} — replies will come to your email.`}
               </p>
             )}
             {lastSavedAt && (
@@ -663,6 +775,79 @@ export default function ReturnSlipPage() {
                 {dirty && ' · unsaved changes'}
               </p>
             )}
+          </div>
+        )}
+
+        {/* Confirmation dialog — opens on Send. Path-specific wording.
+            The vessel-signature requirement is enforced here (not on
+            the button) so the crew see exactly why Send is blocked
+            instead of a silently-disabled button. Same rule on both
+            paths: unsigned return defeats the audit-trail purpose
+            whether it goes by portal or email. */}
+        {confirmDialog && (
+          <div className="no-print di-slip-confirm-backdrop" onClick={closeSendDialog}>
+            <div
+              className="di-slip-confirm-card"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="di-slip-confirm-title"
+              onClick={e => e.stopPropagation()}
+            >
+              {!vesselSig ? (
+                <>
+                  <p id="di-slip-confirm-title" className="di-slip-confirm-title">
+                    Sign the return before sending
+                  </p>
+                  <p className="di-slip-confirm-body">
+                    The return needs your signature on the slip — use the Vessel
+                    authorisation pad above. The supplier sees a signed,
+                    authorised return on both paths; unsigned returns aren&rsquo;t
+                    sent.
+                  </p>
+                  <div className="di-slip-confirm-actions">
+                    <button className="di-btn di-btn-ghost" onClick={closeSendDialog}>
+                      Close
+                    </button>
+                  </div>
+                </>
+              ) : confirmDialog === 'cargo' ? (
+                <>
+                  <p id="di-slip-confirm-title" className="di-slip-confirm-title">
+                    Send return to {portalSupplierName || supplierInfo.name || 'supplier'} via their Cargo portal?
+                  </p>
+                  <p className="di-slip-confirm-body">
+                    The return — items, reasons, and your signature — will land
+                    as a task in their Cargo portal. No email goes out.
+                  </p>
+                  <div className="di-slip-confirm-actions">
+                    <button className="di-btn di-btn-ghost" onClick={closeSendDialog}>
+                      Cancel
+                    </button>
+                    <button className="di-btn di-btn-rust" onClick={confirmSend}>
+                      Send to portal
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p id="di-slip-confirm-title" className="di-slip-confirm-title">
+                    Email return slip to {supplierInfo.email}?
+                  </p>
+                  <p className="di-slip-confirm-body">
+                    The signed slip is sent to the supplier. Replies will come
+                    to your email.
+                  </p>
+                  <div className="di-slip-confirm-actions">
+                    <button className="di-btn di-btn-ghost" onClick={closeSendDialog}>
+                      Cancel
+                    </button>
+                    <button className="di-btn di-btn-rust" onClick={confirmSend}>
+                      Send email
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>
