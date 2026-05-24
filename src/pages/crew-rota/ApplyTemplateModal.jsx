@@ -109,6 +109,72 @@ function formatMlcBreachPhrase(breach) {
   return `breach of ${rule}`;
 }
 
+// Concise per-rule labels for the collapsed summary line. Kept short
+// enough to chain inline; still recognisable as the four MLC rules.
+const MLC_RULE_SHORT_LABEL = {
+  daily_rest_10h:       'rest under 10h in 24h',
+  weekly_rest_77h:      '7-day rest under 77h',
+  rest_period_split:    'rest split breaks ≤2 / one ≥6h rule',
+  max_work_stretch_14h: '14h+ continuous on-duty',
+};
+
+// Group one member's breaches by rule, preserving rule order. Returns
+// [{ rule, label, dayCount, breaches: [...] }].
+function summariseMemberBreaches(mlcBreaches) {
+  const ruleOrder = ['daily_rest_10h', 'weekly_rest_77h', 'rest_period_split', 'max_work_stretch_14h'];
+  const byRule = new Map();
+  for (const b of mlcBreaches) {
+    if (!byRule.has(b.rule)) byRule.set(b.rule, []);
+    byRule.get(b.rule).push(b);
+  }
+  return ruleOrder
+    .filter((r) => byRule.has(r))
+    .map((r) => ({
+      rule: r,
+      label: MLC_RULE_SHORT_LABEL[r] || r,
+      dayCount: byRule.get(r).length,
+      breaches: byRule.get(r),
+    }));
+}
+
+// One collapsible member row in the MLC breach list. Defaults collapsed.
+function MlcMemberRow({ name, mlcBreaches }) {
+  const [open, setOpen] = useState(false);
+  const ruleSummary = useMemo(() => summariseMemberBreaches(mlcBreaches), [mlcBreaches]);
+  return (
+    <li className={`ap-mlc-member${open ? ' is-open' : ''}`}>
+      <button
+        type="button"
+        className="ap-mlc-member-trigger"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <ChevronDown size={12} className="ap-mlc-member-chev" />
+        <span className="ap-mlc-member-name">{name}</span>
+        <span className="ap-mlc-member-summary">
+          {ruleSummary.map((rs, i) => (
+            <React.Fragment key={rs.rule}>
+              {i > 0 && <span className="ap-mlc-sep"> · </span>}
+              <span className="ap-mlc-rule">
+                {rs.label} <span className="ap-mlc-rule-days">({rs.dayCount} day{rs.dayCount === 1 ? '' : 's'})</span>
+              </span>
+            </React.Fragment>
+          ))}
+        </span>
+      </button>
+      {open && (
+        <ul className="ap-mlc-member-detail">
+          {mlcBreaches.map((b, i) => (
+            <li key={`${b.rule}-${b.date}-${i}`}>
+              {formatMlcBreachPhrase(b)} on <strong>{fmtDateShort(b.date)}</strong>.
+            </li>
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+}
+
 // ── Crew-row inline-select (used by the pattern-apply role slots) ──────────
 function CrewSelect({ value, candidates, onChange, placeholder, disabled }) {
   const [open, setOpen] = useState(false);
@@ -1046,16 +1112,19 @@ export default function ApplyTemplateModal({
                   This apply would create the following MLC rest-hour breaches:
                 </div>
                 <ul className="ap-mlc-list">
-                  {Object.entries(assessment.byMember).flatMap(([memberId, info]) => {
-                    const c = visibleCrew.find((x) => x.id === memberId);
-                    const name = c?.name || 'Unknown';
-                    return info.mlcBreaches.map((b, i) => (
-                      <li key={`mlc-${memberId}-${i}`}>
-                        <strong>{name}</strong> — {formatMlcBreachPhrase(b)} on{' '}
-                        <strong>{fmtDateShort(b.date)}</strong>.
-                      </li>
-                    ));
-                  })}
+                  {Object.entries(assessment.byMember)
+                    .filter(([, info]) => info.mlcBreaches && info.mlcBreaches.length > 0)
+                    .map(([memberId, info]) => {
+                      const c = visibleCrew.find((x) => x.id === memberId);
+                      const name = c?.name || 'Unknown';
+                      return (
+                        <MlcMemberRow
+                          key={`mlc-${memberId}`}
+                          name={name}
+                          mlcBreaches={info.mlcBreaches}
+                        />
+                      );
+                    })}
                 </ul>
                 <label className="ap-override-label">
                   <span>Reason for override <em>(required to proceed)</em></span>
