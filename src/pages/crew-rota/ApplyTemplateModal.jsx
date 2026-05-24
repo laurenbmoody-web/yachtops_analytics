@@ -105,15 +105,24 @@ function formatMlcBreachPhrase(breach) {
   return `breach of ${rule}`;
 }
 
-// Short, scannable chip labels — no math symbols. Canonical order:
-// daily, weekly, structural split, max stretch. Renderers iterate this
-// list so chip order is identical row-to-row.
+// Short, scannable chip labels — plain problem statement, no rule
+// numbers, no math symbols. Canonical order matches the rules in
+// restHours.js: daily, weekly, structural split, max stretch. Renderers
+// iterate this list so chip order is identical row-to-row.
 const MLC_RULE_CHIPS = [
-  { rule: 'daily_rest_10h',       label: '10h rest' },
-  { rule: 'weekly_rest_77h',      label: '77h/week' },
-  { rule: 'rest_period_split',    label: 'rest breaks' },
-  { rule: 'max_work_stretch_14h', label: '14h max' },
+  { rule: 'daily_rest_10h',       label: 'not enough rest per day' },
+  { rule: 'weekly_rest_77h',      label: 'not enough rest per week' },
+  { rule: 'rest_period_split',    label: 'broken rest' },
+  { rule: 'max_work_stretch_14h', label: 'too long without a break' },
 ];
+
+// Sentence-case rule title for the per-rule summary line.
+const MLC_RULE_TITLE = {
+  daily_rest_10h:       'Not enough rest per day',
+  weekly_rest_77h:      'Not enough rest per week',
+  rest_period_split:    'Broken rest',
+  max_work_stretch_14h: 'Too long without a break',
+};
 
 // Day-count → chip severity tier. Drives the chip fill intensity so
 // "bad" reads before the text does. Four tiers in the Cargo terracotta
@@ -141,10 +150,80 @@ function memberSeverity(mlcBreaches) {
   return mlcBreaches.length;
 }
 
+// "all 7 days, 18–24 May" when every apply day breached, else "5 of 7 days".
+// Used by the totals rules (daily, weekly) where the apply-range coverage
+// is meaningful. Structural rules (split, stretch) just say "N days".
+function daysClauseTotals(dayCount, applyDates) {
+  const total = applyDates.length;
+  if (dayCount === total && total > 0) {
+    if (total === 1) return `1 day (${fmtDateShort(applyDates[0])})`;
+    return `all ${total} days, ${fmtDateShort(applyDates[0])}–${fmtDateShort(applyDates[total - 1])}`;
+  }
+  return `${dayCount} of ${total} days`;
+}
+
+function daysClauseStructural(dayCount) {
+  return `${dayCount} day${dayCount === 1 ? '' : 's'}`;
+}
+
+// Single sentence summarising one member's breaches of one rule.
+// Identifies the worst-case day from the breach list and names the limit.
+function summariseRule(rule, breaches, applyDates) {
+  const title = MLC_RULE_TITLE[rule] || rule;
+  if (breaches.length === 0) return null;
+
+  if (rule === 'daily_rest_10h') {
+    const worst = breaches.reduce((a, b) =>
+      (a == null || Number(b.projected) < Number(a.projected)) ? b : a, null);
+    return `${title} — fell short on ${daysClauseTotals(breaches.length, applyDates)}. Worst was ${fmtHoursH(worst.projected)} rest on ${fmtDateShort(worst.date)} (${worst.limit}h required).`;
+  }
+  if (rule === 'weekly_rest_77h') {
+    const worst = breaches.reduce((a, b) =>
+      (a == null || Number(b.projected) < Number(a.projected)) ? b : a, null);
+    return `${title} — fell short on ${daysClauseTotals(breaches.length, applyDates)}. Lowest was ${fmtHoursH(worst.projected)} on ${fmtDateShort(worst.date)} (${worst.limit}h required).`;
+  }
+  if (rule === 'rest_period_split') {
+    const worst = breaches.reduce((a, b) => {
+      const cur = Number(b.projected?.longest ?? 999);
+      const prev = a ? Number(a.projected?.longest ?? 999) : 999;
+      return cur < prev ? b : a;
+    }, null);
+    const longest = Number(worst?.projected?.longest ?? 0);
+    const tail = longest < 0.01
+      ? 'it split with none reaching 6h'
+      : `the longest rest was only ${fmtHoursH(longest)} (6h needed)`;
+    return `${title} — rest too broken up on ${daysClauseStructural(breaches.length)}. On ${fmtDateShort(worst.date)} ${tail}.`;
+  }
+  if (rule === 'max_work_stretch_14h') {
+    const worst = breaches.reduce((a, b) =>
+      (a == null || Number(b.projected) > Number(a.projected)) ? b : a, null);
+    return `${title} — worked too long in one stretch on ${daysClauseStructural(breaches.length)}. Longest was ${fmtHoursH(worst.projected)} continuous on ${fmtDateShort(worst.date)} (${worst.limit}h max).`;
+  }
+  return null;
+}
+
 // One collapsible member row in the MLC breach list. Defaults collapsed.
-function MlcMemberRow({ name, mlcBreaches }) {
+// Expanded view shows the per-rule summary sentences first; a further
+// disclosure reveals the day-by-day prose detail beneath.
+function MlcMemberRow({ name, mlcBreaches, applyDates }) {
   const [open, setOpen] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
   const chips = useMemo(() => ruleSummary(mlcBreaches), [mlcBreaches]);
+  const ruleSummaries = useMemo(() => {
+    // Group breaches by rule, preserving canonical order from MLC_RULE_CHIPS.
+    const byRule = new Map();
+    for (const b of mlcBreaches) {
+      if (!byRule.has(b.rule)) byRule.set(b.rule, []);
+      byRule.get(b.rule).push(b);
+    }
+    return MLC_RULE_CHIPS
+      .filter(({ rule }) => byRule.has(rule))
+      .map(({ rule }) => ({
+        rule,
+        sentence: summariseRule(rule, byRule.get(rule), applyDates),
+      }))
+      .filter((r) => r.sentence);
+  }, [mlcBreaches, applyDates]);
   return (
     <li className={`ap-mlc-member${open ? ' is-open' : ''}`}>
       <button
@@ -169,13 +248,30 @@ function MlcMemberRow({ name, mlcBreaches }) {
         </span>
       </button>
       {open && (
-        <ul className="ap-mlc-member-detail">
-          {mlcBreaches.map((b, i) => (
-            <li key={`${b.rule}-${b.date}-${i}`}>
-              {formatMlcBreachPhrase(b)} on <strong>{fmtDateShort(b.date)}</strong>.
-            </li>
-          ))}
-        </ul>
+        <div className="ap-mlc-member-expand">
+          <ul className="ap-mlc-rule-summary">
+            {ruleSummaries.map((rs) => (
+              <li key={rs.rule}>{rs.sentence}</li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            className="ap-mlc-detail-toggle"
+            aria-expanded={showDetail}
+            onClick={() => setShowDetail((s) => !s)}
+          >
+            {showDetail ? 'Hide day-by-day detail' : 'Show day-by-day detail'}
+          </button>
+          {showDetail && (
+            <ul className="ap-mlc-member-detail">
+              {mlcBreaches.map((b, i) => (
+                <li key={`${b.rule}-${b.date}-${i}`}>
+                  {formatMlcBreachPhrase(b)} on <strong>{fmtDateShort(b.date)}</strong>.
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </li>
   );
@@ -1129,6 +1225,7 @@ export default function ApplyTemplateModal({
                           key={`mlc-${memberId}`}
                           name={name}
                           mlcBreaches={info.mlcBreaches}
+                          applyDates={dates}
                         />
                       );
                     })}
