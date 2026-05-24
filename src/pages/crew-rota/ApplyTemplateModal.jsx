@@ -116,6 +116,44 @@ const MLC_RULE_CHIPS = [
   { rule: 'max_work_stretch_14h', label: 'too long without a break' },
 ];
 
+// Numbers spelt out for the piled-up template (max 8 shifts is plenty).
+const NUMBER_WORD = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight'];
+function numberWord(n) { return NUMBER_WORD[n] || String(n); }
+
+// UX copy for the breach advisory. restHours.js emits the diagnosis;
+// this function renders the human sentence. Returns null for diagnoses
+// out of v1 scope (structural rules).
+function adviseBreach(diagnosis) {
+  if (!diagnosis) return null;
+  if (diagnosis.rule === 'daily_rest_10h') {
+    const date = fmtDateShort(diagnosis.date);
+    if (diagnosis.cause === 'single_long_shift') {
+      const k = diagnosis.culprits[0];
+      const hours = Math.round(k.durationHours);
+      const subject = k.source === 'proposed' ? 'the pattern adds' : 'the crew already has';
+      return `Why — ${subject} a ${hours}h shift on ${fmtDateShort(k.date)}; on its own that leaves under 10h rest. A shorter shift, or splitting it across two crew, would ease this.`;
+    }
+    if (diagnosis.cause === 'two_shifts_too_close') {
+      const gap = Math.round(diagnosis.gapHours);
+      return `Why — two shifts on ${date} fall only ${gap}h apart. More space between them would bring the rest back up.`;
+    }
+    if (diagnosis.cause === 'piled_up') {
+      return `Why — ${numberWord(diagnosis.shiftCount)} shifts stack up on ${date}. Dropping or reassigning one would ease the load.`;
+    }
+    // ambiguous
+    return `Why — rest is short across several shifts on ${date}, with no single one driving it.`;
+  }
+  if (diagnosis.rule === 'weekly_rest_77h') {
+    if (diagnosis.cause === 'one_spike_day' && diagnosis.heaviestDay) {
+      const hd = diagnosis.heaviestDay;
+      const hours = Math.round(hd.hours);
+      return `Why — ${fmtDateShort(hd.date)} carries ${hours}h, most of this week’s load. Lightening that day would help most.`;
+    }
+    return 'Why — the load is heavy right across the week, with no single day standing out. Spreading work to other crew would bring it down.';
+  }
+  return null;
+}
+
 // Sentence-case rule title for the per-rule summary line.
 const MLC_RULE_TITLE = {
   daily_rest_10h:       'Not enough rest per day',
@@ -166,38 +204,62 @@ function daysClauseStructural(dayCount) {
   return `${dayCount} day${dayCount === 1 ? '' : 's'}`;
 }
 
-// Single sentence summarising one member's breaches of one rule.
-// Identifies the worst-case day from the breach list and names the limit.
-function summariseRule(rule, breaches, applyDates) {
-  const title = MLC_RULE_TITLE[rule] || rule;
-  if (breaches.length === 0) return null;
-
-  if (rule === 'daily_rest_10h') {
-    const worst = breaches.reduce((a, b) =>
+// Per-rule worst-breach pick. Worst = least-rest / longest-stretch /
+// most-broken-rest day for each rule respectively.
+function pickWorstBreach(rule, breaches) {
+  if (rule === 'daily_rest_10h' || rule === 'weekly_rest_77h') {
+    return breaches.reduce((a, b) =>
       (a == null || Number(b.projected) < Number(a.projected)) ? b : a, null);
-    return `${title} — fell short on ${daysClauseTotals(breaches.length, applyDates)}. Worst was ${fmtHoursH(worst.projected)} rest on ${fmtDateShort(worst.date)} (${worst.limit}h required).`;
-  }
-  if (rule === 'weekly_rest_77h') {
-    const worst = breaches.reduce((a, b) =>
-      (a == null || Number(b.projected) < Number(a.projected)) ? b : a, null);
-    return `${title} — fell short on ${daysClauseTotals(breaches.length, applyDates)}. Lowest was ${fmtHoursH(worst.projected)} on ${fmtDateShort(worst.date)} (${worst.limit}h required).`;
   }
   if (rule === 'rest_period_split') {
-    const worst = breaches.reduce((a, b) => {
+    return breaches.reduce((a, b) => {
       const cur = Number(b.projected?.longest ?? 999);
       const prev = a ? Number(a.projected?.longest ?? 999) : 999;
       return cur < prev ? b : a;
     }, null);
+  }
+  if (rule === 'max_work_stretch_14h') {
+    return breaches.reduce((a, b) =>
+      (a == null || Number(b.projected) > Number(a.projected)) ? b : a, null);
+  }
+  return breaches[0] || null;
+}
+
+// Per-rule summary sentence. `worst` is exposed so the caller can pass
+// its diagnosis to adviseBreach — the advisory should describe the same
+// day the sentence highlights.
+function summariseRule(rule, breaches, applyDates) {
+  const title = MLC_RULE_TITLE[rule] || rule;
+  if (breaches.length === 0) return null;
+  const worst = pickWorstBreach(rule, breaches);
+
+  if (rule === 'daily_rest_10h') {
+    return {
+      sentence: `${title} — fell short on ${daysClauseTotals(breaches.length, applyDates)}. Worst was ${fmtHoursH(worst.projected)} rest on ${fmtDateShort(worst.date)} (${worst.limit}h required).`,
+      worst,
+    };
+  }
+  if (rule === 'weekly_rest_77h') {
+    return {
+      sentence: `${title} — fell short on ${daysClauseTotals(breaches.length, applyDates)}. Lowest was ${fmtHoursH(worst.projected)} on ${fmtDateShort(worst.date)} (${worst.limit}h required).`,
+      worst,
+    };
+  }
+  if (rule === 'rest_period_split') {
     const longest = Number(worst?.projected?.longest ?? 0);
     const tail = longest < 0.01
       ? 'it split with none reaching 6h'
       : `the longest rest was only ${fmtHoursH(longest)} (6h needed)`;
-    return `${title} — rest too broken up on ${daysClauseStructural(breaches.length)}. On ${fmtDateShort(worst.date)} ${tail}.`;
+    return {
+      sentence: `${title} — rest too broken up on ${daysClauseStructural(breaches.length)}. On ${fmtDateShort(worst.date)} ${tail}.`,
+      worst,
+    };
   }
   if (rule === 'max_work_stretch_14h') {
-    const worst = breaches.reduce((a, b) =>
-      (a == null || Number(b.projected) > Number(a.projected)) ? b : a, null);
-    return `${title} — worked too long in one stretch on ${daysClauseStructural(breaches.length)}. Longest was ${fmtHoursH(worst.projected)} continuous on ${fmtDateShort(worst.date)} (${worst.limit}h max).`;
+    return {
+      sentence: `${title} — worked too long in one stretch on ${daysClauseStructural(breaches.length)}. Longest was ${fmtHoursH(worst.projected)} continuous on ${fmtDateShort(worst.date)} (${worst.limit}h max).`,
+      worst,
+    };
   }
   return null;
 }
@@ -218,11 +280,16 @@ function MlcMemberRow({ name, mlcBreaches, applyDates }) {
     }
     return MLC_RULE_CHIPS
       .filter(({ rule }) => byRule.has(rule))
-      .map(({ rule }) => ({
-        rule,
-        sentence: summariseRule(rule, byRule.get(rule), applyDates),
-      }))
-      .filter((r) => r.sentence);
+      .map(({ rule }) => {
+        const summary = summariseRule(rule, byRule.get(rule), applyDates);
+        if (!summary) return null;
+        return {
+          rule,
+          sentence: summary.sentence,
+          advisory: adviseBreach(summary.worst?.diagnosis),
+        };
+      })
+      .filter(Boolean);
   }, [mlcBreaches, applyDates]);
   return (
     <li className={`ap-mlc-member${open ? ' is-open' : ''}`}>
@@ -251,7 +318,12 @@ function MlcMemberRow({ name, mlcBreaches, applyDates }) {
         <div className="ap-mlc-member-expand">
           <ul className="ap-mlc-rule-summary">
             {ruleSummaries.map((rs) => (
-              <li key={rs.rule}>{rs.sentence}</li>
+              <li key={rs.rule}>
+                <div className="ap-mlc-rule-sentence">{rs.sentence}</div>
+                {rs.advisory && (
+                  <div className="ap-mlc-rule-advisory">{rs.advisory}</div>
+                )}
+              </li>
             ))}
           </ul>
           <button

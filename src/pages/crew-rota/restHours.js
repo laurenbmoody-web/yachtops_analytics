@@ -234,6 +234,117 @@ function normalise(rows, source) {
   })).filter((s) => s.memberId && s.date);
 }
 
+// ── Breach attribution (v1: totals rules only) ─────────────────────────────
+// Pure function. Takes a single breach + the shifts it was computed from
+// and returns a machine-friendly diagnosis the UI can copy-render. Returns
+// null for the two structural rules — those get no advisory in v1.
+//
+// `dayShifts` / `weekShifts` items are camelCase + source-tagged
+// ('existing' | 'proposed') as emitted by assessApply.
+
+function enrichOnDuty(shifts) {
+  return (shifts || [])
+    .filter((s) => ON_DUTY_TYPES.has(s.shiftType))
+    .map((s) => {
+      const start = hhmmToDecimal(s.startTime);
+      let end = hhmmToDecimal(s.endTime);
+      if (start == null || end == null) return null;
+      if (end <= start) end += 24;
+      return {
+        date: s.date,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        source: s.source || null,
+        startDec: start,
+        endDec: end,
+        durationHours: end - start,
+      };
+    })
+    .filter(Boolean);
+}
+
+function diagnoseDaily({ date, dayShifts }) {
+  const shifts = enrichOnDuty((dayShifts || []).filter((s) => s.date === date))
+    .sort((a, b) => a.startDec - b.startDec);
+  const culpritOf = (s) => ({
+    date: s.date,
+    startTime: s.startTime,
+    endTime: s.endTime,
+    source: s.source,
+    durationHours: s.durationHours,
+  });
+  const n = shifts.length;
+  if (n === 0) {
+    return { rule: 'daily_rest_10h', date, cause: 'ambiguous', culprits: [] };
+  }
+  if (n === 1) {
+    return {
+      rule: 'daily_rest_10h',
+      date,
+      cause: 'single_long_shift',
+      culprits: [culpritOf(shifts[0])],
+    };
+  }
+  if (n === 2) {
+    const gapHours = Math.max(0, shifts[1].startDec - shifts[0].endDec);
+    return {
+      rule: 'daily_rest_10h',
+      date,
+      cause: 'two_shifts_too_close',
+      gapHours,
+      culprits: shifts.map(culpritOf),
+    };
+  }
+  return {
+    rule: 'daily_rest_10h',
+    date,
+    cause: 'piled_up',
+    shiftCount: n,
+    culprits: shifts.map(culpritOf),
+  };
+}
+
+function diagnoseWeekly({ date, weekShifts }) {
+  const enriched = enrichOnDuty(weekShifts || []);
+  const byDay = new Map();
+  for (const s of enriched) {
+    byDay.set(s.date, (byDay.get(s.date) || 0) + s.durationHours);
+  }
+  const days = Array.from(byDay.entries())
+    .map(([d, h]) => ({ date: d, hours: h }))
+    .sort((a, b) => b.hours - a.hours);
+  if (days.length === 0) {
+    return { rule: 'weekly_rest_77h', date, cause: 'uniform_load', heaviestDay: null };
+  }
+  const top = days[0];
+  const second = days[1] || { hours: 0 };
+  const totalHours = days.reduce((s, d) => s + d.hours, 0);
+  const avg = totalHours / Math.max(days.length, 1);
+  // Spike: top day is well above the average AND clearly above #2.
+  const isSpike = top.hours > avg * 1.4 && (days.length === 1 || top.hours > second.hours * 1.25);
+  if (isSpike) {
+    return {
+      rule: 'weekly_rest_77h',
+      date,
+      cause: 'one_spike_day',
+      heaviestDay: { date: top.date, hours: top.hours },
+    };
+  }
+  return {
+    rule: 'weekly_rest_77h',
+    date,
+    cause: 'uniform_load',
+    daysWithLoad: days.length,
+    avgHours: avg,
+  };
+}
+
+export function diagnoseBreach({ rule, date, dayShifts, weekShifts }) {
+  if (rule === 'daily_rest_10h')  return diagnoseDaily({ date, dayShifts });
+  if (rule === 'weekly_rest_77h') return diagnoseWeekly({ date, weekShifts });
+  return null; // structural rules — no advisory in v1
+}
+
 export function assessApply({
   memberIds = [],
   dates = [],
@@ -283,12 +394,19 @@ export function assessApply({
         const key = `${date}|${b.rule}`;
         if (seenBreach.has(key)) continue;
         seenBreach.add(key);
+        const diagnosis = diagnoseBreach({
+          rule: b.rule,
+          date,
+          dayShifts,
+          weekShifts,
+        });
         mlcBreaches.push({
           date,
           rule: b.rule,
           label: b.label,
           projected: b.actual,
           limit: b.limit,
+          diagnosis,
         });
       }
     }

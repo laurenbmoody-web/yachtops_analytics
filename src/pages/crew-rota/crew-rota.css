@@ -1974,10 +1974,18 @@
   line-height: 1.55;
 }
 .ap-mlc-rule-summary li {
-  padding: 4px 0;
+  padding: 6px 0;
   border-top: 0.5px solid #F0D5C7;
 }
 .ap-mlc-rule-summary li:first-child { border-top: 0; }
+.ap-mlc-rule-sentence { color: #1C1B3A; }
+.ap-mlc-rule-advisory {
+  margin-top: 4px;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: #695880;
+  font-style: italic;
+}
 .ap-mlc-detail-toggle {
   background: transparent;
   border: 0;
