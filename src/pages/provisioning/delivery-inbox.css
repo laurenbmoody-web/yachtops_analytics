@@ -205,22 +205,6 @@
   justify-content: flex-end;
 }
 
-/* Inline editorial note above the footer when a return is routed to
-   the supplier's Cargo portal instead of the email-slip flow. Signals
-   the routing mechanism so automatic portal-routing isn't a silent
-   surprise to the crew. */
-.di-portal-route-note {
-  margin: 0;
-  padding: 10px 18px;
-  border-top: 0.5px solid var(--di-hairline);
-  background: var(--di-sage-soft);
-  color: var(--di-sage-deep);
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  font-size: 12.5px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-}
-
 /* ── Item rows ─────────────────────────────────────────────── */
 .di-row {
   display: flex;
@@ -1174,6 +1158,52 @@
   box-sizing: border-box;
 }
 .di-slip-locked-banner strong { font-weight: 600; }
+
+/* ── Send-confirm dialog (Cargo / email / signature-gate) ─────────
+   Editorial modal layered above the slip page. The unsigned variant
+   shares the same shell — only the body and action row change. */
+.di-slip-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(38, 42, 83, 0.36);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-overlay, 300);
+  padding: 24px;
+}
+.di-slip-confirm-card {
+  background: var(--di-card);
+  border-radius: 14px;
+  border: 0.5px solid var(--di-hairline);
+  box-shadow: 0 24px 64px rgba(38, 42, 83, 0.18);
+  max-width: 440px;
+  width: 100%;
+  padding: 28px 28px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.di-slip-confirm-title {
+  margin: 0;
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 22px;
+  line-height: 1.25;
+  color: var(--di-ink, #262A53);
+}
+.di-slip-confirm-body {
+  margin: 0;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--di-muted);
+}
+.di-slip-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
 
 /* Disabled "no supplier email" button */
 .di-btn-disabled-static {

@@ -26,8 +26,6 @@ import {
   dismissInboxItem,
   returnInboxItem,
   fetchPendingReturns,
-  fetchPortalEnabledSuppliers,
-  sendReturnToPortal,
   confirmReturned,
   cancelReturns,
   fetchProvisioningLists,
@@ -654,13 +652,8 @@ const groupBySupplier = (items) => {
 // ─── Returns: stage-aware group card ────────────────────────────────────────
 const ReturnsGroupCard = ({
   supplier, items, stage, selectedIds, requesterNames,
-  onToggleSelect, onToggleGroup, onCancelReturn, onGenerateSlip, onMarkArchived,
-  onSendToPortal, isPortalEnabled, portalSupplierName, acting,
+  onToggleSelect, onToggleGroup, onCancelReturn, onGenerateSlip, onMarkArchived, acting,
 }) => {
-  // The canonical supplier_profiles.name for portal-enabled groups,
-  // falling back to the OCR'd group key. Used wherever the routing-
-  // destination supplier name appears in the UI.
-  const displaySupplier = portalSupplierName || supplier;
   const allSelected = items.length > 0 && items.every(i => selectedIds.has(i.id));
   const requesterIds = [...new Set(items.map(i => i.return_requested_by).filter(Boolean))];
   const requesterName = requesterIds.length === 1 ? (requesterNames[requesterIds[0]] || 'someone') : null;
@@ -705,22 +698,11 @@ const ReturnsGroupCard = ({
           );
         })}
       </div>
-      {stage === 1 && isPortalEnabled && (
-        <p className="di-portal-route-note">
-          {displaySupplier} uses Cargo — the return goes to their portal.
-        </p>
-      )}
       <div className="di-card-footer">
         {stage === 1 && (
           <>
             <button onClick={() => onCancelReturn(items)} disabled={acting} className="di-btn di-btn-ghost">Cancel return</button>
-            {isPortalEnabled ? (
-              <button onClick={() => onSendToPortal(items)} disabled={acting} className="di-btn di-btn-primary">
-                Send return to {displaySupplier}&rsquo;s Cargo portal
-              </button>
-            ) : (
-              <button onClick={() => onGenerateSlip(items)} disabled={acting} className="di-btn di-btn-primary">Generate &amp; send slip</button>
-            )}
+            <button onClick={() => onGenerateSlip(items)} disabled={acting} className="di-btn di-btn-primary">Generate &amp; send slip</button>
           </>
         )}
         {stage === 2 && (
@@ -759,9 +741,6 @@ const ReturnsView = ({
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
   const [requesterNames, setRequesterNames] = useState({});
-  // Map<supplier_profile_id, canonical supplier_profiles.name> for the
-  // subset of return suppliers with active Cargo portal accounts.
-  const [portalEnabledSuppliers, setPortalEnabledSuppliers] = useState(() => new Map());
   const [loadError, setLoadError] = useState(null);
 
   const load = useCallback(async () => {
@@ -781,17 +760,10 @@ const ReturnsView = ({
       } else {
         setRequesterNames({});
       }
-      // Which of the distinct supplier_profile_ids on these returns have an
-      // active Cargo portal account? Drives the stage-1 footer branch.
-      // The map's values are canonical supplier_profiles.name for label use.
-      const supplierProfileIds = [...new Set(items.map(i => i.supplier_profile_id).filter(Boolean))];
-      const portalMap = await fetchPortalEnabledSuppliers(supplierProfileIds);
-      setPortalEnabledSuppliers(portalMap);
     } catch (err) {
       console.error('[ReturnsView load]', err);
       setLoadError(err?.message || 'fetch failed');
       setReturnItems([]);
-      setPortalEnabledSuppliers(new Map());
     } finally {
       setLoading(false);
     }
@@ -844,47 +816,6 @@ const ReturnsView = ({
     setActing(false);
   };
 
-  // Pick the single non-null supplier_profile_id shared across the group.
-  // If items in the group disagree (mixed ids or any null), return null so
-  // the group falls through to the slip flow — never silently route the
-  // wrong supplier.
-  const getGroupSupplierProfileId = (groupItems) => {
-    const ids = new Set(groupItems.map(i => i.supplier_profile_id).filter(Boolean));
-    return ids.size === 1 ? [...ids][0] : null;
-  };
-
-  const handleSendToPortal = async (items) => {
-    const supplierProfileId = getGroupSupplierProfileId(items);
-    if (!supplierProfileId) {
-      showToast('Cannot route — supplier ambiguous on this return', 'error');
-      return;
-    }
-    // Canonical name from the portal-enabled map; fall back to the OCR
-    // snapshot only if the canonical somehow isn't available.
-    const supplierName = portalEnabledSuppliers.get(supplierProfileId) || items[0]?.supplier_name || 'supplier';
-    const itemsSnapshot = items.map(i => ({
-      raw_name:      i.raw_name,
-      quantity:      i.return_qty ?? i.quantity ?? null,
-      unit:          i.unit ?? null,
-      unit_price:    i.unit_price ?? null,
-      return_reason: i.return_reason ?? null,
-    }));
-    setActing(true);
-    const result = await sendReturnToPortal({
-      supplierProfileId,
-      tenantId,
-      inboxIds: items.map(i => i.id),
-      items:    itemsSnapshot,
-      createdBy: userId,
-    });
-    if (result.ok) {
-      showToast(`Return routed to ${supplierName}'s Cargo portal.`, 'success');
-      await load();
-    } else {
-      showToast('Failed to route return — please try again.', 'error');
-    }
-    setActing(false);
-  };
 
   const handleToggleSelect = (itemId) => {
     setSelectedIds(prev => {
@@ -957,30 +888,22 @@ const ReturnsView = ({
             {stages[stage].length === 0 ? (
               <p className="di-stage-section-empty">Nothing in this stage.</p>
             ) : (
-              Object.entries(groupBySupplier(stages[stage])).map(([supplier, items]) => {
-                const groupSupplierProfileId = getGroupSupplierProfileId(items);
-                const canonicalName = groupSupplierProfileId ? portalEnabledSuppliers.get(groupSupplierProfileId) : null;
-                const isPortalEnabled = !!canonicalName;
-                return (
-                  <ReturnsGroupCard
-                    key={`${stage}-${supplier}`}
-                    supplier={supplier}
-                    items={items}
-                    stage={stage}
-                    selectedIds={selectedIds}
-                    requesterNames={requesterNames}
-                    onToggleSelect={handleToggleSelect}
-                    onToggleGroup={handleToggleGroup}
-                    onCancelReturn={handleCancelReturn}
-                    onGenerateSlip={handleGenerateSlip}
-                    onMarkArchived={handleMarkArchived}
-                    onSendToPortal={handleSendToPortal}
-                    isPortalEnabled={isPortalEnabled}
-                    portalSupplierName={canonicalName}
-                    acting={acting}
-                  />
-                );
-              })
+              Object.entries(groupBySupplier(stages[stage])).map(([supplier, items]) => (
+                <ReturnsGroupCard
+                  key={`${stage}-${supplier}`}
+                  supplier={supplier}
+                  items={items}
+                  stage={stage}
+                  selectedIds={selectedIds}
+                  requesterNames={requesterNames}
+                  onToggleSelect={handleToggleSelect}
+                  onToggleGroup={handleToggleGroup}
+                  onCancelReturn={handleCancelReturn}
+                  onGenerateSlip={handleGenerateSlip}
+                  onMarkArchived={handleMarkArchived}
+                  acting={acting}
+                />
+              ))
             )}
           </section>
         ))}
