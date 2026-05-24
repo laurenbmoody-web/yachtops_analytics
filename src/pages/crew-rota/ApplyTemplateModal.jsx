@@ -552,14 +552,18 @@ export default function ApplyTemplateModal({
     setBusy(false);
 
     if (template?.kind === 'rotation') {
-      // Auto-match per slot — pre-pick the first candidate currently active.
-      // Each slot starts un-dropped with one member position.
+      // Auto-match per slot — pre-pick the first eligible crew currently
+      // active, skipping anyone already taken by an earlier slot. Same job
+      // title with no fresh eligible crew left → member null (manual pick).
       const titles = Array.isArray(template?.body?.roles) ? template.body.roles : [];
+      const picked = new Set();
       const seeded = titles.map((title) => {
         const eligible = visibleCrew.find((c) =>
           (c.role || '') === (title || '')
-          && (c.currentStatus === 'active' || c.currentStatus == null),
+          && (c.currentStatus === 'active' || c.currentStatus == null)
+          && !picked.has(c.id),
         );
+        if (eligible) picked.add(eligible.id);
         return { title, members: [eligible?.id || null], dropped: false, widen: false };
       });
       setSlots(seeded);
@@ -738,10 +742,26 @@ export default function ApplyTemplateModal({
   };
 
   // ── Build the full "what would be written" list ────────────────────
+  // Belt-and-braces defensive dedupe: collapse rows that are TRULY
+  // identical — same member, same date, same shift_type/sub_type, same
+  // start/end times. A crew member legitimately doubled into two slots
+  // doing DIFFERENT duties on the same day still produces two rows (the
+  // duty differs). Reachable case for true dups: a single slot's m1
+  // and m2 both pointing at the same crew (the candsForSecond filter
+  // normally prevents it, but a sequence of edits can still land there).
   const targetRowsAndMembers = useMemo(() => {
-    if (!template || dates.length === 0) return { rows: [], memberIds: [] };
+    if (!template || dates.length === 0) return { rows: [], memberIds: [], duplicatesDropped: 0 };
     const rows = [];
     const memberSet = new Set();
+    const seen = new Set();
+    let duplicatesDropped = 0;
+    const pushIfNew = (row) => {
+      const key = `${row.member_id}|${row.shift_date}|${row.shift_type}|${row.sub_type ?? ''}|${row.start_time}|${row.end_time}`;
+      if (seen.has(key)) { duplicatesDropped += 1; return; }
+      seen.add(key);
+      rows.push(row);
+      memberSet.add(row.member_id);
+    };
     if (isPattern) {
       for (let k = 0; k < dates.length; k += 1) {
         const dateStr = dates[k];
@@ -752,18 +772,16 @@ export default function ApplyTemplateModal({
           if (di == null) continue;
           for (const memberId of slot.members) {
             if (!memberId) continue;
-            rows.push(buildPatternRow(memberId, dateStr, duties[di]));
-            memberSet.add(memberId);
+            pushIfNew(buildPatternRow(memberId, dateStr, duties[di]));
           }
         }
       }
     } else {
       for (const m of tickedMemberIds) {
-        for (const d of dates) rows.push(buildSimpleRow(m, d));
-        memberSet.add(m);
+        for (const d of dates) pushIfNew(buildSimpleRow(m, d));
       }
     }
-    return { rows, memberIds: Array.from(memberSet) };
+    return { rows, memberIds: Array.from(memberSet), duplicatesDropped };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [template, dates, isPattern, slots, ticked, duties]);
 
@@ -805,12 +823,15 @@ export default function ApplyTemplateModal({
 
   // ── Apply (route into the staged review or commit straight through) ─
   const runConflictCheck = async () => {
-    const { rows, memberIds } = targetRowsAndMembers;
+    const { rows, memberIds, duplicatesDropped } = targetRowsAndMembers;
     if (rows.length === 0) {
       onToast?.(isPattern
         ? 'Assign at least one crew member to a role and pick a date range.'
         : 'Pick at least one crew member to apply this template.');
       return;
+    }
+    if (duplicatesDropped > 0) {
+      onToast?.(`Dropped ${duplicatesDropped} duplicate row${duplicatesDropped === 1 ? '' : 's'} (same crew, date, and shift).`);
     }
     setBusy(true);
     try {
@@ -1164,8 +1185,28 @@ export default function ApplyTemplateModal({
                       const m1 = slot.members[0] || null;
                       const m2 = slot.members[1] || null;
                       const resolved = resolveSlotCandidates(j);
-                      const effCands = resolved.items;
+                      const baseCands = resolved.items;
                       const isFallback = resolved.source !== 'match';
+                      // Soft hint: if a candidate is already a member of
+                      // ANOTHER non-dropped slot, append "already in Slot N"
+                      // to its subtitle so a deliberate repeat is visible
+                      // rather than silent. Does NOT filter — the chief is
+                      // allowed to repeat (that's the double-up case).
+                      const effCands = baseCands.map((c) => {
+                        const otherSlotNums = [];
+                        slots.forEach((s, idx) => {
+                          if (idx === j || s.dropped) return;
+                          if (s.members.includes(c.id)) otherSlotNums.push(idx + 1);
+                        });
+                        if (otherSlotNums.length === 0) return c;
+                        const hint = otherSlotNums.length === 1
+                          ? `already in Slot ${otherSlotNums[0]}`
+                          : `already in Slots ${otherSlotNums.join(', ')}`;
+                        return {
+                          ...c,
+                          subtitle: c.subtitle ? `${c.subtitle} · ${hint}` : hint,
+                        };
+                      });
                       // Second-position candidates: filter out the first pick.
                       const candsForSecond = effCands.filter((c) => c.id !== m1);
                       const noUsable = effCands.length === 0;
