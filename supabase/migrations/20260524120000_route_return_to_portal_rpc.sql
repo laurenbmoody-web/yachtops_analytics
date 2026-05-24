@@ -50,6 +50,14 @@ DECLARE
   existing_task_id uuid;
   new_task_id      uuid;
 BEGIN
+  -- (0) Defensive guard. An empty/null id array would otherwise create
+  -- an orphan task with source_delivery_inbox_ids = '{}' that archives
+  -- nothing — silently bad. The UI never calls it that way; fail loud
+  -- on miscall.
+  IF p_inbox_ids IS NULL OR cardinality(p_inbox_ids) = 0 THEN
+    RAISE EXCEPTION 'route_return_to_portal: p_inbox_ids must not be empty';
+  END IF;
+
   -- (1) Lock the originating delivery_inbox rows for the duration of
   -- this transaction. Two concurrent calls on the same inbox rows
   -- serialize on this lock — the second call will not begin its

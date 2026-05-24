@@ -1564,26 +1564,35 @@ export const resolveSupplierProfileId = async ({ name = null, email = null } = {
   return null;
 };
 
-// Given an array of supplier_profiles.id, return the Set of those that
-// have at least one active supplier_contacts row with a non-null user_id
-// (i.e. a real linked Cargo portal account). One query, not per-row.
-// Used by the Returns view to decide which return groups get the portal-
-// routing treatment instead of the email-slip flow.
-export const fetchPortalEnabledSupplierIds = async (supplierProfileIds = []) => {
+// Given an array of supplier_profiles.id, return a Map keyed by supplier_id
+// of those that have at least one active supplier_contacts row with a
+// non-null user_id (i.e. a real linked Cargo portal account). The map's
+// value is the canonical supplier_profiles.name — used by the Returns
+// view for the routing-button label and the portal-route note so the UI
+// always shows the true supplier name rather than the OCR'd snapshot
+// (supplier_name on delivery_inbox) which can differ.
+// One query — joins via the supplier_contacts.supplier_id FK.
+// Callers: portalEnabledSuppliers.has(id) for the routing decision;
+// portalEnabledSuppliers.get(id) for the canonical name.
+export const fetchPortalEnabledSuppliers = async (supplierProfileIds = []) => {
   const ids = [...new Set((supplierProfileIds || []).filter(Boolean))];
-  if (ids.length === 0) return new Set();
+  if (ids.length === 0) return new Map();
   try {
     const { data, error } = await supabase
       ?.from('supplier_contacts')
-      ?.select('supplier_id')
+      ?.select('supplier_id, supplier:supplier_profiles(name)')
       ?.in('supplier_id', ids)
       ?.eq('active', true)
       ?.not('user_id', 'is', null);
     if (error) throw error;
-    return new Set((data || []).map(r => r.supplier_id));
+    const map = new Map();
+    (data || []).forEach(r => {
+      if (r.supplier_id && r.supplier?.name) map.set(r.supplier_id, r.supplier.name);
+    });
+    return map;
   } catch (err) {
-    console.error('[fetchPortalEnabledSupplierIds]', err);
-    return new Set();
+    console.error('[fetchPortalEnabledSuppliers]', err);
+    return new Map();
   }
 };
 
