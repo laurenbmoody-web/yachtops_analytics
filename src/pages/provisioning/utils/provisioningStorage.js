@@ -1571,7 +1571,15 @@ export const resolveSupplierProfileId = async ({ name = null, email = null } = {
 // view for the routing-button label and the portal-route note so the UI
 // always shows the true supplier name rather than the OCR'd snapshot
 // (supplier_name on delivery_inbox) which can differ.
-// One query — joins via the supplier_contacts.supplier_id FK.
+//
+// Goes through the get_portal_enabled_suppliers SECURITY DEFINER RPC
+// because the only SELECT policy on supplier_contacts is supplier-only
+// (supplier_read_team_contacts gated on get_user_supplier_id()) — a
+// direct table query as a crew caller returns an empty array with no
+// error, which is the bug that escaped Part 2's "build green" check.
+// The RPC bypasses RLS but returns ONLY the (id, name) pairs for the
+// ids the caller asked about; no row contents leak.
+//
 // Callers: portalEnabledSuppliers.has(id) for the routing decision;
 // portalEnabledSuppliers.get(id) for the canonical name.
 export const fetchPortalEnabledSuppliers = async (supplierProfileIds = []) => {
@@ -1579,15 +1587,11 @@ export const fetchPortalEnabledSuppliers = async (supplierProfileIds = []) => {
   if (ids.length === 0) return new Map();
   try {
     const { data, error } = await supabase
-      ?.from('supplier_contacts')
-      ?.select('supplier_id, supplier:supplier_profiles(name)')
-      ?.in('supplier_id', ids)
-      ?.eq('active', true)
-      ?.not('user_id', 'is', null);
+      ?.rpc('get_portal_enabled_suppliers', { p_supplier_ids: ids });
     if (error) throw error;
     const map = new Map();
     (data || []).forEach(r => {
-      if (r.supplier_id && r.supplier?.name) map.set(r.supplier_id, r.supplier.name);
+      if (r.supplier_id && r.supplier_name) map.set(r.supplier_id, r.supplier_name);
     });
     return map;
   } catch (err) {
