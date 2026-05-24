@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import {
   LayoutDashboard, ShoppingBag, Truck, FileText, BookOpen, Tag,
@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import SupplierAvatarMenu from './components/SupplierAvatarMenu';
 import { useTier, hasClientPermission } from '../../contexts/SupplierPermissionContext';
+import { useSupplier } from '../../contexts/SupplierContext';
+import { fetchUnactionedReturnsCount } from './utils/supplierReturnTasks';
 import './supplier-portal.css';
 
 // `requires` gates each nav item via hasClientPermission. Items without
@@ -40,6 +42,30 @@ const NAV_GROUPS = [
 
 const SupplierLayout = () => {
   const { tier } = useTier();
+  const { supplier } = useSupplier();
+  // Count of unactioned ('sent') return tasks for the /supplier/returns
+  // nav badge. 'sent' is the unread state — naturally cleared when the
+  // supplier clicks Acknowledge. Re-fetches on mount, window focus, and
+  // when SupplierReturns dispatches `supplier-return-tasks-changed`
+  // after a local action.
+  const [returnsCount, setReturnsCount] = useState(0);
+  useEffect(() => {
+    if (!supplier?.id) return undefined;
+    let cancelled = false;
+    const refresh = () => {
+      fetchUnactionedReturnsCount(supplier.id)
+        .then((n) => { if (!cancelled) setReturnsCount(n); })
+        .catch((e) => console.error('[SupplierLayout returns badge]', e));
+    };
+    refresh();
+    window.addEventListener('focus', refresh);
+    window.addEventListener('supplier-return-tasks-changed', refresh);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('supplier-return-tasks-changed', refresh);
+    };
+  }, [supplier?.id]);
 
   const visibleGroups = NAV_GROUPS
     .map((group) => ({
@@ -69,6 +95,11 @@ const SupplierLayout = () => {
                 >
                   <Icon />
                   <span>{label}</span>
+                  {to === '/supplier/returns' && returnsCount > 0 && (
+                    <span className="sp-nav-item-badge" aria-label={`${returnsCount} unactioned return${returnsCount === 1 ? '' : 's'}`}>
+                      {returnsCount}
+                    </span>
+                  )}
                 </NavLink>
               ))}
             </div>
