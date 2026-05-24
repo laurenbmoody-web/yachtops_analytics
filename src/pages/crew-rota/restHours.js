@@ -34,6 +34,10 @@ function hhmmToDecimal(t) {
 
 // Normalise on-duty shifts in one day into decimal-hour ranges. Overnight
 // shifts extend past 24 (the caller decides whether to clip to [0, 24]).
+// Rows where start_time === end_time are dropped: a 00:00→00:00 row (or
+// any equal pair) means "unknown / unfixed" in this codebase's history,
+// not a deliberate 24h tour. Treating it as 24h was the root cause of
+// the legacy 48h-continuous figure on the apply review screen.
 function onDutyRanges(dayShifts) {
   return (dayShifts || [])
     .filter(s => ON_DUTY_TYPES.has(s.shiftType))
@@ -41,6 +45,7 @@ function onDutyRanges(dayShifts) {
       const start = hhmmToDecimal(s.startTime);
       let end = hhmmToDecimal(s.endTime);
       if (start == null || end == null) return null;
+      if (start === end) return null;
       if (end <= start) end += 24;
       return { start, end };
     })
@@ -103,6 +108,7 @@ export function maxWorkStretch(weekShifts) {
     const startDec = hhmmToDecimal(s.startTime);
     let endDec = hhmmToDecimal(s.endTime);
     if (startDec == null || endDec == null) continue;
+    if (startDec === endDec) continue; // see onDutyRanges note
     if (endDec <= startDec) endDec += 24;
     const [y, m, d] = String(s.date).split('-').map(Number);
     if (!y || !m || !d) continue;
@@ -249,6 +255,7 @@ function enrichOnDuty(shifts) {
       const start = hhmmToDecimal(s.startTime);
       let end = hhmmToDecimal(s.endTime);
       if (start == null || end == null) return null;
+      if (start === end) return null; // see onDutyRanges note
       if (end <= start) end += 24;
       return {
         date: s.date,
@@ -432,6 +439,7 @@ export function assessApply({
         const startDec = hhmmToDecimal(s.startTime);
         let endDec = hhmmToDecimal(s.endTime);
         if (startDec == null || endDec == null) return null;
+        if (startDec === endDec) return null; // see onDutyRanges note
         if (endDec <= startDec) endDec += 24;
         const [y, m, d] = String(s.date).split('-').map(Number);
         if (!y) return null;
