@@ -205,6 +205,22 @@
   justify-content: flex-end;
 }
 
+/* Inline editorial note above the footer when a return is routed to
+   the supplier's Cargo portal instead of the email-slip flow. Signals
+   the routing mechanism so automatic portal-routing isn't a silent
+   surprise to the crew. */
+.di-portal-route-note {
+  margin: 0;
+  padding: 10px 18px;
+  border-top: 0.5px solid var(--di-hairline);
+  background: var(--di-sage-soft);
+  color: var(--di-sage-deep);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
 /* ── Item rows ─────────────────────────────────────────────── */
 .di-row {
   display: flex;
