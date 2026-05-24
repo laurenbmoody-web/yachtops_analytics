@@ -182,11 +182,14 @@ BEGIN
   matched_by_email := pre_null_count - post_email_count;
 
   -- Pass 2: exact normalized-name match — only unambiguous names.
+  -- HAVING count(*) = 1 guarantees exactly one row per name group, so
+  -- the aggregate just routes that single id through. Postgres has no
+  -- min() / max() aggregate for the uuid type, hence the text round-trip.
   UPDATE public.delivery_inbox di
   SET    supplier_profile_id = unambig.id
   FROM   (
-           SELECT lower(btrim(name)) AS name_key,
-                  min(id)            AS id
+           SELECT lower(btrim(name))    AS name_key,
+                  min(id::text)::uuid   AS id
            FROM   public.supplier_profiles
            WHERE  name IS NOT NULL AND btrim(name) <> ''
            GROUP  BY lower(btrim(name))
