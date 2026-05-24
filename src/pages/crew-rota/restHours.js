@@ -277,12 +277,25 @@ function diagnoseDaily({ date, dayShifts }) {
   if (n === 0) {
     return { rule: 'daily_rest_10h', date, cause: 'ambiguous', culprits: [] };
   }
-  if (n === 1) {
+  // Dominance check (applies for any shift count, n=1 included). A single
+  // shift "dominates" the day if it accounts for ≥75 % of on-duty hours OR
+  // is itself already at/over the alone-breach threshold (≥14h leaves <10h
+  // rest in 24h regardless of anything else). In either case the long
+  // shift IS the cause — the n-based branches below would otherwise route
+  // a 16h + 1h handover day to "two shifts too close", which gives the
+  // wrong advice.
+  const totalHours = shifts.reduce((s, x) => s + x.durationHours, 0);
+  const longest = shifts.reduce((a, b) => (b.durationHours > a.durationHours ? b : a));
+  const aloneBreachThreshold = 24 - MLC_DAILY_REST_MIN; // 14h
+  const dominates =
+    longest.durationHours >= aloneBreachThreshold ||
+    (totalHours > 0 && longest.durationHours >= totalHours * 0.75);
+  if (dominates) {
     return {
       rule: 'daily_rest_10h',
       date,
       cause: 'single_long_shift',
-      culprits: [culpritOf(shifts[0])],
+      culprits: [culpritOf(longest)],
     };
   }
   if (n === 2) {

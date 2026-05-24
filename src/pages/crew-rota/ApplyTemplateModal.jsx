@@ -1100,7 +1100,7 @@ export default function ApplyTemplateModal({
             aria-label="Close" onClick={busy ? undefined : onClose}><X size={16} /></button>
         </div>
 
-        {phase !== 'conflicts' && (
+        {phase === 'select' && (
           <div className="te-body ap-body">
             <div className="te-field">
               <span className="te-field-label">When</span>
