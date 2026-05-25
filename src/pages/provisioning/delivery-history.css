@@ -93,8 +93,7 @@
   pointer-events: none;
 }
 .dh-filter-input,
-.dh-filter-select,
-.dh-filter-date {
+.dh-filter-select {
   padding: 9px 12px;
   border: 0.5px solid var(--di-hairline);
   border-radius: 10px;
@@ -108,10 +107,15 @@
 .dh-filter-input { width: 100%; padding-left: 34px; }
 .dh-filter-input::placeholder { color: var(--di-faint); }
 .dh-filter-input:focus,
-.dh-filter-select:focus,
-.dh-filter-date:focus {
+.dh-filter-select:focus {
   outline: none;
   border-color: var(--di-rust);
+}
+/* Wrapper around an EditorialDatePicker in the filter bar — sizes the
+   inline-block component to match the other filter controls. */
+.dh-filter-datepicker {
+  flex: 0 1 170px;
+  min-width: 150px;
 }
 .dh-filter-select { cursor: pointer; }
 .dh-filter-clear {
@@ -177,11 +181,12 @@
 }
 .dh-hero-amount {
   margin: 0;
-  font-family: 'DM Serif Display', Georgia, serif;
+  font-family: 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 40px;
+  font-weight: 700;
   line-height: 1.05;
   color: var(--di-navy);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
   word-break: break-word;
 }
 .dh-hero-amount-segments {
@@ -244,10 +249,12 @@
   justify-content: center;
 }
 .dh-hero-stat-count {
-  font-family: 'DM Serif Display', Georgia, serif;
+  font-family: 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 36px;
+  font-weight: 700;
   line-height: 1;
   color: var(--di-navy);
+  letter-spacing: -0.015em;
 }
 .dh-hero-stat-label {
   margin: 6px 0 0;
