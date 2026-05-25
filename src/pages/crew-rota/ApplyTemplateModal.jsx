@@ -1549,12 +1549,14 @@ export default function ApplyTemplateModal({
     // not stored. Deliberate v1 boundary — not an oversight.
     // Broadened gate: fires when an MLC override was justified by a typed
     // reason OR when the chief used the Drop lever to remove proposed
-    // rows (commit 1 of the applyable-fixes feature). The drops-only path
-    // — chief drops a culprit, breach disappears, chief clicks plain
-    // Apply — is the easy case to miss and the one most worth tracing.
+    // rows OR the Shorten lever to trim them (v1.1 C4). The drops-only /
+    // shortens-only paths — chief fixes the breach, clicks plain Apply,
+    // no override reason needed — are the easy cases to miss and the
+    // ones most worth tracing.
     const overrideHappened = !!(auditAssessment?.hasMlc && overrideReason.trim());
     const dropsHappened = droppedRows.size > 0;
-    if (overrideHappened || dropsHappened) {
+    const shortensHappened = editedRows.size > 0;
+    if (overrideHappened || dropsHappened || shortensHappened) {
       try {
         const { data: authData } = await supabase.auth.getUser();
         const actorId = authData?.user?.id;
@@ -1617,15 +1619,39 @@ export default function ApplyTemplateModal({
             });
           }
 
-          // A dept is "affected" if it has remaining breaches OR drops.
-          // Inserts alone don't trigger an audit row — clean inserts in
-          // depts unrelated to the MLC drama stay un-audited (matches
-          // pre-lever behaviour). The drops-only dept (drops cleared
-          // the breach, no remaining breaches) IS included here because
-          // its dept appears in droppedByDept.
+          // Shortens grouped by dept (v1.1 C4). Each entry captures the
+          // original AND new times so the audit reader can reconstruct
+          // exactly what the chief changed. caused_by_rule attributes the
+          // shorten to the rule the chief was looking at (always
+          // 'daily_rest_10h' in v1.1 — the only rule with a shorten
+          // lever).
+          const shortenedByDept = new Map();
+          for (const { row, newStart, newEnd, byRule } of editedRows.values()) {
+            const did = memberDeptMap.get(row.member_id);
+            if (!did) continue;
+            if (!shortenedByDept.has(did)) shortenedByDept.set(did, []);
+            shortenedByDept.get(did).push({
+              member_id: row.member_id,
+              member_name: memberNameMap.get(row.member_id) || '',
+              shift_date: row.shift_date,
+              original_start: row.start_time,
+              original_end: row.end_time,
+              new_start: newStart,
+              new_end: newEnd,
+              caused_by_rule: byRule,
+            });
+          }
+
+          // A dept is "affected" if it has remaining breaches OR drops
+          // OR shortens. Inserts alone don't trigger an audit row —
+          // clean inserts in depts unrelated to the MLC drama stay
+          // un-audited (matches pre-lever behaviour). A dept whose only
+          // entry is a shorten (no remaining breach, no drop) IS
+          // included here because its dept appears in shortenedByDept.
           const affectedDeptIds = new Set([
             ...breachesByDept.keys(),
             ...droppedByDept.keys(),
+            ...shortenedByDept.keys(),
           ]);
 
           const eventRows = [];
@@ -1636,6 +1662,8 @@ export default function ApplyTemplateModal({
             };
             const deptDrops = droppedByDept.get(departmentId);
             if (deptDrops && deptDrops.length > 0) context.dropped_rows = deptDrops;
+            const deptShortens = shortenedByDept.get(departmentId);
+            if (deptShortens && deptShortens.length > 0) context.shortened_rows = deptShortens;
             eventRows.push({
               rota_id: rota.id,
               department_id: departmentId,
@@ -1644,9 +1672,10 @@ export default function ApplyTemplateModal({
               event_type: 'mlc_override',
               actor_id: actorId,
               actor_tier: tier,
-              // Typed reason when an override happened; null when drops
-              // cleared the breach and the chief clicked plain Apply.
-              // context.dropped_rows carries the meaning in that case.
+              // Typed reason when an override happened; null when the
+              // lever (drop and/or shorten) cleared the breach and the
+              // chief clicked plain Apply. context.dropped_rows and/or
+              // context.shortened_rows carry the meaning in that case.
               note: overrideHappened ? overrideReason.trim() : null,
               context,
             });
