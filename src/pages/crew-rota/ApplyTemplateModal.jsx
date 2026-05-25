@@ -154,6 +154,58 @@ function adviseBreach(diagnosis) {
   return null;
 }
 
+// Composite identity for a proposed row — same six fields ccaeb41's
+// pushIfNew dedupe uses. Stable across re-renders; content-addressed so
+// no risk of array-index drift when slots/dropped state changes.
+function dropRowKey(row) {
+  return `${row.member_id}|${row.shift_date}|${row.shift_type}|${row.sub_type ?? ''}|${row.start_time}|${row.end_time}`;
+}
+
+// Pick the row a "Drop this shift" lever should target, given a diagnosis
+// and the current proposed row set. Returns { row, reason }: reason ===
+// 'existing' means the culprit isn't in the proposed rows (existing-only
+// shift), 'no_match' is a defensive fallback that shouldn't fire in
+// practice. Only single_long_shift (daily) and one_spike_day (weekly)
+// have a clean lever in v1.
+function resolveDropCulprit({ diagnosis, memberId, allRows }) {
+  if (!diagnosis) return { row: null, reason: null };
+
+  if (diagnosis.cause === 'single_long_shift') {
+    const c = diagnosis.culprits?.[0];
+    if (!c) return { row: null, reason: 'no_culprit' };
+    if (c.source !== 'proposed') return { row: null, reason: 'existing' };
+    const row = allRows.find((r) =>
+      r.member_id === memberId
+      && r.shift_date === c.date
+      && r.start_time === c.startTime
+      && r.end_time === c.endTime
+    );
+    return { row: row || null, reason: row ? null : 'no_match' };
+  }
+
+  if (diagnosis.cause === 'one_spike_day') {
+    const day = diagnosis.heaviestDay?.date;
+    if (!day) return { row: null, reason: 'no_culprit' };
+    const candidates = allRows.filter(
+      (r) => r.member_id === memberId && r.shift_date === day,
+    );
+    if (candidates.length === 0) return { row: null, reason: 'existing' };
+    // Longest by duration; tie-break by later start_time.
+    const withDuration = candidates.map((r) => {
+      const [sh, sm] = r.start_time.split(':').map(Number);
+      const [eh, em] = r.end_time.split(':').map(Number);
+      let start = sh + (sm || 0) / 60;
+      let end = eh + (em || 0) / 60;
+      if (end <= start) end += 24;
+      return { row: r, duration: end - start, startDec: start };
+    });
+    withDuration.sort((a, b) => (b.duration - a.duration) || (b.startDec - a.startDec));
+    return { row: withDuration[0].row, reason: null };
+  }
+
+  return { row: null, reason: null };
+}
+
 // Sentence-case rule title for the per-rule summary line.
 const MLC_RULE_TITLE = {
   daily_rest_10h:       'Not enough rest per day',
@@ -267,7 +319,7 @@ function summariseRule(rule, breaches, applyDates) {
 // One collapsible member row in the MLC breach list. Defaults collapsed.
 // Expanded view shows the per-rule summary sentences first; a further
 // disclosure reveals the day-by-day prose detail beneath.
-function MlcMemberRow({ name, mlcBreaches, applyDates }) {
+function MlcMemberRow({ name, mlcBreaches, applyDates, memberId, allRows, onDropRow }) {
   const [open, setOpen] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const chips = useMemo(() => ruleSummary(mlcBreaches), [mlcBreaches]);
@@ -287,6 +339,7 @@ function MlcMemberRow({ name, mlcBreaches, applyDates }) {
           rule,
           sentence: summary.sentence,
           advisory: adviseBreach(summary.worst?.diagnosis),
+          diagnosis: summary.worst?.diagnosis,
         };
       })
       .filter(Boolean);
@@ -317,14 +370,35 @@ function MlcMemberRow({ name, mlcBreaches, applyDates }) {
       {open && (
         <div className="ap-mlc-member-expand">
           <ul className="ap-mlc-rule-summary">
-            {ruleSummaries.map((rs) => (
-              <li key={rs.rule}>
-                <div className="ap-mlc-rule-sentence">{rs.sentence}</div>
-                {rs.advisory && (
-                  <div className="ap-mlc-rule-advisory">{rs.advisory}</div>
-                )}
-              </li>
-            ))}
+            {ruleSummaries.map((rs) => {
+              const hasLever =
+                rs.diagnosis?.cause === 'single_long_shift'
+                || rs.diagnosis?.cause === 'one_spike_day';
+              const { row: culpritRow, reason } = hasLever
+                ? resolveDropCulprit({ diagnosis: rs.diagnosis, memberId, allRows })
+                : { row: null, reason: null };
+              const enabled = !!culpritRow;
+              const tooltip = reason === 'existing'
+                ? 'This shift is already on the rota — edit it from the grid.'
+                : undefined;
+              return (
+                <li key={rs.rule}>
+                  <div className="ap-mlc-rule-sentence">{rs.sentence}</div>
+                  {rs.advisory && (
+                    <div className="ap-mlc-rule-advisory">{rs.advisory}</div>
+                  )}
+                  {hasLever && (
+                    <button
+                      type="button"
+                      className="ap-mlc-drop-btn"
+                      disabled={!enabled}
+                      title={tooltip}
+                      onClick={enabled ? () => onDropRow?.(culpritRow, rs.rule) : undefined}
+                    >Drop this shift</button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
           <button
             type="button"
@@ -538,6 +612,10 @@ export default function ApplyTemplateModal({
   const [assessment, setAssessment] = useState(null);
   const [overrideReason, setOverrideReason] = useState('');
   const [busy, setBusy] = useState(false);
+  // Lever-pulled drops — per-modal session, keyed by dropRowKey.
+  // Value carries the full proposed row + the rule the chief was looking
+  // at when they pulled the lever (audit attribution in commit 3).
+  const [droppedRows, setDroppedRows] = useState(() => new Map());
 
   // ── Re-seed on open / template change ──────────────────────────────
   useEffect(() => {
@@ -549,6 +627,7 @@ export default function ApplyTemplateModal({
     setResolutionMode(null);
     setAssessment(null);
     setOverrideReason('');
+    setDroppedRows(new Map());
     setBusy(false);
 
     if (template?.kind === 'rotation') {
@@ -762,18 +841,23 @@ export default function ApplyTemplateModal({
   // normally prevents it, but a sequence of edits can still land there).
   const targetRowsAndMembers = useMemo(() => {
     if (!template || dates.length === 0) {
-      return { rows: [], memberIds: [], duplicatesDropped: 0, invalidTimesDropped: 0 };
+      return { rows: [], memberIds: [], duplicatesDropped: 0, invalidTimesDropped: 0, leverDropped: 0 };
     }
     const rows = [];
     const memberSet = new Set();
     const seen = new Set();
     let duplicatesDropped = 0;
     let invalidTimesDropped = 0;
+    let leverDropped = 0;
     const pushIfNew = (row) => {
       // The row builder returns null when the template / duty carries
       // missing or equal times — count and skip rather than coerce.
       if (row == null) { invalidTimesDropped += 1; return; }
-      const key = `${row.member_id}|${row.shift_date}|${row.shift_type}|${row.sub_type ?? ''}|${row.start_time}|${row.end_time}`;
+      const key = dropRowKey(row);
+      // Lever-pulled drop — chief chose to remove this exact row to fix
+      // an MLC breach. Skipped here so it never reaches Layer 2's
+      // commit insert. The key matches ccaeb41's dedupe key by design.
+      if (droppedRows.has(key)) { leverDropped += 1; return; }
       if (seen.has(key)) { duplicatesDropped += 1; return; }
       seen.add(key);
       rows.push(row);
@@ -803,9 +887,10 @@ export default function ApplyTemplateModal({
       memberIds: Array.from(memberSet),
       duplicatesDropped,
       invalidTimesDropped,
+      leverDropped,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [template, dates, isPattern, slots, ticked, duties]);
+  }, [template, dates, isPattern, slots, ticked, duties, droppedRows]);
 
   if (!open || !template) return null;
 
@@ -841,6 +926,48 @@ export default function ApplyTemplateModal({
       proposedRows: effProposed,
       existingWindowShifts: effExisting,
     });
+  };
+
+  // Third caller of computeAssessmentFor — matches the shape of the two
+  // existing callers (sync; computeAssessmentFor itself is sync, only the
+  // wrappers around the supabase queries are async). No spinner: the
+  // re-assessment is a pure-function call on already-resident data.
+  //
+  // `nextDroppedRows` is passed explicitly because setState is async — the
+  // freshly-mutated map isn't visible via the droppedRows closure on this
+  // tick. By the next render, targetRowsAndMembers.rows would reflect the
+  // new state, but we want to reassess in the same tick as the click.
+  const reassessAfterLever = (nextDroppedRows) => {
+    const effective = nextDroppedRows ?? droppedRows;
+    const filteredRows = targetRowsAndMembers.rows.filter(
+      (r) => !effective.has(dropRowKey(r)),
+    );
+    const memberIds = Array.from(new Set(filteredRows.map((r) => r.member_id)));
+    const mode = conflicts ? (resolutionMode || 'skip') : 'none';
+    const conflictKeys = (conflicts && mode === 'skip') ? conflicts.conflictKeys : new Set();
+    const conflictIdSet = new Set(conflicts?.conflictIds || []);
+    const next = computeAssessmentFor({
+      memberIds,
+      proposedRows: filteredRows,
+      existingShifts: historyShifts,
+      mode,
+      conflictKeys,
+      conflictIdSet,
+    });
+    setAssessment(next);
+  };
+
+  // Drop-lever click handler. Adds the row's composite key to droppedRows
+  // and immediately re-runs the assessment on the post-drop row set.
+  // Idempotent: re-dropping an already-dropped row is a no-op.
+  const handleDropRow = (row, byRule) => {
+    if (!row) return;
+    const key = dropRowKey(row);
+    if (droppedRows.has(key)) return;
+    const next = new Map(droppedRows);
+    next.set(key, { row, byRule });
+    setDroppedRows(next);
+    reassessAfterLever(next);
   };
 
   // ── Apply (route into the staged review or commit straight through) ─
@@ -1030,6 +1157,14 @@ export default function ApplyTemplateModal({
     // that department's crew. context.shift_ids is the set of inserted
     // shifts in that department; context.breaches is the per-rule list.
     // RLS requires actor_id = auth.uid(), so we fetch the session user.
+    //
+    // KNOWN v1 LIMITATION (applyable-MLC-fixes lever): when a drop in
+    // one department cascades into a new breach in another (e.g. drop
+    // James/Deck → expose Sofia/Engine breach → chief overrides Sofia),
+    // the Engine audit row records Sofia's override but carries NO link
+    // back to the Deck drop that caused it. The two events share an
+    // apply (same actor, same timestamp window) but the causal link is
+    // not stored. Deliberate v1 boundary — not an oversight.
     if (auditAssessment?.hasMlc && overrideReason.trim()) {
       try {
         const { data: authData } = await supabase.auth.getUser();
@@ -1476,6 +1611,9 @@ export default function ApplyTemplateModal({
                           name={name}
                           mlcBreaches={info.mlcBreaches}
                           applyDates={dates}
+                          memberId={memberId}
+                          allRows={targetRowsAndMembers.rows}
+                          onDropRow={handleDropRow}
                         />
                       );
                     })}
