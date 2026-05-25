@@ -17,11 +17,32 @@ export const fetchSupplierReturnTasks = async (supplierId) => {
   if (!supplierId) return [];
   const { data, error } = await supabase
     ?.from('supplier_return_tasks')
-    ?.select('id, supplier_id, status, items, slip_metadata, created_at, acknowledged_at, completed_at, supplier_note')
+    ?.select('id, supplier_id, status, items, slip_metadata, created_at, acknowledged_at, completed_at, supplier_note, order_id')
     ?.eq('supplier_id', supplierId)
     ?.order('created_at', { ascending: false });
   if (error) throw error;
   return data || [];
+};
+
+// Returns the supplier_return_tasks rows filed against a specific order.
+// Used by the order-detail RETURNS drawer to render real per-order
+// linked tasks instead of the old "+ Add return — Coming soon" stub.
+// Supplier-side RLS still scopes the result; the .eq narrows to this
+// order. Returns [] on error.
+export const fetchReturnTasksByOrderId = async (orderId) => {
+  if (!orderId) return [];
+  try {
+    const { data, error } = await supabase
+      ?.from('supplier_return_tasks')
+      ?.select('id, supplier_id, status, items, slip_metadata, created_at, acknowledged_at, completed_at, supplier_note, order_id')
+      ?.eq('order_id', orderId)
+      ?.order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('[fetchReturnTasksByOrderId]', err);
+    return [];
+  }
 };
 
 // Count of 'sent' tasks for the nav badge. 'sent' is the unread state

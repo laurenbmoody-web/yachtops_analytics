@@ -1613,8 +1613,13 @@ export const fetchPortalEnabledSuppliers = async (supplierProfileIds = []) => {
 // an email recipient would see. Frozen at creation — see the
 // 20260526120000 migration's comments for the why.
 //
+// orderId is optional — when the crew picks an order in the Cargo
+// confirm dialog on the slip page, it flows through here and lands on
+// the new supplier_return_tasks.order_id column (added in migration
+// 20260527120000). NULL when no order was picked; common and valid.
+//
 // Returns { ok: true, taskId } on success, { ok: false } on any failure.
-export const sendReturnToPortal = async ({ supplierProfileId, tenantId, inboxIds, items, createdBy, slipMetadata }) => {
+export const sendReturnToPortal = async ({ supplierProfileId, tenantId, inboxIds, items, createdBy, slipMetadata, orderId = null }) => {
   try {
     const { data, error } = await supabase?.rpc('route_return_to_portal', {
       p_supplier_id:   supplierProfileId,
@@ -1623,6 +1628,7 @@ export const sendReturnToPortal = async ({ supplierProfileId, tenantId, inboxIds
       p_items:         items,
       p_created_by:    createdBy,
       p_slip_metadata: slipMetadata,
+      p_order_id:      orderId,
     });
     if (error) throw error;
     // TODO(notification): when the sendReturnTaskNotification edge
@@ -1635,6 +1641,37 @@ export const sendReturnToPortal = async ({ supplierProfileId, tenantId, inboxIds
   } catch (err) {
     console.error('[sendReturnToPortal]', err);
     return { ok: false };
+  }
+};
+
+// Picker data for the slip page's Cargo confirm dialog. Returns the
+// supplier's recent supplier_orders rows in this tenant with a joined
+// item count. Crew-side RLS ("tenant members can manage supplier_orders")
+// gates the read; the two .eq filters narrow it to the supplier whose
+// return we're routing. Returns [] on error or empty result.
+export const fetchSupplierOrdersForPicker = async (supplierProfileId, tenantId, { limit = 50 } = {}) => {
+  if (!supplierProfileId || !tenantId) return [];
+  try {
+    const { data, error } = await supabase
+      ?.from('supplier_orders')
+      ?.select('id, delivery_date, delivery_port, status, created_at, supplier_order_items(count)')
+      ?.eq('supplier_profile_id', supplierProfileId)
+      ?.eq('tenant_id', tenantId)
+      ?.order('created_at', { ascending: false })
+      ?.limit(limit);
+    if (error) throw error;
+    return (data || []).map(o => ({
+      id:            o.id,
+      delivery_date: o.delivery_date || null,
+      delivery_port: o.delivery_port || null,
+      status:        o.status,
+      created_at:    o.created_at,
+      // PostgREST nests the count inside the joined array as [{ count: N }].
+      item_count:    o.supplier_order_items?.[0]?.count ?? 0,
+    }));
+  } catch (err) {
+    console.error('[fetchSupplierOrdersForPicker]', err);
+    return [];
   }
 };
 

@@ -2,26 +2,25 @@
 // Supplier portal — Returns page.
 //
 // Renders supplier_return_tasks routed to the logged-in supplier by yacht
-// clients on Cargo. Each task is the portal equivalent of receiving a
-// signed return slip by email — the vessel authorisation (signer + job
-// title + slip date + signature) comes from the slip_metadata snapshot
-// frozen at routing time, so it reads as an audit artefact.
+// clients on Cargo. Three status sections (New / In progress / Completed)
+// with each task as a compact row by default; click a row to expand into
+// the full signed-slip-equivalent detail (vessel band, items table,
+// vessel-authorisation block with signature, status-aware actions).
 //
-// Lifecycle:
-//   sent          → supplier clicks "Acknowledge return" (optional note)
-//   acknowledged  → supplier clicks "Mark completed" (refund/replacement dispatched)
-//   completed     → archive view, no further action
+// Tasks with order_id render a "From order #XXXX" badge — clicking opens
+// the order detail page. Tasks without order_id render no badge and no
+// empty space.
 //
-// Supplier-side RLS (migration 20260523120000) gates both the read and
-// the UPDATEs by supplier_id = get_user_supplier_id(). The UPDATE
-// policy is verified naturally on first Acknowledge click — if it's
-// wrong, the action surfaces an error.
+// Supplier-side RLS gates the read; the UPDATE policy is verified live
+// on first Acknowledge click.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import React, { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSupplier } from '../../../contexts/SupplierContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import EmptyState from '../components/EmptyState';
+import { TaskRow, TaskDetail } from '../components/SupplierReturnTaskCard';
 import {
   fetchSupplierReturnTasks,
   acknowledgeSupplierReturnTask,
@@ -34,166 +33,17 @@ const STATUS_SECTION_LABEL = {
   completed:    'Completed',
 };
 
-const fmtDate = (iso) => {
-  if (!iso) return '—';
-  try {
-    return new Date(iso).toLocaleDateString('en-GB', {
-      day: 'numeric', month: 'short', year: 'numeric',
-    });
-  } catch { return String(iso); }
-};
-
-const TaskCard = ({ task, onAcknowledge, onComplete, busy }) => {
-  const md = task.slip_metadata || {};
-  const items = Array.isArray(task.items) ? task.items : [];
-  const [showAckNote, setShowAckNote] = useState(false);
-  const [note, setNote] = useState('');
-
-  const vesselSubtitle = [
-    md.vessel_imo && `IMO ${md.vessel_imo}`,
-    md.vessel_flag,
-  ].filter(Boolean).join(' · ');
-
-  return (
-    <div className="sp-return-card">
-      {/* Vessel band */}
-      <div className="sp-return-vessel">
-        <div className="sp-return-vessel-text">
-          <div className="sp-return-vessel-name">{md.vessel_name || 'Vessel'}</div>
-          {vesselSubtitle && <div className="sp-return-vessel-sub">{vesselSubtitle}</div>}
-        </div>
-        <div className="sp-return-meta">Received {fmtDate(task.created_at)}</div>
-      </div>
-
-      {/* Items */}
-      <div className="sp-return-items">
-        <table className="sp-table">
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th className="num">Qty</th>
-              <th>Reason</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.length === 0 ? (
-              <tr><td colSpan={4} style={{ color: 'var(--muted-s)', fontStyle: 'italic' }}>No item detail recorded.</td></tr>
-            ) : items.map((it, idx) => (
-              <tr key={idx}>
-                <td>
-                  <div style={{ fontWeight: 600, fontSize: 13 }}>{it.raw_name || '—'}</div>
-                  {it.item_reference && <div className="sp-return-ref">{it.item_reference}</div>}
-                </td>
-                <td className="num">
-                  {it.return_qty ?? it.quantity ?? '—'}{it.unit ? ` ${it.unit}` : ''}
-                </td>
-                <td>{it.return_reason || '—'}</td>
-                <td>{it.return_notes || '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Vessel authorisation — the audit-artefact piece. */}
-      <div className="sp-return-auth">
-        <div className="sp-return-auth-label">Vessel authorisation</div>
-        <div className="sp-return-auth-body">
-          <div className="sp-return-sig-wrap">
-            {md.vessel_signature ? (
-              <img src={md.vessel_signature} alt="Vessel signature" className="sp-return-sig" />
-            ) : (
-              <div className="sp-return-sig-empty">No signature on file</div>
-            )}
-          </div>
-          <div className="sp-return-auth-meta">
-            <div className="sp-return-auth-name">{md.signer_name || '—'}</div>
-            {md.signer_job_title && <div className="sp-return-auth-title">{md.signer_job_title}</div>}
-            {md.slip_date && <div className="sp-return-auth-date">{md.slip_date}</div>}
-          </div>
-        </div>
-      </div>
-
-      {/* Footer — status-aware actions */}
-      {task.status === 'sent' && (
-        <div className="sp-return-footer">
-          {showAckNote ? (
-            <div className="sp-return-ack-form">
-              <textarea
-                className="sp-return-note-input"
-                placeholder="Note to the vessel (optional) — e.g. ‘Refund will follow within 5 working days.’"
-                value={note}
-                onChange={e => setNote(e.target.value)}
-                rows={2}
-                disabled={busy}
-              />
-              <div className="sp-return-footer-row">
-                <button
-                  className="sp-pill ghost"
-                  onClick={() => { setShowAckNote(false); setNote(''); }}
-                  disabled={busy}
-                >Cancel</button>
-                <button
-                  className="sp-pill primary"
-                  onClick={() => onAcknowledge(task.id, note.trim() || null)}
-                  disabled={busy}
-                >{busy ? 'Acknowledging…' : 'Acknowledge return'}</button>
-              </div>
-            </div>
-          ) : (
-            <div className="sp-return-footer-row">
-              <button
-                className="sp-pill primary"
-                onClick={() => setShowAckNote(true)}
-                disabled={busy}
-              >Acknowledge return</button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {task.status === 'acknowledged' && (
-        <div className="sp-return-footer">
-          {task.supplier_note && (
-            <div className="sp-return-supplier-note">
-              <span className="sp-return-supplier-note-label">Your note to the vessel:</span> {task.supplier_note}
-            </div>
-          )}
-          <div className="sp-return-footer-row">
-            <div className="sp-return-meta">Acknowledged {fmtDate(task.acknowledged_at)}</div>
-            <button
-              className="sp-pill primary"
-              onClick={() => onComplete(task.id)}
-              disabled={busy}
-            >{busy ? 'Saving…' : 'Mark completed'}</button>
-          </div>
-        </div>
-      )}
-
-      {task.status === 'completed' && (
-        <div className="sp-return-footer">
-          {task.supplier_note && (
-            <div className="sp-return-supplier-note">
-              <span className="sp-return-supplier-note-label">Your note to the vessel:</span> {task.supplier_note}
-            </div>
-          )}
-          <div className="sp-return-meta">
-            Acknowledged {fmtDate(task.acknowledged_at)} · Completed {fmtDate(task.completed_at)}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
 const SupplierReturns = () => {
   const { supplier } = useSupplier();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [actingId, setActingId] = useState(null);
+  // Set<task.id> of rows currently expanded. Multiple may be open at
+  // once — accordion-style, not radio-style — which suits triaging.
+  const [expandedIds, setExpandedIds] = useState(() => new Set());
 
   const load = useCallback(async () => {
     if (!supplier?.id) return;
@@ -212,6 +62,15 @@ const SupplierReturns = () => {
 
   useEffect(() => { load(); }, [load]);
 
+  const toggleExpanded = (taskId) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else                  next.add(taskId);
+      return next;
+    });
+  };
+
   const handleAcknowledge = async (taskId, note) => {
     setActingId(taskId);
     setError(null);
@@ -221,7 +80,6 @@ const SupplierReturns = () => {
         supplierNote:   note,
       });
       await load();
-      // Tell SupplierLayout to refresh the nav badge.
       window.dispatchEvent(new CustomEvent('supplier-return-tasks-changed'));
     } catch (e) {
       console.error('[SupplierReturns acknowledge]', e);
@@ -244,6 +102,10 @@ const SupplierReturns = () => {
     } finally {
       setActingId(null);
     }
+  };
+
+  const handleOpenOrder = (orderId) => {
+    if (orderId) navigate(`/supplier/orders/${orderId}`);
   };
 
   const byStatus = {
@@ -298,15 +160,26 @@ const SupplierReturns = () => {
                   {STATUS_SECTION_LABEL[status]}
                   <span className="sp-return-section-count">{list.length}</span>
                 </p>
-                {list.map(t => (
-                  <TaskCard
-                    key={t.id}
-                    task={t}
-                    onAcknowledge={handleAcknowledge}
-                    onComplete={handleComplete}
-                    busy={actingId === t.id}
-                  />
-                ))}
+                <div className="sp-return-rows">
+                  {list.map(t => (
+                    <div key={t.id} className="sp-return-row-wrap">
+                      <TaskRow
+                        task={t}
+                        expanded={expandedIds.has(t.id)}
+                        onToggle={() => toggleExpanded(t.id)}
+                        onOpenOrder={handleOpenOrder}
+                      />
+                      {expandedIds.has(t.id) && (
+                        <TaskDetail
+                          task={t}
+                          onAcknowledge={handleAcknowledge}
+                          onComplete={handleComplete}
+                          busy={actingId === t.id}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
               </section>
             );
           })}

@@ -1205,6 +1205,44 @@
   margin-top: 4px;
 }
 
+/* Order picker inside the Cargo confirm dialog — only renders when
+   the supplier has supplier_orders rows in this tenant. Optional;
+   default is "— none —" which sends the return unlinked. */
+.di-slip-confirm-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 2px;
+}
+.di-slip-confirm-picker-label {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--di-ink, #262A53);
+}
+.di-slip-confirm-picker-optional {
+  font-weight: 400;
+  color: var(--di-muted);
+  margin-left: 4px;
+}
+.di-slip-confirm-picker-select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 0.5px solid var(--di-hairline);
+  border-radius: 8px;
+  background: var(--di-card);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--di-ink, #262A53);
+  cursor: pointer;
+}
+.di-slip-confirm-picker-select:focus {
+  outline: none;
+  border-color: var(--di-rust);
+}
+
 /* Disabled "no supplier email" button */
 .di-btn-disabled-static {
   background: var(--di-band);
