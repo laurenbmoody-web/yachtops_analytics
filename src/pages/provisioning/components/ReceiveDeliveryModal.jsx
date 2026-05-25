@@ -39,6 +39,29 @@ const deriveStatus = (qty, ordered) => {
 const CONFIDENCE_RANK = { high: 3, medium: 2, low: 1, none: 0 };
 const bestConfidence = (a, b) => (CONFIDENCE_RANK[a] >= CONFIDENCE_RANK[b]) ? a : b;
 
+// Robust upload media-type resolution. The old code defaulted to
+// 'image/jpeg' when file.type was empty, which mislabelled PDFs from
+// pickers that don't populate the MIME (some Linux desktops, certain
+// email clients, cloud-storage drag-drops). The edge function then
+// labelled the bytes wrong for Azure, which failed cryptically.
+// Now: prefer file.type when it's a supported MIME, else infer from
+// the filename extension, else return null and refuse the upload.
+const SUPPORTED_MIME = {
+  'pdf':  'application/pdf',
+  'jpg':  'image/jpeg',
+  'jpeg': 'image/jpeg',
+  'png':  'image/png',
+  'webp': 'image/webp',
+  'heic': 'image/heic',
+};
+const SUPPORTED_MIME_VALUES = Object.values(SUPPORTED_MIME);
+const resolveMediaType = (file) => {
+  const fromType = (file?.type || '').toLowerCase();
+  if (SUPPORTED_MIME_VALUES.includes(fromType)) return fromType;
+  const ext = (file?.name?.match(/\.([a-z0-9]+)$/i)?.[1] || '').toLowerCase();
+  return SUPPORTED_MIME[ext] || null;
+};
+
 // ── Hierarchical location picker ─────────────────────────────────────────────
 
 const LocationPicker = ({ value, onChange, locations = [], placeholder = 'Select location…' }) => {
@@ -1125,6 +1148,15 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
 
   const handleFileSelect = async (file) => {
     if (file.size > 10 * 1024 * 1024) { showToast('File too large (max 10 MB)', 'error'); return; }
+    // Resolve mediaType BEFORE setting any state — refuse the upload up
+    // front if we can't determine a supported type. The previous code
+    // defaulted to 'image/jpeg' for files whose .type was empty, which
+    // silently mislabelled PDFs and caused Azure OCR to fail cryptically.
+    const mediaType = resolveMediaType(file);
+    if (!mediaType) {
+      showToast('Unsupported file type. Use PDF, JPG, PNG, WebP, or HEIC.', 'error');
+      return;
+    }
     setDeliveryNoteFile(file);
     setNoteStatus('parsing');
     setNoteError(null);
@@ -1139,10 +1171,10 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
         reader.readAsDataURL(file);
       });
       const allItems = [...items, ...addedItems];
-      console.log('[DeliveryNote] Sending to parseDeliveryNote edge function — file:', file.name, 'type:', file.type, 'base64 chars:', base64.length, 'board items:', allItems.length);
+      console.log('[DeliveryNote] Sending to parseDeliveryNote — file:', file.name, 'file.type:', file.type, 'resolved mediaType:', mediaType, 'base64 chars:', base64.length, 'board items:', allItems.length);
 
       const { data: result, error: fnError } = await supabase.functions.invoke('parseDeliveryNote', {
-        body: { base64, mediaType: file.type || 'image/jpeg', batchItems: allItems },
+        body: { base64, mediaType, batchItems: allItems },
       });
 
       if (fnError) {
