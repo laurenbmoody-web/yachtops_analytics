@@ -1176,11 +1176,23 @@ export default function ApplyTemplateModal({
     // back to the Deck drop that caused it. The two events share an
     // apply (same actor, same timestamp window) but the causal link is
     // not stored. Deliberate v1 boundary — not an oversight.
-    if (auditAssessment?.hasMlc && overrideReason.trim()) {
+    // Broadened gate: fires when an MLC override was justified by a typed
+    // reason OR when the chief used the Drop lever to remove proposed
+    // rows (commit 1 of the applyable-fixes feature). The drops-only path
+    // — chief drops a culprit, breach disappears, chief clicks plain
+    // Apply — is the easy case to miss and the one most worth tracing.
+    const overrideHappened = !!(auditAssessment?.hasMlc && overrideReason.trim());
+    const dropsHappened = droppedRows.size > 0;
+    if (overrideHappened || dropsHappened) {
       try {
         const { data: authData } = await supabase.auth.getUser();
         const actorId = authData?.user?.id;
         if (actorId) {
+          const memberNameMap = new Map(visibleCrew.map((c) => [c.id, c.name]));
+
+          // Inserted shift ids grouped by dept. Position-aligned with the
+          // `rows` array that hit the DB (drops were already filtered out
+          // by pushIfNew before this point).
           const insertedIds = res.insertedIds || [];
           const idsByDept = new Map();
           for (let i = 0; i < rows.length; i += 1) {
@@ -1191,26 +1203,68 @@ export default function ApplyTemplateModal({
             if (!idsByDept.has(did)) idsByDept.set(did, []);
             idsByDept.get(did).push(id);
           }
+
+          // Remaining MLC breaches grouped by dept (empty when drops
+          // cleared everything).
           const breachesByDept = new Map();
-          const memberNameMap = new Map(visibleCrew.map((c) => [c.id, c.name]));
-          for (const [memberId, info] of Object.entries(auditAssessment.byMember)) {
-            if (!info.mlcBreaches || info.mlcBreaches.length === 0) continue;
-            const did = memberDeptMap.get(memberId);
-            if (!did) continue;
-            if (!breachesByDept.has(did)) breachesByDept.set(did, []);
-            for (const b of info.mlcBreaches) {
-              breachesByDept.get(did).push({
-                member_id: memberId,
-                member: memberNameMap.get(memberId) || '',
-                date: b.date,
-                rule: b.rule,
-                projected: b.projected,
-                limit: b.limit,
-              });
+          if (auditAssessment?.byMember) {
+            for (const [memberId, info] of Object.entries(auditAssessment.byMember)) {
+              if (!info.mlcBreaches || info.mlcBreaches.length === 0) continue;
+              const did = memberDeptMap.get(memberId);
+              if (!did) continue;
+              if (!breachesByDept.has(did)) breachesByDept.set(did, []);
+              for (const b of info.mlcBreaches) {
+                breachesByDept.get(did).push({
+                  member_id: memberId,
+                  member: memberNameMap.get(memberId) || '',
+                  date: b.date,
+                  rule: b.rule,
+                  projected: b.projected,
+                  limit: b.limit,
+                });
+              }
             }
           }
+
+          // Drops grouped by dept. caused_by_rule carries the rule the
+          // chief was looking at when they pulled the lever — the audit
+          // attribution for the drop.
+          const droppedByDept = new Map();
+          for (const { row, byRule } of droppedRows.values()) {
+            const did = memberDeptMap.get(row.member_id);
+            if (!did) continue;
+            if (!droppedByDept.has(did)) droppedByDept.set(did, []);
+            droppedByDept.get(did).push({
+              member_id: row.member_id,
+              member_name: memberNameMap.get(row.member_id) || '',
+              shift_date: row.shift_date,
+              start_time: row.start_time,
+              end_time: row.end_time,
+              shift_type: row.shift_type,
+              sub_type: row.sub_type ?? null,
+              caused_by_rule: byRule,
+            });
+          }
+
+          // A dept is "affected" if it has remaining breaches OR drops.
+          // Inserts alone don't trigger an audit row — clean inserts in
+          // depts unrelated to the MLC drama stay un-audited (matches
+          // pre-lever behaviour). The drops-only dept (drops cleared
+          // the breach, no remaining breaches) IS included here because
+          // its dept appears in droppedByDept.
+          const affectedDeptIds = new Set([
+            ...breachesByDept.keys(),
+            ...droppedByDept.keys(),
+          ]);
+
           const eventRows = [];
-          for (const [departmentId, breaches] of breachesByDept) {
+          for (const departmentId of affectedDeptIds) {
+            const context = {
+              shift_ids: idsByDept.get(departmentId) || [],
+              breaches: breachesByDept.get(departmentId) || [],
+            };
+            const deptDrops = droppedByDept.get(departmentId);
+            if (deptDrops && deptDrops.length > 0) context.dropped_rows = deptDrops;
             eventRows.push({
               rota_id: rota.id,
               department_id: departmentId,
@@ -1219,10 +1273,14 @@ export default function ApplyTemplateModal({
               event_type: 'mlc_override',
               actor_id: actorId,
               actor_tier: tier,
-              note: overrideReason.trim(),
-              context: { shift_ids: idsByDept.get(departmentId) || [], breaches },
+              // Typed reason when an override happened; null when drops
+              // cleared the breach and the chief clicked plain Apply.
+              // context.dropped_rows carries the meaning in that case.
+              note: overrideHappened ? overrideReason.trim() : null,
+              context,
             });
           }
+
           if (eventRows.length > 0) {
             const { error: evErr } = await supabase
               .from('rota_approval_events').insert(eventRows);
