@@ -552,7 +552,333 @@ function ShortenLever({
   );
 }
 
-function MlcMemberRow({ name, mlcBreaches, applyDates, memberId, allRows, onDropRow, onShortenRow, computePrefillFor, previewWithEdit }) {
+// Plain-prose message rendered IN PLACE OF the lever when the bulk
+// pre-fill can't clear ANY breaching day's rule (bulkCleared === 0).
+// Common case: weekly rest overloaded across the entire range — even
+// trimming the long shift to the safest length leaves the week over.
+function ShortenFutileMessage() {
+  return (
+    <div className="ap-mlc-shorten-futile">
+      Shortening these shifts won&rsquo;t clear the breach &mdash; the
+      week&rsquo;s load is too high overall. Try Drop on the worst days,
+      or reassign some shifts to other crew.
+    </div>
+  );
+}
+
+// Binding-rule explainer copy. Surfaced in the bulk summary readout
+// when the bulk's binding rule isn't 'daily' — so the chief understands
+// why a 16h shift is being trimmed to 10h (not just to the daily cap of
+// 13h-with-margin). Spec requirement, not optional.
+const BULK_BINDING_EXPLAIN = {
+  daily:    '',
+  weekly:   ' — the later days hit the weekly rest limit',
+  stretch:  ' — chain to surrounding shifts caps the trim',
+  min_trim: '', // means "trim by at least 30 min" — informational only
+  overnight_boundary: '', // only fires on excluded days, not the bulk's binding
+};
+
+// Bulk lever — replaces the single-day Shorten lever on single_long_shift
+// advisories with recurringDays ≥ 2. Same direction-toggle + TimeSelect
+// shape as v1.1's ShortenLever, but operates across N days at once.
+// Per-day amend / exclude is C3; this commit ships bulk-only (uniform
+// trim across all included days, fall-out days surfaced in the readout).
+function BulkShortenLever({
+  rule,
+  breaches,
+  allMemberBreaches,
+  memberId,
+  allRows,
+  computeBulkPrefillFor,
+  previewWithEdits,
+  onBulkShortenRows,
+  onBulkDropRows,
+}) {
+  // Resolve a culprit row per breach day. If ANY day's culprit is
+  // existing-source, the bulk is disabled with the v1.1 tooltip
+  // (mixed proposed/existing is a v1.3 concern).
+  const culpritInfo = useMemo(() => {
+    let anyExisting = false;
+    const culprits = [];
+    for (const b of breaches) {
+      const { row, reason } = resolveDropCulprit({
+        diagnosis: b.diagnosis, memberId, allRows,
+      });
+      if (reason === 'existing') anyExisting = true;
+      if (row) culprits.push(row);
+    }
+    return { culprits, anyExisting };
+  }, [breaches, memberId, allRows]);
+
+  const recurringDays = breaches.length;
+  const existingTooltip = 'This shift is already on the rota — edit it from the grid.';
+  const buttonsDisabled = culpritInfo.anyExisting || culpritInfo.culprits.length === 0;
+
+  const [open, setOpen] = useState(false);
+  const [prefill, setPrefill] = useState(null);
+  const [direction, setDirection] = useState('end');
+  const [currentTime, setCurrentTime] = useState(null);
+
+  const openEditor = () => {
+    if (buttonsDisabled) return;
+    const p = computeBulkPrefillFor(culpritInfo.culprits);
+    if (!p) return;
+    setPrefill(p);
+    setDirection(p.direction);
+    setCurrentTime(p.direction === 'end' ? p.bulkNewEnd : p.bulkNewStart);
+    setOpen(true);
+  };
+
+  const switchDirection = (nextDir) => {
+    if (!prefill || nextDir === direction) return;
+    const p = computeBulkPrefillFor(culpritInfo.culprits, nextDir);
+    if (!p) return;
+    setPrefill(p);
+    setDirection(nextDir);
+    setCurrentTime(nextDir === 'end' ? p.bulkNewEnd : p.bulkNewStart);
+  };
+
+  const cancel = () => {
+    setOpen(false);
+    setPrefill(null);
+    setCurrentTime(null);
+  };
+
+  // Drop tertiary — batch all breaching rows in one transition.
+  const dropAll = () => {
+    if (!culpritInfo.culprits || culpritInfo.culprits.length === 0) return;
+    onBulkDropRows?.(culpritInfo.culprits, rule);
+    cancel();
+  };
+
+  // Compute the per-day edits + preview state for the current time.
+  // Memoised so a TimeSelect change triggers exactly one preview pass.
+  const previewState = useMemo(() => {
+    if (!prefill || !currentTime || !open) return null;
+    const candidates = prefill.perDay.filter((d) => d.viableInBulkDirection && d.row);
+    if (candidates.length === 0) {
+      return {
+        candidates: [], candidateEdits: [], includedEdits: [],
+        fallenOutDates: [], directionExcludedEntries: prefill.perDay.filter((d) => !d.viableInBulkDirection),
+        clearedOtherRules: [], remainingOtherRules: [],
+        newDurationH: 0,
+      };
+    }
+    // Build edits at chief's chosen time for every viable-in-direction day.
+    const candidateEdits = candidates.map((d) => {
+      const newStart = direction === 'end' ? d.row.start_time : currentTime;
+      const newEnd   = direction === 'end' ? currentTime           : d.row.end_time;
+      return { date: d.date, row: d.row, newStart, newEnd, key: dropRowKey(d.row) };
+    });
+    const overrides = candidateEdits.map((e) => [e.key, { newStart: e.newStart, newEnd: e.newEnd }]);
+    const assessment = previewWithEdits(overrides);
+    const memberPreviewBreaches = assessment.byMember?.[memberId]?.mlcBreaches || [];
+    const stillBreachingDates = new Set(
+      memberPreviewBreaches.filter((b) => b.rule === rule).map((b) => b.date),
+    );
+    const includedEdits = candidateEdits.filter((e) => !stillBreachingDates.has(e.date));
+    const fallenOutDates = candidateEdits.filter((e) => stillBreachingDates.has(e.date)).map((e) => e.date);
+    // Other rules this member was breaching pre-edit — and their status
+    // after the bulk preview. Used for the co-breach readout shape.
+    const originalRules = new Set((allMemberBreaches || []).map((b) => b.rule));
+    const previewRules = new Set(memberPreviewBreaches.map((b) => b.rule));
+    const otherOriginal = [...originalRules].filter((r) => r !== rule);
+    const clearedOtherRules = otherOriginal.filter((r) => !previewRules.has(r));
+    const remainingOtherRules = otherOriginal.filter((r) => previewRules.has(r));
+    // Representative duration — same across all candidates for uniform
+    // recurring shifts; first candidate is fine.
+    let newDurationH = 0;
+    if (candidateEdits.length > 0) {
+      const c = candidateEdits[0];
+      newDurationH = computeNewDurationH(c.newStart, c.newEnd);
+    }
+    return {
+      candidates,
+      candidateEdits,
+      includedEdits,
+      fallenOutDates,
+      directionExcludedEntries: prefill.perDay.filter((d) => !d.viableInBulkDirection),
+      clearedOtherRules,
+      remainingOtherRules,
+      newDurationH,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefill, currentTime, direction, memberId, rule]);
+
+  // Collapsed state — the primary + secondary buttons.
+  if (!open) {
+    return (
+      <div className="ap-mlc-lever-row">
+        <button
+          type="button"
+          className="ap-mlc-shorten-btn"
+          disabled={buttonsDisabled}
+          title={culpritInfo.anyExisting ? existingTooltip : undefined}
+          onClick={openEditor}
+        >Shorten these {recurringDays} shifts</button>
+        <button
+          type="button"
+          className="ap-mlc-drop-link"
+          disabled={buttonsDisabled}
+          title={culpritInfo.anyExisting ? existingTooltip : undefined}
+          onClick={() => onBulkDropRows?.(culpritInfo.culprits, rule)}
+        >or drop these shifts</button>
+      </div>
+    );
+  }
+
+  // Expanded inline editor.
+  const dirData = prefill;
+  const lbl = (rs) => joinAnd(rs.map((r) => MLC_RULE_SHORT_LABEL[r] || r));
+  const ruleLabel = MLC_RULE_SHORT_LABEL[rule] || rule;
+  const includedCount = previewState?.includedEdits.length ?? 0;
+  const fallenOutDates = previewState?.fallenOutDates || [];
+  const directionExcluded = previewState?.directionExcludedEntries || [];
+  const totalCount = recurringDays;
+  const writtenCount = includedCount;
+  const noChange = !!currentTime && (
+    (direction === 'end'   && currentTime === String(culpritInfo.culprits[0]?.end_time ?? '').slice(0, 5)) ||
+    (direction === 'start' && currentTime === String(culpritInfo.culprits[0]?.start_time ?? '').slice(0, 5))
+  );
+  const applyDisabled = writtenCount === 0 || noChange;
+
+  // Original-times line — uniform recurring → any culprit row's times
+  // are the same. Use the first.
+  const originalRow = culpritInfo.culprits[0];
+  const origStart = String(originalRow.start_time).slice(0, 5);
+  const origEnd   = String(originalRow.end_time).slice(0, 5);
+  const origDur   = computeNewDurationH(origStart, origEnd);
+
+  // Build the readout. Precedence:
+  //   1. direction non-viable → futile case (shouldn't reach here, the
+  //      MlcMemberRow router catches it — but defensive copy is safe).
+  //   2. no-change          → "Trimming from this end won't shorten…"
+  //   3. structured         → "Trims X of N days…" + binding-rule explain
+  //                           + clears/breaches text
+  let readoutSummary;
+  let readoutDetail;
+  if (!dirData || dirData.bulkDNewMaxH <= 0) {
+    readoutSummary = `Can't shorten enough to clear — try Drop`;
+    readoutDetail = '';
+  } else if (noChange) {
+    readoutSummary = `Trimming from this end won't shorten the shift`;
+    readoutDetail = '— try the other end';
+  } else {
+    // "Trims X of N days to/at HH:MM–HH:MM (Xh)" + binding-rule.
+    const newStartLabel = direction === 'end' ? origStart : currentTime;
+    const newEndLabel   = direction === 'end' ? currentTime : origEnd;
+    const durLabel = fmtHoursH(previewState?.newDurationH ?? 0);
+    const timesLabel = `${newStartLabel}–${newEndLabel} (${durLabel})`;
+    const allWritten = writtenCount === totalCount;
+    const verb = allWritten ? 'to' : 'at';
+    const countLabel = allWritten ? `all ${totalCount} day${totalCount === 1 ? '' : 's'}` : `${writtenCount} of ${totalCount} days`;
+    const bindingExplain = BULK_BINDING_EXPLAIN[dirData.bulkBindingRule] || '';
+    readoutSummary = `Trims ${countLabel} ${verb} ${timesLabel}${bindingExplain}.`;
+    // Detail tail.
+    const excludedDateList = (entries) => entries.map((e) => fmtDateShort(e.date)).join(', ');
+    const fallenOutDateList = fallenOutDates.map((d) => fmtDateShort(d)).join(', ');
+    const tailParts = [];
+    if (writtenCount === 0) {
+      tailParts.push(`Doesn't clear any days at this time — pick a shorter trim`);
+    } else if (writtenCount === totalCount) {
+      if ((previewState?.remainingOtherRules || []).length > 0) {
+        tailParts.push(`Clears ${ruleLabel} — still breaches ${lbl(previewState.remainingOtherRules)}`);
+      } else {
+        tailParts.push(`Clears the breach`);
+      }
+    } else {
+      // Partial: name the excluded days and the rule that remains.
+      const exclParts = [];
+      if (fallenOutDates.length > 0) {
+        exclParts.push(`${fallenOutDateList} would still breach ${ruleLabel}`);
+      }
+      if (directionExcluded.length > 0) {
+        const dirExclList = excludedDateList(directionExcluded);
+        const needsOther = directionExcluded.some((e) => e.viableInOtherDirection);
+        const otherDir = direction === 'end' ? 'start' : 'end';
+        const dirReason = needsOther
+          ? `would need ${otherDir}-trim`
+          : `can't shorten enough to clear there either`;
+        exclParts.push(`${dirExclList} excluded — ${dirReason}`);
+      }
+      tailParts.push(exclParts.join('. '));
+    }
+    readoutDetail = tailParts.join('. ');
+  }
+
+  return (
+    <div className="ap-mlc-shorten-panel">
+      <div className="ap-mlc-shorten-head">Shorten — {recurringDays} days</div>
+
+      <div className="ap-mlc-shorten-toggle">
+        <span className="ap-mlc-shorten-label">Trim from:</span>
+        <button
+          type="button"
+          className={`ap-mlc-shorten-tog${direction === 'end' ? ' is-on' : ''}`}
+          onClick={() => switchDirection('end')}
+        >End</button>
+        <button
+          type="button"
+          className={`ap-mlc-shorten-tog${direction === 'start' ? ' is-on' : ''}`}
+          onClick={() => switchDirection('start')}
+        >Start</button>
+      </div>
+
+      <div className="ap-mlc-shorten-row">
+        <span className="ap-mlc-shorten-label">Original:</span>
+        <span className="ap-mlc-shorten-value">{origStart}–{origEnd}  ({fmtHoursH(origDur)})</span>
+      </div>
+
+      <div className="ap-mlc-shorten-row">
+        <span className="ap-mlc-shorten-label">
+          {direction === 'end' ? 'Bulk new end:' : 'Bulk new start:'}
+        </span>
+        <TimeSelect
+          value={currentTime || ''}
+          onChange={setCurrentTime}
+          ariaLabel={direction === 'end' ? 'Bulk new end time' : 'Bulk new start time'}
+        />
+      </div>
+
+      <div className="ap-mlc-shorten-readout">
+        {readoutSummary}
+        {readoutDetail && (
+          <>
+            {' '}
+            {readoutDetail}
+            {!readoutDetail.endsWith('.') ? '.' : ''}
+          </>
+        )}
+      </div>
+
+      <div className="ap-mlc-shorten-actions">
+        <button type="button" className="ap-mlc-shorten-cancel" onClick={cancel}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="ap-mlc-shorten-apply"
+          disabled={applyDisabled}
+          onClick={() => {
+            const edits = (previewState?.includedEdits || []).map((e) => ({
+              row: e.row, newStart: e.newStart, newEnd: e.newEnd,
+            }));
+            onBulkShortenRows?.(edits, rule);
+            cancel();
+          }}
+        >Apply to {writtenCount} day{writtenCount === 1 ? '' : 's'}</button>
+      </div>
+
+      <button
+        type="button"
+        className="ap-mlc-drop-link ap-mlc-drop-link-tertiary"
+        onClick={dropAll}
+      >or drop these shifts</button>
+    </div>
+  );
+}
+
+function MlcMemberRow({ name, mlcBreaches, applyDates, memberId, allRows, onDropRow, onShortenRow, onBulkShortenRows, onBulkDropRows, computePrefillFor, computeBulkPrefillFor, previewWithEdit, previewWithEdits }) {
   const [open, setOpen] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const chips = useMemo(() => ruleSummary(mlcBreaches), [mlcBreaches]);
@@ -573,6 +899,7 @@ function MlcMemberRow({ name, mlcBreaches, applyDates, memberId, allRows, onDrop
           sentence: summary.sentence,
           advisory: adviseBreach(summary.worst?.diagnosis),
           diagnosis: summary.worst?.diagnosis,
+          breaches: byRule.get(rule),
         };
       })
       .filter(Boolean);
@@ -607,6 +934,62 @@ function MlcMemberRow({ name, mlcBreaches, applyDates, memberId, allRows, onDrop
               const cause = rs.diagnosis?.cause;
               const isShortenRule = cause === 'single_long_shift';
               const isDropOnlyRule = cause === 'one_spike_day';
+              const recurringDays = isShortenRule ? rs.breaches.length : 0;
+              const goBulk = isShortenRule && recurringDays >= 2;
+
+              // Bulk-futility check (recurringDays ≥ 2 only). Run the
+              // bulk prefill against this rule's culprits + a preview
+              // pass; if zero days clear, the bulk lever is futile and
+              // we render <ShortenFutileMessage> in its place.
+              //
+              // NOTE on retroactive grouping (v1.2 deliberate behaviour):
+              // already-committed single-day shortens DO NOT re-group
+              // into a bulk lever later — by design. Those days no
+              // longer carry the breach in rs.breaches (the shorten
+              // cleared it), so recurringDays here reflects only the
+              // breaches that REMAIN unfixed. The bulk lever exists
+              // for the case the chief encounters BEFORE any per-day
+              // commits. If the chief restores all the per-day edits,
+              // the original N-day recurring breach reappears and the
+              // bulk lever renders for it next open.
+              let futile = false;
+              if (goBulk) {
+                const culprits = rs.breaches
+                  .map((b) => resolveDropCulprit({ diagnosis: b.diagnosis, memberId, allRows }))
+                  .filter((r) => r.row && r.reason !== 'existing')
+                  .map((r) => r.row);
+                if (culprits.length === 0) {
+                  futile = true;
+                } else {
+                  const p = computeBulkPrefillFor(culprits);
+                  if (!p || p.bulkDNewMaxH <= 0) {
+                    futile = true;
+                  } else {
+                    // Preview the bulk's per-day edits across all viable
+                    // days; count cleared days for this rule.
+                    const overrides = p.perDay
+                      .filter((d) => d.viableInBulkDirection && d.row)
+                      .map((d) => [
+                        dropRowKey(d.row),
+                        { newStart: d.newStart, newEnd: d.newEnd },
+                      ]);
+                    if (overrides.length === 0) {
+                      futile = true;
+                    } else {
+                      const preview = previewWithEdits(overrides);
+                      const previewBreachDates = new Set(
+                        (preview.byMember?.[memberId]?.mlcBreaches || [])
+                          .filter((b) => b.rule === rs.rule)
+                          .map((b) => b.date),
+                      );
+                      const originalDates = new Set(rs.breaches.map((b) => b.date));
+                      const cleared = [...originalDates].filter((d) => !previewBreachDates.has(d));
+                      futile = cleared.length === 0;
+                    }
+                  }
+                }
+              }
+
               // one_spike_day keeps the v1 single Drop button unchanged.
               let dropOnly = null;
               if (isDropOnlyRule) {
@@ -633,7 +1016,7 @@ function MlcMemberRow({ name, mlcBreaches, applyDates, memberId, allRows, onDrop
                   {rs.advisory && (
                     <div className="ap-mlc-rule-advisory">{rs.advisory}</div>
                   )}
-                  {isShortenRule && (
+                  {isShortenRule && !goBulk && (
                     <ShortenLever
                       rule={rs.rule}
                       diagnosis={rs.diagnosis}
@@ -644,6 +1027,20 @@ function MlcMemberRow({ name, mlcBreaches, applyDates, memberId, allRows, onDrop
                       previewWithEdit={previewWithEdit}
                       onShortenRow={onShortenRow}
                       onDropRow={onDropRow}
+                    />
+                  )}
+                  {goBulk && futile && <ShortenFutileMessage />}
+                  {goBulk && !futile && (
+                    <BulkShortenLever
+                      rule={rs.rule}
+                      breaches={rs.breaches}
+                      allMemberBreaches={mlcBreaches}
+                      memberId={memberId}
+                      allRows={allRows}
+                      computeBulkPrefillFor={computeBulkPrefillFor}
+                      previewWithEdits={previewWithEdits}
+                      onBulkShortenRows={onBulkShortenRows}
+                      onBulkDropRows={onBulkDropRows}
                     />
                   )}
                   {dropOnly}
@@ -1334,7 +1731,7 @@ export default function ApplyTemplateModal({
   // the same way computeShortenPrefillFor does, then call the bulk math.
   // Caller passes the array of culprit proposed rows (one per breaching
   // day for this member+rule).
-  const computeBulkPrefillFor = (culpritRows) => {
+  const computeBulkPrefillFor = (culpritRows, directionOverride) => {
     if (!culpritRows || culpritRows.length === 0) return null;
     const toCamel = (r) => ({
       date: r.shift_date,
@@ -1359,7 +1756,7 @@ export default function ApplyTemplateModal({
       const weekShifts = allShifts.filter((s) => s.date >= winStartStr && s.date <= date);
       return { shift, dayShifts, weekShifts, row: culpritRow };
     });
-    return computeBulkShortenPrefill({ perDay });
+    return computeBulkShortenPrefill({ perDay, directionOverride });
   };
 
   // Shorten-lever click handler (v1.1). Records the new times in
@@ -1400,6 +1797,15 @@ export default function ApplyTemplateModal({
   // post-bulk maps. No intermediate state where some days are
   // shortened and others aren't.
   //
+  // ATOMICITY NOTE: the single-transition guarantee depends on React 18
+  // event-handler auto-batching. Calling this from outside an event
+  // handler (a setTimeout, a promise resolve callback, etc.) would
+  // render the two setStates separately — an intermediate render would
+  // show editedRows updated but droppedRows still stale. Today every
+  // call site is a click handler so this is fine; if a future call
+  // site is asynchronous, wrap the two setStates in unstable_batched
+  // updates or restructure to a single state object.
+  //
   // perDayEdits: Array<{ row, newStart, newEnd }> — one entry per
   // included day. byRule attribution is uniform across the bulk.
   const handleBulkShorten = (perDayEdits, byRule) => {
@@ -1423,6 +1829,43 @@ export default function ApplyTemplateModal({
     if (droppedMutated) setDroppedRows(nextDropped);
     setEditedRows(nextEdited);
     reassessAfterLever(droppedMutated ? nextDropped : droppedRows, nextEdited);
+  };
+
+  // Bulk drop handler (v1.2). Atomic counterpart to handleBulkShorten —
+  // drops N rows in one transition. Used by the bulk lever's tertiary
+  // "or drop these shifts" link. Same React 18 auto-batching note
+  // applies: keep call sites synchronous event handlers.
+  const handleBulkDrop = (rows, byRule) => {
+    if (!Array.isArray(rows) || rows.length === 0) return;
+    const nextDropped = new Map(droppedRows);
+    let nextEdited = editedRows;
+    let editedMutated = false;
+    for (const row of rows) {
+      if (!row) continue;
+      const key = dropRowKey(row);
+      if (nextDropped.has(key)) continue;
+      nextDropped.set(key, { row, byRule });
+      if (editedRows.has(key)) {
+        if (!editedMutated) {
+          nextEdited = new Map(editedRows);
+          editedMutated = true;
+        }
+        nextEdited.delete(key);
+      }
+    }
+    if (editedMutated) setEditedRows(nextEdited);
+    setDroppedRows(nextDropped);
+    reassessAfterLever(nextDropped, editedMutated ? nextEdited : editedRows);
+  };
+
+  // Restore handler — bulk variant for the Shortened panel's rolled-up
+  // rows. Removes N edits in one transition.
+  const handleRestoreShortenGroup = (keys) => {
+    if (!Array.isArray(keys) || keys.length === 0) return;
+    const next = new Map(editedRows);
+    for (const key of keys) next.delete(key);
+    setEditedRows(next);
+    reassessAfterLever(droppedRows, next);
   };
 
   // ── Apply (route into the staged review or commit straight through) ─
@@ -2157,8 +2600,12 @@ export default function ApplyTemplateModal({
                           allRows={targetRowsAndMembers.rows}
                           onDropRow={handleDropRow}
                           onShortenRow={handleShortenRow}
+                          onBulkShortenRows={handleBulkShorten}
+                          onBulkDropRows={handleBulkDrop}
                           computePrefillFor={computeShortenPrefillFor}
+                          computeBulkPrefillFor={computeBulkPrefillFor}
                           previewWithEdit={previewWithEdit}
+                          previewWithEdits={previewWithEdits}
                         />
                       );
                     })}
@@ -2217,44 +2664,85 @@ export default function ApplyTemplateModal({
               </div>
             )}
 
-            {editedRows.size > 0 && (
-              <div className="ap-shortened">
-                <div className="ap-shortened-head">Shortened in this apply</div>
-                <div className="ap-shortened-sub">
-                  These shifts were trimmed to clear MLC breaches. Restore any that shouldn’t be.
+            {editedRows.size > 0 && (() => {
+              // Display rollup: group entries by (member + original times
+              // + new times); within each group, sort dates, detect
+              // contiguous runs, render as a single rolled-up line with
+              // one Restore that undoes all the group's keys. Bulk
+              // shortens (N entries with identical orig/new) collapse to
+              // one line; single-day shortens render exactly as v1.1.
+              const groups = new Map();
+              for (const [key, entry] of editedRows.entries()) {
+                const r = entry.row;
+                const newStart = String(entry.newStart).slice(0, 5);
+                const newEnd   = String(entry.newEnd).slice(0, 5);
+                const origStart = String(r.start_time).slice(0, 5);
+                const origEnd   = String(r.end_time).slice(0, 5);
+                const groupKey = `${r.member_id}|${origStart}|${origEnd}|${newStart}|${newEnd}`;
+                if (!groups.has(groupKey)) {
+                  const member = visibleCrew.find((c) => c.id === r.member_id);
+                  groups.set(groupKey, {
+                    memberId: r.member_id,
+                    memberName: member?.name || 'Unknown',
+                    origStart, origEnd, newStart, newEnd,
+                    dates: [], keys: [],
+                  });
+                }
+                groups.get(groupKey).dates.push(r.shift_date);
+                groups.get(groupKey).keys.push(key);
+              }
+              const renderDateList = (dates) => {
+                if (dates.length === 0) return '';
+                if (dates.length === 1) return fmtDateShort(dates[0]);
+                let contiguous = true;
+                for (let i = 1; i < dates.length; i += 1) {
+                  const a = fromStr(dates[i - 1]);
+                  const b = fromStr(dates[i]);
+                  if ((b - a) / 86_400_000 !== 1) { contiguous = false; break; }
+                }
+                if (contiguous) {
+                  return `${fmtDateShort(dates[0])}–${fmtDateShort(dates[dates.length - 1])}`;
+                }
+                return dates.map(fmtDateShort).join(', ');
+              };
+              return (
+                <div className="ap-shortened">
+                  <div className="ap-shortened-head">Shortened in this apply</div>
+                  <div className="ap-shortened-sub">
+                    These shifts were trimmed to clear MLC breaches. Restore any that shouldn&rsquo;t be.
+                  </div>
+                  <ul className="ap-shortened-list">
+                    {Array.from(groups.values()).map((g) => {
+                      g.dates.sort();
+                      const origDur = computeNewDurationH(g.origStart, g.origEnd);
+                      const newDur  = computeNewDurationH(g.newStart, g.newEnd);
+                      const dateLabel = renderDateList(g.dates);
+                      const handleRestore = () => {
+                        if (g.keys.length === 1) handleRestoreShorten(g.keys[0]);
+                        else handleRestoreShortenGroup(g.keys);
+                      };
+                      return (
+                        <li key={`${g.memberId}|${g.origStart}|${g.newStart}|${g.dates[0]}`} className="ap-shortened-item">
+                          <span className="ap-shortened-text">
+                            <strong>{g.memberName}</strong>
+                            {' — '}
+                            {g.origStart}–{g.origEnd} ({fmtHoursH(origDur)})
+                            {' shortened to '}
+                            {g.newStart}–{g.newEnd} ({fmtHoursH(newDur)})
+                            {' on '}{dateLabel}
+                          </span>
+                          <button
+                            type="button"
+                            className="ap-removed-restore"
+                            onClick={handleRestore}
+                          >Restore</button>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
-                <ul className="ap-shortened-list">
-                  {Array.from(editedRows.entries()).map(([key, entry]) => {
-                    const r = entry.row;
-                    const member = visibleCrew.find((c) => c.id === r.member_id);
-                    const memberName = member?.name || 'Unknown';
-                    const origStart = String(r.start_time).slice(0, 5);
-                    const origEnd   = String(r.end_time).slice(0, 5);
-                    const newStart  = String(entry.newStart).slice(0, 5);
-                    const newEnd    = String(entry.newEnd).slice(0, 5);
-                    const origDur   = computeNewDurationH(origStart, origEnd);
-                    const newDur    = computeNewDurationH(newStart, newEnd);
-                    return (
-                      <li key={key} className="ap-shortened-item">
-                        <span className="ap-shortened-text">
-                          <strong>{memberName}</strong>
-                          {' — '}
-                          {origStart}–{origEnd} ({fmtHoursH(origDur)})
-                          {' shortened to '}
-                          {newStart}–{newEnd} ({fmtHoursH(newDur)})
-                          {' on '}{fmtDateShort(r.shift_date)}
-                        </span>
-                        <button
-                          type="button"
-                          className="ap-removed-restore"
-                          onClick={() => handleRestoreShorten(key)}
-                        >Restore</button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
+              );
+            })()}
 
             {assessment?.hasCircadian && (
               <div className="ap-circadian-soft">

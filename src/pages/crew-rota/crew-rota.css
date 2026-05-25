@@ -2163,6 +2163,23 @@
   margin-top: 4px;
   align-self: flex-start;
 }
+
+/* Futile-shorten message — replaces the bulk lever when no chief-pick
+   could clear the breach (uniform_load weekly + the long shift only
+   trims to the daily cap, weekly still over). Plain quiet prose, no
+   buttons — the chief reads it and uses Drop or reassigns elsewhere. */
+.ap-mlc-shorten-futile {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: #FFFEF9;
+  border-left: 2px solid #D9CCB9;
+  border-radius: 4px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #5F5E5A;
+  font-style: italic;
+}
 .ap-mlc-drop-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
