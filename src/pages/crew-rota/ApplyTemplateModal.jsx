@@ -461,16 +461,24 @@ function ShortenLever({
     cleared   = [...originalRules].filter((r) => !previewRules.has(r));
     remaining = [...originalRules].filter((r) =>  previewRules.has(r));
   }
-  const noChange = !!currentTime && (
-    (direction === 'end'   && currentTime === culpritRow.end_time) ||
-    (direction === 'start' && currentTime === culpritRow.start_time)
+  const noChange = !!currentTime && !!culpritRow && (
+    (direction === 'end'   && currentTime === String(culpritRow.end_time).slice(0, 5)) ||
+    (direction === 'start' && currentTime === String(culpritRow.start_time).slice(0, 5))
   );
   const applyDisabled = !culpritRow || !currentTime || !directionViable || noChange;
 
-  // Readout copy
+  // Readout copy. Precedence:
+  //   1. Direction is non-viable     → "Can't shorten enough — try Drop".
+  //   2. Chief's pick == original    → "Trimming from this end won't
+  //      shorten the shift — try the other end." (Folded in from C2
+  //      review: silent-grey Apply with no stated reason reads as a bug;
+  //      surface the reason in the readout when Apply is disabled.)
+  //   3. Otherwise                    → per-rule clears / still-breaches.
   let readout;
   if (!directionViable) {
     readout = `Can't shorten enough to clear — try Drop`;
+  } else if (noChange) {
+    readout = `Trimming from this end won't shorten the shift — try the other end`;
   } else {
     const lbl = (rs) => joinAnd(rs.map((r) => MLC_RULE_SHORT_LABEL[r] || r));
     const dur = `New length ${fmtHoursH(newDurationH)}`;
@@ -2099,6 +2107,45 @@ export default function ApplyTemplateModal({
                           type="button"
                           className="ap-removed-restore"
                           onClick={() => handleRestoreRow(key)}
+                        >Restore</button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+
+            {editedRows.size > 0 && (
+              <div className="ap-shortened">
+                <div className="ap-shortened-head">Shortened in this apply</div>
+                <div className="ap-shortened-sub">
+                  These shifts were trimmed to clear MLC breaches. Restore any that shouldn’t be.
+                </div>
+                <ul className="ap-shortened-list">
+                  {Array.from(editedRows.entries()).map(([key, entry]) => {
+                    const r = entry.row;
+                    const member = visibleCrew.find((c) => c.id === r.member_id);
+                    const memberName = member?.name || 'Unknown';
+                    const origStart = String(r.start_time).slice(0, 5);
+                    const origEnd   = String(r.end_time).slice(0, 5);
+                    const newStart  = String(entry.newStart).slice(0, 5);
+                    const newEnd    = String(entry.newEnd).slice(0, 5);
+                    const origDur   = computeNewDurationH(origStart, origEnd);
+                    const newDur    = computeNewDurationH(newStart, newEnd);
+                    return (
+                      <li key={key} className="ap-shortened-item">
+                        <span className="ap-shortened-text">
+                          <strong>{memberName}</strong>
+                          {' — '}
+                          {origStart}–{origEnd} ({fmtHoursH(origDur)})
+                          {' shortened to '}
+                          {newStart}–{newEnd} ({fmtHoursH(newDur)})
+                          {' on '}{fmtDateShort(r.shift_date)}
+                        </span>
+                        <button
+                          type="button"
+                          className="ap-removed-restore"
+                          onClick={() => handleRestoreShorten(key)}
                         >Restore</button>
                       </li>
                     );
