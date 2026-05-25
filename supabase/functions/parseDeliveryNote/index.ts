@@ -1,8 +1,10 @@
 // Supabase Edge Function: parseDeliveryNote
 //
-// Uses Azure Document Intelligence (prebuilt-document model) to extract
-// line items from a delivery note or shopping receipt, then fuzzy-matches
-// them against provisioning board items.
+// Uses Azure Document Intelligence (prebuilt-layout model with
+// features=keyValuePairs — replaces the deprecated prebuilt-document
+// model that was removed in v4.0) to extract line items from a delivery
+// note or shopping receipt, then fuzzy-matches them against provisioning
+// board items.
 //
 // For receipts: auto-detects document type, extracts items from price-per-line
 // format, calls Anthropic Claude to expand abbreviations / translate foreign
@@ -33,7 +35,12 @@ const corsHeaders = {
 
 const AZURE_ENDPOINT  = Deno.env.get('AZURE_DOC_INTELLIGENCE_ENDPOINT') || '';
 const AZURE_KEY       = Deno.env.get('AZURE_DOC_INTELLIGENCE_KEY') || '';
-const AZURE_API_VER   = Deno.env.get('AZURE_DOC_INTELLIGENCE_API_VERSION') || '2024-02-29-preview';
+// Default to v4.0 GA (released Nov 2024). The prior default,
+// '2024-02-29-preview', is paired with the now-removed prebuilt-document
+// model — leaving it caused ModelNotFound on every call. If the
+// AZURE_DOC_INTELLIGENCE_API_VERSION env var is pinned to an older
+// preview value in Supabase secrets, it WILL override this default.
+const AZURE_API_VER   = Deno.env.get('AZURE_DOC_INTELLIGENCE_API_VERSION') || '2024-11-30';
 
 // ── Media-type byte sniffing ──────────────────────────────────────────────────
 // Defence-in-depth: don't trust the client's mediaType blindly. The client
@@ -390,7 +397,7 @@ function matchToBoardItem(rawName: string, brand: string | null, size: string | 
   return result;
 }
 
-// ── Extract line items from Azure prebuilt-document result ───────────────────
+// ── Extract line items from Azure prebuilt-layout result ─────────────────────
 
 async function extractLineItems(analyzeResult: any, boardItems: any[], documentType: 'receipt' | 'delivery_note') {
 
@@ -657,8 +664,22 @@ Deno.serve(async (req: Request) => {
     console.warn(`[parseDeliveryNote] bytes unrecognised but client label "${mediaType}" is known — passing through to Azure as-is.`);
   }
 
-  // Submit to Azure prebuilt-document model (works with any document format)
-  const analyzeUrl = `${AZURE_ENDPOINT.replace(/\/$/, '')}/documentintelligence/documentModels/prebuilt-document:analyze?api-version=${AZURE_API_VER}`;
+  // Submit to Azure Document Intelligence — prebuilt-layout model with
+  // the keyValuePairs feature.
+  //
+  // ⚠ DO NOT REMOVE the `&features=keyValuePairs` query parameter.
+  //
+  // The deprecated prebuilt-document model returned keyValuePairs by
+  // default. prebuilt-layout DOES NOT — keyValuePairs is opt-in via
+  // this query parameter. Without it, the call still SUCCEEDS, the
+  // function still returns line items extracted from tables, BUT
+  // analyzeResult.keyValuePairs is empty and extractLineItems() then
+  // silently nulls every metadata field (supplier_name, invoice_number,
+  // order_ref, supplier_phone/email/address, invoice_date, order_date).
+  //
+  // Silent metadata loss is much worse than a loud failure here.
+  // If a future edit needs to change this URL, keep the features flag.
+  const analyzeUrl = `${AZURE_ENDPOINT.replace(/\/$/, '')}/documentintelligence/documentModels/prebuilt-layout:analyze?api-version=${AZURE_API_VER}&features=keyValuePairs`;
   console.log('[parseDeliveryNote] Submitting to Azure:', analyzeUrl, '| effective mediaType:', effectiveMediaType);
 
   try {
