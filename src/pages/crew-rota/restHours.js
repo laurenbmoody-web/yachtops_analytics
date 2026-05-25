@@ -815,7 +815,7 @@ export function computeShortenPrefill({
 //     excludedCount: number,
 //   }
 
-export function computeBulkShortenPrefill({ perDay = [] } = {}) {
+export function computeBulkShortenPrefill({ perDay = [], directionOverride } = {}) {
   if (!Array.isArray(perDay) || perDay.length === 0) {
     return {
       direction: 'end',
@@ -845,9 +845,12 @@ export function computeBulkShortenPrefill({ perDay = [] } = {}) {
   const startA = analyse('start');
 
   // Direction algorithm (a): viableCount primary, bulkDNewMax tiebreak,
-  // end ultimate tiebreak.
+  // end ultimate tiebreak. directionOverride bypasses the algorithm when
+  // the caller wants a specific direction (e.g. UI's direction-switch).
   let direction;
-  if (endA.viableCount > startA.viableCount) direction = 'end';
+  if (directionOverride === 'end' || directionOverride === 'start') {
+    direction = directionOverride;
+  } else if (endA.viableCount > startA.viableCount) direction = 'end';
   else if (startA.viableCount > endA.viableCount) direction = 'start';
   else if (endA.bulkDNewMax >= startA.bulkDNewMax) direction = 'end';
   else direction = 'start';
@@ -855,6 +858,19 @@ export function computeBulkShortenPrefill({ perDay = [] } = {}) {
   const otherDir = direction === 'end' ? 'start' : 'end';
   const chosen = direction === 'end' ? endA : startA;
   const bulkDNewMaxH = chosen.bulkDNewMax;
+
+  // Bulk binding rule — the constraint that bound the bulk minimum. The
+  // day whose dNewMaxH equals bulkDNewMaxH is the binding day; take its
+  // per-day bindingRule. Used by the readout to explain WHY the bulk
+  // trims harder than the daily rule alone would imply (weekly cap on
+  // later days, chain caps, etc.).
+  let bulkBindingRule = null;
+  if (bulkDNewMaxH > 0) {
+    const bindingDay = dayPrefills.find(
+      (d) => d.prefill[direction].viable && d.prefill[direction].dNewMaxH === bulkDNewMaxH,
+    );
+    if (bindingDay) bulkBindingRule = bindingDay.prefill[direction].bindingRule;
+  }
 
   // Representative bulk new times — derived from any viable day's shift
   // (uniform recurring → all days yield identical values; varying shifts
@@ -910,6 +926,7 @@ export function computeBulkShortenPrefill({ perDay = [] } = {}) {
   return {
     direction,
     bulkDNewMaxH,
+    bulkBindingRule,
     bulkNewStart,
     bulkNewEnd,
     perDay: perDayOut,
