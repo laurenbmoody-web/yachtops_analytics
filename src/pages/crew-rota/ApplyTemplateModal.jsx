@@ -970,6 +970,17 @@ export default function ApplyTemplateModal({
     reassessAfterLever(next);
   };
 
+  // Restore handler — paired with handleDropRow. Removes the key from
+  // droppedRows and re-runs the assessment so the row reappears in the
+  // proposed set and any breach it caused comes back into the list.
+  const handleRestoreRow = (key) => {
+    if (!droppedRows.has(key)) return;
+    const next = new Map(droppedRows);
+    next.delete(key);
+    setDroppedRows(next);
+    reassessAfterLever(next);
+  };
+
   // ── Apply (route into the staged review or commit straight through) ─
   const runConflictCheck = async () => {
     const { rows, memberIds, duplicatesDropped, invalidTimesDropped } = targetRowsAndMembers;
@@ -1628,6 +1639,47 @@ export default function ApplyTemplateModal({
                     placeholder="e.g. departure window — crew rotates off in two days"
                   />
                 </label>
+              </div>
+            )}
+
+            {droppedRows.size > 0 && (
+              <div className="ap-removed">
+                <div className="ap-removed-head">Removed from this apply</div>
+                <div className="ap-removed-sub">
+                  These shifts were dropped to clear MLC breaches. Restore any that shouldn’t be.
+                </div>
+                <ul className="ap-removed-list">
+                  {Array.from(droppedRows.entries()).map(([key, entry]) => {
+                    const r = entry.row;
+                    const member = visibleCrew.find((c) => c.id === r.member_id);
+                    const memberName = member?.name || 'Unknown';
+                    // Duration via the same overnight branch the rest of
+                    // the calc uses — end <= start → end += 24.
+                    const [sh, sm] = r.start_time.split(':').map(Number);
+                    const [eh, em] = r.end_time.split(':').map(Number);
+                    let startDec = sh + (sm || 0) / 60;
+                    let endDec = eh + (em || 0) / 60;
+                    if (endDec <= startDec) endDec += 24;
+                    const durationLabel = fmtHoursH(endDec - startDec);
+                    const startStr = String(r.start_time).slice(0, 5);
+                    const endStr = String(r.end_time).slice(0, 5);
+                    return (
+                      <li key={key} className="ap-removed-item">
+                        <span className="ap-removed-text">
+                          <strong>{memberName}</strong>
+                          {' — '}
+                          {durationLabel} {r.shift_type},
+                          {' '}{startStr}–{endStr} on {fmtDateShort(r.shift_date)}
+                        </span>
+                        <button
+                          type="button"
+                          className="ap-removed-restore"
+                          onClick={() => handleRestoreRow(key)}
+                        >Restore</button>
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
             )}
 

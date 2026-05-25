@@ -2114,6 +2114,66 @@
 .ap-circadian-list li { margin: 3px 0; }
 .ap-circadian-list strong { font-weight: 600; }
 
+/* Removed-from-this-apply panel — quiet neutral surface that sits
+   between the MLC block (terracotta) and the circadian block (amber).
+   A fixed surface, not a bad one: greys + ivory, no warning colours. */
+.ap-removed {
+  background: #F4F1EA;
+  border: 0.5px solid #DFD8CC;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-top: 12px;
+}
+.ap-removed-head {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: #5F5E5A;
+}
+.ap-removed-sub {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #5F5E5A;
+  margin: 6px 0 8px;
+}
+.ap-removed-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ap-removed-item {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 0.5px solid #DFD8CC;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #1C1B3A;
+}
+.ap-removed-item:first-child { border-top: 0; }
+.ap-removed-text { flex: 1 1 auto; }
+.ap-removed-text strong { font-weight: 600; }
+.ap-removed-restore {
+  flex: 0 0 auto;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: #5F5E5A;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ap-removed-restore:hover { color: #1C1B3A; }
+
 /* 3b stub body */
 .ap-stub-body {
   padding: 24px 24px 6px;
