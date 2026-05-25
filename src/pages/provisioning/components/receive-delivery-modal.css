@@ -1,0 +1,946 @@
+/* ============================================================
+   ReceiveDeliveryModal — editorial redesign (Pass 1, visual only).
+   Page-scoped under .rdm. Reuses .di-* tokens + primitives from
+   delivery-inbox.css (sibling editorial surface). DM Serif Display
+   for the modal title only; Outfit + Plus Jakarta Sans elsewhere.
+
+   Semantic palette mapping (translates inline-style meaning):
+     sage   → OCR matched, qty full, push completed, success
+     amber  → OCR no-match, qty partial, "create new", validation warning
+     rust   → OCR failed/errored, destructive hover. NOTE: rust is the
+              editorial system's brand accent (CTAs, headlines), so the
+              error STATE leans on AlertCircle icon + unmistakable copy
+              to disambiguate. Colour alone won't carry "this is wrong"
+              in this palette — pair every error use with the icon.
+     navy   → primary text, default actions, informational
+     sand   → muted, hairlines, disabled, backgrounds
+   ============================================================ */
+
+.rdm {
+  /* Modal-local tokens. Mirror .di scope values so the modal stands
+     alone if mounted outside .di context. */
+  --rdm-cream:     #F4EEE4;
+  --rdm-card:      #FFFFFF;
+  --rdm-band:      #FCFAF5;
+  --rdm-sand:      #DFD7C8;
+  --rdm-sand-soft: #F1ECDF;
+  --rdm-navy:      #262A53;
+  --rdm-navy-deep: #1A1D3F;
+  --rdm-rust:      #C65A1A;
+  --rdm-rust-dark: #A84A14;
+  --rdm-amber:     #B45309;
+  --rdm-amber-soft:#FEF3E2;
+  --rdm-sage:      #5C9B6A;
+  --rdm-sage-deep: #047857;
+  --rdm-sage-soft: #ECFDF5;
+  --rdm-muted:     #695880;
+  --rdm-faint:     #94A3B8;
+  --rdm-hairline:  #D4CCBB;
+  --rdm-shadow:    0 1px 2px rgba(38, 42, 83, 0.04);
+
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: var(--rdm-navy);
+}
+
+/* ── Modal header (title + presentational step indicator) ─── */
+.rdm-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 18px;
+  border-bottom: 0.5px solid var(--rdm-hairline);
+  margin-bottom: 20px;
+}
+.rdm-title-block { min-width: 0; }
+.rdm-eyebrow {
+  margin: 0 0 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--rdm-muted);
+}
+.rdm-title {
+  margin: 0;
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 24px;
+  line-height: 1.15;
+  color: var(--rdm-navy);
+  letter-spacing: -0.01em;
+}
+
+/* Step indicator: TWO PILLS WITH CONNECTOR.
+   Presentational only — not clickable, not focusable, not navigable.
+   Reads current step state from props; never controls flow. */
+.rdm-stepper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.rdm-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: var(--rdm-sand-soft);
+  color: var(--rdm-muted);
+  user-select: none;
+}
+.rdm-step.is-active {
+  background: var(--rdm-rust);
+  color: #fff;
+}
+.rdm-step.is-done {
+  background: var(--rdm-sage-soft);
+  color: var(--rdm-sage-deep);
+}
+.rdm-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.rdm-step.is-done .rdm-step-num,
+.rdm-step:not(.is-active):not(.is-done) .rdm-step-num {
+  background: rgba(38, 42, 83, 0.07);
+}
+.rdm-step-connector {
+  width: 28px;
+  height: 0.5px;
+  background: var(--rdm-hairline);
+}
+
+/* ── Body sections + footer ──────────────────────────────── */
+.rdm-section { margin-bottom: 22px; }
+.rdm-section-label {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--rdm-muted);
+}
+.rdm-section-sub {
+  margin: -4px 0 12px;
+  font-size: 12.5px;
+  color: var(--rdm-muted);
+  line-height: 1.5;
+}
+
+.rdm-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 18px;
+  margin-top: 8px;
+  border-top: 0.5px solid var(--rdm-hairline);
+}
+.rdm-footer-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--rdm-muted);
+}
+.rdm-footer-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Upload card (Step 1 — file selection / OCR feedback) ── */
+.rdm-upload-block { margin-bottom: 22px; }
+.rdm-upload-label {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--rdm-muted);
+}
+.rdm-upload-label-hint {
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--rdm-faint);
+  margin-left: 6px;
+}
+
+/* Three upload buttons row (Take photo / Camera roll / Upload file) */
+.rdm-upload-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.rdm-upload-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px 12px;
+  background: var(--rdm-card);
+  border: 1px dashed var(--rdm-hairline);
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--rdm-navy);
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+.rdm-upload-btn:hover {
+  border-color: var(--rdm-rust);
+  background: var(--rdm-sand-soft);
+  color: var(--rdm-rust);
+}
+.rdm-upload-btn-icon {
+  width: 28px;
+  height: 28px;
+  color: var(--rdm-muted);
+}
+.rdm-upload-btn:hover .rdm-upload-btn-icon { color: var(--rdm-rust); }
+
+/* OCR status card — appears after file selection. Card chrome from
+   .di-card primitive (radius 14, hairline, 5px bottom edge). Edge
+   colour signals state. */
+.rdm-upload-card {
+  background: var(--rdm-card);
+  border: 0.5px solid var(--rdm-hairline);
+  border-bottom: 5px solid var(--rdm-sand);
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: var(--rdm-shadow);
+}
+.rdm-upload-card.is-parsing { border-bottom-color: var(--rdm-sand); }
+.rdm-upload-card.is-success { border-bottom-color: var(--rdm-sage); background: linear-gradient(to right, var(--rdm-sage-soft) 0%, var(--rdm-card) 35%); }
+.rdm-upload-card.is-warning { border-bottom-color: var(--rdm-amber); background: linear-gradient(to right, var(--rdm-amber-soft) 0%, var(--rdm-card) 35%); }
+.rdm-upload-card.is-error   { border-bottom-color: var(--rdm-rust); background: linear-gradient(to right, #FEF2F2 0%, var(--rdm-card) 35%); }
+
+.rdm-upload-card-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.rdm-upload-card.is-parsing .rdm-upload-card-icon { color: var(--rdm-muted); animation: rdm-spin 1.2s linear infinite; }
+.rdm-upload-card.is-success .rdm-upload-card-icon { color: var(--rdm-sage-deep); }
+.rdm-upload-card.is-warning .rdm-upload-card-icon { color: var(--rdm-amber); }
+.rdm-upload-card.is-error   .rdm-upload-card-icon { color: #DC2626; }
+
+.rdm-upload-card-text { flex: 1; min-width: 0; }
+.rdm-upload-card-name {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--rdm-navy);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rdm-upload-card-msg {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--rdm-muted);
+  line-height: 1.45;
+}
+.rdm-upload-card.is-error .rdm-upload-card-msg { color: #DC2626; font-weight: 600; }
+.rdm-upload-card-remove {
+  flex-shrink: 0;
+  background: none;
+  border: 0;
+  padding: 6px;
+  color: var(--rdm-faint);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: color 120ms ease, background 120ms ease;
+}
+.rdm-upload-card-remove:hover { color: #DC2626; background: rgba(220, 38, 38, 0.06); }
+.rdm-upload-card-remove:disabled { cursor: default; opacity: 0.4; }
+
+@keyframes rdm-spin { to { transform: rotate(360deg); } }
+
+/* ── Item list (Step 1 main grid) ────────────────────────── */
+.rdm-organise-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--rdm-muted);
+  margin-bottom: 8px;
+}
+.rdm-organise-toggle-btn {
+  background: var(--rdm-sand-soft);
+  border: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--rdm-muted);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.rdm-organise-toggle-btn:hover,
+.rdm-organise-toggle-btn.is-active {
+  background: var(--rdm-rust);
+  color: #fff;
+}
+
+.rdm-item-group { margin-bottom: 16px; }
+.rdm-item-group-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--rdm-band);
+  border: 0.5px solid var(--rdm-hairline);
+  border-radius: 10px 10px 0 0;
+}
+.rdm-item-group-name {
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--rdm-navy);
+}
+.rdm-item-group-count {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--rdm-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.rdm-item-list {
+  border: 0.5px solid var(--rdm-hairline);
+  border-top: 0;
+  border-radius: 0 0 10px 10px;
+  background: var(--rdm-card);
+  overflow: hidden;
+}
+.rdm-item-row {
+  display: grid;
+  grid-template-columns: 20px 1fr 70px 90px 110px;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 0.5px solid var(--rdm-sand-soft);
+  transition: background 120ms ease;
+}
+.rdm-item-row:last-child { border-bottom: 0; }
+.rdm-item-row.is-checked { background: var(--rdm-band); }
+.rdm-item-row.is-matched { background: var(--rdm-sage-soft); }
+.rdm-item-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--rdm-rust);
+}
+.rdm-item-text { min-width: 0; }
+.rdm-item-name {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--rdm-navy);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rdm-item-sub {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--rdm-faint);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.rdm-match-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--rdm-sage-soft);
+  color: var(--rdm-sage-deep);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+.rdm-item-ordered {
+  text-align: center;
+  font-size: 12px;
+  color: var(--rdm-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+.rdm-item-qty-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 0.5px solid var(--rdm-hairline);
+  border-radius: 8px;
+  background: var(--rdm-card);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--rdm-navy);
+  text-align: center;
+  box-sizing: border-box;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+.rdm-item-qty-input:focus { outline: none; border-color: var(--rdm-rust); }
+.rdm-item-qty-input:disabled {
+  background: var(--rdm-sand-soft);
+  color: var(--rdm-faint);
+  cursor: not-allowed;
+}
+.rdm-item-qty-input.is-partial { border-color: var(--rdm-amber); color: var(--rdm-amber); }
+.rdm-item-qty-input.is-full    { border-color: var(--rdm-sage); color: var(--rdm-sage-deep); }
+
+.rdm-item-status {
+  text-align: right;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.rdm-item-status.is-received { color: var(--rdm-sage-deep); }
+.rdm-item-status.is-partial  { color: var(--rdm-amber); }
+.rdm-item-status.is-none     { color: var(--rdm-faint); }
+
+.rdm-item-list-header {
+  display: grid;
+  grid-template-columns: 20px 1fr 70px 90px 110px;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 14px;
+  background: var(--rdm-band-soft, var(--rdm-band));
+  border: 0.5px solid var(--rdm-hairline);
+  border-bottom: 0;
+  border-radius: 10px 10px 0 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--rdm-faint);
+}
+.rdm-item-list-header.is-num { text-align: right; }
+.rdm-item-list-header-cell:nth-child(3),
+.rdm-item-list-header-cell:nth-child(4) { text-align: center; }
+.rdm-item-list-header-cell:nth-child(5) { text-align: right; }
+
+/* ── Unmatched-items section (collapsible) ───────────────── */
+.rdm-unmatched {
+  margin-top: 16px;
+  border: 0.5px solid var(--rdm-amber);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--rdm-amber-soft);
+}
+.rdm-unmatched-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--rdm-amber-soft);
+  cursor: pointer;
+  border: 0;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  transition: background 120ms ease;
+}
+.rdm-unmatched-head:hover { background: rgba(180, 83, 9, 0.10); }
+.rdm-unmatched-head-icon { color: var(--rdm-amber); flex-shrink: 0; }
+.rdm-unmatched-head-text { flex: 1; min-width: 0; }
+.rdm-unmatched-title {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--rdm-amber);
+}
+.rdm-unmatched-sub {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  color: var(--rdm-amber);
+  opacity: 0.85;
+}
+.rdm-unmatched-list {
+  background: var(--rdm-card);
+  border-top: 0.5px solid var(--rdm-amber);
+}
+.rdm-unmatched-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 0.5px solid var(--rdm-sand-soft);
+}
+.rdm-unmatched-row:last-child { border-bottom: 0; }
+.rdm-unmatched-row-text { flex: 1; min-width: 0; }
+.rdm-unmatched-row-name {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--rdm-navy);
+}
+.rdm-unmatched-row-original {
+  margin: 1px 0 0;
+  font-size: 11px;
+  color: var(--rdm-faint);
+}
+.rdm-unmatched-row-meta {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--rdm-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+.rdm-unmatched-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+/* ── Validation footer message ────────────────────────────── */
+.rdm-validation-text {
+  font-size: 12px;
+  color: var(--rdm-muted);
+}
+.rdm-validation-text.is-warning { color: var(--rdm-amber); font-weight: 600; }
+
+/* ── Step 2 routing cards ────────────────────────────────── */
+.rdm-route-list { display: flex; flex-direction: column; gap: 12px; }
+.rdm-route-card {
+  background: var(--rdm-card);
+  border: 0.5px solid var(--rdm-hairline);
+  border-bottom: 5px solid var(--rdm-sand);
+  border-radius: 14px;
+  padding: 16px 18px;
+  box-shadow: var(--rdm-shadow);
+  transition: border-bottom-color 160ms ease;
+}
+.rdm-route-card.is-loading  { border-bottom-color: var(--rdm-sand); }
+.rdm-route-card.is-matched  { border-bottom-color: var(--rdm-sage); background: linear-gradient(to right, var(--rdm-sage-soft) 0%, var(--rdm-card) 35%); }
+.rdm-route-card.is-linked   { border-bottom-color: var(--rdm-sage); background: linear-gradient(to right, var(--rdm-sage-soft) 0%, var(--rdm-card) 35%); }
+.rdm-route-card.is-skipped  { background: var(--rdm-band); border-bottom-color: var(--rdm-sand); }
+.rdm-route-card.is-searching { border-bottom-color: var(--rdm-navy); background: var(--rdm-band); }
+.rdm-route-card.is-create   { border-bottom-color: var(--rdm-amber); background: linear-gradient(to right, var(--rdm-amber-soft) 0%, var(--rdm-card) 35%); }
+.rdm-route-card.is-nomatch  { border-bottom-color: var(--rdm-amber); }
+
+.rdm-route-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.rdm-route-head-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+}
+.rdm-route-card.is-matched  .rdm-route-head-icon,
+.rdm-route-card.is-linked   .rdm-route-head-icon { color: var(--rdm-sage-deep); }
+.rdm-route-card.is-create   .rdm-route-head-icon,
+.rdm-route-card.is-nomatch  .rdm-route-head-icon { color: var(--rdm-amber); }
+.rdm-route-card.is-searching .rdm-route-head-icon { color: var(--rdm-navy); }
+.rdm-route-card.is-skipped  .rdm-route-head-icon { color: var(--rdm-muted); }
+.rdm-route-card.is-loading  .rdm-route-head-icon { color: var(--rdm-muted); animation: rdm-spin 1.2s linear infinite; }
+
+.rdm-route-head-text { flex: 1; min-width: 0; }
+.rdm-route-title {
+  margin: 0;
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--rdm-navy);
+  letter-spacing: -0.005em;
+}
+.rdm-route-sub {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: var(--rdm-muted);
+}
+.rdm-route-cargoid {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--rdm-faint);
+  margin-left: 6px;
+}
+.rdm-route-stock {
+  font-size: 11.5px;
+  color: var(--rdm-muted);
+  font-weight: 500;
+}
+
+.rdm-route-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Step 2 — no-match action triplet (Link / Create / Skip) */
+.rdm-route-actions-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+/* ── Splits widget (per-location qty allocation) ─────────── */
+.rdm-splits {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 0.5px solid var(--rdm-sand-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rdm-split-row {
+  display: grid;
+  grid-template-columns: 26px 1fr 80px 110px;
+  gap: 10px;
+  align-items: center;
+}
+.rdm-split-delete {
+  background: none;
+  border: 0;
+  padding: 4px;
+  color: var(--rdm-faint);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: color 120ms ease, background 120ms ease;
+}
+.rdm-split-delete:hover { color: #DC2626; background: rgba(220, 38, 38, 0.06); }
+.rdm-split-now {
+  font-size: 11px;
+  color: var(--rdm-faint);
+  font-family: 'JetBrains Mono', monospace;
+  text-align: right;
+}
+.rdm-split-new-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--rdm-amber);
+  text-transform: uppercase;
+  text-align: right;
+}
+.rdm-split-qty-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.rdm-qty-btn {
+  width: 26px;
+  height: 26px;
+  border: 0.5px solid var(--rdm-hairline);
+  border-radius: 6px;
+  background: var(--rdm-card);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--rdm-navy);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.rdm-qty-btn:hover { background: var(--rdm-sand-soft); border-color: var(--rdm-rust); }
+.rdm-split-qty-input {
+  width: 48px;
+  padding: 4px 6px;
+  border: 0.5px solid var(--rdm-hairline);
+  border-radius: 6px;
+  background: var(--rdm-card);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--rdm-navy);
+  text-align: center;
+  box-sizing: border-box;
+}
+.rdm-split-qty-input:focus { outline: none; border-color: var(--rdm-rust); }
+
+.rdm-split-add {
+  background: none;
+  border: 0;
+  padding: 4px 0;
+  margin-top: 2px;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--rdm-rust);
+  cursor: pointer;
+  text-align: left;
+  align-self: flex-start;
+  transition: color 120ms ease;
+}
+.rdm-split-add:hover { color: var(--rdm-rust-dark); }
+
+.rdm-split-summary {
+  font-size: 11.5px;
+  font-weight: 600;
+  margin-top: 6px;
+}
+.rdm-split-summary.is-complete   { color: var(--rdm-sage-deep); }
+.rdm-split-summary.is-incomplete { color: var(--rdm-amber); }
+
+/* ── Step 2 — Search-to-link UI ──────────────────────────── */
+.rdm-search-back {
+  background: none;
+  border: 0;
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: 11.5px;
+  color: var(--rdm-muted);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: color 120ms ease, background 120ms ease;
+}
+.rdm-search-back:hover { color: var(--rdm-rust); background: var(--rdm-sand-soft); }
+
+.rdm-search-input {
+  width: 100%;
+  margin-top: 10px;
+  padding: 9px 12px;
+  border: 0.5px solid var(--rdm-hairline);
+  border-radius: 10px;
+  background: var(--rdm-card);
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--rdm-navy);
+  box-sizing: border-box;
+}
+.rdm-search-input:focus { outline: none; border-color: var(--rdm-rust); }
+.rdm-search-loading {
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: var(--rdm-faint);
+  font-style: italic;
+}
+.rdm-search-results {
+  margin-top: 8px;
+  background: var(--rdm-card);
+  border: 0.5px solid var(--rdm-hairline);
+  border-radius: 10px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.rdm-search-result {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  background: none;
+  border: 0;
+  border-bottom: 0.5px solid var(--rdm-sand-soft);
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.rdm-search-result:last-child { border-bottom: 0; }
+.rdm-search-result:hover { background: var(--rdm-sand-soft); }
+.rdm-search-result-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--rdm-navy);
+}
+.rdm-search-result-meta {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--rdm-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+.rdm-search-empty {
+  padding: 16px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--rdm-faint);
+}
+
+/* ── Step 2 — Create-new form ────────────────────────────── */
+.rdm-create-form {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+}
+.rdm-create-field { display: flex; flex-direction: column; gap: 4px; }
+.rdm-create-field.is-full { grid-column: 1 / -1; }
+.rdm-create-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--rdm-muted);
+}
+.rdm-create-label-required::after {
+  content: ' *';
+  color: var(--rdm-rust);
+}
+.rdm-create-input,
+.rdm-create-select {
+  padding: 8px 10px;
+  border: 0.5px solid var(--rdm-hairline);
+  border-radius: 8px;
+  background: var(--rdm-card);
+  font-family: inherit;
+  font-size: 12.5px;
+  color: var(--rdm-navy);
+  box-sizing: border-box;
+  transition: border-color 120ms ease;
+}
+.rdm-create-input:focus,
+.rdm-create-select:focus { outline: none; border-color: var(--rdm-rust); }
+.rdm-create-select { cursor: pointer; }
+
+/* ── Pickers (Location / Category / VesselLocation) ──────── */
+.rdm-picker { position: relative; }
+.rdm-picker-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 0.5px solid var(--rdm-hairline);
+  border-radius: 8px;
+  background: var(--rdm-card);
+  font-family: inherit;
+  font-size: 12.5px;
+  color: var(--rdm-navy);
+  cursor: pointer;
+  text-align: left;
+  box-sizing: border-box;
+  transition: border-color 120ms ease;
+}
+.rdm-picker-trigger:hover { border-color: var(--rdm-muted); }
+.rdm-picker-trigger.is-open { border-color: var(--rdm-rust); }
+.rdm-picker-trigger-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rdm-picker-trigger.is-placeholder .rdm-picker-trigger-value { color: var(--rdm-faint); }
+.rdm-picker-trigger-arrow { color: var(--rdm-muted); flex-shrink: 0; }
+
+.rdm-picker-popover {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--rdm-card);
+  border: 0.5px solid var(--rdm-hairline);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(38, 42, 83, 0.12);
+  max-height: 280px;
+  overflow-y: auto;
+}
+.rdm-picker-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 12px;
+  border-bottom: 0.5px solid var(--rdm-sand-soft);
+  background: var(--rdm-band);
+  font-size: 11px;
+  color: var(--rdm-muted);
+}
+.rdm-picker-breadcrumb-segment {
+  background: none;
+  border: 0;
+  padding: 2px 6px;
+  font: inherit;
+  color: var(--rdm-muted);
+  cursor: pointer;
+  border-radius: 4px;
+}
+.rdm-picker-breadcrumb-segment:hover { background: var(--rdm-sand-soft); color: var(--rdm-rust); }
+.rdm-picker-breadcrumb-segment.is-current { color: var(--rdm-navy); font-weight: 600; cursor: default; }
+.rdm-picker-breadcrumb-segment.is-current:hover { background: transparent; color: var(--rdm-navy); }
+.rdm-picker-breadcrumb-sep { color: var(--rdm-faint); }
+
+.rdm-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  background: none;
+  border: 0;
+  border-bottom: 0.5px solid var(--rdm-sand-soft);
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-size: 12.5px;
+  color: var(--rdm-navy);
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.rdm-picker-item:last-child { border-bottom: 0; }
+.rdm-picker-item:hover { background: var(--rdm-sand-soft); }
+.rdm-picker-item.is-selected { background: var(--rdm-sage-soft); color: var(--rdm-sage-deep); font-weight: 600; }
+.rdm-picker-item-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rdm-picker-item-chevron { color: var(--rdm-faint); flex-shrink: 0; }
+.rdm-picker-empty {
+  padding: 16px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--rdm-faint);
+}
+
+/* ── Field label helper (FLD) ────────────────────────────── */
+.rdm-fld {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--rdm-muted);
+  margin-bottom: 4px;
+}
+
+/* ── Group checkbox (indeterminate) ──────────────────────── */
+.rdm-group-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--rdm-rust);
+}
+
+/* ── Skipped state copy ──────────────────────────────────── */
+.rdm-skipped-text {
+  font-size: 12.5px;
+  color: var(--rdm-muted);
+  font-style: italic;
+}
+
+/* ── Empty-state (Step 2 all skipped) ────────────────────── */
+.rdm-empty {
+  text-align: center;
+  padding: 40px 16px;
+  color: var(--rdm-muted);
+  font-size: 13px;
+}
+
+/* ── Misc — small icon buttons (e.g. trash, undo) ──────── */
+.rdm-icon-btn {
+  background: none;
+  border: 0;
+  padding: 6px;
+  color: var(--rdm-muted);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: color 120ms ease, background 120ms ease;
+  line-height: 0;
+}
+.rdm-icon-btn:hover { color: var(--rdm-rust); background: var(--rdm-sand-soft); }
+.rdm-icon-btn.is-danger:hover { color: #DC2626; background: rgba(220, 38, 38, 0.06); }
