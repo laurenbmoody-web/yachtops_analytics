@@ -1,0 +1,222 @@
+/* ============================================================
+   EditorialDatePicker — Cargo design system date input + calendar.
+   Self-contained: declares its own tokens locally so the component
+   works anywhere the editorial design language is in use, no
+   parent .di scope required.
+   ============================================================ */
+
+.edp {
+  --edp-cream:    #F4EEE4;
+  --edp-card:     #FFFFFF;
+  --edp-band:     #FCFAF5;
+  --edp-sand:     #DFD7C8;
+  --edp-sand-soft:#F1ECDF;
+  --edp-navy:     #262A53;
+  --edp-rust:     #C65A1A;
+  --edp-rust-dark:#A84A14;
+  --edp-muted:    #695880;
+  --edp-faint:    #94A3B8;
+  --edp-hairline: #D4CCBB;
+  --edp-shadow:   0 12px 32px rgba(38, 42, 83, 0.12), 0 1px 2px rgba(38, 42, 83, 0.04);
+
+  position: relative;
+  display: inline-block;
+  width: 100%;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: var(--edp-navy);
+}
+
+/* ── Field ────────────────────────────────────────────────── */
+.edp-field {
+  display: flex;
+  align-items: center;
+  background: var(--edp-card);
+  border: 0.5px solid var(--edp-hairline);
+  border-radius: 10px;
+  padding: 0 4px 0 12px;
+  transition: border-color 120ms ease;
+  min-width: 150px;
+}
+.edp-field:hover:not(.is-disabled) {
+  border-color: var(--edp-muted);
+}
+.edp-field:focus-within,
+.edp-field.is-open {
+  outline: none;
+  border-color: var(--edp-rust);
+}
+.edp-field.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.edp-input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--edp-navy);
+  letter-spacing: 0.01em;
+}
+.edp-input::placeholder { color: var(--edp-faint); }
+.edp-input:disabled { cursor: not-allowed; }
+
+.edp-trigger {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--edp-muted);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.edp-trigger:hover:not(:disabled) {
+  background: var(--edp-sand-soft);
+  color: var(--edp-rust);
+}
+.edp-trigger:disabled { cursor: not-allowed; opacity: 0.5; }
+
+/* ── Popover ──────────────────────────────────────────────── */
+.edp-popover {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 280px;
+  background: var(--edp-card);
+  border: 0.5px solid var(--edp-hairline);
+  border-radius: 14px;
+  box-shadow: var(--edp-shadow);
+  padding: 14px;
+  animation: edp-pop-in 110ms ease-out;
+}
+@keyframes edp-pop-in {
+  from { opacity: 0; transform: translateY(-2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.edp-pop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.edp-month-label {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--edp-navy);
+  letter-spacing: 0.01em;
+}
+.edp-nav-btn {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--edp-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms ease, color 120ms ease;
+}
+.edp-nav-btn:hover {
+  background: var(--edp-sand-soft);
+  color: var(--edp-rust);
+}
+
+.edp-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 4px;
+}
+.edp-weekday {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--edp-faint);
+  text-align: center;
+  padding: 6px 0 4px;
+}
+
+.edp-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.edp-day {
+  height: 32px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--edp-navy);
+  cursor: pointer;
+  transition: background 100ms ease, color 100ms ease;
+  padding: 0;
+}
+.edp-day:hover:not(.is-selected) {
+  background: var(--edp-sand-soft);
+  color: var(--edp-rust);
+}
+.edp-day:focus-visible {
+  outline: 2px solid var(--edp-rust);
+  outline-offset: 1px;
+}
+.edp-day.is-outside {
+  color: var(--edp-faint);
+}
+.edp-day.is-today:not(.is-selected) {
+  box-shadow: inset 0 0 0 1px var(--edp-rust);
+  color: var(--edp-rust);
+  font-weight: 600;
+}
+.edp-day.is-selected {
+  background: var(--edp-rust);
+  color: #fff;
+  font-weight: 600;
+}
+.edp-day.is-selected:hover {
+  background: var(--edp-rust-dark);
+}
+
+.edp-pop-foot {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 0.5px solid var(--edp-sand);
+  gap: 8px;
+}
+.edp-foot-btn {
+  flex: 0 0 auto;
+  background: transparent;
+  border: 0;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--edp-muted);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.edp-foot-btn:hover {
+  background: var(--edp-sand-soft);
+  color: var(--edp-rust);
+}

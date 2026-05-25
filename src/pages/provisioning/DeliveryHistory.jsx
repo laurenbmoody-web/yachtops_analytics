@@ -19,6 +19,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 import Icon from '../../components/AppIcon';
+import { EditorialDatePicker } from '../../components/editorial';
 import { useCountUp } from './components/SummaryGauges';
 import './delivery-inbox.css';
 import '../../styles/editorial.css';
@@ -638,20 +639,22 @@ export default function DeliveryHistory() {
               <option value="manual">Manual</option>
             </select>
 
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={e => setDateFrom(e.target.value)}
-              title="From date"
-              className="dh-filter-date"
-            />
-            <input
-              type="date"
-              value={dateTo}
-              onChange={e => setDateTo(e.target.value)}
-              title="To date"
-              className="dh-filter-date"
-            />
+            <div className="dh-filter-datepicker">
+              <EditorialDatePicker
+                value={dateFrom}
+                onChange={setDateFrom}
+                placeholder="From date"
+                ariaLabel="From date"
+              />
+            </div>
+            <div className="dh-filter-datepicker">
+              <EditorialDatePicker
+                value={dateTo}
+                onChange={setDateTo}
+                placeholder="To date"
+                ariaLabel="To date"
+              />
+            </div>
 
             {(search || typeFilter !== 'all' || dateFrom || dateTo) && (
               <button
