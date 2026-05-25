@@ -1631,12 +1631,24 @@ export const sendReturnToPortal = async ({ supplierProfileId, tenantId, inboxIds
       p_order_id:      orderId,
     });
     if (error) throw error;
-    // TODO(notification): when the sendReturnTaskNotification edge
-    //   function exists, invoke it here with { taskId: data,
-    //   supplierProfileId, tenantId } so the supplier learns the task
-    //   landed in their portal. Failure of the email send must NOT
-    //   roll the task back — the task is in the supplier portal either
-    //   way; the email is just the push.
+    // Fire-and-forget notification email. The supplier_return_tasks row
+    // is the source of truth — a failed email must NOT roll back or
+    // surface as a routing failure. We deliberately do NOT await the
+    // invoke and we swallow any error/rejection into a console.error.
+    // The edge function itself returns success-with-noop when there's
+    // nobody to email; only logs surface real failures.
+    try {
+      const notifyPromise = supabase?.functions?.invoke('sendReturnTaskNotification', {
+        body: { taskId: data },
+      });
+      Promise.resolve(notifyPromise).then((res) => {
+        if (res?.error) console.error('[sendReturnToPortal] notification email failed:', res.error);
+      }).catch((notifyErr) => {
+        console.error('[sendReturnToPortal] notification email threw:', notifyErr);
+      });
+    } catch (notifyErr) {
+      console.error('[sendReturnToPortal] notification invoke threw synchronously:', notifyErr);
+    }
     return { ok: true, taskId: data };
   } catch (err) {
     console.error('[sendReturnToPortal]', err);
