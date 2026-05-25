@@ -770,3 +770,150 @@ export function computeShortenPrefill({
 
   return { end, start, defaultDirection };
 }
+
+// ── Bulk shorten pre-fill (v1.2) ───────────────────────────────────────────
+// For a RECURRING single_long_shift breach (same too-long shift on N days
+// in a row), compute ONE conservative trim that clears every viable day.
+// Trimming is monotonically rest-positive (see v1.2 discovery Q1) so a
+// single short-enough length never INDUCES a breach — but the per-day
+// chain context can make a given direction non-viable on some days. In
+// those cases the bulk picks the direction maximising viable-day count
+// and surfaces the rest as excluded.
+//
+// Direction algorithm (spec settlement (a)):
+//   1. Primary sort      → more viable days wins.
+//   2. First tiebreak    → larger bulkDNewMax wins.
+//   3. Ultimate tiebreak → 'end' (intuitive default).
+//
+// Inputs:
+//   perDay: Array<{ shift, dayShifts, weekShifts, row? }>
+//     One entry per breaching day. `shift`/`dayShifts`/`weekShifts` match
+//     computeShortenPrefill's contract. `row` is passed through to the
+//     output unchanged — caller can attach the snake_case row for later
+//     use (key derivation, etc.).
+//
+// Returns:
+//   {
+//     direction: 'end' | 'start',
+//     bulkDNewMaxH: number,            // 0 when no viable days
+//     bulkNewStart: 'HH:MM' | null,    // representative summary (uniform
+//     bulkNewEnd:   'HH:MM' | null,    //   recurring shifts → same value
+//                                      //   for every day; varying shifts
+//                                      //   → use the first viable day)
+//     perDay: [
+//       {
+//         date, row?,                  // row passed through if supplied
+//         viableInBulkDirection: bool,
+//         viableInOtherDirection: bool, // honesty hook for C3 copy
+//         newStart: 'HH:MM' | null,    // null when not viable in bulk dir
+//         newEnd:   'HH:MM' | null,
+//         bindingRule: same enum as computeShortenPrefill,
+//       },
+//       …
+//     ],
+//     includedCount: number,           // perDay where viableInBulkDirection
+//     excludedCount: number,
+//   }
+
+export function computeBulkShortenPrefill({ perDay = [] } = {}) {
+  if (!Array.isArray(perDay) || perDay.length === 0) {
+    return {
+      direction: 'end',
+      bulkDNewMaxH: 0,
+      bulkNewStart: null,
+      bulkNewEnd: null,
+      perDay: [],
+      includedCount: 0,
+      excludedCount: 0,
+    };
+  }
+
+  // Per-day v1.1 prefill (both directions).
+  const dayPrefills = perDay.map((d) => ({
+    ...d,
+    prefill: computeShortenPrefill(d),
+  }));
+
+  const analyse = (dir) => {
+    const viable = dayPrefills.filter((d) => d.prefill[dir].viable);
+    const bulkDNewMax = viable.length > 0
+      ? Math.min(...viable.map((d) => d.prefill[dir].dNewMaxH))
+      : 0;
+    return { viableCount: viable.length, bulkDNewMax };
+  };
+  const endA = analyse('end');
+  const startA = analyse('start');
+
+  // Direction algorithm (a): viableCount primary, bulkDNewMax tiebreak,
+  // end ultimate tiebreak.
+  let direction;
+  if (endA.viableCount > startA.viableCount) direction = 'end';
+  else if (startA.viableCount > endA.viableCount) direction = 'start';
+  else if (endA.bulkDNewMax >= startA.bulkDNewMax) direction = 'end';
+  else direction = 'start';
+
+  const otherDir = direction === 'end' ? 'start' : 'end';
+  const chosen = direction === 'end' ? endA : startA;
+  const bulkDNewMaxH = chosen.bulkDNewMax;
+
+  // Representative bulk new times — derived from any viable day's shift
+  // (uniform recurring → all days yield identical values; varying shifts
+  // → first viable day is the chosen representative, with per-day values
+  // below carrying the true per-day truth).
+  let bulkNewStart = null;
+  let bulkNewEnd = null;
+  if (bulkDNewMaxH > 0) {
+    const firstViable = dayPrefills.find((d) => d.prefill[direction].viable);
+    if (firstViable) {
+      const sRange = shiftDecRange(firstViable.shift);
+      if (sRange) {
+        if (direction === 'end') {
+          bulkNewStart = firstViable.shift.startTime;
+          bulkNewEnd = decToHHMM(sRange.start + bulkDNewMaxH);
+        } else {
+          bulkNewStart = decToHHMM(sRange.end - bulkDNewMaxH);
+          bulkNewEnd = firstViable.shift.endTime;
+        }
+      }
+    }
+  }
+
+  const perDayOut = dayPrefills.map((d) => {
+    const viableInBulkDirection = d.prefill[direction].viable;
+    const viableInOtherDirection = d.prefill[otherDir].viable;
+    const bindingRule = d.prefill[direction].bindingRule;
+    let newStart = null;
+    let newEnd = null;
+    if (viableInBulkDirection && bulkDNewMaxH > 0) {
+      const sRange = shiftDecRange(d.shift);
+      if (sRange) {
+        if (direction === 'end') {
+          newStart = d.shift.startTime;
+          newEnd = decToHHMM(sRange.start + bulkDNewMaxH);
+        } else {
+          newStart = decToHHMM(sRange.end - bulkDNewMaxH);
+          newEnd = d.shift.endTime;
+        }
+      }
+    }
+    return {
+      date: d.shift.date,
+      row: d.row,
+      viableInBulkDirection,
+      viableInOtherDirection,
+      newStart,
+      newEnd,
+      bindingRule,
+    };
+  });
+
+  return {
+    direction,
+    bulkDNewMaxH,
+    bulkNewStart,
+    bulkNewEnd,
+    perDay: perDayOut,
+    includedCount: chosen.viableCount,
+    excludedCount: dayPrefills.length - chosen.viableCount,
+  };
+}

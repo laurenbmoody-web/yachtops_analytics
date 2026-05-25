@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { X, AlertTriangle, ChevronDown, RefreshCw, Trash2, Plus, RotateCcw, CheckCircle2, Activity } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import DateRangePicker from './DateRangePicker';
-import { assessApply, CIRCADIAN_WINDOW_DAYS, computeShortenPrefill } from './restHours';
+import { assessApply, CIRCADIAN_WINDOW_DAYS, computeShortenPrefill, computeBulkShortenPrefill } from './restHours';
 import TimeSelect from './TimeSelect';
 
 // Phase 3a + 3b — Apply-template modal (simple + shift-pattern paths).
@@ -1234,14 +1234,20 @@ export default function ApplyTemplateModal({
   };
 
   // One-off preview — does NOT mutate state. Returns the assessment as if
-  // the named row had been edited to (newStart, newEnd). Used by the
-  // inline shorten editor (C2) to show "what would clear if I confirm?".
-  const previewWithEdit = (key, newStart, newEnd) => {
+  // the named rows had been edited. v1.1's previewWithEdit is the single-
+  // key wrapper. v1.2 needs the multi-key form for the bulk lever's live
+  // readout (apply N edits at once and see which days clear).
+  //
+  // overrides: iterable of [key, {newStart, newEnd}] entries — either a
+  // Map or a plain array of tuples.
+  const previewWithEdits = (overrides) => {
     const previewEditedMap = new Map(editedRows);
     // The preview entry doesn't need a `row` field — buildProposedRows
     // only reads .newStart / .newEnd. The full row reference is only
-    // needed by the Shortened panel (C3) for restoration display.
-    previewEditedMap.set(key, { newStart, newEnd });
+    // needed by the Shortened panel for restoration display.
+    for (const [key, edit] of overrides) {
+      previewEditedMap.set(key, edit);
+    }
     const { rows: previewRows, memberIds } = buildProposedRows(droppedRows, previewEditedMap);
     const mode = conflicts ? (resolutionMode || 'skip') : 'none';
     const conflictKeys = (conflicts && mode === 'skip') ? conflicts.conflictKeys : new Set();
@@ -1255,6 +1261,8 @@ export default function ApplyTemplateModal({
       conflictIdSet,
     });
   };
+  const previewWithEdit = (key, newStart, newEnd) =>
+    previewWithEdits([[key, { newStart, newEnd }]]);
 
   // Drop-lever click handler. Adds the row's composite key to droppedRows
   // and immediately re-runs the assessment on the post-drop row set.
@@ -1321,6 +1329,39 @@ export default function ApplyTemplateModal({
     return computeShortenPrefill({ shift, dayShifts, weekShifts });
   };
 
+  // Bulk pre-fill helper (v1.2). For a recurring single_long_shift breach
+  // across N days, derive per-day {shift, dayShifts, weekShifts} contexts
+  // the same way computeShortenPrefillFor does, then call the bulk math.
+  // Caller passes the array of culprit proposed rows (one per breaching
+  // day for this member+rule).
+  const computeBulkPrefillFor = (culpritRows) => {
+    if (!culpritRows || culpritRows.length === 0) return null;
+    const toCamel = (r) => ({
+      date: r.shift_date,
+      startTime: r.start_time,
+      endTime: r.end_time,
+      shiftType: r.shift_type,
+      subType: r.sub_type ?? null,
+    });
+    const perDay = culpritRows.map((culpritRow) => {
+      const date = culpritRow.shift_date;
+      const memberId = culpritRow.member_id;
+      const [y, mn, d] = date.split('-').map(Number);
+      const winStart = new Date(y, mn - 1, d);
+      winStart.setDate(winStart.getDate() - 6);
+      const winStartStr = `${winStart.getFullYear()}-${pad(winStart.getMonth() + 1)}-${pad(winStart.getDate())}`;
+      const shift = toCamel(culpritRow);
+      const allShifts = [
+        ...historyShifts.filter((r) => r.member_id === memberId).map(toCamel),
+        ...targetRowsAndMembers.rows.filter((r) => r.member_id === memberId).map(toCamel),
+      ];
+      const dayShifts = allShifts.filter((s) => s.date === date);
+      const weekShifts = allShifts.filter((s) => s.date >= winStartStr && s.date <= date);
+      return { shift, dayShifts, weekShifts, row: culpritRow };
+    });
+    return computeBulkShortenPrefill({ perDay });
+  };
+
   // Shorten-lever click handler (v1.1). Records the new times in
   // editedRows under the row's ORIGINAL composite key, then re-runs the
   // assessment with the in-flight maps. Mutual exclusion: clears any
@@ -1350,6 +1391,38 @@ export default function ApplyTemplateModal({
     next.delete(key);
     setEditedRows(next);
     reassessAfterLever(droppedRows, next);
+  };
+
+  // Bulk shorten handler (v1.2). ATOMIC writer: builds the next
+  // editedRows / droppedRows once and commits both via single setState
+  // calls (React 18 auto-batches inside event handlers, so the two
+  // setStates render as one transition). Reassesses once with the
+  // post-bulk maps. No intermediate state where some days are
+  // shortened and others aren't.
+  //
+  // perDayEdits: Array<{ row, newStart, newEnd }> — one entry per
+  // included day. byRule attribution is uniform across the bulk.
+  const handleBulkShorten = (perDayEdits, byRule) => {
+    if (!Array.isArray(perDayEdits) || perDayEdits.length === 0) return;
+    const nextEdited = new Map(editedRows);
+    let nextDropped = droppedRows;
+    let droppedMutated = false;
+    for (const { row, newStart, newEnd } of perDayEdits) {
+      if (!row || !newStart || !newEnd) continue;
+      const key = dropRowKey(row);
+      nextEdited.set(key, { row, newStart, newEnd, byRule });
+      if (droppedRows.has(key)) {
+        // Mutual exclusion: shorten supersedes any prior drop.
+        if (!droppedMutated) {
+          nextDropped = new Map(droppedRows);
+          droppedMutated = true;
+        }
+        nextDropped.delete(key);
+      }
+    }
+    if (droppedMutated) setDroppedRows(nextDropped);
+    setEditedRows(nextEdited);
+    reassessAfterLever(droppedMutated ? nextDropped : droppedRows, nextEdited);
   };
 
   // ── Apply (route into the staged review or commit straight through) ─
