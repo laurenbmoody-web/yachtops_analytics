@@ -1977,7 +1977,9 @@ export default function ApplyTemplateModal({
     if (!row || !newStart || !newEnd) return;
     const key = dropRowKey(row);
     const nextEdited = new Map(editedRows);
-    nextEdited.set(key, { row, newStart, newEnd, byRule });
+    // bulkGroupId = null on single-day shortens; the audit reader uses
+    // null to distinguish from bulk operations (v1.2 C4).
+    nextEdited.set(key, { row, newStart, newEnd, byRule, bulkGroupId: null });
     let nextDropped = droppedRows;
     if (droppedRows.has(key)) {
       nextDropped = new Map(droppedRows);
@@ -2020,13 +2022,23 @@ export default function ApplyTemplateModal({
   // included day. byRule attribution is uniform across the bulk.
   const handleBulkShorten = (perDayEdits, byRule) => {
     if (!Array.isArray(perDayEdits) || perDayEdits.length === 0) return;
+    // One UUID per bulk Apply — every entry written by this call shares
+    // it (v1.2 C4). Restoration of some entries doesn't change surviving
+    // entries' bulk_group_id. Per-day amendments committed in the SAME
+    // Apply call (chief amended a row mid-lever-edit, then clicked Apply
+    // once) share the same UUID as their in-bulk siblings — they were
+    // part of the same bulk operation. Subsequent re-bulks generate
+    // fresh UUIDs.
+    const bulkGroupId = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `bulk-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const nextEdited = new Map(editedRows);
     let nextDropped = droppedRows;
     let droppedMutated = false;
     for (const { row, newStart, newEnd } of perDayEdits) {
       if (!row || !newStart || !newEnd) continue;
       const key = dropRowKey(row);
-      nextEdited.set(key, { row, newStart, newEnd, byRule });
+      nextEdited.set(key, { row, newStart, newEnd, byRule, bulkGroupId });
       if (droppedRows.has(key)) {
         // Mutual exclusion: shorten supersedes any prior drop.
         if (!droppedMutated) {
@@ -2350,9 +2362,20 @@ export default function ApplyTemplateModal({
           // exactly what the chief changed. caused_by_rule attributes the
           // shorten to the rule the chief was looking at (always
           // 'daily_rest_10h' in v1.1 — the only rule with a shorten
-          // lever).
+          // lever). bulk_group_id (v1.2 C4) groups entries that were
+          // written together in one bulk Apply; null for single-day
+          // shortens. Readers can group context.shortened_rows by
+          // bulk_group_id to reconstruct bulk operations at audit time.
+          //
+          // Coherence note (v1.2 C3 semantic): an entry whose chief-
+          // picked time didn't fully clear the rule still lands in
+          // shortened_rows (it WAS shortened, deliberately, even if
+          // the breach remained). The residual breach for that
+          // (member, date, rule) appears in context.breaches via the
+          // standard hasMlc=true → override path. Reader correlates
+          // by member_id + shift_date.
           const shortenedByDept = new Map();
-          for (const { row, newStart, newEnd, byRule } of editedRows.values()) {
+          for (const { row, newStart, newEnd, byRule, bulkGroupId } of editedRows.values()) {
             const did = memberDeptMap.get(row.member_id);
             if (!did) continue;
             if (!shortenedByDept.has(did)) shortenedByDept.set(did, []);
@@ -2365,6 +2388,7 @@ export default function ApplyTemplateModal({
               new_start: newStart,
               new_end: newEnd,
               caused_by_rule: byRule,
+              bulk_group_id: bulkGroupId ?? null,
             });
           }
 
