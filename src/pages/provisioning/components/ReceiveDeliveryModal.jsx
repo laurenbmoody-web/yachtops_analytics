@@ -21,6 +21,9 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { UNIT_GROUPS } from './DetailTableCells';
 import { logActivity } from '../../../utils/activityStorage';
 import { sendNotification, NOTIFICATION_TYPES, SEVERITY } from '../../team-jobs-management/utils/notifications';
+import '../delivery-inbox.css';
+import '../../../styles/editorial.css';
+import './receive-delivery-modal.css';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -30,20 +33,9 @@ const deriveStatus = (qty, ordered) => {
   return 'partial';
 };
 
-const STATUS_PILL = {
-  received:     { label: 'Received',     bg: '#ECFDF5', color: '#047857' },
-  partial:      { label: 'Partial',      bg: '#FEF3E2', color: '#B45309' },
-  not_received: { label: 'Not received', bg: '#FEF2F2', color: '#DC2626' },
-};
-
-const ICON_BTN = {
-  background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px',
-  color: '#94A3B8', display: 'flex', alignItems: 'center',
-};
-
 // ── Hierarchical location picker ─────────────────────────────────────────────
 
-const LocationPicker = ({ value, onChange, locations = [], borderColor = '#e2e8f0', placeholder = 'Select location…' }) => {
+const LocationPicker = ({ value, onChange, locations = [], placeholder = 'Select location…' }) => {
   const [open, setOpen] = useState(false);
   const [prefix, setPrefix] = useState('');
   const ref = useRef(null);
@@ -77,57 +69,46 @@ const LocationPicker = ({ value, onChange, locations = [], borderColor = '#e2e8f
   const handleBack = () => { const parts = prefix.split(' > '); setPrefix(parts.slice(0, -1).join(' > ')); };
 
   return (
-    <div ref={ref} style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+    <div ref={ref} className="rdm-picker">
       <button
+        type="button"
         onClick={() => { setOpen(v => !v); setPrefix(''); }}
-        style={{
-          width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center',
-          fontSize: 12, padding: '4px 8px', border: `1px solid ${borderColor}`, borderRadius: 6,
-          background: 'white', color: value ? '#0F172A' : '#94A3B8', cursor: 'pointer', gap: 4,
-        }}
+        className={`rdm-picker-trigger${open ? ' is-open' : ''}${!value ? ' is-placeholder' : ''}`}
       >
-        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value || placeholder}</span>
-        <span style={{ color: '#CBD5E1', fontSize: 10, flexShrink: 0 }}>▾</span>
+        <span className="rdm-picker-trigger-value">{value || placeholder}</span>
+        <span className="rdm-picker-trigger-arrow">▾</span>
       </button>
       {open && (
-        <div style={{
-          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 'var(--z-dropdown)',
-          background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 2,
-          maxHeight: 200, display: 'flex', flexDirection: 'column', overflow: 'hidden',
-        }}>
+        <div className="rdm-picker-popover">
           {prefix && (
-            <div style={{ padding: '5px 8px', borderBottom: '1px solid #f1f5f9', background: '#fafafa', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-              <button onMouseDown={e => { e.preventDefault(); handleBack(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4A90E2', fontSize: 16, lineHeight: 1, padding: '0 4px' }}>‹</button>
-              <span style={{ fontSize: 11, color: '#64748B', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prefix}</span>
-              <button onMouseDown={e => { e.preventDefault(); handleSelect(prefix); }} style={{ fontSize: 10, fontWeight: 700, color: '#4A90E2', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>Select ✓</button>
+            <div className="rdm-picker-breadcrumb">
+              <button
+                type="button"
+                onMouseDown={e => { e.preventDefault(); handleBack(); }}
+                className="rdm-picker-breadcrumb-segment"
+              >‹ Back</button>
+              <span className="rdm-picker-breadcrumb-segment is-current">{prefix}</span>
+              <button
+                type="button"
+                onMouseDown={e => { e.preventDefault(); handleSelect(prefix); }}
+                className="rdm-picker-breadcrumb-segment"
+                style={{ marginLeft: 'auto', color: 'var(--rdm-rust)', fontWeight: 700 }}
+              >Select ✓</button>
             </div>
           )}
-          <div style={{ overflowY: 'auto', flex: 1 }}>
-            {locations.length === 0 && <div style={{ padding: '12px', fontSize: 12, color: '#94A3B8', textAlign: 'center' }}>No locations configured</div>}
-            {items.map(({ seg, full, hasChildren }) => (
-              <div key={full} style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #f8fafc' }}>
-                <button
-                  onMouseDown={e => { e.preventDefault(); hasChildren ? setPrefix(full) : handleSelect(full); }}
-                  style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', padding: '7px 12px', cursor: 'pointer', fontSize: 12, color: '#0F172A', display: 'flex', alignItems: 'center', gap: 6 }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                >
-                  {hasChildren && <span style={{ color: '#CBD5E1', fontSize: 10, flexShrink: 0 }}>📁</span>}
-                  {seg}
-                </button>
-                {hasChildren && (
-                  <button
-                    onMouseDown={e => { e.preventDefault(); e.stopPropagation(); handleSelect(full); }}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#CBD5E1', padding: '7px 10px', fontSize: 10, flexShrink: 0, whiteSpace: 'nowrap' }}
-                    onMouseEnter={e => e.currentTarget.style.color = '#4A90E2'}
-                    onMouseLeave={e => e.currentTarget.style.color = '#CBD5E1'}
-                    title="Select this level"
-                  >✓</button>
-                )}
-              </div>
-            ))}
-          </div>
+          {locations.length === 0 && <div className="rdm-picker-empty">No locations configured</div>}
+          {items.map(({ seg, full, hasChildren }) => (
+            <button
+              key={full}
+              type="button"
+              onMouseDown={e => { e.preventDefault(); hasChildren ? setPrefix(full) : handleSelect(full); }}
+              className="rdm-picker-item"
+            >
+              {hasChildren && <span className="rdm-picker-item-chevron">📁</span>}
+              <span className="rdm-picker-item-name">{seg}</span>
+              {hasChildren && <span className="rdm-picker-item-chevron">›</span>}
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -136,7 +117,7 @@ const LocationPicker = ({ value, onChange, locations = [], borderColor = '#e2e8f
 
 // ── Progressive category picker (inventory_locations hierarchy) ──────────────
 
-const CategoryPicker = ({ paths = [], value = '', onChange, disabled = false, borderColor = '#e2e8f0' }) => {
+const CategoryPicker = ({ paths = [], value = '', onChange, disabled = false }) => {
   const segments = value ? value.split(' > ') : [];
 
   const getLevelOptions = (level) => {
@@ -170,26 +151,22 @@ const CategoryPicker = ({ paths = [], value = '', onChange, disabled = false, bo
   }
 
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
       {dropdowns.map(({ level, opts, selected }) => (
         <select
           key={level}
           value={selected}
           onChange={e => handleChange(level, e.target.value)}
           disabled={disabled}
-          style={{
-            fontSize: 12, padding: '4px 6px', border: `1px solid ${borderColor}`, borderRadius: 6,
-            background: 'white', color: selected ? '#0F172A' : '#94A3B8',
-            cursor: disabled ? 'default' : 'pointer', outline: 'none', flexShrink: 0,
-            maxWidth: 140, opacity: disabled ? 0.55 : 1,
-          }}
+          className="rdm-create-select"
+          style={{ maxWidth: 160 }}
         >
           <option value="">Select…</option>
           {opts.map(o => <option key={o} value={o}>{o}</option>)}
         </select>
       ))}
       {dropdowns.length === 0 && paths.length === 0 && (
-        <span style={{ fontSize: 12, color: '#CBD5E1' }}>No categories configured</span>
+        <span className="rdm-picker-empty" style={{ padding: 0 }}>No categories configured</span>
       )}
     </div>
   );
@@ -197,7 +174,7 @@ const CategoryPicker = ({ paths = [], value = '', onChange, disabled = false, bo
 
 // ── Physical storage location picker (vessel_locations table) ────────────────
 
-const VesselLocationPicker = ({ value, onChange, vesselLocations = [], borderColor = '#e2e8f0', placeholder = 'Select location…' }) => {
+const VesselLocationPicker = ({ value, onChange, vesselLocations = [], placeholder = 'Select location…' }) => {
   const [open, setOpen] = useState(false);
   const [parentId, setParentId] = useState(null);   // null = root (deck level)
   const [breadcrumb, setBreadcrumb] = useState([]);  // [{id, name}] trail
@@ -234,61 +211,50 @@ const VesselLocationPicker = ({ value, onChange, vesselLocations = [], borderCol
   const breadcrumbPath = breadcrumb.map(b => b.name).join(' > ');
 
   return (
-    <div ref={ref} style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+    <div ref={ref} className="rdm-picker">
       <button
+        type="button"
         onClick={() => { setOpen(v => !v); setParentId(null); setBreadcrumb([]); }}
-        style={{
-          width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center',
-          fontSize: 12, padding: '4px 8px', border: `1px solid ${borderColor}`, borderRadius: 6,
-          background: 'white', color: value ? '#0F172A' : '#94A3B8', cursor: 'pointer', gap: 4,
-        }}
+        className={`rdm-picker-trigger${open ? ' is-open' : ''}${!value ? ' is-placeholder' : ''}`}
       >
-        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value || placeholder}</span>
-        <span style={{ color: '#CBD5E1', fontSize: 10, flexShrink: 0 }}>▾</span>
+        <span className="rdm-picker-trigger-value">{value || placeholder}</span>
+        <span className="rdm-picker-trigger-arrow">▾</span>
       </button>
       {open && (
-        <div style={{
-          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 'var(--z-dropdown)',
-          background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 2,
-          maxHeight: 220, display: 'flex', flexDirection: 'column', overflow: 'hidden',
-        }}>
+        <div className="rdm-picker-popover">
           {/* Breadcrumb / back header */}
           {breadcrumb.length > 0 && (
-            <div style={{ padding: '5px 8px', borderBottom: '1px solid #f1f5f9', background: '#fafafa', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-              <button onMouseDown={e => { e.preventDefault(); handleBack(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4A90E2', fontSize: 16, lineHeight: 1, padding: '0 4px' }}>‹</button>
-              <span style={{ fontSize: 11, color: '#64748B', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{breadcrumbPath}</span>
-              <button onMouseDown={e => { e.preventDefault(); onChange(breadcrumbPath); setOpen(false); setParentId(null); setBreadcrumb([]); }} style={{ fontSize: 10, fontWeight: 700, color: '#4A90E2', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>Select ✓</button>
+            <div className="rdm-picker-breadcrumb">
+              <button
+                type="button"
+                onMouseDown={e => { e.preventDefault(); handleBack(); }}
+                className="rdm-picker-breadcrumb-segment"
+              >‹ Back</button>
+              <span className="rdm-picker-breadcrumb-segment is-current">{breadcrumbPath}</span>
+              <button
+                type="button"
+                onMouseDown={e => { e.preventDefault(); onChange(breadcrumbPath); setOpen(false); setParentId(null); setBreadcrumb([]); }}
+                className="rdm-picker-breadcrumb-segment"
+                style={{ marginLeft: 'auto', color: 'var(--rdm-rust)', fontWeight: 700 }}
+              >Select ✓</button>
             </div>
           )}
-          <div style={{ overflowY: 'auto', flex: 1 }}>
-            {vesselLocations.length === 0 && <div style={{ padding: '12px', fontSize: 12, color: '#94A3B8', textAlign: 'center' }}>No vessel locations configured</div>}
-            {currentItems.map(loc => {
-              const hasChildren = vesselLocations.some(l => l.parent_id === loc.id);
-              return (
-                <div key={loc.id} style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #f8fafc' }}>
-                  <button
-                    onMouseDown={e => { e.preventDefault(); hasChildren ? handleDrillIn(loc) : handleSelect(loc.name); }}
-                    style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', padding: '7px 12px', cursor: 'pointer', fontSize: 12, color: '#0F172A', display: 'flex', alignItems: 'center', gap: 6 }}
-                    onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                  >
-                    {hasChildren && <span style={{ color: '#CBD5E1', fontSize: 10, flexShrink: 0 }}>📁</span>}
-                    {loc.name}
-                  </button>
-                  {hasChildren && (
-                    <button
-                      onMouseDown={e => { e.preventDefault(); e.stopPropagation(); handleSelect(loc.name); }}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#CBD5E1', padding: '7px 10px', fontSize: 10, flexShrink: 0, whiteSpace: 'nowrap' }}
-                      onMouseEnter={e => e.currentTarget.style.color = '#4A90E2'}
-                      onMouseLeave={e => e.currentTarget.style.color = '#CBD5E1'}
-                      title="Select this level"
-                    >✓</button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          {vesselLocations.length === 0 && <div className="rdm-picker-empty">No vessel locations configured</div>}
+          {currentItems.map(loc => {
+            const hasChildren = vesselLocations.some(l => l.parent_id === loc.id);
+            return (
+              <button
+                key={loc.id}
+                type="button"
+                onMouseDown={e => { e.preventDefault(); hasChildren ? handleDrillIn(loc) : handleSelect(loc.name); }}
+                className="rdm-picker-item"
+              >
+                {hasChildren && <span className="rdm-picker-item-chevron">📁</span>}
+                <span className="rdm-picker-item-name">{loc.name}</span>
+                {hasChildren && <span className="rdm-picker-item-chevron">›</span>}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
@@ -305,8 +271,7 @@ const GroupCheckbox = ({ state, onChange }) => {
     ref.current.checked = state === 'all';
   }, [state]);
   return (
-    <input ref={ref} type="checkbox" onChange={e => onChange(e.target.checked)}
-      style={{ width: 14, height: 14, accentColor: '#4A90E2', cursor: 'pointer', flexShrink: 0 }} />
+    <input ref={ref} type="checkbox" onChange={e => onChange(e.target.checked)} className="rdm-group-checkbox" />
   );
 };
 
@@ -346,60 +311,40 @@ const ReceiveStep = ({
     if (file) onFileSelect(file);
   };
 
-  const renderItemRow = (item, indented = false) => {
+  const renderItemRow = (item) => {
     const r = receiving[item.id] || { checked: false, qty: item.quantity_ordered || 0 };
     const ordered = parseFloat(item.quantity_ordered) || 0;
     const rcvQty = parseFloat(r.qty) || 0;
     const status = r.checked ? deriveStatus(rcvQty, ordered) : null;
-    const pill = status ? STATUS_PILL[status] : null;
     const fromNote = noteAutoFills?.has(item.id);
+    const qtyClass = !r.checked ? '' : rcvQty >= ordered ? ' is-full' : rcvQty > 0 ? ' is-partial' : '';
+    const rowClass = r.checked ? (fromNote ? ' is-matched' : ' is-checked') : '';
     return (
-      <div
-        key={item.id}
-        style={{
-          display: 'grid', gridTemplateColumns: '28px 1fr 80px 90px 56px', gap: 0,
-          padding: `10px 20px 10px ${indented ? 36 : 20}px`,
-          borderBottom: '1px solid #F8FAFC',
-          background: r.checked ? (fromNote ? '#F0FDF4' : '#FAFCFF') : 'white',
-          alignItems: 'center', transition: 'background 0.1s',
-        }}
-      >
+      <div key={item.id} className={`rdm-item-row${rowClass}`}>
         <input
           type="checkbox" checked={!!r.checked}
           onChange={e => onChange(item.id, 'checked', e.target.checked)}
-          style={{ width: 14, height: 14, accentColor: '#4A90E2', cursor: 'pointer', flexShrink: 0 }}
+          className="rdm-item-checkbox"
         />
-        <div style={{ minWidth: 0, paddingRight: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <p style={{ fontSize: 13, fontWeight: 500, color: '#0F172A', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</p>
-            {(item.brand || item.size) && (
-              <p style={{ fontSize: 11, color: '#94A3B8', margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {[item.brand, item.size].filter(Boolean).join(' · ')}
-              </p>
-            )}
-          </div>
-          {fromNote && <span title="Qty set from document" style={{ fontSize: 9, background: '#DCFCE7', color: '#15803D', padding: '1px 5px', borderRadius: 4, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>📄 match</span>}
+        <div className="rdm-item-text">
+          <p className="rdm-item-name">{item.name}</p>
+          <p className="rdm-item-sub">
+            {(item.brand || item.size) && <span>{[item.brand, item.size].filter(Boolean).join(' · ')}</span>}
+            {fromNote && <span title="Qty set from document" className="rdm-match-badge">📄 match</span>}
+          </p>
         </div>
-        <p style={{ fontSize: 13, color: '#64748B', textAlign: 'center', margin: 0 }}>
-          {ordered} <span style={{ fontSize: 10, color: '#CBD5E1' }}>{item.unit || ''}</span>
+        <p className="rdm-item-ordered">
+          {ordered}{item.unit ? <span style={{ marginLeft: 4, fontSize: 10, color: 'var(--rdm-faint)' }}>{item.unit}</span> : null}
         </p>
         <input
           type="number" min="0" value={r.qty} disabled={!r.checked}
           onChange={e => onChange(item.id, 'qty', e.target.value)}
-          style={{
-            width: '100%', textAlign: 'center', fontSize: 13, fontWeight: 600,
-            padding: '4px 6px', border: '1px solid',
-            borderColor: !r.checked ? '#F1F5F9' : rcvQty < ordered ? '#FCA5A5' : '#86EFAC',
-            borderRadius: 6, outline: 'none', background: r.checked ? 'white' : '#FAFAFA',
-            color: r.checked ? '#0F172A' : '#CBD5E1',
-          }}
+          className={`rdm-item-qty-input${qtyClass}`}
         />
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          {pill && (
-            <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 20, background: pill.bg, color: pill.color, whiteSpace: 'nowrap' }}>
-              {pill.label}
-            </span>
-          )}
+        <div className={`rdm-item-status${status ? ` is-${status === 'not_received' ? 'none' : status}` : ''}`}>
+          {status === 'received' && 'Received'}
+          {status === 'partial' && 'Partial'}
+          {status === 'not_received' && 'Not received'}
         </div>
       </div>
     );
@@ -407,39 +352,39 @@ const ReceiveStep = ({
 
   return (
     <>
-      {/* Sub-header */}
-      <div style={{ padding: '14px 20px 10px', borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ flex: 1 }}>
-          <p style={{ fontSize: 12, fontWeight: 700, color: '#1E3A5F', margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Step 1 of 2</p>
-          <p style={{ fontSize: 11, color: '#94A3B8', margin: '2px 0 0' }}>Tick each item received and enter the quantity</p>
-        </div>
-        <div onClick={() => setOrganiseBySupplier(v => !v)} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', flexShrink: 0 }}>
-          <div style={{ width: 32, height: 18, borderRadius: 9, background: organiseBySupplier ? '#1E3A5F' : '#CBD5E1', position: 'relative', transition: 'background 0.15s' }}>
-            <div style={{ position: 'absolute', top: 2, left: organiseBySupplier ? 16 : 2, width: 14, height: 14, borderRadius: '50%', background: 'white', transition: 'left 0.15s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
-          </div>
-          <span style={{ fontSize: 11, color: '#64748B', whiteSpace: 'nowrap' }}>{multiBoard ? 'Organise by board' : 'Organise by supplier'}</span>
-        </div>
-        <button onClick={onReceiveAll} style={{ fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 7, cursor: 'pointer', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8', whiteSpace: 'nowrap' }}>
-          Receive All
+      {/* Sub-header: organise toggle + Receive All. The step indicator
+          lives at the modal-shell level (in ReceiveDeliveryModal) — kept
+          out of here so both steps render against a consistent stepper. */}
+      <div className="rdm-section" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+        <p className="rdm-section-sub" style={{ flex: 1, margin: 0 }}>Tick each item received and enter the quantity.</p>
+        <button
+          type="button"
+          onClick={() => setOrganiseBySupplier(v => !v)}
+          className={`rdm-organise-toggle-btn${organiseBySupplier ? ' is-active' : ''}`}
+        >
+          {multiBoard ? 'By board' : 'By supplier'}
+        </button>
+        <button type="button" onClick={onReceiveAll} className="di-btn di-btn-ghost">
+          Receive all
         </button>
       </div>
 
       {/* Delivery note upload */}
-      <div style={{ padding: '10px 20px', borderBottom: '1px solid #F1F5F9' }}>
+      <div className="rdm-upload-block">
         {noteStatus === 'idle' ? (
           <div
             onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
           >
-            <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 500, color: '#64748B' }}>
-              Delivery note <span style={{ fontWeight: 400, color: '#94A3B8' }}>(optional · AI will match items)</span>
+            <p className="rdm-upload-label">
+              Delivery note <span className="rdm-upload-label-hint">(optional · AI will match items)</span>
             </p>
             {/* Hidden file inputs — one per source */}
             <input ref={noteCameraRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={e => e.target.files?.[0] && onFileSelect(e.target.files[0])} />
             <input ref={noteRollRef}   type="file" accept="image/*" style={{ display: 'none' }} onChange={e => e.target.files?.[0] && onFileSelect(e.target.files[0])} />
             <input ref={noteFileRef}   type="file" accept="image/jpeg,image/png,image/webp,image/heic,application/pdf" style={{ display: 'none' }} onChange={e => e.target.files?.[0] && onFileSelect(e.target.files[0])} />
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+            <div className="rdm-upload-buttons">
               {[
                 { ref: noteCameraRef, label: 'Take photo',   icon: 'Camera' },
                 { ref: noteRollRef,   label: 'Camera roll',  icon: 'Image'  },
@@ -447,25 +392,29 @@ const ReceiveStep = ({
               ].map(src => (
                 <button
                   key={src.label}
+                  type="button"
                   onClick={() => src.ref.current?.click()}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '10px 8px', border: `1.5px dashed ${isDragging ? '#93C5FD' : '#E2E8F0'}`, borderRadius: 8, background: isDragging ? '#EFF6FF' : '#FAFBFC', cursor: 'pointer', transition: 'border-color 0.15s' }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#93C5FD'; e.currentTarget.style.background = '#EFF6FF'; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.background = '#FAFBFC'; }}
+                  className="rdm-upload-btn"
+                  style={isDragging ? { borderColor: 'var(--rdm-rust)', background: 'var(--rdm-sand-soft)' } : null}
                 >
-                  <Icon name={src.icon} style={{ width: 15, height: 15, color: '#4A90E2' }} />
-                  <span style={{ fontSize: 11, color: '#374151', fontWeight: 500 }}>{src.label}</span>
+                  <Icon name={src.icon} className="rdm-upload-btn-icon" />
+                  <span>{src.label}</span>
                 </button>
               ))}
             </div>
           </div>
         ) : (() => {
             const noMatch = noteStatus === 'done' && matchedCount === 0;
-            const borderColor = noteStatus === 'error' ? '#FECACA' : noMatch ? '#FDE68A' : noteStatus === 'done' ? '#A7F3D0' : '#E2E8F0';
-            const bgColor = noteStatus === 'error' ? '#FEF2F2' : noMatch ? '#FFFBEB' : noteStatus === 'done' ? '#F0FDF4' : 'white';
-            const iconName = noteStatus === 'parsing' ? 'Loader' : noteStatus === 'error' ? 'AlertCircle' : noMatch ? 'Info' : 'FileCheck';
-            const iconColor = noteStatus === 'error' ? '#DC2626' : noteStatus === 'parsing' ? '#94A3B8' : noMatch ? '#B45309' : '#059669';
+            // Editorial palette mapping: success = sage, warning = amber,
+            // error = rust. Error STATE specifically pairs AlertCircle +
+            // unmistakable copy because rust is also the brand accent.
+            const stateClass = noteStatus === 'error' ? ' is-error'
+              : noMatch ? ' is-warning'
+              : noteStatus === 'done' ? ' is-success'
+              : ' is-parsing';
+            const iconName = noteStatus === 'parsing' ? 'Loader' : noteStatus === 'error' ? 'AlertCircle' : noMatch ? 'AlertTriangle' : 'CheckCircle';
             const subText = noteStatus === 'parsing' ? 'Extracting items with AI…'
-              : noteStatus === 'error' ? (noteError || 'Failed to parse — items unchanged')
+              : noteStatus === 'error' ? (`Couldn't read this document — ${noteError || 'items unchanged. Try a clearer photo or upload manually.'}`)
               : noMatch ? (parsedNote?.document_type === 'receipt'
                   ? `No items matched your list — review items below to add or skip`
                   : `No matches${multiBoard ? ' on any board' : ' on your list'} · ${unmatchedItems.length} item${unmatchedItems.length !== 1 ? 's' : ''} will be routed to other departments`)
@@ -477,127 +426,140 @@ const ReceiveStep = ({
                   return `✓ ${matchedCount} matched · ${unmatchedItems.length} not on board`;
                 })();
             return (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', border: `1px solid ${borderColor}`, borderRadius: 10, background: bgColor, marginBottom: 8 }}>
-                <Icon name={iconName} style={{ width: 16, height: 16, color: iconColor, flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deliveryNoteFile?.name}</p>
-                  <p style={{ margin: '1px 0 0', fontSize: 11, color: noteStatus === 'error' ? '#DC2626' : noMatch ? '#B45309' : '#64748B' }}>{subText}</p>
+              <div className={`rdm-upload-card${stateClass}`}>
+                <div className="rdm-upload-card-icon">
+                  <Icon name={iconName} style={{ width: 20, height: 20 }} />
                 </div>
-                {noteStatus !== 'parsing' && (
-                  <button onClick={onRemoveNote} style={{ fontSize: 11, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', flexShrink: 0 }}>
-                    ✕ Remove
-                  </button>
-                )}
+                <div className="rdm-upload-card-text">
+                  <p className="rdm-upload-card-name">{deliveryNoteFile?.name}</p>
+                  <p className="rdm-upload-card-msg">{subText}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={onRemoveNote}
+                  disabled={noteStatus === 'parsing'}
+                  className="rdm-upload-card-remove"
+                  title="Remove"
+                >
+                  <Icon name="X" style={{ width: 14, height: 14 }} />
+                </button>
               </div>
             );
           })()}
       </div>
 
       {/* Column header */}
-      <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 80px 90px 56px', gap: 0, padding: '6px 20px', background: '#FAFAFA', borderBottom: '1px solid #F1F5F9' }}>
+      <div className="rdm-item-list-header">
         <div />
-        <p style={{ fontSize: 9, fontWeight: 700, color: '#CBD5E1', letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0 }}>Item</p>
-        <p style={{ fontSize: 9, fontWeight: 700, color: '#CBD5E1', letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0, textAlign: 'center' }}>Ordered</p>
-        <p style={{ fontSize: 9, fontWeight: 700, color: '#CBD5E1', letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0, textAlign: 'center' }}>Received</p>
-        <div />
+        <div className="rdm-item-list-header-cell">Item</div>
+        <div className="rdm-item-list-header-cell">Ordered</div>
+        <div className="rdm-item-list-header-cell">Received</div>
+        <div className="rdm-item-list-header-cell">Status</div>
       </div>
 
       {/* Item rows */}
-      <div style={{ overflowY: 'auto', flex: 1 }}>
+      <div className="rdm-item-list" style={{ borderRadius: '0 0 10px 10px' }}>
         {organiseBySupplier ? (
           supplierGroups.map(([supplierName, groupItems]) => {
             const checkedCount = groupItems.filter(i => receiving[i.id]?.checked).length;
             const groupState = checkedCount === 0 ? 'none' : checkedCount === groupItems.length ? 'all' : 'some';
             return (
               <div key={supplierName}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 20px', background: '#F8FAFC', borderBottom: '1px solid #EEF2F8', borderTop: '1px solid #EEF2F8' }}>
+                <div className="rdm-item-group-head" style={{ borderRadius: 0, border: 0, borderTop: '0.5px solid var(--rdm-hairline)', borderBottom: '0.5px solid var(--rdm-hairline)' }}>
                   <GroupCheckbox state={groupState} onChange={checked => onGroupChange(groupItems.map(i => i.id), checked)} />
-                  <span style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>{supplierName}</span>
-                  <span style={{ fontSize: 11, color: '#CBD5E1', marginLeft: 2 }}>{groupItems.length} item{groupItems.length !== 1 ? 's' : ''}</span>
+                  <span className="rdm-item-group-name">{supplierName}</span>
+                  <span className="rdm-item-group-count">{groupItems.length} item{groupItems.length !== 1 ? 's' : ''}</span>
                 </div>
-                {groupItems.map(item => renderItemRow(item, true))}
+                {groupItems.map(item => renderItemRow(item))}
               </div>
             );
           })
         ) : (
-          items.map(item => renderItemRow(item, false))
+          items.map(item => renderItemRow(item))
         )}
 
         {items.length === 0 && (
-          <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-            <p style={{ fontSize: 14, color: '#94A3B8' }}>No items on this board.</p>
-          </div>
+          <div className="rdm-empty">No items on this board.</div>
         )}
-
-        {/* Unmatched items from delivery note */}
-        {unmatchedItems.length > 0 && (
-          <div>
-            <div onClick={() => setUnmatchedExpanded(p => !p)} style={{ padding: '8px 20px', background: '#FFFBEB', borderTop: '1px solid #F1F5F9', borderBottom: '0.5px solid #FEF3C7', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 11, color: '#92400E' }}>{unmatchedExpanded ? '▾' : '▸'}</span>
-              <div>
-                <span style={{ fontSize: 10, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  {parsedNote?.document_type === 'receipt'
-                    ? `Other items on this receipt (${unmatchedItems.length})`
-                    : `Other items on this document (${unmatchedItems.length})`}
-                </span>
-                <span style={{ display: 'block', fontSize: 10, color: '#B45309', marginTop: 1 }}>
-                  {parsedNote?.document_type === 'receipt'
-                    ? 'Items to review — add to your board or skip'
-                    : 'Will be checked against other departments on save'}
-                </span>
-              </div>
-            </div>
-            {unmatchedExpanded && unmatchedItems.map((li, idx) => (
-              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 20px', borderBottom: '0.5px solid #F8FAFC', background: '#FFFDF7' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{li.raw_name}</p>
-                  {li.original_name && (
-                    <p style={{ margin: '1px 0 0', fontSize: 10, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      Receipt: {li.original_name}
-                    </p>
-                  )}
-                  <p style={{ margin: '1px 0 0', fontSize: 11, color: '#94A3B8' }}>
-                    {[li.quantity && `×${li.quantity}`, li.unit, li.unit_price && `$${li.unit_price}`].filter(Boolean).join(' · ')}
-                  </p>
-                </div>
-                {!multiBoard && (
-                  <button onClick={() => onAddUnmatched(li, idx)} style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, cursor: 'pointer', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                    + Add to board
-                  </button>
-                )}
-                <button onClick={() => onSkipUnmatched(idx)} style={{ fontSize: 11, color: '#CBD5E1', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px', flexShrink: 0 }}>
-                  Skip
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
       </div>
 
+      {/* Unmatched items from delivery note */}
+      {unmatchedItems.length > 0 && (
+        <div className="rdm-unmatched" style={{ marginTop: 16 }}>
+          <button
+            type="button"
+            onClick={() => setUnmatchedExpanded(p => !p)}
+            className="rdm-unmatched-head"
+          >
+            <Icon name="AlertTriangle" className="rdm-unmatched-head-icon" style={{ width: 16, height: 16 }} />
+            <div className="rdm-unmatched-head-text">
+              <p className="rdm-unmatched-title">
+                {parsedNote?.document_type === 'receipt'
+                  ? `Other items on this receipt (${unmatchedItems.length})`
+                  : `Other items on this document (${unmatchedItems.length})`}
+              </p>
+              <p className="rdm-unmatched-sub">
+                {parsedNote?.document_type === 'receipt'
+                  ? 'Items to review — add to your board or skip'
+                  : 'Will be checked against other departments on save'}
+              </p>
+            </div>
+            <span style={{ color: 'var(--rdm-amber)', fontSize: 12 }}>{unmatchedExpanded ? '▾' : '▸'}</span>
+          </button>
+          {unmatchedExpanded && (
+            <div className="rdm-unmatched-list">
+              {unmatchedItems.map((li, idx) => (
+                <div key={idx} className="rdm-unmatched-row">
+                  <div className="rdm-unmatched-row-text">
+                    <p className="rdm-unmatched-row-name">{li.raw_name}</p>
+                    {li.original_name && (
+                      <p className="rdm-unmatched-row-original">Receipt: {li.original_name}</p>
+                    )}
+                    <p className="rdm-unmatched-row-meta">
+                      {[li.quantity && `×${li.quantity}`, li.unit, li.unit_price && `$${li.unit_price}`].filter(Boolean).join(' · ')}
+                    </p>
+                  </div>
+                  <div className="rdm-unmatched-row-actions">
+                    {!multiBoard && (
+                      <button type="button" onClick={() => onAddUnmatched(li, idx)} className="di-btn di-btn-ghost di-btn-sm">
+                        + Add to board
+                      </button>
+                    )}
+                    <button type="button" onClick={() => onSkipUnmatched(idx)} className="di-btn di-btn-quiet di-btn-sm">
+                      Skip
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Footer */}
-      <div style={{ padding: '12px 20px', borderTop: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-        <div>
+      <div className="rdm-footer">
+        <div className="rdm-footer-left">
           {items.filter(i => receiving[i.id]?.checked).length === 0 && unmatchedItems.length > 0 ? (
-            <p style={{ fontSize: 11, color: '#B45309', margin: 0 }}>
+            <p className="rdm-validation-text is-warning">
               {parsedNote?.document_type === 'receipt'
                 ? 'No items matched your list — review items below to add or skip'
                 : `No items matched ${multiBoard ? 'any board' : 'your list'} — will check other departments on save`}
             </p>
           ) : (
-            <p style={{ fontSize: 12, color: '#94A3B8', margin: 0 }}>
+            <p className="rdm-validation-text">
               {items.filter(i => receiving[i.id]?.checked).length} of {items.length} items ticked
             </p>
           )}
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={onClose} style={{ fontSize: 13, padding: '7px 14px', borderRadius: 8, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B' }}>
+        <div className="rdm-footer-actions">
+          <button type="button" onClick={onClose} className="di-btn di-btn-ghost">
             Cancel
           </button>
           <button
+            type="button"
             onClick={onNext}
             disabled={saving || (items.filter(i => receiving[i.id]?.checked).length === 0 && unmatchedItems.length === 0)}
-            style={{ fontSize: 13, fontWeight: 600, padding: '7px 16px', borderRadius: 8, cursor: 'pointer', background: '#1E3A5F', border: '1px solid #1E3A5F', color: 'white', opacity: saving ? 0.6 : 1 }}
+            className="di-btn di-btn-primary"
           >
             {saving ? 'Saving…' : 'Save & Continue →'}
           </button>
@@ -610,15 +572,12 @@ const ReceiveStep = ({
 // ── Step 2 ─ Push to inventory ────────────────────────────────────────────────
 
 const SplitQtyBtn = ({ onClick, children }) => (
-  <button
-    onClick={onClick}
-    style={{ width: 22, height: 22, borderRadius: '50%', cursor: 'pointer', background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#16A34A', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, padding: 0 }}
-  >{children}</button>
+  <button type="button" onClick={onClick} className="rdm-qty-btn">{children}</button>
 );
 
-// Shared label style for create/link forms
+// Shared label helper for create/link forms.
 const FLD = ({ children }) => (
-  <span style={{ display: 'block', fontSize: 10, color: '#94A3B8', fontWeight: 500, marginBottom: 2 }}>{children}</span>
+  <span className="rdm-fld">{children}</span>
 );
 
 const PushStep = ({
@@ -633,70 +592,61 @@ const PushStep = ({
 }) => {
   const receivedItems = items.filter(i => receiving[i.id]?.checked && (parseFloat(receiving[i.id]?.qty) || 0) > 0);
 
-  // Shared split-rows UI (used for both auto-matched and inline-linked items)
-  const renderSplits = (itemId, qty, splits, cardColor = '#F0FDF4', borderCol = '#BBF7D0') => {
+  // Shared split-rows UI (used for auto-matched, inline-linked, and create-new).
+  const renderSplits = (itemId, qty, splits) => {
     const totalAllocated = splits.reduce((sum, s) => sum + (parseFloat(s.addQty) || 0), 0);
     const allocOk = Math.abs(totalAllocated - qty) < 0.001;
     return (
-      <>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-          {splits.map((loc, idx) => (
-            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              {/* Trash */}
-              <button
-                onClick={() => onRemoveSplitLocation(itemId, idx)}
-                style={{ ...ICON_BTN, color: '#CBD5E1', flexShrink: 0 }}
-                onMouseEnter={e => e.currentTarget.style.color = '#EF4444'}
-                onMouseLeave={e => e.currentTarget.style.color = '#CBD5E1'}
-              >
-                <Icon name="Trash2" style={{ width: 12, height: 12 }} />
-              </button>
-              {/* Physical storage location picker */}
-              <VesselLocationPicker
-                value={loc.locationName}
-                onChange={v => onSplitChange(itemId, idx, 'locationName', v)}
-                vesselLocations={vesselLocations}
-                borderColor={borderCol}
-                placeholder="Select storage location…"
-              />
-              {/* Current stock label */}
-              <span style={{ fontSize: 10, color: '#94A3B8', whiteSpace: 'nowrap', flexShrink: 0, width: 44, textAlign: 'right' }}>
-                {loc.currentQty > 0 ? `now: ${loc.currentQty}` : 'new'}
-              </span>
-              {/* Qty controls */}
+      <div className="rdm-splits">
+        {splits.map((loc, idx) => (
+          <div key={idx} className="rdm-split-row">
+            <button
+              type="button"
+              onClick={() => onRemoveSplitLocation(itemId, idx)}
+              className="rdm-split-delete"
+              title="Remove location"
+            >
+              <Icon name="Trash2" style={{ width: 14, height: 14 }} />
+            </button>
+            <VesselLocationPicker
+              value={loc.locationName}
+              onChange={v => onSplitChange(itemId, idx, 'locationName', v)}
+              vesselLocations={vesselLocations}
+              placeholder="Select storage location…"
+            />
+            <span className={loc.currentQty > 0 ? 'rdm-split-now' : 'rdm-split-new-tag'}>
+              {loc.currentQty > 0 ? `now: ${loc.currentQty}` : 'new'}
+            </span>
+            <div className="rdm-split-qty-controls">
               <SplitQtyBtn onClick={() => onSplitChange(itemId, idx, 'addQty', Math.max(0, (parseFloat(loc.addQty) || 0) - 1))}>−</SplitQtyBtn>
               <input
                 type="number" min="0" value={loc.addQty}
                 onChange={e => onSplitChange(itemId, idx, 'addQty', parseFloat(e.target.value) || 0)}
-                style={{ width: 38, textAlign: 'center', fontSize: 12, padding: '3px 2px', border: `1px solid ${borderCol}`, borderRadius: 6, outline: 'none', flexShrink: 0 }}
+                className="rdm-split-qty-input"
               />
               <SplitQtyBtn onClick={() => onSplitChange(itemId, idx, 'addQty', (parseFloat(loc.addQty) || 0) + 1)}>+</SplitQtyBtn>
             </div>
-          ))}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
-          <button
-            onClick={() => onAddSplitLocation(itemId)}
-            style={{ fontSize: 11, fontWeight: 600, color: '#16A34A', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-          >+ Add location</button>
-          <span style={{ fontSize: 11, fontWeight: 600, color: allocOk ? '#16A34A' : '#DC2626' }}>
+          </div>
+        ))}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <button type="button" onClick={() => onAddSplitLocation(itemId)} className="rdm-split-add">
+            + Add location
+          </button>
+          <span className={`rdm-split-summary${allocOk ? ' is-complete' : ' is-incomplete'}`}>
             {totalAllocated} of {qty} allocated{allocOk ? ' ✓' : ''}
           </span>
         </div>
-      </>
+      </div>
     );
   };
 
   return (
     <>
-      <div style={{ padding: '14px 20px 10px', borderBottom: '1px solid #F1F5F9' }}>
-        <p style={{ fontSize: 12, fontWeight: 700, color: '#1E3A5F', margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Step 2 of 2</p>
-        <p style={{ fontSize: 11, color: '#94A3B8', margin: '2px 0 0' }}>
-          Confirm where each item goes in inventory. Split across multiple locations if needed.
-        </p>
-      </div>
+      <p className="rdm-section-sub" style={{ marginBottom: 14 }}>
+        Confirm where each item goes in inventory. Split across multiple locations if needed.
+      </p>
 
-      <div style={{ overflowY: 'auto', flex: 1, padding: '8px 0' }}>
+      <div className="rdm-route-list">
         {receivedItems.map(item => {
           const qty = parseFloat(receiving[item.id]?.qty) || 0;
           const match = matches[item.id];
@@ -708,217 +658,220 @@ const PushStep = ({
           const search = inlineSearch[item.id] || {};
           const newForm = newItemForms[item.id] || null;
 
+          // Determine which route-card state class applies.
+          const stateClass =
+            isLoading ? ' is-loading'
+            : hasMatch ? ' is-matched'
+            : choice === 'skip' ? ' is-skipped'
+            : choice === 'link' && inlineLink ? ' is-linked'
+            : choice === 'link' ? ' is-searching'
+            : choice === 'create' ? ' is-create'
+            : ' is-nomatch';
+
           return (
-            <div key={item.id} style={{ padding: '12px 20px', borderBottom: '1px solid #F8FAFC' }}>
-              {/* Item header */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>{item.name}</span>
-                {(item.brand || item.size) && <span style={{ fontSize: 11, color: '#94A3B8' }}>{[item.brand, item.size].filter(Boolean).join(' · ')}</span>}
-                <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color: '#1E3A5F' }}>+{qty} {item.unit || ''}</span>
+            <div key={item.id} className={`rdm-route-card${stateClass}`}>
+              {/* Common item header row */}
+              <div className="rdm-route-head" style={{ marginBottom: isLoading ? 0 : 12 }}>
+                <div className="rdm-route-head-icon">
+                  {isLoading && <Icon name="Loader" style={{ width: 18, height: 18 }} />}
+                  {hasMatch && <Icon name="CheckCircle" style={{ width: 18, height: 18 }} />}
+                  {choice === 'skip' && <Icon name="MinusCircle" style={{ width: 18, height: 18 }} />}
+                  {choice === 'link' && inlineLink && <Icon name="Link" style={{ width: 18, height: 18 }} />}
+                  {choice === 'link' && !inlineLink && <Icon name="Search" style={{ width: 18, height: 18 }} />}
+                  {choice === 'create' && <Icon name="PlusCircle" style={{ width: 18, height: 18 }} />}
+                  {!isLoading && !hasMatch && !choice && <Icon name="AlertCircle" style={{ width: 18, height: 18 }} />}
+                </div>
+                <div className="rdm-route-head-text">
+                  <p className="rdm-route-title">
+                    {item.name}
+                    {(item.brand || item.size) && (
+                      <span className="rdm-route-sub" style={{ marginLeft: 8, display: 'inline' }}>
+                        {[item.brand, item.size].filter(Boolean).join(' · ')}
+                      </span>
+                    )}
+                  </p>
+                  {isLoading && <p className="rdm-route-sub">Searching inventory…</p>}
+                  {hasMatch && (
+                    <p className="rdm-route-sub">
+                      Matched → <strong style={{ color: 'var(--rdm-sage-deep)' }}>{match.name}</strong>
+                      {match.cargo_item_id && <span className="rdm-route-cargoid">({match.cargo_item_id})</span>}
+                      <span className="rdm-route-stock" style={{ marginLeft: 8 }}>· stock: {match.total_qty ?? 0}</span>
+                    </p>
+                  )}
+                  {choice === 'link' && inlineLink && (
+                    <p className="rdm-route-sub">
+                      Linked → <strong style={{ color: 'var(--rdm-sage-deep)' }}>{inlineLink.name}</strong>
+                      {inlineLink.cargo_item_id && <span className="rdm-route-cargoid">({inlineLink.cargo_item_id})</span>}
+                      <span className="rdm-route-stock" style={{ marginLeft: 8 }}>· stock: {inlineLink.total_qty ?? 0}</span>
+                    </p>
+                  )}
+                  {choice === 'link' && !inlineLink && <p className="rdm-route-sub">Link to inventory item</p>}
+                  {choice === 'create' && <p className="rdm-route-sub">Create new inventory item</p>}
+                  {choice === 'skip' && <p className="rdm-skipped-text" style={{ margin: '2px 0 0' }}>Skipped — not pushed to inventory</p>}
+                  {!isLoading && !hasMatch && !choice && <p className="rdm-route-sub">No inventory match found</p>}
+                </div>
+                <div className="rdm-route-head-actions">
+                  <strong style={{ fontFamily: 'Outfit, system-ui, sans-serif', fontSize: 14, color: 'var(--rdm-navy)', whiteSpace: 'nowrap' }}>
+                    +{qty} {item.unit || ''}
+                  </strong>
+                  {hasMatch && (
+                    <button type="button" onClick={() => onUnlinkMatch(item.id)} className="di-btn di-btn-quiet di-btn-sm">Unlink</button>
+                  )}
+                  {choice === 'link' && inlineLink && (
+                    <button type="button" onClick={() => onUnlinkInline(item.id)} className="di-btn di-btn-quiet di-btn-sm">Unlink</button>
+                  )}
+                  {choice === 'skip' && (
+                    <button type="button" onClick={() => onSetNoMatchChoice(item.id, null)} className="di-btn di-btn-ghost di-btn-sm">Undo</button>
+                  )}
+                  {(choice === 'link' && !inlineLink) || choice === 'create' ? (
+                    <button type="button" onClick={() => onSetNoMatchChoice(item.id, null)} className="rdm-search-back">← Back</button>
+                  ) : null}
+                </div>
               </div>
 
-              {isLoading ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#94A3B8', fontSize: 12 }}>
-                  <div style={{ width: 12, height: 12, border: '2px solid #CBD5E1', borderTopColor: '#4A90E2', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                  Searching inventory…
+              {/* Body — varies by state. Loading + skipped show no body. */}
+              {hasMatch && renderSplits(item.id, qty, splits)}
+              {choice === 'link' && inlineLink && renderSplits(item.id, qty, splits)}
+
+              {choice === 'link' && !inlineLink && (
+                <div style={{ position: 'relative' }}>
+                  <input
+                    value={search.query || ''}
+                    onChange={e => onInlineSearchChange(item.id, e.target.value)}
+                    placeholder="Search by name, brand, or CARGO code…"
+                    className="rdm-search-input"
+                  />
+                  {search.loading && <div className="rdm-search-loading">Searching…</div>}
+                  {(search.results || []).length > 0 && (
+                    <div className="rdm-search-results">
+                      {(search.results || []).map(inv => (
+                        <button
+                          key={inv.id}
+                          type="button"
+                          onMouseDown={e => { e.preventDefault(); onInlineLink(item.id, inv); }}
+                          className="rdm-search-result"
+                        >
+                          <div className="rdm-search-result-name">{inv.name}</div>
+                          <div className="rdm-search-result-meta">
+                            {[inv.brand, inv.size, inv.cargo_item_id].filter(Boolean).join(' · ')}
+                            {inv.total_qty != null ? ` · stock: ${inv.total_qty}` : ''}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
+              )}
 
-              ) : hasMatch ? (
-                /* ── Auto-matched ── */
-                <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '8px 12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    <Icon name="CheckCircle" style={{ width: 13, height: 13, color: '#16A34A', flexShrink: 0 }} />
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#15803D' }}>
-                      Matched → {match.name}
-                      {match.cargo_item_id && <span style={{ fontWeight: 400, color: '#4ADE80', marginLeft: 4 }}>({match.cargo_item_id})</span>}
-                    </span>
-                    <span style={{ fontSize: 11, color: '#6B7280', whiteSpace: 'nowrap' }}>stock: {match.total_qty ?? 0}</span>
-                    <button
-                      onClick={() => onUnlinkMatch(item.id)}
-                      style={{ marginLeft: 'auto', fontSize: 11, color: '#6B7280', background: 'none', border: '1px solid #BBF7D0', cursor: 'pointer', padding: '1px 7px', borderRadius: 5, flexShrink: 0 }}
-                      onMouseEnter={e => { e.currentTarget.style.color = '#EF4444'; e.currentTarget.style.borderColor = '#FCA5A5'; }}
-                      onMouseLeave={e => { e.currentTarget.style.color = '#6B7280'; e.currentTarget.style.borderColor = '#BBF7D0'; }}
-                    >Unlink</button>
-                  </div>
-                  {renderSplits(item.id, qty, splits)}
-                </div>
-
-              ) : choice === 'skip' ? (
-                /* ── Skipped ── */
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, padding: '7px 12px' }}>
-                  <span style={{ fontSize: 12, color: '#64748B', flex: 1 }}>Skipped — not pushed to inventory</span>
-                  <button onClick={() => onSetNoMatchChoice(item.id, null)} style={{ fontSize: 11, color: '#4A90E2', background: 'none', border: 'none', cursor: 'pointer' }}>Undo</button>
-                </div>
-
-              ) : choice === 'link' && inlineLink ? (
-                /* ── Inline-linked ── */
-                <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '8px 12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    <Icon name="Link" style={{ width: 13, height: 13, color: '#16A34A', flexShrink: 0 }} />
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#15803D' }}>
-                      Linked → {inlineLink.name}
-                      {inlineLink.cargo_item_id && <span style={{ fontWeight: 400, color: '#4ADE80', marginLeft: 4 }}>({inlineLink.cargo_item_id})</span>}
-                    </span>
-                    <span style={{ fontSize: 11, color: '#6B7280', whiteSpace: 'nowrap' }}>stock: {inlineLink.total_qty ?? 0}</span>
-                    <button
-                      onClick={() => onUnlinkInline(item.id)}
-                      style={{ marginLeft: 'auto', fontSize: 11, color: '#6B7280', background: 'none', border: '1px solid #BBF7D0', cursor: 'pointer', padding: '1px 7px', borderRadius: 5, flexShrink: 0 }}
-                      onMouseEnter={e => { e.currentTarget.style.color = '#EF4444'; e.currentTarget.style.borderColor = '#FCA5A5'; }}
-                      onMouseLeave={e => { e.currentTarget.style.color = '#6B7280'; e.currentTarget.style.borderColor = '#BBF7D0'; }}
-                    >Unlink</button>
-                  </div>
-                  {renderSplits(item.id, qty, splits)}
-                </div>
-
-              ) : choice === 'link' ? (
-                /* ── Inline search ── */
-                <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 8, padding: '8px 12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    <Icon name="Search" style={{ width: 13, height: 13, color: '#3B82F6', flexShrink: 0 }} />
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#1D4ED8' }}>Link to inventory item</span>
-                    <button onClick={() => onSetNoMatchChoice(item.id, null)} style={{ marginLeft: 'auto', fontSize: 11, color: '#64748B', background: 'none', border: 'none', cursor: 'pointer' }}>← Back</button>
-                  </div>
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      value={search.query || ''}
-                      onChange={e => onInlineSearchChange(item.id, e.target.value)}
-                      placeholder="Search by name, brand, or CARGO code…"
-                      style={{ width: '100%', boxSizing: 'border-box', fontSize: 12, padding: '5px 8px', border: '1px solid #BFDBFE', borderRadius: 6, outline: 'none' }}
-                    />
-                    {search.loading && <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#94A3B8' }}>…</span>}
-                    {(search.results || []).length > 0 && (
-                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 'var(--z-dropdown)', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, boxShadow: '0 8px 20px rgba(0,0,0,0.1)', marginTop: 2, maxHeight: 160, overflowY: 'auto' }}>
-                        {(search.results || []).map(inv => (
-                          <button
-                            key={inv.id}
-                            onMouseDown={e => { e.preventDefault(); onInlineLink(item.id, inv); }}
-                            style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: '7px 12px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: 1 }}
-                            onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                          >
-                            <span style={{ fontSize: 12, fontWeight: 600, color: '#0F172A' }}>{inv.name}</span>
-                            <span style={{ fontSize: 11, color: '#94A3B8' }}>{[inv.brand, inv.size, inv.cargo_item_id].filter(Boolean).join(' · ')}{inv.total_qty != null ? ` · stock: ${inv.total_qty}` : ''}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-              ) : choice === 'create' ? (
-                /* ── Create new item form ── */
-                <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 8, padding: '8px 12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    <Icon name="PlusCircle" style={{ width: 13, height: 13, color: '#EA580C', flexShrink: 0 }} />
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#C2410C' }}>Create new inventory item</span>
-                    <button onClick={() => onSetNoMatchChoice(item.id, null)} style={{ marginLeft: 'auto', fontSize: 11, color: '#64748B', background: 'none', border: 'none', cursor: 'pointer' }}>← Back</button>
-                  </div>
-                  {newForm ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {/* Item details grid */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                        <div>
-                          <FLD>Name *</FLD>
-                          <input value={newForm.name} onChange={e => onNewItemFormChange(item.id, 'name', e.target.value)} style={{ width: '100%', boxSizing: 'border-box', fontSize: 12, padding: '4px 8px', border: '1px solid #FED7AA', borderRadius: 6, outline: 'none' }} />
-                        </div>
-                        <div>
-                          <FLD>Brand</FLD>
-                          <input value={newForm.brand} onChange={e => onNewItemFormChange(item.id, 'brand', e.target.value)} style={{ width: '100%', boxSizing: 'border-box', fontSize: 12, padding: '4px 8px', border: '1px solid #FED7AA', borderRadius: 6, outline: 'none' }} />
-                        </div>
-                        <div>
-                          <FLD>Size</FLD>
-                          <input value={newForm.size} onChange={e => onNewItemFormChange(item.id, 'size', e.target.value)} placeholder="e.g. 750ml" style={{ width: '100%', boxSizing: 'border-box', fontSize: 12, padding: '4px 8px', border: '1px solid #FED7AA', borderRadius: 6, outline: 'none' }} />
-                        </div>
-                        <div>
-                          <FLD>Unit *</FLD>
-                          <select value={newForm.unit} onChange={e => onNewItemFormChange(item.id, 'unit', e.target.value)} style={{ width: '100%', boxSizing: 'border-box', fontSize: 12, padding: '4px 8px', border: '1px solid #FED7AA', borderRadius: 6, outline: 'none', background: 'white' }}>
-                            {UNIT_GROUPS.map(g => <optgroup key={g.label} label={g.label}>{g.options.map(u => <option key={u} value={u}>{u}</option>)}</optgroup>)}
-                          </select>
-                        </div>
-                        <div>
-                          <FLD>Barcode</FLD>
-                          <input value={newForm.barcode} onChange={e => onNewItemFormChange(item.id, 'barcode', e.target.value)} style={{ width: '100%', boxSizing: 'border-box', fontSize: 12, padding: '4px 8px', border: '1px solid #FED7AA', borderRadius: 6, outline: 'none' }} />
-                        </div>
-                      </div>
-
-                      {/* Inventory category — progressive hierarchy picker */}
-                      <div>
-                        <FLD>Inventory category *</FLD>
-                        <CategoryPicker
-                          paths={allLocations}
-                          value={newForm.categoryPath || ''}
-                          onChange={v => onNewItemFormChange(item.id, 'categoryPath', v)}
-                          borderColor="#FED7AA"
-                        />
-                      </div>
-
-                      {/* Physical storage locations with qty splits */}
-                      <div>
-                        <FLD>Storage locations *</FLD>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                          {(newForm.splits || []).map((s, idx) => (
-                            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                              <button
-                                onClick={() => onNewItemRemoveSplit(item.id, idx)}
-                                style={{ ...ICON_BTN, color: '#CBD5E1', flexShrink: 0 }}
-                                onMouseEnter={e => e.currentTarget.style.color = '#EF4444'}
-                                onMouseLeave={e => e.currentTarget.style.color = '#CBD5E1'}
-                              ><Icon name="Trash2" style={{ width: 12, height: 12 }} /></button>
-                              <VesselLocationPicker
-                                value={s.locationName}
-                                onChange={v => onNewItemSplitChange(item.id, idx, 'locationName', v)}
-                                vesselLocations={vesselLocations}
-                                borderColor="#FED7AA"
-                                placeholder="Select storage location…"
-                              />
+              {choice === 'create' && newForm && (
+                <>
+                  <div className="rdm-create-form">
+                    <div className="rdm-create-field">
+                      <FLD>Name <span style={{ color: 'var(--rdm-rust)' }}>*</span></FLD>
+                      <input value={newForm.name} onChange={e => onNewItemFormChange(item.id, 'name', e.target.value)} className="rdm-create-input" />
+                    </div>
+                    <div className="rdm-create-field">
+                      <FLD>Brand</FLD>
+                      <input value={newForm.brand} onChange={e => onNewItemFormChange(item.id, 'brand', e.target.value)} className="rdm-create-input" />
+                    </div>
+                    <div className="rdm-create-field">
+                      <FLD>Size</FLD>
+                      <input value={newForm.size} onChange={e => onNewItemFormChange(item.id, 'size', e.target.value)} placeholder="e.g. 750ml" className="rdm-create-input" />
+                    </div>
+                    <div className="rdm-create-field">
+                      <FLD>Unit <span style={{ color: 'var(--rdm-rust)' }}>*</span></FLD>
+                      <select value={newForm.unit} onChange={e => onNewItemFormChange(item.id, 'unit', e.target.value)} className="rdm-create-select">
+                        {UNIT_GROUPS.map(g => <optgroup key={g.label} label={g.label}>{g.options.map(u => <option key={u} value={u}>{u}</option>)}</optgroup>)}
+                      </select>
+                    </div>
+                    <div className="rdm-create-field">
+                      <FLD>Barcode</FLD>
+                      <input value={newForm.barcode} onChange={e => onNewItemFormChange(item.id, 'barcode', e.target.value)} className="rdm-create-input" />
+                    </div>
+                    <div className="rdm-create-field is-full">
+                      <FLD>Inventory category <span style={{ color: 'var(--rdm-rust)' }}>*</span></FLD>
+                      <CategoryPicker
+                        paths={allLocations}
+                        value={newForm.categoryPath || ''}
+                        onChange={v => onNewItemFormChange(item.id, 'categoryPath', v)}
+                      />
+                    </div>
+                    <div className="rdm-create-field is-full">
+                      <FLD>Storage locations <span style={{ color: 'var(--rdm-rust)' }}>*</span></FLD>
+                      <div className="rdm-splits" style={{ marginTop: 0, paddingTop: 0, borderTop: 0 }}>
+                        {(newForm.splits || []).map((s, idx) => (
+                          <div key={idx} className="rdm-split-row">
+                            <button
+                              type="button"
+                              onClick={() => onNewItemRemoveSplit(item.id, idx)}
+                              className="rdm-split-delete"
+                              title="Remove location"
+                            >
+                              <Icon name="Trash2" style={{ width: 14, height: 14 }} />
+                            </button>
+                            <VesselLocationPicker
+                              value={s.locationName}
+                              onChange={v => onNewItemSplitChange(item.id, idx, 'locationName', v)}
+                              vesselLocations={vesselLocations}
+                              placeholder="Select storage location…"
+                            />
+                            <span style={{ visibility: 'hidden' }} className="rdm-split-now">—</span>
+                            <div className="rdm-split-qty-controls">
                               <SplitQtyBtn onClick={() => onNewItemSplitChange(item.id, idx, 'addQty', Math.max(0, (parseFloat(s.addQty) || 0) - 1))}>−</SplitQtyBtn>
                               <input
                                 type="number" min="0" value={s.addQty}
                                 onChange={e => onNewItemSplitChange(item.id, idx, 'addQty', parseFloat(e.target.value) || 0)}
-                                style={{ width: 38, textAlign: 'center', fontSize: 12, padding: '3px 2px', border: '1px solid #FED7AA', borderRadius: 6, outline: 'none', flexShrink: 0 }}
+                                className="rdm-split-qty-input"
                               />
                               <SplitQtyBtn onClick={() => onNewItemSplitChange(item.id, idx, 'addQty', (parseFloat(s.addQty) || 0) + 1)}>+</SplitQtyBtn>
                             </div>
-                          ))}
-                        </div>
-                        {/* Add location row + total */}
+                          </div>
+                        ))}
                         {(() => {
                           const splits = newForm.splits || [];
                           const totalAllocated = splits.reduce((sum, s) => sum + (parseFloat(s.addQty) || 0), 0);
                           const allocOk = Math.abs(totalAllocated - qty) < 0.001;
                           return (
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
-                              <button onClick={() => onNewItemAddSplit(item.id)} style={{ fontSize: 11, fontWeight: 600, color: '#EA580C', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>+ Add location</button>
-                              <span style={{ fontSize: 11, fontWeight: 600, color: allocOk ? '#16A34A' : '#EA580C' }}>{totalAllocated} of {qty} allocated{allocOk ? ' ✓' : ''}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                              <button type="button" onClick={() => onNewItemAddSplit(item.id)} className="rdm-split-add">
+                                + Add location
+                              </button>
+                              <span className={`rdm-split-summary${allocOk ? ' is-complete' : ' is-incomplete'}`}>
+                                {totalAllocated} of {qty} allocated{allocOk ? ' ✓' : ''}
+                              </span>
                             </div>
                           );
                         })()}
                       </div>
                     </div>
-                  ) : null}
-                </div>
+                  </div>
+                </>
+              )}
 
-              ) : (
-                /* ── No match — choose action ── */
-                <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 8, padding: '8px 12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    <Icon name="AlertCircle" style={{ width: 13, height: 13, color: '#EA580C' }} />
-                    <span style={{ fontSize: 12, fontWeight: 500, color: '#C2410C' }}>No inventory match found</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    <button
-                      onClick={() => onSetNoMatchChoice(item.id, 'link')}
-                      style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, cursor: 'pointer', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8' }}
-                    >🔍 Link to inventory</button>
-                    <button
-                      onClick={() => { onSetNoMatchChoice(item.id, 'create'); onInitNewItemForm(item.id, item); }}
-                      style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, cursor: 'pointer', background: '#FFF7ED', border: '1px solid #FED7AA', color: '#EA580C' }}
-                    >+ Create new item</button>
-                    <button
-                      onClick={() => onSetNoMatchChoice(item.id, 'skip')}
-                      style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#94A3B8' }}
-                    >Skip</button>
-                  </div>
+              {!isLoading && !hasMatch && !choice && (
+                <div className="rdm-route-actions-row">
+                  <button
+                    type="button"
+                    onClick={() => onSetNoMatchChoice(item.id, 'link')}
+                    className="di-btn di-btn-ghost"
+                  >
+                    <Icon name="Search" style={{ width: 13, height: 13, marginRight: 5 }} />
+                    Link to inventory
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { onSetNoMatchChoice(item.id, 'create'); onInitNewItemForm(item.id, item); }}
+                    className="di-btn di-btn-primary"
+                  >
+                    + Create new item
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onSetNoMatchChoice(item.id, 'skip')}
+                    className="di-btn di-btn-quiet"
+                  >
+                    Skip
+                  </button>
                 </div>
               )}
             </div>
@@ -926,32 +879,32 @@ const PushStep = ({
         })}
 
         {receivedItems.length === 0 && (
-          <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-            <p style={{ fontSize: 14, color: '#94A3B8' }}>No items to push to inventory</p>
-          </div>
+          <div className="rdm-empty">No items to push to inventory</div>
         )}
       </div>
 
-      <div style={{ padding: '12px 20px', borderTop: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-        <button onClick={onBack} style={{ fontSize: 13, padding: '7px 14px', borderRadius: 8, cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', color: '#64748B', display: 'flex', alignItems: 'center', gap: 5 }}>
-          ← Back
-        </button>
-        {receivedItems.length === 0 ? (
-          <button
-            onClick={onComplete}
-            style={{ fontSize: 13, fontWeight: 600, padding: '7px 16px', borderRadius: 8, cursor: 'pointer', background: '#1E3A5F', border: '1px solid #1E3A5F', color: 'white' }}
-          >
-            Done
+      <div className="rdm-footer">
+        <div className="rdm-footer-left">
+          <button type="button" onClick={onBack} className="di-btn di-btn-ghost">
+            ← Back
           </button>
-        ) : (
-          <button
-            onClick={onPush}
-            disabled={pushing}
-            style={{ fontSize: 13, fontWeight: 600, padding: '7px 16px', borderRadius: 8, cursor: 'pointer', background: '#15803D', border: '1px solid #15803D', color: 'white', opacity: pushing ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 6 }}
-          >
-            {pushing ? 'Pushing…' : `Push to Inventory (${receivedItems.length})`}
-          </button>
-        )}
+        </div>
+        <div className="rdm-footer-actions">
+          {receivedItems.length === 0 ? (
+            <button type="button" onClick={onComplete} className="di-btn di-btn-primary">
+              Done
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onPush}
+              disabled={pushing}
+              className="di-btn di-btn-sage"
+            >
+              {pushing ? 'Pushing…' : `Push to Inventory (${receivedItems.length})`}
+            </button>
+          )}
+        </div>
       </div>
     </>
   );
@@ -1724,36 +1677,59 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
     Object.values(receiving || {}).some(r => r && (r.checked || (r.qty != null && r.qty !== '') || (r.notes || '').length > 0))
   );
 
+  // Two-pill PRESENTATIONAL step indicator. Reads `step` from state;
+  // does NOT navigate when clicked — the pills are <span>s, not buttons,
+  // so the crew can't skip the save logic by jumping ahead.
+  const stepConfig = [
+    { n: 1, label: 'Receive' },
+    { n: 2, label: 'Push to inventory' },
+  ];
+
   return (
-    <ModalShell onClose={onClose} isDirty={isDirty} isBusy={saving || pushing} panelStyle={{ background: 'white', borderRadius: 16, boxShadow: '0 24px 64px rgba(0,0,0,0.18)', width: '100%', maxWidth: 680, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {/* Modal header */}
-        <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexShrink: 0 }}>
-          <div>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', margin: 0 }}>Receive Items</h2>
-            <p style={{ fontSize: 12, color: '#94A3B8', margin: '3px 0 0' }}>{multiBoard ? `All boards · ${items.length} items` : list?.title}</p>
+    <ModalShell
+      onClose={onClose}
+      isDirty={isDirty}
+      isBusy={saving || pushing}
+      panelStyle={{
+        background: 'var(--rdm-card, #fff)',
+        borderRadius: 16,
+        boxShadow: '0 24px 64px rgba(38, 42, 83, 0.18)',
+        width: '100%', maxWidth: 720, maxHeight: '90vh',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+      }}
+    >
+      <div className="rdm" style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}>
+        {/* Modal header — title block + presentational stepper + close */}
+        <div style={{ padding: '22px 28px 0' }}>
+          <div className="rdm-header">
+            <div className="rdm-title-block">
+              <p className="rdm-eyebrow">{multiBoard ? `All boards · ${items.length} items` : (list?.title || 'Receive')}</p>
+              <h2 className="rdm-title">Receive items</h2>
+            </div>
+            <div className="rdm-stepper" aria-label={`Step ${step} of ${stepConfig.length}`}>
+              {stepConfig.map(({ n, label }, idx) => {
+                const isActive = step === n;
+                const isDone = step > n;
+                const cls = `rdm-step${isActive ? ' is-active' : ''}${isDone ? ' is-done' : ''}`;
+                return (
+                  <React.Fragment key={n}>
+                    <span className={cls} aria-current={isActive ? 'step' : undefined}>
+                      <span className="rdm-step-num">{isDone ? '✓' : n}</span>
+                      <span>{label}</span>
+                    </span>
+                    {idx < stepConfig.length - 1 && <span className="rdm-step-connector" aria-hidden="true" />}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+            <button onClick={onClose} className="rdm-icon-btn" aria-label="Close" style={{ alignSelf: 'flex-start' }}>
+              <Icon name="X" style={{ width: 18, height: 18 }} />
+            </button>
           </div>
-          {/* Step indicator */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginRight: 'auto', marginLeft: 24 }}>
-            {[1, 2].map(n => (
-              <React.Fragment key={n}>
-                <div style={{
-                  width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 11, fontWeight: 700,
-                  background: step === n ? '#1E3A5F' : step > n ? '#DCFCE7' : '#F1F5F9',
-                  color: step === n ? 'white' : step > n ? '#15803D' : '#94A3B8',
-                }}>
-                  {step > n ? '✓' : n}
-                </div>
-                {n < 2 && <div style={{ width: 24, height: 2, background: step > n ? '#86EFAC' : '#F1F5F9', borderRadius: 1 }} />}
-              </React.Fragment>
-            ))}
-          </div>
-          <button onClick={onClose} style={{ ...ICON_BTN, marginLeft: 'auto' }}>
-            <Icon name="X" style={{ width: 18, height: 18 }} />
-          </button>
         </div>
 
-        {/* Step content */}
+        {/* Step content — scrolls; footer-per-step is rendered inside each step */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 28px 24px' }}>
         {step === 1 ? (
           <ReceiveStep
             items={[...items, ...addedItems]}
@@ -1807,8 +1783,8 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
             pushing={pushing}
           />
         )}
-      {/* Spinner keyframe */}
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
     </ModalShell>
   );
 };
