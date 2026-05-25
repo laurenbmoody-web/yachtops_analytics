@@ -2164,6 +2164,112 @@
   align-self: flex-start;
 }
 
+/* Per-day list (v1.2 C3) — under the bulk readout. Expand toggle plus
+   one row per breaching day, with Amend / Exclude / Include / Reset. */
+.ap-bulk-perday-toggle {
+  margin-top: 6px;
+  align-self: flex-start;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: #7A2E1E;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ap-bulk-perday-toggle:hover { color: #5C2316; }
+.ap-bulk-perday-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  background: #FFFEF9;
+  border: 0.5px solid #F0D5C7;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ap-bulk-perday-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px;
+  color: #1C1B3A;
+  padding: 4px 0;
+  border-top: 0.5px solid #F0D5C7;
+}
+.ap-bulk-perday-row:first-child { border-top: 0; }
+.ap-bulk-perday-row.is-excluded { color: #5F5E5A; }
+.ap-bulk-perday-row.is-fall-out { background: #FFF7EA; }
+.ap-bulk-perday-row.is-amended .ap-bulk-perday-times { color: #1C1B3A; }
+.ap-bulk-perday-date {
+  flex: 0 0 auto;
+  min-width: 86px;
+  font-variant-numeric: tabular-nums;
+}
+.ap-bulk-perday-times {
+  flex: 1 1 auto;
+  font-variant-numeric: tabular-nums;
+}
+.ap-bulk-perday-tag {
+  font-size: 10.5px;
+  letter-spacing: 0.5px;
+  color: #695880;
+  font-style: italic;
+}
+.ap-bulk-perday-tag-warn { color: #7A2E1E; }
+.ap-bulk-perday-excluded {
+  flex: 1 1 auto;
+  font-style: italic;
+  color: #5F5E5A;
+}
+.ap-bulk-perday-action {
+  flex: 0 0 auto;
+  background: transparent;
+  border: 0.5px solid #D9CCB9;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: #5F5E5A;
+  cursor: pointer;
+}
+.ap-bulk-perday-action:hover { background: #F4F1EA; color: #1C1B3A; }
+.ap-bulk-perday-amend-label {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: #5F5E5A;
+}
+.ap-bulk-perday-mini-confirm,
+.ap-bulk-perday-mini-cancel {
+  flex: 0 0 auto;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 3px 12px;
+  cursor: pointer;
+}
+.ap-bulk-perday-mini-confirm {
+  background: #7A2E1E;
+  border: 0.5px solid #7A2E1E;
+  color: #FFFEF9;
+}
+.ap-bulk-perday-mini-confirm:hover { background: #5C2316; }
+.ap-bulk-perday-mini-cancel {
+  background: transparent;
+  border: 0.5px solid #D9CCB9;
+  color: #5F5E5A;
+}
+.ap-bulk-perday-mini-cancel:hover { background: #F4F1EA; }
+
 /* Futile-shorten message — replaces the bulk lever when no chief-pick
    could clear the breach (uniform_load weekly + the long shift only
    trims to the daily cap, weekly still over). Plain quiet prose, no

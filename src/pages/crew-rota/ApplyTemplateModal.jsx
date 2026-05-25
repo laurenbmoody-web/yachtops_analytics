@@ -618,6 +618,21 @@ function BulkShortenLever({
   const [prefill, setPrefill] = useState(null);
   const [direction, setDirection] = useState('end');
   const [currentTime, setCurrentTime] = useState(null);
+  // Per-day list expand toggle.
+  const [perDayOpen, setPerDayOpen] = useState(false);
+  // Per-day state — explicit chief decisions only. A date with no
+  // entry uses the default-from-prefill semantics (viable-in-bulk-
+  // direction → include=true; non-viable → include=false). When the
+  // chief Excludes / Includes / Amends a day, an entry lands here.
+  //   { include: bool, customTime: 'HH:MM' | undefined }
+  // PRESERVED across direction switches per the C3 rework (the
+  // spec settlement). Switching direction recomputes the bulk's
+  // representative time and the default-derived per-day defaults
+  // but does NOT clear chief-set entries.
+  const [perDayState, setPerDayState] = useState(() => new Map());
+  // Per-row amend mini-editor.
+  const [amendOpenForDate, setAmendOpenForDate] = useState(null);
+  const [amendDraftTime, setAmendDraftTime] = useState(null);
 
   const openEditor = () => {
     if (buttonsDisabled) return;
@@ -626,6 +641,10 @@ function BulkShortenLever({
     setPrefill(p);
     setDirection(p.direction);
     setCurrentTime(p.direction === 'end' ? p.bulkNewEnd : p.bulkNewStart);
+    setPerDayState(new Map());
+    setPerDayOpen(false);
+    setAmendOpenForDate(null);
+    setAmendDraftTime(null);
     setOpen(true);
   };
 
@@ -636,12 +655,20 @@ function BulkShortenLever({
     setPrefill(p);
     setDirection(nextDir);
     setCurrentTime(nextDir === 'end' ? p.bulkNewEnd : p.bulkNewStart);
+    // perDayState is PRESERVED — exclusions and amendments survive the
+    // direction switch (the C3 rework). amendDraftTime is reset only if
+    // the chief was mid-amend on a day; the open amend stays open with
+    // its in-progress value untouched (the chief's deliberate input).
   };
 
   const cancel = () => {
     setOpen(false);
     setPrefill(null);
     setCurrentTime(null);
+    setPerDayState(new Map());
+    setPerDayOpen(false);
+    setAmendOpenForDate(null);
+    setAmendDraftTime(null);
   };
 
   // Drop tertiary — batch all breaching rows in one transition.
@@ -651,59 +678,137 @@ function BulkShortenLever({
     cancel();
   };
 
+  // Effective per-day state — merges chief's explicit perDayState with
+  // the default derived from prefill.viableInBulkDirection.
+  const effectivePerDay = (date) => {
+    const explicit = perDayState.get(date);
+    if (explicit) return explicit;
+    const entry = prefill?.perDay.find((d) => d.date === date);
+    return {
+      include: !!entry?.viableInBulkDirection,
+      customTime: undefined,
+    };
+  };
+
+  // Per-row action handlers. Each writes a fresh perDayState; React
+  // batches the single setState as it lives inside an event handler.
+  const includeDay = (date) => {
+    const next = new Map(perDayState);
+    const existing = next.get(date) || { customTime: undefined };
+    next.set(date, { ...existing, include: true });
+    setPerDayState(next);
+  };
+  const excludeDay = (date) => {
+    const next = new Map(perDayState);
+    next.set(date, { include: false, customTime: undefined });
+    setPerDayState(next);
+  };
+  const openAmend = (date) => {
+    if (!prefill) return;
+    const eff = effectivePerDay(date);
+    const entry = prefill.perDay.find((d) => d.date === date);
+    // Mini-editor initial value: existing customTime if amended, else
+    // the day's representative bulk time (direction-aware).
+    const initial = eff.customTime
+      ?? (direction === 'end' ? (entry?.newEnd ?? currentTime) : (entry?.newStart ?? currentTime));
+    setAmendDraftTime(initial);
+    setAmendOpenForDate(date);
+  };
+  const confirmAmend = () => {
+    if (!amendOpenForDate || !amendDraftTime) return;
+    const next = new Map(perDayState);
+    next.set(amendOpenForDate, { include: true, customTime: amendDraftTime });
+    setPerDayState(next);
+    setAmendOpenForDate(null);
+    setAmendDraftTime(null);
+  };
+  const cancelAmend = () => {
+    setAmendOpenForDate(null);
+    setAmendDraftTime(null);
+  };
+  const resetAmend = (date) => {
+    const next = new Map(perDayState);
+    const existing = next.get(date);
+    if (!existing) return;
+    if (existing.customTime !== undefined) {
+      if (existing.include) {
+        next.delete(date); // back to default include=true, customTime=undefined
+      } else {
+        next.set(date, { ...existing, customTime: undefined });
+      }
+    }
+    setPerDayState(next);
+  };
+
   // Compute the per-day edits + preview state for the current time.
   // Memoised so a TimeSelect change triggers exactly one preview pass.
   const previewState = useMemo(() => {
     if (!prefill || !currentTime || !open) return null;
-    const candidates = prefill.perDay.filter((d) => d.viableInBulkDirection && d.row);
-    if (candidates.length === 0) {
+    // Build the per-day edit set FROM the chief's effective per-day
+    // state, not from prefill alone. include=true days enter the write
+    // set; their time is the chief's customTime if amended, else the
+    // bulk's currentTime. include=false days don't appear in the set.
+    // Compared to C2's auto-exclude-on-fall-out: C3 lets the chief
+    // control inclusion via Exclude/Include, and the readout informs
+    // (without auto-excluding) when an included day's time wouldn't
+    // clear the rule. Apply writes all include=true days — fall-out
+    // days persist in the main MLC list as remaining breaches.
+    const includedEdits = [];
+    const excludedEntries = [];
+    for (const d of prefill.perDay) {
+      if (!d.row) continue;
+      const eff = effectivePerDay(d.date);
+      if (!eff.include) { excludedEntries.push(d); continue; }
+      const time = eff.customTime ?? currentTime;
+      const newStart = direction === 'end' ? d.row.start_time : time;
+      const newEnd   = direction === 'end' ? time              : d.row.end_time;
+      includedEdits.push({
+        date: d.date, row: d.row, newStart, newEnd, key: dropRowKey(d.row),
+        amended: eff.customTime !== undefined,
+      });
+    }
+    if (includedEdits.length === 0) {
+      const originalRules = new Set((allMemberBreaches || []).map((b) => b.rule));
       return {
-        candidates: [], candidateEdits: [], includedEdits: [],
-        fallenOutDates: [], directionExcludedEntries: prefill.perDay.filter((d) => !d.viableInBulkDirection),
-        clearedOtherRules: [], remainingOtherRules: [],
-        newDurationH: 0,
+        includedEdits: [], excludedEntries,
+        stillBreachingDates: [], clearedDates: [],
+        clearedOtherRules: [], remainingOtherRules: [...originalRules].filter((r) => r !== rule),
+        newDurationHFirst: 0,
       };
     }
-    // Build edits at chief's chosen time for every viable-in-direction day.
-    const candidateEdits = candidates.map((d) => {
-      const newStart = direction === 'end' ? d.row.start_time : currentTime;
-      const newEnd   = direction === 'end' ? currentTime           : d.row.end_time;
-      return { date: d.date, row: d.row, newStart, newEnd, key: dropRowKey(d.row) };
-    });
-    const overrides = candidateEdits.map((e) => [e.key, { newStart: e.newStart, newEnd: e.newEnd }]);
+    const overrides = includedEdits.map((e) => [e.key, { newStart: e.newStart, newEnd: e.newEnd }]);
     const assessment = previewWithEdits(overrides);
     const memberPreviewBreaches = assessment.byMember?.[memberId]?.mlcBreaches || [];
     const stillBreachingDates = new Set(
       memberPreviewBreaches.filter((b) => b.rule === rule).map((b) => b.date),
     );
-    const includedEdits = candidateEdits.filter((e) => !stillBreachingDates.has(e.date));
-    const fallenOutDates = candidateEdits.filter((e) => stillBreachingDates.has(e.date)).map((e) => e.date);
+    const clearedDates = includedEdits
+      .filter((e) => !stillBreachingDates.has(e.date))
+      .map((e) => e.date);
     // Other rules this member was breaching pre-edit — and their status
-    // after the bulk preview. Used for the co-breach readout shape.
+    // after the preview. Used for the co-breach readout shape.
     const originalRules = new Set((allMemberBreaches || []).map((b) => b.rule));
     const previewRules = new Set(memberPreviewBreaches.map((b) => b.rule));
     const otherOriginal = [...originalRules].filter((r) => r !== rule);
     const clearedOtherRules = otherOriginal.filter((r) => !previewRules.has(r));
     const remainingOtherRules = otherOriginal.filter((r) => previewRules.has(r));
-    // Representative duration — same across all candidates for uniform
-    // recurring shifts; first candidate is fine.
-    let newDurationH = 0;
-    if (candidateEdits.length > 0) {
-      const c = candidateEdits[0];
-      newDurationH = computeNewDurationH(c.newStart, c.newEnd);
-    }
+    // Representative duration — first included edit; uniform recurring
+    // shifts make this match every entry. Amended days may differ; the
+    // per-day list shows the per-day duration accurately.
+    const newDurationHFirst = computeNewDurationH(
+      includedEdits[0].newStart, includedEdits[0].newEnd,
+    );
     return {
-      candidates,
-      candidateEdits,
       includedEdits,
-      fallenOutDates,
-      directionExcludedEntries: prefill.perDay.filter((d) => !d.viableInBulkDirection),
+      excludedEntries,
+      stillBreachingDates: [...stillBreachingDates],
+      clearedDates,
       clearedOtherRules,
       remainingOtherRules,
-      newDurationH,
+      newDurationHFirst,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefill, currentTime, direction, memberId, rule]);
+  }, [prefill, currentTime, direction, memberId, rule, perDayState]);
 
   // Collapsed state — the primary + secondary buttons.
   if (!open) {
@@ -732,8 +837,8 @@ function BulkShortenLever({
   const lbl = (rs) => joinAnd(rs.map((r) => MLC_RULE_SHORT_LABEL[r] || r));
   const ruleLabel = MLC_RULE_SHORT_LABEL[rule] || rule;
   const includedCount = previewState?.includedEdits.length ?? 0;
-  const fallenOutDates = previewState?.fallenOutDates || [];
-  const directionExcluded = previewState?.directionExcludedEntries || [];
+  const stillBreachingDates = previewState?.stillBreachingDates || [];
+  const excludedEntries = previewState?.excludedEntries || [];
   const totalCount = recurringDays;
   const writtenCount = includedCount;
   const noChange = !!currentTime && (
@@ -755,6 +860,9 @@ function BulkShortenLever({
   //   2. no-change          → "Trimming from this end won't shorten…"
   //   3. structured         → "Trims X of N days…" + binding-rule explain
   //                           + clears/breaches text
+  // C3: writtenCount = chief's include=true count (chief controls
+  // inclusion via Exclude/Include); stillBreachingDates surfaces the
+  // would-still-breach days from preview but does NOT auto-exclude them.
   let readoutSummary;
   let readoutDetail;
   if (!dirData || dirData.bulkDNewMaxH <= 0) {
@@ -764,44 +872,38 @@ function BulkShortenLever({
     readoutSummary = `Trimming from this end won't shorten the shift`;
     readoutDetail = '— try the other end';
   } else {
-    // "Trims X of N days to/at HH:MM–HH:MM (Xh)" + binding-rule.
     const newStartLabel = direction === 'end' ? origStart : currentTime;
     const newEndLabel   = direction === 'end' ? currentTime : origEnd;
-    const durLabel = fmtHoursH(previewState?.newDurationH ?? 0);
+    const durLabel = fmtHoursH(previewState?.newDurationHFirst ?? 0);
     const timesLabel = `${newStartLabel}–${newEndLabel} (${durLabel})`;
     const allWritten = writtenCount === totalCount;
     const verb = allWritten ? 'to' : 'at';
     const countLabel = allWritten ? `all ${totalCount} day${totalCount === 1 ? '' : 's'}` : `${writtenCount} of ${totalCount} days`;
     const bindingExplain = BULK_BINDING_EXPLAIN[dirData.bulkBindingRule] || '';
     readoutSummary = `Trims ${countLabel} ${verb} ${timesLabel}${bindingExplain}.`;
-    // Detail tail.
-    const excludedDateList = (entries) => entries.map((e) => fmtDateShort(e.date)).join(', ');
-    const fallenOutDateList = fallenOutDates.map((d) => fmtDateShort(d)).join(', ');
+    const stillBreachDateList = stillBreachingDates.map((d) => fmtDateShort(d)).join(', ');
+    const excludedDateList = excludedEntries.map((e) => fmtDateShort(e.date)).join(', ');
     const tailParts = [];
     if (writtenCount === 0) {
-      tailParts.push(`Doesn't clear any days at this time — pick a shorter trim`);
-    } else if (writtenCount === totalCount) {
+      tailParts.push(`No days selected — re-include some days or pick a different time`);
+    } else if (stillBreachingDates.length === 0) {
+      // All included days clear this rule. Check co-breach.
       if ((previewState?.remainingOtherRules || []).length > 0) {
         tailParts.push(`Clears ${ruleLabel} — still breaches ${lbl(previewState.remainingOtherRules)}`);
       } else {
         tailParts.push(`Clears the breach`);
       }
     } else {
-      // Partial: name the excluded days and the rule that remains.
-      const exclParts = [];
-      if (fallenOutDates.length > 0) {
-        exclParts.push(`${fallenOutDateList} would still breach ${ruleLabel}`);
-      }
-      if (directionExcluded.length > 0) {
-        const dirExclList = excludedDateList(directionExcluded);
-        const needsOther = directionExcluded.some((e) => e.viableInOtherDirection);
-        const otherDir = direction === 'end' ? 'start' : 'end';
-        const dirReason = needsOther
-          ? `would need ${otherDir}-trim`
-          : `can't shorten enough to clear there either`;
-        exclParts.push(`${dirExclList} excluded — ${dirReason}`);
-      }
-      tailParts.push(exclParts.join('. '));
+      // Some included days don't clear at their effective time.
+      tailParts.push(`${stillBreachDateList} would still breach ${ruleLabel}`);
+    }
+    if (excludedEntries.length > 0) {
+      const needsOther = excludedEntries.some((e) => e.viableInOtherDirection);
+      const otherDir = direction === 'end' ? 'start' : 'end';
+      const dirReason = needsOther
+        ? `would need ${otherDir}-trim`
+        : `can't shorten enough to clear there either`;
+      tailParts.push(`${excludedDateList} excluded — ${dirReason}`);
     }
     readoutDetail = tailParts.join('. ');
   }
@@ -850,6 +952,114 @@ function BulkShortenLever({
           </>
         )}
       </div>
+
+      <button
+        type="button"
+        className="ap-bulk-perday-toggle"
+        aria-expanded={perDayOpen}
+        onClick={() => setPerDayOpen((v) => !v)}
+      >{perDayOpen ? '▾' : '▸'} Amend individual days</button>
+
+      {perDayOpen && prefill && (
+        <ul className="ap-bulk-perday-list">
+          {prefill.perDay.map((dayEntry) => {
+            const isAmending = amendOpenForDate === dayEntry.date;
+            const eff = effectivePerDay(dayEntry.date);
+            const date = dayEntry.date;
+            const dateLabel = (() => {
+              const d = fromStr(date);
+              return `${WEEKDAY_SHORT[d.getDay()]} ${fmtDateShort(date)}`;
+            })();
+
+            if (isAmending) {
+              return (
+                <li key={date} className="ap-bulk-perday-row is-editing">
+                  <span className="ap-bulk-perday-date">{dateLabel}</span>
+                  <span className="ap-bulk-perday-amend-label">
+                    {direction === 'end' ? 'New end:' : 'New start:'}
+                  </span>
+                  <TimeSelect
+                    value={amendDraftTime || ''}
+                    onChange={setAmendDraftTime}
+                    ariaLabel="Custom new time"
+                  />
+                  <button
+                    type="button" className="ap-bulk-perday-mini-confirm"
+                    onClick={confirmAmend}
+                  >Confirm</button>
+                  <button
+                    type="button" className="ap-bulk-perday-mini-cancel"
+                    onClick={cancelAmend}
+                  >Cancel</button>
+                </li>
+              );
+            }
+
+            if (!eff.include) {
+              // Excluded — work out the honest reason.
+              const isDirectionExcluded = !dayEntry.viableInBulkDirection;
+              const needsOther = isDirectionExcluded && dayEntry.viableInOtherDirection;
+              const otherDir = direction === 'end' ? 'start' : 'end';
+              let reasonCopy;
+              if (needsOther) {
+                reasonCopy = `needs ${otherDir}-trim`;
+              } else if (isDirectionExcluded) {
+                reasonCopy = `can't shorten enough to clear`;
+              } else {
+                reasonCopy = `you excluded this day`;
+              }
+              return (
+                <li key={date} className="ap-bulk-perday-row is-excluded">
+                  <span className="ap-bulk-perday-date">{dateLabel}</span>
+                  <span className="ap-bulk-perday-excluded">excluded — {reasonCopy}</span>
+                  <button
+                    type="button" className="ap-bulk-perday-action"
+                    onClick={() => includeDay(date)}
+                  >Include</button>
+                </li>
+              );
+            }
+
+            // Included — compute the effective times for display.
+            const time = eff.customTime ?? currentTime;
+            const newStart = direction === 'end' ? dayEntry.row.start_time : time;
+            const newEnd   = direction === 'end' ? time                       : dayEntry.row.end_time;
+            const dur = computeNewDurationH(newStart, newEnd);
+            const amended = eff.customTime !== undefined;
+            const wouldStillBreach = (previewState?.stillBreachingDates || []).includes(date);
+            return (
+              <li
+                key={date}
+                className={`ap-bulk-perday-row${amended ? ' is-amended' : ''}${wouldStillBreach ? ' is-fall-out' : ''}`}
+              >
+                <span className="ap-bulk-perday-date">{dateLabel}</span>
+                <span className="ap-bulk-perday-times">
+                  {String(newStart).slice(0, 5)}–{String(newEnd).slice(0, 5)} ({fmtHoursH(dur)})
+                  {amended && <span className="ap-bulk-perday-tag"> amended</span>}
+                  {wouldStillBreach && <span className="ap-bulk-perday-tag ap-bulk-perday-tag-warn"> would still breach</span>}
+                </span>
+                {amended ? (
+                  <button
+                    type="button" className="ap-bulk-perday-action"
+                    onClick={() => resetAmend(date)}
+                  >Reset</button>
+                ) : (
+                  <>
+                    <button
+                      type="button" className="ap-bulk-perday-action"
+                      onClick={() => openAmend(date)}
+                    >Amend</button>
+                    <button
+                      type="button" className="ap-bulk-perday-action"
+                      onClick={() => excludeDay(date)}
+                    >Exclude</button>
+                  </>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
       <div className="ap-mlc-shorten-actions">
         <button type="button" className="ap-mlc-shorten-cancel" onClick={cancel}>
@@ -2701,6 +2911,15 @@ export default function ApplyTemplateModal({
                   if ((b - a) / 86_400_000 !== 1) { contiguous = false; break; }
                 }
                 if (contiguous) {
+                  const first = fromStr(dates[0]);
+                  const last  = fromStr(dates[dates.length - 1]);
+                  // Same-month rollup → "25–29 May" (month once). Cross-
+                  // month → keep both ("28 May–2 Jun"). Year boundary
+                  // also forces both-format. C3 copy tweak.
+                  if (first.getMonth() === last.getMonth()
+                      && first.getFullYear() === last.getFullYear()) {
+                    return `${first.getDate()}–${last.getDate()} ${MONTH_SHORT[first.getMonth()]}`;
+                  }
                   return `${fmtDateShort(dates[0])}–${fmtDateShort(dates[dates.length - 1])}`;
                 }
                 return dates.map(fmtDateShort).join(', ');
