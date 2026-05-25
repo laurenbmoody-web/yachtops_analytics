@@ -23,6 +23,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import {
   fetchPortalEnabledSuppliers,
   sendReturnToPortal,
+  fetchSupplierOrdersForPicker,
 } from './utils/provisioningStorage';
 import './delivery-inbox.css';
 
@@ -183,6 +184,13 @@ export default function ReturnSlipPage() {
   // dialog wording.
   const [isPortalEnabled, setIsPortalEnabled] = useState(false);
   const [portalSupplierName, setPortalSupplierName] = useState(null);
+  // Orders for the Cargo confirm dialog's picker. Fetched silently on
+  // load only when the supplier turns out to be Cargo-enabled — keeps
+  // it off the email path (no row to attach order_id to) and preserves
+  // the "no routing tell while drafting the slip" property since the
+  // picker only appears inside the Cargo confirm dialog.
+  const [supplierOrdersForPicker, setSupplierOrdersForPicker] = useState([]);
+  const [selectedOrderId, setSelectedOrderId] = useState('');
   // 'cargo' | 'email' | null. The confirmation dialog is also the gate
   // where the signature requirement is enforced (both paths).
   const [confirmDialog, setConfirmDialog] = useState(null);
@@ -251,6 +259,15 @@ export default function ReturnSlipPage() {
           if (canonical) {
             setIsPortalEnabled(true);
             setPortalSupplierName(canonical);
+            // Picker content for the Cargo confirm dialog. Fetched here
+            // so the dialog opens instantly without an extra round-trip.
+            // Only ever fetched on the Cargo path; email path gets no
+            // picker (no supplier_return_tasks row would receive order_id).
+            const tidForOrders = tenantId || rows[0]?.tenant_id;
+            if (tidForOrders) {
+              const orders = await fetchSupplierOrdersForPicker(supplierProfileId, tidForOrders);
+              setSupplierOrdersForPicker(orders);
+            }
           }
         }
       }
@@ -442,6 +459,9 @@ export default function ReturnSlipPage() {
         items:     itemsSnapshot,
         createdBy: authUser?.id || null,
         slipMetadata,
+        // Crew's optional pick from the confirm-dialog picker. '' (empty
+        // string) is the "none" option; treat as null for the RPC.
+        orderId:   selectedOrderId || null,
       });
       if (!result.ok) throw new Error('Failed to route return to portal');
       setSubmitted(true);
@@ -819,6 +839,32 @@ export default function ReturnSlipPage() {
                     The return — items, reasons, and your signature — will land
                     as a task in their Cargo portal. No email goes out.
                   </p>
+                  {supplierOrdersForPicker.length > 0 && (
+                    <div className="di-slip-confirm-picker">
+                      <label htmlFor="di-slip-order-picker" className="di-slip-confirm-picker-label">
+                        Link to an order? <span className="di-slip-confirm-picker-optional">(optional)</span>
+                      </label>
+                      <select
+                        id="di-slip-order-picker"
+                        className="di-slip-confirm-picker-select"
+                        value={selectedOrderId}
+                        onChange={(e) => setSelectedOrderId(e.target.value)}
+                      >
+                        <option value="">— none —</option>
+                        {supplierOrdersForPicker.map((o) => {
+                          const shortId = o.id.slice(0, 8).toUpperCase();
+                          const dateLabel = o.delivery_date
+                            ? new Date(o.delivery_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                            : new Date(o.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+                          return (
+                            <option key={o.id} value={o.id}>
+                              Order #{shortId} · {dateLabel} · {o.item_count} item{o.item_count === 1 ? '' : 's'}{o.status === 'confirmed' ? ' · confirmed' : ''}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  )}
                   <div className="di-slip-confirm-actions">
                     <button className="di-btn di-btn-ghost" onClick={closeSendDialog}>
                       Cancel

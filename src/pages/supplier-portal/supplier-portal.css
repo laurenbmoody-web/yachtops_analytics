@@ -2072,6 +2072,127 @@
   letter-spacing: 0;
 }
 
+/* Collapsed-list refinement (Part E). Each task is a compact row by
+   default; clicking expands inline into the full TaskDetail body.
+   Multiple expanded at once is fine — accordion-style. */
+#sp-root .sp-return-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+#sp-root .sp-return-row-wrap {
+  display: flex;
+  flex-direction: column;
+}
+#sp-root .sp-return-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+#sp-root .sp-return-row:hover {
+  background: var(--bg-3, #F7F9FB);
+}
+#sp-root .sp-return-row.is-expanded {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: var(--line-soft);
+}
+#sp-root .sp-return-row-caret {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  color: var(--muted-s);
+}
+#sp-root .sp-return-row-text {
+  flex: 1;
+  min-width: 0;
+}
+#sp-root .sp-return-row-vessel {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 16px;
+  line-height: 1.25;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#sp-root .sp-return-row-items {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted-s);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#sp-root .sp-return-row-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+#sp-root .sp-return-row-date {
+  font-size: 11.5px;
+  color: var(--muted-s);
+  letter-spacing: 0.02em;
+}
+
+/* "From order #XXXX" badge — clickable, navigates to that order. */
+#sp-root .sp-return-from-order-badge {
+  flex-shrink: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--navy);
+  background: var(--bg-2);
+  border: 0.5px solid var(--line);
+  border-radius: 8px;
+  padding: 3px 10px;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: background 120ms ease, color 120ms ease;
+}
+#sp-root .sp-return-from-order-badge:hover {
+  background: var(--navy);
+  color: #fff;
+}
+
+/* Status pills on the row */
+#sp-root .sp-return-pill {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 9px;
+  white-space: nowrap;
+}
+#sp-root .sp-return-pill-new  { background: rgba(198, 90, 26, 0.12); color: var(--rust, #C65A1A); }
+#sp-root .sp-return-pill-prog { background: rgba(38, 42, 83, 0.10); color: var(--navy); }
+#sp-root .sp-return-pill-done { background: #ECFDF5; color: #047857; }
+
+/* Expanded body — wraps the vessel band, items table, vessel auth
+   block, and footer. Visually attached to the row above. */
+#sp-root .sp-return-detail {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-top: none;
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+  overflow: hidden;
+}
+
+/* Kept for safety in case any older surface still renders a full card
+   (not used by Part E's collapsed-list page). */
 #sp-root .sp-return-card {
   background: var(--card);
   border: 1px solid var(--line);

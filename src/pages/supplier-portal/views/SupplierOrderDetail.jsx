@@ -1,6 +1,9 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchOrderById, updateOrderStatus, updateOrderItem, fetchOrderActivity, fetchInvoiceSignedUrl, fetchDocumentSignedUrl, generateOrderPdf, generateDeliveryNote, sendDeliveryNoteEmails, quoteOrderItem, confirmOrderItem } from '../utils/supplierStorage';
+import { fetchReturnTasksByOrderId, acknowledgeSupplierReturnTask, completeSupplierReturnTask } from '../utils/supplierReturnTasks';
+import { TaskRow, TaskDetail } from '../components/SupplierReturnTaskCard';
+import { useAuth } from '../../../contexts/AuthContext';
 import { showToast } from '../../../utils/toast';
 import { usePermission } from '../../../contexts/SupplierPermissionContext';
 import EditDeliveryModal from '../components/EditDeliveryModal';
@@ -1471,13 +1474,129 @@ const Drawer = ({ open, onClose, title, children }) => {
   );
 };
 
-const ReturnsDrawerBody = () => (
-  <div className="sod-drawer-empty">
-    <div className="sod-drawer-empty-ico" aria-hidden="true">↺</div>
-    <p>No returns recorded on this order yet. Returns are filed against confirmed items after delivery.</p>
-    <button type="button" className="sod-drawer-cta" disabled title="Coming soon">+ Add return</button>
-  </div>
-);
+// Returns drawer body — real, no longer a stub. Fetches
+// supplier_return_tasks filed against THIS order (via order_id FK
+// added in migration 20260527120000) and renders them using the same
+// TaskRow / TaskDetail components that drive /supplier/returns, so
+// the visual language is consistent. Returns originate crew-side
+// only (slip page → route_return_to_portal); the drawer does NOT
+// expose a "+ Add return" — the disabled stub button has been removed.
+const ReturnsDrawerBody = ({ orderId, isOpen }) => {
+  const { user } = useAuth();
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [actingId, setActingId] = useState(null);
+  const [expandedIds, setExpandedIds] = useState(() => new Set());
+
+  const load = useCallback(async () => {
+    if (!orderId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const rows = await fetchReturnTasksByOrderId(orderId);
+      setTasks(rows);
+    } catch (e) {
+      console.error('[ReturnsDrawerBody load]', e);
+      setError(e.message || 'Failed to load returns');
+    } finally {
+      setLoading(false);
+    }
+  }, [orderId]);
+
+  // Reload whenever the drawer opens — picks up newly-routed returns
+  // and acknowledged-elsewhere status changes between opens.
+  useEffect(() => { if (isOpen) load(); }, [isOpen, load]);
+
+  const toggleExpanded = (taskId) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else                  next.add(taskId);
+      return next;
+    });
+  };
+
+  const handleAcknowledge = async (taskId, note) => {
+    setActingId(taskId);
+    setError(null);
+    try {
+      await acknowledgeSupplierReturnTask(taskId, {
+        acknowledgedBy: user?.id || null,
+        supplierNote:   note,
+      });
+      await load();
+      window.dispatchEvent(new CustomEvent('supplier-return-tasks-changed'));
+    } catch (e) {
+      console.error('[ReturnsDrawerBody acknowledge]', e);
+      setError(e.message || 'Failed to acknowledge return');
+    } finally {
+      setActingId(null);
+    }
+  };
+
+  const handleComplete = async (taskId) => {
+    setActingId(taskId);
+    setError(null);
+    try {
+      await completeSupplierReturnTask(taskId);
+      await load();
+      window.dispatchEvent(new CustomEvent('supplier-return-tasks-changed'));
+    } catch (e) {
+      console.error('[ReturnsDrawerBody complete]', e);
+      setError(e.message || 'Failed to mark completed');
+    } finally {
+      setActingId(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="sod-drawer-empty">
+        <p style={{ color: 'var(--muted)' }}>Loading returns…</p>
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: 'var(--red)' }}>
+        {error}
+      </div>
+    );
+  }
+  if (tasks.length === 0) {
+    return (
+      <div className="sod-drawer-empty">
+        <div className="sod-drawer-empty-ico" aria-hidden="true">↺</div>
+        <p>No returns recorded against this order.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="sp-return-rows">
+      {tasks.map((t) => (
+        <div key={t.id} className="sp-return-row-wrap">
+          {/* hideOrderBadge — every task in this drawer is for THIS
+              order, so the "From order #XXXX" badge would be redundant. */}
+          <TaskRow
+            task={t}
+            expanded={expandedIds.has(t.id)}
+            onToggle={() => toggleExpanded(t.id)}
+            hideOrderBadge
+          />
+          {expandedIds.has(t.id) && (
+            <TaskDetail
+              task={t}
+              onAcknowledge={handleAcknowledge}
+              onComplete={handleComplete}
+              busy={actingId === t.id}
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
 
 const DockDrawerBody = ({ order }) => {
   // TODO(schema): order.delivery_window, dock_contact, on_arrival_notes
@@ -2005,7 +2124,7 @@ const SupplierOrderDetail = () => {
         onClose={() => setReturnsDrawerOpen(false)}
         title="Returns"
       >
-        <ReturnsDrawerBody />
+        <ReturnsDrawerBody orderId={orderId} isOpen={returnsDrawerOpen} />
       </Drawer>
 
       <Drawer
