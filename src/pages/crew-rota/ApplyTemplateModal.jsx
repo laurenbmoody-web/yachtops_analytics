@@ -709,15 +709,23 @@ export default function ApplyTemplateModal({
   }));
 
   // ── Row builder ────────────────────────────────────────────────────
+  // Returns null when the template body / duty is missing required times
+  // OR when start_time === end_time. The fallback-to-'00:00' default that
+  // historically silently emitted bad rows is gone: a missing time now
+  // fails loud (skipped + counted for the toast) rather than landing in
+  // the DB as a 24h placeholder.
   const buildSimpleRow = (memberId, dateStr) => {
     const body = template.body || {};
+    const startTime = body.start_time;
+    const endTime = body.end_time;
+    if (!startTime || !endTime || startTime === endTime) return null;
     const row = {
       tenant_id: rota?.tenantId,
       rota_id: rota?.id,
       member_id: memberId,
       shift_date: dateStr,
-      start_time: body.start_time || '00:00',
-      end_time: body.end_time || '00:00',
+      start_time: startTime,
+      end_time: endTime,
       shift_type: body.shift_type || 'duty',
     };
     if (body.sub_type) row.sub_type = body.sub_type;
@@ -726,13 +734,16 @@ export default function ApplyTemplateModal({
     return row;
   };
   const buildPatternRow = (memberId, dateStr, duty) => {
+    const startTime = duty?.start_time;
+    const endTime = duty?.end_time;
+    if (!startTime || !endTime || startTime === endTime) return null;
     const row = {
       tenant_id: rota?.tenantId,
       rota_id: rota?.id,
       member_id: memberId,
       shift_date: dateStr,
-      start_time: duty?.start_time || '00:00',
-      end_time: duty?.end_time || '00:00',
+      start_time: startTime,
+      end_time: endTime,
       shift_type: duty?.shift_type || 'duty',
     };
     if (duty?.sub_type) row.sub_type = duty.sub_type;
@@ -750,12 +761,18 @@ export default function ApplyTemplateModal({
   // and m2 both pointing at the same crew (the candsForSecond filter
   // normally prevents it, but a sequence of edits can still land there).
   const targetRowsAndMembers = useMemo(() => {
-    if (!template || dates.length === 0) return { rows: [], memberIds: [], duplicatesDropped: 0 };
+    if (!template || dates.length === 0) {
+      return { rows: [], memberIds: [], duplicatesDropped: 0, invalidTimesDropped: 0 };
+    }
     const rows = [];
     const memberSet = new Set();
     const seen = new Set();
     let duplicatesDropped = 0;
+    let invalidTimesDropped = 0;
     const pushIfNew = (row) => {
+      // The row builder returns null when the template / duty carries
+      // missing or equal times — count and skip rather than coerce.
+      if (row == null) { invalidTimesDropped += 1; return; }
       const key = `${row.member_id}|${row.shift_date}|${row.shift_type}|${row.sub_type ?? ''}|${row.start_time}|${row.end_time}`;
       if (seen.has(key)) { duplicatesDropped += 1; return; }
       seen.add(key);
@@ -781,7 +798,12 @@ export default function ApplyTemplateModal({
         for (const d of dates) pushIfNew(buildSimpleRow(m, d));
       }
     }
-    return { rows, memberIds: Array.from(memberSet), duplicatesDropped };
+    return {
+      rows,
+      memberIds: Array.from(memberSet),
+      duplicatesDropped,
+      invalidTimesDropped,
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [template, dates, isPattern, slots, ticked, duties]);
 
@@ -823,12 +845,19 @@ export default function ApplyTemplateModal({
 
   // ── Apply (route into the staged review or commit straight through) ─
   const runConflictCheck = async () => {
-    const { rows, memberIds, duplicatesDropped } = targetRowsAndMembers;
+    const { rows, memberIds, duplicatesDropped, invalidTimesDropped } = targetRowsAndMembers;
     if (rows.length === 0) {
+      if (invalidTimesDropped > 0) {
+        onToast?.(`Can’t apply — the template has missing or equal start/end times. Edit the template to set real times.`);
+        return;
+      }
       onToast?.(isPattern
         ? 'Assign at least one crew member to a role and pick a date range.'
         : 'Pick at least one crew member to apply this template.');
       return;
+    }
+    if (invalidTimesDropped > 0) {
+      onToast?.(`Skipped ${invalidTimesDropped} row${invalidTimesDropped === 1 ? '' : 's'} with missing or equal start/end times.`);
     }
     if (duplicatesDropped > 0) {
       onToast?.(`Dropped ${duplicatesDropped} duplicate row${duplicatesDropped === 1 ? '' : 's'} (same crew, date, and shift).`);

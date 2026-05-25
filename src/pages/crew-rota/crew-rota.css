@@ -1295,6 +1295,22 @@
   padding: 9px 12px;
   width: 100%;
 }
+.te-field-error {
+  margin-top: 6px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11.5px;
+  color: #7A2E1E;
+}
+.rt-duty-row.is-invalid {
+  background: #FAECE7;
+}
+.rt-duty-error {
+  flex: 1 0 100%;
+  margin-top: 4px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11.5px;
+  color: #7A2E1E;
+}
 .te-input:focus {
   outline: none;
   border-color: #C65A1A;

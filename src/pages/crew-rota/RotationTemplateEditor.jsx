@@ -77,13 +77,13 @@ function initialSelection(template, myDeptId) {
 }
 
 function DutyRow({
-  duty, index, total, distinctTypes,
+  duty, index, total, distinctTypes, sameTimes,
   onChange, onRemove, onDragStart, onDragOver, onDrop,
   onMoveUp, onMoveDown,
 }) {
   return (
     <div
-      className="rt-duty-row"
+      className={`rt-duty-row${sameTimes ? ' is-invalid' : ''}`}
       draggable
       style={{ '--rt-duty-color': TYPE_COLOR[duty.shift_type] || '#B4B2A9' }}
       onDragStart={(e) => onDragStart(e, index)}
@@ -135,6 +135,9 @@ function DutyRow({
         onClick={() => onRemove(index)}>
         <Trash2 size={14} />
       </button>
+      {sameTimes && (
+        <div className="rt-duty-error">Start and end time cannot be the same.</div>
+      )}
     </div>
   );
 }
@@ -218,17 +221,25 @@ export default function RotationTemplateEditor({
   const addRole = () => setRoles((prev) => [...prev, `Role ${prev.length + 1}`]);
   const removeRole = (i) => setRoles((prev) => prev.length > 1 ? prev.filter((_, k) => k !== i) : prev);
 
+  // Per-duty "start === end" validity. Indexed by duty position so the
+  // inline error sits beside the offending row, not the form.
+  const dutySameTimes = useMemo(
+    () => duties.map((d) => !!d.start_time && !!d.end_time && d.start_time === d.end_time),
+    [duties],
+  );
   const canSave = useMemo(() => {
     if (!name.trim()) return false;
     if (selection == null) return false;  // user must pick All or a dept
     if (duties.length < 2) return false;
-    for (const d of duties) {
+    for (let i = 0; i < duties.length; i += 1) {
+      const d = duties[i];
       if (!d.label.trim() || !d.shift_type || !d.start_time || !d.end_time) return false;
+      if (dutySameTimes[i]) return false;
     }
     if (roles.length < 1) return false;
     for (const r of roles) { if (!String(r || '').trim()) return false; }
     return true;
-  }, [name, duties, roles, selection]);
+  }, [name, duties, roles, selection, dutySameTimes]);
 
   if (!open) return null;
 
@@ -376,6 +387,7 @@ export default function RotationTemplateEditor({
                   index={i}
                   total={duties.length}
                   distinctTypes={TYPE_PILLS}
+                  sameTimes={dutySameTimes[i]}
                   onChange={(next) => updateDuty(i, next)}
                   onRemove={removeDuty}
                   onDragStart={onDragStart}
