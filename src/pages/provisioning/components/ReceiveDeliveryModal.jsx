@@ -364,7 +364,7 @@ const ReceiveStep = ({
         >
           {multiBoard ? 'By board' : 'By supplier'}
         </button>
-        <button type="button" onClick={onReceiveAll} className="di-btn di-btn-ghost">
+        <button type="button" onClick={onReceiveAll} className="rdm-btn rdm-btn-ghost">
           Receive all
         </button>
       </div>
@@ -521,11 +521,11 @@ const ReceiveStep = ({
                   </div>
                   <div className="rdm-unmatched-row-actions">
                     {!multiBoard && (
-                      <button type="button" onClick={() => onAddUnmatched(li, idx)} className="di-btn di-btn-ghost di-btn-sm">
+                      <button type="button" onClick={() => onAddUnmatched(li, idx)} className="rdm-btn rdm-btn-ghost rdm-btn-sm">
                         + Add to board
                       </button>
                     )}
-                    <button type="button" onClick={() => onSkipUnmatched(idx)} className="di-btn di-btn-quiet di-btn-sm">
+                    <button type="button" onClick={() => onSkipUnmatched(idx)} className="rdm-btn rdm-btn-quiet rdm-btn-sm">
                       Skip
                     </button>
                   </div>
@@ -552,14 +552,14 @@ const ReceiveStep = ({
           )}
         </div>
         <div className="rdm-footer-actions">
-          <button type="button" onClick={onClose} className="di-btn di-btn-ghost">
+          <button type="button" onClick={onClose} className="rdm-btn rdm-btn-ghost">
             Cancel
           </button>
           <button
             type="button"
             onClick={onNext}
             disabled={saving || (items.filter(i => receiving[i.id]?.checked).length === 0 && unmatchedItems.length === 0)}
-            className="di-btn di-btn-primary"
+            className="rdm-btn rdm-btn-rust"
           >
             {saving ? 'Saving…' : 'Save & Continue →'}
           </button>
@@ -715,13 +715,13 @@ const PushStep = ({
                     +{qty} {item.unit || ''}
                   </strong>
                   {hasMatch && (
-                    <button type="button" onClick={() => onUnlinkMatch(item.id)} className="di-btn di-btn-quiet di-btn-sm">Unlink</button>
+                    <button type="button" onClick={() => onUnlinkMatch(item.id)} className="rdm-btn rdm-btn-quiet rdm-btn-sm">Unlink</button>
                   )}
                   {choice === 'link' && inlineLink && (
-                    <button type="button" onClick={() => onUnlinkInline(item.id)} className="di-btn di-btn-quiet di-btn-sm">Unlink</button>
+                    <button type="button" onClick={() => onUnlinkInline(item.id)} className="rdm-btn rdm-btn-quiet rdm-btn-sm">Unlink</button>
                   )}
                   {choice === 'skip' && (
-                    <button type="button" onClick={() => onSetNoMatchChoice(item.id, null)} className="di-btn di-btn-ghost di-btn-sm">Undo</button>
+                    <button type="button" onClick={() => onSetNoMatchChoice(item.id, null)} className="rdm-btn rdm-btn-ghost rdm-btn-sm">Undo</button>
                   )}
                   {(choice === 'link' && !inlineLink) || choice === 'create' ? (
                     <button type="button" onClick={() => onSetNoMatchChoice(item.id, null)} className="rdm-search-back">← Back</button>
@@ -853,7 +853,7 @@ const PushStep = ({
                   <button
                     type="button"
                     onClick={() => onSetNoMatchChoice(item.id, 'link')}
-                    className="di-btn di-btn-ghost"
+                    className="rdm-btn rdm-btn-ghost"
                   >
                     <Icon name="Search" style={{ width: 13, height: 13, marginRight: 5 }} />
                     Link to inventory
@@ -861,14 +861,14 @@ const PushStep = ({
                   <button
                     type="button"
                     onClick={() => { onSetNoMatchChoice(item.id, 'create'); onInitNewItemForm(item.id, item); }}
-                    className="di-btn di-btn-primary"
+                    className="rdm-btn rdm-btn-rust"
                   >
                     + Create new item
                   </button>
                   <button
                     type="button"
                     onClick={() => onSetNoMatchChoice(item.id, 'skip')}
-                    className="di-btn di-btn-quiet"
+                    className="rdm-btn rdm-btn-quiet"
                   >
                     Skip
                   </button>
@@ -885,13 +885,13 @@ const PushStep = ({
 
       <div className="rdm-footer">
         <div className="rdm-footer-left">
-          <button type="button" onClick={onBack} className="di-btn di-btn-ghost">
+          <button type="button" onClick={onBack} className="rdm-btn rdm-btn-ghost">
             ← Back
           </button>
         </div>
         <div className="rdm-footer-actions">
           {receivedItems.length === 0 ? (
-            <button type="button" onClick={onComplete} className="di-btn di-btn-primary">
+            <button type="button" onClick={onComplete} className="rdm-btn rdm-btn-rust">
               Done
             </button>
           ) : (
@@ -899,7 +899,7 @@ const PushStep = ({
               type="button"
               onClick={onPush}
               disabled={pushing}
-              className="di-btn di-btn-sage"
+              className="rdm-btn rdm-btn-sage"
             >
               {pushing ? 'Pushing…' : `Push to Inventory (${receivedItems.length})`}
             </button>

@@ -944,3 +944,69 @@
 }
 .rdm-icon-btn:hover { color: var(--rdm-rust); background: var(--rdm-sand-soft); }
 .rdm-icon-btn.is-danger:hover { color: #DC2626; background: rgba(220, 38, 38, 0.06); }
+
+/* ── Buttons ────────────────────────────────────────────────
+   Modal-local variants. The shared .di-btn-* classes in
+   delivery-inbox.css use var(--di-*) tokens that are scoped
+   to .di / .di-slip parents. The modal wraps in .rdm, NOT .di,
+   so those variables don't resolve here and the .di-btn fills
+   render transparent. These .rdm-btn-* variants use --rdm-*
+   tokens which ARE declared on the .rdm wrapper — guaranteed
+   resting fill on every action button.
+
+   Semantic mapping:
+     rdm-btn-rust   → primary action (Save & Continue, Create new)
+     rdm-btn-sage   → final commit (Push to Inventory)
+     rdm-btn-ghost  → secondary action (Cancel, Back, Receive all,
+                                        Add to board, Link, Undo)
+     rdm-btn-quiet  → text-only action (Skip, Unlink)
+*/
+.rdm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease, opacity 120ms ease;
+}
+.rdm-btn:disabled { opacity: 0.55; cursor: default; }
+
+.rdm-btn-rust {
+  background: var(--rdm-rust);
+  color: #fff;
+}
+.rdm-btn-rust:hover:not(:disabled) { background: var(--rdm-rust-dark); }
+
+.rdm-btn-sage {
+  background: var(--rdm-sage);
+  color: #fff;
+}
+.rdm-btn-sage:hover:not(:disabled) { background: var(--rdm-sage-deep); }
+
+.rdm-btn-ghost {
+  background: var(--rdm-card);
+  color: var(--rdm-navy);
+  border: 0.5px solid var(--rdm-hairline);
+}
+.rdm-btn-ghost:hover:not(:disabled) {
+  border-color: var(--rdm-rust);
+  color: var(--rdm-rust);
+}
+
+.rdm-btn-quiet {
+  background: none;
+  color: var(--rdm-muted);
+  font-weight: 500;
+  padding: 6px 12px;
+}
+.rdm-btn-quiet:hover:not(:disabled) { color: var(--rdm-rust); }
+
+.rdm-btn-sm { padding: 5px 10px; font-size: 11.5px; }
