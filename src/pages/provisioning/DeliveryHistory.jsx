@@ -1,3 +1,18 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Delivery History — editorial redesign.
+// Sits inside the .di scope so all the shared design tokens and primitives
+// from delivery-inbox.css (--di-rust / --di-sand / .di-card / .di-card-band /
+// .di-chip / .di-btn) apply directly. Page-specific compositions live in
+// delivery-history.css.
+//
+// PURELY VISUAL apart from one named data fix: the Top-supplier spend stat
+// is now rendered with the same per-currency aware logic as the left-hand
+// total (matches `summarySpendDisplay`). Previously it summed total_amount
+// across currencies and labelled the result USD — wrong under mixed
+// currency. All other data paths — fetch, filter, currency conversion,
+// CSV export, delete, permission gating — are bit-for-bit unchanged.
+// ─────────────────────────────────────────────────────────────────────────────
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
@@ -5,6 +20,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 import Icon from '../../components/AppIcon';
 import { useCountUp } from './components/SummaryGauges';
+import './delivery-inbox.css';
+import '../../styles/editorial.css';
+import './delivery-history.css';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -30,17 +48,19 @@ const fmtMoney = (amount, currency) => {
 
 const dayKey = (iso) => (iso ? iso.slice(0, 10) : 'unknown');
 
-const SOURCE_LABELS = {
-  delivery:      { label: 'Delivery',      bg: '#E6F1FB', text: '#185FA5', border: '#BFDBFE' },
-  receipt:       { label: 'Receipt',       bg: '#FEF3E2', text: '#B45309', border: '#FDE68A' },
-  shopping_trip: { label: 'Shopping',      bg: '#F0FDF4', text: '#065F46', border: '#BBF7D0' },
-  manual:        { label: 'Manual',        bg: '#F8FAFC', text: '#475569', border: '#E2E8F0' },
+// Source-type → display label + which 5px bottom-edge colour the .di-card
+// gets (rust / amber / sage / sand) + the small redundant text chip variant.
+const SOURCE_CFG = {
+  delivery:      { label: 'Delivery', edgeClass: 'dh-entry-rust',  chipClass: 'dh-source-chip-rust'  },
+  receipt:       { label: 'Receipt',  edgeClass: 'dh-entry-amber', chipClass: 'dh-source-chip-amber' },
+  shopping_trip: { label: 'Shopping', edgeClass: 'dh-entry-sage',  chipClass: 'dh-source-chip-sage'  },
+  manual:        { label: 'Manual',   edgeClass: 'dh-entry-sand',  chipClass: 'dh-source-chip-sand'  },
 };
 
-const CLAIM_LABELS = {
-  claimed:   { label: 'Claimed',   color: '#059669' },
-  unclaimed: { label: 'Unclaimed', color: '#94A3B8' },
-  returned:  { label: 'Returned',  color: '#DC2626' },
+const CLAIM_CFG = {
+  claimed:   { label: 'Claimed',   className: 'dh-claim dh-claim-claimed'   },
+  unclaimed: { label: 'Unclaimed', className: 'dh-claim dh-claim-unclaimed' },
+  returned:  { label: 'Returned',  className: 'dh-claim dh-claim-returned'  },
 };
 
 // Frankfurter v2 returns an array of {base, quote, rate} objects.
@@ -61,52 +81,34 @@ const fetchFxRates = async (toCurrency) => {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-const SourceBadge = ({ type }) => {
-  const cfg = SOURCE_LABELS[type] || SOURCE_LABELS.manual;
-  return (
-    <span style={{
-      fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
-      background: cfg.bg, color: cfg.text, border: `1px solid ${cfg.border}`,
-      whiteSpace: 'nowrap', flexShrink: 0,
-    }}>
-      {cfg.label}
-    </span>
-  );
+const SourceChip = ({ type }) => {
+  const cfg = SOURCE_CFG[type] || SOURCE_CFG.manual;
+  return <span className={`dh-source-chip ${cfg.chipClass}`}>{cfg.label}</span>;
 };
 
 const ClaimBadge = ({ status }) => {
-  const cfg = CLAIM_LABELS[status] || CLAIM_LABELS.unclaimed;
-  return (
-    <span style={{ fontSize: 10, color: cfg.color, fontWeight: 600 }}>{cfg.label}</span>
-  );
+  const cfg = CLAIM_CFG[status] || CLAIM_CFG.unclaimed;
+  return <span className={cfg.className}>{cfg.label}</span>;
 };
 
 const LedgerItemRow = ({ item, currency }) => (
-  <div style={{
-    display: 'grid', gridTemplateColumns: '1fr 60px 80px 80px 90px',
-    gap: 8, padding: '7px 0',
-    borderBottom: '1px solid #F8FAFC', alignItems: 'start',
-  }}>
-    <div style={{ minWidth: 0 }}>
-      <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {item.name}
-      </p>
+  <div className="dh-item-row">
+    <div>
+      <p className="dh-item-name">{item.name}</p>
       {item.original_name && item.original_name !== item.name && (
-        <p style={{ margin: '1px 0 0', fontSize: 10, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {item.original_name}
-        </p>
+        <p className="dh-item-original">{item.original_name}</p>
       )}
       {item.item_reference && (
-        <p style={{ margin: '1px 0 0', fontSize: 10, color: '#CBD5E1' }}>Ref: {item.item_reference}</p>
+        <p className="dh-item-ref">Ref: {item.item_reference}</p>
       )}
     </div>
-    <p style={{ margin: 0, fontSize: 12, color: '#475569', textAlign: 'center' }}>
+    <p className="dh-item-cell num">
       {item.quantity ?? '—'}{item.unit ? ` ${item.unit}` : ''}
     </p>
-    <p style={{ margin: 0, fontSize: 12, color: '#475569', textAlign: 'right' }}>
+    <p className="dh-item-cell num">
       {fmtMoney(item.unit_price, currency || 'USD') || '—'}
     </p>
-    <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: '#0F172A', textAlign: 'right' }}>
+    <p className="dh-item-cell num total">
       {fmtMoney(item.total_price, currency || 'USD') || '—'}
     </p>
     <div style={{ textAlign: 'right' }}>
@@ -116,64 +118,49 @@ const LedgerItemRow = ({ item, currency }) => (
 );
 
 const LedgerEntry = ({ entry, userNames, boardNames, expanded, onToggle, onDelete, onNavigate }) => {
+  const cfg = SOURCE_CFG[entry.source_type] || SOURCE_CFG.manual;
   const receivedByName = userNames[entry.received_by] || null;
-  const sourceCfg = SOURCE_LABELS[entry.source_type] || SOURCE_LABELS.manual;
   const currency = entry.currency || 'USD';
   const boardName = entry.source_board_id ? boardNames[entry.source_board_id] : null;
   const displayTotal = fmtMoney(entry.total_amount, currency);
 
-  return (
-    <div style={{
-      background: 'white', borderRadius: 10, border: '1px solid #E2E8F0',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden',
-      marginBottom: 10,
-    }}>
-      {/* Header row */}
-      <div
-        onClick={onToggle}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
-          cursor: 'pointer', userSelect: 'none',
-          borderLeft: `3px solid ${sourceCfg.border}`,
-        }}
-      >
-        <Icon name={expanded ? 'ChevronDown' : 'ChevronRight'} style={{ width: 14, height: 14, color: '#94A3B8', flexShrink: 0 }} />
+  const subParts = [
+    fmtTime(entry.created_at),
+    entry.order_ref ? `Ref: ${entry.order_ref}` : null,
+    receivedByName,
+    boardName,
+  ].filter(Boolean);
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#0F172A' }}>
-              {entry.supplier_name || 'Manual receive'}
-            </p>
-            <SourceBadge type={entry.source_type} />
+  return (
+    <div className={`di-card dh-entry ${cfg.edgeClass}`} onClick={onToggle}>
+      <div className="dh-entry-band">
+        <Icon name={expanded ? 'ChevronDown' : 'ChevronRight'} className="dh-entry-chev" />
+
+        <div className="dh-entry-text">
+          <div className="dh-entry-title-row">
+            <p className="dh-entry-title">{entry.supplier_name || 'Manual receive'}</p>
+            <SourceChip type={entry.source_type} />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
-            <p style={{ margin: 0, fontSize: 11, color: '#94A3B8' }}>
-              {fmtTime(entry.created_at)}
-              {entry.order_ref ? ` · Ref: ${entry.order_ref}` : ''}
-              {receivedByName ? ` · ${receivedByName}` : ''}
-              {boardName ? ` · ${boardName}` : ''}
-            </p>
+          <p className="dh-entry-sub">
+            {subParts.join(' · ')}
             {entry.source_board_id && (
-              <button
-                onClick={e => { e.stopPropagation(); onNavigate(entry.source_board_id); }}
-                style={{ fontSize: 11, color: '#1E3A5F', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline', flexShrink: 0 }}
-              >
-                View board →
-              </button>
+              <>
+                {subParts.length > 0 && ' · '}
+                <button
+                  onClick={e => { e.stopPropagation(); onNavigate(entry.source_board_id); }}
+                  className="dh-entry-board-link"
+                >View board →</button>
+              </>
             )}
-          </div>
+          </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-          <div style={{ textAlign: 'right' }}>
-            <p style={{ margin: 0, fontSize: 12, color: '#475569' }}>
+        <div className="dh-entry-meta-right">
+          <div className="dh-entry-totals">
+            <p className="dh-entry-items">
               {entry._itemCount ?? 0} item{(entry._itemCount ?? 0) !== 1 ? 's' : ''}
             </p>
-            {displayTotal && (
-              <p style={{ margin: '1px 0 0', fontSize: 12, fontWeight: 600, color: '#0F172A' }}>
-                {displayTotal}
-              </p>
-            )}
+            {displayTotal && <p className="dh-entry-total">{displayTotal}</p>}
           </div>
 
           {entry.document_url && (
@@ -182,7 +169,7 @@ const LedgerEntry = ({ entry, userNames, boardNames, expanded, onToggle, onDelet
               target="_blank"
               rel="noreferrer"
               onClick={e => e.stopPropagation()}
-              style={{ color: '#94A3B8', flexShrink: 0 }}
+              className="dh-entry-icon-btn"
               title="View document"
             >
               <Icon name="FileText" style={{ width: 14, height: 14 }} />
@@ -194,9 +181,7 @@ const LedgerEntry = ({ entry, userNames, boardNames, expanded, onToggle, onDelet
             <button
               onClick={e => { e.stopPropagation(); onDelete(entry.id); }}
               title="Delete empty entry"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#CBD5E1', padding: '2px 4px', flexShrink: 0, lineHeight: 1 }}
-              onMouseEnter={e => { e.currentTarget.style.color = '#EF4444'; }}
-              onMouseLeave={e => { e.currentTarget.style.color = '#CBD5E1'; }}
+              className="dh-entry-icon-btn is-danger"
             >
               <Icon name="Trash2" style={{ width: 13, height: 13 }} />
             </button>
@@ -206,16 +191,13 @@ const LedgerEntry = ({ entry, userNames, boardNames, expanded, onToggle, onDelet
 
       {/* Expanded: line items */}
       {expanded && (
-        <div style={{ borderTop: '1px solid #F1F5F9', padding: '0 16px 12px' }}>
-          <div style={{
-            display: 'grid', gridTemplateColumns: '1fr 60px 80px 80px 90px',
-            gap: 8, padding: '8px 0 4px',
-          }}>
-            {['Item', 'Qty', 'Unit Price', 'Total', 'Status'].map(h => (
-              <p key={h} style={{ margin: 0, fontSize: 9, fontWeight: 700, color: '#CBD5E1', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: h !== 'Item' ? 'right' : 'left' }}>
-                {h}
-              </p>
-            ))}
+        <div className="dh-entry-body" onClick={e => e.stopPropagation()}>
+          <div className="dh-items-header">
+            <p className="dh-items-header-cell">Item</p>
+            <p className="dh-items-header-cell num">Qty</p>
+            <p className="dh-items-header-cell num">Unit Price</p>
+            <p className="dh-items-header-cell num">Total</p>
+            <p className="dh-items-header-cell num">Status</p>
           </div>
 
           {entry._items?.length > 0
@@ -226,7 +208,7 @@ const LedgerEntry = ({ entry, userNames, boardNames, expanded, onToggle, onDelet
                   currency={currency}
                 />
               ))
-            : <p style={{ margin: '12px 0', fontSize: 12, color: '#94A3B8', textAlign: 'center' }}>No items recorded</p>
+            : <p className="dh-item-empty">No items recorded</p>
           }
         </div>
       )}
@@ -234,77 +216,104 @@ const LedgerEntry = ({ entry, userNames, boardNames, expanded, onToggle, onDelet
   );
 };
 
-// ── Summary banner ────────────────────────────────────────────────────────────
+// ── Spend hero ────────────────────────────────────────────────────────────────
+// summarySpendDisplay is built upstream (per-currency segments string OR a
+// single converted figure). topSupplierSpendDisplay follows the SAME pattern
+// for currency correctness — see derivation in the page component below.
 
 function SummaryCards({
   summarySpendDisplay,
-  summaryCount, topSupplier, topSupplierSpend, topSupplierItems,
-  convCurrency, fxLoading, onConvChange,
+  summaryCount,
+  topSupplier,
+  topSupplierSpendDisplay,   // string, already currency-aware (multi-segment if mixed)
+  topSupplierItems,
+  convCurrency,
+  fxLoading,
+  onConvChange,
 }) {
   const animCount = useCountUp(summaryCount, 150);
 
-  return (
-    <div style={{
-      background: '#1E3A5F', borderRadius: 16, padding: '28px 32px',
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      marginBottom: 28,
-    }}>
+  // Render the total as either:
+  //   • a single big number (DM Serif), when convCurrency is set, OR
+  //   • a flex row of per-currency segments separated by · (when 'original').
+  // Both come in as one prepared string from the parent; split on ' · '
+  // here just for visual segmentation so each currency reads as its own
+  // unit instead of one runaway number.
+  const totalIsMultiSegment = convCurrency === 'original' && summarySpendDisplay.includes(' · ');
+  const totalSegments = totalIsMultiSegment ? summarySpendDisplay.split(' · ') : null;
 
+  const supplierIsMultiSegment = topSupplierSpendDisplay && topSupplierSpendDisplay.includes(' · ');
+  const supplierSegments = supplierIsMultiSegment ? topSupplierSpendDisplay.split(' · ') : null;
+
+  return (
+    <div className="dh-hero">
       {/* Left — Total Spend */}
-      <div>
-        <p style={{ margin: '0 0 6px', fontSize: 11, color: '#93C5FD', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500 }}>
-          Total spend
+      <div className="dh-hero-primary">
+        <p className="dh-hero-label">Total spend</p>
+        <p className="dh-hero-amount">
+          {totalIsMultiSegment ? (
+            <span className="dh-hero-amount-segments">
+              {totalSegments.map((seg, i) => (
+                <React.Fragment key={seg + i}>
+                  {i > 0 && <span className="dh-hero-amount-sep">·</span>}
+                  <span>{seg}</span>
+                </React.Fragment>
+              ))}
+            </span>
+          ) : (
+            summarySpendDisplay
+          )}
         </p>
-        <p style={{ margin: 0, fontSize: 36, fontWeight: 500, color: 'white', letterSpacing: '-1px', lineHeight: 1 }}>
-          {summarySpendDisplay}
-        </p>
-        <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.1)', borderRadius: 20, padding: 2, marginTop: 14 }}>
+        <div className="dh-currency-toggle">
           {['Original', 'EUR', 'USD', 'GBP'].map(opt => {
             const val = opt === 'Original' ? 'original' : opt;
             const active = convCurrency === val;
             return (
-              <button key={opt} onClick={() => { if (!fxLoading) onConvChange(val); }} style={{
-                padding: '5px 16px', borderRadius: 18, border: 'none',
-                fontSize: 11, fontWeight: active ? 600 : 500,
-                cursor: fxLoading ? 'default' : 'pointer',
-                background: active ? 'white' : 'transparent',
-                color: active ? '#1E3A5F' : '#93C5FD',
-                transition: 'all 0.15s',
-                opacity: fxLoading && !active ? 0.5 : 1,
-              }}>{opt}</button>
+              <button
+                key={opt}
+                onClick={() => { if (!fxLoading) onConvChange(val); }}
+                disabled={fxLoading && !active}
+                className={`dh-currency-pill${active ? ' is-active' : ''}`}
+              >{opt}</button>
             );
           })}
         </div>
       </div>
 
       {/* Right — stats row */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
-
+      <div className="dh-hero-stats">
         {/* Received count */}
-        <div style={{ textAlign: 'center' }}>
-          <p style={{ margin: 0, fontSize: 32, fontWeight: 500, color: 'white', lineHeight: 1 }}>
-            {Math.round(animCount)}
-          </p>
-          <p style={{ margin: '5px 0 0', fontSize: 11, color: '#93C5FD' }}>received</p>
+        <div className="dh-hero-stat">
+          <p className="dh-hero-stat-count">{Math.round(animCount)}</p>
+          <p className="dh-hero-stat-label">received</p>
         </div>
 
-        {/* Divider */}
-        <div style={{ width: 1, background: 'rgba(255,255,255,0.15)', alignSelf: 'stretch' }} />
+        <div className="dh-hero-divider" />
 
-        {/* Top supplier */}
-        <div style={{ textAlign: 'right' }}>
-          <p style={{ margin: '0 0 4px', fontSize: 11, color: '#93C5FD' }}>Top supplier</p>
-          <p style={{ margin: 0, fontSize: 15, fontWeight: 500, color: 'white', lineHeight: 1.2 }}>
-            {topSupplier || '—'}
-          </p>
-          {topSupplierSpend > 0 && (
-            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#C65A1A' }}>
-              {fmtMoney(topSupplierSpend, 'USD')}
-              {topSupplierItems > 0 && ` · ${topSupplierItems} item${topSupplierItems !== 1 ? 's' : ''}`}
+        {/* Top supplier — spend slot is multi-segment-capable from the start */}
+        <div className="dh-hero-stat dh-hero-stat-supplier">
+          <p className="dh-hero-stat-label">Top supplier</p>
+          <p className="dh-hero-stat-supplier-name">{topSupplier || '—'}</p>
+          {topSupplierSpendDisplay && (
+            <p className="dh-hero-stat-supplier-spend">
+              {supplierIsMultiSegment ? (
+                supplierSegments.map((seg, i) => (
+                  <React.Fragment key={seg + i}>
+                    {i > 0 && <span className="dh-hero-stat-supplier-sep">·</span>}
+                    <span>{seg}</span>
+                  </React.Fragment>
+                ))
+              ) : (
+                <span>{topSupplierSpendDisplay}</span>
+              )}
+            </p>
+          )}
+          {topSupplierItems > 0 && (
+            <p className="dh-hero-stat-supplier-items">
+              {topSupplierItems} item{topSupplierItems !== 1 ? 's' : ''}
             </p>
           )}
         </div>
-
       </div>
     </div>
   );
@@ -388,11 +397,11 @@ export default function DeliveryHistory() {
   // Permission check after all hooks
   if (!hasAccess) {
     return (
-      <div style={{ minHeight: '100vh', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
-        <div style={{ textAlign: 'center' }}>
-          <p style={{ fontSize: 15, color: '#0F172A', fontWeight: 500, margin: '0 0 8px' }}>You don't have permission to view this page.</p>
-          <p style={{ fontSize: 13, color: '#94A3B8', margin: '0 0 20px' }}>Delivery History is available to Command and Chief officers only.</p>
-          <button onClick={() => navigate('/provisioning')} style={{ fontSize: 13, color: '#1E3A5F', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+      <div className="di dh-blocked">
+        <div className="dh-blocked-card">
+          <p className="dh-blocked-title">You don&rsquo;t have permission to view this page.</p>
+          <p className="dh-blocked-body">Delivery History is available to Command and Chief officers only.</p>
+          <button onClick={() => navigate('/provisioning')} className="dh-blocked-back">
             ← Back to Provisioning
           </button>
         </div>
@@ -444,7 +453,7 @@ export default function DeliveryHistory() {
       const date      = entry.created_at ? new Date(entry.created_at).toLocaleDateString('en-GB') : '';
       const time      = fmtTime(entry.created_at);
       const supplier  = entry.supplier_name || 'Manual receive';
-      const type      = SOURCE_LABELS[entry.source_type]?.label || entry.source_type || '';
+      const type      = SOURCE_CFG[entry.source_type]?.label || entry.source_type || '';
       const currency  = entry.currency || 'USD';
       const recvBy    = userNames[entry.received_by] || '';
       if (entry._items?.length > 0) {
@@ -504,17 +513,56 @@ export default function DeliveryHistory() {
         .sort((a, b) => b[1] - a[1])
         .map(([curr, amt]) => fmtMoney(amt, curr))
         .join(' · ') || '—');
-  // Supplier totals + top supplier
-  const supplierTotals  = {};
+
+  // ── Supplier totals + top supplier (CURRENCY-CORRECT) ──────────────────────
+  // Per-supplier per-currency breakdown: { [supplier]: { [currency]: amt } }.
+  // Replaces the old single-number-summed-across-currencies aggregation that
+  // displayed the result as USD regardless of input currencies.
+  const supplierTotalsByCurrency = {};
   const supplierItemCounts = {};
   filtered.forEach(e => {
     const n = e.supplier_name || 'Manual receive';
-    supplierTotals[n] = (supplierTotals[n] || 0) + (parseFloat(e.total_amount) || 0);
+    const curr = e.currency || 'USD';
+    const amt = parseFloat(e.total_amount) || 0;
+    if (!supplierTotalsByCurrency[n]) supplierTotalsByCurrency[n] = {};
+    if (amt > 0) supplierTotalsByCurrency[n][curr] = (supplierTotalsByCurrency[n][curr] || 0) + amt;
     supplierItemCounts[n] = (supplierItemCounts[n] || 0) + (e._itemCount || 0);
   });
-  const topSupplier = Object.entries(supplierTotals).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
-  const topSupplierSpend = topSupplier ? (supplierTotals[topSupplier] || 0) : 0;
+
+  // Ranking score per supplier — converted when fx rates are loaded, sum-as-
+  // if-same-units fallback when in 'original' mode (matches the pre-existing
+  // ranking behaviour; only the display side changes).
+  const supplierRankingScore = (name) => {
+    const byCurr = supplierTotalsByCurrency[name] || {};
+    if (convRates) {
+      return Object.entries(byCurr).reduce((s, [curr, amt]) => {
+        const rate = convRates[curr];
+        return s + (rate ? amt / rate : amt);
+      }, 0);
+    }
+    return Object.values(byCurr).reduce((s, amt) => s + amt, 0);
+  };
+  const topSupplier = Object.keys(supplierTotalsByCurrency)
+    .sort((a, b) => supplierRankingScore(b) - supplierRankingScore(a))[0] || null;
   const topSupplierItems = topSupplier ? (supplierItemCounts[topSupplier] || 0) : 0;
+
+  // Top supplier spend display — same currency logic as the left total.
+  let topSupplierSpendDisplay = '';
+  if (topSupplier) {
+    const byCurr = supplierTotalsByCurrency[topSupplier];
+    if (convCurrency !== 'original' && convRates) {
+      const converted = Object.entries(byCurr).reduce((s, [curr, amt]) => {
+        const rate = convRates[curr];
+        return s + (rate ? amt / rate : amt);
+      }, 0);
+      topSupplierSpendDisplay = converted > 0 ? fmtMoney(converted, convCurrency) : '';
+    } else {
+      topSupplierSpendDisplay = Object.entries(byCurr)
+        .sort((a, b) => b[1] - a[1])
+        .map(([curr, amt]) => fmtMoney(amt, curr))
+        .join(' · ');
+    }
+  }
 
 
   const grouped = filtered.reduce((acc, e) => {
@@ -528,72 +576,60 @@ export default function DeliveryHistory() {
   const totalItems = filtered.reduce((s, e) => s + (e._itemCount || 0), 0);
 
   return (
-    <div style={{
-      minHeight: '100vh', background: '#F8FAFC',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', color: '#0F172A',
-    }}>
-      {/* ── Top bar ── */}
-      <div style={{ background: 'white', borderBottom: '1px solid #E2E8F0', padding: '0 24px' }}>
-        <div style={{ maxWidth: 860, margin: '0 auto' }}>
+    <div className="di">
+      {/* ── Topbar (breadcrumb + editorial header + filters) ── */}
+      <div className="dh-topbar">
+        <div className="dh-topbar-inner">
 
           {/* Breadcrumb */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 0 0' }}>
-            <button
-              onClick={() => navigate('/provisioning')}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B', padding: 0, display: 'flex', alignItems: 'center', gap: 3, fontSize: 13 }}
-            >
-              <Icon name="ChevronLeft" style={{ width: 14, height: 14 }} />
+          <div className="dh-breadcrumb">
+            <button onClick={() => navigate('/provisioning')} className="dh-breadcrumb-link">
               Provisioning
             </button>
-            <span style={{ color: '#CBD5E1', fontSize: 13 }}>›</span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>
+            <span className="dh-breadcrumb-sep">/</span>
+            <span className="dh-breadcrumb-current">
               Delivery History{boardParam && boardNames[boardParam] ? ` — ${boardNames[boardParam]}` : ''}
             </span>
           </div>
 
-          {/* Title + Export */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0 14px' }}>
-            <div>
-              <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Delivery History</h1>
-              <p style={{ margin: '2px 0 0', fontSize: 12, color: '#94A3B8' }}>
-                Permanent vessel-wide record of all deliveries and purchases
-              </p>
-            </div>
-            {!loading && filtered.length > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <p style={{ margin: 0, fontSize: 12, color: '#94A3B8' }}>
-                  {filtered.length} {filtered.length === 1 ? 'delivery' : 'deliveries'} · {totalItems} items
-                </p>
-                <button
-                  onClick={exportCSV}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12, color: '#475569', background: 'white', cursor: 'pointer' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#F8FAFC'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
-                >
-                  <Icon name="Download" style={{ width: 13, height: 13 }} />
-                  Export CSV
-                </button>
-              </div>
-            )}
+          {/* Editorial header — meta strip + serif headline (matches the inbox) */}
+          <div className="di-headblock">
+            <p className="editorial-meta">
+              <span className="dot">●</span>
+              <span>Delivery History</span>
+              <span className="bar" />
+              <span className="muted">Permanent vessel record</span>
+              {!loading && filtered.length > 0 && (
+                <>
+                  <span className="bar" />
+                  <span className="muted">{filtered.length} deliver{filtered.length === 1 ? 'y' : 'ies'}</span>
+                  <span className="bar" />
+                  <span className="muted">{totalItems} item{totalItems === 1 ? '' : 's'}</span>
+                </>
+              )}
+            </p>
+            <h1 className="editorial-greeting">
+              DELIVERIES<span className="period">,</span> <em>on record</em><span className="period">.</span>
+            </h1>
           </div>
 
           {/* Filter bar */}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingBottom: 14 }}>
-            <div style={{ position: 'relative', flex: '1 1 160px', minWidth: 130 }}>
-              <Icon name="Search" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', width: 13, height: 13, color: '#CBD5E1', pointerEvents: 'none' }} />
+          <div className="dh-filter-bar">
+            <div className="dh-filter-search">
+              <Icon name="Search" className="dh-filter-search-icon" />
               <input
                 type="text"
                 placeholder="Search supplier…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                style={{ width: '100%', padding: '7px 10px 7px 30px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12, color: '#0F172A', boxSizing: 'border-box' }}
+                className="dh-filter-input"
               />
             </div>
 
             <select
               value={typeFilter}
               onChange={e => setTypeFilter(e.target.value)}
-              style={{ padding: '7px 10px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12, color: '#475569', background: 'white', cursor: 'pointer' }}
+              className="dh-filter-select"
             >
               <option value="all">All types</option>
               <option value="delivery">Deliveries</option>
@@ -602,15 +638,25 @@ export default function DeliveryHistory() {
               <option value="manual">Manual</option>
             </select>
 
-            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} title="From date"
-              style={{ padding: '7px 10px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12, color: '#475569', background: 'white' }} />
-            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} title="To date"
-              style={{ padding: '7px 10px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12, color: '#475569', background: 'white' }} />
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={e => setDateFrom(e.target.value)}
+              title="From date"
+              className="dh-filter-date"
+            />
+            <input
+              type="date"
+              value={dateTo}
+              onChange={e => setDateTo(e.target.value)}
+              title="To date"
+              className="dh-filter-date"
+            />
 
             {(search || typeFilter !== 'all' || dateFrom || dateTo) && (
               <button
                 onClick={() => { setSearch(''); setTypeFilter('all'); setDateFrom(''); setDateTo(''); }}
-                style={{ padding: '7px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12, color: '#94A3B8', background: 'white', cursor: 'pointer' }}
+                className="dh-filter-clear"
               >
                 Clear
               </button>
@@ -619,7 +665,21 @@ export default function DeliveryHistory() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 860, margin: '0 auto', padding: '20px 24px 48px' }}>
+      {/* ── Main column ── */}
+      <div className="dh-main">
+
+        {/* Toolbar: count + Export CSV */}
+        {!loading && filtered.length > 0 && (
+          <div className="dh-toolbar">
+            <p className="dh-toolbar-count">
+              {filtered.length} {filtered.length === 1 ? 'delivery' : 'deliveries'} · {totalItems} items
+            </p>
+            <button onClick={exportCSV} className="di-btn di-btn-ghost">
+              <Icon name="Download" style={{ width: 13, height: 13, marginRight: 6 }} />
+              Export CSV
+            </button>
+          </div>
+        )}
 
         {/* ── Summary cards (reflect current filter) ── */}
         {!loading && summaryCount > 0 && (
@@ -627,7 +687,7 @@ export default function DeliveryHistory() {
             summarySpendDisplay={summarySpendDisplay}
             summaryCount={summaryCount}
             topSupplier={topSupplier}
-            topSupplierSpend={topSupplierSpend}
+            topSupplierSpendDisplay={topSupplierSpendDisplay}
             topSupplierItems={topSupplierItems}
             convCurrency={convCurrency}
             fxLoading={fxLoading}
@@ -637,14 +697,14 @@ export default function DeliveryHistory() {
 
         {/* ── Entry list ── */}
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '80px 0', color: '#94A3B8', fontSize: 14 }}>Loading…</div>
+          <div className="dh-loading">Loading…</div>
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '80px 0' }}>
-            <div style={{ width: 48, height: 48, background: '#F1F5F9', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-              <Icon name="BookOpen" style={{ width: 22, height: 22, color: '#CBD5E1' }} />
-            </div>
-            <p style={{ fontSize: 14, fontWeight: 500, color: '#0F172A', marginBottom: 4 }}>No deliveries recorded</p>
-            <p style={{ fontSize: 12, color: '#94A3B8' }}>
+          <div className="di-empty-card">
+            <div className="di-empty-tile"><Icon name="BookOpen" style={{ width: 20, height: 20 }} /></div>
+            <h2 className="di-empty-headline">
+              No deliveries recorded<span className="di-empty-period">.</span>
+            </h2>
+            <p className="di-empty-text">
               {search || typeFilter !== 'all' || dateFrom || dateTo
                 ? 'No deliveries match your filters.'
                 : 'Deliveries will appear here when items are received.'}
@@ -652,10 +712,8 @@ export default function DeliveryHistory() {
           </div>
         ) : (
           days.map(([day, { label, entries: dayEntries }]) => (
-            <div key={day} style={{ marginBottom: 24 }}>
-              <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                {label}
-              </p>
+            <div key={day} className="dh-day-section">
+              <p className="dh-day-label">{label}</p>
               {dayEntries.map(entry => (
                 <LedgerEntry
                   key={entry.id}

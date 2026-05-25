@@ -1,0 +1,513 @@
+/* ============================================================
+   Delivery History — editorial redesign.
+   Sits inside the .di scope (set on the page wrapper) so all the
+   shared tokens (--di-cream/--di-rust/--di-sand/etc.) and card
+   primitives (.di-card, .di-card-band, .di-chip, .di-btn) from
+   delivery-inbox.css apply automatically — sibling pages in the
+   same visual family.
+   This file only defines History-specific compositions: the spend
+   hero, the filter bar layout, the day-group label, source/claim
+   chip variants, and the expanded item-row grid.
+   ============================================================ */
+
+/* ── Permission denied screen (.dh-blocked) ─────────────────── */
+.dh-blocked {
+  min-height: 100vh;
+  background: var(--di-cream);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.dh-blocked-card { text-align: center; max-width: 360px; padding: 0 24px; }
+.dh-blocked-title {
+  margin: 0 0 8px;
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 22px;
+  color: var(--di-navy);
+}
+.dh-blocked-body {
+  margin: 0 0 18px;
+  font-size: 13px;
+  color: var(--di-muted);
+}
+.dh-blocked-back {
+  background: none; border: 0; padding: 0;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--di-rust);
+  cursor: pointer;
+  text-decoration: underline;
+}
+.dh-blocked-back:hover { color: var(--di-rust-dark); }
+
+/* ── Topbar (breadcrumb + filter bar) ───────────────────────── */
+.dh-topbar {
+  border-bottom: 0.5px solid var(--di-hairline);
+}
+.dh-topbar-inner {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 22px 32px 18px;
+}
+.dh-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--di-muted);
+  margin-bottom: 14px;
+}
+.dh-breadcrumb-link {
+  background: none; border: 0; padding: 0;
+  font: inherit; letter-spacing: inherit; text-transform: inherit;
+  color: var(--di-muted);
+  cursor: pointer;
+}
+.dh-breadcrumb-link:hover { color: var(--di-rust); }
+.dh-breadcrumb-sep { color: var(--di-faint); }
+.dh-breadcrumb-current { color: var(--di-navy); }
+
+/* ── Filter bar ─────────────────────────────────────────────── */
+.dh-filter-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.dh-filter-search {
+  position: relative;
+  flex: 1 1 220px;
+  min-width: 180px;
+}
+.dh-filter-search-icon {
+  position: absolute;
+  left: 12px; top: 50%;
+  transform: translateY(-50%);
+  width: 14px; height: 14px;
+  color: var(--di-faint);
+  pointer-events: none;
+}
+.dh-filter-input,
+.dh-filter-select,
+.dh-filter-date {
+  padding: 9px 12px;
+  border: 0.5px solid var(--di-hairline);
+  border-radius: 10px;
+  background: var(--di-card);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--di-navy);
+  box-sizing: border-box;
+  transition: border-color 120ms ease;
+}
+.dh-filter-input { width: 100%; padding-left: 34px; }
+.dh-filter-input::placeholder { color: var(--di-faint); }
+.dh-filter-input:focus,
+.dh-filter-select:focus,
+.dh-filter-date:focus {
+  outline: none;
+  border-color: var(--di-rust);
+}
+.dh-filter-select { cursor: pointer; }
+.dh-filter-clear {
+  padding: 9px 14px;
+  border: 0.5px solid var(--di-hairline);
+  border-radius: 10px;
+  background: var(--di-card);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--di-muted);
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+.dh-filter-clear:hover { color: var(--di-rust); border-color: var(--di-rust); }
+
+/* ── Page main column ───────────────────────────────────────── */
+.dh-main {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 28px 32px 96px;
+}
+
+/* ── Toolbar (count + export) ───────────────────────────────── */
+.dh-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.dh-toolbar-count {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px;
+  color: var(--di-muted);
+  letter-spacing: 0.02em;
+}
+
+/* ── Total Spend hero ───────────────────────────────────────── */
+.dh-hero {
+  background: var(--di-card);
+  border: 0.5px solid var(--di-hairline);
+  border-bottom: 5px solid var(--di-rust);
+  border-radius: 18px;
+  padding: 28px 32px;
+  margin-bottom: 28px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  justify-content: space-between;
+  align-items: stretch;
+  box-shadow: var(--di-shadow);
+}
+.dh-hero-primary { flex: 1 1 320px; min-width: 0; }
+.dh-hero-label {
+  margin: 0 0 8px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--di-muted);
+}
+.dh-hero-amount {
+  margin: 0;
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 40px;
+  line-height: 1.05;
+  color: var(--di-navy);
+  letter-spacing: -0.01em;
+  word-break: break-word;
+}
+.dh-hero-amount-segments {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 14px;
+}
+.dh-hero-amount-segments .dh-hero-amount-sep {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--di-faint);
+  letter-spacing: 0;
+}
+
+/* Currency toggle */
+.dh-currency-toggle {
+  display: inline-flex;
+  background: var(--di-sand-soft);
+  border-radius: 999px;
+  padding: 3px;
+  margin-top: 18px;
+}
+.dh-currency-pill {
+  border: 0;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: transparent;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: var(--di-muted);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.dh-currency-pill.is-active {
+  background: var(--di-rust);
+  color: #fff;
+  font-weight: 600;
+}
+.dh-currency-pill:disabled { cursor: default; opacity: 0.5; }
+
+/* Right-side stats */
+.dh-hero-stats {
+  display: flex;
+  align-items: stretch;
+  gap: 28px;
+  flex-shrink: 0;
+}
+.dh-hero-divider {
+  width: 0.5px;
+  background: var(--di-hairline);
+  align-self: stretch;
+}
+.dh-hero-stat {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.dh-hero-stat-count {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 36px;
+  line-height: 1;
+  color: var(--di-navy);
+}
+.dh-hero-stat-label {
+  margin: 6px 0 0;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--di-muted);
+}
+.dh-hero-stat-supplier {
+  text-align: right;
+  min-width: 180px;
+  max-width: 320px;
+}
+.dh-hero-stat-supplier .dh-hero-stat-label {
+  text-align: right;
+  margin: 0 0 6px;
+}
+.dh-hero-stat-supplier-name {
+  margin: 0;
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--di-navy);
+  line-height: 1.25;
+  letter-spacing: -0.005em;
+}
+.dh-hero-stat-supplier-spend {
+  margin: 6px 0 0;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--di-rust);
+  letter-spacing: 0.01em;
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px 10px;
+}
+.dh-hero-stat-supplier-spend .dh-hero-stat-supplier-sep {
+  color: var(--di-faint);
+  font-weight: 400;
+}
+.dh-hero-stat-supplier-items {
+  margin: 2px 0 0;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11.5px;
+  color: var(--di-muted);
+}
+
+/* ── Day group label ───────────────────────────────────────── */
+.dh-day-section { margin-bottom: 24px; }
+.dh-day-label {
+  margin: 0 0 10px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--di-muted);
+}
+
+/* ── Ledger entry card ─────────────────────────────────────── */
+.dh-entry {
+  /* Inherits .di-card primitive: white bg, radius 18, hairline, 5px
+     bottom-edge (set by source-type modifier below), shadow, hover lift. */
+  margin-bottom: 10px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.dh-entry-rust  { border-bottom-color: var(--di-rust); }
+.dh-entry-amber { border-bottom-color: var(--di-amber); }
+.dh-entry-sage  { border-bottom-color: var(--di-sage); }
+.dh-entry-sand  { border-bottom-color: var(--di-sand); }
+
+.dh-entry-band {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+}
+.dh-entry-chev {
+  width: 16px; height: 16px;
+  color: var(--di-faint);
+  flex-shrink: 0;
+}
+.dh-entry-text { flex: 1; min-width: 0; }
+.dh-entry-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.dh-entry-title {
+  margin: 0;
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--di-navy);
+  letter-spacing: -0.005em;
+}
+.dh-entry-sub {
+  margin: 3px 0 0;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11.5px;
+  color: var(--di-muted);
+  letter-spacing: 0.02em;
+}
+.dh-entry-board-link {
+  background: none; border: 0; padding: 0;
+  font-family: inherit;
+  font-size: 11.5px;
+  color: var(--di-rust);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  letter-spacing: 0.02em;
+}
+.dh-entry-board-link:hover { color: var(--di-rust-dark); }
+
+.dh-entry-meta-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+.dh-entry-totals {
+  text-align: right;
+}
+.dh-entry-items {
+  margin: 0;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11.5px;
+  color: var(--di-muted);
+  letter-spacing: 0.02em;
+}
+.dh-entry-total {
+  margin: 2px 0 0;
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--di-navy);
+}
+.dh-entry-icon-btn {
+  background: none; border: 0; padding: 4px;
+  color: var(--di-faint);
+  cursor: pointer;
+  line-height: 0;
+  transition: color 120ms ease;
+}
+.dh-entry-icon-btn:hover { color: var(--di-rust); }
+.dh-entry-icon-btn.is-danger:hover { color: #DC2626; }
+
+/* ── Source chips (small redundant text label) ─────────────── */
+.dh-source-chip {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.dh-source-chip-rust  { background: rgba(198, 90, 26, 0.10); color: var(--di-rust); }
+.dh-source-chip-amber { background: var(--di-amber-soft); color: var(--di-amber); }
+.dh-source-chip-sage  { background: var(--di-sage-soft); color: var(--di-sage-deep); }
+.dh-source-chip-sand  { background: var(--di-sand-soft); color: var(--di-muted); }
+
+/* ── Expanded body (item table) ─────────────────────────────── */
+.dh-entry-body {
+  border-top: 0.5px solid var(--di-sand-soft);
+  padding: 4px 20px 16px;
+  background: var(--di-band);
+}
+.dh-items-header,
+.dh-item-row {
+  display: grid;
+  grid-template-columns: 1fr 70px 90px 90px 100px;
+  gap: 10px;
+  padding: 8px 0;
+  align-items: start;
+}
+.dh-items-header { padding: 10px 0 6px; }
+.dh-items-header-cell {
+  margin: 0;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--di-faint);
+}
+.dh-items-header-cell.num { text-align: right; }
+.dh-item-row {
+  border-bottom: 0.5px solid var(--di-sand-soft);
+}
+.dh-item-row:last-of-type { border-bottom: 0; }
+.dh-item-name {
+  margin: 0;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--di-navy);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dh-item-original {
+  margin: 1px 0 0;
+  font-size: 11px;
+  color: var(--di-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dh-item-ref {
+  margin: 1px 0 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: var(--di-faint);
+}
+.dh-item-cell {
+  margin: 0;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--di-muted);
+}
+.dh-item-cell.num { text-align: right; }
+.dh-item-cell.total {
+  color: var(--di-navy);
+  font-weight: 600;
+}
+.dh-item-empty {
+  margin: 14px 0;
+  font-size: 12px;
+  color: var(--di-faint);
+  text-align: center;
+  font-style: italic;
+}
+
+/* ── Claim status badge ─────────────────────────────────────── */
+.dh-claim {
+  display: inline-block;
+  text-align: right;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.dh-claim-claimed   { color: var(--di-sage-deep); }
+.dh-claim-unclaimed { color: var(--di-faint); }
+.dh-claim-returned  { color: #DC2626; }
+
+/* ── Empty + loading ────────────────────────────────────────── */
+.dh-loading {
+  text-align: center;
+  padding: 80px 0;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--di-faint);
+}
