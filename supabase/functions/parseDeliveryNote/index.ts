@@ -35,6 +35,63 @@ const AZURE_ENDPOINT  = Deno.env.get('AZURE_DOC_INTELLIGENCE_ENDPOINT') || '';
 const AZURE_KEY       = Deno.env.get('AZURE_DOC_INTELLIGENCE_KEY') || '';
 const AZURE_API_VER   = Deno.env.get('AZURE_DOC_INTELLIGENCE_API_VERSION') || '2024-02-29-preview';
 
+// ── Media-type byte sniffing ──────────────────────────────────────────────────
+// Defence-in-depth: don't trust the client's mediaType blindly. The client
+// may mislabel files (some pickers report empty .type for PDFs, etc.) — Azure
+// rejects bytes that don't match the declared Content-Type. Sniff the magic
+// header and prefer the sniffed type when it disagrees with the client.
+// Returns null when the bytes don't match any supported signature.
+function sniffMediaType(bytes: Uint8Array): string | null {
+  if (bytes.length < 4) return null;
+  // PDF — %PDF
+  if (bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46) return 'application/pdf';
+  // JPEG — FF D8 FF
+  if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) return 'image/jpeg';
+  // PNG — 89 50 4E 47
+  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) return 'image/png';
+  // WebP — RIFF....WEBP (offsets 0-3 = RIFF, 8-11 = WEBP)
+  if (bytes.length >= 12
+      && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46
+      && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return 'image/webp';
+  // HEIC — ftyp box at offset 4, brand at offset 8
+  if (bytes.length >= 12 && bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) {
+    const brand = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]).toLowerCase();
+    if (['heic', 'heix', 'hevc', 'hevx', 'mif1'].includes(brand)) return 'image/heic';
+  }
+  // BMP — BM
+  if (bytes[0] === 0x42 && bytes[1] === 0x4D) return 'image/bmp';
+  // TIFF — II*. or MM.*
+  if ((bytes[0] === 0x49 && bytes[1] === 0x49 && bytes[2] === 0x2A && bytes[3] === 0x00)
+      || (bytes[0] === 0x4D && bytes[1] === 0x4D && bytes[2] === 0x00 && bytes[3] === 0x2A)) return 'image/tiff';
+  return null;
+}
+
+// ── Friendly Azure error mapping ──────────────────────────────────────────────
+// Maps known Azure error patterns to a clearer crew-facing message. The
+// RAW Azure error is ALWAYS logged via console.error at the call site
+// before this runs — this only shapes the user-facing string, never
+// discards diagnostic information server-side.
+function friendlyAzureError(azureErrText: string, status: number): string {
+  const lower = (azureErrText || '').toLowerCase();
+  if (/invalidimage|unsupportedmediatype|invalidcontent|invalidformat|unsupported.*content/i.test(lower)) {
+    return `The file looks corrupted or in an unsupported format (Azure error). Try re-exporting or photographing the document.`;
+  }
+  if (/contenttoolarge|too large|maxlength|exceeds.*size/i.test(lower)) {
+    return `The file is too large for the OCR service. Try a smaller scan or a single-page PDF.`;
+  }
+  if (/invalidrequest|badrequest|400/i.test(lower) && /pdf/i.test(lower)) {
+    return `The PDF couldn't be parsed (might be password-protected or scanned at a very low resolution).`;
+  }
+  if (status === 401 || /unauthor/i.test(lower)) {
+    return `OCR service authentication failed. The credentials may need refreshing.`;
+  }
+  if (status === 429 || /throttl|ratelimit/i.test(lower)) {
+    return `OCR service is rate-limited. Wait a moment and try again.`;
+  }
+  // Unmatched — surface a trimmed version of the raw error for diagnostics.
+  return `OCR failed (${status}): ${azureErrText.slice(0, 200)}`;
+}
+
 // ── Document type detection ───────────────────────────────────────────────────
 
 function detectDocumentType(analyzeResult: any): 'receipt' | 'delivery_note' {
@@ -574,16 +631,42 @@ Deno.serve(async (req: Request) => {
   const fileBytes = new Uint8Array(binaryStr.length);
   for (let i = 0; i < binaryStr.length; i++) fileBytes[i] = binaryStr.charCodeAt(i);
 
+  // ── Layer 2: byte-magic sniffing. Don't trust the client's mediaType
+  // when the bytes say something different — Azure rejects bytes that
+  // don't match the declared Content-Type. Prefer the sniffed type;
+  // log mismatches; fail loud (not silent) when bytes are unrecognised.
+  const sniffed = sniffMediaType(fileBytes);
+  let effectiveMediaType = mediaType;
+  if (sniffed && sniffed !== mediaType) {
+    console.warn(
+      `[parseDeliveryNote] media-type mismatch — client sent "${mediaType}" but bytes look like "${sniffed}". Trusting sniffed type for Azure.`
+    );
+    effectiveMediaType = sniffed;
+  } else if (!sniffed) {
+    // Bytes don't match any known signature. If the client label is
+    // also unsupported, refuse — Azure will fail and we'd lose the
+    // diagnostic context. If the client label IS a known good type,
+    // proceed with it (the file may use a niche format Azure handles).
+    const isClientLabelKnown = /^(application\/pdf|image\/(jpeg|png|webp|heic|bmp|tiff))$/i.test(mediaType);
+    if (!isClientLabelKnown) {
+      console.error(`[parseDeliveryNote] bytes unrecognised AND client mediaType "${mediaType}" unsupported. Refusing.`);
+      return new Response(JSON.stringify({
+        error: `Unsupported file type "${mediaType}". Use PDF, JPG, PNG, WebP, or HEIC.`,
+      }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    console.warn(`[parseDeliveryNote] bytes unrecognised but client label "${mediaType}" is known — passing through to Azure as-is.`);
+  }
+
   // Submit to Azure prebuilt-document model (works with any document format)
   const analyzeUrl = `${AZURE_ENDPOINT.replace(/\/$/, '')}/documentintelligence/documentModels/prebuilt-document:analyze?api-version=${AZURE_API_VER}`;
-  console.log('[parseDeliveryNote] Submitting to Azure:', analyzeUrl);
+  console.log('[parseDeliveryNote] Submitting to Azure:', analyzeUrl, '| effective mediaType:', effectiveMediaType);
 
   try {
     const submitRes = await fetch(analyzeUrl, {
       method: 'POST',
       headers: {
         'Ocp-Apim-Subscription-Key': AZURE_KEY,
-        'Content-Type': mediaType,
+        'Content-Type': effectiveMediaType,
       },
       body: fileBytes,
     });
@@ -592,8 +675,13 @@ Deno.serve(async (req: Request) => {
 
     if (!submitRes.ok) {
       const errText = await submitRes.text();
-      console.error('[parseDeliveryNote] Azure submit error:', errText.slice(0, 500));
-      return new Response(JSON.stringify({ error: `Azure submission failed (${submitRes.status}): ${errText.slice(0, 300)}` }), {
+      // ── Layer 3: raw Azure error ALWAYS logged server-side for
+      // diagnostics, even when we map it to a friendlier crew-facing
+      // message. The user-facing string is the friendly version; the
+      // raw text stays in the console for debugging.
+      console.error('[parseDeliveryNote] Azure submit error (raw):', errText.slice(0, 500));
+      const userMsg = friendlyAzureError(errText, submitRes.status);
+      return new Response(JSON.stringify({ error: userMsg }), {
         status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
