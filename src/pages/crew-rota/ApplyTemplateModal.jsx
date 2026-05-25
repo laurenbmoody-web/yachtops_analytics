@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { X, AlertTriangle, ChevronDown, RefreshCw, Trash2, Plus, RotateCcw, CheckCircle2, Activity } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import DateRangePicker from './DateRangePicker';
-import { assessApply, CIRCADIAN_WINDOW_DAYS } from './restHours';
+import { assessApply, CIRCADIAN_WINDOW_DAYS, computeShortenPrefill } from './restHours';
+import TimeSelect from './TimeSelect';
 
 // Phase 3a + 3b — Apply-template modal (simple + shift-pattern paths).
 //
@@ -319,7 +320,231 @@ function summariseRule(rule, breaches, applyDates) {
 // One collapsible member row in the MLC breach list. Defaults collapsed.
 // Expanded view shows the per-rule summary sentences first; a further
 // disclosure reveals the day-by-day prose detail beneath.
-function MlcMemberRow({ name, mlcBreaches, applyDates, memberId, allRows, onDropRow }) {
+// Short labels for the per-rule live readout in the Shorten inline editor.
+// Distinct from the chip labels (which are plain-language) and from the
+// rule TITLE labels (which are sentence-case). These are mid-sentence
+// fragments — "clears daily rest", "still breaches 14h continuous".
+const MLC_RULE_SHORT_LABEL = {
+  daily_rest_10h:       'daily rest',
+  weekly_rest_77h:      'weekly rest',
+  rest_period_split:    'split rest',
+  max_work_stretch_14h: '14h continuous',
+};
+
+function joinAnd(items) {
+  if (items.length === 0) return '';
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`;
+}
+
+function computeNewDurationH(newStart, newEnd) {
+  const [sh, sm] = String(newStart).split(':').map(Number);
+  const [eh, em] = String(newEnd).split(':').map(Number);
+  let start = sh + (sm || 0) / 60;
+  let end = eh + (em || 0) / 60;
+  if (end <= start) end += 24;
+  return end - start;
+}
+
+// Inline shorten editor — replaces the single Drop button on
+// single_long_shift advisories. Drop stays as a tertiary escape below.
+// State is local: the editor's open/closed, the trim direction (end/start),
+// and the in-flight TimeSelect value. Apply commits via onShortenRow;
+// Cancel discards. Direction defaults to the larger d_new_max per the
+// computeShortenPrefill result (preserves more work — Correction 3).
+function ShortenLever({
+  rule,
+  diagnosis,
+  memberId,
+  mlcBreaches,
+  allRows,
+  computePrefillFor,
+  previewWithEdit,
+  onShortenRow,
+  onDropRow,
+}) {
+  const { row: culpritRow, reason } = resolveDropCulprit({
+    diagnosis, memberId, allRows,
+  });
+  const existingCulprit = reason === 'existing';
+  const tooltip = existingCulprit
+    ? 'This shift is already on the rota — edit it from the grid.'
+    : undefined;
+
+  const [open, setOpen] = useState(false);
+  const [prefill, setPrefill] = useState(null);
+  const [direction, setDirection] = useState('end');
+  const [currentTime, setCurrentTime] = useState(null);
+
+  const openEditor = () => {
+    if (!culpritRow || existingCulprit) return;
+    const p = computePrefillFor(culpritRow);
+    if (!p) return;
+    const dir = p.defaultDirection;
+    const dirData = p[dir];
+    setPrefill(p);
+    setDirection(dir);
+    setCurrentTime(dir === 'end' ? dirData.newEnd : dirData.newStart);
+    setOpen(true);
+  };
+
+  const switchDirection = (nextDir) => {
+    if (!prefill) return;
+    const dirData = prefill[nextDir];
+    setDirection(nextDir);
+    setCurrentTime(nextDir === 'end' ? dirData.newEnd : dirData.newStart);
+  };
+
+  const cancel = () => {
+    setOpen(false);
+    setPrefill(null);
+    setCurrentTime(null);
+  };
+
+  const applyShorten = () => {
+    if (!culpritRow || !currentTime) return;
+    const newStart = direction === 'end' ? culpritRow.start_time : currentTime;
+    const newEnd   = direction === 'end' ? currentTime           : culpritRow.end_time;
+    onShortenRow?.(culpritRow, newStart, newEnd, rule);
+    cancel();
+  };
+
+  const dropFromHere = () => {
+    if (!culpritRow) return;
+    onDropRow?.(culpritRow, rule);
+    cancel();
+  };
+
+  // Collapsed-state buttons.
+  if (!open) {
+    return (
+      <div className="ap-mlc-lever-row">
+        <button
+          type="button"
+          className="ap-mlc-shorten-btn"
+          disabled={existingCulprit || !culpritRow}
+          title={tooltip}
+          onClick={openEditor}
+        >Shorten this shift</button>
+        <button
+          type="button"
+          className="ap-mlc-drop-link"
+          disabled={existingCulprit || !culpritRow}
+          title={tooltip}
+          onClick={dropFromHere}
+        >or drop this shift</button>
+      </div>
+    );
+  }
+
+  // Expanded inline editor.
+  const dirData = prefill?.[direction];
+  const directionViable = !!dirData?.viable;
+  // Per-rule live readout via previewWithEdit. Restricted to the rules
+  // this member was already breaching pre-edit so the readout describes
+  // what the chief is fixing — newly-induced breaches (cascade) surface
+  // in the main MLC list after Apply, not here (spec Correction 2).
+  const originalRules = new Set((mlcBreaches || []).map((b) => b.rule));
+  let cleared = [];
+  let remaining = [];
+  let newDurationH = 0;
+  if (currentTime && culpritRow) {
+    const newStart = direction === 'end' ? culpritRow.start_time : currentTime;
+    const newEnd   = direction === 'end' ? currentTime           : culpritRow.end_time;
+    newDurationH = computeNewDurationH(newStart, newEnd);
+    const key = dropRowKey(culpritRow);
+    const previewAssessment = previewWithEdit(key, newStart, newEnd);
+    const previewRules = new Set(
+      (previewAssessment.byMember?.[memberId]?.mlcBreaches || []).map((b) => b.rule),
+    );
+    cleared   = [...originalRules].filter((r) => !previewRules.has(r));
+    remaining = [...originalRules].filter((r) =>  previewRules.has(r));
+  }
+  const noChange = !!currentTime && (
+    (direction === 'end'   && currentTime === culpritRow.end_time) ||
+    (direction === 'start' && currentTime === culpritRow.start_time)
+  );
+  const applyDisabled = !culpritRow || !currentTime || !directionViable || noChange;
+
+  // Readout copy
+  let readout;
+  if (!directionViable) {
+    readout = `Can't shorten enough to clear — try Drop`;
+  } else {
+    const lbl = (rs) => joinAnd(rs.map((r) => MLC_RULE_SHORT_LABEL[r] || r));
+    const dur = `New length ${fmtHoursH(newDurationH)}`;
+    if (cleared.length === 0 && remaining.length === 0) {
+      readout = dur;
+    } else if (cleared.length > 0 && remaining.length === 0) {
+      readout = `${dur} · clears ${lbl(cleared)}`;
+    } else if (cleared.length === 0 && remaining.length > 0) {
+      readout = `${dur} · still breaches ${lbl(remaining)}`;
+    } else {
+      readout = `${dur} · clears ${lbl(cleared)} — still breaches ${lbl(remaining)}`;
+    }
+  }
+
+  const originalLabel = `${culpritRow.start_time.slice(0, 5)}–${culpritRow.end_time.slice(0, 5)}  (${fmtHoursH(computeNewDurationH(culpritRow.start_time, culpritRow.end_time))})`;
+
+  return (
+    <div className="ap-mlc-shorten-panel">
+      <div className="ap-mlc-shorten-head">Shorten</div>
+
+      <div className="ap-mlc-shorten-toggle">
+        <span className="ap-mlc-shorten-label">Trim from:</span>
+        <button
+          type="button"
+          className={`ap-mlc-shorten-tog${direction === 'end' ? ' is-on' : ''}`}
+          onClick={() => switchDirection('end')}
+        >End</button>
+        <button
+          type="button"
+          className={`ap-mlc-shorten-tog${direction === 'start' ? ' is-on' : ''}`}
+          onClick={() => switchDirection('start')}
+        >Start</button>
+      </div>
+
+      <div className="ap-mlc-shorten-row">
+        <span className="ap-mlc-shorten-label">Original:</span>
+        <span className="ap-mlc-shorten-value">{originalLabel}</span>
+      </div>
+
+      <div className="ap-mlc-shorten-row">
+        <span className="ap-mlc-shorten-label">
+          {direction === 'end' ? 'New end:' : 'New start:'}
+        </span>
+        <TimeSelect
+          value={currentTime || ''}
+          onChange={setCurrentTime}
+          ariaLabel={direction === 'end' ? 'New end time' : 'New start time'}
+        />
+      </div>
+
+      <div className="ap-mlc-shorten-readout">{readout}</div>
+
+      <div className="ap-mlc-shorten-actions">
+        <button type="button" className="ap-mlc-shorten-cancel" onClick={cancel}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="ap-mlc-shorten-apply"
+          disabled={applyDisabled}
+          onClick={applyShorten}
+        >Apply shorten</button>
+      </div>
+
+      <button
+        type="button"
+        className="ap-mlc-drop-link ap-mlc-drop-link-tertiary"
+        onClick={dropFromHere}
+      >or drop this shift</button>
+    </div>
+  );
+}
+
+function MlcMemberRow({ name, mlcBreaches, applyDates, memberId, allRows, onDropRow, onShortenRow, computePrefillFor, previewWithEdit }) {
   const [open, setOpen] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const chips = useMemo(() => ruleSummary(mlcBreaches), [mlcBreaches]);
@@ -371,31 +596,49 @@ function MlcMemberRow({ name, mlcBreaches, applyDates, memberId, allRows, onDrop
         <div className="ap-mlc-member-expand">
           <ul className="ap-mlc-rule-summary">
             {ruleSummaries.map((rs) => {
-              const hasLever =
-                rs.diagnosis?.cause === 'single_long_shift'
-                || rs.diagnosis?.cause === 'one_spike_day';
-              const { row: culpritRow, reason } = hasLever
-                ? resolveDropCulprit({ diagnosis: rs.diagnosis, memberId, allRows })
-                : { row: null, reason: null };
-              const enabled = !!culpritRow;
-              const tooltip = reason === 'existing'
-                ? 'This shift is already on the rota — edit it from the grid.'
-                : undefined;
+              const cause = rs.diagnosis?.cause;
+              const isShortenRule = cause === 'single_long_shift';
+              const isDropOnlyRule = cause === 'one_spike_day';
+              // one_spike_day keeps the v1 single Drop button unchanged.
+              let dropOnly = null;
+              if (isDropOnlyRule) {
+                const { row: culpritRow, reason } = resolveDropCulprit({
+                  diagnosis: rs.diagnosis, memberId, allRows,
+                });
+                const enabled = !!culpritRow;
+                const tooltip = reason === 'existing'
+                  ? 'This shift is already on the rota — edit it from the grid.'
+                  : undefined;
+                dropOnly = (
+                  <button
+                    type="button"
+                    className="ap-mlc-drop-btn"
+                    disabled={!enabled}
+                    title={tooltip}
+                    onClick={enabled ? () => onDropRow?.(culpritRow, rs.rule) : undefined}
+                  >Drop this shift</button>
+                );
+              }
               return (
                 <li key={rs.rule}>
                   <div className="ap-mlc-rule-sentence">{rs.sentence}</div>
                   {rs.advisory && (
                     <div className="ap-mlc-rule-advisory">{rs.advisory}</div>
                   )}
-                  {hasLever && (
-                    <button
-                      type="button"
-                      className="ap-mlc-drop-btn"
-                      disabled={!enabled}
-                      title={tooltip}
-                      onClick={enabled ? () => onDropRow?.(culpritRow, rs.rule) : undefined}
-                    >Drop this shift</button>
+                  {isShortenRule && (
+                    <ShortenLever
+                      rule={rs.rule}
+                      diagnosis={rs.diagnosis}
+                      memberId={memberId}
+                      mlcBreaches={mlcBreaches}
+                      allRows={allRows}
+                      computePrefillFor={computePrefillFor}
+                      previewWithEdit={previewWithEdit}
+                      onShortenRow={onShortenRow}
+                      onDropRow={onDropRow}
+                    />
                   )}
+                  {dropOnly}
                 </li>
               );
             })}
@@ -1038,6 +1281,36 @@ export default function ApplyTemplateModal({
     next.delete(key);
     setDroppedRows(next);
     reassessAfterLever(next, editedRows);
+  };
+
+  // Pre-fill helper exposed to the inline shorten editor. Bundles the
+  // closure over historyShifts + targetRowsAndMembers.rows so the editor
+  // component doesn't need to know about the data sources. dayShifts
+  // matches restForDay's model — filtered by shift_date — so prefill
+  // agrees with assessMlc's view of "daily on-duty".
+  const computeShortenPrefillFor = (culpritRow) => {
+    if (!culpritRow) return null;
+    const date = culpritRow.shift_date;
+    const memberId = culpritRow.member_id;
+    const [y, mn, d] = date.split('-').map(Number);
+    const winStart = new Date(y, mn - 1, d);
+    winStart.setDate(winStart.getDate() - 6);
+    const winStartStr = `${winStart.getFullYear()}-${pad(winStart.getMonth() + 1)}-${pad(winStart.getDate())}`;
+    const toCamel = (r) => ({
+      date: r.shift_date,
+      startTime: r.start_time,
+      endTime: r.end_time,
+      shiftType: r.shift_type,
+      subType: r.sub_type ?? null,
+    });
+    const shift = toCamel(culpritRow);
+    const allShifts = [
+      ...historyShifts.filter((r) => r.member_id === memberId).map(toCamel),
+      ...targetRowsAndMembers.rows.filter((r) => r.member_id === memberId).map(toCamel),
+    ];
+    const dayShifts = allShifts.filter((s) => s.date === date);
+    const weekShifts = allShifts.filter((s) => s.date >= winStartStr && s.date <= date);
+    return computeShortenPrefill({ shift, dayShifts, weekShifts });
   };
 
   // Shorten-lever click handler (v1.1). Records the new times in
@@ -1773,6 +2046,9 @@ export default function ApplyTemplateModal({
                           memberId={memberId}
                           allRows={targetRowsAndMembers.rows}
                           onDropRow={handleDropRow}
+                          onShortenRow={handleShortenRow}
+                          computePrefillFor={computeShortenPrefillFor}
+                          previewWithEdit={previewWithEdit}
                         />
                       );
                     })}
