@@ -616,6 +616,12 @@ export default function ApplyTemplateModal({
   // Value carries the full proposed row + the rule the chief was looking
   // at when they pulled the lever (audit attribution in commit 3).
   const [droppedRows, setDroppedRows] = useState(() => new Map());
+  // Lever-pulled shortens (v1.1). Keyed by the ORIGINAL row's dropRowKey.
+  // Value: { row (original), newStart, newEnd, byRule }. Mutually
+  // exclusive with droppedRows for the same key — enforced by the drop /
+  // shorten handlers, NOT by pushIfNew (which would otherwise need to
+  // decide an arbitrary winner).
+  const [editedRows, setEditedRows] = useState(() => new Map());
 
   // ── Re-seed on open / template change ──────────────────────────────
   useEffect(() => {
@@ -628,6 +634,7 @@ export default function ApplyTemplateModal({
     setAssessment(null);
     setOverrideReason('');
     setDroppedRows(new Map());
+    setEditedRows(new Map());
     setBusy(false);
 
     if (template?.kind === 'rotation') {
@@ -832,14 +839,17 @@ export default function ApplyTemplateModal({
   };
 
   // ── Build the full "what would be written" list ────────────────────
-  // Belt-and-braces defensive dedupe: collapse rows that are TRULY
-  // identical — same member, same date, same shift_type/sub_type, same
-  // start/end times. A crew member legitimately doubled into two slots
-  // doing DIFFERENT duties on the same day still produces two rows (the
-  // duty differs). Reachable case for true dups: a single slot's m1
-  // and m2 both pointing at the same crew (the candsForSecond filter
-  // normally prevents it, but a sequence of edits can still land there).
-  const targetRowsAndMembers = useMemo(() => {
+  // Belt-and-braces defensive dedupe (ccaeb41): collapse TRULY identical
+  // rows. A crew member legitimately doubled into two slots doing
+  // DIFFERENT duties on the same day still produces two rows. Lever-
+  // dropped rows are filtered here so they never reach commit. Lever-
+  // edited rows (v1.1 shorten) have their start/end overridden here.
+  //
+  // Factored as a helper so reassessAfterLever can call it with NEXT
+  // state (the in-flight droppedRows/editedRows Maps that haven't yet
+  // applied via setState). targetRowsAndMembers' useMemo calls it with
+  // CURRENT state from this render.
+  const buildProposedRows = (effDropped, effEdited) => {
     if (!template || dates.length === 0) {
       return { rows: [], memberIds: [], duplicatesDropped: 0, invalidTimesDropped: 0, leverDropped: 0 };
     }
@@ -849,17 +859,24 @@ export default function ApplyTemplateModal({
     let duplicatesDropped = 0;
     let invalidTimesDropped = 0;
     let leverDropped = 0;
-    const pushIfNew = (row) => {
+    const pushIfNew = (rowIn) => {
       // The row builder returns null when the template / duty carries
       // missing or equal times — count and skip rather than coerce.
-      if (row == null) { invalidTimesDropped += 1; return; }
-      const key = dropRowKey(row);
-      // Lever-pulled drop — chief chose to remove this exact row to fix
-      // an MLC breach. Skipped here so it never reaches Layer 2's
-      // commit insert. The key matches ccaeb41's dedupe key by design.
-      if (droppedRows.has(key)) { leverDropped += 1; return; }
-      if (seen.has(key)) { duplicatesDropped += 1; return; }
-      seen.add(key);
+      if (rowIn == null) { invalidTimesDropped += 1; return; }
+      const originalKey = dropRowKey(rowIn);
+      // Drop precedence — drop wins over edit when both are present for
+      // the same key (the handlers maintain mutual exclusion, but this
+      // is the last-line guarantee).
+      if (effDropped.has(originalKey)) { leverDropped += 1; return; }
+      // Edit application — swap times if this row has been shortened.
+      const row = effEdited.has(originalKey)
+        ? { ...rowIn,
+            start_time: effEdited.get(originalKey).newStart,
+            end_time: effEdited.get(originalKey).newEnd }
+        : rowIn;
+      const finalKey = dropRowKey(row); // recomputed since times may have changed
+      if (seen.has(finalKey)) { duplicatesDropped += 1; return; }
+      seen.add(finalKey);
       rows.push(row);
       memberSet.add(row.member_id);
     };
@@ -889,8 +906,13 @@ export default function ApplyTemplateModal({
       invalidTimesDropped,
       leverDropped,
     };
+  };
+
+  const targetRowsAndMembers = useMemo(
+    () => buildProposedRows(droppedRows, editedRows),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [template, dates, isPattern, slots, ticked, duties, droppedRows]);
+    [template, dates, isPattern, slots, ticked, duties, droppedRows, editedRows],
+  );
 
   if (!open || !template) return null;
 
@@ -933,16 +955,19 @@ export default function ApplyTemplateModal({
   // wrappers around the supabase queries are async). No spinner: the
   // re-assessment is a pure-function call on already-resident data.
   //
-  // `nextDroppedRows` is passed explicitly because setState is async — the
-  // freshly-mutated map isn't visible via the droppedRows closure on this
-  // tick. By the next render, targetRowsAndMembers.rows would reflect the
-  // new state, but we want to reassess in the same tick as the click.
-  const reassessAfterLever = (nextDroppedRows) => {
-    const effective = nextDroppedRows ?? droppedRows;
-    const filteredRows = targetRowsAndMembers.rows.filter(
-      (r) => !effective.has(dropRowKey(r)),
-    );
-    const memberIds = Array.from(new Set(filteredRows.map((r) => r.member_id)));
+  // Drop and edit Maps are passed explicitly because setState is async:
+  // the freshly-mutated maps aren't visible via the droppedRows/editedRows
+  // closures on this tick. buildProposedRows is re-run with the IN-FLIGHT
+  // maps so the assessment reflects the post-mutation state immediately.
+  // (v1's earlier version filtered targetRowsAndMembers.rows directly —
+  // that worked for adding drops but failed for restores: a row newly
+  // undropped wouldn't reappear because the closure-captured `.rows` was
+  // the already-filtered set. The buildProposedRows refactor closes that
+  // gap.)
+  const reassessAfterLever = (nextDroppedRows, nextEditedRows) => {
+    const effDropped = nextDroppedRows ?? droppedRows;
+    const effEdited  = nextEditedRows  ?? editedRows;
+    const { rows: filteredRows, memberIds } = buildProposedRows(effDropped, effEdited);
     const mode = conflicts ? (resolutionMode || 'skip') : 'none';
     const conflictKeys = (conflicts && mode === 'skip') ? conflicts.conflictKeys : new Set();
     const conflictIdSet = new Set(conflicts?.conflictIds || []);
@@ -957,28 +982,93 @@ export default function ApplyTemplateModal({
     setAssessment(next);
   };
 
+  // One-off preview — does NOT mutate state. Returns the assessment as if
+  // the named row had been edited to (newStart, newEnd). Used by the
+  // inline shorten editor (C2) to show "what would clear if I confirm?".
+  const previewWithEdit = (key, newStart, newEnd) => {
+    const previewEditedMap = new Map(editedRows);
+    // The preview entry doesn't need a `row` field — buildProposedRows
+    // only reads .newStart / .newEnd. The full row reference is only
+    // needed by the Shortened panel (C3) for restoration display.
+    previewEditedMap.set(key, { newStart, newEnd });
+    const { rows: previewRows, memberIds } = buildProposedRows(droppedRows, previewEditedMap);
+    const mode = conflicts ? (resolutionMode || 'skip') : 'none';
+    const conflictKeys = (conflicts && mode === 'skip') ? conflicts.conflictKeys : new Set();
+    const conflictIdSet = new Set(conflicts?.conflictIds || []);
+    return computeAssessmentFor({
+      memberIds,
+      proposedRows: previewRows,
+      existingShifts: historyShifts,
+      mode,
+      conflictKeys,
+      conflictIdSet,
+    });
+  };
+
   // Drop-lever click handler. Adds the row's composite key to droppedRows
   // and immediately re-runs the assessment on the post-drop row set.
   // Idempotent: re-dropping an already-dropped row is a no-op.
+  //
+  // Mutual exclusion (v1.1): if the row was previously shortened, the
+  // edit is cleared at the same time. Drop wins.
   const handleDropRow = (row, byRule) => {
     if (!row) return;
     const key = dropRowKey(row);
     if (droppedRows.has(key)) return;
-    const next = new Map(droppedRows);
-    next.set(key, { row, byRule });
-    setDroppedRows(next);
-    reassessAfterLever(next);
+    const nextDropped = new Map(droppedRows);
+    nextDropped.set(key, { row, byRule });
+    let nextEdited = editedRows;
+    if (editedRows.has(key)) {
+      nextEdited = new Map(editedRows);
+      nextEdited.delete(key);
+      setEditedRows(nextEdited);
+    }
+    setDroppedRows(nextDropped);
+    reassessAfterLever(nextDropped, nextEdited);
   };
 
   // Restore handler — paired with handleDropRow. Removes the key from
   // droppedRows and re-runs the assessment so the row reappears in the
   // proposed set and any breach it caused comes back into the list.
+  // The mutual-exclusion invariant means editedRows is already empty
+  // for this key at restore time, so no edit handling is needed.
   const handleRestoreRow = (key) => {
     if (!droppedRows.has(key)) return;
     const next = new Map(droppedRows);
     next.delete(key);
     setDroppedRows(next);
-    reassessAfterLever(next);
+    reassessAfterLever(next, editedRows);
+  };
+
+  // Shorten-lever click handler (v1.1). Records the new times in
+  // editedRows under the row's ORIGINAL composite key, then re-runs the
+  // assessment with the in-flight maps. Mutual exclusion: clears any
+  // prior drop on the same key (shorten supersedes drop).
+  const handleShortenRow = (row, newStart, newEnd, byRule) => {
+    if (!row || !newStart || !newEnd) return;
+    const key = dropRowKey(row);
+    const nextEdited = new Map(editedRows);
+    nextEdited.set(key, { row, newStart, newEnd, byRule });
+    let nextDropped = droppedRows;
+    if (droppedRows.has(key)) {
+      nextDropped = new Map(droppedRows);
+      nextDropped.delete(key);
+      setDroppedRows(nextDropped);
+    }
+    setEditedRows(nextEdited);
+    reassessAfterLever(nextDropped, nextEdited);
+  };
+
+  // Restore handler — paired with handleShortenRow. Removes the edit,
+  // re-runs the assessment so the row returns to its original times in
+  // proposed and any breach it caused reappears in the list. Mutual-
+  // exclusion invariant means droppedRows is already empty for this key.
+  const handleRestoreShorten = (key) => {
+    if (!editedRows.has(key)) return;
+    const next = new Map(editedRows);
+    next.delete(key);
+    setEditedRows(next);
+    reassessAfterLever(droppedRows, next);
   };
 
   // ── Apply (route into the staged review or commit straight through) ─

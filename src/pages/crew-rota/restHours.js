@@ -21,6 +21,12 @@ export const MLC_MAX_REST_PERIODS = 2;
 export const MLC_LONGEST_REST_PERIOD_MIN = 6;
 export const MLC_MAX_WORK_STRETCH = 14;     // hours
 
+// Shorten-lever safety margin (v1.1). The pre-fill computes the maximum
+// duration that satisfies all rest rules with this many hours of headroom
+// — e.g. with m=1 the daily target becomes 11h rest (10h min + 1h),
+// stretch ≤ 13h continuous (14h max − 1h). Tune by editing here.
+export const MLC_SHORTEN_SAFETY_MARGIN_H = 1;
+
 // Circadian (soft, net-new). Tune by editing here — single source of truth.
 export const CIRCADIAN_MIDPOINT_DELTA_H = 8;   // ≥ this midpoint shift = a "swing"
 export const CIRCADIAN_SWING_THRESHOLD = 2;    // ≥ this many in the window = flag
@@ -496,4 +502,271 @@ export function assessApply({
     totalMlcBreaches,
     totalCircadianFlags,
   };
+}
+
+// ── Shorten-lever pre-fill (v1.1) ──────────────────────────────────────────
+// Pure helper. Given a proposed shift that breaches single_long_shift,
+// compute the longest safe new duration AND the corresponding new times,
+// per direction (trim-from-end vs trim-from-start). The answer depends on
+// direction because the chain on the surviving side is different.
+//
+// Inputs (all camelCase like the rest of restHours):
+//   shift       — the proposed row being shortened.
+//                 { date, startTime, endTime, shiftType, ... }
+//   dayShifts   — every on-duty shift whose shift_date === shift.date.
+//                 Caller is responsible for the filter. Includes `shift`
+//                 itself; we filter it out internally for O_d.
+//   weekShifts  — every on-duty shift in the 7-day rolling window for
+//                 this member. Includes `shift`. Used for O_w and the
+//                 chain walks (chains span shift_date boundaries via
+//                 absolute timeline).
+//
+// Returns:
+//   {
+//     end:   { dNewMaxH, viable, newStart, newEnd, bindingRule },
+//     start: { dNewMaxH, viable, newStart, newEnd, bindingRule },
+//     defaultDirection: 'end' | 'start',
+//   }
+//
+// `bindingRule` ∈ {'daily','weekly','stretch','min_trim','invalid'} —
+// which constraint dominated. Metadata for tooling; UI authority is the
+// live preview from previewWithEdit.
+//
+// FORMULAS (with m = MLC_SHORTEN_SAFETY_MARGIN_H, grid = 0.5h):
+//
+//   d_new_max = min(
+//     (24 − MLC_DAILY_REST_MIN) − O_d − m,    // daily budget
+//     (7*24 − MLC_WEEKLY_REST_MIN) − O_w − m, // weekly budget
+//     MLC_MAX_WORK_STRETCH − C_surviving − m, // stretch on the side that
+//                                             // stays touching after trim
+//     originalDuration − grid                 // must strictly shorten
+//   )
+//
+//   C_surviving = C_b for end-trim (start side stays touching the
+//                                   chain-before), = C_a for start-trim
+//                                   (end side stays touching chain-after).
+//
+// d_new_max is then floor'd to the 0.5h grid. d_new_max ≤ 0 → not viable.
+//
+// O_d / O_w / C_b / C_a — airtight definitions:
+//   * O_d = sum of duration(s) for every on-duty s where s.date ===
+//     shift.date, excluding `shift` itself. Matches the existing
+//     restForDay(dayShifts) model — shifts on adjacent dates whose
+//     absolute time bleeds across midnight are NOT in O_d. Consistency
+//     with assessMlc matters more than theoretical purity here.
+//   * O_w = same, over weekShifts.
+//   * C_b = chain leading INTO shift's start in the absolute timeline.
+//     Convert each on-duty shift in weekShifts (excluding `shift`) to
+//     {startMs, endMs}. Walking from cursor = shift.startMs, repeatedly
+//     find the touching predecessor (endMs === cursor), add its duration
+//     to C_b, set cursor = its startMs. Stop when no touching shift.
+//     Pick longest chain back by tie-breaking on earliest startMs.
+//   * C_a = symmetric forward walk from shift.endMs.
+//
+// O_d and C_b can diverge: a shift on shift_date d−1 that ends at 06:00
+// day d touches shift S starting at 06:00 day d (counts in C_b) but does
+// NOT add to O_d for day d (its shift_date is d−1).
+//
+// OVERNIGHT CAVEAT: for shifts where e0 > 24 (overnight), trim-from-start
+// can push newStart past midnight into day d+1. The data model lacks a
+// way to represent "shift_date d, but starts on d+1" — and the start_time
+// would be misinterpreted as early-morning of d. v1.1 caps start-trim to
+// keep newStart < 24:00 for overnight shifts; if the formal d_new_max
+// would require past-midnight start, start-trim is marked non-viable.
+
+function shiftDecRange(s) {
+  if (!s || !ON_DUTY_TYPES.has(s.shiftType)) return null;
+  const start = hhmmToDecimal(s.startTime);
+  let end = hhmmToDecimal(s.endTime);
+  if (start == null || end == null) return null;
+  if (start === end) return null;
+  if (end <= start) end += 24;
+  return { start, end, duration: end - start };
+}
+
+function shiftAbsMs(s) {
+  const r = shiftDecRange(s);
+  if (!r) return null;
+  const [y, m, d] = String(s.date).split('-').map(Number);
+  if (!y || !m || !d) return null;
+  const dayMs = new Date(y, m - 1, d).getTime();
+  return {
+    startMs: dayMs + r.start * 3_600_000,
+    endMs:   dayMs + r.end   * 3_600_000,
+    duration: r.duration,
+  };
+}
+
+function decToHHMM(dec) {
+  // Normalise into [0, 24) and round to the nearest minute to avoid
+  // floating-point display drift (e.g. 12.4999999 → "12:30" not "12:29").
+  const normalised = ((dec % 24) + 24) % 24;
+  const totalMin = Math.round(normalised * 60);
+  const h = Math.floor(totalMin / 60) % 24;
+  const m = totalMin % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function isSameShift(a, b) {
+  if (a === b) return true;
+  return (
+    a.date === b.date
+    && a.startTime === b.startTime
+    && a.endTime   === b.endTime
+    && a.shiftType === b.shiftType
+    && (a.subType ?? null) === (b.subType ?? null)
+  );
+}
+
+function chainBefore(cursorMs, otherIntervals) {
+  let total = 0;
+  let cur = cursorMs;
+  const seen = new Set();
+  // Defensive cycle-guard: bound the walk at the number of intervals.
+  for (let i = 0; i <= otherIntervals.length; i += 1) {
+    const touching = otherIntervals
+      .filter((iv) => iv.endMs === cur && !seen.has(iv.startMs))
+      .sort((a, b) => a.startMs - b.startMs); // earliest start = longest chain back
+    if (touching.length === 0) break;
+    const next = touching[0];
+    seen.add(next.startMs);
+    total += next.duration;
+    cur = next.startMs;
+  }
+  return total;
+}
+
+function chainAfter(cursorMs, otherIntervals) {
+  let total = 0;
+  let cur = cursorMs;
+  const seen = new Set();
+  for (let i = 0; i <= otherIntervals.length; i += 1) {
+    const touching = otherIntervals
+      .filter((iv) => iv.startMs === cur && !seen.has(iv.endMs))
+      .sort((a, b) => b.endMs - a.endMs); // latest end = longest chain forward
+    if (touching.length === 0) break;
+    const next = touching[0];
+    seen.add(next.endMs);
+    total += next.duration;
+    cur = next.endMs;
+  }
+  return total;
+}
+
+export function computeShortenPrefill({
+  shift,
+  dayShifts = [],
+  weekShifts = [],
+} = {}) {
+  const sRange = shiftDecRange(shift);
+  const sAbs = shiftAbsMs(shift);
+  if (!sRange || !sAbs) {
+    const fallback = {
+      dNewMaxH: 0,
+      viable: false,
+      newStart: shift?.startTime ?? null,
+      newEnd:   shift?.endTime   ?? null,
+      bindingRule: 'invalid',
+    };
+    return { end: fallback, start: fallback, defaultDirection: 'end' };
+  }
+  const m = MLC_SHORTEN_SAFETY_MARGIN_H;
+  const grid = 0.5;
+  const s0 = sRange.start;
+  const e0 = sRange.end;
+  const originalDuration = sRange.duration;
+
+  // O_d / O_w — exclude `shift` itself.
+  const otherDay = dayShifts.filter((s) => !isSameShift(s, shift));
+  const O_d = otherDay.reduce((sum, s) => {
+    const r = shiftDecRange(s);
+    return sum + (r ? r.duration : 0);
+  }, 0);
+  const otherWeek = weekShifts.filter((s) => !isSameShift(s, shift));
+  const O_w = otherWeek.reduce((sum, s) => {
+    const r = shiftDecRange(s);
+    return sum + (r ? r.duration : 0);
+  }, 0);
+
+  // Chains — absolute-ms walks, restricted to other on-duty intervals in
+  // the week window.
+  const otherIntervals = otherWeek.map(shiftAbsMs).filter(Boolean);
+  const C_b = chainBefore(sAbs.startMs, otherIntervals);
+  const C_a = chainAfter(sAbs.endMs, otherIntervals);
+
+  const dailyBudget   = 24 - MLC_DAILY_REST_MIN;        // 14
+  const weeklyBudget  = 7 * 24 - MLC_WEEKLY_REST_MIN;   // 91
+  const stretchBudget = MLC_MAX_WORK_STRETCH;            // 14
+  const dailyCap   = dailyBudget   - O_d - m;
+  const weeklyCap  = weeklyBudget  - O_w - m;
+  const stretchCapEnd   = stretchBudget - C_b - m;
+  const stretchCapStart = stretchBudget - C_a - m;
+  const minTrimCap = originalDuration - grid; // must strictly shorten
+
+  const pickBinding = (daily, weekly, stretch, minTrim) => {
+    const values = [
+      { rule: 'daily',    value: daily },
+      { rule: 'weekly',   value: weekly },
+      { rule: 'stretch',  value: stretch },
+      { rule: 'min_trim', value: minTrim },
+    ];
+    return values.reduce((a, b) => (b.value < a.value ? b : a)).rule;
+  };
+  const floorToGrid = (x) => Math.floor(x / grid) * grid;
+
+  const endRaw   = Math.min(dailyCap, weeklyCap, stretchCapEnd,   minTrimCap);
+  const startRaw = Math.min(dailyCap, weeklyCap, stretchCapStart, minTrimCap);
+  const endBinding   = pickBinding(dailyCap, weeklyCap, stretchCapEnd,   minTrimCap);
+  const startBinding = pickBinding(dailyCap, weeklyCap, stretchCapStart, minTrimCap);
+
+  // Overnight cap on start-trim: for shifts with e0 > 24 (overnight),
+  // newStart = e0 − d_new must stay < 24 so it lands on shift.date, not
+  // the next day. d_new > (e0 − 24).
+  let startCapByOvernight = startRaw;
+  if (e0 > 24) {
+    // Smallest grid-aligned d_new keeping newStart strictly < 24:
+    //   d_new > (e0 − 24) → d_new ≥ ceil((e0 − 24 + ε) / grid) * grid
+    const lower = Math.ceil(((e0 - 24) + 1e-9) / grid) * grid;
+    if (startRaw < lower) startCapByOvernight = 0; // not viable
+  }
+
+  const endDNewMax   = endRaw > 0 ? floorToGrid(endRaw) : 0;
+  const startDNewMax = startCapByOvernight > 0 ? floorToGrid(startCapByOvernight) : 0;
+
+  const end = endDNewMax > 0
+    ? {
+        dNewMaxH: endDNewMax,
+        viable: true,
+        newStart: shift.startTime,
+        newEnd: decToHHMM(s0 + endDNewMax),
+        bindingRule: endBinding,
+      }
+    : {
+        dNewMaxH: 0,
+        viable: false,
+        newStart: shift.startTime,
+        newEnd: shift.endTime,
+        bindingRule: endBinding,
+      };
+
+  const start = startDNewMax > 0
+    ? {
+        dNewMaxH: startDNewMax,
+        viable: true,
+        newStart: decToHHMM(e0 - startDNewMax),
+        newEnd: shift.endTime,
+        bindingRule: startBinding,
+      }
+    : {
+        dNewMaxH: 0,
+        viable: false,
+        newStart: shift.startTime,
+        newEnd: shift.endTime,
+        bindingRule: e0 > 24 && startRaw > 0 ? 'overnight_boundary' : startBinding,
+      };
+
+  // Tie → end (intuitive default; chief usually wants to end earlier).
+  const defaultDirection = endDNewMax >= startDNewMax ? 'end' : 'start';
+
+  return { end, start, defaultDirection };
 }
