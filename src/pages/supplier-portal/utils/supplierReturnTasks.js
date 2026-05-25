@@ -45,6 +45,24 @@ export const fetchReturnTasksByOrderId = async (orderId) => {
   }
 };
 
+// Count-only query for the "Returns (N)" badge on the order-detail
+// page's Returns button. Cheap — head:true skips body, count:'exact'
+// just returns the row count. RLS still scopes by supplier.
+export const fetchReturnTasksCountForOrder = async (orderId) => {
+  if (!orderId) return 0;
+  try {
+    const { count, error } = await supabase
+      ?.from('supplier_return_tasks')
+      ?.select('id', { count: 'exact', head: true })
+      ?.eq('order_id', orderId);
+    if (error) throw error;
+    return count || 0;
+  } catch (err) {
+    console.error('[fetchReturnTasksCountForOrder]', err);
+    return 0;
+  }
+};
+
 // Count of 'sent' tasks for the nav badge. 'sent' is the unread state
 // (an unactioned task — naturally cleared by Acknowledge).
 export const fetchUnactionedReturnsCount = async (supplierId) => {

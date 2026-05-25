@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchOrderById, updateOrderStatus, updateOrderItem, fetchOrderActivity, fetchInvoiceSignedUrl, fetchDocumentSignedUrl, generateOrderPdf, generateDeliveryNote, sendDeliveryNoteEmails, quoteOrderItem, confirmOrderItem } from '../utils/supplierStorage';
-import { fetchReturnTasksByOrderId, acknowledgeSupplierReturnTask, completeSupplierReturnTask } from '../utils/supplierReturnTasks';
+import { fetchReturnTasksByOrderId, fetchReturnTasksCountForOrder, acknowledgeSupplierReturnTask, completeSupplierReturnTask } from '../utils/supplierReturnTasks';
 import { TaskRow, TaskDetail } from '../components/SupplierReturnTaskCard';
 import { useAuth } from '../../../contexts/AuthContext';
 import { showToast } from '../../../utils/toast';
@@ -179,6 +179,7 @@ const DropdownRow = ({ icon, name, link, empty, disabled, onClick }) => (
 
 const HeroActions = ({
   documentsCount,
+  returnsCount,        // integer — drives the count badge on the Returns button
   openMenu,
   onToggle,
   onOpenDock,
@@ -229,14 +230,19 @@ const HeroActions = ({
         <span className="sod-caret">›</span>
       </button>
 
+      {/* Returns: direct drawer trigger (no dropdown). Returns originate
+          crew-side only, so the supplier's only action is "view" — wiring
+          the button straight to the drawer is the honest UX. Count badge
+          shows when ≥1 return is filed against this order. */}
       <button
         type="button"
-        className={isOpen('returns') ? 'sod-menu-open' : ''}
-        onClick={(e) => { e.stopPropagation(); onToggle('returns'); }}
-        aria-haspopup="menu"
-        aria-expanded={isOpen('returns')}
+        onClick={(e) => { e.stopPropagation(); onOpenReturns(); }}
+        aria-label={returnsCount > 0 ? `Returns (${returnsCount})` : 'Returns'}
       >
-        <span className="sod-left">Returns</span>
+        <span className="sod-left">
+          Returns
+          {returnsCount > 0 && <span className="sod-count-badge">{returnsCount}</span>}
+        </span>
         <span className="sod-caret">›</span>
       </button>
 
@@ -394,10 +400,9 @@ const HeroActions = ({
         <DropdownRow icon="✉" name="Message vessel"    onClick={() => showComingSoon('Message vessel')} />
       </ActionDropdown>
 
-      <ActionDropdown open={isOpen('returns')} top={84}>
-        <DropdownRow icon="+" name="Add return" onClick={onOpenReturns} />
-        <DropdownRow icon="⮌" name="No returns yet" empty disabled />
-      </ActionDropdown>
+      {/* No returns dropdown — the Returns button above is a direct drawer
+          trigger. Suppliers don't create returns from the portal; the
+          drawer (with the real per-order task list) is the only surface. */}
     </div>
   );
 };
@@ -406,6 +411,7 @@ const Hero = ({
   order,
   orderShortId,
   documentsCount,
+  returnsCount,
   openMenu,
   onToggleMenu,
   onOpenDock,
@@ -481,6 +487,7 @@ const Hero = ({
       <div className="sod-hero-right">
         <HeroActions
           documentsCount={documentsCount}
+          returnsCount={returnsCount}
           openMenu={openMenu}
           onToggle={onToggleMenu}
           onOpenDock={onOpenDock}
@@ -1640,6 +1647,11 @@ const SupplierOrderDetail = () => {
   const [openMenu, setOpenMenu] = useState(null);          // 'docs' | 'actions' | 'returns' | null
   const [openThreadId, setOpenThreadId] = useState(null);  // item.id whose thread is expanded
   const [returnsDrawerOpen, setReturnsDrawerOpen] = useState(false);
+  // Count of supplier_return_tasks filed against this order — drives the
+  // "Returns (N)" badge. Refreshed when the drawer closes and on the
+  // shared 'supplier-return-tasks-changed' event so acknowledge/complete
+  // from elsewhere stays in sync.
+  const [returnsCount, setReturnsCount] = useState(0);
   const [dockDrawerOpen, setDockDrawerOpen] = useState(false);
   const [editDeliveryOpen, setEditDeliveryOpen] = useState(false);
   const [reassignOpen, setReassignOpen] = useState(false);
@@ -1658,6 +1670,23 @@ const SupplierOrderDetail = () => {
     if (!orderId) return;
     fetchOrderActivity(orderId).then(setActivity).catch(() => setActivity([]));
   }, [orderId]);
+
+  // Returns count for the page-header badge. Fetched on mount and re-
+  // fetched whenever the drawer closes (the supplier may have actioned a
+  // task, but the COUNT itself is invariant under status updates — only
+  // the rare case of a new task arriving from outside changes it) and
+  // on the shared 'supplier-return-tasks-changed' event for symmetry
+  // with the layout-level nav badge.
+  const refreshReturnsCount = useCallback(() => {
+    if (!orderId) return;
+    fetchReturnTasksCountForOrder(orderId).then(setReturnsCount).catch(() => setReturnsCount(0));
+  }, [orderId]);
+  useEffect(() => {
+    refreshReturnsCount();
+    const onChange = () => refreshReturnsCount();
+    window.addEventListener('supplier-return-tasks-changed', onChange);
+    return () => window.removeEventListener('supplier-return-tasks-changed', onChange);
+  }, [refreshReturnsCount]);
 
   const toggleThread = useCallback((itemId) => {
     setOpenThreadId((prev) => (prev === itemId ? null : itemId));
@@ -2052,6 +2081,7 @@ const SupplierOrderDetail = () => {
               order={order}
               orderShortId={orderShortId}
               documentsCount={docsCount}
+              returnsCount={returnsCount}
               openMenu={openMenu}
               onToggleMenu={toggleMenu}
               onOpenDock={handleOpenDock}
