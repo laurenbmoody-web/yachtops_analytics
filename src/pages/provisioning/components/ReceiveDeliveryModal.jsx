@@ -33,6 +33,12 @@ const deriveStatus = (qty, ordered) => {
   return 'partial';
 };
 
+// Best-confidence ranking — used when two OCR line_items map to the same
+// board item (Bug P aggregation). Keeps the strongest signal of the two
+// so the confidence chip reflects the better match, not the later one.
+const CONFIDENCE_RANK = { high: 3, medium: 2, low: 1, none: 0 };
+const bestConfidence = (a, b) => (CONFIDENCE_RANK[a] >= CONFIDENCE_RANK[b]) ? a : b;
+
 // ── Hierarchical location picker ─────────────────────────────────────────────
 
 const LocationPicker = ({ value, onChange, locations = [], placeholder = 'Select location…' }) => {
@@ -279,7 +285,7 @@ const GroupCheckbox = ({ state, onChange }) => {
 
 const ReceiveStep = ({
   items, receiving, onChange, onGroupChange, onReceiveAll, onNext, onClose, saving,
-  deliveryNoteFile, noteStatus, noteError, parsedNote, noteAutoFills, unmatchedItems,
+  deliveryNoteFile, noteStatus, noteError, parsedNote, noteAutoFillData, unmatchedItems,
   onFileSelect, onRemoveNote, onAddUnmatched, onSkipUnmatched,
   multiBoard,
 }) => {
@@ -316,7 +322,25 @@ const ReceiveStep = ({
     const ordered = parseFloat(item.quantity_ordered) || 0;
     const rcvQty = parseFloat(r.qty) || 0;
     const status = r.checked ? deriveStatus(rcvQty, ordered) : null;
-    const fromNote = noteAutoFills?.has(item.id);
+    // OCR context for this row (Pass 2 — Features A, C, and Bug P visibility).
+    // Map.get() returns undefined when no OCR data exists; treat as "no doc".
+    const fillData = noteAutoFillData?.get(item.id);
+    const fromNote = !!fillData;
+    const conf = fillData?.confidence;             // 'high' | 'medium' | 'low' | 'added'
+    const extractedQty = fillData?.extractedQty ?? 0;
+    const lineCount = fillData?.lineCount ?? 1;
+    // Feature A — confidence chip variant. Medium + low collapse into one
+    // amber "check match" treatment so the crew has a binary signal:
+    // trust it or eyeball it. 'added' is a separate sentinel for items
+    // the crew manually pulled in from the unmatched section.
+    const isDoubleCheck = conf === 'medium' || conf === 'low';
+    const isAdded = conf === 'added';
+    // Feature C — partial-receive remainder indicator. Only meaningful when
+    // OCR actually auto-matched (confidence high/medium/low). 'added' items
+    // don't trigger Tier-2 routing for the remainder; manually-added items
+    // stay on the crew's board, so no "+N will be routed" message.
+    const remainder = (fromNote && !isAdded && rcvQty < extractedQty && rcvQty >= 0)
+      ? (extractedQty - rcvQty) : 0;
     const qtyClass = !r.checked ? '' : rcvQty >= ordered ? ' is-full' : rcvQty > 0 ? ' is-partial' : '';
     const rowClass = r.checked ? (fromNote ? ' is-matched' : ' is-checked') : '';
     return (
@@ -330,8 +354,30 @@ const ReceiveStep = ({
           <p className="rdm-item-name">{item.name}</p>
           <p className="rdm-item-sub">
             {(item.brand || item.size) && <span>{[item.brand, item.size].filter(Boolean).join(' · ')}</span>}
-            {fromNote && <span title="Qty set from document" className="rdm-match-badge">📄 match</span>}
+            {fromNote && !isDoubleCheck && !isAdded && (
+              <span title="Quantity set from document" className="rdm-match-badge">📄 match</span>
+            )}
+            {fromNote && isDoubleCheck && (
+              <span title="OCR confidence is medium or low — verify before saving" className="rdm-match-badge is-doublecheck">
+                ⚠ check match
+              </span>
+            )}
+            {fromNote && isAdded && (
+              <span title="Added from the delivery document" className="rdm-match-badge is-added">
+                📄 from doc
+              </span>
+            )}
+            {fromNote && lineCount > 1 && (
+              <span title={`${lineCount} OCR lines merged into this row — qty summed`} className="rdm-match-badge is-merged">
+                {lineCount} lines merged
+              </span>
+            )}
           </p>
+          {remainder > 0 && r.checked && (
+            <p className="rdm-item-remainder-note" title="The remainder will be offered to other departments or sent to the delivery inbox">
+              +{remainder} will be routed onward
+            </p>
+          )}
         </div>
         <p className="rdm-item-ordered">
           {ordered}{item.unit ? <span style={{ marginLeft: 4, fontSize: 10, color: 'var(--rdm-faint)' }}>{item.unit}</span> : null}
@@ -589,6 +635,7 @@ const PushStep = ({
   newItemForms, onInitNewItemForm, onNewItemFormChange,
   onNewItemSplitChange, onNewItemAddSplit, onNewItemRemoveSplit,
   onPush, onBack, onComplete, pushing,
+  routingSummary, onDismissRoutingSummary,
 }) => {
   const receivedItems = items.filter(i => receiving[i.id]?.checked && (parseFloat(receiving[i.id]?.qty) || 0) > 0);
 
@@ -645,6 +692,56 @@ const PushStep = ({
       <p className="rdm-section-sub" style={{ marginBottom: 14 }}>
         Confirm where each item goes in inventory. Split across multiple locations if needed.
       </p>
+
+      {/* Feature D — routing summary. Persistent dismissable panel showing
+          WHICH items routed WHERE (other boards / delivery inbox). Surfaces
+          information that was previously only visible as a count toast. */}
+      {routingSummary && (routingSummary.toOtherBoards.length > 0 || routingSummary.toDeliveryInbox.length > 0) && (
+        <div className="rdm-routing-summary">
+          <div className="rdm-routing-summary-head">
+            <p className="rdm-routing-summary-title">Items sent elsewhere</p>
+            <button
+              type="button"
+              onClick={onDismissRoutingSummary}
+              className="rdm-icon-btn"
+              aria-label="Dismiss routing summary"
+              title="Dismiss"
+            >
+              <Icon name="X" style={{ width: 14, height: 14 }} />
+            </button>
+          </div>
+          {routingSummary.toOtherBoards.length > 0 && (
+            <div className="rdm-routing-summary-section">
+              <p className="rdm-routing-summary-section-label">To other boards</p>
+              <ul className="rdm-routing-summary-list">
+                {routingSummary.toOtherBoards.map((r, i) => (
+                  <li key={`b-${i}`} className="rdm-routing-summary-row">
+                    <span className="rdm-routing-summary-item">{r.itemName}</span>
+                    <span className="rdm-routing-summary-arrow">→</span>
+                    <span className="rdm-routing-summary-target">{r.boardTitle}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {routingSummary.toDeliveryInbox.length > 0 && (
+            <div className="rdm-routing-summary-section">
+              <p className="rdm-routing-summary-section-label">To delivery inbox</p>
+              <ul className="rdm-routing-summary-list">
+                {routingSummary.toDeliveryInbox.map((r, i) => (
+                  <li key={`i-${i}`} className="rdm-routing-summary-row">
+                    <span className="rdm-routing-summary-item">{r.itemName}</span>
+                    <span className="rdm-routing-summary-arrow">→</span>
+                    <span className="rdm-routing-summary-target rdm-routing-summary-target-inbox">
+                      No match on any board
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="rdm-route-list">
         {receivedItems.map(item => {
@@ -923,10 +1020,21 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
   const [noteStatus, setNoteStatus] = useState('idle'); // 'idle'|'parsing'|'done'|'error'
   const [noteError, setNoteError] = useState(null);
   const [parsedNote, setParsedNote] = useState(null);
-  const [noteAutoFills, setNoteAutoFills] = useState(new Set());
+  // Map<item.id, { extractedQty, confidence, lineCount }>. Set by the OCR
+  // handler; consumed by ReceiveStep's renderItemRow for the confidence
+  // chip (sage vs amber "check match"), the "N lines merged" indicator
+  // (when Bug-P aggregation summed multiple OCR lines into one row), and
+  // the partial-receive remainder indicator (Feature C — shown when the
+  // crew's entered qty is less than the OCR extractedQty).
+  const [noteAutoFillData, setNoteAutoFillData] = useState(new Map());
   const [unmatchedItems, setUnmatchedItems] = useState([]);
   const originalUnmatchedRef = React.useRef([]);
   const [addedItems, setAddedItems] = useState([]); // items added via "Add to board"
+  // Feature D — routing summary surfaced on Step 2. Populated by
+  // handleSaveReceiving when the Tier-2 cross-dept routing runs.
+  // Shape: { toOtherBoards: [{ itemName, boardTitle }], toDeliveryInbox: [{ itemName }] }
+  // Null when nothing was routed; resets when the modal closes.
+  const [routingSummary, setRoutingSummary] = useState(null);
   const [matches, setMatches] = useState({});              // {[id]: row | 'loading' | null}
   const [locationSplits, setLocationSplits] = useState({}); // {[id]: [{locationName, currentQty, addQty}]}
   const [noMatchChoices, setNoMatchChoices] = useState({}); // {[id]: 'link'|'create'|'skip'|null}
@@ -1021,7 +1129,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
     setNoteStatus('parsing');
     setNoteError(null);
     setParsedNote(null);
-    setNoteAutoFills(new Set());
+    setNoteAutoFillData(new Map());
     setUnmatchedItems([]);
     try {
       const base64 = await new Promise((resolve, reject) => {
@@ -1046,25 +1154,65 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
       console.log('[DeliveryNote] Parsed result — invoice_number:', result?.invoice_number, 'supplier:', result?.supplier_name, 'line_items:', result?.line_items?.length);
       setParsedNote(result);
       setNoteStatus('done');
-      const fills = new Set();
+
+      // ── Bug P fix: aggregate OCR line_items by matched_item_id ──────────
+      // PRE-FIX: each OCR line_item that mapped to a board item ran its own
+      // setReceiving with `qty: li.quantity` — the second line that landed
+      // on the same matched_item_id silently OVERWROTE the first qty (e.g.
+      // two "Rope 10m" lines qty 2 + qty 3 → recorded as qty 3, losing 2).
+      // FIX: build a Map keyed by matched_item_id, SUM the qtys, KEEP the
+      // best confidence (high > medium > low), and track lineCount so the
+      // row can surface a "N lines merged" indicator. State commits in one
+      // shot after aggregation.
+      const matchedAgg = new Map();  // item_id → { qty, lineCount, confidence, extractedQty }
       const unmatched = [];
       (result.line_items || []).forEach(li => {
         if (li.matched_item_id && li.match_confidence !== 'none') {
-          fills.add(li.matched_item_id);
-          const boardItem = allItems.find(i => i.id === li.matched_item_id);
-          setReceiving(prev => ({
-            ...prev,
-            [li.matched_item_id]: {
-              ...(prev[li.matched_item_id] || {}),
-              checked: true,
-              qty: li.quantity ?? boardItem?.quantity_ordered ?? 0,
-            },
-          }));
+          const lineQty = parseFloat(li.quantity) || 0;
+          const existing = matchedAgg.get(li.matched_item_id);
+          if (existing) {
+            existing.qty += lineQty;
+            existing.extractedQty += lineQty;
+            existing.lineCount += 1;
+            existing.confidence = bestConfidence(existing.confidence, li.match_confidence);
+          } else {
+            const boardItem = allItems.find(i => i.id === li.matched_item_id);
+            const seedQty = lineQty || (parseFloat(boardItem?.quantity_ordered) || 0);
+            matchedAgg.set(li.matched_item_id, {
+              qty: seedQty,
+              extractedQty: lineQty,  // pure OCR sum; used for partial-receive indicator
+              lineCount: 1,
+              confidence: li.match_confidence,
+            });
+          }
         } else {
           unmatched.push(li);
         }
       });
-      setNoteAutoFills(fills);
+
+      // Apply aggregated qtys to receiving state in one setReceiving call.
+      if (matchedAgg.size > 0) {
+        setReceiving(prev => {
+          const next = { ...prev };
+          matchedAgg.forEach((agg, itemId) => {
+            next[itemId] = { ...(next[itemId] || {}), checked: true, qty: agg.qty };
+          });
+          return next;
+        });
+      }
+
+      // noteAutoFillData (Map) carries per-item OCR context for the row
+      // renderer: confidence chip variant, "N lines merged" badge, and the
+      // extractedQty used by the partial-receive remainder indicator.
+      const fillData = new Map();
+      matchedAgg.forEach((agg, itemId) => {
+        fillData.set(itemId, {
+          extractedQty: agg.extractedQty,
+          confidence: agg.confidence,
+          lineCount: agg.lineCount,
+        });
+      });
+      setNoteAutoFillData(fillData);
       setUnmatchedItems(unmatched);
       originalUnmatchedRef.current = unmatched;
     } catch (err) {
@@ -1079,7 +1227,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
     setNoteStatus('idle');
     setNoteError(null);
     setParsedNote(null);
-    setNoteAutoFills(new Set());
+    setNoteAutoFillData(new Map());
     setUnmatchedItems([]);
     originalUnmatchedRef.current = [];
   };
@@ -1098,7 +1246,20 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
       if (!saved) return;
       setAddedItems(prev => [...prev, saved]);
       setReceiving(prev => ({ ...prev, [saved.id]: { checked: true, qty: li.quantity || 1 } }));
-      setNoteAutoFills(prev => new Set([...prev, saved.id]));
+      // Manually-added items (from the unmatched section) get a sentinel
+      // confidence='added' so the row renderer shows a "📄 from doc" chip
+      // distinct from auto-matched items. lineCount=1 (no aggregation),
+      // extractedQty=line's qty so the row can still surface a partial-
+      // receive indicator if the crew enters less than the document said.
+      setNoteAutoFillData(prev => {
+        const next = new Map(prev);
+        next.set(saved.id, {
+          extractedQty: parseFloat(li.quantity) || 0,
+          confidence: 'added',
+          lineCount: 1,
+        });
+        return next;
+      });
       setUnmatchedItems(prev => prev.filter((_, i) => i !== idx));
     } catch {
       showToast('Failed to add item to board', 'error');
@@ -1110,6 +1271,29 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
   };
 
   const handleSaveReceiving = async () => {
+    // ── Bug E guard: multi-board orphan check ──────────────────────────────
+    // In multi-board mode every checked item MUST carry a _boardId so we
+    // can create its provisioning_deliveries batch and delivery_ledger
+    // entry. Items lacking _boardId would otherwise have their
+    // provisioning_items.status updated by receiveItems but get no batch
+    // row and no ledger entry — silent data loss. Refuse to start any
+    // writes; the modal can't recover, the parent component needs fixing.
+    // Hard refuse + explicit toast over silent skip.
+    if (multiBoard) {
+      const checkedItems = [...items, ...addedItems].filter(i => receiving[i.id]?.checked);
+      const orphans = checkedItems.filter(i => !i._boardId);
+      if (orphans.length > 0) {
+        const sample = orphans.slice(0, 3).map(i => i.name).filter(Boolean).join(', ');
+        const more = orphans.length > 3 ? ` and ${orphans.length - 3} more` : '';
+        const noun = orphans.length === 1 ? 'item is' : 'items are';
+        showToast(
+          `Can't save — ${orphans.length} ${noun} missing a board assignment (${sample}${more}). Close and reopen this receive from a specific board.`,
+          'error'
+        );
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       // Build full update list (includes items added via "Add to board" from delivery note)
@@ -1133,7 +1317,12 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
       let firstBatchId = null; // used for delivery note attachment
 
       if (multiBoard) {
-        // Multi-board mode: one batch per board
+        // Multi-board mode: one batch per board. The guard at the top of
+        // handleSaveReceiving refuses to enter this code path if any
+        // checked item lacks _boardId, so 'unknown' should never appear
+        // here. The throw below is defence-in-depth — if a future refactor
+        // weakens the guard, this fails LOUD instead of silently dropping
+        // items into a no-batch / no-ledger black hole (the pre-Pass-2 bug).
         const byBoard = {};
         receivedUpdates.forEach(u => {
           const key = u._boardId || 'unknown';
@@ -1142,7 +1331,9 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
         });
 
         for (const [boardId, boardItems] of Object.entries(byBoard)) {
-          if (boardId === 'unknown') continue;
+          if (boardId === 'unknown') {
+            throw new Error(`ReceiveDeliveryModal: ${boardItems.length} received item${boardItems.length === 1 ? '' : 's'} reached batch creation without a _boardId. The save-boundary guard should have caught this — please reload and try again.`);
+          }
           const cost = boardItems.reduce(
             (sum, u) => sum + (parseFloat(u.estimated_unit_cost) || 0) * (u.quantity_received || 0), 0
           );
@@ -1453,6 +1644,41 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
         }
       }
 
+      // ── Feature D — capture routing summary for the Step 2 panel ──────────
+      // Surfaces WHICH items routed WHERE — the existing toasts only show
+      // counts. Queries cross_department_matches + delivery_inbox by the
+      // shared delivery_batch_id, so it captures rows from BOTH the initial
+      // unmatched-routing call and the partial-receive remainder call.
+      // Non-fatal: if the queries fail we just don't show the panel; the
+      // routing itself already happened.
+      if (firstBatchId) {
+        try {
+          const [crossRes, inboxRes] = await Promise.all([
+            supabase
+              ?.from('cross_department_matches')
+              ?.select('raw_name, matched_board:provisioning_lists(title)')
+              ?.eq('delivery_batch_id', firstBatchId)
+              ?.eq('status', 'pending'),
+            supabase
+              ?.from('delivery_inbox')
+              ?.select('raw_name')
+              ?.eq('delivery_batch_id', firstBatchId)
+              ?.eq('status', 'pending'),
+          ]);
+          const toOtherBoards = (crossRes?.data || [])
+            .filter(r => r.raw_name && r.matched_board?.title)
+            .map(r => ({ itemName: r.raw_name, boardTitle: r.matched_board.title }));
+          const toDeliveryInbox = (inboxRes?.data || [])
+            .filter(r => r.raw_name)
+            .map(r => ({ itemName: r.raw_name }));
+          if (toOtherBoards.length > 0 || toDeliveryInbox.length > 0) {
+            setRoutingSummary({ toOtherBoards, toDeliveryInbox });
+          }
+        } catch (err) {
+          console.error('[ReceiveDeliveryModal] routing-summary capture failed:', err);
+        }
+      }
+
       // Log activity for this delivery receive
       logActivity({
         module: 'provisioning',
@@ -1743,7 +1969,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
             deliveryNoteFile={deliveryNoteFile}
             noteStatus={noteStatus}
             parsedNote={parsedNote}
-            noteAutoFills={noteAutoFills}
+            noteAutoFillData={noteAutoFillData}
             unmatchedItems={unmatchedItems}
             noteError={noteError}
             onFileSelect={handleFileSelect}
@@ -1781,6 +2007,8 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
             onBack={() => setStep(1)}
             onComplete={onComplete}
             pushing={pushing}
+            routingSummary={routingSummary}
+            onDismissRoutingSummary={() => setRoutingSummary(null)}
           />
         )}
         </div>

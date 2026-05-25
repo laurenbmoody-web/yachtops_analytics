@@ -381,6 +381,38 @@
   letter-spacing: 0.04em;
   padding: 1px 6px;
   border-radius: 999px;
+  white-space: nowrap;
+}
+/* Feature A — amber treatment for medium/low OCR confidence. Single
+   variant for both (the granular distinction isn't actionable). Crew
+   sees this and double-checks the qty before saving. */
+.rdm-match-badge.is-doublecheck {
+  background: var(--rdm-amber-soft);
+  color: var(--rdm-amber);
+}
+/* Sentinel for crew-added items pulled in from the unmatched section.
+   Distinct from auto-matches (no implied AI confidence) and from the
+   doublecheck chip (no warning semantic — they chose this themselves). */
+.rdm-match-badge.is-added {
+  background: var(--rdm-sand-soft);
+  color: var(--rdm-muted);
+}
+/* Bug P visibility — surfaces when N>1 OCR lines summed into this row. */
+.rdm-match-badge.is-merged {
+  background: var(--rdm-sand-soft);
+  color: var(--rdm-navy);
+  font-weight: 600;
+}
+
+/* Feature C — partial-receive remainder indicator. Sits under the row
+   when the crew's entered qty is less than the OCR extractedQty.
+   Amber tracked-caps so it reads as informational/warning, not error. */
+.rdm-item-remainder-note {
+  margin: 2px 0 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--rdm-amber);
+  letter-spacing: 0.02em;
 }
 .rdm-item-ordered {
   text-align: center;
@@ -944,6 +976,81 @@
 }
 .rdm-icon-btn:hover { color: var(--rdm-rust); background: var(--rdm-sand-soft); }
 .rdm-icon-btn.is-danger:hover { color: #DC2626; background: rgba(220, 38, 38, 0.06); }
+
+/* ── Feature D — routing summary panel (Step 2) ───────────────────
+   Persistent dismissable panel at the top of the routing list,
+   surfacing WHICH items routed WHERE. Replaces the count-only toasts
+   that previously left the crew blind to the actual destinations.
+   Uses the editorial palette — sand-edged card, hairline border,
+   amber for the inbox-routed sub-list (no-board-match warning). */
+.rdm-routing-summary {
+  background: var(--rdm-card);
+  border: 0.5px solid var(--rdm-hairline);
+  border-bottom: 5px solid var(--rdm-sand);
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  box-shadow: var(--rdm-shadow);
+}
+.rdm-routing-summary-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.rdm-routing-summary-title {
+  margin: 0;
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--rdm-navy);
+  letter-spacing: -0.005em;
+}
+.rdm-routing-summary-section { margin-top: 8px; }
+.rdm-routing-summary-section:first-of-type { margin-top: 0; }
+.rdm-routing-summary-section-label {
+  margin: 0 0 5px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--rdm-muted);
+}
+.rdm-routing-summary-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rdm-routing-summary-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+.rdm-routing-summary-item {
+  color: var(--rdm-navy);
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rdm-routing-summary-arrow { color: var(--rdm-faint); flex-shrink: 0; }
+.rdm-routing-summary-target {
+  color: var(--rdm-sage-deep);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.rdm-routing-summary-target.rdm-routing-summary-target-inbox {
+  color: var(--rdm-amber);
+  font-style: italic;
+  font-weight: 500;
+}
 
 /* ── Buttons ────────────────────────────────────────────────
    Modal-local variants. The shared .di-btn-* classes in
