@@ -304,6 +304,83 @@
   color: #fff;
 }
 
+/* ── Tier-count summary (replaces the supplier/board toggle when
+      frozenOrder is active — post-OCR rendering mode). At-a-glance
+      counts of what the doc covered. */
+.rdm-tier-summary {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--rdm-muted);
+  letter-spacing: 0.01em;
+}
+.rdm-tier-summary strong {
+  color: var(--rdm-navy);
+  font-weight: 700;
+  font-family: 'Outfit', system-ui, sans-serif;
+}
+.rdm-tier-summary-sep { color: var(--rdm-faint); margin: 0 4px; }
+
+/* ── Tier section headers (frozen-order render mode) ─────────────
+   Three variants — sage for confirmed, amber for needs-review,
+   sand for the collapsed untouched toggle. Reuses the band shape
+   of .rdm-item-group-head but with tier-driven colour. */
+.rdm-tier-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-top: 0.5px solid var(--rdm-hairline);
+  border-bottom: 0.5px solid var(--rdm-hairline);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  text-align: left;
+}
+.rdm-tier-head-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.rdm-tier-head-count {
+  margin-left: auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--rdm-muted);
+}
+.rdm-tier-head-review {
+  background: var(--rdm-amber-soft);
+}
+.rdm-tier-head-review .rdm-tier-head-label { color: var(--rdm-amber); }
+.rdm-tier-head-confirmed {
+  background: var(--rdm-sage-soft);
+}
+.rdm-tier-head-confirmed .rdm-tier-head-label { color: var(--rdm-sage-deep); }
+
+/* Untouched row is a clickable button (collapse toggle) — distinct
+   look so it reads as interactive, not a section header. */
+.rdm-tier-head-untouched {
+  width: 100%;
+  background: var(--rdm-sand-soft);
+  border-left: 0;
+  border-right: 0;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.rdm-tier-head-untouched:hover { background: var(--rdm-band-soft, var(--rdm-band)); }
+.rdm-tier-head-untouched .rdm-tier-head-label { color: var(--rdm-muted); text-transform: none; letter-spacing: 0.01em; font-weight: 600; font-size: 12.5px; }
+.rdm-tier-head-chevron {
+  color: var(--rdm-muted);
+  font-size: 12px;
+  width: 12px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.rdm-tier-head-hint {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--rdm-faint);
+  font-style: italic;
+}
+
 .rdm-item-group { margin-bottom: 16px; }
 .rdm-item-group-head {
   display: flex;
