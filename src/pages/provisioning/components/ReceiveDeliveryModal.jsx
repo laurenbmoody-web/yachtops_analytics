@@ -309,12 +309,24 @@ const GroupCheckbox = ({ state, onChange }) => {
 const ReceiveStep = ({
   items, receiving, onChange, onGroupChange, onReceiveAll, onNext, onClose, saving,
   deliveryNoteFile, noteStatus, noteError, parsedNote, noteAutoFillData, unmatchedItems,
+  frozenOrder,
   onFileSelect, onRemoveNote, onAddUnmatched, onSkipUnmatched,
   multiBoard,
 }) => {
   const [organiseBySupplier, setOrganiseBySupplier] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const [unmatchedExpanded, setUnmatchedExpanded] = useState(false);
+  // Three-tier render only: starts collapsed so the crew lands on
+  // Needs review + Confirmed (the actionable tiers) without scrolling
+  // past 80 untouched rows. Click to expand inline.
+  const [untouchedExpanded, setUntouchedExpanded] = useState(false);
+  // Index items by id for O(1) lookup during the three-tier render.
+  // Built once per render — cheap (10s-100s of items typical).
+  const itemsById = (() => {
+    const m = new Map();
+    items.forEach(i => m.set(i.id, i));
+    return m;
+  })();
   const noteCameraRef = useRef(null);
   const noteRollRef   = useRef(null);
   const noteFileRef   = useRef(null);
@@ -421,18 +433,29 @@ const ReceiveStep = ({
 
   return (
     <>
-      {/* Sub-header: organise toggle + Receive All. The step indicator
-          lives at the modal-shell level (in ReceiveDeliveryModal) — kept
-          out of here so both steps render against a consistent stepper. */}
+      {/* Sub-header. When frozenOrder is active (post-OCR), the supplier/
+          board toggle is replaced by a tier-count summary — the list is no
+          longer grouped by supplier, so the toggle would be meaningless.
+          The crew gets at-a-glance counts of what the doc covered instead. */}
       <div className="rdm-section" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
         <p className="rdm-section-sub" style={{ flex: 1, margin: 0 }}>Tick each item received and enter the quantity.</p>
-        <button
-          type="button"
-          onClick={() => setOrganiseBySupplier(v => !v)}
-          className={`rdm-organise-toggle-btn${organiseBySupplier ? ' is-active' : ''}`}
-        >
-          {multiBoard ? 'By board' : 'By supplier'}
-        </button>
+        {frozenOrder ? (
+          <p className="rdm-tier-summary">
+            <strong>{frozenOrder.confirmed.length}</strong> confirmed
+            <span className="rdm-tier-summary-sep"> · </span>
+            <strong>{frozenOrder.needsReview.length}</strong> to review
+            <span className="rdm-tier-summary-sep"> · </span>
+            <strong>{frozenOrder.untouched.length}</strong> untouched
+          </p>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setOrganiseBySupplier(v => !v)}
+            className={`rdm-organise-toggle-btn${organiseBySupplier ? ' is-active' : ''}`}
+          >
+            {multiBoard ? 'By board' : 'By supplier'}
+          </button>
+        )}
         <button type="button" onClick={onReceiveAll} className="rdm-btn rdm-btn-ghost">
           Receive all
         </button>
@@ -526,9 +549,65 @@ const ReceiveStep = ({
         <div className="rdm-item-list-header-cell">Status</div>
       </div>
 
-      {/* Item rows */}
+      {/* Item rows.
+          Two render modes:
+          (a) frozenOrder active (post-OCR) — three frozen tiers: NEEDS
+              REVIEW, CONFIRMED, and (collapsible) Not on this delivery.
+              Sort frozen at OCR completion; no row-jumping on edits.
+          (b) no OCR yet — fall through to the existing supplier/board
+              grouping (the toggle pill above governs supplier vs board).
+              This mode is reachable when crew opens the modal without
+              uploading a doc — rare per Lauren but preserved as fallback.
+      */}
       <div className="rdm-item-list" style={{ borderRadius: '0 0 10px 10px' }}>
-        {organiseBySupplier ? (
+        {frozenOrder ? (
+          <>
+            {frozenOrder.needsReview.length > 0 && (
+              <>
+                <div className="rdm-tier-head rdm-tier-head-review">
+                  <span className="rdm-tier-head-label">Needs review</span>
+                  <span className="rdm-tier-head-count">{frozenOrder.needsReview.length} item{frozenOrder.needsReview.length === 1 ? '' : 's'}</span>
+                </div>
+                {frozenOrder.needsReview.map(id => {
+                  const item = itemsById.get(id);
+                  return item ? renderItemRow(item) : null;
+                })}
+              </>
+            )}
+            {frozenOrder.confirmed.length > 0 && (
+              <>
+                <div className="rdm-tier-head rdm-tier-head-confirmed">
+                  <span className="rdm-tier-head-label">Confirmed</span>
+                  <span className="rdm-tier-head-count">{frozenOrder.confirmed.length} item{frozenOrder.confirmed.length === 1 ? '' : 's'}</span>
+                </div>
+                {frozenOrder.confirmed.map(id => {
+                  const item = itemsById.get(id);
+                  return item ? renderItemRow(item) : null;
+                })}
+              </>
+            )}
+            {frozenOrder.untouched.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setUntouchedExpanded(v => !v)}
+                  className="rdm-tier-head rdm-tier-head-untouched"
+                  aria-expanded={untouchedExpanded}
+                >
+                  <span className="rdm-tier-head-chevron">{untouchedExpanded ? '▾' : '▸'}</span>
+                  <span className="rdm-tier-head-label">
+                    {frozenOrder.untouched.length} item{frozenOrder.untouched.length === 1 ? '' : 's'} not on this delivery
+                  </span>
+                  <span className="rdm-tier-head-hint">(tick to add manually if OCR missed something)</span>
+                </button>
+                {untouchedExpanded && frozenOrder.untouched.map(id => {
+                  const item = itemsById.get(id);
+                  return item ? renderItemRow(item) : null;
+                })}
+              </>
+            )}
+          </>
+        ) : organiseBySupplier ? (
           supplierGroups.map(([supplierName, groupItems]) => {
             const checkedCount = groupItems.filter(i => receiving[i.id]?.checked).length;
             const groupState = checkedCount === 0 ? 'none' : checkedCount === groupItems.length ? 'all' : 'some';
@@ -1058,6 +1137,19 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
   // Shape: { toOtherBoards: [{ itemName, boardTitle }], toDeliveryInbox: [{ itemName }] }
   // Null when nothing was routed; resets when the modal closes.
   const [routingSummary, setRoutingSummary] = useState(null);
+  // Step-1 list ordering after OCR. Null when no doc has been processed —
+  // ReceiveStep falls back to its existing supplier/board grouping in
+  // that case. When non-null, the list renders as three frozen tiers:
+  //   needsReview: medium/low-confidence OCR matches (sorted alpha)
+  //   confirmed:   high-confidence matches + crew-added items
+  //                (alpha within auto-matches; crew-added appended in
+  //                 insertion order with NO re-sort — see brief)
+  //   untouched:   board items the doc didn't mention (sorted alpha;
+  //                collapsed by default in the UI)
+  // Frozen at OCR-completion; never recomputed on qty edits, checkbox
+  // toggles, or confidence-tier transitions. Crew-added items are
+  // appended to confirmed at insertion time; existing rows never shift.
+  const [frozenOrder, setFrozenOrder] = useState(null);
   const [matches, setMatches] = useState({});              // {[id]: row | 'loading' | null}
   const [locationSplits, setLocationSplits] = useState({}); // {[id]: [{locationName, currentQty, addQty}]}
   const [noMatchChoices, setNoMatchChoices] = useState({}); // {[id]: 'link'|'create'|'skip'|null}
@@ -1163,6 +1255,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
     setParsedNote(null);
     setNoteAutoFillData(new Map());
     setUnmatchedItems([]);
+    setFrozenOrder(null);  // re-OCR rebuilds the order from scratch in the success branch below
     try {
       const base64 = await new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -1247,6 +1340,33 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
       setNoteAutoFillData(fillData);
       setUnmatchedItems(unmatched);
       originalUnmatchedRef.current = unmatched;
+
+      // Freeze the Step-1 list ordering. Runs exactly ONCE per OCR
+      // completion — never recomputed on qty edits, checkbox toggles,
+      // or confidence-tier transitions. The crew's edits don't make
+      // rows jump around mid-task. Crew-added items append to the
+      // bottom of `confirmed` later in handleAddUnmatched.
+      const byName = (a, b) => (a.name || '').localeCompare(b.name || '');
+      const needsReview = [];
+      const confirmed = [];
+      const untouched = [];
+      for (const item of allItems) {
+        const fill = fillData.get(item.id);
+        if (!fill) {
+          untouched.push(item);
+        } else if (fill.confidence === 'medium' || fill.confidence === 'low') {
+          needsReview.push(item);
+        } else {
+          // 'high' or 'added' — both go to Confirmed (Lauren's call: the
+          // tier semantic is "no open decision", not "matched-against-board").
+          confirmed.push(item);
+        }
+      }
+      setFrozenOrder({
+        needsReview: needsReview.sort(byName).map(i => i.id),
+        confirmed:   confirmed.sort(byName).map(i => i.id),
+        untouched:   untouched.sort(byName).map(i => i.id),
+      });
     } catch (err) {
       console.error('[parseNote] error:', err);
       setNoteError(err.message || 'Unknown error');
@@ -1262,6 +1382,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
     setNoteAutoFillData(new Map());
     setUnmatchedItems([]);
     originalUnmatchedRef.current = [];
+    setFrozenOrder(null);  // back to supplier-grouped alphabetical fallback
   };
 
   const handleAddUnmatched = async (li, idx) => {
@@ -1292,6 +1413,13 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
         });
         return next;
       });
+      // Append to the bottom of Confirmed in insertion order. No re-sort —
+      // existing rows in the tier do not shift, preserving the freeze
+      // semantic. Only relevant when frozenOrder is active (post-OCR).
+      setFrozenOrder(prev => prev ? ({
+        ...prev,
+        confirmed: [...prev.confirmed, saved.id],
+      }) : prev);
       setUnmatchedItems(prev => prev.filter((_, i) => i !== idx));
     } catch {
       showToast('Failed to add item to board', 'error');
@@ -2002,6 +2130,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
             noteStatus={noteStatus}
             parsedNote={parsedNote}
             noteAutoFillData={noteAutoFillData}
+            frozenOrder={frozenOrder}
             unmatchedItems={unmatchedItems}
             noteError={noteError}
             onFileSelect={handleFileSelect}
