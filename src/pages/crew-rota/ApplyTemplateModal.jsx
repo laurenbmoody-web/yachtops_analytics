@@ -552,16 +552,56 @@ function ShortenLever({
   );
 }
 
-// Plain-prose message rendered IN PLACE OF the lever when the bulk
-// pre-fill can't clear ANY breaching day's rule (bulkCleared === 0).
-// Common case: weekly rest overloaded across the entire range — even
-// trimming the long shift to the safest length leaves the week over.
-function ShortenFutileMessage() {
+// Compact block rendered IN PLACE OF the (rule sentence + Why advisory
+// + futile message) stack when the bulk pre-fill can't clear ANY
+// breaching day. Common case: weekly rest overloaded across the entire
+// range. The chief can't act from a Shorten lever here — the only fix
+// from this screen is to Drop all the recurring proposed shifts (which
+// removes them from the apply, leaving the chief to reassign elsewhere
+// or override). v1.2 density pass C1 compresses an 8-line stack into a
+// two-line block that preserves the regulatory anchor (the MLC limit
+// and the worst-case projected value).
+function ShortenFutileCompact({
+  rule, worstBreach, breachCount, culpritRows, onBulkDropRows,
+}) {
+  const title = MLC_RULE_TITLE[rule] || rule;
+  // Line 1 — regulatory anchor. Keep the rule title, the affected-day
+  // count, and the worst figure with the MLC limit. Drop the date-range
+  // tail and the "fell short" framing (both recoverable from context).
+  let sentence;
+  if (rule === 'weekly_rest_77h' && worstBreach) {
+    sentence = `${title} — all ${breachCount} days. Lowest ${fmtHoursH(worstBreach.projected)} on ${fmtDateShort(worstBreach.date)} (${worstBreach.limit}h required).`;
+  } else if (rule === 'daily_rest_10h' && worstBreach) {
+    sentence = `${title} — all ${breachCount} days. Worst ${fmtHoursH(worstBreach.projected)} rest on ${fmtDateShort(worstBreach.date)} (${worstBreach.limit}h required).`;
+  } else {
+    sentence = `${title} — ${breachCount} day${breachCount === 1 ? '' : 's'}.`;
+  }
+  // Line 2 — action. Rule-aware reason text; the drop button signals
+  // scale ("Drop all N shifts") rather than reading as a casual single-
+  // shift drop. The chief still lands in the Removed panel afterward
+  // with Restore available on the rolled-up entry.
+  const reasonText = rule === 'weekly_rest_77h'
+    ? 'Week is overloaded — shortening won’t fix this'
+    : rule === 'daily_rest_10h'
+      ? 'Day already over — shortening won’t fix this'
+      : 'Shortening can’t fix this';
+  const canDrop = Array.isArray(culpritRows) && culpritRows.length > 0;
   return (
-    <div className="ap-mlc-shorten-futile">
-      Shortening these shifts won&rsquo;t clear the breach &mdash; the
-      week&rsquo;s load is too high overall. Try Drop on the worst days,
-      or reassign some shifts to other crew.
+    <div className="ap-mlc-futile-block">
+      <div className="ap-mlc-futile-sentence">{sentence}</div>
+      <div className="ap-mlc-futile-action">
+        <span className="ap-mlc-futile-icon" aria-hidden="true">⚠</span>
+        <span className="ap-mlc-futile-text">
+          {reasonText}.{' '}
+          <button
+            type="button"
+            className="ap-mlc-futile-drop"
+            disabled={!canDrop}
+            onClick={() => canDrop && onBulkDropRows?.(culpritRows, rule)}
+          >Drop all {breachCount} shifts</button>
+          {' '}or reassign elsewhere.
+        </span>
+      </div>
     </div>
   );
 }
@@ -1163,11 +1203,15 @@ function MlcMemberRow({ name, mlcBreaches, applyDates, memberId, allRows, onDrop
               // the original N-day recurring breach reappears and the
               // bulk lever renders for it next open.
               let futile = false;
+              let futileCulprits = []; // promoted out of the futility-detection
+                                       // block so the compact futile render
+                                       // below can pass them to the Drop link.
               if (goBulk) {
                 const culprits = rs.breaches
                   .map((b) => resolveDropCulprit({ diagnosis: b.diagnosis, memberId, allRows }))
                   .filter((r) => r.row && r.reason !== 'existing')
                   .map((r) => r.row);
+                futileCulprits = culprits;
                 if (culprits.length === 0) {
                   futile = true;
                 } else {
@@ -1220,6 +1264,27 @@ function MlcMemberRow({ name, mlcBreaches, applyDates, memberId, allRows, onDrop
                   >Drop this shift</button>
                 );
               }
+              // Density-pass C1: the futile branch suppresses the verbose
+              // rule sentence + Why advisory and renders a single compact
+              // two-line block. The 8-line stack of (sentence + advisory +
+              // futile message) collapses to (regulatory line + action
+              // line with Drop link). The chief loses nothing compliance-
+              // critical — the rule title, day count, worst projected
+              // value, and MLC limit all survive on the regulatory line.
+              if (goBulk && futile) {
+                const worstBreach = pickWorstBreach(rs.rule, rs.breaches);
+                return (
+                  <li key={rs.rule}>
+                    <ShortenFutileCompact
+                      rule={rs.rule}
+                      worstBreach={worstBreach}
+                      breachCount={rs.breaches.length}
+                      culpritRows={futileCulprits}
+                      onBulkDropRows={onBulkDropRows}
+                    />
+                  </li>
+                );
+              }
               return (
                 <li key={rs.rule}>
                   <div className="ap-mlc-rule-sentence">{rs.sentence}</div>
@@ -1239,7 +1304,6 @@ function MlcMemberRow({ name, mlcBreaches, applyDates, memberId, allRows, onDrop
                       onDropRow={onDropRow}
                     />
                   )}
-                  {goBulk && futile && <ShortenFutileMessage />}
                   {goBulk && !futile && (
                     <BulkShortenLever
                       rule={rs.rule}
