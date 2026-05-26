@@ -35,11 +35,12 @@ const corsHeaders = {
 
 const AZURE_ENDPOINT  = Deno.env.get('AZURE_DOC_INTELLIGENCE_ENDPOINT') || '';
 const AZURE_KEY       = Deno.env.get('AZURE_DOC_INTELLIGENCE_KEY') || '';
-// Default to v4.0 GA (released Nov 2024). The prior default,
-// '2024-02-29-preview', is paired with the now-removed prebuilt-document
-// model — leaving it caused ModelNotFound on every call. If the
-// AZURE_DOC_INTELLIGENCE_API_VERSION env var is pinned to an older
-// preview value in Supabase secrets, it WILL override this default.
+// Default to v4.0 GA (released Nov 2024). The prior default was a
+// deprecated preview API version paired with the now-removed
+// prebuilt-document model — leaving it caused ModelNotFound on every
+// call. If the AZURE_DOC_INTELLIGENCE_API_VERSION env var is pinned to
+// an older preview value in Supabase secrets, it WILL override this
+// default.
 const AZURE_API_VER   = Deno.env.get('AZURE_DOC_INTELLIGENCE_API_VERSION') || '2024-11-30';
 
 // ── Media-type byte sniffing ──────────────────────────────────────────────────
