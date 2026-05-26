@@ -35,13 +35,13 @@ const corsHeaders = {
 
 const AZURE_ENDPOINT  = Deno.env.get('AZURE_DOC_INTELLIGENCE_ENDPOINT') || '';
 const AZURE_KEY       = Deno.env.get('AZURE_DOC_INTELLIGENCE_KEY') || '';
-// Default to v4.0 GA (released Nov 2024). The prior default was a
-// deprecated preview API version paired with the now-removed
-// prebuilt-document model — leaving it caused ModelNotFound on every
-// call. If the AZURE_DOC_INTELLIGENCE_API_VERSION env var is pinned to
-// an older preview value in Supabase secrets, it WILL override this
-// default.
-const AZURE_API_VER   = Deno.env.get('AZURE_DOC_INTELLIGENCE_API_VERSION') || '2024-11-30';
+// REQUIRED env var — no hardcoded default. The env var is registered
+// in Netlify as a secret, and the scanner flags any literal in the
+// repo that matches its value. Validated below in the request handler
+// (fails loud with a clear error if missing — same pattern as
+// AZURE_ENDPOINT / AZURE_KEY). Recommended value to set in Supabase
+// function secrets: the current v4.0 GA release of the API.
+const AZURE_API_VER   = Deno.env.get('AZURE_DOC_INTELLIGENCE_API_VERSION') || '';
 
 // ── Media-type byte sniffing ──────────────────────────────────────────────────
 // Defence-in-depth: don't trust the client's mediaType blindly. The client
@@ -609,9 +609,10 @@ Deno.serve(async (req: Request) => {
 
   console.log('[parseDeliveryNote] AZURE_ENDPOINT configured:', !!AZURE_ENDPOINT);
   console.log('[parseDeliveryNote] AZURE_KEY configured:', !!AZURE_KEY);
+  console.log('[parseDeliveryNote] AZURE_API_VER configured:', !!AZURE_API_VER);
 
-  if (!AZURE_ENDPOINT || !AZURE_KEY) {
-    return new Response(JSON.stringify({ error: 'Azure Document Intelligence credentials not configured. Set AZURE_DOC_INTELLIGENCE_ENDPOINT and AZURE_DOC_INTELLIGENCE_KEY.' }), {
+  if (!AZURE_ENDPOINT || !AZURE_KEY || !AZURE_API_VER) {
+    return new Response(JSON.stringify({ error: 'Azure Document Intelligence credentials not configured. Set AZURE_DOC_INTELLIGENCE_ENDPOINT, AZURE_DOC_INTELLIGENCE_KEY, and AZURE_DOC_INTELLIGENCE_API_VERSION.' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
