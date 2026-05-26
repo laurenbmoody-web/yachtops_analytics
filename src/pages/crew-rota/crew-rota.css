@@ -2270,21 +2270,55 @@
 }
 .ap-bulk-perday-mini-cancel:hover { background: #F4F1EA; }
 
-/* Futile-shorten message — replaces the bulk lever when no chief-pick
-   could clear the breach (uniform_load weekly + the long shift only
-   trims to the daily cap, weekly still over). Plain quiet prose, no
-   buttons — the chief reads it and uses Drop or reassigns elsewhere. */
-.ap-mlc-shorten-futile {
+/* Compact futile block (v1.2 density pass C1) — replaces the
+   (rule-sentence + Why-advisory + futile-message) stack when bulk
+   shorten can't clear any breaching day. Two-line layout: the first
+   line carries the regulatory anchor (rule + days + worst figure +
+   MLC limit), the second the action prose with an inline Drop link
+   that signals scale ("Drop all N shifts"). Margin/padding sized to
+   sit comfortably below the chips trigger without dominating. */
+.ap-mlc-futile-block {
   margin-top: 8px;
-  padding: 8px 10px;
+  padding: 8px 12px;
   background: #FFFEF9;
-  border-left: 2px solid #D9CCB9;
+  border-left: 2px solid #C65A1A;
   border-radius: 4px;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 12px;
   line-height: 1.55;
+}
+.ap-mlc-futile-sentence {
+  color: #1C1B3A;
+  font-weight: 500;
+}
+.ap-mlc-futile-action {
+  margin-top: 3px;
   color: #5F5E5A;
-  font-style: italic;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+.ap-mlc-futile-icon {
+  flex: 0 0 auto;
+  color: #C65A1A;
+}
+.ap-mlc-futile-text { flex: 1 1 auto; }
+.ap-mlc-futile-drop {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: #7A2E1E;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ap-mlc-futile-drop:hover:not(:disabled) { color: #5C2316; }
+.ap-mlc-futile-drop:disabled { opacity: 0.45; cursor: not-allowed; }
+.ap-mlc-drop-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 .ap-mlc-drop-btn:disabled {
   opacity: 0.45;
