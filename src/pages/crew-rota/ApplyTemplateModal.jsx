@@ -78,6 +78,35 @@ function fmtDateShort(dateStr) {
   return `${d.getDate()} ${MONTH_SHORT[d.getMonth()]}`;
 }
 
+// Date-list formatter — collapses enumerated dates to range form when
+// they're contiguous (within a single month: "27–31 May"; cross-month
+// or year: "28 May–2 Jun"). Non-contiguous falls back to a comma list
+// ("27, 29, 31 May"). Used everywhere a sequence of YYYY-MM-DD strings
+// is displayed (bulk readout's still-breaching / excluded clauses, the
+// Shortened panel's rollup row). Sorts the input internally so callers
+// don't need to.
+function fmtDateRange(dates) {
+  if (!Array.isArray(dates) || dates.length === 0) return '';
+  if (dates.length === 1) return fmtDateShort(dates[0]);
+  const sorted = [...dates].sort();
+  let contiguous = true;
+  for (let i = 1; i < sorted.length; i += 1) {
+    const a = fromStr(sorted[i - 1]);
+    const b = fromStr(sorted[i]);
+    if ((b - a) / 86_400_000 !== 1) { contiguous = false; break; }
+  }
+  if (contiguous) {
+    const first = fromStr(sorted[0]);
+    const last = fromStr(sorted[sorted.length - 1]);
+    if (first.getMonth() === last.getMonth()
+        && first.getFullYear() === last.getFullYear()) {
+      return `${first.getDate()}–${last.getDate()} ${MONTH_SHORT[first.getMonth()]}`;
+    }
+    return `${fmtDateShort(sorted[0])}–${fmtDateShort(sorted[sorted.length - 1])}`;
+  }
+  return sorted.map(fmtDateShort).join(', ');
+}
+
 function fmtHoursH(decimal) {
   if (decimal == null || Number.isNaN(decimal)) return '—';
   const total = Math.max(0, Math.round(Number(decimal) * 60));
@@ -819,8 +848,17 @@ function BulkShortenLever({
     const overrides = includedEdits.map((e) => [e.key, { newStart: e.newStart, newEnd: e.newEnd }]);
     const assessment = previewWithEdits(overrides);
     const memberPreviewBreaches = assessment.byMember?.[memberId]?.mlcBreaches || [];
+    // SCOPED to included days only (D2 of density pass). Excluded days
+    // have no edit applied, so their original times still breach in the
+    // preview — they appeared in the unscoped set and caused the
+    // readout to list the same dates in both "would still breach" and
+    // "excluded" clauses. Scoping here cleanly separates "the chief's
+    // trim didn't clear this day" from "this day wasn't trimmed at all".
+    const includedDateSet = new Set(includedEdits.map((e) => e.date));
     const stillBreachingDates = new Set(
-      memberPreviewBreaches.filter((b) => b.rule === rule).map((b) => b.date),
+      memberPreviewBreaches
+        .filter((b) => b.rule === rule && includedDateSet.has(b.date))
+        .map((b) => b.date),
     );
     const clearedDates = includedEdits
       .filter((e) => !stillBreachingDates.has(e.date))
@@ -921,29 +959,74 @@ function BulkShortenLever({
     const countLabel = allWritten ? `all ${totalCount} day${totalCount === 1 ? '' : 's'}` : `${writtenCount} of ${totalCount} days`;
     const bindingExplain = BULK_BINDING_EXPLAIN[dirData.bulkBindingRule] || '';
     readoutSummary = `Trims ${countLabel} ${verb} ${timesLabel}${bindingExplain}.`;
-    const stillBreachDateList = stillBreachingDates.map((d) => fmtDateShort(d)).join(', ');
-    const excludedDateList = excludedEntries.map((e) => fmtDateShort(e.date)).join(', ');
+    const stillBreachDateRange = fmtDateRange(stillBreachingDates);
+    const excludedDateRange = fmtDateRange(excludedEntries.map((e) => e.date));
+    // Combined-form (D2): collapse the two clauses into one when EVERY
+    // non-trimmed day is genuinely non-clearable by shortening. The
+    // condition is intentionally strict.
+    //
+    // STRICTNESS COMMENT — do not loosen, please. The combined sentence
+    // "The other N days (…) can't be cleared by shortening" makes a
+    // universal claim about every non-trimmed day. If even one
+    // non-trimmed day is "chief-excluded but actually viable" or
+    // "viable in the other direction", that day CAN be cleared by
+    // shortening (with an Include or a direction switch), and the
+    // combined claim becomes a false statement. Fall back to separate
+    // clauses in that case — each clause is locally correct. The four
+    // gating conditions:
+    //   (1) at least one non-trimmed day — otherwise "the other 0
+    //       days …" is meaningless. Combined form needs a real set.
+    //   (2) no included day still breaches THIS rule — otherwise the
+    //       chief's trim partly missed the mark on a trimmed day, which
+    //       deserves its own clause.
+    //   (3) every non-trimmed day is in excludedEntries (no silent
+    //       slippage in our accounting).
+    //   (4) every excluded day is non-viable in BOTH directions — a day
+    //       viable in the other direction could be rescued by toggling,
+    //       and the combined claim would be false for it.
+    const nonTrimmedCount = totalCount - writtenCount;
+    const allOtherNonClearable =
+      nonTrimmedCount > 0
+      && stillBreachingDates.length === 0
+      && excludedEntries.length === nonTrimmedCount
+      && excludedEntries.every((e) =>
+        !e.viableInBulkDirection && !e.viableInOtherDirection
+      );
+
     const tailParts = [];
     if (writtenCount === 0) {
       tailParts.push(`No days selected — re-include some days or pick a different time`);
-    } else if (stillBreachingDates.length === 0) {
-      // All included days clear this rule. Check co-breach.
+    } else if (allOtherNonClearable) {
+      // Combined form — single sentence covers both "wouldn't trim" and
+      // "can't clear" for the non-trimmed set. The four predicates
+      // above guarantee this is a true statement.
+      tailParts.push(`The other ${nonTrimmedCount} day${nonTrimmedCount === 1 ? '' : 's'} (${excludedDateRange}) can't be cleared by shortening`);
+      // Co-breach still surfaces — combined form is about THIS rule's
+      // non-clearability for the other days; other rules' status on
+      // trimmed days is an independent compliance signal that must not
+      // be hidden.
       if ((previewState?.remainingOtherRules || []).length > 0) {
-        tailParts.push(`Clears ${ruleLabel} — still breaches ${lbl(previewState.remainingOtherRules)}`);
-      } else {
-        tailParts.push(`Clears the breach`);
+        tailParts.push(`Trimmed days still breach ${lbl(previewState.remainingOtherRules)}`);
       }
     } else {
-      // Some included days don't clear at their effective time.
-      tailParts.push(`${stillBreachDateList} would still breach ${ruleLabel}`);
-    }
-    if (excludedEntries.length > 0) {
-      const needsOther = excludedEntries.some((e) => e.viableInOtherDirection);
-      const otherDir = direction === 'end' ? 'start' : 'end';
-      const dirReason = needsOther
-        ? `would need ${otherDir}-trim`
-        : `can't shorten enough to clear there either`;
-      tailParts.push(`${excludedDateList} excluded — ${dirReason}`);
+      // Fall back to separate clauses, each in range form.
+      if (stillBreachingDates.length === 0) {
+        if ((previewState?.remainingOtherRules || []).length > 0) {
+          tailParts.push(`Clears ${ruleLabel} — still breaches ${lbl(previewState.remainingOtherRules)}`);
+        } else {
+          tailParts.push(`Clears the breach`);
+        }
+      } else {
+        tailParts.push(`${stillBreachDateRange} would still breach ${ruleLabel}`);
+      }
+      if (excludedEntries.length > 0) {
+        const needsOther = excludedEntries.some((e) => e.viableInOtherDirection);
+        const otherDir = direction === 'end' ? 'start' : 'end';
+        const dirReason = needsOther
+          ? `would need ${otherDir}-trim`
+          : `can't be cleared by shortening`;
+        tailParts.push(`${excludedDateRange} excluded — ${dirReason}`);
+      }
     }
     readoutDetail = tailParts.join('. ');
   }
@@ -2995,29 +3078,8 @@ export default function ApplyTemplateModal({
                 groups.get(groupKey).dates.push(r.shift_date);
                 groups.get(groupKey).keys.push(key);
               }
-              const renderDateList = (dates) => {
-                if (dates.length === 0) return '';
-                if (dates.length === 1) return fmtDateShort(dates[0]);
-                let contiguous = true;
-                for (let i = 1; i < dates.length; i += 1) {
-                  const a = fromStr(dates[i - 1]);
-                  const b = fromStr(dates[i]);
-                  if ((b - a) / 86_400_000 !== 1) { contiguous = false; break; }
-                }
-                if (contiguous) {
-                  const first = fromStr(dates[0]);
-                  const last  = fromStr(dates[dates.length - 1]);
-                  // Same-month rollup → "25–29 May" (month once). Cross-
-                  // month → keep both ("28 May–2 Jun"). Year boundary
-                  // also forces both-format. C3 copy tweak.
-                  if (first.getMonth() === last.getMonth()
-                      && first.getFullYear() === last.getFullYear()) {
-                    return `${first.getDate()}–${last.getDate()} ${MONTH_SHORT[first.getMonth()]}`;
-                  }
-                  return `${fmtDateShort(dates[0])}–${fmtDateShort(dates[dates.length - 1])}`;
-                }
-                return dates.map(fmtDateShort).join(', ');
-              };
+              // Date-range formatting reuses the module-level fmtDateRange
+              // helper now that the bulk readout shares the same logic.
               return (
                 <div className="ap-shortened">
                   <div className="ap-shortened-head">Shortened in this apply</div>
@@ -3029,7 +3091,7 @@ export default function ApplyTemplateModal({
                       g.dates.sort();
                       const origDur = computeNewDurationH(g.origStart, g.origEnd);
                       const newDur  = computeNewDurationH(g.newStart, g.newEnd);
-                      const dateLabel = renderDateList(g.dates);
+                      const dateLabel = fmtDateRange(g.dates);
                       const handleRestore = () => {
                         if (g.keys.length === 1) handleRestoreShorten(g.keys[0]);
                         else handleRestoreShortenGroup(g.keys);
