@@ -28,6 +28,7 @@ import { summariseRegions } from './regionGrouping';
 import AddVendorForm from './AddVendorForm';
 import { showToast } from '../../../utils/toast';
 import '../../../styles/editorial.css';
+import '../provisioning-dashboard.css';
 import './suppliers-directory.css';
 
 // ─── Small presentational helpers (page-local, intentionally not
@@ -452,7 +453,7 @@ const SuppliersDirectoryPage = () => {
   return (
     <>
       <Header />
-      <div className="sd-dir">
+      <div className="sd-dir pv-dashboard">
         <div className="sd-dir-inner">
 
           <button

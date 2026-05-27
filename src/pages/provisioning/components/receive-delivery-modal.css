@@ -1,45 +1,36 @@
 /* ============================================================
-   ReceiveDeliveryModal — editorial redesign (Pass 1, visual only).
-   Page-scoped under .rdm. Reuses .di-* tokens + primitives from
-   delivery-inbox.css (sibling editorial surface). DM Serif Display
-   for the modal title only; Outfit + Plus Jakarta Sans elsewhere.
+   ReceiveDeliveryModal — provisioning-dashboard surface restyle.
 
-   Semantic palette mapping (translates inline-style meaning):
-     sage   → OCR matched, qty full, push completed, success
-     amber  → OCR no-match, qty partial, "create new", validation warning
-     rust   → OCR failed/errored, destructive hover. NOTE: rust is the
-              editorial system's brand accent (CTAs, headlines), so the
-              error STATE leans on AlertCircle icon + unmistakable copy
-              to disambiguate. Colour alone won't carry "this is wrong"
-              in this palette — pair every error use with the icon.
-     navy   → primary text, default actions, informational
-     sand   → muted, hairlines, disabled, backgrounds
+   Page-scoped under .rdm (which itself composes .pv-dashboard for
+   shared --d-* token resolution; see ../provisioning-dashboard.css).
+   The modal adopts the cool dashboard palette used by Suppliers
+   Directory — replacing the previous warm editorial --rdm-* set.
+
+   LAYOUT PRINCIPLE
+   ----------------
+   Two layers. Modal panel = cool ground (--d-bg). Every content
+   block inside = white card (--d-card) sitting on that ground,
+   separated by gap, framed by --d-border / --d-shadow.
+
+   COLOUR RULES
+   ------------
+   • All colours resolve via --d-* tokens (inherited from the
+     .pv-dashboard scope on the panel root). NO hex literals
+     declared in this file.
+   • Sage is the ONE exception, kept as a status-pill semantic for
+     the file-strip tick + Partial/Received pill. Declared as
+     --rdm-sage / --rdm-sage-deep on the .rdm scope.
+   • The "check match" chip is the ONE warm note (--d-cream-warm).
+     Every other surface is cool.
    ============================================================ */
 
 .rdm {
-  /* Modal-local tokens. Mirror .di scope values so the modal stands
-     alone if mounted outside .di context. */
-  --rdm-cream:     #F4EEE4;
-  --rdm-card:      #FFFFFF;
-  --rdm-band:      #FCFAF5;
-  --rdm-sand:      #DFD7C8;
-  --rdm-sand-soft: #F1ECDF;
-  --rdm-navy:      #262A53;
-  --rdm-navy-deep: #1A1D3F;
-  --rdm-rust:      #C65A1A;
-  --rdm-rust-dark: #A84A14;
-  --rdm-amber:     #B45309;
-  --rdm-amber-soft:#FEF3E2;
+  /* Sage exception — file-strip success tick + status pill text. */
   --rdm-sage:      #5C9B6A;
   --rdm-sage-deep: #047857;
-  --rdm-sage-soft: #ECFDF5;
-  --rdm-muted:     #695880;
-  --rdm-faint:     #94A3B8;
-  --rdm-hairline:  #D4CCBB;
-  --rdm-shadow:    0 1px 2px rgba(38, 42, 83, 0.04);
 
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  color: var(--rdm-navy);
+  color: var(--d-navy);
 }
 
 /* ── Modal header (title + presentational step indicator) ─── */
@@ -49,7 +40,7 @@
   justify-content: space-between;
   gap: 24px;
   padding-bottom: 18px;
-  border-bottom: 0.5px solid var(--rdm-hairline);
+  border-bottom: 1px solid var(--d-border);
   margin-bottom: 20px;
 }
 .rdm-title-block { min-width: 0; }
@@ -59,20 +50,19 @@
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--rdm-muted);
+  color: var(--d-muted-soft);
 }
 .rdm-title {
   margin: 0;
   font-family: 'DM Serif Display', Georgia, serif;
   font-size: 24px;
   line-height: 1.15;
-  color: var(--rdm-navy);
+  color: var(--d-navy-deep);
   letter-spacing: -0.01em;
 }
 
 /* Step indicator: TWO PILLS WITH CONNECTOR.
-   Presentational only — not clickable, not focusable, not navigable.
-   Reads current step state from props; never controls flow. */
+   Presentational only — not clickable, not focusable, not navigable. */
 .rdm-stepper {
   display: flex;
   align-items: center;
@@ -89,16 +79,19 @@
   font-size: 11.5px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  background: var(--rdm-sand-soft);
-  color: var(--rdm-muted);
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  color: var(--d-muted);
   user-select: none;
 }
 .rdm-step.is-active {
-  background: var(--rdm-rust);
-  color: #fff;
+  background: var(--d-orange);
+  border-color: var(--d-orange);
+  color: white;
 }
 .rdm-step.is-done {
-  background: var(--rdm-sage-soft);
+  background: var(--d-card);
+  border-color: var(--d-border);
   color: var(--rdm-sage-deep);
 }
 .rdm-step-num {
@@ -114,12 +107,13 @@
 }
 .rdm-step.is-done .rdm-step-num,
 .rdm-step:not(.is-active):not(.is-done) .rdm-step-num {
-  background: rgba(38, 42, 83, 0.07);
+  background: var(--d-bg);
+  color: var(--d-muted);
 }
 .rdm-step-connector {
   width: 28px;
-  height: 0.5px;
-  background: var(--rdm-hairline);
+  height: 1px;
+  background: var(--d-border);
 }
 
 /* ── Body sections + footer ──────────────────────────────── */
@@ -130,12 +124,12 @@
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--rdm-muted);
+  color: var(--d-muted-soft);
 }
 .rdm-section-sub {
   margin: -4px 0 12px;
   font-size: 12.5px;
-  color: var(--rdm-muted);
+  color: var(--d-muted);
   line-height: 1.5;
 }
 
@@ -146,14 +140,14 @@
   gap: 12px;
   padding-top: 18px;
   margin-top: 8px;
-  border-top: 0.5px solid var(--rdm-hairline);
+  border-top: 1px solid var(--d-border);
 }
 .rdm-footer-left {
   display: flex;
   flex-direction: column;
   gap: 4px;
   font-size: 12px;
-  color: var(--rdm-muted);
+  color: var(--d-muted);
 }
 .rdm-footer-actions {
   display: flex;
@@ -168,17 +162,19 @@
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--rdm-muted);
+  color: var(--d-muted-soft);
 }
 .rdm-upload-label-hint {
   font-weight: 500;
   letter-spacing: 0.02em;
   text-transform: none;
-  color: var(--rdm-faint);
+  color: var(--d-muted);
   margin-left: 6px;
 }
 
-/* Three upload buttons row (Take photo / Camera roll / Upload file) */
+/* Three upload buttons row (Take photo / Camera roll / Upload file).
+   White cards on the cool ground, dashed --d-border edges so they
+   read as drop-zones / pickers. */
 .rdm-upload-buttons {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -191,66 +187,62 @@
   justify-content: center;
   gap: 8px;
   padding: 20px 12px;
-  background: var(--rdm-card);
-  border: 1px dashed var(--rdm-hairline);
+  background: var(--d-card);
+  border: 1px dashed var(--d-border);
   border-radius: 12px;
   font-family: inherit;
   font-size: 12.5px;
   font-weight: 600;
-  color: var(--rdm-navy);
+  color: var(--d-navy);
   cursor: pointer;
   transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
 }
 .rdm-upload-btn:hover {
-  border-color: var(--rdm-rust);
-  background: var(--rdm-sand-soft);
-  color: var(--rdm-rust);
+  border-color: var(--d-orange);
+  color: var(--d-orange);
 }
 .rdm-upload-btn-icon {
   width: 28px;
   height: 28px;
-  color: var(--rdm-muted);
+  color: var(--d-muted);
 }
-.rdm-upload-btn:hover .rdm-upload-btn-icon { color: var(--rdm-rust); }
+.rdm-upload-btn:hover .rdm-upload-btn-icon { color: var(--d-orange); }
 
-/* OCR status card — appears after file selection. Card chrome from
-   .di-card primitive (radius 14, hairline, 5px bottom edge). Edge
-   colour signals state. */
+/* File strip — appears after file selection. ONE-LINE white card:
+   icon + filename + dismiss X. Success state suppresses the message
+   subtitle (brief: no count subtitle); parsing/error/warning keep
+   theirs visible because the state info isn't redundant there. */
 .rdm-upload-card {
-  background: var(--rdm-card);
-  border: 0.5px solid var(--rdm-hairline);
-  border-bottom: 5px solid var(--rdm-sand);
-  border-radius: 14px;
-  padding: 16px 18px;
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  border-radius: 12px;
+  padding: 12px 14px;
   display: flex;
   align-items: center;
-  gap: 14px;
-  box-shadow: var(--rdm-shadow);
+  gap: 12px;
+  box-shadow: var(--d-shadow);
 }
-.rdm-upload-card.is-parsing { border-bottom-color: var(--rdm-sand); }
-.rdm-upload-card.is-success { border-bottom-color: var(--rdm-sage); background: linear-gradient(to right, var(--rdm-sage-soft) 0%, var(--rdm-card) 35%); }
-.rdm-upload-card.is-warning { border-bottom-color: var(--rdm-amber); background: linear-gradient(to right, var(--rdm-amber-soft) 0%, var(--rdm-card) 35%); }
-.rdm-upload-card.is-error   { border-bottom-color: var(--rdm-rust); background: linear-gradient(to right, #FEF2F2 0%, var(--rdm-card) 35%); }
+.rdm-upload-card.is-success .rdm-upload-card-msg { display: none; }
 
 .rdm-upload-card-icon {
   flex-shrink: 0;
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
-.rdm-upload-card.is-parsing .rdm-upload-card-icon { color: var(--rdm-muted); animation: rdm-spin 1.2s linear infinite; }
-.rdm-upload-card.is-success .rdm-upload-card-icon { color: var(--rdm-sage-deep); }
-.rdm-upload-card.is-warning .rdm-upload-card-icon { color: var(--rdm-amber); }
-.rdm-upload-card.is-error   .rdm-upload-card-icon { color: #DC2626; }
+.rdm-upload-card.is-parsing .rdm-upload-card-icon { color: var(--d-muted); animation: rdm-spin 1.2s linear infinite; }
+.rdm-upload-card.is-success .rdm-upload-card-icon { color: var(--rdm-sage); }
+.rdm-upload-card.is-warning .rdm-upload-card-icon { color: var(--d-orange); }
+.rdm-upload-card.is-error   .rdm-upload-card-icon { color: var(--d-orange); }
 
 .rdm-upload-card-text { flex: 1; min-width: 0; }
 .rdm-upload-card-name {
   margin: 0;
   font-size: 13px;
   font-weight: 600;
-  color: var(--rdm-navy);
+  color: var(--d-navy-deep);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -258,21 +250,22 @@
 .rdm-upload-card-msg {
   margin: 4px 0 0;
   font-size: 12px;
-  color: var(--rdm-muted);
+  color: var(--d-muted);
   line-height: 1.45;
 }
-.rdm-upload-card.is-error .rdm-upload-card-msg { color: #DC2626; font-weight: 600; }
+.rdm-upload-card.is-warning .rdm-upload-card-msg { color: var(--d-orange); }
+.rdm-upload-card.is-error .rdm-upload-card-msg { color: var(--d-orange); font-weight: 600; }
 .rdm-upload-card-remove {
   flex-shrink: 0;
   background: none;
   border: 0;
   padding: 6px;
-  color: var(--rdm-faint);
+  color: var(--d-muted);
   cursor: pointer;
   border-radius: 8px;
   transition: color 120ms ease, background 120ms ease;
 }
-.rdm-upload-card-remove:hover { color: #DC2626; background: rgba(220, 38, 38, 0.06); }
+.rdm-upload-card-remove:hover { color: var(--d-orange); background: var(--d-bg); }
 .rdm-upload-card-remove:disabled { cursor: default; opacity: 0.4; }
 
 @keyframes rdm-spin { to { transform: rotate(360deg); } }
@@ -283,92 +276,103 @@
   align-items: center;
   gap: 6px;
   font-size: 11.5px;
-  color: var(--rdm-muted);
+  color: var(--d-muted);
   margin-bottom: 8px;
 }
 .rdm-organise-toggle-btn {
-  background: var(--rdm-sand-soft);
-  border: 0;
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
   padding: 4px 10px;
   border-radius: 999px;
   font-family: inherit;
   font-size: 11px;
   font-weight: 600;
-  color: var(--rdm-muted);
+  color: var(--d-navy);
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 }
 .rdm-organise-toggle-btn:hover,
 .rdm-organise-toggle-btn.is-active {
-  background: var(--rdm-rust);
-  color: #fff;
+  background: var(--d-orange);
+  border-color: var(--d-orange);
+  color: white;
 }
 
-/* ── Tier-count summary (replaces the supplier/board toggle when
-      frozenOrder is active — post-OCR rendering mode). At-a-glance
-      counts of what the doc covered. */
+/* Tier-count summary — at-a-glance counts of what the doc covered.
+   Brief: "to review" in --d-orange, others --d-navy. Numbers carry
+   the colour via the strong's Outfit weight; dividers in --d-border. */
 .rdm-tier-summary {
   margin: 0;
   font-size: 11.5px;
-  color: var(--rdm-muted);
+  color: var(--d-muted);
   letter-spacing: 0.01em;
 }
 .rdm-tier-summary strong {
-  color: var(--rdm-navy);
+  color: var(--d-navy);
   font-weight: 700;
   font-family: 'Outfit', system-ui, sans-serif;
 }
-.rdm-tier-summary-sep { color: var(--rdm-faint); margin: 0 4px; }
+.rdm-tier-summary .is-review,
+.rdm-tier-summary .is-review strong { color: var(--d-orange); }
+.rdm-tier-summary-sep { color: var(--d-border); margin: 0 4px; }
 
-/* ── Tier section headers (frozen-order render mode) ─────────────
-   Three variants — sage for confirmed, amber for needs-review,
-   sand for the collapsed untouched toggle. Reuses the band shape
-   of .rdm-item-group-head but with tier-driven colour. */
+/* Tier section headers (frozen-order render mode).
+   HAIRLINE only — tracked-caps label + thin --d-border-soft rule
+   + count. No filled colour band (brief explicitly overrides the
+   amber-soft / sage-soft fills from the prior three-tier commit).
+   The untouched-tier header is a clickable button (collapse toggle)
+   with a chevron + italic hint, still hairline. */
 .rdm-tier-head {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
-  border-top: 0.5px solid var(--rdm-hairline);
-  border-bottom: 0.5px solid var(--rdm-hairline);
+  padding: 14px 4px 8px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--d-border-soft);
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   text-align: left;
+  margin-top: 6px;
 }
+.rdm-tier-head:first-child { margin-top: 0; }
 .rdm-tier-head-label {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+  color: var(--d-orange);
 }
 .rdm-tier-head-count {
   margin-left: auto;
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
-  color: var(--rdm-muted);
+  color: var(--d-muted);
 }
-.rdm-tier-head-review {
-  background: var(--rdm-amber-soft);
-}
-.rdm-tier-head-review .rdm-tier-head-label { color: var(--rdm-amber); }
-.rdm-tier-head-confirmed {
-  background: var(--rdm-sage-soft);
-}
-.rdm-tier-head-confirmed .rdm-tier-head-label { color: var(--rdm-sage-deep); }
 
-/* Untouched row is a clickable button (collapse toggle) — distinct
-   look so it reads as interactive, not a section header. */
+.rdm-tier-head-review,
+.rdm-tier-head-confirmed {
+  /* Filled-band styles from the prior commit explicitly removed —
+     the brief mandates hairline only. The base .rdm-tier-head
+     above already provides the hairline. */
+}
+.rdm-tier-head-review .rdm-tier-head-label { color: var(--d-orange); }
+.rdm-tier-head-confirmed .rdm-tier-head-label { color: var(--d-navy); }
+
 .rdm-tier-head-untouched {
   width: 100%;
-  background: var(--rdm-sand-soft);
-  border-left: 0;
-  border-right: 0;
   cursor: pointer;
-  transition: background 120ms ease;
+  transition: color 120ms ease;
 }
-.rdm-tier-head-untouched:hover { background: var(--rdm-band-soft, var(--rdm-band)); }
-.rdm-tier-head-untouched .rdm-tier-head-label { color: var(--rdm-muted); text-transform: none; letter-spacing: 0.01em; font-weight: 600; font-size: 12.5px; }
+.rdm-tier-head-untouched:hover .rdm-tier-head-label { color: var(--d-orange); }
+.rdm-tier-head-untouched .rdm-tier-head-label {
+  color: var(--d-muted);
+  text-transform: none;
+  letter-spacing: 0.01em;
+  font-weight: 600;
+  font-size: 12.5px;
+}
 .rdm-tier-head-chevron {
-  color: var(--rdm-muted);
+  color: var(--d-muted);
   font-size: 12px;
   width: 12px;
   text-align: center;
@@ -377,64 +381,78 @@
 .rdm-tier-head-hint {
   margin-left: auto;
   font-size: 11px;
-  color: var(--rdm-faint);
+  color: var(--d-muted-soft);
   font-style: italic;
 }
 
+/* Legacy supplier-group head — kept for the no-doc fallback render
+   mode. Restyled cool: light card-tone bg, --d-border. */
 .rdm-item-group { margin-bottom: 16px; }
 .rdm-item-group-head {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  background: var(--rdm-band);
-  border: 0.5px solid var(--rdm-hairline);
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  border-bottom: 0;
   border-radius: 10px 10px 0 0;
 }
 .rdm-item-group-name {
   font-family: 'Outfit', system-ui, sans-serif;
   font-size: 13.5px;
   font-weight: 600;
-  color: var(--rdm-navy);
+  color: var(--d-navy-deep);
 }
 .rdm-item-group-count {
   margin-left: auto;
   font-size: 11px;
-  color: var(--rdm-muted);
+  color: var(--d-muted);
   font-family: 'JetBrains Mono', monospace;
 }
 
+/* Item list — wraps the rows. Under the white-cards model rows are
+   individual cards (margins between them give the gap), so the list
+   container itself stays transparent and unbordered. */
 .rdm-item-list {
-  border: 0.5px solid var(--rdm-hairline);
-  border-top: 0;
-  border-radius: 0 0 10px 10px;
-  background: var(--rdm-card);
-  overflow: hidden;
+  background: transparent;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
+
+/* Item rows — white card per row. --d-border around, 3px --d-orange
+   left edge to anchor the eye + carry the brand accent, --d-shadow
+   for a subtle lift on the cool ground. */
 .rdm-item-row {
   display: grid;
   grid-template-columns: 20px 1fr 70px 90px 110px;
   gap: 12px;
   align-items: center;
   padding: 10px 14px;
-  border-bottom: 0.5px solid var(--rdm-sand-soft);
-  transition: background 120ms ease;
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  border-left: 3px solid var(--d-orange);
+  border-radius: 8px;
+  box-shadow: var(--d-shadow);
+  transition: background 120ms ease, border-color 120ms ease;
 }
-.rdm-item-row:last-child { border-bottom: 0; }
-.rdm-item-row.is-checked { background: var(--rdm-band); }
-.rdm-item-row.is-matched { background: var(--rdm-sage-soft); }
+.rdm-item-row.is-checked { background: var(--d-bg); }
+.rdm-item-row.is-matched { background: var(--d-bg); border-left-color: var(--rdm-sage); }
+
 .rdm-item-checkbox {
   width: 16px;
   height: 16px;
   cursor: pointer;
-  accent-color: var(--rdm-rust);
+  accent-color: var(--d-orange);
 }
 .rdm-item-text { min-width: 0; }
 .rdm-item-name {
   margin: 0;
   font-size: 13px;
   font-weight: 500;
-  color: var(--rdm-navy);
+  color: var(--d-navy-deep);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -442,16 +460,23 @@
 .rdm-item-sub {
   margin: 2px 0 0;
   font-size: 11px;
-  color: var(--rdm-faint);
+  color: var(--d-muted);
   display: flex;
   align-items: center;
   gap: 6px;
 }
+
+/* Match badges — chip variants.
+   • base (auto-match)   → sage status pill
+   • is-doublecheck      → THE warm chip (--d-cream-warm). Single
+                           cream-warm note in an otherwise cool modal.
+   • is-added            → muted (crew-added, no AI semantic)
+   • is-merged           → muted (Bug-P aggregation marker) */
 .rdm-match-badge {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  background: var(--rdm-sage-soft);
+  background: var(--d-bg);
   color: var(--rdm-sage-deep);
   font-size: 10px;
   font-weight: 700;
@@ -460,64 +485,55 @@
   border-radius: 999px;
   white-space: nowrap;
 }
-/* Feature A — amber treatment for medium/low OCR confidence. Single
-   variant for both (the granular distinction isn't actionable). Crew
-   sees this and double-checks the qty before saving. */
 .rdm-match-badge.is-doublecheck {
-  background: var(--rdm-amber-soft);
-  color: var(--rdm-amber);
+  background: var(--d-cream-warm);
+  color: var(--d-navy-deep);
 }
-/* Sentinel for crew-added items pulled in from the unmatched section.
-   Distinct from auto-matches (no implied AI confidence) and from the
-   doublecheck chip (no warning semantic — they chose this themselves). */
 .rdm-match-badge.is-added {
-  background: var(--rdm-sand-soft);
-  color: var(--rdm-muted);
+  background: var(--d-bg);
+  color: var(--d-muted);
 }
-/* Bug P visibility — surfaces when N>1 OCR lines summed into this row. */
 .rdm-match-badge.is-merged {
-  background: var(--rdm-sand-soft);
-  color: var(--rdm-navy);
+  background: var(--d-bg);
+  color: var(--d-navy);
   font-weight: 600;
 }
 
-/* Feature C — partial-receive remainder indicator. Sits under the row
-   when the crew's entered qty is less than the OCR extractedQty.
-   Amber tracked-caps so it reads as informational/warning, not error. */
+/* Feature C — partial-receive remainder indicator. */
 .rdm-item-remainder-note {
   margin: 2px 0 0;
   font-size: 11px;
   font-weight: 600;
-  color: var(--rdm-amber);
+  color: var(--d-orange);
   letter-spacing: 0.02em;
 }
 .rdm-item-ordered {
   text-align: center;
   font-size: 12px;
-  color: var(--rdm-muted);
+  color: var(--d-muted);
   font-family: 'JetBrains Mono', monospace;
 }
 .rdm-item-qty-input {
   width: 100%;
   padding: 6px 8px;
-  border: 0.5px solid var(--rdm-hairline);
+  border: 1px solid var(--d-border);
   border-radius: 8px;
-  background: var(--rdm-card);
+  background: var(--d-card);
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 12.5px;
   font-weight: 600;
-  color: var(--rdm-navy);
+  color: var(--d-navy);
   text-align: center;
   box-sizing: border-box;
   transition: border-color 120ms ease, color 120ms ease;
 }
-.rdm-item-qty-input:focus { outline: none; border-color: var(--rdm-rust); }
+.rdm-item-qty-input:focus { outline: none; border-color: var(--d-orange); }
 .rdm-item-qty-input:disabled {
-  background: var(--rdm-sand-soft);
-  color: var(--rdm-faint);
+  background: var(--d-bg);
+  color: var(--d-muted-soft);
   cursor: not-allowed;
 }
-.rdm-item-qty-input.is-partial { border-color: var(--rdm-amber); color: var(--rdm-amber); }
+.rdm-item-qty-input.is-partial { border-color: var(--d-orange); color: var(--d-orange); }
 .rdm-item-qty-input.is-full    { border-color: var(--rdm-sage); color: var(--rdm-sage-deep); }
 
 .rdm-item-status {
@@ -527,24 +543,26 @@
   letter-spacing: 0.02em;
 }
 .rdm-item-status.is-received { color: var(--rdm-sage-deep); }
-.rdm-item-status.is-partial  { color: var(--rdm-amber); }
-.rdm-item-status.is-none     { color: var(--rdm-faint); }
+.rdm-item-status.is-partial  { color: var(--d-orange); }
+.rdm-item-status.is-none     { color: var(--d-muted-soft); }
 
+/* Column header row — tracked-caps labels in --d-muted-soft over a
+   --d-border bottom rule. No fill. */
 .rdm-item-list-header {
   display: grid;
   grid-template-columns: 20px 1fr 70px 90px 110px;
   gap: 12px;
   align-items: center;
   padding: 8px 14px;
-  background: var(--rdm-band-soft, var(--rdm-band));
-  border: 0.5px solid var(--rdm-hairline);
-  border-bottom: 0;
-  border-radius: 10px 10px 0 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--d-border);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--rdm-faint);
+  color: var(--d-muted-soft);
+  margin-bottom: 8px;
 }
 .rdm-item-list-header.is-num { text-align: right; }
 .rdm-item-list-header-cell:nth-child(3),
@@ -554,17 +572,19 @@
 /* ── Unmatched-items section (collapsible) ───────────────── */
 .rdm-unmatched {
   margin-top: 16px;
-  border: 0.5px solid var(--rdm-amber);
-  border-radius: 10px;
+  border: 1px solid var(--d-border);
+  border-bottom: 5px solid var(--d-card-edge);
+  border-radius: 12px;
   overflow: hidden;
-  background: var(--rdm-amber-soft);
+  background: var(--d-card);
+  box-shadow: var(--d-shadow);
 }
 .rdm-unmatched-head {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
-  background: var(--rdm-amber-soft);
+  background: var(--d-card);
   cursor: pointer;
   border: 0;
   width: 100%;
@@ -572,31 +592,30 @@
   font-family: inherit;
   transition: background 120ms ease;
 }
-.rdm-unmatched-head:hover { background: rgba(180, 83, 9, 0.10); }
-.rdm-unmatched-head-icon { color: var(--rdm-amber); flex-shrink: 0; }
+.rdm-unmatched-head:hover { background: var(--d-bg); }
+.rdm-unmatched-head-icon { color: var(--d-orange); flex-shrink: 0; }
 .rdm-unmatched-head-text { flex: 1; min-width: 0; }
 .rdm-unmatched-title {
   margin: 0;
   font-size: 12.5px;
   font-weight: 700;
-  color: var(--rdm-amber);
+  color: var(--d-navy-deep);
 }
 .rdm-unmatched-sub {
   margin: 2px 0 0;
   font-size: 11.5px;
-  color: var(--rdm-amber);
-  opacity: 0.85;
+  color: var(--d-muted);
 }
 .rdm-unmatched-list {
-  background: var(--rdm-card);
-  border-top: 0.5px solid var(--rdm-amber);
+  background: var(--d-card);
+  border-top: 1px solid var(--d-border);
 }
 .rdm-unmatched-row {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
-  border-bottom: 0.5px solid var(--rdm-sand-soft);
+  border-bottom: 1px solid var(--d-border-soft);
 }
 .rdm-unmatched-row:last-child { border-bottom: 0; }
 .rdm-unmatched-row-text { flex: 1; min-width: 0; }
@@ -604,17 +623,17 @@
   margin: 0;
   font-size: 12.5px;
   font-weight: 500;
-  color: var(--rdm-navy);
+  color: var(--d-navy-deep);
 }
 .rdm-unmatched-row-original {
   margin: 1px 0 0;
   font-size: 11px;
-  color: var(--rdm-faint);
+  color: var(--d-muted-soft);
 }
 .rdm-unmatched-row-meta {
   margin: 2px 0 0;
   font-size: 11px;
-  color: var(--rdm-muted);
+  color: var(--d-muted);
   font-family: 'JetBrains Mono', monospace;
 }
 .rdm-unmatched-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
@@ -622,28 +641,28 @@
 /* ── Validation footer message ────────────────────────────── */
 .rdm-validation-text {
   font-size: 12px;
-  color: var(--rdm-muted);
+  color: var(--d-muted);
 }
-.rdm-validation-text.is-warning { color: var(--rdm-amber); font-weight: 600; }
+.rdm-validation-text.is-warning { color: var(--d-orange); font-weight: 600; }
 
 /* ── Step 2 routing cards ────────────────────────────────── */
 .rdm-route-list { display: flex; flex-direction: column; gap: 12px; }
 .rdm-route-card {
-  background: var(--rdm-card);
-  border: 0.5px solid var(--rdm-hairline);
-  border-bottom: 5px solid var(--rdm-sand);
-  border-radius: 14px;
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  border-bottom: 5px solid var(--d-card-edge);
+  border-radius: 12px;
   padding: 16px 18px;
-  box-shadow: var(--rdm-shadow);
+  box-shadow: var(--d-shadow);
   transition: border-bottom-color 160ms ease;
 }
-.rdm-route-card.is-loading  { border-bottom-color: var(--rdm-sand); }
-.rdm-route-card.is-matched  { border-bottom-color: var(--rdm-sage); background: linear-gradient(to right, var(--rdm-sage-soft) 0%, var(--rdm-card) 35%); }
-.rdm-route-card.is-linked   { border-bottom-color: var(--rdm-sage); background: linear-gradient(to right, var(--rdm-sage-soft) 0%, var(--rdm-card) 35%); }
-.rdm-route-card.is-skipped  { background: var(--rdm-band); border-bottom-color: var(--rdm-sand); }
-.rdm-route-card.is-searching { border-bottom-color: var(--rdm-navy); background: var(--rdm-band); }
-.rdm-route-card.is-create   { border-bottom-color: var(--rdm-amber); background: linear-gradient(to right, var(--rdm-amber-soft) 0%, var(--rdm-card) 35%); }
-.rdm-route-card.is-nomatch  { border-bottom-color: var(--rdm-amber); }
+.rdm-route-card.is-loading   { border-bottom-color: var(--d-card-edge); }
+.rdm-route-card.is-matched   { border-bottom-color: var(--rdm-sage); }
+.rdm-route-card.is-linked    { border-bottom-color: var(--rdm-sage); }
+.rdm-route-card.is-skipped   { background: var(--d-bg); border-bottom-color: var(--d-card-edge); }
+.rdm-route-card.is-searching { border-bottom-color: var(--d-navy); }
+.rdm-route-card.is-create    { border-bottom-color: var(--d-orange); }
+.rdm-route-card.is-nomatch   { border-bottom-color: var(--d-orange); }
 
 .rdm-route-head {
   display: flex;
@@ -661,10 +680,10 @@
 .rdm-route-card.is-matched  .rdm-route-head-icon,
 .rdm-route-card.is-linked   .rdm-route-head-icon { color: var(--rdm-sage-deep); }
 .rdm-route-card.is-create   .rdm-route-head-icon,
-.rdm-route-card.is-nomatch  .rdm-route-head-icon { color: var(--rdm-amber); }
-.rdm-route-card.is-searching .rdm-route-head-icon { color: var(--rdm-navy); }
-.rdm-route-card.is-skipped  .rdm-route-head-icon { color: var(--rdm-muted); }
-.rdm-route-card.is-loading  .rdm-route-head-icon { color: var(--rdm-muted); animation: rdm-spin 1.2s linear infinite; }
+.rdm-route-card.is-nomatch  .rdm-route-head-icon { color: var(--d-orange); }
+.rdm-route-card.is-searching .rdm-route-head-icon { color: var(--d-navy); }
+.rdm-route-card.is-skipped  .rdm-route-head-icon { color: var(--d-muted); }
+.rdm-route-card.is-loading  .rdm-route-head-icon { color: var(--d-muted); animation: rdm-spin 1.2s linear infinite; }
 
 .rdm-route-head-text { flex: 1; min-width: 0; }
 .rdm-route-title {
@@ -672,23 +691,23 @@
   font-family: 'Outfit', system-ui, sans-serif;
   font-size: 14px;
   font-weight: 600;
-  color: var(--rdm-navy);
+  color: var(--d-navy-deep);
   letter-spacing: -0.005em;
 }
 .rdm-route-sub {
   margin: 3px 0 0;
   font-size: 12px;
-  color: var(--rdm-muted);
+  color: var(--d-muted);
 }
 .rdm-route-cargoid {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
-  color: var(--rdm-faint);
+  color: var(--d-muted-soft);
   margin-left: 6px;
 }
 .rdm-route-stock {
   font-size: 11.5px;
-  color: var(--rdm-muted);
+  color: var(--d-muted);
   font-weight: 500;
 }
 
@@ -711,7 +730,7 @@
 .rdm-splits {
   margin-top: 14px;
   padding-top: 14px;
-  border-top: 0.5px solid var(--rdm-sand-soft);
+  border-top: 1px solid var(--d-border-soft);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -726,15 +745,15 @@
   background: none;
   border: 0;
   padding: 4px;
-  color: var(--rdm-faint);
+  color: var(--d-muted-soft);
   cursor: pointer;
   border-radius: 6px;
   transition: color 120ms ease, background 120ms ease;
 }
-.rdm-split-delete:hover { color: #DC2626; background: rgba(220, 38, 38, 0.06); }
+.rdm-split-delete:hover { color: var(--d-orange); background: var(--d-bg); }
 .rdm-split-now {
   font-size: 11px;
-  color: var(--rdm-faint);
+  color: var(--d-muted-soft);
   font-family: 'JetBrains Mono', monospace;
   text-align: right;
 }
@@ -742,7 +761,7 @@
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: var(--rdm-amber);
+  color: var(--d-orange);
   text-transform: uppercase;
   text-align: right;
 }
@@ -754,34 +773,34 @@
 .rdm-qty-btn {
   width: 26px;
   height: 26px;
-  border: 0.5px solid var(--rdm-hairline);
+  border: 1px solid var(--d-border);
   border-radius: 6px;
-  background: var(--rdm-card);
+  background: var(--d-card);
   font-family: inherit;
   font-size: 13px;
   font-weight: 700;
-  color: var(--rdm-navy);
+  color: var(--d-navy);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   transition: background 120ms ease, border-color 120ms ease;
 }
-.rdm-qty-btn:hover { background: var(--rdm-sand-soft); border-color: var(--rdm-rust); }
+.rdm-qty-btn:hover { background: var(--d-bg); border-color: var(--d-orange); }
 .rdm-split-qty-input {
   width: 48px;
   padding: 4px 6px;
-  border: 0.5px solid var(--rdm-hairline);
+  border: 1px solid var(--d-border);
   border-radius: 6px;
-  background: var(--rdm-card);
+  background: var(--d-card);
   font-family: inherit;
   font-size: 12px;
   font-weight: 600;
-  color: var(--rdm-navy);
+  color: var(--d-navy);
   text-align: center;
   box-sizing: border-box;
 }
-.rdm-split-qty-input:focus { outline: none; border-color: var(--rdm-rust); }
+.rdm-split-qty-input:focus { outline: none; border-color: var(--d-orange); }
 
 .rdm-split-add {
   background: none;
@@ -791,13 +810,13 @@
   font-family: inherit;
   font-size: 11.5px;
   font-weight: 600;
-  color: var(--rdm-rust);
+  color: var(--d-orange);
   cursor: pointer;
   text-align: left;
   align-self: flex-start;
   transition: color 120ms ease;
 }
-.rdm-split-add:hover { color: var(--rdm-rust-dark); }
+.rdm-split-add:hover { color: var(--d-navy-deep); }
 
 .rdm-split-summary {
   font-size: 11.5px;
@@ -805,7 +824,7 @@
   margin-top: 6px;
 }
 .rdm-split-summary.is-complete   { color: var(--rdm-sage-deep); }
-.rdm-split-summary.is-incomplete { color: var(--rdm-amber); }
+.rdm-split-summary.is-incomplete { color: var(--d-orange); }
 
 /* ── Step 2 — Search-to-link UI ──────────────────────────── */
 .rdm-search-back {
@@ -814,36 +833,36 @@
   padding: 4px 8px;
   font-family: inherit;
   font-size: 11.5px;
-  color: var(--rdm-muted);
+  color: var(--d-muted);
   cursor: pointer;
   border-radius: 6px;
   transition: color 120ms ease, background 120ms ease;
 }
-.rdm-search-back:hover { color: var(--rdm-rust); background: var(--rdm-sand-soft); }
+.rdm-search-back:hover { color: var(--d-orange); background: var(--d-bg); }
 
 .rdm-search-input {
   width: 100%;
   margin-top: 10px;
   padding: 9px 12px;
-  border: 0.5px solid var(--rdm-hairline);
+  border: 1px solid var(--d-border);
   border-radius: 10px;
-  background: var(--rdm-card);
+  background: var(--d-card);
   font-family: inherit;
   font-size: 13px;
-  color: var(--rdm-navy);
+  color: var(--d-navy);
   box-sizing: border-box;
 }
-.rdm-search-input:focus { outline: none; border-color: var(--rdm-rust); }
+.rdm-search-input:focus { outline: none; border-color: var(--d-orange); }
 .rdm-search-loading {
   margin-top: 8px;
   font-size: 11.5px;
-  color: var(--rdm-faint);
+  color: var(--d-muted-soft);
   font-style: italic;
 }
 .rdm-search-results {
   margin-top: 8px;
-  background: var(--rdm-card);
-  border: 0.5px solid var(--rdm-hairline);
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
   border-radius: 10px;
   max-height: 240px;
   overflow-y: auto;
@@ -854,30 +873,30 @@
   padding: 10px 12px;
   background: none;
   border: 0;
-  border-bottom: 0.5px solid var(--rdm-sand-soft);
+  border-bottom: 1px solid var(--d-border-soft);
   text-align: left;
   font-family: inherit;
   cursor: pointer;
   transition: background 120ms ease;
 }
 .rdm-search-result:last-child { border-bottom: 0; }
-.rdm-search-result:hover { background: var(--rdm-sand-soft); }
+.rdm-search-result:hover { background: var(--d-bg); }
 .rdm-search-result-name {
   font-size: 13px;
   font-weight: 500;
-  color: var(--rdm-navy);
+  color: var(--d-navy);
 }
 .rdm-search-result-meta {
   margin-top: 2px;
   font-size: 11px;
-  color: var(--rdm-muted);
+  color: var(--d-muted);
   font-family: 'JetBrains Mono', monospace;
 }
 .rdm-search-empty {
   padding: 16px;
   text-align: center;
   font-size: 12px;
-  color: var(--rdm-faint);
+  color: var(--d-muted-soft);
 }
 
 /* ── Step 2 — Create-new form ────────────────────────────── */
@@ -894,26 +913,26 @@
   font-weight: 700;
   letter-spacing: 0.10em;
   text-transform: uppercase;
-  color: var(--rdm-muted);
+  color: var(--d-muted-soft);
 }
 .rdm-create-label-required::after {
   content: ' *';
-  color: var(--rdm-rust);
+  color: var(--d-orange);
 }
 .rdm-create-input,
 .rdm-create-select {
   padding: 8px 10px;
-  border: 0.5px solid var(--rdm-hairline);
+  border: 1px solid var(--d-border);
   border-radius: 8px;
-  background: var(--rdm-card);
+  background: var(--d-card);
   font-family: inherit;
   font-size: 12.5px;
-  color: var(--rdm-navy);
+  color: var(--d-navy);
   box-sizing: border-box;
   transition: border-color 120ms ease;
 }
 .rdm-create-input:focus,
-.rdm-create-select:focus { outline: none; border-color: var(--rdm-rust); }
+.rdm-create-select:focus { outline: none; border-color: var(--d-orange); }
 .rdm-create-select { cursor: pointer; }
 
 /* ── Pickers (Location / Category / VesselLocation) ──────── */
@@ -924,22 +943,22 @@
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border: 0.5px solid var(--rdm-hairline);
+  border: 1px solid var(--d-border);
   border-radius: 8px;
-  background: var(--rdm-card);
+  background: var(--d-card);
   font-family: inherit;
   font-size: 12.5px;
-  color: var(--rdm-navy);
+  color: var(--d-navy);
   cursor: pointer;
   text-align: left;
   box-sizing: border-box;
   transition: border-color 120ms ease;
 }
-.rdm-picker-trigger:hover { border-color: var(--rdm-muted); }
-.rdm-picker-trigger.is-open { border-color: var(--rdm-rust); }
+.rdm-picker-trigger:hover { border-color: var(--d-muted); }
+.rdm-picker-trigger.is-open { border-color: var(--d-orange); }
 .rdm-picker-trigger-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rdm-picker-trigger.is-placeholder .rdm-picker-trigger-value { color: var(--rdm-faint); }
-.rdm-picker-trigger-arrow { color: var(--rdm-muted); flex-shrink: 0; }
+.rdm-picker-trigger.is-placeholder .rdm-picker-trigger-value { color: var(--d-muted-soft); }
+.rdm-picker-trigger-arrow { color: var(--d-muted); flex-shrink: 0; }
 
 .rdm-picker-popover {
   position: absolute;
@@ -947,8 +966,8 @@
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  background: var(--rdm-card);
-  border: 0.5px solid var(--rdm-hairline);
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
   border-radius: 10px;
   box-shadow: 0 12px 32px rgba(38, 42, 83, 0.12);
   max-height: 280px;
@@ -960,24 +979,24 @@
   flex-wrap: wrap;
   gap: 4px;
   padding: 8px 12px;
-  border-bottom: 0.5px solid var(--rdm-sand-soft);
-  background: var(--rdm-band);
+  border-bottom: 1px solid var(--d-border);
+  background: var(--d-bg);
   font-size: 11px;
-  color: var(--rdm-muted);
+  color: var(--d-muted);
 }
 .rdm-picker-breadcrumb-segment {
   background: none;
   border: 0;
   padding: 2px 6px;
   font: inherit;
-  color: var(--rdm-muted);
+  color: var(--d-muted);
   cursor: pointer;
   border-radius: 4px;
 }
-.rdm-picker-breadcrumb-segment:hover { background: var(--rdm-sand-soft); color: var(--rdm-rust); }
-.rdm-picker-breadcrumb-segment.is-current { color: var(--rdm-navy); font-weight: 600; cursor: default; }
-.rdm-picker-breadcrumb-segment.is-current:hover { background: transparent; color: var(--rdm-navy); }
-.rdm-picker-breadcrumb-sep { color: var(--rdm-faint); }
+.rdm-picker-breadcrumb-segment:hover { background: var(--d-card); color: var(--d-orange); }
+.rdm-picker-breadcrumb-segment.is-current { color: var(--d-navy); font-weight: 600; cursor: default; }
+.rdm-picker-breadcrumb-segment.is-current:hover { background: transparent; color: var(--d-navy); }
+.rdm-picker-breadcrumb-sep { color: var(--d-muted-soft); }
 
 .rdm-picker-item {
   display: flex;
@@ -986,25 +1005,25 @@
   padding: 9px 12px;
   background: none;
   border: 0;
-  border-bottom: 0.5px solid var(--rdm-sand-soft);
+  border-bottom: 1px solid var(--d-border-soft);
   width: 100%;
   text-align: left;
   font-family: inherit;
   font-size: 12.5px;
-  color: var(--rdm-navy);
+  color: var(--d-navy);
   cursor: pointer;
   transition: background 120ms ease;
 }
 .rdm-picker-item:last-child { border-bottom: 0; }
-.rdm-picker-item:hover { background: var(--rdm-sand-soft); }
-.rdm-picker-item.is-selected { background: var(--rdm-sage-soft); color: var(--rdm-sage-deep); font-weight: 600; }
+.rdm-picker-item:hover { background: var(--d-bg); }
+.rdm-picker-item.is-selected { background: var(--d-bg); color: var(--rdm-sage-deep); font-weight: 600; }
 .rdm-picker-item-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rdm-picker-item-chevron { color: var(--rdm-faint); flex-shrink: 0; }
+.rdm-picker-item-chevron { color: var(--d-muted-soft); flex-shrink: 0; }
 .rdm-picker-empty {
   padding: 16px;
   text-align: center;
   font-size: 12px;
-  color: var(--rdm-faint);
+  color: var(--d-muted-soft);
 }
 
 /* ── Field label helper (FLD) ────────────────────────────── */
@@ -1013,7 +1032,7 @@
   font-weight: 700;
   letter-spacing: 0.10em;
   text-transform: uppercase;
-  color: var(--rdm-muted);
+  color: var(--d-muted-soft);
   margin-bottom: 4px;
 }
 
@@ -1022,52 +1041,47 @@
   width: 16px;
   height: 16px;
   cursor: pointer;
-  accent-color: var(--rdm-rust);
+  accent-color: var(--d-orange);
 }
 
 /* ── Skipped state copy ──────────────────────────────────── */
 .rdm-skipped-text {
   font-size: 12.5px;
-  color: var(--rdm-muted);
+  color: var(--d-muted);
   font-style: italic;
 }
 
-/* ── Empty-state (Step 2 all skipped) ────────────────────── */
+/* ── Empty-state ──────────────────────────────────────────── */
 .rdm-empty {
   text-align: center;
   padding: 40px 16px;
-  color: var(--rdm-muted);
+  color: var(--d-muted);
   font-size: 13px;
 }
 
-/* ── Misc — small icon buttons (e.g. trash, undo) ──────── */
+/* ── Misc — small icon buttons ───────────────────────────── */
 .rdm-icon-btn {
   background: none;
   border: 0;
   padding: 6px;
-  color: var(--rdm-muted);
+  color: var(--d-muted);
   cursor: pointer;
   border-radius: 6px;
   transition: color 120ms ease, background 120ms ease;
   line-height: 0;
 }
-.rdm-icon-btn:hover { color: var(--rdm-rust); background: var(--rdm-sand-soft); }
-.rdm-icon-btn.is-danger:hover { color: #DC2626; background: rgba(220, 38, 38, 0.06); }
+.rdm-icon-btn:hover { color: var(--d-orange); background: var(--d-bg); }
+.rdm-icon-btn.is-danger:hover { color: var(--d-orange); background: var(--d-bg); }
 
-/* ── Feature D — routing summary panel (Step 2) ───────────────────
-   Persistent dismissable panel at the top of the routing list,
-   surfacing WHICH items routed WHERE. Replaces the count-only toasts
-   that previously left the crew blind to the actual destinations.
-   Uses the editorial palette — sand-edged card, hairline border,
-   amber for the inbox-routed sub-list (no-board-match warning). */
+/* ── Feature D — routing summary panel (Step 2) ──────────── */
 .rdm-routing-summary {
-  background: var(--rdm-card);
-  border: 0.5px solid var(--rdm-hairline);
-  border-bottom: 5px solid var(--rdm-sand);
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  border-bottom: 5px solid var(--d-card-edge);
   border-radius: 12px;
   padding: 14px 18px;
   margin-bottom: 16px;
-  box-shadow: var(--rdm-shadow);
+  box-shadow: var(--d-shadow);
 }
 .rdm-routing-summary-head {
   display: flex;
@@ -1080,7 +1094,7 @@
   font-family: 'Outfit', system-ui, sans-serif;
   font-size: 13.5px;
   font-weight: 600;
-  color: var(--rdm-navy);
+  color: var(--d-navy-deep);
   letter-spacing: -0.005em;
 }
 .rdm-routing-summary-section { margin-top: 8px; }
@@ -1091,7 +1105,7 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--rdm-muted);
+  color: var(--d-muted-soft);
 }
 .rdm-routing-summary-list {
   list-style: none;
@@ -1109,7 +1123,7 @@
   font-size: 12px;
 }
 .rdm-routing-summary-item {
-  color: var(--rdm-navy);
+  color: var(--d-navy);
   font-weight: 500;
   flex: 1;
   min-width: 0;
@@ -1117,34 +1131,29 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.rdm-routing-summary-arrow { color: var(--rdm-faint); flex-shrink: 0; }
+.rdm-routing-summary-arrow { color: var(--d-muted-soft); flex-shrink: 0; }
 .rdm-routing-summary-target {
   color: var(--rdm-sage-deep);
   font-weight: 600;
   flex-shrink: 0;
 }
 .rdm-routing-summary-target.rdm-routing-summary-target-inbox {
-  color: var(--rdm-amber);
+  color: var(--d-orange);
   font-style: italic;
   font-weight: 500;
 }
 
-/* ── Buttons ────────────────────────────────────────────────
-   Modal-local variants. The shared .di-btn-* classes in
-   delivery-inbox.css use var(--di-*) tokens that are scoped
-   to .di / .di-slip parents. The modal wraps in .rdm, NOT .di,
-   so those variables don't resolve here and the .di-btn fills
-   render transparent. These .rdm-btn-* variants use --rdm-*
-   tokens which ARE declared on the .rdm wrapper — guaranteed
-   resting fill on every action button.
-
-   Semantic mapping:
-     rdm-btn-rust   → primary action (Save & Continue, Create new)
-     rdm-btn-sage   → final commit (Push to Inventory)
-     rdm-btn-ghost  → secondary action (Cancel, Back, Receive all,
-                                        Add to board, Link, Undo)
-     rdm-btn-quiet  → text-only action (Skip, Unlink)
-*/
+/* ── Buttons ──────────────────────────────────────────────── */
+/* Semantic mapping under the cool surface:
+     rdm-btn-rust   → primary action — solid --d-orange (Save & Continue,
+                       Create new). Class name preserved for low-touch JSX.
+     rdm-btn-navy   → solid --d-navy (Add to board) — NEW variant for the
+                       brief's "not gold, navy" directive.
+     rdm-btn-sage   → final commit (Push to Inventory) — keeps sage as the
+                       success semantic per the sage-exception rule.
+     rdm-btn-ghost  → secondary — white card with --d-border (Cancel,
+                       Back, Receive all, Link, Undo).
+     rdm-btn-quiet  → text-only --d-muted (Skip, Unlink). */
 .rdm-btn {
   display: inline-flex;
   align-items: center;
@@ -1159,38 +1168,44 @@
   border: 0;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 120ms ease, color 120ms ease, border-color 120ms ease, opacity 120ms ease;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease, filter 120ms ease, opacity 120ms ease;
 }
 .rdm-btn:disabled { opacity: 0.55; cursor: default; }
 
 .rdm-btn-rust {
-  background: var(--rdm-rust);
-  color: #fff;
+  background: var(--d-orange);
+  color: white;
 }
-.rdm-btn-rust:hover:not(:disabled) { background: var(--rdm-rust-dark); }
+.rdm-btn-rust:hover:not(:disabled) { filter: brightness(0.92); }
+
+.rdm-btn-navy {
+  background: var(--d-navy);
+  color: white;
+}
+.rdm-btn-navy:hover:not(:disabled) { background: var(--d-navy-deep); }
 
 .rdm-btn-sage {
   background: var(--rdm-sage);
-  color: #fff;
+  color: white;
 }
 .rdm-btn-sage:hover:not(:disabled) { background: var(--rdm-sage-deep); }
 
 .rdm-btn-ghost {
-  background: var(--rdm-card);
-  color: var(--rdm-navy);
-  border: 0.5px solid var(--rdm-hairline);
+  background: var(--d-card);
+  color: var(--d-navy);
+  border: 1px solid var(--d-border);
 }
 .rdm-btn-ghost:hover:not(:disabled) {
-  border-color: var(--rdm-rust);
-  color: var(--rdm-rust);
+  border-color: var(--d-orange);
+  color: var(--d-orange);
 }
 
 .rdm-btn-quiet {
   background: none;
-  color: var(--rdm-muted);
+  color: var(--d-muted);
   font-weight: 500;
   padding: 6px 12px;
 }
-.rdm-btn-quiet:hover:not(:disabled) { color: var(--rdm-rust); }
+.rdm-btn-quiet:hover:not(:disabled) { color: var(--d-orange); }
 
 .rdm-btn-sm { padding: 5px 10px; font-size: 11.5px; }

@@ -1,0 +1,43 @@
+/* ============================================================
+   Provisioning dashboard surface — shared design tokens.
+
+   Single scope: `.pv-dashboard`. Every provisioning surface that
+   wants the cool dashboard palette (Suppliers Directory, Receive
+   Delivery modal, future board/inbox/history views) opts in by
+   composing this class onto its outermost element (or, for portal-
+   mounted overlays, onto the portal subtree's root — CSS variables
+   inherit down the DOM tree, not across React-portal siblings).
+
+   Editorial surfaces (delivery inbox, supplier detail) do NOT
+   adopt this class — they keep their warm `--di-*` / `--sd-*`
+   palettes scoped under their own roots. The two systems coexist;
+   neither bleeds onto the other.
+
+   Token semantics:
+     --d-bg          cool page / surface background
+     --d-card        white block / card surface
+     --d-card-edge   5px bottom rule on modal panels / featured cards
+     --d-border      hairline divider between content blocks
+     --d-border-soft ultra-soft rule (tier headers, intra-card splits)
+     --d-navy        body text, default action label
+     --d-navy-deep   primary heading text, button hover-fill
+     --d-orange      brand accent (CTAs, review highlight, focus rings)
+     --d-cream-warm  the one warm chip (e.g. "check match")
+     --d-muted       secondary label text
+     --d-muted-soft  tracked-caps eyebrow / column header text
+     --d-shadow      card shadow (subtle navy-tinted)
+   ============================================================ */
+.pv-dashboard {
+  --d-bg:          #F8FAFC;
+  --d-card:        #FFFFFF;
+  --d-card-edge:   #C8CBDA;
+  --d-border:      #E5E7EB;
+  --d-border-soft: #EEF0F4;
+  --d-navy:        #262A53;
+  --d-navy-deep:   #1A1D3F;
+  --d-orange:      #C65A1A;
+  --d-cream-warm:  #FAEEDA;
+  --d-muted:       #7C7E9B;
+  --d-muted-soft:  #9098B1;
+  --d-shadow:      0 2px 6px rgba(38, 42, 83, 0.04);
+}
