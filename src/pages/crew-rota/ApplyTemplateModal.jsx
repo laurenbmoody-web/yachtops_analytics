@@ -288,29 +288,29 @@ function summariseRule(rule, breaches, applyDates) {
 
   if (rule === 'daily_rest_10h') {
     return {
-      sentence: `${title} — fell short on ${daysClauseTotals(breaches.length, applyDates)}. Worst was ${fmtHoursH(worst.projected)} rest on ${fmtDateShort(worst.date)} (${worst.limit}h required).`,
+      sentence: `${title} — ${daysClauseTotals(breaches.length, applyDates)}. Worst ${fmtHoursH(worst.projected)} on ${fmtDateShort(worst.date)} (${worst.limit}h required).`,
       worst,
     };
   }
   if (rule === 'weekly_rest_77h') {
     return {
-      sentence: `${title} — fell short on ${daysClauseTotals(breaches.length, applyDates)}. Lowest was ${fmtHoursH(worst.projected)} on ${fmtDateShort(worst.date)} (${worst.limit}h required).`,
+      sentence: `${title} — ${daysClauseTotals(breaches.length, applyDates)}. Lowest ${fmtHoursH(worst.projected)} on ${fmtDateShort(worst.date)} (${worst.limit}h required).`,
       worst,
     };
   }
   if (rule === 'rest_period_split') {
     const longest = Number(worst?.projected?.longest ?? 0);
     const tail = longest < 0.01
-      ? 'it split with none reaching 6h'
-      : `the longest rest was only ${fmtHoursH(longest)} (6h needed)`;
+      ? 'none of the rest periods reached 6h'
+      : `longest rest only ${fmtHoursH(longest)} (6h needed)`;
     return {
-      sentence: `${title} — rest too broken up on ${daysClauseStructural(breaches.length)}. On ${fmtDateShort(worst.date)} ${tail}.`,
+      sentence: `${title} — ${daysClauseStructural(breaches.length)}. Worst ${fmtDateShort(worst.date)}: ${tail}.`,
       worst,
     };
   }
   if (rule === 'max_work_stretch_14h') {
     return {
-      sentence: `${title} — worked too long in one stretch on ${daysClauseStructural(breaches.length)}. Longest was ${fmtHoursH(worst.projected)} continuous on ${fmtDateShort(worst.date)} (${worst.limit}h max).`,
+      sentence: `${title} — ${daysClauseStructural(breaches.length)}. Longest ${fmtHoursH(worst.projected)} continuous on ${fmtDateShort(worst.date)} (${worst.limit}h max).`,
       worst,
     };
   }
@@ -572,7 +572,7 @@ function ShortenFutileCompact({
   if (rule === 'weekly_rest_77h' && worstBreach) {
     sentence = `${title} — all ${breachCount} days. Lowest ${fmtHoursH(worstBreach.projected)} on ${fmtDateShort(worstBreach.date)} (${worstBreach.limit}h required).`;
   } else if (rule === 'daily_rest_10h' && worstBreach) {
-    sentence = `${title} — all ${breachCount} days. Worst ${fmtHoursH(worstBreach.projected)} rest on ${fmtDateShort(worstBreach.date)} (${worstBreach.limit}h required).`;
+    sentence = `${title} — all ${breachCount} days. Worst ${fmtHoursH(worstBreach.projected)} on ${fmtDateShort(worstBreach.date)} (${worstBreach.limit}h required).`;
   } else {
     sentence = `${title} — ${breachCount} day${breachCount === 1 ? '' : 's'}.`;
   }
@@ -1040,18 +1040,24 @@ function BulkShortenLever({
               const isDirectionExcluded = !dayEntry.viableInBulkDirection;
               const needsOther = isDirectionExcluded && dayEntry.viableInOtherDirection;
               const otherDir = direction === 'end' ? 'start' : 'end';
+              // Each reasonCopy carries its own connector — needs-other
+              // and no-fix use the explanatory em-dash; chief-action
+              // uses a prepositional phrase ("by you"). Lets the JSX
+              // render "excluded {reasonCopy}" uniformly without
+              // hard-coding an em-dash that reads awkwardly on the
+              // chief-action variant.
               let reasonCopy;
               if (needsOther) {
-                reasonCopy = `needs ${otherDir}-trim`;
+                reasonCopy = `— needs ${otherDir}-trim`;
               } else if (isDirectionExcluded) {
-                reasonCopy = `can't shorten enough to clear`;
+                reasonCopy = `— can't be cleared by shortening`;
               } else {
-                reasonCopy = `you excluded this day`;
+                reasonCopy = `by you`;
               }
               return (
                 <li key={date} className="ap-bulk-perday-row is-excluded">
                   <span className="ap-bulk-perday-date">{dateLabel}</span>
-                  <span className="ap-bulk-perday-excluded">excluded — {reasonCopy}</span>
+                  <span className="ap-bulk-perday-excluded">excluded {reasonCopy}</span>
                   <button
                     type="button" className="ap-bulk-perday-action"
                     onClick={() => includeDay(date)}
@@ -2879,7 +2885,7 @@ export default function ApplyTemplateModal({
                   <span>MLC rest-hour breaches</span>
                 </div>
                 <div className="ap-mlc-body">
-                  This apply would create the following MLC rest-hour breaches:
+                  This apply would create these MLC breaches:
                 </div>
                 <ul className="ap-mlc-list">
                   {Object.entries(assessment.byMember)
