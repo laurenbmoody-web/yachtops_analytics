@@ -2270,6 +2270,37 @@
 }
 .ap-bulk-perday-mini-cancel:hover { background: #F4F1EA; }
 
+/* Binding-rule [why?] inline reveal (v1.2 density pass D3). Sits
+   inline after the readout summary; click toggles the explainer
+   block beneath. Same disclosure pattern as the Why-advisory reveal
+   so the chief learns one interaction. */
+.ap-mlc-binding-why {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0 0 0 2px;
+  font: inherit;
+  font-weight: 600;
+  font-size: 11px;
+  color: #7A2E1E;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ap-mlc-binding-why:hover { color: #5C2316; }
+.ap-mlc-binding-explain {
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: #F4F1EA;
+  border-left: 2px solid #D9CCB9;
+  border-radius: 4px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: #5F5E5A;
+  font-style: italic;
+}
+
 /* Compact futile block (v1.2 density pass C1) — replaces the
    (rule-sentence + Why-advisory + futile-message) stack when bulk
    shorten can't clear any breaching day. Two-line layout: the first

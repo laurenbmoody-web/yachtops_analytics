@@ -636,13 +636,20 @@ function ShortenFutileCompact({
 }
 
 // Binding-rule explainer copy. Surfaced in the bulk summary readout
-// when the bulk's binding rule isn't 'daily' — so the chief understands
-// why a 16h shift is being trimmed to 10h (not just to the daily cap of
-// 13h-with-margin). Spec requirement, not optional.
+// behind a [why?] inline reveal when the bulk's binding rule isn't
+// 'daily' — so the chief understands why a 16h shift is being trimmed
+// to 10h (not just to the daily cap of 13h-with-margin). Spec
+// requirement, not optional.
+//
+// Values are bare phrases — the [why?] reveal block renders them with
+// its own surrounding chrome. Earlier (v1.2 C2) these strings carried
+// a leading " — " separator for inline concatenation into the summary
+// sentence; the D3 density-pass moved them behind the reveal, so the
+// separator is gone.
 const BULK_BINDING_EXPLAIN = {
   daily:    '',
-  weekly:   ' — the later days hit the weekly rest limit',
-  stretch:  ' — chain to surrounding shifts caps the trim',
+  weekly:   'the later days hit the weekly rest limit',
+  stretch:  'chain to surrounding shifts caps the trim',
   min_trim: '', // means "trim by at least 30 min" — informational only
   overnight_boundary: '', // only fires on excluded days, not the bulk's binding
 };
@@ -702,6 +709,11 @@ function BulkShortenLever({
   // Per-row amend mini-editor.
   const [amendOpenForDate, setAmendOpenForDate] = useState(null);
   const [amendDraftTime, setAmendDraftTime] = useState(null);
+  // Binding-rule [why?] reveal — closed by default. Preserved across
+  // direction switches the same way perDayState is (the chief opened it
+  // for a reason; recomputing on direction change doesn't invalidate
+  // the explainer for the new direction). Reset on cancel + open.
+  const [bindingWhyOpen, setBindingWhyOpen] = useState(false);
 
   const openEditor = () => {
     if (buttonsDisabled) return;
@@ -714,6 +726,7 @@ function BulkShortenLever({
     setPerDayOpen(false);
     setAmendOpenForDate(null);
     setAmendDraftTime(null);
+    setBindingWhyOpen(false);
     setOpen(true);
   };
 
@@ -738,6 +751,7 @@ function BulkShortenLever({
     setPerDayOpen(false);
     setAmendOpenForDate(null);
     setAmendDraftTime(null);
+    setBindingWhyOpen(false);
   };
 
   // Drop tertiary — batch all breaching rows in one transition.
@@ -936,13 +950,22 @@ function BulkShortenLever({
   //   1. direction non-viable → futile case (shouldn't reach here, the
   //      MlcMemberRow router catches it — but defensive copy is safe).
   //   2. no-change          → "Trimming from this end won't shorten…"
-  //   3. structured         → "Trims X of N days…" + binding-rule explain
-  //                           + clears/breaches text
+  //   3. structured         → "Trims X of N days…" + binding-rule
+  //                           [why?] reveal + clears/breaches text
   // C3: writtenCount = chief's include=true count (chief controls
   // inclusion via Exclude/Include); stillBreachingDates surfaces the
   // would-still-breach days from preview but does NOT auto-exclude them.
+  // D3 (density pass): the binding-rule explainer demotes to a [why?]
+  // affordance — bindingExplain is computed here for the JSX to read
+  // and the summary line no longer concatenates it inline. The render
+  // appends a period after [why?] in the structured case via
+  // summaryNeedsPeriod; non-viable and no-change cases set
+  // summaryNeedsPeriod = false (their detail already supplies the
+  // closing punctuation, or there's no detail).
   let readoutSummary;
   let readoutDetail;
+  let bindingExplain = '';
+  let summaryNeedsPeriod = false;
   if (!dirData || dirData.bulkDNewMaxH <= 0) {
     readoutSummary = `Can't shorten enough to clear — try Drop`;
     readoutDetail = '';
@@ -957,8 +980,9 @@ function BulkShortenLever({
     const allWritten = writtenCount === totalCount;
     const verb = allWritten ? 'to' : 'at';
     const countLabel = allWritten ? `all ${totalCount} day${totalCount === 1 ? '' : 's'}` : `${writtenCount} of ${totalCount} days`;
-    const bindingExplain = BULK_BINDING_EXPLAIN[dirData.bulkBindingRule] || '';
-    readoutSummary = `Trims ${countLabel} ${verb} ${timesLabel}${bindingExplain}.`;
+    bindingExplain = BULK_BINDING_EXPLAIN[dirData.bulkBindingRule] || '';
+    readoutSummary = `Trims ${countLabel} ${verb} ${timesLabel}`;
+    summaryNeedsPeriod = true;
     const stillBreachDateRange = fmtDateRange(stillBreachingDates);
     const excludedDateRange = fmtDateRange(excludedEntries.map((e) => e.date));
     // Combined-form (D2): collapse the two clauses into one when EVERY
@@ -1067,6 +1091,19 @@ function BulkShortenLever({
 
       <div className="ap-mlc-shorten-readout">
         {readoutSummary}
+        {bindingExplain && (
+          <>
+            {' '}
+            <button
+              type="button"
+              className="ap-mlc-binding-why"
+              aria-expanded={bindingWhyOpen}
+              aria-controls="ap-mlc-binding-explain"
+              onClick={() => setBindingWhyOpen((o) => !o)}
+            >[why?]</button>
+          </>
+        )}
+        {summaryNeedsPeriod && '.'}
         {readoutDetail && (
           <>
             {' '}
@@ -1075,6 +1112,12 @@ function BulkShortenLever({
           </>
         )}
       </div>
+      {bindingExplain && bindingWhyOpen && (
+        <div
+          className="ap-mlc-binding-explain"
+          id="ap-mlc-binding-explain"
+        >{bindingExplain}.</div>
+      )}
 
       <button
         type="button"
