@@ -23,6 +23,7 @@ import { logActivity } from '../../../utils/activityStorage';
 import { sendNotification, NOTIFICATION_TYPES, SEVERITY } from '../../team-jobs-management/utils/notifications';
 import '../delivery-inbox.css';
 import '../../../styles/editorial.css';
+import '../provisioning-dashboard.css';
 import './receive-delivery-modal.css';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -121,7 +122,7 @@ const LocationPicker = ({ value, onChange, locations = [], placeholder = 'Select
                 type="button"
                 onMouseDown={e => { e.preventDefault(); handleSelect(prefix); }}
                 className="rdm-picker-breadcrumb-segment"
-                style={{ marginLeft: 'auto', color: 'var(--rdm-rust)', fontWeight: 700 }}
+                style={{ marginLeft: 'auto', color: 'var(--d-orange)', fontWeight: 700 }}
               >Select ✓</button>
             </div>
           )}
@@ -264,7 +265,7 @@ const VesselLocationPicker = ({ value, onChange, vesselLocations = [], placehold
                 type="button"
                 onMouseDown={e => { e.preventDefault(); onChange(breadcrumbPath); setOpen(false); setParentId(null); setBreadcrumb([]); }}
                 className="rdm-picker-breadcrumb-segment"
-                style={{ marginLeft: 'auto', color: 'var(--rdm-rust)', fontWeight: 700 }}
+                style={{ marginLeft: 'auto', color: 'var(--d-orange)', fontWeight: 700 }}
               >Select ✓</button>
             </div>
           )}
@@ -415,7 +416,7 @@ const ReceiveStep = ({
           )}
         </div>
         <p className="rdm-item-ordered">
-          {ordered}{item.unit ? <span style={{ marginLeft: 4, fontSize: 10, color: 'var(--rdm-faint)' }}>{item.unit}</span> : null}
+          {ordered}{item.unit ? <span style={{ marginLeft: 4, fontSize: 10, color: 'var(--d-muted-soft)' }}>{item.unit}</span> : null}
         </p>
         <input
           type="number" min="0" value={r.qty} disabled={!r.checked}
@@ -443,7 +444,7 @@ const ReceiveStep = ({
           <p className="rdm-tier-summary">
             <strong>{frozenOrder.confirmed.length}</strong> confirmed
             <span className="rdm-tier-summary-sep"> · </span>
-            <strong>{frozenOrder.needsReview.length}</strong> to review
+            <span className="is-review"><strong>{frozenOrder.needsReview.length}</strong> to review</span>
             <span className="rdm-tier-summary-sep"> · </span>
             <strong>{frozenOrder.untouched.length}</strong> untouched
           </p>
@@ -487,7 +488,7 @@ const ReceiveStep = ({
                   type="button"
                   onClick={() => src.ref.current?.click()}
                   className="rdm-upload-btn"
-                  style={isDragging ? { borderColor: 'var(--rdm-rust)', background: 'var(--rdm-sand-soft)' } : null}
+                  style={isDragging ? { borderColor: 'var(--d-orange)', background: 'var(--d-bg)' } : null}
                 >
                   <Icon name={src.icon} className="rdm-upload-btn-icon" />
                   <span>{src.label}</span>
@@ -613,7 +614,7 @@ const ReceiveStep = ({
             const groupState = checkedCount === 0 ? 'none' : checkedCount === groupItems.length ? 'all' : 'some';
             return (
               <div key={supplierName}>
-                <div className="rdm-item-group-head" style={{ borderRadius: 0, border: 0, borderTop: '0.5px solid var(--rdm-hairline)', borderBottom: '0.5px solid var(--rdm-hairline)' }}>
+                <div className="rdm-item-group-head" style={{ borderRadius: 0, border: 0, borderTop: '0.5px solid var(--d-border)', borderBottom: '0.5px solid var(--d-border)' }}>
                   <GroupCheckbox state={groupState} onChange={checked => onGroupChange(groupItems.map(i => i.id), checked)} />
                   <span className="rdm-item-group-name">{supplierName}</span>
                   <span className="rdm-item-group-count">{groupItems.length} item{groupItems.length !== 1 ? 's' : ''}</span>
@@ -652,7 +653,7 @@ const ReceiveStep = ({
                   : 'Will be checked against other departments on save'}
               </p>
             </div>
-            <span style={{ color: 'var(--rdm-amber)', fontSize: 12 }}>{unmatchedExpanded ? '▾' : '▸'}</span>
+            <span style={{ color: 'var(--d-orange)', fontSize: 12 }}>{unmatchedExpanded ? '▾' : '▸'}</span>
           </button>
           {unmatchedExpanded && (
             <div className="rdm-unmatched-list">
@@ -669,7 +670,7 @@ const ReceiveStep = ({
                   </div>
                   <div className="rdm-unmatched-row-actions">
                     {!multiBoard && (
-                      <button type="button" onClick={() => onAddUnmatched(li, idx)} className="rdm-btn rdm-btn-ghost rdm-btn-sm">
+                      <button type="button" onClick={() => onAddUnmatched(li, idx)} className="rdm-btn rdm-btn-navy rdm-btn-sm">
                         + Add to board
                       </button>
                     )}
@@ -910,7 +911,7 @@ const PushStep = ({
                   {!isLoading && !hasMatch && !choice && <p className="rdm-route-sub">No inventory match found</p>}
                 </div>
                 <div className="rdm-route-head-actions">
-                  <strong style={{ fontFamily: 'Outfit, system-ui, sans-serif', fontSize: 14, color: 'var(--rdm-navy)', whiteSpace: 'nowrap' }}>
+                  <strong style={{ fontFamily: 'Outfit, system-ui, sans-serif', fontSize: 14, color: 'var(--d-navy)', whiteSpace: 'nowrap' }}>
                     +{qty} {item.unit || ''}
                   </strong>
                   {hasMatch && (
@@ -966,7 +967,7 @@ const PushStep = ({
                 <>
                   <div className="rdm-create-form">
                     <div className="rdm-create-field">
-                      <FLD>Name <span style={{ color: 'var(--rdm-rust)' }}>*</span></FLD>
+                      <FLD>Name <span style={{ color: 'var(--d-orange)' }}>*</span></FLD>
                       <input value={newForm.name} onChange={e => onNewItemFormChange(item.id, 'name', e.target.value)} className="rdm-create-input" />
                     </div>
                     <div className="rdm-create-field">
@@ -978,7 +979,7 @@ const PushStep = ({
                       <input value={newForm.size} onChange={e => onNewItemFormChange(item.id, 'size', e.target.value)} placeholder="e.g. 750ml" className="rdm-create-input" />
                     </div>
                     <div className="rdm-create-field">
-                      <FLD>Unit <span style={{ color: 'var(--rdm-rust)' }}>*</span></FLD>
+                      <FLD>Unit <span style={{ color: 'var(--d-orange)' }}>*</span></FLD>
                       <select value={newForm.unit} onChange={e => onNewItemFormChange(item.id, 'unit', e.target.value)} className="rdm-create-select">
                         {UNIT_GROUPS.map(g => <optgroup key={g.label} label={g.label}>{g.options.map(u => <option key={u} value={u}>{u}</option>)}</optgroup>)}
                       </select>
@@ -988,7 +989,7 @@ const PushStep = ({
                       <input value={newForm.barcode} onChange={e => onNewItemFormChange(item.id, 'barcode', e.target.value)} className="rdm-create-input" />
                     </div>
                     <div className="rdm-create-field is-full">
-                      <FLD>Inventory category <span style={{ color: 'var(--rdm-rust)' }}>*</span></FLD>
+                      <FLD>Inventory category <span style={{ color: 'var(--d-orange)' }}>*</span></FLD>
                       <CategoryPicker
                         paths={allLocations}
                         value={newForm.categoryPath || ''}
@@ -996,7 +997,7 @@ const PushStep = ({
                       />
                     </div>
                     <div className="rdm-create-field is-full">
-                      <FLD>Storage locations <span style={{ color: 'var(--rdm-rust)' }}>*</span></FLD>
+                      <FLD>Storage locations <span style={{ color: 'var(--d-orange)' }}>*</span></FLD>
                       <div className="rdm-splits" style={{ marginTop: 0, paddingTop: 0, borderTop: 0 }}>
                         {(newForm.splits || []).map((s, idx) => (
                           <div key={idx} className="rdm-split-row">
@@ -2076,15 +2077,17 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
       onClose={onClose}
       isDirty={isDirty}
       isBusy={saving || pushing}
+      panelClassName="pv-dashboard"
       panelStyle={{
-        background: 'var(--rdm-card, #fff)',
+        background: 'var(--d-bg)',
         borderRadius: 16,
+        borderBottom: '5px solid var(--d-card-edge)',
         boxShadow: '0 24px 64px rgba(38, 42, 83, 0.18)',
         width: '100%', maxWidth: 720, maxHeight: '90vh',
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
       }}
     >
-      <div className="rdm" style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}>
+      <div className="rdm pv-dashboard" style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}>
         {/* Modal header — title block + presentational stepper + close */}
         <div style={{ padding: '22px 28px 0' }}>
           <div className="rdm-header">

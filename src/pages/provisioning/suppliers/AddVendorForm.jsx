@@ -231,7 +231,7 @@ const AddVendorForm = ({ vendor, activeTenantId, taxonomy, onClose, onSaved }) =
 
   // ── Render ───────────────────────────────────────────────────
   return (
-    <div className="sd-dir-drawer-backdrop" onClick={closeIfIdle}>
+    <div className="sd-dir-drawer-backdrop pv-dashboard" onClick={closeIfIdle}>
       <div
         className="sd-dir-drawer"
         role="dialog"
