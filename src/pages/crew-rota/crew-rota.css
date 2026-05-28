@@ -2721,6 +2721,91 @@
 }
 .dp-summary em { color: #8B8478; font-style: italic; }
 
+/* ── Single-date popover (MonthPicker on rota stepper) ────────── */
+.mp-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 27, 58, 0.06);
+  z-index: 90;
+}
+.mp-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 8px;
+  background: #FFFFFF;
+  border: 0.5px solid #DFD8CC;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(28, 27, 58, 0.08);
+  padding: 14px;
+  z-index: 91;
+  min-width: 260px;
+}
+.mp-nav-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.mp-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 0.5px solid #ECE6DC;
+}
+
+/* ── Calendar trigger (clickable stepper-date) ────────────────── */
+.crew-rota-stepper-anchor { position: relative; }
+.crew-rota-stepper-date.is-button {
+  background: transparent;
+  border: 0.5px solid transparent;
+  border-radius: 6px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 16px;
+  color: #1C1B3A;
+  min-width: 150px;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+}
+.crew-rota-stepper-date.is-button:hover {
+  background: #F7F5F0;
+  border-color: #DFD8CC;
+}
+.crew-rota-stepper-date.is-button .lucide {
+  color: #8B8478;
+  flex-shrink: 0;
+}
+
+/* ── Empty-state for grid view (no shifts on the selected date) ── */
+.crew-rota-empty {
+  padding: 48px 0;
+  text-align: center;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px;
+  color: #8B8478;
+  font-style: italic;
+}
+.crew-rota-empty-cta {
+  margin-top: 10px;
+  font-style: normal;
+}
+.crew-rota-empty-cta button {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: #C65A1A;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+  font-style: normal;
+}
+
 /* ============================================================
    Phase 3b — CrewSelect (per-slot assignment dropdown)
    ============================================================ */

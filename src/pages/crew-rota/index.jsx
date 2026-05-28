@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Pencil } from 'lucide-react';
+import { Pencil, Calendar as CalendarIcon } from 'lucide-react';
+import MonthPicker from './MonthPicker';
 import Header from '../../components/navigation/Header';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
@@ -145,6 +146,7 @@ export default function CrewRotaPage() {
   const [selectedDate, setSelectedDate] = useState(realToday);
   const isToday = selectedDate === realToday;
   const selectedDateObj = parseLocalDate(selectedDate);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [selectedCrew, setSelectedCrew] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [shiftType, setShiftType] = useState('duty'); // active type for new shifts
@@ -173,9 +175,10 @@ export default function CrewRotaPage() {
   }, []);
 
   const {
-    crew, loading, error, effectiveDate, draftCount,
+    crew, shifts, loading, error, effectiveDate, draftCount,
     applyPaint, applyTemplate, refetch,
   } = useRotaShifts(selectedDate);
+  const hasNoShifts = !loading && !error && shifts.length === 0;
   const { rota } = useCurrentRota();
   const { statusByDept, ensureDraft } = useRotaDepartmentStatus(rota?.id);
   const {
@@ -344,7 +347,25 @@ export default function CrewRotaPage() {
               aria-label="Previous day"
               onClick={() => setSelectedDate((s) => addLocalDays(s, -1))}
             >←</button>
-            <span className="crew-rota-stepper-date">{fullDateLabel(selectedDateObj)}</span>
+            <span className="crew-rota-stepper-anchor">
+              <button
+                type="button"
+                className="crew-rota-stepper-date is-button"
+                onClick={() => setDatePickerOpen((o) => !o)}
+                aria-haspopup="dialog"
+                aria-expanded={datePickerOpen}
+                title="Pick a date"
+              >
+                <CalendarIcon size={13} />
+                {fullDateLabel(selectedDateObj)}
+              </button>
+              <MonthPicker
+                open={datePickerOpen}
+                value={selectedDate}
+                onChange={setSelectedDate}
+                onClose={() => setDatePickerOpen(false)}
+              />
+            </span>
             <button
               type="button"
               className="crew-rota-stepper-btn is-active"
@@ -429,18 +450,34 @@ export default function CrewRotaPage() {
               }}>
                 Couldn't load the rota. {error}
               </div>
-            ) : view === 'grid' ? (
-              <RotaTodayGrid
-                crew={crew}
-                now={isToday ? now : null}
-                gridStartHour={GRID_START_HOUR}
-                onCrewClick={setSelectedCrew}
-                editMode={editMode}
-                onPaint={handlePaint}
-                deptStatus={statusByDept}
-              />
             ) : (
-              <CrewListView crew={crew} onCrewClick={setSelectedCrew} />
+              <>
+                {hasNoShifts && (
+                  <div className="crew-rota-empty">
+                    No shifts on {fullDateLabel(selectedDateObj)}.
+                    {!isToday && (
+                      <div className="crew-rota-empty-cta">
+                        <button type="button" onClick={() => setSelectedDate(realToday)}>
+                          Jump to today
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {view === 'grid' ? (
+                  <RotaTodayGrid
+                    crew={crew}
+                    now={isToday ? now : null}
+                    gridStartHour={GRID_START_HOUR}
+                    onCrewClick={setSelectedCrew}
+                    editMode={editMode}
+                    onPaint={handlePaint}
+                    deptStatus={statusByDept}
+                  />
+                ) : (
+                  <CrewListView crew={crew} onCrewClick={setSelectedCrew} />
+                )}
+              </>
             )}
           </div>
 
