@@ -18,6 +18,8 @@ import { PAYMENT_STATUS_OPTIONS } from './InvoiceUploadModal';
 import { showToast } from '../../../utils/toast';
 import { UNIT_GROUPS } from './DetailTableCells';
 import { useAuth } from '../../../contexts/AuthContext';
+import '../provisioning-dashboard.css';
+import './item-drawer.css';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -55,9 +57,7 @@ const STATUS_STYLES = {
 const Field = ({ isLight, labelCls, label, children }) => (
   <div>
     {isLight ? (
-      <span style={{ display: 'block', fontSize: 10, color: '#cbd5e1', fontWeight: 500, letterSpacing: '0.04em', marginBottom: 4 }}>
-        {label}
-      </span>
+      <span className="idr-field-label">{label}</span>
     ) : (
       <label className={labelCls}>{label}</label>
     )}
@@ -65,26 +65,33 @@ const Field = ({ isLight, labelCls, label, children }) => (
   </div>
 );
 
-// ── Section wrapper — spacing only, no divider line ───────────────────────────
-const Section = ({ label, children }) => (
-  <div style={{ paddingTop: 20 }}>
-    {label && (
-      <p style={{
-        fontSize: 10, fontWeight: 600, letterSpacing: '0.12em',
-        textTransform: 'uppercase', color: '#cbd5e1', marginBottom: 10,
-      }}>
-        {label}
-      </p>
-    )}
-    {children}
-  </div>
+// ── Section wrapper — light branch = white card on cool ground; dark
+//    branch keeps the prior padding-only chrome (unchanged dead-code
+//    fallback per the brief's "don't touch dark"). ───────────────────────────
+const Section = ({ isLight, label, children }) => (
+  isLight ? (
+    <div className="idr-section">
+      {label && <p className="idr-section-label">{label}</p>}
+      {children}
+    </div>
+  ) : (
+    <div style={{ paddingTop: 20 }}>
+      {label && (
+        <p style={{
+          fontSize: 10, fontWeight: 600, letterSpacing: '0.12em',
+          textTransform: 'uppercase', color: '#cbd5e1', marginBottom: 10,
+        }}>
+          {label}
+        </p>
+      )}
+      {children}
+    </div>
+  )
 );
 
-// ── Field sub-label (inside sections) ────────────────────────────────────────
+// ── Field sub-label (inside sections, light branch only) ─────────────────────
 const FL = ({ children }) => (
-  <span style={{ display: 'block', fontSize: 10, color: '#cbd5e1', fontWeight: 500, letterSpacing: '0.04em', marginBottom: 4 }}>
-    {children}
-  </span>
+  <span className="idr-field-label">{children}</span>
 );
 
 // ── Progressive category picker ──────────────────────────────────────────────
@@ -155,45 +162,8 @@ const CategoryPicker = ({ paths = [], value = '', onChange, disabled = false, bo
   );
 };
 
-// ── CSS for .idr-field inputs/selects/textareas ───────────────────────────────
-const FIELD_CSS = `
-  .idr-field {
-    width: 100%;
-    background: transparent;
-    border: 1.5px solid transparent;
-    outline: none;
-    font-size: 14px;
-    color: #1E3A5F;
-    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-    padding: 5px 0;
-    border-radius: 6px;
-    transition: all 0.15s ease;
-    box-sizing: border-box;
-  }
-  .idr-field::placeholder { color: #CBD5E1; }
-  .idr-field:hover {
-    background: #f8fafc;
-    padding: 5px 8px;
-  }
-  .idr-field:focus {
-    background: #ffffff;
-    border-color: #4A90E2;
-    padding: 5px 8px;
-    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.08);
-  }
-  select.idr-field { cursor: pointer; }
-  textarea.idr-field { resize: none; line-height: 1.6; min-height: 80px; }
-  .idr-cost-input {
-    background: #f8fafc;
-    padding: 5px 8px;
-  }
-  .idr-cost-input:hover { background: #f8fafc; }
-  .idr-cost-input:focus {
-    background: #ffffff;
-    border-color: #4A90E2;
-    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.08);
-  }
-`;
+// FIELD_CSS template removed — .idr-field styles now live in
+// ./item-drawer.css. Was injected at runtime via <style>{FIELD_CSS}</style>.
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -542,28 +512,27 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
 
   return (
     <>
-      {isLight && <style>{FIELD_CSS}</style>}
       <Drawer
         open={open}
         onClose={onClose}
         isDirty={isDirty}
         isBusy={deleting}
         theme={theme}
+        panelClassName={isLight ? 'pv-dashboard idr' : ''}
+        panelBg={isLight ? 'var(--d-bg)' : undefined}
         title={
           isLight ? (
-            /* ── Mockup header title area ── */
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>Edit item</span>
+            /* ── Light header title area ── */
+            <div className="idr-header">
+              <span className="idr-header-eyebrow">Edit item</span>
               {savedFlash && (
-                <span style={{ fontSize: 11, color: '#16a34a', fontWeight: 500 }} className="animate-pulse">Saved</span>
+                <span className="idr-header-saved animate-pulse">Saved</span>
               )}
               {!isNew && (
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center', color: '#fca5a5', transition: 'color 0.15s', opacity: deleting ? 0.4 : 1 }}
-                  onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
-                  onMouseLeave={e => e.currentTarget.style.color = '#fca5a5'}
+                  className="idr-header-delete"
                 >
                   <Icon name="Trash2" style={{ width: 14, height: 14 }} />
                 </button>
@@ -585,55 +554,71 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
           )
         }
         footer={
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', padding: '14px 16px' }}>
-            <button
-              onClick={onClose}
-              style={{
-                padding: '8px 18px', fontSize: 13, fontWeight: 500, borderRadius: 8, cursor: 'pointer',
-                background: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.08)',
-                color: isLight ? '#475569' : '#94a3b8',
-                border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255,255,255,0.12)',
-              }}
-            >
-              Cancel
-            </button>
-            {!isReceived && (
+          isLight ? (
+            <div className="idr-footer">
+              <button onClick={onClose} className="idr-btn idr-btn-ghost">Cancel</button>
+              {!isReceived && (
+                <button
+                  onClick={handleSave}
+                  disabled={!form.name?.trim()}
+                  className="idr-btn idr-btn-primary"
+                >
+                  {isNew ? 'Add item' : 'Save'}
+                </button>
+              )}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', padding: '14px 16px' }}>
               <button
-                onClick={handleSave}
+                onClick={onClose}
                 style={{
-                  padding: '8px 20px', fontSize: 13, fontWeight: 600, borderRadius: 8, cursor: 'pointer',
-                  background: '#1E3A5F', color: '#ffffff', border: 'none',
-                  opacity: !form.name?.trim() ? 0.45 : 1,
+                  padding: '8px 18px', fontSize: 13, fontWeight: 500, borderRadius: 8, cursor: 'pointer',
+                  background: 'rgba(255,255,255,0.08)', color: '#94a3b8',
+                  border: '1px solid rgba(255,255,255,0.12)',
                 }}
               >
-                {isNew ? 'Add item' : 'Save'}
+                Cancel
               </button>
-            )}
-          </div>
+              {!isReceived && (
+                <button
+                  onClick={handleSave}
+                  style={{
+                    padding: '8px 20px', fontSize: 13, fontWeight: 600, borderRadius: 8, cursor: 'pointer',
+                    background: '#1E3A5F', color: '#ffffff', border: 'none',
+                    opacity: !form.name?.trim() ? 0.45 : 1,
+                  }}
+                >
+                  {isNew ? 'Add item' : 'Save'}
+                </button>
+              )}
+            </div>
+          )
         }
       >
-        <div style={{ paddingBottom: 8 }}>
+        <div className={isLight ? 'idr-body' : ''} style={isLight ? null : { paddingBottom: 8 }}>
 
           {/* ════ RECEIVED BANNER ════ */}
           {isReceived && isLight && (
-            <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: 8, padding: '10px 14px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Icon name="CheckCircle" style={{ width: 14, height: 14, color: '#34D399', flexShrink: 0 }} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#047857' }}>This item has been received</span>
+            <div className="idr-banner">
+              <div className="idr-banner-row">
+                <div className="idr-banner-row-left">
+                  <Icon name="CheckCircle" className="idr-banner-icon" style={{ width: 14, height: 14 }} />
+                  <span className="idr-banner-text">This item has been received</span>
+                </div>
+                {form.inventory_item_id && (
+                  <button
+                    onClick={() => navigate(`/inventory/item/${form.inventory_item_id}`)}
+                    className="idr-banner-link"
+                  >
+                    View in inventory →
+                  </button>
+                )}
               </div>
-              {form.inventory_item_id && (
-                <button
-                  onClick={() => navigate(`/inventory/item/${form.inventory_item_id}`)}
-                  style={{ fontSize: 11, color: '#4A90E2', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap', flexShrink: 0, padding: 0 }}
-                >
-                  View in inventory →
-                </button>
-              )}
             </div>
           )}
 
           {/* ════ INVENTORY LINK ════ */}
-          <div style={{ marginBottom: 16 }}>
+          <div>
             {isLinked ? (
               /* ── Linked banner ── */
               (() => {
@@ -647,7 +632,32 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                     const qty = l.qty ?? l.quantity ?? 0;
                     return `${name}: ${qty}`;
                   });
-                return (
+                return isLight ? (
+                  <div className="idr-banner">
+                    <div className="idr-banner-row">
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="idr-linked-head">
+                          <span className="idr-linked-title">Linked to: {form.name}</span>
+                          {form.cargo_item_id && (
+                            <span className="idr-linked-cargo">{form.cargo_item_id}</span>
+                          )}
+                        </div>
+                        {stockQty !== null && (
+                          <p className="idr-linked-stock">
+                            In stock: <strong>{stockQty}</strong>
+                            {locParts.length > 0
+                              ? ` (${locParts.join(', ')})`
+                              : stockLocs.length > 0 ? ` across ${stockLocs.length} location${stockLocs.length !== 1 ? 's' : ''}` : ''}
+                          </p>
+                        )}
+                      </div>
+                      <button onClick={handleInventoryUnlink} className="idr-linked-unlink">
+                        Unlink
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Dark-theme linked banner — preserved verbatim */
                   <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '10px 12px' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -673,8 +683,6 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                       <button
                         onClick={handleInventoryUnlink}
                         style={{ background: 'none', border: '1px solid #86efac', cursor: 'pointer', fontSize: 11, color: '#6b7280', padding: '2px 8px', borderRadius: 5, flexShrink: 0 }}
-                        onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.borderColor = '#fca5a5'; }}
-                        onMouseLeave={e => { e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.borderColor = '#86efac'; }}
                       >
                         Unlink
                       </button>
@@ -682,8 +690,58 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                   </div>
                 );
               })()
+            ) : isLight ? (
+              /* ── Search widget (light) — wrapped in a white card on the cool ground ── */
+              <div ref={invSearchRef} className="idr-invsearch">
+                <div className="idr-invsearch-wrap">
+                  <input
+                    value={invSearchQuery}
+                    onChange={e => setInvSearchQuery(e.target.value)}
+                    placeholder="Start typing to find inventory item..."
+                    className="idr-invsearch-input"
+                    onFocus={() => { if (invResults.length > 0) setInvDropdownOpen(true); }}
+                  />
+                  {invSearchLoading && (
+                    <span className="idr-invsearch-loading">…</span>
+                  )}
+                  {!invSearchLoading && invSearchQuery && (
+                    <button
+                      onMouseDown={e => { e.preventDefault(); setInvSearchQuery(''); setInvDropdownOpen(false); }}
+                      className="idr-invsearch-clear"
+                    >×</button>
+                  )}
+                </div>
+                {invDropdownOpen && invResults.length > 0 && (
+                  <div className="idr-invsearch-dropdown">
+                    {invResults.map(inv => (
+                      <button
+                        key={inv.id}
+                        onMouseDown={e => { e.preventDefault(); handleInventoryLink(inv); }}
+                        className="idr-invsearch-result"
+                      >
+                        <div className="idr-invsearch-result-head">
+                          <span className="idr-invsearch-result-name">{inv.name}</span>
+                          {inv.cargo_item_id && (
+                            <span className="idr-invsearch-result-cargo">{inv.cargo_item_id}</span>
+                          )}
+                        </div>
+                        <span className="idr-invsearch-result-meta">
+                          {[inv.brand, inv.size].filter(Boolean).join(' · ')}
+                          {inv.total_qty != null && <span className="idr-invsearch-result-stock">stock: {inv.total_qty}</span>}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {/* Status hint below search */}
+                <div className="idr-invsearch-helper">
+                  {invSearchQuery.length >= 2 && !invSearchLoading && invResults.length === 0
+                    ? 'No items found — will create new inventory item on receive.'
+                    : 'Not linked — will create a new inventory item on receive.'}
+                </div>
+              </div>
             ) : (
-              /* ── Search widget ── */
+              /* ── Search widget (dark) — preserved verbatim ── */
               <div ref={invSearchRef} style={{ position: 'relative' }}>
                 <div style={{ position: 'relative' }}>
                   <input
@@ -725,8 +783,6 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                           padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9',
                           display: 'flex', flexDirection: 'column', gap: 2,
                         }}
-                        onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'none'}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span style={{ fontSize: 13, fontWeight: 600, color: '#1E3A5F' }}>{inv.name}</span>
@@ -742,7 +798,6 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                     ))}
                   </div>
                 )}
-                {/* Status hint below search */}
                 <div style={{ fontSize: 11, color: '#94a3b8', padding: '5px 2px', marginTop: 1 }}>
                   {invSearchQuery.length >= 2 && !invSearchLoading && invResults.length === 0
                     ? 'No items found — will create new inventory item on receive.'
@@ -753,69 +808,62 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
           </div>
 
           {/* ════ SECTION 1: IDENTITY ════ */}
-          <div>
+          <div className={isLight ? 'idr-identity' : ''}>
             <input
               value={form.name || ''}
               onChange={e => !isReadOnly && set('name', e.target.value)}
               onBlur={() => !isReadOnly && saveField()}
               readOnly={isReadOnly}
               placeholder={isLight ? 'Untitled item' : 'Item name'}
-              style={isLight ? {
-                width: '100%', fontSize: 22, fontWeight: 700,
-                color: isReadOnly ? '#94a3b8' : '#1E3A5F', background: 'none', border: 'none',
-                borderBottom: `2px solid ${isReadOnly ? '#e2e8f0' : '#4A90E2'}`, outline: 'none',
-                padding: '4px 0 4px', display: 'block',
-                fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
-                cursor: isReadOnly ? 'default' : 'text',
-              } : {}}
-              className={!isLight ? 'w-full bg-transparent outline-none font-semibold pb-1.5 border-b border-white/10 text-white placeholder:text-white/25 focus:border-[#4A90E2] transition-colors' : ''}
+              className={isLight
+                ? 'idr-name-input'
+                : 'w-full bg-transparent outline-none font-semibold pb-1.5 border-b border-white/10 text-white placeholder:text-white/25 focus:border-[#4A90E2] transition-colors'}
             />
-            {/* Brand */}
-            <div style={{ marginTop: 16 }}>
-              <Field isLight={isLight} labelCls={labelCls} label="Brand">
-                <input
-                  value={form.brand || ''}
-                  onChange={e => !isReadOnly && set('brand', e.target.value)}
-                  onBlur={() => !isReadOnly && saveField()}
-                  readOnly={isReadOnly}
-                  className={inputCls}
-                  placeholder="e.g. Heinz, Maggi"
-                  style={isReadOnly ? { opacity: 0.55, cursor: 'default' } : {}}
-                />
-              </Field>
-            </div>
-            {/* Barcode */}
-            <div style={{ marginTop: 8 }}>
-              <Field isLight={isLight} labelCls={labelCls} label="Barcode">
-                <input
-                  value={form.barcode || ''}
-                  onChange={e => !isReadOnly && set('barcode', e.target.value)}
-                  onBlur={() => !isReadOnly && saveField()}
-                  readOnly={isReadOnly}
-                  className={inputCls}
-                  placeholder="Scan or enter barcode"
-                  style={isReadOnly ? { opacity: 0.55, cursor: 'default' } : {}}
-                />
-              </Field>
+            <div className={isLight ? 'idr-identity-fields' : ''}>
+              {/* Brand */}
+              <div style={isLight ? null : { marginTop: 16 }}>
+                <Field isLight={isLight} labelCls={labelCls} label="Brand">
+                  <input
+                    value={form.brand || ''}
+                    onChange={e => !isReadOnly && set('brand', e.target.value)}
+                    onBlur={() => !isReadOnly && saveField()}
+                    readOnly={isReadOnly}
+                    className={inputCls}
+                    placeholder="e.g. Heinz, Maggi"
+                  />
+                </Field>
+              </div>
+              {/* Barcode */}
+              <div style={isLight ? null : { marginTop: 8 }}>
+                <Field isLight={isLight} labelCls={labelCls} label="Barcode">
+                  <input
+                    value={form.barcode || ''}
+                    onChange={e => !isReadOnly && set('barcode', e.target.value)}
+                    onBlur={() => !isReadOnly && saveField()}
+                    readOnly={isReadOnly}
+                    className={inputCls}
+                    placeholder="Scan or enter barcode"
+                  />
+                </Field>
+              </div>
             </div>
           </div>
 
           {/* ════ SECTION 2: MEASURE ════ */}
-          <Section label="Measure">
+          <Section isLight={isLight} label="Measure">
             {isLight ? (
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr', gap: 8 }}>
+              <div className="idr-measure-grid">
                 <div>
                   <FL>Size</FL>
                   <input
                     value={form.size || ''} onChange={e => !isReadOnly && set('size', e.target.value)}
                     onBlur={() => !isReadOnly && saveField()} readOnly={isReadOnly}
                     className="idr-field" placeholder="e.g. 500"
-                    style={isReadOnly ? { opacity: 0.55, cursor: 'default' } : {}}
                   />
                 </div>
                 <div>
                   <FL>Unit</FL>
-                  <select value={form.unit || 'each'} onChange={e => !isReadOnly && setAndSave('unit', e.target.value)} disabled={isReadOnly} className="idr-field" style={isReadOnly ? { opacity: 0.55 } : {}}>
+                  <select value={form.unit || 'each'} onChange={e => !isReadOnly && setAndSave('unit', e.target.value)} disabled={isReadOnly} className="idr-field">
                     {UNIT_GROUPS.map(g => (
                       <optgroup key={g.label} label={g.label}>
                         {g.options.map(u => <option key={u} value={u}>{u}</option>)}
@@ -853,81 +901,98 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
           </Section>
 
           {/* ════ SECTION 3: DEPARTMENT ════ */}
-          <Section label="Department">
-            {/* Department — always shown; determines board grouping */}
-            <div>
-              {isLight ? <FL>Department</FL> : <label className={labelCls}>Department</label>}
-              <select
-                value={form.department || ''}
-                onChange={e => { set('department', e.target.value); saveField({ department: e.target.value }); }}
-                disabled={isReadOnly}
-                className={inputCls}
-                style={{ cursor: isReadOnly ? 'default' : undefined }}
-              >
-                <option value="">— select —</option>
-                {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
-            </div>
-
-            {/* Supplier — shared structured picker over supplier_profiles */}
-            <div style={{ marginTop: 8 }}>
-              <Field isLight={isLight} labelCls={labelCls} label="Supplier">
-                <SupplierPicker
-                  value={form.supplier_profile_id || ''}
-                  suppliers={supplierProfiles}
+          <Section isLight={isLight} label="Department">
+            <div className={isLight ? 'idr-field-stack' : ''}>
+              {/* Department — always shown; determines board grouping */}
+              <div>
+                {isLight ? <FL>Department</FL> : <label className={labelCls}>Department</label>}
+                <select
+                  value={form.department || ''}
+                  onChange={e => { set('department', e.target.value); saveField({ department: e.target.value }); }}
                   disabled={isReadOnly}
-                  inputClassName={inputCls}
-                  onChange={chooseSupplier}
-                />
-              </Field>
-            </div>
-
-            {/* Port / Location */}
-            <div style={{ marginTop: 8 }}>
-              <Field isLight={isLight} labelCls={labelCls} label="Port / Location">
-                <input
-                  value={form.port_location || ''}
-                  onChange={e => set('port_location', e.target.value)}
-                  onBlur={() => saveField()}
                   className={inputCls}
-                  placeholder="e.g. Palma, FR"
-                />
-              </Field>
+                >
+                  <option value="">— select —</option>
+                  {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+
+              {/* Supplier — shared structured picker over supplier_profiles */}
+              <div style={isLight ? null : { marginTop: 8 }}>
+                <Field isLight={isLight} labelCls={labelCls} label="Supplier">
+                  <SupplierPicker
+                    value={form.supplier_profile_id || ''}
+                    suppliers={supplierProfiles}
+                    disabled={isReadOnly}
+                    inputClassName={inputCls}
+                    onChange={chooseSupplier}
+                  />
+                </Field>
+              </div>
+
+              {/* Port / Location */}
+              <div style={isLight ? null : { marginTop: 8 }}>
+                <Field isLight={isLight} labelCls={labelCls} label="Port / Location">
+                  <input
+                    value={form.port_location || ''}
+                    onChange={e => set('port_location', e.target.value)}
+                    onBlur={() => saveField()}
+                    className={inputCls}
+                    placeholder="e.g. Palma, FR"
+                  />
+                </Field>
+              </div>
             </div>
           </Section>
 
           {/* ════ SECTION 3b: INVENTORY CATEGORY (only when linked) ════ */}
           {form.inventory_item_id && (
-            <Section label="Inventory">
+            <Section isLight={isLight} label="Inventory">
               {invCategoryPath ? (
-                <div style={{
-                  fontSize: 13, color: isLight ? '#1E3A5F' : '#e2e8f0',
-                  background: isLight ? '#f0fdf4' : 'rgba(29,158,117,0.1)',
-                  border: `1px solid ${isLight ? '#86efac' : 'rgba(29,158,117,0.3)'}`,
-                  borderRadius: 7, padding: '8px 12px', lineHeight: 1.5,
-                }}>
-                  {invCategoryPath.split(' > ').map((seg, i, arr) => (
-                    <React.Fragment key={i}>
-                      <span style={{ fontWeight: i === arr.length - 1 ? 600 : 400 }}>{seg}</span>
-                      {i < arr.length - 1 && (
-                        <span style={{ color: isLight ? '#86efac' : 'rgba(29,158,117,0.6)', margin: '0 5px' }}>›</span>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </div>
+                isLight ? (
+                  <div className="idr-inv-category">
+                    {invCategoryPath.split(' > ').map((seg, i, arr) => (
+                      <React.Fragment key={i}>
+                        <span className={`idr-inv-category-seg${i === arr.length - 1 ? ' is-last' : ''}`}>{seg}</span>
+                        {i < arr.length - 1 && (
+                          <span className="idr-inv-category-sep">›</span>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                ) : (
+                  /* Dark-theme inventory category — preserved verbatim */
+                  <div style={{
+                    fontSize: 13, color: '#e2e8f0',
+                    background: 'rgba(29,158,117,0.1)',
+                    border: '1px solid rgba(29,158,117,0.3)',
+                    borderRadius: 7, padding: '8px 12px', lineHeight: 1.5,
+                  }}>
+                    {invCategoryPath.split(' > ').map((seg, i, arr) => (
+                      <React.Fragment key={i}>
+                        <span style={{ fontWeight: i === arr.length - 1 ? 600 : 400 }}>{seg}</span>
+                        {i < arr.length - 1 && (
+                          <span style={{ color: 'rgba(29,158,117,0.6)', margin: '0 5px' }}>›</span>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                )
               ) : (
-                <p style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic' }}>Category not set on linked item</p>
+                isLight
+                  ? <p className="idr-inv-category-empty">Category not set on linked item</p>
+                  : <p style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic' }}>Category not set on linked item</p>
               )}
             </Section>
           )}
 
           {/* ════ SECTION 4: COST ════ */}
-          <Section label={isReceived ? 'Quoted cost' : 'Estimated cost'}>
+          <Section isLight={isLight} label={isReceived ? 'Quoted cost' : 'Estimated cost'}>
             {isLight ? (
               <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div className="idr-cost-row">
                 {/* Currency toggle group */}
-                <div style={{ display: 'flex', background: '#f8fafc', borderRadius: 6, flexShrink: 0 }}>
+                <div className="idr-currency-group">
                   {CURRENCY_PILLS.map(pill => {
                     const active = activeCurrCode === pill.code;
                     return (
@@ -935,20 +1000,13 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                         key={pill.code}
                         type="button"
                         onClick={() => { setForm(prev => ({ ...prev, currency: pill.code })); saveField({ currency: pill.code }); }}
-                        style={{
-                          width: 28, height: 28, borderRadius: 6,
-                          fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer',
-                          background: active ? '#1E3A5F' : 'transparent',
-                          color: active ? '#ffffff' : '#cbd5e1',
-                          transition: 'all 0.15s',
-                        }}
+                        className={`idr-currency-pill${active ? ' is-active' : ''}`}
                       >
                         {pill.symbol}
                       </button>
                     );
                   })}
                 </div>
-                {/* Cost input — #f8fafc unfocused */}
                 <input
                   type="number"
                   value={form.estimated_unit_cost ?? ''}
@@ -957,12 +1015,10 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                   placeholder="0.00"
                   min="0"
                   step="0.01"
-                  className="idr-field idr-cost-input"
-                  style={{ flex: 1 }}
+                  className="idr-cost-input"
                 />
-                {/* Total — inline italic */}
                 {totalCost > 0 && (
-                  <span style={{ fontSize: 13, color: '#94a3b8', fontStyle: 'italic', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  <span className="idr-cost-total">
                     = {activeCurrSymbol}{totalCost.toFixed(2)} total
                   </span>
                 )}
@@ -974,7 +1030,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                 const current = parseFloat(form.estimated_unit_cost);
                 const differs = !isNaN(current) && Math.abs(current - invCost) > 0.001;
                 return (
-                  <p style={{ fontSize: 11, color: '#94a3b8', margin: '4px 0 0' }}>
+                  <p className="idr-cost-hint">
                     {differs
                       ? `from inventory: ${activeCurrSymbol}${parseFloat(invCost).toFixed(2)} · you've overridden this`
                       : `from inventory: ${activeCurrSymbol}${parseFloat(invCost).toFixed(2)}`}
@@ -1023,21 +1079,15 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
           </Section>
 
           {/* ════ SECTION 5: FLAGS ════ */}
-          <Section label="Flags">
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          <Section isLight={isLight} label="Flags">
+            <div className={isLight ? 'idr-pill-row' : ''} style={isLight ? null : { display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {ALLERGEN_OPTIONS.map(a => {
                 const active = (form.allergen_flags || []).includes(a);
                 return isLight ? (
                   <button
                     key={a}
                     onClick={() => toggleAllergen(a)}
-                    style={{
-                      padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 500,
-                      cursor: 'pointer', transition: 'all 0.15s', border: '1px solid',
-                      background: active ? '#fef3c7' : '#f8fafc',
-                      borderColor: active ? '#fcd34d' : '#e2e8f0',
-                      color: active ? '#92400e' : '#94a3b8',
-                    }}
+                    className={`idr-allergen-pill${active ? ' is-active' : ''}`}
                   >{a}</button>
                 ) : (
                   <button
@@ -1051,24 +1101,18 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
           </Section>
 
           {/* ════ SECTION 6: STATUS ════ */}
-          <Section label="Status">
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          <Section isLight={isLight} label="Status">
+            <div className={isLight ? 'idr-pill-row' : ''} style={isLight ? null : { display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {Object.entries(ITEM_STATUS_CONFIG).map(([val, cfg]) => {
                 const isActive = form.status === val;
-                const s = STATUS_STYLES[val] || {};
+                // hyphenate val ('to_order' -> 'to-order') for the CSS class modifier
+                const statusMod = val.replace(/_/g, '-');
                 return isLight ? (
                   <button
                     key={val}
                     onClick={() => !isReceived && setAndSave('status', val)}
                     disabled={isReceived}
-                    style={{
-                      padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600,
-                      cursor: isReceived ? 'default' : 'pointer', transition: 'all 0.15s', border: '1px solid',
-                      background: isActive ? s.bg : 'transparent',
-                      borderColor: isActive ? s.border : '#e2e8f0',
-                      color: isActive ? s.color : '#94a3b8',
-                      opacity: isReceived && !isActive ? 0.4 : 1,
-                    }}
+                    className={`idr-status-pill is-${statusMod}${isActive ? ' is-active' : ''}`}
                   >{cfg.label}</button>
                 ) : (
                   <button
@@ -1087,7 +1131,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
 
           {/* ════ SECTION 6b: PAYMENT (received items only) ════ */}
           {isReceived && (
-            <Section label="Payment">
+            <Section isLight={isLight} label="Payment">
               {isLight ? (
                 <>
                   <FL>Payment status</FL>
@@ -1098,11 +1142,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                       setForm(prev => ({ ...prev, payment_status: val }));
                       updateItemPaymentStatus(form.id, val, null).catch(() => {});
                     }}
-                    style={{
-                      width: '100%', background: '#f8fafc', border: '1px solid #e2e8f0',
-                      borderRadius: 8, padding: '7px 10px', fontSize: 13, color: '#1e293b',
-                      outline: 'none', cursor: 'pointer',
-                    }}
+                    className="idr-field"
                   >
                     {PAYMENT_STATUS_OPTIONS.map(o => (
                       <option key={o.value} value={o.value}>{o.label}</option>
@@ -1131,34 +1171,38 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
           )}
 
           {/* ════ SECTION 7: NOTES ════ */}
-          <Section label="Notes">
-            {isLight ? <FL>Item notes (internal)</FL> : <span className={labelCls}>Item notes (internal)</span>}
-            <textarea
-              value={form.item_notes || ''}
-              onChange={e => set('item_notes', e.target.value)}
-              onBlur={() => saveField()}
-              rows={3}
-              className={inputCls}
-              placeholder="Storage instructions, sourcing preferences, special requirements…"
-            />
-            <div style={{ marginTop: 8 }}>
-              {isLight ? <FL>Order notes (visible to supplier)</FL> : <span className={labelCls}>Order notes (visible to supplier)</span>}
-              <textarea
-                value={form.notes || ''}
-                onChange={e => set('notes', e.target.value)}
-                onBlur={() => saveField()}
-                rows={2}
-                className={inputCls}
-                placeholder="Special delivery instructions, substitutions accepted, etc."
-              />
+          <Section isLight={isLight} label="Notes">
+            <div className={isLight ? 'idr-field-stack' : ''}>
+              <div>
+                {isLight ? <FL>Item notes (internal)</FL> : <span className={labelCls}>Item notes (internal)</span>}
+                <textarea
+                  value={form.item_notes || ''}
+                  onChange={e => set('item_notes', e.target.value)}
+                  onBlur={() => saveField()}
+                  rows={3}
+                  className={inputCls}
+                  placeholder="Storage instructions, sourcing preferences, special requirements…"
+                />
+              </div>
+              <div style={isLight ? null : { marginTop: 8 }}>
+                {isLight ? <FL>Order notes (visible to supplier)</FL> : <span className={labelCls}>Order notes (visible to supplier)</span>}
+                <textarea
+                  value={form.notes || ''}
+                  onChange={e => set('notes', e.target.value)}
+                  onBlur={() => saveField()}
+                  rows={2}
+                  className={inputCls}
+                  placeholder="Special delivery instructions, substitutions accepted, etc."
+                />
+              </div>
             </div>
           </Section>
 
           {/* Source badge — only when non-manual */}
           {form.source && form.source !== 'manual' && (
-            <div style={{ marginTop: 8 }}>
+            <div>
               {isLight ? (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#f8fafc', color: '#cbd5e1', fontSize: 10, borderRadius: 4, padding: '2px 6px', fontWeight: 500 }}>
+                <span className="idr-source-badge">
                   ✦ {SOURCE_LABELS[form.source] || form.source}
                 </span>
               ) : (
@@ -1172,16 +1216,16 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
           {/* ════ SECTION 9: ACCOUNTING (COMMAND / CHIEF only) ════ */}
           {canViewAccounting && (
             isLight ? (
-              <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 16, marginTop: 20 }}>
+              <div className="idr-accounting">
                 <button
                   onClick={() => setAccountingOpen(v => !v)}
-                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', cursor: 'pointer', padding: '2px 0', background: 'none', border: 'none' }}
+                  className="idr-accounting-toggle"
                 >
-                  <span style={{ fontSize: 11, color: '#cbd5e1', fontWeight: 500 }}>Accounting</span>
-                  <span style={{ fontSize: 10, color: '#e2e8f0', display: 'inline-block', transform: accountingOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}>▾</span>
+                  <span className="idr-accounting-toggle-label">Accounting</span>
+                  <span className={`idr-accounting-toggle-chevron${accountingOpen ? ' is-open' : ''}`}>▾</span>
                 </button>
                 {accountingOpen && (
-                  <div style={{ marginTop: 10 }}>
+                  <div className="idr-accounting-body">
                     <input value={form.accounting_description || ''} onChange={e => set('accounting_description', e.target.value)} onBlur={() => saveField()} className="idr-field" placeholder="e.g. food and beverage, guest entertainment, maintenance supplies" />
                   </div>
                 )}

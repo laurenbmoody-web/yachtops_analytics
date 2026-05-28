@@ -61,6 +61,13 @@ const Drawer = ({
   // close-anywhere behaviour for existing consumers.
   isDirty = false,
   isBusy = false,
+  // Optional className composed onto the panel's outermost element
+  // (the slide-in wrapper). Lets consumers attach a token-scope class
+  // like `pv-dashboard` so CSS custom properties resolve for the
+  // panel subtree without relying on ancestor inheritance through
+  // the React tree. Backdrop layer doesn't need it (no tokens
+  // consumed there — just a dim overlay).
+  panelClassName = '',
 }) => {
   const isLight = theme === 'light';
   const maxWidth = typeof width === 'number' ? `${width}px` : width;
@@ -84,7 +91,7 @@ const Drawer = ({
       />
       {/* Panel */}
       <div
-        className={`fixed top-0 right-0 h-full w-full z-[var(--z-overlay)] transition-transform duration-300 ease-in-out ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed top-0 right-0 h-full w-full z-[var(--z-overlay)] transition-transform duration-300 ease-in-out ${open ? 'translate-x-0' : 'translate-x-full'} ${panelClassName}`}
         style={{ maxWidth }}
       >
         <div

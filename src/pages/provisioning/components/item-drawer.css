@@ -1,0 +1,580 @@
+/* ============================================================
+   Edit-item drawer — cool dashboard surface restyle.
+
+   Page-scoped under .idr (composed alongside .pv-dashboard on the
+   shared Drawer's panel root via the panelClassName prop). The drawer
+   adopts the same cool palette and white-cards-on-cool-ground layout
+   used by the Suppliers Directory, ReceiveDeliveryModal, board-
+   creation wizard, and the homepage / board-detail SummaryGauges.
+
+   LAYOUT PRINCIPLE
+   ----------------
+   Two layers. Panel = cool ground (--d-bg, set inline via Drawer's
+   panelBg prop). Every field group inside = white --d-card sitting
+   on that ground with a small gap between blocks and the standard
+   --d-border / --d-shadow chrome.
+
+   COLOUR RULES
+   ------------
+   • All colours via --d-* tokens. No hex literals in this file.
+   • Sage is the status semantic — linked banner / received banner /
+     "linked" inventory category leaf.
+   • Per-item status pills draw from the closed --d-status-* token
+     set (see provisioning-dashboard.css header).
+   • Allergen "active" chips reuse --d-cream-warm + --d-navy-deep —
+     the modal's "check match" warm-chip pattern. WARNING semantic
+     legibility check is in the post-work report.
+   ============================================================ */
+
+.idr {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: var(--d-navy);
+}
+
+/* ── Header (Edit item title + saved flash + delete) ─────── */
+.idr-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.idr-header-eyebrow {
+  font-size: 11px;
+  color: var(--d-muted);
+  font-weight: 500;
+}
+.idr-header-saved {
+  font-size: 11px;
+  color: var(--d-sage-deep);
+  font-weight: 500;
+}
+.idr-header-delete {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--d-danger);
+  transition: color 120ms ease, opacity 120ms ease, filter 120ms ease;
+}
+.idr-header-delete:hover { filter: brightness(0.85); }
+.idr-header-delete:disabled { opacity: 0.4; cursor: default; }
+
+/* ── Body wrapper (vertical stack of cards on cool ground) ── */
+.idr-body { display: flex; flex-direction: column; gap: 12px; padding-bottom: 8px; }
+
+/* ── Banners (Received / Linked) — white card + sage left edge ── */
+.idr-banner {
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  border-left: 3px solid var(--d-sage);
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: var(--d-shadow);
+}
+.idr-banner-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.idr-banner-row-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.idr-banner-icon { color: var(--d-sage); flex-shrink: 0; }
+.idr-banner-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--d-sage-deep);
+}
+.idr-banner-link {
+  font-size: 11px;
+  color: var(--d-orange);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 0;
+  font-family: inherit;
+  transition: filter 120ms ease;
+}
+.idr-banner-link:hover { filter: brightness(0.85); }
+
+/* Linked banner extras (stock count, cargo id chip, unlink button) */
+.idr-linked-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.idr-linked-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--d-sage-deep);
+}
+.idr-linked-cargo {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--d-sage-deep);
+  background: var(--d-status-received-bg);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+.idr-linked-stock {
+  font-size: 11px;
+  color: var(--d-sage-deep);
+  margin: 3px 0 0;
+}
+.idr-linked-stock strong { font-weight: 700; }
+.idr-linked-unlink {
+  background: none;
+  border: 1px solid var(--d-border);
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--d-muted);
+  padding: 2px 8px;
+  border-radius: 5px;
+  flex-shrink: 0;
+  font-family: inherit;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+.idr-linked-unlink:hover { color: var(--d-danger); border-color: var(--d-danger); }
+
+/* ── Inventory search (when not linked) ──────────────────── */
+.idr-invsearch {
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: var(--d-shadow);
+}
+.idr-invsearch-wrap { position: relative; }
+.idr-invsearch-input {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 13px;
+  padding: 8px 32px 8px 10px;
+  border: 1px solid var(--d-border);
+  border-radius: 8px;
+  background: var(--d-card);
+  color: var(--d-navy);
+  outline: none;
+  font-family: inherit;
+  transition: border-color 120ms ease;
+}
+.idr-invsearch-input::placeholder { color: var(--d-muted-soft); }
+.idr-invsearch-input:focus { border-color: var(--d-orange); }
+.idr-invsearch-loading {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--d-muted);
+  pointer-events: none;
+}
+.idr-invsearch-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--d-muted);
+  font-size: 14px;
+  padding: 2px;
+  line-height: 1;
+}
+.idr-invsearch-clear:hover { color: var(--d-orange); }
+.idr-invsearch-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: var(--z-dropdown);
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(38, 42, 83, 0.10);
+  margin-top: 4px;
+  overflow: hidden;
+}
+.idr-invsearch-result {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--d-border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: inherit;
+  transition: background 120ms ease;
+}
+.idr-invsearch-result:last-child { border-bottom: 0; }
+.idr-invsearch-result:hover { background: var(--d-bg); }
+.idr-invsearch-result-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.idr-invsearch-result-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--d-navy-deep);
+}
+.idr-invsearch-result-cargo {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--d-status-to-order-fg);
+  background: var(--d-status-to-order-bg);
+  border-radius: 3px;
+  padding: 0 5px;
+}
+.idr-invsearch-result-meta {
+  font-size: 11px;
+  color: var(--d-muted);
+}
+.idr-invsearch-result-stock {
+  margin-left: 8px;
+  color: var(--d-sage-deep);
+}
+.idr-invsearch-helper {
+  font-size: 11px;
+  color: var(--d-muted);
+  padding: 5px 2px;
+  margin-top: 4px;
+}
+
+/* ── Item name (large, prominent) + Brand + Barcode block ── */
+.idr-identity {
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: var(--d-shadow);
+}
+.idr-name-input {
+  width: 100%;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--d-navy-deep);
+  background: none;
+  border: 0;
+  border-bottom: 2px solid var(--d-orange);
+  outline: none;
+  padding: 4px 0;
+  display: block;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.idr-name-input::placeholder { color: var(--d-muted-soft); }
+.idr-name-input:read-only,
+.idr-name-input[readonly] {
+  color: var(--d-muted);
+  border-bottom-color: var(--d-border);
+  cursor: default;
+}
+.idr-identity-fields {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Section card (MEASURE, DEPARTMENT, COST, FLAGS, etc.) ── */
+.idr-section {
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: var(--d-shadow);
+}
+.idr-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--d-muted-soft);
+  margin: 0 0 10px;
+}
+
+/* Sub-field label inside a section */
+.idr-field-label {
+  display: block;
+  font-size: 10px;
+  color: var(--d-muted-soft);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+/* ── Universal input/select/textarea (.idr-field) ─────────── */
+/* Replaces the FIELD_CSS template previously injected at runtime
+   from ItemDrawer.jsx. */
+.idr-field {
+  width: 100%;
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  outline: none;
+  font-size: 14px;
+  color: var(--d-navy);
+  font-family: inherit;
+  padding: 6px 10px;
+  border-radius: 6px;
+  box-sizing: border-box;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.idr-field::placeholder { color: var(--d-muted-soft); }
+.idr-field:hover:not(:focus):not(:disabled):not([readonly]) {
+  border-color: var(--d-muted-soft);
+}
+.idr-field:focus { border-color: var(--d-orange); }
+.idr-field:disabled,
+.idr-field[readonly] { opacity: 0.55; cursor: default; }
+select.idr-field { cursor: pointer; }
+textarea.idr-field { resize: none; line-height: 1.6; min-height: 80px; }
+
+/* MEASURE row grid */
+.idr-measure-grid {
+  display: grid;
+  grid-template-columns: 2fr 2fr 1fr;
+  gap: 8px;
+}
+
+/* DEPARTMENT section field stack */
+.idr-field-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Inventory category breadcrumb (when linked) ──────────── */
+.idr-inv-category {
+  font-size: 13px;
+  color: var(--d-navy);
+  background: var(--d-status-received-bg);
+  border: 1px solid var(--d-sage);
+  border-radius: 7px;
+  padding: 8px 12px;
+  line-height: 1.5;
+}
+.idr-inv-category-seg.is-last { font-weight: 600; color: var(--d-sage-deep); }
+.idr-inv-category-sep { color: var(--d-sage); margin: 0 5px; }
+.idr-inv-category-empty {
+  font-size: 12px;
+  color: var(--d-muted-soft);
+  font-style: italic;
+}
+
+/* ── Cost row (currency pills + cost input + total) ─────── */
+.idr-cost-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.idr-currency-group {
+  display: flex;
+  background: var(--d-bg);
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.idr-currency-pill {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 0;
+  cursor: pointer;
+  background: transparent;
+  color: var(--d-muted);
+  font-family: inherit;
+  transition: background 120ms ease, color 120ms ease;
+}
+.idr-currency-pill.is-active {
+  background: var(--d-orange);
+  color: white;
+}
+.idr-cost-input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--d-border);
+  border-radius: 6px;
+  background: var(--d-card);
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--d-navy);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 120ms ease;
+}
+.idr-cost-input:focus { border-color: var(--d-orange); }
+.idr-cost-total {
+  font-size: 13px;
+  color: var(--d-muted);
+  font-style: italic;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.idr-cost-hint {
+  font-size: 11px;
+  color: var(--d-muted);
+  margin: 4px 0 0;
+}
+
+/* ── Allergen flag pills ──────────────────────────────────── */
+/* Allergens are the one field in the drawer where colour IS a
+   safety signal, not decoration. Active state uses the canonical
+   --d-warn / --d-warn-soft pair (see provisioning-dashboard.css
+   header) — pulled cool from raw amber but still legibly a
+   non-destructive caution, distinct from --d-danger (destructive)
+   and from --d-orange (brand accent). Inactive stays neutral. */
+.idr-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.idr-allergen-pill {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  border: 1px solid var(--d-border);
+  background: var(--d-card);
+  color: var(--d-muted-soft);
+  font-family: inherit;
+}
+.idr-allergen-pill:hover:not(.is-active) {
+  border-color: var(--d-warn);
+  color: var(--d-warn);
+}
+.idr-allergen-pill.is-active {
+  background: var(--d-warn-soft);
+  border-color: var(--d-warn);
+  color: var(--d-warn);
+  font-weight: 600;
+}
+
+/* ── Status pills (per-item statuses) ─────────────────────── */
+/* Each status pill draws bg + fg from the canonical --d-status-* set
+   declared in provisioning-dashboard.css. Single source of truth —
+   the kanban DetailTableCells will adopt the same tokens on its
+   own migration. */
+.idr-status-pill {
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--d-border);
+  background: transparent;
+  color: var(--d-muted-soft);
+  font-family: inherit;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease, opacity 120ms ease;
+}
+.idr-status-pill:disabled { cursor: default; }
+.idr-status-pill:disabled:not(.is-active) { opacity: 0.4; }
+
+.idr-status-pill.is-active.is-draft        { background: var(--d-status-draft-bg);        color: var(--d-status-draft-fg);        border-color: var(--d-status-draft-fg); }
+.idr-status-pill.is-active.is-to-order     { background: var(--d-status-to-order-bg);     color: var(--d-status-to-order-fg);     border-color: var(--d-status-to-order-fg); }
+.idr-status-pill.is-active.is-ordered      { background: var(--d-status-ordered-bg);      color: var(--d-status-ordered-fg);      border-color: var(--d-status-ordered-fg); }
+.idr-status-pill.is-active.is-received     { background: var(--d-status-received-bg);     color: var(--d-status-received-fg);     border-color: var(--d-status-received-fg); }
+.idr-status-pill.is-active.is-partial      { background: var(--d-status-partial-bg);      color: var(--d-status-partial-fg);      border-color: var(--d-status-partial-fg); }
+.idr-status-pill.is-active.is-not-received { background: var(--d-status-not-received-bg); color: var(--d-status-not-received-fg); border-color: var(--d-status-not-received-fg); }
+
+/* ── Source badge (small chip when item.source is non-manual) ── */
+.idr-source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--d-bg);
+  color: var(--d-muted);
+  font-size: 10px;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-weight: 500;
+  border: 1px solid var(--d-border-soft);
+}
+
+/* ── Accounting collapsible (COMMAND/CHIEF only) ─────────── */
+.idr-accounting {
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: var(--d-shadow);
+}
+.idr-accounting-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  cursor: pointer;
+  padding: 2px 0;
+  background: none;
+  border: 0;
+  font-family: inherit;
+}
+.idr-accounting-toggle-label {
+  font-size: 10px;
+  color: var(--d-muted-soft);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.idr-accounting-toggle-chevron {
+  font-size: 10px;
+  color: var(--d-muted-soft);
+  display: inline-block;
+  transition: transform 200ms ease;
+}
+.idr-accounting-toggle-chevron.is-open { transform: rotate(180deg); }
+.idr-accounting-body { margin-top: 10px; }
+
+/* ── Footer (Cancel + Save buttons) ───────────────────────── */
+.idr-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 14px 16px;
+}
+.idr-btn {
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease, filter 120ms ease, opacity 120ms ease;
+  border: 0;
+}
+.idr-btn:disabled { cursor: default; opacity: 0.55; }
+.idr-btn-primary {
+  background: var(--d-orange);
+  color: white;
+}
+.idr-btn-primary:hover:not(:disabled) { filter: brightness(0.92); }
+.idr-btn-primary:disabled {
+  background: var(--d-border);
+  color: var(--d-muted-soft);
+  opacity: 1;
+}
+.idr-btn-ghost {
+  background: var(--d-card);
+  color: var(--d-navy);
+  border: 1px solid var(--d-border);
+}
+.idr-btn-ghost:hover:not(:disabled) {
+  border-color: var(--d-orange);
+  color: var(--d-orange);
+}
