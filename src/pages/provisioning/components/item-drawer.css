@@ -431,9 +431,12 @@ textarea.idr-field { resize: none; line-height: 1.6; min-height: 80px; }
 }
 
 /* ── Allergen flag pills ──────────────────────────────────── */
-/* Active = the modal's "warm note" treatment (cream-warm + navy-deep).
-   Brief calls for a legibility sanity-check after build — if the
-   warm chip doesn't read as a warning at-a-glance, flag in report. */
+/* Allergens are the one field in the drawer where colour IS a
+   safety signal, not decoration. Active state uses the canonical
+   --d-warn / --d-warn-soft pair (see provisioning-dashboard.css
+   header) — pulled cool from raw amber but still legibly a
+   non-destructive caution, distinct from --d-danger (destructive)
+   and from --d-orange (brand accent). Inactive stays neutral. */
 .idr-pill-row {
   display: flex;
   flex-wrap: wrap;
@@ -452,13 +455,13 @@ textarea.idr-field { resize: none; line-height: 1.6; min-height: 80px; }
   font-family: inherit;
 }
 .idr-allergen-pill:hover:not(.is-active) {
-  border-color: var(--d-orange);
-  color: var(--d-orange);
+  border-color: var(--d-warn);
+  color: var(--d-warn);
 }
 .idr-allergen-pill.is-active {
-  background: var(--d-cream-warm);
-  border-color: var(--d-cream-warm);
-  color: var(--d-navy-deep);
+  background: var(--d-warn-soft);
+  border-color: var(--d-warn);
+  color: var(--d-warn);
   font-weight: 600;
 }
 

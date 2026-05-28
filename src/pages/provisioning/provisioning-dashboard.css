@@ -49,6 +49,23 @@
                       .rdm and may eventually consolidate here.
      --d-sage-deep   deeper sage — "N of M received" / "£X paid"
                       success copy. Pairs with --d-sage.
+     --d-warn        NON-DESTRUCTIVE CAUTION semantic. Distinct from
+                      --d-danger (destructive: delete hover, real
+                      errors, validation failures the crew must fix
+                      before saving). Use --d-warn for fields where
+                      colour itself is a safety signal the crew acts
+                      on — currently the allergen flags on item
+                      details. Pulled cooler than raw amber so it
+                      sits in the palette intentionally; legibility
+                      as a caution is preserved.
+
+                      Closed set, no hand-picked amber extensions.
+                      Adopters: ItemDrawer allergen pills (live).
+                      Other surfaces with caution semantics
+                      (low-stock, expiring certs, MLC near-breach)
+                      pick up the same tokens on their own work —
+                      do NOT redeclare or pick adjacent amber tones.
+     --d-warn-soft   fill behind --d-warn text on chips / pills.
 
    Per-item status tokens (closed semantic set, not an open palette):
      The six provisioning item statuses (draft / to_order / ordered /
@@ -87,6 +104,8 @@
   --d-danger-soft: #FCEBEB;
   --d-sage:        #5C9B6A;
   --d-sage-deep:   #047857;
+  --d-warn:        #8B5A1F;
+  --d-warn-soft:   #F5E6C1;
 
   /* Status tokens — see comment block in header. Closed set. */
   --d-status-draft-bg:         #EEF0F4;
