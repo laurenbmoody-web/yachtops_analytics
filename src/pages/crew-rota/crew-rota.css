@@ -92,6 +92,14 @@
   cursor: not-allowed;
   color: #C9C0AE;
 }
+.crew-rota-stepper-btn.is-active {
+  cursor: pointer;
+  color: #1C1B3A;
+}
+.crew-rota-stepper-btn.is-active:hover {
+  background: #F7F5F0;
+  border-color: #C9C0AE;
+}
 .crew-rota-stepper-date {
   font-family: 'DM Serif Display', Georgia, serif;
   font-size: 16px;
