@@ -10,6 +10,7 @@ import './crew-rota.css';
 import RotaTodayGrid from '../trip-detail-view-with-guest-allocation/components/RotaTodayGrid';
 import { DEPT_ORDER } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
 import CrewListView from './CrewListView';
+import CrewWeekMatrix from './CrewWeekMatrix';
 import RestPanelPopover from './RestPanelPopover';
 import PatternPicker from './PatternPicker';
 import SimpleTemplateEditor from './SimpleTemplateEditor';
@@ -139,7 +140,7 @@ export default function CrewRotaPage() {
   const now = new Date();
   const realToday = localTodayStr();
   const { user, currentUser, tenantRole, activeTenantId } = useAuth();
-  const [view, setView] = useState('grid');      // 'grid' | 'list'
+  const [view, setView] = useState('grid');      // 'grid' | 'list' | 'week'
   // selectedDate (YYYY-MM-DD, local components) anchors the entire page —
   // rest figures, MLC warnings and the 7-day rolling window in
   // useRotaShifts all move with it. Defaults to real today.
@@ -175,9 +176,9 @@ export default function CrewRotaPage() {
   }, []);
 
   const {
-    crew, shifts, loading, error, effectiveDate, draftCount,
+    crew, shifts, windowShifts, loading, error, effectiveDate, draftCount,
     applyPaint, applyTemplate, refetch,
-  } = useRotaShifts(selectedDate);
+  } = useRotaShifts(selectedDate, { historyDays: view === 'week' ? 12 : 6 });
   const hasNoShifts = !loading && !error && shifts.length === 0;
   const { rota } = useCurrentRota();
   const { statusByDept, ensureDraft } = useRotaDepartmentStatus(rota?.id);
@@ -232,9 +233,11 @@ export default function CrewRotaPage() {
   // we also drop the count from the headline copy — "0 on duty now"
   // displayed against e.g. yesterday's roster would be confusing.
   const onDuty = crew.filter(c => c.onNow && !c.offToday).length;
-  const meta = isToday
-    ? `${fullDateLabel(selectedDateObj)} · ${total} crew on this trip · ${onDuty} on duty now`
-    : `${fullDateLabel(selectedDateObj)} · ${total} crew on this trip`;
+  const meta = view === 'week'
+    ? `Week ending ${fullDateLabel(selectedDateObj)} · ${total} crew on this trip`
+    : isToday
+      ? `${fullDateLabel(selectedDateObj)} · ${total} crew on this trip · ${onDuty} on duty now`
+      : `${fullDateLabel(selectedDateObj)} · ${total} crew on this trip`;
 
   const presentDepts = DEPT_ORDER.filter(d => crew.some(c => c.department === d));
   const cardContext = isToday
@@ -336,7 +339,12 @@ export default function CrewRotaPage() {
               onClick={() => setSelectedDate(realToday)}
               title={isToday ? 'You are viewing today' : 'Jump to today'}
             >Today</button>
-            <button type="button" className="crew-rota-pill disabled" aria-disabled="true" title="Coming soon">Week</button>
+            <button
+              type="button"
+              className={`crew-rota-pill${view === 'week' ? ' active' : ''}`}
+              onClick={() => setView(view === 'week' ? 'grid' : 'week')}
+              title={view === 'week' ? 'Back to day view' : 'Switch to week view'}
+            >Week</button>
             <button type="button" className="crew-rota-pill disabled" aria-disabled="true" title="Coming soon">Hours of rest log</button>
           </div>
           <div className="crew-rota-divider" />
@@ -373,7 +381,9 @@ export default function CrewRotaPage() {
               onClick={() => setSelectedDate((s) => addLocalDays(s, 1))}
             >→</button>
             <span className="crew-rota-stepper-helper">
-              06:00 {shortDow(selectedDateObj)} — 06:00 {shortDow(parseLocalDate(addLocalDays(selectedDate, 1)))} · 30-min cells · click any name for the rest panel
+              {view === 'week'
+                ? `${shortDow(parseLocalDate(addLocalDays(selectedDate, -6)))} – ${shortDow(selectedDateObj)} · 7 operational days · click any cell to drill in`
+                : `06:00 ${shortDow(selectedDateObj)} — 06:00 ${shortDow(parseLocalDate(addLocalDays(selectedDate, 1)))} · 30-min cells · click any name for the rest panel`}
             </span>
           </div>
         </div>
@@ -393,7 +403,7 @@ export default function CrewRotaPage() {
                 className={`crew-rota-pill${view === 'list' ? ' active' : ''}`}
                 onClick={() => setView('list')}
               >List</button>
-              {editMode ? (
+              {view !== 'week' && (editMode ? (
                 <button
                   type="button"
                   className="crew-rota-pill active edit-pill"
@@ -407,7 +417,7 @@ export default function CrewRotaPage() {
                   title={canEdit ? 'Edit the rota' : 'Rota not ready'}
                   onClick={enterEdit}
                 ><Pencil size={12} /> Edit</button>
-              )}
+              ))}
             </div>
           </div>
 
@@ -450,6 +460,15 @@ export default function CrewRotaPage() {
               }}>
                 Couldn't load the rota. {error}
               </div>
+            ) : view === 'week' ? (
+              <CrewWeekMatrix
+                crew={crew}
+                windowShifts={windowShifts || []}
+                selectedDate={selectedDate}
+                realToday={realToday}
+                gridStartHour={GRID_START_HOUR}
+                onCellClick={(d) => { setSelectedDate(d); setView('grid'); }}
+              />
             ) : (
               <>
                 {hasNoShifts && !editMode ? (
@@ -495,9 +514,13 @@ export default function CrewRotaPage() {
               />
             ) : (
               <>
-                {view === 'grid'
-                  ? <RotaLegend now={isToday ? now : null} />
-                  : <span>Click a name for their rest panel.</span>}
+                {view === 'grid' ? (
+                  <RotaLegend now={isToday ? now : null} />
+                ) : view === 'week' ? (
+                  <span>Click any cell to open that day’s grid.</span>
+                ) : (
+                  <span>Click a name for their rest panel.</span>
+                )}
                 <span style={{ fontStyle: 'italic' }}>
                   1 pending correction ·{' '}
                   <a href="#review" onClick={(e) => e.preventDefault()}>review</a>

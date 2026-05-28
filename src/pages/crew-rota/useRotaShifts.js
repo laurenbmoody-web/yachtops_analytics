@@ -161,11 +161,18 @@ function localTodayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// `selectedDate` (YYYY-MM-DD) anchors the fetch window — the 7-day rolling
-// window becomes [selectedDate-6 .. selectedDate]. Rest figures derived from
-// that window move with the viewed date, so a chief viewing yesterday sees
-// yesterday's compliance state. Defaults to local today.
-export function useRotaShifts(selectedDate) {
+// `selectedDate` (YYYY-MM-DD) anchors the fetch window — the rolling window
+// becomes [selectedDate-historyDays .. selectedDate]. Rest figures derived
+// from that window move with the viewed date, so a chief viewing yesterday
+// sees yesterday's compliance state. Defaults to local today.
+//
+// `historyDays` controls how far back the fetch reaches. Day view needs
+// 6 (for the trailing 7-day MLC rest calc anchored on selectedDate). Week
+// view needs 12 (the matrix shows 7 days ending at selectedDate, and each
+// of those cells needs its own trailing 7-day rest window — so 7 + 6 = 13
+// days total). Callers pass the depth they need; the hook re-fetches when
+// it changes.
+export function useRotaShifts(selectedDate, { historyDays = 6 } = {}) {
   const anchorDate = selectedDate || localTodayStr();
   // AuthContext exposes `activeTenantId` (not `tenantId`) — matching the
   // pattern used by useTripGuests / useTripsMigration. Destructuring
@@ -265,7 +272,7 @@ export function useRotaShifts(selectedDate) {
 
         // 3 — shifts: the effective day + the rolling 7-day window
         const windowStart = new Date(`${effDate}T00:00:00`);
-        windowStart.setDate(windowStart.getDate() - 6);
+        windowStart.setDate(windowStart.getDate() - historyDays);
         const windowStartStr = windowStart.toISOString().slice(0, 10);
 
         const { data: shiftRows, error: sErr, status: sStatus, statusText: sStatusText } = await supabase
@@ -337,7 +344,7 @@ export function useRotaShifts(selectedDate) {
         if (!cancelled && !silent) setLoading(false);
       }
     }
-  }, [user, tenantId, anchorDate]);
+  }, [user, tenantId, anchorDate, historyDays]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -571,7 +578,7 @@ export function useRotaShifts(selectedDate) {
     let inWindow = () => false;
     if (effectiveDate) {
       const end = new Date(`${effectiveDate}T00:00:00`);
-      const start = new Date(end); start.setDate(start.getDate() - 6);
+      const start = new Date(end); start.setDate(start.getDate() - historyDays);
       const pad = (n) => String(n).padStart(2, '0');
       const startStr = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`;
       inWindow = (d) => d >= startStr && d <= effectiveDate;
@@ -622,10 +629,10 @@ export function useRotaShifts(selectedDate) {
       load({ silent: true });
       return { ok: false, error: e.message || String(e) };
     }
-  }, [tenantId, effectiveDate, load]);
+  }, [tenantId, effectiveDate, historyDays, load]);
 
   return {
-    crew, shifts, effectiveDate, loading, error, draftCount,
+    crew, shifts, windowShifts, effectiveDate, loading, error, draftCount,
     isViewingToday, refetch: load, applyPaint, applyTemplate,
   };
 }
