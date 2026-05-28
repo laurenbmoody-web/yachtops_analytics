@@ -3200,186 +3200,218 @@
 
 /* ============================================================
    Week view — crew × 7-day operational matrix
+   Mirrors the day grid (rota-*) visual language:
+   dept colour strip + sticky name col + cream/navy cells.
+   Palette and hex values are pulled from the existing rota-*
+   block above — same source, no new tokens introduced.
    ============================================================ */
-.cw-wrap { overflow-x: auto; }
-.cw-grid {
+.cw-grid-wrap { overflow-x: auto; }
+.cw-grid-inner { min-width: 880px; position: relative; }
+
+/* Header row — sticky name spacer + 7 day columns, mirrors .rota-hour-row */
+.cw-head-row {
   display: grid;
-  grid-template-columns: 200px repeat(7, minmax(86px, 1fr));
-  gap: 4px;
-  min-width: 800px;
+  grid-template-columns: var(--cw-nm-w, 220px) repeat(7, 1fr);
+  gap: 2px;
+  padding-bottom: 10px;
+  margin-bottom: 4px;
 }
-.cw-row { display: contents; }
-.cw-header-row .cw-name-col,
-.cw-header-row > * {
-  padding-bottom: 8px;
-  border-bottom: 0.5px solid #DFD8CC;
-}
-.cw-header-name {
+.cw-head-spacer {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 9px;
-  letter-spacing: 1.8px;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
   color: #8B8478;
-  font-weight: 600;
   display: flex;
   align-items: flex-end;
-  padding-bottom: 8px;
+  padding: 0 12px;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: #FFFFFF;
 }
 .cw-day-head {
   text-align: center;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  border-radius: 6px;
-  padding: 4px 2px 8px;
-}
-.cw-day-head.is-today {
-  background: #FAECE7;
-}
-.cw-day-head.is-selected {
-  background: #ECE6DC;
-}
-.cw-day-head.is-today.is-selected {
-  background: #FAECE7;
-  outline: 0.5px solid #C9C0AE;
+  padding: 2px 4px 6px;
+  border-radius: 4px;
 }
 .cw-day-head-dow {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 9px;
-  letter-spacing: 1.4px;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
   color: #8B8478;
-  font-weight: 600;
 }
 .cw-day-head-num {
   font-family: 'DM Serif Display', Georgia, serif;
-  font-size: 16px;
+  font-size: 18px;
   color: #1C1B3A;
   line-height: 1.1;
-  margin-top: 2px;
 }
 .cw-day-head-mon {
+  font-family: 'DM Serif Display', Georgia, serif;
   font-size: 11px;
   color: #8B8478;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  line-height: 1;
+  font-style: italic;
+}
+.cw-day-head.is-weekend .cw-day-head-num { color: #5F5E5A; }
+.cw-day-head.is-today .cw-day-head-dow,
+.cw-day-head.is-today .cw-day-head-num,
+.cw-day-head.is-today .cw-day-head-mon {
+  color: #C65A1A;
+}
+.cw-day-head.is-today .cw-day-head-num { font-weight: 500; }
+.cw-day-head.is-selected {
+  background: #ECE6DC;
 }
 
-.cw-dept-row { padding: 12px 0 6px; }
-.cw-dept-row .cw-dept-label {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  font-size: 9px;
-  letter-spacing: 1.8px;
-  text-transform: uppercase;
-  color: #8B8478;
-  font-weight: 600;
-  align-self: center;
-  padding-right: 12px;
-  white-space: nowrap;
+/* Dept group — flex: 22px sticky colour strip + crew rows.
+   Same structure as .rota-dept-group. */
+.cw-dept-group {
+  display: flex;
+  align-items: stretch;
+  margin-bottom: 2px;
 }
-.cw-dept-rule {
-  height: 0.5px;
-  background: #DFD8CC;
-  align-self: center;
-}
-
-.cw-name-col {
-  padding: 8px 4px 8px 0;
-  border-bottom: 0.5px solid #ECE6DC;
-  min-width: 0;
-}
-.cw-name {
+.cw-dept-strip {
+  flex: 0 0 22px;
+  position: sticky;
+  left: 0;
+  z-index: 5;
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+}
+.cw-dept-strip-text {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.cw-dept-rows { flex: 1; min-width: 0; }
+
+/* Crew row — sticky name col + 7 cells, 2px gaps (matches .rota-row) */
+.cw-row {
+  display: grid;
+  grid-template-columns: calc(var(--cw-nm-w, 220px) - 22px) repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 2px;
+}
+
+/* Sticky name column — mirrors .rota-nm */
+.cw-nm {
+  padding: 10px 12px;
+  height: 56px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  background: #FFFFFF;
+  position: sticky;
+  left: 22px;
+  z-index: 4;
+  border-top: 0.5px solid #ECE6DC;
+  overflow: hidden;
+}
+.cw-nm-line {
+  display: flex;
+  align-items: center;
+  line-height: 1;
+  white-space: nowrap;
+}
+.cw-nm-name {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 13px;
   font-weight: 500;
   color: #1C1B3A;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
-.cw-name-warn { display: inline-flex; }
+.cw-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #B4B2A9;
+  margin: 0 7px;
+  flex-shrink: 0;
+}
 .cw-role {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  font-size: 10px;
+  font-weight: 400;
   color: #8B8478;
-  margin-top: 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 11px;
 }
 
-.cw-cell {
-  background: #FFFFFF;
-  border: 0.5px solid #ECE6DC;
-  border-radius: 6px;
-  padding: 6px 6px 5px;
-  text-align: left;
+/* Day cells — same palette as .rota-c (cream off / navy scheduled / sat tint) */
+.cw-c {
+  height: 56px;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 46px;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  font-size: 11px;
+  text-align: left;
+  background: #F7F5F0;
   color: #1C1B3A;
 }
-.cw-cell:hover {
-  border-color: #C65A1A;
-  background: #FAFAF7;
+.cw-c.f {
+  background: #1C1B3A;
+  color: #F5F1EA;
 }
-.cw-cell.is-off {
-  background: #F7F5F0;
-  color: #B4B2A9;
+.cw-c.sat { background: #EDEAE3; }
+.cw-c:hover { outline: 0.5px solid #C65A1A; }
+.cw-c.is-today-col:not(.f) { outline: 0.5px solid #C65A1A; }
+.cw-c.is-selected-col { outline: 0.5px solid #C9C0AE; }
+.cw-c.is-warn.f {
+  /* Warning on a scheduled cell: keep navy fill, hint via meta colour. */
+  background: #1C1B3A;
 }
-.cw-cell.is-warn {
+.cw-c.is-warn.off {
   background: #FDF6F3;
-  border-color: #F5C9B8;
-}
-.cw-cell.is-today-col {
-  border-color: #C65A1A;
-}
-.cw-cell.is-selected-col {
-  outline: 0.5px solid #C9C0AE;
+  color: #7A2E1E;
 }
 
-.cw-cell-shifts {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-weight: 500;
-  white-space: nowrap;
-  min-width: 0;
-}
-.cw-cell-swatch {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.cw-cell-range { font-variant-numeric: tabular-nums; }
-.cw-cell-more {
-  font-size: 9px;
-  color: #8B8478;
-  padding: 1px 4px;
-  background: #ECE6DC;
-  border-radius: 999px;
-}
-.cw-cell-off {
-  font-style: italic;
-  color: #B4B2A9;
+.cw-c-off {
   font-size: 11px;
+  color: #B4B2A9;
+  font-style: italic;
+  margin: auto;
 }
-.cw-cell-meta {
+.cw-c-range {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 4px;
-  margin-top: 4px;
-  font-size: 10px;
-  color: #8B8478;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
-.cw-cell-rest { font-variant-numeric: tabular-nums; }
-.cw-cell-rest.is-warn {
-  color: #C65A1A;
+.cw-c-more {
+  font-size: 9px;
+  padding: 1px 5px;
+  background: rgba(245, 241, 234, 0.18);
+  color: #F5F1EA;
+  border-radius: 999px;
   font-weight: 500;
 }
+.cw-c.off .cw-c-more {
+  background: #ECE6DC;
+  color: #5F5E5A;
+}
+.cw-c-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 10px;
+  color: #C9C0AE;
+}
+.cw-c.off .cw-c-meta { color: #8B8478; }
+.cw-c-rest { font-variant-numeric: tabular-nums; }
+.cw-c-rest.w { color: #C65A1A; font-weight: 500; }
