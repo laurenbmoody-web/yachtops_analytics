@@ -2274,7 +2274,8 @@
    inline after the readout summary; click toggles the explainer
    block beneath. Same disclosure pattern as the Why-advisory reveal
    so the chief learns one interaction. */
-.ap-mlc-binding-why {
+.ap-mlc-binding-why,
+.ap-mlc-advisory-toggle {
   background: transparent;
   border: 0;
   padding: 0;
@@ -2287,7 +2288,14 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-.ap-mlc-binding-why:hover { color: #5C2316; }
+.ap-mlc-binding-why:hover,
+.ap-mlc-advisory-toggle:hover { color: #5C2316; }
+.ap-mlc-advisory-toggle {
+  /* Slightly larger touch target than [why?] since it's a single
+     character — same disclosure pattern, just a smaller glyph. */
+  padding: 0 4px;
+  margin-left: 4px;
+}
 .ap-mlc-binding-explain {
   margin-top: 6px;
   padding: 6px 10px;

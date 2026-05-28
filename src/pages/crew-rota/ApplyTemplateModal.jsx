@@ -1263,6 +1263,19 @@ function BulkShortenLever({
 function MlcMemberRow({ name, mlcBreaches, applyDates, memberId, allRows, onDropRow, onShortenRow, onBulkShortenRows, onBulkDropRows, computePrefillFor, computeBulkPrefillFor, previewWithEdit, previewWithEdits }) {
   const [open, setOpen] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
+  // Per-rule advisory reveal state (v1.2 density pass C2). Default
+  // collapsed — the "Why —" prose stacks up when multiple rules are
+  // breaching and dominates the member's expanded view. Click the `?`
+  // beside a rule sentence to reveal that rule's advisory inline. Same
+  // disclosure pattern as the bulk readout's [why?] from D3 — one
+  // interaction for the chief to learn.
+  const [advisoryOpen, setAdvisoryOpen] = useState(() => new Set());
+  const toggleAdvisory = (rule) => setAdvisoryOpen((prev) => {
+    const next = new Set(prev);
+    if (next.has(rule)) next.delete(rule);
+    else next.add(rule);
+    return next;
+  });
   const chips = useMemo(() => ruleSummary(mlcBreaches), [mlcBreaches]);
   const ruleSummaries = useMemo(() => {
     // Group breaches by rule, preserving canonical order from MLC_RULE_CHIPS.
@@ -1417,11 +1430,30 @@ function MlcMemberRow({ name, mlcBreaches, applyDates, memberId, allRows, onDrop
                   </li>
                 );
               }
+              const advisoryRevealed = advisoryOpen.has(rs.rule);
               return (
                 <li key={rs.rule}>
-                  <div className="ap-mlc-rule-sentence">{rs.sentence}</div>
-                  {rs.advisory && (
-                    <div className="ap-mlc-rule-advisory">{rs.advisory}</div>
+                  <div className="ap-mlc-rule-sentence">
+                    {rs.sentence}
+                    {rs.advisory && (
+                      <>
+                        {' '}
+                        <button
+                          type="button"
+                          className="ap-mlc-advisory-toggle"
+                          aria-expanded={advisoryRevealed}
+                          aria-controls={`ap-mlc-advisory-${memberId}-${rs.rule}`}
+                          aria-label={advisoryRevealed ? 'Hide advisory' : 'Show advisory'}
+                          onClick={() => toggleAdvisory(rs.rule)}
+                        >?</button>
+                      </>
+                    )}
+                  </div>
+                  {rs.advisory && advisoryRevealed && (
+                    <div
+                      className="ap-mlc-rule-advisory"
+                      id={`ap-mlc-advisory-${memberId}-${rs.rule}`}
+                    >{rs.advisory}</div>
                   )}
                   {isShortenRule && !goBulk && (
                     <ShortenLever
