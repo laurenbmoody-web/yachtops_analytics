@@ -38,6 +38,17 @@
                       surfaces (board-creation wizard, etc.) share
                       the same red without re-declaring the hex.
      --d-danger-soft fill behind --d-danger text on toasts / banners.
+     --d-sage        progress-arc / status pill colour. Reserved for
+                      success / "received" / "paid" semantics on KPI
+                      gauges. NOT a general accent — use --d-orange
+                      for that. Promoted to the shared set so the
+                      SummaryGauges KPI cards (and any future status
+                      surface) can share the value without re-
+                      declaring it. The ReceiveDeliveryModal's
+                      identical --rdm-sage values stay scoped under
+                      .rdm and may eventually consolidate here.
+     --d-sage-deep   deeper sage — "N of M received" / "£X paid"
+                      success copy. Pairs with --d-sage.
    ============================================================ */
 .pv-dashboard {
   --d-bg:          #F8FAFC;
@@ -54,4 +65,6 @@
   --d-shadow:      0 2px 6px rgba(38, 42, 83, 0.04);
   --d-danger:      #A32D2D;
   --d-danger-soft: #FCEBEB;
+  --d-sage:        #5C9B6A;
+  --d-sage-deep:   #047857;
 }

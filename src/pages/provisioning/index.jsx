@@ -838,7 +838,7 @@ const ProvisioningWorkspace = () => {
     return (
       <>
         <Header />
-        <div className="pv-board" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="pv-board pv-dashboard" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       </>
@@ -848,7 +848,7 @@ const ProvisioningWorkspace = () => {
   return (
     <>
       <Header />
-      <div className="pv-board">
+      <div className="pv-board pv-dashboard">
         {/* Editorial header — meta strip + headline + action buttons */}
         <div className="pv-board-headblock">
           <div className="pv-board-headblock-left">
