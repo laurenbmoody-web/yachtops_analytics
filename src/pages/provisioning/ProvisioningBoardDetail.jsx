@@ -5,6 +5,7 @@ import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import { EditorialPageShell, EditorialTabNav } from '../../components/editorial';
 import '../pantry/pantry.css';
+import './provisioning-dashboard.css';
 import StatusBadge from './components/StatusBadge';
 import { BOARD_TYPES } from './data/templates';
 import { useAuth } from '../../contexts/AuthContext';
@@ -1187,7 +1188,7 @@ const ProvisioningBoardDetail = () => {
   return (
     <>
       <Header />
-      <div className="editorial-page">
+      <div className="editorial-page pv-dashboard">
 
         <EditorialPageShell
           title={editorialHeadline}

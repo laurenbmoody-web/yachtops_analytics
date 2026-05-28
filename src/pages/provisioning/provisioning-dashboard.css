@@ -68,3 +68,15 @@
   --d-sage:        #5C9B6A;
   --d-sage-deep:   #047857;
 }
+
+/* Page-shell overrides — when .pv-dashboard composes onto a page
+   shell (the warm .pv-board kanban wrapper, or the .editorial-page
+   shell used by board-detail and other editorial routes), swap the
+   shell's warm ground for the cool dashboard --d-bg. Targeted
+   selectors (not a global `.pv-dashboard {}` background rule) so
+   per-surface explicit bg rules in other files (modal panel,
+   wizard wrapper, Suppliers .sd-dir) still win on specificity. */
+.pv-board.pv-dashboard,
+.editorial-page.pv-dashboard {
+  background: var(--d-bg);
+}
