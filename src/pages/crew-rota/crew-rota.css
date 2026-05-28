@@ -3197,3 +3197,189 @@
   vertical-align: middle;
   font-style: italic;
 }
+
+/* ============================================================
+   Week view — crew × 7-day operational matrix
+   ============================================================ */
+.cw-wrap { overflow-x: auto; }
+.cw-grid {
+  display: grid;
+  grid-template-columns: 200px repeat(7, minmax(86px, 1fr));
+  gap: 4px;
+  min-width: 800px;
+}
+.cw-row { display: contents; }
+.cw-header-row .cw-name-col,
+.cw-header-row > * {
+  padding-bottom: 8px;
+  border-bottom: 0.5px solid #DFD8CC;
+}
+.cw-header-name {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 9px;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: #8B8478;
+  font-weight: 600;
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 8px;
+}
+.cw-day-head {
+  text-align: center;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  border-radius: 6px;
+  padding: 4px 2px 8px;
+}
+.cw-day-head.is-today {
+  background: #FAECE7;
+}
+.cw-day-head.is-selected {
+  background: #ECE6DC;
+}
+.cw-day-head.is-today.is-selected {
+  background: #FAECE7;
+  outline: 0.5px solid #C9C0AE;
+}
+.cw-day-head-dow {
+  font-size: 9px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: #8B8478;
+  font-weight: 600;
+}
+.cw-day-head-num {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 16px;
+  color: #1C1B3A;
+  line-height: 1.1;
+  margin-top: 2px;
+}
+.cw-day-head-mon {
+  font-size: 11px;
+  color: #8B8478;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+.cw-dept-row { padding: 12px 0 6px; }
+.cw-dept-row .cw-dept-label {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 9px;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: #8B8478;
+  font-weight: 600;
+  align-self: center;
+  padding-right: 12px;
+  white-space: nowrap;
+}
+.cw-dept-rule {
+  height: 0.5px;
+  background: #DFD8CC;
+  align-self: center;
+}
+
+.cw-name-col {
+  padding: 8px 4px 8px 0;
+  border-bottom: 0.5px solid #ECE6DC;
+  min-width: 0;
+}
+.cw-name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1C1B3A;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cw-name-warn { display: inline-flex; }
+.cw-role {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 10px;
+  color: #8B8478;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cw-cell {
+  background: #FFFFFF;
+  border: 0.5px solid #ECE6DC;
+  border-radius: 6px;
+  padding: 6px 6px 5px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 46px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11px;
+  color: #1C1B3A;
+}
+.cw-cell:hover {
+  border-color: #C65A1A;
+  background: #FAFAF7;
+}
+.cw-cell.is-off {
+  background: #F7F5F0;
+  color: #B4B2A9;
+}
+.cw-cell.is-warn {
+  background: #FDF6F3;
+  border-color: #F5C9B8;
+}
+.cw-cell.is-today-col {
+  border-color: #C65A1A;
+}
+.cw-cell.is-selected-col {
+  outline: 0.5px solid #C9C0AE;
+}
+
+.cw-cell-shifts {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+  white-space: nowrap;
+  min-width: 0;
+}
+.cw-cell-swatch {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.cw-cell-range { font-variant-numeric: tabular-nums; }
+.cw-cell-more {
+  font-size: 9px;
+  color: #8B8478;
+  padding: 1px 4px;
+  background: #ECE6DC;
+  border-radius: 999px;
+}
+.cw-cell-off {
+  font-style: italic;
+  color: #B4B2A9;
+  font-size: 11px;
+}
+.cw-cell-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 10px;
+  color: #8B8478;
+}
+.cw-cell-rest { font-variant-numeric: tabular-nums; }
+.cw-cell-rest.is-warn {
+  color: #C65A1A;
+  font-weight: 500;
+}
