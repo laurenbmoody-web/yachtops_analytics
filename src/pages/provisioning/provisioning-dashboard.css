@@ -49,6 +49,26 @@
                       .rdm and may eventually consolidate here.
      --d-sage-deep   deeper sage — "N of M received" / "£X paid"
                       success copy. Pairs with --d-sage.
+
+   Per-item status tokens (closed semantic set, not an open palette):
+     The six provisioning item statuses (draft / to_order / ordered /
+     received / partial / not_received) carry meaningful colour. They
+     render in two surfaces — the Edit-item drawer's status pills and
+     the board's inline DetailTableCells status pill — and MUST stay
+     in lockstep across both. Declared here as a closed set so any
+     future consumer pulls from the same source. Pulled cool toward
+     navy / sage / orange / danger, NOT warm pastels.
+
+     Do not invent more status colours by hand. If a seventh status
+     is added, extend this block and adopt it everywhere; do not pick
+     a one-off hex inline.
+
+     Currently consumed by:
+       • ItemDrawer.jsx          (drawer status pills) — live
+       • DetailTableCells.jsx    (board inline pill)   — pending migration
+
+     --d-status-*-bg   chip background
+     --d-status-*-fg   chip text / border
    ============================================================ */
 .pv-dashboard {
   --d-bg:          #F8FAFC;
@@ -67,6 +87,20 @@
   --d-danger-soft: #FCEBEB;
   --d-sage:        #5C9B6A;
   --d-sage-deep:   #047857;
+
+  /* Status tokens — see comment block in header. Closed set. */
+  --d-status-draft-bg:         #EEF0F4;
+  --d-status-draft-fg:         #7C7E9B;
+  --d-status-to-order-bg:      #DBE4FF;
+  --d-status-to-order-fg:      #1E40AF;
+  --d-status-ordered-bg:       #E0E0FF;
+  --d-status-ordered-fg:       #4338CA;
+  --d-status-received-bg:      #E8F5EE;
+  --d-status-received-fg:      #047857;
+  --d-status-partial-bg:       #FAEEDA;
+  --d-status-partial-fg:       #C65A1A;
+  --d-status-not-received-bg:  #FCEBEB;
+  --d-status-not-received-fg:  #A32D2D;
 }
 
 /* Page-shell overrides — when .pv-dashboard composes onto a page
