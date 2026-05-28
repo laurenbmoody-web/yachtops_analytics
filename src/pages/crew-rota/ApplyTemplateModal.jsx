@@ -1431,23 +1431,36 @@ function MlcMemberRow({ name, mlcBreaches, applyDates, memberId, allRows, onDrop
                 );
               }
               const advisoryRevealed = advisoryOpen.has(rs.rule);
+              // Bind the last word of the rule sentence to the `?` glyph
+              // so they can't wrap apart. Without this the ? orphans onto
+              // its own line on sentences that fill the row's width —
+              // reads as a rendering bug. The .ap-mlc-rule-sentence-tail
+              // span carries white-space:nowrap so head can wrap normally
+              // but tail + ? always sit together on the same visual line.
+              const sentence = rs.sentence || '';
+              const lastSpaceIdx = sentence.lastIndexOf(' ');
+              const sentenceHead = lastSpaceIdx >= 0 ? sentence.slice(0, lastSpaceIdx) : '';
+              const sentenceTail = lastSpaceIdx >= 0 ? sentence.slice(lastSpaceIdx + 1) : sentence;
               return (
                 <li key={rs.rule}>
                   <div className="ap-mlc-rule-sentence">
-                    {rs.sentence}
-                    {rs.advisory && (
-                      <>
-                        {' '}
-                        <button
-                          type="button"
-                          className="ap-mlc-advisory-toggle"
-                          aria-expanded={advisoryRevealed}
-                          aria-controls={`ap-mlc-advisory-${memberId}-${rs.rule}`}
-                          aria-label={advisoryRevealed ? 'Hide advisory' : 'Show advisory'}
-                          onClick={() => toggleAdvisory(rs.rule)}
-                        >?</button>
-                      </>
-                    )}
+                    {sentenceHead && (<>{sentenceHead}{' '}</>)}
+                    <span className="ap-mlc-rule-sentence-tail">
+                      {sentenceTail}
+                      {rs.advisory && (
+                        <>
+                          {' '}
+                          <button
+                            type="button"
+                            className="ap-mlc-advisory-toggle"
+                            aria-expanded={advisoryRevealed}
+                            aria-controls={`ap-mlc-advisory-${memberId}-${rs.rule}`}
+                            aria-label={advisoryRevealed ? 'Hide advisory' : 'Show advisory'}
+                            onClick={() => toggleAdvisory(rs.rule)}
+                          >?</button>
+                        </>
+                      )}
+                    </span>
                   </div>
                   {rs.advisory && advisoryRevealed && (
                     <div
