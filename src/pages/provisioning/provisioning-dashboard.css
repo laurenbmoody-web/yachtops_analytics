@@ -26,6 +26,18 @@
      --d-muted       secondary label text
      --d-muted-soft  tracked-caps eyebrow / column header text
      --d-shadow      card shadow (subtle navy-tinted)
+
+   Documented exceptions (semantic colours that sit alongside the
+   --d-* set but aren't part of its neutral surface palette):
+     --d-danger      genuine error / validation-failure text.
+                      DO NOT use for "attention" prompts — those use
+                      --d-orange. Pairs with --d-danger-soft below.
+                      First introduced when the Suppliers page hard-
+                      coded #A32D2D for delete hovers and validation
+                      errors; promoted here so other dashboard
+                      surfaces (board-creation wizard, etc.) share
+                      the same red without re-declaring the hex.
+     --d-danger-soft fill behind --d-danger text on toasts / banners.
    ============================================================ */
 .pv-dashboard {
   --d-bg:          #F8FAFC;
@@ -40,4 +52,6 @@
   --d-muted:       #7C7E9B;
   --d-muted-soft:  #9098B1;
   --d-shadow:      0 2px 6px rgba(38, 42, 83, 0.04);
+  --d-danger:      #A32D2D;
+  --d-danger-soft: #FCEBEB;
 }

@@ -58,31 +58,24 @@ export default function TemplatePicker({ boardType, guestCount = 0, onUse, onBac
   const selectedTpl = selected ? TEMPLATES.find(t => t.id === selected) : null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 0 }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-        <button
-          onClick={onBack}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B', padding: '2px 4px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 3 }}
-        >
-          ← Back
-        </button>
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#0F172A' }}>Choose a template</span>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* Header — back + title with orange dot. Inherits .pv-wizard
+          tokens from the wrapper in NewBoardColumn. */}
+      <div className="pv-wizard-header" style={{ marginBottom: 14 }}>
+        <button onClick={onBack} className="pv-wizard-back">← Back</button>
+        <h3 className="pv-wizard-title">
+          <span className="pv-wizard-title-dot" aria-hidden="true" />
+          Choose a template
+        </h3>
       </div>
 
       {/* Filter pills */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+      <div className="pv-wizard-pill-row" style={{ marginBottom: 12 }}>
         {filters.map(f => (
           <button
             key={f.value}
             onClick={() => setActiveFilter(f.value)}
-            style={{
-              padding: '4px 12px', borderRadius: 20, border: 'none', cursor: 'pointer',
-              fontSize: 11, fontWeight: 600,
-              background: activeFilter === f.value ? '#1E3A5F' : '#F1F5F9',
-              color: activeFilter === f.value ? 'white' : '#64748B',
-              transition: 'all 0.15s',
-            }}
+            className={`pv-wizard-pill${activeFilter === f.value ? ' is-active' : ''}`}
           >
             {f.label}
           </button>
@@ -90,11 +83,9 @@ export default function TemplatePicker({ boardType, guestCount = 0, onUse, onBac
       </div>
 
       {/* Template list */}
-      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 2 }}>
+      <div className="pv-wizard-list">
         {visible.length === 0 && (
-          <p style={{ fontSize: 12, color: '#94A3B8', textAlign: 'center', marginTop: 20 }}>
-            No templates for this type.
-          </p>
+          <p className="pv-wizard-empty">No templates for this type.</p>
         )}
         {visible.map(tpl => {
           const isSelected = selected === tpl.id;
@@ -102,26 +93,19 @@ export default function TemplatePicker({ boardType, guestCount = 0, onUse, onBac
             <button
               key={tpl.id}
               onClick={() => setSelected(isSelected ? null : tpl.id)}
-              style={{
-                textAlign: 'left', padding: '10px 12px', borderRadius: 10,
-                border: isSelected ? '1.5px solid #1E3A5F' : '1px solid #E2E8F0',
-                background: isSelected ? '#EFF6FF' : 'white',
-                cursor: 'pointer', transition: 'all 0.15s',
-              }}
+              className={`pv-wizard-pick-card${isSelected ? ' is-selected' : ''}`}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#0F172A' }}>{tpl.name}</p>
-                <span style={{ fontSize: 10, color: '#94A3B8', whiteSpace: 'nowrap', marginLeft: 8 }}>{tpl.itemCount} items</span>
+              <div className="pv-wizard-pick-card-head">
+                <p className="pv-wizard-pick-card-title">{tpl.name}</p>
+                <span className="pv-wizard-item-count">{tpl.itemCount} items</span>
               </div>
-              <p style={{ margin: '3px 0 6px', fontSize: 11, color: '#64748B', lineHeight: 1.4 }}>{tpl.description}</p>
-              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              <p className="pv-wizard-pick-card-desc">{tpl.description}</p>
+              <div className="pv-wizard-chip-row">
                 {tpl.categories.slice(0, 4).map(cat => (
-                  <span key={cat} style={{ fontSize: 9, fontWeight: 600, padding: '2px 7px', borderRadius: 10, background: '#F1F5F9', color: '#475569' }}>
-                    {cat}
-                  </span>
+                  <span key={cat} className="pv-wizard-chip">{cat}</span>
                 ))}
                 {tpl.categories.length > 4 && (
-                  <span style={{ fontSize: 9, color: '#94A3B8' }}>+{tpl.categories.length - 4} more</span>
+                  <span className="pv-wizard-chip-more">+{tpl.categories.length - 4} more</span>
                 )}
               </div>
             </button>
@@ -130,21 +114,16 @@ export default function TemplatePicker({ boardType, guestCount = 0, onUse, onBac
       </div>
 
       {/* CTA */}
-      <div style={{ paddingTop: 10, borderTop: '1px solid #F1F5F9', marginTop: 10 }}>
+      <div className="pv-wizard-cta-footer">
         {selectedTpl && guestCount > 0 && (
-          <p style={{ margin: '0 0 8px', fontSize: 11, color: '#64748B', textAlign: 'center' }}>
+          <p className="pv-wizard-cta-footer-note">
             Quantities scaled for <strong>{guestCount} guests</strong>
           </p>
         )}
         <button
           onClick={handleUse}
           disabled={!selected}
-          style={{
-            width: '100%', padding: '9px 0', borderRadius: 8, border: 'none', cursor: selected ? 'pointer' : 'default',
-            background: selected ? '#1E3A5F' : '#E2E8F0',
-            color: selected ? 'white' : '#94A3B8',
-            fontSize: 13, fontWeight: 600, transition: 'all 0.15s',
-          }}
+          className="pv-wizard-btn pv-wizard-btn-primary is-block"
         >
           {selected
             ? `Use Template (${selectedTpl?.itemCount ?? 0} items)`
