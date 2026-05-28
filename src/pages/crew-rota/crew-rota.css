@@ -2296,6 +2296,15 @@
   padding: 0 4px;
   margin-left: 4px;
 }
+
+/* Bind the last word of a rule sentence to the trailing ? toggle so
+   they can't wrap to separate lines. The .ap-mlc-rule-sentence parent
+   wraps normally; only the tail (last word + ?) is held together via
+   nowrap. Without this the ? orphans onto its own line whenever the
+   sentence fills the row width. */
+.ap-mlc-rule-sentence-tail {
+  white-space: nowrap;
+}
 .ap-mlc-binding-explain {
   margin-top: 6px;
   padding: 6px 10px;
