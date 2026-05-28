@@ -38,6 +38,27 @@ function fullDateLabel(d) {
   return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
 }
 
+// Local YYYY-MM-DD helpers — strictly local components (no UTC). Used to
+// drive the stepper without timezone surprises.
+function localTodayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function parseLocalDate(s) {
+  const [y, m, d] = String(s).split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+function addLocalDays(s, delta) {
+  const d = parseLocalDate(s);
+  d.setDate(d.getDate() + delta);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+// Short label for the stepper helper ("06:00 Fri — 06:00 Sat") — abbreviates
+// the day-of-week from the selected date and the following date.
+function shortDow(d) {
+  return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
+}
+
 // (slot ↔ decimal helpers and shift-range math are now owned by
 // useRotaShifts.applyPaint — the page only deals in slot indices.)
 
@@ -59,10 +80,12 @@ function RotaLegend({ now }) {
         <span className="crew-rota-legend-swatch" style={{ background: '#EDEAE3' }} />
         <span>Saturday</span>
       </div>
-      <div className="crew-rota-legend-item">
-        <span style={{ width: 1.5, height: 14, background: '#C65A1A', opacity: 0.5, borderRadius: 1 }} />
-        <span>Now ({hhmmNow})</span>
-      </div>
+      {now && (
+        <div className="crew-rota-legend-item">
+          <span style={{ width: 1.5, height: 14, background: '#C65A1A', opacity: 0.5, borderRadius: 1 }} />
+          <span>Now ({hhmmNow})</span>
+        </div>
+      )}
       <div className="crew-rota-legend-item">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
           stroke="#C65A1A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -113,8 +136,15 @@ function EditFooterCTA({ tier, draftCount, onStub }) {
 export default function CrewRotaPage() {
   const navigate = useNavigate();
   const now = new Date();
+  const realToday = localTodayStr();
   const { user, currentUser, tenantRole, activeTenantId } = useAuth();
   const [view, setView] = useState('grid');      // 'grid' | 'list'
+  // selectedDate (YYYY-MM-DD, local components) anchors the entire page —
+  // rest figures, MLC warnings and the 7-day rolling window in
+  // useRotaShifts all move with it. Defaults to real today.
+  const [selectedDate, setSelectedDate] = useState(realToday);
+  const isToday = selectedDate === realToday;
+  const selectedDateObj = parseLocalDate(selectedDate);
   const [selectedCrew, setSelectedCrew] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [shiftType, setShiftType] = useState('duty'); // active type for new shifts
@@ -145,7 +175,7 @@ export default function CrewRotaPage() {
   const {
     crew, loading, error, effectiveDate, draftCount,
     applyPaint, applyTemplate, refetch,
-  } = useRotaShifts();
+  } = useRotaShifts(selectedDate);
   const { rota } = useCurrentRota();
   const { statusByDept, ensureDraft } = useRotaDepartmentStatus(rota?.id);
   const {
@@ -194,11 +224,19 @@ export default function CrewRotaPage() {
   }, [activeTenantId]);
 
   const total = crew.length;
+  // "On duty now" is a real-time fact. When the chief is viewing a non-
+  // today date, useRotaShifts already zeros onNow on every crew row, but
+  // we also drop the count from the headline copy — "0 on duty now"
+  // displayed against e.g. yesterday's roster would be confusing.
   const onDuty = crew.filter(c => c.onNow && !c.offToday).length;
-  const meta = `${fullDateLabel(now)} · ${total} crew on this trip · ${onDuty} on duty now`;
+  const meta = isToday
+    ? `${fullDateLabel(selectedDateObj)} · ${total} crew on this trip · ${onDuty} on duty now`
+    : `${fullDateLabel(selectedDateObj)} · ${total} crew on this trip`;
 
   const presentDepts = DEPT_ORDER.filter(d => crew.some(c => c.department === d));
-  const cardContext = `${presentDepts.join(' · ')}  —  ${total} crew · ${onDuty} on duty`;
+  const cardContext = isToday
+    ? `${presentDepts.join(' · ')}  —  ${total} crew · ${onDuty} on duty`
+    : `${presentDepts.join(' · ')}  —  ${total} crew`;
 
   // The acting user's own tenant_members.id — rota_shifts.created_by FKs
   // tenant_members(id), so stamp it on inserts when resolvable.
@@ -289,17 +327,32 @@ export default function CrewRotaPage() {
         {/* Unified control bar — pills | date stepper */}
         <div className="crew-rota-controls">
           <div className="crew-rota-pillgroup">
-            <button type="button" className="crew-rota-pill active">Today</button>
+            <button
+              type="button"
+              className={`crew-rota-pill${isToday ? ' active' : ''}`}
+              onClick={() => setSelectedDate(realToday)}
+              title={isToday ? 'You are viewing today' : 'Jump to today'}
+            >Today</button>
             <button type="button" className="crew-rota-pill disabled" aria-disabled="true" title="Coming soon">Week</button>
             <button type="button" className="crew-rota-pill disabled" aria-disabled="true" title="Coming soon">Hours of rest log</button>
           </div>
           <div className="crew-rota-divider" />
           <div className="crew-rota-stepper">
-            <button type="button" className="crew-rota-stepper-btn" aria-label="Previous day" disabled>←</button>
-            <span className="crew-rota-stepper-date">{fullDateLabel(now)}</span>
-            <button type="button" className="crew-rota-stepper-btn" aria-label="Next day" disabled>→</button>
+            <button
+              type="button"
+              className="crew-rota-stepper-btn is-active"
+              aria-label="Previous day"
+              onClick={() => setSelectedDate((s) => addLocalDays(s, -1))}
+            >←</button>
+            <span className="crew-rota-stepper-date">{fullDateLabel(selectedDateObj)}</span>
+            <button
+              type="button"
+              className="crew-rota-stepper-btn is-active"
+              aria-label="Next day"
+              onClick={() => setSelectedDate((s) => addLocalDays(s, 1))}
+            >→</button>
             <span className="crew-rota-stepper-helper">
-              06:00 Fri — 06:00 Sat · 30-min cells · click any name for the rest panel
+              06:00 {shortDow(selectedDateObj)} — 06:00 {shortDow(parseLocalDate(addLocalDays(selectedDate, 1)))} · 30-min cells · click any name for the rest panel
             </span>
           </div>
         </div>
@@ -379,7 +432,7 @@ export default function CrewRotaPage() {
             ) : view === 'grid' ? (
               <RotaTodayGrid
                 crew={crew}
-                now={now}
+                now={isToday ? now : null}
                 gridStartHour={GRID_START_HOUR}
                 onCrewClick={setSelectedCrew}
                 editMode={editMode}
@@ -405,7 +458,7 @@ export default function CrewRotaPage() {
             ) : (
               <>
                 {view === 'grid'
-                  ? <RotaLegend now={now} />
+                  ? <RotaLegend now={isToday ? now : null} />
                   : <span>Click a name for their rest panel.</span>}
                 <span style={{ fontStyle: 'italic' }}>
                   1 pending correction ·{' '}

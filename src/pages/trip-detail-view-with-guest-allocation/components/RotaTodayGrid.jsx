@@ -394,6 +394,10 @@ export default function RotaTodayGrid({
   crew = [], now = new Date(), onCrewClick, gridStartHour = 6,
   editMode = false, onPaint, deptStatus,
 }) {
+  // `now = null` suppresses the wall-clock indicator entirely — used when
+  // the page is showing a non-today date, where a "now" line would be
+  // visually misleading (the data isn't from today).
+  const showNow = now != null;
   const { user, currentUser, tenantRole } = useAuth();
 
   // ── Paint-brush drag ──────────────────────────────────────────────────────
@@ -434,8 +438,8 @@ export default function RotaTodayGrid({
   }, [setDrag]);
 
   const onCellKey = useCallback((cm, i) => { onPaint?.(cm, i, i); }, [onPaint]);
-  const currentSlot = nowSlot(now, gridStartHour);
-  const currentHour = now.getHours();
+  const currentSlot = showNow ? nowSlot(now, gridStartHour) : null;
+  const currentHour = showNow ? now.getHours() : -1;
 
   // Section split. currentStatus null → on-vessel (treat unknown as
   // active until we have reason otherwise).
