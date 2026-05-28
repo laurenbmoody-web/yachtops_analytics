@@ -1,34 +1,36 @@
 import React, { useMemo } from 'react';
 import { DEPT_ORDER, MlcTriangle } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
 import { ON_DUTY_TYPES, assessMlc } from './restHours';
+import { getContrastText } from './crewDisplay';
 
 // Crew × 7-day operational matrix for the rota page's Week view.
 //
 // Rows are crew (dept-grouped, same DEPT_ORDER as the day grid). Columns are
-// the 7 operational days (06:00 → 06:00 by default — passed via the same
-// `gridStartHour` prop that RotaTodayGrid takes, so when the vessel-
-// configurable boundary feature lands later, both views switch at once).
+// the 7 operational days (06:00 → 06:00 by default). The boundary is
+// received via `gridStartHour` — same prop name and source the day grid
+// uses, so when the vessel-configurable boundary lands later, flipping the
+// single source feeds both views at once.
 //
-// Week-anchoring (flagged in the commit body): the 7 columns are the
-// trailing 7 days ENDING at selectedDate inclusive (left = oldest, right
-// = selectedDate). Aligns with useRotaShifts' rolling window so the
-// fetched data covers every cell's trailing-7 MLC rest calc, and composes
-// smoothly with the ±1-day stepper (each step slides the whole matrix).
+// Visual language mirrors RotaTodayGrid:
+//   - Department vertical colour spine (.cw-dept-strip), sticky 22px,
+//     rotated text. Colour from c.departmentColor (the same field useRota-
+//     Shifts populates from tenant_members.departments.color — single source).
+//   - Sticky name column with Name · Role one line + rest line, identical
+//     to .rota-nm.
+//   - Day cells use the day-grid palette: navy (#1C1B3A) for scheduled,
+//     cream (#F7F5F0) for off, Saturday tint (#EDEAE3) for the weekend
+//     column. No new colour ramps invented.
+//   - DM Serif Display for the date numbers in headers; Plus Jakarta for
+//     all body text. Matches .rota-hour-label / .rota-nm-name / .rota-role.
 //
-// Click a cell → onCellClick(date) — wired to: set selectedDate to that day
-// and switch view to 'grid' (the day grid renders for the clicked day).
+// Week-anchoring: the 7 columns are the trailing operational week ENDING
+// at selectedDate (left = oldest, right = selectedDate). Aligns with
+// useRotaShifts' rolling window so per-cell trailing-7 MLC fits inside
+// the fetched windowShifts (the hook fetches historyDays=12 in week mode).
 //
-// Data is sliced from `windowShifts` (the hook's 13-day fetch when in week
-// mode — historyDays=12 + selectedDate). Each cell computes its own
-// trailing-7 MLC report inline. No new query, no new endpoint.
+// Click a cell → onCellClick(date) — page sets selectedDate to that day
+// and switches view to 'grid'.
 
-const SHIFT_COLORS = {
-  duty: '#1C1B3A',
-  watch: '#C65A1A',
-  standby: '#B8935E',
-  training: '#6B7F6B',
-  medical: '#7A2E1E',
-};
 const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_SHORT = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -56,8 +58,13 @@ function fmtRest(decimal) {
   return m === 0 ? `${h}h` : `${h}h${pad2(m)}`;
 }
 function hhmm(t) { return t ? String(t).slice(0, 5) : ''; }
+function isWeekend(dateStr) {
+  const w = parseLocal(dateStr).getDay();
+  return w === 0 || w === 6;
+}
 
-// Per (crew, day) summary for a single cell.
+// Per (crew, day) summary for a single cell. Trailing-7 MLC sliced from
+// the parent windowShifts.
 function cellSummary(memberId, dateStr, windowShifts) {
   const dayShifts = windowShifts.filter(
     (s) => s.memberId === memberId && s.date === dateStr,
@@ -72,7 +79,6 @@ function cellSummary(memberId, dateStr, windowShifts) {
   return {
     onDuty,
     isOff,
-    primaryType: onDuty[0]?.shiftType || null,
     rest24h: isOff ? null : mlc.rest24h,
     mlcWarning: isOff ? false : mlc.anyBreach,
   };
@@ -80,42 +86,48 @@ function cellSummary(memberId, dateStr, windowShifts) {
 
 function DayHeader({ dateStr, isToday, isSelected }) {
   const d = parseLocal(dateStr);
+  const weekend = isWeekend(dateStr);
   const cls = ['cw-day-head'];
   if (isToday) cls.push('is-today');
   if (isSelected) cls.push('is-selected');
+  if (weekend) cls.push('is-weekend');
   return (
     <div className={cls.join(' ')}>
       <div className="cw-day-head-dow">{WEEKDAY_SHORT[d.getDay()]}</div>
-      <div className="cw-day-head-num">
-        {d.getDate()} <span className="cw-day-head-mon">{MONTH_SHORT[d.getMonth()]}</span>
-      </div>
+      <div className="cw-day-head-num">{d.getDate()}</div>
+      <div className="cw-day-head-mon">{MONTH_SHORT[d.getMonth()]}</div>
     </div>
   );
 }
 
-function CellContent({ summary }) {
-  if (summary.isOff) {
-    return <div className="cw-cell-off">off</div>;
-  }
-  const swatchColor = SHIFT_COLORS[summary.primaryType] || '#5F5E5A';
-  const firstShift = summary.onDuty[0];
-  const moreCount = summary.onDuty.length - 1;
+function Cell({ summary, dateStr, isToday, isSelected, onClick, ariaLabel }) {
+  const weekend = isWeekend(dateStr);
+  const cls = ['cw-c'];
+  if (summary.isOff) cls.push('off');
+  else cls.push('f');
+  if (weekend && summary.isOff) cls.push('sat');
+  if (isToday) cls.push('is-today-col');
+  if (isSelected) cls.push('is-selected-col');
+  if (summary.mlcWarning) cls.push('is-warn');
   return (
-    <>
-      <div className="cw-cell-shifts">
-        <span className="cw-cell-swatch" style={{ background: swatchColor }} />
-        <span className="cw-cell-range">
-          {hhmm(firstShift.startTime)}–{hhmm(firstShift.endTime)}
-        </span>
-        {moreCount > 0 && <span className="cw-cell-more">+{moreCount}</span>}
-      </div>
-      <div className="cw-cell-meta">
-        <span className={`cw-cell-rest${summary.mlcWarning ? ' is-warn' : ''}`}>
-          {fmtRest(summary.rest24h) || '—'}
-        </span>
-        {summary.mlcWarning && <MlcTriangle size={9} />}
-      </div>
-    </>
+    <button type="button" className={cls.join(' ')} onClick={onClick} aria-label={ariaLabel}>
+      {summary.isOff ? (
+        <span className="cw-c-off">off</span>
+      ) : (
+        <>
+          <span className="cw-c-range">
+            {hhmm(summary.onDuty[0].startTime)}–{hhmm(summary.onDuty[0].endTime)}
+            {summary.onDuty.length > 1 && <span className="cw-c-more">+{summary.onDuty.length - 1}</span>}
+          </span>
+          <span className="cw-c-meta">
+            <span className={`cw-c-rest${summary.mlcWarning ? ' w' : ''}`}>
+              {fmtRest(summary.rest24h) || '—'}
+            </span>
+            {summary.mlcWarning && <MlcTriangle size={9} />}
+          </span>
+        </>
+      )}
+    </button>
   );
 }
 
@@ -124,19 +136,16 @@ export default function CrewWeekMatrix({
   windowShifts = [],
   selectedDate,
   realToday,
-  gridStartHour = 6, // received via same prop path as RotaTodayGrid
+  // eslint-disable-next-line no-unused-vars
+  gridStartHour = 6,
   onCellClick,
 }) {
-  // Boundary parameter is received as a prop — currently a fixed 6 from
-  // the page, but the plumbing is in place for the future vessel-
-  // configurable boundary feature. Not used in any visual computation
-  // today (the cell renders are date-keyed, the operational boundary
-  // matters only for shift wrap-around which the day-keyed slice already
-  // resolves correctly when shifts cross midnight — those rows still
-  // carry the shift_date they started on). Kept on the prop signature so
-  // the future-config wiring lands by changing one call site.
-  // eslint-disable-next-line no-unused-vars
-  const _gridStartHour = gridStartHour;
+  // gridStartHour is received here through the same prop path the day grid
+  // uses, so when the vessel-configurable boundary lands later, flipping
+  // the single source feeds both views together. The matrix is keyed by
+  // shift_date (rows already carry the date they started on, including
+  // wrap-around shifts), so no slot-math currently consumes the value;
+  // the prop is on the signature for the future-config wiring.
 
   // 7 columns = trailing operational week ending at selectedDate.
   const days = useMemo(() => {
@@ -146,7 +155,7 @@ export default function CrewWeekMatrix({
     return out;
   }, [selectedDate]);
 
-  // Dept-grouped rows — match the list/day-grid grouping.
+  // Dept-grouped rows — match DEPT_ORDER, same as day grid.
   const grouped = useMemo(() => {
     const byDept = new Map();
     for (const c of crew) {
@@ -164,10 +173,10 @@ export default function CrewWeekMatrix({
   if (!selectedDate || days.length === 0) return null;
 
   return (
-    <div className="cw-wrap">
-      <div className="cw-grid" role="grid" aria-label="Week roster">
-        <div className="cw-row cw-header-row" role="row">
-          <div className="cw-name-col cw-header-name" role="columnheader">Crew</div>
+    <div className="cw-grid-wrap">
+      <div className="cw-grid-inner">
+        <div className="cw-head-row">
+          <div className="cw-head-spacer">Crew</div>
           {days.map((d) => (
             <DayHeader
               key={d}
@@ -178,47 +187,51 @@ export default function CrewWeekMatrix({
           ))}
         </div>
 
-        {grouped.map(([dept, members]) => (
-          <React.Fragment key={dept}>
-            <div className="cw-row cw-dept-row" role="row">
-              <div className="cw-dept-label">{dept} · {members.length} crew</div>
-              <div className="cw-dept-rule" style={{ gridColumn: `2 / span ${days.length}` }} />
-            </div>
-            {members.map((c) => (
-              <div key={c.id} className="cw-row" role="row">
-                <div className="cw-name-col" role="rowheader">
-                  <div className="cw-name">
-                    {c.name}
-                    {c.mlcWarning && <span className="cw-name-warn"><MlcTriangle size={10} /></span>}
-                  </div>
-                  <div className="cw-role">{c.role || ''}</div>
-                </div>
-                {days.map((d) => {
-                  const summary = cellSummary(c.id, d, windowShifts);
-                  const cls = [
-                    'cw-cell',
-                    summary.isOff ? 'is-off' : '',
-                    summary.mlcWarning ? 'is-warn' : '',
-                    d === realToday ? 'is-today-col' : '',
-                    d === selectedDate ? 'is-selected-col' : '',
-                  ].filter(Boolean).join(' ');
-                  return (
-                    <button
-                      key={d}
-                      type="button"
-                      className={cls}
-                      role="gridcell"
-                      onClick={() => onCellClick?.(d)}
-                      aria-label={`${c.name} on ${d}`}
-                    >
-                      <CellContent summary={summary} />
-                    </button>
-                  );
-                })}
+        {grouped.map(([dept, members]) => {
+          const color = members[0]?.departmentColor || '#5F5E5A';
+          return (
+            <div key={dept} className="cw-dept-group">
+              <div
+                className="cw-dept-strip"
+                style={{ background: color, color: getContrastText(color) }}
+                role="rowheader"
+                aria-label={`${dept} department`}
+              >
+                <span className="cw-dept-strip-text">{dept}</span>
               </div>
-            ))}
-          </React.Fragment>
-        ))}
+              <div className="cw-dept-rows">
+                {members.map((c) => (
+                  <div key={c.id} className="cw-row">
+                    <div className="cw-nm">
+                      <div className="cw-nm-line">
+                        <span className="cw-nm-name">{c.name}</span>
+                        <span className="cw-dot" />
+                        <span className="cw-role">{c.role || ''}</span>
+                        {c.mlcWarning && (
+                          <span style={{ marginLeft: 4 }}><MlcTriangle size={10} /></span>
+                        )}
+                      </div>
+                    </div>
+                    {days.map((d) => {
+                      const summary = cellSummary(c.id, d, windowShifts);
+                      return (
+                        <Cell
+                          key={d}
+                          summary={summary}
+                          dateStr={d}
+                          isToday={d === realToday}
+                          isSelected={d === selectedDate}
+                          onClick={() => onCellClick?.(d)}
+                          ariaLabel={`${c.name} on ${d}`}
+                        />
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
