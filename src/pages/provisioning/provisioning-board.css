@@ -22,6 +22,16 @@
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   min-height: 100vh;
 }
+/* Page-ground override — when the homepage wrapper composes
+   .pv-dashboard alongside .pv-board, swap the warm cream ground
+   for the cool --d-bg used by Suppliers / modal / wizard. The
+   lane cards (--pv-card = white) and their warm sand bottom
+   edges remain untouched and will continue to render on top —
+   eventual board-side migration will adopt --d-card-edge for
+   those edges. */
+.pv-board.pv-dashboard {
+  background: var(--d-bg);
+}
 
 /* ── Editorial header block ──────────────────────────────── */
 .pv-board-headblock {
