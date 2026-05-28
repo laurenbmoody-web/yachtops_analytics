@@ -2782,18 +2782,19 @@
   flex-shrink: 0;
 }
 
-/* ── Empty-state for grid view (no shifts on the selected date) ── */
+/* ── Empty-state (no shifts on selected date, view mode only) ── */
 .crew-rota-empty {
-  padding: 48px 0;
+  padding: 32px 0 28px;
   text-align: center;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.crew-rota-empty-msg {
   font-size: 13px;
   color: #8B8478;
   font-style: italic;
 }
 .crew-rota-empty-cta {
-  margin-top: 10px;
-  font-style: normal;
+  margin-top: 8px;
 }
 .crew-rota-empty-cta button {
   background: transparent;
@@ -2803,7 +2804,7 @@
   text-decoration: underline;
   cursor: pointer;
   font: inherit;
-  font-style: normal;
+  font-size: 12px;
 }
 
 /* ============================================================
