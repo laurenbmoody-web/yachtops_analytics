@@ -2274,8 +2274,10 @@
    inline after the readout summary; click toggles the explainer
    block beneath. Same disclosure pattern as the Why-advisory reveal
    so the chief learns one interaction. */
-.ap-mlc-binding-why,
-.ap-mlc-advisory-toggle {
+/* [why?] inline-text disclosure — used in the bulk readout (mid-
+   sentence). Bracketed text reads naturally inline as a question the
+   chief might ask. */
+.ap-mlc-binding-why {
   background: transparent;
   border: 0;
   padding: 0;
@@ -2288,13 +2290,34 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-.ap-mlc-binding-why:hover,
-.ap-mlc-advisory-toggle:hover { color: #5C2316; }
+.ap-mlc-binding-why:hover { color: #5C2316; }
+
+/* Rule-advisory disclosure — used at end-of-sentence. An icon (lucide
+   HelpCircle) rather than text so it reads as a tappable affordance,
+   not as punctuation. Muted grey to match secondary text. Hover halo
+   provides feedback and enlarges the touch target without changing
+   the icon's footprint in the line. */
 .ap-mlc-advisory-toggle {
-  /* Slightly larger touch target than [why?] since it's a single
-     character — same disclosure pattern, just a smaller glyph. */
-  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  padding: 2px;
   margin-left: 4px;
+  border-radius: 999px;
+  color: #5F5E5A;
+  cursor: pointer;
+  vertical-align: -3px; /* baseline-align the 14px icon against text */
+  transition: background 120ms ease, color 120ms ease;
+}
+.ap-mlc-advisory-toggle:hover {
+  background: rgba(31, 27, 58, 0.06);
+  color: #1C1B3A;
+}
+.ap-mlc-advisory-toggle:focus-visible {
+  outline: 2px solid #7A2E1E;
+  outline-offset: 1px;
 }
 
 /* Bind the last word of a rule sentence to the trailing ? toggle so

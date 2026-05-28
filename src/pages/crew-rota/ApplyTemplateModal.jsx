@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { X, AlertTriangle, ChevronDown, RefreshCw, Trash2, Plus, RotateCcw, CheckCircle2, Activity } from 'lucide-react';
+import { X, AlertTriangle, ChevronDown, RefreshCw, Trash2, Plus, RotateCcw, CheckCircle2, Activity, HelpCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import DateRangePicker from './DateRangePicker';
 import { assessApply, CIRCADIAN_WINDOW_DAYS, computeShortenPrefill, computeBulkShortenPrefill } from './restHours';
@@ -273,11 +273,15 @@ function memberSeverity(mlcBreaches) {
 // "all 7 days, 18–24 May" when every apply day breached, else "5 of 7 days".
 // Used by the totals rules (daily, weekly) where the apply-range coverage
 // is meaningful. Structural rules (split, stretch) just say "N days".
+// Returns just the count framing — the date range that used to ride
+// here was dropped so each rule sentence can fit on one line; the chip
+// already carries "Nd" for the at-a-glance, and the day-by-day expander
+// has the full per-date list.
 function daysClauseTotals(dayCount, applyDates) {
   const total = applyDates.length;
   if (dayCount === total && total > 0) {
-    if (total === 1) return `1 day (${fmtDateShort(applyDates[0])})`;
-    return `all ${total} days, ${fmtDateShort(applyDates[0])}–${fmtDateShort(applyDates[total - 1])}`;
+    if (total === 1) return '1 day';
+    return `all ${total} days`;
   }
   return `${dayCount} of ${total} days`;
 }
@@ -314,32 +318,36 @@ function summariseRule(rule, breaches, applyDates) {
   const title = MLC_RULE_TITLE[rule] || rule;
   if (breaches.length === 0) return null;
   const worst = pickWorstBreach(rule, breaches);
+  // Sentences shortened (density pass close) so each fits on one line
+  // and the icon affordance can't orphan. Day count + regulatory anchor
+  // both survive; the per-date framing ("on 24 May", "22–28 May") moves
+  // to the day-by-day expander. Compliance numbers preserved verbatim.
 
   if (rule === 'daily_rest_10h') {
     return {
-      sentence: `${title} — ${daysClauseTotals(breaches.length, applyDates)}. Worst ${fmtHoursH(worst.projected)} on ${fmtDateShort(worst.date)} (${worst.limit}h required).`,
+      sentence: `${title} — ${daysClauseTotals(breaches.length, applyDates)}. Worst ${fmtHoursH(worst.projected)}, ${worst.limit}h required.`,
       worst,
     };
   }
   if (rule === 'weekly_rest_77h') {
     return {
-      sentence: `${title} — ${daysClauseTotals(breaches.length, applyDates)}. Lowest ${fmtHoursH(worst.projected)} on ${fmtDateShort(worst.date)} (${worst.limit}h required).`,
+      sentence: `${title} — ${daysClauseTotals(breaches.length, applyDates)}. Lowest ${fmtHoursH(worst.projected)}, ${worst.limit}h required.`,
       worst,
     };
   }
   if (rule === 'rest_period_split') {
     const longest = Number(worst?.projected?.longest ?? 0);
     const tail = longest < 0.01
-      ? 'none of the rest periods reached 6h'
-      : `longest rest only ${fmtHoursH(longest)} (6h needed)`;
+      ? 'no rest period reached 6h'
+      : `longest rest ${fmtHoursH(longest)}, 6h needed`;
     return {
-      sentence: `${title} — ${daysClauseStructural(breaches.length)}. Worst ${fmtDateShort(worst.date)}: ${tail}.`,
+      sentence: `${title} — ${daysClauseStructural(breaches.length)}. ${tail.charAt(0).toUpperCase() + tail.slice(1)}.`,
       worst,
     };
   }
   if (rule === 'max_work_stretch_14h') {
     return {
-      sentence: `${title} — ${daysClauseStructural(breaches.length)}. Longest ${fmtHoursH(worst.projected)} continuous on ${fmtDateShort(worst.date)} (${worst.limit}h max).`,
+      sentence: `${title} — ${daysClauseStructural(breaches.length)}. Longest ${fmtHoursH(worst.projected)} continuous, ${worst.limit}h max.`,
       worst,
     };
   }
@@ -1457,7 +1465,7 @@ function MlcMemberRow({ name, mlcBreaches, applyDates, memberId, allRows, onDrop
                             aria-controls={`ap-mlc-advisory-${memberId}-${rs.rule}`}
                             aria-label={advisoryRevealed ? 'Hide advisory' : 'Show advisory'}
                             onClick={() => toggleAdvisory(rs.rule)}
-                          >?</button>
+                          ><HelpCircle size={14} aria-hidden="true" /></button>
                         </>
                       )}
                     </span>
