@@ -49,6 +49,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import './provisioning-board.css';
+import './provisioning-dashboard.css';
+import './board-creation-wizard.css';
 import '../../styles/editorial.css';
 
 // ── Sortable wrapper for each board column ───────────────────────────────────
@@ -141,12 +143,6 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
     }
   };
 
-  const inputStyle = {
-    width: '100%', padding: '7px 10px', border: '1px solid var(--border, #E2E8F0)',
-    borderRadius: 8, fontSize: 13, color: 'var(--foreground, #0F172A)',
-    background: 'var(--muted, #F8FAFC)', outline: 'none', boxSizing: 'border-box',
-  };
-
   const tripDateRange = selectedTrip?.startDate && selectedTrip?.endDate
     ? `${new Date(selectedTrip.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – ${new Date(selectedTrip.endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
     : null;
@@ -154,7 +150,7 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
   // ── Render sub-pickers (overlaid inside the card) ─────────────────────────
   if (showTemplate) {
     return (
-      <div style={{ width: 340, minWidth: 340, flexShrink: 0, background: 'var(--card, white)', border: '2px dashed var(--border, #E2E8F0)', borderRadius: 14, padding: 16, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', minHeight: 420 }}>
+      <div className="pv-wizard pv-dashboard is-subview">
         <TemplatePicker
           boardType={boardType}
           guestCount={guestCount}
@@ -167,7 +163,7 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
 
   if (showCopy) {
     return (
-      <div style={{ width: 340, minWidth: 340, flexShrink: 0, background: 'var(--card, white)', border: '2px dashed var(--border, #E2E8F0)', borderRadius: 14, padding: 16, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', minHeight: 420 }}>
+      <div className="pv-wizard pv-dashboard is-subview">
         <CopyBoardPicker
           tenantId={tenantId}
           department={null}
@@ -180,12 +176,15 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
   }
 
   return (
-    <div style={{ width: 340, minWidth: 340, flexShrink: 0, background: 'var(--card, white)', border: '2px dashed var(--border, #E2E8F0)', borderRadius: 14, padding: 16, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="pv-wizard pv-dashboard">
 
       {/* ── Step 1: Board basics ────────────────────────────────────────── */}
       {step === 1 && (
         <>
-          <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--foreground, #0F172A)' }}>New Board</h3>
+          <h3 className="pv-wizard-title">
+            <span className="pv-wizard-title-dot" aria-hidden="true" />
+            New Board
+          </h3>
 
           {/* Board name */}
           <input
@@ -194,24 +193,18 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
             onChange={e => setTitle(e.target.value)}
             onKeyDown={e => { if (e.key === 'Escape') onCancel(); }}
             placeholder="Board name *"
-            style={inputStyle}
+            className="pv-wizard-input"
           />
 
           {/* Board type pills */}
           <div>
-            <p style={{ margin: '0 0 6px', fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Board type</p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+            <p className="pv-wizard-label">Board type</p>
+            <div className="pv-wizard-pill-row">
               {BOARD_TYPES.map(bt => (
                 <button
                   key={bt.value}
                   onClick={() => setBoardType(prev => prev === bt.value ? '' : bt.value)}
-                  style={{
-                    padding: '4px 10px', borderRadius: 20, border: 'none', cursor: 'pointer',
-                    fontSize: 11, fontWeight: 600,
-                    background: boardType === bt.value ? '#1E3A5F' : '#F1F5F9',
-                    color: boardType === bt.value ? 'white' : '#64748B',
-                    transition: 'all 0.12s',
-                  }}
+                  className={`pv-wizard-pill${boardType === bt.value ? ' is-active' : ''}`}
                 >
                   {bt.label}
                 </button>
@@ -221,24 +214,29 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
 
           {/* Link to trip */}
           <div>
-            <p style={{ margin: '0 0 6px', fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Link to trip</p>
-            <select
-              value={tripId}
-              onChange={e => handleTripChange(e.target.value)}
-              style={{ ...inputStyle, background: 'var(--muted, #F8FAFC)' }}
-            >
-              <option value="">No trip linked</option>
-              {(trips || []).map(t => (
-                <option key={t.id} value={t.id}>{t.name || t.title}</option>
-              ))}
-            </select>
+            <p className="pv-wizard-label">Link to trip</p>
+            <div className="pv-wizard-select-wrap">
+              <select
+                value={tripId}
+                onChange={e => handleTripChange(e.target.value)}
+                className="pv-wizard-select"
+              >
+                <option value="">No trip linked</option>
+                {(trips || []).map(t => (
+                  <option key={t.id} value={t.id}>{t.name || t.title}</option>
+                ))}
+              </select>
+              <svg className="pv-wizard-select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </div>
 
             {/* Trip details inline */}
             {selectedTrip && (
-              <div style={{ marginTop: 8, padding: '7px 10px', background: '#EFF6FF', borderRadius: 8, border: '1px solid #BFDBFE', fontSize: 11, color: '#1E3A5F' }}>
+              <div className="pv-wizard-trip-strip">
                 {tripDateRange && <span>{tripDateRange}</span>}
-                {guestCount > 0 && <span style={{ marginLeft: 8 }}>· {guestCount} guests</span>}
-                {selectedTrip.tripType && <span style={{ marginLeft: 8 }}>· {selectedTrip.tripType}</span>}
+                {guestCount > 0 && <span>· {guestCount} guests</span>}
+                {selectedTrip.tripType && <span>· {selectedTrip.tripType}</span>}
               </div>
             )}
           </div>
@@ -247,10 +245,10 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
           <button
             type="button"
             onClick={() => setIsPrivate(p => !p)}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border, #E2E8F0)', background: 'var(--muted, #F8FAFC)', cursor: 'pointer' }}
+            className="pv-wizard-toggle"
           >
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--foreground, #0F172A)' }}>
-              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: '#94A3B8' }}>
+            <span className="pv-wizard-toggle-label">
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" className="pv-wizard-toggle-icon">
                 {isPrivate
                   ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
@@ -258,23 +256,23 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
               </svg>
               {isPrivate ? 'Private board' : 'Department board'}
             </span>
-            <div style={{ width: 36, height: 20, borderRadius: 10, background: isPrivate ? '#1E3A5F' : '#CBD5E1', position: 'relative', transition: 'background 0.15s' }}>
-              <div style={{ position: 'absolute', top: 2, left: isPrivate ? 18 : 2, width: 16, height: 16, borderRadius: '50%', background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.15s' }} />
+            <div className={`pv-wizard-toggle-track${isPrivate ? ' is-on' : ''}`}>
+              <div className="pv-wizard-toggle-knob" />
             </div>
           </button>
 
-          {localError && <p style={{ margin: 0, fontSize: 11, color: '#EF4444', background: '#FEF2F2', borderRadius: 6, padding: '6px 10px' }}>{localError}</p>}
+          {localError && <p className="pv-wizard-error">{localError}</p>}
 
           {/* Step 1 CTAs */}
-          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+          <div className="pv-wizard-cta-row">
             <button
               onClick={() => { if (title.trim()) setStep(2); }}
               disabled={!title.trim()}
-              style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: 'none', cursor: title.trim() ? 'pointer' : 'default', background: title.trim() ? '#1E3A5F' : '#E2E8F0', color: title.trim() ? 'white' : '#94A3B8', fontSize: 13, fontWeight: 600 }}
+              className="pv-wizard-btn pv-wizard-btn-primary"
             >
               Next →
             </button>
-            <button onClick={onCancel} style={{ padding: '8px 12px', borderRadius: 8, border: 'none', background: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: 13 }}>
+            <button onClick={onCancel} className="pv-wizard-btn pv-wizard-btn-ghost">
               Cancel
             </button>
           </div>
@@ -284,17 +282,20 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
       {/* ── Step 2: Start from ──────────────────────────────────────────── */}
       {step === 2 && !creating && (
         <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button onClick={() => setStep(1)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B', padding: '2px 4px', fontSize: 13 }}>←</button>
-            <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--foreground, #0F172A)' }}>Start from</h3>
+          <div className="pv-wizard-header">
+            <button onClick={() => setStep(1)} className="pv-wizard-back" aria-label="Back">←</button>
+            <h3 className="pv-wizard-title">
+              <span className="pv-wizard-title-dot" aria-hidden="true" />
+              Start from
+            </h3>
           </div>
-          <p style={{ margin: 0, fontSize: 11, color: '#94A3B8' }}>
-            Creating: <strong style={{ color: '#1E3A5F' }}>{title}</strong>
+          <p className="pv-wizard-context">
+            Creating: <strong>{title}</strong>
             {boardType && <span> · {BOARD_TYPES.find(b => b.value === boardType)?.label}</span>}
           </p>
 
-          {/* 3-card grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+          {/* Three route cards — stacked vertically per the brief */}
+          <div className="pv-wizard-route-list">
             {[
               { key: 'template', icon: '📋', title: 'Template',    desc: 'Pre-built lists' },
               { key: 'copy',     icon: '📂', title: 'Copy Board',  desc: 'From previous' },
@@ -307,29 +308,24 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
                   else if (opt.key === 'copy') setShowCopy(true);
                   else triggerCreate('blank', []);
                 }}
-                style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                  padding: '14px 8px', borderRadius: 10, border: '1px solid #E2E8F0',
-                  background: 'white', cursor: 'pointer', gap: 4,
-                  transition: 'all 0.12s',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = '#1E3A5F'; e.currentTarget.style.background = '#F8FAFF'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.background = 'white'; }}
+                className="pv-wizard-route-card"
               >
-                <span style={{ fontSize: 18, lineHeight: 1 }}>{opt.icon}</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#0F172A' }}>{opt.title}</span>
-                <span style={{ fontSize: 10, color: '#94A3B8' }}>{opt.desc}</span>
+                <span className="pv-wizard-route-icon">{opt.icon}</span>
+                <span className="pv-wizard-route-text">
+                  <span className="pv-wizard-route-title">{opt.title}</span>
+                  <span className="pv-wizard-route-desc">{opt.desc}</span>
+                </span>
               </button>
             ))}
           </div>
 
-          {localError && <p style={{ margin: 0, fontSize: 11, color: '#EF4444', background: '#FEF2F2', borderRadius: 6, padding: '6px 10px' }}>{localError}</p>}
+          {localError && <p className="pv-wizard-error">{localError}</p>}
         </>
       )}
 
       {creating && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 0' }}>
-          <p style={{ fontSize: 13, color: '#94A3B8' }}>Creating board…</p>
+        <div className="pv-wizard-loading">
+          <p className="pv-wizard-loading-text">Creating board…</p>
         </div>
       )}
     </div>

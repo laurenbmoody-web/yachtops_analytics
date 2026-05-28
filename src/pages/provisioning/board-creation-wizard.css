@@ -1,0 +1,518 @@
+/* ============================================================
+   Board-creation wizard — cool dashboard surface restyle.
+
+   Page-scoped under .pv-wizard (which itself composes .pv-dashboard
+   for shared --d-* token resolution; see ./provisioning-dashboard.css).
+   The wizard adopts the same cool palette used by the Suppliers
+   Directory and the ReceiveDeliveryModal — replacing the per-element
+   inline hex literals the wizard previously carried.
+
+   LAYOUT PRINCIPLE
+   ----------------
+   Same as the modal: two layers. Wizard rail = cool ground (--d-bg),
+   5px --d-card-edge bottom rule. Every content block inside =
+   white --d-card sitting on that ground, separated by gap, framed
+   by --d-border / --d-shadow.
+
+   COLOUR RULES
+   ------------
+   • All colours resolve via --d-* tokens. No hex literals in this
+     file (or in inline styles in the wizard JSX after the strip).
+   • Sage is not used — no status-pill semantic in the wizard.
+   • The "one warm note" rule applies via the template-category chip
+     (--d-cream-warm), same role as the modal's "check match" chip.
+   • Genuine validation errors use --d-danger / --d-danger-soft, the
+     documented red exception promoted to provisioning-dashboard.css.
+
+   STEP ORDER NOTE
+   ---------------
+   The component's internal step machine is `step=1` (form) →
+   `step=2` (start-from cards) → showTemplate / showCopy sub-views.
+   The brief's "screens 1, 2a, 2b, 3" describes the user-journey
+   order (start-from first, form last) and does NOT correspond to
+   the code's step numbers. This restyle leaves the state machine
+   untouched and restyles each render path on its own terms.
+   ============================================================ */
+
+.pv-wizard {
+  width: 340px;
+  min-width: 340px;
+  flex-shrink: 0;
+  background: var(--d-bg);
+  border: 1px solid var(--d-border);
+  border-bottom: 5px solid var(--d-card-edge);
+  border-radius: 14px;
+  padding: 16px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--d-shadow);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: var(--d-navy);
+}
+.pv-wizard.is-subview { min-height: 420px; }
+.pv-wizard.is-subview > * { width: 100%; }
+
+/* ── Header (back + title with orange dot) ────────────────── */
+.pv-wizard-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pv-wizard-back {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--d-muted);
+  padding: 2px 4px;
+  font-family: inherit;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transition: color 120ms ease;
+}
+.pv-wizard-back:hover { color: var(--d-orange); }
+.pv-wizard-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--d-navy-deep);
+  letter-spacing: -0.005em;
+}
+.pv-wizard-title-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--d-orange);
+  flex-shrink: 0;
+}
+.pv-wizard-context {
+  margin: 0;
+  font-size: 11px;
+  color: var(--d-muted);
+}
+.pv-wizard-context strong {
+  color: var(--d-navy);
+  font-weight: 600;
+}
+
+/* ── Tracked-caps section labels (BOARD TYPE, LINK TO TRIP) ── */
+.pv-wizard-label {
+  margin: 0 0 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--d-muted-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+}
+
+/* ── Inputs (board name, search) ──────────────────────────── */
+.pv-wizard-input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--d-border);
+  border-radius: 8px;
+  background: var(--d-card);
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--d-navy);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 120ms ease;
+}
+.pv-wizard-input::placeholder { color: var(--d-muted-soft); }
+.pv-wizard-input:focus { border-color: var(--d-orange); }
+
+/* Native select inherits the input shape so the LINK TO TRIP picker
+   matches the name field. Native chevron is suppressed via
+   appearance: none and replaced by a JSX-side inline SVG that uses
+   currentColor — letting the chevron tint inherit --d-muted-soft
+   from .pv-wizard-select-chevron without hex literals in CSS. */
+.pv-wizard-select-wrap { position: relative; }
+.pv-wizard-select {
+  width: 100%;
+  padding: 7px 30px 7px 10px;
+  border: 1px solid var(--d-border);
+  border-radius: 8px;
+  background: var(--d-card);
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--d-navy);
+  outline: none;
+  box-sizing: border-box;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: border-color 120ms ease;
+}
+.pv-wizard-select:focus { border-color: var(--d-orange); }
+.pv-wizard-select-chevron {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--d-muted-soft);
+}
+
+/* ── Pills (BOARD TYPE chips + template filters) ─────────── */
+.pv-wizard-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.pv-wizard-pill {
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--d-border);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--d-card);
+  color: var(--d-navy);
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.pv-wizard-pill:hover { border-color: var(--d-orange); color: var(--d-orange); }
+.pv-wizard-pill.is-active {
+  background: var(--d-orange);
+  border-color: var(--d-orange);
+  color: white;
+}
+.pv-wizard-pill.is-active:hover { background: var(--d-orange); color: white; }
+
+/* ── Trip details strip (inline after the dropdown) ──────── */
+.pv-wizard-trip-strip {
+  margin-top: 8px;
+  padding: 7px 10px;
+  background: var(--d-card);
+  border-radius: 8px;
+  border: 1px solid var(--d-border);
+  font-size: 11px;
+  color: var(--d-navy);
+}
+.pv-wizard-trip-strip span + span { margin-left: 8px; }
+
+/* ── Privacy toggle ──────────────────────────────────────── */
+.pv-wizard-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--d-border);
+  background: var(--d-card);
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 120ms ease;
+}
+.pv-wizard-toggle:hover { border-color: var(--d-muted); }
+.pv-wizard-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--d-navy);
+}
+.pv-wizard-toggle-icon { color: var(--d-muted-soft); flex-shrink: 0; }
+.pv-wizard-toggle-track {
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--d-border-soft);
+  position: relative;
+  transition: background 150ms ease;
+  flex-shrink: 0;
+}
+.pv-wizard-toggle-track.is-on { background: var(--d-navy); }
+.pv-wizard-toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: left 150ms ease;
+}
+.pv-wizard-toggle-track.is-on .pv-wizard-toggle-knob { left: 18px; }
+
+/* ── Error toast (validation / system failures) ──────────── */
+.pv-wizard-error {
+  margin: 0;
+  font-size: 11px;
+  color: var(--d-danger);
+  background: var(--d-danger-soft);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+/* ── CTA row (Next / Cancel pair) ─────────────────────────── */
+.pv-wizard-cta-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* ── Buttons ──────────────────────────────────────────────── */
+.pv-wizard-btn {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease, filter 120ms ease, opacity 120ms ease;
+}
+.pv-wizard-btn:disabled { cursor: default; }
+
+/* Primary — solid --d-orange. Save the orange for primary CTAs:
+   Next, Use Template, Copy items. Disabled = muted-soft on bg. */
+.pv-wizard-btn-primary {
+  flex: 1;
+  padding: 8px 0;
+  background: var(--d-orange);
+  color: white;
+}
+.pv-wizard-btn-primary:hover:not(:disabled) { filter: brightness(0.92); }
+.pv-wizard-btn-primary:disabled {
+  background: var(--d-border);
+  color: var(--d-muted-soft);
+}
+/* Sub-pickers' wide CTA (full-width Use Template / Copy n items). */
+.pv-wizard-btn-primary.is-block { width: 100%; padding: 9px 0; }
+
+/* Ghost — Cancel. Card + border, hover orange edge (matches modal). */
+.pv-wizard-btn-ghost {
+  padding: 8px 12px;
+  background: var(--d-card);
+  color: var(--d-navy);
+  border: 1px solid var(--d-border);
+}
+.pv-wizard-btn-ghost:hover:not(:disabled) {
+  border-color: var(--d-orange);
+  color: var(--d-orange);
+}
+
+/* ── "Start from" — three route cards stacked vertically ─── */
+.pv-wizard-route-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pv-wizard-route-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--d-border);
+  border-bottom: 5px solid var(--d-card-edge);
+  background: var(--d-card);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  box-shadow: var(--d-shadow);
+  transition: border-color 120ms ease, transform 120ms ease;
+}
+.pv-wizard-route-card:hover {
+  border-color: var(--d-orange);
+  border-bottom-color: var(--d-orange);
+}
+.pv-wizard-route-icon {
+  font-size: 22px;
+  line-height: 1;
+  flex-shrink: 0;
+  width: 28px;
+  text-align: center;
+}
+.pv-wizard-route-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pv-wizard-route-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--d-navy-deep);
+}
+.pv-wizard-route-desc {
+  margin: 0;
+  font-size: 11px;
+  color: var(--d-muted);
+}
+
+/* ── Scrollable list area (templates, boards) ─────────────── */
+.pv-wizard-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 2px;
+}
+.pv-wizard-empty {
+  font-size: 12px;
+  color: var(--d-muted-soft);
+  text-align: center;
+  margin-top: 20px;
+}
+
+/* ── Selectable card (template) — title + desc + chip-row ── */
+.pv-wizard-pick-card {
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--d-border);
+  background: var(--d-card);
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: var(--d-shadow);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.pv-wizard-pick-card:hover { border-color: var(--d-orange); }
+.pv-wizard-pick-card.is-selected {
+  border-color: var(--d-orange);
+  border-width: 1.5px;
+}
+.pv-wizard-pick-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.pv-wizard-pick-card-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--d-navy-deep);
+}
+.pv-wizard-pick-card-desc {
+  margin: 3px 0 6px;
+  font-size: 11px;
+  color: var(--d-muted);
+  line-height: 1.4;
+}
+
+/* Item count — Outfit 700 (brief: numeric figures use Outfit
+   bold, sits next to title in --d-muted so it doesn't compete). */
+.pv-wizard-item-count {
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--d-muted);
+  white-space: nowrap;
+  margin-left: 8px;
+}
+
+/* ── Category chip row inside template cards ──────────────── */
+.pv-wizard-chip-row {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.pv-wizard-chip {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: var(--d-cream-warm);
+  color: var(--d-navy-deep);
+}
+.pv-wizard-chip-more {
+  font-size: 9px;
+  color: var(--d-muted-soft);
+  align-self: center;
+}
+
+/* ── Board row (Copy from previous board) — same shape, denser ── */
+.pv-wizard-board-row {
+  text-align: left;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--d-border);
+  background: var(--d-card);
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: var(--d-shadow);
+  transition: border-color 120ms ease;
+}
+.pv-wizard-board-row:hover { border-color: var(--d-orange); }
+.pv-wizard-board-row.is-selected {
+  border-color: var(--d-orange);
+  border-width: 1.5px;
+}
+.pv-wizard-board-row-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.pv-wizard-board-row-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--d-navy-deep);
+}
+.pv-wizard-board-row-meta {
+  margin: 3px 0 0;
+  font-size: 11px;
+  color: var(--d-muted);
+}
+
+/* ── Scale-qty option strip (Copy board only) ─────────────── */
+.pv-wizard-scale {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: var(--d-card);
+  border-radius: 8px;
+  border: 1px solid var(--d-border);
+}
+.pv-wizard-scale-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--d-navy);
+}
+.pv-wizard-scale-label input {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  accent-color: var(--d-orange);
+}
+.pv-wizard-scale-label strong { color: var(--d-navy-deep); font-weight: 600; }
+
+/* ── CTA footer (above the primary block CTA in sub-pickers) ── */
+.pv-wizard-cta-footer {
+  padding-top: 10px;
+  border-top: 1px solid var(--d-border-soft);
+  margin-top: 10px;
+}
+.pv-wizard-cta-footer-note {
+  margin: 0 0 8px;
+  font-size: 11px;
+  color: var(--d-muted);
+  text-align: center;
+}
+.pv-wizard-cta-footer-note strong {
+  color: var(--d-navy-deep);
+  font-weight: 700;
+}
+
+/* ── Loading / creating placeholder ───────────────────────── */
+.pv-wizard-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 0;
+}
+.pv-wizard-loading-text {
+  font-size: 13px;
+  color: var(--d-muted-soft);
+}

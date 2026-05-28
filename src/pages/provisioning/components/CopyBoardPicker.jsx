@@ -110,16 +110,14 @@ export default function CopyBoardPicker({ tenantId, department, newGuestCount = 
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <button
-          onClick={onBack}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B', padding: '2px 4px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 3 }}
-        >
-          ← Back
-        </button>
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#0F172A' }}>Copy from previous board</span>
+      <div className="pv-wizard-header" style={{ marginBottom: 12 }}>
+        <button onClick={onBack} className="pv-wizard-back">← Back</button>
+        <h3 className="pv-wizard-title">
+          <span className="pv-wizard-title-dot" aria-hidden="true" />
+          Copy from previous board
+        </h3>
       </div>
 
       {/* Search */}
@@ -128,14 +126,15 @@ export default function CopyBoardPicker({ tenantId, department, newGuestCount = 
         placeholder="Search boards…"
         value={search}
         onChange={e => setSearch(e.target.value)}
-        style={{ width: '100%', padding: '7px 10px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12, color: '#0F172A', boxSizing: 'border-box', marginBottom: 10, outline: 'none' }}
+        className="pv-wizard-input"
+        style={{ marginBottom: 10 }}
       />
 
       {/* Board list */}
-      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6, paddingRight: 2 }}>
-        {loading && <p style={{ fontSize: 12, color: '#94A3B8', textAlign: 'center', marginTop: 20 }}>Loading boards…</p>}
+      <div className="pv-wizard-list">
+        {loading && <p className="pv-wizard-empty">Loading boards…</p>}
         {!loading && filtered.length === 0 && (
-          <p style={{ fontSize: 12, color: '#94A3B8', textAlign: 'center', marginTop: 20 }}>No boards found.</p>
+          <p className="pv-wizard-empty">No boards found.</p>
         )}
         {filtered.map(board => {
           const isSelected = selected === board.id;
@@ -143,20 +142,13 @@ export default function CopyBoardPicker({ tenantId, department, newGuestCount = 
             <button
               key={board.id}
               onClick={() => setSelected(isSelected ? null : board.id)}
-              style={{
-                textAlign: 'left', padding: '9px 12px', borderRadius: 10,
-                border: isSelected ? '1.5px solid #1E3A5F' : '1px solid #E2E8F0',
-                background: isSelected ? '#EFF6FF' : 'white',
-                cursor: 'pointer', transition: 'all 0.15s',
-              }}
+              className={`pv-wizard-board-row${isSelected ? ' is-selected' : ''}`}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: '#0F172A' }}>{board.title}</p>
-                <span style={{ fontSize: 10, color: '#94A3B8', whiteSpace: 'nowrap', marginLeft: 8 }}>
-                  {board._itemCount} items
-                </span>
+              <div className="pv-wizard-board-row-head">
+                <p className="pv-wizard-board-row-title">{board.title}</p>
+                <span className="pv-wizard-item-count">{board._itemCount} items</span>
               </div>
-              <p style={{ margin: '3px 0 0', fontSize: 11, color: '#94A3B8' }}>
+              <p className="pv-wizard-board-row-meta">
                 {fmtDate(board.created_at)}
                 {board._tripName ? ` · ${board._tripName}` : ''}
                 {board._guestCount > 0 ? ` · ${board._guestCount} guests` : ''}
@@ -168,13 +160,12 @@ export default function CopyBoardPicker({ tenantId, department, newGuestCount = 
 
       {/* Scale option */}
       {selectedBoard && selectedBoard._guestCount > 0 && newGuestCount > 0 && selectedBoard._guestCount !== newGuestCount && (
-        <div style={{ marginTop: 10, padding: '8px 10px', background: '#F8FAFC', borderRadius: 8, border: '1px solid #E2E8F0' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, color: '#475569' }}>
+        <div className="pv-wizard-scale">
+          <label className="pv-wizard-scale-label">
             <input
               type="checkbox"
               checked={scaleQty}
               onChange={e => setScaleQty(e.target.checked)}
-              style={{ width: 14, height: 14, cursor: 'pointer' }}
             />
             Adjust quantities for <strong>{newGuestCount} guests</strong> (was {selectedBoard._guestCount})
           </label>
@@ -182,18 +173,12 @@ export default function CopyBoardPicker({ tenantId, department, newGuestCount = 
       )}
 
       {/* CTA */}
-      <div style={{ paddingTop: 10, borderTop: '1px solid #F1F5F9', marginTop: 10 }}>
+      <div className="pv-wizard-cta-footer">
         <button
           onClick={handleCopy}
           disabled={!selected || copying}
-          style={{
-            width: '100%', padding: '9px 0', borderRadius: 8, border: 'none',
-            cursor: selected && !copying ? 'pointer' : 'default',
-            background: selected ? '#1E3A5F' : '#E2E8F0',
-            color: selected ? 'white' : '#94A3B8',
-            fontSize: 13, fontWeight: 600, transition: 'all 0.15s',
-            opacity: copying ? 0.7 : 1,
-          }}
+          className="pv-wizard-btn pv-wizard-btn-primary is-block"
+          style={copying ? { opacity: 0.7 } : null}
         >
           {copying
             ? 'Copying…'
