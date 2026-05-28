@@ -452,9 +452,11 @@ export default function CrewRotaPage() {
               </div>
             ) : (
               <>
-                {hasNoShifts && (
+                {hasNoShifts && !editMode ? (
                   <div className="crew-rota-empty">
-                    No shifts on {fullDateLabel(selectedDateObj)}.
+                    <div className="crew-rota-empty-msg">
+                      No shifts on {fullDateLabel(selectedDateObj)}.
+                    </div>
                     {!isToday && (
                       <div className="crew-rota-empty-cta">
                         <button type="button" onClick={() => setSelectedDate(realToday)}>
@@ -463,8 +465,7 @@ export default function CrewRotaPage() {
                       </div>
                     )}
                   </div>
-                )}
-                {view === 'grid' ? (
+                ) : view === 'grid' ? (
                   <RotaTodayGrid
                     crew={crew}
                     now={isToday ? now : null}
