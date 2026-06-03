@@ -161,18 +161,16 @@ function localTodayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// `selectedDate` (YYYY-MM-DD) anchors the fetch window — the rolling window
-// becomes [selectedDate-historyDays .. selectedDate]. Rest figures derived
-// from that window move with the viewed date, so a chief viewing yesterday
-// sees yesterday's compliance state. Defaults to local today.
-//
-// `historyDays` controls how far back the fetch reaches. Day view needs
-// 6 (for the trailing 7-day MLC rest calc anchored on selectedDate). Week
-// view needs 12 (the matrix shows 7 days ending at selectedDate, and each
-// of those cells needs its own trailing 7-day rest window — so 7 + 6 = 13
-// days total). Callers pass the depth they need; the hook re-fetches when
-// it changes.
-export function useRotaShifts(selectedDate, { historyDays = 6 } = {}) {
+// `selectedDate` (YYYY-MM-DD) anchors the fetch window. The window spans
+// [anchor - historyDays .. anchor + forwardDays], inclusive. The DERIVED
+// per-crew rest figures are still anchored on selectedDate (trailing 7
+// days ending there) — forwardDays only widens the fetch so the week-view
+// matrix can compute per-cell MLC for cells that sit FORWARD of
+// selectedDate. Day view passes {historyDays:6, forwardDays:0} (unchanged
+// 7-day trailing). Week view passes {historyDays:6, forwardDays:6} so
+// the leftmost cell (selectedDate) has its trailing-7 history AND the
+// rightmost cell (selectedDate+6) has its own days fetched.
+export function useRotaShifts(selectedDate, { historyDays = 6, forwardDays = 0 } = {}) {
   const anchorDate = selectedDate || localTodayStr();
   // AuthContext exposes `activeTenantId` (not `tenantId`) — matching the
   // pattern used by useTripGuests / useTripsMigration. Destructuring
@@ -274,13 +272,16 @@ export function useRotaShifts(selectedDate, { historyDays = 6 } = {}) {
         const windowStart = new Date(`${effDate}T00:00:00`);
         windowStart.setDate(windowStart.getDate() - historyDays);
         const windowStartStr = windowStart.toISOString().slice(0, 10);
+        const windowEnd = new Date(`${effDate}T00:00:00`);
+        windowEnd.setDate(windowEnd.getDate() + forwardDays);
+        const windowEndStr = windowEnd.toISOString().slice(0, 10);
 
         const { data: shiftRows, error: sErr, status: sStatus, statusText: sStatusText } = await supabase
           .from('rota_shifts')
           .select('id, member_id, shift_date, start_time, end_time, shift_type, sub_type, notes, status')
           .eq('tenant_id', tenantId)
           .gte('shift_date', windowStartStr)
-          .lte('shift_date', effDate);
+          .lte('shift_date', windowEndStr);
         console.log('[useRotaShifts] RAW shifts response:', {
           count: shiftRows?.length,
           error: sErr,
@@ -288,6 +289,7 @@ export function useRotaShifts(selectedDate, { historyDays = 6 } = {}) {
           statusText: sStatusText,
           effectiveDate: effDate,
           windowStart: windowStartStr,
+          windowEnd: windowEndStr,
           firstRow: shiftRows?.[0],
           rawData: shiftRows,
         });
@@ -344,7 +346,7 @@ export function useRotaShifts(selectedDate, { historyDays = 6 } = {}) {
         if (!cancelled && !silent) setLoading(false);
       }
     }
-  }, [user, tenantId, anchorDate, historyDays]);
+  }, [user, tenantId, anchorDate, historyDays, forwardDays]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -359,15 +361,26 @@ export function useRotaShifts(selectedDate, { historyDays = 6 } = {}) {
   );
 
   const isViewingToday = anchorDate === localTodayStr();
+  // Trailing 7-day window for per-crew rest figures anchored on selectedDate.
+  // When forwardDays > 0 the fetched windowShifts also contains future
+  // shifts; those must NOT enter the per-crew rest math (MLC's 7-day window
+  // is strictly trailing). Slice here.
+  const weekTrailingStart = useMemo(() => {
+    const d = new Date(`${anchorDate}T00:00:00`);
+    d.setDate(d.getDate() - 6);
+    return d.toISOString().slice(0, 10);
+  }, [anchorDate]);
   const crew = useMemo(
     () => members.map((m) => {
       const todayS = shifts.filter(s => s.memberId === m.id);
-      const weekS = windowShifts.filter(s => s.memberId === m.id);
+      const weekS = windowShifts.filter(
+        s => s.memberId === m.id && s.date >= weekTrailingStart && s.date <= anchorDate,
+      );
       const c = deriveCrew(m, todayS, weekS, new Date(), isViewingToday);
       c.currentStatus = statusByUser.get(m.userId) ?? null;
       return c;
     }),
-    [members, windowShifts, shifts, statusByUser, isViewingToday],
+    [members, windowShifts, shifts, statusByUser, isViewingToday, weekTrailingStart, anchorDate],
   );
 
   const draftCount = useMemo(
@@ -573,15 +586,17 @@ export function useRotaShifts(selectedDate, { historyDays = 6 } = {}) {
       return { ok: true, noop: true, inserted: 0, deleted: 0 };
     }
 
-    // Window predicate for optimistic local rendering — [effDate-6 .. effDate]
-    // (lexical YYYY-MM-DD comparison is correct here).
+    // Window predicate for optimistic local rendering — [effDate-historyDays
+    // .. effDate+forwardDays]. (lexical YYYY-MM-DD comparison is correct here.)
     let inWindow = () => false;
     if (effectiveDate) {
-      const end = new Date(`${effectiveDate}T00:00:00`);
-      const start = new Date(end); start.setDate(start.getDate() - historyDays);
+      const anchor = new Date(`${effectiveDate}T00:00:00`);
+      const start = new Date(anchor); start.setDate(start.getDate() - historyDays);
+      const end = new Date(anchor); end.setDate(end.getDate() + forwardDays);
       const pad = (n) => String(n).padStart(2, '0');
       const startStr = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`;
-      inWindow = (d) => d >= startStr && d <= effectiveDate;
+      const endStr = `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`;
+      inWindow = (d) => d >= startStr && d <= endStr;
     }
 
     setWindowShifts((prev) => {
@@ -629,7 +644,7 @@ export function useRotaShifts(selectedDate, { historyDays = 6 } = {}) {
       load({ silent: true });
       return { ok: false, error: e.message || String(e) };
     }
-  }, [tenantId, effectiveDate, historyDays, load]);
+  }, [tenantId, effectiveDate, historyDays, forwardDays, load]);
 
   return {
     crew, shifts, windowShifts, effectiveDate, loading, error, draftCount,

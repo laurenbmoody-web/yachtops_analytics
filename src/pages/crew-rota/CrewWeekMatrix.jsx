@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { DEPT_ORDER, MlcTriangle } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
 import { ON_DUTY_TYPES, assessMlc } from './restHours';
 import { getContrastText, getRoleDisplayName } from './crewDisplay';
@@ -60,13 +61,14 @@ function isWeekend(dateStr) {
   return w === 0 || w === 6;
 }
 
-// Editorial label for the matrix's 7-day range (selectedDate-6 .. selectedDate).
-// Same-month: "22–28 May". Cross-month: "30 May – 5 Jun". Day-first, no US format.
-// Exported so the page stepper-helper can use the same source.
+// Editorial label for the matrix's 7-day FORWARD range
+// (selectedDate .. selectedDate+6). Same-month: "3–9 Jun".
+// Cross-month: "30 May – 5 Jun". Day-first, no US format.
+// Exported so the page stepper-helper uses the same source.
 export function weekRangeLabel(selectedDate) {
   if (!selectedDate) return '';
-  const start = parseLocal(addLocalDays(selectedDate, -6));
-  const end = parseLocal(selectedDate);
+  const start = parseLocal(selectedDate);
+  const end = parseLocal(addLocalDays(selectedDate, 6));
   if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
     return `${start.getDate()}–${end.getDate()} ${MONTH_SHORT[start.getMonth()]}`;
   }
@@ -94,7 +96,7 @@ function cellSummary(memberId, dateStr, windowShifts) {
   };
 }
 
-function DayHeader({ dateStr, isToday, isSelected }) {
+function DayHeader({ dateStr, isToday, isSelected, stepBack, stepForward }) {
   const d = parseLocal(dateStr);
   const weekend = isWeekend(dateStr);
   const cls = ['cw-day-head'];
@@ -103,9 +105,31 @@ function DayHeader({ dateStr, isToday, isSelected }) {
   if (weekend) cls.push('is-weekend');
   return (
     <div className={cls.join(' ')}>
-      <div className="cw-day-head-dow">{WEEKDAY_SHORT[d.getDay()]}</div>
-      <div className="cw-day-head-num">{d.getDate()}</div>
-      <div className="cw-day-head-mon">{MONTH_SHORT[d.getMonth()]}</div>
+      <div className="cw-day-head-row">
+        {stepBack && (
+          <button
+            type="button"
+            className="cw-day-step"
+            onClick={stepBack}
+            aria-label="Previous day"
+            title="Slide window back one day"
+          ><ChevronLeft size={12} /></button>
+        )}
+        <div className="cw-day-head-stack">
+          <div className="cw-day-head-dow">{WEEKDAY_SHORT[d.getDay()]}</div>
+          <div className="cw-day-head-num">{d.getDate()}</div>
+          <div className="cw-day-head-mon">{MONTH_SHORT[d.getMonth()]}</div>
+        </div>
+        {stepForward && (
+          <button
+            type="button"
+            className="cw-day-step"
+            onClick={stepForward}
+            aria-label="Next day"
+            title="Slide window forward one day"
+          ><ChevronRight size={12} /></button>
+        )}
+      </div>
     </div>
   );
 }
@@ -161,6 +185,7 @@ export default function CrewWeekMatrix({
   // eslint-disable-next-line no-unused-vars
   gridStartHour = 6,
   onCellClick,
+  onStepDay,
 }) {
   // gridStartHour is received here through the same prop path the day grid
   // uses, so when the vessel-configurable boundary lands later, flipping
@@ -169,11 +194,12 @@ export default function CrewWeekMatrix({
   // wrap-around shifts), so no slot-math currently consumes the value;
   // the prop is on the signature for the future-config wiring.
 
-  // 7 columns = trailing operational week ending at selectedDate.
+  // 7 columns = FORWARD operational week starting at selectedDate.
+  // Leftmost = selectedDate, rightmost = selectedDate+6.
   const days = useMemo(() => {
     if (!selectedDate) return [];
     const out = [];
-    for (let i = 6; i >= 0; i -= 1) out.push(addLocalDays(selectedDate, -i));
+    for (let i = 0; i < 7; i += 1) out.push(addLocalDays(selectedDate, i));
     return out;
   }, [selectedDate]);
 
@@ -199,12 +225,14 @@ export default function CrewWeekMatrix({
       <div className="cw-grid-inner">
         <div className="cw-head-row">
           <div className="cw-head-spacer">Crew</div>
-          {days.map((d) => (
+          {days.map((d, i) => (
             <DayHeader
               key={d}
               dateStr={d}
               isToday={d === realToday}
               isSelected={d === selectedDate}
+              stepBack={i === 0 ? () => onStepDay?.(-1) : null}
+              stepForward={i === days.length - 1 ? () => onStepDay?.(1) : null}
             />
           ))}
         </div>
