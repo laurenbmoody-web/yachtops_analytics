@@ -2656,14 +2656,24 @@ const ProvisioningBoardDetail = () => {
         <SendToSupplierModal
           isOpen={showSendModal}
           onClose={() => setShowSendModal(false)}
-          onSent={async (order) => {
+          onSent={async (order, { dispatched = false } = {}) => {
             // Refetch from DB so deduped 'both' rows collapse correctly
             try {
               const fresh = await fetchSupplierOrders(id);
               setSupplierOrders(fresh || []);
             } catch { /* non-fatal */ }
-            setList(prev => ({ ...prev, status: 'sent_to_supplier' }));
-            setActiveTab('orders');
+            // Optimistic board-status flip — only when the modal
+            // confirms a real dispatch happened. The modal's
+            // commitBoardStatusFlip guard already wrote the DB row;
+            // this keeps the local UI in lockstep without lying
+            // when nothing went out. Without this gate the UI would
+            // show 'sent_to_supplier' for a moment then snap back
+            // on next refetch — looks like a flicker bug, worse
+            // than the original false-sent.
+            if (dispatched) {
+              setList(prev => ({ ...prev, status: 'sent_to_supplier' }));
+              setActiveTab('orders');
+            }
             showToast(`Order sent to ${order.supplier_name || 'supplier'}`, 'success');
           }}
           tenantId={activeTenantId}

@@ -172,6 +172,36 @@ const SendToSupplierModal = ({
     requestedDeliveryLine,
   };
 
+  // ── Guarded board-status flip ──────────────────────────────────
+  // The board only transitions to 'sent_to_supplier' if at least one
+  // supplier_orders row was actually dispatched in this session — a
+  // real send had a non-null email or phone, the edge function (for
+  // email) or clipboard write (for WhatsApp) returned without
+  // throwing, and markOrderSent committed. Per-group successful
+  // sendGroup calls invoke this with dispatchedCount === 1. Send All
+  // invokes it once at the end with the batch total.
+  //
+  // When dispatchedCount === 0 (no real dispatch happened), the
+  // board status stays put and a blocking toast surfaces — modal
+  // stays open so the user can fix the supplier assignment and
+  // retry. This is the explicit invariant the prior inline flip
+  // never enforced.
+  const commitBoardStatusFlip = async (dispatchedCount, { surfaceBlocking = true } = {}) => {
+    if (dispatchedCount > 0) {
+      try {
+        await supabase.from('provisioning_lists')
+          .update({ status: 'sent_to_supplier' }).eq('id', listId);
+      } catch (err) {
+        console.error('[SendToSupplierModal] board status flip error:', err);
+      }
+    } else if (surfaceBlocking) {
+      showToast(
+        'No supplier assigned. Assign a supplier (with an email or phone) to these items before sending.',
+        'error',
+      );
+    }
+  };
+
   // ── Send one group's order ──────────────────────────────────────
   // silent: suppress per-call toast / sendingKey spinner and return a
   // result (used by Send all so it can show one consolidated toast).
@@ -252,8 +282,14 @@ const SendToSupplierModal = ({
       }
 
       await markOrderSent(order.id, via);
-      await supabase.from('provisioning_lists')
-        .update({ status: 'sent_to_supplier' }).eq('id', listId);
+
+      // Board-status flip is now gated by commitBoardStatusFlip — see
+      // the helper above for the invariant. For per-group sends we
+      // commit immediately on success (dispatchedCount = 1). Send All
+      // suppresses this and commits once post-batch with the total.
+      if (!silent) {
+        await commitBoardStatusFlip(1, { surfaceBlocking: false });
+      }
 
       setSentItemKeys(prev => {
         const next = new Set(prev);
@@ -269,7 +305,12 @@ const SendToSupplierModal = ({
           'success',
         );
       }
-      onSent && onSent(order);
+      // Parent callback fires per-successful-send (cadence unchanged
+      // from previous behaviour — the parent refetches supplier_orders
+      // and runs its own UI updates per send). The { dispatched: true }
+      // arg tells the parent that this send was a real dispatch and
+      // its optimistic board-status flip is safe.
+      onSent && onSent(order, { dispatched: true });
       return { ok: true, via, order };
     } catch (err) {
       console.error('[SendToSupplierModal] send error:', err);
@@ -306,7 +347,9 @@ const SendToSupplierModal = ({
     }
 
     if (emailGroups.length === 0 && waGroups.length === 0) {
-      showToast('No suppliers have contact info — add contact and try again', 'error');
+      // Zero groups reachable — let the guarded helper surface the
+      // canonical blocking message so the wording stays in one place.
+      await commitBoardStatusFlip(0, { surfaceBlocking: true });
       return;
     }
 
@@ -337,15 +380,21 @@ const SendToSupplierModal = ({
       const totalAttempted = emailResults.length + waResults.length;
       const failed = totalAttempted - sentN;
 
-      if (sentN === 0) {
-        showToast('Send all failed — no orders went out', 'error');
-      } else {
+      // Commit once for the whole batch. silent=true in the constituent
+      // sendGroup calls suppressed the per-group commit, so this is
+      // the single source of truth for the Send All path. If sentN
+      // is zero the helper surfaces the blocking message; otherwise
+      // it flips the board status.
+      await commitBoardStatusFlip(sentN, { surfaceBlocking: sentN === 0 });
+
+      if (sentN > 0) {
         let msg = failed > 0
           ? `Sent ${sentN} of ${totalAttempted} orders · ${failed} failed`
           : `Sent ${sentN} ${sentN === 1 ? 'order' : 'orders'} · ${emailOk} via email · ${waOk} via WhatsApp`;
         if (skipped > 0) msg += ` · ${skipped} skipped — add contact info to send`;
         showToast(msg, failed > 0 ? 'error' : 'success');
       }
+      // sentN === 0: the helper already showed the blocking toast.
     } finally {
       setSendingAll(false);
     }
