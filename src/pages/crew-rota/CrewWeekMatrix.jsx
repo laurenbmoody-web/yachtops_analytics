@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import { DEPT_ORDER, MlcTriangle } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
 import { ON_DUTY_TYPES, assessMlc } from './restHours';
-import { getContrastText } from './crewDisplay';
+import { getContrastText, getRoleDisplayName } from './crewDisplay';
+import { MONTH_SHORT } from './MonthCalendar';
 
 // Crew × 7-day operational matrix for the rota page's Week view.
 //
@@ -32,10 +33,6 @@ import { getContrastText } from './crewDisplay';
 // and switches view to 'grid'.
 
 const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTH_SHORT = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
 
 function pad2(n) { return String(n).padStart(2, '0'); }
 function parseLocal(s) {
@@ -61,6 +58,19 @@ function hhmm(t) { return t ? String(t).slice(0, 5) : ''; }
 function isWeekend(dateStr) {
   const w = parseLocal(dateStr).getDay();
   return w === 0 || w === 6;
+}
+
+// Editorial label for the matrix's 7-day range (selectedDate-6 .. selectedDate).
+// Same-month: "22–28 May". Cross-month: "30 May – 5 Jun". Day-first, no US format.
+// Exported so the page stepper-helper can use the same source.
+export function weekRangeLabel(selectedDate) {
+  if (!selectedDate) return '';
+  const start = parseLocal(addLocalDays(selectedDate, -6));
+  const end = parseLocal(selectedDate);
+  if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+    return `${start.getDate()}–${end.getDate()} ${MONTH_SHORT[start.getMonth()]}`;
+  }
+  return `${start.getDate()} ${MONTH_SHORT[start.getMonth()]} – ${end.getDate()} ${MONTH_SHORT[end.getMonth()]}`;
 }
 
 // Per (crew, day) summary for a single cell. Trailing-7 MLC sliced from
@@ -109,15 +119,27 @@ function Cell({ summary, dateStr, isToday, isSelected, onClick, ariaLabel }) {
   if (isToday) cls.push('is-today-col');
   if (isSelected) cls.push('is-selected-col');
   if (summary.mlcWarning) cls.push('is-warn');
+
+  // Multi-shift display: show up to two ranges stacked. The gap between
+  // shifts is exactly what MLC cares about — collapsing into one span
+  // (e.g. "06:00–23:00") would lie about that gap, so we never do.
+  // 3+ shifts (rare): first two stacked + "+N more" tag.
+  const visible = summary.onDuty.slice(0, 2);
+  const extra = Math.max(0, summary.onDuty.length - 2);
+
   return (
     <button type="button" className={cls.join(' ')} onClick={onClick} aria-label={ariaLabel}>
       {summary.isOff ? (
         <span className="cw-c-off">off</span>
       ) : (
         <>
-          <span className="cw-c-range">
-            {hhmm(summary.onDuty[0].startTime)}–{hhmm(summary.onDuty[0].endTime)}
-            {summary.onDuty.length > 1 && <span className="cw-c-more">+{summary.onDuty.length - 1}</span>}
+          <span className="cw-c-ranges">
+            {visible.map((s, i) => (
+              <span key={i} className="cw-c-range">
+                {hhmm(s.startTime)}–{hhmm(s.endTime)}
+              </span>
+            ))}
+            {extra > 0 && <span className="cw-c-more">+{extra} more</span>}
           </span>
           <span className="cw-c-meta">
             <span className={`cw-c-rest${summary.mlcWarning ? ' w' : ''}`}>
@@ -206,7 +228,9 @@ export default function CrewWeekMatrix({
                       <div className="cw-nm-line">
                         <span className="cw-nm-name">{c.name}</span>
                         <span className="cw-dot" />
-                        <span className="cw-role">{c.role || ''}</span>
+                        <span className="cw-role" title={c.role || ''}>
+                          {getRoleDisplayName(c.role)}
+                        </span>
                         {c.mlcWarning && (
                           <span style={{ marginLeft: 4 }}><MlcTriangle size={10} /></span>
                         )}
