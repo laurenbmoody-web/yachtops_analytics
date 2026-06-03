@@ -10,7 +10,7 @@ import './crew-rota.css';
 import RotaTodayGrid from '../trip-detail-view-with-guest-allocation/components/RotaTodayGrid';
 import { DEPT_ORDER } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
 import CrewListView from './CrewListView';
-import CrewWeekMatrix from './CrewWeekMatrix';
+import CrewWeekMatrix, { weekRangeLabel } from './CrewWeekMatrix';
 import RestPanelPopover from './RestPanelPopover';
 import PatternPicker from './PatternPicker';
 import SimpleTemplateEditor from './SimpleTemplateEditor';
@@ -382,7 +382,7 @@ export default function CrewRotaPage() {
             >→</button>
             <span className="crew-rota-stepper-helper">
               {view === 'week'
-                ? `${shortDow(parseLocalDate(addLocalDays(selectedDate, -6)))} – ${shortDow(selectedDateObj)} · 7 operational days · click any cell to drill in`
+                ? `Week of ${weekRangeLabel(selectedDate)} · 7 trailing operational days · click any cell to drill in`
                 : `06:00 ${shortDow(selectedDateObj)} — 06:00 ${shortDow(parseLocalDate(addLocalDays(selectedDate, 1)))} · 30-min cells · click any name for the rest panel`}
             </span>
           </div>

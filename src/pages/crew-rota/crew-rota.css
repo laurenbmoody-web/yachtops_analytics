@@ -3302,10 +3302,12 @@
   margin-bottom: 2px;
 }
 
-/* Sticky name column — mirrors .rota-nm */
+/* Sticky name column — mirrors .rota-nm. Min-height so multi-shift rows
+   can stretch the cell uniformly (CSS Grid aligns the row to the tallest
+   cell, and we want the name col to stretch with it). */
 .cw-nm {
   padding: 10px 12px;
-  height: 56px;
+  min-height: 56px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -3345,9 +3347,11 @@
   font-size: 11px;
 }
 
-/* Day cells — same palette as .rota-c (cream off / navy scheduled / sat tint) */
+/* Day cells — same palette as .rota-c (cream off / navy scheduled / sat tint).
+   min-height so a multi-shift cell can grow taller than 56px; the row
+   stretches uniformly and CSS Grid aligns the rest of the row to match. */
 .cw-c {
-  height: 56px;
+  min-height: 56px;
   border: none;
   border-radius: 4px;
   padding: 8px 10px;
@@ -3383,15 +3387,17 @@
   font-style: italic;
   margin: auto;
 }
-.cw-c-range {
+/* Stacked ranges — multi-shift days show each range on its own line so the
+   gap between shifts (the thing MLC cares about) is visible. */
+.cw-c-ranges {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  gap: 2px;
   font-size: 12px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
+.cw-c-range { white-space: nowrap; line-height: 1.2; }
 .cw-c-more {
   font-size: 9px;
   padding: 1px 5px;
@@ -3399,6 +3405,8 @@
   color: #F5F1EA;
   border-radius: 999px;
   font-weight: 500;
+  align-self: flex-start;
+  margin-top: 1px;
 }
 .cw-c.off .cw-c-more {
   background: #ECE6DC;
