@@ -3235,6 +3235,37 @@
   padding: 2px 4px 6px;
   border-radius: 4px;
 }
+.cw-day-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.cw-day-head-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+.cw-day-step {
+  background: transparent;
+  border: 0.5px solid transparent;
+  border-radius: 999px;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #8B8478;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+.cw-day-step:hover {
+  background: #F7F5F0;
+  border-color: #DFD8CC;
+  color: #1C1B3A;
+}
 .cw-day-head-dow {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 9px;
@@ -3370,8 +3401,12 @@
 }
 .cw-c.sat { background: #EDEAE3; }
 .cw-c:hover { outline: 0.5px solid #C65A1A; }
-.cw-c.is-today-col:not(.f) { outline: 0.5px solid #C65A1A; }
+/* Selected (gray) is a weaker marker; today (terracotta) wins when both
+   apply, which is the common case when entering week view on default
+   (selectedDate === today === leftmost column). */
 .cw-c.is-selected-col { outline: 0.5px solid #C9C0AE; }
+.cw-c.is-today-col:not(.f) { outline: 0.5px solid #C65A1A; }
+.cw-c.is-today-col.is-selected-col { outline: 0.5px solid #C65A1A; }
 .cw-c.is-warn.f {
   /* Warning on a scheduled cell: keep navy fill, hint via meta colour. */
   background: #1C1B3A;

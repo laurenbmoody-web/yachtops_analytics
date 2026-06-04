@@ -178,7 +178,13 @@ export default function CrewRotaPage() {
   const {
     crew, shifts, windowShifts, loading, error, effectiveDate, draftCount,
     applyPaint, applyTemplate, refetch,
-  } = useRotaShifts(selectedDate, { historyDays: view === 'week' ? 12 : 6 });
+  } = useRotaShifts(
+    selectedDate,
+    // Day view: trailing 7. Week view: 6 days BEFORE selectedDate (so the
+    // leftmost forward cell has its own trailing-7 MLC context) + 6 days
+    // FORWARD of selectedDate (so the matrix has its 7 cells to display).
+    view === 'week' ? { historyDays: 6, forwardDays: 6 } : { historyDays: 6, forwardDays: 0 },
+  );
   const hasNoShifts = !loading && !error && shifts.length === 0;
   const { rota } = useCurrentRota();
   const { statusByDept, ensureDraft } = useRotaDepartmentStatus(rota?.id);
@@ -234,7 +240,7 @@ export default function CrewRotaPage() {
   // displayed against e.g. yesterday's roster would be confusing.
   const onDuty = crew.filter(c => c.onNow && !c.offToday).length;
   const meta = view === 'week'
-    ? `Week ending ${fullDateLabel(selectedDateObj)} · ${total} crew on this trip`
+    ? `Week of ${weekRangeLabel(selectedDate)} · ${total} crew on this trip`
     : isToday
       ? `${fullDateLabel(selectedDateObj)} · ${total} crew on this trip · ${onDuty} on duty now`
       : `${fullDateLabel(selectedDateObj)} · ${total} crew on this trip`;
@@ -352,8 +358,9 @@ export default function CrewRotaPage() {
             <button
               type="button"
               className="crew-rota-stepper-btn is-active"
-              aria-label="Previous day"
-              onClick={() => setSelectedDate((s) => addLocalDays(s, -1))}
+              aria-label={view === 'week' ? 'Previous week' : 'Previous day'}
+              title={view === 'week' ? 'Previous week' : 'Previous day'}
+              onClick={() => setSelectedDate((s) => addLocalDays(s, view === 'week' ? -7 : -1))}
             >←</button>
             <span className="crew-rota-stepper-anchor">
               <button
@@ -377,12 +384,13 @@ export default function CrewRotaPage() {
             <button
               type="button"
               className="crew-rota-stepper-btn is-active"
-              aria-label="Next day"
-              onClick={() => setSelectedDate((s) => addLocalDays(s, 1))}
+              aria-label={view === 'week' ? 'Next week' : 'Next day'}
+              title={view === 'week' ? 'Next week' : 'Next day'}
+              onClick={() => setSelectedDate((s) => addLocalDays(s, view === 'week' ? 7 : 1))}
             >→</button>
             <span className="crew-rota-stepper-helper">
               {view === 'week'
-                ? `Week of ${weekRangeLabel(selectedDate)} · 7 trailing operational days · click any cell to drill in`
+                ? `Week of ${weekRangeLabel(selectedDate)} · 7 operational days from ${shortDow(selectedDateObj)} · click any cell to drill in`
                 : `06:00 ${shortDow(selectedDateObj)} — 06:00 ${shortDow(parseLocalDate(addLocalDays(selectedDate, 1)))} · 30-min cells · click any name for the rest panel`}
             </span>
           </div>
@@ -468,6 +476,7 @@ export default function CrewRotaPage() {
                 realToday={realToday}
                 gridStartHour={GRID_START_HOUR}
                 onCellClick={(d) => { setSelectedDate(d); setView('grid'); }}
+                onStepDay={(delta) => setSelectedDate((s) => addLocalDays(s, delta))}
               />
             ) : (
               <>
