@@ -679,12 +679,31 @@ export const saveAsTemplate = async (listId, isTemplate) => {
 
 export const fetchMasterOrderHistory = async (vesselId) => {
   try {
-    // Get all delivered lists for this vessel
+    // Aggregate the "frequently-ordered" signal across boards whose items
+    // were actually sent to a supplier (or further along the lifecycle).
+    // Exclude 'draft' and 'pending_approval' because items in unsent
+    // drafts haven't actually been ordered — counting them would inflate
+    // the times_ordered signal with intent, not history. Including
+    // 'ordered', 'sent_to_supplier', 'partially_delivered',
+    // 'delivered_with_discrepancies', and 'delivered' gives crew the
+    // honest "what we've actually shipped" surface.
+    //
+    // Prior to this change the filter was `.eq('status', 'delivered')`
+    // alone, which meant Order History silently empty until a board
+    // fully completed its lifecycle. Caused the Quick Add Order History
+    // tab to read "No order history found" on tenants with active
+    // shipping orders.
     const { data: lists, error: listsErr } = await supabase
       ?.from('provisioning_lists')
       ?.select('id, title')
       ?.eq('tenant_id', vesselId)
-      ?.eq('status', 'delivered');
+      ?.in('status', [
+        'ordered',
+        'sent_to_supplier',
+        'partially_delivered',
+        'delivered_with_discrepancies',
+        'delivered',
+      ]);
     if (listsErr) throw listsErr;
     if (!lists?.length) return [];
 

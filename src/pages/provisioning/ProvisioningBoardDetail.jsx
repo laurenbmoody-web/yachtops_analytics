@@ -35,6 +35,7 @@ import {
   declineOrderItemQuote,
   queryOrderItemQuote,
   toggleSupplierOrderFavourite,
+  saveAsTemplate,
   PROVISIONING_STATUS,
   PROVISION_CATEGORIES,
   PROVISION_UNITS,
@@ -819,6 +820,20 @@ const ProvisioningBoardDetail = () => {
     } catch { showToast('Failed to duplicate', 'error'); }
   };
 
+  // Fire-and-toast — flip is_template=true on the current board so it
+  // surfaces in the Quick Add Templates tab. Source board untouched.
+  // No drawer open, no navigation.
+  const handleSaveAsTemplateBoard = async () => {
+    setShowMenu(false);
+    try {
+      await saveAsTemplate(id, true);
+      showToast(`"${list.title}" saved as template`, 'success');
+    } catch (err) {
+      console.error('[ProvisioningBoardDetail] saveAsTemplate error:', err);
+      showToast('Failed to save as template', 'error');
+    }
+  };
+
   const handleSendToSupplier = () => {
     const sendableItems = items.filter(i => i.status !== 'received' && i.name?.trim());
     if (sendableItems.length === 0) {
@@ -1347,6 +1362,9 @@ const ProvisioningBoardDetail = () => {
                       )}
                       <button onClick={handleDuplicate} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
                         <Icon name="Copy" className="w-4 h-4" /> Duplicate
+                      </button>
+                      <button onClick={handleSaveAsTemplateBoard} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
+                        <Icon name="FileText" className="w-4 h-4" /> Save as Template
                       </button>
                       {canDelete && (
                         <>
