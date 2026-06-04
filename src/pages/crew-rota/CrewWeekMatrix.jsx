@@ -108,7 +108,7 @@ function cellSummary(memberId, dateStr, windowShifts) {
   };
 }
 
-function DayHeader({ dateStr, isToday, isSelected, stepBack, stepForward }) {
+function DayHeader({ dateStr, isToday, isSelected }) {
   const d = parseLocal(dateStr);
   const weekend = isWeekend(dateStr);
   const cls = ['cw-day-head'];
@@ -118,27 +118,7 @@ function DayHeader({ dateStr, isToday, isSelected, stepBack, stepForward }) {
   return (
     <div className={cls.join(' ')}>
       <div className="cw-day-head-dow">{WEEKDAY_SHORT[d.getDay()]}</div>
-      <div className="cw-day-head-num-row">
-        {stepBack && (
-          <button
-            type="button"
-            className="cw-day-step"
-            onClick={stepBack}
-            aria-label="Previous day"
-            title="Slide window back one day"
-          ><ChevronLeft size={14} /></button>
-        )}
-        <span className="cw-day-head-num">{d.getDate()}</span>
-        {stepForward && (
-          <button
-            type="button"
-            className="cw-day-step"
-            onClick={stepForward}
-            aria-label="Next day"
-            title="Slide window forward one day"
-          ><ChevronRight size={14} /></button>
-        )}
-      </div>
+      <div className="cw-day-head-num">{d.getDate()}</div>
       <div className="cw-day-head-mon">{MONTH_SHORT[d.getMonth()]}</div>
     </div>
   );
@@ -231,21 +211,28 @@ export default function CrewWeekMatrix({
   if (!selectedDate || days.length === 0) return null;
 
   return (
-    <div className="cw-grid-wrap">
-      <div className="cw-grid-inner">
-        <div className="cw-head-row">
-          <div className="cw-head-spacer">Crew</div>
-          {days.map((d, i) => (
-            <DayHeader
-              key={d}
-              dateStr={d}
-              isToday={d === realToday}
-              isSelected={d === selectedDate}
-              stepBack={i === 0 ? () => onStepDay?.(-1) : null}
-              stepForward={i === days.length - 1 ? () => onStepDay?.(1) : null}
-            />
-          ))}
-        </div>
+    <div className="cw-card">
+      <button
+        type="button"
+        className="cw-edge-step cw-edge-step-left"
+        onClick={() => onStepDay?.(-1)}
+        aria-label="Previous day"
+        title="Slide window back one day"
+      ><ChevronLeft size={16} /></button>
+
+      <div className="cw-grid-wrap">
+        <div className="cw-grid-inner">
+          <div className="cw-head-row">
+            <div className="cw-head-spacer">Crew</div>
+            {days.map((d) => (
+              <DayHeader
+                key={d}
+                dateStr={d}
+                isToday={d === realToday}
+                isSelected={d === selectedDate}
+              />
+            ))}
+          </div>
 
         {grouped.map(([dept, members]) => {
           const color = members[0]?.departmentColor || '#5F5E5A';
@@ -294,7 +281,16 @@ export default function CrewWeekMatrix({
             </div>
           );
         })}
+        </div>
       </div>
+
+      <button
+        type="button"
+        className="cw-edge-step cw-edge-step-right"
+        onClick={() => onStepDay?.(1)}
+        aria-label="Next day"
+        title="Slide window forward one day"
+      ><ChevronRight size={16} /></button>
     </div>
   );
 }
