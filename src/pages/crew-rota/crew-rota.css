@@ -3248,19 +3248,16 @@
   padding: 2px 4px 6px;
   border-radius: 4px;
 }
-/* Card wrapper — chevrons flank the matrix grid as flex siblings, NOT
-   inside the cell grid. Vertically aligned only against the column-header
-   band (margin-top picked to land the chevron's vertical centre against
-   the day-head content stack: head box ~48px high, chevron 32px → top
-   margin (48-32)/2 = 8px). align-items:flex-start so they don't drift
-   down to the middle of the crew rows. */
+/* Card wrapper — chevrons flank the matrix grid, but with different
+   positioning rules per side (see below). position:relative anchors the
+   absolutely-positioned LEFT chevron. */
 .cw-card {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: 4px;
 }
 .cw-edge-step {
-  flex: 0 0 32px;
   width: 32px;
   height: 32px;
   margin-top: 8px;
@@ -3278,6 +3275,29 @@
   background: #F7F5F0;
   border-color: #C9C0AE;
   color: #1C1B3A;
+}
+/* RIGHT chevron — stays as a flex sibling AFTER .cw-grid-wrap. The wrap's
+   right edge IS the last day cell's right edge, so the 4px flex gap puts
+   the chevron tight against the last day cell. Works naturally. */
+.cw-edge-step-right { flex: 0 0 32px; }
+/* LEFT chevron — would NOT work as a flex sibling: the wrap's LEFT edge
+   is the crew column's left edge (the crew col is the first column of the
+   inner grid), so a flex-sibling left chevron lands 4px before the CREW
+   COLUMN, with the 220px crew column then sitting between it and the
+   first day cell. Visibly stranded. Position it absolutely instead so it
+   lands 4px before the FIRST DAY CELL — mirroring the right chevron's
+   spacing against the last day cell. Math: first day cell left edge
+   = var(--cw-nm-w) + 2px grid gap; chevron right edge sits 4px before
+   that; chevron left = (--cw-nm-w + 2) - 4 - 32 = (--cw-nm-w - 34).
+   z-index:5 keeps it above the sticky crew-col header (z-index:2);
+   nothing's at this horizontal position in the header anyway since
+   "Crew" sits at the column's LEFT padding. */
+.cw-edge-step-left {
+  position: absolute;
+  left: calc(var(--cw-nm-w, 220px) - 34px);
+  top: 8px;
+  margin-top: 0;
+  z-index: 5;
 }
 .cw-day-head-dow {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
