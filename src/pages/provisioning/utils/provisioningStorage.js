@@ -2325,6 +2325,17 @@ export const createSupplierOrder = async ({
   specialInstructions, currency = 'USD', items = [], createdBy,
   sentVia = 'email', vesselName = null, supplierProfileId = null,
 }) => {
+  // Quick Add — denormalized dept snapshot computed from items being
+  // sent. Drives the dept-scoping of get_quick_add_favourites (see
+  // 20260604120000_supplier_orders_quick_add.sql). Single source of
+  // truth: caller passes items, helper derives the array — no risk
+  // of departments drift if the caller forgets.
+  const departments = [...new Set(
+    (items || [])
+      .map(it => (it.department || '').trim())
+      .filter(Boolean)
+  )];
+
   // Sprint 9c.3 Phase 8 — persist the FK when the order targets a
   // known supplier_profiles row. Previously omitted, which is why
   // order→supplier-overview navigation was broken for every new
@@ -2340,6 +2351,7 @@ export const createSupplierOrder = async ({
       currency, created_by: createdBy, sent_via: sentVia,
       vessel_name: vesselName || null,
       supplier_profile_id: supplierProfileId || null,
+      departments,
     })
     .select()
     .single();
@@ -2347,12 +2359,35 @@ export const createSupplierOrder = async ({
   if (orderErr) throw orderErr;
 
   if (items.length > 0) {
+    // Quick Add strict-snapshot: persist the fields a stew actually needs
+    // to re-order this specific item later via apply-favourite. Brand /
+    // size / category / sub_category / department / allergen_flags +
+    // supplier_profile_id all snapshot from provisioning_items at send
+    // time. Frozen against subsequent edits to the source row.
+    //
+    // Naming asymmetry: caller's `estimated_price` already maps from
+    // provisioning_items.estimated_unit_cost at the call site (see
+    // ProvisioningBoardDetail's items projection). Persisted here into
+    // supplier_order_items.estimated_price (added in 20260429100000).
     const rows = items.map(it => ({
-      order_id:  order.id,
-      item_name: it.name || it.item_name,
-      quantity:  it.quantity ?? it.qty,
-      unit:      it.unit || null,
-      notes:     it.notes || null,
+      order_id:            order.id,
+      item_name:           it.name || it.item_name,
+      quantity:            it.quantity ?? it.qty,
+      unit:                it.unit || null,
+      notes:               it.notes || null,
+      brand:               it.brand || null,
+      size:                it.size || null,
+      category:            it.category || null,
+      sub_category:        it.sub_category || null,
+      department:          it.department || null,
+      allergen_flags:      it.allergen_flags || [],
+      // Fall back to the order's supplier when the item carries no
+      // explicit FK — covers the Unassigned-bucket case where the
+      // client-side back-fill (setItemsSupplierProfile) runs after
+      // orderItems was built, so the in-memory item still has null.
+      supplier_profile_id: it.supplier_profile_id || supplierProfileId || null,
+      estimated_price:     it.estimated_price ?? null,
+      estimated_currency:  currency || null,
     }));
     const { error: itemsErr } = await supabase.from('supplier_order_items').insert(rows);
     if (itemsErr) throw itemsErr;

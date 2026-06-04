@@ -2693,6 +2693,17 @@ const ProvisioningBoardDetail = () => {
               estimated_price: i.estimated_unit_cost || null,
               supplier_profile_id: i.supplier_profile_id || null,
               supplier_name: i.supplier_name || null,
+              // Quick Add snapshot fields — threaded through the modal
+              // to createSupplierOrder, which persists them on
+              // supplier_order_items (migration 20260604120000). Apply-
+              // favourite later reads them back so the new board item
+              // restores brand/size/category/etc — not just the name.
+              brand:          i.brand          || null,
+              size:           i.size           || null,
+              category:       i.category       || null,
+              sub_category:   i.sub_category   || null,
+              department:     i.department     || null,
+              allergen_flags: i.allergen_flags || [],
             }))}
           vesselName={tenantVesselName || list?.title}
           vesselTypeLabel={tenantVesselTypeLabel}
