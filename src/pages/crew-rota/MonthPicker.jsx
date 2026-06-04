@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import MonthCalendar, {
+  MONTH_NAMES,
   toStr, fromStr, addMonths,
 } from './MonthCalendar';
 
@@ -54,13 +55,16 @@ export default function MonthPicker({ open, value, onChange, onClose }) {
         aria-modal="true"
         aria-label="Pick a date"
       >
-        <div className="mp-nav-row">
+        <div className="mp-header">
           <button
             type="button"
             className="dp-nav"
             aria-label="Previous month"
             onClick={() => setMonth((d) => addMonths(d, -1))}
           ><ChevronLeft size={16} /></button>
+          <div className="mp-header-title">
+            {MONTH_NAMES[month.getMonth()]} {month.getFullYear()}
+          </div>
           <button
             type="button"
             className="dp-nav"
@@ -75,6 +79,7 @@ export default function MonthPicker({ open, value, onChange, onClose }) {
           endStr={value}
           todayStr={todayStr}
           onPick={pick}
+          hideTitle
         />
         <div className="mp-footer">
           <button

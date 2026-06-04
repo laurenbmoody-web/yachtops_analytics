@@ -58,11 +58,11 @@ export function monthWeeks(year, month) {
   return weeks;
 }
 
-export default function MonthCalendar({ year, month, startStr, endStr, todayStr, onPick }) {
+export default function MonthCalendar({ year, month, startStr, endStr, todayStr, onPick, hideTitle = false }) {
   const weeks = useMemo(() => monthWeeks(year, month), [year, month]);
   return (
     <div className="dp-month">
-      <div className="dp-month-title">{MONTH_NAMES[month]} {year}</div>
+      {!hideTitle && <div className="dp-month-title">{MONTH_NAMES[month]} {year}</div>}
       <div className="dp-week-header">
         {WEEKDAYS_MON.map((w) => <div key={w} className="dp-wh">{w}</div>)}
       </div>

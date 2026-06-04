@@ -10,7 +10,7 @@ import './crew-rota.css';
 import RotaTodayGrid from '../trip-detail-view-with-guest-allocation/components/RotaTodayGrid';
 import { DEPT_ORDER } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
 import CrewListView from './CrewListView';
-import CrewWeekMatrix, { weekRangeLabel } from './CrewWeekMatrix';
+import CrewWeekMatrix, { weekRangeLabelLong } from './CrewWeekMatrix';
 import RestPanelPopover from './RestPanelPopover';
 import PatternPicker from './PatternPicker';
 import SimpleTemplateEditor from './SimpleTemplateEditor';
@@ -54,11 +54,6 @@ function addLocalDays(s, delta) {
   const d = parseLocalDate(s);
   d.setDate(d.getDate() + delta);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-// Short label for the stepper helper ("06:00 Fri — 06:00 Sat") — abbreviates
-// the day-of-week from the selected date and the following date.
-function shortDow(d) {
-  return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
 }
 
 // (slot ↔ decimal helpers and shift-range math are now owned by
@@ -369,10 +364,15 @@ export default function CrewRotaPage() {
                 onClick={() => setDatePickerOpen((o) => !o)}
                 aria-haspopup="dialog"
                 aria-expanded={datePickerOpen}
-                title="Pick a date"
+                aria-label={view === 'week'
+                  ? `Week starting ${fullDateLabel(selectedDateObj)}, ending ${fullDateLabel(parseLocalDate(addLocalDays(selectedDate, 6)))}. Pick a date.`
+                  : undefined}
+                title={view === 'week' ? 'Pick a week start' : 'Pick a date'}
               >
                 <CalendarIcon size={13} />
-                {fullDateLabel(selectedDateObj)}
+                {view === 'week'
+                  ? weekRangeLabelLong(selectedDate)
+                  : fullDateLabel(selectedDateObj)}
               </button>
               <MonthPicker
                 open={datePickerOpen}
@@ -388,11 +388,11 @@ export default function CrewRotaPage() {
               title={view === 'week' ? 'Next week' : 'Next day'}
               onClick={() => setSelectedDate((s) => addLocalDays(s, view === 'week' ? 7 : 1))}
             >→</button>
-            <span className="crew-rota-stepper-helper">
-              {view === 'week'
-                ? `Week of ${weekRangeLabel(selectedDate)} · 7 operational days from ${shortDow(selectedDateObj)} · click any cell to drill in`
-                : `06:00 ${shortDow(selectedDateObj)} — 06:00 ${shortDow(parseLocalDate(addLocalDays(selectedDate, 1)))} · 30-min cells · click any name for the rest panel`}
-            </span>
+            {view !== 'week' && (
+              <span className="crew-rota-stepper-helper">
+                click any name for the rest panel
+              </span>
+            )}
           </div>
         </div>
 

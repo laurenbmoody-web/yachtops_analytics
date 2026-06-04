@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { DEPT_ORDER, MlcTriangle } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
 import { ON_DUTY_TYPES, assessMlc } from './restHours';
 import { getContrastText, getRoleDisplayName } from './crewDisplay';
-import { MONTH_SHORT } from './MonthCalendar';
+import { MONTH_SHORT, MONTH_NAMES } from './MonthCalendar';
 
 // Crew × 7-day operational matrix for the rota page's Week view.
 //
@@ -73,6 +73,18 @@ export function weekRangeLabel(selectedDate) {
     return `${start.getDate()}–${end.getDate()} ${MONTH_SHORT[start.getMonth()]}`;
   }
   return `${start.getDate()} ${MONTH_SHORT[start.getMonth()]} – ${end.getDate()} ${MONTH_SHORT[end.getMonth()]}`;
+}
+
+// Long-form label for the picker button itself in week mode — both ends
+// shown in full (dow + day + month name).
+// Same-month example:   "Thu 4 June — Wed 10 June"
+// Cross-month example:  "Sat 28 June — Fri 4 July"
+export function weekRangeLabelLong(selectedDate) {
+  if (!selectedDate) return '';
+  const start = parseLocal(selectedDate);
+  const end = parseLocal(addLocalDays(selectedDate, 6));
+  const fmt = (d) => `${WEEKDAY_SHORT[d.getDay()]} ${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
+  return `${fmt(start)} — ${fmt(end)}`;
 }
 
 // Per (crew, day) summary for a single cell. Trailing-7 MLC sliced from
