@@ -21,6 +21,7 @@ import {
   deleteProvisioningList,
   updateProvisioningList,
   duplicateList,
+  saveAsTemplate,
   upsertItems,
   updateProvisioningItem,
   fetchVesselDepartments,
@@ -622,6 +623,19 @@ const ProvisioningWorkspace = () => {
     }
   };
 
+  // Fire-and-toast: flip is_template=true on the board. Source board
+  // stays untouched (template is the same row, just flagged). The
+  // Quick Add panel's Templates tab picks it up on next open.
+  const handleSaveAsTemplate = async (list) => {
+    try {
+      await saveAsTemplate(list.id, true);
+      showToast(`"${list.title}" saved as template`, 'success');
+    } catch (err) {
+      console.error('[provisioning] handleSaveAsTemplate error:', err);
+      showToast('Failed to save as template', 'error');
+    }
+  };
+
   const handleDeleteBoard = async (list) => {
     try {
       await deleteProvisioningList(list.id);
@@ -1023,6 +1037,7 @@ const ProvisioningWorkspace = () => {
                       onSuggestions={() => openBoardDrawer(list.id, 'suggestions')}
                       onTemplates={() => openBoardDrawer(list.id, 'templates')}
                       onDuplicate={() => handleDuplicate(list)}
+                      onSaveAsTemplate={() => handleSaveAsTemplate(list)}
                       onDelete={() => handleDeleteBoard(list)}
                       onTitleSave={handleTitleSave}
                       onColourChange={handleColourChange}

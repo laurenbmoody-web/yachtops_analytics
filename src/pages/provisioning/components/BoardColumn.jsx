@@ -124,7 +124,7 @@ const ColourPicker = ({ current, onSelect, onClose }) => {
 // stopPropagation wraps the whole BoardMenu so the trigger, dropdown,
 // every menu item, and the colour-picker swatches it can open never
 // bubble to the .pv-lane click → onNavigate route.
-const BoardMenu = ({ canEdit, canCommandDelete, onEdit, onDuplicate, onDeleteClick, onShare, currentColour, onColourSelect }) => {
+const BoardMenu = ({ canEdit, canCommandDelete, onEdit, onDuplicate, onDeleteClick, onShare, onSaveAsTemplate, currentColour, onColourSelect }) => {
   const [open, setOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const ref = useRef(null);
@@ -157,6 +157,12 @@ const BoardMenu = ({ canEdit, canCommandDelete, onEdit, onDuplicate, onDeleteCli
             <span className="pv-menu-item-icon"><Icon name="Copy" className="w-3.5 h-3.5" /></span>
             Duplicate
           </button>
+          {onSaveAsTemplate && (
+            <button onClick={() => { setOpen(false); onSaveAsTemplate(); }} className="pv-menu-item">
+              <span className="pv-menu-item-icon"><Icon name="FileText" className="w-3.5 h-3.5" /></span>
+              Save as Template
+            </button>
+          )}
           {onShare && (
             <button onClick={() => { setOpen(false); onShare(); }} className="pv-menu-item">
               <span className="pv-menu-item-icon"><Icon name="Share2" className="w-3.5 h-3.5" /></span>
@@ -272,6 +278,7 @@ const BoardColumn = ({
   onTitleSave,
   onColourChange,
   onShare,
+  onSaveAsTemplate,
   collaborators,
 }) => {
   const currencySymbol = CURRENCY_SYMBOLS[list.currency] || '$';
@@ -423,6 +430,7 @@ const BoardColumn = ({
               onDuplicate={onDuplicate}
               onDeleteClick={() => setConfirmDelete(true)}
               onShare={onShare ? () => onShare(list) : undefined}
+              onSaveAsTemplate={onSaveAsTemplate}
               currentColour={colour}
               onColourSelect={handleColourSelect}
             />
