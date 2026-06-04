@@ -2407,6 +2407,75 @@ export const markOrderSent = async (orderId, sentVia = 'email') => {
   return data;
 };
 
+// ── Quick Add — favourites + apply ───────────────────────────────────────────
+// Tier + dept gate runs server-side inside the RPCs (see migration
+// 20260604120000_supplier_orders_quick_add.sql). The client just calls them;
+// errors thrown by Postgres surface in the catch and feed the toast layer.
+
+export const toggleSupplierOrderFavourite = async (orderId) => {
+  const { data, error } = await supabase
+    .rpc('toggle_supplier_order_favourite', { p_order_id: orderId });
+  if (error) throw error;
+  return data;  // updated supplier_orders row
+};
+
+export const fetchQuickAddFavourites = async (tenantId) => {
+  const { data, error } = await supabase
+    .rpc('get_quick_add_favourites', { p_tenant_id: tenantId });
+  if (error) throw error;
+  return data || [];
+};
+
+// Apply a favourited supplier_order onto an existing board. Faithful copy
+// from the strict-snapshot columns added in migration 20260604120000:
+// brand / size / category / sub_category / department / allergen_flags /
+// supplier_profile_id all come across, so the new board row identifies
+// the SPECIFIC item, not the generic name. Quantity comes across as-is —
+// no guest-count scaling, no de-dupe, no warning (per Quick Add brief).
+//
+// Naming bridges:
+//   supplier_order_items.item_name        → provisioning_items.name
+//   supplier_order_items.quantity         → provisioning_items.quantity_ordered
+//   supplier_order_items.estimated_price  → provisioning_items.estimated_unit_cost
+//   supplier_order_items.estimated_currency → provisioning_items.currency
+//
+// Returns the saved provisioning_items rows.
+export const applyFavouriteOrder = async (orderId, listId) => {
+  const { data: rows, error: readErr } = await supabase
+    .from('supplier_order_items')
+    .select('item_name, quantity, unit, notes, brand, size, category, sub_category, department, allergen_flags, supplier_profile_id, estimated_price, estimated_currency')
+    .eq('order_id', orderId);
+  if (readErr) throw readErr;
+  if (!rows || rows.length === 0) return [];
+
+  const newItems = rows.map(it => ({
+    list_id:             listId,
+    name:                it.item_name,
+    quantity_ordered:    it.quantity ?? 1,
+    quantity_received:   null,
+    unit:                it.unit || null,
+    notes:               it.notes || null,
+    brand:               it.brand || null,
+    size:                it.size || null,
+    category:            it.category || null,
+    sub_category:        it.sub_category || null,
+    department:          it.department || null,
+    allergen_flags:      it.allergen_flags || [],
+    supplier_profile_id: it.supplier_profile_id || null,
+    estimated_unit_cost: it.estimated_price ?? null,
+    currency:            it.estimated_currency || null,
+    status:              'draft',
+    // source: intentionally NOT set. The original CHECK constraint
+    // (migration 20260325100000) enumerates manual / guest_preference /
+    // low_stock / invoice_pattern / smart_suggestion / location_aware —
+    // 'favourite' is not in that set. Column is nullable, so omission
+    // is safe; the row's provenance is implicit in the timestamp +
+    // batch of items that landed together.
+  }));
+
+  return await upsertItems(newItems);
+};
+
 // Fetch the activity log for a supplier order from the vessel side.
 // Newest events first. Reads supplier_order_activity directly via the
 // vessel-side RLS policy added in Sprint 9c.2 Commit 1.5b.
