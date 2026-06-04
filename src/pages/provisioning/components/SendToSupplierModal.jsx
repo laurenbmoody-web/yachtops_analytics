@@ -224,6 +224,17 @@ const SendToSupplierModal = ({
     const orderItems = unsent.map(r => ({
       name: r.item.name, quantity: r.item.quantity, unit: r.item.unit,
       notes: r.item.notes, estimated_price: r.item.estimated_price ?? null,
+      // Quick Add strict-snapshot — pass through every field the
+      // apply-favourite path needs to faithfully re-order this
+      // specific item. createSupplierOrder persists them onto
+      // supplier_order_items (see migration 20260604120000).
+      brand:               r.item.brand          || null,
+      size:                r.item.size           || null,
+      category:            r.item.category       || null,
+      sub_category:        r.item.sub_category   || null,
+      department:          r.item.department     || null,
+      allergen_flags:      r.item.allergen_flags || [],
+      supplier_profile_id: r.item.supplier_profile_id || null,
     }));
 
     if (via === 'email' && (!supplierEmail || !supplierEmail.includes('@'))) {
