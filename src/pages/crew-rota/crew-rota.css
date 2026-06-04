@@ -3320,14 +3320,21 @@
   font-style: italic;
 }
 .cw-day-head.is-weekend .cw-day-head-num { color: #5F5E5A; }
-.cw-day-head.is-today .cw-day-head-dow,
-.cw-day-head.is-today .cw-day-head-num,
-.cw-day-head.is-today .cw-day-head-mon {
+/* Today is signalled text-only on the date NUMBER. DOW and month abbrev
+   stay in their default warm-gray — terracotta on those would double up
+   the signal. Background fill is also dropped: when selectedDate === today
+   (the default entry), .is-selected would add cream #ECE6DC to the
+   day-head; override to transparent so the today + selected combination
+   reads as the bare terracotta number, not a cream column. */
+.cw-day-head.is-today .cw-day-head-num {
   color: #C65A1A;
+  font-weight: 500;
 }
-.cw-day-head.is-today .cw-day-head-num { font-weight: 500; }
 .cw-day-head.is-selected {
   background: #ECE6DC;
+}
+.cw-day-head.is-today.is-selected {
+  background: transparent;
 }
 
 /* Dept group — flex: 22px sticky colour strip + crew rows.
@@ -3434,12 +3441,12 @@
 }
 .cw-c.sat { background: #EDEAE3; }
 .cw-c:hover { outline: 0.5px solid #C65A1A; }
-/* Selected (gray) is a weaker marker; today (terracotta) wins when both
-   apply, which is the common case when entering week view on default
-   (selectedDate === today === leftmost column). */
+/* Selected column gets a subtle gray outline — the only column-level cue
+   that needs to exist (there's no date-text-colour cue for "selected" the
+   way there is for "today"). Today does NOT get a per-cell outline: it's
+   signalled text-only on the date number in the day header. When today
+   === selected on the same column, only the selected gray outline applies. */
 .cw-c.is-selected-col { outline: 0.5px solid #C9C0AE; }
-.cw-c.is-today-col:not(.f) { outline: 0.5px solid #C65A1A; }
-.cw-c.is-today-col.is-selected-col { outline: 0.5px solid #C65A1A; }
 .cw-c.is-warn.f {
   /* Warning on a scheduled cell: keep navy fill, hint via meta colour. */
   background: #1C1B3A;
