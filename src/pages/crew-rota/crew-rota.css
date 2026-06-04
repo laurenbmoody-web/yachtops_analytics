@@ -3322,19 +3322,21 @@
 .cw-day-head.is-weekend .cw-day-head-num { color: #5F5E5A; }
 /* Today is signalled text-only on the date NUMBER. DOW and month abbrev
    stay in their default warm-gray — terracotta on those would double up
-   the signal. Background fill is also dropped: when selectedDate === today
-   (the default entry), .is-selected would add cream #ECE6DC to the
-   day-head; override to transparent so the today + selected combination
-   reads as the bare terracotta number, not a cream column. */
+   the signal. */
 .cw-day-head.is-today .cw-day-head-num {
   color: #C65A1A;
   font-weight: 500;
 }
+/* Selected and today are both text-only signals now. Selected has no
+   visual distinction in the cell grid — selection state lives in the
+   picker label ("Thu 28 May — Wed 3 June") and the chevron positions
+   at the matrix edges, both already visible above the grid. Today is
+   inferable only from the date number colour, so it persists.
+   The selectors are kept as no-op hooks for future subtle treatments
+   (border-style, font-weight, etc.) without needing to re-thread the
+   classes through the JSX. */
 .cw-day-head.is-selected {
-  background: #ECE6DC;
-}
-.cw-day-head.is-today.is-selected {
-  background: transparent;
+  /* intentionally empty — kept as a JSX hook */
 }
 
 /* Dept group — flex: 22px sticky colour strip + crew rows.
@@ -3441,12 +3443,14 @@
 }
 .cw-c.sat { background: #EDEAE3; }
 .cw-c:hover { outline: 0.5px solid #C65A1A; }
-/* Selected column gets a subtle gray outline — the only column-level cue
-   that needs to exist (there's no date-text-colour cue for "selected" the
-   way there is for "today"). Today does NOT get a per-cell outline: it's
-   signalled text-only on the date number in the day header. When today
-   === selected on the same column, only the selected gray outline applies. */
-.cw-c.is-selected-col { outline: 0.5px solid #C9C0AE; }
+/* Neither today nor selected adds a per-cell highlight. Today is signalled
+   text-only on the date number in the day header. Selected is inferable
+   from the picker label + chevron positions, both visible above the grid.
+   The .is-selected-col selector is kept as a no-op JSX hook for future
+   subtle treatments without re-threading the class. */
+.cw-c.is-selected-col {
+  /* intentionally empty — kept as a JSX hook */
+}
 .cw-c.is-warn.f {
   /* Warning on a scheduled cell: keep navy fill, hint via meta colour. */
   background: #1C1B3A;
