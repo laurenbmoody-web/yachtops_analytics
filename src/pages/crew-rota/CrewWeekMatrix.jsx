@@ -117,7 +117,8 @@ function DayHeader({ dateStr, isToday, isSelected, stepBack, stepForward }) {
   if (weekend) cls.push('is-weekend');
   return (
     <div className={cls.join(' ')}>
-      <div className="cw-day-head-row">
+      <div className="cw-day-head-dow">{WEEKDAY_SHORT[d.getDay()]}</div>
+      <div className="cw-day-head-num-row">
         {stepBack && (
           <button
             type="button"
@@ -125,13 +126,9 @@ function DayHeader({ dateStr, isToday, isSelected, stepBack, stepForward }) {
             onClick={stepBack}
             aria-label="Previous day"
             title="Slide window back one day"
-          ><ChevronLeft size={12} /></button>
+          ><ChevronLeft size={14} /></button>
         )}
-        <div className="cw-day-head-stack">
-          <div className="cw-day-head-dow">{WEEKDAY_SHORT[d.getDay()]}</div>
-          <div className="cw-day-head-num">{d.getDate()}</div>
-          <div className="cw-day-head-mon">{MONTH_SHORT[d.getMonth()]}</div>
-        </div>
+        <span className="cw-day-head-num">{d.getDate()}</span>
         {stepForward && (
           <button
             type="button"
@@ -139,9 +136,10 @@ function DayHeader({ dateStr, isToday, isSelected, stepBack, stepForward }) {
             onClick={stepForward}
             aria-label="Next day"
             title="Slide window forward one day"
-          ><ChevronRight size={12} /></button>
+          ><ChevronRight size={14} /></button>
         )}
       </div>
+      <div className="cw-day-head-mon">{MONTH_SHORT[d.getMonth()]}</div>
     </div>
   );
 }
