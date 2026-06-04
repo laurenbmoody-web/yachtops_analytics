@@ -34,6 +34,7 @@ import {
   acceptOrderItemQuote,
   declineOrderItemQuote,
   queryOrderItemQuote,
+  toggleSupplierOrderFavourite,
   PROVISIONING_STATUS,
   PROVISION_CATEGORIES,
   PROVISION_UNITS,
@@ -43,6 +44,7 @@ import {
 import SendToSupplierModal from './components/SendToSupplierModal';
 import InvoiceUploadModal, { PAYMENT_STATUS_OPTIONS } from './components/InvoiceUploadModal';
 import ItemDrawer from './components/ItemDrawer';
+import BoardDrawer from './components/BoardDrawer';
 import ReceiveDeliveryModal from './components/ReceiveDeliveryModal';
 import ConfirmDeliveryModal from './components/ConfirmDeliveryModal';
 import { loadTrips, findTripByAnyId } from '../trips-management-dashboard/utils/tripStorage';
@@ -254,6 +256,12 @@ const ProvisioningBoardDetail = () => {
   const [supplierOrders, setSupplierOrders] = useState([]);
   const [supplierOrdersLoading, setSupplierOrdersLoading] = useState(false);
 
+  // ── Quick Add panel (Favourites / Templates / Order History) ────────────
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  // Tracks which order card's star is mid-toggle so we can show a brief
+  // disabled state and avoid double-fires while the RPC is in flight.
+  const [favouritingOrderId, setFavouritingOrderId] = useState(null);
+
   // Sprint 9.5 quote workflow state
   const [quoteRowBusy, setQuoteRowBusy] = useState(null);   // item.id currently saving
   const [acceptAllBusy, setAcceptAllBusy] = useState(null); // order.id currently bulk-accepting
@@ -363,6 +371,17 @@ const ProvisioningBoardDetail = () => {
   // Send to supplier: COMMAND and CHIEF only — isOwner intentionally excluded
   // so a CREW member who created a board cannot bypass the tier restriction.
   const canSendToSupplier = userTier === 'COMMAND' || userTier === 'CHIEF';
+
+  // Quick Add — star/unstar a supplier_order. UI gate is for affordance
+  // only (button greys out for non-CHIEF/HOD tiers so they don't click
+  // into a guaranteed rejection). The actual gate is server-side inside
+  // toggle_supplier_order_favourite — COMMAND can star any tenant order,
+  // CHIEF must intersect dept with the order's departments[]. HOD also
+  // gets the affordance because they're dept-scoped curators in the
+  // tier hierarchy, even though only COMMAND/CHIEF pass the RPC check
+  // today — surface a clear toast on the rejection so HOD's intent is
+  // visible rather than silently ignored.
+  const canFavouriteOrder = ['COMMAND', 'CHIEF', 'HOD'].includes(userTier);
 
   // Item-locking: once an order has been sent, board items that appear in any
   // supplier_order_items row become read-only until the board is back to draft.
@@ -743,6 +762,42 @@ const ProvisioningBoardDetail = () => {
       return updated ? { ...prev, item: { ...prev.item, ...updated } } : prev;
     });
   }, []);
+
+  // Quick Add: Apply-favourite / Apply-template / Add-from-history callbacks
+  // route here. The drawer hands back the saved provisioning_items rows;
+  // we append them to the board's items state. Matches the homepage's
+  // handleAddItemsFromDrawer pattern but for the flat (single-board) state.
+  const handleAddItemsFromQuickAdd = useCallback((listId, newItems) => {
+    if (!Array.isArray(newItems) || newItems.length === 0) return;
+    setItems(prev => [...prev, ...newItems]);
+  }, []);
+
+  // Star toggle on an order card. Optimistic update — flip locally first,
+  // revert on RPC rejection (tier/dept gate fires inside
+  // toggle_supplier_order_favourite). The RPC error message becomes the
+  // toast verbatim so the crew sees exactly why a curate attempt was
+  // refused (e.g. "Only the department head can favourite orders").
+  const handleToggleFavourite = async (order) => {
+    if (favouritingOrderId) return;
+    setFavouritingOrderId(order.id);
+    const next = !order.is_favourite;
+    // Optimistic: update local row immediately
+    setSupplierOrders(prev => prev.map(o => o.id === order.id
+      ? { ...o, is_favourite: next, favourited_at: next ? new Date().toISOString() : null }
+      : o));
+    try {
+      await toggleSupplierOrderFavourite(order.id);
+    } catch (err) {
+      // Revert
+      setSupplierOrders(prev => prev.map(o => o.id === order.id
+        ? { ...o, is_favourite: !next, favourited_at: order.favourited_at }
+        : o));
+      const msg = err?.message || 'Could not update favourite';
+      showToast(msg, 'error');
+    } finally {
+      setFavouritingOrderId(null);
+    }
+  };
 
   // ── Board actions ─────────────────────────────────────────────────────────
 
@@ -1220,10 +1275,10 @@ const ProvisioningBoardDetail = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => showToast('Templates coming soon', 'success')}
+                  onClick={() => setQuickAddOpen(true)}
                   className="cargo-ribbon-btn"
                 >
-                  <Icon name="FileText" style={{ width: 13, height: 13 }} /> Templates
+                  <Icon name="FileText" style={{ width: 13, height: 13 }} /> Quick Add
                 </button>
                 <button
                   type="button"
@@ -2532,6 +2587,32 @@ const ProvisioningBoardDetail = () => {
                             )}
                           </div>
                         </div>
+                        {/* Quick Add — star toggle. UI gate hides the
+                            affordance from CREW; server gate is the
+                            actual policy (RPC raises with a clear
+                            message that becomes the toast). */}
+                        {canFavouriteOrder && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleToggleFavourite(order); }}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}
+                            disabled={favouritingOrderId === order.id}
+                            title={order.is_favourite ? 'Unfavourite this order' : 'Favourite this order'}
+                            aria-label={order.is_favourite ? 'Unfavourite' : 'Favourite'}
+                            style={{
+                              background: 'none',
+                              border: 0,
+                              padding: '2px 6px',
+                              cursor: favouritingOrderId === order.id ? 'default' : 'pointer',
+                              fontSize: 18,
+                              lineHeight: 1,
+                              color: order.is_favourite ? '#C65A1A' : '#94A3B8',
+                              opacity: favouritingOrderId === order.id ? 0.5 : 1,
+                            }}
+                          >
+                            {order.is_favourite ? '★' : '☆'}
+                          </button>
+                        )}
                         <span
                           className="cargo-order-card-status"
                           style={{ background: statusColor.bg, color: statusColor.text }}
@@ -2726,6 +2807,19 @@ const ProvisioningBoardDetail = () => {
           setItemDrawer({ open: false, item: null });
         }}
         onClose={() => setItemDrawer({ open: false, item: null })}
+      />
+
+      {/* Quick Add — Favourites / Templates / Order History.
+          Mounted here so the board-detail Templates ribbon button has
+          a real target. Drawer's title comes from BoardDrawer's
+          DRAWER_TITLES['templates'] = 'Quick Add'. */}
+      <BoardDrawer
+        open={quickAddOpen}
+        mode="templates"
+        list={list}
+        tenantId={activeTenantId}
+        onAddItems={handleAddItemsFromQuickAdd}
+        onClose={() => setQuickAddOpen(false)}
       />
 
       {/* Query placeholder — Sprint 9.5 stub. Real threading is a future

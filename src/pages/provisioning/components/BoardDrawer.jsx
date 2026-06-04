@@ -13,6 +13,8 @@ import {
   fetchMasterOrderHistory,
   fetchListItems,
   upsertItems,
+  fetchQuickAddFavourites,
+  applyFavouriteOrder,
   PROVISIONING_STATUS,
   formatCurrency,
 } from '../utils/provisioningStorage';
@@ -534,10 +536,23 @@ const SuggestionsMode = ({ list, tenantId, onAddItems }) => {
   return <SmartSuggestionsPanel suggestions={suggestions} onAdd={handleAdd} onAddAll={handleAdd} loading={loading} />;
 };
 
-// ── Templates & History mode ─────────────────────────────────────────────────
+// ── Quick Add mode ───────────────────────────────────────────────────────────
+// Hosts three discrete sources for adding items onto a board:
+//   • Favourites    — CHIEF/HOD-starred whole supplier_orders. Dept-scoped
+//                     via the get_quick_add_favourites RPC. Apply-favourite
+//                     restores the strict snapshot persisted on
+//                     supplier_order_items (brand / size / dept / etc).
+//   • Templates     — user-saved boards (provisioning_lists.is_template).
+//   • Order History — frequently-ordered items aggregated across past
+//                     boards. Multi-select with checkboxes.
+//
+// Tabs are the right primitive for three discrete sources. Favourites is
+// the default tab (highest expected traffic — "re-order what worked"
+// outweighs "load a generic template" or "browse past items").
 
 const TemplatesMode = ({ list, tenantId, onAddItems }) => {
-  const [tab, setTab] = useState('templates');
+  const [tab, setTab] = useState('favourites');
+  const [favourites, setFavourites] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -548,6 +563,10 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
   const [previewItems, setPreviewItems] = useState({});
   const [previewLoading, setPreviewLoading] = useState({});
 
+  // Favourites tab — per-card busy state so a slow Apply doesn't block
+  // sibling cards.
+  const [applyingFavId, setApplyingFavId] = useState(null);
+
   // History tab
   const [checkedItems, setCheckedItems] = useState(new Set());
   const [infoPopover, setInfoPopover] = useState(null);
@@ -557,8 +576,16 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
     const load = async () => {
       setLoading(true);
       try {
-        const [tpl, hist] = await Promise.all([fetchTemplates(tenantId), fetchMasterOrderHistory(tenantId)]);
-        if (!cancelled) { setTemplates(tpl); setHistory(hist); }
+        const [favs, tpl, hist] = await Promise.all([
+          fetchQuickAddFavourites(tenantId).catch(() => []),
+          fetchTemplates(tenantId),
+          fetchMasterOrderHistory(tenantId),
+        ]);
+        if (!cancelled) {
+          setFavourites(favs);
+          setTemplates(tpl);
+          setHistory(hist);
+        }
       } catch {
         // silent
       } finally {
@@ -568,6 +595,24 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
     load();
     return () => { cancelled = true; };
   }, [tenantId]);
+
+  const handleApplyFavourite = async (fav) => {
+    setApplyingFavId(fav.id);
+    try {
+      const saved = await applyFavouriteOrder(fav.id, list.id);
+      if (saved && saved.length) {
+        onAddItems(list.id, saved);
+        showToast(`Added ${saved.length} item${saved.length === 1 ? '' : 's'} from ${fav.supplier_name}`, 'success');
+      } else {
+        showToast(`No items found on ${fav.supplier_name} — nothing added`, 'error');
+      }
+    } catch (err) {
+      console.error('[Quick Add] applyFavouriteOrder error:', err);
+      showToast(`Couldn't add items — ${err.message || err}`, 'error');
+    } finally {
+      setApplyingFavId(null);
+    }
+  };
 
   const handleApplyTemplate = async (tpl) => {
     try {
@@ -684,23 +729,73 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
 
   return (
     <div className="space-y-4">
-      {/* Tabs */}
+      {/* Tabs — Favourites is the default surface */}
       <div className="bd-tab-bar">
-        {['templates', 'history'].map(t => (
+        {[
+          { key: 'favourites', label: 'Favourites' },
+          { key: 'templates',  label: 'Templates' },
+          { key: 'history',    label: 'Order History' },
+        ].map(t => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`bd-tab${tab === t ? ' bd-tab-active' : ''}`}
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`bd-tab${tab === t.key ? ' bd-tab-active' : ''}`}
           >
-            {t === 'templates' ? 'Templates' : 'Order History'}
+            {t.label}
           </button>
         ))}
       </div>
 
-      {tab === 'templates' ? (
+      {tab === 'favourites' ? (
+        <div className="space-y-2">
+          {favourites.length === 0 && (
+            <p className="text-sm text-center py-6 bd-muted">
+              No favourited orders yet. Star an order from the Orders tab to add it here.
+            </p>
+          )}
+          {favourites.map(fav => {
+            const depts = Array.isArray(fav.departments) ? fav.departments.filter(Boolean) : [];
+            const orderDate = fav.sent_at || fav.created_at;
+            const formattedDate = orderDate
+              ? new Date(orderDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+              : '';
+            const isApplying = applyingFavId === fav.id;
+            return (
+              <div key={fav.id} className="bd-card">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium bd-strong">{fav.supplier_name || 'Supplier'}</p>
+                    <p className="text-[10px] mt-0.5 bd-muted">
+                      {Number(fav.item_count) || 0} item{Number(fav.item_count) === 1 ? '' : 's'}
+                      {formattedDate ? ` · ${formattedDate}` : ''}
+                    </p>
+                    {depts.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {depts.map(d => (
+                          <span key={d} className="bd-tag">{d}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => handleApplyFavourite(fav)}
+                    disabled={isApplying || !!applyingFavId}
+                    className="bd-btn-accent"
+                    style={isApplying || applyingFavId ? { opacity: 0.6, cursor: 'default' } : null}
+                  >
+                    {isApplying ? 'Applying…' : 'Apply'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : tab === 'templates' ? (
         <div className="space-y-2">
           {templates.length === 0 && (
-            <p className="text-sm text-center py-6 bd-muted">No templates saved yet.</p>
+            <p className="text-sm text-center py-6 bd-muted">
+              No saved templates yet. Save a board as a template from the three-dot menu.
+            </p>
           )}
           {templates.map(tpl => {
             const depts = Array.isArray(tpl.department)
@@ -762,6 +857,12 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
               </div>
             );
           })}
+          {/* Save-as-template affordance — the smallest honest move:
+              a tip pointing at the existing three-dot-menu action,
+              not a duplicate inline button. */}
+          <p className="text-[11px] text-center mt-3 bd-faint" style={{ fontStyle: 'italic' }}>
+            Save this board as a template from the three-dot menu on the board card.
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -872,7 +973,7 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
 const DRAWER_TITLES = {
   edit: 'Board Details',
   suggestions: 'Smart Suggestions',
-  templates: 'Templates & History',
+  templates: 'Quick Add',
 };
 
 const BoardDrawer = ({ open, mode, list, trips, tenantId, departments = [], onSaved, onDeleted, onAddItems, onClose }) => {
