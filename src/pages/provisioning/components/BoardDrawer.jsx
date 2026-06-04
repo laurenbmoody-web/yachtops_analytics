@@ -620,15 +620,19 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
       const newItems = items.map(({ id, created_at, ...rest }) => ({
         ...rest,
         list_id: list.id,
-        status: 'pending',
+        status: 'draft',
         quantity_received: null,
       }));
       if (newItems.length) {
         const saved = await upsertItems(newItems);
         onAddItems(list.id, saved);
+        showToast(`Added ${saved.length} item${saved.length === 1 ? '' : 's'} from "${tpl.title}"`, 'success');
+      } else {
+        showToast(`No items found in "${tpl.title}" — nothing added`, 'error');
       }
-    } catch {
-      // silent
+    } catch (err) {
+      console.error('[Quick Add] applyTemplate error:', err);
+      showToast(`Couldn't apply template — ${err.message || err}`, 'error');
     }
   };
 
@@ -694,6 +698,14 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
   const handleAddSelected = async () => {
     const allHistItems = Object.values(groupedHistory).flatMap(cats => Object.values(cats).flat());
     const toAdd = allHistItems.filter(h => checkedItems.has(histKey(h)));
+    // status: 'draft' to match all other Quick Add apply paths (Favourite,
+    // Template) — one source of truth for "items applied from Quick Add
+    // start as draft". source is intentionally omitted; the original
+    // provisioning_items source CHECK enumerates manual / guest_preference /
+    // low_stock / invoice_pattern / smart_suggestion / location_aware,
+    // and 'history' isn't in that set. Provenance is implicit in the
+    // timestamp + batch arrival until the CHECK is relaxed in a future
+    // follow-up.
     const newItems = toAdd.map(h => ({
       list_id: list.id,
       name: h.name,
@@ -704,15 +716,16 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
       department: h.department || '',
       unit: h.unit || 'each',
       quantity_ordered: null,
-      source: 'history',
-      status: 'pending',
+      status: 'draft',
     }));
     try {
       const saved = await upsertItems(newItems);
       onAddItems(list.id, saved);
       setCheckedItems(new Set());
-    } catch {
-      // silent
+      showToast(`Added ${saved.length} item${saved.length === 1 ? '' : 's'} from order history`, 'success');
+    } catch (err) {
+      console.error('[Quick Add] addFromHistory error:', err);
+      showToast(`Couldn't add items — ${err.message || err}`, 'error');
     }
   };
 
