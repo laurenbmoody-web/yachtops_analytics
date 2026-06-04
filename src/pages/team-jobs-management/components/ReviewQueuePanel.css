@@ -1,0 +1,504 @@
+/* ============================================================
+   Team Jobs — Review Queue Panel
+   Editorial restyle. Token-based: requires the parent root to be
+   inside .editorial-page (the wrapper inside ReviewQueuePanel.jsx
+   provides it) so var(--ink), var(--accent), etc. resolve.
+   ============================================================ */
+
+.rq-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 27, 58, 0.3);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 999;
+}
+.rq-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 1080px;
+  width: calc(100% - 48px);
+  max-height: calc(100vh - 48px);
+  background: var(--bg-card);
+  border-top: 2px solid var(--accent);
+  border-radius: 16px;
+  z-index: 1000;
+  box-shadow: 0 24px 60px -12px rgba(28, 27, 58, 0.28),
+              0 8px 24px -8px rgba(28, 27, 58, 0.14);
+  font-family: var(--font-sans);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Header */
+.rq-header {
+  padding: 22px 28px 16px;
+  border-bottom: 0.5px solid var(--p-border);
+}
+.rq-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.rq-eyebrow {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-tertiary);
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+.rq-title {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  line-height: 1.05;
+  color: var(--ink);
+  margin: 0;
+  font-weight: 500;
+}
+.rq-title em {
+  color: var(--accent);
+  font-style: italic;
+  font-weight: 400;
+}
+.rq-subtitle {
+  font-size: 11px;
+  color: var(--ink-tertiary);
+  margin-top: 8px;
+  font-style: italic;
+}
+.rq-close {
+  background: transparent;
+  border: 0.5px solid var(--p-border);
+  border-radius: 999px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.rq-close:hover { background: #FAFAF7; color: var(--ink); }
+
+/* Tabs — mirror crew-rota-pill semantics */
+.rq-tabs {
+  display: flex;
+  gap: 6px;
+  margin-top: 16px;
+}
+.rq-tab {
+  background: transparent;
+  color: var(--ink);
+  border: 0.5px solid var(--p-border);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.rq-tab.active {
+  background: var(--ink);
+  color: var(--bg-canvas);
+  border-color: var(--ink);
+}
+
+/* Body: master/detail */
+.rq-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.rq-list {
+  width: 36%;
+  border-right: 0.5px solid var(--p-border);
+  overflow-y: auto;
+  background: #FAFAF7;
+  min-width: 280px;
+}
+.rq-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 32px;
+  text-align: center;
+  color: var(--ink-tertiary);
+}
+.rq-empty-msg {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-muted);
+  margin-top: 12px;
+}
+.rq-empty-sub {
+  font-size: 11px;
+  color: var(--ink-tertiary);
+  margin-top: 4px;
+}
+.rq-list-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 14px 18px 14px 16px;
+  border: none;
+  border-bottom: 0.5px solid #ECE6DC;
+  border-left: 2px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: background 0.12s, border-left-color 0.12s;
+}
+.rq-list-item:hover { background: var(--bg-card); }
+.rq-list-item.is-selected {
+  background: var(--bg-card);
+  border-left-color: var(--accent);
+}
+.rq-list-item-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.rq-list-item-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rq-list-item-by {
+  font-size: 11px;
+  color: var(--ink-tertiary);
+  margin-top: 4px;
+}
+.rq-list-item-date {
+  font-size: 10px;
+  color: var(--ink-tertiary);
+  margin-top: 6px;
+  display: flex;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.rq-tag {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 0.5px solid var(--p-border);
+  color: var(--ink-muted);
+  background: var(--bg-card);
+  flex-shrink: 0;
+}
+.rq-tag.handoff {
+  color: var(--accent-deep);
+  background: var(--accent-soft);
+  border-color: #F5C9B8;
+}
+.rq-list-item-attach {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--ink-tertiary);
+  margin-top: 6px;
+}
+
+/* Detail pane */
+.rq-detail {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--bg-card);
+}
+.rq-detail-body {
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.rq-field-label {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-tertiary);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+.rq-field-value {
+  font-size: 13px;
+  color: var(--ink);
+}
+.rq-detail-title {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  line-height: 1.2;
+  color: var(--ink);
+  margin: 0;
+  font-weight: 500;
+}
+.rq-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+/* Handoff metadata card */
+.rq-handoff {
+  background: var(--accent-soft);
+  border: 0.5px solid #F5C9B8;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.rq-handoff-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-deep);
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.rq-handoff-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 18px;
+  font-size: 12px;
+  color: var(--ink-tertiary);
+}
+.rq-handoff-grid b {
+  display: block;
+  font-weight: 500;
+  color: var(--ink);
+  font-size: 13px;
+  margin-top: 2px;
+}
+.rq-handoff-note {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 0.5px solid #F5C9B8;
+}
+.rq-handoff-note-label {
+  font-size: 9px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--accent-deep);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.rq-handoff-note-text {
+  font-size: 12px;
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+/* Description, notes, attachments */
+.rq-description {
+  font-size: 13px;
+  color: var(--ink);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.rq-description.empty {
+  color: var(--ink-tertiary);
+  font-style: italic;
+}
+.rq-notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rq-note {
+  font-size: 12px;
+  color: var(--ink);
+}
+.rq-attachments {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 12px;
+}
+.rq-attachment {
+  border: 0.5px solid var(--p-border);
+  border-radius: 8px;
+  padding: 10px;
+  cursor: pointer;
+  background: var(--bg-card);
+}
+.rq-attachment:hover { border-color: var(--accent); }
+.rq-attachment-thumb {
+  width: 100%;
+  height: 110px;
+  border-radius: 6px;
+  object-fit: cover;
+  margin-bottom: 8px;
+  display: block;
+}
+.rq-attachment-thumb.file {
+  background: #F7F5F0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-tertiary);
+}
+.rq-attachment-name {
+  font-size: 11px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rq-attachment-size {
+  font-size: 10px;
+  color: var(--ink-tertiary);
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Inline reject form */
+.rq-reject {
+  background: var(--danger-soft);
+  border: 0.5px solid #F5C9B8;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.rq-reject-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent-deep);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.rq-reject-hint {
+  font-size: 11px;
+  color: var(--accent-deep);
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+.rq-textarea {
+  width: 100%;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--ink);
+  padding: 10px 12px;
+  border: 0.5px solid var(--p-border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  resize: vertical;
+  min-height: 80px;
+  box-sizing: border-box;
+}
+.rq-textarea:focus { outline: none; border-color: var(--accent); }
+.rq-reject-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* Buttons — same family as .rest-btn in the rota track */
+.rq-btn {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 999px;
+  padding: 10px 18px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  justify-content: center;
+  border: 0.5px solid transparent;
+}
+.rq-btn.primary {
+  background: var(--ink);
+  color: var(--bg-canvas);
+  border: none;
+}
+.rq-btn.primary:hover { background: #2A2948; }
+.rq-btn.ghost {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--p-border);
+}
+.rq-btn.ghost:hover { background: #FAFAF7; }
+.rq-btn.danger {
+  background: var(--accent-deep);
+  color: var(--bg-canvas);
+  border: none;
+}
+.rq-btn.danger:hover { background: #6A2419; }
+.rq-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.rq-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 18px;
+  border-top: 0.5px solid var(--p-border);
+}
+
+/* Inner modal (handoff reject reason / return for more info) */
+.rq-inner-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 27, 58, 0.3);
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.rq-inner-panel {
+  background: var(--bg-card);
+  border-radius: 16px;
+  border-top: 2px solid var(--accent);
+  padding: 24px 28px;
+  max-width: 460px;
+  width: 100%;
+  font-family: var(--font-sans);
+  color: var(--ink);
+  box-shadow: 0 24px 60px -12px rgba(28, 27, 58, 0.28);
+}
+.rq-inner-title {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  line-height: 1.15;
+  color: var(--ink);
+  margin: 0 0 8px;
+  font-weight: 500;
+}
+.rq-inner-body {
+  font-size: 12px;
+  color: var(--ink-muted);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+.rq-inner-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}

@@ -1,14 +1,35 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import Icon from '../../../components/AppIcon';
-import Button from '../../../components/ui/Button';
-
 import { useAuth } from '../../../contexts/AuthContext';
-
-
 import { normalizeTier, isCommand, isChief } from '../utils/tierPermissions';
+import '../../pantry/pantry.css';
+import './ReviewQueuePanel.css';
 
-const ReviewQueuePanel = ({ cards, onAccept, onReject, onEdit, onConvertToPlanned, onAcceptHandoff, onRejectHandoff, onReturnHandoff, onAcceptWithEdit, onClose, currentTenantMember, selectedDepartmentId }) => {
-  const { currentUser } = useAuth();
+// Canonical Cargo date/time formatting. Day-first "15 Mar 2026", 24h "14:30".
+// Inline rather than a shared util because the rest of the app inlines the
+// same toLocaleDateString call in place (provisioning, supplier pages, etc.) —
+// no central helper to lift to.
+function formatDate(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('en-GB', {
+    day: 'numeric', month: 'short', year: 'numeric',
+  });
+}
+function formatTime(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleTimeString('en-GB', {
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+}
+
+const ReviewQueuePanel = ({
+  cards, teamMembers, onAccept, onReject, onEdit, onConvertToPlanned,
+  onAcceptHandoff, onRejectHandoff, onReturnHandoff, onAcceptWithEdit,
+  onClose, currentTenantMember, selectedDepartmentId,
+}) => {
+  // currentUser is destructured for parity with the previous signature but
+  // unused — tier and dept come off currentTenantMember.
+  useAuth();
   const [selectedCard, setSelectedCard] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(null);
@@ -21,33 +42,52 @@ const ReviewQueuePanel = ({ cards, onAccept, onReject, onEdit, onConvertToPlanne
   const tier = normalizeTier(currentTenantMember?.permission_tier);
   const memberDeptId = currentTenantMember?.department_id;
 
-  // Pending acceptance jobs: filter by department for CHIEF, all for COMMAND
-  const pendingAcceptanceJobs = (cards || [])?.filter(card => {
+  // Resolve userId → display name from the teamMembers map. Falls back to
+  // "Crew member" rather than "Crew Member" so the unresolved case reads as
+  // copy not a placeholder. teamMembers is expected as either an array of
+  // { user_id, display_name } or a Map.
+  const nameById = useMemo(() => {
+    const m = new Map();
+    if (Array.isArray(teamMembers)) {
+      for (const tm of teamMembers) {
+        const uid = tm?.user_id || tm?.userId || tm?.id;
+        const name = tm?.display_name || tm?.name || tm?.full_name;
+        if (uid && name) m.set(uid, name);
+      }
+    } else if (teamMembers && typeof teamMembers.get === 'function') {
+      // Already a Map keyed by user_id → name.
+      teamMembers.forEach((v, k) => m.set(k, v?.display_name || v?.name || v));
+    }
+    return m;
+  }, [teamMembers]);
+  const getCrewMemberName = (userId) => {
+    if (!userId) return 'Crew member';
+    return nameById.get(userId) || 'Crew member';
+  };
+
+  const pendingAcceptanceJobs = (cards || [])?.filter((card) => {
     if (card?.status !== 'pending_acceptance' && card?.status !== 'pending_review') return false;
     if (isCommand(tier)) {
-      // COMMAND: if viewing a specific dept, filter to that dept; otherwise show all
       if (selectedDepartmentId && selectedDepartmentId !== 'ALL') {
         return card?.department_id === selectedDepartmentId || card?.department === selectedDepartmentId;
       }
       return true;
     }
     if (isChief(tier)) {
-      // CHIEF: only their own department's pending items
       return card?.department_id === memberDeptId || card?.pendingForDepartment === memberDeptId;
     }
     return false;
   });
-
-  // Self-reported jobs (legacy tab)
-  const pendingReviewJobs = pendingAcceptanceJobs?.filter(card =>
-    card?.jobType === 'self-reported' || card?.status === 'pending_review'
+  const pendingReviewJobs = pendingAcceptanceJobs?.filter((card) =>
+    card?.jobType === 'self-reported' || card?.status === 'pending_review',
+  );
+  const pendingHandoffJobs = pendingAcceptanceJobs?.filter((card) =>
+    card?.jobType === 'handoff' || card?.status === 'pending_acceptance',
   );
 
-  // Handoff / cross-dept jobs
-  const pendingHandoffJobs = pendingAcceptanceJobs?.filter(card =>
-    card?.jobType === 'handoff' || card?.status === 'pending_acceptance'
-  );
-
+  // NOTE — pre-existing logic bug, NOT touched here: when activeTab ===
+  // 'handoff' this falls through to pendingReviewJobs, so the Cross-Dept
+  // tab actually shows the Self-Reported list. Flagged for follow-up.
   const displayedJobs = activeTab === 'pending-acceptance' ? pendingAcceptanceJobs : pendingReviewJobs;
 
   const handleSelectCard = (card) => {
@@ -55,22 +95,17 @@ const ReviewQueuePanel = ({ cards, onAccept, onReject, onEdit, onConvertToPlanne
     setShowInlineReject(false);
     setInlineRejectNotes('');
   };
-
   const handleAcceptWithEdit = () => {
     if (!selectedCard) return;
     if (selectedCard?.jobType === 'handoff') {
       onAcceptHandoff(selectedCard?.id);
-    } else {
-      // Open job in edit/acceptance modal
-      if (onAcceptWithEdit) {
-        onAcceptWithEdit(selectedCard);
-      } else if (onAccept) {
-        onAccept(selectedCard?.id);
-      }
+    } else if (onAcceptWithEdit) {
+      onAcceptWithEdit(selectedCard);
+    } else if (onAccept) {
+      onAccept(selectedCard?.id);
     }
     setSelectedCard(null);
   };
-
   const handleInlineRejectConfirm = () => {
     if (!selectedCard || !inlineRejectNotes?.trim()) return;
     if (selectedCard?.jobType === 'handoff') {
@@ -82,7 +117,6 @@ const ReviewQueuePanel = ({ cards, onAccept, onReject, onEdit, onConvertToPlanne
     setInlineRejectNotes('');
     setSelectedCard(null);
   };
-
   const handleReject = () => {
     if (!showRejectModal) return;
     if (showRejectModal?.jobType === 'handoff') {
@@ -92,373 +126,257 @@ const ReviewQueuePanel = ({ cards, onAccept, onReject, onEdit, onConvertToPlanne
     }
     setShowRejectModal(null);
     setRejectReason('');
-    if (selectedCard?.id === showRejectModal?.id) {
-      setSelectedCard(null);
-    }
+    if (selectedCard?.id === showRejectModal?.id) setSelectedCard(null);
   };
-
   const handleReturn = () => {
     if (!showReturnModal) return;
     onReturnHandoff(showReturnModal?.id, returnComment);
     setShowReturnModal(null);
     setReturnComment('');
-    if (selectedCard?.id === showReturnModal?.id) {
-      setSelectedCard(null);
-    }
+    if (selectedCard?.id === showReturnModal?.id) setSelectedCard(null);
   };
 
-  const getCrewMemberName = (userId) => {
-    // In production, fetch from team members
-    return 'Crew Member';
-  };
-
-  const formatDate = (dateStr) => {
-    const date = new Date(dateStr);
-    return date?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
-
-  const formatTime = (dateStr) => {
-    const date = new Date(dateStr);
-    return date?.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-  };
+  const subtitle = `${pendingAcceptanceJobs?.length} item${pendingAcceptanceJobs?.length !== 1 ? 's' : ''} awaiting review`
+    + (isChief(tier) && memberDeptId ? ' for your department' : '');
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full h-[90vh] flex flex-col">
-        {/* Header */}
-        <div className="border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between mb-4">
+    <div className="editorial-page">
+      <div className="rq-backdrop" onClick={onClose} />
+      <div className="rq-panel" role="dialog" aria-modal="true" aria-label="Pending acceptance review queue">
+        <div className="rq-header">
+          <div className="rq-header-row">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Pending Acceptance</h2>
-              <p className="text-sm text-gray-500 mt-1">
-                {pendingAcceptanceJobs?.length} item{pendingAcceptanceJobs?.length !== 1 ? 's' : ''} awaiting review
-                {isChief(tier) && memberDeptId ? ' for your department' : ''}
-              </p>
+              <div className="rq-eyebrow">Review queue</div>
+              <h2 className="rq-title">Pending <em>acceptance</em>.</h2>
+              <div className="rq-subtitle">{subtitle}</div>
             </div>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <Icon name="X" size={24} />
+            <button type="button" className="rq-close" onClick={onClose} aria-label="Close">
+              <Icon name="X" size={16} />
             </button>
           </div>
-          
-          {/* Tabs */}
-          <div className="flex gap-2">
+
+          <div className="rq-tabs" role="tablist">
             <button
-              onClick={() => {
-                setActiveTab('pending-acceptance');
-                setSelectedCard(null);
-              }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === 'pending-acceptance' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              All Pending ({pendingAcceptanceJobs?.length})
-            </button>
+              type="button" role="tab" aria-selected={activeTab === 'pending-acceptance'}
+              className={`rq-tab${activeTab === 'pending-acceptance' ? ' active' : ''}`}
+              onClick={() => { setActiveTab('pending-acceptance'); setSelectedCard(null); }}
+            >All pending ({pendingAcceptanceJobs?.length})</button>
             <button
-              onClick={() => {
-                setActiveTab('self-reported');
-                setSelectedCard(null);
-              }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === 'self-reported' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              Self-Reported ({pendingReviewJobs?.length})
-            </button>
+              type="button" role="tab" aria-selected={activeTab === 'self-reported'}
+              className={`rq-tab${activeTab === 'self-reported' ? ' active' : ''}`}
+              onClick={() => { setActiveTab('self-reported'); setSelectedCard(null); }}
+            >Self-reported ({pendingReviewJobs?.length})</button>
             <button
-              onClick={() => {
-                setActiveTab('handoff');
-                setSelectedCard(null);
-              }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === 'handoff'
-                  ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              Cross-Dept ({pendingHandoffJobs?.length})
-            </button>
+              type="button" role="tab" aria-selected={activeTab === 'handoff'}
+              className={`rq-tab${activeTab === 'handoff' ? ' active' : ''}`}
+              onClick={() => { setActiveTab('handoff'); setSelectedCard(null); }}
+            >Cross-dept ({pendingHandoffJobs?.length})</button>
           </div>
         </div>
 
-        {/* Body */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Left: Job List */}
-          <div className="w-1/3 border-r border-gray-200 overflow-y-auto">
+        <div className="rq-body">
+          {/* Left: job list */}
+          <div className="rq-list">
             {displayedJobs?.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center px-6">
-                <Icon name="CheckCircle" size={48} className="text-gray-300 mb-3" />
-                <p className="text-gray-500 font-medium">All caught up!</p>
-                <p className="text-sm text-gray-400 mt-1">
-                  No pending {activeTab === 'self-reported' ? 'reviews' : 'handoffs'} at the moment
-                </p>
+              <div className="rq-empty">
+                <Icon name="CheckCircle" size={40} />
+                <div className="rq-empty-msg">All caught up</div>
+                <div className="rq-empty-sub">
+                  No pending {activeTab === 'self-reported' ? 'reviews' : activeTab === 'handoff' ? 'handoffs' : 'items'} at the moment
+                </div>
               </div>
             ) : (
-              <div className="divide-y divide-gray-200">
-                {displayedJobs?.map(card => (
-                  <div
-                    key={card?.id}
-                    onClick={() => handleSelectCard(card)}
-                    className={`p-4 cursor-pointer transition-colors ${
-                      selectedCard?.id === card?.id
-                        ? 'bg-blue-50 border-l-4 border-blue-500' :'hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-gray-900 truncate">{card?.title}</h3>
-                        <p className="text-sm text-gray-500 mt-1">
-                          {card?.jobType === 'handoff' 
-                            ? `From ${card?.handoffMetadata?.sourceDepartment} → ${card?.handoffMetadata?.targetDepartment}`
-                            : `By ${getCrewMemberName(card?.createdBy)}`
-                          }
-                        </p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className="text-xs text-gray-400">{formatDate(card?.createdAt)}</span>
-                          <span className="text-xs text-gray-400">{formatTime(card?.createdAt)}</span>
-                        </div>
-                      </div>
-                      <div className="flex-shrink-0">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          card?.jobType === 'handoff'
-                            ? 'bg-purple-100 text-purple-800' :'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {card?.jobType === 'handoff' ? 'Handoff' : 'Pending'}
-                        </span>
-                      </div>
-                    </div>
-                    {card?.attachments?.length > 0 && (
-                      <div className="flex items-center gap-1 mt-2 text-xs text-gray-500">
-                        <Icon name="Paperclip" size={12} />
-                        <span>{card?.attachments?.length} attachment{card?.attachments?.length > 1 ? 's' : ''}</span>
-                      </div>
-                    )}
+              displayedJobs?.map((card) => (
+                <button
+                  key={card?.id}
+                  type="button"
+                  onClick={() => handleSelectCard(card)}
+                  className={`rq-list-item${selectedCard?.id === card?.id ? ' is-selected' : ''}`}
+                >
+                  <div className="rq-list-item-head">
+                    <div className="rq-list-item-title">{card?.title}</div>
+                    <span className={`rq-tag${card?.jobType === 'handoff' ? ' handoff' : ''}`}>
+                      {card?.jobType === 'handoff' ? 'Handoff' : 'Pending'}
+                    </span>
                   </div>
-                ))}
-              </div>
+                  <div className="rq-list-item-by">
+                    {card?.jobType === 'handoff'
+                      ? `${card?.handoffMetadata?.sourceDepartment} → ${card?.handoffMetadata?.targetDepartment}`
+                      : `By ${getCrewMemberName(card?.createdBy)}`}
+                  </div>
+                  <div className="rq-list-item-date">
+                    <span>{formatDate(card?.createdAt)}</span>
+                    <span>{formatTime(card?.createdAt)}</span>
+                  </div>
+                  {card?.attachments?.length > 0 && (
+                    <div className="rq-list-item-attach">
+                      <Icon name="Paperclip" size={11} />
+                      <span>{card?.attachments?.length} attachment{card?.attachments?.length > 1 ? 's' : ''}</span>
+                    </div>
+                  )}
+                </button>
+              ))
             )}
           </div>
 
-          {/* Right: Job Detail */}
-          <div className="flex-1 overflow-y-auto">
+          {/* Right: detail */}
+          <div className="rq-detail">
             {!selectedCard ? (
-              <div className="flex flex-col items-center justify-center h-full text-center px-6">
-                <Icon name="ArrowLeft" size={48} className="text-gray-300 mb-3" />
-                <p className="text-gray-500 font-medium">Select a task to review</p>
-                <p className="text-sm text-gray-400 mt-1">Choose from the list on the left</p>
+              <div className="rq-empty">
+                <Icon name="ArrowLeft" size={40} />
+                <div className="rq-empty-msg">Select an item to review</div>
+                <div className="rq-empty-sub">Choose one from the list on the left</div>
               </div>
             ) : (
-              <div className="p-6 space-y-6">
-                {/* Title */}
+              <div className="rq-detail-body">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-2">
-                    Task Title
-                  </label>
-                  <h2 className="text-2xl font-semibold text-gray-900">{selectedCard?.title}</h2>
+                  <div className="rq-field-label">Task title</div>
+                  <h3 className="rq-detail-title">{selectedCard?.title}</h3>
                 </div>
 
-                {/* Handoff Metadata */}
                 {selectedCard?.jobType === 'handoff' && selectedCard?.handoffMetadata && (
-                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 space-y-2">
-                    <div className="flex items-center gap-2 text-purple-700">
-                      <Icon name="ArrowRightLeft" size={16} />
-                      <h4 className="font-medium text-sm">Cross-Department Handoff</h4>
+                  <div className="rq-handoff">
+                    <div className="rq-handoff-head">
+                      <Icon name="ArrowRightLeft" size={14} />
+                      <span>Cross-department handoff</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <span className="text-gray-600">From:</span>
-                        <span className="ml-2 font-medium text-gray-900">{selectedCard?.handoffMetadata?.sourceDepartment}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">To:</span>
-                        <span className="ml-2 font-medium text-gray-900">{selectedCard?.handoffMetadata?.targetDepartment}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Requested by:</span>
-                        <span className="ml-2 font-medium text-gray-900">{selectedCard?.handoffMetadata?.handoffByName}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Date:</span>
-                        <span className="ml-2 font-medium text-gray-900">{formatDate(selectedCard?.handoffMetadata?.handoffAt)}</span>
-                      </div>
+                    <div className="rq-handoff-grid">
+                      <div>From<b>{selectedCard?.handoffMetadata?.sourceDepartment}</b></div>
+                      <div>To<b>{selectedCard?.handoffMetadata?.targetDepartment}</b></div>
+                      <div>Requested by<b>{selectedCard?.handoffMetadata?.handoffByName}</b></div>
+                      <div>Date<b>{formatDate(selectedCard?.handoffMetadata?.handoffAt)}</b></div>
                     </div>
                     {selectedCard?.handoffMetadata?.handoffNote && (
-                      <div className="mt-2 pt-2 border-t border-purple-200">
-                        <span className="text-xs text-gray-600 uppercase">Handoff Note:</span>
-                        <p className="text-sm text-gray-900 mt-1">{selectedCard?.handoffMetadata?.handoffNote}</p>
+                      <div className="rq-handoff-note">
+                        <div className="rq-handoff-note-label">Handoff note</div>
+                        <div className="rq-handoff-note-text">{selectedCard?.handoffMetadata?.handoffNote}</div>
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* Metadata */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="rq-meta-grid">
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                      {selectedCard?.jobType === 'handoff' ? 'Requested By' : 'Reported By'}
-                    </label>
-                    <p className="text-sm text-gray-900">{getCrewMemberName(selectedCard?.createdBy)}</p>
+                    <div className="rq-field-label">
+                      {selectedCard?.jobType === 'handoff' ? 'Requested by' : 'Reported by'}
+                    </div>
+                    <div className="rq-field-value">{getCrewMemberName(selectedCard?.createdBy)}</div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                      Department
-                    </label>
-                    <p className="text-sm text-gray-900">{selectedCard?.department}</p>
+                    <div className="rq-field-label">Department</div>
+                    <div className="rq-field-value">{selectedCard?.department || '—'}</div>
                   </div>
                   {selectedCard?.jobType !== 'handoff' && selectedCard?.completedAt && (
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                        Completed At
-                      </label>
-                      <p className="text-sm text-gray-900">
+                      <div className="rq-field-label">Completed</div>
+                      <div className="rq-field-value">
                         {formatDate(selectedCard?.completedAt)} at {formatTime(selectedCard?.completedAt)}
-                      </p>
+                      </div>
                     </div>
                   )}
                 </div>
 
-                {/* Description */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-2">
-                    Description
-                  </label>
-                  <p className="text-gray-700 whitespace-pre-wrap">
+                  <div className="rq-field-label">Description</div>
+                  <div className={`rq-description${selectedCard?.description ? '' : ' empty'}`}>
                     {selectedCard?.description || 'No description provided'}
-                  </p>
+                  </div>
                 </div>
 
-                {/* Time Spent */}
                 {selectedCard?.notes?.length > 0 && (
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-2">
-                      Time Spent
-                    </label>
-                    {selectedCard?.notes?.map(note => (
-                      <p key={note?.id} className="text-sm text-gray-700">{note?.text}</p>
-                    ))}
+                    <div className="rq-field-label">Time spent</div>
+                    <div className="rq-notes-list">
+                      {selectedCard?.notes?.map((note) => (
+                        <div key={note?.id} className="rq-note">{note?.text}</div>
+                      ))}
+                    </div>
                   </div>
                 )}
 
-                {/* Attachments */}
                 {selectedCard?.attachments?.length > 0 && (
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-2">
-                      Attachments
-                    </label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {selectedCard?.attachments?.map(attachment => (
-                        <div
-                          key={attachment?.id}
-                          className="border border-gray-200 rounded-lg p-3 hover:border-blue-500 transition-colors cursor-pointer"
-                        >
+                    <div className="rq-field-label">Attachments</div>
+                    <div className="rq-attachments">
+                      {selectedCard?.attachments?.map((attachment) => (
+                        <div key={attachment?.id} className="rq-attachment">
                           {attachment?.type?.startsWith('image/') ? (
-                            <img
-                              src={attachment?.url}
-                              alt={attachment?.name}
-                              className="w-full h-32 object-cover rounded mb-2"
-                            />
+                            <img src={attachment?.url} alt={attachment?.name} className="rq-attachment-thumb" />
                           ) : (
-                            <div className="w-full h-32 bg-gray-100 rounded mb-2 flex items-center justify-center">
-                              <Icon name="file" size={32} className="text-gray-400" />
+                            <div className="rq-attachment-thumb file">
+                              <Icon name="file" size={28} />
                             </div>
                           )}
-                          <p className="text-xs text-gray-700 truncate">{attachment?.name}</p>
-                          <p className="text-xs text-gray-400">
+                          <div className="rq-attachment-name">{attachment?.name}</div>
+                          <div className="rq-attachment-size">
                             {(attachment?.size / 1024)?.toFixed(1)} KB
-                          </p>
+                          </div>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* Inline Reject Notes */}
                 {showInlineReject && (
-                  <div className="border border-red-200 bg-red-50 rounded-lg p-4 space-y-3">
-                    <div className="flex items-center gap-2 text-red-700">
-                      <Icon name="XCircle" size={16} />
-                      <h4 className="font-medium text-sm">Rejection Notes</h4>
+                  <div className="rq-reject">
+                    <div className="rq-reject-head">
+                      <Icon name="XCircle" size={14} />
+                      <span>Rejection notes</span>
                     </div>
-                    <p className="text-xs text-red-600">
+                    <div className="rq-reject-hint">
                       These notes will be sent back to the job creator as a notification.
-                    </p>
+                    </div>
                     <textarea
+                      className="rq-textarea"
                       value={inlineRejectNotes}
                       onChange={(e) => setInlineRejectNotes(e?.target?.value)}
-                      placeholder="Explain why this job is being rejected..."
+                      placeholder="Explain why this job is being rejected…"
                       rows={3}
-                      className="w-full px-3 py-2 border border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-400 text-sm text-gray-900"
                     />
-                    <div className="flex items-center gap-2">
+                    <div className="rq-reject-actions">
                       <button
+                        type="button" className="rq-btn ghost"
                         onClick={() => { setShowInlineReject(false); setInlineRejectNotes(''); }}
-                        className="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                      >
-                        Cancel
-                      </button>
+                      >Cancel</button>
                       <button
+                        type="button" className="rq-btn danger"
                         onClick={handleInlineRejectConfirm}
                         disabled={!inlineRejectNotes?.trim()}
-                        className="flex-1 px-3 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50 transition-colors"
-                      >
-                        Confirm Rejection
-                      </button>
+                      >Confirm rejection</button>
                     </div>
                   </div>
                 )}
 
-                {/* Action Buttons */}
                 {!showInlineReject && (
-                  <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
+                  <div className="rq-actions">
                     {selectedCard?.jobType === 'handoff' ? (
                       <>
-                        <Button
-                          variant="default"
-                          iconName="Check"
-                          onClick={handleAcceptWithEdit}
-                          fullWidth
-                        >
-                          Accept Handoff
-                        </Button>
-                        <Button
-                          variant="outline"
-                          iconName="CornerUpLeft"
-                          onClick={() => setShowReturnModal(selectedCard)}
-                          fullWidth
-                        >
+                        <button type="button" className="rq-btn primary" onClick={handleAcceptWithEdit}>
+                          <Icon name="Check" size={14} />
+                          Accept handoff
+                        </button>
+                        <button type="button" className="rq-btn ghost" onClick={() => setShowReturnModal(selectedCard)}>
+                          <Icon name="CornerUpLeft" size={14} />
                           Return
-                        </Button>
-                        <Button
-                          variant="outline"
-                          iconName="X"
-                          onClick={() => setShowRejectModal(selectedCard)}
-                          fullWidth
-                        >
+                        </button>
+                        <button type="button" className="rq-btn ghost" onClick={() => setShowRejectModal(selectedCard)}>
+                          <Icon name="X" size={14} />
                           Reject
-                        </Button>
+                        </button>
                       </>
                     ) : (
                       <>
-                        <Button
-                          variant="default"
-                          iconName="CheckCircle"
-                          onClick={handleAcceptWithEdit}
-                          fullWidth
-                        >
+                        <button type="button" className="rq-btn primary" onClick={handleAcceptWithEdit}>
+                          <Icon name="CheckCircle" size={14} />
                           Accept
-                        </Button>
-                        <Button
-                          variant="outline"
-                          iconName="XCircle"
-                          onClick={() => {
-                            setShowInlineReject(true);
-                            setInlineRejectNotes('');
-                          }}
-                          fullWidth
+                        </button>
+                        <button
+                          type="button" className="rq-btn ghost"
+                          onClick={() => { setShowInlineReject(true); setInlineRejectNotes(''); }}
                         >
+                          <Icon name="XCircle" size={14} />
                           Reject
-                        </Button>
+                        </button>
                       </>
                     )}
                   </div>
@@ -469,83 +387,59 @@ const ReviewQueuePanel = ({ cards, onAccept, onReject, onEdit, onConvertToPlanne
         </div>
       </div>
 
-      {/* Reject Modal (for handoff) */}
       {showRejectModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              {showRejectModal?.jobType === 'handoff' ? 'Reject Handoff' : 'Reject Task'}
+        <div className="rq-inner-backdrop" onClick={() => { setShowRejectModal(null); setRejectReason(''); }}>
+          <div className="rq-inner-panel" onClick={(e) => e.stopPropagation()}>
+            <h3 className="rq-inner-title">
+              {showRejectModal?.jobType === 'handoff' ? 'Reject handoff' : 'Reject task'}
             </h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Please provide a reason for rejection:
-            </p>
+            <div className="rq-inner-body">Please provide a reason for rejection.</div>
             <textarea
+              className="rq-textarea"
               value={rejectReason}
               onChange={(e) => setRejectReason(e?.target?.value)}
-              placeholder="Enter rejection reason..."
+              placeholder="Enter rejection reason…"
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 mb-4"
             />
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowRejectModal(null);
-                  setRejectReason('');
-                }}
-                fullWidth
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="default"
+            <div className="rq-inner-actions">
+              <button
+                type="button" className="rq-btn ghost"
+                onClick={() => { setShowRejectModal(null); setRejectReason(''); }}
+              >Cancel</button>
+              <button
+                type="button" className="rq-btn danger"
                 onClick={handleReject}
                 disabled={!rejectReason?.trim()}
-                fullWidth
-              >
-                Confirm Rejection
-              </Button>
+              >Confirm rejection</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Return Modal */}
       {showReturnModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Return Handoff for More Info
-            </h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Provide feedback on what additional information is needed:
-            </p>
+        <div className="rq-inner-backdrop" onClick={() => { setShowReturnModal(null); setReturnComment(''); }}>
+          <div className="rq-inner-panel" onClick={(e) => e.stopPropagation()}>
+            <h3 className="rq-inner-title">Return handoff for more info</h3>
+            <div className="rq-inner-body">
+              Provide feedback on what additional information is needed.
+            </div>
             <textarea
+              className="rq-textarea"
               value={returnComment}
               onChange={(e) => setReturnComment(e?.target?.value)}
-              placeholder="Enter feedback or questions..."
+              placeholder="Enter feedback or questions…"
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
             />
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowReturnModal(null);
-                  setReturnComment('');
-                }}
-                fullWidth
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="default"
+            <div className="rq-inner-actions">
+              <button
+                type="button" className="rq-btn ghost"
+                onClick={() => { setShowReturnModal(null); setReturnComment(''); }}
+              >Cancel</button>
+              <button
+                type="button" className="rq-btn primary"
                 onClick={handleReturn}
                 disabled={!returnComment?.trim()}
-                fullWidth
-              >
-                Return to Sender
-              </Button>
+              >Return to sender</button>
             </div>
           </div>
         </div>

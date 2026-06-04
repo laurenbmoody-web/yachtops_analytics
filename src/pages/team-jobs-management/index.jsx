@@ -634,6 +634,55 @@ const TeamJobsManagement = () => {
     }
   }, [activeTenantId, loadingTenant, fetchDepartments]);
 
+  // ── Fetch team members (user_id → display_name) for the tenant ──
+  // Populates the previously-unused `teamMembers` state — was an empty array
+  // passed to ReviewQueuePanel, ComprehensiveJobModal and JobEditModal,
+  // causing ReviewQueuePanel.getCrewMemberName to fall back to the literal
+  // "Crew Member" placeholder. Pattern mirrors CreateTaskModal:114-165:
+  // tenant_members → in() lookup on profiles → display_name fallback chain.
+  useEffect(() => {
+    if (!activeTenantId || loadingTenant) return;
+    let alive = true;
+    (async () => {
+      const { data: tmData, error: tmErr } = await supabase
+        ?.from('tenant_members')
+        ?.select('user_id, department_id, permission_tier')
+        ?.eq('tenant_id', activeTenantId)
+        ?.eq('active', true);
+      if (tmErr || !alive || !tmData?.length) {
+        if (tmErr) console.warn('[TeamJobs] tenant_members fetch failed:', tmErr);
+        return;
+      }
+      const userIds = tmData?.map((tm) => tm?.user_id)?.filter(Boolean);
+      const { data: profilesData, error: pErr } = await supabase
+        ?.from('profiles')
+        ?.select('id, full_name, first_name, last_name, email')
+        ?.in('id', userIds);
+      if (pErr) console.warn('[TeamJobs] profiles fetch failed:', pErr);
+      if (!alive) return;
+      const profilesMap = {};
+      (profilesData || [])?.forEach((p) => { profilesMap[p.id] = p; });
+      const members = tmData?.map((tm) => {
+        const p = profilesMap?.[tm?.user_id];
+        const displayName =
+          p?.full_name
+          || [p?.first_name, p?.last_name]?.filter(Boolean)?.join(' ')
+          || p?.email
+          || tm?.user_id;
+        return {
+          id: tm?.user_id,
+          user_id: tm?.user_id,
+          department_id: tm?.department_id,
+          permission_tier: tm?.permission_tier,
+          display_name: displayName,
+          name: displayName,
+        };
+      });
+      setTeamMembers(members);
+    })();
+    return () => { alive = false; };
+  }, [activeTenantId, loadingTenant]);
+
   // ── Fetch jobs whenever departmentFilter or tenant changes ──
   useEffect(() => {
     if (!activeTenantId || loadingTenant) return;
@@ -2530,6 +2579,7 @@ onClick={() => canToggleDept && departments?.length > 0 && setShowDeptDropdown(!
         {showReviewQueue && (
           <ReviewQueuePanel
             cards={cards}
+            teamMembers={teamMembers}
             onClose={() => setShowReviewQueue(false)}
             onUpdate={(updatedCards) => { setCards(updatedCards); saveCards(updatedCards); }}
             onAccept={(updatedCards) => { setCards(updatedCards); saveCards(updatedCards); }}
