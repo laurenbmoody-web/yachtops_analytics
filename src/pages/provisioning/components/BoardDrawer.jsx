@@ -15,6 +15,7 @@ import {
   upsertItems,
   fetchQuickAddFavourites,
   applyOrderItems,
+  fetchPastOrders,
   PROVISIONING_STATUS,
   formatCurrency,
 } from '../utils/provisioningStorage';
@@ -551,7 +552,14 @@ const SuggestionsMode = ({ list, tenantId, onAddItems }) => {
 // outweighs "load a generic template" or "browse past items").
 
 const TemplatesMode = ({ list, tenantId, onAddItems }) => {
-  const [tab, setTab] = useState('favourites');
+  // Tabs (in render order): Past Orders / Favourites / Frequent Items / Templates.
+  // Past Orders is the default surface — most-recent-orders is the highest
+  // expected traffic for "what should I add now?" Favourites is curated
+  // memory; Frequent Items is aggregated signal; Templates is structured
+  // pre-builds. Past Orders sits front because it's chronological + the
+  // freshest mental model.
+  const [tab, setTab] = useState('past');
+  const [pastOrders, setPastOrders] = useState([]);
   const [favourites, setFavourites] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [history, setHistory] = useState([]);
@@ -567,7 +575,7 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
   // sibling cards.
   const [applyingFavId, setApplyingFavId] = useState(null);
 
-  // History tab
+  // Frequent Items tab (renamed from Order History — see brief)
   const [checkedItems, setCheckedItems] = useState(new Set());
   const [infoPopover, setInfoPopover] = useState(null);
 
@@ -576,18 +584,22 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
     const load = async () => {
       setLoading(true);
       try {
-        const [favs, tpl, hist] = await Promise.all([
+        const [past, favs, tpl, hist] = await Promise.all([
+          fetchPastOrders(tenantId).catch(() => []),
           fetchQuickAddFavourites(tenantId).catch(() => []),
           fetchTemplates(tenantId),
           fetchMasterOrderHistory(tenantId),
         ]);
         if (!cancelled) {
+          setPastOrders(past);
           setFavourites(favs);
           setTemplates(tpl);
           setHistory(hist);
         }
-      } catch {
-        // silent
+      } catch (err) {
+        // Read path — won't violate the no-silent-write-catch rule but log
+        // so failures aren't invisible during dev.
+        console.error('[Quick Add] load error:', err);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -742,12 +754,16 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
 
   return (
     <div className="space-y-4">
-      {/* Tabs — Favourites is the default surface */}
+      {/* Tabs — Past Orders is the default surface (most recent
+          dispatched orders, dept-scoped). Order: Past / Favourites /
+          Frequent / Templates. See brief: chronological → curated →
+          aggregated → pre-built. */}
       <div className="bd-tab-bar">
         {[
+          { key: 'past',       label: 'Past Orders' },
           { key: 'favourites', label: 'Favourites' },
+          { key: 'frequent',   label: 'Frequent Items' },
           { key: 'templates',  label: 'Templates' },
-          { key: 'history',    label: 'Order History' },
         ].map(t => (
           <button
             key={t.key}
@@ -759,7 +775,44 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
         ))}
       </div>
 
-      {tab === 'favourites' ? (
+      {tab === 'past' ? (
+        <div className="space-y-2">
+          {pastOrders.length === 0 && (
+            <p className="text-sm text-center py-6 bd-muted">
+              No past orders yet. Send an order to a supplier and it'll appear here.
+            </p>
+          )}
+          {pastOrders.map(order => {
+            const depts = Array.isArray(order.departments) ? order.departments.filter(Boolean) : [];
+            const orderDate = order.sent_at || order.created_at;
+            const formattedDate = orderDate
+              ? new Date(orderDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+              : '';
+            return (
+              <div key={order.id} className="bd-card">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium bd-strong">{order.supplier_name || 'Supplier'}</p>
+                    <p className="text-[10px] mt-0.5 bd-muted">
+                      {Number(order.item_count) || 0} item{Number(order.item_count) === 1 ? '' : 's'}
+                      {formattedDate ? ` · ${formattedDate}` : ''}
+                    </p>
+                    {depts.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {depts.map(d => (
+                          <span key={d} className="bd-tag">{d}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Apply / expand / star affordances land in subsequent
+                      commits per the staging plan. */}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : tab === 'favourites' ? (
         <div className="space-y-2">
           {favourites.length === 0 && (
             <p className="text-sm text-center py-6 bd-muted">
