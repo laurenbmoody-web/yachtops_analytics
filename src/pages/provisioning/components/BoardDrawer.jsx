@@ -602,15 +602,19 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
   const [checkedItems, setCheckedItems] = useState(new Set());
   const [infoPopover, setInfoPopover] = useState(null);
 
-  // Tier context for the Past Orders star toggle. UI gate is for
-  // affordance only — server-side toggle_supplier_order_favourite RPC
-  // enforces the real gate (COMMAND any-dept; CHIEF must dept-intersect).
-  // HOD gets the affordance per the same logic in
-  // ProvisioningBoardDetail.jsx (94482d6): hiding the button silently
-  // means the intent disappears; letting them click and surfacing the
-  // RPC's clear toast is honest. Matches the order-card star pattern.
-  const { tenantRole } = useAuth();
+  // Tier + dept context. Drives two things:
+  //   1. UI gate for the Past Orders star toggle. Server-side
+  //      toggle_supplier_order_favourite RPC is the real gate
+  //      (COMMAND any-dept; CHIEF must dept-intersect). HOD gets the
+  //      affordance even though their toggle gets rejected — surfaces
+  //      the rejection as a toast (cleaner than silently hiding).
+  //   2. Dept-scoping for Frequent Items. Non-COMMAND callers see only
+  //      their own dept; COMMAND sees tenant-wide. Mirrors the
+  //      Favourites/Past Orders RPC pattern in JS.
+  const { user, tenantRole } = useAuth();
   const userTier = (tenantRole || '').toUpperCase();
+  const userDeptName = user?.department || null;
+  const isCommand = userTier === 'COMMAND';
   const canFavouriteOrder = ['COMMAND', 'CHIEF', 'HOD'].includes(userTier);
 
   useEffect(() => {
@@ -622,7 +626,10 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
           fetchPastOrders(tenantId).catch(() => []),
           fetchQuickAddFavourites(tenantId).catch(() => []),
           fetchTemplates(tenantId),
-          fetchMasterOrderHistory(tenantId),
+          // Dept-scope Frequent Items in JS (no RPC needed — the helper
+          // gained an options arg in 3b22cb8). COMMAND sees tenant-wide;
+          // others see only their dept's frequently-ordered items.
+          fetchMasterOrderHistory(tenantId, { userDeptName, isCommand }),
         ]);
         if (!cancelled) {
           setPastOrders(past);
@@ -640,7 +647,12 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
     };
     load();
     return () => { cancelled = true; };
-  }, [tenantId]);
+    // Refetch if dept context changes — AuthContext may resolve after
+    // first mount, in which case Frequent Items would otherwise stay
+    // tenant-wide for the user's first session. Past Orders + Favourites
+    // are dept-scoped server-side so they don't strictly need these
+    // deps, but keeping them aligned makes the four-pane refresh atomic.
+  }, [tenantId, userDeptName, isCommand]);
 
   const handleApplyFavourite = async (fav) => {
     setApplyingFavId(fav.id);
@@ -1201,7 +1213,11 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
           )}
 
           {Object.keys(groupedHistory).length === 0 && (
-            <p className="text-sm text-center py-6 bd-muted">No order history found.</p>
+            <p className="text-sm text-center py-6 bd-muted">
+              {isCommand
+                ? 'No frequent items yet. They\'ll appear after orders have been sent.'
+                : 'No frequent items for your department yet. They\'ll appear after you\'ve sent a few orders.'}
+            </p>
           )}
 
           <div className="space-y-5 overflow-y-auto pr-1" style={{ maxHeight: '60vh' }}>
