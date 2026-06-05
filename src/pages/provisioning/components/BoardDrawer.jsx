@@ -22,6 +22,8 @@ import {
 } from '../utils/provisioningStorage';
 import { getSmartSuggestions } from '../../../utils/provisioningSuggestions';
 import { showToast } from '../../../utils/toast';
+import { useAuth } from '../../../contexts/AuthContext';
+import { toggleSupplierOrderFavourite } from '../utils/provisioningStorage';
 
 // Sprint 9c.1a follow-up — interim restyle of the drawer body content for
 // the white card surface. Replaces dark-theme Tailwind classes with
@@ -579,6 +581,9 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
   // Past Orders tab — per-card busy state, same shape as applyingFavId.
   // Tracks which order's "Apply all" call is in flight.
   const [applyingPastId, setApplyingPastId] = useState(null);
+  // Per-card star toggle in-flight state. Lets the affected card grey
+  // its star briefly without freezing sibling stars.
+  const [favouritingPastId, setFavouritingPastId] = useState(null);
   // Single-expand UX: one card open at a time (mirrors Templates preview).
   // Switching to a different card collapses the previous one.
   const [expandedPastId, setExpandedPastId] = useState(null);
@@ -596,6 +601,17 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
   // Frequent Items tab (renamed from Order History — see brief)
   const [checkedItems, setCheckedItems] = useState(new Set());
   const [infoPopover, setInfoPopover] = useState(null);
+
+  // Tier context for the Past Orders star toggle. UI gate is for
+  // affordance only — server-side toggle_supplier_order_favourite RPC
+  // enforces the real gate (COMMAND any-dept; CHIEF must dept-intersect).
+  // HOD gets the affordance per the same logic in
+  // ProvisioningBoardDetail.jsx (94482d6): hiding the button silently
+  // means the intent disappears; letting them click and surfacing the
+  // RPC's clear toast is honest. Matches the order-card star pattern.
+  const { tenantRole } = useAuth();
+  const userTier = (tenantRole || '').toUpperCase();
+  const canFavouriteOrder = ['COMMAND', 'CHIEF', 'HOD'].includes(userTier);
 
   useEffect(() => {
     let cancelled = false;
@@ -697,6 +713,37 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
       if (next.has(itemId)) next.delete(itemId); else next.add(itemId);
       return { ...prev, [orderId]: next };
     });
+  };
+
+  // Past Orders star toggle. Optimistic flip locally, revert + toast on
+  // RPC rejection. Same pattern as ProvisioningBoardDetail.jsx's
+  // handleToggleFavourite — the RPC's error message becomes the toast
+  // verbatim so the crew sees exactly why a curate attempt was refused
+  // (e.g. "Only the department head can favourite orders").
+  //
+  // Note: the same RPC is the source of truth for both surfaces. A
+  // star toggled here will appear correctly on the order-card star in
+  // the Orders tab next time that page loads, and vice versa.
+  const handleTogglePastFavourite = async (order) => {
+    if (favouritingPastId) return;
+    setFavouritingPastId(order.id);
+    const next = !order.is_favourite;
+    // Optimistic local flip — replace the row in the pastOrders array.
+    setPastOrders(prev => prev.map(o => o.id === order.id
+      ? { ...o, is_favourite: next, favourited_at: next ? new Date().toISOString() : null }
+      : o));
+    try {
+      await toggleSupplierOrderFavourite(order.id);
+    } catch (err) {
+      // Revert optimistic flip
+      setPastOrders(prev => prev.map(o => o.id === order.id
+        ? { ...o, is_favourite: !next, favourited_at: order.favourited_at }
+        : o));
+      const msg = err?.message || 'Could not update favourite';
+      showToast(msg, 'error');
+    } finally {
+      setFavouritingPastId(null);
+    }
   };
 
   // Past Orders "Add N selected" — applies only the checked subset of
@@ -898,7 +945,30 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
               <div key={order.id} className="bd-card">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium bd-strong">{order.supplier_name || 'Supplier'}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium bd-strong">{order.supplier_name || 'Supplier'}</p>
+                      {canFavouriteOrder && (
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePastFavourite(order)}
+                          disabled={favouritingPastId === order.id}
+                          title={order.is_favourite ? 'Unfavourite this order' : 'Favourite this order'}
+                          aria-label={order.is_favourite ? 'Unfavourite' : 'Favourite'}
+                          style={{
+                            background: 'none',
+                            border: 0,
+                            padding: '0 2px',
+                            cursor: favouritingPastId === order.id ? 'default' : 'pointer',
+                            fontSize: 14,
+                            lineHeight: 1,
+                            color: order.is_favourite ? '#C65A1A' : '#94A3B8',
+                            opacity: favouritingPastId === order.id ? 0.5 : 1,
+                          }}
+                        >
+                          {order.is_favourite ? '★' : '☆'}
+                        </button>
+                      )}
+                    </div>
                     <p className="text-[10px] mt-0.5 bd-muted">
                       {itemCount} item{itemCount === 1 ? '' : 's'}
                       {formattedDate ? ` · ${formattedDate}` : ''}
@@ -932,7 +1002,6 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
                       {isApplying ? 'Applying…' : 'Apply all'}
                     </button>
                   </div>
-                  {/* Star toggle lands in commit 4. */}
                 </div>
                 {isExpanded && (
                   <div className="mt-3 bd-divider pt-3">
