@@ -575,6 +575,10 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
   // sibling cards.
   const [applyingFavId, setApplyingFavId] = useState(null);
 
+  // Past Orders tab — per-card busy state, same shape as applyingFavId.
+  // Tracks which order's "Apply all" call is in flight.
+  const [applyingPastId, setApplyingPastId] = useState(null);
+
   // Frequent Items tab (renamed from Order History — see brief)
   const [checkedItems, setCheckedItems] = useState(new Set());
   const [infoPopover, setInfoPopover] = useState(null);
@@ -623,6 +627,28 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
       showToast(`Couldn't add items — ${err.message || err}`, 'error');
     } finally {
       setApplyingFavId(null);
+    }
+  };
+
+  // Past Orders "Apply all" — applies the whole order's items onto the
+  // current board. Same backend as Favourites apply (applyOrderItems is
+  // order-agnostic, doesn't check is_favourite). Per-card busy state so
+  // applying one order doesn't grey out sibling cards.
+  const handleApplyPastOrder = async (order) => {
+    setApplyingPastId(order.id);
+    try {
+      const saved = await applyOrderItems(order.id, list.id);
+      if (saved && saved.length) {
+        onAddItems(list.id, saved);
+        showToast(`Added ${saved.length} item${saved.length === 1 ? '' : 's'} from ${order.supplier_name}`, 'success');
+      } else {
+        showToast(`No items found on ${order.supplier_name} — nothing added`, 'error');
+      }
+    } catch (err) {
+      console.error('[Quick Add] applyOrderItems (past order) error:', err);
+      showToast(`Couldn't add items — ${err.message || err}`, 'error');
+    } finally {
+      setApplyingPastId(null);
     }
   };
 
@@ -788,13 +814,15 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
             const formattedDate = orderDate
               ? new Date(orderDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
               : '';
+            const isApplying = applyingPastId === order.id;
+            const itemCount = Number(order.item_count) || 0;
             return (
               <div key={order.id} className="bd-card">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium bd-strong">{order.supplier_name || 'Supplier'}</p>
                     <p className="text-[10px] mt-0.5 bd-muted">
-                      {Number(order.item_count) || 0} item{Number(order.item_count) === 1 ? '' : 's'}
+                      {itemCount} item{itemCount === 1 ? '' : 's'}
                       {formattedDate ? ` · ${formattedDate}` : ''}
                     </p>
                     {depts.length > 0 && (
@@ -805,8 +833,16 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
                       </div>
                     )}
                   </div>
-                  {/* Apply / expand / star affordances land in subsequent
-                      commits per the staging plan. */}
+                  <button
+                    onClick={() => handleApplyPastOrder(order)}
+                    disabled={isApplying || !!applyingPastId || itemCount === 0}
+                    className="bd-btn-accent"
+                    style={isApplying || applyingPastId ? { opacity: 0.6, cursor: 'default' } : null}
+                    title={itemCount === 0 ? 'No items on this order' : undefined}
+                  >
+                    {isApplying ? 'Applying…' : 'Apply all'}
+                  </button>
+                  {/* Expand chevron + star toggle land in subsequent commits. */}
                 </div>
               </div>
             );
