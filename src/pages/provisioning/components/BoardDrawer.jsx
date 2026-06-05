@@ -14,7 +14,7 @@ import {
   fetchListItems,
   upsertItems,
   fetchQuickAddFavourites,
-  applyFavouriteOrder,
+  applyOrderItems,
   PROVISIONING_STATUS,
   formatCurrency,
 } from '../utils/provisioningStorage';
@@ -599,7 +599,7 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
   const handleApplyFavourite = async (fav) => {
     setApplyingFavId(fav.id);
     try {
-      const saved = await applyFavouriteOrder(fav.id, list.id);
+      const saved = await applyOrderItems(fav.id, list.id);
       if (saved && saved.length) {
         onAddItems(list.id, saved);
         showToast(`Added ${saved.length} item${saved.length === 1 ? '' : 's'} from ${fav.supplier_name}`, 'success');
@@ -607,7 +607,7 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
         showToast(`No items found on ${fav.supplier_name} — nothing added`, 'error');
       }
     } catch (err) {
-      console.error('[Quick Add] applyFavouriteOrder error:', err);
+      console.error('[Quick Add] applyOrderItems error:', err);
       showToast(`Couldn't add items — ${err.message || err}`, 'error');
     } finally {
       setApplyingFavId(null);

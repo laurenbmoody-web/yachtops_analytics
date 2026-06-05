@@ -677,7 +677,7 @@ export const saveAsTemplate = async (listId, isTemplate) => {
 
 // ── Master Order History ───────────────────────────────────────────────────────
 
-export const fetchMasterOrderHistory = async (vesselId) => {
+export const fetchMasterOrderHistory = async (vesselId, { userDeptName = null, isCommand = false } = {}) => {
   try {
     // Aggregate the "frequently-ordered" signal across boards whose items
     // were actually sent to a supplier (or further along the lifecycle).
@@ -693,6 +693,14 @@ export const fetchMasterOrderHistory = async (vesselId) => {
     // fully completed its lifecycle. Caused the Quick Add Order History
     // tab to read "No order history found" on tenants with active
     // shipping orders.
+    //
+    // Dept-scoping (Quick Add Frequent Items tab): non-COMMAND callers
+    // receive items filtered to their own department only — same
+    // mental model as the Favourites/Past Orders RPCs. COMMAND keeps
+    // tenant-wide visibility because they routinely browse cross-dept
+    // for budgeting / oversight. Caller passes userDeptName + isCommand
+    // from useAuth(); helper handles the rest. Backwards-compatible:
+    // callers that omit the options object see tenant-wide as before.
     const { data: lists, error: listsErr } = await supabase
       ?.from('provisioning_lists')
       ?.select('id, title')
@@ -709,11 +717,14 @@ export const fetchMasterOrderHistory = async (vesselId) => {
 
     const listIds = lists.map(l => l.id);
 
-    const { data: items, error: itemsErr } = await supabase
+    let itemsQuery = supabase
       ?.from('provisioning_items')
       ?.select('id, list_id, name, brand, size, category, sub_category, department, quantity_ordered, unit, created_at')
-      ?.in('list_id', listIds)
-      ?.order('name');
+      ?.in('list_id', listIds);
+    if (!isCommand && userDeptName) {
+      itemsQuery = itemsQuery?.eq('department', userDeptName);
+    }
+    const { data: items, error: itemsErr } = await itemsQuery?.order('name');
     if (itemsErr) throw itemsErr;
 
     // Group and aggregate by name+brand+size key
@@ -2445,12 +2456,28 @@ export const fetchQuickAddFavourites = async (tenantId) => {
   return data || [];
 };
 
-// Apply a favourited supplier_order onto an existing board. Faithful copy
+// Dept-scoped log of past supplier_orders for the Quick Add Past Orders
+// tab. Sibling to fetchQuickAddFavourites — same SECURITY DEFINER RPC
+// pattern, no is_favourite filter, hard-bounded at 500 rows server-side
+// (default 100). See migration 20260605120000_quick_add_past_orders_rpc.sql.
+export const fetchPastOrders = async (tenantId, limit = 100) => {
+  const { data, error } = await supabase
+    .rpc('get_quick_add_past_orders', { p_tenant_id: tenantId, p_limit: limit });
+  if (error) throw error;
+  return data || [];
+};
+
+// Apply a supplier_order's items onto an existing board. Faithful copy
 // from the strict-snapshot columns added in migration 20260604120000:
 // brand / size / category / sub_category / department / allergen_flags /
 // supplier_profile_id all come across, so the new board row identifies
 // the SPECIFIC item, not the generic name. Quantity comes across as-is —
 // no guest-count scaling, no de-dupe, no warning (per Quick Add brief).
+//
+// Works for ANY supplier_order (favourited or not) — used by both the
+// Favourites tab's Apply button and the Past Orders tab's "Apply all"
+// button. Originally shipped as applyFavouriteOrder; renamed to reflect
+// what it actually does.
 //
 // Naming bridges:
 //   supplier_order_items.item_name        → provisioning_items.name
@@ -2459,7 +2486,7 @@ export const fetchQuickAddFavourites = async (tenantId) => {
 //   supplier_order_items.estimated_currency → provisioning_items.currency
 //
 // Returns the saved provisioning_items rows.
-export const applyFavouriteOrder = async (orderId, listId) => {
+export const applyOrderItems = async (orderId, listId) => {
   const { data: rows, error: readErr } = await supabase
     .from('supplier_order_items')
     .select('item_name, quantity, unit, notes, brand, size, category, sub_category, department, allergen_flags, supplier_profile_id, estimated_price, estimated_currency')
