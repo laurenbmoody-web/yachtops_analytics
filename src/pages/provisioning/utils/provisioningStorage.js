@@ -2467,6 +2467,22 @@ export const fetchPastOrders = async (tenantId, limit = 100) => {
   return data || [];
 };
 
+// Read a supplier_order's items — used by the Quick Add Past Orders tab
+// when the user expands a card to cherry-pick individual items.
+// Tenant-scoping is handled by the existing supplier_order_items RLS;
+// the order_id eq filter naturally scopes to the row the user can see.
+// Returns minimal shape for preview-and-checkbox UX, plus the id so the
+// caller can build a stable checkbox key.
+export const fetchSupplierOrderItems = async (orderId) => {
+  const { data, error } = await supabase
+    .from('supplier_order_items')
+    .select('id, item_name, brand, size, quantity, unit')
+    .eq('order_id', orderId)
+    .order('item_name');
+  if (error) throw error;
+  return data || [];
+};
+
 // Apply a supplier_order's items onto an existing board. Faithful copy
 // from the strict-snapshot columns added in migration 20260604120000:
 // brand / size / category / sub_category / department / allergen_flags /
@@ -2485,12 +2501,21 @@ export const fetchPastOrders = async (tenantId, limit = 100) => {
 //   supplier_order_items.estimated_price  → provisioning_items.estimated_unit_cost
 //   supplier_order_items.estimated_currency → provisioning_items.currency
 //
+// Options:
+//   itemIds — optional array of supplier_order_items.id to apply a
+//             subset (Past Orders "Add N selected" path). Omit to
+//             apply every line on the order ("Apply all" path).
+//
 // Returns the saved provisioning_items rows.
-export const applyOrderItems = async (orderId, listId) => {
-  const { data: rows, error: readErr } = await supabase
+export const applyOrderItems = async (orderId, listId, { itemIds = null } = {}) => {
+  let query = supabase
     .from('supplier_order_items')
     .select('item_name, quantity, unit, notes, brand, size, category, sub_category, department, allergen_flags, supplier_profile_id, estimated_price, estimated_currency')
     .eq('order_id', orderId);
+  if (Array.isArray(itemIds) && itemIds.length > 0) {
+    query = query.in('id', itemIds);
+  }
+  const { data: rows, error: readErr } = await query;
   if (readErr) throw readErr;
   if (!rows || rows.length === 0) return [];
 

@@ -16,6 +16,7 @@ import {
   fetchQuickAddFavourites,
   applyOrderItems,
   fetchPastOrders,
+  fetchSupplierOrderItems,
   PROVISIONING_STATUS,
   formatCurrency,
 } from '../utils/provisioningStorage';
@@ -578,6 +579,19 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
   // Past Orders tab — per-card busy state, same shape as applyingFavId.
   // Tracks which order's "Apply all" call is in flight.
   const [applyingPastId, setApplyingPastId] = useState(null);
+  // Single-expand UX: one card open at a time (mirrors Templates preview).
+  // Switching to a different card collapses the previous one.
+  const [expandedPastId, setExpandedPastId] = useState(null);
+  // Lazy-load cache of supplier_order_items per order id — keys are
+  // order ids, values are arrays of { id, item_name, brand, size,
+  // quantity, unit }. First expand fetches; subsequent expands of
+  // the same card hit cache.
+  const [pastItemsCache, setPastItemsCache] = useState({});
+  const [pastItemsLoading, setPastItemsLoading] = useState({});
+  // Per-card checkbox selection — keyed by order id, value is a Set of
+  // selected supplier_order_items.id values. Cleared on successful
+  // "Add N selected" so the user can iterate.
+  const [pastChecked, setPastChecked] = useState({});
 
   // Frequent Items tab (renamed from Order History — see brief)
   const [checkedItems, setCheckedItems] = useState(new Set());
@@ -646,6 +660,65 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
       }
     } catch (err) {
       console.error('[Quick Add] applyOrderItems (past order) error:', err);
+      showToast(`Couldn't add items — ${err.message || err}`, 'error');
+    } finally {
+      setApplyingPastId(null);
+    }
+  };
+
+  // Toggle a Past Orders card's expanded state. Single-expand: clicking
+  // another card collapses the prior. First expand lazy-loads the
+  // order's items via fetchSupplierOrderItems; subsequent expands hit
+  // the cache (pastItemsCache keyed by order id). Mirrors the existing
+  // handlePreviewToggle pattern from the Templates tab.
+  const handlePastExpand = async (orderId) => {
+    if (expandedPastId === orderId) { setExpandedPastId(null); return; }
+    setExpandedPastId(orderId);
+    if (!pastItemsCache[orderId]) {
+      setPastItemsLoading(prev => ({ ...prev, [orderId]: true }));
+      try {
+        const items = await fetchSupplierOrderItems(orderId);
+        setPastItemsCache(prev => ({ ...prev, [orderId]: items }));
+      } catch (err) {
+        console.error('[Quick Add] fetchSupplierOrderItems error:', err);
+        setPastItemsCache(prev => ({ ...prev, [orderId]: [] }));
+      } finally {
+        setPastItemsLoading(prev => ({ ...prev, [orderId]: false }));
+      }
+    }
+  };
+
+  // Toggle a specific supplier_order_items.id in the per-card selection
+  // Set. Cleared on successful "Add N selected".
+  const togglePastItemChecked = (orderId, itemId) => {
+    setPastChecked(prev => {
+      const cur = prev[orderId] || new Set();
+      const next = new Set(cur);
+      if (next.has(itemId)) next.delete(itemId); else next.add(itemId);
+      return { ...prev, [orderId]: next };
+    });
+  };
+
+  // Past Orders "Add N selected" — applies only the checked subset of
+  // an expanded card. Falls through to applyOrderItems with itemIds
+  // option (added alongside this commit) to filter server-side.
+  const handleApplyPastSelected = async (order) => {
+    const checkedSet = pastChecked[order.id];
+    if (!checkedSet || checkedSet.size === 0) return;
+    setApplyingPastId(order.id);
+    try {
+      const saved = await applyOrderItems(order.id, list.id, { itemIds: [...checkedSet] });
+      if (saved && saved.length) {
+        onAddItems(list.id, saved);
+        // Clear the selection so the user can iterate (e.g. open a
+        // different order and pick from it without stale ticks).
+        setPastChecked(prev => ({ ...prev, [order.id]: new Set() }));
+        showToast(`Added ${saved.length} item${saved.length === 1 ? '' : 's'} from ${order.supplier_name}`, 'success');
+      } else {
+        showToast(`Couldn't find the selected items — nothing added`, 'error');
+      }
+    } catch (err) {
+      console.error('[Quick Add] applyOrderItems (past selected) error:', err);
       showToast(`Couldn't add items — ${err.message || err}`, 'error');
     } finally {
       setApplyingPastId(null);
@@ -816,6 +889,11 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
               : '';
             const isApplying = applyingPastId === order.id;
             const itemCount = Number(order.item_count) || 0;
+            const isExpanded = expandedPastId === order.id;
+            const cachedItems = pastItemsCache[order.id];
+            const isItemsLoading = !!pastItemsLoading[order.id];
+            const checkedSet = pastChecked[order.id] || new Set();
+            const checkedCount = checkedSet.size;
             return (
               <div key={order.id} className="bd-card">
                 <div className="flex items-start justify-between gap-2">
@@ -833,17 +911,85 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
                       </div>
                     )}
                   </div>
-                  <button
-                    onClick={() => handleApplyPastOrder(order)}
-                    disabled={isApplying || !!applyingPastId || itemCount === 0}
-                    className="bd-btn-accent"
-                    style={isApplying || applyingPastId ? { opacity: 0.6, cursor: 'default' } : null}
-                    title={itemCount === 0 ? 'No items on this order' : undefined}
-                  >
-                    {isApplying ? 'Applying…' : 'Apply all'}
-                  </button>
-                  {/* Expand chevron + star toggle land in subsequent commits. */}
+                  <div className="flex gap-1.5 flex-shrink-0 items-start">
+                    <button
+                      onClick={() => handlePastExpand(order.id)}
+                      disabled={itemCount === 0}
+                      className="bd-btn-secondary"
+                      style={{ width: 'auto', padding: '6px 10px', fontSize: 12 }}
+                      title={isExpanded ? 'Hide items' : 'Show items'}
+                      aria-expanded={isExpanded}
+                    >
+                      {isExpanded ? 'Hide' : 'Items'}
+                    </button>
+                    <button
+                      onClick={() => handleApplyPastOrder(order)}
+                      disabled={isApplying || !!applyingPastId || itemCount === 0}
+                      className="bd-btn-accent"
+                      style={isApplying || applyingPastId ? { opacity: 0.6, cursor: 'default' } : null}
+                      title={itemCount === 0 ? 'No items on this order' : undefined}
+                    >
+                      {isApplying ? 'Applying…' : 'Apply all'}
+                    </button>
+                  </div>
+                  {/* Star toggle lands in commit 4. */}
                 </div>
+                {isExpanded && (
+                  <div className="mt-3 bd-divider pt-3">
+                    {isItemsLoading ? (
+                      <p className="text-xs bd-muted">Loading items…</p>
+                    ) : !cachedItems || cachedItems.length === 0 ? (
+                      <p className="text-xs bd-muted">No items on this order.</p>
+                    ) : (
+                      <>
+                        <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
+                          {cachedItems.map(it => {
+                            const checked = checkedSet.has(it.id);
+                            return (
+                              <label
+                                key={it.id}
+                                className="flex items-start gap-2 cursor-pointer text-xs"
+                                style={{ padding: '4px 2px' }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => togglePastItemChecked(order.id, it.id)}
+                                  style={{ marginTop: 2, flexShrink: 0 }}
+                                />
+                                <span className="bd-muted" style={{ lineHeight: 1.4 }}>
+                                  <span className="bd-strong">{it.item_name}</span>
+                                  {it.brand ? ` · ${it.brand}` : ''}
+                                  {it.size ? ` · ${it.size}` : ''}
+                                  {it.quantity != null ? ` · ${it.quantity}${it.unit ? ' ' + it.unit : ''}` : ''}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                        <div className="flex items-center justify-between mt-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setPastChecked(prev => ({ ...prev, [order.id]: new Set() }))}
+                            disabled={checkedCount === 0}
+                            className="text-[10px] hover:underline"
+                            style={{ color: '#C65A1A', background: 'none', border: 0, cursor: checkedCount === 0 ? 'default' : 'pointer', opacity: checkedCount === 0 ? 0.4 : 1 }}
+                          >
+                            Clear
+                          </button>
+                          <button
+                            onClick={() => handleApplyPastSelected(order)}
+                            disabled={checkedCount === 0 || isApplying || !!applyingPastId}
+                            className="bd-btn-accent"
+                            style={(checkedCount === 0 || isApplying || applyingPastId) ? { opacity: 0.6, cursor: 'default' } : null}
+                          >
+                            {isApplying ? 'Applying…' : `Add ${checkedCount} selected`}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
