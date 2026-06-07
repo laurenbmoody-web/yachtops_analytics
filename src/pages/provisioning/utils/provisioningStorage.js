@@ -403,6 +403,22 @@ export const deleteProvisioningItem = async (itemId) => {
   }
 };
 
+// Atomic bulk delete — single roundtrip via .in('id', itemIds). Used by
+// the items-list bulk action bar's Delete verb. Returns nothing; throws
+// on RLS or network failure so the caller can revert the optimistic
+// local state.
+export const bulkDeleteProvisioningItems = async (itemIds) => {
+  if (!Array.isArray(itemIds) || itemIds.length === 0) return;
+  const { error } = await supabase
+    ?.from('provisioning_items')
+    ?.delete()
+    ?.in('id', itemIds);
+  if (error) {
+    console.error('[provisioningStorage] bulkDeleteProvisioningItems error:', error);
+    throw error;
+  }
+};
+
 export const updateItemStatus = async (itemId, status, quantityReceived, ledgerCtx = null) => {
   try {
     const updates = { status };
