@@ -1831,6 +1831,14 @@ const ProvisioningBoardDetail = () => {
         {/* ── Toolbar ───────────────────────────────────────────────────── */}
         <div style={{ background: 'white', borderBottom: '1px solid #F1F5F9', padding: '10px 32px', position: 'sticky', top: 0, zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {/* Master select-all — toggles every item in the current
+                filtered view. Per-dept-group scoped select-alls live
+                inside each dept-group's table header below. */}
+            <SelectionCheckbox
+              checked={allChecked}
+              onChange={toggleAll}
+              ariaLabel={allChecked ? 'Deselect all items in view' : 'Select all items in view'}
+            />
             {/* Search */}
             <div style={{ position: 'relative' }}>
               <Icon name="Search" style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', width: 13, height: 13, color: '#CBD5E1', pointerEvents: 'none' }} />
@@ -1983,23 +1991,9 @@ const ProvisioningBoardDetail = () => {
             <div style={{ padding: '48px 0', textAlign: 'center', fontSize: 13, color: '#94A3B8' }}>No items match your filters.</div>
           ) : (
             <>
-              {/* Top-level master "select all in view" — universal
-                  convention, sits above all dept-groups. Toggles the
-                  whole filtered view; reflects only "all/none" state
-                  (empty when 0 OR partial selected; ticked when all
-                  filtered items selected). Per-dept-group header
-                  checkboxes (inside each dept's table header below)
-                  toggle only that dept's items. */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 4px 12px' }}>
-                <SelectionCheckbox
-                  checked={allChecked}
-                  onChange={toggleAll}
-                  ariaLabel={allChecked ? 'Deselect all items in view' : 'Select all items in view'}
-                />
-                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase', color: '#94A3B8' }}>
-                  Select all · {filteredItems.length} item{filteredItems.length === 1 ? '' : 's'} in view
-                </span>
-              </div>
+              {/* Master select-all moved inline into the toolbar
+                  (left of search). Per-dept-group select-alls live
+                  inside each dept-group's table header below. */}
               {deptGroups.map(({ dept, deptObj, items: deptItems }) => {
                 const deptChip = getDeptChip(dept);
                 const deptSubtotal = deptItems.reduce((acc, i) => {
