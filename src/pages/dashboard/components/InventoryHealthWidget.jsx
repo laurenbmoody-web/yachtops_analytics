@@ -24,9 +24,9 @@ const InventoryHealthWidget = () => {
   }, []);
 
   const healthStats = [
-    { label: 'Healthy', count: stats?.healthy, icon: 'CheckCircle', color: 'text-success' },
-    { label: 'Low stock', count: stats?.lowStock, icon: 'AlertTriangle', color: 'text-warning' },
-    { label: 'Out of stock', count: stats?.outOfStock, icon: 'AlertCircle', color: 'text-error' }
+    { label: 'Healthy', count: stats?.healthy, icon: 'CheckCircle', color: 'ce-fg-success' },
+    { label: 'Low stock', count: stats?.lowStock, icon: 'AlertTriangle', color: 'ce-fg-warn' },
+    { label: 'Out of stock', count: stats?.outOfStock, icon: 'AlertCircle', color: 'ce-fg-danger' }
   ];
 
   const isHealthy = stats?.total > 0 && stats?.lowStock === 0 && stats?.outOfStock === 0;
@@ -34,12 +34,12 @@ const InventoryHealthWidget = () => {
 
   return (
     <div
-      className="bg-card border border-border rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+      className="ce-card rounded-xl p-5 cursor-pointer"
       onClick={() => navigate('/inventory')}
     >
       <div className="flex items-center justify-between mb-5">
-        <h3 className="text-sm font-semibold text-foreground">Inventory health</h3>
-        <span className="text-xs text-primary hover:underline">
+        <h3 className="ce-title">Inventory health</h3>
+        <span className="ce-link">
           View all
         </span>
       </div>
@@ -51,13 +51,13 @@ const InventoryHealthWidget = () => {
             </div>
           ) : (
             <div className={`w-20 h-20 rounded-full flex items-center justify-center ${
-              isHealthy ? 'bg-success/10' : hasItems ? 'bg-warning/10' : 'bg-muted'
+              isHealthy ? 'ce-bg-success' : hasItems ? 'ce-bg-warn' : 'bg-muted'
             }`}>
-              <Icon 
-                name={isHealthy ? 'CheckCircle' : hasItems ? 'AlertTriangle' : 'Package'} 
+              <Icon
+                name={isHealthy ? 'CheckCircle' : hasItems ? 'AlertTriangle' : 'Package'}
                 className={`w-10 h-10 ${
-                  isHealthy ? 'text-success' : hasItems ? 'text-warning' : 'text-muted-foreground'
-                }`} 
+                  isHealthy ? 'ce-fg-success' : hasItems ? 'ce-fg-warn' : 'text-muted-foreground'
+                }`}
               />
             </div>
           )}
@@ -69,7 +69,7 @@ const InventoryHealthWidget = () => {
         ) : (
           <>
             <p className={`text-lg font-semibold ${
-              isHealthy ? 'text-success' : hasItems ? 'text-warning' : 'text-muted-foreground'
+              isHealthy ? 'ce-fg-success' : hasItems ? 'ce-fg-warn' : 'text-muted-foreground'
             }`}>
               {isHealthy ? 'Healthy' : hasItems ? 'Needs attention' : 'No items tracked'}
             </p>

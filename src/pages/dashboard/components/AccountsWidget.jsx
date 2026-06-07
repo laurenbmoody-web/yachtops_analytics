@@ -15,12 +15,12 @@ const AccountsWidget = ({ title, account }) => {
   };
 
   return (
-    <div className="bg-card border border-border rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+    <div className="ce-card rounded-xl p-5">
       <div className="flex items-center justify-between mb-5">
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        <h3 className="ce-title">{title}</h3>
         <button
           onClick={() => navigate('/accounts')}
-          className="text-xs text-primary hover:underline"
+          className="ce-link"
         >
           View all
         </button>
@@ -56,12 +56,12 @@ const AccountsWidget = ({ title, account }) => {
 
         <div className="flex items-center gap-1.5 text-xs">
           <span className="text-muted-foreground">vs last month:</span>
-          <span className={account?.trend > 0 ? 'text-error' : 'text-success'}>
+          <span className={account?.trend > 0 ? 'ce-fg-danger' : 'ce-fg-success'}>
             {account?.trend > 0 ? '+' : ''}{account?.trend}%
           </span>
           <Icon
             name={account?.trend > 0 ? 'TrendingUp' : 'TrendingDown'}
-            className={`w-3 h-3 ${account?.trend > 0 ? 'text-error' : 'text-success'}`}
+            className={`w-3 h-3 ${account?.trend > 0 ? 'ce-fg-danger' : 'ce-fg-success'}`}
           />
         </div>
       </div>

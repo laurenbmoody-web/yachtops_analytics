@@ -88,15 +88,17 @@ const ProvisioningWidget = () => {
   const allClear = !loading && pendingLists.length === 0 && attentionLists.length === 0 && !unprovisionedTrip;
 
   const STATUS_LABELS = {
+    // Purple "Partial delivery" pill deferred — resolved with the other
+    // non-cool/info/purple accents in a dedicated follow-up.
     partially_delivered: { label: 'Partial delivery', className: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
-    delivered_with_discrepancies: { label: 'Discrepancies', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
+    delivered_with_discrepancies: { label: 'Discrepancies', className: 'ce-bg-danger ce-fg-danger' },
   };
 
   return (
-    <div className="bg-card border border-border rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+    <div className="ce-card rounded-xl p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-foreground">Provisioning</h3>
-        <button onClick={() => navigate('/provisioning')} className="text-xs text-primary hover:underline">View all</button>
+        <h3 className="ce-title">Provisioning</h3>
+        <button onClick={() => navigate('/provisioning')} className="ce-link">View all</button>
       </div>
 
       {loading ? (
@@ -107,8 +109,8 @@ const ProvisioningWidget = () => {
         </div>
       ) : allClear ? (
         <div className="flex items-center gap-2 py-3">
-          <div className="w-7 h-7 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center shrink-0">
-            <Icon name="Check" className="w-3.5 h-3.5 text-green-600" />
+          <div className="ce-bg-success w-7 h-7 rounded-full flex items-center justify-center shrink-0">
+            <Icon name="Check" className="ce-fg-success w-3.5 h-3.5" />
           </div>
           <p className="text-sm text-muted-foreground">All provisioning up to date</p>
         </div>
@@ -127,13 +129,13 @@ const ProvisioningWidget = () => {
                   {isCommandChief && (
                     <button
                       onClick={() => navigate(`/provisioning/${list.id}`)}
-                      className="shrink-0 px-2.5 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-lg hover:bg-primary/90 transition-colors"
+                      className="ce-btn-navy shrink-0 px-2.5 py-1 text-xs"
                     >
                       Approve
                     </button>
                   )}
                   {!isCommandChief && (
-                    <button onClick={() => navigate(`/provisioning/${list.id}`)} className="shrink-0 text-xs text-primary hover:underline">View</button>
+                    <button onClick={() => navigate(`/provisioning/${list.id}`)} className="ce-link shrink-0">View</button>
                   )}
                 </div>
               ))}
@@ -152,7 +154,7 @@ const ProvisioningWidget = () => {
                       <p className="text-sm font-medium text-foreground truncate">{list.title}</p>
                       <span className={`inline-block text-xs px-2 py-0.5 rounded-full mt-0.5 ${cfg.className}`}>{cfg.label}</span>
                     </div>
-                    <button onClick={() => navigate(`/provisioning/${list.id}`)} className="shrink-0 text-xs text-primary hover:underline">View</button>
+                    <button onClick={() => navigate(`/provisioning/${list.id}`)} className="ce-link shrink-0">View</button>
                   </div>
                 );
               })}
@@ -161,17 +163,17 @@ const ProvisioningWidget = () => {
 
           {/* Upcoming trip prompt */}
           {unprovisionedTrip && (
-            <div className="flex items-start gap-2 py-2 bg-amber-50 dark:bg-amber-950/20 rounded-lg px-3">
-              <Icon name="AlertCircle" className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="ce-bg-warn flex items-start gap-2 py-2 rounded-lg px-3">
+              <Icon name="AlertCircle" className="ce-fg-warn w-4 h-4 shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-amber-700 dark:text-amber-400">
+                <p className="ce-fg-warn text-xs">
                   <strong>{unprovisionedTrip.name || unprovisionedTrip.title}</strong> in {unprovisionedTrip.daysUntil} day{unprovisionedTrip.daysUntil !== 1 ? 's' : ''} — no provisioning list yet
                 </p>
               </div>
               {isCommandChief && (
                 <button
                   onClick={() => navigate(`/provisioning/new?trip_id=${unprovisionedTrip.id}`)}
-                  className="shrink-0 text-xs text-amber-700 dark:text-amber-400 hover:underline font-medium"
+                  className="ce-fg-warn shrink-0 text-xs hover:underline font-medium"
                 >
                   + Create
                 </button>
@@ -185,7 +187,7 @@ const ProvisioningWidget = () => {
         <div className="mt-4 pt-3 border-t border-border">
           <button
             onClick={() => navigate('/provisioning/new')}
-            className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-medium text-primary border border-primary/30 rounded-lg hover:bg-primary/5 transition-colors"
+            className="ce-action w-full text-xs"
           >
             <Icon name="Plus" className="w-3.5 h-3.5" />
             New Provisioning List

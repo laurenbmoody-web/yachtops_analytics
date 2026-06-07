@@ -44,12 +44,12 @@ const RecentActivityWidget = () => {
 
   return (
     <div
-      className="bg-card border border-border rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+      className="ce-card rounded-xl p-5 cursor-pointer"
       onClick={() => navigate('/activity')}
     >
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-foreground">Recent activity</h3>
-        <span className="text-xs text-primary hover:underline">
+        <h3 className="ce-title">Recent activity</h3>
+        <span className="ce-link">
           View all activity
         </span>
       </div>

@@ -64,12 +64,12 @@ const TeamJobListWidget = () => {
   const total = counts?.overdue + counts?.dueToday;
 
   return (
-    <div className="bg-card border border-border rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+    <div className="ce-card rounded-xl p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-foreground">Team's job list</h3>
+        <h3 className="ce-title">Team's job list</h3>
         <button
           onClick={() => navigate('/team-jobs-management')}
-          className="text-xs text-primary hover:underline"
+          className="ce-link"
         >
           View all
         </button>
@@ -82,32 +82,32 @@ const TeamJobListWidget = () => {
         <div className="space-y-3">
           <div className="flex items-center justify-between py-2.5 border-b border-border">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-error/10 flex items-center justify-center">
-                <Icon name="AlertCircle" className="w-4 h-4 text-error" />
+              <div className="ce-bg-danger w-8 h-8 rounded-lg flex items-center justify-center">
+                <Icon name="AlertCircle" className="ce-fg-danger w-4 h-4" />
               </div>
               <span className="text-sm text-muted-foreground">Overdue</span>
             </div>
-            <span className="text-2xl font-bold text-error">{counts?.overdue}</span>
+            <span className="ce-fg-danger text-2xl font-bold">{counts?.overdue}</span>
           </div>
 
           <div className="flex items-center justify-between py-2.5 border-b border-border">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-warning/10 flex items-center justify-center">
-                <Icon name="Clock" className="w-4 h-4 text-warning" />
+              <div className="ce-bg-warn w-8 h-8 rounded-lg flex items-center justify-center">
+                <Icon name="Clock" className="ce-fg-warn w-4 h-4" />
               </div>
               <span className="text-sm text-muted-foreground">Due today</span>
             </div>
-            <span className="text-2xl font-bold text-warning">{counts?.dueToday}</span>
+            <span className="ce-fg-warn text-2xl font-bold">{counts?.dueToday}</span>
           </div>
 
           <div className="flex items-center justify-between py-2.5">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center">
-                <Icon name="CheckCircle" className="w-4 h-4 text-success" />
+              <div className="ce-bg-success w-8 h-8 rounded-lg flex items-center justify-center">
+                <Icon name="CheckCircle" className="ce-fg-success w-4 h-4" />
               </div>
               <span className="text-sm text-muted-foreground">Completed</span>
             </div>
-            <span className="text-2xl font-bold text-success">{counts?.completedToday}</span>
+            <span className="ce-fg-success text-2xl font-bold">{counts?.completedToday}</span>
           </div>
         </div>
       )}

@@ -129,14 +129,14 @@ const TodaySnapshotWidget = () => {
 
   return (
     <div
-      className="bg-card border border-border rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer hover:border-primary/30"
+      className="ce-card rounded-xl p-5 cursor-pointer"
       onClick={() => navigate('/today')}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e?.key === 'Enter' && navigate('/today')}
     >
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-foreground">Today snapshot</h3>
+        <h3 className="ce-title">Today snapshot</h3>
         <div className="flex items-center gap-1.5">
           <Icon name="Calendar" className="w-4 h-4 text-muted-foreground" />
           <Icon name="ChevronRight" className="w-3.5 h-3.5 text-muted-foreground" />
