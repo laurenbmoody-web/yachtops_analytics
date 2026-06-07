@@ -53,6 +53,17 @@ export default function InboxSidebar({ count }) {
         <SidebarItem icon="Undo2" label="Supplier returns" placeholder />
         <SidebarItem icon="Receipt" label="Expense approvals" placeholder />
       </div>
+
+      <div className="rv-sb-section">
+        <div className="rv-sb-section-head">Messages</div>
+        <SidebarItem icon="MessageSquare" label="Direct messages" placeholder />
+        <SidebarItem icon="Users" label="Department channels" placeholder />
+      </div>
+
+      <div className="rv-sb-section">
+        <div className="rv-sb-section-head">Archive</div>
+        <SidebarItem icon="Archive" label="Resolved" placeholder />
+      </div>
     </aside>
   );
 }
