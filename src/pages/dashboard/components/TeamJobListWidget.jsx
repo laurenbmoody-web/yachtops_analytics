@@ -98,32 +98,32 @@ const TeamJobListWidget = () => {
         <div className="space-y-3">
           <div className="flex items-center justify-between py-2.5 border-b border-border">
             <div className="flex items-center gap-2">
-              <div className="ce-bg-danger w-8 h-8 rounded-lg flex items-center justify-center">
-                <Icon name="AlertCircle" className="ce-fg-danger w-4 h-4" />
+              <div className="ce-bg-muted w-8 h-8 rounded-lg flex items-center justify-center">
+                <Icon name="AlertCircle" className="ce-fg-muted w-4 h-4" />
               </div>
               <span className="text-sm text-muted-foreground">Overdue</span>
             </div>
-            <span className="ce-fg-danger text-2xl font-bold">{counts?.overdue}</span>
+            <span className="ce-fg-navy-deep text-2xl font-bold">{counts?.overdue}</span>
           </div>
 
           <div className="flex items-center justify-between py-2.5 border-b border-border">
             <div className="flex items-center gap-2">
-              <div className="ce-bg-warn w-8 h-8 rounded-lg flex items-center justify-center">
-                <Icon name="Clock" className="ce-fg-warn w-4 h-4" />
+              <div className="ce-bg-muted w-8 h-8 rounded-lg flex items-center justify-center">
+                <Icon name="Clock" className="ce-fg-muted w-4 h-4" />
               </div>
               <span className="text-sm text-muted-foreground">Due today</span>
             </div>
-            <span className="ce-fg-warn text-2xl font-bold">{counts?.dueToday}</span>
+            <span className="ce-fg-navy-deep text-2xl font-bold">{counts?.dueToday}</span>
           </div>
 
           <div className="flex items-center justify-between py-2.5">
             <div className="flex items-center gap-2">
-              <div className="ce-bg-success w-8 h-8 rounded-lg flex items-center justify-center">
-                <Icon name="CheckCircle" className="ce-fg-success w-4 h-4" />
+              <div className="ce-bg-muted w-8 h-8 rounded-lg flex items-center justify-center">
+                <Icon name="CheckCircle" className="ce-fg-muted w-4 h-4" />
               </div>
               <span className="text-sm text-muted-foreground">Completed</span>
             </div>
-            <span className="ce-fg-success text-2xl font-bold">{counts?.completedToday}</span>
+            <span className="ce-fg-navy-deep text-2xl font-bold">{counts?.completedToday}</span>
           </div>
         </div>
       )}

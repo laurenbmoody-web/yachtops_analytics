@@ -130,10 +130,22 @@
 .cargo-editorial .ce-fg-danger  { color: var(--d-danger); }
 .cargo-editorial .ce-fg-warn    { color: var(--d-warn); }
 .cargo-editorial .ce-fg-muted   { color: var(--d-muted); }
+.cargo-editorial .ce-fg-navy-deep { color: var(--d-navy-deep); }
 .cargo-editorial .ce-bg-success { background: var(--d-success-soft); }
 .cargo-editorial .ce-bg-danger  { background: var(--d-danger-soft); }
 .cargo-editorial .ce-bg-warn    { background: var(--d-warn-soft); }
+.cargo-editorial .ce-bg-muted   { background: var(--d-border-soft); }
 
 /* Navy progress-bar fill (Accounts charter bar; purple owner bar
    stays as-is this pass — deferred with the other non-cool accents) */
 .cargo-editorial .ce-bar-navy { background: var(--d-navy); }
+
+/* Quick-actions resting icon tints. INTENTIONALLY UNSCOPED (not under
+   .cargo-editorial): the button keeps Tailwind's hover inversion
+   (hover:text-card → .hover\:text-card:hover, specificity 0,2,0). A scoped
+   `.cargo-editorial .ce-qa-*` (0,2,0) would tie and risk losing the hover;
+   unscoped (0,1,0) stays safely below it so the hover always wins. The
+   --d-* values still resolve via inheritance from the .cargo-editorial
+   ancestor in the DOM. */
+.ce-qa-navy   { color: var(--d-navy); }
+.ce-qa-orange { color: var(--d-orange); }
