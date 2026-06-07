@@ -7,6 +7,7 @@ import AcceptAdminBanner from './AcceptAdminBanner';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
+import { useInboxCount } from '../../hooks/useInboxCount';
 import { getCurrentUser, clearCurrentUser, hasCommandAccess, loadUsers } from '../../utils/authStorage';
 import { canAccessGuestManagement } from '../../pages/guest-management-dashboard/utils/guestPermissions';
 import { canAccessTrips } from '../../pages/trips-management-dashboard/utils/tripPermissions';
@@ -29,6 +30,9 @@ const Header = () => {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  // Live count of pending review_items routed to the current user via
+  // Phase 1 RLS. Polled at 30s; rendered as the inbox icon's badge.
+  const inboxCount = useInboxCount();
   const [tenantMemberRole, setTenantMemberRole] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -528,15 +532,29 @@ const Header = () => {
         </div>
         {/* RIGHT ZONE: Icons + User */}
         <div className="flex items-center gap-3 flex-shrink-0">
-          <button 
+          <button
             onClick={() => navigate('/activity')}
             className="p-2 hover:bg-muted rounded-lg transition-smooth"
             title="Activity Feed"
           >
             <Icon name="Activity" size={20} className="text-muted-foreground" />
           </button>
-          
-          <button 
+
+          <button
+            onClick={() => navigate('/reviews')}
+            className="relative p-2 hover:bg-muted rounded-lg transition-smooth"
+            title={inboxCount > 0 ? `Reviews (${inboxCount} pending)` : 'Reviews'}
+            aria-label={inboxCount > 0 ? `Reviews — ${inboxCount} pending` : 'Reviews'}
+          >
+            <Icon name="Inbox" size={20} color="var(--color-foreground)" />
+            {inboxCount > 0 && (
+              <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] text-white text-xs font-semibold rounded-full flex items-center justify-center px-1" style={{ background: '#C65A1A' }}>
+                {inboxCount > 99 ? '99+' : inboxCount}
+              </span>
+            )}
+          </button>
+
+          <button
             onClick={() => setNotificationsOpen(!notificationsOpen)}
             className="relative p-2 hover:bg-muted rounded-lg transition-smooth"
             title="Notifications"
