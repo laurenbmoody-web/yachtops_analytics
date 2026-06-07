@@ -63,10 +63,26 @@ const TeamJobListWidget = () => {
 
   const total = counts?.overdue + counts?.dueToday;
 
+  // Live status headline — orange-italic on overdue/due, navy when clear.
+  let statusText = 'Nothing due today';
+  let statusAttention = false;
+  if (loading) {
+    statusText = 'Loading…';
+  } else if (counts?.overdue > 0) {
+    statusText = `${counts.overdue} overdue`;
+    statusAttention = true;
+  } else if (counts?.dueToday > 0) {
+    statusText = `${counts.dueToday} due today`;
+    statusAttention = true;
+  }
+
   return (
     <div className="ce-card rounded-xl p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="ce-title">Team's job list</h3>
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <p className="ce-eyebrow">Team jobs</p>
+          <h3 className={`ce-title${statusAttention ? ' is-attention' : ''}`}>{statusText}</h3>
+        </div>
         <button
           onClick={() => navigate('/team-jobs-management')}
           className="ce-link"

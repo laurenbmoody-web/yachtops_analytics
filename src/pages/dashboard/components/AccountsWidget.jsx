@@ -14,10 +14,18 @@ const AccountsWidget = ({ title, account }) => {
     })?.format(amount);
   };
 
+  // Live status headline — orange-italic when over budget, navy otherwise.
+  const pct = account?.percentage ?? 0;
+  const overBudget = pct > 100;
+  const statusText = overBudget ? 'Over budget' : `${pct}% spent`;
+
   return (
     <div className="ce-card rounded-xl p-5">
-      <div className="flex items-center justify-between mb-5">
-        <h3 className="ce-title">{title}</h3>
+      <div className="flex items-start justify-between mb-5">
+        <div>
+          <p className="ce-eyebrow">{title}</p>
+          <h3 className={`ce-title${overBudget ? ' is-attention' : ''}`}>{statusText}</h3>
+        </div>
         <button
           onClick={() => navigate('/accounts')}
           className="ce-link"

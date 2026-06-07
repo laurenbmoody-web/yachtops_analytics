@@ -41,7 +41,7 @@
   font-weight: 600;
   letter-spacing: 1.8px;
   text-transform: uppercase;
-  color: var(--d-muted-soft);
+  color: var(--d-muted);
   margin: 0 0 4px;
 }
 .cargo-editorial .ce-eyebrow .dot { color: var(--d-orange); }
@@ -65,6 +65,12 @@
   font-weight: 400;
   color: var(--d-orange);
   text-transform: none;
+}
+/* Live status headline goes orange-italic when the widget has something
+   needing attention; navy (base) when all-clear. */
+.cargo-editorial .ce-title.is-attention {
+  color: var(--d-orange);
+  font-style: italic;
 }
 
 /* ── Single orange action link (Pantry "Open Standby →") ─────── */

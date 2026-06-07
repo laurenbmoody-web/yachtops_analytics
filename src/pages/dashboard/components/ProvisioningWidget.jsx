@@ -87,6 +87,23 @@ const ProvisioningWidget = () => {
 
   const allClear = !loading && pendingLists.length === 0 && attentionLists.length === 0 && !unprovisionedTrip;
 
+  // Live status headline — orange-italic when something needs attention,
+  // navy when all-clear. Most-urgent-first.
+  let statusText = 'All up to date';
+  let statusAttention = false;
+  if (loading) {
+    statusText = 'Loading…';
+  } else if (attentionLists.length > 0) {
+    statusText = `${attentionLists.length} need${attentionLists.length === 1 ? 's' : ''} attention`;
+    statusAttention = true;
+  } else if (pendingLists.length > 0) {
+    statusText = `${pendingLists.length} awaiting approval`;
+    statusAttention = true;
+  } else if (unprovisionedTrip) {
+    statusText = '1 trip unplanned';
+    statusAttention = true;
+  }
+
   const STATUS_LABELS = {
     // Purple "Partial delivery" pill deferred — resolved with the other
     // non-cool/info/purple accents in a dedicated follow-up.
@@ -96,8 +113,11 @@ const ProvisioningWidget = () => {
 
   return (
     <div className="ce-card rounded-xl p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="ce-title">Provisioning</h3>
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <p className="ce-eyebrow">Provisioning</p>
+          <h3 className={`ce-title${statusAttention ? ' is-attention' : ''}`}>{statusText}</h3>
+        </div>
         <button onClick={() => navigate('/provisioning')} className="ce-link">View all</button>
       </div>
 
@@ -107,14 +127,7 @@ const ProvisioningWidget = () => {
             <div key={i} className="h-10 bg-muted animate-pulse rounded-lg" />
           ))}
         </div>
-      ) : allClear ? (
-        <div className="flex items-center gap-2 py-3">
-          <div className="ce-bg-success w-7 h-7 rounded-full flex items-center justify-center shrink-0">
-            <Icon name="Check" className="ce-fg-success w-3.5 h-3.5" />
-          </div>
-          <p className="text-sm text-muted-foreground">All provisioning up to date</p>
-        </div>
-      ) : (
+      ) : allClear ? null : (
         <div className="space-y-3">
           {/* Pending Approval */}
           {pendingLists.length > 0 && (
