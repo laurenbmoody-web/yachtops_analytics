@@ -27,6 +27,95 @@
   box-sizing: border-box;
 }
 
+/* Sidebar header — DM Serif "Inbox" wordmark + subtitle. */
+.rv-sb-header {
+  margin-bottom: 24px;
+}
+.rv-sb-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.1;
+  color: #1C1B3A;
+  margin-bottom: 2px;
+}
+.rv-sb-subtitle {
+  font-size: 12px;
+  color: rgba(28, 27, 58, 0.5);
+}
+
+/* A grouped block of categories (Reviews / Messages / Archive). */
+.rv-sb-section {
+  margin-bottom: 20px;
+}
+.rv-sb-section-head {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(28, 27, 58, 0.5);
+  margin-bottom: 8px;
+  padding-left: 8px;
+}
+
+/* Category row. Active = navy-tinted selection, no left accent. Placeholders
+   are dimmed and non-interactive (cursor: default, no hover). */
+.rv-sb-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  margin-bottom: 1px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #1C1B3A;
+}
+.rv-sb-item.active {
+  background: rgba(28, 27, 58, 0.06);
+  cursor: pointer;
+}
+.rv-sb-item:not(.placeholder):not(.active) {
+  cursor: pointer;
+}
+.rv-sb-item:not(.placeholder):not(.active):hover {
+  background: rgba(28, 27, 58, 0.03);
+}
+.rv-sb-item.placeholder {
+  color: rgba(28, 27, 58, 0.45);
+  cursor: default;
+}
+.rv-sb-item-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Live count badge — terracotta pill on the active category. */
+.rv-sb-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: #C65A1A;
+  color: #FFFFFF;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* "soon" tag on placeholder categories. */
+.rv-sb-soon {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-style: italic;
+  color: rgba(28, 27, 58, 0.3);
+}
+
 /* RIGHT — page header + card list. */
 .rv-main {
   padding: 28px 32px 60px;
