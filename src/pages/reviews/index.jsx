@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import { useAuth } from '../../contexts/AuthContext';
@@ -15,7 +14,6 @@ import './reviews.css';
 // inside ReviewItemCard.
 
 export default function ReviewsPage() {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const { currentTenantMember, activeTenantId } = useTenant();
 
@@ -90,43 +88,37 @@ export default function ReviewsPage() {
     <>
       <Header />
       <div className="rv-page">
-        <div className="rv-container">
+        <aside className="rv-sidebar" />
 
-          <button
-            type="button"
-            className="rv-back"
-            onClick={() => navigate('/crew')}
-            aria-label="Back to rota"
-          >
-            <Icon name="ArrowLeft" size={14} />
-            <span>Back to rota</span>
-          </button>
+        <main className="rv-main">
+          <div className="rv-container">
 
-          <div className="rv-eyebrow">{eyebrow}</div>
-          <h1 className="rv-title">To review<em>.</em></h1>
-          <div className="rv-subtitle">{subtitle}</div>
+            <div className="rv-eyebrow">{eyebrow}</div>
+            <h1 className="rv-title">To review<em>.</em></h1>
+            <div className="rv-subtitle">{subtitle}</div>
 
-          <div className="rv-body">
-            {!loading && items.length === 0 ? (
-              <div className="rv-empty" role="status">
-                <Icon name="Check" size={32} color="#8B8478" className="rv-empty-icon" />
-                <div className="rv-empty-title">Nothing to review</div>
-                <div className="rv-empty-sub">
-                  When HODs submit rota changes, they’ll appear here for your decision.
+            <div className="rv-body">
+              {!loading && items.length === 0 ? (
+                <div className="rv-empty" role="status">
+                  <Icon name="Check" size={32} color="#8B8478" className="rv-empty-icon" />
+                  <div className="rv-empty-title">Nothing to review</div>
+                  <div className="rv-empty-sub">
+                    When HODs submit rota changes, they’ll appear here for your decision.
+                  </div>
                 </div>
-              </div>
-            ) : (
-              items.map((item) => (
-                <ReviewItemCard
-                  key={item.id}
-                  item={item}
-                  onToast={showToast}
-                  onResolved={refetch}
-                />
-              ))
-            )}
+              ) : (
+                items.map((item) => (
+                  <ReviewItemCard
+                    key={item.id}
+                    item={item}
+                    onToast={showToast}
+                    onResolved={refetch}
+                  />
+                ))
+              )}
+            </div>
           </div>
-        </div>
+        </main>
 
         {toast && (
           <div

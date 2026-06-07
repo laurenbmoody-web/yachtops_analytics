@@ -5,33 +5,36 @@
    inside-card surface accents (workload strip in sub-commit 5).
    ============================================================ */
 
+/* Two-column shell: 240px sidebar + fluid main. The page background
+   token shows through the sidebar's translucent white. Header is the
+   fixed h-16 (64px) nav chrome; the sidebar stretches to fill below it. */
 .rv-page {
   background: var(--color-background);
   min-height: 100vh;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   color: #1C1B3A;
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  align-items: start;
+}
+
+/* LEFT — inbox navigation sidebar. */
+.rv-sidebar {
+  background: rgba(255, 255, 255, 0.5);
+  border-right: 0.5px solid rgba(28, 27, 58, 0.08);
+  padding: 24px 16px;
+  min-height: calc(100vh - 64px);
+  box-sizing: border-box;
+}
+
+/* RIGHT — page header + card list. */
+.rv-main {
   padding: 28px 32px 60px;
 }
 
 .rv-container {
-  max-width: 760px;
-  margin: 0 auto;
+  max-width: 720px;
 }
-
-.rv-back {
-  background: transparent;
-  border: none;
-  padding: 0;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  font-size: 13px;
-  color: #8B8478;
-  cursor: pointer;
-  margin-bottom: 16px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.rv-back:hover { color: #695880; text-decoration: underline; }
 
 .rv-eyebrow {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
