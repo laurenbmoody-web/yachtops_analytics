@@ -36,6 +36,7 @@ import {
   queryOrderItemQuote,
   toggleSupplierOrderFavourite,
   saveAsTemplate,
+  bulkDeleteProvisioningItems,
   PROVISIONING_STATUS,
   PROVISION_CATEGORIES,
   PROVISION_UNITS,
@@ -47,6 +48,7 @@ import InvoiceUploadModal, { PAYMENT_STATUS_OPTIONS } from './components/Invoice
 import ItemDrawer from './components/ItemDrawer';
 import BoardDrawer from './components/BoardDrawer';
 import BulkActionBar from './components/BulkActionBar';
+import BulkDeleteConfirmModal from './components/BulkDeleteConfirmModal';
 import ReceiveDeliveryModal from './components/ReceiveDeliveryModal';
 import ConfirmDeliveryModal from './components/ConfirmDeliveryModal';
 import { loadTrips, findTripByAnyId } from '../trips-management-dashboard/utils/tripStorage';
@@ -720,6 +722,8 @@ const ProvisioningBoardDetail = () => {
   // so the bar disappears — failed items stay visible on the board, the
   // crew can retry by re-selecting.
   const [bulkBusy, setBulkBusy] = useState({ kind: null, done: 0, total: 0 });
+  // Bulk delete confirm modal — open via the bar's Delete verb.
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   const handleBulkReceive = async () => {
     const targets = items.filter(i => selectedItems.has(i.id) && i.status !== 'received');
@@ -783,6 +787,36 @@ const ProvisioningBoardDetail = () => {
     // Clear selection regardless of partial state — bar disappears,
     // failed items stay visible on the board for retry.
     setSelectedItems(new Set());
+  };
+
+  // ── Bulk delete ──────────────────────────────────────────────────────────
+  // Atomic single-roundtrip via bulkDeleteProvisioningItems (.in('id', ids)).
+  // Optimistic — items disappear from the list immediately; revert on
+  // failure restores them. The confirm modal is the safety gate (the
+  // brief mandates a confirmation step for the destructive verb).
+  const handleBulkDelete = async () => {
+    const ids = [...selectedItems];
+    if (ids.length === 0) return;
+
+    const originals = items.filter(i => selectedItems.has(i.id));
+    setBulkBusy({ kind: 'delete', done: 0, total: ids.length });
+    // Optimistic — remove from local state
+    setItems(prev => prev.filter(i => !selectedItems.has(i.id)));
+
+    try {
+      await bulkDeleteProvisioningItems(ids);
+      showToast(`Deleted ${ids.length} item${ids.length === 1 ? '' : 's'}`, 'success');
+    } catch (err) {
+      console.error('[BulkDelete] failed:', err);
+      // Revert — restore the items list. Append at the end; the existing
+      // dept-grouping render will re-bucket them on the next pass.
+      setItems(prev => [...prev, ...originals]);
+      showToast(`Couldn't delete items — ${err.message || err}`, 'error');
+    } finally {
+      setBulkBusy({ kind: null, done: 0, total: 0 });
+      setBulkDeleteOpen(false);
+      setSelectedItems(new Set());
+    }
   };
 
   // ── Item CRUD ─────────────────────────────────────────────────────────────
@@ -2941,7 +2975,16 @@ const ProvisioningBoardDetail = () => {
         busy={bulkBusy.kind === 'receive'}
         busyText={bulkBusy.total > 5 ? `Receiving ${bulkBusy.done} of ${bulkBusy.total}…` : ''}
         onMarkReceived={handleBulkReceive}
+        onDelete={() => setBulkDeleteOpen(true)}
         onClear={clearSelection}
+      />
+
+      <BulkDeleteConfirmModal
+        isOpen={bulkDeleteOpen}
+        count={selectedItems.size}
+        busy={bulkBusy.kind === 'delete'}
+        onCancel={() => setBulkDeleteOpen(false)}
+        onConfirm={handleBulkDelete}
       />
 
       {/* Query placeholder — Sprint 9.5 stub. Real threading is a future
