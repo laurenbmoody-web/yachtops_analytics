@@ -24,10 +24,13 @@ const InventoryHealthWidget = () => {
   }, []);
 
   // Uniform calm indicators — outline circle, muted tone, no per-status colour.
+  // Tint is applied to the row's icon wrapper (.ce-ico-muted) so the lucide
+  // stroke inherits it via currentColor — colouring the <svg> directly does
+  // not reliably tint lucide strokes in this app.
   const healthStats = [
-    { label: 'Healthy', count: stats?.healthy, icon: 'Circle', color: 'ce-fg-muted' },
-    { label: 'Low stock', count: stats?.lowStock, icon: 'Circle', color: 'ce-fg-muted' },
-    { label: 'Out of stock', count: stats?.outOfStock, icon: 'Circle', color: 'ce-fg-muted' }
+    { label: 'Healthy', count: stats?.healthy, icon: 'Circle' },
+    { label: 'Low stock', count: stats?.lowStock, icon: 'Circle' },
+    { label: 'Out of stock', count: stats?.outOfStock, icon: 'Circle' }
   ];
 
   const isHealthy = stats?.total > 0 && stats?.lowStock === 0 && stats?.outOfStock === 0;
@@ -109,8 +112,8 @@ const InventoryHealthWidget = () => {
             key={index} 
             className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/30"
           >
-            <div className="flex items-center gap-2">
-              <Icon name={stat?.icon} className={`w-4 h-4 ${stat?.color}`} />
+            <div className="flex items-center gap-2 ce-ico-muted">
+              <Icon name={stat?.icon} className="w-4 h-4" />
               <span className="text-xs text-foreground">{stat?.label}</span>
             </div>
             <span className="text-sm font-bold text-foreground">
