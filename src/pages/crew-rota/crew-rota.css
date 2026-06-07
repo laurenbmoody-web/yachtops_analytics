@@ -1019,6 +1019,12 @@
   z-index: 1200;
   box-shadow: 0 12px 32px -10px rgba(28, 27, 58, 0.4);
 }
+/* Destructive variant — surfaced when a write fails. Deep-terracotta from
+   the editorial accent-deep palette; same shape, different signal. */
+.crew-rota-toast.error {
+  background: #7A2E1E;
+  color: #F5F1EA;
+}
 
 /* Typebar separator between brush pills and the Templates button. */
 .crew-rota-typebar-sep {

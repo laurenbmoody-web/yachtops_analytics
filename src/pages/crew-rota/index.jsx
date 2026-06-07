@@ -21,6 +21,10 @@ import { useRotaTemplates } from './useRotaTemplates';
 import { useCurrentRota } from './useCurrentRota';
 import { useRotaDepartmentStatus } from './useRotaDepartmentStatus';
 import { usePendingReviewCount } from './usePendingReviewCount';
+import {
+  submitRotaDepartment,
+  publishRotaDepartmentDirect,
+} from './useRotaLifecycleWriters';
 
 const EDITORIAL_BG = '#F5F1EA';
 const GRID_START_HOUR = 6;
@@ -97,32 +101,68 @@ function RotaLegend({ now }) {
   );
 }
 
-// Tier-conditional footer CTA. Phase 1: actions are stubs (Phase 4).
-function EditFooterCTA({ tier, draftCount, onStub }) {
+// Tier-conditional footer CTA. Wired to Phase-2 lifecycle writers.
+// Scope: targets a single department (targetDeptId).
+//   HOD    → their own dept (currentUser.department_id).
+//   CHIEF  → their own dept (Phase 3 single-dept scope; multi-dept via
+//            the Phase-4 inbox).
+//   COMMAND → their own dept if populated; otherwise publish button is
+//            disabled with a hint pointing to the inbox.
+function EditFooterCTA({
+  tier, draftCount, targetDeptId, targetDeptName,
+  busy, onSubmit, onPublish,
+}) {
   const n = draftCount;
-  const pubLabel = `Publish (${n} draft${n === 1 ? '' : 's'})`;
-  const subLabel = `Submit for approval (${n} draft${n === 1 ? '' : 's'})`;
+  // Sub-commit 1 uses the existing aggregate draftCount as-is; sub-commit
+  // 4 swaps in a per-dept day count and updates the label copy.
+  const pubLabel = busy === 'publish'
+    ? 'Publishing…'
+    : `Publish (${n} draft${n === 1 ? '' : 's'})`;
+  const subLabel = busy === 'submit'
+    ? 'Submitting…'
+    : `Submit for approval (${n} draft${n === 1 ? '' : 's'})`;
+  const noTargetDept = !targetDeptId;
+  const noTargetTitle = noTargetDept ? 'Use the review inbox to publish departments individually.' : undefined;
   return (
     <div className="crew-rota-cta">
       {tier === 'COMMAND' && (
-        <button type="button" className="v2-btn-filled" onClick={() => onStub('publish')}>
-          {pubLabel}
-        </button>
+        <button
+          type="button"
+          className="v2-btn-filled"
+          onClick={onPublish}
+          disabled={!!busy || n === 0 || noTargetDept}
+          title={noTargetTitle}
+          aria-label={`Publish ${targetDeptName || 'department'}`}
+        >{pubLabel}</button>
       )}
       {tier === 'CHIEF' && (
         <>
-          <button type="button" className="v2-btn-ghost" onClick={() => onStub('submit')}>
-            {subLabel}
-          </button>
-          <button type="button" className="v2-btn-filled" onClick={() => onStub('publish')}>
-            {pubLabel}
-          </button>
+          <button
+            type="button"
+            className="v2-btn-ghost"
+            onClick={onSubmit}
+            disabled={!!busy || n === 0 || noTargetDept}
+            title={noTargetTitle}
+            aria-label={`Submit ${targetDeptName || 'department'} for approval`}
+          >{subLabel}</button>
+          <button
+            type="button"
+            className="v2-btn-filled"
+            onClick={onPublish}
+            disabled={!!busy || n === 0 || noTargetDept}
+            title={noTargetTitle}
+            aria-label={`Publish ${targetDeptName || 'department'}`}
+          >{pubLabel}</button>
         </>
       )}
       {tier === 'HOD' && (
-        <button type="button" className="v2-btn-filled" onClick={() => onStub('submit')}>
-          {subLabel}
-        </button>
+        <button
+          type="button"
+          className="v2-btn-filled"
+          onClick={onSubmit}
+          disabled={!!busy || n === 0 || noTargetDept}
+          aria-label={`Submit ${targetDeptName || 'department'} for approval`}
+        >{subLabel}</button>
       )}
       {!['COMMAND', 'CHIEF', 'HOD'].includes(tier) && (
         <span style={{ fontStyle: 'italic' }}>Read-only — your role can’t publish drafts.</span>
@@ -165,8 +205,12 @@ export default function CrewRotaPage() {
 
   useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
 
-  const showToast = useCallback((msg) => {
-    setToast(msg);
+  // showToast(msg) — regular. showToast(msg, { error:true }) — destructive
+  // styling for write-failure feedback. State is { msg, error } so the
+  // renderer can apply the variant class; existing call sites pass a bare
+  // string and stay backward-compat.
+  const showToast = useCallback((msg, opts) => {
+    setToast({ msg, error: !!opts?.error });
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 4200);
   }, []);
@@ -190,6 +234,14 @@ export default function CrewRotaPage() {
   // safe to evaluate before rota resolves.
   const showPendingReviewNotice =
     pendingReviewCount > 0 && (tier === 'CHIEF' || tier === 'COMMAND');
+
+  // Footer dept context — single-dept scope for Phase 3. HOD/CHIEF use
+  // their own dept; COMMAND uses theirs if populated, otherwise the
+  // publish button disables with a hint pointing to the inbox.
+  const targetDeptId = currentUser?.department_id || null;
+  // ctaBusy: null | 'submit' | 'publish' — disables both buttons during
+  // the in-flight RPC so a double-click can't double-write.
+  const [ctaBusy, setCtaBusy] = useState(null);
   const {
     templates, loading: templatesLoading, error: templatesError,
     toggleStar, createTemplate, updateTemplate, deleteTemplate,
@@ -321,6 +373,47 @@ export default function CrewRotaPage() {
     setEditMode(false);
     refetch({ silent: true });
   }, [refetch]);
+
+  // Friendly dept name for toasts / aria-labels — falls back to "department"
+  // when the dept lookup hasn't resolved yet.
+  const targetDeptName = (departments.find((d) => d.id === targetDeptId) || {}).name || null;
+
+  // Footer handlers — go straight to the Phase-2 RPC writers. Loading
+  // state via ctaBusy disables both buttons during the in-flight call.
+  // The pre-checks (sub-commits 2 + 3) layer on top of these in their
+  // own sub-commits.
+  const handleFooterSubmit = useCallback(async () => {
+    if (!rota?.id || !targetDeptId || ctaBusy) return;
+    setCtaBusy('submit');
+    const res = await submitRotaDepartment({
+      rotaId: rota.id,
+      departmentId: targetDeptId,
+    });
+    setCtaBusy(null);
+    if (!res.ok) {
+      showToast(`Couldn’t submit — ${res.error || 'try again.'}`, { error: true });
+      return;
+    }
+    showToast(`Submitted ${targetDeptName || 'department'} for approval.`);
+    exitEdit();
+  }, [rota, targetDeptId, ctaBusy, targetDeptName, showToast, exitEdit]);
+
+  const handleFooterPublish = useCallback(async () => {
+    if (!rota?.id || !targetDeptId || ctaBusy) return;
+    setCtaBusy('publish');
+    const res = await publishRotaDepartmentDirect({
+      rotaId: rota.id,
+      departmentId: targetDeptId,
+      note: null,
+    });
+    setCtaBusy(null);
+    if (!res.ok) {
+      showToast(`Couldn’t publish — ${res.error || 'try again.'}`, { error: true });
+      return;
+    }
+    showToast(`Published ${targetDeptName || 'department'}.`);
+    exitEdit();
+  }, [rota, targetDeptId, ctaBusy, targetDeptName, showToast, exitEdit]);
 
   return (
     <>
@@ -522,11 +615,11 @@ export default function CrewRotaPage() {
               <EditFooterCTA
                 tier={tier}
                 draftCount={draftCount}
-                onStub={(kind) => showToast(
-                  kind === 'publish'
-                    ? 'Publishing ships in Phase 4.'
-                    : 'Submit for approval ships in Phase 4.',
-                )}
+                targetDeptId={targetDeptId}
+                targetDeptName={targetDeptName}
+                busy={ctaBusy}
+                onSubmit={handleFooterSubmit}
+                onPublish={handleFooterPublish}
               />
             ) : (
               <>
@@ -618,7 +711,12 @@ export default function CrewRotaPage() {
           onApplied={() => { setApplyTarget(null); setPickerOpen(false); }}
         />
 
-        {toast && <div className="crew-rota-toast" role="status">{toast}</div>}
+        {toast && (
+          <div
+            className={`crew-rota-toast${toast.error ? ' error' : ''}`}
+            role={toast.error ? 'alert' : 'status'}
+          >{toast.msg}</div>
+        )}
 
       </div>
 
