@@ -23,8 +23,8 @@ const AccountsWidget = ({ title, account }) => {
     <div className="ce-card rounded-xl p-5">
       <div className="flex items-start justify-between mb-5">
         <div>
-          <p className="ce-eyebrow">{title}</p>
-          <h3 className={`ce-title${overBudget ? ' is-attention' : ''}`}>{statusText}</h3>
+          <h3 className="ce-title">{title}</h3>
+          <p className={`ce-status${overBudget ? ' is-attention' : ''}`}>{statusText}</p>
         </div>
         <button
           onClick={() => navigate('/accounts')}

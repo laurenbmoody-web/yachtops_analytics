@@ -151,8 +151,8 @@ const TodaySnapshotWidget = () => {
     >
       <div className="flex items-start justify-between mb-4">
         <div>
-          <p className="ce-eyebrow">Today</p>
-          <h3 className={`ce-title${statusAttention ? ' is-attention' : ''}`}>{statusText}</h3>
+          <h3 className="ce-title">Today</h3>
+          <p className={`ce-status${statusAttention ? ' is-attention' : ''}`}>{statusText}</p>
         </div>
         <div className="flex items-center gap-1.5">
           <Icon name="Calendar" className="w-4 h-4 text-muted-foreground" />

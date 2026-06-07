@@ -66,9 +66,17 @@
   color: var(--d-orange);
   text-transform: none;
 }
-/* Live status headline goes orange-italic when the widget has something
-   needing attention; navy (base) when all-clear. */
-.cargo-editorial .ce-title.is-attention {
+/* Secondary status subline under the noun title. Smaller, quiet
+   --d-muted by default; orange-italic ONLY when the widget needs
+   attention. The live value lives here — the title stays the noun. */
+.cargo-editorial .ce-status {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--d-muted);
+  margin: 2px 0 0;
+}
+.cargo-editorial .ce-status.is-attention {
   color: var(--d-orange);
   font-style: italic;
 }
