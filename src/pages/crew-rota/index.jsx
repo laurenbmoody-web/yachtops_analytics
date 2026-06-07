@@ -11,6 +11,7 @@ import RotaTodayGrid from '../trip-detail-view-with-guest-allocation/components/
 import { DEPT_ORDER } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
 import CrewListView from './CrewListView';
 import CrewWeekMatrix, { weekRangeLabel, weekRangeLabelLong } from './CrewWeekMatrix';
+import HodEditConfirmModal from './HodEditConfirmModal';
 import RestPanelPopover from './RestPanelPopover';
 import PatternPicker from './PatternPicker';
 import SimpleTemplateEditor from './SimpleTemplateEditor';
@@ -393,11 +394,25 @@ export default function CrewRotaPage() {
   }, [rota, shiftType, myMemberId, applyPaint, syncDeptDraft, showToast]);
 
   const canEdit = !!rota?.id && !loading && !error;
-  const enterEdit = useCallback(() => {
-    if (!canEdit) return;
+  // hodConfirmOpen: when set, the modal renders with the dept's current
+  // (non-draft) status and blocks editMode entry until the HOD confirms.
+  // CHIEF/COMMAND bypass — they have the authority to revert deliberately.
+  const [hodConfirmOpen, setHodConfirmOpen] = useState(false);
+  const beginEditMode = useCallback(() => {
     setEditMode(true);
     refetch({ silent: true });
-  }, [canEdit, refetch]);
+  }, [refetch]);
+  const enterEdit = useCallback(() => {
+    if (!canEdit) return;
+    if (tier === 'HOD' && targetDeptId) {
+      const status = statusByDept.get(targetDeptId)?.status;
+      if (status === 'pending_approval' || status === 'published') {
+        setHodConfirmOpen(true);
+        return;
+      }
+    }
+    beginEditMode();
+  }, [canEdit, tier, targetDeptId, statusByDept, beginEditMode]);
   const exitEdit = useCallback(() => {
     setEditMode(false);
     refetch({ silent: true });
@@ -798,6 +813,14 @@ export default function CrewRotaPage() {
             role={toast.error ? 'alert' : 'status'}
           >{toast.msg}</div>
         )}
+
+        <HodEditConfirmModal
+          open={hodConfirmOpen}
+          currentStatus={targetDeptId ? statusByDept.get(targetDeptId)?.status : null}
+          departmentName={targetDeptName}
+          onCancel={() => setHodConfirmOpen(false)}
+          onContinue={() => { setHodConfirmOpen(false); beginEditMode(); }}
+        />
 
       </div>
 
