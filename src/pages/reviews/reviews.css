@@ -1,0 +1,72 @@
+/* ============================================================
+   /reviews — inbox for rota submissions
+   Page background uses the data-theme="day" --color-background token
+   (paler grey-cream #F4F1EC). Deeper cream #F4EEE4 is reserved for
+   inside-card surface accents (workload strip in sub-commit 5).
+   ============================================================ */
+
+.rv-page {
+  background: var(--color-background);
+  min-height: 100vh;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: #1C1B3A;
+  padding: 28px 32px 60px;
+}
+
+.rv-container {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.rv-back {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px;
+  color: #8B8478;
+  cursor: pointer;
+  margin-bottom: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.rv-back:hover { color: #695880; text-decoration: underline; }
+
+.rv-eyebrow {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8B8478;
+  margin-bottom: 8px;
+}
+
+.rv-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-weight: 500;
+  font-size: 36px;
+  line-height: 1;
+  margin: 0;
+  color: #1C1B3A;
+}
+.rv-title em {
+  color: #C65A1A;
+  font-style: normal;
+  font-weight: 500;
+}
+
+.rv-subtitle {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 14px;
+  color: #8B8478;
+  margin-top: 8px;
+}
+
+.rv-body {
+  margin-top: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
