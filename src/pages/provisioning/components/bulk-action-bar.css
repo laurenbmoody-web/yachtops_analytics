@@ -206,3 +206,26 @@
   height: 12px;
   display: block;
 }
+
+/* ── BulkEditModal shared input class ─────────────────────────────
+   Used by inline inputs/selects and passed as inputClassName to
+   SupplierPicker so the trigger input matches the surrounding form.
+   Cool palette via .pv-dashboard scope on the panel root. */
+.pv-bulk-edit-input {
+  width: 100%;
+  padding: 8px 10px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13.5px;
+  color: var(--d-navy);
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  border-radius: 8px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 120ms ease;
+}
+.pv-bulk-edit-input:focus { border-color: var(--d-orange); }
+.pv-bulk-edit-input::placeholder { color: var(--d-muted-soft); font-style: italic; }
+.pv-bulk-edit-input:disabled { opacity: 0.55; cursor: default; }
+textarea.pv-bulk-edit-input { resize: vertical; min-height: 60px; font-family: inherit; }
+select.pv-bulk-edit-input { cursor: pointer; }
