@@ -20,6 +20,7 @@ import { useRotaShifts } from './useRotaShifts';
 import { useRotaTemplates } from './useRotaTemplates';
 import { useCurrentRota } from './useCurrentRota';
 import { useRotaDepartmentStatus } from './useRotaDepartmentStatus';
+import { usePendingReviewCount } from './usePendingReviewCount';
 
 const EDITORIAL_BG = '#F5F1EA';
 const GRID_START_HOUR = 6;
@@ -183,6 +184,12 @@ export default function CrewRotaPage() {
   const hasNoShifts = !loading && !error && shifts.length === 0;
   const { rota } = useCurrentRota();
   const { statusByDept, ensureDraft } = useRotaDepartmentStatus(rota?.id);
+  const { count: pendingReviewCount } = usePendingReviewCount(rota?.id);
+  // Notice only renders for reviewers (CHIEF / COMMAND) with non-zero
+  // count. The hook returns 0 when no rota id yet, so the boolean is
+  // safe to evaluate before rota resolves.
+  const showPendingReviewNotice =
+    pendingReviewCount > 0 && (tier === 'CHIEF' || tier === 'COMMAND');
   const {
     templates, loading: templatesLoading, error: templatesError,
     toggleStar, createTemplate, updateTemplate, deleteTemplate,
@@ -530,10 +537,12 @@ export default function CrewRotaPage() {
                 ) : (
                   <span>Click a name for their rest panel.</span>
                 )}
-                <span style={{ fontStyle: 'italic' }}>
-                  1 pending correction ·{' '}
-                  <a href="#review" onClick={(e) => e.preventDefault()}>review</a>
-                </span>
+                {showPendingReviewNotice && (
+                  <span style={{ fontStyle: 'italic' }}>
+                    {pendingReviewCount} submission{pendingReviewCount === 1 ? '' : 's'} awaiting review ·{' '}
+                    <a href="/reviews">review</a>
+                  </span>
+                )}
               </>
             )}
           </div>
