@@ -1,0 +1,260 @@
+/* ============================================================
+   /reviews — inbox for rota submissions
+   Page background uses the data-theme="day" --color-background token
+   (paler grey-cream #F4F1EC). Deeper cream #F4EEE4 is reserved for
+   inside-card surface accents (workload strip in sub-commit 5).
+   ============================================================ */
+
+.rv-page {
+  background: var(--color-background);
+  min-height: 100vh;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: #1C1B3A;
+  padding: 28px 32px 60px;
+}
+
+.rv-container {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.rv-back {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px;
+  color: #8B8478;
+  cursor: pointer;
+  margin-bottom: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.rv-back:hover { color: #695880; text-decoration: underline; }
+
+.rv-eyebrow {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8B8478;
+  margin-bottom: 8px;
+}
+
+.rv-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-weight: 500;
+  font-size: 36px;
+  line-height: 1;
+  margin: 0;
+  color: #1C1B3A;
+}
+.rv-title em {
+  color: #C65A1A;
+  font-style: normal;
+  font-weight: 500;
+}
+
+.rv-subtitle {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 14px;
+  color: #8B8478;
+  margin-top: 8px;
+}
+
+.rv-body {
+  margin-top: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Review item card ─────────────────────────────────────────
+   White on the paler page background. Workload strip inside is
+   the deeper #F4EEE4 cream for visual nesting against the page. */
+.rv-card {
+  background: #FFFFFF;
+  border: 0.5px solid #E2DDD4;
+  border-radius: 12px;
+  padding: 18px 20px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: #1C1B3A;
+}
+.rv-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.rv-card-dept {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 20px;
+  color: #1C1B3A;
+  line-height: 1.1;
+}
+.rv-card-rota {
+  font-size: 13px;
+  color: #8B8478;
+  margin-top: 6px;
+}
+.rv-card-meta {
+  text-align: right;
+  font-size: 12px;
+  color: #8B8478;
+}
+.rv-card-meta-sub {
+  font-size: 11px;
+  color: #8B8478;
+  margin-top: 2px;
+}
+
+.rv-card-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #F4EEE4;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1C1B3A;
+  margin-bottom: 14px;
+}
+.rv-card-strip-sep {
+  display: inline-block;
+  width: 1px;
+  height: 14px;
+  background: #DFD8CC;
+  margin: 0 4px;
+}
+
+.rv-card-actions-placeholder {
+  font-style: italic;
+  font-size: 11px;
+  color: #C9C0AE;
+  text-align: right;
+}
+
+/* ── Card action buttons ───────────────────────────────────── */
+.rv-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.rv-btn {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 999px;
+  padding: 9px 16px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0.5px solid transparent;
+}
+.rv-btn.primary {
+  background: #1C1B3A;
+  color: #F5F1EA;
+  border: none;
+}
+.rv-btn.primary:hover { background: #2A2948; }
+.rv-btn.ghost {
+  background: transparent;
+  color: #1C1B3A;
+  border-color: #DFD8CC;
+}
+.rv-btn.ghost:hover { background: #FAFAF7; }
+.rv-btn.danger {
+  background: #7A2E1E;
+  color: #FFFFFF;
+  border: none;
+}
+.rv-btn.danger:hover { background: #6A2419; }
+.rv-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Inline reject panel ───────────────────────────────────── */
+.rv-reject-panel {
+  background: #FBF5EE;
+  border: 0.5px solid #7A2E1E;
+  border-radius: 8px;
+  padding: 14px;
+  margin-top: 0;
+}
+.rv-reject-label {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #7A2E1E;
+  margin-bottom: 8px;
+}
+.rv-reject-textarea {
+  width: 100%;
+  min-height: 64px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px;
+  color: #1C1B3A;
+  padding: 10px 12px;
+  border: 0.5px solid #DFD8CC;
+  border-radius: 6px;
+  background: #FFFFFF;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.rv-reject-textarea:focus { outline: none; border-color: #7A2E1E; }
+.rv-reject-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* ── Page toast ────────────────────────────────────────────── */
+.rv-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  background: #1C1B3A;
+  color: #F5F1EA;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px;
+  z-index: 1200;
+  box-shadow: 0 12px 32px -10px rgba(28, 27, 58, 0.4);
+}
+.rv-toast.error { background: #7A2E1E; }
+
+/* ── Empty state ───────────────────────────────────────────── */
+.rv-empty {
+  background: #FFFFFF;
+  border: 0.5px solid #E2DDD4;
+  border-radius: 12px;
+  padding: 48px 24px;
+  text-align: center;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.rv-empty-icon {
+  display: block;
+  margin: 0 auto 12px;
+}
+.rv-empty-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 18px;
+  font-weight: 500;
+  color: #1C1B3A;
+  margin-bottom: 6px;
+}
+.rv-empty-sub {
+  font-size: 13px;
+  color: #8B8478;
+  max-width: 420px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
