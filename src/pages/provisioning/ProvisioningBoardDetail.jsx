@@ -46,6 +46,7 @@ import SendToSupplierModal from './components/SendToSupplierModal';
 import InvoiceUploadModal, { PAYMENT_STATUS_OPTIONS } from './components/InvoiceUploadModal';
 import ItemDrawer from './components/ItemDrawer';
 import BoardDrawer from './components/BoardDrawer';
+import BulkActionBar from './components/BulkActionBar';
 import ReceiveDeliveryModal from './components/ReceiveDeliveryModal';
 import ConfirmDeliveryModal from './components/ConfirmDeliveryModal';
 import { loadTrips, findTripByAnyId } from '../trips-management-dashboard/utils/tripStorage';
@@ -704,24 +705,85 @@ const ProvisioningBoardDetail = () => {
     await handleCellSave(item, 'status', newStatus);
   }, [handleCellSave]);
 
-  const handleQuickReceive = useCallback(async (item) => {
-    // Optimistic update — item moves off Items tab immediately
-    const qty = item.quantity_ordered ?? 0;
-    setItems(prev => prev.map(i => i.id === item.id
-      ? { ...i, status: 'received', quantity_received: qty, payment_status: 'awaiting_invoice' }
+  // ── Bulk receive (selection-driven, supersedes per-row quick-receive) ──
+  // Serialised loop over quickReceiveItem(). Serialised (not parallel) on
+  // purpose: the storage helper does find-or-create on "today's Manual
+  // receive batch" — N parallel calls would race and produce N batches.
+  // Serial reuses the batch the first call creates.
+  //
+  // > 5 items: live "Receiving M of N..." indicator on the action bar.
+  // ≤ 5 items: silent, single completion toast.
+  //
+  // Partial failures revert the failed items' local state and surface
+  // "Marked X received · Y failed" matching the sendAll pattern from
+  // 61f612a. Selection clears on completion regardless of partial state
+  // so the bar disappears — failed items stay visible on the board, the
+  // crew can retry by re-selecting.
+  const [bulkBusy, setBulkBusy] = useState({ kind: null, done: 0, total: 0 });
+
+  const handleBulkReceive = async () => {
+    const targets = items.filter(i => selectedItems.has(i.id) && i.status !== 'received');
+    if (targets.length === 0) {
+      if (selectedItems.size > 0) {
+        showToast('All selected items are already received', 'success');
+        setSelectedItems(new Set());
+      }
+      return;
+    }
+
+    // Optimistic — fan out the received state immediately. Failed items
+    // get reverted below.
+    const originals = new Map(targets.map(t => [t.id, t]));
+    setItems(prev => prev.map(i => originals.has(i.id)
+      ? { ...i, status: 'received', quantity_received: i.quantity_ordered ?? 0, payment_status: 'awaiting_invoice' }
       : i
     ));
-    try {
-      await quickReceiveItem({ item, listId: id, tenantId: activeTenantId, userId: user?.id });
-      // Refresh delivery batches so Received tab shows the item immediately
-      fetchDeliveryBatches(id).then(data => setDeliveries(data || [])).catch(() => {});
-      showToast(`${item.name} marked received`, 'success');
-    } catch {
-      // Revert on failure
-      setItems(prev => prev.map(i => i.id === item.id ? item : i));
-      showToast('Failed to receive item', 'error');
+
+    const showProgress = targets.length > 5;
+    setBulkBusy({ kind: 'receive', done: 0, total: targets.length });
+
+    let succeeded = 0;
+    const failed = [];
+    for (const item of targets) {
+      // eslint-disable-next-line no-await-in-loop
+      try {
+        await quickReceiveItem({ item, listId: id, tenantId: activeTenantId, userId: user?.id });
+        succeeded += 1;
+      } catch (err) {
+        console.error('[BulkReceive] item failed:', item.id, err);
+        failed.push(item);
+      }
+      if (showProgress) {
+        setBulkBusy(prev => ({ ...prev, done: succeeded + failed.length }));
+      }
     }
-  }, [id, activeTenantId, user?.id]);
+
+    setBulkBusy({ kind: null, done: 0, total: 0 });
+
+    // Revert local state for any failed items
+    if (failed.length) {
+      const failedIds = new Set(failed.map(f => f.id));
+      setItems(prev => prev.map(i => failedIds.has(i.id) ? (originals.get(i.id) || i) : i));
+    }
+
+    // Refresh delivery batches once (not per-item) so the Received tab
+    // shows the new batch immediately.
+    fetchDeliveryBatches(id)
+      .then(data => setDeliveries(data || []))
+      .catch(err => console.error('[BulkReceive] fetchDeliveryBatches failed:', err));
+
+    if (failed.length === 0) {
+      showToast(`Marked ${succeeded} item${succeeded === 1 ? '' : 's'} received`, 'success');
+    } else if (succeeded === 0) {
+      showToast(`Failed to receive ${failed.length} item${failed.length === 1 ? '' : 's'}`, 'error');
+    } else {
+      showToast(`Marked ${succeeded} received · ${failed.length} failed`, 'error');
+    }
+
+    // Clear selection regardless of partial state — bar disappears,
+    // failed items stay visible on the board for retry.
+    setSelectedItems(new Set());
+  };
 
   // ── Item CRUD ─────────────────────────────────────────────────────────────
 
@@ -730,7 +792,8 @@ const ProvisioningBoardDetail = () => {
     setItems(prev => prev.filter(i => i.id !== itemId));
     try {
       await deleteProvisioningItem(itemId);
-    } catch {
+    } catch (err) {
+      console.error('[ProvisioningBoardDetail] handleDeleteItem failed:', err);
       showToast('Failed to delete item', 'error');
       loadAll();
     }
@@ -746,7 +809,8 @@ const ProvisioningBoardDetail = () => {
       const [saved] = await upsertItems([payload]);
       if (saved) setItems(prev => [...prev, saved]);
       else loadAll();
-    } catch {
+    } catch (err) {
+      console.error('[ProvisioningBoardDetail] handleAddItem failed:', err);
       showToast('Failed to add item', 'error');
     }
   };
@@ -1109,15 +1173,25 @@ const ProvisioningBoardDetail = () => {
     };
   }, [items, paymentStatusMap, convertedTotals, fxRates, displayCurrency, list]);
 
-  // ── Checkboxes ────────────────────────────────────────────────────────────
+  // ── Checkboxes / selection model ──────────────────────────────────────────
+  // selectedItems is a Set of item ids. Survives filter/search changes
+  // naturally (id-keyed) — items hidden by filter stay selected and
+  // reappear when the filter clears. Clears on bulk-action success,
+  // explicit Clear button on the action bar, or component unmount.
+  //
+  // someChecked + allChecked drive the Select-all toolbar's checked /
+  // indeterminate states. toggleAll acts on the CURRENT FILTERED VIEW
+  // per the brief — what's visible is what's selectable.
 
   const allChecked = filteredItems.length > 0 && filteredItems.every(i => selectedItems.has(i.id));
+  const someChecked = filteredItems.some(i => selectedItems.has(i.id)) && !allChecked;
   const toggleAll = () => setSelectedItems(allChecked ? new Set() : new Set(filteredItems.map(i => i.id)));
   const toggleItem = (itemId) => setSelectedItems(prev => {
     const n = new Set(prev);
     n.has(itemId) ? n.delete(itemId) : n.add(itemId);
     return n;
   });
+  const clearSelection = () => setSelectedItems(new Set());
 
   // ── Meta helpers ──────────────────────────────────────────────────────────
 
@@ -1673,6 +1747,31 @@ const ProvisioningBoardDetail = () => {
             <div style={{ padding: '48px 0', textAlign: 'center', fontSize: 13, color: '#94A3B8' }}>No items match your filters.</div>
           ) : (
             <>
+              {/* Select-all toolbar — progressive disclosure per brief.
+                  Hidden when 0 selected; reveals once user ticks ≥1 item.
+                  Acts on the CURRENT FILTERED VIEW (selects/deselects
+                  every item visible after filter/search). Indeterminate
+                  when some-but-not-all-filtered are selected.
+                  Single toolbar above the dept groups — avoids the
+                  "which dept-header checkbox am I clicking?" ambiguity
+                  that per-dept select-alls (deferred per brief item 8)
+                  would otherwise introduce. */}
+              {selectedItems.size > 0 && (
+                <label className="pv-select-all-bar pv-dashboard">
+                  <input
+                    type="checkbox"
+                    checked={allChecked}
+                    ref={el => { if (el) el.indeterminate = someChecked; }}
+                    onChange={toggleAll}
+                    aria-label={allChecked ? 'Deselect all items in view' : 'Select all items in view'}
+                  />
+                  <span className="pv-select-all-bar-label">
+                    {allChecked
+                      ? <>All <strong>{filteredItems.length}</strong> item{filteredItems.length === 1 ? '' : 's'} in view selected</>
+                      : <><strong>{selectedItems.size}</strong> of <strong>{filteredItems.length}</strong> selected — click to select all in view</>}
+                  </span>
+                </label>
+              )}
               {deptGroups.map(({ dept, deptObj, items: deptItems }) => {
                 const deptChip = getDeptChip(dept);
                 const deptSubtotal = deptItems.reduce((acc, i) => {
@@ -1698,16 +1797,14 @@ const ProvisioningBoardDetail = () => {
                     <div style={{ background: 'white', border: '1px solid #F1F5F9', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
                       {/* Table header */}
                       <div style={{ display: 'grid', gridTemplateColumns: TABLE_GRID, gap: 0, padding: '0 16px', background: '#FAFAFA', borderBottom: '1px solid #F1F5F9' }}>
-                        {/* Receive-all checkbox for dept */}
-                        <div style={{ display: 'flex', alignItems: 'center', padding: '10px 0' }}>
-                          <input
-                            type="checkbox"
-                            checked={false}
-                            title="Mark all as received"
-                            onChange={() => deptItems.forEach(i => handleQuickReceive(i))}
-                            style={{ width: 13, height: 13, accentColor: '#1D9E75', cursor: 'pointer' }}
-                          />
-                        </div>
+                        {/* Selection column header — empty. The button-
+                            acting-as-checkbox previously here was the
+                            convention violation. Selection lives on
+                            the per-row checkbox below; the cross-view
+                            Select-all sits in the pv-select-all-bar
+                            above all dept groups (progressive
+                            disclosure). */}
+                        <div style={{ padding: '10px 0' }} />
                         {[
                           { label: 'Item',      key: 'item' },
                           ...(groupBy === 'category' ? [] : [{ label: 'Category', key: 'category' }]),
@@ -1782,18 +1879,23 @@ const ProvisioningBoardDetail = () => {
                               opacity: isLocked && itemOrder.status === 'unavailable' ? 0.7 : 1,
                             }}
                           >
-                            {/* Quick-receive checkbox / received checkmark */}
+                            {/* Selection checkbox (pure select — no
+                                side effects). The received state still
+                                renders a non-interactive ✓ as a visual
+                                marker so the row reads as completed.
+                                "Mark received" verb lives on the bulk
+                                action bar. */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 0' }}>
                               {item.status === 'received' ? (
                                 <Icon name="CheckCircle" style={{ width: 13, height: 13, color: '#4ADE80' }} />
                               ) : (
-                              <input
-                                type="checkbox"
-                                checked={false}
-                                title="Mark as received"
-                                onChange={() => handleQuickReceive(item)}
-                                style={{ width: 13, height: 13, accentColor: '#1D9E75', cursor: 'pointer' }}
-                              />
+                                <input
+                                  type="checkbox"
+                                  checked={selectedItems.has(item.id)}
+                                  onChange={() => toggleItem(item.id)}
+                                  aria-label={`Select ${item.name || 'item'}`}
+                                  style={{ width: 13, height: 13, accentColor: '#C65A1A', cursor: 'pointer' }}
+                                />
                               )}
                             </div>
                             {/* Item (name + brand italic sub-text) */}
@@ -2838,6 +2940,20 @@ const ProvisioningBoardDetail = () => {
         tenantId={activeTenantId}
         onAddItems={handleAddItemsFromQuickAdd}
         onClose={() => setQuickAddOpen(false)}
+      />
+
+      {/* Bulk action bar — floats over the items list when ≥1 item
+          selected. Commit 1 ships Mark received + Clear only; Edit /
+          Change dept / Delete enable in commits 2-4 by passing those
+          handlers. Cool-surface palette; sits visually atop the
+          warm-hex items table (item-table cool migration is a
+          separate deferred job). */}
+      <BulkActionBar
+        selectedCount={selectedItems.size}
+        busy={bulkBusy.kind === 'receive'}
+        busyText={bulkBusy.total > 5 ? `Receiving ${bulkBusy.done} of ${bulkBusy.total}…` : ''}
+        onMarkReceived={handleBulkReceive}
+        onClear={clearSelection}
       />
 
       {/* Query placeholder — Sprint 9.5 stub. Real threading is a future

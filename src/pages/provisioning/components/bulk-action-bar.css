@@ -1,0 +1,179 @@
+/* ============================================================
+   Bulk action bar — floating bottom UI for item selection.
+   Scope: .pv-bulk-bar (composes .pv-dashboard for token resolution).
+   Visibility-gated: parent unmounts when count goes to 0, or the
+   .is-visible class is added/removed for the animation pass.
+   ============================================================ */
+
+.pv-bulk-bar {
+  position: fixed;
+  /* Centred over the page content. left+right matched, no transform
+     so the box doesn't shift when content recomposes mid-action. */
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  /* Above the items table; below modals at var(--z-overlay). */
+  z-index: calc(var(--z-overlay) - 1);
+
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px 12px 18px;
+  min-width: 480px;
+  max-width: calc(100vw - 32px);
+
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  border-radius: 12px;
+  /* Floating: bigger shadow than --d-shadow so the bar reads as
+     elevated above the table. Same navy tint as the rest of the
+     palette. */
+  box-shadow: 0 12px 32px rgba(38, 42, 83, 0.16),
+              0 2px 6px rgba(38, 42, 83, 0.06);
+
+  /* Entry / exit animation — opacity + small lift. Parent controls
+     mount; the class flip provides the easing. */
+  opacity: 0;
+  transform: translate(-50%, 8px);
+  transition: opacity 180ms ease, transform 180ms ease;
+  pointer-events: none;
+}
+.pv-bulk-bar.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+
+.pv-bulk-bar-count {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--d-muted);
+  white-space: nowrap;
+}
+.pv-bulk-bar-count strong {
+  font-weight: 700;
+  color: var(--d-navy-deep);
+  font-family: 'Outfit', system-ui, sans-serif;
+}
+
+.pv-bulk-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Buttons ─────────────────────────────────────────────── */
+/* Hierarchy mirrors the rest of the cool surface:
+     primary (Mark received) — solid --d-orange, white text
+     ghost   (Edit, Change dept) — white card + --d-border + --d-navy
+     danger  (Delete) — outline danger; fill on hover for confirmation
+     quiet   (Clear) — text-only --d-muted
+   All buttons share the .pv-bulk-bar-btn base.                 */
+.pv-bulk-bar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 14px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 120ms ease, color 120ms ease,
+              border-color 120ms ease, filter 120ms ease,
+              opacity 120ms ease;
+}
+.pv-bulk-bar-btn:disabled { cursor: default; opacity: 0.55; }
+
+.pv-bulk-bar-btn-primary {
+  background: var(--d-orange);
+  color: white;
+}
+.pv-bulk-bar-btn-primary:hover:not(:disabled) { filter: brightness(0.92); }
+
+.pv-bulk-bar-btn-ghost {
+  background: var(--d-card);
+  color: var(--d-navy);
+  border: 1px solid var(--d-border);
+}
+.pv-bulk-bar-btn-ghost:hover:not(:disabled) {
+  border-color: var(--d-orange);
+  color: var(--d-orange);
+}
+
+.pv-bulk-bar-btn-danger {
+  background: var(--d-card);
+  color: var(--d-danger);
+  border: 1px solid var(--d-danger);
+}
+.pv-bulk-bar-btn-danger:hover:not(:disabled) {
+  background: var(--d-danger);
+  color: white;
+}
+
+.pv-bulk-bar-btn-quiet {
+  background: none;
+  color: var(--d-muted);
+  padding: 7px 10px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12.5px;
+  font-weight: 500;
+  border-radius: 8px;
+  border: 0;
+  cursor: pointer;
+  margin-left: 6px;
+  transition: color 120ms ease;
+}
+.pv-bulk-bar-btn-quiet:hover { color: var(--d-navy-deep); }
+
+/* ── Busy state — replaces the action group during in-flight ops ── */
+.pv-bulk-bar-busy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--d-muted);
+  font-weight: 500;
+}
+.pv-bulk-bar-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--d-border);
+  border-top-color: var(--d-orange);
+  border-radius: 50%;
+  animation: pv-bulk-bar-spin 0.7s linear infinite;
+}
+@keyframes pv-bulk-bar-spin { to { transform: rotate(360deg); } }
+
+/* ── Select-all toolbar (appears above the items table when the
+      user has selected ≥1 item — progressive disclosure per brief). ── */
+.pv-select-all-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--d-navy);
+}
+.pv-select-all-bar input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  accent-color: var(--d-orange);
+}
+.pv-select-all-bar-label {
+  cursor: pointer;
+  user-select: none;
+}
+.pv-select-all-bar-label strong {
+  font-weight: 700;
+  font-family: 'Outfit', system-ui, sans-serif;
+  color: var(--d-navy-deep);
+}
