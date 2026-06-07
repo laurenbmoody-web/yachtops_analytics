@@ -38,6 +38,7 @@ import {
   saveAsTemplate,
   bulkDeleteProvisioningItems,
   bulkUpdateItemDepartment,
+  bulkUpdateProvisioningItems,
   PROVISIONING_STATUS,
   PROVISION_CATEGORIES,
   PROVISION_UNITS,
@@ -919,13 +920,18 @@ const ProvisioningBoardDetail = () => {
         prev.map((i) => (originals.has(i.id) ? { ...i, ...upsertDiff } : i))
       );
 
-      // upsertItems takes objects with id + the fields to set; fan out
-      // the diff across all ids. Single roundtrip.
-      const payload = ids.map((id) => ({ id, ...upsertDiff }));
+      // Use the bulk UPDATE helper (not upsertItems). upsertItems compiles
+      // to INSERT … ON CONFLICT, which makes RLS evaluate the INSERT
+      // WITH CHECK policy — that policy needs list_id to find the parent
+      // board, and a partial diff doesn't include list_id, so Postgres
+      // rejects with 42501. .update().in('id', ids) only triggers the
+      // UPDATE policy, which reads list_id from the existing row (which
+      // the DB already has). See bulkUpdateProvisioningItems comment for
+      // the full reasoning.
       try {
-        await upsertItems(payload);
+        await bulkUpdateProvisioningItems(ids, upsertDiff);
       } catch (err) {
-        console.error('[BulkEdit] upsertItems failed:', err);
+        console.error('[BulkEdit] bulkUpdateProvisioningItems failed:', err);
         // Revert
         setItems((prev) =>
           prev.map((i) => (originals.has(i.id) ? originals.get(i.id) : i))
