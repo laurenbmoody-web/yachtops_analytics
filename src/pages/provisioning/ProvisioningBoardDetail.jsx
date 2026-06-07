@@ -51,6 +51,7 @@ import BoardDrawer from './components/BoardDrawer';
 import BulkActionBar from './components/BulkActionBar';
 import BulkDeleteConfirmModal from './components/BulkDeleteConfirmModal';
 import BulkChangeDeptModal from './components/BulkChangeDeptModal';
+import BulkEditModal from './components/BulkEditModal';
 import ReceiveDeliveryModal from './components/ReceiveDeliveryModal';
 import ConfirmDeliveryModal from './components/ConfirmDeliveryModal';
 import { loadTrips, findTripByAnyId } from '../trips-management-dashboard/utils/tripStorage';
@@ -754,9 +755,15 @@ const ProvisioningBoardDetail = () => {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   // Bulk change-department modal — open via the bar's Change dept verb.
   const [bulkChangeDeptOpen, setBulkChangeDeptOpen] = useState(false);
+  // Bulk multi-edit modal — open via the bar's Edit verb.
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
 
-  const handleBulkReceive = async () => {
-    const targets = items.filter(i => selectedItems.has(i.id) && i.status !== 'received');
+  // targetsOverride lets handleBulkEdit chain into the receive flow with
+  // fresh items (post upsertItems of non-status touched fields), avoiding
+  // React's state-batching staleness when called in the same call stack.
+  const handleBulkReceive = async (targetsOverride = null) => {
+    const targets = targetsOverride
+      ?? items.filter(i => selectedItems.has(i.id) && i.status !== 'received');
     if (targets.length === 0) {
       if (selectedItems.size > 0) {
         showToast('All selected items are already received', 'success');
@@ -855,6 +862,105 @@ const ProvisioningBoardDetail = () => {
       setBulkChangeDeptOpen(false);
       setSelectedItems(new Set());
     }
+  };
+
+  // ── Bulk multi-edit ─────────────────────────────────────────────────────
+  // The modal passes back { diff, touched } — diff is the touched fields
+  // resolved to values (with supplier_name added when supplier_profile_id
+  // is touched). Two write paths converge here:
+  //
+  //   1. Non-status touched fields (and status != 'received') →
+  //      single upsertItems write across all selected items. Fast,
+  //      fire-and-toast like Change dept.
+  //
+  //   2. Status = 'received' → modal closes immediately; the bar
+  //      swaps to the receive progress indicator and handleBulkReceive
+  //      runs the serialised quickReceiveItem loop (same path Lauren
+  //      gets clicking Mark received directly). If non-status fields
+  //      were also touched, those land via upsertItems FIRST so
+  //      quickReceiveItem reads the updated quantity_ordered etc.
+  //      Targets are passed to handleBulkReceive explicitly to dodge
+  //      React state-batching staleness in the same call stack.
+  const handleBulkEdit = async ({ diff, touched }) => {
+    const ids = [...selectedItems];
+    if (ids.length === 0) return;
+
+    // Close modal first — bar takes over for progress / success.
+    setBulkEditOpen(false);
+
+    const touchedKeys = Object.keys(touched).filter((k) => touched[k]);
+    if (touchedKeys.length === 0) {
+      showToast('No changes to save', 'success');
+      setSelectedItems(new Set());
+      return;
+    }
+
+    const wantsReceive = touched.status && diff.status === 'received';
+
+    // Strip status from the upsertItems payload when we're going to
+    // route through quickReceiveItem anyway — that helper will set
+    // status='received' as part of its side-effect bundle (batch +
+    // ledger + payment_status=awaiting_invoice). Avoids a stale write.
+    const upsertDiff = { ...diff };
+    if (wantsReceive) delete upsertDiff.status;
+
+    const willUpsert = Object.keys(upsertDiff).length > 0;
+
+    // Build originals for revert + targets for handleBulkReceive.
+    const originals = new Map(
+      items.filter((i) => selectedItems.has(i.id)).map((i) => [i.id, i])
+    );
+
+    let upsertedItems = null;
+    if (willUpsert) {
+      setBulkBusy({ kind: 'edit', done: 0, total: ids.length });
+      // Optimistic — apply the diff locally
+      setItems((prev) =>
+        prev.map((i) => (originals.has(i.id) ? { ...i, ...upsertDiff } : i))
+      );
+
+      // upsertItems takes objects with id + the fields to set; fan out
+      // the diff across all ids. Single roundtrip.
+      const payload = ids.map((id) => ({ id, ...upsertDiff }));
+      try {
+        await upsertItems(payload);
+      } catch (err) {
+        console.error('[BulkEdit] upsertItems failed:', err);
+        // Revert
+        setItems((prev) =>
+          prev.map((i) => (originals.has(i.id) ? originals.get(i.id) : i))
+        );
+        showToast(`Couldn't save changes — ${err.message || err}`, 'error');
+        setBulkBusy({ kind: null, done: 0, total: 0 });
+        setSelectedItems(new Set());
+        return;
+      }
+
+      // Capture the fresh items (with upsertDiff applied) so the
+      // chained receive path uses the right quantity_ordered etc.
+      upsertedItems = items
+        .filter((i) => selectedItems.has(i.id))
+        .map((i) => ({ ...i, ...upsertDiff }));
+      setBulkBusy({ kind: null, done: 0, total: 0 });
+    }
+
+    if (wantsReceive) {
+      // Pass fresh items as targetsOverride so handleBulkReceive uses
+      // the updated quantity_ordered (not stale state from before the
+      // upsertItems above).
+      const receiveTargets = (upsertedItems
+        ?? items.filter((i) => selectedItems.has(i.id))
+      ).filter((i) => i.status !== 'received');
+      // handleBulkReceive clears selectedItems itself on completion.
+      handleBulkReceive(receiveTargets);
+      return;
+    }
+
+    // No-receive path: success toast + clear selection.
+    if (willUpsert) {
+      showToast(`Updated ${ids.length} item${ids.length === 1 ? '' : 's'}`, 'success');
+    }
+    setSelectedItems(new Set());
   };
 
   // ── Bulk delete ──────────────────────────────────────────────────────────
@@ -3039,7 +3145,8 @@ const ProvisioningBoardDetail = () => {
         selectedCount={selectedItems.size}
         busy={bulkBusy.kind === 'receive'}
         busyText={bulkBusy.total > 5 ? `Receiving ${bulkBusy.done} of ${bulkBusy.total}…` : ''}
-        onMarkReceived={handleBulkReceive}
+        onMarkReceived={() => handleBulkReceive()}
+        onEdit={() => setBulkEditOpen(true)}
         onChangeDept={() => setBulkChangeDeptOpen(true)}
         onDelete={() => setBulkDeleteOpen(true)}
         onClear={clearSelection}
@@ -3060,6 +3167,16 @@ const ProvisioningBoardDetail = () => {
         busy={bulkBusy.kind === 'changeDept'}
         onCancel={() => setBulkChangeDeptOpen(false)}
         onConfirm={handleBulkChangeDept}
+      />
+
+      <BulkEditModal
+        isOpen={bulkEditOpen}
+        count={selectedItems.size}
+        selectedItemRows={items.filter(i => selectedItems.has(i.id))}
+        departments={departments}
+        busy={bulkBusy.kind === 'edit'}
+        onCancel={() => setBulkEditOpen(false)}
+        onConfirm={handleBulkEdit}
       />
 
       {/* Query placeholder — Sprint 9.5 stub. Real threading is a future
