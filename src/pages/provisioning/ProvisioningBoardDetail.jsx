@@ -1747,31 +1747,6 @@ const ProvisioningBoardDetail = () => {
             <div style={{ padding: '48px 0', textAlign: 'center', fontSize: 13, color: '#94A3B8' }}>No items match your filters.</div>
           ) : (
             <>
-              {/* Select-all toolbar — progressive disclosure per brief.
-                  Hidden when 0 selected; reveals once user ticks ≥1 item.
-                  Acts on the CURRENT FILTERED VIEW (selects/deselects
-                  every item visible after filter/search). Indeterminate
-                  when some-but-not-all-filtered are selected.
-                  Single toolbar above the dept groups — avoids the
-                  "which dept-header checkbox am I clicking?" ambiguity
-                  that per-dept select-alls (deferred per brief item 8)
-                  would otherwise introduce. */}
-              {selectedItems.size > 0 && (
-                <label className="pv-select-all-bar pv-dashboard">
-                  <input
-                    type="checkbox"
-                    checked={allChecked}
-                    ref={el => { if (el) el.indeterminate = someChecked; }}
-                    onChange={toggleAll}
-                    aria-label={allChecked ? 'Deselect all items in view' : 'Select all items in view'}
-                  />
-                  <span className="pv-select-all-bar-label">
-                    {allChecked
-                      ? <>All <strong>{filteredItems.length}</strong> item{filteredItems.length === 1 ? '' : 's'} in view selected</>
-                      : <><strong>{selectedItems.size}</strong> of <strong>{filteredItems.length}</strong> selected — click to select all in view</>}
-                  </span>
-                </label>
-              )}
               {deptGroups.map(({ dept, deptObj, items: deptItems }) => {
                 const deptChip = getDeptChip(dept);
                 const deptSubtotal = deptItems.reduce((acc, i) => {
@@ -1797,14 +1772,27 @@ const ProvisioningBoardDetail = () => {
                     <div style={{ background: 'white', border: '1px solid #F1F5F9', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
                       {/* Table header */}
                       <div style={{ display: 'grid', gridTemplateColumns: TABLE_GRID, gap: 0, padding: '0 16px', background: '#FAFAFA', borderBottom: '1px solid #F1F5F9' }}>
-                        {/* Selection column header — empty. The button-
-                            acting-as-checkbox previously here was the
-                            convention violation. Selection lives on
-                            the per-row checkbox below; the cross-view
-                            Select-all sits in the pv-select-all-bar
-                            above all dept groups (progressive
-                            disclosure). */}
-                        <div style={{ padding: '10px 0' }} />
+                        {/* Selection header — universal convention,
+                            standard table-header checkbox in the
+                            leftmost column. Always visible (no
+                            progressive disclosure). Acts on the
+                            CURRENT FILTERED VIEW: checked = all
+                            filtered selected, indeterminate = some,
+                            empty = none. State is global across
+                            dept-groups so clicking any group's header
+                            checkbox toggles the whole filtered view —
+                            per-dept select-all deferred per investigation
+                            item 8. */}
+                        <div style={{ display: 'flex', alignItems: 'center', padding: '10px 0' }}>
+                          <input
+                            type="checkbox"
+                            checked={allChecked}
+                            ref={el => { if (el) el.indeterminate = someChecked; }}
+                            onChange={toggleAll}
+                            aria-label={allChecked ? 'Deselect all items in view' : 'Select all items in view'}
+                            style={{ width: 13, height: 13, accentColor: '#C65A1A', cursor: 'pointer' }}
+                          />
+                        </div>
                         {[
                           { label: 'Item',      key: 'item' },
                           ...(groupBy === 'category' ? [] : [{ label: 'Category', key: 'category' }]),
