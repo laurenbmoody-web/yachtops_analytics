@@ -113,18 +113,17 @@ function RotaLegend({ now }) {
 //   COMMAND → their own dept if populated; otherwise publish button is
 //            disabled with a hint pointing to the inbox.
 function EditFooterCTA({
-  tier, draftCount, targetDeptId, targetDeptName,
+  tier, draftDayCount, targetDeptId, targetDeptName,
   busy, onSubmit, onPublish,
 }) {
-  const n = draftCount;
-  // Sub-commit 1 uses the existing aggregate draftCount as-is; sub-commit
-  // 4 swaps in a per-dept day count and updates the label copy.
-  const pubLabel = busy === 'publish'
-    ? 'Publishing…'
-    : `Publish (${n} draft${n === 1 ? '' : 's'})`;
-  const subLabel = busy === 'submit'
-    ? 'Submitting…'
-    : `Submit for approval (${n} draft${n === 1 ? '' : 's'})`;
+  const n = draftDayCount;
+  // Label counts DAYS with at least one draft (sub-commit 4 interpretation
+  // (b)) — "Submit for approval (5 days)" reads as the workload preview
+  // a reviewer actually cares about. The prior aggregate-shift count
+  // ("47 drafts") overemphasised shift cardinality.
+  const dayLabel = `${n} ${n === 1 ? 'day' : 'days'}`;
+  const pubLabel = busy === 'publish' ? 'Publishing…' : `Publish (${dayLabel})`;
+  const subLabel = busy === 'submit' ? 'Submitting…' : `Submit for approval (${dayLabel})`;
   const noTargetDept = !targetDeptId;
   const noTargetTitle = noTargetDept ? 'Use the review inbox to publish departments individually.' : undefined;
   return (
@@ -246,6 +245,32 @@ export default function CrewRotaPage() {
   // ctaBusy: null | 'submit' | 'publish' — disables both buttons during
   // the in-flight RPC so a double-click can't double-write.
   const [ctaBusy, setCtaBusy] = useState(null);
+
+  // Per-dept day count for the footer label and disable check. Counts
+  // DISTINCT shift_date values among draft shifts belonging to crew in
+  // targetDeptId, sliced from the same windowShifts the page already
+  // has loaded. Reactive — every optimistic paint / template apply
+  // updates this in the same render the change lands.
+  //
+  // Trade-off: the count only includes drafts in the LOADED window
+  // (trailing 7 days in day view, 13 days centred on selectedDate in
+  // week view). Drafts on dates outside the window aren't counted.
+  // For typical use — HOD editing the upcoming week — this is accurate.
+  // For long-tail edits (drafts spread over months), Phase 6 polish
+  // could replace this with a dedicated fetch + refresh.
+  const draftDayCount = useMemo(() => {
+    if (!targetDeptId) return 0;
+    const deptMemberIds = new Set(
+      crew.filter((c) => c.departmentId === targetDeptId).map((c) => c.id),
+    );
+    const days = new Set();
+    for (const s of (windowShifts || [])) {
+      if (s.status === 'draft' && deptMemberIds.has(s.memberId)) {
+        days.add(s.date);
+      }
+    }
+    return days.size;
+  }, [targetDeptId, windowShifts, crew]);
   const {
     templates, loading: templatesLoading, error: templatesError,
     toggleStar, createTemplate, updateTemplate, deleteTemplate,
@@ -670,7 +695,7 @@ export default function CrewRotaPage() {
             {editMode ? (
               <EditFooterCTA
                 tier={tier}
-                draftCount={draftCount}
+                draftDayCount={draftDayCount}
                 targetDeptId={targetDeptId}
                 targetDeptName={targetDeptName}
                 busy={ctaBusy}
