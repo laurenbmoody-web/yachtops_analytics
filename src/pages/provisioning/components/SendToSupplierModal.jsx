@@ -18,6 +18,8 @@ import {
   fetchSuppliers,
   createSupplier,
   setItemsSupplierProfile,
+  cascadeItemsToToOrder,
+  cascadeItemsToOrdered,
 } from '../utils/provisioningStorage';
 import { useAuth } from '../../../contexts/AuthContext';
 import Icon from '../../../components/AppIcon';
@@ -72,6 +74,16 @@ const SendToSupplierModal = ({
   const [sendingKey, setSendingKey] = useState(null);   // group key being sent
   const [sendingAll, setSendingAll] = useState(false);
   const [unassignedSupplierId, setUnassignedSupplierId] = useState('');
+  // Path 1 cascade gate — fires ONCE per modal session on the first
+  // successful dispatch. The board may have been advanced from
+  // pending_approval → sent_to_supplier via the BoardDrawer's "Approve
+  // & Send to Supplier" button (which already runs Path 1) before
+  // this modal opened, OR it may be opened directly by a CHIEF that
+  // bypasses pending_approval entirely. Either way, the first
+  // successful sendGroup here is the first moment we know a real
+  // dispatch happened, so we flip every remaining draft item → to_order
+  // then mark the flag so subsequent group sends only do Path 2.
+  const [hasApprovalCascaded, setHasApprovalCascaded] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -85,6 +97,7 @@ const SendToSupplierModal = ({
     setSendingKey(null);
     setSendingAll(false);
     setUnassignedSupplierId('');
+    setHasApprovalCascaded(false);
   }, [isOpen]);
 
   useEffect(() => {
@@ -293,6 +306,49 @@ const SendToSupplierModal = ({
       }
 
       await markOrderSent(order.id, via);
+
+      // Lifecycle item-status cascade — Phase 2 commit 1.
+      //
+      // Path 1 (gated, once per modal session): on the FIRST successful
+      // dispatch, flip every remaining draft item on the board to
+      // to_order. If the board entered this modal via the
+      // pending_approval → sent_to_supplier button, BoardDrawer already
+      // ran Path 1 and the helper's defensive WHERE filter
+      // (.eq('status', 'draft')) means our call here is a no-op for
+      // those items. If a CHIEF opened the modal directly (skipping
+      // pending_approval), this is the first chance to run Path 1.
+      //
+      // Path 2: flip the items in THIS group's dispatched batch from
+      // draft / to_order → ordered. Scoped to unsent[].item.id so a
+      // partial-dispatch session (2 of 3 groups succeed) honestly
+      // shows the failed group's items still in to_order. The
+      // helper's .in('status', ['draft', 'to_order']) filter is
+      // defensive against received items being flipped backward.
+      try {
+        if (!hasApprovalCascaded) {
+          const draftIds = (items || [])
+            .filter((it) => it?.status === 'draft')
+            .map((it) => it.id);
+          if (draftIds.length > 0) {
+            await cascadeItemsToToOrder(draftIds);
+          }
+          setHasApprovalCascaded(true);
+        }
+        const dispatchedIds = unsent.map((r) => r.item?.id).filter(Boolean);
+        if (dispatchedIds.length > 0) {
+          await cascadeItemsToOrdered(dispatchedIds);
+        }
+      } catch (cascadeErr) {
+        // Soft fail — the supplier_orders row is committed and
+        // markOrderSent succeeded. The board's item-statuses haven't
+        // caught up; surfaced as a toast (when not silent) so the user
+        // can refresh the items list. Doesn't block the rest of the
+        // send flow.
+        console.error('[SendToSupplierModal] item-status cascade error:', cascadeErr);
+        if (!silent) {
+          showToast('Order sent — item statuses may not have updated. Refresh to retry.', 'error');
+        }
+      }
 
       // Board-status flip is now gated by commitBoardStatusFlip — see
       // the helper above for the invariant. For per-group sends we

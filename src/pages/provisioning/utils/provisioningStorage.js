@@ -467,6 +467,71 @@ export const bulkUpdateProvisioningItems = async (itemIds, fields) => {
   }
 };
 
+// ── Lifecycle item-status cascades ──────────────────────────────────────────
+// Two cascades fire as a board moves through the approval / dispatch
+// lifecycle. Both use the RLS-safe .update().in() pattern (commit 4
+// precedent — UPDATE policy only, no INSERT WITH CHECK evaluation,
+// list_id stays on the existing row). Both are defensively scoped via
+// a status filter on the WHERE clause so a race (another user flips an
+// item mid-cascade) can't silently overwrite settled state.
+//
+// Sequence in the canonical happy path (CHIEF approves + dispatches):
+//   1. cascadeItemsToToOrder(draftIds)  — all draft items on this
+//      board → to_order. Fired when board transitions to
+//      sent_to_supplier. Items in any non-draft state untouched.
+//   2. cascadeItemsToOrdered(dispatchedIds) — items in the successful
+//      supplier order → ordered. Scoped per-supplier-group so the
+//      partial-dispatch state stays honest: items in failed groups
+//      stay at to_order, items in the Unassigned bucket the user
+//      didn't assign stay at to_order. Next retry advances them.
+//
+// Direct flip via BoardDrawer "Approve & Send to Supplier" (no
+// SendToSupplierModal) fires step 1 only — no supplier_orders are
+// created via that path, items stay at to_order until a real dispatch
+// goes out.
+
+// Cascade items DRAFT → TO_ORDER. Caller passes the IDs of items
+// currently in 'draft' (filter at the JS layer where the items array
+// is in scope — typically the board's full items list filtered to
+// status === 'draft'). The .eq('status', 'draft') filter on the WHERE
+// clause is defensive against race conditions between the JS filter
+// and the DB write.
+export const cascadeItemsToToOrder = async (draftItemIds) => {
+  if (!Array.isArray(draftItemIds) || draftItemIds.length === 0) return 0;
+  const { error } = await supabase
+    ?.from('provisioning_items')
+    ?.update({ status: 'to_order' })
+    ?.in('id', draftItemIds)
+    ?.eq('status', 'draft');
+  if (error) {
+    console.error('[provisioningStorage] cascadeItemsToToOrder error:', error);
+    throw error;
+  }
+  return draftItemIds.length;
+};
+
+// Cascade items → ORDERED. Caller passes the IDs of items just
+// dispatched (typically the per-supplier-group items array from
+// SendToSupplierModal's sendGroup flow). The .in('status', [...])
+// filter on the WHERE clause is defensive: only items currently in
+// 'draft' or 'to_order' flip forward. Items already in a settled
+// delivery state (received, partial, not_received) are not touched —
+// guards against a race where a stew marks something received between
+// dispatch start and cascade.
+export const cascadeItemsToOrdered = async (dispatchedItemIds) => {
+  if (!Array.isArray(dispatchedItemIds) || dispatchedItemIds.length === 0) return 0;
+  const { error } = await supabase
+    ?.from('provisioning_items')
+    ?.update({ status: 'ordered' })
+    ?.in('id', dispatchedItemIds)
+    ?.in('status', ['draft', 'to_order']);
+  if (error) {
+    console.error('[provisioningStorage] cascadeItemsToOrdered error:', error);
+    throw error;
+  }
+  return dispatchedItemIds.length;
+};
+
 export const updateItemStatus = async (itemId, status, quantityReceived, ledgerCtx = null) => {
   try {
     const updates = { status };
