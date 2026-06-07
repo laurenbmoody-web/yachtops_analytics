@@ -107,15 +107,24 @@ export default function ReviewsPage() {
           <div className="rv-subtitle">{subtitle}</div>
 
           <div className="rv-body">
-            {items.map((item) => (
-              <ReviewItemCard
-                key={item.id}
-                item={item}
-                onToast={showToast}
-                onResolved={refetch}
-              />
-            ))}
-            {/* Sub-commit 6 renders the empty state here when items.length === 0. */}
+            {!loading && items.length === 0 ? (
+              <div className="rv-empty" role="status">
+                <Icon name="Check" size={32} color="#8B8478" className="rv-empty-icon" />
+                <div className="rv-empty-title">Nothing to review</div>
+                <div className="rv-empty-sub">
+                  When HODs submit rota changes, they’ll appear here for your decision.
+                </div>
+              </div>
+            ) : (
+              items.map((item) => (
+                <ReviewItemCard
+                  key={item.id}
+                  item={item}
+                  onToast={showToast}
+                  onResolved={refetch}
+                />
+              ))
+            )}
           </div>
         </div>
 

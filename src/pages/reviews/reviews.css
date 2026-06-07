@@ -230,3 +230,31 @@
   box-shadow: 0 12px 32px -10px rgba(28, 27, 58, 0.4);
 }
 .rv-toast.error { background: #7A2E1E; }
+
+/* ── Empty state ───────────────────────────────────────────── */
+.rv-empty {
+  background: #FFFFFF;
+  border: 0.5px solid #E2DDD4;
+  border-radius: 12px;
+  padding: 48px 24px;
+  text-align: center;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.rv-empty-icon {
+  display: block;
+  margin: 0 auto 12px;
+}
+.rv-empty-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 18px;
+  font-weight: 500;
+  color: #1C1B3A;
+  margin-bottom: 6px;
+}
+.rv-empty-sub {
+  font-size: 13px;
+  color: #8B8478;
+  max-width: 420px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
