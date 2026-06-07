@@ -101,6 +101,32 @@ const ACTIVE_ORDER_STATES = new Set([
 // order-number display across both portals.
 const shortOrderRef = (id) => String(id || '').slice(0, 8).toUpperCase();
 
+// Scoped selection checkbox — items-list bulk-selection model only.
+// Native UA checkmark glyphs rendered pixelated at 13-14px; this swaps
+// for an inline SVG that anti-aliases cleanly via currentColor. White
+// fill on the --d-orange background when checked. Indeterminate state
+// deliberately omitted (the dash glyph reads as "remove" which is the
+// opposite intent — the "some selected" state is communicated by the
+// floating action bar's count instead). Styles in bulk-action-bar.css.
+const SelectionCheckbox = ({ checked, onChange, ariaLabel }) => (
+  <label className="pv-sel-checkbox">
+    <input
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      aria-label={ariaLabel}
+      className="pv-sel-checkbox-input"
+    />
+    <span className="pv-sel-checkbox-box">
+      {checked && (
+        <svg className="pv-sel-checkbox-tick" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="3.5 8 7 11 12.5 5" />
+        </svg>
+      )}
+    </span>
+  </label>
+);
+
 
 // ── Edit Board Modal ──────────────────────────────────────────────────────────
 
@@ -1213,12 +1239,14 @@ const ProvisioningBoardDetail = () => {
   // reappear when the filter clears. Clears on bulk-action success,
   // explicit Clear button on the action bar, or component unmount.
   //
-  // someChecked + allChecked drive the Select-all toolbar's checked /
-  // indeterminate states. toggleAll acts on the CURRENT FILTERED VIEW
-  // per the brief — what's visible is what's selectable.
+  // Only allChecked matters for the header checkbox state. Indeterminate
+  // is deliberately omitted — the dash reads as "remove", which is the
+  // opposite of what the click does. The "some selected" state is
+  // communicated by the floating action bar's count ("N items selected"),
+  // not by a mid-state on the checkbox. toggleAll acts on the CURRENT
+  // FILTERED VIEW per the brief — what's visible is what's selectable.
 
   const allChecked = filteredItems.length > 0 && filteredItems.every(i => selectedItems.has(i.id));
-  const someChecked = filteredItems.some(i => selectedItems.has(i.id)) && !allChecked;
   const toggleAll = () => setSelectedItems(allChecked ? new Set() : new Set(filteredItems.map(i => i.id)));
   const toggleItem = (itemId) => setSelectedItems(prev => {
     const n = new Set(prev);
@@ -1808,23 +1836,20 @@ const ProvisioningBoardDetail = () => {
                       <div style={{ display: 'grid', gridTemplateColumns: TABLE_GRID, gap: 0, padding: '0 16px', background: '#FAFAFA', borderBottom: '1px solid #F1F5F9' }}>
                         {/* Selection header — universal convention,
                             standard table-header checkbox in the
-                            leftmost column. Always visible (no
-                            progressive disclosure). Acts on the
-                            CURRENT FILTERED VIEW: checked = all
-                            filtered selected, indeterminate = some,
-                            empty = none. State is global across
-                            dept-groups so clicking any group's header
-                            checkbox toggles the whole filtered view —
-                            per-dept select-all deferred per investigation
-                            item 8. */}
+                            leftmost column. Always visible. Two states
+                            only: empty (none or some selected) and
+                            ticked (all filtered selected). No
+                            indeterminate dash — see SelectionCheckbox
+                            comment at module level. State is global
+                            across dept-groups so clicking any group's
+                            header checkbox toggles the whole filtered
+                            view; per-dept select-all deferred per
+                            investigation item 8. */}
                         <div style={{ display: 'flex', alignItems: 'center', padding: '10px 0' }}>
-                          <input
-                            type="checkbox"
+                          <SelectionCheckbox
                             checked={allChecked}
-                            ref={el => { if (el) el.indeterminate = someChecked; }}
                             onChange={toggleAll}
-                            aria-label={allChecked ? 'Deselect all items in view' : 'Select all items in view'}
-                            style={{ width: 13, height: 13, accentColor: '#C65A1A', cursor: 'pointer' }}
+                            ariaLabel={allChecked ? 'Deselect all items in view' : 'Select all items in view'}
                           />
                         </div>
                         {[
@@ -1911,12 +1936,10 @@ const ProvisioningBoardDetail = () => {
                               {item.status === 'received' ? (
                                 <Icon name="CheckCircle" style={{ width: 13, height: 13, color: '#4ADE80' }} />
                               ) : (
-                                <input
-                                  type="checkbox"
+                                <SelectionCheckbox
                                   checked={selectedItems.has(item.id)}
                                   onChange={() => toggleItem(item.id)}
-                                  aria-label={`Select ${item.name || 'item'}`}
-                                  style={{ width: 13, height: 13, accentColor: '#C65A1A', cursor: 'pointer' }}
+                                  ariaLabel={`Select ${item.name || 'item'}`}
                                 />
                               )}
                             </div>
