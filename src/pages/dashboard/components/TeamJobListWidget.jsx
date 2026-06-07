@@ -98,8 +98,8 @@ const TeamJobListWidget = () => {
         <div className="space-y-3">
           <div className="flex items-center justify-between py-2.5 border-b border-border">
             <div className="flex items-center gap-2">
-              <div className="ce-bg-muted w-8 h-8 rounded-lg flex items-center justify-center">
-                <Icon name="AlertCircle" className="ce-fg-muted w-4 h-4" />
+              <div className="ce-bg-muted ce-ico-muted w-8 h-8 rounded-lg flex items-center justify-center">
+                <Icon name="AlertCircle" className="w-4 h-4" />
               </div>
               <span className="text-sm text-muted-foreground">Overdue</span>
             </div>
@@ -108,8 +108,8 @@ const TeamJobListWidget = () => {
 
           <div className="flex items-center justify-between py-2.5 border-b border-border">
             <div className="flex items-center gap-2">
-              <div className="ce-bg-muted w-8 h-8 rounded-lg flex items-center justify-center">
-                <Icon name="Clock" className="ce-fg-muted w-4 h-4" />
+              <div className="ce-bg-muted ce-ico-muted w-8 h-8 rounded-lg flex items-center justify-center">
+                <Icon name="Clock" className="w-4 h-4" />
               </div>
               <span className="text-sm text-muted-foreground">Due today</span>
             </div>
@@ -118,8 +118,8 @@ const TeamJobListWidget = () => {
 
           <div className="flex items-center justify-between py-2.5">
             <div className="flex items-center gap-2">
-              <div className="ce-bg-muted w-8 h-8 rounded-lg flex items-center justify-center">
-                <Icon name="CheckCircle" className="ce-fg-muted w-4 h-4" />
+              <div className="ce-bg-muted ce-ico-muted w-8 h-8 rounded-lg flex items-center justify-center">
+                <Icon name="CheckCircle" className="w-4 h-4" />
               </div>
               <span className="text-sm text-muted-foreground">Completed</span>
             </div>

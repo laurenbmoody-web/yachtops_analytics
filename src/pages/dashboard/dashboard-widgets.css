@@ -149,3 +149,12 @@
    ancestor in the DOM. */
 .ce-qa-navy   { color: var(--d-navy); }
 .ce-qa-orange { color: var(--d-orange); }
+
+/* Muted icon tint — applied to a PARENT element so the lucide <svg> stroke
+   inherits it via currentColor, the same mechanism that makes the
+   quick-action tints work. A colour class placed DIRECTLY on the <svg>
+   (e.g. .ce-fg-muted) does not reliably tint lucide strokes in this app —
+   the icon needs either a `text-*` class or an inherited parent colour.
+   Unscoped for the same hover/cascade reasons as .ce-qa-*. The --d-* value
+   resolves via inheritance from the .cargo-editorial ancestor. */
+.ce-ico-muted { color: var(--d-muted); }
