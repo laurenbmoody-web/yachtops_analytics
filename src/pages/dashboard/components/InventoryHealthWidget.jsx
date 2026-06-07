@@ -23,10 +23,11 @@ const InventoryHealthWidget = () => {
     loadStats();
   }, []);
 
+  // Uniform calm indicators — outline circle, muted tone, no per-status colour.
   const healthStats = [
-    { label: 'Healthy', count: stats?.healthy, icon: 'CheckCircle', color: 'ce-fg-success' },
-    { label: 'Low stock', count: stats?.lowStock, icon: 'AlertTriangle', color: 'ce-fg-warn' },
-    { label: 'Out of stock', count: stats?.outOfStock, icon: 'AlertCircle', color: 'ce-fg-danger' }
+    { label: 'Healthy', count: stats?.healthy, icon: 'Circle', color: 'ce-fg-muted' },
+    { label: 'Low stock', count: stats?.lowStock, icon: 'Circle', color: 'ce-fg-muted' },
+    { label: 'Out of stock', count: stats?.outOfStock, icon: 'Circle', color: 'ce-fg-muted' }
   ];
 
   const isHealthy = stats?.total > 0 && stats?.lowStock === 0 && stats?.outOfStock === 0;
@@ -38,7 +39,7 @@ const InventoryHealthWidget = () => {
   if (loading) {
     statusText = 'Loading…';
   } else if (!hasItems) {
-    statusText = 'No items tracked';
+    statusText = 'Nothing tracked yet';
   } else if (stats?.outOfStock > 0) {
     statusText = `${stats.outOfStock} out of stock`;
     statusAttention = true;
@@ -84,17 +85,20 @@ const InventoryHealthWidget = () => {
       <div className="text-center mb-5">
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading...</p>
+        ) : !hasItems ? (
+          <>
+            <p className="ce-title">Nothing tracked yet.</p>
+            <p className="ce-status is-attention mt-1">Begin the inventory →</p>
+          </>
         ) : (
           <>
             <p className={`text-lg font-semibold ${
-              isHealthy ? 'ce-fg-success' : hasItems ? 'ce-fg-warn' : 'text-muted-foreground'
+              isHealthy ? 'ce-fg-success' : 'ce-fg-warn'
             }`}>
-              {isHealthy ? 'Healthy' : hasItems ? 'Needs attention' : 'No items tracked'}
+              {isHealthy ? 'Healthy' : 'Needs attention'}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {hasItems
-                ? `${stats?.total} item${stats?.total !== 1 ? 's' : ''} tracked`
-                : 'Start tracking inventory'}
+              {`${stats?.total} item${stats?.total !== 1 ? 's' : ''} tracked`}
             </p>
           </>
         )}
