@@ -6,6 +6,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabaseClient';
 import { useReviewItems } from './useReviewItems';
 import ReviewItemCard from './ReviewItemCard';
+import InboxSidebar from './InboxSidebar';
 import './reviews.css';
 
 // ReviewsPage — the inbox for rota submissions awaiting a decision.
@@ -88,13 +89,13 @@ export default function ReviewsPage() {
     <>
       <Header />
       <div className="rv-page">
-        <aside className="rv-sidebar" />
+        <InboxSidebar count={subtitleCount} />
 
         <main className="rv-main">
           <div className="rv-container">
 
             <div className="rv-eyebrow">{eyebrow}</div>
-            <h1 className="rv-title">To review<em>.</em></h1>
+            <h1 className="rv-title">Rota submissions<em>.</em></h1>
             <div className="rv-subtitle">{subtitle}</div>
 
             <div className="rv-body">
