@@ -151,3 +151,58 @@
   animation: pv-bulk-bar-spin 0.7s linear infinite;
 }
 @keyframes pv-bulk-bar-spin { to { transform: rotate(360deg); } }
+
+/* ── Selection checkbox (items-list bulk selection model) ─────────
+   Custom checkbox used by the dept-group header Select-all and the
+   per-row selection ticks. Native UA checkmark glyphs render
+   pixelated at small sizes on some setups; this swaps to an inline
+   SVG that anti-aliases cleanly via currentColor. Scoped to the
+   bulk-selection model — other checkboxes in the app are not
+   affected (separate paint-cleanup job).
+   Indeterminate state intentionally OMITTED — the dash glyph reads
+   as "remove" which is the opposite of what the click does. The
+   "some are selected" state is communicated by the floating action
+   bar's count ("N items selected"); the header checkbox stays
+   empty until all-filtered are selected. */
+.pv-sel-checkbox {
+  position: relative;
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.pv-sel-checkbox-input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+.pv-sel-checkbox-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  background: var(--d-card);
+  border: 1.5px solid var(--d-card-edge);
+  border-radius: 3px;
+  color: white;            /* drives the SVG via currentColor */
+  transition: background 100ms ease, border-color 100ms ease;
+  box-sizing: border-box;
+}
+.pv-sel-checkbox-input:checked + .pv-sel-checkbox-box {
+  background: var(--d-orange);
+  border-color: var(--d-orange);
+}
+.pv-sel-checkbox-input:focus-visible + .pv-sel-checkbox-box {
+  outline: 2px solid var(--d-orange);
+  outline-offset: 1px;
+}
+.pv-sel-checkbox-tick {
+  width: 12px;
+  height: 12px;
+  display: block;
+}
