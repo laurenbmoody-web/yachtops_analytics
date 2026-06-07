@@ -25,6 +25,10 @@ import {
   submitRotaDepartment,
   publishRotaDepartmentDirect,
 } from './useRotaLifecycleWriters';
+import {
+  hasChiefForDepartment,
+  getDraftShiftCount,
+} from './rotaLifecycleChecks';
 
 const EDITORIAL_BG = '#F5F1EA';
 const GRID_START_HOUR = 6;
@@ -385,6 +389,25 @@ export default function CrewRotaPage() {
   const handleFooterSubmit = useCallback(async () => {
     if (!rota?.id || !targetDeptId || ctaBusy) return;
     setCtaBusy('submit');
+    // Pre-check: a CHIEF must exist in this dept to receive the
+    // submission. Phase 1's review_items policy gates UPDATE on
+    // CHIEF+dept-match; without a CHIEF the inbox row is un-actionable.
+    // Client-side gate prevents the orphaned review_item; the writer
+    // remains the safety net for race / RLS edges.
+    const chiefCheck = await hasChiefForDepartment(rota.tenantId, targetDeptId);
+    if (!chiefCheck.ok) {
+      setCtaBusy(null);
+      showToast(`Couldn’t check reviewers — ${chiefCheck.error || 'try again.'}`, { error: true });
+      return;
+    }
+    if (!chiefCheck.has) {
+      setCtaBusy(null);
+      showToast(
+        `No CHIEF available to review ${targetDeptName || 'this department'} — ask COMMAND to publish directly.`,
+        { error: true },
+      );
+      return;
+    }
     const res = await submitRotaDepartment({
       rotaId: rota.id,
       departmentId: targetDeptId,
