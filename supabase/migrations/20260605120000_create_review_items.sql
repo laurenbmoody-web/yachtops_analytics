@@ -26,13 +26,24 @@
 --     source-agnostic and uuids may point at rota_department_status.id today,
 --     hor_*.id tomorrow, etc. Referential integrity for source linkage lives
 --     at the application layer.
---   * assignee_department_id NULL semantic: tenant-wide. Used for COMMAND-only
---     items where no specific dept owns the review.
---   * RLS update predicate elevates COMMAND to act on any item in their tenant
---     regardless of assignee_tier or assignee_department_id — they are the
---     catch-all assignee for the maritime tier hierarchy. CHIEFs are scoped to
---     assignee_tier='CHIEF' AND (assignee_department_id IS NULL OR their own
---     department).
+--   * assignee_department_id NULL semantic: the "no department CHIEF available"
+--     fallback. Only COMMAND can action NULL-dept items. NOT a generic
+--     "tenant-wide" flag; it's the explicit escalation case.
+--   * RLS update predicate routes work by DEPARTMENT, not by tier-on-the-row.
+--     A CHIEF in dept D updates rows where assignee_department_id = D. A
+--     COMMAND updates rows where assignee_department_id IS NULL (the fallback
+--     case where no dept CHIEF exists). The row's assignee_tier column is
+--     INFORMATIONAL — it documents WHO the writer intended to route to (for
+--     inbox querying and display) but the policy gates on dept alone. Writers
+--     in Phase 2 are responsible for keeping (assignee_tier, assignee_department_id)
+--     consistent: CHIEF+<dept_id> or COMMAND+NULL.
+--   * COMMAND is INTENTIONALLY excluded from the standard update path on
+--     dept-owned items. A captain doesn't want notifications when CHIEFs
+--     should be actioning. COMMAND visibility comes from review_items_tenant_read
+--     (they can see all items in the tenant for oversight); their direct rota
+--     actions go through rota_department_status RLS which already permits
+--     COMMAND writes. They don't need review_items update access to perform
+--     the underlying rota mutations.
 --   * Provenance fields (tenant_id, source_module, source_id, assignee_tier,
 --     assignee_department_id, submitter_id, created_at) are immutable via a
 --     BEFORE UPDATE trigger. The WITH CHECK on UPDATE re-asserts the assignee
@@ -167,15 +178,34 @@ CREATE POLICY "review_items_tenant_insert" ON public.review_items FOR INSERT
     SELECT tm.tenant_id FROM public.tenant_members tm
     WHERE tm.user_id = auth.uid() AND tm.active = true));
 
--- (3) Assignee update — only matching assignees can act on a row.
---   COMMAND in this tenant: act on ANY item (catch-all override).
---   CHIEF in this tenant: act on items where assignee_tier='CHIEF' AND
---     (assignee_department_id IS NULL OR matches the CHIEF's department).
---   All other tiers (HOD, CREW, etc.): no UPDATE access.
--- WITH CHECK repeats the same predicate so an UPDATE cannot move the row out
--- of the assignee's scope (mutation of assignee_tier / assignee_department_id
--- is independently blocked by the immutability trigger above, but the
--- WITH CHECK adds defense-in-depth for the assignee gate itself).
+-- (3) Assignee update — routes work by DEPARTMENT, not by the row's
+-- assignee_tier. Two branches, exhaustive:
+--   CHIEF + dept-match: the auth user is a CHIEF in the row's tenant whose
+--     own department_id equals review_items.assignee_department_id. (NULL
+--     equality won't match — when assignee_department_id IS NULL the row
+--     falls through to the COMMAND branch.)
+--   COMMAND + NULL-dept: the auth user is a COMMAND in the row's tenant
+--     AND the row's assignee_department_id IS NULL. This is the
+--     "no dept CHIEF available" escalation fallback.
+--
+-- COMMAND is INTENTIONALLY excluded from the dept-owned path. Captains see
+-- all items via review_items_tenant_read (oversight) but aren't routed work
+-- when a CHIEF is on call to handle it. Direct rota actions (publishing /
+-- editing shifts) go through rota_department_status RLS, which already
+-- permits COMMAND writes; this policy gates ONLY the review_items inbox
+-- action surface.
+--
+-- The row's assignee_tier column is INFORMATIONAL — used for inbox display
+-- and querying ("show me all CHIEF-routed items") but not in this gate.
+-- Phase 2 writers are responsible for keeping (assignee_tier,
+-- assignee_department_id) consistent: CHIEF+<dept_id> or COMMAND+NULL.
+-- Inconsistent rows (e.g. CHIEF+NULL or COMMAND+<dept_id>) would be
+-- un-actionable through this policy and are a writer bug.
+--
+-- WITH CHECK repeats the same predicate so an UPDATE cannot land the row
+-- in a state the updater isn't authorised for. Provenance immutability
+-- (including assignee_tier and assignee_department_id themselves) is
+-- separately enforced by the BEFORE UPDATE trigger above.
 DROP POLICY IF EXISTS "review_items_assignee_update" ON public.review_items;
 CREATE POLICY "review_items_assignee_update" ON public.review_items FOR UPDATE
   USING (
@@ -185,13 +215,13 @@ CREATE POLICY "review_items_assignee_update" ON public.review_items FOR UPDATE
         AND tm.active = true
         AND tm.tenant_id = review_items.tenant_id
         AND (
-          tm.permission_tier = 'COMMAND'
+          (
+            tm.permission_tier = 'CHIEF'
+            AND tm.department_id = review_items.assignee_department_id
+          )
           OR (
-            tm.permission_tier = review_items.assignee_tier
-            AND (
-              review_items.assignee_department_id IS NULL
-              OR tm.department_id = review_items.assignee_department_id
-            )
+            tm.permission_tier = 'COMMAND'
+            AND review_items.assignee_department_id IS NULL
           )
         )))
   WITH CHECK (
@@ -201,13 +231,13 @@ CREATE POLICY "review_items_assignee_update" ON public.review_items FOR UPDATE
         AND tm.active = true
         AND tm.tenant_id = review_items.tenant_id
         AND (
-          tm.permission_tier = 'COMMAND'
+          (
+            tm.permission_tier = 'CHIEF'
+            AND tm.department_id = review_items.assignee_department_id
+          )
           OR (
-            tm.permission_tier = review_items.assignee_tier
-            AND (
-              review_items.assignee_department_id IS NULL
-              OR tm.department_id = review_items.assignee_department_id
-            )
+            tm.permission_tier = 'COMMAND'
+            AND review_items.assignee_department_id IS NULL
           )
         )));
 
