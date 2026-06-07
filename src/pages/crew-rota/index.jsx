@@ -389,7 +389,24 @@ export default function CrewRotaPage() {
   const handleFooterSubmit = useCallback(async () => {
     if (!rota?.id || !targetDeptId || ctaBusy) return;
     setCtaBusy('submit');
-    // Pre-check: a CHIEF must exist in this dept to receive the
+    // Pre-check 1: at least one draft shift must exist for this dept.
+    // take_rota_shift_snapshot raises on zero shifts (Phase 2 RPC error
+    // path), so this is the polite gate that surfaces the right copy.
+    const draftCheck = await getDraftShiftCount(rota.id, rota.tenantId, targetDeptId);
+    if (!draftCheck.ok) {
+      setCtaBusy(null);
+      showToast(`Couldn’t check shifts — ${draftCheck.error || 'try again.'}`, { error: true });
+      return;
+    }
+    if (draftCheck.count === 0) {
+      setCtaBusy(null);
+      showToast(
+        `Cannot submit — no shifts for ${targetDeptName || 'this department'}.`,
+        { error: true },
+      );
+      return;
+    }
+    // Pre-check 2: a CHIEF must exist in this dept to receive the
     // submission. Phase 1's review_items policy gates UPDATE on
     // CHIEF+dept-match; without a CHIEF the inbox row is un-actionable.
     // Client-side gate prevents the orphaned review_item; the writer
@@ -424,6 +441,22 @@ export default function CrewRotaPage() {
   const handleFooterPublish = useCallback(async () => {
     if (!rota?.id || !targetDeptId || ctaBusy) return;
     setCtaBusy('publish');
+    // Pre-check: at least one draft shift must exist (same rationale
+    // as the submit gate — take_rota_shift_snapshot raises on zero).
+    const draftCheck = await getDraftShiftCount(rota.id, rota.tenantId, targetDeptId);
+    if (!draftCheck.ok) {
+      setCtaBusy(null);
+      showToast(`Couldn’t check shifts — ${draftCheck.error || 'try again.'}`, { error: true });
+      return;
+    }
+    if (draftCheck.count === 0) {
+      setCtaBusy(null);
+      showToast(
+        `Cannot publish — no shifts for ${targetDeptName || 'this department'}.`,
+        { error: true },
+      );
+      return;
+    }
     const res = await publishRotaDepartmentDirect({
       rotaId: rota.id,
       departmentId: targetDeptId,
