@@ -37,6 +37,7 @@ import {
   toggleSupplierOrderFavourite,
   saveAsTemplate,
   bulkDeleteProvisioningItems,
+  bulkUpdateItemDepartment,
   PROVISIONING_STATUS,
   PROVISION_CATEGORIES,
   PROVISION_UNITS,
@@ -49,6 +50,7 @@ import ItemDrawer from './components/ItemDrawer';
 import BoardDrawer from './components/BoardDrawer';
 import BulkActionBar from './components/BulkActionBar';
 import BulkDeleteConfirmModal from './components/BulkDeleteConfirmModal';
+import BulkChangeDeptModal from './components/BulkChangeDeptModal';
 import ReceiveDeliveryModal from './components/ReceiveDeliveryModal';
 import ConfirmDeliveryModal from './components/ConfirmDeliveryModal';
 import { loadTrips, findTripByAnyId } from '../trips-management-dashboard/utils/tripStorage';
@@ -750,6 +752,8 @@ const ProvisioningBoardDetail = () => {
   const [bulkBusy, setBulkBusy] = useState({ kind: null, done: 0, total: 0 });
   // Bulk delete confirm modal — open via the bar's Delete verb.
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  // Bulk change-department modal — open via the bar's Change dept verb.
+  const [bulkChangeDeptOpen, setBulkChangeDeptOpen] = useState(false);
 
   const handleBulkReceive = async () => {
     const targets = items.filter(i => selectedItems.has(i.id) && i.status !== 'received');
@@ -813,6 +817,44 @@ const ProvisioningBoardDetail = () => {
     // Clear selection regardless of partial state — bar disappears,
     // failed items stay visible on the board for retry.
     setSelectedItems(new Set());
+  };
+
+  // ── Bulk change department ──────────────────────────────────────────────
+  // Atomic single-roundtrip via bulkUpdateItemDepartment
+  // (.update({department}).in('id', ids)). Optimistic — items re-bucket
+  // into the new dept-group immediately; revert on failure restores the
+  // original department.
+  //
+  // Re-bucketing note: the existing deptGroups render derives from
+  // items + groupBy, so once setItems lands with the new departments,
+  // the dept-group rendering re-buckets on the next React pass.
+  // Verified clean — no manual re-grouping needed.
+  const handleBulkChangeDept = async (newDept) => {
+    const ids = [...selectedItems];
+    if (ids.length === 0 || !newDept) return;
+
+    // Capture originals for revert
+    const originals = new Map(
+      items.filter(i => selectedItems.has(i.id)).map(i => [i.id, i.department || ''])
+    );
+
+    setBulkBusy({ kind: 'changeDept', done: 0, total: ids.length });
+    // Optimistic — flip department locally
+    setItems(prev => prev.map(i => originals.has(i.id) ? { ...i, department: newDept } : i));
+
+    try {
+      await bulkUpdateItemDepartment(ids, newDept);
+      showToast(`Changed ${ids.length} item${ids.length === 1 ? '' : 's'} to ${newDept}`, 'success');
+    } catch (err) {
+      console.error('[BulkChangeDept] failed:', err);
+      // Revert each item's original department
+      setItems(prev => prev.map(i => originals.has(i.id) ? { ...i, department: originals.get(i.id) } : i));
+      showToast(`Couldn't change department — ${err.message || err}`, 'error');
+    } finally {
+      setBulkBusy({ kind: null, done: 0, total: 0 });
+      setBulkChangeDeptOpen(false);
+      setSelectedItems(new Set());
+    }
   };
 
   // ── Bulk delete ──────────────────────────────────────────────────────────
@@ -2998,6 +3040,7 @@ const ProvisioningBoardDetail = () => {
         busy={bulkBusy.kind === 'receive'}
         busyText={bulkBusy.total > 5 ? `Receiving ${bulkBusy.done} of ${bulkBusy.total}…` : ''}
         onMarkReceived={handleBulkReceive}
+        onChangeDept={() => setBulkChangeDeptOpen(true)}
         onDelete={() => setBulkDeleteOpen(true)}
         onClear={clearSelection}
       />
@@ -3008,6 +3051,15 @@ const ProvisioningBoardDetail = () => {
         busy={bulkBusy.kind === 'delete'}
         onCancel={() => setBulkDeleteOpen(false)}
         onConfirm={handleBulkDelete}
+      />
+
+      <BulkChangeDeptModal
+        isOpen={bulkChangeDeptOpen}
+        count={selectedItems.size}
+        departments={departments}
+        busy={bulkBusy.kind === 'changeDept'}
+        onCancel={() => setBulkChangeDeptOpen(false)}
+        onConfirm={handleBulkChangeDept}
       />
 
       {/* Query placeholder — Sprint 9.5 stub. Real threading is a future
