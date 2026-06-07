@@ -32,13 +32,31 @@ const InventoryHealthWidget = () => {
   const isHealthy = stats?.total > 0 && stats?.lowStock === 0 && stats?.outOfStock === 0;
   const hasItems = stats?.total > 0;
 
+  // Live status subline — orange-italic on low/out-of-stock, navy otherwise.
+  let statusText = 'All healthy';
+  let statusAttention = false;
+  if (loading) {
+    statusText = 'Loading…';
+  } else if (!hasItems) {
+    statusText = 'No items tracked';
+  } else if (stats?.outOfStock > 0) {
+    statusText = `${stats.outOfStock} out of stock`;
+    statusAttention = true;
+  } else if (stats?.lowStock > 0) {
+    statusText = `${stats.lowStock} low stock`;
+    statusAttention = true;
+  }
+
   return (
     <div
       className="ce-card rounded-xl p-5 cursor-pointer"
       onClick={() => navigate('/inventory')}
     >
-      <div className="flex items-center justify-between mb-5">
-        <h3 className="ce-title">Inventory health</h3>
+      <div className="flex items-start justify-between mb-5">
+        <div>
+          <h3 className="ce-title">Inventory health</h3>
+          <p className={`ce-status${statusAttention ? ' is-attention' : ''}`}>{statusText}</p>
+        </div>
         <span className="ce-link">
           View all
         </span>

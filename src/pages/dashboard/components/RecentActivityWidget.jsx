@@ -55,8 +55,8 @@ const RecentActivityWidget = () => {
     >
       <div className="flex items-start justify-between mb-4">
         <div>
-          <p className="ce-eyebrow">Activity</p>
-          <h3 className="ce-title">{statusText}</h3>
+          <h3 className="ce-title">Recent activity</h3>
+          <p className="ce-status">{statusText}</p>
         </div>
         <span className="ce-link">
           View all activity

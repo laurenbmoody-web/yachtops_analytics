@@ -115,8 +115,8 @@ const ProvisioningWidget = () => {
     <div className="ce-card rounded-xl p-5">
       <div className="flex items-start justify-between mb-4">
         <div>
-          <p className="ce-eyebrow">Provisioning</p>
-          <h3 className={`ce-title${statusAttention ? ' is-attention' : ''}`}>{statusText}</h3>
+          <h3 className="ce-title">Provisioning</h3>
+          <p className={`ce-status${statusAttention ? ' is-attention' : ''}`}>{statusText}</p>
         </div>
         <button onClick={() => navigate('/provisioning')} className="ce-link">View all</button>
       </div>
