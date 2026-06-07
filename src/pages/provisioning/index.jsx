@@ -1088,6 +1088,7 @@ const ProvisioningWorkspace = () => {
         open={boardDrawer.open}
         mode={boardDrawer.mode}
         list={activeBoardList}
+        items={boardDrawer.listId ? (itemsByList[boardDrawer.listId] || []) : []}
         trips={trips}
         tenantId={activeTenantId}
         departments={departments.map(d => d.name)}
