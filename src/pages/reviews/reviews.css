@@ -70,3 +70,70 @@
   flex-direction: column;
   gap: 12px;
 }
+
+/* ── Review item card ─────────────────────────────────────────
+   White on the paler page background. Workload strip inside is
+   the deeper #F4EEE4 cream for visual nesting against the page. */
+.rv-card {
+  background: #FFFFFF;
+  border: 0.5px solid #E2DDD4;
+  border-radius: 12px;
+  padding: 18px 20px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: #1C1B3A;
+}
+.rv-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.rv-card-dept {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 20px;
+  color: #1C1B3A;
+  line-height: 1.1;
+}
+.rv-card-rota {
+  font-size: 13px;
+  color: #8B8478;
+  margin-top: 6px;
+}
+.rv-card-meta {
+  text-align: right;
+  font-size: 12px;
+  color: #8B8478;
+}
+.rv-card-meta-sub {
+  font-size: 11px;
+  color: #8B8478;
+  margin-top: 2px;
+}
+
+.rv-card-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #F4EEE4;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1C1B3A;
+  margin-bottom: 14px;
+}
+.rv-card-strip-sep {
+  display: inline-block;
+  width: 1px;
+  height: 14px;
+  background: #DFD8CC;
+  margin: 0 4px;
+}
+
+.rv-card-actions-placeholder {
+  font-style: italic;
+  font-size: 11px;
+  color: #C9C0AE;
+  text-align: right;
+}
