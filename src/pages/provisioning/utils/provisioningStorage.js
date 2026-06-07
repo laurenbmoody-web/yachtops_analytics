@@ -419,6 +419,23 @@ export const bulkDeleteProvisioningItems = async (itemIds) => {
   }
 };
 
+// Atomic bulk department reassignment — single .update().in('id', ids).
+// Used by the bulk Change dept verb. Returns nothing; throws on RLS or
+// network failure so the caller can revert the optimistic local state.
+// Empty / nullish department string is allowed (clears the field), so
+// the caller can pass '' to unassign.
+export const bulkUpdateItemDepartment = async (itemIds, department) => {
+  if (!Array.isArray(itemIds) || itemIds.length === 0) return;
+  const { error } = await supabase
+    ?.from('provisioning_items')
+    ?.update({ department: department || '' })
+    ?.in('id', itemIds);
+  if (error) {
+    console.error('[provisioningStorage] bulkUpdateItemDepartment error:', error);
+    throw error;
+  }
+};
+
 export const updateItemStatus = async (itemId, status, quantityReceived, ledgerCtx = null) => {
   try {
     const updates = { status };
