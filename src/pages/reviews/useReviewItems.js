@@ -11,7 +11,10 @@
 // digits at the extreme). Batch lookups can land in Phase 6 polish.
 //
 // day_count: from the source_event_type='submitted' snapshot's shift_data
-// (a jsonb array of rota_shifts rows). Counts distinct shift_date.
+// (a jsonb array of rota_shifts rows). Counts distinct shift_date. When
+// no submit-time snapshot exists (items submitted before the snapshotting
+// writer landed), falls back to counting distinct shift_date from the live
+// rota_shifts for that (rota, dept) over draft+published rows.
 //
 // submitter_role: looked up against tenant_members. roles join is
 // optional — falls back to null when the role isn't resolvable so the
@@ -28,6 +31,7 @@ async function loadOne(item) {
   // Submit-time snapshot for day_count + (Phase 4b) diff baseline.
   let dayCount = 0;
   let shiftCount = ctx.shift_count ?? 0;
+  let snapFound = false;
   if (rotaId && departmentId) {
     const { data: snap, error: snapErr } = await supabase
       .from('rota_shift_snapshots')
@@ -41,12 +45,52 @@ async function loadOne(item) {
     if (snapErr) {
       console.warn('[useReviewItems] snapshot fetch failed:', snapErr);
     } else if (snap) {
+      snapFound = true;
       shiftCount = snap.shift_count ?? shiftCount;
       const dates = new Set();
       for (const s of (snap.shift_data || [])) {
         if (s?.shift_date) dates.add(s.shift_date);
       }
       dayCount = dates.size;
+    }
+  }
+
+  // Fallback when no submit-time snapshot exists — items submitted before
+  // submit_rota_department started snapshotting (Phase 4a sub-commit 1)
+  // have a review_item but no 'submitted' snapshot, so the block above
+  // leaves day_count at 0 despite shifts existing (the founder's
+  // "0 days · 80 shifts" bug). Derive day_count from the live rota_shifts
+  // for this (rota, dept): distinct shift_date over draft+published rows.
+  // Approximate vs a post-edit snapshot, but accurate for the orphaned
+  // pre-snapshot items and good enough for the inbox surface at v1.
+  if (!snapFound && rotaId && departmentId && item.tenant_id) {
+    const { data: members, error: mErr } = await supabase
+      .from('tenant_members')
+      .select('id')
+      .eq('tenant_id', item.tenant_id)
+      .eq('department_id', departmentId)
+      .eq('active', true);
+    if (mErr) {
+      console.warn('[useReviewItems] dept members fetch failed:', mErr);
+    } else {
+      const memberIds = (members || []).map((m) => m.id);
+      if (memberIds.length > 0) {
+        const { data: shifts, error: sErr } = await supabase
+          .from('rota_shifts')
+          .select('shift_date')
+          .eq('rota_id', rotaId)
+          .in('status', ['draft', 'published'])
+          .in('member_id', memberIds);
+        if (sErr) {
+          console.warn('[useReviewItems] fallback shifts fetch failed:', sErr);
+        } else {
+          const dates = new Set();
+          for (const s of (shifts || [])) {
+            if (s?.shift_date) dates.add(s.shift_date);
+          }
+          dayCount = dates.size;
+        }
+      }
     }
   }
 

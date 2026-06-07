@@ -5,33 +5,125 @@
    inside-card surface accents (workload strip in sub-commit 5).
    ============================================================ */
 
+/* Two-column shell: 240px sidebar + fluid main. The page background
+   token shows through the sidebar's translucent white. Header is the
+   fixed h-16 (64px) nav chrome; the sidebar stretches to fill below it. */
 .rv-page {
   background: var(--color-background);
   min-height: 100vh;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   color: #1C1B3A;
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  align-items: start;
+}
+
+/* LEFT — inbox navigation sidebar. */
+.rv-sidebar {
+  background: rgba(255, 255, 255, 0.5);
+  border-right: 0.5px solid rgba(28, 27, 58, 0.08);
+  padding: 24px 16px;
+  min-height: calc(100vh - 64px);
+  box-sizing: border-box;
+}
+
+/* Sidebar header — DM Serif "Inbox" wordmark + subtitle. */
+.rv-sb-header {
+  margin-bottom: 24px;
+}
+.rv-sb-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.1;
+  color: #1C1B3A;
+  margin-bottom: 2px;
+}
+.rv-sb-subtitle {
+  font-size: 12px;
+  color: rgba(28, 27, 58, 0.5);
+}
+
+/* A grouped block of categories (Reviews / Messages / Archive). */
+.rv-sb-section {
+  margin-bottom: 20px;
+}
+.rv-sb-section-head {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(28, 27, 58, 0.5);
+  margin-bottom: 8px;
+  padding-left: 8px;
+}
+
+/* Category row. Active = navy-tinted selection, no left accent. Placeholders
+   are dimmed and non-interactive (cursor: default, no hover). */
+.rv-sb-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  margin-bottom: 1px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #1C1B3A;
+}
+.rv-sb-item.active {
+  background: rgba(28, 27, 58, 0.06);
+  cursor: pointer;
+}
+.rv-sb-item:not(.placeholder):not(.active) {
+  cursor: pointer;
+}
+.rv-sb-item:not(.placeholder):not(.active):hover {
+  background: rgba(28, 27, 58, 0.03);
+}
+.rv-sb-item.placeholder {
+  color: rgba(28, 27, 58, 0.45);
+  cursor: default;
+}
+.rv-sb-item-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Live count badge — terracotta pill on the active category. */
+.rv-sb-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: #C65A1A;
+  color: #FFFFFF;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* "soon" tag on placeholder categories. */
+.rv-sb-soon {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-style: italic;
+  color: rgba(28, 27, 58, 0.3);
+}
+
+/* RIGHT — page header + card list. */
+.rv-main {
   padding: 28px 32px 60px;
 }
 
 .rv-container {
-  max-width: 760px;
-  margin: 0 auto;
+  max-width: 720px;
 }
-
-.rv-back {
-  background: transparent;
-  border: none;
-  padding: 0;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  font-size: 13px;
-  color: #8B8478;
-  cursor: pointer;
-  margin-bottom: 16px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.rv-back:hover { color: #695880; text-decoration: underline; }
 
 .rv-eyebrow {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
