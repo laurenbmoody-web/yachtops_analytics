@@ -11,6 +11,7 @@ import RotaTodayGrid from '../trip-detail-view-with-guest-allocation/components/
 import { DEPT_ORDER } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
 import CrewListView from './CrewListView';
 import CrewWeekMatrix, { weekRangeLabel, weekRangeLabelLong } from './CrewWeekMatrix';
+import HodEditConfirmModal from './HodEditConfirmModal';
 import RestPanelPopover from './RestPanelPopover';
 import PatternPicker from './PatternPicker';
 import SimpleTemplateEditor from './SimpleTemplateEditor';
@@ -21,6 +22,14 @@ import { useRotaTemplates } from './useRotaTemplates';
 import { useCurrentRota } from './useCurrentRota';
 import { useRotaDepartmentStatus } from './useRotaDepartmentStatus';
 import { usePendingReviewCount } from './usePendingReviewCount';
+import {
+  submitRotaDepartment,
+  publishRotaDepartmentDirect,
+} from './useRotaLifecycleWriters';
+import {
+  hasChiefForDepartment,
+  getDraftShiftCount,
+} from './rotaLifecycleChecks';
 
 const EDITORIAL_BG = '#F5F1EA';
 const GRID_START_HOUR = 6;
@@ -97,32 +106,66 @@ function RotaLegend({ now }) {
   );
 }
 
-// Tier-conditional footer CTA. Phase 1: actions are stubs (Phase 4).
-function EditFooterCTA({ tier, draftCount, onStub }) {
-  const n = draftCount;
-  const pubLabel = `Publish (${n} draft${n === 1 ? '' : 's'})`;
-  const subLabel = `Submit for approval (${n} draft${n === 1 ? '' : 's'})`;
+// Tier-conditional footer CTA. Wired to Phase-2 lifecycle writers.
+// Scope: targets a single department (targetDeptId).
+//   HOD    → their own dept (currentUser.department_id).
+//   CHIEF  → their own dept (Phase 3 single-dept scope; multi-dept via
+//            the Phase-4 inbox).
+//   COMMAND → their own dept if populated; otherwise publish button is
+//            disabled with a hint pointing to the inbox.
+function EditFooterCTA({
+  tier, draftDayCount, targetDeptId, targetDeptName,
+  busy, onSubmit, onPublish,
+}) {
+  const n = draftDayCount;
+  // Label counts DAYS with at least one draft — "Submit for approval
+  // (5 days)" reads as the workload preview a reviewer actually cares
+  // about. A shift-cardinality count overemphasises individual rows.
+  const dayLabel = `${n} ${n === 1 ? 'day' : 'days'}`;
+  const pubLabel = busy === 'publish' ? 'Publishing…' : `Publish (${dayLabel})`;
+  const subLabel = busy === 'submit' ? 'Submitting…' : `Submit for approval (${dayLabel})`;
+  const noTargetDept = !targetDeptId;
+  const noTargetTitle = noTargetDept ? 'Use the review inbox to publish departments individually.' : undefined;
   return (
     <div className="crew-rota-cta">
       {tier === 'COMMAND' && (
-        <button type="button" className="v2-btn-filled" onClick={() => onStub('publish')}>
-          {pubLabel}
-        </button>
+        <button
+          type="button"
+          className="v2-btn-filled"
+          onClick={onPublish}
+          disabled={!!busy || n === 0 || noTargetDept}
+          title={noTargetTitle}
+          aria-label={`Publish ${targetDeptName || 'department'}`}
+        >{pubLabel}</button>
       )}
       {tier === 'CHIEF' && (
         <>
-          <button type="button" className="v2-btn-ghost" onClick={() => onStub('submit')}>
-            {subLabel}
-          </button>
-          <button type="button" className="v2-btn-filled" onClick={() => onStub('publish')}>
-            {pubLabel}
-          </button>
+          <button
+            type="button"
+            className="v2-btn-ghost"
+            onClick={onSubmit}
+            disabled={!!busy || n === 0 || noTargetDept}
+            title={noTargetTitle}
+            aria-label={`Submit ${targetDeptName || 'department'} for approval`}
+          >{subLabel}</button>
+          <button
+            type="button"
+            className="v2-btn-filled"
+            onClick={onPublish}
+            disabled={!!busy || n === 0 || noTargetDept}
+            title={noTargetTitle}
+            aria-label={`Publish ${targetDeptName || 'department'}`}
+          >{pubLabel}</button>
         </>
       )}
       {tier === 'HOD' && (
-        <button type="button" className="v2-btn-filled" onClick={() => onStub('submit')}>
-          {subLabel}
-        </button>
+        <button
+          type="button"
+          className="v2-btn-filled"
+          onClick={onSubmit}
+          disabled={!!busy || n === 0 || noTargetDept}
+          aria-label={`Submit ${targetDeptName || 'department'} for approval`}
+        >{subLabel}</button>
       )}
       {!['COMMAND', 'CHIEF', 'HOD'].includes(tier) && (
         <span style={{ fontStyle: 'italic' }}>Read-only — your role can’t publish drafts.</span>
@@ -165,14 +208,18 @@ export default function CrewRotaPage() {
 
   useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
 
-  const showToast = useCallback((msg) => {
-    setToast(msg);
+  // showToast(msg) — regular. showToast(msg, { error:true }) — destructive
+  // styling for write-failure feedback. State is { msg, error } so the
+  // renderer can apply the variant class; existing call sites pass a bare
+  // string and stay backward-compat.
+  const showToast = useCallback((msg, opts) => {
+    setToast({ msg, error: !!opts?.error });
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 4200);
   }, []);
 
   const {
-    crew, shifts, windowShifts, loading, error, effectiveDate, draftCount,
+    crew, shifts, windowShifts, loading, error, effectiveDate,
     applyPaint, applyTemplate, refetch,
   } = useRotaShifts(
     selectedDate,
@@ -190,6 +237,40 @@ export default function CrewRotaPage() {
   // safe to evaluate before rota resolves.
   const showPendingReviewNotice =
     pendingReviewCount > 0 && (tier === 'CHIEF' || tier === 'COMMAND');
+
+  // Footer dept context — single-dept scope for Phase 3. HOD/CHIEF use
+  // their own dept; COMMAND uses theirs if populated, otherwise the
+  // publish button disables with a hint pointing to the inbox.
+  const targetDeptId = currentUser?.department_id || null;
+  // ctaBusy: null | 'submit' | 'publish' — disables both buttons during
+  // the in-flight RPC so a double-click can't double-write.
+  const [ctaBusy, setCtaBusy] = useState(null);
+
+  // Per-dept day count for the footer label and disable check. Counts
+  // DISTINCT shift_date values among draft shifts belonging to crew in
+  // targetDeptId, sliced from the same windowShifts the page already
+  // has loaded. Reactive — every optimistic paint / template apply
+  // updates this in the same render the change lands.
+  //
+  // Trade-off: the count only includes drafts in the LOADED window
+  // (trailing 7 days in day view, 13 days centred on selectedDate in
+  // week view). Drafts on dates outside the window aren't counted.
+  // For typical use — HOD editing the upcoming week — this is accurate.
+  // For long-tail edits (drafts spread over months), Phase 6 polish
+  // could replace this with a dedicated fetch + refresh.
+  const draftDayCount = useMemo(() => {
+    if (!targetDeptId) return 0;
+    const deptMemberIds = new Set(
+      crew.filter((c) => c.departmentId === targetDeptId).map((c) => c.id),
+    );
+    const days = new Set();
+    for (const s of (windowShifts || [])) {
+      if (s.status === 'draft' && deptMemberIds.has(s.memberId)) {
+        days.add(s.date);
+      }
+    }
+    return days.size;
+  }, [targetDeptId, windowShifts, crew]);
   const {
     templates, loading: templatesLoading, error: templatesError,
     toggleStar, createTemplate, updateTemplate, deleteTemplate,
@@ -312,15 +393,122 @@ export default function CrewRotaPage() {
   }, [rota, shiftType, myMemberId, applyPaint, syncDeptDraft, showToast]);
 
   const canEdit = !!rota?.id && !loading && !error;
-  const enterEdit = useCallback(() => {
-    if (!canEdit) return;
+  // hodConfirmOpen: when set, the modal renders with the dept's current
+  // (non-draft) status and blocks editMode entry until the HOD confirms.
+  // CHIEF/COMMAND bypass — they have the authority to revert deliberately.
+  const [hodConfirmOpen, setHodConfirmOpen] = useState(false);
+  const beginEditMode = useCallback(() => {
     setEditMode(true);
     refetch({ silent: true });
-  }, [canEdit, refetch]);
+  }, [refetch]);
+  const enterEdit = useCallback(() => {
+    if (!canEdit) return;
+    if (tier === 'HOD' && targetDeptId) {
+      const status = statusByDept.get(targetDeptId)?.status;
+      if (status === 'pending_approval' || status === 'published') {
+        setHodConfirmOpen(true);
+        return;
+      }
+    }
+    beginEditMode();
+  }, [canEdit, tier, targetDeptId, statusByDept, beginEditMode]);
   const exitEdit = useCallback(() => {
     setEditMode(false);
     refetch({ silent: true });
   }, [refetch]);
+
+  // Friendly dept name for toasts / aria-labels — falls back to "department"
+  // when the dept lookup hasn't resolved yet.
+  const targetDeptName = (departments.find((d) => d.id === targetDeptId) || {}).name || null;
+
+  // Footer handlers — go straight to the Phase-2 RPC writers. Loading
+  // state via ctaBusy disables both buttons during the in-flight call.
+  // The pre-checks (sub-commits 2 + 3) layer on top of these in their
+  // own sub-commits.
+  const handleFooterSubmit = useCallback(async () => {
+    if (!rota?.id || !targetDeptId || ctaBusy) return;
+    setCtaBusy('submit');
+    // Pre-check 1: at least one draft shift must exist for this dept.
+    // take_rota_shift_snapshot raises on zero shifts (Phase 2 RPC error
+    // path), so this is the polite gate that surfaces the right copy.
+    const draftCheck = await getDraftShiftCount(rota.id, rota.tenantId, targetDeptId);
+    if (!draftCheck.ok) {
+      setCtaBusy(null);
+      showToast(`Couldn’t check shifts — ${draftCheck.error || 'try again.'}`, { error: true });
+      return;
+    }
+    if (draftCheck.count === 0) {
+      setCtaBusy(null);
+      showToast(
+        `Cannot submit — no shifts for ${targetDeptName || 'this department'}.`,
+        { error: true },
+      );
+      return;
+    }
+    // Pre-check 2: a CHIEF must exist in this dept to receive the
+    // submission. Phase 1's review_items policy gates UPDATE on
+    // CHIEF+dept-match; without a CHIEF the inbox row is un-actionable.
+    // Client-side gate prevents the orphaned review_item; the writer
+    // remains the safety net for race / RLS edges.
+    const chiefCheck = await hasChiefForDepartment(rota.tenantId, targetDeptId);
+    if (!chiefCheck.ok) {
+      setCtaBusy(null);
+      showToast(`Couldn’t check reviewers — ${chiefCheck.error || 'try again.'}`, { error: true });
+      return;
+    }
+    if (!chiefCheck.has) {
+      setCtaBusy(null);
+      showToast(
+        `No CHIEF available to review ${targetDeptName || 'this department'} — ask COMMAND to publish directly.`,
+        { error: true },
+      );
+      return;
+    }
+    const res = await submitRotaDepartment({
+      rotaId: rota.id,
+      departmentId: targetDeptId,
+    });
+    setCtaBusy(null);
+    if (!res.ok) {
+      showToast(`Couldn’t submit — ${res.error || 'try again.'}`, { error: true });
+      return;
+    }
+    showToast(`Submitted ${targetDeptName || 'department'} for approval.`);
+    exitEdit();
+  }, [rota, targetDeptId, ctaBusy, targetDeptName, showToast, exitEdit]);
+
+  const handleFooterPublish = useCallback(async () => {
+    if (!rota?.id || !targetDeptId || ctaBusy) return;
+    setCtaBusy('publish');
+    // Pre-check: at least one draft shift must exist (same rationale
+    // as the submit gate — take_rota_shift_snapshot raises on zero).
+    const draftCheck = await getDraftShiftCount(rota.id, rota.tenantId, targetDeptId);
+    if (!draftCheck.ok) {
+      setCtaBusy(null);
+      showToast(`Couldn’t check shifts — ${draftCheck.error || 'try again.'}`, { error: true });
+      return;
+    }
+    if (draftCheck.count === 0) {
+      setCtaBusy(null);
+      showToast(
+        `Cannot publish — no shifts for ${targetDeptName || 'this department'}.`,
+        { error: true },
+      );
+      return;
+    }
+    const res = await publishRotaDepartmentDirect({
+      rotaId: rota.id,
+      departmentId: targetDeptId,
+      note: null,
+    });
+    setCtaBusy(null);
+    if (!res.ok) {
+      showToast(`Couldn’t publish — ${res.error || 'try again.'}`, { error: true });
+      return;
+    }
+    showToast(`Published ${targetDeptName || 'department'}.`);
+    exitEdit();
+  }, [rota, targetDeptId, ctaBusy, targetDeptName, showToast, exitEdit]);
 
   return (
     <>
@@ -521,12 +709,12 @@ export default function CrewRotaPage() {
             {editMode ? (
               <EditFooterCTA
                 tier={tier}
-                draftCount={draftCount}
-                onStub={(kind) => showToast(
-                  kind === 'publish'
-                    ? 'Publishing ships in Phase 4.'
-                    : 'Submit for approval ships in Phase 4.',
-                )}
+                draftDayCount={draftDayCount}
+                targetDeptId={targetDeptId}
+                targetDeptName={targetDeptName}
+                busy={ctaBusy}
+                onSubmit={handleFooterSubmit}
+                onPublish={handleFooterPublish}
               />
             ) : (
               <>
@@ -618,7 +806,20 @@ export default function CrewRotaPage() {
           onApplied={() => { setApplyTarget(null); setPickerOpen(false); }}
         />
 
-        {toast && <div className="crew-rota-toast" role="status">{toast}</div>}
+        {toast && (
+          <div
+            className={`crew-rota-toast${toast.error ? ' error' : ''}`}
+            role={toast.error ? 'alert' : 'status'}
+          >{toast.msg}</div>
+        )}
+
+        <HodEditConfirmModal
+          open={hodConfirmOpen}
+          currentStatus={targetDeptId ? statusByDept.get(targetDeptId)?.status : null}
+          departmentName={targetDeptName}
+          onCancel={() => setHodConfirmOpen(false)}
+          onContinue={() => { setHodConfirmOpen(false); beginEditMode(); }}
+        />
 
       </div>
 
