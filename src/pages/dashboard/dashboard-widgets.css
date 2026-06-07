@@ -1,0 +1,131 @@
+/* ============================================================
+   Overview-dashboard editorial widget surface.
+
+   Scoped under `.cargo-editorial` (applied to the dashboard grid
+   container in index.jsx). Consumes the --d-* tokens from
+   ../../styles/editorial-tokens.css — declares NO tokens of its own,
+   no inline styles, no literal hex for anything in the --d-* set.
+
+   TYPE + TREATMENT reference: the PantryWidget editorial card
+   (tracked-caps eyebrow, two-tone "WORD, qualifier." DM Serif
+   headline, single orange action colour).
+   SURFACE reference: the cool near-white ground the boards sit on
+   (--d-bg page / --d-card card) — NOT Pantry's beige.
+
+   PantryWidget is the reference implementation: it keeps its eyebrow
+   + two-tone serif DNA via .ce-eyebrow / .ce-title .accent below. The
+   other five widgets carry single-word titles, so they use .ce-title
+   single-tone (navy) with no eyebrow — see each widget.
+   ============================================================ */
+
+/* ── Card frame ──────────────────────────────────────────────
+   White cool surface on the dashboard's --d-bg ground. Soft
+   navy-tinted shadow (--d-shadow) — the shipped editorial card
+   shadow. No 5px bottom-edge rule (reserved for KPI/primary). */
+.cargo-editorial .ce-card {
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  border-radius: 12px;
+  box-shadow: var(--d-shadow);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.cargo-editorial .ce-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(38, 42, 83, 0.08);
+}
+
+/* ── Tracked-caps eyebrow (Pantry "INTERIOR · PANTRY") ───────── */
+.cargo-editorial .ce-eyebrow {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--d-muted);
+  margin: 0 0 4px;
+}
+.cargo-editorial .ce-eyebrow .dot { color: var(--d-orange); }
+
+/* ── Two-tone serif headline (Pantry "AFTERNOON, Interior.") ───
+   Card-scale, token-driven sibling of styles/editorial.css's
+   hero-scale .editorial-greeting. Single-word widget titles use
+   the base (navy) tone only; .accent is for the orange-italic
+   qualifier where one exists (Pantry). */
+.cargo-editorial .ce-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+  color: var(--d-navy-deep);
+  margin: 0;
+}
+.cargo-editorial .ce-title .accent {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--d-orange);
+  text-transform: none;
+}
+/* Live status headline goes orange-italic when the widget has something
+   needing attention; navy (base) when all-clear. */
+.cargo-editorial .ce-title.is-attention {
+  color: var(--d-orange);
+  font-style: italic;
+}
+
+/* ── Single orange action link (Pantry "Open Standby →") ─────── */
+.cargo-editorial .ce-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--d-orange);
+}
+.cargo-editorial .ce-link:hover { text-decoration: underline; }
+
+/* Outlined orange action button (Pantry "Open Standby →" CTA) */
+.cargo-editorial .ce-action {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 6px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px; font-weight: 600;
+  color: var(--d-orange);
+  background: transparent;
+  border: 1px solid var(--d-orange);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.cargo-editorial .ce-action:hover { background: var(--d-cream-warm); }
+
+/* Filled navy primary button (keeps orange as the single accent) */
+.cargo-editorial .ce-btn-navy {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 6px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-weight: 600;
+  color: #FFFFFF;
+  background: var(--d-navy);
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.cargo-editorial .ce-btn-navy:hover { background: var(--d-navy-deep); }
+
+/* ── Semantic interiors (unchanged palette, on the light card) ── */
+.cargo-editorial .ce-fg-success { color: var(--d-success); }
+.cargo-editorial .ce-fg-danger  { color: var(--d-danger); }
+.cargo-editorial .ce-fg-warn    { color: var(--d-warn); }
+.cargo-editorial .ce-fg-muted   { color: var(--d-muted); }
+.cargo-editorial .ce-bg-success { background: var(--d-success-soft); }
+.cargo-editorial .ce-bg-danger  { background: var(--d-danger-soft); }
+.cargo-editorial .ce-bg-warn    { background: var(--d-warn-soft); }
+
+/* Navy progress-bar fill (Accounts charter bar; purple owner bar
+   stays as-is this pass — deferred with the other non-cool accents) */
+.cargo-editorial .ce-bar-navy { background: var(--d-navy); }

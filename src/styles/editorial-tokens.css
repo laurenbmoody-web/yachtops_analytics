@@ -1,0 +1,153 @@
+/* ============================================================
+   Cargo editorial design tokens — shared --d-* definitions.
+
+   Single declaration block, TWO entry-point scopes:
+
+     .cargo-editorial   the cool editorial surface used by the
+                        overview dashboard grid (dashboard/index.jsx)
+                        and any future neutral editorial host.
+     .pv-dashboard      every provisioning surface that opts into the
+                        cool dashboard palette (Suppliers Directory,
+                        Receive Delivery modal, board-creation wizard,
+                        provisioning homepage KPI cards, board detail).
+
+   The two selectors share ONE block (not inheritance) — CSS custom
+   properties only cascade DOWN the DOM, and the provisioning surfaces
+   mount .pv-dashboard at their own roots, NOT nested under the
+   dashboard grid. Declaring the identical set on both selectors means
+   neither depends on the other's DOM position, so .pv-dashboard
+   surfaces resolve byte-for-byte as before this extraction.
+
+   Imported by both provisioning-dashboard.css (@import) and
+   dashboard/index.jsx (JS import). Do NOT use :root — tokens stay
+   scoped to these two opt-in classes.
+
+   Editorial surfaces (delivery inbox, supplier detail) do NOT adopt
+   these scopes — they keep their warm --di-* / --sd-* palettes scoped
+   under their own roots. The two systems coexist; neither bleeds.
+
+   Token semantics:
+     --d-bg          cool page / surface background
+     --d-card        white block / card surface
+     --d-card-edge   5px bottom rule on modal panels / featured cards
+     --d-border      hairline divider between content blocks
+     --d-border-soft ultra-soft rule (tier headers, intra-card splits)
+     --d-navy        body text, default action label
+     --d-navy-deep   primary heading text, button hover-fill
+     --d-orange      brand accent (CTAs, review highlight, focus rings)
+     --d-cream-warm  the one warm chip (e.g. "check match")
+     --d-muted       secondary label text
+     --d-muted-soft  tracked-caps eyebrow / column header text
+     --d-shadow      card shadow (subtle navy-tinted)
+
+   Documented exceptions (semantic colours that sit alongside the
+   --d-* set but aren't part of its neutral surface palette):
+     --d-danger      genuine error / validation-failure text.
+                      DO NOT use for "attention" prompts — those use
+                      --d-orange. Pairs with --d-danger-soft below.
+                      First introduced when the Suppliers page hard-
+                      coded #A32D2D for delete hovers and validation
+                      errors; promoted here so other dashboard
+                      surfaces (board-creation wizard, etc.) share
+                      the same red without re-declaring the hex.
+     --d-danger-soft fill behind --d-danger text on toasts / banners.
+     --d-sage        progress-arc / status pill colour. Reserved for
+                      success / "received" / "paid" semantics on KPI
+                      gauges. NOT a general accent — use --d-orange
+                      for that. Promoted to the shared set so the
+                      SummaryGauges KPI cards (and any future status
+                      surface) can share the value without re-
+                      declaring it. The ReceiveDeliveryModal's
+                      identical --rdm-sage values stay scoped under
+                      .rdm and may eventually consolidate here.
+     --d-sage-deep   deeper sage — "N of M received" / "£X paid"
+                      success copy. Pairs with --d-sage.
+     --d-success      success-status semantic for status cards
+                      ("all up to date", "healthy", "completed").
+                      Aliases --d-sage-deep — the same green the KPI
+                      cards already use for "received" — so the whole
+                      app shares ONE success green with no duplicate
+                      hex. Recurs across the overview dashboard status
+                      widgets (provisioning all-clear, inventory
+                      healthy, team-jobs completed).
+     --d-success-soft pale fill behind --d-success (check circles,
+                      healthy badges). Aliases --d-status-received-bg
+                      (the existing pale sage chip ground) — no new
+                      hex, keeps "success" and "received" coherent.
+     --d-warn        NON-DESTRUCTIVE CAUTION semantic. Distinct from
+                      --d-danger (destructive: delete hover, real
+                      errors, validation failures the crew must fix
+                      before saving). Use --d-warn for fields where
+                      colour itself is a safety signal the crew acts
+                      on — currently the allergen flags on item
+                      details. Pulled cooler than raw amber so it
+                      sits in the palette intentionally; legibility
+                      as a caution is preserved.
+
+                      Closed set, no hand-picked amber extensions.
+                      Adopters: ItemDrawer allergen pills (live).
+                      Other surfaces with caution semantics
+                      (low-stock, expiring certs, MLC near-breach)
+                      pick up the same tokens on their own work —
+                      do NOT redeclare or pick adjacent amber tones.
+     --d-warn-soft   fill behind --d-warn text on chips / pills.
+
+   Per-item status tokens (closed semantic set, not an open palette):
+     The six provisioning item statuses (draft / to_order / ordered /
+     received / partial / not_received) carry meaningful colour. They
+     render in two surfaces — the Edit-item drawer's status pills and
+     the board's inline DetailTableCells status pill — and MUST stay
+     in lockstep across both. Declared here as a closed set so any
+     future consumer pulls from the same source. Pulled cool toward
+     navy / sage / orange / danger, NOT warm pastels.
+
+     Do not invent more status colours by hand. If a seventh status
+     is added, extend this block and adopt it everywhere; do not pick
+     a one-off hex inline.
+
+     Currently consumed by:
+       • ItemDrawer.jsx          (drawer status pills) — live
+       • DetailTableCells.jsx    (board inline pill)   — pending migration
+
+     --d-status-*-bg   chip background
+     --d-status-*-fg   chip text / border
+   ============================================================ */
+.cargo-editorial,
+.pv-dashboard {
+  --d-bg:          #F8FAFC;
+  --d-card:        #FFFFFF;
+  --d-card-edge:   #C8CBDA;
+  --d-border:      #E5E7EB;
+  --d-border-soft: #EEF0F4;
+  --d-navy:        #262A53;
+  --d-navy-deep:   #1A1D3F;
+  --d-orange:      #C65A1A;
+  --d-cream-warm:  #FAEEDA;
+  --d-muted:       #7C7E9B;
+  --d-muted-soft:  #9098B1;
+  --d-shadow:      0 2px 6px rgba(38, 42, 83, 0.04);
+  --d-danger:      #A32D2D;
+  --d-danger-soft: #FCEBEB;
+  --d-sage:        #5C9B6A;
+  --d-sage-deep:   #047857;
+  --d-warn:        #8B5A1F;
+  --d-warn-soft:   #F5E6C1;
+
+  /* Success aliases — no new hex. See header. */
+  --d-success:      var(--d-sage-deep);
+  --d-success-soft: var(--d-status-received-bg);
+
+  /* Status tokens — see comment block in header. Closed set. */
+  --d-status-draft-bg:         #EEF0F4;
+  --d-status-draft-fg:         #7C7E9B;
+  --d-status-to-order-bg:      #DBE4FF;
+  --d-status-to-order-fg:      #1E40AF;
+  --d-status-ordered-bg:       #E0E0FF;
+  --d-status-ordered-fg:       #4338CA;
+  --d-status-received-bg:      #E8F5EE;
+  --d-status-received-fg:      #047857;
+  --d-status-partial-bg:       #FAEEDA;
+  --d-status-partial-fg:       #C65A1A;
+  --d-status-not-received-bg:  #FCEBEB;
+  --d-status-not-received-fg:  #A32D2D;
+}
