@@ -118,10 +118,9 @@ function EditFooterCTA({
   busy, onSubmit, onPublish,
 }) {
   const n = draftDayCount;
-  // Label counts DAYS with at least one draft (sub-commit 4 interpretation
-  // (b)) — "Submit for approval (5 days)" reads as the workload preview
-  // a reviewer actually cares about. The prior aggregate-shift count
-  // ("47 drafts") overemphasised shift cardinality.
+  // Label counts DAYS with at least one draft — "Submit for approval
+  // (5 days)" reads as the workload preview a reviewer actually cares
+  // about. A shift-cardinality count overemphasises individual rows.
   const dayLabel = `${n} ${n === 1 ? 'day' : 'days'}`;
   const pubLabel = busy === 'publish' ? 'Publishing…' : `Publish (${dayLabel})`;
   const subLabel = busy === 'submit' ? 'Submitting…' : `Submit for approval (${dayLabel})`;
@@ -220,7 +219,7 @@ export default function CrewRotaPage() {
   }, []);
 
   const {
-    crew, shifts, windowShifts, loading, error, effectiveDate, draftCount,
+    crew, shifts, windowShifts, loading, error, effectiveDate,
     applyPaint, applyTemplate, refetch,
   } = useRotaShifts(
     selectedDate,
