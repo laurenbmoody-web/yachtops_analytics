@@ -436,6 +436,37 @@ export const bulkUpdateItemDepartment = async (itemIds, department) => {
   }
 };
 
+// Atomic bulk multi-field update — single .update(fields).in('id', ids).
+// Used by the bulk Edit modal's Save path. Applies the SAME fields object
+// to every row in itemIds.
+//
+// Why not upsertItems: .upsert() compiles to INSERT … ON CONFLICT, which
+// makes RLS evaluate the INSERT WITH CHECK policy against the prospective
+// row. The INSERT policy on provisioning_items reads
+//   EXISTS (SELECT 1 FROM provisioning_lists pl WHERE pl.id = provisioning_items.list_id …)
+// — when the payload omits list_id (as a partial diff naturally does),
+// the prospective row's list_id is NULL, the EXISTS check returns false,
+// and Postgres rejects with 42501 ("new row violates row-level security
+// policy"). .update().in('id', …) only triggers the UPDATE policy, which
+// reads list_id from the EXISTING row (which the DB already has). Passes
+// cleanly for any tier that has UPDATE access (all dept members per the
+// 20260411130000 policy set).
+//
+// Returns nothing; throws on RLS or network failure so the caller can
+// revert optimistic local state.
+export const bulkUpdateProvisioningItems = async (itemIds, fields) => {
+  if (!Array.isArray(itemIds) || itemIds.length === 0) return;
+  if (!fields || typeof fields !== 'object' || Object.keys(fields).length === 0) return;
+  const { error } = await supabase
+    ?.from('provisioning_items')
+    ?.update(fields)
+    ?.in('id', itemIds);
+  if (error) {
+    console.error('[provisioningStorage] bulkUpdateProvisioningItems error:', error);
+    throw error;
+  }
+};
+
 export const updateItemStatus = async (itemId, status, quantityReceived, ledgerCtx = null) => {
   try {
     const updates = { status };
