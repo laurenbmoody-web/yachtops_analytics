@@ -1888,7 +1888,7 @@ export const triggerCrossDepartmentMatch = async ({ unmatchedItems, tenantId, sc
         ?.from('provisioning_items')
         ?.select('id, name, status, receive_batch_id, quantity_ordered, quantity_received')
         ?.eq('list_id', board.id)
-        ?.in('status', ['draft', 'pending', 'to_order', 'ordered'])
+        ?.in('status', ['draft', 'to_order', 'ordered'])
         ?.is('receive_batch_id', null);
 
       console.log(`[Tier2] Board "${board.title}" (${board.id}):`);
