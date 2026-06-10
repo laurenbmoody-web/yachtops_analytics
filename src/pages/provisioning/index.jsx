@@ -4,7 +4,7 @@ import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
-import { ITEM_STATUS_CONFIG } from './components/StatusBadge';
+import { ITEM_STATUS_CONFIG } from './data/statusConfig';
 import BoardColumn from './components/BoardColumn';
 import BoardDrawer from './components/BoardDrawer';
 import ItemDrawer from './components/ItemDrawer';

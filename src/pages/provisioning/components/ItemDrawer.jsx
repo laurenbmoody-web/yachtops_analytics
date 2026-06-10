@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import Drawer from './Drawer';
 import SupplierPicker from './SupplierPicker';
-import { ITEM_STATUS_CONFIG } from './StatusBadge';
+import { ITEM_STATUS_CONFIG } from '../data/statusConfig';
 import {
   upsertItems,
   deleteProvisioningItem,
@@ -1121,7 +1121,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                     disabled={isReceived}
                     className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${isActive ? 'bg-[#4A90E2]/20 border-[#4A90E2]/50 text-[#4A90E2]' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
                   >
-                    <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                    <span className={`w-1.5 h-1.5 rounded-full ${cfg.dotClassName}`} />
                     {cfg.label}
                   </button>
                 );

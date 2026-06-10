@@ -58,6 +58,7 @@ import ConfirmDeliveryModal from './components/ConfirmDeliveryModal';
 import { loadTrips, findTripByAnyId } from '../trips-management-dashboard/utils/tripStorage';
 import { loadGuests } from '../guest-management-dashboard/utils/guestStorage';
 import { showToast } from '../../utils/toast';
+import { getItemStatusConfig } from './data/statusConfig';
 import {
   DETAIL_GRID,
   ITEM_STATUS_OPTIONS,
@@ -419,7 +420,9 @@ const ProvisioningBoardDetail = () => {
 
   // Item-locking: once an order has been sent, board items that appear in any
   // supplier_order_items row become read-only until the board is back to draft.
-  const isSent = list?.status === 'sent_to_supplier' || list?.status === 'confirmed';
+  // ('confirmed' previously appeared here too — that's a supplier_orders value
+  // leaked into a provisioning_lists check; always false. Removed in commit 3.)
+  const isSent = list?.status === 'sent_to_supplier';
   const itemStatusMap = useMemo(() => {
     const map = {};
     supplierOrders.forEach(order => {
@@ -1450,14 +1453,9 @@ const ProvisioningBoardDetail = () => {
   };
   const getDeptChip = (dept) => DEPT_CHIP_STYLES[dept] || { bg: '#F1F5F9', color: '#64748B' };
 
-  const STATUS_BADGE = {
-    draft:        { bg: '#F8FAFC', color: '#94A3B8', border: '#E2E8F0', dot: '#CBD5E1', label: 'Draft' },
-    to_order:     { bg: '#EFF6FF', color: '#1D4ED8', border: '#BFDBFE', dot: '#60A5FA', label: 'To order' },
-    ordered:      { bg: '#F5F3FF', color: '#7C3AED', border: '#DDD6FE', dot: '#A78BFA', label: 'Ordered' },
-    received:     { bg: '#F0FDF4', color: '#15803D', border: '#BBF7D0', dot: '#4ADE80', label: 'Received' },
-    partial:      { bg: '#FFFBEB', color: '#B45309', border: '#FDE68A', dot: '#FCD34D', label: 'Partial' },
-    not_received: { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA', dot: '#FCA5A5', label: 'Not received' },
-  };
+  // Per-row item-status pill palette comes from the unified statusConfig.
+  // getItemStatusConfig(status).badge yields {bg, color, border, dot}; label
+  // is sibling. Consolidated alongside the board-status map in commit 3.
   const SUPPLIER_BADGE = {
     pending:     { bg: '#E0F2FE', color: '#0369A1', border: '#BAE6FD', dot: '#38BDF8', label: 'Sent' },
     confirmed:   { bg: '#D1FAE5', color: '#065F46', border: '#A7F3D0', dot: '#34D399', label: 'Confirmed' },
@@ -2080,7 +2078,8 @@ const ProvisioningBoardDetail = () => {
                       {/* Item rows */}
                       {(() => {
                         const renderItemRow = (item, rowIdx, totalRows) => {
-                        const badge = STATUS_BADGE[item.status] || STATUS_BADGE.draft;
+                        const itemStatusCfg = getItemStatusConfig(item.status);
+                        const badge = { ...itemStatusCfg.badge, label: itemStatusCfg.label };
                         const isHovered = hoveredRow === item.id;
                         const isEditing = editingCell?.itemId === item.id;
                         const allergen = isAllergenRisk(item);
