@@ -1,18 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { ITEM_STATUS_ORDER, getItemStatusConfig } from '../data/statusConfig';
 
-const STATUS_CONFIG = {
-  pending:         { label: 'Pending',       bg: '#FEF3E2', color: '#B45309' },
-  ordered:         { label: 'Ordered',       bg: 'rgba(74,144,226,0.12)', color: '#4A90E2' },
-  received:        { label: 'Received',      bg: '#ECFDF5', color: '#047857' },
-  short_delivered: { label: 'Short',         bg: 'rgba(245,158,11,0.12)', color: '#B45309' },
-  not_delivered:   { label: 'Not delivered', bg: 'rgba(239,68,68,0.12)', color: '#ef4444' },
-  draft:           { label: 'Draft',         bg: '#F4F4F5', color: '#71717A' },
-};
-
-const STATUS_ORDER = ['pending', 'ordered', 'received', 'short_delivered', 'not_delivered'];
+// Per-card status pill + right-click status picker. Reads from the unified
+// statusConfig source of truth — previously had a local STATUS_CONFIG +
+// STATUS_ORDER that drifted from the March 2026 enum migration (kept dead
+// values 'pending' / 'short_delivered' / 'not_delivered' and was missing
+// the live additions 'to_order' / 'partial' / 'not_received'). Items in
+// the live statuses were rendering with the wrong label; the picker let
+// users select dead values that failed the provisioning_items CHECK on
+// write. Both fixed by consuming the canonical config.
 
 const ItemCard = ({ item, onClick, onStatusChange, onQuantityChange }) => {
-  const cfg = STATUS_CONFIG[item.status] || STATUS_CONFIG.pending;
+  const cfg = getItemStatusConfig(item.status);
   const [menu, setMenu] = useState(null);
   const menuRef = useRef(null);
   const longPressTimer = useRef(null);
@@ -68,10 +67,10 @@ const ItemCard = ({ item, onClick, onStatusChange, onQuantityChange }) => {
           <button onClick={(e) => handleQty(e, 1)} className="pv-item-stepbtn">+</button>
         </div>
 
-        {/* Status badge — colour pulls from STATUS_CONFIG so per-status hue is preserved */}
+        {/* Status badge — consumes the cell-variant palette from the unified config */}
         <span
           className="pv-item-status"
-          style={{ background: cfg.bg, color: cfg.color }}
+          style={{ background: cfg.cell.bg, color: cfg.cell.color }}
         >
           {cfg.label}
         </span>
@@ -86,15 +85,15 @@ const ItemCard = ({ item, onClick, onStatusChange, onQuantityChange }) => {
           style={{ top: menu.y, left: menu.x, minWidth: 160 }}
         >
           <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Set status</p>
-          {STATUS_ORDER.map(s => {
-            const c = STATUS_CONFIG[s];
+          {ITEM_STATUS_ORDER.map(s => {
+            const c = getItemStatusConfig(s);
             return (
               <button
                 key={s}
                 onClick={(e) => { e.stopPropagation(); setMenu(null); if (onStatusChange) onStatusChange(item, s); }}
                 className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2"
               >
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.color, display: 'inline-block', flexShrink: 0 }} />
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.cell.color, display: 'inline-block', flexShrink: 0 }} />
                 {c.label}
                 {item.status === s && <span className="ml-auto text-primary">✓</span>}
               </button>

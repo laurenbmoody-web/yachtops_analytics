@@ -552,7 +552,7 @@ const SuggestionsMode = ({ list, tenantId, onAddItems }) => {
       source: s.source || 'suggestion',
       notes: s.reason || '',
       item_notes: '',
-      status: 'pending',
+      status: 'draft',
     }));
     try {
       const saved = await upsertItems(newItems);
