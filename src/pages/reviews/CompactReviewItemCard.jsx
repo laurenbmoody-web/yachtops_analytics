@@ -1,5 +1,6 @@
 import React from 'react';
 import Icon from '../../components/AppIcon';
+import { fmtDateRange } from './reviewFormat';
 
 // CompactReviewItemCard — a list-strip row in the split-view inbox.
 //
@@ -26,13 +27,15 @@ export default function CompactReviewItemCard({ item, selected, onSelect }) {
   const mlc = item.mlc_override_count > 0
     ? ` · ${item.mlc_override_count} MLC`
     : '';
+  const range = fmtDateRange(item.date_start, item.date_end);
+  const counts = `${item.day_count} day${item.day_count === 1 ? '' : 's'} · ${item.shift_count} shift${item.shift_count === 1 ? '' : 's'}${mlc}`;
   return (
     <button
       type="button"
       className={`rv-cc${selected ? ' selected' : ''}`}
       onClick={() => onSelect?.(item.id)}
       aria-current={selected ? 'true' : undefined}
-      aria-label={`${dept} — ${item.day_count} days, ${item.shift_count} shifts, submitted ${timeAgo(item.created_at)}${selected ? ' (selected)' : ''}`}
+      aria-label={`${dept} — ${range ? `${range}, ` : ''}${item.day_count} days, ${item.shift_count} shifts, submitted ${timeAgo(item.created_at)}${selected ? ' (selected)' : ''}`}
     >
       <div className="rv-cc-head">
         <div className="rv-cc-dept">{dept}</div>
@@ -41,10 +44,9 @@ export default function CompactReviewItemCard({ item, selected, onSelect }) {
       <div className="rv-cc-rota">{item.rota_name || ''}</div>
       <div className="rv-cc-strip">
         <Icon name="Calendar" size={12} />
-        <span>
-          {item.day_count} day{item.day_count === 1 ? '' : 's'} · {item.shift_count} shift{item.shift_count === 1 ? '' : 's'}{mlc}
-        </span>
+        <span>{range || counts}</span>
       </div>
+      <div className="rv-cc-counts">{counts}</div>
       <div className="rv-cc-by">
         by {item.submitter_name || 'crew'}{item.submitter_role ? ` · ${item.submitter_role}` : ''}
       </div>

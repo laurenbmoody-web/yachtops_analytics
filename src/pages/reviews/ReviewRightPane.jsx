@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Icon from '../../components/AppIcon';
 import { supabase } from '../../lib/supabaseClient';
 import RotaWorkspace from '../crew-rota/RotaWorkspace';
+import { fmtDateRange } from './reviewFormat';
 import {
   approveRotaDepartment,
   rejectRotaDepartment,
@@ -118,8 +119,10 @@ export default function ReviewRightPane({ item, onToast, onResolved }) {
   };
 
   const eyebrow = `${vesselName ? `${vesselName} · ` : ''}${item?.department_name || ''}`;
+  const range = fmtDateRange(item?.date_start, item?.date_end);
   const metaBits = [
     `Submitted ${timeAgo(item?.created_at)}`,
+    ...(range ? [range] : []),
     `${item?.day_count} day${item?.day_count === 1 ? '' : 's'}`,
     `${item?.shift_count} shift${item?.shift_count === 1 ? '' : 's'}`,
   ];
