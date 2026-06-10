@@ -203,6 +203,7 @@ export default function ReviewRightPane({ item, onToast, onResolved }) {
         rota={rota}
         departmentId={item.department_id}
         mode="reviewer"
+        initialDate={item.date_start || null}
         onToast={onToast}
         footer={renderFooter}
       />
