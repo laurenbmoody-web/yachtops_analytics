@@ -33,11 +33,13 @@ async function loadOne(item) {
   // Submit-time snapshot for day_count + (Phase 4b) diff baseline.
   let dayCount = 0;
   let shiftCount = ctx.shift_count ?? 0;
+  let dateStart = null;   // earliest shift date in the submission — the
+  let dateEnd = null;     // review pane opens here so shifts are visible.
   let snapFound = false;
   if (rotaId && departmentId) {
     const { data: snap, error: snapErr } = await supabase
       .from('rota_shift_snapshots')
-      .select('shift_data, shift_count')
+      .select('shift_data, shift_count, date_start, date_end')
       .eq('rota_id', rotaId)
       .eq('department_id', departmentId)
       .eq('source_event_type', 'submitted')
@@ -49,6 +51,8 @@ async function loadOne(item) {
     } else if (snap) {
       snapFound = true;
       shiftCount = snap.shift_count ?? shiftCount;
+      dateStart = snap.date_start ?? null;
+      dateEnd = snap.date_end ?? null;
       const dates = new Set();
       for (const s of (snap.shift_data || [])) {
         if (s?.shift_date) dates.add(s.shift_date);
@@ -91,6 +95,11 @@ async function loadOne(item) {
             if (s?.shift_date) dates.add(s.shift_date);
           }
           dayCount = dates.size;
+          // date range from the live shifts — drives the review pane's
+          // initial date so the chief lands on a populated day.
+          const sorted = [...dates].sort();
+          dateStart = sorted[0] ?? null;
+          dateEnd = sorted[sorted.length - 1] ?? null;
         }
       }
     }
@@ -148,6 +157,8 @@ async function loadOne(item) {
     submitter_id: item.submitter_id,
     shift_count: shiftCount,
     day_count: dayCount,
+    date_start: dateStart,
+    date_end: dateEnd,
     mlc_override_count: mlcOverrideCount,
     assignee_tier: item.assignee_tier,
     assignee_department_id: item.assignee_department_id,

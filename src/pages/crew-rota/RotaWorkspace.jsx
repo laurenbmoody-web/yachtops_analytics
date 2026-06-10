@@ -77,6 +77,7 @@ export default function RotaWorkspace({
   mode = 'submitter',
   // eslint-disable-next-line no-unused-vars
   baselineSnapshot = null,
+  initialDate = null,
   onToast,
   header,
   footer,
@@ -85,7 +86,10 @@ export default function RotaWorkspace({
   const realToday = localTodayStr();
   const { user, currentUser, tenantRole, activeTenantId } = useAuth();
   const [view, setView] = useState('grid');      // 'grid' | 'list' | 'week'
-  const [selectedDate, setSelectedDate] = useState(realToday);
+  // initialDate lets a consumer open the grid on a specific day — the review
+  // pane opens on the submission's first shift date so its shifts are visible
+  // immediately. Defaults to today (the /crew behaviour).
+  const [selectedDate, setSelectedDate] = useState(initialDate || realToday);
   const isToday = selectedDate === realToday;
   const selectedDateObj = parseLocalDate(selectedDate);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
