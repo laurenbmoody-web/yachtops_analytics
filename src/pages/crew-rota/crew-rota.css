@@ -919,6 +919,19 @@
   gap: 5px;
 }
 
+/* COMMAND-only destructive "Clear rota" pill. */
+.crew-rota-pill.clear-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #7A2E1E;
+  border-color: rgba(122, 46, 30, 0.3);
+}
+.crew-rota-pill.clear-pill:hover {
+  background: #FAECE7;
+  border-color: #7A2E1E;
+}
+
 /* Editable cells: pointer + terracotta hover ring. touch-action:none so
    touch-drag paints instead of scrolling; user-select:none stops text
    selection while dragging across cells. */

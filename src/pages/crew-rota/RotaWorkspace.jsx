@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { Pencil, Calendar as CalendarIcon } from 'lucide-react';
+import { Pencil, Calendar as CalendarIcon, Trash2 } from 'lucide-react';
 import MonthPicker from './MonthPicker';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
@@ -8,6 +8,7 @@ import { DEPT_ORDER } from '../trip-detail-view-with-guest-allocation/sections/S
 import CrewListView from './CrewListView';
 import CrewWeekMatrix, { weekRangeLabel, weekRangeLabelLong } from './CrewWeekMatrix';
 import HodEditConfirmModal from './HodEditConfirmModal';
+import ClearRotaModal from './ClearRotaModal';
 import RestPanelPopover from './RestPanelPopover';
 import PatternPicker from './PatternPicker';
 import SimpleTemplateEditor from './SimpleTemplateEditor';
@@ -267,6 +268,32 @@ export default function RotaWorkspace({
     refetch({ silent: true });
   }, [refetch]);
 
+  // COMMAND-only "clear rota" — wipes every shift on this rota back to a
+  // blank slate. Gated to COMMAND on /crew (submitter mode). RLS
+  // (rota_shifts_command_chief_write) permits the delete; we scope it to
+  // this rota_id. Statuses/review_items are left as-is (a mid-review dept
+  // can be cleared with Reject).
+  const canClear = mode === 'submitter' && tier === 'COMMAND' && !!rota?.id;
+  const [clearOpen, setClearOpen] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const handleClearRota = useCallback(async () => {
+    if (!rota?.id || clearing) return;
+    setClearing(true);
+    const { error: delErr } = await supabase
+      .from('rota_shifts')
+      .delete()
+      .eq('rota_id', rota.id);
+    setClearing(false);
+    if (delErr) {
+      showToast(`Couldn’t clear the rota — ${delErr.message || 'try again.'}`, { error: true });
+      return;
+    }
+    setClearOpen(false);
+    if (editMode) setEditMode(false);
+    refetch({ silent: true });
+    showToast('Rota cleared — all shifts removed.');
+  }, [rota, clearing, editMode, refetch, showToast]);
+
   // Friendly dept name for the HOD confirm copy.
   const footerDeptName = (departments.find((d) => d.id === footerDeptId) || {}).name || null;
 
@@ -377,6 +404,15 @@ export default function RotaWorkspace({
                 onClick={enterEdit}
               ><Pencil size={12} /> Edit</button>
             ))}
+            {canClear && (
+              <button
+                type="button"
+                className="crew-rota-pill clear-pill"
+                onClick={() => setClearOpen(true)}
+                title="Clear every shift on this rota (COMMAND only)"
+                aria-label="Clear rota"
+              ><Trash2 size={12} /> Clear rota</button>
+            )}
           </div>
         </div>
 
@@ -530,6 +566,13 @@ export default function RotaWorkspace({
         departmentName={footerDeptName}
         onCancel={() => setHodConfirmOpen(false)}
         onContinue={() => { setHodConfirmOpen(false); beginEditMode(); }}
+      />
+
+      <ClearRotaModal
+        open={clearOpen}
+        busy={clearing}
+        onCancel={() => setClearOpen(false)}
+        onConfirm={handleClearRota}
       />
 
       <RestPanelPopover crew={selectedCrew} onClose={() => setSelectedCrew(null)} />
