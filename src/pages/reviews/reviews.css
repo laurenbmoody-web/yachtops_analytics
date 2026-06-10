@@ -5,17 +5,18 @@
    inside-card surface accents (workload strip in sub-commit 5).
    ============================================================ */
 
-/* Two-column shell: 240px sidebar + fluid main. The page background
-   token shows through the sidebar's translucent white. Header is the
-   fixed h-16 (64px) nav chrome; the sidebar stretches to fill below it. */
+/* Three-column split view: 220px sidebar · 380px list strip · fluid right
+   pane. Header is the fixed h-16 (64px) nav chrome; the grid fills the
+   remaining viewport and each column scrolls on its own. */
 .rv-page {
   background: var(--color-background);
-  min-height: 100vh;
+  height: calc(100vh - 64px);
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   color: #1C1B3A;
   display: grid;
-  grid-template-columns: 240px 1fr;
-  align-items: start;
+  grid-template-columns: 220px 380px 1fr;
+  align-items: stretch;
+  overflow: hidden;
 }
 
 /* LEFT — inbox navigation sidebar. */
@@ -23,7 +24,24 @@
   background: rgba(255, 255, 255, 0.5);
   border-right: 0.5px solid rgba(28, 27, 58, 0.08);
   padding: 24px 16px;
-  min-height: calc(100vh - 64px);
+  height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+/* MIDDLE — list strip of compact cards. */
+.rv-liststrip {
+  border-right: 0.5px solid rgba(28, 27, 58, 0.08);
+  padding: 28px 20px 40px;
+  height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+/* RIGHT — selected submission (header + rota + decision footer). */
+.rv-rightpane-col {
+  height: 100%;
+  overflow-y: auto;
   box-sizing: border-box;
 }
 
@@ -127,32 +145,35 @@
 
 .rv-eyebrow {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #8B8478;
+  color: rgba(28, 27, 58, 0.5);
   margin-bottom: 8px;
 }
 
+/* Editorial category title — CAPS noun + comma, italic terracotta verb,
+   terracotta period. The system pattern for inbox category titles. */
 .rv-title {
   font-family: 'DM Serif Display', Georgia, serif;
-  font-weight: 500;
-  font-size: 36px;
-  line-height: 1;
+  font-weight: 400;
+  font-size: 32px;
+  line-height: 1.05;
   margin: 0;
   color: #1C1B3A;
 }
-.rv-title em {
+.rv-title-comma { color: #1C1B3A; }
+.rv-title-verb {
+  font-style: italic;
   color: #C65A1A;
-  font-style: normal;
-  font-weight: 500;
 }
+.rv-title-period { color: #C65A1A; }
 
 .rv-subtitle {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  font-size: 14px;
-  color: #8B8478;
+  font-size: 13px;
+  color: rgba(28, 27, 58, 0.6);
   margin-top: 8px;
 }
 
@@ -266,7 +287,201 @@
   border: none;
 }
 .rv-btn.danger:hover { background: #6A2419; }
+.rv-btn.terracotta {
+  background: #C65A1A;
+  color: #FFFFFF;
+  border: none;
+}
+.rv-btn.terracotta:hover { background: #A94A12; }
 .rv-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ============================================================
+   Split-view — compact list-strip cards + right pane
+   ============================================================ */
+
+.rv-cc-list {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Compact card — list item, no action buttons. Selected = navy border. */
+.rv-cc {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: #FFFFFF;
+  border: 0.5px solid #E2DDD4;
+  border-radius: 10px;
+  padding: 14px 16px;
+  cursor: pointer;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: #1C1B3A;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.rv-cc:hover { border-color: #CFC7B8; }
+.rv-cc.selected {
+  border: 1px solid #1C1B3A;
+  box-shadow: 0 2px 4px rgba(28, 27, 58, 0.04);
+}
+.rv-cc-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.rv-cc-dept {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 17px;
+  line-height: 1.1;
+  color: #1C1B3A;
+}
+.rv-cc-time {
+  font-size: 11px;
+  color: rgba(28, 27, 58, 0.5);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.rv-cc-rota {
+  font-size: 12px;
+  color: rgba(28, 27, 58, 0.55);
+  margin-top: 3px;
+}
+.rv-cc-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #F4EEE4;
+  border-radius: 6px;
+  padding: 6px 9px;
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #1C1B3A;
+}
+.rv-cc-by {
+  font-size: 11px;
+  color: rgba(28, 27, 58, 0.5);
+  margin-top: 8px;
+}
+.rv-cc-empty {
+  margin-top: 24px;
+  font-size: 13px;
+  color: rgba(28, 27, 58, 0.5);
+  font-style: italic;
+}
+
+/* Right pane — editorial header above the embedded RotaWorkspace. */
+.rv-rp {
+  padding: 28px 32px 60px;
+}
+.rv-rp-header { margin-bottom: 20px; }
+.rv-rp-eyebrow {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(28, 27, 58, 0.5);
+  margin-bottom: 6px;
+}
+.rv-rp-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-weight: 400;
+  font-size: 28px;
+  line-height: 1.05;
+  margin: 0;
+  color: #1C1B3A;
+}
+.rv-rp-meta {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px;
+  color: rgba(28, 27, 58, 0.55);
+  margin-top: 8px;
+}
+.rv-rp-meta-mlc { color: #7A2E1E; }
+
+/* Decision footer (rendered into RotaWorkspace's footer slot). */
+.rv-rp-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+}
+.rv-rp-helper {
+  font-size: 12px;
+  font-style: italic;
+  color: rgba(28, 27, 58, 0.5);
+}
+.rv-rp-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Inline reject panel anchored in the footer. */
+.rv-rp-reject {
+  width: 100%;
+  background: #FBF5EE;
+  border: 0.5px solid #7A2E1E;
+  border-radius: 8px;
+  padding: 14px;
+}
+.rv-rp-reject-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #7A2E1E;
+  margin-bottom: 8px;
+}
+.rv-rp-reject-textarea {
+  width: 100%;
+  min-height: 64px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px;
+  color: #1C1B3A;
+  padding: 10px 12px;
+  border: 0.5px solid #DFD8CC;
+  border-radius: 6px;
+  background: #FFFFFF;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.rv-rp-reject-textarea:focus { outline: none; border-color: #7A2E1E; }
+.rv-rp-reject-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* Right-pane blank / cleared-inbox state. */
+.rv-rp-blank {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 24px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.rv-rp-blank-icon { margin-bottom: 14px; }
+.rv-rp-blank-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 26px;
+  color: #1C1B3A;
+  margin-bottom: 8px;
+}
+.rv-rp-blank-sub {
+  font-size: 13px;
+  color: rgba(28, 27, 58, 0.55);
+  max-width: 360px;
+  line-height: 1.5;
+}
 
 /* ── Inline reject panel ───────────────────────────────────── */
 .rv-reject-panel {
