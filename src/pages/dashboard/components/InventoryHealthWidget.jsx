@@ -23,23 +23,45 @@ const InventoryHealthWidget = () => {
     loadStats();
   }, []);
 
+  // Uniform calm indicators — outline circle, muted tone, no per-status colour.
+  // Tint is applied to the row's icon wrapper (.ce-ico-muted) so the lucide
+  // stroke inherits it via currentColor — colouring the <svg> directly does
+  // not reliably tint lucide strokes in this app.
   const healthStats = [
-    { label: 'Healthy', count: stats?.healthy, icon: 'CheckCircle', color: 'text-success' },
-    { label: 'Low stock', count: stats?.lowStock, icon: 'AlertTriangle', color: 'text-warning' },
-    { label: 'Out of stock', count: stats?.outOfStock, icon: 'AlertCircle', color: 'text-error' }
+    { label: 'Healthy', count: stats?.healthy, icon: 'Circle' },
+    { label: 'Low stock', count: stats?.lowStock, icon: 'Circle' },
+    { label: 'Out of stock', count: stats?.outOfStock, icon: 'Circle' }
   ];
 
   const isHealthy = stats?.total > 0 && stats?.lowStock === 0 && stats?.outOfStock === 0;
   const hasItems = stats?.total > 0;
 
+  // Live status subline — orange-italic on low/out-of-stock, navy otherwise.
+  let statusText = 'All healthy';
+  let statusAttention = false;
+  if (loading) {
+    statusText = 'Loading…';
+  } else if (!hasItems) {
+    statusText = 'Nothing tracked yet';
+  } else if (stats?.outOfStock > 0) {
+    statusText = `${stats.outOfStock} out of stock`;
+    statusAttention = true;
+  } else if (stats?.lowStock > 0) {
+    statusText = `${stats.lowStock} low stock`;
+    statusAttention = true;
+  }
+
   return (
     <div
-      className="bg-card border border-border rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+      className="ce-card rounded-xl p-5 cursor-pointer"
       onClick={() => navigate('/inventory')}
     >
-      <div className="flex items-center justify-between mb-5">
-        <h3 className="text-sm font-semibold text-foreground">Inventory health</h3>
-        <span className="text-xs text-primary hover:underline">
+      <div className="flex items-start justify-between mb-5">
+        <div>
+          <h3 className="ce-title">Inventory health</h3>
+          <p className={`ce-status${statusAttention ? ' is-attention' : ''}`}>{statusText}</p>
+        </div>
+        <span className="ce-link">
           View all
         </span>
       </div>
@@ -51,13 +73,13 @@ const InventoryHealthWidget = () => {
             </div>
           ) : (
             <div className={`w-20 h-20 rounded-full flex items-center justify-center ${
-              isHealthy ? 'bg-success/10' : hasItems ? 'bg-warning/10' : 'bg-muted'
+              isHealthy ? 'ce-bg-success' : hasItems ? 'ce-bg-warn' : 'bg-muted'
             }`}>
-              <Icon 
-                name={isHealthy ? 'CheckCircle' : hasItems ? 'AlertTriangle' : 'Package'} 
+              <Icon
+                name={isHealthy ? 'CheckCircle' : hasItems ? 'AlertTriangle' : 'Package'}
                 className={`w-10 h-10 ${
-                  isHealthy ? 'text-success' : hasItems ? 'text-warning' : 'text-muted-foreground'
-                }`} 
+                  isHealthy ? 'ce-fg-success' : hasItems ? 'ce-fg-warn' : 'text-muted-foreground'
+                }`}
               />
             </div>
           )}
@@ -66,17 +88,20 @@ const InventoryHealthWidget = () => {
       <div className="text-center mb-5">
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading...</p>
+        ) : !hasItems ? (
+          <>
+            <p className="ce-title">Nothing tracked yet.</p>
+            <p className="ce-status is-attention mt-1">Begin the inventory →</p>
+          </>
         ) : (
           <>
             <p className={`text-lg font-semibold ${
-              isHealthy ? 'text-success' : hasItems ? 'text-warning' : 'text-muted-foreground'
+              isHealthy ? 'ce-fg-success' : 'ce-fg-warn'
             }`}>
-              {isHealthy ? 'Healthy' : hasItems ? 'Needs attention' : 'No items tracked'}
+              {isHealthy ? 'Healthy' : 'Needs attention'}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {hasItems
-                ? `${stats?.total} item${stats?.total !== 1 ? 's' : ''} tracked`
-                : 'Start tracking inventory'}
+              {`${stats?.total} item${stats?.total !== 1 ? 's' : ''} tracked`}
             </p>
           </>
         )}
@@ -87,8 +112,8 @@ const InventoryHealthWidget = () => {
             key={index} 
             className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/30"
           >
-            <div className="flex items-center gap-2">
-              <Icon name={stat?.icon} className={`w-4 h-4 ${stat?.color}`} />
+            <div className="flex items-center gap-2 ce-ico-muted">
+              <Icon name={stat?.icon} className="w-4 h-4" />
               <span className="text-xs text-foreground">{stat?.label}</span>
             </div>
             <span className="text-sm font-bold text-foreground">

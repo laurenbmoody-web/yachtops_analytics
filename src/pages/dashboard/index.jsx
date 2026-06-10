@@ -30,6 +30,8 @@ import ProvisioningWidget from './components/ProvisioningWidget';
 import PantryWidget from './components/PantryWidget';
 import AnchorChainProgress from '../../components/onboarding/AnchorChainProgress';
 
+import '../../styles/editorial-tokens.css';
+import './dashboard-widgets.css';
 import { useDashboardLayout } from './useDashboardLayout';
 import { supabase } from '../../lib/supabaseClient';
 import { ONBOARDING_TASKS, getNextTask, getCurrentStep } from './onboardingTasks';
@@ -358,9 +360,10 @@ const CollapsiblePanel = ({ title, badge, defaultOpen = false, pulse = false, ch
 };
 
 const CHARTER_ACCOUNT = {
-  percentage: 68, spent: 34000, total: 50000, remaining: 16000, trend: -12, color: 'bg-primary',
+  percentage: 68, spent: 34000, total: 50000, remaining: 16000, trend: -12, color: 'ce-bar-navy',
 };
 const OWNER_ACCOUNT = {
+  // Purple owner bar deferred — resolved with the other non-cool/purple accents next pass.
   percentage: 47, spent: 23500, total: 50000, remaining: 26500, trend: 8, color: 'bg-purple-500',
 };
 
@@ -836,7 +839,7 @@ const Dashboard = () => {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="cargo-editorial grid grid-cols-1 lg:grid-cols-12 gap-6">
               {renderColumn('left',   'lg:col-span-3')}
               {renderColumn('center', 'lg:col-span-6')}
               {renderColumn('right',  'lg:col-span-3')}
@@ -845,7 +848,10 @@ const Dashboard = () => {
             {/* Ghost preview while dragging */}
             <DragOverlay>
               {activeId ? (
-                <div className="opacity-75 shadow-2xl rounded-xl">
+                /* cargo-editorial here too: the overlay clone renders
+                   outside the grid's scope, so it'd lose the --d-* tokens
+                   mid-drag without this. */
+                <div className="cargo-editorial opacity-75 shadow-2xl rounded-xl">
                   {renderWidget(activeId)}
                 </div>
               ) : null}

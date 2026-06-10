@@ -57,7 +57,11 @@ export const BOARD_STATUS_CONFIG = {
   delivered_with_discrepancies: {
     label: 'With discrepancies',
     color: '#5C9B6A',
-    badgeClassName: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400',
+    // Cool-surface token migration started on main (ProvisioningWidget
+    // adopted ce-bg-danger / ce-fg-danger). When the other statuses
+    // and the StatusBadge consumers migrate to ce-* tokens, swap their
+    // entries too and eventually retire badgeClassName entirely.
+    badgeClassName: 'ce-bg-danger ce-fg-danger',
   },
   delivered: {
     label: 'Delivered',

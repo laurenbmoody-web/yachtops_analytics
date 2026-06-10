@@ -92,6 +92,14 @@
   cursor: not-allowed;
   color: #C9C0AE;
 }
+.crew-rota-stepper-btn.is-active {
+  cursor: pointer;
+  color: #1C1B3A;
+}
+.crew-rota-stepper-btn.is-active:hover {
+  background: #F7F5F0;
+  border-color: #C9C0AE;
+}
 .crew-rota-stepper-date {
   font-family: 'DM Serif Display', Georgia, serif;
   font-size: 16px;
@@ -1010,6 +1018,12 @@
   font-size: 12px;
   z-index: 1200;
   box-shadow: 0 12px 32px -10px rgba(28, 27, 58, 0.4);
+}
+/* Destructive variant — surfaced when a write fails. Deep-terracotta from
+   the editorial accent-deep palette; same shape, different signal. */
+.crew-rota-toast.error {
+  background: #7A2E1E;
+  color: #F5F1EA;
 }
 
 /* Typebar separator between brush pills and the Templates button. */
@@ -2270,6 +2284,77 @@
 }
 .ap-bulk-perday-mini-cancel:hover { background: #F4F1EA; }
 
+/* Binding-rule [why?] inline reveal (v1.2 density pass D3). Sits
+   inline after the readout summary; click toggles the explainer
+   block beneath. Same disclosure pattern as the Why-advisory reveal
+   so the chief learns one interaction. */
+/* [why?] inline-text disclosure — used in the bulk readout (mid-
+   sentence). Bracketed text reads naturally inline as a question the
+   chief might ask. */
+.ap-mlc-binding-why {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0 0 0 2px;
+  font: inherit;
+  font-weight: 600;
+  font-size: 11px;
+  color: #7A2E1E;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ap-mlc-binding-why:hover { color: #5C2316; }
+
+/* Rule-advisory disclosure — used at end-of-sentence. An icon (lucide
+   HelpCircle) rather than text so it reads as a tappable affordance,
+   not as punctuation. Muted grey to match secondary text. Hover halo
+   provides feedback and enlarges the touch target without changing
+   the icon's footprint in the line. */
+.ap-mlc-advisory-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  padding: 2px;
+  margin-left: 4px;
+  border-radius: 999px;
+  color: #5F5E5A;
+  cursor: pointer;
+  vertical-align: -3px; /* baseline-align the 14px icon against text */
+  transition: background 120ms ease, color 120ms ease;
+}
+.ap-mlc-advisory-toggle:hover {
+  background: rgba(31, 27, 58, 0.06);
+  color: #1C1B3A;
+}
+.ap-mlc-advisory-toggle:focus-visible {
+  outline: 2px solid #7A2E1E;
+  outline-offset: 1px;
+}
+
+/* Bind the last word of a rule sentence to the trailing ? toggle so
+   they can't wrap to separate lines. The .ap-mlc-rule-sentence parent
+   wraps normally; only the tail (last word + ?) is held together via
+   nowrap. Without this the ? orphans onto its own line whenever the
+   sentence fills the row width. */
+.ap-mlc-rule-sentence-tail {
+  white-space: nowrap;
+}
+.ap-mlc-binding-explain {
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: #F4F1EA;
+  border-left: 2px solid #D9CCB9;
+  border-radius: 4px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: #5F5E5A;
+  font-style: italic;
+}
+
 /* Compact futile block (v1.2 density pass C1) — replaces the
    (rule-sentence + Why-advisory + futile-message) stack when bulk
    shorten can't clear any breaching day. Two-line layout: the first
@@ -2641,6 +2726,105 @@
   padding: 4px 2px;
 }
 .dp-summary em { color: #8B8478; font-style: italic; }
+
+/* ── Single-date popover (MonthPicker on rota stepper) ────────── */
+.mp-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 27, 58, 0.06);
+  z-index: 90;
+}
+.mp-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 8px;
+  background: #FFFFFF;
+  border: 0.5px solid #DFD8CC;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(28, 27, 58, 0.08);
+  padding: 14px;
+  z-index: 91;
+  min-width: 260px;
+}
+.mp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.mp-header-title {
+  flex: 1;
+  text-align: center;
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 15px;
+  color: #1C1B3A;
+}
+/* dp-nav has margin-top:6px for the range picker context (where the chevrons
+   sit next to a calendar with its internal title pushing down). In the
+   single-line .mp-header the chevrons share a centered row with the title,
+   so the offset throws alignment off. Reset here only. */
+.mp-header .dp-nav { margin-top: 0; }
+.mp-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 0.5px solid #ECE6DC;
+}
+
+/* ── Calendar trigger (clickable stepper-date) ────────────────── */
+.crew-rota-stepper-anchor { position: relative; }
+.crew-rota-stepper-date.is-button {
+  background: transparent;
+  border: 0.5px solid transparent;
+  border-radius: 6px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 16px;
+  color: #1C1B3A;
+  min-width: 150px;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+}
+.crew-rota-stepper-date.is-button:hover {
+  background: #F7F5F0;
+  border-color: #DFD8CC;
+}
+.crew-rota-stepper-date.is-button .lucide {
+  color: #8B8478;
+  flex-shrink: 0;
+}
+
+/* ── Empty-state (no shifts on selected date, view mode only) ── */
+.crew-rota-empty {
+  padding: 32px 0 28px;
+  text-align: center;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.crew-rota-empty-msg {
+  font-size: 13px;
+  color: #8B8478;
+  font-style: italic;
+}
+.crew-rota-empty-cta {
+  margin-top: 8px;
+}
+.crew-rota-empty-cta button {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: #C65A1A;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
 
 /* ============================================================
    Phase 3b — CrewSelect (per-slot assignment dropdown)
@@ -3032,3 +3216,295 @@
   vertical-align: middle;
   font-style: italic;
 }
+
+/* ============================================================
+   Week view — crew × 7-day operational matrix
+   Mirrors the day grid (rota-*) visual language:
+   dept colour strip + sticky name col + cream/navy cells.
+   Palette and hex values are pulled from the existing rota-*
+   block above — same source, no new tokens introduced.
+   ============================================================ */
+.cw-grid-wrap { overflow-x: auto; flex: 1; min-width: 0; }
+.cw-grid-inner { min-width: 880px; position: relative; }
+
+/* Header row — sticky name spacer + 7 day columns, mirrors .rota-hour-row */
+.cw-head-row {
+  display: grid;
+  grid-template-columns: var(--cw-nm-w, 220px) repeat(7, 1fr);
+  gap: 2px;
+  padding-bottom: 10px;
+  margin-bottom: 4px;
+}
+.cw-head-spacer {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #8B8478;
+  display: flex;
+  align-items: flex-end;
+  padding: 0 12px;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: #FFFFFF;
+}
+.cw-day-head {
+  text-align: center;
+  padding: 2px 4px 6px;
+  border-radius: 4px;
+}
+/* Card wrapper — chevrons flank the matrix grid, but with different
+   positioning rules per side (see below). position:relative anchors the
+   absolutely-positioned LEFT chevron. */
+.cw-card {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+.cw-edge-step {
+  width: 32px;
+  height: 32px;
+  margin-top: 8px;
+  background: transparent;
+  border: 0.5px solid #DFD8CC;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #8B8478;
+  cursor: pointer;
+  padding: 0;
+}
+.cw-edge-step:hover {
+  background: #F7F5F0;
+  border-color: #C9C0AE;
+  color: #1C1B3A;
+}
+/* RIGHT chevron — stays as a flex sibling AFTER .cw-grid-wrap. The wrap's
+   right edge IS the last day cell's right edge, so the 4px flex gap puts
+   the chevron tight against the last day cell. Works naturally. */
+.cw-edge-step-right { flex: 0 0 32px; }
+/* LEFT chevron — would NOT work as a flex sibling: the wrap's LEFT edge
+   is the crew column's left edge (the crew col is the first column of the
+   inner grid), so a flex-sibling left chevron lands 4px before the CREW
+   COLUMN, with the 220px crew column then sitting between it and the
+   first day cell. Visibly stranded. Position it absolutely instead so it
+   lands 4px before the FIRST DAY CELL — mirroring the right chevron's
+   spacing against the last day cell. Math: first day cell left edge
+   = var(--cw-nm-w) + 2px grid gap; chevron right edge sits 4px before
+   that; chevron left = (--cw-nm-w + 2) - 4 - 32 = (--cw-nm-w - 34).
+   z-index:5 keeps it above the sticky crew-col header (z-index:2);
+   nothing's at this horizontal position in the header anyway since
+   "Crew" sits at the column's LEFT padding. */
+.cw-edge-step-left {
+  position: absolute;
+  left: calc(var(--cw-nm-w, 220px) - 34px);
+  top: 8px;
+  margin-top: 0;
+  z-index: 5;
+}
+.cw-day-head-dow {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #8B8478;
+}
+.cw-day-head-num {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 18px;
+  color: #1C1B3A;
+  line-height: 1.1;
+}
+.cw-day-head-mon {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 11px;
+  color: #8B8478;
+  line-height: 1;
+  font-style: italic;
+}
+.cw-day-head.is-weekend .cw-day-head-num { color: #5F5E5A; }
+/* Today is signalled text-only on the date NUMBER. DOW and month abbrev
+   stay in their default warm-gray — terracotta on those would double up
+   the signal. */
+.cw-day-head.is-today .cw-day-head-num {
+  color: #C65A1A;
+  font-weight: 500;
+}
+/* Selected and today are both text-only signals now. Selected has no
+   visual distinction in the cell grid — selection state lives in the
+   picker label ("Thu 28 May — Wed 3 June") and the chevron positions
+   at the matrix edges, both already visible above the grid. Today is
+   inferable only from the date number colour, so it persists.
+   The selectors are kept as no-op hooks for future subtle treatments
+   (border-style, font-weight, etc.) without needing to re-thread the
+   classes through the JSX. */
+.cw-day-head.is-selected {
+  /* intentionally empty — kept as a JSX hook */
+}
+
+/* Dept group — flex: 22px sticky colour strip + crew rows.
+   Same structure as .rota-dept-group. */
+.cw-dept-group {
+  display: flex;
+  align-items: stretch;
+  margin-bottom: 2px;
+}
+.cw-dept-strip {
+  flex: 0 0 22px;
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cw-dept-strip-text {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.cw-dept-rows { flex: 1; min-width: 0; }
+
+/* Crew row — sticky name col + 7 cells, 2px gaps (matches .rota-row) */
+.cw-row {
+  display: grid;
+  grid-template-columns: calc(var(--cw-nm-w, 220px) - 22px) repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 2px;
+}
+
+/* Sticky name column — mirrors .rota-nm. Min-height so multi-shift rows
+   can stretch the cell uniformly (CSS Grid aligns the row to the tallest
+   cell, and we want the name col to stretch with it). */
+.cw-nm {
+  padding: 10px 12px;
+  min-height: 56px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  background: #FFFFFF;
+  position: sticky;
+  left: 22px;
+  z-index: 4;
+  border-top: 0.5px solid #ECE6DC;
+  overflow: hidden;
+}
+.cw-nm-line {
+  display: flex;
+  align-items: center;
+  line-height: 1;
+  white-space: nowrap;
+}
+.cw-nm-name {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1C1B3A;
+}
+.cw-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #B4B2A9;
+  margin: 0 7px;
+  flex-shrink: 0;
+}
+.cw-role {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-weight: 400;
+  color: #8B8478;
+  font-size: 11px;
+}
+
+/* Day cells — same palette as .rota-c (cream off / navy scheduled / sat tint).
+   min-height so a multi-shift cell can grow taller than 56px; the row
+   stretches uniformly and CSS Grid aligns the rest of the row to match. */
+.cw-c {
+  min-height: 56px;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: left;
+  background: #F7F5F0;
+  color: #1C1B3A;
+}
+.cw-c.f {
+  background: #1C1B3A;
+  color: #F5F1EA;
+}
+.cw-c.sat { background: #EDEAE3; }
+.cw-c:hover { outline: 0.5px solid #C65A1A; }
+/* Neither today nor selected adds a per-cell highlight. Today is signalled
+   text-only on the date number in the day header. Selected is inferable
+   from the picker label + chevron positions, both visible above the grid.
+   The .is-selected-col selector is kept as a no-op JSX hook for future
+   subtle treatments without re-threading the class. */
+.cw-c.is-selected-col {
+  /* intentionally empty — kept as a JSX hook */
+}
+.cw-c.is-warn.f {
+  /* Warning on a scheduled cell: keep navy fill, hint via meta colour. */
+  background: #1C1B3A;
+}
+.cw-c.is-warn.off {
+  background: #FDF6F3;
+  color: #7A2E1E;
+}
+
+.cw-c-off {
+  font-size: 11px;
+  color: #B4B2A9;
+  font-style: italic;
+  margin: auto;
+}
+/* Stacked ranges — multi-shift days show each range on its own line so the
+   gap between shifts (the thing MLC cares about) is visible. */
+.cw-c-ranges {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.cw-c-range { white-space: nowrap; line-height: 1.2; }
+.cw-c-more {
+  font-size: 9px;
+  padding: 1px 5px;
+  background: rgba(245, 241, 234, 0.18);
+  color: #F5F1EA;
+  border-radius: 999px;
+  font-weight: 500;
+  align-self: flex-start;
+  margin-top: 1px;
+}
+.cw-c.off .cw-c-more {
+  background: #ECE6DC;
+  color: #5F5E5A;
+}
+.cw-c-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 10px;
+  color: #C9C0AE;
+}
+.cw-c.off .cw-c-meta { color: #8B8478; }
+.cw-c-rest { font-variant-numeric: tabular-nums; }
+.cw-c-rest.w { color: #C65A1A; font-weight: 500; }

@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Pencil } from 'lucide-react';
+import { Pencil, Calendar as CalendarIcon } from 'lucide-react';
+import MonthPicker from './MonthPicker';
 import Header from '../../components/navigation/Header';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
@@ -9,6 +10,8 @@ import './crew-rota.css';
 import RotaTodayGrid from '../trip-detail-view-with-guest-allocation/components/RotaTodayGrid';
 import { DEPT_ORDER } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
 import CrewListView from './CrewListView';
+import CrewWeekMatrix, { weekRangeLabel, weekRangeLabelLong } from './CrewWeekMatrix';
+import HodEditConfirmModal from './HodEditConfirmModal';
 import RestPanelPopover from './RestPanelPopover';
 import PatternPicker from './PatternPicker';
 import SimpleTemplateEditor from './SimpleTemplateEditor';
@@ -18,6 +21,15 @@ import { useRotaShifts } from './useRotaShifts';
 import { useRotaTemplates } from './useRotaTemplates';
 import { useCurrentRota } from './useCurrentRota';
 import { useRotaDepartmentStatus } from './useRotaDepartmentStatus';
+import { usePendingReviewCount } from './usePendingReviewCount';
+import {
+  submitRotaDepartment,
+  publishRotaDepartmentDirect,
+} from './useRotaLifecycleWriters';
+import {
+  hasChiefForDepartment,
+  getDraftShiftCount,
+} from './rotaLifecycleChecks';
 
 const EDITORIAL_BG = '#F5F1EA';
 const GRID_START_HOUR = 6;
@@ -36,6 +48,22 @@ function fullDateLabel(d) {
   const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
+}
+
+// Local YYYY-MM-DD helpers — strictly local components (no UTC). Used to
+// drive the stepper without timezone surprises.
+function localTodayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function parseLocalDate(s) {
+  const [y, m, d] = String(s).split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+function addLocalDays(s, delta) {
+  const d = parseLocalDate(s);
+  d.setDate(d.getDate() + delta);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 // (slot ↔ decimal helpers and shift-range math are now owned by
@@ -59,10 +87,12 @@ function RotaLegend({ now }) {
         <span className="crew-rota-legend-swatch" style={{ background: '#EDEAE3' }} />
         <span>Saturday</span>
       </div>
-      <div className="crew-rota-legend-item">
-        <span style={{ width: 1.5, height: 14, background: '#C65A1A', opacity: 0.5, borderRadius: 1 }} />
-        <span>Now ({hhmmNow})</span>
-      </div>
+      {now && (
+        <div className="crew-rota-legend-item">
+          <span style={{ width: 1.5, height: 14, background: '#C65A1A', opacity: 0.5, borderRadius: 1 }} />
+          <span>Now ({hhmmNow})</span>
+        </div>
+      )}
       <div className="crew-rota-legend-item">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
           stroke="#C65A1A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -76,32 +106,66 @@ function RotaLegend({ now }) {
   );
 }
 
-// Tier-conditional footer CTA. Phase 1: actions are stubs (Phase 4).
-function EditFooterCTA({ tier, draftCount, onStub }) {
-  const n = draftCount;
-  const pubLabel = `Publish (${n} draft${n === 1 ? '' : 's'})`;
-  const subLabel = `Submit for approval (${n} draft${n === 1 ? '' : 's'})`;
+// Tier-conditional footer CTA. Wired to Phase-2 lifecycle writers.
+// Scope: targets a single department (targetDeptId).
+//   HOD    → their own dept (currentUser.department_id).
+//   CHIEF  → their own dept (Phase 3 single-dept scope; multi-dept via
+//            the Phase-4 inbox).
+//   COMMAND → their own dept if populated; otherwise publish button is
+//            disabled with a hint pointing to the inbox.
+function EditFooterCTA({
+  tier, draftDayCount, targetDeptId, targetDeptName,
+  busy, onSubmit, onPublish,
+}) {
+  const n = draftDayCount;
+  // Label counts DAYS with at least one draft — "Submit for approval
+  // (5 days)" reads as the workload preview a reviewer actually cares
+  // about. A shift-cardinality count overemphasises individual rows.
+  const dayLabel = `${n} ${n === 1 ? 'day' : 'days'}`;
+  const pubLabel = busy === 'publish' ? 'Publishing…' : `Publish (${dayLabel})`;
+  const subLabel = busy === 'submit' ? 'Submitting…' : `Submit for approval (${dayLabel})`;
+  const noTargetDept = !targetDeptId;
+  const noTargetTitle = noTargetDept ? 'Use the review inbox to publish departments individually.' : undefined;
   return (
     <div className="crew-rota-cta">
       {tier === 'COMMAND' && (
-        <button type="button" className="v2-btn-filled" onClick={() => onStub('publish')}>
-          {pubLabel}
-        </button>
+        <button
+          type="button"
+          className="v2-btn-filled"
+          onClick={onPublish}
+          disabled={!!busy || n === 0 || noTargetDept}
+          title={noTargetTitle}
+          aria-label={`Publish ${targetDeptName || 'department'}`}
+        >{pubLabel}</button>
       )}
       {tier === 'CHIEF' && (
         <>
-          <button type="button" className="v2-btn-ghost" onClick={() => onStub('submit')}>
-            {subLabel}
-          </button>
-          <button type="button" className="v2-btn-filled" onClick={() => onStub('publish')}>
-            {pubLabel}
-          </button>
+          <button
+            type="button"
+            className="v2-btn-ghost"
+            onClick={onSubmit}
+            disabled={!!busy || n === 0 || noTargetDept}
+            title={noTargetTitle}
+            aria-label={`Submit ${targetDeptName || 'department'} for approval`}
+          >{subLabel}</button>
+          <button
+            type="button"
+            className="v2-btn-filled"
+            onClick={onPublish}
+            disabled={!!busy || n === 0 || noTargetDept}
+            title={noTargetTitle}
+            aria-label={`Publish ${targetDeptName || 'department'}`}
+          >{pubLabel}</button>
         </>
       )}
       {tier === 'HOD' && (
-        <button type="button" className="v2-btn-filled" onClick={() => onStub('submit')}>
-          {subLabel}
-        </button>
+        <button
+          type="button"
+          className="v2-btn-filled"
+          onClick={onSubmit}
+          disabled={!!busy || n === 0 || noTargetDept}
+          aria-label={`Submit ${targetDeptName || 'department'} for approval`}
+        >{subLabel}</button>
       )}
       {!['COMMAND', 'CHIEF', 'HOD'].includes(tier) && (
         <span style={{ fontStyle: 'italic' }}>Read-only — your role can’t publish drafts.</span>
@@ -113,8 +177,16 @@ function EditFooterCTA({ tier, draftCount, onStub }) {
 export default function CrewRotaPage() {
   const navigate = useNavigate();
   const now = new Date();
+  const realToday = localTodayStr();
   const { user, currentUser, tenantRole, activeTenantId } = useAuth();
-  const [view, setView] = useState('grid');      // 'grid' | 'list'
+  const [view, setView] = useState('grid');      // 'grid' | 'list' | 'week'
+  // selectedDate (YYYY-MM-DD, local components) anchors the entire page —
+  // rest figures, MLC warnings and the 7-day rolling window in
+  // useRotaShifts all move with it. Defaults to real today.
+  const [selectedDate, setSelectedDate] = useState(realToday);
+  const isToday = selectedDate === realToday;
+  const selectedDateObj = parseLocalDate(selectedDate);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [selectedCrew, setSelectedCrew] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [shiftType, setShiftType] = useState('duty'); // active type for new shifts
@@ -136,18 +208,69 @@ export default function CrewRotaPage() {
 
   useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
 
-  const showToast = useCallback((msg) => {
-    setToast(msg);
+  // showToast(msg) — regular. showToast(msg, { error:true }) — destructive
+  // styling for write-failure feedback. State is { msg, error } so the
+  // renderer can apply the variant class; existing call sites pass a bare
+  // string and stay backward-compat.
+  const showToast = useCallback((msg, opts) => {
+    setToast({ msg, error: !!opts?.error });
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 4200);
   }, []);
 
   const {
-    crew, loading, error, effectiveDate, draftCount,
+    crew, shifts, windowShifts, loading, error, effectiveDate,
     applyPaint, applyTemplate, refetch,
-  } = useRotaShifts();
+  } = useRotaShifts(
+    selectedDate,
+    // Day view: trailing 7. Week view: 6 days BEFORE selectedDate (so the
+    // leftmost forward cell has its own trailing-7 MLC context) + 6 days
+    // FORWARD of selectedDate (so the matrix has its 7 cells to display).
+    view === 'week' ? { historyDays: 6, forwardDays: 6 } : { historyDays: 6, forwardDays: 0 },
+  );
+  const hasNoShifts = !loading && !error && shifts.length === 0;
   const { rota } = useCurrentRota();
   const { statusByDept, ensureDraft } = useRotaDepartmentStatus(rota?.id);
+  const { count: pendingReviewCount } = usePendingReviewCount(rota?.id);
+  // Notice only renders for reviewers (CHIEF / COMMAND) with non-zero
+  // count. The hook returns 0 when no rota id yet, so the boolean is
+  // safe to evaluate before rota resolves.
+  const showPendingReviewNotice =
+    pendingReviewCount > 0 && (tier === 'CHIEF' || tier === 'COMMAND');
+
+  // Footer dept context — single-dept scope for Phase 3. HOD/CHIEF use
+  // their own dept; COMMAND uses theirs if populated, otherwise the
+  // publish button disables with a hint pointing to the inbox.
+  const targetDeptId = currentUser?.department_id || null;
+  // ctaBusy: null | 'submit' | 'publish' — disables both buttons during
+  // the in-flight RPC so a double-click can't double-write.
+  const [ctaBusy, setCtaBusy] = useState(null);
+
+  // Per-dept day count for the footer label and disable check. Counts
+  // DISTINCT shift_date values among draft shifts belonging to crew in
+  // targetDeptId, sliced from the same windowShifts the page already
+  // has loaded. Reactive — every optimistic paint / template apply
+  // updates this in the same render the change lands.
+  //
+  // Trade-off: the count only includes drafts in the LOADED window
+  // (trailing 7 days in day view, 13 days centred on selectedDate in
+  // week view). Drafts on dates outside the window aren't counted.
+  // For typical use — HOD editing the upcoming week — this is accurate.
+  // For long-tail edits (drafts spread over months), Phase 6 polish
+  // could replace this with a dedicated fetch + refresh.
+  const draftDayCount = useMemo(() => {
+    if (!targetDeptId) return 0;
+    const deptMemberIds = new Set(
+      crew.filter((c) => c.departmentId === targetDeptId).map((c) => c.id),
+    );
+    const days = new Set();
+    for (const s of (windowShifts || [])) {
+      if (s.status === 'draft' && deptMemberIds.has(s.memberId)) {
+        days.add(s.date);
+      }
+    }
+    return days.size;
+  }, [targetDeptId, windowShifts, crew]);
   const {
     templates, loading: templatesLoading, error: templatesError,
     toggleStar, createTemplate, updateTemplate, deleteTemplate,
@@ -194,11 +317,21 @@ export default function CrewRotaPage() {
   }, [activeTenantId]);
 
   const total = crew.length;
+  // "On duty now" is a real-time fact. When the chief is viewing a non-
+  // today date, useRotaShifts already zeros onNow on every crew row, but
+  // we also drop the count from the headline copy — "0 on duty now"
+  // displayed against e.g. yesterday's roster would be confusing.
   const onDuty = crew.filter(c => c.onNow && !c.offToday).length;
-  const meta = `${fullDateLabel(now)} · ${total} crew on this trip · ${onDuty} on duty now`;
+  const meta = view === 'week'
+    ? `Week of ${weekRangeLabel(selectedDate)} · ${total} crew on this trip`
+    : isToday
+      ? `${fullDateLabel(selectedDateObj)} · ${total} crew on this trip · ${onDuty} on duty now`
+      : `${fullDateLabel(selectedDateObj)} · ${total} crew on this trip`;
 
   const presentDepts = DEPT_ORDER.filter(d => crew.some(c => c.department === d));
-  const cardContext = `${presentDepts.join(' · ')}  —  ${total} crew · ${onDuty} on duty`;
+  const cardContext = isToday
+    ? `${presentDepts.join(' · ')}  —  ${total} crew · ${onDuty} on duty`
+    : `${presentDepts.join(' · ')}  —  ${total} crew`;
 
   // The acting user's own tenant_members.id — rota_shifts.created_by FKs
   // tenant_members(id), so stamp it on inserts when resolvable.
@@ -260,15 +393,122 @@ export default function CrewRotaPage() {
   }, [rota, shiftType, myMemberId, applyPaint, syncDeptDraft, showToast]);
 
   const canEdit = !!rota?.id && !loading && !error;
-  const enterEdit = useCallback(() => {
-    if (!canEdit) return;
+  // hodConfirmOpen: when set, the modal renders with the dept's current
+  // (non-draft) status and blocks editMode entry until the HOD confirms.
+  // CHIEF/COMMAND bypass — they have the authority to revert deliberately.
+  const [hodConfirmOpen, setHodConfirmOpen] = useState(false);
+  const beginEditMode = useCallback(() => {
     setEditMode(true);
     refetch({ silent: true });
-  }, [canEdit, refetch]);
+  }, [refetch]);
+  const enterEdit = useCallback(() => {
+    if (!canEdit) return;
+    if (tier === 'HOD' && targetDeptId) {
+      const status = statusByDept.get(targetDeptId)?.status;
+      if (status === 'pending_approval' || status === 'published') {
+        setHodConfirmOpen(true);
+        return;
+      }
+    }
+    beginEditMode();
+  }, [canEdit, tier, targetDeptId, statusByDept, beginEditMode]);
   const exitEdit = useCallback(() => {
     setEditMode(false);
     refetch({ silent: true });
   }, [refetch]);
+
+  // Friendly dept name for toasts / aria-labels — falls back to "department"
+  // when the dept lookup hasn't resolved yet.
+  const targetDeptName = (departments.find((d) => d.id === targetDeptId) || {}).name || null;
+
+  // Footer handlers — go straight to the Phase-2 RPC writers. Loading
+  // state via ctaBusy disables both buttons during the in-flight call.
+  // The pre-checks (sub-commits 2 + 3) layer on top of these in their
+  // own sub-commits.
+  const handleFooterSubmit = useCallback(async () => {
+    if (!rota?.id || !targetDeptId || ctaBusy) return;
+    setCtaBusy('submit');
+    // Pre-check 1: at least one draft shift must exist for this dept.
+    // take_rota_shift_snapshot raises on zero shifts (Phase 2 RPC error
+    // path), so this is the polite gate that surfaces the right copy.
+    const draftCheck = await getDraftShiftCount(rota.id, rota.tenantId, targetDeptId);
+    if (!draftCheck.ok) {
+      setCtaBusy(null);
+      showToast(`Couldn’t check shifts — ${draftCheck.error || 'try again.'}`, { error: true });
+      return;
+    }
+    if (draftCheck.count === 0) {
+      setCtaBusy(null);
+      showToast(
+        `Cannot submit — no shifts for ${targetDeptName || 'this department'}.`,
+        { error: true },
+      );
+      return;
+    }
+    // Pre-check 2: a CHIEF must exist in this dept to receive the
+    // submission. Phase 1's review_items policy gates UPDATE on
+    // CHIEF+dept-match; without a CHIEF the inbox row is un-actionable.
+    // Client-side gate prevents the orphaned review_item; the writer
+    // remains the safety net for race / RLS edges.
+    const chiefCheck = await hasChiefForDepartment(rota.tenantId, targetDeptId);
+    if (!chiefCheck.ok) {
+      setCtaBusy(null);
+      showToast(`Couldn’t check reviewers — ${chiefCheck.error || 'try again.'}`, { error: true });
+      return;
+    }
+    if (!chiefCheck.has) {
+      setCtaBusy(null);
+      showToast(
+        `No CHIEF available to review ${targetDeptName || 'this department'} — ask COMMAND to publish directly.`,
+        { error: true },
+      );
+      return;
+    }
+    const res = await submitRotaDepartment({
+      rotaId: rota.id,
+      departmentId: targetDeptId,
+    });
+    setCtaBusy(null);
+    if (!res.ok) {
+      showToast(`Couldn’t submit — ${res.error || 'try again.'}`, { error: true });
+      return;
+    }
+    showToast(`Submitted ${targetDeptName || 'department'} for approval.`);
+    exitEdit();
+  }, [rota, targetDeptId, ctaBusy, targetDeptName, showToast, exitEdit]);
+
+  const handleFooterPublish = useCallback(async () => {
+    if (!rota?.id || !targetDeptId || ctaBusy) return;
+    setCtaBusy('publish');
+    // Pre-check: at least one draft shift must exist (same rationale
+    // as the submit gate — take_rota_shift_snapshot raises on zero).
+    const draftCheck = await getDraftShiftCount(rota.id, rota.tenantId, targetDeptId);
+    if (!draftCheck.ok) {
+      setCtaBusy(null);
+      showToast(`Couldn’t check shifts — ${draftCheck.error || 'try again.'}`, { error: true });
+      return;
+    }
+    if (draftCheck.count === 0) {
+      setCtaBusy(null);
+      showToast(
+        `Cannot publish — no shifts for ${targetDeptName || 'this department'}.`,
+        { error: true },
+      );
+      return;
+    }
+    const res = await publishRotaDepartmentDirect({
+      rotaId: rota.id,
+      departmentId: targetDeptId,
+      note: null,
+    });
+    setCtaBusy(null);
+    if (!res.ok) {
+      showToast(`Couldn’t publish — ${res.error || 'try again.'}`, { error: true });
+      return;
+    }
+    showToast(`Published ${targetDeptName || 'department'}.`);
+    exitEdit();
+  }, [rota, targetDeptId, ctaBusy, targetDeptName, showToast, exitEdit]);
 
   return (
     <>
@@ -289,18 +529,65 @@ export default function CrewRotaPage() {
         {/* Unified control bar — pills | date stepper */}
         <div className="crew-rota-controls">
           <div className="crew-rota-pillgroup">
-            <button type="button" className="crew-rota-pill active">Today</button>
-            <button type="button" className="crew-rota-pill disabled" aria-disabled="true" title="Coming soon">Week</button>
+            <button
+              type="button"
+              className={`crew-rota-pill${isToday ? ' active' : ''}`}
+              onClick={() => setSelectedDate(realToday)}
+              title={isToday ? 'You are viewing today' : 'Jump to today'}
+            >Today</button>
+            <button
+              type="button"
+              className={`crew-rota-pill${view === 'week' ? ' active' : ''}`}
+              onClick={() => setView(view === 'week' ? 'grid' : 'week')}
+              title={view === 'week' ? 'Back to day view' : 'Switch to week view'}
+            >Week</button>
             <button type="button" className="crew-rota-pill disabled" aria-disabled="true" title="Coming soon">Hours of rest log</button>
           </div>
           <div className="crew-rota-divider" />
           <div className="crew-rota-stepper">
-            <button type="button" className="crew-rota-stepper-btn" aria-label="Previous day" disabled>←</button>
-            <span className="crew-rota-stepper-date">{fullDateLabel(now)}</span>
-            <button type="button" className="crew-rota-stepper-btn" aria-label="Next day" disabled>→</button>
-            <span className="crew-rota-stepper-helper">
-              06:00 Fri — 06:00 Sat · 30-min cells · click any name for the rest panel
+            <button
+              type="button"
+              className="crew-rota-stepper-btn is-active"
+              aria-label={view === 'week' ? 'Previous week' : 'Previous day'}
+              title={view === 'week' ? 'Previous week' : 'Previous day'}
+              onClick={() => setSelectedDate((s) => addLocalDays(s, view === 'week' ? -7 : -1))}
+            >←</button>
+            <span className="crew-rota-stepper-anchor">
+              <button
+                type="button"
+                className="crew-rota-stepper-date is-button"
+                onClick={() => setDatePickerOpen((o) => !o)}
+                aria-haspopup="dialog"
+                aria-expanded={datePickerOpen}
+                aria-label={view === 'week'
+                  ? `Week starting ${fullDateLabel(selectedDateObj)}, ending ${fullDateLabel(parseLocalDate(addLocalDays(selectedDate, 6)))}. Pick a date.`
+                  : undefined}
+                title={view === 'week' ? 'Pick a week start' : 'Pick a date'}
+              >
+                <CalendarIcon size={13} />
+                {view === 'week'
+                  ? weekRangeLabelLong(selectedDate)
+                  : fullDateLabel(selectedDateObj)}
+              </button>
+              <MonthPicker
+                open={datePickerOpen}
+                value={selectedDate}
+                onChange={setSelectedDate}
+                onClose={() => setDatePickerOpen(false)}
+              />
             </span>
+            <button
+              type="button"
+              className="crew-rota-stepper-btn is-active"
+              aria-label={view === 'week' ? 'Next week' : 'Next day'}
+              title={view === 'week' ? 'Next week' : 'Next day'}
+              onClick={() => setSelectedDate((s) => addLocalDays(s, view === 'week' ? 7 : 1))}
+            >→</button>
+            {view !== 'week' && (
+              <span className="crew-rota-stepper-helper">
+                click any name for the rest panel
+              </span>
+            )}
           </div>
         </div>
 
@@ -319,7 +606,7 @@ export default function CrewRotaPage() {
                 className={`crew-rota-pill${view === 'list' ? ' active' : ''}`}
                 onClick={() => setView('list')}
               >List</button>
-              {editMode ? (
+              {view !== 'week' && (editMode ? (
                 <button
                   type="button"
                   className="crew-rota-pill active edit-pill"
@@ -333,7 +620,7 @@ export default function CrewRotaPage() {
                   title={canEdit ? 'Edit the rota' : 'Rota not ready'}
                   onClick={enterEdit}
                 ><Pencil size={12} /> Edit</button>
-              )}
+              ))}
             </div>
           </div>
 
@@ -376,18 +663,45 @@ export default function CrewRotaPage() {
               }}>
                 Couldn't load the rota. {error}
               </div>
-            ) : view === 'grid' ? (
-              <RotaTodayGrid
+            ) : view === 'week' ? (
+              <CrewWeekMatrix
                 crew={crew}
-                now={now}
+                windowShifts={windowShifts || []}
+                selectedDate={selectedDate}
+                realToday={realToday}
                 gridStartHour={GRID_START_HOUR}
-                onCrewClick={setSelectedCrew}
-                editMode={editMode}
-                onPaint={handlePaint}
-                deptStatus={statusByDept}
+                onCellClick={(d) => { setSelectedDate(d); setView('grid'); }}
+                onStepDay={(delta) => setSelectedDate((s) => addLocalDays(s, delta))}
               />
             ) : (
-              <CrewListView crew={crew} onCrewClick={setSelectedCrew} />
+              <>
+                {hasNoShifts && !editMode ? (
+                  <div className="crew-rota-empty">
+                    <div className="crew-rota-empty-msg">
+                      No shifts on {fullDateLabel(selectedDateObj)}.
+                    </div>
+                    {!isToday && (
+                      <div className="crew-rota-empty-cta">
+                        <button type="button" onClick={() => setSelectedDate(realToday)}>
+                          Jump to today
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : view === 'grid' ? (
+                  <RotaTodayGrid
+                    crew={crew}
+                    now={isToday ? now : null}
+                    gridStartHour={GRID_START_HOUR}
+                    onCrewClick={setSelectedCrew}
+                    editMode={editMode}
+                    onPaint={handlePaint}
+                    deptStatus={statusByDept}
+                  />
+                ) : (
+                  <CrewListView crew={crew} onCrewClick={setSelectedCrew} />
+                )}
+              </>
             )}
           </div>
 
@@ -395,22 +709,28 @@ export default function CrewRotaPage() {
             {editMode ? (
               <EditFooterCTA
                 tier={tier}
-                draftCount={draftCount}
-                onStub={(kind) => showToast(
-                  kind === 'publish'
-                    ? 'Publishing ships in Phase 4.'
-                    : 'Submit for approval ships in Phase 4.',
-                )}
+                draftDayCount={draftDayCount}
+                targetDeptId={targetDeptId}
+                targetDeptName={targetDeptName}
+                busy={ctaBusy}
+                onSubmit={handleFooterSubmit}
+                onPublish={handleFooterPublish}
               />
             ) : (
               <>
-                {view === 'grid'
-                  ? <RotaLegend now={now} />
-                  : <span>Click a name for their rest panel.</span>}
-                <span style={{ fontStyle: 'italic' }}>
-                  1 pending correction ·{' '}
-                  <a href="#review" onClick={(e) => e.preventDefault()}>review</a>
-                </span>
+                {view === 'grid' ? (
+                  <RotaLegend now={isToday ? now : null} />
+                ) : view === 'week' ? (
+                  <span>Click any cell to open that day’s grid.</span>
+                ) : (
+                  <span>Click a name for their rest panel.</span>
+                )}
+                {showPendingReviewNotice && (
+                  <span style={{ fontStyle: 'italic' }}>
+                    {pendingReviewCount} submission{pendingReviewCount === 1 ? '' : 's'} awaiting review ·{' '}
+                    <a href="/reviews">review</a>
+                  </span>
+                )}
               </>
             )}
           </div>
@@ -486,7 +806,20 @@ export default function CrewRotaPage() {
           onApplied={() => { setApplyTarget(null); setPickerOpen(false); }}
         />
 
-        {toast && <div className="crew-rota-toast" role="status">{toast}</div>}
+        {toast && (
+          <div
+            className={`crew-rota-toast${toast.error ? ' error' : ''}`}
+            role={toast.error ? 'alert' : 'status'}
+          >{toast.msg}</div>
+        )}
+
+        <HodEditConfirmModal
+          open={hodConfirmOpen}
+          currentStatus={targetDeptId ? statusByDept.get(targetDeptId)?.status : null}
+          departmentName={targetDeptName}
+          onCancel={() => setHodConfirmOpen(false)}
+          onContinue={() => { setHodConfirmOpen(false); beginEditMode(); }}
+        />
 
       </div>
 

@@ -127,16 +127,33 @@ const TodaySnapshotWidget = () => {
     fetchData();
   }, []);
 
+  // Live status headline — orange-italic when a job is due today in the
+  // feed; otherwise a navy count of today's updates.
+  const dueCount = activities?.filter(a => a?.time === 'Due today')?.length || 0;
+  let statusText = 'Nothing logged yet';
+  let statusAttention = false;
+  if (loading) {
+    statusText = 'Loading…';
+  } else if (dueCount > 0) {
+    statusText = `${dueCount} due today`;
+    statusAttention = true;
+  } else if (activities?.length > 0) {
+    statusText = `${activities.length} update${activities.length === 1 ? '' : 's'} today`;
+  }
+
   return (
     <div
-      className="bg-card border border-border rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer hover:border-primary/30"
+      className="ce-card rounded-xl p-5 cursor-pointer"
       onClick={() => navigate('/today')}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e?.key === 'Enter' && navigate('/today')}
     >
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-foreground">Today snapshot</h3>
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h3 className="ce-title">Today</h3>
+          <p className={`ce-status${statusAttention ? ' is-attention' : ''}`}>{statusText}</p>
+        </div>
         <div className="flex items-center gap-1.5">
           <Icon name="Calendar" className="w-4 h-4 text-muted-foreground" />
           <Icon name="ChevronRight" className="w-3.5 h-3.5 text-muted-foreground" />

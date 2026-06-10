@@ -42,14 +42,23 @@ const RecentActivityWidget = () => {
     load();
   }, []);
 
+  // Live status headline — informational navy count (activity feed has no
+  // attention state).
+  const statusText = activities?.length > 0
+    ? `${activities.length} recent event${activities.length === 1 ? '' : 's'}`
+    : 'No recent activity';
+
   return (
     <div
-      className="bg-card border border-border rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+      className="ce-card rounded-xl p-5 cursor-pointer"
       onClick={() => navigate('/activity')}
     >
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-foreground">Recent activity</h3>
-        <span className="text-xs text-primary hover:underline">
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h3 className="ce-title">Recent activity</h3>
+          <p className="ce-status">{statusText}</p>
+        </div>
+        <span className="ce-link">
           View all activity
         </span>
       </div>
