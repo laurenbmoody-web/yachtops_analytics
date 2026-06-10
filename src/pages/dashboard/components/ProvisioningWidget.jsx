@@ -5,6 +5,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useTenant } from '../../../contexts/TenantContext';
 import { supabase } from '../../../lib/supabaseClient';
 import { loadTrips } from '../../trips-management-dashboard/utils/tripStorage';
+import { getBoardStatusConfig } from '../../provisioning/data/statusConfig';
 
 const ProvisioningWidget = () => {
   const navigate = useNavigate();
@@ -87,11 +88,6 @@ const ProvisioningWidget = () => {
 
   const allClear = !loading && pendingLists.length === 0 && attentionLists.length === 0 && !unprovisionedTrip;
 
-  const STATUS_LABELS = {
-    partially_delivered: { label: 'Partial delivery', className: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
-    delivered_with_discrepancies: { label: 'Discrepancies', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
-  };
-
   return (
     <div className="bg-card border border-border rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between mb-4">
@@ -145,12 +141,12 @@ const ProvisioningWidget = () => {
             <div className="space-y-1.5">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Needs Attention</p>
               {attentionLists.map(list => {
-                const cfg = STATUS_LABELS[list.status] || { label: list.status, className: 'bg-muted text-muted-foreground' };
+                const cfg = getBoardStatusConfig(list.status);
                 return (
                   <div key={list.id} className="flex items-center justify-between gap-2 py-1.5 border-b border-border/50 last:border-0">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-foreground truncate">{list.title}</p>
-                      <span className={`inline-block text-xs px-2 py-0.5 rounded-full mt-0.5 ${cfg.className}`}>{cfg.label}</span>
+                      <span className={`inline-block text-xs px-2 py-0.5 rounded-full mt-0.5 ${cfg.badgeClassName}`}>{cfg.label}</span>
                     </div>
                     <button onClick={() => navigate(`/provisioning/${list.id}`)} className="shrink-0 text-xs text-primary hover:underline">View</button>
                   </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Icon from '../../../components/AppIcon';
 import Drawer from './Drawer';
 import SmartSuggestionsPanel from './SmartSuggestionsPanel';
-import StatusBadge, { STATUS_CONFIG } from './StatusBadge';
+import StatusBadge from './StatusBadge';
 import { BOARD_TYPES } from '../data/templates';
 import {
   updateProvisioningList,
