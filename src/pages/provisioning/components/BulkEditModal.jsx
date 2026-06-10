@@ -37,7 +37,6 @@ import { fetchVendors } from '../utils/provisioningStorage';
 
 const STATUS_OPTIONS = [
   { value: 'draft',        label: 'Draft' },
-  { value: 'to_order',     label: 'To order' },
   { value: 'ordered',      label: 'Ordered' },
   { value: 'received',     label: 'Received' },
   { value: 'partial',      label: 'Partial' },

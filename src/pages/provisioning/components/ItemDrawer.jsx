@@ -46,7 +46,6 @@ const CURRENCY_PILLS = [
 // Per-status selected pill colours
 const STATUS_STYLES = {
   draft:        { bg: '#f1f5f9', border: '#cbd5e1', color: '#475569' },
-  to_order:     { bg: '#eff6ff', border: '#93c5fd', color: '#1d4ed8' },
   ordered:      { bg: '#f5f3ff', border: '#c4b5fd', color: '#7c3aed' },
   received:     { bg: '#f0fdf4', border: '#86efac', color: '#15803d' },
   partial:      { bg: '#fffbeb', border: '#fcd34d', color: '#b45309' },
@@ -1105,7 +1104,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
             <div className={isLight ? 'idr-pill-row' : ''} style={isLight ? null : { display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {Object.entries(ITEM_STATUS_CONFIG).map(([val, cfg]) => {
                 const isActive = form.status === val;
-                // hyphenate val ('to_order' -> 'to-order') for the CSS class modifier
+                // hyphenate val ('not_received' -> 'not-received') for the CSS class modifier
                 const statusMod = val.replace(/_/g, '-');
                 return isLight ? (
                   <button

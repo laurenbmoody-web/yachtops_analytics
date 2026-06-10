@@ -5,10 +5,10 @@ import { ITEM_STATUS_ORDER, getItemStatusConfig } from '../data/statusConfig';
 // statusConfig source of truth — previously had a local STATUS_CONFIG +
 // STATUS_ORDER that drifted from the March 2026 enum migration (kept dead
 // values 'pending' / 'short_delivered' / 'not_delivered' and was missing
-// the live additions 'to_order' / 'partial' / 'not_received'). Items in
-// the live statuses were rendering with the wrong label; the picker let
-// users select dead values that failed the provisioning_items CHECK on
-// write. Both fixed by consuming the canonical config.
+// the live additions 'partial' / 'not_received'). Items in the live
+// statuses were rendering with the wrong label; the picker let users
+// select dead values that failed the provisioning_items CHECK on write.
+// Both fixed by consuming the canonical config.
 
 const ItemCard = ({ item, onClick, onStatusChange, onQuantityChange }) => {
   const cfg = getItemStatusConfig(item.status);

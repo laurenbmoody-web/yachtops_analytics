@@ -121,7 +121,6 @@ export const isLifecycleAfter = (status, reference) =>
 
 export const ITEM_STATUS_ORDER = [
   'draft',
-  'to_order',
   'ordered',
   'received',
   'partial',
@@ -134,12 +133,6 @@ export const ITEM_STATUS_CONFIG = {
     badge: { bg: '#F8FAFC', color: '#94A3B8', border: '#E2E8F0', dot: '#CBD5E1' },
     cell:  { bg: 'rgba(100,116,139,0.15)', color: '#94A3B8' },
     dotClassName: 'bg-slate-400',
-  },
-  to_order: {
-    label: 'To order',
-    badge: { bg: '#EFF6FF', color: '#1D4ED8', border: '#BFDBFE', dot: '#60A5FA' },
-    cell:  { bg: 'rgba(59,130,246,0.15)', color: '#3B82F6' },
-    dotClassName: 'bg-blue-500',
   },
   ordered: {
     label: 'Ordered',
