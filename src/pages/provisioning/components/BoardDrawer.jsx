@@ -17,7 +17,6 @@ import {
   applyOrderItems,
   fetchPastOrders,
   fetchSupplierOrderItems,
-  cascadeItemsToToOrder,
   PROVISIONING_STATUS,
   formatCurrency,
 } from '../utils/provisioningStorage';
@@ -271,29 +270,6 @@ const EditMode = ({ list, items = [], trips, tenantId, departments = [], onSaved
   const handleStatusChange = async (newStatus) => {
     try {
       const updated = await updateListStatus(list.id, newStatus);
-      // Path 1 of the lifecycle cascade: board pending_approval →
-      // sent_to_supplier flips every draft item on the board to
-      // to_order (pre-dispatch state, "committed to order"). Scoped
-      // to draft items only — items already in to_order / partial /
-      // received / not_received stay put. Helper's defensive
-      // .eq('status', 'draft') WHERE filter handles any race where
-      // an item flipped between our JS filter and the DB write.
-      if (newStatus === PROVISIONING_STATUS.SENT_TO_SUPPLIER) {
-        const draftIds = (items || [])
-          .filter((i) => i?.status === 'draft')
-          .map((i) => i.id);
-        if (draftIds.length > 0) {
-          try {
-            await cascadeItemsToToOrder(draftIds);
-          } catch (cascadeErr) {
-            // Cascade failure is a soft fail — the board has already
-            // advanced; surfacing as a toast lets the user retry from
-            // the items list rather than blocking the status flip.
-            console.error('[BoardDrawer] cascadeItemsToToOrder error:', cascadeErr);
-            showToast(`Board sent, but ${draftIds.length} item${draftIds.length === 1 ? '' : 's'} didn't update — refresh and retry`, 'error');
-          }
-        }
-      }
       onSaved(updated);
     } catch (err) {
       console.error('[BoardDrawer.EditMode] status change error:', err);
