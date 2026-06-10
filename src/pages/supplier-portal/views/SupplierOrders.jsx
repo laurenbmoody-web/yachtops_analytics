@@ -113,7 +113,7 @@ const SupplierOrders = () => {
                   <td className="sp-amount">
                     {fmtAmt(
                       o.supplier_order_items?.reduce((sum, i) => sum + (i.unit_price ?? 0) * (i.quantity ?? 1), 0),
-                      o.currency
+                      o.currency || 'EUR'
                     )}
                   </td>
                   <td><StatusBadge status={o.status} /></td>
