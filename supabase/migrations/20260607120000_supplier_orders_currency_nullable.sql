@@ -1,0 +1,23 @@
+-- supplier_orders.currency — drop NOT NULL, keep DEFAULT 'USD'.
+--
+-- The original supplier_orders migration (20260417300000) declared
+-- currency text NOT NULL DEFAULT 'USD'. The UI on SendToSupplierModal,
+-- however, labels Currency as "(optional)" — supplier may counter-propose
+-- with their own currency on receipt. The constraint and the UI copy
+-- disagreed; users hit 23502 whenever they left currency blank.
+--
+-- Phase 1 audit confirmed createSupplierOrder is the only writer that
+-- touches the column (every other supplier_orders write path is whitelist-
+-- scoped or status-only). Every reader of supplier_orders.currency
+-- already falls back gracefully when the value is null (existing chains
+-- to estimated_currency / supplier_profiles.default_currency / 'EUR' /
+-- 'USD' depending on site).
+--
+-- Dual-semantic write contract preserved by keeping the DEFAULT:
+--   • Writes that omit currency      → DB inserts 'USD' (legacy safety).
+--   • Writes that pass explicit null → DB stores null ("no estimate set;
+--                                      supplier will confirm on receipt").
+--
+-- No data backfill needed — existing rows already carry non-null values.
+
+ALTER TABLE public.supplier_orders ALTER COLUMN currency DROP NOT NULL;
