@@ -294,8 +294,12 @@ function DepartmentSection({
   const badge = deptStatusRow?.status
     ? (DEPT_BADGE_LABEL[deptStatusRow.status] || deptStatusRow.status)
     : null;
+  // A department submitted for approval keeps its shifts as drafts, but they
+  // should read as provisional on the grid — submitted, awaiting a decision.
+  // The hatch overlay (see crew-rota.css) is the visible "pending" signal.
+  const isPendingReview = deptStatusRow?.status === 'pending_approval';
   return (
-    <div className="rota-dept-group">
+    <div className={`rota-dept-group${isPendingReview ? ' is-pending-review' : ''}`}>
       <div
         className="rota-dept-strip"
         style={{ background: color, color: getContrastText(color) }}
