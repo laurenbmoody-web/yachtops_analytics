@@ -283,13 +283,21 @@ export function useRotaShifts(
         const effDate = anchorDate;
         if (cancelled) return;
 
-        // 3 — shifts: the effective day + the rolling 7-day window
+        // 3 — shifts: the effective day + the rolling window. Format the
+        // bounds with LOCAL date components — toISOString() converts local
+        // midnight to UTC, which in a timezone ahead of UTC rolls the bound
+        // back a day. With day view's forwardDays:0 that dropped the selected
+        // day's own shifts from the window (visible as "week shows them, day
+        // grid is empty"). shift_date is a local calendar date, so compare
+        // against local YYYY-MM-DD.
+        const pad2 = (n) => String(n).padStart(2, '0');
+        const toLocalYmd = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
         const windowStart = new Date(`${effDate}T00:00:00`);
         windowStart.setDate(windowStart.getDate() - historyDays);
-        const windowStartStr = windowStart.toISOString().slice(0, 10);
+        const windowStartStr = toLocalYmd(windowStart);
         const windowEnd = new Date(`${effDate}T00:00:00`);
         windowEnd.setDate(windowEnd.getDate() + forwardDays);
-        const windowEndStr = windowEnd.toISOString().slice(0, 10);
+        const windowEndStr = toLocalYmd(windowEnd);
 
         // rotaId (optional) scopes the fetch to one rota. The base query
         // filters by tenant_id + date window ONLY — for /crew that's
