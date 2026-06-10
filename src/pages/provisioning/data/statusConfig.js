@@ -125,7 +125,15 @@ export const ITEM_STATUS_ORDER = [
   'received',
   'partial',
   'not_received',
+  'returned',
 ];
+
+// Note on `partially_returned`: present in ITEM_STATUS_CONFIG but
+// intentionally NOT in ITEM_STATUS_ORDER. It's a derived display state —
+// the derive function (Phase 3 commit 3) produces it when an item has
+// returns_qty > 0 but < quantity_received. Users don't pick it from a
+// dropdown; it's computed from columns. Excluded from ORDER so the
+// picker UIs don't surface it as a manual choice.
 
 export const ITEM_STATUS_CONFIG = {
   draft: {
@@ -157,6 +165,27 @@ export const ITEM_STATUS_CONFIG = {
     badge: { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA', dot: '#FCA5A5' },
     cell:  { bg: 'rgba(239,68,68,0.15)', color: '#ef4444' },
     dotClassName: 'bg-red-500',
+  },
+  // Terminal post-receipt state: returns_qty >= quantity_received. Picker-
+  // selectable (a stew can manually mark "this is all going back"). Visual
+  // is neutral slate — "removed from inventory" reads as terminal, not as
+  // failure (which would conflict with not_received's red).
+  returned: {
+    label: 'Returned',
+    badge: { bg: '#F1F5F9', color: '#475569', border: '#CBD5E1', dot: '#94A3B8' },
+    cell:  { bg: 'rgba(100,116,139,0.18)', color: '#475569' },
+    dotClassName: 'bg-slate-500',
+  },
+  // DERIVE-ONLY display state. Not in ITEM_STATUS_ORDER, not in any
+  // picker. Produced by the derive function when returns_qty > 0 but
+  // < quantity_received. Distinct orange hue intentionally separates it
+  // visually from `partial` (amber receipt) — same "partial" word but
+  // different timeline phase.
+  partially_returned: {
+    label: 'Partially returned',
+    badge: { bg: '#FFEDD5', color: '#C2410C', border: '#FED7AA', dot: '#FB923C' },
+    cell:  { bg: 'rgba(249,115,22,0.15)', color: '#C2410C' },
+    dotClassName: 'bg-orange-500',
   },
 };
 
