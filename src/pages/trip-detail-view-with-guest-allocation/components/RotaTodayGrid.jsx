@@ -190,6 +190,11 @@ function CrewRow({
     const cls = ['rota-c'];
     if (cover) cls.push(`shift-cell--${cover.shift.shiftType || 'duty'}`);
     else if (isSat) cls.push('sat');
+    // Per-cell pending marker: a draft (unpublished) shift gets the diagonal
+    // hatch, a published one stays solid. On a brand-new submission every
+    // shift is draft (all hatched); on an edited-published rota only the
+    // changed cells are draft, so the chief sees exactly what's new.
+    if (cover && cover.shift.status === 'draft') cls.push('is-draft');
     if (cellEditable) cls.push('rota-c-edit');
     if (inPreview) cls.push('rota-c-drag');                 // paint preview
     cells.push(
@@ -294,12 +299,8 @@ function DepartmentSection({
   const badge = deptStatusRow?.status
     ? (DEPT_BADGE_LABEL[deptStatusRow.status] || deptStatusRow.status)
     : null;
-  // A department submitted for approval keeps its shifts as drafts, but they
-  // should read as provisional on the grid — submitted, awaiting a decision.
-  // The hatch overlay (see crew-rota.css) is the visible "pending" signal.
-  const isPendingReview = deptStatusRow?.status === 'pending_approval';
   return (
-    <div className={`rota-dept-group${isPendingReview ? ' is-pending-review' : ''}`}>
+    <div className="rota-dept-group">
       <div
         className="rota-dept-strip"
         style={{ background: color, color: getContrastText(color) }}
