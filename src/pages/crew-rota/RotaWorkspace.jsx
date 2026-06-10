@@ -101,7 +101,7 @@ export default function RotaWorkspace({
   const showToast = useCallback((msg, opts) => onToast?.(msg, opts), [onToast]);
 
   const {
-    crew, shifts, windowShifts, loading, error,
+    crew, windowShifts, loading, error,
     applyPaint, applyTemplate, refetch,
   } = useRotaShifts(
     selectedDate,
@@ -113,7 +113,6 @@ export default function RotaWorkspace({
       departmentId,
     },
   );
-  const hasNoShifts = !loading && !error && shifts.length === 0;
   const { statusByDept, ensureDraft } = useRotaDepartmentStatus(rota?.id);
 
   // The footer dept context — submitter mode targets the acting user's own
@@ -426,35 +425,26 @@ export default function RotaWorkspace({
               onCellClick={(d) => { setSelectedDate(d); setView('grid'); }}
               onStepDay={(delta) => setSelectedDate((s) => addLocalDays(s, delta))}
             />
+          ) : crew.length === 0 ? (
+            // Only a truly crew-less rota gets the bare message. A day with
+            // crew but no shifts still renders the grid — empty cells are
+            // paintable, so COMMAND/CHIEF/HOD can drag hours straight in
+            // rather than hitting a dead-end one-liner.
+            <div className="crew-rota-empty">
+              <div className="crew-rota-empty-msg">No crew on this rota yet.</div>
+            </div>
+          ) : view === 'grid' ? (
+            <RotaTodayGrid
+              crew={crew}
+              now={isToday ? now : null}
+              gridStartHour={GRID_START_HOUR}
+              onCrewClick={setSelectedCrew}
+              editMode={editMode}
+              onPaint={handlePaint}
+              deptStatus={statusByDept}
+            />
           ) : (
-            <>
-              {hasNoShifts && !editMode ? (
-                <div className="crew-rota-empty">
-                  <div className="crew-rota-empty-msg">
-                    No shifts on {fullDateLabel(selectedDateObj)}.
-                  </div>
-                  {!isToday && (
-                    <div className="crew-rota-empty-cta">
-                      <button type="button" onClick={() => setSelectedDate(realToday)}>
-                        Jump to today
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ) : view === 'grid' ? (
-                <RotaTodayGrid
-                  crew={crew}
-                  now={isToday ? now : null}
-                  gridStartHour={GRID_START_HOUR}
-                  onCrewClick={setSelectedCrew}
-                  editMode={editMode}
-                  onPaint={handlePaint}
-                  deptStatus={statusByDept}
-                />
-              ) : (
-                <CrewListView crew={crew} onCrewClick={setSelectedCrew} />
-              )}
-            </>
+            <CrewListView crew={crew} onCrewClick={setSelectedCrew} />
           )}
         </div>
 
