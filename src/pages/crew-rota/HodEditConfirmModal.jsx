@@ -61,11 +61,13 @@ export default function HodEditConfirmModal({
 
         <div className="te-body">
           <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: '#1C1B3A' }}>
-            Editing this rota will move <b>{deptCopy}</b> from <em>{statusCopy}</em> back
-            to draft. The submission/published state will be lost.
+            Editing moves <b>{deptCopy}</b> from <em>{statusCopy}</em> back to draft —
+            it’ll need approving again before it’s re-published.
           </p>
           <p style={{ margin: '12px 0 0', fontSize: 12, color: '#8B8478' }}>
-            Continue if you intend to make changes. Cancel if you opened the editor by mistake.
+            The crew keep seeing the current rota the whole time — nothing
+            disappears. Only the shifts you change show as pending until a
+            reviewer signs them off.
           </p>
         </div>
 

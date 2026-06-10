@@ -1017,12 +1017,12 @@
    shift_type='off' render with the base .rota-c background until they're
    purged by 20260520000001_remove_off_shift_rows.sql. */
 
-/* Pending-review department — its shifts are submitted and awaiting a
-   decision. Keep the per-type colour underneath but lay a diagonal hatch
-   over scheduled cells so they read as provisional, not yet published.
-   The "Pending" status badge (.rota-dept-badge.st-pending_approval) names
-   the state; the hatch makes the shifts themselves unmistakable. */
-.rota-dept-group.is-pending-review .rota-c[class*="shift-cell--"] {
+/* Draft (unpublished) shift cell — diagonal hatch over the per-type colour
+   so it reads as provisional. Published shifts stay solid. This is per-cell,
+   so editing one block of an already-published rota hatches only that block
+   (what changed), not the whole department. Higher specificity than the
+   .rota-c.shift-cell--x colour rules so the hatch layers on top. */
+.rota-c.is-draft[class*="shift-cell--"] {
   background-image: repeating-linear-gradient(
     45deg,
     rgba(255, 255, 255, 0.55) 0,
