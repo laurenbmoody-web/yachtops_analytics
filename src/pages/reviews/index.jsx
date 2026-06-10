@@ -5,7 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabaseClient';
 import { useReviewItems } from './useReviewItems';
-import { inboxScopeFor, applyInboxScope } from '../../hooks/inboxScope';
+import { fetchInboxPending } from '../../hooks/inboxScope';
 import ReviewItemCard from './ReviewItemCard';
 import InboxSidebar from './InboxSidebar';
 import './reviews.css';
@@ -53,23 +53,19 @@ export default function ReviewsPage() {
   // subtitle. Polls while the page is mounted.
   const [pendingCount, setPendingCount] = useState(null);
   useEffect(() => {
-    const scope = inboxScopeFor(tier, userDeptId);
-    if (!user || scope.kind === 'none') { setPendingCount(0); return undefined; }
+    if (!user) { setPendingCount(0); return undefined; }
     let cancelled = false;
     const fetchCount = async () => {
-      const base = supabase
-        .from('review_items')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'pending');
-      const { count, error } = await applyInboxScope(base, scope);
+      const rows = await fetchInboxPending(supabase, {
+        tier, departmentId: userDeptId, tenantId: activeTenantId,
+      });
       if (cancelled) return;
-      if (error) { console.error('[ReviewsPage] count fetch failed:', error); return; }
-      setPendingCount(count || 0);
+      setPendingCount(rows.length);
     };
     fetchCount();
     const id = setInterval(fetchCount, 30_000);
     return () => { cancelled = true; clearInterval(id); };
-  }, [user, tier, userDeptId]);
+  }, [user, tier, userDeptId, activeTenantId]);
 
   const { items, loading, refetch } = useReviewItems();
 

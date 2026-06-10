@@ -20,41 +20,36 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useTenant } from '../../contexts/TenantContext';
-import { inboxScopeFor, matchesInboxScope } from '../../hooks/inboxScope';
+import { fetchInboxPending } from '../../hooks/inboxScope';
 
 export function usePendingReviewCount(rotaId) {
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(false);
-  const { currentTenantMember } = useTenant();
+  const { currentTenantMember, activeTenantId } = useTenant();
   const tier = currentTenantMember?.permission_tier;
   const departmentId = currentTenantMember?.department_id || null;
+  const tenantId = activeTenantId || currentTenantMember?.tenant_id || null;
 
   useEffect(() => {
-    const scope = inboxScopeFor(tier, departmentId);
-    if (!rotaId || scope.kind === 'none') { setCount(0); return undefined; }
+    if (!rotaId) { setCount(0); return undefined; }
     let cancelled = false;
     setLoading(true);
     (async () => {
-      const { data, error } = await supabase
-        .from('review_items')
-        .select('id, source_context, assignee_department_id')
-        .eq('source_module', 'rota')
-        .eq('status', 'pending');
+      // Inbox-scoped (RLS read is tenant-wide), rota source, then this rota.
+      const rows = await fetchInboxPending(supabase, {
+        tier,
+        departmentId,
+        tenantId,
+        columns: 'id, source_context, assignee_department_id',
+        narrow: (q) => q.eq('source_module', 'rota'),
+      });
       if (cancelled) return;
-      if (error) {
-        console.error('[usePendingReviewCount] fetch failed:', error);
-        setCount(0);
-      } else {
-        // Scope to the routed assignee (RLS read is tenant-wide) AND this rota.
-        const n = (data || []).filter(
-          (r) => r?.source_context?.rota_id === rotaId && matchesInboxScope(r, scope),
-        ).length;
-        setCount(n);
-      }
+      const n = rows.filter((r) => r?.source_context?.rota_id === rotaId).length;
+      setCount(n);
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [rotaId, tier, departmentId]);
+  }, [rotaId, tier, departmentId, tenantId]);
 
   return { count, loading };
 }

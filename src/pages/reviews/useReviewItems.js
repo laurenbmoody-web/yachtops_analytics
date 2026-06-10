@@ -23,7 +23,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useTenant } from '../../contexts/TenantContext';
-import { inboxScopeFor, applyInboxScope } from '../../hooks/inboxScope';
+import { fetchInboxPending } from '../../hooks/inboxScope';
 
 async function loadOne(item) {
   const ctx = item.source_context || {};
@@ -158,34 +158,28 @@ export function useReviewItems() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { currentTenantMember } = useTenant();
+  const { currentTenantMember, activeTenantId } = useTenant();
   const tier = currentTenantMember?.permission_tier;
   const departmentId = currentTenantMember?.department_id || null;
+  const tenantId = activeTenantId || currentTenantMember?.tenant_id || null;
 
   const refetch = useCallback(async () => {
     setLoading(true);
     setError(null);
     // Scope to the routed assignee — RLS read is tenant-wide, so without
-    // this a submitting HOD would see their own pending item. (inboxScope.js)
-    const scope = inboxScopeFor(tier, departmentId);
-    if (scope.kind === 'none') { setItems([]); setLoading(false); return; }
-    const base = supabase
-      .from('review_items')
-      .select('id, tenant_id, submitter_id, source_context, assignee_tier, assignee_department_id, status, created_at')
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false });
-    const { data, error: qErr } = await applyInboxScope(base, scope);
-    if (qErr) {
-      console.error('[useReviewItems] fetch failed:', qErr);
-      setError(qErr.message || String(qErr));
-      setItems([]);
-      setLoading(false);
-      return;
-    }
+    // this a submitting HOD would see their own pending item. CHIEF → their
+    // dept; COMMAND → CHIEF-less submissions (fallback). (inboxScope.js)
+    const data = await fetchInboxPending(supabase, {
+      tier,
+      departmentId,
+      tenantId,
+      columns: 'id, tenant_id, submitter_id, source_context, assignee_tier, assignee_department_id, status, created_at',
+      narrow: (q) => q.order('created_at', { ascending: false }),
+    });
     const enriched = await Promise.all((data || []).map(loadOne));
     setItems(enriched);
     setLoading(false);
-  }, [tier, departmentId]);
+  }, [tier, departmentId, tenantId]);
 
   useEffect(() => { refetch(); }, [refetch]);
 

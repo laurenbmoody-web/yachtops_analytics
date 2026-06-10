@@ -11,37 +11,28 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useTenant } from '../contexts/TenantContext';
-import { inboxScopeFor, applyInboxScope } from './inboxScope';
+import { fetchInboxPending } from './inboxScope';
 
 const POLL_MS = 30_000;
 
 export function useInboxCount() {
   const [count, setCount] = useState(0);
-  const { currentTenantMember } = useTenant();
+  const { currentTenantMember, activeTenantId } = useTenant();
   const tier = currentTenantMember?.permission_tier;
   const departmentId = currentTenantMember?.department_id || null;
+  const tenantId = activeTenantId || currentTenantMember?.tenant_id || null;
 
   useEffect(() => {
-    const scope = inboxScopeFor(tier, departmentId);
-    if (scope.kind === 'none') { setCount(0); return undefined; }
     let cancelled = false;
     const fetchCount = async () => {
-      const base = supabase
-        .from('review_items')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'pending');
-      const { count: n, error } = await applyInboxScope(base, scope);
+      const rows = await fetchInboxPending(supabase, { tier, departmentId, tenantId });
       if (cancelled) return;
-      if (error) {
-        console.error('[useInboxCount] fetch failed:', error);
-        return;
-      }
-      setCount(n || 0);
+      setCount(rows.length);
     };
     fetchCount();
     const id = setInterval(fetchCount, POLL_MS);
     return () => { cancelled = true; clearInterval(id); };
-  }, [tier, departmentId]);
+  }, [tier, departmentId, tenantId]);
 
   return count;
 }

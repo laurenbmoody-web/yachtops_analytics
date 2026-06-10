@@ -11,10 +11,7 @@ import {
   submitRotaDepartment,
   publishRotaDepartmentDirect,
 } from './useRotaLifecycleWriters';
-import {
-  hasChiefForDepartment,
-  getDraftShiftCount,
-} from './rotaLifecycleChecks';
+import { getDraftShiftCount } from './rotaLifecycleChecks';
 import { supabase } from '../../lib/supabaseClient';
 
 // CrewRotaPage — page chrome around the shared RotaWorkspace composition.
@@ -190,20 +187,9 @@ export default function CrewRotaPage() {
       );
       return;
     }
-    const chiefCheck = await hasChiefForDepartment(rota.tenantId, targetDeptId);
-    if (!chiefCheck.ok) {
-      setCtaBusy(null);
-      showToast(`Couldn’t check reviewers — ${chiefCheck.error || 'try again.'}`, { error: true });
-      return;
-    }
-    if (!chiefCheck.has) {
-      setCtaBusy(null);
-      showToast(
-        `No CHIEF available to review ${targetDeptName || 'this department'} — ask COMMAND to publish directly.`,
-        { error: true },
-      );
-      return;
-    }
+    // No CHIEF gate any more: a department without an available CHIEF still
+    // submits — COMMAND is the fallback reviewer for CHIEF-less departments
+    // (20260610120000_command_fallback_reviewer + hooks/inboxScope.js).
     const res = await submitRotaDepartment({
       rotaId: rota.id,
       departmentId: targetDeptId,
