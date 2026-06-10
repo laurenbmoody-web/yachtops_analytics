@@ -5,6 +5,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useTenant } from '../../../contexts/TenantContext';
 import { supabase } from '../../../lib/supabaseClient';
 import { loadTrips } from '../../trips-management-dashboard/utils/tripStorage';
+import { getBoardStatusConfig } from '../../provisioning/data/statusConfig';
 
 const ProvisioningWidget = () => {
   const navigate = useNavigate();
@@ -104,13 +105,6 @@ const ProvisioningWidget = () => {
     statusAttention = true;
   }
 
-  const STATUS_LABELS = {
-    // Purple "Partial delivery" pill deferred — resolved with the other
-    // non-cool/info/purple accents in a dedicated follow-up.
-    partially_delivered: { label: 'Partial delivery', className: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
-    delivered_with_discrepancies: { label: 'Discrepancies', className: 'ce-bg-danger ce-fg-danger' },
-  };
-
   return (
     <div className="ce-card rounded-xl p-5">
       <div className="flex items-start justify-between mb-4">
@@ -160,12 +154,12 @@ const ProvisioningWidget = () => {
             <div className="space-y-1.5">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Needs Attention</p>
               {attentionLists.map(list => {
-                const cfg = STATUS_LABELS[list.status] || { label: list.status, className: 'bg-muted text-muted-foreground' };
+                const cfg = getBoardStatusConfig(list.status);
                 return (
                   <div key={list.id} className="flex items-center justify-between gap-2 py-1.5 border-b border-border/50 last:border-0">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-foreground truncate">{list.title}</p>
-                      <span className={`inline-block text-xs px-2 py-0.5 rounded-full mt-0.5 ${cfg.className}`}>{cfg.label}</span>
+                      <span className={`inline-block text-xs px-2 py-0.5 rounded-full mt-0.5 ${cfg.badgeClassName}`}>{cfg.label}</span>
                     </div>
                     <button onClick={() => navigate(`/provisioning/${list.id}`)} className="ce-link shrink-0">View</button>
                   </div>

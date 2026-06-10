@@ -2,20 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
 import ItemCard from './ItemCard';
 import { updateProvisioningList } from '../utils/provisioningStorage';
+import { getBoardStatusConfig } from '../data/statusConfig';
 
-// Board status → { dot colour, label } for the refined status line. The
-// 3D bottom-edge of the lane gets its colour from the same status via
-// data-status (see provisioning-board.css). pending_approval and any
-// unknown status fall through to sand (treated as draft-equivalent —
-// "nothing has gone out yet").
-const STATUS_VISUALS = {
-  draft:                          { color: '#DFD7C8', label: 'Draft' },
-  pending_approval:               { color: '#DFD7C8', label: 'Pending approval' },
-  sent_to_supplier:               { color: '#C65A1A', label: 'Sent to supplier' },
-  partially_delivered:            { color: '#5C9B6A', label: 'Partially delivered' },
-  delivered_with_discrepancies:   { color: '#5C9B6A', label: 'With discrepancies' },
-  delivered:                      { color: '#5C9B6A', label: 'Delivered' },
-};
+// Lane status line — dot colour + label come from the unified
+// statusConfig (BOARD_STATUS_CONFIG). The 3D bottom-edge of the lane
+// gets its colour from the same status via data-status (see
+// provisioning-board.css).
 
 // ── Drag handle (six-dot grip) ───────────────────────────────────────────────
 
@@ -326,7 +318,7 @@ const BoardColumn = ({
 
   // ── Derived values ──────────────────────────────────────────────────────
   const colour = list.board_colour || null;
-  const statusVisual = STATUS_VISUALS[list.status] || { color: '#DFD7C8', label: list.status || '—' };
+  const statusVisual = getBoardStatusConfig(list.status);
 
   // Subline: DEPT · N ITEMS. department may be text[] or comma-string.
   const deptList = Array.isArray(list.department)
