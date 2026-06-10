@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import Icon from '../../components/AppIcon';
 import { supabase } from '../../lib/supabaseClient';
 import RotaWorkspace from '../crew-rota/RotaWorkspace';
 import { fmtDateRange } from './reviewFormat';
+import { computeSubmissionBreaches } from './submissionBreaches';
+import BreachSignoffModal from './BreachSignoffModal';
+import { sendNotification, SEVERITY } from '../team-jobs-management/utils/notifications';
 import {
   approveRotaDepartment,
   rejectRotaDepartment,
@@ -34,15 +36,19 @@ function timeAgo(iso) {
 export default function ReviewRightPane({ item, onToast, onResolved }) {
   const [rotaFull, setRotaFull] = useState(null);
   const [vesselName, setVesselName] = useState(null);
-  const [busy, setBusy] = useState(null);          // 'accept' | 'reject' | null
+  const [busy, setBusy] = useState(null);          // 'check' | 'accept' | 'reject' | null
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectNote, setRejectNote] = useState('');
+  const [breachModal, setBreachModal] = useState(null); // null | { summary, withEdits }
+  const [breachReason, setBreachReason] = useState('');
 
   // Reset transient state whenever the selected item changes.
   useEffect(() => {
     setRejectOpen(false);
     setRejectNote('');
     setBusy(null);
+    setBreachModal(null);
+    setBreachReason('');
   }, [item?.id]);
 
   // Resolve the full rota object (for RotaWorkspace's paint/dept-status
@@ -92,18 +98,13 @@ export default function ReviewRightPane({ item, onToast, onResolved }) {
 
   // Notify the submitting HOD of the decision (best-effort, client-side insert
   // into the same notifications table the rest of the app uses).
-  const notifySubmitter = async (type, title, message, severity = 'INFO') => {
+  const notifySubmitter = (type, title, message, severity = SEVERITY.INFO) => {
     if (!item?.submitter_id) return;
-    await supabase.from('notifications').insert({
-      user_id: item.submitter_id,
-      type,
-      title,
-      message,
-      severity,
-      action_url: '/crew',
-      read: false,
-      created_at: new Date().toISOString(),
-    }).then(() => {}).catch(() => {});
+    // The nav-bar bell reads the localStorage notification channel
+    // (team-jobs util via getUserNotifications/getUnreadCount) — not the DB
+    // table — so the submitter sees the decision there. Tagged with the
+    // submitter's auth UUID, which is what the bell's unread count matches.
+    sendNotification(item.submitter_id, { type, title, message, actionUrl: '/crew', severity });
   };
 
   // Self-heal a drifted department before a decision. If an edit (legacy bug,
@@ -122,25 +123,58 @@ export default function ReviewRightPane({ item, onToast, onResolved }) {
       .then(() => {}).catch(() => {});
   };
 
-  const handleAccept = async (withEdits) => {
-    if (busy) return;
+  // The actual approval. `overrideNote` carries the MLC breach sign-off reason
+  // when the chief accepts non-compliant hours; it lands on the approval's
+  // decision note + audit event.
+  const doApprove = async (withEdits, overrideNote) => {
     setBusy('accept');
     await restorePendingIfDrifted();
-    const res = await approveRotaDepartment({ reviewItemId: item.id, note: null });
+    const res = await approveRotaDepartment({ reviewItemId: item.id, note: overrideNote || null });
     setBusy(null);
     if (!res.ok) {
       onToast?.(`Couldn’t accept — ${res.error || 'try again.'}`, { error: true });
       return;
     }
     onToast?.(`Accepted. ${submitterFirst}’s submission is now published.`);
-    await notifySubmitter(
+    const base = withEdits ? 'reviewed, edited and published' : 'accepted and published';
+    notifySubmitter(
       'ROTA_ACCEPTED',
       withEdits ? 'Rota accepted with edits' : 'Rota submission accepted',
-      withEdits
-        ? `Your ${deptCopy} rota was reviewed, edited and published.`
-        : `Your ${deptCopy} rota was accepted and published.`,
+      overrideNote
+        ? `Your ${deptCopy} rota was ${base} — hours breach signed off by the reviewer.`
+        : `Your ${deptCopy} rota was ${base}.`,
     );
     onResolved?.(item.id);
+  };
+
+  const handleAccept = async (withEdits) => {
+    if (busy) return;
+    // Check MLC compliance across the whole submission first (fresh, so it
+    // reflects any edits). A breach blocks the plain accept — the chief must
+    // edit or sign off with a reason.
+    setBusy('check');
+    const summary = await computeSubmissionBreaches(supabase, {
+      rotaId: item.rota_id,
+      departmentId: item.department_id,
+      tenantId: item.tenant_id,
+      dateStart: item.date_start,
+      dateEnd: item.date_end,
+    });
+    setBusy(null);
+    if (summary.hasBreaches) {
+      setBreachReason('');
+      setBreachModal({ summary, withEdits });
+      return;
+    }
+    await doApprove(withEdits, null);
+  };
+
+  const handleBreachConfirm = async () => {
+    const reason = breachReason.trim();
+    if (!reason || !breachModal) return;
+    const { withEdits } = breachModal;
+    setBreachModal(null);
+    await doApprove(withEdits, `Accepted despite MLC breach — ${reason}`);
   };
 
   const handleRejectSend = async () => {
@@ -156,11 +190,11 @@ export default function ReviewRightPane({ item, onToast, onResolved }) {
       return;
     }
     onToast?.(`Rejected. ${deptCopy} is back to draft.`);
-    await notifySubmitter(
+    notifySubmitter(
       'ROTA_REJECTED',
       'Rota submission rejected',
       `Your ${deptCopy} rota was sent back to draft. Reason: ${note}`,
-      'WARNING',
+      SEVERITY.WARN,
     );
     onResolved?.(item.id);
   };
@@ -226,7 +260,7 @@ export default function ReviewRightPane({ item, onToast, onResolved }) {
             onClick={() => handleAccept(editMode)}
             disabled={!!busy}
             aria-label={editMode ? `Accept ${deptCopy} with edits` : `Accept ${deptCopy}`}
-          >{busy === 'accept' ? 'Accepting…' : (editMode ? 'Accept with edits' : 'Accept')}</button>
+          >{busy === 'check' ? 'Checking…' : busy === 'accept' ? 'Accepting…' : (editMode ? 'Accept with edits' : 'Accept')}</button>
         </div>
       </div>
     );
@@ -256,6 +290,16 @@ export default function ReviewRightPane({ item, onToast, onResolved }) {
         initialDate={item.date_start || null}
         onToast={onToast}
         footer={renderFooter}
+      />
+
+      <BreachSignoffModal
+        open={!!breachModal}
+        summary={breachModal?.summary}
+        busy={busy === 'accept'}
+        reason={breachReason}
+        onReasonChange={setBreachReason}
+        onCancel={() => setBreachModal(null)}
+        onConfirm={handleBreachConfirm}
       />
     </div>
   );
