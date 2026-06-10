@@ -1004,6 +1004,21 @@
    shift_type='off' render with the base .rota-c background until they're
    purged by 20260520000001_remove_off_shift_rows.sql. */
 
+/* Pending-review department — its shifts are submitted and awaiting a
+   decision. Keep the per-type colour underneath but lay a diagonal hatch
+   over scheduled cells so they read as provisional, not yet published.
+   The "Pending" status badge (.rota-dept-badge.st-pending_approval) names
+   the state; the hatch makes the shifts themselves unmistakable. */
+.rota-dept-group.is-pending-review .rota-c[class*="shift-cell--"] {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.4) 0,
+    rgba(255, 255, 255, 0.4) 2px,
+    transparent 2px,
+    transparent 5px
+  );
+}
+
 /* Transient toast (no notification integration in Phase 1). */
 .crew-rota-toast {
   position: fixed;
