@@ -41,6 +41,7 @@ const STATUS_OPTIONS = [
   { value: 'received',     label: 'Received' },
   { value: 'partial',      label: 'Partial' },
   { value: 'not_received', label: 'Not received' },
+  { value: 'returned',     label: 'Returned' },
 ];
 
 const FIELDS = [
