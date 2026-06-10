@@ -90,7 +90,23 @@ export default function ReviewRightPane({ item, onToast, onResolved }) {
   const submitterFirst = (item?.submitter_name || 'the submitter').split(' ')[0];
   const deptCopy = item?.department_name || 'this department';
 
-  const handleAccept = async () => {
+  // Notify the submitting HOD of the decision (best-effort, client-side insert
+  // into the same notifications table the rest of the app uses).
+  const notifySubmitter = async (type, title, message, severity = 'INFO') => {
+    if (!item?.submitter_id) return;
+    await supabase.from('notifications').insert({
+      user_id: item.submitter_id,
+      type,
+      title,
+      message,
+      severity,
+      action_url: '/crew',
+      read: false,
+      created_at: new Date().toISOString(),
+    }).then(() => {}).catch(() => {});
+  };
+
+  const handleAccept = async (withEdits) => {
     if (busy) return;
     setBusy('accept');
     const res = await approveRotaDepartment({ reviewItemId: item.id, note: null });
@@ -100,6 +116,13 @@ export default function ReviewRightPane({ item, onToast, onResolved }) {
       return;
     }
     onToast?.(`Accepted. ${submitterFirst}’s submission is now published.`);
+    await notifySubmitter(
+      'ROTA_ACCEPTED',
+      withEdits ? 'Rota accepted with edits' : 'Rota submission accepted',
+      withEdits
+        ? `Your ${deptCopy} rota was reviewed, edited and published.`
+        : `Your ${deptCopy} rota was accepted and published.`,
+    );
     onResolved?.(item.id);
   };
 
@@ -115,6 +138,12 @@ export default function ReviewRightPane({ item, onToast, onResolved }) {
       return;
     }
     onToast?.(`Rejected. ${deptCopy} is back to draft.`);
+    await notifySubmitter(
+      'ROTA_REJECTED',
+      'Rota submission rejected',
+      `Your ${deptCopy} rota was sent back to draft. Reason: ${note}`,
+      'WARNING',
+    );
     onResolved?.(item.id);
   };
 
@@ -176,7 +205,7 @@ export default function ReviewRightPane({ item, onToast, onResolved }) {
           <button
             type="button"
             className={`rv-btn ${editMode ? 'terracotta' : 'primary'}`}
-            onClick={handleAccept}
+            onClick={() => handleAccept(editMode)}
             disabled={!!busy}
             aria-label={editMode ? `Accept ${deptCopy} with edits` : `Accept ${deptCopy}`}
           >{busy === 'accept' ? 'Accepting…' : (editMode ? 'Accept with edits' : 'Accept')}</button>
