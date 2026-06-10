@@ -170,7 +170,17 @@ function localTodayStr() {
 // 7-day trailing). Week view passes {historyDays:6, forwardDays:6} so
 // the leftmost cell (selectedDate) has its trailing-7 history AND the
 // rightmost cell (selectedDate+6) has its own days fetched.
-export function useRotaShifts(selectedDate, { historyDays = 6, forwardDays = 0 } = {}) {
+//
+// rotaId / departmentId (optional, 2nd-arg options): scope the fetch to a
+// single rota and/or a single department's members. Both default to null,
+// in which case the query is byte-for-byte the historical tenant+date-only
+// fetch — the zero-arg (trip-detail SectionCrew) and selectedDate-only
+// (/crew) callers are unaffected. The split-view passes both to show one
+// department's slice of one rota.
+export function useRotaShifts(
+  selectedDate,
+  { historyDays = 6, forwardDays = 0, rotaId = null, departmentId = null } = {},
+) {
   const anchorDate = selectedDate || localTodayStr();
   // AuthContext exposes `activeTenantId` (not `tenantId`) — matching the
   // pattern used by useTripGuests / useTripsMigration. Destructuring
@@ -219,7 +229,10 @@ export function useRotaShifts(selectedDate, { historyDays = 6, forwardDays = 0 }
         // FK paths and surface them as `m.role` / `m.custom_role`. No
         // tier fallback — a member with neither role_id nor
         // custom_role_id has null title, not their permission_tier.
-        const { data: members, error: mErr, status: mStatus, statusText: mStatusText } = await supabase
+        // departmentId (optional) scopes the crew to a single department —
+        // used by the /reviews split-view to show just the reviewed dept.
+        // Absent ⇒ all active members (the /crew + trip-detail behavior).
+        let membersQuery = supabase
           .from('tenant_members')
           .select(`
             id,
@@ -236,6 +249,8 @@ export function useRotaShifts(selectedDate, { historyDays = 6, forwardDays = 0 }
           `)
           .eq('tenant_id', tenantId)
           .eq('active', true);
+        if (departmentId) membersQuery = membersQuery.eq('department_id', departmentId);
+        const { data: members, error: mErr, status: mStatus, statusText: mStatusText } = await membersQuery;
         console.log('[useRotaShifts] RAW crew response:', {
           count: members?.length,
           error: mErr,
@@ -276,12 +291,23 @@ export function useRotaShifts(selectedDate, { historyDays = 6, forwardDays = 0 }
         windowEnd.setDate(windowEnd.getDate() + forwardDays);
         const windowEndStr = windowEnd.toISOString().slice(0, 10);
 
-        const { data: shiftRows, error: sErr, status: sStatus, statusText: sStatusText } = await supabase
+        // rotaId (optional) scopes the fetch to one rota. The base query
+        // filters by tenant_id + date window ONLY — for /crew that's
+        // invisible (one standing rota per tenant), but a tenant with
+        // multiple rotas overlapping the same dates would bleed rows
+        // across rotas. The split-view's specific-rota pane needs this
+        // filter to be correct. departmentId (optional) scopes to the
+        // dept's members, mirroring getDraftShiftCount — members are
+        // already dept-filtered above, so reuse their ids.
+        let shiftsQuery = supabase
           .from('rota_shifts')
           .select('id, member_id, shift_date, start_time, end_time, shift_type, sub_type, notes, status')
           .eq('tenant_id', tenantId)
           .gte('shift_date', windowStartStr)
           .lte('shift_date', windowEndStr);
+        if (rotaId) shiftsQuery = shiftsQuery.eq('rota_id', rotaId);
+        if (departmentId) shiftsQuery = shiftsQuery.in('member_id', mappedMembers.map((m) => m.id));
+        const { data: shiftRows, error: sErr, status: sStatus, statusText: sStatusText } = await shiftsQuery;
         console.log('[useRotaShifts] RAW shifts response:', {
           count: shiftRows?.length,
           error: sErr,
@@ -346,7 +372,7 @@ export function useRotaShifts(selectedDate, { historyDays = 6, forwardDays = 0 }
         if (!cancelled && !silent) setLoading(false);
       }
     }
-  }, [user, tenantId, anchorDate, historyDays, forwardDays]);
+  }, [user, tenantId, anchorDate, historyDays, forwardDays, rotaId, departmentId]);
 
   useEffect(() => { load(); }, [load]);
 
