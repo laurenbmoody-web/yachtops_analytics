@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabaseClient';
 import { useReviewItems } from './useReviewItems';
+import { inboxScopeFor, applyInboxScope } from '../../hooks/inboxScope';
 import ReviewItemCard from './ReviewItemCard';
 import InboxSidebar from './InboxSidebar';
 import './reviews.css';
@@ -47,18 +48,20 @@ export default function ReviewsPage() {
     return tier || '';
   }, [tier, deptName]);
 
-  // Live pending count via direct query — same RLS-scoped read as
-  // useInboxCount, surfaced as the subtitle. Polls when the page is
-  // mounted only.
+  // Live pending count via direct query — scoped to the user's inbox the
+  // same way useInboxCount is (RLS read is tenant-wide), surfaced as the
+  // subtitle. Polls while the page is mounted.
   const [pendingCount, setPendingCount] = useState(null);
   useEffect(() => {
-    if (!user) return undefined;
+    const scope = inboxScopeFor(tier, userDeptId);
+    if (!user || scope.kind === 'none') { setPendingCount(0); return undefined; }
     let cancelled = false;
     const fetchCount = async () => {
-      const { count, error } = await supabase
+      const base = supabase
         .from('review_items')
         .select('id', { count: 'exact', head: true })
         .eq('status', 'pending');
+      const { count, error } = await applyInboxScope(base, scope);
       if (cancelled) return;
       if (error) { console.error('[ReviewsPage] count fetch failed:', error); return; }
       setPendingCount(count || 0);
@@ -66,7 +69,7 @@ export default function ReviewsPage() {
     fetchCount();
     const id = setInterval(fetchCount, 30_000);
     return () => { cancelled = true; clearInterval(id); };
-  }, [user]);
+  }, [user, tier, userDeptId]);
 
   const { items, loading, refetch } = useReviewItems();
 
