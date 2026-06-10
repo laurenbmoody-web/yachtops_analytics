@@ -96,3 +96,88 @@ export const getBoardStatusConfig = (status) => {
 // (-1 vs anything is never >).
 export const isLifecycleAfter = (status, reference) =>
   BOARD_STATUS_ORDER.indexOf(status) > BOARD_STATUS_ORDER.indexOf(reference);
+
+// =============================================================================
+// Item status — provisioning_items.status. Lifecycle parallel to board status
+// but with different downstream rendering. As with board status, the LABELS
+// here are CANONICAL — the strings users actually see throughout the app, not
+// just visual config. Locked here so they can't drift across surfaces.
+//
+// Three visual variants per entry because the three consumer surfaces speak
+// different visual languages (not just different shades of the same palette):
+//   - badge:        per-row pill in ProvisioningBoardDetail's items table.
+//                   Full pastel pill — light bg + border + colored dot +
+//                   dark (Tailwind-700-shade) text.
+//   - cell:         inline edit-mode pill in DetailTableCells.StatusCell.
+//                   Translucent rgba bg + mid (500-shade) text. No border,
+//                   no dot.
+//   - dotClassName: Tailwind class for the legacy StatusBadge surface
+//                   (ItemDrawer dark-mode pill row). Retire when that
+//                   surface migrates to cool-surface — same dual-visual-
+//                   systems rationale as BOARD_STATUS_CONFIG above.
+//
+// All three update together when adding or changing an item status: drift
+// between them is what we just consolidated AWAY from.
+
+export const ITEM_STATUS_ORDER = [
+  'draft',
+  'to_order',
+  'ordered',
+  'received',
+  'partial',
+  'not_received',
+];
+
+export const ITEM_STATUS_CONFIG = {
+  draft: {
+    label: 'Draft',
+    badge: { bg: '#F8FAFC', color: '#94A3B8', border: '#E2E8F0', dot: '#CBD5E1' },
+    cell:  { bg: 'rgba(100,116,139,0.15)', color: '#94A3B8' },
+    dotClassName: 'bg-slate-400',
+  },
+  to_order: {
+    label: 'To order',
+    badge: { bg: '#EFF6FF', color: '#1D4ED8', border: '#BFDBFE', dot: '#60A5FA' },
+    cell:  { bg: 'rgba(59,130,246,0.15)', color: '#3B82F6' },
+    dotClassName: 'bg-blue-500',
+  },
+  ordered: {
+    label: 'Ordered',
+    badge: { bg: '#F5F3FF', color: '#7C3AED', border: '#DDD6FE', dot: '#A78BFA' },
+    cell:  { bg: 'rgba(139,92,246,0.15)', color: '#8B5CF6' },
+    dotClassName: 'bg-purple-500',
+  },
+  received: {
+    label: 'Received',
+    badge: { bg: '#F0FDF4', color: '#15803D', border: '#BBF7D0', dot: '#4ADE80' },
+    cell:  { bg: 'rgba(34,197,94,0.15)', color: '#22c55e' },
+    dotClassName: 'bg-green-500',
+  },
+  partial: {
+    label: 'Partial',
+    badge: { bg: '#FFFBEB', color: '#B45309', border: '#FDE68A', dot: '#FCD34D' },
+    cell:  { bg: 'rgba(245,158,11,0.15)', color: '#f59e0b' },
+    dotClassName: 'bg-amber-500',
+  },
+  not_received: {
+    label: 'Not received',
+    badge: { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA', dot: '#FCA5A5' },
+    cell:  { bg: 'rgba(239,68,68,0.15)', color: '#ef4444' },
+    dotClassName: 'bg-red-500',
+  },
+};
+
+// Safe accessor — same console.warn shape as getBoardStatusConfig above.
+// Falls back to the draft palette for unknown statuses so the render stays
+// consistent (instead of throwing or rendering a blank pill).
+export const getItemStatusConfig = (status) => {
+  const config = ITEM_STATUS_CONFIG[status];
+  if (config) return config;
+  if (status) console.warn('[statusConfig] Unknown item status:', status);
+  return {
+    label: status || '—',
+    badge: { bg: '#F8FAFC', color: '#94A3B8', border: '#E2E8F0', dot: '#CBD5E1' },
+    cell:  { bg: 'rgba(100,116,139,0.15)', color: '#94A3B8' },
+    dotClassName: 'bg-slate-400',
+  };
+};

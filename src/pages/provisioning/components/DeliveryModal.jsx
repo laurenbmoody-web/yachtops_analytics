@@ -176,8 +176,8 @@ const DeliveryModal = ({ list, items, onClose, onComplete }) => {
   // ── Render ────────────────────────────────────────────────────────────────
 
   const received = matchedItems.filter(i => i.status === ITEM_STATUS.RECEIVED).length;
-  const short = matchedItems.filter(i => i.status === ITEM_STATUS.SHORT_DELIVERED).length;
-  const missing = matchedItems.filter(i => i.status === ITEM_STATUS.NOT_DELIVERED || i.status === ITEM_STATUS.PENDING).length;
+  const short = matchedItems.filter(i => i.status === ITEM_STATUS.PARTIAL).length;
+  const missing = matchedItems.filter(i => i.status === ITEM_STATUS.NOT_RECEIVED || i.status === ITEM_STATUS.DRAFT).length;
 
   return (
     <ModalShell onClose={onClose} panelClassName="bg-card border border-border rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">

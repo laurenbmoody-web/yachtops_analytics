@@ -1167,7 +1167,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
   useEffect(() => {
     const init = {};
     items.forEach(item => {
-      const alreadyReceived = item.status === 'received' || item.status === 'short_delivered';
+      const alreadyReceived = item.status === 'received' || item.status === 'partial';
       init[item.id] = {
         checked: alreadyReceived,
         qty: item.quantity_received ?? item.quantity_ordered ?? 0,
