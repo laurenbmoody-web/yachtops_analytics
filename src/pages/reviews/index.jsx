@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import { useAuth } from '../../contexts/AuthContext';
@@ -6,14 +7,15 @@ import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabaseClient';
 import { useReviewItems } from './useReviewItems';
 import { fetchInboxPending } from '../../hooks/inboxScope';
-import ReviewItemCard from './ReviewItemCard';
+import CompactReviewItemCard from './CompactReviewItemCard';
+import ReviewRightPane from './ReviewRightPane';
 import InboxSidebar from './InboxSidebar';
 import './reviews.css';
 
-// ReviewsPage — the inbox for rota submissions awaiting a decision.
-// Phase 4a: page shell + header + card list with Accept/Reject actions.
-// Sub-commit 6 adds the empty state. timeAgo + per-card actions live
-// inside ReviewItemCard.
+// ReviewsPage — the split-view inbox. Three columns: sidebar (categories) ·
+// list strip (compact cards) · right pane (the selected submission's rota +
+// decision footer). The ?selected= URL param drives which item the right
+// pane shows; resolving/rejecting auto-advances to the next item.
 
 export default function ReviewsPage() {
   const { user } = useAuth();
@@ -22,19 +24,14 @@ export default function ReviewsPage() {
   const tier = (currentTenantMember?.permission_tier || '').toUpperCase();
   const userDeptId = currentTenantMember?.department_id || null;
 
-  // Eyebrow: dept name resolved from departments table for CHIEF; just
-  // "COMMAND" for COMMAND. Falls back to the bare tier when the dept
-  // hasn't loaded yet.
+  // Eyebrow: "<TIER>" / "<TIER> · <DEPT>" for the list-strip title.
   const [deptName, setDeptName] = useState(null);
   useEffect(() => {
-    if (!activeTenantId || !userDeptId) { setDeptName(null); return; }
+    if (!activeTenantId || !userDeptId) { setDeptName(null); return undefined; }
     let cancelled = false;
     (async () => {
       const { data, error } = await supabase
-        .from('departments')
-        .select('name')
-        .eq('id', userDeptId)
-        .maybeSingle();
+        .from('departments').select('name').eq('id', userDeptId).maybeSingle();
       if (cancelled) return;
       if (error) { console.error('[ReviewsPage] dept fetch failed:', error); return; }
       setDeptName(data?.name || null);
@@ -48,9 +45,7 @@ export default function ReviewsPage() {
     return tier || '';
   }, [tier, deptName]);
 
-  // Live pending count via direct query — scoped to the user's inbox the
-  // same way useInboxCount is (RLS read is tenant-wide), surfaced as the
-  // subtitle. Polls while the page is mounted.
+  // Subtitle count — inbox-scoped pending count, polled while mounted.
   const [pendingCount, setPendingCount] = useState(null);
   useEffect(() => {
     if (!user) { setPendingCount(0); return undefined; }
@@ -69,20 +64,50 @@ export default function ReviewsPage() {
 
   const { items, loading, refetch } = useReviewItems();
 
-  // Toast — same shape as the rota page's destructive-variant pattern.
-  // showToast(msg) for success; showToast(msg, { error: true }) for
-  // destructive variant. Auto-clears at 4.2s.
   const [toast, setToast] = useState(null);
   const showToast = (msg, opts) => {
     setToast({ msg, error: !!opts?.error });
     setTimeout(() => setToast(null), 4200);
   };
-  // Use the live list length as the source of truth for the subtitle
-  // once items have loaded; fall back to pendingCount before that.
+
   const subtitleCount = loading ? (pendingCount ?? 0) : items.length;
   const subtitle = tier === 'COMMAND'
     ? `${subtitleCount} submission${subtitleCount === 1 ? '' : 's'} across the vessel`
     : `${subtitleCount} submission${subtitleCount === 1 ? '' : 's'} awaiting your decision`;
+
+  // ── Selection + URL state ──────────────────────────────────────────────
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedId = searchParams.get('selected');
+  // Track whether this session ever had items, to tell the two empty states
+  // apart ("Nothing to review" vs the cleared-inbox "All clear").
+  const everHadItems = useRef(false);
+  if (items.length > 0) everHadItems.current = true;
+
+  // Keep ?selected valid: default to the first item, fall back when the
+  // current selection disappears (auto-advance after accept/reject), clear
+  // when the inbox empties.
+  useEffect(() => {
+    if (loading) return;
+    if (items.length === 0) {
+      if (selectedId) setSearchParams({}, { replace: true });
+      return;
+    }
+    const exists = items.some((i) => i.id === selectedId);
+    if (!exists) {
+      setSearchParams({ selected: items[0].id }, { replace: true });
+    }
+  }, [items, loading, selectedId, setSearchParams]);
+
+  const selectedItem = useMemo(
+    () => items.find((i) => i.id === selectedId) || null,
+    [items, selectedId],
+  );
+
+  const handleSelect = (id) => setSearchParams({ selected: id });
+
+  // After a decision: refetch the list. The selection effect above advances
+  // ?selected to the next item (or clears it when the inbox empties).
+  const handleResolved = () => { refetch(); };
 
   return (
     <>
@@ -90,35 +115,57 @@ export default function ReviewsPage() {
       <div className="rv-page">
         <InboxSidebar count={subtitleCount} />
 
-        <main className="rv-main">
-          <div className="rv-container">
+        {/* Middle — list strip */}
+        <section className="rv-liststrip" aria-label="Rota submissions">
+          <div className="rv-eyebrow">{eyebrow}</div>
+          <h1 className="rv-title">
+            ROTAS<span className="rv-title-comma">,</span>
+            <em className="rv-title-verb"> to review</em>
+            <span className="rv-title-period">.</span>
+          </h1>
+          <div className="rv-subtitle">{subtitle}</div>
 
-            <div className="rv-eyebrow">{eyebrow}</div>
-            <h1 className="rv-title">Rota submissions<em>.</em></h1>
-            <div className="rv-subtitle">{subtitle}</div>
-
-            <div className="rv-body">
-              {!loading && items.length === 0 ? (
-                <div className="rv-empty" role="status">
-                  <Icon name="Check" size={32} color="#8B8478" className="rv-empty-icon" />
-                  <div className="rv-empty-title">Nothing to review</div>
-                  <div className="rv-empty-sub">
-                    When HODs submit rota changes, they’ll appear here for your decision.
-                  </div>
-                </div>
-              ) : (
-                items.map((item) => (
-                  <ReviewItemCard
-                    key={item.id}
-                    item={item}
-                    onToast={showToast}
-                    onResolved={refetch}
-                  />
-                ))
-              )}
-            </div>
+          <div className="rv-cc-list">
+            {!loading && items.length === 0 ? (
+              <div className="rv-cc-empty" role="status">
+                {everHadItems.current ? 'All clear.' : 'Nothing to review.'}
+              </div>
+            ) : (
+              items.map((item) => (
+                <CompactReviewItemCard
+                  key={item.id}
+                  item={item}
+                  selected={item.id === selectedId}
+                  onSelect={handleSelect}
+                />
+              ))
+            )}
           </div>
-        </main>
+        </section>
+
+        {/* Right — selected submission */}
+        <section className="rv-rightpane-col" aria-label="Submission detail">
+          {selectedItem ? (
+            <ReviewRightPane
+              key={selectedItem.id}
+              item={selectedItem}
+              onToast={showToast}
+              onResolved={handleResolved}
+            />
+          ) : (
+            <div className="rv-rp-blank" role="status">
+              <Icon name="Check" size={36} color="#8B8478" className="rv-rp-blank-icon" />
+              <div className="rv-rp-blank-title">
+                {everHadItems.current ? 'All clear' : 'Nothing to review'}
+              </div>
+              <div className="rv-rp-blank-sub">
+                {everHadItems.current
+                  ? 'You’ve actioned every pending submission.'
+                  : 'When HODs submit rota changes, they’ll appear here for your decision.'}
+              </div>
+            </div>
+          )}
+        </section>
 
         {toast && (
           <div
@@ -126,7 +173,6 @@ export default function ReviewsPage() {
             role={toast.error ? 'alert' : 'status'}
           >{toast.msg}</div>
         )}
-
       </div>
     </>
   );
