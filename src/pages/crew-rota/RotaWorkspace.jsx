@@ -228,7 +228,11 @@ export default function RotaWorkspace({
     const hi = Math.min(hi0, LAST_PRE_MIDNIGHT_SLOT);
     const erase = shiftType === 'erase';
 
-    syncDeptDraft(crewMember);
+    // Submitter editing marks the dept draft (the "editing reverts to draft"
+    // rule). A REVIEWER editing during approval must NOT revert it — the dept
+    // has to stay pending_approval so Accept-with-edits can approve it; the
+    // new draft shifts are published by the approve writer.
+    if (mode === 'submitter') syncDeptDraft(crewMember);
 
     const res = await applyPaint({
       crewMember,
@@ -242,7 +246,7 @@ export default function RotaWorkspace({
       gridStartHour: GRID_START_HOUR,
     });
     if (!res.ok) showToast(`Couldn’t save that change — try again. (${res.error})`);
-  }, [rota, shiftType, myMemberId, applyPaint, syncDeptDraft, showToast]);
+  }, [rota, mode, shiftType, myMemberId, applyPaint, syncDeptDraft, showToast]);
 
   const canEdit = !!rota?.id && !loading && !error;
   const [hodConfirmOpen, setHodConfirmOpen] = useState(false);
