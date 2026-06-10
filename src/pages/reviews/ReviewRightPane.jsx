@@ -106,9 +106,26 @@ export default function ReviewRightPane({ item, onToast, onResolved }) {
     }).then(() => {}).catch(() => {});
   };
 
+  // Self-heal a drifted department before a decision. If an edit (legacy bug,
+  // or any edge) left the dept in 'draft' while its review is still pending,
+  // the approve/reject writers reject it ("expected pending_approval"). RLS
+  // lets a CHIEF/COMMAND set the status; scope the update to status='draft' so
+  // it's a no-op when the dept is already pending_approval/published.
+  const restorePendingIfDrifted = async () => {
+    if (!item?.rota_id || !item?.department_id) return;
+    await supabase
+      .from('rota_department_status')
+      .update({ status: 'pending_approval' })
+      .eq('rota_id', item.rota_id)
+      .eq('department_id', item.department_id)
+      .eq('status', 'draft')
+      .then(() => {}).catch(() => {});
+  };
+
   const handleAccept = async (withEdits) => {
     if (busy) return;
     setBusy('accept');
+    await restorePendingIfDrifted();
     const res = await approveRotaDepartment({ reviewItemId: item.id, note: null });
     setBusy(null);
     if (!res.ok) {
@@ -131,6 +148,7 @@ export default function ReviewRightPane({ item, onToast, onResolved }) {
     const note = rejectNote.trim();
     if (!note) return;
     setBusy('reject');
+    await restorePendingIfDrifted();
     const res = await rejectRotaDepartment({ reviewItemId: item.id, note });
     setBusy(null);
     if (!res.ok) {
