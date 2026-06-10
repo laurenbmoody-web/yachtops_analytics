@@ -97,11 +97,32 @@ export function restPeriodSplit(dayShifts) {
   }
   if (cursor < 24) periods.push({ start: cursor, end: 24, length: 24 - cursor });
 
-  const longest = periods.length > 0 ? Math.max(...periods.map(p => p.length)) : 0;
-  const periodCount = periods.length;
+  // The rest before the first shift (00:00 → …) and after the last (… → 24:00)
+  // wrap across midnight into ONE continuous overnight rest — the calendar-day
+  // boundary must not count them as two separate periods. Without this merge,
+  // any split shift (e.g. 09:00–12:00 + 13:00–17:00) falsely trips the
+  // "≤2 periods" rule even though the seafarer's total rest is fine: the
+  // leading 9h and trailing 7h are really one 16h overnight block. Only merge
+  // when both day edges are rest (no shift sits on the midnight boundary).
+  let effPeriods = periods;
+  if (periods.length > 1
+      && periods[0].start === 0
+      && periods[periods.length - 1].end === 24) {
+    const lead = periods[0];
+    const trail = periods[periods.length - 1];
+    const wrapped = {
+      start: trail.start,
+      end: lead.end + 24,
+      length: lead.length + trail.length,
+    };
+    effPeriods = [wrapped, ...periods.slice(1, -1)];
+  }
+
+  const longest = effPeriods.length > 0 ? Math.max(...effPeriods.map(p => p.length)) : 0;
+  const periodCount = effPeriods.length;
   const satisfied =
     periodCount <= MLC_MAX_REST_PERIODS && longest >= MLC_LONGEST_REST_PERIOD_MIN;
-  return { periods, periodCount, longest, satisfied };
+  return { periods: effPeriods, periodCount, longest, satisfied };
 }
 
 // Rule 4 — longest continuous on-duty stretch across the week. Adjacent

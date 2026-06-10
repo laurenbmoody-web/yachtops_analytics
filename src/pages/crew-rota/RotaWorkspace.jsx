@@ -275,24 +275,25 @@ export default function RotaWorkspace({
   // can be cleared with Reject).
   const canClear = mode === 'submitter' && tier === 'COMMAND' && !!rota?.id;
   const [clearOpen, setClearOpen] = useState(false);
-  const [clearing, setClearing] = useState(false);
-  const handleClearRota = useCallback(async () => {
+  const [clearing, setClearing] = useState(null);   // null | 'day' | 'all'
+  const handleClearRota = useCallback(async (scope) => {
     if (!rota?.id || clearing) return;
-    setClearing(true);
-    const { error: delErr } = await supabase
-      .from('rota_shifts')
-      .delete()
-      .eq('rota_id', rota.id);
-    setClearing(false);
+    setClearing(scope);
+    let q = supabase.from('rota_shifts').delete().eq('rota_id', rota.id);
+    if (scope === 'day') q = q.eq('shift_date', selectedDate);
+    const { error: delErr } = await q;
+    setClearing(null);
     if (delErr) {
-      showToast(`Couldn’t clear the rota — ${delErr.message || 'try again.'}`, { error: true });
+      showToast(`Couldn’t clear shifts — ${delErr.message || 'try again.'}`, { error: true });
       return;
     }
     setClearOpen(false);
     if (editMode) setEditMode(false);
     refetch({ silent: true });
-    showToast('Rota cleared — all shifts removed.');
-  }, [rota, clearing, editMode, refetch, showToast]);
+    showToast(scope === 'day'
+      ? `Cleared all shifts on ${fullDateLabel(selectedDateObj)}.`
+      : 'Rota cleared — all shifts removed.');
+  }, [rota, clearing, editMode, refetch, showToast, selectedDate, selectedDateObj]);
 
   // Friendly dept name for the HOD confirm copy.
   const footerDeptName = (departments.find((d) => d.id === footerDeptId) || {}).name || null;
@@ -571,8 +572,10 @@ export default function RotaWorkspace({
       <ClearRotaModal
         open={clearOpen}
         busy={clearing}
+        dateLabel={fullDateLabel(selectedDateObj)}
         onCancel={() => setClearOpen(false)}
-        onConfirm={handleClearRota}
+        onClearDay={() => handleClearRota('day')}
+        onClearAll={() => handleClearRota('all')}
       />
 
       <RestPanelPopover crew={selectedCrew} onClose={() => setSelectedCrew(null)} />
