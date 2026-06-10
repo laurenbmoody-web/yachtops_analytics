@@ -8,7 +8,6 @@ import { ITEM_STATUS_CONFIG } from './data/statusConfig';
 import BoardColumn from './components/BoardColumn';
 import BoardDrawer from './components/BoardDrawer';
 import ItemDrawer from './components/ItemDrawer';
-import DeliveryModal from './components/DeliveryModal';
 import ReceiveDeliveryModal from './components/ReceiveDeliveryModal';
 import ShareModal from './components/ShareModal';
 import SummaryGauges from './components/SummaryGauges';
@@ -370,7 +369,6 @@ const ProvisioningWorkspace = () => {
   const [showNewBoard, setShowNewBoard] = useState(false);
   const [boardDrawer, setBoardDrawer] = useState({ open: false, listId: null, mode: 'edit' });
   const [itemDrawer, setItemDrawer] = useState({ open: false, item: null, listId: null });
-  const [deliveryModal, setDeliveryModal] = useState({ open: false, list: null });
   const [sharingList, setSharingList] = useState(null);
 
   // Workspace-level receive delivery
@@ -1110,16 +1108,6 @@ const ProvisioningWorkspace = () => {
         onDeleted={handleItemDeleted}
         onClose={() => setItemDrawer({ open: false, item: null, listId: null })}
       />
-
-      {/* Delivery Modal (kept as-is) */}
-      {deliveryModal.open && deliveryModal.list && (
-        <DeliveryModal
-          list={deliveryModal.list}
-          items={itemsByList[deliveryModal.list.id] || []}
-          onClose={() => setDeliveryModal({ open: false, list: null })}
-          onComplete={() => { setDeliveryModal({ open: false, list: null }); loadAll(); }}
-        />
-      )}
 
       {/* Workspace-level Receive Delivery modal */}
       {showWorkspaceReceiveModal && (
