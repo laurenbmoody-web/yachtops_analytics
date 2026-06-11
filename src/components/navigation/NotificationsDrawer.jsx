@@ -10,6 +10,12 @@ import {
   NOTIFICATION_TYPES,
   SEVERITY
 } from '../../pages/team-jobs-management/utils/notifications';
+import {
+  fetchDbNotifications,
+  markDbNotificationRead,
+  markAllDbRead,
+  clearDbRead,
+} from '../../lib/dbNotifications';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -24,17 +30,24 @@ const NotificationsDrawer = ({ isOpen, onClose }) => {
     if (userId) loadNotifications();
   }, [userId, activeTab]);
 
-  const loadNotifications = () => {
+  const loadNotifications = async () => {
     if (!userId) return;
     const unreadOnly = activeTab === 'unread';
-    const userNotifications = getUserNotifications(userId, unreadOnly);
-    setNotifications(userNotifications);
+    // Merge the legacy localStorage feed (jobs/inventory/HOR/delivery) with
+    // the server-backed DB feed (rota decisions, cross-device), newest first.
+    const local = getUserNotifications(userId, unreadOnly) || [];
+    const db = await fetchDbNotifications(userId, { unreadOnly });
+    const merged = [...local, ...db].sort(
+      (a, b) => new Date(b?.createdAt || 0) - new Date(a?.createdAt || 0),
+    );
+    setNotifications(merged);
   };
 
   const handleNotificationClick = (notification) => {
-    // Mark as read
+    // Mark as read in the right store.
     if (!notification?.isRead) {
-      markNotificationRead(notification?.id);
+      if (notification?._source === 'db') markDbNotificationRead(notification?.id);
+      else markNotificationRead(notification?.id);
     }
 
     // Navigate to action URL
@@ -44,15 +57,17 @@ const NotificationsDrawer = ({ isOpen, onClose }) => {
     }
   };
 
-  const handleMarkAllRead = () => {
+  const handleMarkAllRead = async () => {
     if (!userId) return;
     markAllNotificationsRead(userId);
+    await markAllDbRead(userId);
     loadNotifications();
   };
 
-  const handleClearRead = () => {
+  const handleClearRead = async () => {
     if (!userId) return;
     clearReadNotifications(userId);
+    await clearDbRead(userId);
     loadNotifications();
   };
 

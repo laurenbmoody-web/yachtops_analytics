@@ -14,6 +14,7 @@ import { canAccessTrips } from '../../pages/trips-management-dashboard/utils/tri
 import NotificationsDrawer from './NotificationsDrawer';
 import SettingsModal from './SettingsModal';
 import { getUnreadCount, checkDueAndOverdueJobs } from '../../pages/team-jobs-management/utils/notifications';
+import { fetchDbUnreadCount } from '../../lib/dbNotifications';
 import { isDevMode } from '../../utils/devMode';
 import { loadCards } from '../../pages/team-jobs-management/utils/cardStorage';
 import { loadGuests } from '../../pages/guest-management-dashboard/utils/guestStorage';
@@ -158,11 +159,19 @@ const Header = () => {
   // Update unread count — use Supabase auth UUID (authUser?.id) so it matches
   // the userId stored in notifications by sendNotification (which uses board.created_by,
   // also a Supabase UUID). currentUser?.id is a legacy localStorage ID that won't match.
+  // Sums the legacy localStorage feed + the server-backed DB feed (rota
+  // decisions, cross-device); polls on the same cadence as notification opens.
   useEffect(() => {
-    if (authUser?.id) {
-      const count = getUnreadCount(authUser?.id);
-      setUnreadCount(count);
-    }
+    if (!authUser?.id) return undefined;
+    let cancelled = false;
+    const refresh = async () => {
+      const local = getUnreadCount(authUser?.id) || 0;
+      const db = await fetchDbUnreadCount(authUser?.id);
+      if (!cancelled) setUnreadCount(local + db);
+    };
+    refresh();
+    const id = setInterval(refresh, 30_000);
+    return () => { cancelled = true; clearInterval(id); };
   }, [authUser, notificationsOpen]);
 
   // Close menus when clicking outside

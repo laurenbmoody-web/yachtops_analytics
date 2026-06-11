@@ -4,7 +4,7 @@ import RotaWorkspace from '../crew-rota/RotaWorkspace';
 import { fmtDateRange } from './reviewFormat';
 import { computeSubmissionBreaches } from './submissionBreaches';
 import BreachSignoffModal from './BreachSignoffModal';
-import { sendNotification, SEVERITY } from '../team-jobs-management/utils/notifications';
+import { sendDbNotification } from '../../lib/dbNotifications';
 import {
   approveRotaDepartment,
   rejectRotaDepartment,
@@ -98,13 +98,20 @@ export default function ReviewRightPane({ item, onToast, onResolved }) {
 
   // Notify the submitting HOD of the decision (best-effort, client-side insert
   // into the same notifications table the rest of the app uses).
-  const notifySubmitter = (type, title, message, severity = SEVERITY.INFO, actionUrl = '/crew') => {
+  const notifySubmitter = (type, title, message, severity = 'info', actionUrl = '/crew') => {
     if (!item?.submitter_id) return;
-    // The nav-bar bell reads the localStorage notification channel
-    // (team-jobs util via getUserNotifications/getUnreadCount) — not the DB
-    // table — so the submitter sees the decision there. Tagged with the
-    // submitter's auth UUID, which is what the bell's unread count matches.
-    sendNotification(item.submitter_id, { type, title, message, actionUrl, severity });
+    // Server-backed (DB) notification so the submitter sees the decision on
+    // ANY device, not just the browser the chief used. The bell merges this
+    // with the legacy localStorage feed. (sendDbNotification / dbNotifications)
+    sendDbNotification(item.submitter_id, { type, title, message, actionUrl, severity });
+  };
+
+  // Fire-and-forget decision email (Resend edge function). Never blocks or
+  // surfaces as a decision failure — the in-app notification is the guarantee.
+  const emailDecision = (decision, note) => {
+    supabase.functions
+      .invoke('sendRotaDecision', { body: { reviewItemId: item.id, decision, note: note || null } })
+      .then(() => {}).catch(() => {});
   };
 
   // Self-heal a drifted department before a decision. If an edit (legacy bug,
@@ -143,11 +150,12 @@ export default function ReviewRightPane({ item, onToast, onResolved }) {
       overrideNote
         ? `Your ${deptCopy} rota was ${base} — hours breach signed off by the reviewer.`
         : `Your ${deptCopy} rota was ${base}.`,
-      SEVERITY.INFO,
+      'info',
       // Accepted-with-edits deep-links to /crew with the changed cells pulsing
       // (snapshot diff via ?changed=) so the HOD sees exactly what was edited.
       withEdits ? `/crew?changed=${item.rota_id}:${item.department_id}` : '/crew',
     );
+    emailDecision(withEdits ? 'accepted_with_edits' : 'accepted', overrideNote);
     onResolved?.(item.id);
   };
 
@@ -198,8 +206,9 @@ export default function ReviewRightPane({ item, onToast, onResolved }) {
       'ROTA_REJECTED',
       'Rota submission rejected',
       `Your ${deptCopy} rota was sent back to draft. Reason: ${note}`,
-      SEVERITY.WARN,
+      'warn',
     );
+    emailDecision('rejected', note);
     onResolved?.(item.id);
   };
 
