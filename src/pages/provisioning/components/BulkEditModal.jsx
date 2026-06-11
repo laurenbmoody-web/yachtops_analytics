@@ -3,6 +3,7 @@ import ModalShell from '../../../components/ui/ModalShell';
 import SupplierPicker from './SupplierPicker';
 import { UNIT_GROUPS } from './DetailTableCells';
 import { fetchVendors } from '../utils/provisioningStorage';
+import { ITEM_STATUS_ORDER, ITEM_STATUS_CONFIG } from '../data/statusConfig';
 
 /**
  * Bulk multi-edit modal — items-list selection model commit 4.
@@ -35,14 +36,14 @@ import { fetchVendors } from '../utils/provisioningStorage';
  * one paired Qty/Unit row at the top, matching idr-measure-grid).
  */
 
-const STATUS_OPTIONS = [
-  { value: 'draft',        label: 'Draft' },
-  { value: 'ordered',      label: 'Ordered' },
-  { value: 'received',     label: 'Received' },
-  { value: 'partial',      label: 'Partial' },
-  { value: 'not_received', label: 'Not received' },
-  { value: 'returned',     label: 'Returned' },
-];
+// Derived from the canonical picker source (ITEM_STATUS_ORDER) so it can't
+// drift. Crew-controllable states only — the derive-only states (confirmed
+// / unavailable / substituted / invoiced / paid / partially_returned) are
+// intentionally NOT in ORDER and therefore not offered here.
+const STATUS_OPTIONS = ITEM_STATUS_ORDER.map((value) => ({
+  value,
+  label: ITEM_STATUS_CONFIG[value].label,
+}));
 
 const FIELDS = [
   'quantity_ordered',

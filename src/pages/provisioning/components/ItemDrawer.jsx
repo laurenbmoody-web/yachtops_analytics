@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import Drawer from './Drawer';
 import SupplierPicker from './SupplierPicker';
-import { ITEM_STATUS_CONFIG } from '../data/statusConfig';
+import { ITEM_STATUS_CONFIG, ITEM_STATUS_ORDER } from '../data/statusConfig';
 import {
   upsertItems,
   deleteProvisioningItem,
@@ -1103,7 +1103,14 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
           {/* ════ SECTION 6: STATUS ════ */}
           <Section isLight={isLight} label="Status">
             <div className={isLight ? 'idr-pill-row' : ''} style={isLight ? null : { display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {Object.entries(ITEM_STATUS_CONFIG).map(([val, cfg]) => {
+              {/* Iterate ITEM_STATUS_ORDER (picker source — 6 crew-controllable
+                  states), NOT Object.entries(ITEM_STATUS_CONFIG) which would
+                  surface the derive-only states (confirmed / unavailable /
+                  substituted / invoiced / paid / partially_returned). Those
+                  are set by the supplier portal and the invoice flow, not by
+                  crew picking from this drawer. */}
+              {ITEM_STATUS_ORDER.map((val) => {
+                const cfg = ITEM_STATUS_CONFIG[val];
                 const isActive = form.status === val;
                 // hyphenate val ('not_received' -> 'not-received') for the CSS class modifier
                 const statusMod = val.replace(/_/g, '-');
