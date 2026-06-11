@@ -19,8 +19,6 @@ export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd }) {
   const [selectedDate, setSelectedDate] = useState(dateStart || null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { setSelectedDate(dateStart || null); }, [dateStart]);
-
   useEffect(() => {
     if (!snapshotId) { setCrew([]); setWindowShifts([]); setLoading(false); return undefined; }
     let cancelled = false;
@@ -39,6 +37,14 @@ export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd }) {
         shiftType: r.shift_type,
         subType: r.sub_type,
       }));
+      // Anchor the 7-day window to the earliest shift in the snapshot — the
+      // first day actually affected — so the lines land on the real shifts
+      // (date_start can be a submission-metadata date that differs, and "today"
+      // is irrelevant for a historical record). Fall back to date_start.
+      const firstShiftDate = ws
+        .map((s) => s.date)
+        .filter(Boolean)
+        .sort()[0] || dateStart || null;
       const memberIds = [...new Set(ws.map((s) => s.memberId).filter(Boolean))];
       if (!memberIds.length) { if (!cancelled) { setCrew([]); setWindowShifts([]); setLoading(false); } return; }
       const { data: members } = await supabase
@@ -62,10 +68,11 @@ export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd }) {
       }));
       setCrew(mapped);
       setWindowShifts(ws);
+      setSelectedDate(firstShiftDate);
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [snapshotId]);
+  }, [snapshotId, dateStart]);
 
   const realToday = useMemo(() => toLocalStr(new Date()), []);
 
