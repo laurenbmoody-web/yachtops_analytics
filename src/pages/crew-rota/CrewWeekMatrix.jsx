@@ -108,13 +108,14 @@ function cellSummary(memberId, dateStr, windowShifts) {
   };
 }
 
-function DayHeader({ dateStr, isToday, isSelected }) {
+function DayHeader({ dateStr, isToday, isSelected, isAffected }) {
   const d = parseLocal(dateStr);
   const weekend = isWeekend(dateStr);
   const cls = ['cw-day-head'];
   if (isToday) cls.push('is-today');
   if (isSelected) cls.push('is-selected');
   if (weekend) cls.push('is-weekend');
+  if (isAffected) cls.push('is-affected');
   return (
     <div className={cls.join(' ')}>
       <div className="cw-day-head-dow">{WEEKDAY_SHORT[d.getDay()]}</div>
@@ -124,7 +125,7 @@ function DayHeader({ dateStr, isToday, isSelected }) {
   );
 }
 
-function Cell({ summary, dateStr, isToday, isSelected, onClick, ariaLabel }) {
+function Cell({ summary, dateStr, isToday, isSelected, isAffected, onClick, ariaLabel }) {
   const weekend = isWeekend(dateStr);
   const cls = ['cw-c'];
   if (summary.isOff) cls.push('off');
@@ -132,6 +133,7 @@ function Cell({ summary, dateStr, isToday, isSelected, onClick, ariaLabel }) {
   if (weekend && summary.isOff) cls.push('sat');
   if (isToday) cls.push('is-today-col');
   if (isSelected) cls.push('is-selected-col');
+  if (isAffected) cls.push('is-affected');
   if (summary.mlcWarning) cls.push('is-warn');
 
   // Multi-shift display: show up to two ranges stacked. The gap between
@@ -176,7 +178,11 @@ export default function CrewWeekMatrix({
   gridStartHour = 6,
   onCellClick,
   onStepDay,
+  affectedDates = [],
 }) {
+  // Dates to flag as "changed in this submission" (read-only history view).
+  // Empty on the live grid, so this is a no-op there.
+  const affectedSet = useMemo(() => new Set(affectedDates), [affectedDates]);
   // gridStartHour is received here through the same prop path the day grid
   // uses, so when the vessel-configurable boundary lands later, flipping
   // the single source feeds both views together. The matrix is keyed by
@@ -230,6 +236,7 @@ export default function CrewWeekMatrix({
                 dateStr={d}
                 isToday={d === realToday}
                 isSelected={d === selectedDate}
+                isAffected={affectedSet.has(d)}
               />
             ))}
           </div>
@@ -270,6 +277,7 @@ export default function CrewWeekMatrix({
                           dateStr={d}
                           isToday={d === realToday}
                           isSelected={d === selectedDate}
+                          isAffected={affectedSet.has(d)}
                           onClick={() => onCellClick?.(d)}
                           ariaLabel={`${c.name} on ${d}`}
                         />
