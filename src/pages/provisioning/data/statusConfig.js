@@ -128,12 +128,22 @@ export const ITEM_STATUS_ORDER = [
   'returned',
 ];
 
-// Note on `partially_returned`: present in ITEM_STATUS_CONFIG but
-// intentionally NOT in ITEM_STATUS_ORDER. It's a derived display state —
-// the derive function (Phase 3 commit 3) produces it when an item has
-// returns_qty > 0 but < quantity_received. Users don't pick it from a
-// dropdown; it's computed from columns. Excluded from ORDER so the
-// picker UIs don't surface it as a manual choice.
+// Note on derive-only states: several ITEM_STATUS_CONFIG entries below
+// are intentionally NOT in ITEM_STATUS_ORDER (the picker dropdowns iterate
+// ORDER, so anything excluded never appears as a manual choice). These
+// are render-only states produced by deriveDisplayStatus(item,
+// supplierOrderItem, supplierOrder) from columns the user can't pick:
+//
+//   partially_returned  ← provisioning_items.returns_qty > 0 AND
+//                          < quantity_received
+//   confirmed           ← supplier_order_items.status
+//   unavailable         ← supplier_order_items.status
+//   substituted         ← supplier_order_items.status
+//   invoiced            ← supplier_orders.status
+//   paid                ← supplier_orders.status
+//
+// They exist as config entries so the unified pill can render them with
+// the same dual-visual-system shape as every other status.
 
 export const ITEM_STATUS_CONFIG = {
   draft: {
@@ -187,6 +197,50 @@ export const ITEM_STATUS_CONFIG = {
     cell:  { bg: 'rgba(249,115,22,0.15)', color: '#C2410C' },
     dotClassName: 'bg-orange-500',
   },
+  // DERIVE-ONLY — read from supplier_order_items.status. The supplier
+  // confirmed they can fulfil. Green palette matches the SUPPLIER_BADGE
+  // it replaces in ProvisioningBoardDetail; same visual semantic
+  // (success / confirmed).
+  confirmed: {
+    label: 'Confirmed',
+    badge: { bg: '#D1FAE5', color: '#065F46', border: '#A7F3D0', dot: '#34D399' },
+    cell:  { bg: 'rgba(52,211,153,0.18)', color: '#059669' },
+    dotClassName: 'bg-emerald-500',
+  },
+  // DERIVE-ONLY — supplier said no. Lighter red than not_received so the
+  // two reds read as distinct phases (supplier-side refusal vs delivery
+  // failure). Same hue family, different lightness.
+  unavailable: {
+    label: 'Unavailable',
+    badge: { bg: '#FEE2E2', color: '#991B1B', border: '#FECACA', dot: '#FCA5A5' },
+    cell:  { bg: 'rgba(252,165,165,0.25)', color: '#991B1B' },
+    dotClassName: 'bg-red-400',
+  },
+  // DERIVE-ONLY — supplier sent a substitute. Yellow-amber, lighter than
+  // partial so the two reads as distinct phases.
+  substituted: {
+    label: 'Substituted',
+    badge: { bg: '#FEF3C7', color: '#92400E', border: '#FDE68A', dot: '#FCD34D' },
+    cell:  { bg: 'rgba(252,211,77,0.20)', color: '#92400E' },
+    dotClassName: 'bg-yellow-400',
+  },
+  // DERIVE-ONLY — read from supplier_orders.status. Order-level (all items
+  // on the same order share this). Indigo palette — admin/document
+  // semantic distinct from the green/red of physical states.
+  invoiced: {
+    label: 'Invoiced',
+    badge: { bg: '#EEF2FF', color: '#4338CA', border: '#C7D2FE', dot: '#818CF8' },
+    cell:  { bg: 'rgba(129,140,248,0.18)', color: '#4338CA' },
+    dotClassName: 'bg-indigo-500',
+  },
+  // DERIVE-ONLY — read from supplier_orders.status. Deeper emerald than
+  // `confirmed` (same hue family, terminal close-out).
+  paid: {
+    label: 'Paid',
+    badge: { bg: '#ECFDF5', color: '#047857', border: '#A7F3D0', dot: '#34D399' },
+    cell:  { bg: 'rgba(52,211,153,0.18)', color: '#047857' },
+    dotClassName: 'bg-emerald-600',
+  },
 };
 
 // Safe accessor — same console.warn shape as getBoardStatusConfig above.
@@ -202,4 +256,60 @@ export const getItemStatusConfig = (status) => {
     cell:  { bg: 'rgba(100,116,139,0.15)', color: '#94A3B8' },
     dotClassName: 'bg-slate-400',
   };
+};
+
+// Derive the single status value to display for an item, reading across
+// three source tables. Produces one of the 11 ITEM_STATUS_CONFIG keys.
+// Callers pipe this through getItemStatusConfig to get the rendered pill.
+//
+// Roll-forward semantics: the latest meaningful stage wins, with two
+// exceptions where the boat-side physical fact takes precedence over
+// any financial close-out:
+//
+//   Physical-precedence statuses (override invoiced/paid):
+//     returned             — full return processed
+//     not_received         — supplier failed delivery (the user must see
+//                            this even if the order was paid for)
+//     partially_returned   — derived from returns_qty 0 < x < received
+//
+//   Financial close-out (replaces 'received' and 'partial' as the latest
+//   stage):
+//     paid                 — supplier_orders.status = 'paid'
+//     invoiced             — supplier_orders.status = 'invoiced'
+//
+//   Pre-close-out physical:
+//     received, partial    — provisioning_items.status
+//
+//   Supplier response (only relevant before delivery):
+//     confirmed, unavailable, substituted   — supplier_order_items.status
+//
+//   Pre-response:
+//     ordered, draft       — provisioning_items.status
+//
+// supplierOrderItem and supplierOrder are both optional — items not
+// linked to an order (e.g. board items that haven't been dispatched yet)
+// pass undefined and the function falls through to the raw item.status.
+export const deriveDisplayStatus = (item, supplierOrderItem, supplierOrder) => {
+  if (!item) return 'draft';
+
+  // Physical post-receipt actions the user MUST see regardless of close-out.
+  if (item.status === 'returned')     return 'returned';
+  if (item.status === 'not_received') return 'not_received';
+  if (Number(item.returns_qty) > 0)   return 'partially_returned';
+
+  // Financial close-out replaces 'received' / 'partial' as the latest stage.
+  if (supplierOrder?.status === 'paid')     return 'paid';
+  if (supplierOrder?.status === 'invoiced') return 'invoiced';
+
+  // Pre-close-out physical receipt state.
+  if (item.status === 'received') return 'received';
+  if (item.status === 'partial')  return 'partial';
+
+  // Supplier response — only relevant before delivery.
+  if (supplierOrderItem && ['confirmed', 'unavailable', 'substituted'].includes(supplierOrderItem.status)) {
+    return supplierOrderItem.status;
+  }
+
+  // Pre-response: ordered (dispatched, awaiting supplier) or draft (on board).
+  return item.status;
 };
