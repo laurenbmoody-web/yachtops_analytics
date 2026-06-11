@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import Icon from '../../components/AppIcon';
-import { supabase } from '../../lib/supabaseClient';
 import { fmtDateRange } from './reviewFormat';
+import SnapshotRotaLines from './SnapshotRotaLines';
 
 // ResolvedDetail — read-only right-pane view for a History (resolved) item.
 // No rota grid, no actions: just the outcome and the submission's metadata.
@@ -23,33 +23,6 @@ function fmtWhen(iso) {
 }
 
 export default function ResolvedDetail({ item }) {
-  // Crew affected by this submission, read from the snapshot frozen at submit
-  // time (the live rota may have changed since). Fetched lazily for the
-  // selected item only — never blocks the pane.
-  const [affected, setAffected] = useState(null); // null = loading/unknown; [] = none
-  const snapshotId = item?.snapshot_id || null;
-  useEffect(() => {
-    if (!snapshotId) { setAffected(null); return undefined; }
-    let cancelled = false;
-    (async () => {
-      const { data: snap } = await supabase
-        .from('rota_shift_snapshots').select('shift_data').eq('id', snapshotId).maybeSingle();
-      const rows = Array.isArray(snap?.shift_data) ? snap.shift_data : [];
-      const memberIds = [...new Set(rows.map((r) => r?.member_id).filter(Boolean))];
-      if (!memberIds.length) { if (!cancelled) setAffected([]); return; }
-      const { data: members } = await supabase
-        .from('tenant_members')
-        .select('id, display_name, profiles ( full_name )')
-        .in('id', memberIds);
-      if (cancelled) return;
-      const names = (members || [])
-        .map((m) => m.display_name || m.profiles?.full_name || 'Unknown')
-        .sort((a, b) => a.localeCompare(b));
-      setAffected(names);
-    })();
-    return () => { cancelled = true; };
-  }, [snapshotId]);
-
   if (!item) return null;
   const o = OUTCOME[item.status] || { label: item.status || 'Resolved', cls: '', icon: 'Info' };
   const range = fmtDateRange(item.date_start, item.date_end);
@@ -75,12 +48,6 @@ export default function ResolvedDetail({ item }) {
           <dt>Coverage</dt>
           <dd>{range ? `${range} · ${counts}` : counts}</dd>
         </div>
-        {affected && affected.length > 0 && (
-          <div>
-            <dt>Crew affected</dt>
-            <dd>{affected.join(', ')}</dd>
-          </div>
-        )}
         <div>
           <dt>Decided</dt>
           <dd>{fmtWhen(item.decided_at) || '—'}</dd>
@@ -92,6 +59,12 @@ export default function ResolvedDetail({ item }) {
           </div>
         )}
       </dl>
+
+      <SnapshotRotaLines
+        snapshotId={item.snapshot_id}
+        dateStart={item.date_start}
+        dateEnd={item.date_end}
+      />
     </div>
   );
 }
