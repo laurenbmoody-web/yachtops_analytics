@@ -224,13 +224,14 @@ export default function RotaWorkspace({
       departmentId: crewMember.departmentId,
       vesselId: rota.vesselId,
       tenantId: activeTenantId,
+      tier,
     });
     if (!res.ok && res.reason === 'no-init') {
       showToast('Department status not initialized — ask a CHIEF or COMMAND to enable editing.');
     } else if (!res.ok && res.reason === 'error') {
       showToast(`Couldn’t update department state: ${res.detail || 'unknown error'}`);
     }
-  }, [ensureDraft, rota, activeTenantId, showToast]);
+  }, [ensureDraft, rota, activeTenantId, showToast, tier]);
 
   // Single paint handler — single click (lo === hi) and drag ranges both.
   const handlePaint = useCallback(async (crewMember, loSlot, hiSlot) => {
@@ -293,16 +294,26 @@ export default function RotaWorkspace({
       snapshotRef.current = null;
       return;
     }
-    snapshotRef.current = { rotaId: rota.id, memberIds, rows: data || [] };
+    snapshotRef.current = { rotaId: rota.id, deptId: footerDeptId, memberIds, rows: data || [] };
   }, [rota, footerDeptId, crew]);
 
   // Restore the dept to the snapshot: clear the current scope, reinsert the
-  // captured rows (original ids preserved so any FK references survive).
+  // captured rows (original ids preserved so any FK references survive). Also
+  // clears any has_unpublished_changes flag raised during the discarded session
+  // (editing a published dept sets it; a discard must unset it). No-op on
+  // non-published depts.
   const restoreSnapshot = useCallback(async (snap) => {
-    if (!snap?.rotaId || !snap.memberIds?.length) return;
-    await supabase.from('rota_shifts').delete()
-      .eq('rota_id', snap.rotaId).in('member_id', snap.memberIds);
-    if (snap.rows.length) await supabase.from('rota_shifts').insert(snap.rows);
+    if (!snap?.rotaId) return;
+    if (snap.memberIds?.length) {
+      await supabase.from('rota_shifts').delete()
+        .eq('rota_id', snap.rotaId).in('member_id', snap.memberIds);
+      if (snap.rows.length) await supabase.from('rota_shifts').insert(snap.rows);
+    }
+    if (snap.deptId) {
+      await supabase.rpc('mark_dept_unpublished_changes', {
+        p_rota_id: snap.rotaId, p_department_id: snap.deptId, p_changed: false,
+      }).then(() => {}).catch(() => {});
+    }
   }, []);
 
   const beginEditMode = useCallback(async () => {
@@ -322,7 +333,10 @@ export default function RotaWorkspace({
     // to revert, and the warning would just be noise.
     if (mode === 'submitter' && tier === 'HOD' && footerDeptId) {
       const status = statusByDept.get(footerDeptId)?.status;
-      if (status === 'pending_approval' || status === 'published') {
+      // Only pending_approval still reverts to draft on edit (pulling it from
+      // review) — worth the warning. A published dept now stays published and
+      // just flags "unpublished changes" (Model B), so no scary modal there.
+      if (status === 'pending_approval') {
         const deptIds = new Set(
           crew.filter((c) => c.departmentId === footerDeptId).map((c) => c.id),
         );

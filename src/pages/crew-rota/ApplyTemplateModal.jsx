@@ -2514,7 +2514,7 @@ export default function ApplyTemplateModal({
     for (const departmentId of affectedDeptIds) {
       // eslint-disable-next-line no-await-in-loop
       const er = await ensureDraft({
-        departmentId, vesselId: rota.vesselId, tenantId: rota.tenantId,
+        departmentId, vesselId: rota.vesselId, tenantId: rota.tenantId, tier,
       });
       if (!er.ok && er.reason === 'no-init') {
         onToast?.('Department status not initialized — ask a CHIEF or COMMAND to enable editing.');

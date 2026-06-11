@@ -976,6 +976,7 @@
 .rota-dept-badge.st-draft            { background: #FAECE7; color: #7A2E1E; }
 .rota-dept-badge.st-pending_approval { background: #FBEFD2; color: #8A6D1A; }
 .rota-dept-badge.st-published        { background: #E8F1E9; color: #2D5A3A; }
+.rota-dept-badge.st-unpublished      { background: #FBEFD2; color: #8A6D1A; margin-left: 6px; }
 
 /* Footer CTA group (edit mode). */
 .crew-rota-cta {

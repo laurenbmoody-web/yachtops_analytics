@@ -299,7 +299,7 @@ const DEPT_BADGE_LABEL = {
 
 function DepartmentSection({
   deptName, crew, gridStartHour, onCrewClick,
-  editMode = false, deptStatusRow,
+  editMode = false, deptStatusRow, canSeeUnpublished = false,
   onCellPointerDown, onCellPointerEnter, onCellKey, drag,
   highlightSlots, viewDate,
 }) {
@@ -307,6 +307,11 @@ function DepartmentSection({
   const badge = deptStatusRow?.status
     ? (DEPT_BADGE_LABEL[deptStatusRow.status] || deptStatusRow.status)
     : null;
+  // A published dept with edits not yet re-published — shown only to the
+  // dept's CHIEF / owning HOD / COMMAND (canSeeUnpublished).
+  const showUnpublished = deptStatusRow?.status === 'published'
+    && deptStatusRow?.hasUnpublishedChanges
+    && canSeeUnpublished;
   return (
     <div className="rota-dept-group">
       <div
@@ -321,6 +326,11 @@ function DepartmentSection({
         {badge && (
           <div className={`rota-dept-badge st-${deptStatusRow.status}`}>
             {badge}
+          </div>
+        )}
+        {showUnpublished && (
+          <div className="rota-dept-badge st-unpublished" title="Edits made since this rota was published — not yet re-published">
+            Unpublished changes
           </div>
         )}
         {crew.map(c => (
@@ -414,6 +424,11 @@ export default function RotaTodayGrid({
   // visually misleading (the data isn't from today).
   const showNow = now != null;
   const { user, currentUser, tenantRole } = useAuth();
+
+  // Who may see a dept's "unpublished changes" badge: COMMAND (any dept), or
+  // the CHIEF / owning HOD of that dept (i.e. the viewer's own department).
+  const viewerTier = String(user?.permission_tier || tenantRole || '').toUpperCase();
+  const viewerDeptId = currentUser?.department_id || null;
 
   // ── Paint-brush drag ──────────────────────────────────────────────────────
   // Pointer down → begin; pointer enter cells in the SAME row → extend
@@ -520,6 +535,7 @@ export default function RotaTodayGrid({
               onCellKey={onCellKey}
               drag={drag}
               deptStatusRow={deptId && deptStatus ? deptStatus.get(deptId) : null}
+              canSeeUnpublished={viewerTier === 'COMMAND' || (!!viewerDeptId && viewerDeptId === deptId)}
               highlightSlots={highlightSlots}
               viewDate={viewDate}
             />
