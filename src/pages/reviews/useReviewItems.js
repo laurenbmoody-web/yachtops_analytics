@@ -143,6 +143,7 @@ async function loadOne(item) {
     decided_by: item.decided_by || null,
     rota_id: rotaId || null,
     department_id: departmentId || null,
+    snapshot_id: ctx.snapshot_id || null,
     rota_name: ctx.rota_name || null,
     department_name: ctx.department_name || null,
     submitter_name: ctx.submitter_name || null,
