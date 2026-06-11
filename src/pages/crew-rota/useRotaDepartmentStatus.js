@@ -67,19 +67,47 @@ export function useRotaDepartmentStatus(rotaId) {
   //
   // Returns { ok, reason? }. Never throws.
   const ensureDraft = useCallback(
-    async ({ departmentId, vesselId, tenantId }) => {
+    async ({ departmentId, vesselId, tenantId, tier }) => {
       if (!rotaId || !departmentId) return { ok: false, reason: 'no-context' };
 
-      // Read current entry (closure value; fine for our purposes).
+      // Snapshot current entry (closure value; fine for our purposes).
       let existing = null;
+      setStatusByDept((prev) => { existing = prev.get(departmentId) || null; return prev; });
+
+      // Model B: a HOD editing a PUBLISHED dept keeps it published and flags
+      // unpublished changes (the live rota stays live), rather than reverting
+      // to draft. Only HOD — CHIEF/COMMAND keep the revert-to-draft path below,
+      // so their direct-publish flow is unchanged. Needs the RPC because the
+      // HOD RLS clamps status updates to draft/pending_approval.
+      if (tier === 'HOD' && existing && existing.status === 'published') {
+        if (existing.hasUnpublishedChanges) return { ok: true, noop: true };
+        setStatusByDept((prev) => {
+          const cur = prev.get(departmentId);
+          if (!cur) return prev;
+          const m = new Map(prev);
+          m.set(departmentId, { ...cur, hasUnpublishedChanges: true });
+          return m;
+        });
+        const { error: rpcErr } = await supabase.rpc('mark_dept_unpublished_changes', {
+          p_rota_id: rotaId,
+          p_department_id: departmentId,
+        });
+        if (rpcErr) {
+          refetch();
+          return { ok: false, reason: 'error', detail: rpcErr.message };
+        }
+        return { ok: true };
+      }
+
+      // Otherwise: optimistically set the badge to 'draft', then write.
       setStatusByDept((prev) => {
-        existing = prev.get(departmentId) || null;
-        if (existing && existing.status === 'draft') return prev; // no-op
+        const cur = prev.get(departmentId) || null;
+        if (cur && cur.status === 'draft') return prev; // no-op
         const m = new Map(prev);
         m.set(departmentId, {
-          id: existing?.id ?? `tmp-${Math.random().toString(36).slice(2, 10)}`,
+          id: cur?.id ?? `tmp-${Math.random().toString(36).slice(2, 10)}`,
           status: 'draft',
-          hasUnpublishedChanges: existing?.hasUnpublishedChanges ?? true,
+          hasUnpublishedChanges: cur?.hasUnpublishedChanges ?? true,
         });
         return m;
       });
