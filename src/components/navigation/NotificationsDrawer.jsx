@@ -73,6 +73,16 @@ const NotificationsDrawer = ({ isOpen, onClose }) => {
 
   const getNotificationIcon = (type) => {
     switch (type) {
+      // DB-backed (cross-device) notification types — plain string literals,
+      // not in the localStorage NOTIFICATION_TYPES enum.
+      case 'ROTA_ACCEPTED':
+        return 'CheckCircle';
+      case 'ROTA_REJECTED':
+        return 'XCircle';
+      case 'ROTA_SUBMITTED':
+        return 'Inbox';
+      case 'RETURN_CONFIRMED':
+        return 'PackageCheck';
       case NOTIFICATION_TYPES?.JOB_PENDING_ACCEPTANCE:
         return 'Clock';
       case NOTIFICATION_TYPES?.JOB_HANDOFF_ACCEPTED:
