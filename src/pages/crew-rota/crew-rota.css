@@ -1032,6 +1032,21 @@
   );
 }
 
+/* Reviewer-edited cell — pulses when the HOD arrives from an "accepted with
+   edits" notification (?changed= deep link) so the chief's changes are
+   findable at a glance. Terracotta ring + gentle opacity pulse; settles
+   after ~6 cycles so it doesn't nag forever. */
+@keyframes rota-changed-pulse {
+  0%, 100% { box-shadow: 0 0 0 1.5px #C65A1A; opacity: 1; }
+  50%      { box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.45); opacity: 0.75; }
+}
+.rota-c.is-changed {
+  animation: rota-changed-pulse 1.2s ease-in-out 6;
+  box-shadow: 0 0 0 1.5px #C65A1A;
+  position: relative;
+  z-index: 1;
+}
+
 /* Transient toast (no notification integration in Phase 1). */
 .crew-rota-toast {
   position: fixed;

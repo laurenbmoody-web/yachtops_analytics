@@ -98,13 +98,13 @@ export default function ReviewRightPane({ item, onToast, onResolved }) {
 
   // Notify the submitting HOD of the decision (best-effort, client-side insert
   // into the same notifications table the rest of the app uses).
-  const notifySubmitter = (type, title, message, severity = SEVERITY.INFO) => {
+  const notifySubmitter = (type, title, message, severity = SEVERITY.INFO, actionUrl = '/crew') => {
     if (!item?.submitter_id) return;
     // The nav-bar bell reads the localStorage notification channel
     // (team-jobs util via getUserNotifications/getUnreadCount) — not the DB
     // table — so the submitter sees the decision there. Tagged with the
     // submitter's auth UUID, which is what the bell's unread count matches.
-    sendNotification(item.submitter_id, { type, title, message, actionUrl: '/crew', severity });
+    sendNotification(item.submitter_id, { type, title, message, actionUrl, severity });
   };
 
   // Self-heal a drifted department before a decision. If an edit (legacy bug,
@@ -143,6 +143,10 @@ export default function ReviewRightPane({ item, onToast, onResolved }) {
       overrideNote
         ? `Your ${deptCopy} rota was ${base} — hours breach signed off by the reviewer.`
         : `Your ${deptCopy} rota was ${base}.`,
+      SEVERITY.INFO,
+      // Accepted-with-edits deep-links to /crew with the changed cells pulsing
+      // (snapshot diff via ?changed=) so the HOD sees exactly what was edited.
+      withEdits ? `/crew?changed=${item.rota_id}:${item.department_id}` : '/crew',
     );
     onResolved?.(item.id);
   };

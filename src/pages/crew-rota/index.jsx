@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import { useAuth } from '../../contexts/AuthContext';
 import '../pantry/pantry.css';
 import './crew-rota.css';
 import RotaWorkspace, { fullDateLabel, weekRangeLabel } from './RotaWorkspace';
+import { computeReviewerEdits } from './reviewerEditsDiff';
 import { useCurrentRota } from './useCurrentRota';
 import { usePendingReviewCount } from './usePendingReviewCount';
 import {
@@ -143,6 +144,29 @@ export default function CrewRotaPage() {
   const { count: pendingReviewCount } = usePendingReviewCount(rota?.id);
   const showPendingReviewNotice =
     pendingReviewCount > 0 && (tier === 'CHIEF' || tier === 'COMMAND');
+
+  // ?changed=<rotaId>:<deptId> — set by the "accepted with edits"
+  // notification. Diff the submitted vs approved snapshots and pulse the
+  // cells the reviewer changed, opening on the first changed day so the
+  // HOD lands straight on the edits.
+  const [searchParams] = useSearchParams();
+  const changedParam = searchParams.get('changed');
+  const [reviewerEdits, setReviewerEdits] = useState(null); // null | { ids, dates }
+  useEffect(() => {
+    if (!changedParam) { setReviewerEdits(null); return undefined; }
+    const [cRota, cDept] = changedParam.split(':');
+    if (!cRota || !cDept) { setReviewerEdits(null); return undefined; }
+    let cancelled = false;
+    (async () => {
+      const diff = await computeReviewerEdits(supabase, { rotaId: cRota, departmentId: cDept });
+      if (cancelled) return;
+      setReviewerEdits(diff);
+      if (diff.ids.size === 0) {
+        showToast('Couldn’t locate the reviewer’s edits — showing the rota as published.');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [changedParam, showToast]);
 
   // Submitter footer dept context — the acting user's own dept.
   const targetDeptId = currentUser?.department_id || null;
@@ -292,9 +316,15 @@ export default function CrewRotaPage() {
         </button>
 
         <RotaWorkspace
+          // initialDate is read once at mount, but the reviewer-edits diff
+          // resolves async — key the workspace on the first changed day so it
+          // remounts opening there when the diff lands.
+          key={reviewerEdits?.dates?.[0] || 'default'}
           rota={rota}
           departmentId={null}
           mode="submitter"
+          initialDate={reviewerEdits?.dates?.[0] || null}
+          highlightShiftIds={reviewerEdits?.ids?.size ? reviewerEdits.ids : null}
           onToast={showToast}
           header={renderHeader}
           footer={renderFooter}

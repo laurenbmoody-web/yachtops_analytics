@@ -79,6 +79,7 @@ export default function RotaWorkspace({
   // eslint-disable-next-line no-unused-vars
   baselineSnapshot = null,
   initialDate = null,
+  highlightShiftIds = null,
   onToast,
   header,
   footer,
@@ -499,6 +500,7 @@ export default function RotaWorkspace({
               editMode={editMode}
               onPaint={handlePaint}
               deptStatus={statusByDept}
+              highlightShiftIds={highlightShiftIds}
             />
           ) : (
             <CrewListView crew={crew} onCrewClick={setSelectedCrew} />
