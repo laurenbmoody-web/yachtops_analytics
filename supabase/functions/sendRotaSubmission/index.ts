@@ -75,6 +75,35 @@ async function supaInsert(table: string, rows: unknown[]) {
   }).catch(() => {});
 }
 
+// Resolve recipient emails. profiles.email first (a contact address that may be
+// unset for some accounts — e.g. invited chiefs); fall back to the canonical
+// auth login email via the admin API, which is always present.
+async function resolveEmails(ids: string[]): Promise<string[]> {
+  if (!ids.length) return [];
+  const profiles = await supaGet(`profiles?id=in.(${ids.join(',')})&select=id,email`) || [];
+  const byId = new Map<string, string>(
+    (profiles as { id: string; email: string }[]).map((p) => [p.id, p.email]),
+  );
+  const out: string[] = [];
+  for (const id of ids) {
+    let email = byId.get(id) || '';
+    if (!email) {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${id}`, {
+        headers: {
+          apikey: SUPABASE_SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+      }).catch(() => null);
+      if (res && res.ok) {
+        const u = await res.json().catch(() => null);
+        email = u?.email || '';
+      }
+    }
+    if (email) out.push(email);
+  }
+  return [...new Set(out)];
+}
+
 function renderEmail({ dept, rotaName, submitter, shiftCount, ctaUrl }: {
   dept: string; rotaName: string; submitter: string; shiftCount: number | null; ctaUrl: string;
 }): string {
@@ -178,12 +207,8 @@ Deno.serve(async (req: Request) => {
 
     // (2) Courtesy email to all recipients (best-effort).
     if (RESEND_API_KEY) {
-      const profiles = await supaGet(
-        `profiles?id=in.(${recipientIds.join(',')})&select=email`,
-      ) || [];
-      const emails = [...new Set(
-        profiles.map((p: { email: string }) => p.email).filter(Boolean),
-      )] as string[];
+      const emails = await resolveEmails(recipientIds);
+      console.log(`[sendRotaSubmission] recipients=${recipientIds.length} emails=${emails.length}`);
       if (emails.length) {
         const html = renderEmail({
           dept, rotaName, submitter, shiftCount, ctaUrl: `${SITE_URL}/reviews`,
@@ -198,11 +223,11 @@ Deno.serve(async (req: Request) => {
             html,
           }),
         });
-        if (!resendRes.ok) {
-          const d = await resendRes.json().catch(() => ({}));
-          console.warn('[sendRotaSubmission] Resend error', resendRes.status, JSON.stringify(d));
-        }
+        const rd = await resendRes.json().catch(() => ({}));
+        console.log('[sendRotaSubmission] Resend status', resendRes.status, JSON.stringify(rd));
       }
+    } else {
+      console.warn('[sendRotaSubmission] RESEND_API_KEY missing — email skipped');
     }
 
     return new Response(JSON.stringify({ ok: true, notified: recipientIds.length }), {
