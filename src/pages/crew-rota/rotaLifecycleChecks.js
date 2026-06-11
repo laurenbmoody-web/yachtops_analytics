@@ -67,3 +67,37 @@ export async function getDraftShiftCount(rotaId, tenantId, departmentId) {
   }
   return { ok: true, count: count || 0 };
 }
+
+// getDraftDayCount(rotaId, tenantId, departmentId)
+//   Returns the DISTINCT draft shift_date values for the (rota, dept) pair
+//   across the WHOLE rota (not a loaded window). Used by the submit footer
+//   label so "Submit for approval (N days)" reflects every draft day, not just
+//   the ±6-day view. Returns { ok, days: string[] } (deduped date strings).
+export async function getDraftDayCount(rotaId, tenantId, departmentId) {
+  if (!rotaId || !tenantId || !departmentId) return { ok: false, error: 'missing-context' };
+  const { data: members, error: mErr } = await supabase
+    .from('tenant_members')
+    .select('id')
+    .eq('tenant_id', tenantId)
+    .eq('department_id', departmentId)
+    .eq('active', true);
+  if (mErr) {
+    console.error('[getDraftDayCount] tenant_members fetch failed:', mErr);
+    return { ok: false, error: mErr.message || String(mErr) };
+  }
+  const memberIds = (members || []).map((m) => m.id);
+  if (memberIds.length === 0) return { ok: true, days: [] };
+  const { data, error: sErr } = await supabase
+    .from('rota_shifts')
+    .select('shift_date')
+    .eq('rota_id', rotaId)
+    .eq('status', 'draft')
+    .in('member_id', memberIds);
+  if (sErr) {
+    console.error('[getDraftDayCount] rota_shifts fetch failed:', sErr);
+    return { ok: false, error: sErr.message || String(sErr) };
+  }
+  const days = [...new Set((data || []).map((r) => r.shift_date).filter(Boolean))];
+  return { ok: true, days };
+}
+
