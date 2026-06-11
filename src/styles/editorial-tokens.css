@@ -137,11 +137,10 @@
   --d-success:      var(--d-sage-deep);
   --d-success-soft: var(--d-status-received-bg);
 
-  /* Status tokens — see comment block in header. Closed set. */
+  /* Status tokens — see comment block in header. Closed set, mirrors the
+     ITEM_STATUS_ORDER picker source in data/statusConfig.js. */
   --d-status-draft-bg:         #EEF0F4;
   --d-status-draft-fg:         #7C7E9B;
-  --d-status-to-order-bg:      #DBE4FF;
-  --d-status-to-order-fg:      #1E40AF;
   --d-status-ordered-bg:       #E0E0FF;
   --d-status-ordered-fg:       #4338CA;
   --d-status-received-bg:      #E8F5EE;
@@ -150,4 +149,10 @@
   --d-status-partial-fg:       #C65A1A;
   --d-status-not-received-bg:  #FCEBEB;
   --d-status-not-received-fg:  #A32D2D;
+  --d-status-returned-bg:      #F1F5F9;
+  --d-status-returned-fg:      #475569;
+  --d-status-invoiced-bg:      #EEF2FF;
+  --d-status-invoiced-fg:      #4338CA;
+  --d-status-paid-bg:          #ECFDF5;
+  --d-status-paid-fg:          #047857;
 }

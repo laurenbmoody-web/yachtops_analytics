@@ -126,6 +126,8 @@ export const ITEM_STATUS_ORDER = [
   'partial',
   'not_received',
   'returned',
+  'invoiced',
+  'paid',
 ];
 
 // FILTER source — every state that can appear on an item, including
@@ -176,8 +178,11 @@ export const ITEM_STATUS_FILTER_ORDER = [
 //   confirmed           ← supplier_order_items.status
 //   unavailable         ← supplier_order_items.status
 //   substituted         ← supplier_order_items.status
-//   invoiced            ← supplier_orders.status
-//   paid                ← supplier_orders.status
+//
+// invoiced and paid are picker-controllable (in ORDER) — users with
+// non-Cargo suppliers manually mark items as invoiced/paid themselves.
+// The derive function also surfaces them from the order-level
+// supplier_orders.status enum for the Cargo-supplier path.
 
 export const ITEM_STATUS_CONFIG = {
   draft: {
@@ -296,54 +301,53 @@ export const getItemStatusConfig = (status) => {
 // three source tables. Produces one of the 11 ITEM_STATUS_CONFIG keys.
 // Callers pipe this through getItemStatusConfig to get the rendered pill.
 //
-// Roll-forward semantics: the latest meaningful stage wins, with two
-// exceptions where the boat-side physical fact takes precedence over
-// any financial close-out:
+// Precedence (highest first):
 //
-//   Physical-precedence statuses (override invoiced/paid):
-//     returned             — full return processed
-//     not_received         — supplier failed delivery (the user must see
-//                            this even if the order was paid for)
-//     partially_returned   — derived from returns_qty 0 < x < received
+//   1. Manual stew choice for terminal/financial states wins. If the
+//      stew has explicitly set item.status to 'paid' / 'invoiced' /
+//      'returned' / 'not_received', that's the authoritative state
+//      regardless of order-level signal (covers non-Cargo suppliers
+//      where the stew tracks the financial flow themselves).
 //
-//   Financial close-out (replaces 'received' and 'partial' as the latest
-//   stage):
-//     paid                 — supplier_orders.status = 'paid'
-//     invoiced             — supplier_orders.status = 'invoiced'
+//   2. returns_qty signal — derives 'partially_returned'.
 //
-//   Pre-close-out physical:
-//     received, partial    — provisioning_items.status
+//   3. Order-level financial close-out (Cargo supplier path) replaces
+//      'received'/'partial' as the latest stage: supplier_orders.status
+//      = 'paid' or 'invoiced'.
 //
-//   Supplier response (only relevant before delivery):
-//     confirmed, unavailable, substituted   — supplier_order_items.status
+//   4. Physical receipt without close-out: 'received', 'partial'.
 //
-//   Pre-response:
-//     ordered, draft       — provisioning_items.status
+//   5. Supplier response (pre-delivery): 'confirmed', 'unavailable',
+//      'substituted' from supplier_order_items.status.
+//
+//   6. Pre-response: raw item.status (ordered / draft).
 //
 // supplierOrderItem and supplierOrder are both optional — items not
-// linked to an order (e.g. board items that haven't been dispatched yet)
-// pass undefined and the function falls through to the raw item.status.
+// linked to an order pass undefined and the function falls through.
 export const deriveDisplayStatus = (item, supplierOrderItem, supplierOrder) => {
   if (!item) return 'draft';
 
-  // Physical post-receipt actions the user MUST see regardless of close-out.
-  if (item.status === 'returned')     return 'returned';
-  if (item.status === 'not_received') return 'not_received';
-  if (Number(item.returns_qty) > 0)   return 'partially_returned';
+  // 1. Manual stew choice for terminal/financial states.
+  if (['paid', 'invoiced', 'returned', 'not_received'].includes(item.status)) {
+    return item.status;
+  }
 
-  // Financial close-out replaces 'received' / 'partial' as the latest stage.
+  // 2. Returns_qty signal — partial returns.
+  if (Number(item.returns_qty) > 0) return 'partially_returned';
+
+  // 3. Order-level financial close-out (Cargo supplier path).
   if (supplierOrder?.status === 'paid')     return 'paid';
   if (supplierOrder?.status === 'invoiced') return 'invoiced';
 
-  // Pre-close-out physical receipt state.
+  // 4. Physical receipt state.
   if (item.status === 'received') return 'received';
   if (item.status === 'partial')  return 'partial';
 
-  // Supplier response — only relevant before delivery.
+  // 5. Supplier response — only relevant before delivery.
   if (supplierOrderItem && ['confirmed', 'unavailable', 'substituted'].includes(supplierOrderItem.status)) {
     return supplierOrderItem.status;
   }
 
-  // Pre-response: ordered (dispatched, awaiting supplier) or draft (on board).
+  // 6. Pre-response: ordered (dispatched, awaiting supplier) or draft (on board).
   return item.status;
 };

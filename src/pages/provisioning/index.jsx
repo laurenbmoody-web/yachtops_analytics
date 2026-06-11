@@ -4,7 +4,7 @@ import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
-import { ITEM_STATUS_CONFIG, ITEM_STATUS_FILTER_ORDER } from './data/statusConfig';
+import { ITEM_STATUS_CONFIG, ITEM_STATUS_FILTER_ORDER, deriveDisplayStatus } from './data/statusConfig';
 import BoardColumn from './components/BoardColumn';
 import BoardDrawer from './components/BoardDrawer';
 import ItemDrawer from './components/ItemDrawer';
@@ -16,6 +16,7 @@ import CopyBoardPicker from './components/CopyBoardPicker';
 import {
   fetchProvisioningLists,
   fetchListItems,
+  fetchSupplierOrdersForLists,
   createProvisioningList,
   deleteProvisioningList,
   updateProvisioningList,
@@ -343,6 +344,10 @@ const ProvisioningWorkspace = () => {
   // Data
   const [lists, setLists] = useState([]);
   const [itemsByList, setItemsByList] = useState({});
+  // supplier_orders keyed by list_id. Fed to the kanban so each ItemCard
+  // can run deriveDisplayStatus and surface confirmed/unavailable/
+  // substituted/invoiced/paid the same way the items table does.
+  const [supplierOrdersByList, setSupplierOrdersByList] = useState({});
   const [trips, setTrips] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -766,12 +771,61 @@ const ProvisioningWorkspace = () => {
 
   // ── Filtering ────────────────────────────────────────────────────────────
 
+  // Per-list itemStatusMap (keyed by lowered item.name → supplier entry +
+  // parentOrder ref). Built once whenever supplierOrdersByList changes;
+  // consumed by getFilteredItems for derive-aware filtering and threaded
+  // to BoardColumn for derive-aware pill rendering.
+  const itemStatusMapByList = useMemo(() => {
+    const result = {};
+    Object.entries(supplierOrdersByList).forEach(([listId, orders]) => {
+      const map = {};
+      (orders || []).forEach((order) => {
+        (order.supplier_order_items || []).forEach((oi) => {
+          const key = (oi.item_name || '').toLowerCase().trim();
+          if (!map[key]) {
+            map[key] = {
+              status: oi.status,
+              substitution: oi.substitute_description,
+              subPrice: oi.substitution_price,
+              parentOrder: order,
+            };
+          }
+        });
+      });
+      result[listId] = map;
+    });
+    return result;
+  }, [supplierOrdersByList]);
+
+  // Fetch supplier_orders for visible lists. Refreshes whenever the list
+  // set changes (board added/deleted, navigation between tenants, etc).
+  useEffect(() => {
+    const listIds = lists.map(l => l.id).filter(Boolean);
+    if (listIds.length === 0) {
+      setSupplierOrdersByList({});
+      return;
+    }
+    let cancelled = false;
+    fetchSupplierOrdersForLists(listIds)
+      .then(data => { if (!cancelled) setSupplierOrdersByList(data); })
+      .catch(err => console.error('[provisioning workspace] fetchSupplierOrdersForLists error:', err));
+    return () => { cancelled = true; };
+  }, [lists]);
+
   const getFilteredItems = useCallback((listId) => {
     const items = itemsByList[listId] || [];
+    const supplierMap = itemStatusMapByList[listId] || {};
     return items.filter(item => {
       // Received items are never shown on kanban cards
       if (item.status === 'received') return false;
-      if (statusFilter !== 'all' && item.status !== statusFilter) return false;
+      if (statusFilter !== 'all') {
+        // Filter against the DERIVED status — picking "Confirmed" matches
+        // items where the supplier's response set that state even when
+        // raw item.status is still 'ordered'.
+        const supplierEntry = supplierMap[(item.name || '').toLowerCase().trim()];
+        const derived = deriveDisplayStatus(item, supplierEntry, supplierEntry?.parentOrder);
+        if (derived !== statusFilter) return false;
+      }
       if (deptFilter !== 'all' && item.department !== deptFilter) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
@@ -783,7 +837,7 @@ const ProvisioningWorkspace = () => {
       }
       return true;
     });
-  }, [itemsByList, statusFilter, deptFilter, searchQuery]);
+  }, [itemsByList, itemStatusMapByList, statusFilter, deptFilter, searchQuery]);
 
   const visibleLists = useMemo(() => lists.filter(l => canViewList(l)), [lists, canViewList]);
   const hasActiveFilters = statusFilter !== 'all' || deptFilter !== 'all' || searchQuery;
@@ -1022,6 +1076,7 @@ const ProvisioningWorkspace = () => {
                       list={list}
                       items={allItems}
                       filteredItems={filtered}
+                      itemStatusMap={itemStatusMapByList[list.id] || {}}
                       hiddenCount={hasActiveFilters ? hiddenCount : 0}
                       canEdit={canEditList(list)}
                       canCommandDelete={isCommand}
