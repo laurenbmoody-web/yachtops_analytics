@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Pencil, Calendar as CalendarIcon, Trash2 } from 'lucide-react';
 import MonthPicker from './MonthPicker';
 import { useAuth } from '../../contexts/AuthContext';
@@ -8,6 +8,7 @@ import { DEPT_ORDER } from '../trip-detail-view-with-guest-allocation/sections/S
 import CrewListView from './CrewListView';
 import CrewWeekMatrix, { weekRangeLabel, weekRangeLabelLong } from './CrewWeekMatrix';
 import HodEditConfirmModal from './HodEditConfirmModal';
+import CancelEditModal from './CancelEditModal';
 import ClearRotaModal from './ClearRotaModal';
 import RestPanelPopover from './RestPanelPopover';
 import PatternPicker from './PatternPicker';
@@ -251,10 +252,51 @@ export default function RotaWorkspace({
 
   const canEdit = !!rota?.id && !loading && !error;
   const [hodConfirmOpen, setHodConfirmOpen] = useState(false);
-  const beginEditMode = useCallback(() => {
+
+  // ── HOD discard model ──────────────────────────────────────────────────────
+  // Grid edits autosave to rota_shifts the moment they're made, so "back out
+  // without saving" is a real revert: snapshot the dept's shifts when edit mode
+  // opens, restore that snapshot on discard. A non-null snapshotRef marks an
+  // UNCOMMITTED session — explicit Save clears it (edits kept); Discard or
+  // leaving the page (in-app nav / tab close) restores it.
+  const isHodEditor = mode === 'submitter' && tier === 'HOD' && !!footerDeptId;
+  const snapshotRef = useRef(null);   // { rotaId, memberIds, rows } | null
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [reverting, setReverting] = useState(false);
+  // Columns proven to exist by the insert (useRotaShifts) + load select paths.
+  const SNAP_COLS = 'id, tenant_id, rota_id, member_id, shift_date, start_time, end_time, shift_type, sub_type, notes, status, trip_id, created_by';
+
+  const captureSnapshot = useCallback(async () => {
+    if (!rota?.id || !footerDeptId) { snapshotRef.current = null; return; }
+    const memberIds = crew.filter((c) => c.departmentId === footerDeptId).map((c) => c.id);
+    const { data, error: snapErr } = await supabase
+      .from('rota_shifts').select(SNAP_COLS)
+      .eq('rota_id', rota.id).in('member_id', memberIds.length ? memberIds : ['00000000-0000-0000-0000-000000000000']);
+    if (snapErr) {
+      // No baseline → don't pretend we can discard. Session behaves as before.
+      console.warn('[RotaWorkspace] edit snapshot failed:', snapErr.message || snapErr);
+      snapshotRef.current = null;
+      return;
+    }
+    snapshotRef.current = { rotaId: rota.id, memberIds, rows: data || [] };
+  }, [rota, footerDeptId, crew]);
+
+  // Restore the dept to the snapshot: clear the current scope, reinsert the
+  // captured rows (original ids preserved so any FK references survive).
+  const restoreSnapshot = useCallback(async (snap) => {
+    if (!snap?.rotaId || !snap.memberIds?.length) return;
+    await supabase.from('rota_shifts').delete()
+      .eq('rota_id', snap.rotaId).in('member_id', snap.memberIds);
+    if (snap.rows.length) await supabase.from('rota_shifts').insert(snap.rows);
+  }, []);
+
+  const beginEditMode = useCallback(async () => {
+    // Capture the baseline BEFORE the grid becomes editable, so the first edit
+    // can't leak into the snapshot.
+    if (isHodEditor) await captureSnapshot();
     setEditMode(true);
     refetch({ silent: true });
-  }, [refetch]);
+  }, [isHodEditor, captureSnapshot, refetch]);
   const enterEdit = useCallback(() => {
     if (!canEdit) return;
     // The HOD edit-while-non-draft confirm only applies to submitter mode
@@ -281,9 +323,54 @@ export default function RotaWorkspace({
     beginEditMode();
   }, [canEdit, mode, tier, footerDeptId, statusByDept, crew, windowShifts, selectedDate, beginEditMode]);
   const exitEdit = useCallback(() => {
+    // Any path through exitEdit is a commit (Save, Submit-for-approval, or a
+    // non-HOD Done): the edits stand, so drop the discard baseline. Only an
+    // uncommitted leave (unmount without exitEdit) keeps the snapshot to revert.
+    snapshotRef.current = null;
     setEditMode(false);
     refetch({ silent: true });
   }, [refetch]);
+
+  // HOD "Cancel" — prompt to Save / Discard / Keep editing. Non-HOD editors
+  // (CHIEF/COMMAND) keep the plain "Done" exit with no prompt.
+  const handleCancelClick = useCallback(() => {
+    if (isHodEditor && snapshotRef.current) { setCancelOpen(true); return; }
+    exitEdit();
+  }, [isHodEditor, exitEdit]);
+  const handleSaveExit = useCallback(() => {
+    snapshotRef.current = null;            // commit: keep the autosaved edits
+    setCancelOpen(false);
+    exitEdit();
+  }, [exitEdit]);
+  const handleDiscardExit = useCallback(async () => {
+    const snap = snapshotRef.current;
+    setReverting(true);
+    await restoreSnapshot(snap);
+    snapshotRef.current = null;
+    setReverting(false);
+    setCancelOpen(false);
+    exitEdit();
+    showToast('Changes discarded — rota restored.');
+  }, [restoreSnapshot, exitEdit, showToast]);
+
+  // Leaving the page while a HOD edit session is uncommitted = discard, per
+  // the "click out and it doesn't save" rule. beforeunload warns on tab
+  // close/refresh; the unmount cleanup reverts on in-app navigation away.
+  // (react-router 6.0.2 has no navigation blocker, so an in-app leave can't
+  // show this app's popup — it silently discards, which matches intent.)
+  useEffect(() => {
+    const onBeforeUnload = (e) => {
+      if (snapshotRef.current) { e.preventDefault(); e.returnValue = ''; }
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      if (snapshotRef.current) {
+        restoreSnapshot(snapshotRef.current);   // fire-and-forget on unmount
+        snapshotRef.current = null;
+      }
+    };
+  }, [restoreSnapshot]);
 
   // COMMAND-only "clear rota" — wipes every shift on this rota back to a
   // blank slate. Gated to COMMAND on /crew (submitter mode). RLS
@@ -411,8 +498,8 @@ export default function RotaWorkspace({
               <button
                 type="button"
                 className="crew-rota-pill active edit-pill"
-                onClick={exitEdit}
-              >{tier === 'HOD' ? 'Save draft' : 'Done'}</button>
+                onClick={isHodEditor ? handleCancelClick : exitEdit}
+              >{isHodEditor ? 'Cancel' : 'Done'}</button>
             ) : (
               <button
                 type="button"
@@ -586,6 +673,14 @@ export default function RotaWorkspace({
         departmentName={footerDeptName}
         onCancel={() => setHodConfirmOpen(false)}
         onContinue={() => { setHodConfirmOpen(false); beginEditMode(); }}
+      />
+
+      <CancelEditModal
+        open={cancelOpen}
+        busy={reverting}
+        onKeepEditing={() => { if (!reverting) setCancelOpen(false); }}
+        onDiscard={handleDiscardExit}
+        onSave={handleSaveExit}
       />
 
       <ClearRotaModal
