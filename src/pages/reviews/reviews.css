@@ -177,6 +177,71 @@
   margin-top: 8px;
 }
 
+/* Pending | History tabs */
+.rv-tabs {
+  display: flex;
+  gap: 6px;
+  margin-top: 16px;
+}
+.rv-tab {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(28, 27, 58, 0.15);
+  background: transparent;
+  color: rgba(28, 27, 58, 0.6);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.rv-tab:hover { border-color: rgba(28, 27, 58, 0.35); color: #1C1B3A; }
+.rv-tab.active { background: #1C1B3A; color: #fff; border-color: #1C1B3A; }
+
+/* Outcome chip on history list cards */
+.rv-cc-outcome {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  width: max-content;
+}
+.rv-cc-outcome.st-accepted,
+.rv-cc-outcome.st-accepted_with_edits { background: #E8F1E9; color: #2D5A3A; }
+.rv-cc-outcome.st-rejected            { background: #FAECE7; color: #7A2E1E; }
+
+/* Read-only resolved (history) detail pane */
+.rv-resolved { padding: 40px 44px; max-width: 640px; }
+.rv-resolved-eyebrow {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+  color: rgba(28, 27, 58, 0.5);
+}
+.rv-resolved-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin: 16px 0 24px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px; font-weight: 600;
+  padding: 6px 14px; border-radius: 999px;
+}
+.rv-resolved-badge.ok   { background: #E8F1E9; color: #2D5A3A; }
+.rv-resolved-badge.warn { background: #FAECE7; color: #7A2E1E; }
+.rv-resolved-meta {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  margin: 0; display: flex; flex-direction: column; gap: 14px;
+}
+.rv-resolved-meta > div { display: flex; flex-direction: column; gap: 2px; }
+.rv-resolved-meta dt {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
+  color: rgba(28, 27, 58, 0.5);
+}
+.rv-resolved-meta dd { margin: 0; font-size: 14px; color: #1C1B3A; line-height: 1.5; }
+
 .rv-body {
   margin-top: 28px;
   display: flex;

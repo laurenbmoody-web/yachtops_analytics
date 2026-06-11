@@ -24,7 +24,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useTenant } from '../../contexts/TenantContext';
-import { fetchInboxPending } from '../../hooks/inboxScope';
+import { fetchInboxPending, fetchInboxResolved } from '../../hooks/inboxScope';
 
 async function loadOne(item) {
   const ctx = item.source_context || {};
@@ -138,6 +138,9 @@ async function loadOne(item) {
     id: item.id,
     created_at: item.created_at,
     status: item.status,
+    decided_at: item.decided_at || null,
+    decision_note: item.decision_note || null,
+    decided_by: item.decided_by || null,
     rota_id: rotaId || null,
     department_id: departmentId || null,
     rota_name: ctx.rota_name || null,
@@ -155,7 +158,7 @@ async function loadOne(item) {
   };
 }
 
-export function useReviewItems() {
+export function useReviewItems(mode = 'pending') {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -167,20 +170,23 @@ export function useReviewItems() {
   const refetch = useCallback(async () => {
     setLoading(true);
     setError(null);
-    // Scope to the routed assignee — RLS read is tenant-wide, so without
-    // this a submitting HOD would see their own pending item. CHIEF → their
-    // dept; COMMAND → CHIEF-less submissions (fallback). (inboxScope.js)
-    const data = await fetchInboxPending(supabase, {
-      tier,
-      departmentId,
-      tenantId,
-      columns: 'id, tenant_id, submitter_id, source_context, assignee_tier, assignee_department_id, status, created_at',
-      narrow: (q) => q.order('created_at', { ascending: false }),
-    });
+    // Scope to the routed assignee — RLS read is tenant-wide, so without this
+    // a submitting HOD would see their own item. CHIEF → their dept; COMMAND →
+    // CHIEF-less submissions (pending) or all (resolved/history). (inboxScope.js)
+    const columns = 'id, tenant_id, submitter_id, source_context, assignee_tier, assignee_department_id, status, created_at, decided_at, decision_note, decided_by';
+    const data = mode === 'resolved'
+      ? await fetchInboxResolved(supabase, { tier, departmentId, tenantId, columns })
+      : await fetchInboxPending(supabase, {
+        tier,
+        departmentId,
+        tenantId,
+        columns,
+        narrow: (q) => q.order('created_at', { ascending: false }),
+      });
     const enriched = await Promise.all((data || []).map(loadOne));
     setItems(enriched);
     setLoading(false);
-  }, [tier, departmentId, tenantId]);
+  }, [tier, departmentId, tenantId, mode]);
 
   useEffect(() => { refetch(); }, [refetch]);
 

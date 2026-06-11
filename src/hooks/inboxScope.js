@@ -84,3 +84,34 @@ export async function fetchInboxPending(
   }
   return rows;
 }
+
+// Resolved (history) review items. Same role scoping as the pending inbox for
+// CHIEF (their dept), but COMMAND sees ALL resolved submissions across the
+// tenant (a vessel-wide audit view), not just the CHIEF-less fallback set.
+const RESOLVED_STATUSES = ['accepted', 'accepted_with_edits', 'rejected'];
+
+export async function fetchInboxResolved(
+  supabase,
+  { tier, departmentId, tenantId, columns = 'id, assignee_department_id', limit = 50 } = {},
+) {
+  const scope = inboxScopeFor(tier, departmentId);
+  if (scope.kind === 'none') return [];
+
+  let q = supabase
+    .from('review_items')
+    .select(columns)
+    .eq('source_module', 'rota')
+    .in('status', RESOLVED_STATUSES)
+    .order('decided_at', { ascending: false, nullsFirst: false })
+    .limit(limit);
+  if (tenantId) q = q.eq('tenant_id', tenantId);
+  if (scope.kind === 'chief') q = q.eq('assignee_department_id', scope.departmentId);
+  // command: no further filter — sees every resolved submission in the tenant.
+
+  const { data, error } = await q;
+  if (error) {
+    console.warn('[inboxScope] resolved fetch failed:', error);
+    return [];
+  }
+  return data || [];
+}

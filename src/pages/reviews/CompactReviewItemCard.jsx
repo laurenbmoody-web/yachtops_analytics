@@ -29,6 +29,13 @@ export default function CompactReviewItemCard({ item, selected, onSelect }) {
     : '';
   const range = fmtDateRange(item.date_start, item.date_end);
   const counts = `${item.day_count} day${item.day_count === 1 ? '' : 's'} · ${item.shift_count} shift${item.shift_count === 1 ? '' : 's'}${mlc}`;
+  // Outcome chip for History (resolved) items.
+  const OUTCOME = {
+    accepted: 'Accepted',
+    accepted_with_edits: 'Accepted · edits',
+    rejected: 'Rejected',
+  };
+  const outcome = item.status && item.status !== 'pending' ? OUTCOME[item.status] || item.status : null;
   return (
     <button
       type="button"
@@ -42,6 +49,9 @@ export default function CompactReviewItemCard({ item, selected, onSelect }) {
         <div className="rv-cc-time">{timeAgo(item.created_at)}</div>
       </div>
       <div className="rv-cc-rota">{item.rota_name || ''}</div>
+      {outcome && (
+        <div className={`rv-cc-outcome st-${item.status}`}>{outcome}</div>
+      )}
       <div className="rv-cc-strip">
         <Icon name="Calendar" size={12} />
         <span>{range || counts}</span>
