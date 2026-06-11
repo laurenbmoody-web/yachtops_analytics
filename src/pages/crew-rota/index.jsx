@@ -161,7 +161,7 @@ export default function CrewRotaPage() {
       const diff = await computeReviewerEdits(supabase, { rotaId: cRota, departmentId: cDept });
       if (cancelled) return;
       setReviewerEdits(diff);
-      if (diff.ids.size === 0) {
+      if (diff.slots.size === 0) {
         showToast('Couldn’t locate the reviewer’s edits — showing the rota as published.');
       }
     })();
@@ -324,7 +324,7 @@ export default function CrewRotaPage() {
           departmentId={null}
           mode="submitter"
           initialDate={reviewerEdits?.dates?.[0] || null}
-          highlightShiftIds={reviewerEdits?.ids?.size ? reviewerEdits.ids : null}
+          highlightSlots={reviewerEdits?.slots?.size ? reviewerEdits.slots : null}
           onToast={showToast}
           header={renderHeader}
           footer={renderFooter}
