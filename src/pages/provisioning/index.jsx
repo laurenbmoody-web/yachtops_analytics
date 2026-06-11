@@ -12,8 +12,7 @@ import ReceiveDeliveryModal from './components/ReceiveDeliveryModal';
 import ShareModal from './components/ShareModal';
 import SummaryGauges from './components/SummaryGauges';
 import TemplatePicker from './components/TemplatePicker';
-import CopyBoardPicker from './components/CopyBoardPicker';
-import PastOrderPicker from './components/PastOrderPicker';
+import PastActivityPicker from './components/PastActivityPicker';
 import {
   fetchProvisioningLists,
   fetchListItems,
@@ -102,8 +101,7 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
   const [isPrivate, setIsPrivate] = useState(true);
   const [localError, setLocalError] = useState('');
   const [showTemplate, setShowTemplate] = useState(false);
-  const [showCopy, setShowCopy] = useState(false);
-  const [showPastOrder, setShowPastOrder] = useState(false);
+  const [showPast, setShowPast] = useState(false);
   const [creating, setCreating] = useState(false);
 
   const selectedTrip = (trips || []).find(t => t.id === tripId) || null;
@@ -164,27 +162,14 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
     );
   }
 
-  if (showCopy) {
+  if (showPast) {
     return (
       <div className="pv-wizard pv-dashboard is-subview">
-        <CopyBoardPicker
+        <PastActivityPicker
           tenantId={tenantId}
-          department={null}
           newGuestCount={guestCount}
-          onUse={(items) => { setShowCopy(false); triggerCreate('copy', items); }}
-          onBack={() => setShowCopy(false)}
-        />
-      </div>
-    );
-  }
-
-  if (showPastOrder) {
-    return (
-      <div className="pv-wizard pv-dashboard is-subview">
-        <PastOrderPicker
-          tenantId={tenantId}
-          onUse={(items) => { setShowPastOrder(false); triggerCreate('past_order', items); }}
-          onBack={() => setShowPastOrder(false)}
+          onUse={(items) => { setShowPast(false); triggerCreate('past', items); }}
+          onBack={() => setShowPast(false)}
         />
       </div>
     );
@@ -309,23 +294,22 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
             {boardType && <span> · {BOARD_TYPES.find(b => b.value === boardType)?.label}</span>}
           </p>
 
-          {/* Four route cards — stacked vertically. Past Order tile groups
-              the supplier_orders-source starting points (Past Orders +
-              Favourites internally tabbed). Frequent Items stays Quick
-              Add only — it's items-grain augmentation, not initialization. */}
+          {/* Three route cards — stacked vertically. "From past" replaces
+              the prior Copy Board + Past Order tiles: same surface,
+              fewer top-level decisions. Internally tabbed: Boards /
+              Orders / Favourites. Frequent Items stays Quick Add only —
+              items-grain augmentation, not initialization. */}
           <div className="pv-wizard-route-list">
             {[
-              { key: 'template',   icon: '📋', title: 'Template',    desc: 'Pre-built lists' },
-              { key: 'copy',       icon: '📂', title: 'Copy Board',  desc: 'From previous' },
-              { key: 'past_order', icon: '🧾', title: 'Past Order',  desc: 'From past supplier orders' },
-              { key: 'blank',      icon: '✦',  title: 'Blank',       desc: 'Start empty' },
+              { key: 'template', icon: '📋', title: 'Template',  desc: 'Pre-built lists' },
+              { key: 'past',     icon: '📂', title: 'From past', desc: 'Boards · Orders · Favourites' },
+              { key: 'blank',    icon: '✦',  title: 'Blank',     desc: 'Start empty' },
             ].map(opt => (
               <button
                 key={opt.key}
                 onClick={() => {
                   if (opt.key === 'template') setShowTemplate(true);
-                  else if (opt.key === 'copy') setShowCopy(true);
-                  else if (opt.key === 'past_order') setShowPastOrder(true);
+                  else if (opt.key === 'past') setShowPast(true);
                   else triggerCreate('blank', []);
                 }}
                 className="pv-wizard-route-card"
