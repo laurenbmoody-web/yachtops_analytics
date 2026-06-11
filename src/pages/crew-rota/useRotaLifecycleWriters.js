@@ -68,3 +68,16 @@ export async function publishRotaDepartmentDirect({ rotaId, departmentId, note }
     p_note: note ?? null,
   });
 }
+
+// COMMAND → clear a rota day or the whole rota. Also clears the pending
+// review submissions for the affected departments and resets those depts
+// (which were in 'pending_approval') back to 'draft'. scope: 'all' | 'day';
+// date required when scope === 'day'.
+export async function clearRota({ rotaId, scope, date }) {
+  return callRpc('clear_rota', {
+    p_rota_id: rotaId,
+    p_scope: scope,
+    p_date: scope === 'day' ? date : null,
+  });
+}
+
