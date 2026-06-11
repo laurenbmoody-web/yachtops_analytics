@@ -175,7 +175,7 @@ function RestLine({ crew, mode, statusLabel }) {
 function CrewRow({
   crew, gridStartHour, onCrewClick, mode = 'active', statusLabel,
   editMode = false, onCellPointerDown, onCellPointerEnter, onCellKey, dragRange,
-  highlightIds,
+  highlightSlots, viewDate,
 }) {
   const satStart = saturdayFirstSlot(gridStartHour);
   // Phase 1: cell editing is enabled for on-vessel department rows only
@@ -196,10 +196,12 @@ function CrewRow({
     // shift is draft (all hatched); on an edited-published rota only the
     // changed cells are draft, so the chief sees exactly what's new.
     if (cover && cover.shift.status === 'draft') cls.push('is-draft');
-    // Reviewer-edit callout: when the HOD follows an "accepted with edits"
-    // notification, the cells the reviewer changed pulse so they're findable
-    // at a glance.
-    if (cover && highlightIds && highlightIds.has(cover.shift.id)) cls.push('is-changed');
+    // Reviewer-edit callout: cells the chief/command added, retyped or erased
+    // pulse when the HOD follows an "accepted with edits" notification. Keyed
+    // by cell coords (member|date|slot), so erased — now empty — cells ring too.
+    if (highlightSlots && viewDate && highlightSlots.has(`${crew.id}|${viewDate}|${i}`)) {
+      cls.push('is-changed');
+    }
     if (cellEditable) cls.push('rota-c-edit');
     if (inPreview) cls.push('rota-c-drag');                 // paint preview
     cells.push(
@@ -299,7 +301,7 @@ function DepartmentSection({
   deptName, crew, gridStartHour, onCrewClick,
   editMode = false, deptStatusRow,
   onCellPointerDown, onCellPointerEnter, onCellKey, drag,
-  highlightIds,
+  highlightSlots, viewDate,
 }) {
   const color = crew[0]?.departmentColor || '#5F5E5A';
   const badge = deptStatusRow?.status
@@ -335,7 +337,8 @@ function DepartmentSection({
             dragRange={drag && drag.crewId === c.id
               ? { lo: Math.min(drag.start, drag.cur), hi: Math.max(drag.start, drag.cur) }
               : null}
-            highlightIds={highlightIds}
+            highlightSlots={highlightSlots}
+            viewDate={viewDate}
           />
         ))}
       </div>
@@ -404,7 +407,7 @@ function orderDepartments(byDept, crew, tenantRole, ownDeptId) {
 
 export default function RotaTodayGrid({
   crew = [], now = new Date(), onCrewClick, gridStartHour = 6,
-  editMode = false, onPaint, deptStatus, highlightShiftIds = null,
+  editMode = false, onPaint, deptStatus, highlightSlots = null, viewDate = null,
 }) {
   // `now = null` suppresses the wall-clock indicator entirely — used when
   // the page is showing a non-today date, where a "now" line would be
@@ -517,7 +520,8 @@ export default function RotaTodayGrid({
               onCellKey={onCellKey}
               drag={drag}
               deptStatusRow={deptId && deptStatus ? deptStatus.get(deptId) : null}
-              highlightIds={highlightShiftIds}
+              highlightSlots={highlightSlots}
+              viewDate={viewDate}
             />
           );
         })}
