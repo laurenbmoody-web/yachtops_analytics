@@ -224,6 +224,14 @@ export default function CrewRotaPage() {
       return;
     }
     showToast(`Submitted ${targetDeptName || 'department'} for approval.`);
+    // Notify the reviewer(s) — CHIEF(s) in the dept, else COMMAND fallback —
+    // via bell + email. Fire-and-forget server-side (service role resolves
+    // recipients); never blocks or fails the submit. (sendRotaSubmission)
+    if (res.data?.review_item_id) {
+      supabase.functions
+        .invoke('sendRotaSubmission', { body: { reviewItemId: res.data.review_item_id } })
+        .then(() => {}).catch(() => {});
+    }
     onDone?.();
   }, [rota, targetDeptId, ctaBusy, targetDeptName, showToast]);
 
