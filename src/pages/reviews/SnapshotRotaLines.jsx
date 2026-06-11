@@ -16,11 +16,12 @@ function addLocalDays(s, n) { const d = parseLocal(s); d.setDate(d.getDate() + n
 export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd }) {
   const [crew, setCrew] = useState([]);
   const [windowShifts, setWindowShifts] = useState([]);
+  const [affectedDates, setAffectedDates] = useState([]);
   const [selectedDate, setSelectedDate] = useState(dateStart || null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!snapshotId) { setCrew([]); setWindowShifts([]); setLoading(false); return undefined; }
+    if (!snapshotId) { setCrew([]); setWindowShifts([]); setAffectedDates([]); setLoading(false); return undefined; }
     let cancelled = false;
     setLoading(true);
     (async () => {
@@ -28,6 +29,8 @@ export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd }) {
         .from('rota_shift_snapshots').select('shift_data').eq('id', snapshotId).maybeSingle();
       const rows = Array.isArray(snap?.shift_data) ? snap.shift_data : [];
       // to_jsonb(rota_shifts.*) → the windowShifts shape the matrix consumes.
+      // The snapshot is the WHOLE department rota (all dates, published +
+      // draft), so it carries the surrounding context — not just the change.
       const ws = rows.map((r) => ({
         id: r.id,
         memberId: r.member_id,
@@ -36,15 +39,24 @@ export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd }) {
         endTime: r.end_time,
         shiftType: r.shift_type,
         subType: r.sub_type,
+        status: r.status,
       }));
-      // Anchor the 7-day window to the earliest shift in the snapshot — the
-      // first day actually affected — so the lines land on the real shifts
-      // (date_start can be a submission-metadata date that differs, and "today"
-      // is irrelevant for a historical record). Fall back to date_start.
-      const firstShiftDate = ws
-        .map((s) => s.date)
-        .filter(Boolean)
-        .sort()[0] || dateStart || null;
+      // The days actually CHANGED in this submission = the rows frozen as
+      // 'draft' at submit time (everything else was already published). These
+      // get the column highlight, and the window lands on the first of them.
+      const changedDays = [...new Set(
+        ws.filter((s) => s.status === 'draft' && s.date).map((s) => s.date),
+      )].sort();
+      // Fallback when the snapshot carries no draft rows (e.g. legacy/seed
+      // data): use the submission's reported range so the highlight still
+      // points somewhere sensible.
+      const affected = changedDays.length
+        ? changedDays
+        : [dateStart, dateEnd].filter(Boolean);
+      // Land on the first changed day; fall back to date_start, then to the
+      // earliest shift in the snapshot so the grid is never blank.
+      const earliestShift = ws.map((s) => s.date).filter(Boolean).sort()[0];
+      const landOn = affected[0] || dateStart || earliestShift || null;
       const memberIds = [...new Set(ws.map((s) => s.memberId).filter(Boolean))];
       if (!memberIds.length) { if (!cancelled) { setCrew([]); setWindowShifts([]); setLoading(false); } return; }
       const { data: members } = await supabase
@@ -68,11 +80,12 @@ export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd }) {
       }));
       setCrew(mapped);
       setWindowShifts(ws);
-      setSelectedDate(firstShiftDate);
+      setAffectedDates(affected);
+      setSelectedDate(landOn);
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [snapshotId, dateStart]);
+  }, [snapshotId, dateStart, dateEnd]);
 
   const realToday = useMemo(() => toLocalStr(new Date()), []);
 
@@ -82,12 +95,21 @@ export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd }) {
 
   return (
     <div className="rv-resolved-lines">
-      <div className="rv-resolved-lines-label">Rota as submitted</div>
+      <div className="rv-resolved-lines-head">
+        <span className="rv-resolved-lines-label">Rota as submitted</span>
+        {affectedDates.length > 0 && (
+          <span className="rv-resolved-lines-legend">
+            <span className="rv-resolved-lines-swatch" />
+            Days changed in this submission
+          </span>
+        )}
+      </div>
       <CrewWeekMatrix
         crew={crew}
         windowShifts={windowShifts}
         selectedDate={selectedDate}
         realToday={realToday}
+        affectedDates={affectedDates}
         onStepDay={(dir) => setSelectedDate((s) => addLocalDays(s, dir))}
       />
     </div>
