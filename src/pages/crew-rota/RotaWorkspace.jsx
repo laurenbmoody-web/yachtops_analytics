@@ -257,16 +257,28 @@ export default function RotaWorkspace({
   const enterEdit = useCallback(() => {
     if (!canEdit) return;
     // The HOD edit-while-non-draft confirm only applies to submitter mode
-    // (a HOD on their own dept). Reviewers (CHIEF/COMMAND) bypass it.
+    // (a HOD on their own dept). Reviewers (CHIEF/COMMAND) bypass it. The
+    // dept status is per (rota, dept) — not per day — so a publish yesterday
+    // marks the dept 'published' on every date. Only warn when the day being
+    // opened actually carries this dept's shifts; an empty day has nothing
+    // to revert, and the warning would just be noise.
     if (mode === 'submitter' && tier === 'HOD' && footerDeptId) {
       const status = statusByDept.get(footerDeptId)?.status;
       if (status === 'pending_approval' || status === 'published') {
-        setHodConfirmOpen(true);
-        return;
+        const deptIds = new Set(
+          crew.filter((c) => c.departmentId === footerDeptId).map((c) => c.id),
+        );
+        const dayHasShifts = (windowShifts || []).some(
+          (s) => s.date === selectedDate && deptIds.has(s.memberId),
+        );
+        if (dayHasShifts) {
+          setHodConfirmOpen(true);
+          return;
+        }
       }
     }
     beginEditMode();
-  }, [canEdit, mode, tier, footerDeptId, statusByDept, beginEditMode]);
+  }, [canEdit, mode, tier, footerDeptId, statusByDept, crew, windowShifts, selectedDate, beginEditMode]);
   const exitEdit = useCallback(() => {
     setEditMode(false);
     refetch({ silent: true });
