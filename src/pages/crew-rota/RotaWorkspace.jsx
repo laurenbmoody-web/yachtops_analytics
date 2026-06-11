@@ -18,6 +18,7 @@ import ApplyTemplateModal from './ApplyTemplateModal';
 import { useRotaShifts } from './useRotaShifts';
 import { useRotaTemplates } from './useRotaTemplates';
 import { useRotaDepartmentStatus } from './useRotaDepartmentStatus';
+import { clearRota } from './useRotaLifecycleWriters';
 import './crew-rota.css';
 
 // RotaWorkspace — the shared rota composition extracted from /crew.
@@ -372,31 +373,36 @@ export default function RotaWorkspace({
     };
   }, [restoreSnapshot]);
 
-  // COMMAND-only "clear rota" — wipes every shift on this rota back to a
-  // blank slate. Gated to COMMAND on /crew (submitter mode). RLS
-  // (rota_shifts_command_chief_write) permits the delete; we scope it to
-  // this rota_id. Statuses/review_items are left as-is (a mid-review dept
-  // can be cleared with Reject).
+  // COMMAND-only "clear rota" — wipes a day or the whole rota back to a blank
+  // slate. Gated to COMMAND on /crew (submitter mode). Routed through the
+  // clear_rota RPC, which (atomically, as COMMAND) deletes the shifts AND the
+  // pending review submissions for the affected departments and resets those
+  // depts back to draft — so a clear no longer strands a dead submission in the
+  // chief's /reviews queue.
   const canClear = mode === 'submitter' && tier === 'COMMAND' && !!rota?.id;
   const [clearOpen, setClearOpen] = useState(false);
   const [clearing, setClearing] = useState(null);   // null | 'day' | 'all'
   const handleClearRota = useCallback(async (scope) => {
     if (!rota?.id || clearing) return;
     setClearing(scope);
-    let q = supabase.from('rota_shifts').delete().eq('rota_id', rota.id);
-    if (scope === 'day') q = q.eq('shift_date', selectedDate);
-    const { error: delErr } = await q;
+    const res = await clearRota({
+      rotaId: rota.id,
+      scope: scope === 'day' ? 'day' : 'all',
+      date: scope === 'day' ? selectedDate : null,
+    });
     setClearing(null);
-    if (delErr) {
-      showToast(`Couldn’t clear shifts — ${delErr.message || 'try again.'}`, { error: true });
+    if (!res.ok) {
+      showToast(`Couldn’t clear — ${res.error || 'try again.'}`, { error: true });
       return;
     }
     setClearOpen(false);
-    if (editMode) setEditMode(false);
+    if (editMode) { snapshotRef.current = null; setEditMode(false); }
     refetch({ silent: true });
-    showToast(scope === 'day'
+    const n = res.data?.reviews_cleared || 0;
+    const reviewNote = n ? ` ${n} review submission${n === 1 ? '' : 's'} cleared.` : '';
+    showToast((scope === 'day'
       ? `Cleared all shifts on ${fullDateLabel(selectedDateObj)}.`
-      : 'Rota cleared — all shifts removed.');
+      : 'Rota cleared — all shifts removed.') + reviewNote);
   }, [rota, clearing, editMode, refetch, showToast, selectedDate, selectedDateObj]);
 
   // Friendly dept name for the HOD confirm copy.
