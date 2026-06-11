@@ -564,14 +564,17 @@ export const receiveItems = async (updates) => {
   const updated = results
     .filter(r => r.status === 'fulfilled' && r.value?.data)
     .map(r => r.value.data);
-  // Items→board+orders cascade — advance provisioning_lists.status and
-  // supplier_orders.status based on the new item state. Soft-fail; items
-  // already wrote successfully and the cascade is best-effort.
+  // Items→board+orders cascade. Awaited (NOT fire-and-forget) so callers
+  // refetching lists/orders immediately after receiveItems see the
+  // updated statuses. Soft-fail inside the helper itself — item writes
+  // are already committed, cascade errors don't propagate.
   const listIds = [...new Set(updated.map(i => i.list_id).filter(Boolean))];
   if (listIds.length > 0) {
-    cascadeListAndOrderStatusAfterReceive(listIds).catch(err => {
+    try {
+      await cascadeListAndOrderStatusAfterReceive(listIds);
+    } catch (err) {
       console.error('[provisioningStorage] receiveItems cascade error:', err);
-    });
+    }
   }
   return updated;
 };
@@ -1641,10 +1644,13 @@ export const quickReceiveItem = async ({ item, listId, tenantId, userId }) => {
     });
     console.log('[quickReceiveItem] item updated successfully');
 
-    // 3b. Items→board+orders cascade. Soft-fail; item already wrote.
-    cascadeListAndOrderStatusAfterReceive([listId]).catch(err => {
+    // 3b. Items→board+orders cascade. Awaited so the caller refetching
+    // lists/orders sees the updated statuses. Soft-fail inside helper.
+    try {
+      await cascadeListAndOrderStatusAfterReceive([listId]);
+    } catch (err) {
       console.error('[quickReceiveItem] cascade error:', err);
-    });
+    }
 
     // 4. Write to permanent delivery ledger (fire-and-forget)
     if (tenantId) {
