@@ -4,7 +4,7 @@ import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
-import { ITEM_STATUS_CONFIG } from './data/statusConfig';
+import { ITEM_STATUS_CONFIG, ITEM_STATUS_FILTER_ORDER } from './data/statusConfig';
 import BoardColumn from './components/BoardColumn';
 import BoardDrawer from './components/BoardDrawer';
 import ItemDrawer from './components/ItemDrawer';
@@ -917,9 +917,10 @@ const ProvisioningWorkspace = () => {
             className="pv-toolbar-select"
           >
             <option value="all">All statuses</option>
-            {Object.entries(ITEM_STATUS_CONFIG).map(([val, cfg]) => (
-              <option key={val} value={val}>{cfg.label}</option>
-            ))}
+            {ITEM_STATUS_FILTER_ORDER.map(val => {
+              const cfg = ITEM_STATUS_CONFIG[val];
+              return <option key={val} value={val}>{cfg.label}</option>;
+            })}
           </select>
           <select
             value={deptFilter}

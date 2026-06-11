@@ -128,12 +128,49 @@ export const ITEM_STATUS_ORDER = [
   'returned',
 ];
 
-// Note on derive-only states: several ITEM_STATUS_CONFIG entries below
-// are intentionally NOT in ITEM_STATUS_ORDER (the picker dropdowns iterate
-// ORDER, so anything excluded never appears as a manual choice). These
-// are render-only states produced by deriveDisplayStatus(item,
-// supplierOrderItem, supplierOrder) from columns the user can't pick:
+// FILTER source — every state that can appear on an item, including
+// derive-only ones. Iteration order tracks the lifecycle so the
+// dropdown reads chronologically. partially_returned slots after
+// returned (both are post-receipt return states); the supplier-response
+// triad (confirmed/unavailable/substituted) slots between ordered and
+// received (where the supplier reply lives in the timeline). Financial
+// states sit at the end (terminal close-out).
+export const ITEM_STATUS_FILTER_ORDER = [
+  'draft',
+  'ordered',
+  'confirmed',
+  'unavailable',
+  'substituted',
+  'received',
+  'partial',
+  'not_received',
+  'returned',
+  'partially_returned',
+  'invoiced',
+  'paid',
+];
+
+// Two iteration orders, two purposes:
 //
+//   ITEM_STATUS_ORDER         — PICKER source. Crew-controllable states
+//                               only. Used by BulkEditModal, ItemDrawer
+//                               pills, and the inline status select on
+//                               item rows. Anything excluded here never
+//                               appears as a manual choice.
+//
+//   ITEM_STATUS_FILTER_ORDER  — FILTER source. Every state that can
+//                               appear on an item, including derive-only
+//                               ones (supplier-side, order-financial,
+//                               partially-returned). Used by the "All
+//                               statuses" dropdowns above the items list.
+//                               Filter logic applies to the DERIVED
+//                               status (via deriveDisplayStatus), not
+//                               the raw item.status column — so a filter
+//                               === 'confirmed' matches items where the
+//                               derive function returns 'confirmed'
+//                               even though item.status is still 'ordered'.
+//
+// Derive-only states (not in ORDER, but in FILTER_ORDER + CONFIG):
 //   partially_returned  ← provisioning_items.returns_qty > 0 AND
 //                          < quantity_received
 //   confirmed           ← supplier_order_items.status
@@ -141,9 +178,6 @@ export const ITEM_STATUS_ORDER = [
 //   substituted         ← supplier_order_items.status
 //   invoiced            ← supplier_orders.status
 //   paid                ← supplier_orders.status
-//
-// They exist as config entries so the unified pill can render them with
-// the same dual-visual-system shape as every other status.
 
 export const ITEM_STATUS_CONFIG = {
   draft: {

@@ -58,7 +58,7 @@ import ConfirmDeliveryModal from './components/ConfirmDeliveryModal';
 import { loadTrips, findTripByAnyId } from '../trips-management-dashboard/utils/tripStorage';
 import { loadGuests } from '../guest-management-dashboard/utils/guestStorage';
 import { showToast } from '../../utils/toast';
-import { getItemStatusConfig } from './data/statusConfig';
+import { getItemStatusConfig, deriveDisplayStatus, ITEM_STATUS_ORDER as PICKER_STATUS_ORDER, ITEM_STATUS_FILTER_ORDER, ITEM_STATUS_CONFIG } from './data/statusConfig';
 import {
   DETAIL_GRID,
   ITEM_STATUS_OPTIONS,
@@ -423,6 +423,10 @@ const ProvisioningBoardDetail = () => {
   // ('confirmed' previously appeared here too — that's a supplier_orders value
   // leaked into a provisioning_lists check; always false. Removed in commit 3.)
   const isSent = list?.status === 'sent_to_supplier';
+  // Lookup keyed by lowered item name. Carries both the per-item
+  // supplier-side state (status, substitution detail) AND a back-pointer
+  // to the parent supplier_orders row — the parent's status (invoiced,
+  // paid) drives the financial roll-forward in deriveDisplayStatus.
   const itemStatusMap = useMemo(() => {
     const map = {};
     supplierOrders.forEach(order => {
@@ -433,6 +437,7 @@ const ProvisioningBoardDetail = () => {
             status: oi.status,
             substitution: oi.substitute_description,
             subPrice: oi.substitution_price,
+            parentOrder: order,
           };
         }
       });
@@ -1237,7 +1242,14 @@ const ProvisioningBoardDetail = () => {
   // ── Filtering & grouping ──────────────────────────────────────────────────
 
   const filteredItems = useMemo(() => items.filter(item => {
-    if (statusFilter !== 'all' && item.status !== statusFilter) return false;
+    if (statusFilter !== 'all') {
+      // Filter applies to the DERIVED status — so picking "Confirmed" or
+      // "Paid" matches items where the derive function returns those
+      // values even when item.status is still 'ordered' / 'received'.
+      const itemOrder = itemStatusMap[(item.name || '').toLowerCase().trim()];
+      const derived = deriveDisplayStatus(item, itemOrder, itemOrder?.parentOrder);
+      if (derived !== statusFilter) return false;
+    }
     if (deptFilter !== 'all' && item.department !== deptFilter) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -1455,13 +1467,9 @@ const ProvisioningBoardDetail = () => {
 
   // Per-row item-status pill palette comes from the unified statusConfig.
   // getItemStatusConfig(status).badge yields {bg, color, border, dot}; label
-  // is sibling. Consolidated alongside the board-status map in commit 3.
-  const SUPPLIER_BADGE = {
-    pending:     { bg: '#E0F2FE', color: '#0369A1', border: '#BAE6FD', dot: '#38BDF8', label: 'Sent' },
-    confirmed:   { bg: '#D1FAE5', color: '#065F46', border: '#A7F3D0', dot: '#34D399', label: 'Confirmed' },
-    unavailable: { bg: '#FEE2E2', color: '#991B1B', border: '#FECACA', dot: '#FCA5A5', label: 'Unavailable' },
-    substituted: { bg: '#FEF3C7', color: '#92400E', border: '#FDE68A', dot: '#FCD34D', label: 'Substituted' },
-  };
+  // is sibling. Single pill per row — the supplier-response and order-
+  // financial states are folded into the same render path via the derive
+  // function (Phase 3 commit 4). No more SUPPLIER_BADGE swap.
 
   const STATUS_HERO_COLOR = {
     draft:                        { dot: '#F59E0B', text: '#F59E0B' },
@@ -1864,7 +1872,10 @@ const ProvisioningBoardDetail = () => {
               style={{ fontSize: 11, background: 'white', border: '1px solid #F1F5F9', borderRadius: 7, padding: '6px 10px', color: '#64748B', outline: 'none', cursor: 'pointer' }}
             >
               <option value="all">All statuses</option>
-              {ITEM_STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+              {ITEM_STATUS_FILTER_ORDER.map(val => {
+                const cfg = ITEM_STATUS_CONFIG[val];
+                return <option key={val} value={val}>{cfg.label}</option>;
+              })}
             </select>
             {hasFilters && (
               <button
@@ -2078,8 +2089,6 @@ const ProvisioningBoardDetail = () => {
                       {/* Item rows */}
                       {(() => {
                         const renderItemRow = (item, rowIdx, totalRows) => {
-                        const itemStatusCfg = getItemStatusConfig(item.status);
-                        const badge = { ...itemStatusCfg.badge, label: itemStatusCfg.label };
                         const isHovered = hoveredRow === item.id;
                         const isEditing = editingCell?.itemId === item.id;
                         const allergen = isAllergenRisk(item);
@@ -2090,10 +2099,23 @@ const ProvisioningBoardDetail = () => {
                         const showOriginal = itemCurr !== dispCurr;
                         const origSymbol = CURR_SYMBOLS[itemCurr] || '£';
 
-                        // Supplier-order locking
+                        // Supplier-order linkage — drives row-editability lock AND
+                        // the supplier/financial inputs to the derive function.
                         const itemOrder = itemStatusMap[(item.name || '').toLowerCase().trim()];
                         const isLocked = isSent && !!itemOrder;
-                        const displayBadge = isLocked ? (SUPPLIER_BADGE[itemOrder.status] || SUPPLIER_BADGE.pending) : badge;
+                        // Unified pill: derive across (item, supplier_order_item,
+                        // supplier_order). Single source of truth — no SUPPLIER_BADGE
+                        // swap, no displayBadge fork.
+                        const derived = deriveDisplayStatus(item, itemOrder, itemOrder?.parentOrder);
+                        const derivedCfg = getItemStatusConfig(derived);
+                        const badge = { ...derivedCfg.badge, label: derivedCfg.label };
+                        // Read-only mode for the status column: either the supplier
+                        // order locks the row, or the derived status is not crew-
+                        // pickable (confirmed/unavailable/substituted/invoiced/paid/
+                        // partially_returned). In both cases the dropdown would be
+                        // misleading — the raw item.status would render with derived-
+                        // palette colours.
+                        const statusReadOnly = isLocked || !PICKER_STATUS_ORDER.includes(derived);
 
                         return (
                           <div
@@ -2150,25 +2172,10 @@ const ProvisioningBoardDetail = () => {
                                     >
                                       {item.name}
                                     </span>
-                                    {isLocked && (
-                                      <span style={{
-                                        fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3,
-                                        textTransform: 'uppercase', letterSpacing: '0.4px',
-                                        background: itemOrder.status === 'confirmed'   ? '#D1FAE5'
-                                                  : itemOrder.status === 'unavailable' ? '#FEE2E2'
-                                                  : itemOrder.status === 'substituted' ? '#FEF3C7'
-                                                  : '#E0F2FE',
-                                        color: itemOrder.status === 'confirmed'   ? '#065F46'
-                                             : itemOrder.status === 'unavailable' ? '#991B1B'
-                                             : itemOrder.status === 'substituted' ? '#92400E'
-                                             : '#0369A1',
-                                      }}>
-                                        {itemOrder.status === 'confirmed'   ? 'Confirmed'
-                                        : itemOrder.status === 'unavailable' ? 'Unavailable'
-                                        : itemOrder.status === 'substituted' ? 'Substituted'
-                                        : 'Sent'}
-                                      </span>
-                                    )}
+                                    {/* Inline SENT / Confirmed / Unavailable / Substituted
+                                        tag removed in Phase 3 commit 4 — the unified status
+                                        column carries this signal directly via the derived
+                                        pill (no more duplicated supplier-response readout). */}
                                   </>
                                 )}
                               </div>
@@ -2256,9 +2263,9 @@ const ProvisioningBoardDetail = () => {
                             {/* Status badge select */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
                               <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-                                <span style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', width: 5, height: 5, borderRadius: '50%', background: displayBadge.dot, pointerEvents: 'none', zIndex: 1 }} />
-                                {isLocked
-                                  ? <span style={{ paddingLeft: 16, paddingRight: 8, paddingTop: 3, paddingBottom: 3, fontSize: 11, fontWeight: 600, background: displayBadge.bg, color: displayBadge.color, border: `1px solid ${displayBadge.border}`, borderRadius: 6, display: 'inline-block' }}>{displayBadge.label}</span>
+                                <span style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', width: 5, height: 5, borderRadius: '50%', background: badge.dot, pointerEvents: 'none', zIndex: 1 }} />
+                                {statusReadOnly
+                                  ? <span style={{ paddingLeft: 16, paddingRight: 8, paddingTop: 3, paddingBottom: 3, fontSize: 11, fontWeight: 600, background: badge.bg, color: badge.color, border: `1px solid ${badge.border}`, borderRadius: 6, display: 'inline-block' }}>{badge.label}</span>
                                   : <select
                                       value={item.status || 'draft'}
                                       onChange={e => handleStatusSave(item, 'status', e.target.value)}
