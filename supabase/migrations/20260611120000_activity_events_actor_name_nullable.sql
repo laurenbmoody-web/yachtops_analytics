@@ -1,0 +1,23 @@
+-- activity_events.actor_name — drop NOT NULL
+--
+-- The column was declared NOT NULL DEFAULT 'Unknown User' to ensure every
+-- audit row carried an actor identifier. The intent is sound, but it
+-- doesn't survive contact with the audit triggers: out-of-band triggers
+-- (notably log_provisioning_item_change) explicitly INSERT actor_name
+-- with NULL when auth.uid() is null — which happens whenever a write
+-- is performed from a context without a user session (Studio SQL Editor,
+-- backfill migrations, SECURITY DEFINER calls without propagated identity).
+--
+-- The NOT NULL guard fails the INSERT at that point, which in practice
+-- means every migration that touches an audited table hits 23502 and
+-- needs DISABLE TRIGGER USER to work around it. The Phase 3 backfills
+-- demonstrated this twice. The NOT NULL is guarding a write path that
+-- the trigger itself is allowed to violate by intent.
+--
+-- Dropping NOT NULL. The DEFAULT 'Unknown User' stays — writes that
+-- OMIT the column (rather than explicitly passing NULL) still get a
+-- sensible value. Reads handle NULL gracefully throughout the codebase
+-- (every consumer falls back to 'system' / 'Someone' / 'Unknown User'
+-- via || chains, verified in audit before this migration shipped).
+
+ALTER TABLE public.activity_events ALTER COLUMN actor_name DROP NOT NULL;
