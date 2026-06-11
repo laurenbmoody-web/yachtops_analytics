@@ -19,6 +19,7 @@ import { useRotaShifts } from './useRotaShifts';
 import { useRotaTemplates } from './useRotaTemplates';
 import { useRotaDepartmentStatus } from './useRotaDepartmentStatus';
 import { clearRota } from './useRotaLifecycleWriters';
+import { getDraftDayCount } from './rotaLifecycleChecks';
 import './crew-rota.css';
 
 // RotaWorkspace — the shared rota composition extracted from /crew.
@@ -130,21 +131,34 @@ export default function RotaWorkspace({
     : (currentUser?.department_id || null);
 
   // Per-dept day count for the submitter footer label / disable check.
-  // DISTINCT draft shift_date values among footerDeptId crew, sliced from
-  // the loaded window. Reactive to optimistic paints.
+  // DISTINCT draft days for footerDeptId, across the WHOLE rota — not just the
+  // loaded ±6-day window (which previously under-counted multi-week drafts).
+  // The whole-rota set is fetched (debounced) and UNIONed with the live window
+  // set so the label still ticks up immediately as cells are painted.
+  const [fetchedDraftDays, setFetchedDraftDays] = useState([]);
+  useEffect(() => {
+    if (!rota?.id || !rota?.tenantId || !footerDeptId) { setFetchedDraftDays([]); return undefined; }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const res = await getDraftDayCount(rota.id, rota.tenantId, footerDeptId);
+      if (!cancelled && res.ok) setFetchedDraftDays(res.days);
+    }, 300);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [rota?.id, rota?.tenantId, footerDeptId, windowShifts]);
+
   const draftDayCount = useMemo(() => {
     if (!footerDeptId) return 0;
     const deptMemberIds = new Set(
       crew.filter((c) => c.departmentId === footerDeptId).map((c) => c.id),
     );
-    const days = new Set();
+    const days = new Set(fetchedDraftDays);
     for (const s of (windowShifts || [])) {
       if (s.status === 'draft' && deptMemberIds.has(s.memberId)) {
         days.add(s.date);
       }
     }
     return days.size;
-  }, [footerDeptId, windowShifts, crew]);
+  }, [footerDeptId, windowShifts, crew, fetchedDraftDays]);
 
   // Reviewer diff count vs the submission baseline — wired in a later
   // sub-commit. 0 for now so the footer slot signature is stable.

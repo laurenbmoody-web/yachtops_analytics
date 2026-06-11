@@ -78,19 +78,36 @@ async function loadOne(item) {
     }
   }
 
-  // MLC override count for the (rota, dept) since this submission was
-  // raised. Conservative bound: count all mlc_override events for the
-  // pair; the rota lifecycle resets between published cycles so this
-  // is a useful "edits-in-this-cycle had MLC flags" indicator. Phase 6
-  // can refine to "since submitted_at".
+  // MLC override count for the (rota, dept) for THIS submission cycle.
+  // mlc_override events are logged while the HOD edits (pre-submit), so the
+  // lower bound is the END of the previous cycle — the later of the dept's
+  // last reject / last publish — NOT submitted_at (which would exclude every
+  // override, since they all predate it). First cycle (no prior resolution)
+  // counts all, as before.
   let mlcOverrideCount = 0;
   if (rotaId && departmentId) {
-    const { count, error: evErr } = await supabase
+    let since = null;
+    const { data: statusRow } = await supabase
+      .from('rota_department_status')
+      .select('last_rejected_at, last_published_at')
+      .eq('rota_id', rotaId)
+      .eq('department_id', departmentId)
+      .limit(1)
+      .maybeSingle();
+    if (statusRow) {
+      const times = [statusRow.last_rejected_at, statusRow.last_published_at]
+        .filter(Boolean)
+        .map((t) => new Date(t).getTime());
+      if (times.length) since = new Date(Math.max(...times)).toISOString();
+    }
+    let q = supabase
       .from('rota_approval_events')
       .select('id', { count: 'exact', head: true })
       .eq('rota_id', rotaId)
       .eq('department_id', departmentId)
       .eq('event_type', 'mlc_override');
+    if (since) q = q.gt('created_at', since);
+    const { count, error: evErr } = await q;
     if (evErr) {
       console.warn('[useReviewItems] events count failed:', evErr);
     } else {
