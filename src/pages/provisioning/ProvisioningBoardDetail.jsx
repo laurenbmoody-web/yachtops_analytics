@@ -822,6 +822,24 @@ const ProvisioningBoardDetail = () => {
       .then(data => setDeliveries(data || []))
       .catch(err => console.error('[BulkReceive] fetchDeliveryBatches failed:', err));
 
+    // Refresh list status + supplier_orders so the cascade results
+    // (board pill flips to delivered / partially_delivered, order pill
+    // flips to received) reflect in the local React state. The cascade
+    // helper has already written to the DB by the time receiveItems /
+    // quickReceiveItem resolves — these refetches just pull the new
+    // values back into the component.
+    Promise.allSettled([
+      fetchProvisioningList(id),
+      fetchSupplierOrders(id).catch(() => []),
+    ]).then(([listRes, ordersRes]) => {
+      if (listRes.status === 'fulfilled' && listRes.value) {
+        setList(prev => ({ ...prev, ...listRes.value }));
+      }
+      if (ordersRes.status === 'fulfilled') {
+        setSupplierOrders(ordersRes.value || []);
+      }
+    });
+
     if (failed.length === 0) {
       showToast(`Marked ${succeeded} item${succeeded === 1 ? '' : 's'} received`, 'success');
     } else if (succeeded === 0) {
@@ -3061,6 +3079,11 @@ const ProvisioningBoardDetail = () => {
             fetchListItems(id).then(updated => setItems(updated || [])).catch(() => {});
             // Refresh delivery batches list
             if (list?.id) fetchDeliveryBatches(list.id).then(data => setDeliveries(data || [])).catch(() => {});
+            // Refresh list status + supplier_orders so the cascade
+            // result (board pill + order pill) reflects locally without
+            // a hard reload.
+            fetchProvisioningList(id).then(fresh => fresh && setList(prev => ({ ...prev, ...fresh }))).catch(() => {});
+            fetchSupplierOrders(id).then(orders => setSupplierOrders(orders || [])).catch(() => {});
             showToast('Delivery received', 'success');
           }}
         />
