@@ -471,10 +471,15 @@ textarea.idr-field { resize: none; line-height: 1.6; min-height: 80px; }
    the kanban DetailTableCells will adopt the same tokens on its
    own migration. */
 .idr-status-pill {
+  /* min-width keeps short labels (Draft, Paid) the same width as the
+     longest visible label ("Not received"). Pills now line up cleanly
+     in the pill row regardless of which status is rendered. */
+  min-width: 90px;
   padding: 5px 12px;
   border-radius: 20px;
   font-size: 11px;
   font-weight: 600;
+  text-align: center;
   cursor: pointer;
   border: 1px solid var(--d-border);
   background: transparent;
@@ -486,11 +491,13 @@ textarea.idr-field { resize: none; line-height: 1.6; min-height: 80px; }
 .idr-status-pill:disabled:not(.is-active) { opacity: 0.4; }
 
 .idr-status-pill.is-active.is-draft        { background: var(--d-status-draft-bg);        color: var(--d-status-draft-fg);        border-color: var(--d-status-draft-fg); }
-.idr-status-pill.is-active.is-to-order     { background: var(--d-status-to-order-bg);     color: var(--d-status-to-order-fg);     border-color: var(--d-status-to-order-fg); }
 .idr-status-pill.is-active.is-ordered      { background: var(--d-status-ordered-bg);      color: var(--d-status-ordered-fg);      border-color: var(--d-status-ordered-fg); }
 .idr-status-pill.is-active.is-received     { background: var(--d-status-received-bg);     color: var(--d-status-received-fg);     border-color: var(--d-status-received-fg); }
 .idr-status-pill.is-active.is-partial      { background: var(--d-status-partial-bg);      color: var(--d-status-partial-fg);      border-color: var(--d-status-partial-fg); }
 .idr-status-pill.is-active.is-not-received { background: var(--d-status-not-received-bg); color: var(--d-status-not-received-fg); border-color: var(--d-status-not-received-fg); }
+.idr-status-pill.is-active.is-returned     { background: var(--d-status-returned-bg);     color: var(--d-status-returned-fg);     border-color: var(--d-status-returned-fg); }
+.idr-status-pill.is-active.is-invoiced     { background: var(--d-status-invoiced-bg);     color: var(--d-status-invoiced-fg);     border-color: var(--d-status-invoiced-fg); }
+.idr-status-pill.is-active.is-paid         { background: var(--d-status-paid-bg);         color: var(--d-status-paid-fg);         border-color: var(--d-status-paid-fg); }
 
 /* ── Source badge (small chip when item.source is non-manual) ── */
 .idr-source-badge {

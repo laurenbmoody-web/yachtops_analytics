@@ -1,17 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ITEM_STATUS_ORDER, getItemStatusConfig } from '../data/statusConfig';
+import { ITEM_STATUS_ORDER, getItemStatusConfig, deriveDisplayStatus } from '../data/statusConfig';
 
-// Per-card status pill + right-click status picker. Reads from the unified
-// statusConfig source of truth — previously had a local STATUS_CONFIG +
-// STATUS_ORDER that drifted from the March 2026 enum migration (kept dead
-// values 'pending' / 'short_delivered' / 'not_delivered' and was missing
-// the live additions 'partial' / 'not_received'). Items in the live
-// statuses were rendering with the wrong label; the picker let users
-// select dead values that failed the provisioning_items CHECK on write.
-// Both fixed by consuming the canonical config.
+// Per-card status pill + right-click status picker. Pipes item + supplier_
+// order_item + supplier_order through deriveDisplayStatus so the kanban
+// pill matches the items-table pill exactly (single source of truth across
+// surfaces). Right-click picker still iterates ITEM_STATUS_ORDER so it
+// only offers crew-controllable states.
 
-const ItemCard = ({ item, onClick, onStatusChange, onQuantityChange }) => {
-  const cfg = getItemStatusConfig(item.status);
+const ItemCard = ({ item, supplierOrderItem, supplierOrder, onClick, onStatusChange, onQuantityChange }) => {
+  const derived = deriveDisplayStatus(item, supplierOrderItem, supplierOrder);
+  const cfg = getItemStatusConfig(derived);
   const [menu, setMenu] = useState(null);
   const menuRef = useRef(null);
   const longPressTimer = useRef(null);

@@ -561,9 +561,19 @@ export const receiveItems = async (updates) => {
     console.error('[provisioningStorage] receiveItems partial errors:', errors);
     if (errors.length === updates.length) throw new Error('All receive updates failed');
   }
-  return results
+  const updated = results
     .filter(r => r.status === 'fulfilled' && r.value?.data)
     .map(r => r.value.data);
+  // Items→board+orders cascade — advance provisioning_lists.status and
+  // supplier_orders.status based on the new item state. Soft-fail; items
+  // already wrote successfully and the cascade is best-effort.
+  const listIds = [...new Set(updated.map(i => i.list_id).filter(Boolean))];
+  if (listIds.length > 0) {
+    cascadeListAndOrderStatusAfterReceive(listIds).catch(err => {
+      console.error('[provisioningStorage] receiveItems cascade error:', err);
+    });
+  }
+  return updated;
 };
 
 // ── Suppliers ─────────────────────────────────────────────────────────────────
@@ -903,13 +913,128 @@ export const duplicateList = async (sourceListId, vesselId, userId) => {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+// Compute the board (provisioning_lists) status that reflects the current
+// item lifecycle distribution. Called by the items→board cascade after a
+// receive event. Returns null when no change should be written (caller
+// skips the update).
+//
+// Mapping:
+//   No items yet                          → null (no change)
+//   No items processed                    → null (still sent_to_supplier)
+//   Some processed, some still in-flight  → 'partially_delivered'
+//   All processed, no issues              → 'delivered'
+//   All processed, any partial/not_received → 'delivered_with_discrepancies'
+//
+// "Processed" = past the in-flight ordered/draft stage. Items in returned,
+// invoiced, paid count as processed (terminal/financial close-out states
+// stew may set manually for non-Cargo supplier flows).
 export const computeListStatusAfterDelivery = (items) => {
-  if (!items?.length) return PROVISIONING_STATUS.DELIVERED;
-  const notReceived = items.filter(i => i.status === ITEM_STATUS.NOT_RECEIVED);
-  const partial = items.filter(i => i.status === ITEM_STATUS.PARTIAL);
-  if (notReceived.length === items.length) return PROVISIONING_STATUS.PARTIALLY_DELIVERED;
-  if (notReceived.length > 0 || partial.length > 0) return PROVISIONING_STATUS.DELIVERED_WITH_DISCREPANCIES;
-  return PROVISIONING_STATUS.DELIVERED;
+  if (!items?.length) return null;
+  const PROCESSED = new Set(['received', 'partial', 'not_received', 'returned', 'invoiced', 'paid']);
+  const processed = items.filter(i => PROCESSED.has(i.status)).length;
+  if (processed === 0) return null;
+  if (processed < items.length) return PROVISIONING_STATUS.PARTIALLY_DELIVERED;
+  const hasDiscrepancy = items.some(i => i.status === 'partial' || i.status === 'not_received');
+  return hasDiscrepancy
+    ? PROVISIONING_STATUS.DELIVERED_WITH_DISCREPANCIES
+    : PROVISIONING_STATUS.DELIVERED;
+};
+
+// Compute the supplier_orders.status that reflects the receipt state of
+// the items linked to a given supplier_order. Returns null when no change
+// should be written.
+//
+// The link from supplier_order_items back to provisioning_items is by
+// case-insensitive name match (same pattern as itemStatusMap in the
+// items-table render). When all matched provisioning_items are in a
+// post-delivery state, advance the order to 'received'.
+//
+// Doesn't push past 'received' — invoiced/paid live on supplier_orders.
+// status via their own write paths (invoice upload, payment marking)
+// and shouldn't be regressed by a re-trigger of the receive cascade.
+export const computeOrderStatusAfterReceive = (order, listItems) => {
+  if (!order?.supplier_order_items?.length) return null;
+  // Don't regress orders already past 'received'.
+  if (['received', 'invoiced', 'paid'].includes(order.status)) return null;
+  const POST_DELIVERY = new Set(['received', 'partial', 'not_received', 'returned']);
+  const matchedItems = order.supplier_order_items
+    .map(oi => (listItems || []).find(li =>
+      (li.name || '').toLowerCase().trim() === (oi.item_name || '').toLowerCase().trim()
+    ))
+    .filter(Boolean);
+  if (matchedItems.length === 0) return null;
+  const allDelivered = matchedItems.every(i => POST_DELIVERY.has(i.status));
+  return allDelivered ? 'received' : null;
+};
+
+// Items→board+orders cascade. Called after any receive write (receiveItems,
+// quickReceiveItem, ReceiveDeliveryModal multi-board batch). Soft-fails
+// entirely — items already wrote successfully, this is best-effort UI
+// hygiene. Per-list fetch + per-order match, parallelised across lists.
+export const cascadeListAndOrderStatusAfterReceive = async (listIds) => {
+  if (!Array.isArray(listIds) || listIds.length === 0) return;
+  const uniqueIds = [...new Set(listIds.filter(Boolean))];
+  await Promise.allSettled(uniqueIds.map(async (listId) => {
+    try {
+      // Fetch all items + all orders for this list in two queries.
+      const [itemsRes, ordersRes] = await Promise.all([
+        supabase
+          ?.from('provisioning_items')
+          ?.select('id, name, status')
+          ?.eq('list_id', listId),
+        supabase
+          ?.from('supplier_orders')
+          ?.select('id, status, supplier_order_items(item_name)')
+          ?.eq('list_id', listId),
+      ]);
+      const items = itemsRes?.data || [];
+      const orders = ordersRes?.data || [];
+
+      // Board (provisioning_lists) cascade
+      const newListStatus = computeListStatusAfterDelivery(items);
+      if (newListStatus) {
+        await supabase
+          ?.from('provisioning_lists')
+          ?.update({ status: newListStatus })
+          ?.eq('id', listId);
+      }
+
+      // Per-order cascade
+      await Promise.allSettled((orders || []).map(async (order) => {
+        const newOrderStatus = computeOrderStatusAfterReceive(order, items);
+        if (newOrderStatus && newOrderStatus !== order.status) {
+          await supabase
+            ?.from('supplier_orders')
+            ?.update({ status: newOrderStatus })
+            ?.eq('id', order.id);
+        }
+      }));
+    } catch (err) {
+      console.error('[provisioningStorage] cascadeListAndOrderStatusAfterReceive error for list', listId, ':', err);
+      // Soft fail — receive writes already committed.
+    }
+  }));
+};
+
+// Batched supplier_orders fetch for many lists at once. Used by the
+// workspace kanban to feed deriveDisplayStatus on lane cards. Returns a
+// listId → orders map for easy lookup.
+export const fetchSupplierOrdersForLists = async (listIds) => {
+  if (!Array.isArray(listIds) || listIds.length === 0) return {};
+  const { data, error } = await supabase
+    ?.from('supplier_orders')
+    ?.select('id, list_id, status, supplier_order_items(item_name, status, substitute_description, substitution_price)')
+    ?.in('list_id', listIds);
+  if (error) {
+    console.error('[provisioningStorage] fetchSupplierOrdersForLists error:', error);
+    return {};
+  }
+  const byList = {};
+  (data || []).forEach((order) => {
+    if (!byList[order.list_id]) byList[order.list_id] = [];
+    byList[order.list_id].push(order);
+  });
+  return byList;
 };
 
 export const formatCurrency = (amount, currency = 'USD') => {
@@ -1515,6 +1640,11 @@ export const quickReceiveItem = async ({ item, listId, tenantId, userId }) => {
       ...(batchId ? { receive_batch_id: batchId } : {}),
     });
     console.log('[quickReceiveItem] item updated successfully');
+
+    // 3b. Items→board+orders cascade. Soft-fail; item already wrote.
+    cascadeListAndOrderStatusAfterReceive([listId]).catch(err => {
+      console.error('[quickReceiveItem] cascade error:', err);
+    });
 
     // 4. Write to permanent delivery ledger (fire-and-forget)
     if (tenantId) {

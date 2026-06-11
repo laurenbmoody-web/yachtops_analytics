@@ -259,6 +259,11 @@ const BoardColumn = ({
   canCommandDelete,
   dragHandleProps,
   isDragging,
+  // Per-item supplier lookup: { [item.name lowered]: { status,
+  // substitution, subPrice, parentOrder } }. Threaded down so ItemCard
+  // can pipe item + supplier_order_item + supplier_order through
+  // deriveDisplayStatus. Empty map when the board has no orders.
+  itemStatusMap = {},
   onItemClick,
   onItemStatusChange,
   onItemQuantityChange,
@@ -486,15 +491,19 @@ const BoardColumn = ({
         <>
           {/* Items — scrollable */}
           <div className="pv-lane-items">
-            {filteredItems.map(item => (
+            {filteredItems.map(item => {
+              const supplierEntry = itemStatusMap[(item.name || '').toLowerCase().trim()];
+              return (
               <ItemCard
                 key={item.id}
                 item={item}
+                supplierOrderItem={supplierEntry}
+                supplierOrder={supplierEntry?.parentOrder}
                 onClick={onItemClick}
                 onStatusChange={onItemStatusChange}
                 onQuantityChange={onItemQuantityChange}
               />
-            ))}
+            );})}
             {filteredItems.length === 0 && hiddenCount === 0 && (
               <div className="pv-lane-empty">
                 {items.length > 0 && items.every(i => i.status === 'received') ? (

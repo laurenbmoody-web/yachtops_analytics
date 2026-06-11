@@ -43,15 +43,9 @@ const CURRENCY_PILLS = [
   { code: 'EUR', symbol: '€' },
 ];
 
-// Per-status selected pill colours
-const STATUS_STYLES = {
-  draft:        { bg: '#f1f5f9', border: '#cbd5e1', color: '#475569' },
-  ordered:      { bg: '#f5f3ff', border: '#c4b5fd', color: '#7c3aed' },
-  received:     { bg: '#f0fdf4', border: '#86efac', color: '#15803d' },
-  partial:      { bg: '#fffbeb', border: '#fcd34d', color: '#b45309' },
-  not_received: { bg: '#fef2f2', border: '#fca5a5', color: '#b91c1c' },
-  returned:     { bg: '#f1f5f9', border: '#cbd5e1', color: '#475569' },
-};
+// (STATUS_STYLES was a duplicate per-status palette; deleted in phase 3
+// commit 5. The cool-surface .idr-status-pill rules in item-drawer.css
+// now own the visual treatment via --d-status-* tokens.)
 
 // ── Field label + child wrapper — defined at module level to avoid remount ───
 const Field = ({ isLight, labelCls, label, children }) => (
