@@ -10,11 +10,12 @@
 // volumes (pending lists stay small — single-digit common, low double
 // digits at the extreme). Batch lookups can land in Phase 6 polish.
 //
-// day_count: from the source_event_type='submitted' snapshot's shift_data
-// (a jsonb array of rota_shifts rows). Counts distinct shift_date. When
-// no submit-time snapshot exists (items submitted before the snapshotting
-// writer landed), falls back to counting distinct shift_date from the live
-// rota_shifts for that (rota, dept) over draft+published rows.
+// day_count / shift_count / date_start / date_end describe the SUBMISSION —
+// i.e. the unpublished (draft) shifts for the (rota, dept), which are the
+// changes the chief is approving. Already-published shifts are excluded so
+// the review opens on the first changed day and the counts reflect only the
+// changes (computed from live rota_shifts). Defensive fallback to all shifts
+// only if a submission carries no draft rows.
 //
 // submitter_role: looked up against tenant_members. roles join is
 // optional — falls back to null when the role isn't resolvable so the
@@ -30,46 +31,19 @@ async function loadOne(item) {
   const rotaId = ctx.rota_id;
   const departmentId = ctx.department_id;
 
-  // Submit-time snapshot for day_count + (Phase 4b) diff baseline.
+  // What the chief is approving = the UNPUBLISHED (draft) shifts: the actual
+  // changes. Already-published shifts are the live rota and don't need
+  // re-reviewing, so they're excluded from the day/shift counts AND from the
+  // date range that decides where the review opens — otherwise an old
+  // published day pulls the opening date back and the new changes get buried
+  // (you'd have to scroll to find them). Computed from live rota_shifts so it
+  // reflects any reviewer edits. Defensive fallback to all shifts only if a
+  // submission somehow carries no draft rows, so the card never reads "0 days".
   let dayCount = 0;
-  let shiftCount = ctx.shift_count ?? 0;
-  let dateStart = null;   // earliest shift date in the submission — the
-  let dateEnd = null;     // review pane opens here so shifts are visible.
-  let snapFound = false;
-  if (rotaId && departmentId) {
-    const { data: snap, error: snapErr } = await supabase
-      .from('rota_shift_snapshots')
-      .select('shift_data, shift_count, date_start, date_end')
-      .eq('rota_id', rotaId)
-      .eq('department_id', departmentId)
-      .eq('source_event_type', 'submitted')
-      .order('snapshot_taken_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (snapErr) {
-      console.warn('[useReviewItems] snapshot fetch failed:', snapErr);
-    } else if (snap) {
-      snapFound = true;
-      shiftCount = snap.shift_count ?? shiftCount;
-      dateStart = snap.date_start ?? null;
-      dateEnd = snap.date_end ?? null;
-      const dates = new Set();
-      for (const s of (snap.shift_data || [])) {
-        if (s?.shift_date) dates.add(s.shift_date);
-      }
-      dayCount = dates.size;
-    }
-  }
-
-  // Fallback when no submit-time snapshot exists — items submitted before
-  // submit_rota_department started snapshotting (Phase 4a sub-commit 1)
-  // have a review_item but no 'submitted' snapshot, so the block above
-  // leaves day_count at 0 despite shifts existing (the founder's
-  // "0 days · 80 shifts" bug). Derive day_count from the live rota_shifts
-  // for this (rota, dept): distinct shift_date over draft+published rows.
-  // Approximate vs a post-edit snapshot, but accurate for the orphaned
-  // pre-snapshot items and good enough for the inbox surface at v1.
-  if (!snapFound && rotaId && departmentId && item.tenant_id) {
+  let shiftCount = 0;
+  let dateStart = null;   // earliest CHANGED day — the review opens here.
+  let dateEnd = null;
+  if (rotaId && departmentId && item.tenant_id) {
     const { data: members, error: mErr } = await supabase
       .from('tenant_members')
       .select('id')
@@ -83,20 +57,19 @@ async function loadOne(item) {
       if (memberIds.length > 0) {
         const { data: shifts, error: sErr } = await supabase
           .from('rota_shifts')
-          .select('shift_date')
+          .select('shift_date, status')
           .eq('rota_id', rotaId)
-          .in('status', ['draft', 'published'])
           .in('member_id', memberIds);
         if (sErr) {
-          console.warn('[useReviewItems] fallback shifts fetch failed:', sErr);
+          console.warn('[useReviewItems] shifts fetch failed:', sErr);
         } else {
+          const rows = shifts || [];
+          const draft = rows.filter((s) => s?.status === 'draft' && s?.shift_date);
+          const scoped = draft.length > 0 ? draft : rows.filter((s) => s?.shift_date);
           const dates = new Set();
-          for (const s of (shifts || [])) {
-            if (s?.shift_date) dates.add(s.shift_date);
-          }
+          for (const s of scoped) dates.add(s.shift_date);
+          shiftCount = scoped.length;
           dayCount = dates.size;
-          // date range from the live shifts — drives the review pane's
-          // initial date so the chief lands on a populated day.
           const sorted = [...dates].sort();
           dateStart = sorted[0] ?? null;
           dateEnd = sorted[sorted.length - 1] ?? null;
