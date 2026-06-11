@@ -412,7 +412,7 @@ export default function RotaWorkspace({
                 type="button"
                 className="crew-rota-pill active edit-pill"
                 onClick={exitEdit}
-              >Done</button>
+              >{tier === 'HOD' ? 'Save draft' : 'Done'}</button>
             ) : (
               <button
                 type="button"
