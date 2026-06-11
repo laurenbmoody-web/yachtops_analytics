@@ -9,6 +9,7 @@ import { useReviewItems } from './useReviewItems';
 import { fetchInboxPending } from '../../hooks/inboxScope';
 import CompactReviewItemCard from './CompactReviewItemCard';
 import ReviewRightPane from './ReviewRightPane';
+import ResolvedDetail from './ResolvedDetail';
 import InboxSidebar from './InboxSidebar';
 import './reviews.css';
 
@@ -62,7 +63,9 @@ export default function ReviewsPage() {
     return () => { cancelled = true; clearInterval(id); };
   }, [user, tier, userDeptId, activeTenantId]);
 
-  const { items, loading, refetch } = useReviewItems();
+  // Pending inbox vs History (resolved) tab.
+  const [tab, setTab] = useState('pending');
+  const { items, loading, refetch } = useReviewItems(tab === 'history' ? 'resolved' : 'pending');
 
   const [toast, setToast] = useState(null);
   const showToast = (msg, opts) => {
@@ -70,10 +73,12 @@ export default function ReviewsPage() {
     setTimeout(() => setToast(null), 4200);
   };
 
-  const subtitleCount = loading ? (pendingCount ?? 0) : items.length;
-  const subtitle = tier === 'COMMAND'
-    ? `${subtitleCount} submission${subtitleCount === 1 ? '' : 's'} across the vessel`
-    : `${subtitleCount} submission${subtitleCount === 1 ? '' : 's'} awaiting your decision`;
+  const subtitleCount = loading ? (tab === 'pending' ? (pendingCount ?? 0) : 0) : items.length;
+  const subtitle = tab === 'history'
+    ? `${subtitleCount} resolved submission${subtitleCount === 1 ? '' : 's'}`
+    : tier === 'COMMAND'
+      ? `${subtitleCount} submission${subtitleCount === 1 ? '' : 's'} across the vessel`
+      : `${subtitleCount} submission${subtitleCount === 1 ? '' : 's'} awaiting your decision`;
 
   // ── Selection + URL state ──────────────────────────────────────────────
   const [searchParams, setSearchParams] = useSearchParams();
@@ -125,10 +130,29 @@ export default function ReviewsPage() {
           </h1>
           <div className="rv-subtitle">{subtitle}</div>
 
+          <div className="rv-tabs" role="tablist" aria-label="Review queue">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'pending'}
+              className={`rv-tab${tab === 'pending' ? ' active' : ''}`}
+              onClick={() => setTab('pending')}
+            >Pending</button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'history'}
+              className={`rv-tab${tab === 'history' ? ' active' : ''}`}
+              onClick={() => setTab('history')}
+            >History</button>
+          </div>
+
           <div className="rv-cc-list">
             {!loading && items.length === 0 ? (
               <div className="rv-cc-empty" role="status">
-                {everHadItems.current ? 'All clear.' : 'Nothing to review.'}
+                {tab === 'history'
+                  ? 'No resolved submissions yet.'
+                  : (everHadItems.current ? 'All clear.' : 'Nothing to review.')}
               </div>
             ) : (
               items.map((item) => (
@@ -146,22 +170,30 @@ export default function ReviewsPage() {
         {/* Right — selected submission */}
         <section className="rv-rightpane-col" aria-label="Submission detail">
           {selectedItem ? (
-            <ReviewRightPane
-              key={selectedItem.id}
-              item={selectedItem}
-              onToast={showToast}
-              onResolved={handleResolved}
-            />
+            tab === 'history' ? (
+              <ResolvedDetail key={selectedItem.id} item={selectedItem} />
+            ) : (
+              <ReviewRightPane
+                key={selectedItem.id}
+                item={selectedItem}
+                onToast={showToast}
+                onResolved={handleResolved}
+              />
+            )
           ) : (
             <div className="rv-rp-blank" role="status">
               <Icon name="Check" size={36} color="#8B8478" className="rv-rp-blank-icon" />
               <div className="rv-rp-blank-title">
-                {everHadItems.current ? 'All clear' : 'Nothing to review'}
+                {tab === 'history'
+                  ? 'No history yet'
+                  : (everHadItems.current ? 'All clear' : 'Nothing to review')}
               </div>
               <div className="rv-rp-blank-sub">
-                {everHadItems.current
-                  ? 'You’ve actioned every pending submission.'
-                  : 'When HODs submit rota changes, they’ll appear here for your decision.'}
+                {tab === 'history'
+                  ? 'Accepted and rejected submissions will be listed here.'
+                  : (everHadItems.current
+                    ? 'You’ve actioned every pending submission.'
+                    : 'When HODs submit rota changes, they’ll appear here for your decision.')}
               </div>
             </div>
           )}
