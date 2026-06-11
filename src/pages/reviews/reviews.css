@@ -216,7 +216,18 @@
 .rv-cc-outcome.st-rejected            { background: #FAECE7; color: #7A2E1E; }
 
 /* Read-only resolved (history) detail pane */
-.rv-resolved { padding: 40px 44px; max-width: 640px; }
+.rv-resolved { padding: 40px 44px; max-width: 1040px; }
+.rv-resolved-meta { max-width: 560px; }
+.rv-resolved-lines { margin-top: 28px; overflow-x: auto; }
+.rv-resolved-lines-label {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+  color: rgba(28, 27, 58, 0.5); margin-bottom: 12px;
+}
+.rv-resolved-lines-empty {
+  margin-top: 28px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px; color: rgba(28, 27, 58, 0.5);
+}
 .rv-resolved-eyebrow {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
