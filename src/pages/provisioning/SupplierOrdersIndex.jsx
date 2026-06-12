@@ -116,53 +116,27 @@ const SupplierOrdersIndex = () => {
             the Sent/Delivered tab toggle is a swap of content within the
             same column, not a layout reflow. */}
         <div style={{ maxWidth: 1240, margin: '0 auto', padding: '24px 32px' }}>
-        {/* Header */}
-        <div style={{ marginBottom: 24 }}>
-          <button
-            onClick={() => navigate('/provisioning')}
-            style={{
-              background: 'none', border: 0, padding: 0, cursor: 'pointer',
-              fontSize: 12, fontWeight: 600, color: 'var(--d-muted)',
-              letterSpacing: '0.08em', textTransform: 'uppercase',
-              display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 12,
-            }}
-          >
-            <Icon name="ChevronLeft" size={14} strokeWidth={1.5} />
-            Back to boards
-          </button>
-          {/* Editorial meta strip + serif headline — matches the Delivered
-              page (.editorial-meta + .editorial-greeting from editorial.css).
-              Sent and Delivered now share identical header typography so
-              the tab toggle reads as one surface. */}
-          <p className="editorial-meta">
-            <span className="dot">●</span>
-            <span>Orders</span>
-            <span className="bar" />
-            <span className="muted">All supplier orders</span>
-            {!loading && filtered.length > 0 && (
-              <>
-                <span className="bar" />
-                <span className="muted">{filtered.length} order{filtered.length === 1 ? '' : 's'}</span>
-                <span className="bar" />
-                <span className="muted">
-                  {filtered.reduce((sum, o) => sum + (o.item_count || 0), 0)} item
-                  {filtered.reduce((sum, o) => sum + (o.item_count || 0), 0) === 1 ? '' : 's'}
-                </span>
-              </>
-            )}
-          </p>
-          <h1 className="editorial-greeting">
-            ORDERS<span className="period">,</span> <em>all of them</em><span className="period">.</span>
-          </h1>
-        </div>
+        {/* Back to boards — nav chunk above the editorial header. The
+            22px marginBottom matches the gap on the Delivered page (where
+            .dh-topbar-inner padding-top provides the same rhythm). */}
+        <button
+          onClick={() => navigate('/provisioning')}
+          style={{
+            background: 'none', border: 0, padding: 0, cursor: 'pointer',
+            fontSize: 12, fontWeight: 600, color: 'var(--d-muted)',
+            letterSpacing: '0.08em', textTransform: 'uppercase',
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            marginBottom: 22, fontFamily: 'inherit',
+          }}
+        >
+          <Icon name="ChevronLeft" size={14} strokeWidth={1.5} />
+          Back to boards
+        </button>
 
-        {/* Tab strip — Sent (outbound supplier_orders) / Delivered (inbound
-            provisioning_deliveries). Each tab is a separate route so deep
-            linking + browser back work; tab click is a navigation. The same
-            strip renders at the top of DeliveryHistory.jsx with the
-            Delivered tab active. */}
+        {/* Tab strip — sits BELOW back-to-boards and ABOVE the editorial
+            header. Same order + spacing as the Delivered page. */}
         <div style={{
-          display: 'flex', gap: 4, marginBottom: 18,
+          display: 'flex', gap: 4, marginBottom: 14,
           borderBottom: '1px solid var(--d-border)',
         }}>
           <button
@@ -185,6 +159,32 @@ const SupplierOrdersIndex = () => {
             onMouseEnter={e => { e.currentTarget.style.color = 'var(--d-navy-deep)'; }}
             onMouseLeave={e => { e.currentTarget.style.color = 'var(--d-muted)'; }}
           >Delivered</button>
+        </div>
+
+        {/* Editorial header — meta strip + serif headline. Matches the
+            Delivered page (.editorial-meta + .editorial-greeting from
+            editorial.css). */}
+        <div style={{ marginBottom: 22 }}>
+          <p className="editorial-meta">
+            <span className="dot">●</span>
+            <span>Orders</span>
+            <span className="bar" />
+            <span className="muted">All supplier orders</span>
+            {!loading && filtered.length > 0 && (
+              <>
+                <span className="bar" />
+                <span className="muted">{filtered.length} order{filtered.length === 1 ? '' : 's'}</span>
+                <span className="bar" />
+                <span className="muted">
+                  {filtered.reduce((sum, o) => sum + (o.item_count || 0), 0)} item
+                  {filtered.reduce((sum, o) => sum + (o.item_count || 0), 0) === 1 ? '' : 's'}
+                </span>
+              </>
+            )}
+          </p>
+          <h1 className="editorial-greeting">
+            ORDERS<span className="period">,</span> <em>all of them</em><span className="period">.</span>
+          </h1>
         </div>
 
         {/* Filters */}
