@@ -219,14 +219,17 @@
 .rv-resolved { padding: 40px 44px; max-width: 1040px; }
 .rv-resolved-meta { max-width: 560px; }
 .rv-resolved-lines { margin-top: 28px; }
-/* Single, plain-block horizontal scroller wrapping the matrix. The matrix's own
-   .cw-card/.cw-grid-wrap (a flex item with overflow) made an ambiguous nested
-   scroll container that stopped the sticky crew column from pinning — neutralise
-   them (overflow visible, block) so this div is the only scroll container and
-   the sticky names/strip pin to it. */
-.rv-grid-scroll { overflow-x: auto; }
+/* Sticky crew column fix. The matrix wraps its scroller in a flex .cw-card; in
+   History we collapse that to a plain block so .cw-grid-wrap is a normal block
+   scroll container (like the day grid's .rota-grid-wrap). Crucially, give the
+   inner grid a real content width (max-content) so its BOX — not just its
+   overflowing tracks — is wider than the wrap; otherwise the wrap never scrolls
+   and the outer pane does, leaving the sticky names to ride along. With a true
+   block scroller + a genuinely-wider child, the sticky crew column + dept strip
+   pin to .cw-grid-wrap. */
 .rv-resolved-lines .cw-card { display: block; }
-.rv-resolved-lines .cw-grid-wrap { overflow: visible; flex: none; min-width: 0; }
+.rv-resolved-lines .cw-grid-wrap { flex: none; min-width: 0; overflow-x: auto; }
+.rv-resolved-lines .cw-grid-inner { width: max-content; }
 .rv-resolved-lines-head {
   display: flex; align-items: center; justify-content: space-between;
   gap: 16px; margin-bottom: 12px; flex-wrap: wrap;
