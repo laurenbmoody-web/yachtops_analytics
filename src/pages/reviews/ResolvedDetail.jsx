@@ -94,6 +94,8 @@ export default function ResolvedDetail({ item }) {
         snapshotId={item.snapshot_id}
         dateStart={item.date_start}
         dateEnd={item.date_end}
+        rotaId={item.rota_id}
+        departmentId={item.department_id}
       />
     </div>
   );

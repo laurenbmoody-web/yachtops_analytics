@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import { DEPT_ORDER, MlcTriangle } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
 import { ON_DUTY_TYPES, assessMlc } from './restHours';
 import { getContrastText, getRoleDisplayName } from './crewDisplay';
@@ -125,7 +125,7 @@ function DayHeader({ dateStr, isToday, isSelected, isAffected }) {
   );
 }
 
-function Cell({ summary, dateStr, isToday, isSelected, isAffected, onClick, ariaLabel }) {
+function Cell({ summary, dateStr, isToday, isSelected, isAffected, isEdited, onClick, ariaLabel }) {
   const weekend = isWeekend(dateStr);
   const cls = ['cw-c'];
   if (summary.isOff) cls.push('off');
@@ -134,6 +134,7 @@ function Cell({ summary, dateStr, isToday, isSelected, isAffected, onClick, aria
   if (isToday) cls.push('is-today-col');
   if (isSelected) cls.push('is-selected-col');
   if (isAffected) cls.push('is-affected');
+  if (isEdited) cls.push('is-edited');
   if (summary.mlcWarning) cls.push('is-warn');
 
   // Multi-shift display: show up to two ranges stacked. The gap between
@@ -145,6 +146,9 @@ function Cell({ summary, dateStr, isToday, isSelected, isAffected, onClick, aria
 
   return (
     <button type="button" className={cls.join(' ')} onClick={onClick} aria-label={ariaLabel}>
+      {isEdited && (
+        <span className="cw-c-edited" aria-hidden="true"><Pencil size={10} strokeWidth={2.5} /></span>
+      )}
       {summary.isOff ? (
         <span className="cw-c-off">off</span>
       ) : (
@@ -180,11 +184,19 @@ export default function CrewWeekMatrix({
   onStepDay,
   affectedDates = [],
   dayList = null,
+  editedCells = null,
 }) {
   // dayList: an explicit, possibly non-contiguous set of date columns (used by
   // the read-only history "dates affected only" filter). When provided it
   // overrides the 7-day forward window and the step controls are hidden.
   const customDays = Array.isArray(dayList) && dayList.length > 0;
+  // editedCells: Set of "memberId|YYYY-MM-DD" the reviewer changed before
+  // accepting (History view). Flagged cells get a pencil; clicking them calls
+  // onCellClick(date, memberId, anchorRect) to reveal the original hours.
+  const editedSet = useMemo(
+    () => (editedCells instanceof Set ? editedCells : new Set(editedCells || [])),
+    [editedCells],
+  );
   // Dates to flag as "changed in this submission" (read-only history view).
   // Empty on the live grid, so this is a no-op there.
   const affectedSet = useMemo(() => new Set(affectedDates), [affectedDates]);
@@ -286,7 +298,8 @@ export default function CrewWeekMatrix({
                           isToday={d === realToday}
                           isSelected={d === selectedDate}
                           isAffected={affectedSet.has(d)}
-                          onClick={() => onCellClick?.(d)}
+                          isEdited={editedSet.has(`${c.id}|${d}`)}
+                          onClick={(e) => onCellClick?.(d, c.id, e.currentTarget.getBoundingClientRect())}
                           ariaLabel={`${c.name} on ${d}`}
                         />
                       );

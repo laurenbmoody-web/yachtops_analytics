@@ -3483,6 +3483,7 @@
    min-height so a multi-shift cell can grow taller than 56px; the row
    stretches uniformly and CSS Grid aligns the rest of the row to match. */
 .cw-c {
+  position: relative;
   min-height: 56px;
   border: none;
   border-radius: 4px;
@@ -3515,6 +3516,15 @@
    to fence the affected column top-to-bottom. */
 .cw-c.is-affected {
   box-shadow: inset 2px 0 0 #C65A1A, inset -2px 0 0 #C65A1A;
+}
+/* Reviewer-edited cell badge (History view) — a pencil in the corner that
+   reveals the originally-submitted hours on click. */
+.cw-c-edited {
+  position: absolute; top: 4px; right: 4px; z-index: 2;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #C65A1A; color: #FFFFFF;
+  box-shadow: 0 0 0 1.5px #FFFFFF;
 }
 .cw-c.is-warn.f {
   /* Warning on a scheduled cell: keep navy fill, hint via meta colour. */
