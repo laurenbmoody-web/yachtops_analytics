@@ -591,7 +591,7 @@ export default function DeliveryHistory() {
             the editorial topbar so it's clearly nav, not content. */}
         {/* Same max-width as .dh-topbar-inner (1240px) so the back button
             aligns with the headline and table columns below. */}
-        <div style={{ maxWidth: 1240, margin: '0 auto', padding: '20px 32px 0' }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto', padding: '24px 32px 0' }}>
           <button
             onClick={() => navigate('/provisioning')}
             style={{
@@ -606,6 +606,12 @@ export default function DeliveryHistory() {
             Back to boards
           </button>
         </div>
+        {/* DH's dh-topbar-inner already provides 22px top padding (see
+            delivery-history.css), so the back-button container above
+            uses padding-bottom: 0 and 0 marginBottom — the 22px gap
+            between back-to-boards and the tab strip lands identically
+            to the Orders index (where back button has marginBottom:22
+            instead). */}
 
         {/* ── Topbar (breadcrumb + editorial header + filters) ── */}
         <div className="dh-topbar">
@@ -616,10 +622,9 @@ export default function DeliveryHistory() {
               below carry the nav now. Mirrored on the Sent tab which has
               the same structure. */}
 
-          {/* Tab strip — mirrors the Orders index. Sent (outbound supplier
-              orders) / Delivered (this page). Each tab is a separate route. */}
+          {/* Tab strip — mirrors the Orders index spacing exactly. */}
           <div style={{
-            display: 'flex', gap: 4, marginTop: 8, marginBottom: 12,
+            display: 'flex', gap: 4, marginBottom: 14,
             borderBottom: '1px solid rgba(38, 42, 83, 0.10)',
           }}>
             <button
