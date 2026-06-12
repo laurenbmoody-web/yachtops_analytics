@@ -203,6 +203,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
         currency: item.currency || null,
         status: item.status || 'draft',
         quantity_received: item.quantity_received ?? '',
+        returns_qty: item.returns_qty ?? 0,
         allergen_flags: item.allergen_flags || [],
         item_notes: item.item_notes || '',
         notes: item.notes || '',
@@ -365,6 +366,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
       estimated_unit_cost:    base.estimated_unit_cost ? parseFloat(base.estimated_unit_cost) : null,
       currency:               base.currency            || null,
       quantity_received:      base.quantity_received !== '' ? parseFloat(base.quantity_received) : null,
+      returns_qty:            base.returns_qty != null ? parseFloat(base.returns_qty) || 0 : 0,
       item_notes:             base.item_notes          || null,
       accounting_description: base.accounting_description || null,
       supplier_id:            base.supplier_id         || null,
@@ -485,6 +487,7 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
     currency: item.currency || null,
     status: item.status || 'draft',
     quantity_received: item.quantity_received ?? '',
+    returns_qty: item.returns_qty ?? 0,
     allergen_flags: item.allergen_flags || [],
     item_notes: item.item_notes || '',
     notes: item.notes || '',
@@ -1167,6 +1170,93 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
                     ))}
                   </select>
                 </>
+              )}
+            </Section>
+          )}
+
+          {/* ════ SECTION 6c: RETURNS (received items only) ════ */}
+          {/* Lets a stew record a partial or full return after receipt.
+              returns_qty stored as a numeric on provisioning_items (schema
+              migration 20260610130000). CHECK constraint enforces
+              0 <= returns_qty <= quantity_received. When returns_qty
+              reaches quantity_received, status auto-flips to 'returned';
+              partial returns stay at the underlying status (received or
+              partial) and the derive function surfaces them as
+              'partially returned' on the unified pill. */}
+          {isReceived && parseFloat(form.quantity_received) > 0 && (
+            <Section isLight={isLight} label="Returns">
+              {isLight ? (
+                <>
+                  <div className="idr-cost-row">
+                    <Field isLight={isLight} labelCls={labelCls} label="Qty returned">
+                      <input
+                        type="number"
+                        value={form.returns_qty ?? 0}
+                        min="0"
+                        step="0.1"
+                        max={parseFloat(form.quantity_received) || 0}
+                        onChange={e => {
+                          const raw = e.target.value;
+                          const val = raw === '' ? 0 : parseFloat(raw);
+                          const received = parseFloat(form.quantity_received) || 0;
+                          if (isNaN(val) || val < 0) return;
+                          const clamped = Math.min(val, received);
+                          set('returns_qty', clamped);
+                          // Auto-flip status to 'returned' on full return.
+                          // Partial returns (clamped > 0 && < received)
+                          // leave status untouched — the derive layer
+                          // surfaces them as 'partially returned' on the
+                          // pill via the returns_qty signal.
+                          if (clamped >= received && received > 0) {
+                            set('status', 'returned');
+                          } else if (form.status === 'returned' && clamped < received) {
+                            // Backed off from full return — revert to received.
+                            set('status', 'received');
+                          }
+                        }}
+                        onBlur={() => saveField()}
+                        className={inputCls}
+                      />
+                    </Field>
+                    <Field isLight={isLight} labelCls={labelCls} label="Kept">
+                      <input
+                        type="number"
+                        value={Math.max(0, (parseFloat(form.quantity_received) || 0) - (parseFloat(form.returns_qty) || 0))}
+                        readOnly
+                        tabIndex={-1}
+                        className={inputCls}
+                        style={{ opacity: 0.7, cursor: 'default' }}
+                      />
+                    </Field>
+                  </div>
+                  {parseFloat(form.returns_qty) > 0 && parseFloat(form.returns_qty) < parseFloat(form.quantity_received) && (
+                    <p style={{ marginTop: 8, fontSize: 12, color: '#C2410C', fontStyle: 'italic' }}>
+                      Partial return — pill renders as "Partially returned" on the items table and kanban.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <Field isLight={isLight} labelCls={labelCls} label="Qty returned">
+                  <input
+                    type="number"
+                    value={form.returns_qty ?? 0}
+                    min="0"
+                    step="0.1"
+                    max={parseFloat(form.quantity_received) || 0}
+                    onChange={e => {
+                      const raw = e.target.value;
+                      const val = raw === '' ? 0 : parseFloat(raw);
+                      const received = parseFloat(form.quantity_received) || 0;
+                      if (isNaN(val) || val < 0) return;
+                      const clamped = Math.min(val, received);
+                      set('returns_qty', clamped);
+                      if (clamped >= received && received > 0) set('status', 'returned');
+                      else if (form.status === 'returned' && clamped < received) set('status', 'received');
+                    }}
+                    onBlur={() => saveField()}
+                    className={inputCls}
+                  />
+                </Field>
               )}
             </Section>
           )}
