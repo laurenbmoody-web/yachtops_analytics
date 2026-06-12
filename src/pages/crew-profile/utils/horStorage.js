@@ -145,6 +145,9 @@ export const addWorkEntries = (crewId, newEntries) => {
   const entriesWithCrewId = newEntries?.map(entry => ({
     ...entry,
     crewId,
+    // Manual entries are the crew member's recorded ACTUALS — they win over the
+    // rota-derived baseline (source: 'rota_baseline') for the same date.
+    source: entry?.source || 'edited',
     id: `${crewId}_${entry?.date}_${Date.now()}`,
     vesselTimezoneOffsetMinutes: offsetMinutes,
     storedInUTC: true
@@ -305,6 +308,44 @@ const buildEpisode = (type, dateStr, b) => {
     longestRestHours,
     worstValue,
   };
+};
+
+// Phase 1: refresh a crew member's rota-derived BASELINE entries for one month.
+// Drops the prior baseline rows (source === 'rota_baseline') for that crew+month
+// and re-adds them from `baselineByDate`, but never overrides a date that already
+// has a manual/edited entry (the crew member's actuals always win). `baselineByDate`
+// is { 'YYYY-MM-DD': number[] /* 0..47 work-block indices */ }.
+export const syncRotaBaselineEntries = (crewId, year, month, baselineByDate) => {
+  const all = loadHOREntries() || [];
+  const inMonth = (dateStr) => {
+    if (!dateStr) return false;
+    const d = parseYmd(dateStr);
+    return d.getFullYear() === year && d.getMonth() === month;
+  };
+  // Keep everything except this crew's baseline rows for the target month.
+  const next = all.filter(
+    (e) => !(e?.crewId === crewId && e?.source === 'rota_baseline' && inMonth(e?.date)),
+  );
+  // Dates already covered by a manual/edited entry — baseline must not replace.
+  const editedDates = new Set(
+    next.filter((e) => e?.crewId === crewId && inMonth(e?.date)).map((e) => e?.date),
+  );
+  const offsetMinutes = getVesselTimezoneOffset();
+  for (const [date, segs] of Object.entries(baselineByDate || {})) {
+    if (!inMonth(date) || editedDates.has(date)) continue;
+    if (!Array.isArray(segs) || segs.length === 0) continue;
+    next.push({
+      crewId,
+      date,
+      workSegments: segs,
+      id: `${crewId}_${date}_baseline`,
+      source: 'rota_baseline',
+      vesselTimezoneOffsetMinutes: offsetMinutes,
+      storedInUTC: false,
+    });
+  }
+  saveHOREntries(next);
+  return next;
 };
 
 // ============================================

@@ -13,7 +13,8 @@ import StatusChangeModal from '../crew-management/components/StatusChangeModal';
 import { getCurrentUser, getDepartmentDisplayName } from '../../utils/authStorage';
 import { getStatusLabel, getStatusBadgeClasses, getStatusDotClass } from '../../utils/crewStatus';
 import { showToast } from '../../utils/toast';
-import { addWorkEntries, getComplianceStatus, getMonthCalendarData, detectBreaches, getCrewWorkEntries, deleteWorkEntriesForDate, runAllHORTests, confirmMonth, getMonthStatus, isMonthEditable, detectBreachedDatesAfterSave, hasBreachNoteForDate } from './utils/horStorage';
+import { addWorkEntries, getComplianceStatus, getMonthCalendarData, detectBreaches, getCrewWorkEntries, deleteWorkEntriesForDate, runAllHORTests, confirmMonth, getMonthStatus, isMonthEditable, detectBreachedDatesAfterSave, hasBreachNoteForDate, syncRotaBaselineEntries } from './utils/horStorage';
+import { fetchRotaBaselineForMonth } from './utils/horBaseline';
 import { useRole } from '../../contexts/RoleContext';
 import { PermissionTier } from '../../utils/authStorage';
 import VesselHORDashboard from './components/VesselHORDashboard';
@@ -261,20 +262,34 @@ const CrewProfile = () => {
     loadCrewProfile();
   }, [crewId]);
 
-  // Load HOR data when HOR section is active
+  // Load HOR data when HOR section is active (re-runs on month navigation so
+  // the rota baseline is pulled for the month being viewed).
   useEffect(() => {
     if (activeSection === 'hor' && crewId) {
       loadHORData();
     }
-  }, [activeSection, crewId]);
+  }, [activeSection, crewId, horCurrentMonth, activeTenantId]);
 
-  const loadHORData = () => {
+  const loadHORData = async () => {
     if (!crewId) return;
-    
+    const year = horCurrentMonth?.getFullYear();
+    const month = horCurrentMonth?.getMonth();
+
+    // Phase 1 — pull the rota baseline for this month and refresh the
+    // baseline layer in storage (never touches the crew member's actuals).
+    try {
+      const baseline = await fetchRotaBaselineForMonth({
+        userId: crewId, tenantId: activeTenantId, year, month,
+      });
+      syncRotaBaselineEntries(crewId, year, month, baseline);
+    } catch (e) {
+      console.warn('[HOR] rota baseline fetch failed:', e);
+    }
+
     const complianceStatus = getComplianceStatus(crewId);
-    const calendarData = getMonthCalendarData(crewId, horCurrentMonth?.getFullYear(), horCurrentMonth?.getMonth());
+    const calendarData = getMonthCalendarData(crewId, year, month);
     const breaches = detectBreaches(crewId);
-    
+
     setHorData({
       last24HoursRest: complianceStatus?.last24HoursRest,
       last7DaysRest: complianceStatus?.last7DaysRest,
