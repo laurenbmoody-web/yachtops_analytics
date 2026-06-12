@@ -178,11 +178,6 @@ export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd, rota
           </button>
         )}
       </div>
-      {hasEdits && (
-        <div className="rv-resolved-lines-note">
-          Reviewer edits shown. Tap a <span className="rv-resolved-lines-pencil" /> cell to see the originally-submitted hours.
-        </div>
-      )}
       <CrewWeekMatrix
         crew={crew}
         windowShifts={windowShifts}

@@ -218,7 +218,7 @@
 /* Read-only resolved (history) detail pane */
 .rv-resolved { padding: 40px 44px; max-width: 1040px; }
 .rv-resolved-meta { max-width: 560px; }
-.rv-resolved-lines { margin-top: 28px; overflow-x: auto; }
+.rv-resolved-lines { margin-top: 28px; }
 .rv-resolved-lines-head {
   display: flex; align-items: center; justify-content: space-between;
   gap: 16px; margin-bottom: 12px; flex-wrap: wrap;
@@ -259,17 +259,6 @@
 .rv-resolved-lines .cw-c:hover { outline: none; }
 .rv-resolved-lines .cw-c.is-edited { cursor: pointer; }
 .rv-resolved-lines .cw-c.is-edited:hover { outline: 1px solid #C65A1A; }
-
-.rv-resolved-lines-note {
-  display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
-  margin: 0 0 12px;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  font-size: 12px; color: rgba(28, 27, 58, 0.6);
-}
-.rv-resolved-lines-pencil {
-  display: inline-block; width: 11px; height: 11px; border-radius: 50%;
-  background: #C65A1A; vertical-align: middle;
-}
 
 /* Originally-submitted-hours popover (opened from an edited cell's pencil). */
 .rv-edit-pop-backdrop { position: fixed; inset: 0; z-index: 60; }
