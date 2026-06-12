@@ -2862,13 +2862,19 @@ export const fetchSupplierOrderById = async (orderId) => {
 // JS at the consumer (departments[] denormalised on the row makes the
 // filter trivial without an extra join).
 export const fetchAllSupplierOrders = async (tenantId) => {
+  // Selection extended in Phase X — OrderCard component (shared between
+  // SupplierOrdersIndex and ProvisioningBoardDetail's Orders tab) reads
+  // supplier_profile (name + business_country for flag), supplier_invoices
+  // (latest invoice for the action chip), sent_via, and is_favourite.
   const { data, error } = await supabase
     ?.from('supplier_orders')
     ?.select(`
       id, list_id, supplier_name, supplier_profile_id, status,
-      created_at, sent_at, delivery_date, delivery_port,
-      currency, departments,
+      created_at, sent_at, sent_via, delivery_date, delivery_port,
+      currency, departments, is_favourite,
       supplier_order_items(id),
+      supplier_invoices(id, invoice_number, amount, currency, status, pdf_url, created_at, due_date),
+      supplier_profile:supplier_profile_id(id, name, business_country, business_city),
       provisioning_list:list_id(id, title)
     `)
     ?.eq('tenant_id', tenantId)

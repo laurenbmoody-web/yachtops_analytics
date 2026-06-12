@@ -49,6 +49,7 @@ import SendToSupplierModal from './components/SendToSupplierModal';
 import InvoiceUploadModal, { PAYMENT_STATUS_OPTIONS } from './components/InvoiceUploadModal';
 import ItemDrawer from './components/ItemDrawer';
 import BoardDrawer from './components/BoardDrawer';
+import OrderCard from './components/OrderCard';
 import BulkActionBar from './components/BulkActionBar';
 import BulkDeleteConfirmModal from './components/BulkDeleteConfirmModal';
 import BulkChangeDeptModal from './components/BulkChangeDeptModal';
@@ -2881,177 +2882,16 @@ const ProvisioningBoardDetail = () => {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {supplierOrders.map(order => {
-                  // Status chip palette — preserved from previous design
-                  // pending Commit 2's lifecycle indicator. Subsequent commits
-                  // will move status into the lifecycle row.
-                  const statusColor = order.status === 'confirmed' ? { bg: '#D1FAE5', text: '#065F46' }
-                    : order.status === 'partially_confirmed' ? { bg: '#FEF3C7', text: '#92400E' }
-                    : order.status === 'paid' ? { bg: '#D1FAE5', text: '#065F46' }
-                    : order.status === 'received' ? { bg: '#D1FAE5', text: '#065F46' }
-                    : order.status === 'sent' ? { bg: '#DBEAFE', text: '#1E40AF' }
-                    : { bg: '#F1F5F9', text: '#475569' };
-                  const orderItems = order.supplier_order_items || [];
-                  const isActive = ACTIVE_ORDER_STATES.has(order.status);
-                  // supplier_profile is the joined supplier_profiles row
-                  // (Sprint 9c.2 — fetchSupplierOrders now joins it). Falls
-                  // back gracefully on legacy rows without supplier_profile_id.
-                  const country = order.supplier_profile?.business_country || null;
-                  const flag = flagEmoji(country);
-                  const displayName = order.supplier_profile?.name || order.supplier_name || 'Supplier';
-                  const orderRef = shortOrderRef(order.id);
-
-                  // Most-recent invoice for the bottom action row
-                  const invoices = order.supplier_invoices || [];
-                  const invoice = invoices.length > 0
-                    ? [...invoices].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))[0]
-                    : null;
-                  const fmtCur = (a, c = 'EUR') => {
-                    try {
-                      return new Intl.NumberFormat('en-US', { style: 'currency', currency: c }).format(Number(a) || 0);
-                    } catch { return `${c} ${Number(a || 0).toFixed(2)}`; }
-                  };
-
-                  return (
-                    <div
-                      key={order.id}
-                      className={`cargo-order-card${isActive ? ' cargo-order-card-active' : ''}`}
-                    >
-                      {/* Identity row + status — clickable to open the
-                          detail page at /provisioning/:boardId/orders/:orderId
-                          (Sprint 9c.2 page redirect). */}
-                      <div
-                        className="cargo-order-card-row"
-                        onClick={() => navigate(`/provisioning/${id}/orders/${order.id}`)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            navigate(`/provisioning/${id}/orders/${order.id}`);
-                          }
-                        }}
-                      >
-                        <span className="cargo-order-card-chevron" aria-hidden="true">›</span>
-                        <div className="cargo-order-card-identity">
-                          <h3 className="cargo-order-card-supplier">{displayName}</h3>
-                          <div className="cargo-order-card-meta">
-                            <span className="cargo-order-card-ref">#{orderRef}</span>
-                            {flag && (
-                              <>
-                                <span className="cargo-order-card-meta-divider" aria-hidden="true" />
-                                <span className="cargo-order-card-flag" title={country || ''}>{flag}</span>
-                              </>
-                            )}
-                            <span className="cargo-order-card-meta-divider" aria-hidden="true" />
-                            <span>{orderItems.length} item{orderItems.length !== 1 ? 's' : ''}</span>
-                            {order.delivery_date && (
-                              <>
-                                <span className="cargo-order-card-meta-divider" aria-hidden="true" />
-                                <span>{new Date(order.delivery_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
-                              </>
-                            )}
-                            {order.delivery_port && (
-                              <>
-                                <span className="cargo-order-card-meta-divider" aria-hidden="true" />
-                                <span>{order.delivery_port}</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        {/* Quick Add — star toggle. UI gate hides the
-                            affordance from CREW; server gate is the
-                            actual policy (RPC raises with a clear
-                            message that becomes the toast). */}
-                        {canFavouriteOrder && (
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); handleToggleFavourite(order); }}
-                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}
-                            disabled={favouritingOrderId === order.id}
-                            title={order.is_favourite ? 'Unfavourite this order' : 'Favourite this order'}
-                            aria-label={order.is_favourite ? 'Unfavourite' : 'Favourite'}
-                            style={{
-                              background: 'none',
-                              border: 0,
-                              padding: '2px 6px',
-                              cursor: favouritingOrderId === order.id ? 'default' : 'pointer',
-                              fontSize: 18,
-                              lineHeight: 1,
-                              color: order.is_favourite ? '#C65A1A' : '#94A3B8',
-                              opacity: favouritingOrderId === order.id ? 0.5 : 1,
-                            }}
-                          >
-                            {order.is_favourite ? '★' : '☆'}
-                          </button>
-                        )}
-                        <span
-                          className="cargo-order-card-status"
-                          style={{ background: statusColor.bg, color: statusColor.text }}
-                        >
-                          {order.status === 'partially_confirmed' ? 'Partial'
-                            : order.status === 'out_for_delivery' ? 'Out for delivery'
-                            : (order.status || '').replace(/_/g, ' ')}
-                        </span>
-                      </div>
-
-                      {/* Body slot — placeholder for lifecycle indicator
-                          (9c.2 Commit 2) and document chips (9c.2 Commit 3).
-                          Empty in Commit 1 — kept for the visual rhythm. */}
-
-                      {/* Action affordances at the bottom — the 9c.2 spec
-                          reserves stage-appropriate actions in the pill
-                          aesthetic from the ribbon vocabulary. Commit 1
-                          carries the existing invoice link + sent_via
-                          chips + sent_at; subsequent commits replace these
-                          with lifecycle-aware actions. */}
-                      <div className="cargo-order-card-actions">
-                        {invoice && (
-                          <button
-                            type="button"
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              try {
-                                const res = await fetchInvoiceSignedUrl(invoice.id);
-                                if (res?.signed_url) {
-                                  window.open(res.signed_url, '_blank', 'noopener');
-                                } else {
-                                  window.alert('Could not open invoice — no signed URL returned.');
-                                }
-                              } catch (err) {
-                                window.alert(`Could not open invoice: ${err.message}`);
-                              }
-                            }}
-                            title={`Invoice ${invoice.invoice_number} · click to open`}
-                            className="cargo-ribbon-btn"
-                            style={{ fontSize: 11 }}
-                          >
-                            <span aria-hidden="true">📄</span>
-                            Invoice · {fmtCur(invoice.amount, invoice.currency)}
-                          </button>
-                        )}
-                        {order.sent_via && (
-                          order.sent_via === 'both' ? (
-                            <>
-                              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 10px', borderRadius: 999, background: '#EFF6FF', color: '#1E40AF' }}>Email</span>
-                              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 10px', borderRadius: 999, background: '#D1FAE5', color: '#065F46' }}>WhatsApp</span>
-                            </>
-                          ) : (
-                            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 9.5, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 10px', borderRadius: 999, background: order.sent_via === 'whatsapp' ? '#D1FAE5' : '#EFF6FF', color: order.sent_via === 'whatsapp' ? '#065F46' : '#1E40AF' }}>
-                              {order.sent_via === 'whatsapp' ? 'WhatsApp' : order.sent_via === 'email' ? 'Email' : order.sent_via}
-                            </span>
-                          )
-                        )}
-                        {order.sent_at && (
-                          <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-muted)', letterSpacing: '0.04em' }}>
-                            Sent {new Date(order.sent_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                          </span>
-                        )}
-                      </div>
-
-                    </div>
-                  );
-                })}
+                {supplierOrders.map(order => (
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    onNavigate={(orderId) => navigate(`/provisioning/${id}/orders/${orderId}`)}
+                    canFavouriteOrder={canFavouriteOrder}
+                    onToggleFavourite={handleToggleFavourite}
+                    favouritingOrderId={favouritingOrderId}
+                  />
+                ))}
               </div>
             )}
           </div>
