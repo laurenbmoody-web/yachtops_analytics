@@ -251,6 +251,9 @@
    rounded tiles. */
 .rv-resolved-lines .cw-nm { border-radius: 0 10px 10px 0; border-top: none; }
 .rv-resolved-lines .cw-dept-strip { border-radius: 10px 0 0 10px; }
+/* Drop the "CREW" header label + its white block — the column is self-evident.
+   Keep the element for grid alignment. */
+.rv-resolved-lines .cw-head-spacer { background: transparent; font-size: 0; }
 .rv-resolved-lines-empty {
   margin-top: 28px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 13px; color: rgba(28, 27, 58, 0.5);
