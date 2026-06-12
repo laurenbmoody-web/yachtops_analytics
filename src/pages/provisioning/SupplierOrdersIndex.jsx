@@ -7,6 +7,7 @@ import { useTenant } from '../../contexts/TenantContext';
 import { fetchAllSupplierOrders } from './utils/provisioningStorage';
 import './provisioning-board.css';
 import './provisioning-dashboard.css';
+import '../../styles/editorial.css';
 
 // ── SupplierOrdersIndex ────────────────────────────────────────────────────
 // Tenant-wide supplier_orders index at /provisioning/orders. Lists every
@@ -129,20 +130,30 @@ const SupplierOrdersIndex = () => {
             <Icon name="ChevronLeft" size={14} strokeWidth={1.5} />
             Back to boards
           </button>
-          <h1 style={{
-            margin: 0, fontFamily: "'DM Serif Display', Georgia, serif",
-            fontSize: 38, lineHeight: 1.05, color: 'var(--d-navy-deep)',
-            letterSpacing: '-0.01em',
-          }}>
-            ORDERS, <em style={{ color: 'var(--d-orange)' }}>all of them</em>
-            <span style={{ color: 'var(--d-orange)' }}>.</span>
-          </h1>
-          <p style={{ margin: '8px 0 0', fontSize: 13.5, color: 'var(--d-muted)' }}>
-            {loading ? 'Loading…' : `${filtered.length} order${filtered.length === 1 ? '' : 's'}`}
-            {!loading && filtered.length !== orders.length && (
-              <span style={{ color: 'var(--d-muted-soft)' }}> · {orders.length - filtered.length} hidden by filters</span>
+          {/* Editorial meta strip + serif headline — matches the Delivered
+              page (.editorial-meta + .editorial-greeting from editorial.css).
+              Sent and Delivered now share identical header typography so
+              the tab toggle reads as one surface. */}
+          <p className="editorial-meta">
+            <span className="dot">●</span>
+            <span>Orders</span>
+            <span className="bar" />
+            <span className="muted">All supplier orders</span>
+            {!loading && filtered.length > 0 && (
+              <>
+                <span className="bar" />
+                <span className="muted">{filtered.length} order{filtered.length === 1 ? '' : 's'}</span>
+                <span className="bar" />
+                <span className="muted">
+                  {filtered.reduce((sum, o) => sum + (o.item_count || 0), 0)} item
+                  {filtered.reduce((sum, o) => sum + (o.item_count || 0), 0) === 1 ? '' : 's'}
+                </span>
+              </>
             )}
           </p>
+          <h1 className="editorial-greeting">
+            ORDERS<span className="period">,</span> <em>all of them</em><span className="period">.</span>
+          </h1>
         </div>
 
         {/* Tab strip — Sent (outbound supplier_orders) / Delivered (inbound
