@@ -18,6 +18,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
+import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import { EditorialDatePicker } from '../../components/editorial';
 import { useCountUp } from './components/SummaryGauges';
@@ -577,10 +578,36 @@ export default function DeliveryHistory() {
   const totalItems = filtered.reduce((s, e) => s + (e._itemCount || 0), 0);
 
   return (
-    <div className="di">
-      {/* ── Topbar (breadcrumb + editorial header + filters) ── */}
-      <div className="dh-topbar">
-        <div className="dh-topbar-inner">
+    <>
+      <Header />
+      {/* .di scope brings the delivery-inbox/history styling tokens (chips,
+          cards, source-pill colours) but its default cream bg diverges from
+          the Orders index. Inline-overriding the bg to --d-bg matches the
+          Orders page exactly so the Sent/Delivered tab transition feels
+          like one surface, not two. The inner cards stay white (.di-card)
+          so contrast is preserved. */}
+      <div className="di" style={{ background: 'var(--d-bg)' }}>
+        {/* Back to boards — matches the Orders index's button. Sits above
+            the editorial topbar so it's clearly nav, not content. */}
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '20px 32px 0' }}>
+          <button
+            onClick={() => navigate('/provisioning')}
+            style={{
+              background: 'none', border: 0, padding: 0, cursor: 'pointer',
+              fontSize: 12, fontWeight: 600, color: 'var(--d-muted)',
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              fontFamily: 'inherit',
+            }}
+          >
+            <Icon name="ChevronLeft" size={14} strokeWidth={1.5} />
+            Back to boards
+          </button>
+        </div>
+
+        {/* ── Topbar (breadcrumb + editorial header + filters) ── */}
+        <div className="dh-topbar">
+          <div className="dh-topbar-inner">
 
           {/* Breadcrumb */}
           <div className="dh-breadcrumb">
@@ -766,6 +793,7 @@ export default function DeliveryHistory() {
           ))
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 }
