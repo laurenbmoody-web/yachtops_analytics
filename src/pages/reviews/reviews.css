@@ -284,14 +284,57 @@
 .rv-resolved-badge.warn { background: #FAECE7; color: #7A2E1E; }
 .rv-resolved-meta {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  margin: 0; display: flex; flex-direction: column; gap: 14px;
+  margin: 0; max-width: 560px;
+  border: 1px solid rgba(28, 27, 58, 0.08);
+  border-radius: 14px;
+  background: #FFFFFF;
+  overflow: hidden;
 }
-.rv-resolved-meta > div { display: flex; flex-direction: column; gap: 2px; }
-.rv-resolved-meta dt {
-  font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
-  color: rgba(28, 27, 58, 0.5);
+.rv-meta-row {
+  display: grid; grid-template-columns: 132px 1fr; align-items: center;
+  gap: 16px; padding: 13px 18px;
+  border-bottom: 1px solid rgba(28, 27, 58, 0.06);
 }
-.rv-resolved-meta dd { margin: 0; font-size: 14px; color: #1C1B3A; line-height: 1.5; }
+.rv-meta-row:last-child { border-bottom: none; }
+.rv-meta-k {
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase;
+  color: rgba(28, 27, 58, 0.45);
+}
+.rv-meta-v {
+  display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  font-size: 14px; color: #1C1B3A; line-height: 1.4;
+}
+.rv-meta-when {
+  font-size: 12px; color: rgba(28, 27, 58, 0.45);
+  font-variant-numeric: tabular-nums;
+}
+/* Person chip — initials avatar + name/role */
+.rv-meta-person { display: inline-flex; align-items: center; gap: 9px; }
+.rv-meta-avatar {
+  flex: 0 0 auto;
+  width: 26px; height: 26px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #EFEAF0; color: #1C1B3A;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.3px;
+}
+.rv-meta-person-text { display: inline-flex; align-items: baseline; gap: 7px; }
+.rv-meta-person-name { font-weight: 600; }
+.rv-meta-person-role {
+  font-size: 12px; color: rgba(28, 27, 58, 0.5);
+}
+/* Decision note / rejection reason — a tinted callout, not plain text */
+.rv-meta-note {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 13px 18px;
+  border-top: 1px solid rgba(28, 27, 58, 0.06);
+}
+.rv-meta-note.ok   { background: #F3F8F4; }
+.rv-meta-note.warn { background: #FCF1ED; }
+.rv-meta-note-k {
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase;
+  color: rgba(28, 27, 58, 0.45);
+}
+.rv-meta-note-v { font-size: 14px; color: #1C1B3A; line-height: 1.5; }
 
 .rv-body {
   margin-top: 28px;
