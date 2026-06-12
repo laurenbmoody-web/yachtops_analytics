@@ -588,9 +588,42 @@ export default function DeliveryHistory() {
               Provisioning
             </button>
             <span className="dh-breadcrumb-sep">/</span>
+            <button onClick={() => navigate('/provisioning/orders')} className="dh-breadcrumb-link">
+              Orders
+            </button>
+            <span className="dh-breadcrumb-sep">/</span>
             <span className="dh-breadcrumb-current">
-              Delivery History{boardParam && boardNames[boardParam] ? ` — ${boardNames[boardParam]}` : ''}
+              Delivered{boardParam && boardNames[boardParam] ? ` — ${boardNames[boardParam]}` : ''}
             </span>
+          </div>
+
+          {/* Tab strip — mirrors the Orders index. Sent (outbound supplier
+              orders) / Delivered (this page). Each tab is a separate route. */}
+          <div style={{
+            display: 'flex', gap: 4, marginTop: 8, marginBottom: 12,
+            borderBottom: '1px solid rgba(38, 42, 83, 0.10)',
+          }}>
+            <button
+              onClick={() => navigate('/provisioning/orders')}
+              style={{
+                padding: '10px 18px', background: 'none', border: 0,
+                borderBottom: '2px solid transparent',
+                fontFamily: 'inherit', fontSize: 13.5, fontWeight: 500,
+                color: 'rgba(38, 42, 83, 0.55)', cursor: 'pointer', marginBottom: -1,
+                transition: 'color 120ms ease',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#262A53'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'rgba(38, 42, 83, 0.55)'; }}
+            >Sent</button>
+            <button
+              style={{
+                padding: '10px 18px', background: 'none', border: 0,
+                borderBottom: '2px solid #C65A1A',
+                fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600,
+                color: '#262A53', cursor: 'default', marginBottom: -1,
+              }}
+              aria-current="page"
+            >Delivered</button>
           </div>
 
           {/* Editorial header — meta strip + serif headline (matches the inbox) */}
