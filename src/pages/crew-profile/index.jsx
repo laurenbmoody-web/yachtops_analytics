@@ -15,6 +15,7 @@ import { getStatusLabel, getStatusBadgeClasses, getStatusDotClass } from '../../
 import { showToast } from '../../utils/toast';
 import { addWorkEntries, getComplianceStatus, getMonthCalendarData, detectBreaches, getCrewWorkEntries, deleteWorkEntriesForDate, runAllHORTests, confirmMonth, getMonthStatus, isMonthEditable, detectBreachedDatesAfterSave, hasBreachNoteForDate, syncRotaBaselineEntries } from './utils/horStorage';
 import { fetchRotaBaselineForMonth } from './utils/horBaseline';
+import { fetchVesselHorSettings, fetchMonthStatus, submitMonth as submitMonthDb, approveMonth as approveMonthDb, reopenMonth as reopenMonthDb, lockMonth as lockMonthDb } from './utils/horMonthStatus';
 import { useRole } from '../../contexts/RoleContext';
 import { PermissionTier } from '../../utils/authStorage';
 import VesselHORDashboard from './components/VesselHORDashboard';
@@ -45,6 +46,8 @@ const CrewProfile = () => {
   const [selectedHORDates, setSelectedHORDates] = useState([]);
   const [horCurrentMonth, setHorCurrentMonth] = useState(new Date());
   const [horData, setHorData] = useState(null);
+  const [dbMonthStatus, setDbMonthStatus] = useState(null);     // hor_month_status row (DB)
+  const [vesselHorSettings, setVesselHorSettings] = useState(null); // { mode, approverTier }
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(null);
   const [showEditDateModal, setShowEditDateModal] = useState(false);
   const { userRole } = useRole();
@@ -284,6 +287,20 @@ const CrewProfile = () => {
       syncRotaBaselineEntries(crewId, year, month, baseline);
     } catch (e) {
       console.warn('[HOR] rota baseline fetch failed:', e);
+    }
+
+    // Phase 3 — DB-backed month confirmation workflow. Best-effort: until the
+    // migration is applied these resolve to defaults/null and the UI falls back
+    // to the legacy localStorage status.
+    try {
+      const [settings, status] = await Promise.all([
+        fetchVesselHorSettings(activeTenantId),
+        fetchMonthStatus({ tenantId: activeTenantId, subjectUserId: crewId, year, jsMonth: month }),
+      ]);
+      setVesselHorSettings(settings);
+      setDbMonthStatus(status);
+    } catch (e) {
+      console.warn('[HOR] month-status fetch failed:', e);
     }
 
     const complianceStatus = getComplianceStatus(crewId);
@@ -1482,18 +1499,58 @@ const canEdit = (() => {
     );
   };
 
-  const handleConfirmMonth = () => {
+  // Crew submits their own month. In 'require' mode this awaits an approver;
+  // in 'trust' mode the RPC returns it already confirmed.
+  const handleConfirmMonth = async () => {
     if (!crewId) return;
-    
     const year = horCurrentMonth?.getFullYear();
     const month = horCurrentMonth?.getMonth();
-    
-    const confirmed = confirmMonth(crewId, year, month);
-    if (confirmed) {
-      showToast('Month confirmed successfully', 'success');
-      loadHORData();
-    } else {
-      showToast('Failed to confirm month', 'error');
+    try {
+      const row = await submitMonthDb({ tenantId: activeTenantId, year, jsMonth: month });
+      // Mirror into the legacy localStorage store so existing PDF/exports stay coherent.
+      confirmMonth(crewId, year, month);
+      showToast(row?.status === 'confirmed' ? 'Month confirmed' : 'Month submitted for approval', 'success');
+      await loadHORData();
+    } catch (e) {
+      console.error('[HOR] submit failed:', e);
+      showToast(e?.message || 'Failed to submit month', 'error');
+    }
+  };
+
+  // Approver actions (operate on the viewed crew member's month).
+  const handleApproveMonth = async () => {
+    const year = horCurrentMonth?.getFullYear();
+    const month = horCurrentMonth?.getMonth();
+    try {
+      await approveMonthDb({ tenantId: activeTenantId, subjectUserId: crewId, year, jsMonth: month });
+      showToast('Month approved', 'success');
+      await loadHORData();
+    } catch (e) {
+      showToast(e?.message || 'Failed to approve month', 'error');
+    }
+  };
+
+  const handleReopenMonth = async () => {
+    const year = horCurrentMonth?.getFullYear();
+    const month = horCurrentMonth?.getMonth();
+    try {
+      await reopenMonthDb({ tenantId: activeTenantId, subjectUserId: crewId, year, jsMonth: month });
+      showToast('Month reopened', 'success');
+      await loadHORData();
+    } catch (e) {
+      showToast(e?.message || 'Failed to reopen month', 'error');
+    }
+  };
+
+  const handleLockMonth = async () => {
+    const year = horCurrentMonth?.getFullYear();
+    const month = horCurrentMonth?.getMonth();
+    try {
+      await lockMonthDb({ tenantId: activeTenantId, subjectUserId: crewId, year, jsMonth: month });
+      showToast('Month locked', 'success');
+      await loadHORData();
+    } catch (e) {
+      showToast(e?.message || 'Failed to lock month', 'error');
     }
   };
 
@@ -1524,6 +1581,15 @@ const canEdit = (() => {
 
     // Get month status
     const monthStatus = getMonthStatus(crewId, year, month);
+
+    // Phase 3 — DB-backed workflow state for the chip + action buttons.
+    const dbStatus = dbMonthStatus?.status || 'open';
+    const approverTier = vesselHorSettings?.approverTier || 'COMMAND';
+    const viewerTier = currentUserPermissionTier;
+    const canApprove = !isOwnProfile && (viewerTier === 'COMMAND' || viewerTier === approverTier);
+    const canLock = viewerTier === 'COMMAND';
+    const submitLabel = vesselHorSettings?.mode === 'trust' ? 'Confirm Month' : 'Submit for Approval';
+    const dbStatusLabel = { open: 'Open', submitted: 'Submitted', confirmed: 'Confirmed', locked: 'Locked' }[dbStatus] || 'Open';
 
     const handleDateClick = (day, dayData) => {
       const dateStr = dayData?.date;
@@ -1677,18 +1743,46 @@ const canEdit = (() => {
               <div className="flex items-center gap-3">
                 <span className="text-sm font-medium text-foreground">Month Status:</span>
                 <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-semibold ${
-                  monthStatus?.status === 'Locked' ? 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400' :
-                  monthStatus?.status === 'Confirmed by Crew'? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
+                  dbStatus === 'locked' ? 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400' :
+                  dbStatus === 'confirmed' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
+                  dbStatus === 'submitted' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
+                  'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
                 }`}>
-                  {monthStatus?.status}
+                  {dbStatusLabel}
                 </span>
               </div>
-              {!monthStatus?.confirmed && !monthStatus?.locked && (
-                <Button onClick={handleConfirmMonth}>
-                  <Icon name="CheckCircle" size={18} />
-                  Confirm Month
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {/* Crew: submit own open month */}
+                {isOwnProfile && dbStatus === 'open' && (
+                  <Button onClick={handleConfirmMonth}>
+                    <Icon name="CheckCircle" size={18} />
+                    {submitLabel}
+                  </Button>
+                )}
+                {isOwnProfile && dbStatus === 'submitted' && (
+                  <span className="text-xs text-muted-foreground">Awaiting approval</span>
+                )}
+                {/* Approver: act on a submitted month */}
+                {canApprove && dbStatus === 'submitted' && (
+                  <>
+                    <Button onClick={handleApproveMonth}>
+                      <Icon name="CheckCircle" size={18} />
+                      Approve
+                    </Button>
+                    <Button variant="outline" onClick={handleReopenMonth}>Send back</Button>
+                  </>
+                )}
+                {/* Confirmed: reopen, and COMMAND can lock */}
+                {canApprove && dbStatus === 'confirmed' && (
+                  <Button variant="outline" onClick={handleReopenMonth}>Reopen</Button>
+                )}
+                {canLock && dbStatus === 'confirmed' && (
+                  <Button onClick={handleLockMonth}>
+                    <Icon name="Lock" size={18} />
+                    Lock
+                  </Button>
+                )}
+              </div>
             </div>
             {/* Top Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
