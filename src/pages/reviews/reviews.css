@@ -252,7 +252,7 @@
    grid is untouched. Slightly wider gaps (kept equal on header + rows so the
    columns stay aligned) + a larger radius make each shift a rounded tile. */
 .rv-resolved-lines .cw-head-row,
-.rv-resolved-lines .cw-row { gap: 4px; }
+.rv-resolved-lines .cw-row { gap: 2px; }
 .rv-resolved-lines .cw-c { border-radius: 10px; }
 /* Only reviewer-edited cells are interactive in this read-only view. */
 .rv-resolved-lines .cw-c { cursor: default; }
@@ -282,11 +282,20 @@
    its outer (left) corners, name tile on its inner (right) corners; they meet
    flush in the middle. Drop the divider line — the gaps already separate the
    rounded tiles. */
-.rv-resolved-lines .cw-nm { border-radius: 0 10px 10px 0; border-top: none; }
+/* Sticky crew column: a flush, opaque panel matching the pane background. It
+   has to fully hide day cells that scroll under it in "dates affected only"
+   mode — rounded name-tile corners + gaps let cells peek through, so the names
+   sit on a plain cream column instead (no tiles). The dept strip stays. */
+.rv-resolved-lines .cw-nm {
+  background: #F4F1EC;
+  border-radius: 0;
+  border-top: none;
+  border-bottom: 1px solid rgba(28, 27, 58, 0.06);
+}
 .rv-resolved-lines .cw-dept-strip { border-radius: 10px 0 0 10px; }
-/* Drop the "CREW" header label + its white block — the column is self-evident.
-   Keep the element for grid alignment. */
-.rv-resolved-lines .cw-head-spacer { background: transparent; font-size: 0; }
+/* Header corner: opaque (covers day headers scrolling under) but blended, so
+   no white "CREW" block. */
+.rv-resolved-lines .cw-head-spacer { background: #F4F1EC; font-size: 0; }
 .rv-resolved-lines-empty {
   margin-top: 28px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 13px; color: rgba(28, 27, 58, 0.5);
