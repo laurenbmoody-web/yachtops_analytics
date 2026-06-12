@@ -16,7 +16,7 @@
    sibling so they reach the drawer too. */
 .sd-dir,
 .sd-dir-drawer-backdrop {
-  --d-cream:       #FCFAF6;
+  --d-cream:       #F8FAFC;
   --d-lavender:    #EEEDFE;
   --d-gold:        #D4A93B;
 }

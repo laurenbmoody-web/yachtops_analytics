@@ -5,6 +5,16 @@
 // - Work is explicitly logged; rest is inferred as gaps between work blocks
 // - All compliance calculations performed in SHIP TIME (timezone-aware per day)
 // - ONE breach per rule per window (no duplicate breaches)
+//
+// PHASE 0 ALIGNMENT: the surfaced compliance figures and breach verdicts are
+// now computed by the shared crew-rota MLC engine (restHours.assessMlc — the
+// same four rules the rota uses), so /profile and /crew can no longer disagree.
+// Work blocks are adapted into the engine's {date,startTime,endTime,shiftType}
+// shape (see segmentsToShifts). The legacy rest-event-anchored helpers below
+// (buildBlockMap, checkRestEventWindow, …) are retained but no longer drive the
+// surfaced verdicts.
+
+import { assessMlc, restForDay, restForWeek } from '../../crew-rota/restHours';
 
 const HOR_STORAGE_KEY = 'cargo_hor_entries';
 const HOR_PRESETS_KEY = 'cargo_hor_presets';
@@ -14,7 +24,8 @@ const HOR_VESSEL_TIMEZONE_KEY = 'cargo_hor_vessel_timezone';
 export const BREACH_TYPES = {
   REST_LT_10_IN_24H: 'REST_LT_10_IN_24H',
   NO_6H_CONTINUOUS_REST_IN_24H: 'NO_6H_CONTINUOUS_REST_IN_24H',
-  REST_LT_77_IN_7D: 'REST_LT_77_IN_7D'
+  REST_LT_77_IN_7D: 'REST_LT_77_IN_7D',
+  WORK_GT_14H_CONTINUOUS: 'WORK_GT_14H_CONTINUOUS'
 };
 
 // Human-readable breach names and helper text
@@ -33,13 +44,19 @@ export const BREACH_DISPLAY_INFO = {
     displayName: 'Less than 77 hours rest in 7 days',
     helperText: 'Total rest across a rolling 7-day period was below the MLC minimum of 77 hours.',
     code: 'REST_LT_77_IN_7D'
+  },
+  [BREACH_TYPES?.WORK_GT_14H_CONTINUOUS]: {
+    displayName: 'More than 14 hours continuous on duty',
+    helperText: 'A continuous on-duty stretch exceeded the MLC maximum of 14 hours.',
+    code: 'WORK_GT_14H_CONTINUOUS'
   }
 };
 
 const BREACH_LABELS = {
   [BREACH_TYPES?.REST_LT_10_IN_24H]: 'Less than 10 hours rest in 24h rolling window',
   [BREACH_TYPES?.NO_6H_CONTINUOUS_REST_IN_24H]: 'No 6-hour continuous rest in 24h window after previous rest',
-  [BREACH_TYPES?.REST_LT_77_IN_7D]: 'Less than 77 hours rest in 7-day rolling window'
+  [BREACH_TYPES?.REST_LT_77_IN_7D]: 'Less than 77 hours rest in 7-day rolling window',
+  [BREACH_TYPES?.WORK_GT_14H_CONTINUOUS]: 'More than 14 hours continuous on-duty'
 };
 
 // ============================================
@@ -128,6 +145,9 @@ export const addWorkEntries = (crewId, newEntries) => {
   const entriesWithCrewId = newEntries?.map(entry => ({
     ...entry,
     crewId,
+    // Manual entries are the crew member's recorded ACTUALS — they win over the
+    // rota-derived baseline (source: 'rota_baseline') for the same date.
+    source: entry?.source || 'edited',
     id: `${crewId}_${entry?.date}_${Date.now()}`,
     vesselTimezoneOffsetMinutes: offsetMinutes,
     storedInUTC: true
@@ -170,6 +190,162 @@ export const deleteWorkEntriesForDate = (crewId, dateStr) => {
 export const getCrewWorkEntries = (crewId) => {
   const allEntries = loadHOREntries();
   return allEntries?.filter(entry => entry?.crewId === crewId) || [];
+};
+
+// ============================================
+// restHours ADAPTER (Phase 0 — shared MLC engine)
+// ============================================
+
+// Local YYYY-MM-DD helpers (avoid the UTC drift of toISOString().split).
+const ymdLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const parseYmd = (s) => { const [y, m, d] = String(s).split('-').map(Number); return new Date(y, m - 1, d); };
+const addDaysStr = (s, n) => { const d = parseYmd(s); d.setDate(d.getDate() + n); return ymdLocal(d); };
+const fmtDateLong = (s) => parseYmd(s).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+// 30-min block index (0..47, or 48 for the day's end) → "HH:MM".
+const segIndexToHHMM = (i) => {
+  if (i >= 48) return '24:00';
+  const h = Math.floor(i / 2);
+  const m = (i % 2) * 30;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+};
+
+// One day's worked blocks → contiguous on-duty shift ranges in the engine's
+// camelCase shape. Adjacent blocks merge; a block worked through midnight ends
+// at "24:00" so restHours' stretch walk can join it to the next day's 00:00.
+const segmentsToShifts = (dateStr, workSegments) => {
+  const worked = new Array(48).fill(false);
+  (workSegments || []).forEach((s) => { if (s >= 0 && s < 48) worked[s] = true; });
+  const shifts = [];
+  let start = null;
+  for (let i = 0; i < 48; i += 1) {
+    if (worked[i] && start === null) start = i;
+    if (!worked[i] && start !== null) {
+      shifts.push({ date: dateStr, startTime: segIndexToHHMM(start), endTime: segIndexToHHMM(i), shiftType: 'duty' });
+      start = null;
+    }
+  }
+  if (start !== null) {
+    shifts.push({ date: dateStr, startTime: segIndexToHHMM(start), endTime: '24:00', shiftType: 'duty' });
+  }
+  return shifts;
+};
+
+// A crew member's entire logged history as a flat shift list (one entry per
+// date after addWorkEntries, but segments are unioned defensively).
+const crewShifts = (crewId) => {
+  const byDate = new Map();
+  for (const e of getCrewWorkEntries(crewId)) {
+    if (!e?.date) continue;
+    if (!byDate.has(e.date)) byDate.set(e.date, new Set());
+    (e.workSegments || []).forEach((s) => byDate.get(e.date).add(s));
+  }
+  const shifts = [];
+  for (const [date, segSet] of byDate) shifts.push(...segmentsToShifts(date, Array.from(segSet)));
+  return shifts;
+};
+
+const latestLoggedDate = (crewId) => {
+  const dates = getCrewWorkEntries(crewId).map((e) => e?.date).filter(Boolean).sort();
+  return dates.length ? dates[dates.length - 1] : null;
+};
+
+// restHours breach rule → the legacy BREACH_TYPES code the UI/PDF render.
+const RULE_TO_BREACH_TYPE = {
+  daily_rest_10h: BREACH_TYPES.REST_LT_10_IN_24H,
+  weekly_rest_77h: BREACH_TYPES.REST_LT_77_IN_7D,
+  rest_period_split: BREACH_TYPES.NO_6H_CONTINUOUS_REST_IN_24H,
+  max_work_stretch_14h: BREACH_TYPES.WORK_GT_14H_CONTINUOUS,
+};
+
+// Build one breach episode in the exact shape detectBreaches used to return,
+// so every consumer (breach list, PDF, notes, after-save) keeps working.
+const buildEpisode = (type, dateStr, b) => {
+  const info = BREACH_DISPLAY_INFO?.[type] || {};
+  let supportingDetail = '';
+  let restHours;
+  let longestRestHours;
+  let worstValue = 0;
+  let windowStartStr = dateStr;
+  const windowEndStr = dateStr;
+  switch (b.rule) {
+    case 'daily_rest_10h':
+      restHours = b.actual; worstValue = b.actual;
+      supportingDetail = `Only ${Number(b.actual).toFixed(1)} hours rest recorded (minimum required: 10 hours)`;
+      break;
+    case 'weekly_rest_77h':
+      restHours = b.actual; worstValue = b.actual;
+      windowStartStr = addDaysStr(dateStr, -6);
+      supportingDetail = `Only ${Number(b.actual).toFixed(1)} hours rest in 7 days (minimum required: 77 hours)`;
+      break;
+    case 'rest_period_split':
+      longestRestHours = b.actual?.longest ?? 0; worstValue = longestRestHours;
+      supportingDetail = `Rest split into ${b.actual?.periodCount} period(s); longest ${Number(longestRestHours).toFixed(1)}h (need ≤2 periods, one ≥6h)`;
+      break;
+    case 'max_work_stretch_14h':
+      worstValue = b.actual;
+      supportingDetail = `${Number(b.actual).toFixed(1)}h continuous on-duty (maximum 14h)`;
+      break;
+    default:
+      break;
+  }
+  return {
+    id: `breach_${dateStr}_${type}`,
+    type: info.displayName || type,
+    displayName: info.displayName,
+    helperText: info.helperText,
+    code: info.code,
+    dateStr,
+    date: fmtDateLong(dateStr),
+    windowStart: fmtDateLong(windowStartStr),
+    windowEnd: fmtDateLong(windowEndStr),
+    episodeStartDisplay: fmtDateLong(windowStartStr),
+    episodeEndDisplay: fmtDateLong(windowEndStr),
+    note: supportingDetail,
+    affectedShipDates: [dateStr],
+    breachType: type,
+    restHours,
+    longestRestHours,
+    worstValue,
+  };
+};
+
+// Phase 1: refresh a crew member's rota-derived BASELINE entries for one month.
+// Drops the prior baseline rows (source === 'rota_baseline') for that crew+month
+// and re-adds them from `baselineByDate`, but never overrides a date that already
+// has a manual/edited entry (the crew member's actuals always win). `baselineByDate`
+// is { 'YYYY-MM-DD': number[] /* 0..47 work-block indices */ }.
+export const syncRotaBaselineEntries = (crewId, year, month, baselineByDate) => {
+  const all = loadHOREntries() || [];
+  const inMonth = (dateStr) => {
+    if (!dateStr) return false;
+    const d = parseYmd(dateStr);
+    return d.getFullYear() === year && d.getMonth() === month;
+  };
+  // Keep everything except this crew's baseline rows for the target month.
+  const next = all.filter(
+    (e) => !(e?.crewId === crewId && e?.source === 'rota_baseline' && inMonth(e?.date)),
+  );
+  // Dates already covered by a manual/edited entry — baseline must not replace.
+  const editedDates = new Set(
+    next.filter((e) => e?.crewId === crewId && inMonth(e?.date)).map((e) => e?.date),
+  );
+  const offsetMinutes = getVesselTimezoneOffset();
+  for (const [date, segs] of Object.entries(baselineByDate || {})) {
+    if (!inMonth(date) || editedDates.has(date)) continue;
+    if (!Array.isArray(segs) || segs.length === 0) continue;
+    next.push({
+      crewId,
+      date,
+      workSegments: segs,
+      id: `${crewId}_${date}_baseline`,
+      source: 'rota_baseline',
+      vesselTimezoneOffsetMinutes: offsetMinutes,
+      storedInUTC: false,
+    });
+  }
+  saveHOREntries(next);
+  return next;
 };
 
 // ============================================
@@ -485,97 +661,26 @@ const deduplicateBreaches = (breachRecords) => {
  * Returns breach episodes with human-readable display text
  */
 export const detectBreaches = (crewId) => {
-  const entries = getCrewWorkEntries(crewId);
-  if (entries?.length === 0) return [];
+  const allShifts = crewShifts(crewId);
+  if (allShifts.length === 0) return [];
 
-  const blockMap = buildBlockMap(entries);
-  const breachRecords = [];
-  const offsetMinutes = getVesselTimezoneOffset();
-
-  // Find date range of entries
-  const dates = entries?.map(e => new Date(e.date))?.sort((a, b) => a - b);
-  const earliestDate = dates?.[0];
-  const latestDate = dates?.[dates?.length - 1];
-
-  // Extend range to cover rolling windows
-  const evaluationStart = new Date(earliestDate);
-  evaluationStart?.setDate(evaluationStart?.getDate() - 7);
-  const evaluationEnd = new Date(latestDate);
-  evaluationEnd?.setDate(evaluationEnd?.getDate() + 1);
-
-  // Convert to UTC for evaluation
-  const evaluationStartUTC = shipTimeToUTC(evaluationStart, offsetMinutes);
-  const evaluationEndUTC = shipTimeToUTC(evaluationEnd, offsetMinutes);
-
-  // === STEP 1: Identify all continuous REST blocks ===
-  const restBlocks = identifyContinuousRestBlocks(blockMap, evaluationStartUTC, evaluationEndUTC);
-
-  // === STEP 2: For each REST BLOCK END, evaluate ONE 24-hour window ===
-  restBlocks?.forEach(restBlock => {
-    const restEnd = restBlock?.endTime;
-
-    // Check 24-hour window (10h total rest + 6h continuous rest)
-    const breaches24h = checkRestEventWindow(blockMap, restEnd, restBlocks);
-    breaches24h?.forEach(breach => {
-      breachRecords?.push({
-        id: `breach_${Date.now()}_${Math.random()}`,
-        ...breach
-      });
-    });
-
-    // Check 7-day window (less frequently - only if rest block is significant)
-    if (restBlock?.durationHours >= 6) {
-      const breach7d = check7DayRestEventWindow(blockMap, restEnd);
-      if (breach7d) {
-        breachRecords?.push({
-          id: `breach_${Date.now()}_${Math.random()}`,
-          ...breach7d
-        });
-      }
+  // One assessment per logged calendar day, via the shared engine. Each day's
+  // 7-day rolling window is sliced from the same shift list, so the daily,
+  // weekly, split and 14h-stretch rules are all evaluated together.
+  const loggedDates = Array.from(new Set(allShifts.map((s) => s.date))).sort();
+  const episodes = [];
+  for (const date of loggedDates) {
+    const dayShifts = allShifts.filter((s) => s.date === date);
+    const weekStart = addDaysStr(date, -6);
+    const weekShifts = allShifts.filter((s) => s.date >= weekStart && s.date <= date);
+    const mlc = assessMlc({ dayShifts, weekShifts });
+    for (const b of mlc.breaches) {
+      const type = RULE_TO_BREACH_TYPE[b.rule];
+      if (type) episodes.push(buildEpisode(type, date, b));
     }
-  });
+  }
 
-  // === STEP 3: Deduplicate breaches (one per rule per date) ===
-  const deduplicatedBreaches = deduplicateBreaches(breachRecords);
-
-  // === STEP 4: Format for UI display with human-readable text ===
-  return deduplicatedBreaches?.map(breach => {
-    const windowStart = new Date(breach?.windowStart);
-    const windowEnd = new Date(breach?.windowEnd);
-    const windowStartShipTime = utcToShipTime(windowStart, offsetMinutes);
-    const windowEndShipTime = utcToShipTime(windowEnd, offsetMinutes);
-    const displayInfo = BREACH_DISPLAY_INFO?.[breach?.type];
-
-    // Format supporting detail based on breach type
-    let supportingDetail = '';
-    if (breach?.type === BREACH_TYPES?.REST_LT_10_IN_24H) {
-      supportingDetail = `Only ${breach?.restHours?.toFixed(1)} hours rest recorded (minimum required: 10 hours)`;
-    } else if (breach?.type === BREACH_TYPES?.NO_6H_CONTINUOUS_REST_IN_24H) {
-      supportingDetail = `Longest rest period was ${breach?.longestRestHours?.toFixed(1)} hours (minimum required: 6 hours)`;
-    } else if (breach?.type === BREACH_TYPES?.REST_LT_77_IN_7D) {
-      supportingDetail = `Only ${breach?.restHours?.toFixed(1)} hours rest recorded (minimum required: 77 hours)`;
-    }
-
-    return {
-      id: breach?.id,
-      type: displayInfo?.displayName || breach?.type,
-      displayName: displayInfo?.displayName,
-      helperText: displayInfo?.helperText,
-      code: displayInfo?.code,
-      dateStr: breach?.date,
-      date: new Date(breach?.date)?.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-      windowStart: windowStartShipTime?.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
-      windowEnd: windowEndShipTime?.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
-      episodeStartDisplay: windowStartShipTime?.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-      episodeEndDisplay: windowEndShipTime?.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-      note: supportingDetail,
-      affectedShipDates: [breach?.date],
-      breachType: breach?.type,
-      restHours: breach?.restHours,
-      longestRestHours: breach?.longestRestHours,
-      worstValue: breach?.restHours || breach?.longestRestHours || 0
-    };
-  })?.sort((a, b) => new Date(b.dateStr) - new Date(a.dateStr));
+  return episodes.sort((a, b) => new Date(b.dateStr) - new Date(a.dateStr));
 };
 
 const formatBreachNote = (episode) => {
@@ -599,34 +704,21 @@ const formatBreachNote = (episode) => {
  * Calculate rest hours for the most recent rolling 24-hour window
  */
 export const calculateLast24HoursRest = (crewId) => {
-  const entries = getCrewWorkEntries(crewId);
-  if (entries?.length === 0) return 24;
-
-  const blockMap = buildBlockMap(entries);
-  const now = new Date();
-  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
-  const blocks = getBlocksInRange(blockMap, yesterday, now);
-  const restMinutes = calculateRestMinutes(blocks);
-
-  return restMinutes / 60;
+  const date = latestLoggedDate(crewId);
+  if (!date) return 24;
+  const dayShifts = crewShifts(crewId).filter((s) => s.date === date);
+  return restForDay(dayShifts).rest24h;
 };
 
 /**
  * Calculate rest hours for the most recent rolling 7-day window
  */
 export const calculateLast7DaysRest = (crewId) => {
-  const entries = getCrewWorkEntries(crewId);
-  if (entries?.length === 0) return 168;
-
-  const blockMap = buildBlockMap(entries);
-  const now = new Date();
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-  const blocks = getBlocksInRange(blockMap, sevenDaysAgo, now);
-  const restMinutes = calculateRestMinutes(blocks);
-
-  return restMinutes / 60;
+  const date = latestLoggedDate(crewId);
+  if (!date) return 168;
+  const start = addDaysStr(date, -6);
+  const weekShifts = crewShifts(crewId).filter((s) => s.date >= start && s.date <= date);
+  return restForWeek(weekShifts).pastWeekHours;
 };
 
 /**
@@ -634,21 +726,9 @@ export const calculateLast7DaysRest = (crewId) => {
  * This is informational only - compliance uses rolling windows
  */
 export const getRestHoursForDate = (crewId, dateStr) => {
-  const entries = getCrewWorkEntries(crewId);
-  const dateEntries = entries?.filter(entry => entry?.date === dateStr);
-
-  if (dateEntries?.length === 0) return 24;
-
-  // Count worked blocks
-  const workedBlocks = new Set();
-  dateEntries?.forEach(entry => {
-    entry?.workSegments?.forEach(seg => workedBlocks?.add(seg));
-  });
-
-  const workMinutes = workedBlocks?.size * 30;
-  const restMinutes = 1440 - workMinutes;
-
-  return restMinutes / 60;
+  const dayShifts = crewShifts(crewId).filter((s) => s.date === dateStr);
+  if (dayShifts.length === 0) return 24;
+  return restForDay(dayShifts).rest24h;
 };
 
 /**
@@ -684,8 +764,7 @@ export const getComplianceStatus = (crewId) => {
  * Daily rest hours are informational - compliance determined by rolling windows
  */
 export const getMonthCalendarData = (crewId, year, month) => {
-  const entries = getCrewWorkEntries(crewId);
-  const blockMap = buildBlockMap(entries);
+  const allShifts = crewShifts(crewId);
   const daysInMonth = new Date(year, month + 1, 0)?.getDate();
   const calendarData = [];
 
@@ -694,7 +773,7 @@ export const getMonthCalendarData = (crewId, year, month) => {
   const breachDates = new Set();
   breaches?.forEach(breach => {
     breach?.affectedShipDates?.forEach(dateStr => {
-      const dateObj = new Date(dateStr);
+      const dateObj = parseYmd(dateStr);
       if (dateObj?.getFullYear() === year && dateObj?.getMonth() === month) {
         breachDates?.add(dateStr);
       }
@@ -702,9 +781,10 @@ export const getMonthCalendarData = (crewId, year, month) => {
   });
 
   for (let day = 1; day <= daysInMonth; day++) {
-    const date = new Date(year, month, day);
-    const dateStr = date?.toISOString()?.split('T')?.[0];
-    const restHours = getRestHoursForDate(crewId, dateStr);
+    // Local YYYY-MM-DD (matches how entries are keyed; avoids UTC day-shift).
+    const dateStr = ymdLocal(new Date(year, month, day));
+    const dayShifts = allShifts.filter((s) => s.date === dateStr);
+    const restHours = dayShifts.length === 0 ? 24 : restForDay(dayShifts).rest24h;
 
     // Check if this date has any breaches
     let status = 'compliant';

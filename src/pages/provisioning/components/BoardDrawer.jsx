@@ -35,7 +35,7 @@ import { toggleSupplierOrderFavourite } from '../utils/provisioningStorage';
 const BD_STYLES = `
 .bd-input {
   width: 100%;
-  background: #FAF7F0;
+  background: #F1F5F9;
   border: 1px solid rgba(30, 39, 66, 0.12);
   border-radius: 8px;
   padding: 8px 12px;
@@ -74,7 +74,7 @@ const BD_STYLES = `
 }
 .bd-pill-active:hover { background: #FCE6D2; }
 .bd-card {
-  background: #FAF7F0;
+  background: #F1F5F9;
   border: 1px solid rgba(30, 39, 66, 0.08);
   border-radius: 8px;
   padding: 12px;
@@ -127,7 +127,7 @@ const BD_STYLES = `
   cursor: pointer;
   transition: all 0.15s;
 }
-.bd-btn-secondary:hover { background: #FAF7F0; }
+.bd-btn-secondary:hover { background: #F1F5F9; }
 .bd-btn-primary {
   width: 100%;
   padding: 10px 0;

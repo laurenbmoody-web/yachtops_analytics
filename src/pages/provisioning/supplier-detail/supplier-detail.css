@@ -22,7 +22,7 @@
   --sd-navy:         #262A53;
   --sd-navy-deep:    #1A1D3F;
   --sd-orange:       #C65A1A;
-  --sd-cream:        #FCFAF6;
+  --sd-cream:        #F8FAFC;
   --sd-cream-warm:   #FAEEDA;
   --sd-lavender:     #EEEDFE;
   --sd-lavender-deep:#3C3489;
@@ -212,7 +212,7 @@
 .sd-pill-confirmed     { background: var(--sd-cream-warm); color: var(--sd-orange); }
 .sd-pill-paid          { background: var(--sd-green-soft); color: var(--sd-green-deep); }
 .sd-pill-discrepancies { background: var(--sd-red-soft);   color: var(--sd-red); }
-.sd-pill-neutral       { background: #F1F0EB;              color: var(--sd-muted); }
+.sd-pill-neutral       { background: #F1F5F9;              color: var(--sd-muted); }
 
 .sd-orders-empty {
   padding: 24px;
