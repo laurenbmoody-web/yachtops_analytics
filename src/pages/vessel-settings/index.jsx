@@ -57,7 +57,8 @@ const VesselSettings = () => {
     seasonal_pattern: '',
     typical_guest_count: '',
     typical_crew_count: '',
-    
+    operational_day_start_hour: 6,
+
     // Compliance & Structure
     ism_applicable: false,
     isps_applicable: false,
@@ -97,6 +98,12 @@ const VesselSettings = () => {
     { value: 'Near Coastal', label: 'Near Coastal' },
     { value: 'Unlimited', label: 'Unlimited' }
   ];
+
+  // Hour the daily rota grid begins / the 24h slot window is anchored to.
+  const dayStartHourOptions = Array.from({ length: 24 }, (_, h) => ({
+    value: String(h),
+    label: `${String(h).padStart(2, '0')}:00`,
+  }));
 
   // departments_in_use stores department UUIDs, so the toggle options must
   // be keyed by id (not name). Source from the shared departments table.
@@ -165,6 +172,7 @@ const VesselSettings = () => {
         seasonal_pattern: vesselData?.seasonal_pattern || '',
         typical_guest_count: vesselData?.typical_guest_count || '',
         typical_crew_count: vesselData?.typical_crew_count || '',
+        operational_day_start_hour: vesselData?.operational_day_start_hour ?? 6,
         ism_applicable: vesselData?.ism_applicable || false,
         isps_applicable: vesselData?.isps_applicable || false,
         departments_in_use: departmentsArray,
@@ -338,6 +346,7 @@ const VesselSettings = () => {
         seasonal_pattern: formState?.seasonal_pattern || null,
         typical_guest_count: formState?.typical_guest_count ? parseInt(formState?.typical_guest_count, 10) : null,
         typical_crew_count: formState?.typical_crew_count ? parseInt(formState?.typical_crew_count, 10) : null,
+        operational_day_start_hour: Math.min(23, Math.max(0, parseInt(formState?.operational_day_start_hour ?? 6, 10) || 0)),
         ism_applicable: formState?.ism_applicable || false,
         isps_applicable: formState?.isps_applicable || false,
         departments_in_use: formState?.departments_in_use || [],
@@ -878,6 +887,18 @@ const VesselSettings = () => {
                       placeholder="e.g., 15"
                       disabled={viewMode || !canEdit}
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Rota Day Start</label>
+                    <Select
+                      value={String(formState?.operational_day_start_hour ?? 6)}
+                      onChange={(e) => handleInputChange('operational_day_start_hour', e?.target?.value)}
+                      options={dayStartHourOptions}
+                      disabled={viewMode || !canEdit}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Hour the daily rota grid begins. Display only — does not change MLC rest calculations.
+                    </p>
                   </div>
                 </div>
               </div>

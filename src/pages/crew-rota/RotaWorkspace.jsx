@@ -44,7 +44,7 @@ import './crew-rota.css';
 //   header           ({ ...state }) => ReactNode — page title block slot
 //   footer           ({ ...state }) => ReactNode — page footer slot (inside the card)
 
-const GRID_START_HOUR = 6;
+const DEFAULT_GRID_START_HOUR = 6;
 // Brush pills. "Off" is no longer a shift type — an empty cell IS the off
 // state. Erase removes the working shift.
 const SHIFT_TYPE_PILLS = [
@@ -52,8 +52,8 @@ const SHIFT_TYPE_PILLS = [
   ['training', 'Training'], ['medical', 'Medical'],
   ['erase', 'Erase'],
 ];
-// Last paintable slot index (pre-midnight, given a 06:00 grid start).
-const LAST_PRE_MIDNIGHT_SLOT = (24 - GRID_START_HOUR) * 2 - 1; // 35
+// Last paintable slot index (pre-midnight). Derived per-render from the
+// vessel's configurable grid-start hour (see lastPreMidnightSlot below).
 
 function fullDateLabel(d) {
   const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -172,6 +172,11 @@ export default function RotaWorkspace({
   // Departments for the template editors — get_tenant_departments
   // INTERSECTED with vessels.departments_in_use (see /crew history for the
   // rationale; the RPC's p_tenant_id is a membership gate, not a scope).
+  // Vessel-configurable rota grid-start hour (display + slot boundary). The
+  // MLC rest math is calendar-day based and unaffected by this.
+  const [gridStartHour, setGridStartHour] = useState(DEFAULT_GRID_START_HOUR);
+  const lastPreMidnightSlot = (24 - gridStartHour) * 2 - 1;
+
   const [departments, setDepartments] = useState([]);
   useEffect(() => {
     if (!activeTenantId) { setDepartments([]); return undefined; }
@@ -179,10 +184,11 @@ export default function RotaWorkspace({
     (async () => {
       const [veRes, dpRes] = await Promise.all([
         supabase.from('vessels')
-          .select('departments_in_use').eq('tenant_id', activeTenantId).maybeSingle(),
+          .select('departments_in_use, operational_day_start_hour').eq('tenant_id', activeTenantId).maybeSingle(),
         supabase.rpc('get_tenant_departments', { p_tenant_id: activeTenantId }),
       ]);
       if (!alive) return;
+      setGridStartHour(veRes.data?.operational_day_start_hour ?? DEFAULT_GRID_START_HOUR);
       if (dpRes.error) {
         console.error('[RotaWorkspace] get_tenant_departments error:', dpRes.error);
         setDepartments([]);
@@ -238,12 +244,12 @@ export default function RotaWorkspace({
     if (!rota?.id) { showToast('No active rota resolved — cannot edit yet.'); return; }
     const lo0 = Math.min(loSlot, hiSlot);
     const hi0 = Math.max(loSlot, hiSlot);
-    if (lo0 > LAST_PRE_MIDNIGHT_SLOT) {
+    if (lo0 > lastPreMidnightSlot) {
       showToast('Editing the post-midnight window ships in a later phase.');
       return;
     }
     const lo = lo0;
-    const hi = Math.min(hi0, LAST_PRE_MIDNIGHT_SLOT);
+    const hi = Math.min(hi0, lastPreMidnightSlot);
     const erase = shiftType === 'erase';
 
     // Submitter editing marks the dept draft (the "editing reverts to draft"
@@ -261,10 +267,10 @@ export default function RotaWorkspace({
       rotaId: rota.id,
       tripId: rota.ownerType === 'trip' ? rota.tripId : null,
       createdByMemberId: myMemberId,
-      gridStartHour: GRID_START_HOUR,
+      gridStartHour,
     });
     if (!res.ok) showToast(`Couldn’t save that change — try again. (${res.error})`);
-  }, [rota, mode, shiftType, myMemberId, applyPaint, syncDeptDraft, showToast]);
+  }, [rota, mode, shiftType, myMemberId, applyPaint, syncDeptDraft, showToast, gridStartHour, lastPreMidnightSlot]);
 
   const canEdit = !!rota?.id && !loading && !error;
   const [hodConfirmOpen, setHodConfirmOpen] = useState(false);
@@ -600,7 +606,7 @@ export default function RotaWorkspace({
               windowShifts={windowShifts || []}
               selectedDate={selectedDate}
               realToday={realToday}
-              gridStartHour={GRID_START_HOUR}
+              gridStartHour={gridStartHour}
               onCellClick={(d) => { setSelectedDate(d); setView('grid'); }}
               onStepDay={(delta) => setSelectedDate((s) => addLocalDays(s, delta))}
             />
@@ -616,7 +622,7 @@ export default function RotaWorkspace({
             <RotaTodayGrid
               crew={crew}
               now={isToday ? now : null}
-              gridStartHour={GRID_START_HOUR}
+              gridStartHour={gridStartHour}
               onCrewClick={setSelectedCrew}
               editMode={editMode}
               onPaint={handlePaint}
