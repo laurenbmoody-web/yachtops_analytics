@@ -3527,6 +3527,31 @@
   background: #C65A1A; color: #FFFFFF;
   box-shadow: 0 0 0 1.5px #FFFFFF;
 }
+/* Type-coloured cells (History view, colorByType) — light neutral fill with a
+   per-block colour bar so a single day can carry several blocks of different
+   types. Reuses the day-grid palette: duty navy / watch terracotta / standby
+   brass / training sage. Only present when colorByType, so the live grid is
+   unaffected. .cw-c.cw-c--typed beats the base .cw-c.f fill (equal specificity,
+   declared later). */
+.cw-c.cw-c--typed {
+  background: #FBFAF6;
+  color: #1C1B3A;
+}
+.cw-c--typed .cw-c-range {
+  display: flex; align-items: center; gap: 6px;
+}
+.cw-c-bar {
+  flex: 0 0 auto; width: 3px; align-self: stretch; min-height: 12px;
+  border-radius: 2px; background: #1C1B3A;
+}
+.cw-c-bar--duty     { background: #1C1B3A; }
+.cw-c-bar--watch    { background: #C65A1A; }
+.cw-c-bar--standby  { background: #B8935E; }
+.cw-c-bar--training { background: #6B7F6B; }
+.cw-c--typed .cw-c-rest { color: rgba(28, 27, 58, 0.55); }
+.cw-c--typed .cw-c-more { color: rgba(28, 27, 58, 0.5); }
+.cw-c.cw-c--typed.is-warn { background: #FBFAF6; }
+
 .cw-c.is-warn.f {
   /* Warning on a scheduled cell: keep navy fill, hint via meta colour. */
   background: #1C1B3A;
