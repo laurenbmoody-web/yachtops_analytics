@@ -3274,7 +3274,7 @@
 /* Header row — sticky name spacer + 7 day columns, mirrors .rota-hour-row */
 .cw-head-row {
   display: grid;
-  grid-template-columns: var(--cw-nm-w, 220px) repeat(7, 1fr);
+  grid-template-columns: var(--cw-nm-w, 220px) repeat(var(--cw-cols, 7), 1fr);
   gap: 2px;
   padding-bottom: 10px;
   margin-bottom: 4px;
@@ -3429,7 +3429,7 @@
 /* Crew row — sticky name col + 7 cells, 2px gaps (matches .rota-row) */
 .cw-row {
   display: grid;
-  grid-template-columns: calc(var(--cw-nm-w, 220px) - 22px) repeat(7, 1fr);
+  grid-template-columns: calc(var(--cw-nm-w, 220px) - 22px) repeat(var(--cw-cols, 7), 1fr);
   gap: 2px;
   margin-bottom: 2px;
 }
