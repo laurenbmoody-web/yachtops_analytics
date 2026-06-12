@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import CrewWeekMatrix from '../crew-rota/CrewWeekMatrix';
 
@@ -87,8 +87,6 @@ export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd }) {
     return () => { cancelled = true; };
   }, [snapshotId, dateStart, dateEnd]);
 
-  const realToday = useMemo(() => toLocalStr(new Date()), []);
-
   if (!snapshotId) return null;
   if (loading) return <div className="rv-resolved-lines-empty">Loading rota…</div>;
   if (!crew.length) return null;
@@ -108,7 +106,7 @@ export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd }) {
         crew={crew}
         windowShifts={windowShifts}
         selectedDate={selectedDate}
-        realToday={realToday}
+        realToday={null}
         affectedDates={affectedDates}
         onStepDay={(dir) => setSelectedDate((s) => addLocalDays(s, dir))}
       />
