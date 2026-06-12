@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Check } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import CrewWeekMatrix from '../crew-rota/CrewWeekMatrix';
@@ -66,6 +66,7 @@ export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd, rota
   const [affectedOnly, setAffectedOnly] = useState(false);
   const [popover, setPopover] = useState(null); // { memberId, date, top, left }
   const [loading, setLoading] = useState(true);
+  const scrollRef = useRef(null);
 
   useEffect(() => {
     if (!snapshotId) { setCrew([]); setWindowShifts([]); setAffectedDates([]); setLoading(false); return undefined; }
@@ -174,6 +175,19 @@ export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd, rota
     return () => { cancelled = true; };
   }, [snapshotId, dateStart, dateEnd, rotaId, departmentId]);
 
+  // Scroll the grid so the landing day sits just past the sticky crew column.
+  useEffect(() => {
+    const sc = scrollRef.current;
+    if (!sc || !selectedDate || !crew.length) return;
+    const el = sc.querySelector(`[data-cw-date="${selectedDate}"]`);
+    const spacer = sc.querySelector('.cw-head-spacer');
+    if (!el) return;
+    const elRect = el.getBoundingClientRect();
+    const scRect = sc.getBoundingClientRect();
+    const spacerW = spacer ? spacer.getBoundingClientRect().width : 0;
+    sc.scrollLeft += (elRect.left - scRect.left) - spacerW;
+  }, [selectedDate, affectedOnly, fullRange, affectedDates, crew.length]);
+
   const onCellClick = (date, memberId, rect) => {
     if (!editedCells || !editedCells.has(`${memberId}|${date}`) || !rect) return;
     const left = Math.min(Math.max(rect.left, 8), window.innerWidth - 268);
@@ -211,18 +225,19 @@ export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd, rota
           </button>
         )}
       </div>
-      <CrewWeekMatrix
-        crew={crew}
-        windowShifts={windowShifts}
-        selectedDate={selectedDate}
-        scrollToDate={selectedDate}
-        realToday={null}
-        affectedDates={affectedDates}
-        editedCells={editedCells}
-        dayList={affectedOnly ? affectedDates : fullRange}
-        colorByType
-        onCellClick={onCellClick}
-      />
+      <div className="rv-grid-scroll" ref={scrollRef}>
+        <CrewWeekMatrix
+          crew={crew}
+          windowShifts={windowShifts}
+          selectedDate={selectedDate}
+          realToday={null}
+          affectedDates={affectedDates}
+          editedCells={editedCells}
+          dayList={affectedOnly ? affectedDates : fullRange}
+          colorByType
+          onCellClick={onCellClick}
+        />
+      </div>
       {legendTypes.length > 0 && (
         <div className="rv-type-legend">
           {legendTypes.map((t) => (
