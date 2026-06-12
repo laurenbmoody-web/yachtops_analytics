@@ -611,20 +611,10 @@ export default function DeliveryHistory() {
         <div className="dh-topbar">
           <div className="dh-topbar-inner">
 
-          {/* Breadcrumb */}
-          <div className="dh-breadcrumb">
-            <button onClick={() => navigate('/provisioning')} className="dh-breadcrumb-link">
-              Provisioning
-            </button>
-            <span className="dh-breadcrumb-sep">/</span>
-            <button onClick={() => navigate('/provisioning/orders')} className="dh-breadcrumb-link">
-              Orders
-            </button>
-            <span className="dh-breadcrumb-sep">/</span>
-            <span className="dh-breadcrumb-current">
-              Delivered{boardParam && boardNames[boardParam] ? ` — ${boardNames[boardParam]}` : ''}
-            </span>
-          </div>
+          {/* Breadcrumb removed in alignment pass with the Orders index —
+              the back-to-boards button above + the Sent/Delivered tab strip
+              below carry the nav now. Mirrored on the Sent tab which has
+              the same structure. */}
 
           {/* Tab strip — mirrors the Orders index. Sent (outbound supplier
               orders) / Delivered (this page). Each tab is a separate route. */}
