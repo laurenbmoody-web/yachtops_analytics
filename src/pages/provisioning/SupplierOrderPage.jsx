@@ -765,20 +765,34 @@ export default function SupplierOrderPage() {
     return () => { document.body.style.background = prev; };
   }, []);
 
-  // Load order + list in parallel. Treat order-not-found OR
-  // order.list_id !== boardId as a 404 and bounce back to the board.
+  // Load order + (optional) list in parallel. Two URL shapes:
+  //
+  //   /provisioning/:boardId/orders/:orderId  — board-context (existing)
+  //   /provisioning/orders/:orderId           — board-agnostic (added with
+  //                                              the Orders index page)
+  //
+  // In board-context, we still validate order.list_id === boardId and
+  // bounce to the board on mismatch (URL forgery / stale link).
+  // In board-agnostic, we skip the list fetch + the mismatch check; the
+  // back nav routes to /provisioning/orders instead of the board.
   useEffect(() => {
-    if (!orderId || !boardId) return;
+    if (!orderId) return;
     let cancelled = false;
     setLoading(true);
     setNotFound(false);
     Promise.all([
       fetchSupplierOrderById(orderId),
-      fetchProvisioningList(boardId).catch(() => null),
+      boardId ? fetchProvisioningList(boardId).catch(() => null) : Promise.resolve(null),
     ])
       .then(([o, l]) => {
         if (cancelled) return;
-        if (!o || (o.list_id && boardId && o.list_id !== boardId)) {
+        if (!o) {
+          setNotFound(true);
+          showToast('Order not found', 'error');
+          navigate(boardId ? `/provisioning/${boardId}` : '/provisioning/orders', { replace: true });
+          return;
+        }
+        if (boardId && o.list_id && o.list_id !== boardId) {
           setNotFound(true);
           showToast('Order not found on this board', 'error');
           navigate(`/provisioning/${boardId}`, { replace: true });
@@ -793,7 +807,7 @@ export default function SupplierOrderPage() {
         console.error('[SupplierOrderPage] load failed:', err);
         setNotFound(true);
         showToast('Could not load order', 'error');
-        navigate(`/provisioning/${boardId}`, { replace: true });
+        navigate(boardId ? `/provisioning/${boardId}` : '/provisioning/orders', { replace: true });
       });
     return () => { cancelled = true; };
   }, [orderId, boardId, navigate]);
@@ -864,7 +878,14 @@ export default function SupplierOrderPage() {
     }
   }, [mergeUpdatedItem]);
 
-  const handleBack = () => navigate(`/provisioning/${boardId}`);
+  // Back-nav: to the board if board-context, else to the Orders index.
+  // The order's list_id is also a valid target (if not null) — fall through
+  // in that order so users land somewhere familiar.
+  const handleBack = () => {
+    if (boardId) navigate(`/provisioning/${boardId}`);
+    else if (order?.list_id) navigate(`/provisioning/${order.list_id}`);
+    else navigate('/provisioning/orders');
+  };
 
   // Resend the delivery-note signing email. force=true bypasses the
   // 30-min idempotency window so the user can deliberately retry.

@@ -57,6 +57,7 @@ import { isDevMode } from './utils/devMode';
 import ProvisioningWorkspace from './pages/provisioning';
 import ProvisioningBoardDetail from './pages/provisioning/ProvisioningBoardDetail';
 import SupplierOrderPage from './pages/provisioning/SupplierOrderPage';
+import SupplierOrdersIndex from './pages/provisioning/SupplierOrdersIndex';
 import SupplierDetailPage from './pages/provisioning/SupplierDetailPage';
 // Sprint 9c.3 — consolidated vendor directory replaces ProvisioningSuppliers.
 import SuppliersDirectoryPage from './pages/provisioning/suppliers/SuppliersDirectoryPage';
@@ -1242,6 +1243,12 @@ const Routes = () => {
         <Route path="/provisioning/inbox" element={<ProtectedRoute><DeliveryInbox /></ProtectedRoute>} />
         <Route path="/provisioning/history" element={<ProtectedRoute><DeliveryHistory /></ProtectedRoute>} />
         <Route path="/provisioning/return-slip" element={<ProtectedRoute><ReturnSlipPage /></ProtectedRoute>} />
+        {/* Standalone Orders index + board-agnostic detail route. Lists every
+            supplier_order for the tenant including orphans (board deleted).
+            Routes are declared BEFORE /provisioning/:id so 'orders' isn't
+            captured as a board id. */}
+        <Route path="/provisioning/orders" element={<ProtectedRoute><SupplierOrdersIndex /></ProtectedRoute>} />
+        <Route path="/provisioning/orders/:orderId" element={<ProtectedRoute><SupplierOrderPage /></ProtectedRoute>} />
         <Route path="/provisioning/:id" element={<ProtectedRoute><ProvisioningBoardDetail /></ProtectedRoute>} />
         {/* Sprint 9c.2 — supplier order detail page (replaces drawer). */}
         <Route path="/provisioning/:boardId/orders/:orderId" element={<ProtectedRoute><SupplierOrderPage /></ProtectedRoute>} />

@@ -1010,12 +1010,16 @@ const ProvisioningWorkspace = () => {
               )}
             </button>
           )}
-          {canViewDeliveryHistory && (
-            <button onClick={() => navigate('/provisioning/history')} className="pv-toolbar-link">
-              <Icon name="BookOpen" className="w-4 h-4" />
-              Delivery history
-            </button>
-          )}
+          {/* Orders entry collapses the prior standalone "Delivery history"
+              toolbar button — both are sides of supplier activity, surfaced
+              together inside the Orders page. canViewDeliveryHistory gate
+              is moot here: Orders is visible to anyone with provisioning
+              access (RLS dept-scopes the rows). The Delivery history link
+              inside the Orders page can still tier-gate if needed. */}
+          <button onClick={() => navigate('/provisioning/orders')} className="pv-toolbar-link">
+            <Icon name="Truck" className="w-4 h-4" />
+            Orders
+          </button>
           <button onClick={() => navigate('/provisioning/suppliers')} className="pv-toolbar-link">
             <Icon name="Users" className="w-4 h-4" />
             Suppliers
