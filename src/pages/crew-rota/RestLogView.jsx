@@ -113,6 +113,9 @@ export default function RestLogView({
   period = 'month',
   realToday,
   vesselName = null,
+  imoNumber = null,
+  flagState = null,
+  portOfRegistry = null,
   periodLabel = '',
   departmentName = null,
   onCellClick,
@@ -163,11 +166,14 @@ export default function RestLogView({
 
   const meta = useMemo(() => ({
     vesselName,
+    imoNumber,
+    flagState,
+    portOfRegistry,
     departmentName,
     periodLabel,
     period,
     generatedAt: new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }),
-  }), [vesselName, departmentName, periodLabel, period]);
+  }), [vesselName, imoNumber, flagState, portOfRegistry, departmentName, periodLabel, period]);
 
   if (days.length === 0) return null;
 
@@ -189,8 +195,8 @@ export default function RestLogView({
           <button
             type="button"
             className="crew-rota-pill"
-            onClick={() => exportRestLogPDF({ rows, days, meta })}
-            title="Export the log as a PDF audit report"
+            onClick={() => exportRestLogPDF({ rows, days, meta, windowShifts })}
+            title="Export the MLC/IMO-ILO Record of Hours of Rest (PDF)"
           ><Download size={12} /> PDF</button>
         </div>
       </div>

@@ -2,33 +2,110 @@
 // from live rota data (NOT the legacy localStorage HOR store, which the
 // crew-profile generateHORAuditPDF is hard-wired to).
 //
-// Two formats share one input shape — the `rows` the RestLogView already
-// computes (dept-grouped crew, one rest cell per day) plus `meta` (vessel,
-// period, generated-at, MLC minimums). CSV is the lightweight audit/import
-// artefact; PDF is the formatted compliance document.
+// Two formats:
+//   • CSV — the lightweight data/import artefact: the crew × day matrix of
+//     REST hours with breach markers.
+//   • PDF — an MLC 2006 / IMO-ILO conforming "Record of Hours of Rest": a
+//     fleet summary page followed by ONE per-seafarer monthly record, each
+//     with the 24h-per-day work/rest grid, daily + rolling-7-day rest totals,
+//     a non-conformities list, and master/seafarer signature blocks. This is
+//     the artefact a PSC / flag inspector expects (IMO/ILO joint Guidelines
+//     for the format of records of seafarers' hours of rest; MLC Std A2.3;
+//     STCW Code A-VIII/1).
 //
-// Per-cell breach markers (CSV) / fills (PDF):
-//   daily  — rest in that 24h < MLC_DAILY_REST_MIN  (marker '*')
-//   weekly — rolling-7d rest at that day < MLC_WEEKLY_REST_MIN (marker '#')
+// Compliance numbers are computed by the shared restHours engine (assessMlc),
+// so every figure here matches the on-screen matrix and the rest panel.
 
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { MLC_DAILY_REST_MIN, MLC_WEEKLY_REST_MIN } from './restHours';
+import {
+  ON_DUTY_TYPES,
+  assessMlc,
+  MLC_DAILY_REST_MIN,
+  MLC_WEEKLY_REST_MIN,
+  MLC_MAX_REST_PERIODS,
+  MLC_LONGEST_REST_PERIOD_MIN,
+  MLC_MAX_WORK_STRETCH,
+} from './restHours';
 
 const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+const STANDARD_REF =
+  `MLC 2006 Standard A2.3 · STCW Code Section A-VIII/1. Minimum rest: ${MLC_DAILY_REST_MIN}h in any 24h `
+  + `and ${MLC_WEEKLY_REST_MIN}h in any 7 days; rest in no more than ${MLC_MAX_REST_PERIODS} periods, one of at least `
+  + `${MLC_LONGEST_REST_PERIOD_MIN}h; interval between rest periods not to exceed ${MLC_MAX_WORK_STRETCH}h.`;
+
+// ── shared date helpers ─────────────────────────────────────────────────────
+function pad2(n) { return String(n).padStart(2, '0'); }
 function parseLocal(s) {
   const [y, m, d] = String(s).split('-').map(Number);
   return new Date(y, m - 1, d);
 }
+function toYmd(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+function addDays(dateStr, n) {
+  const d = parseLocal(dateStr);
+  d.setDate(d.getDate() + n);
+  return toYmd(d);
+}
+function hhmmToDecimal(t) {
+  if (!t) return null;
+  const [h, m] = String(t).split(':').map(Number);
+  return h + (m || 0) / 60;
+}
 
-// Short column label for a day, e.g. "Mon 3". The month abbreviation is
-// only added at month boundaries (1st) so a 31-column export stays readable.
+// Short column label for a day, e.g. "Mon 3". The month abbreviation is only
+// added at month boundaries (1st) so a 31-column export stays readable.
 function dayColLabel(dateStr, index) {
   const d = parseLocal(dateStr);
   const base = `${WEEKDAY_SHORT[d.getDay()]} ${d.getDate()}`;
   return (d.getDate() === 1 || index === 0) ? `${base} ${MONTH_SHORT[d.getMonth()]}` : base;
+}
+function dayRowLabel(dateStr) {
+  const d = parseLocal(dateStr);
+  const mon = (d.getDate() === 1) ? ` ${MONTH_SHORT[d.getMonth()]}` : '';
+  return `${WEEKDAY_SHORT[d.getDay()]} ${pad2(d.getDate())}${mon}`;
+}
+
+// On-duty intervals for one member on one calendar day, in decimal hours
+// clipped to [0, 24] for the grid. Overnight spill past 24:00 is clipped here
+// (it is attributed to the day it commenced, matching restForDay) — see the
+// footnote drawn under each record.
+function onDutyIntervalsForDay(windowShifts, memberId, dateStr) {
+  return windowShifts
+    .filter((s) => s.memberId === memberId && s.date === dateStr && ON_DUTY_TYPES.has(s.shiftType))
+    .map((s) => {
+      const start = hhmmToDecimal(s.startTime);
+      let end = hhmmToDecimal(s.endTime);
+      if (start == null || end == null || start === end) return null;
+      if (end <= start) end += 24;
+      return { start: Math.max(0, start), end: Math.min(24, end) };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.start - b.start);
+}
+
+// Full per-(member, day) assessment via the shared engine — every figure and
+// breach the formal record reports comes from here.
+function computeCellFull(windowShifts, memberId, dateStr) {
+  const dayShifts = windowShifts.filter((s) => s.memberId === memberId && s.date === dateStr);
+  const weekStart = addDays(dateStr, -6);
+  const weekShifts = windowShifts.filter(
+    (s) => s.memberId === memberId && s.date >= weekStart && s.date <= dateStr,
+  );
+  const onDuty = dayShifts.filter((s) => ON_DUTY_TYPES.has(s.shiftType));
+  const isOff = onDuty.length === 0;
+  const mlc = assessMlc({ dayShifts, weekShifts });
+  return {
+    date: dateStr,
+    isOff,
+    rest24h: mlc.rest24h,
+    pastWeekHours: mlc.pastWeekHours,
+    dailyLow: !isOff && mlc.rest24h < MLC_DAILY_REST_MIN,
+    weeklyLow: mlc.pastWeekHours < MLC_WEEKLY_REST_MIN,
+    breaches: mlc.breaches,
+    intervals: onDutyIntervalsForDay(windowShifts, memberId, dateStr),
+  };
 }
 
 // A cell's rest figure as a compact number ("13", "9.5", "off").
@@ -58,7 +135,6 @@ function triggerDownload(blob, filename) {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  // Revoke on the next tick so the click has fired.
   setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
@@ -72,15 +148,19 @@ function csvField(v) {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+// ── CSV (data/import artefact) ──────────────────────────────────────────────
 export function exportRestLogCSV({ rows, days, meta }) {
   const members = flatten(rows);
   const lines = [];
-  lines.push('Hours of Rest log');
+  lines.push('Record of Hours of Rest (data export)');
   lines.push(`Vessel,${csvField(meta.vesselName || '—')}`);
+  if (meta.imoNumber) lines.push(`IMO number,${csvField(meta.imoNumber)}`);
+  if (meta.flagState) lines.push(`Flag,${csvField(meta.flagState)}`);
   if (meta.departmentName) lines.push(`Department,${csvField(meta.departmentName)}`);
   lines.push(`Period,${csvField(meta.periodLabel)}`);
   lines.push(`Generated,${csvField(meta.generatedAt)}`);
-  lines.push(`MLC minimums,${csvField(`Daily ${MLC_DAILY_REST_MIN}h rest · Weekly ${MLC_WEEKLY_REST_MIN}h rest`)}`);
+  lines.push(`Standard,${csvField(STANDARD_REF)}`);
+  lines.push('Figures,Hours of REST per 24h (not hours worked)');
   lines.push('Markers,* daily rest below minimum · # weekly rest below minimum');
   lines.push('');
 
@@ -106,27 +186,44 @@ export function exportRestLogCSV({ rows, days, meta }) {
   triggerDownload(blob, `hours-of-rest_${safeSlug(meta.vesselName)}_${safeSlug(meta.periodLabel)}.csv`);
 }
 
-export function exportRestLogPDF({ rows, days, meta }) {
-  const members = flatten(rows);
-  const wide = days.length > 10;
-  const doc = new jsPDF({ orientation: wide ? 'landscape' : 'portrait', unit: 'pt', format: 'a4' });
-  const pageW = doc.internal.pageSize.getWidth();
+// ── PDF: shared chrome ──────────────────────────────────────────────────────
+const NAVY = [28, 27, 58];
+const CREAM = [245, 241, 234];
+const WARN_FILL = [232, 168, 145];
+const WARN_TEXT = [90, 26, 16];
+const OFF_TEXT = [150, 150, 150];
+const GRID_LINE = [205, 199, 187];
+const HOUR_LINE = [120, 120, 120];
 
+function fieldPair(doc, label, value, x, y, valueX) {
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(90);
+  doc.text(label, x, y);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0);
+  doc.text(value || '—', valueX, y);
+}
+
+// Fleet summary page — the crew × day matrix of rest hours (overview).
+function drawSummaryPage(doc, members, days, meta) {
+  const pageW = doc.internal.pageSize.getWidth();
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
-  doc.text('Hours of Rest log', 40, 40);
+  doc.setTextColor(0);
+  doc.text('Record of Hours of Rest — Summary', 40, 40);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setTextColor(90);
   const subParts = [meta.vesselName || '—'];
+  if (meta.imoNumber) subParts.push(`IMO ${meta.imoNumber}`);
+  if (meta.flagState) subParts.push(meta.flagState);
   if (meta.departmentName) subParts.push(meta.departmentName);
   subParts.push(meta.periodLabel);
-  doc.text(subParts.join('  ·  '), 40, 56);
-  doc.text(
-    `MLC minimums: daily ${MLC_DAILY_REST_MIN}h rest · weekly ${MLC_WEEKLY_REST_MIN}h rest`,
-    40, 69,
-  );
+  doc.text(subParts.join('  ·  '), 40, 55);
+  doc.text(STANDARD_REF, 40, 67, { maxWidth: pageW - 80 });
+  doc.text('Figures are HOURS OF REST per 24h (not hours worked). Shaded = below MLC minimum.', 40, 84);
   doc.text(`Generated ${meta.generatedAt}`, pageW - 40, 40, { align: 'right' });
   doc.setTextColor(0);
 
@@ -135,38 +232,257 @@ export function exportRestLogPDF({ rows, days, meta }) {
     ...days.map((d, i) => dayColLabel(d, i)),
     'Breach\ndays',
   ]];
-
-  const warnFill = [232, 168, 145];   // soft terracotta tint
-  const offText = [150, 150, 150];
-
+  const wide = days.length > 10;
   const body = members.map((m) => {
     const dayCells = m.cells.map((c) => {
       const breach = c && (c.dailyLow || c.weeklyLow);
       const styles = {};
-      if (breach) { styles.fillColor = warnFill; styles.textColor = [90, 26, 16]; styles.fontStyle = 'bold'; }
-      else if (!c || c.isOff) { styles.textColor = offText; }
+      if (breach) { styles.fillColor = WARN_FILL; styles.textColor = WARN_TEXT; styles.fontStyle = 'bold'; }
+      else if (!c || c.isOff) { styles.textColor = OFF_TEXT; }
       return { content: restLabel(c), styles };
     });
     const totalBreaches = m.dailyBreachDays + m.weeklyBreachDays;
     return [
-      m.name,
-      m.role || '—',
-      m.dept,
-      ...dayCells,
-      { content: String(totalBreaches), styles: totalBreaches > 0 ? { textColor: [90, 26, 16], fontStyle: 'bold' } : {} },
+      m.name, m.role || '—', m.dept, ...dayCells,
+      { content: String(totalBreaches), styles: totalBreaches > 0 ? { textColor: WARN_TEXT, fontStyle: 'bold' } : {} },
     ];
   });
 
   autoTable(doc, {
     head,
     body,
-    startY: 84,
+    startY: 96,
     margin: { left: 40, right: 40 },
-    styles: { fontSize: wide ? 5.5 : 8, cellPadding: wide ? 2 : 3, halign: 'center', valign: 'middle', lineColor: [223, 216, 204], lineWidth: 0.5 },
-    headStyles: { fillColor: [28, 27, 58], textColor: [245, 241, 234], fontSize: wide ? 5.5 : 7.5, halign: 'center' },
+    styles: { fontSize: wide ? 5.5 : 8, cellPadding: wide ? 2 : 3, halign: 'center', valign: 'middle', lineColor: GRID_LINE, lineWidth: 0.5 },
+    headStyles: { fillColor: NAVY, textColor: CREAM, fontSize: wide ? 5.5 : 7.5, halign: 'center' },
     columnStyles: { 0: { halign: 'left', cellWidth: wide ? 60 : 90 }, 1: { halign: 'left' }, 2: { halign: 'left' } },
     theme: 'grid',
   });
+}
+
+// One per-seafarer monthly record: header block + 24h work/rest grid with
+// daily + rolling-7-day rest totals, non-conformities, and signatures.
+function drawSeafarerRecord(doc, member, days, windowShifts, meta) {
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const M = 36;
+
+  // ── Title + standard reference ──
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(0);
+  doc.text('RECORD OF HOURS OF REST', M, 38);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(90);
+  doc.text(STANDARD_REF, M, 50, { maxWidth: pageW - 2 * M });
+  doc.text(`Generated ${meta.generatedAt}`, pageW - M, 38, { align: 'right' });
+
+  // ── Identity block (two columns) ──
+  const colL = M;
+  const colLval = M + 96;
+  const colR = pageW / 2 + 20;
+  const colRval = colR + 96;
+  let y = 72;
+  fieldPair(doc, "Ship's name", meta.vesselName, colL, y, colLval);
+  fieldPair(doc, 'Seafarer', member.name, colR, y, colRval);
+  y += 13;
+  fieldPair(doc, 'IMO number', meta.imoNumber, colL, y, colLval);
+  fieldPair(doc, 'Position / rank', member.role || '—', colR, y, colRval);
+  y += 13;
+  fieldPair(doc, 'Flag State', meta.flagState, colL, y, colLval);
+  fieldPair(doc, 'Department', member.dept || '—', colR, y, colRval);
+  y += 13;
+  fieldPair(doc, 'Port of registry', meta.portOfRegistry, colL, y, colLval);
+  fieldPair(doc, 'Period', meta.periodLabel, colR, y, colRval);
+
+  // ── Grid geometry ──
+  const dateColW = 66;
+  const totalColW = 42;
+  const totalsW = totalColW * 2;
+  const gridLeft = M + dateColW;
+  const gridRight = pageW - M - totalsW;
+  const gridW = gridRight - gridLeft;
+  const slotW = gridW / 48; // 48 half-hour slots
+
+  const hourLabelY = y + 20;
+  const gridTop = hourLabelY + 6;
+  // Reserve room below for non-conformities + signatures.
+  const gridBottomMax = pageH - M - 132;
+  const nDays = days.length;
+  const rowH = Math.max(8, Math.min(15, (gridBottomMax - gridTop) / nDays));
+  const gridBottom = gridTop + rowH * nDays;
+
+  // Column headers
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(0);
+  doc.text('Date', M + 2, gridTop - 4);
+  doc.text('Rest', gridRight + totalColW / 2, gridTop - 12, { align: 'center' });
+  doc.text('24h', gridRight + totalColW / 2, gridTop - 4, { align: 'center' });
+  doc.text('Rest', gridRight + totalColW + totalColW / 2, gridTop - 12, { align: 'center' });
+  doc.text('7d', gridRight + totalColW + totalColW / 2, gridTop - 4, { align: 'center' });
+
+  // Hour ticks (every 2h) + vertical hour gridlines (0..24)
+  doc.setFontSize(5.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(110);
+  for (let h = 0; h <= 24; h += 1) {
+    const x = gridLeft + h * 2 * slotW;
+    if (h % 2 === 0) doc.text(String(h), x, hourLabelY, { align: 'center' });
+  }
+
+  // ── Rows ──
+  doc.setDrawColor(...GRID_LINE);
+  doc.setLineWidth(0.4);
+  for (let i = 0; i < nDays; i += 1) {
+    const cell = computeCellFull(windowShifts, member.id, days[i]);
+    const rowY = gridTop + i * rowH;
+
+    // weekend tint on the date label cell
+    const wd = parseLocal(days[i]).getDay();
+    if (wd === 0 || wd === 6) {
+      doc.setFillColor(247, 244, 238);
+      doc.rect(M, rowY, dateColW, rowH, 'F');
+    }
+
+    // date label
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(60);
+    doc.text(dayRowLabel(days[i]), M + 3, rowY + rowH / 2 + 2);
+
+    // work blocks (navy fill)
+    doc.setFillColor(...NAVY);
+    for (const iv of cell.intervals) {
+      const x0 = gridLeft + iv.start * slotW;
+      const w = (iv.end - iv.start) * slotW;
+      if (w > 0) doc.rect(x0, rowY + 0.6, w, rowH - 1.2, 'F');
+    }
+
+    // totals — rest in 24h
+    const r24 = gridRight;
+    const r7 = gridRight + totalColW;
+    if (cell.dailyLow) { doc.setFillColor(...WARN_FILL); doc.rect(r24, rowY, totalColW, rowH, 'F'); }
+    if (cell.weeklyLow) { doc.setFillColor(...WARN_FILL); doc.rect(r7, rowY, totalColW, rowH, 'F'); }
+    doc.setFontSize(6.5);
+    doc.setTextColor(...(cell.dailyLow ? WARN_TEXT : (cell.isOff ? OFF_TEXT : [0, 0, 0])));
+    doc.text(cell.isOff ? 'off' : String(Number(cell.rest24h.toFixed(1))), r24 + totalColW / 2, rowY + rowH / 2 + 2, { align: 'center' });
+    doc.setTextColor(...(cell.weeklyLow ? WARN_TEXT : [0, 0, 0]));
+    doc.text(String(Math.round(cell.pastWeekHours)), r7 + totalColW / 2, rowY + rowH / 2 + 2, { align: 'center' });
+
+    // row separator
+    doc.setDrawColor(...GRID_LINE);
+    doc.line(M, rowY + rowH, gridRight + totalsW, rowY + rowH);
+  }
+
+  // Vertical hour gridlines over the grid body
+  for (let h = 0; h <= 24; h += 1) {
+    const x = gridLeft + h * 2 * slotW;
+    if (h % 6 === 0) { doc.setDrawColor(...HOUR_LINE); doc.setLineWidth(0.6); }
+    else { doc.setDrawColor(...GRID_LINE); doc.setLineWidth(0.3); }
+    doc.line(x, gridTop, x, gridBottom);
+  }
+  // Outer frame + column separators
+  doc.setDrawColor(...HOUR_LINE);
+  doc.setLineWidth(0.6);
+  doc.rect(M, gridTop, dateColW + gridW + totalsW, rowH * nDays);
+  doc.line(gridLeft, gridTop, gridLeft, gridBottom);
+  doc.line(gridRight, gridTop, gridRight, gridBottom);
+  doc.line(gridRight + totalColW, gridTop, gridRight + totalColW, gridBottom);
+
+  // Legend
+  let ly = gridBottom + 14;
+  doc.setFillColor(...NAVY); doc.rect(M, ly - 6, 9, 7, 'F');
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(60);
+  doc.text('on duty (work)', M + 13, ly);
+  doc.setDrawColor(...GRID_LINE); doc.setLineWidth(0.5);
+  doc.rect(M + 78, ly - 6, 9, 7);
+  doc.text('rest', M + 91, ly);
+  doc.setFillColor(...WARN_FILL); doc.rect(M + 120, ly - 6, 9, 7, 'F');
+  doc.text('below MLC minimum', M + 133, ly);
+  doc.text('Overnight work is attributed to the day it commenced.', pageW - M, ly, { align: 'right' });
+
+  // ── Non-conformities ──
+  ly += 16;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(0);
+  doc.text('Recorded non-conformities', M, ly);
+  ly += 11;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
+  const issues = [];
+  for (const ds of days) {
+    const c = computeCellFull(windowShifts, member.id, ds);
+    for (const b of c.breaches) {
+      // weekly rule fires on every breaching day; keep daily/structural verbatim,
+      // and keep weekly too (auditors want the dated trail).
+      issues.push(`${dayRowLabel(ds)} — ${b.label}`);
+    }
+  }
+  if (issues.length === 0) {
+    doc.setTextColor(40, 110, 60);
+    doc.text('None recorded for this period.', M, ly);
+  } else {
+    doc.setTextColor(...WARN_TEXT);
+    const shown = issues.slice(0, 10);
+    const colGap = (pageW - 2 * M) / 2;
+    shown.forEach((line, idx) => {
+      const col = idx % 2;
+      const row = Math.floor(idx / 2);
+      doc.text(`• ${line}`, M + col * colGap, ly + row * 10);
+    });
+    if (issues.length > shown.length) {
+      const extraRow = Math.ceil(shown.length / 2);
+      doc.setTextColor(90);
+      doc.text(`…and ${issues.length - shown.length} more (see CSV export for the full list).`, M, ly + extraRow * 10);
+    }
+  }
+
+  // ── Declaration + signatures (anchored near the foot) ──
+  const sy = pageH - M - 46;
+  doc.setDrawColor(...GRID_LINE); doc.setLineWidth(0.5);
+  doc.line(M, sy - 10, pageW - M, sy - 10);
+  doc.setFont('helvetica', 'italic'); doc.setFontSize(7); doc.setTextColor(70);
+  doc.text(
+    'I confirm that the above is a true record of the seafarer’s hours of rest for the period stated.',
+    M, sy,
+  );
+  doc.setFont('helvetica', 'normal'); doc.setTextColor(0); doc.setFontSize(8);
+  const sigW = (pageW - 2 * M - 40) / 2;
+  const line1 = sy + 30;
+  doc.line(M, line1, M + sigW, line1);
+  doc.line(pageW - M - sigW, line1, pageW - M, line1);
+  doc.setFontSize(7); doc.setTextColor(90);
+  doc.text('Master / Authorised officer — signature & date', M, line1 + 10);
+  doc.text('Seafarer — signature & date', pageW - M - sigW, line1 + 10);
+}
+
+export function exportRestLogPDF({ rows, days, meta, windowShifts = [] }) {
+  const members = flatten(rows);
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+
+  // Page 1 — fleet summary matrix.
+  drawSummaryPage(doc, members, days, meta);
+
+  // Pages 2…N — one formal record per seafarer.
+  for (const m of members) {
+    doc.addPage();
+    drawSeafarerRecord(doc, m, days, windowShifts, meta);
+  }
+
+  // Footer page numbers.
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const total = doc.getNumberOfPages();
+  for (let i = 1; i <= total; i += 1) {
+    doc.setPage(i);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(140);
+    doc.text(
+      `${meta.vesselName || 'Vessel'} · ${meta.periodLabel} · Page ${i} of ${total}`,
+      pageW / 2, pageH - 16, { align: 'center' },
+    );
+  }
 
   doc.save(`hours-of-rest_${safeSlug(meta.vesselName)}_${safeSlug(meta.periodLabel)}.pdf`);
 }

@@ -220,6 +220,9 @@ export default function RotaWorkspace({
   // MLC rest math is calendar-day based and unaffected by this.
   const [gridStartHour, setGridStartHour] = useState(DEFAULT_GRID_START_HOUR);
   const [vesselName, setVesselName] = useState(null);
+  // Vessel identity for the MLC/IMO-ILO Record of Hours of Rest header. These
+  // live on `tenants` (single vessel per tenant), not on `vessels`.
+  const [vesselIdentity, setVesselIdentity] = useState({ imoNumber: null, flagState: null, portOfRegistry: null });
   const lastPreMidnightSlot = (24 - gridStartHour) * 2 - 1;
 
   const [departments, setDepartments] = useState([]);
@@ -227,14 +230,21 @@ export default function RotaWorkspace({
     if (!activeTenantId) { setDepartments([]); return undefined; }
     let alive = true;
     (async () => {
-      const [veRes, dpRes] = await Promise.all([
+      const [veRes, dpRes, tnRes] = await Promise.all([
         supabase.from('vessels')
           .select('name, departments_in_use, operational_day_start_hour').eq('tenant_id', activeTenantId).maybeSingle(),
         supabase.rpc('get_tenant_departments', { p_tenant_id: activeTenantId }),
+        supabase.from('tenants')
+          .select('imo_number, flag, port_of_registry').eq('id', activeTenantId).maybeSingle(),
       ]);
       if (!alive) return;
       setGridStartHour(veRes.data?.operational_day_start_hour ?? DEFAULT_GRID_START_HOUR);
       setVesselName(veRes.data?.name ?? null);
+      setVesselIdentity({
+        imoNumber: tnRes.data?.imo_number ?? null,
+        flagState: tnRes.data?.flag ?? null,
+        portOfRegistry: tnRes.data?.port_of_registry ?? null,
+      });
       if (dpRes.error) {
         console.error('[RotaWorkspace] get_tenant_departments error:', dpRes.error);
         setDepartments([]);
@@ -708,6 +718,9 @@ export default function RotaWorkspace({
               period={horPeriod}
               realToday={realToday}
               vesselName={vesselName}
+              imoNumber={vesselIdentity.imoNumber}
+              flagState={vesselIdentity.flagState}
+              portOfRegistry={vesselIdentity.portOfRegistry}
               periodLabel={hor.label}
               departmentName={departmentName}
               onCellClick={(d) => { setSelectedDate(d); setView('grid'); }}
