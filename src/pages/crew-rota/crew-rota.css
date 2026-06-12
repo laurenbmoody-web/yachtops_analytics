@@ -3391,13 +3391,8 @@
 
 /* "Changed in this submission" column band (read-only history view only —
    driven by the affectedDates prop, which is empty on the live grid). The
-   band is drawn with inset side rails on the header + every cell of the
-   column, so they line up into one continuous vertical highlight, plus a
-   top bar on the header. */
-.cw-day-head.is-affected {
-  box-shadow: inset 2px 0 0 #C65A1A, inset -2px 0 0 #C65A1A, inset 0 3px 0 #C65A1A;
-  background: rgba(198, 90, 26, 0.06);
-}
+   column is fenced with inset side rails on the cells; the header just turns
+   its date text terracotta (no box around the date — that read as clutter). */
 .cw-day-head.is-affected .cw-day-head-num,
 .cw-day-head.is-affected .cw-day-head-dow,
 .cw-day-head.is-affected .cw-day-head-mon { color: #C65A1A; }
