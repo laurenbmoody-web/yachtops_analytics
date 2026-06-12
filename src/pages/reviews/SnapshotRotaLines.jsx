@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Check } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import CrewWeekMatrix from '../crew-rota/CrewWeekMatrix';
 
@@ -18,6 +19,7 @@ export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd }) {
   const [windowShifts, setWindowShifts] = useState([]);
   const [affectedDates, setAffectedDates] = useState([]);
   const [selectedDate, setSelectedDate] = useState(dateStart || null);
+  const [affectedOnly, setAffectedOnly] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -96,10 +98,18 @@ export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd }) {
       <div className="rv-resolved-lines-head">
         <span className="rv-resolved-lines-label">Rota as submitted</span>
         {affectedDates.length > 0 && (
-          <span className="rv-resolved-lines-legend">
-            <span className="rv-resolved-lines-swatch" />
-            Days changed in this submission
-          </span>
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={affectedOnly}
+            className={`rv-resolved-lines-toggle${affectedOnly ? ' is-on' : ''}`}
+            onClick={() => setAffectedOnly((v) => !v)}
+          >
+            <span className="rv-resolved-lines-swatch">
+              {affectedOnly && <Check size={10} strokeWidth={3} />}
+            </span>
+            Dates affected only
+          </button>
         )}
       </div>
       <CrewWeekMatrix
@@ -108,6 +118,7 @@ export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd }) {
         selectedDate={selectedDate}
         realToday={null}
         affectedDates={affectedDates}
+        dayList={affectedOnly ? affectedDates : null}
         onStepDay={(dir) => setSelectedDate((s) => addLocalDays(s, dir))}
       />
     </div>

@@ -179,7 +179,12 @@ export default function CrewWeekMatrix({
   onCellClick,
   onStepDay,
   affectedDates = [],
+  dayList = null,
 }) {
+  // dayList: an explicit, possibly non-contiguous set of date columns (used by
+  // the read-only history "dates affected only" filter). When provided it
+  // overrides the 7-day forward window and the step controls are hidden.
+  const customDays = Array.isArray(dayList) && dayList.length > 0;
   // Dates to flag as "changed in this submission" (read-only history view).
   // Empty on the live grid, so this is a no-op there.
   const affectedSet = useMemo(() => new Set(affectedDates), [affectedDates]);
@@ -193,11 +198,12 @@ export default function CrewWeekMatrix({
   // 7 columns = FORWARD operational week starting at selectedDate.
   // Leftmost = selectedDate, rightmost = selectedDate+6.
   const days = useMemo(() => {
+    if (customDays) return [...dayList].sort();
     if (!selectedDate) return [];
     const out = [];
     for (let i = 0; i < 7; i += 1) out.push(addLocalDays(selectedDate, i));
     return out;
-  }, [selectedDate]);
+  }, [selectedDate, customDays, dayList]);
 
   // Dept-grouped rows — match DEPT_ORDER, same as day grid.
   const grouped = useMemo(() => {
@@ -214,20 +220,22 @@ export default function CrewWeekMatrix({
     return ordered.map((d) => [d, byDept.get(d)]);
   }, [crew]);
 
-  if (!selectedDate || days.length === 0) return null;
+  if (days.length === 0) return null;
 
   return (
     <div className="cw-card">
-      <button
-        type="button"
-        className="cw-edge-step cw-edge-step-left"
-        onClick={() => onStepDay?.(-1)}
-        aria-label="Previous day"
-        title="Slide window back one day"
-      ><ChevronLeft size={16} /></button>
+      {!customDays && (
+        <button
+          type="button"
+          className="cw-edge-step cw-edge-step-left"
+          onClick={() => onStepDay?.(-1)}
+          aria-label="Previous day"
+          title="Slide window back one day"
+        ><ChevronLeft size={16} /></button>
+      )}
 
       <div className="cw-grid-wrap">
-        <div className="cw-grid-inner">
+        <div className="cw-grid-inner" style={{ '--cw-cols': days.length }}>
           <div className="cw-head-row">
             <div className="cw-head-spacer">Crew</div>
             {days.map((d) => (
@@ -292,13 +300,15 @@ export default function CrewWeekMatrix({
         </div>
       </div>
 
-      <button
-        type="button"
-        className="cw-edge-step cw-edge-step-right"
-        onClick={() => onStepDay?.(1)}
-        aria-label="Next day"
-        title="Slide window forward one day"
-      ><ChevronRight size={16} /></button>
+      {!customDays && (
+        <button
+          type="button"
+          className="cw-edge-step cw-edge-step-right"
+          onClick={() => onStepDay?.(1)}
+          aria-label="Next day"
+          title="Slide window forward one day"
+        ><ChevronRight size={16} /></button>
+      )}
     </div>
   );
 }
