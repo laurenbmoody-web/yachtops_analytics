@@ -114,9 +114,16 @@ export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd, rota
       const allDates = ws.map((s) => s.date).filter(Boolean).sort();
       const earliestShift = allDates[0];
       const latestShift = allDates[allDates.length - 1];
-      // Normal mode shows the whole rota period (contiguous, scrollable).
-      const range = buildRange(earliestShift, latestShift);
       const landOn = affected[0] || dateStart || earliestShift || null;
+      // Normal mode always renders at least a 7-day window anchored on the
+      // landing day (so a 1-day submission still shows a week of context, and
+      // the "dates affected only" toggle has something to collapse from), and
+      // extends to cover the whole rota period — scrollable either way.
+      const startCandidates = [earliestShift, landOn].filter(Boolean).sort();
+      const endCandidates = [latestShift, landOn ? addLocalDays(landOn, 6) : null].filter(Boolean).sort();
+      const range = (startCandidates[0] && endCandidates.length)
+        ? buildRange(startCandidates[0], endCandidates[endCandidates.length - 1])
+        : [];
 
       // Original submitted hours per cell — for the pencil popover.
       const original = new Map();
