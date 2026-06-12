@@ -28,10 +28,12 @@
   color: var(--pv-navy);
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   min-height: 100vh;
+  background: var(--pv-cream);
 }
-/* Background ground is set on .pv-board.pv-dashboard in
-   provisioning-dashboard.css (cool --d-bg) — one source of truth
-   for "any page-shell composing pv-dashboard sits on --d-bg". */
+/* The .pv-board.pv-dashboard override in provisioning-dashboard.css
+   is not loaded by the home page (index.jsx imports board.css only),
+   so the cool bg must live here. --pv-cream itself now resolves to
+   --d-bg via the alias above. */
 
 /* ── Editorial header block ──────────────────────────────── */
 .pv-board-headblock {
