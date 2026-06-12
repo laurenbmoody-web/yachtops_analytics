@@ -589,7 +589,9 @@ export default function DeliveryHistory() {
       <div className="di" style={{ background: 'var(--d-bg)' }}>
         {/* Back to boards — matches the Orders index's button. Sits above
             the editorial topbar so it's clearly nav, not content. */}
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '20px 32px 0' }}>
+        {/* Same max-width as .dh-topbar-inner (1240px) so the back button
+            aligns with the headline and table columns below. */}
+        <div style={{ maxWidth: 1240, margin: '0 auto', padding: '20px 32px 0' }}>
           <button
             onClick={() => navigate('/provisioning')}
             style={{

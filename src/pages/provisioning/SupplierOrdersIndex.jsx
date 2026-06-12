@@ -109,7 +109,12 @@ const SupplierOrdersIndex = () => {
   return (
     <>
       <Header />
-      <main className="pv-dashboard" style={{ padding: '24px 32px', minHeight: 'calc(100vh - 64px)' }}>
+      <main className="pv-dashboard" style={{ minHeight: 'calc(100vh - 64px)' }}>
+        {/* Centered max-width column — matches .dh-topbar-inner on the
+            Delivered tab (max-width: 1240px in delivery-history.css) so
+            the Sent/Delivered tab toggle is a swap of content within the
+            same column, not a layout reflow. */}
+        <div style={{ maxWidth: 1240, margin: '0 auto', padding: '24px 32px' }}>
         {/* Header */}
         <div style={{ marginBottom: 24 }}>
           <button
@@ -298,6 +303,7 @@ const SupplierOrdersIndex = () => {
               </button>
             );
           })}
+        </div>
         </div>
       </main>
     </>
