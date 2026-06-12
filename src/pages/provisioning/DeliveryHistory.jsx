@@ -732,11 +732,12 @@ export default function DeliveryHistory() {
       </div>
 
       {/* ── Main column ── */}
-      {/* .dh-main default padding-top is 28px (delivery-history.css) which
-          opens a wider gap below the filter-row separator than the Sent
-          page has. Inline-overriding to 18px so the separator-to-content
-          distance matches the Sent tab. */}
-      <div className="dh-main" style={{ paddingTop: 18 }}>
+      {/* .dh-main's default padding-top: 28px (delivery-history.css) was
+          opening too wide a gap below the filter-row separator. Tightened
+          to 4px so the "N deliveries · M items" toolbar sits close to the
+          separator line — Lauren explicitly asked for the text to move
+          UP, not the line down. */}
+      <div className="dh-main" style={{ paddingTop: 4 }}>
 
         {/* Toolbar: count + Export CSV */}
         {!loading && filtered.length > 0 && (
