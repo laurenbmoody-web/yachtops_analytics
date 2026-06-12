@@ -1585,6 +1585,7 @@ const ProvisioningBoardDetail = () => {
           backLabel="Back to boards"
           rightRail={null}
           showDuty={false}
+          bodyBg="#F8FAFC"
           actionStrip={
             // Sprint 9c.1 Commit 3: unified pill aesthetic per the editorial
             // language. Two visual groups separated by a hairline divider:

@@ -38,10 +38,12 @@ import NowAndDutyStack from '../../pages/pantry/widgets/NowAndDutyStack';
  * the editorial cream (`#F5F1EA`) on mount and restores it on unmount.
  * This extends the cream past the inner content to the viewport edges.
  * Pass `manageBodyBg={false}` to opt out (e.g. when nesting under a
- * different page that already manages it).
+ * different page that already manages it). Pass `bodyBg='#XXXXXX'` to
+ * lift the body to a different ground — e.g. cool dashboard surfaces
+ * (`#F8FAFC` / `var(--d-bg)`) for provisioning consumers.
  */
 
-const EDITORIAL_BG = '#F5F1EA';
+const EDITORIAL_BG_WARM = '#F5F1EA';
 
 export default function EditorialPageShell({
   // Headline pattern
@@ -68,6 +70,7 @@ export default function EditorialPageShell({
 
   // Body bg lift
   manageBodyBg = true,
+  bodyBg = EDITORIAL_BG_WARM,
 
   // Page content
   children,
@@ -77,9 +80,9 @@ export default function EditorialPageShell({
   useEffect(() => {
     if (!manageBodyBg) return;
     const prev = document.body.style.background;
-    document.body.style.background = EDITORIAL_BG;
+    document.body.style.background = bodyBg;
     return () => { document.body.style.background = prev; };
-  }, [manageBodyBg]);
+  }, [manageBodyBg, bodyBg]);
 
   const resolvedRightRail =
     rightRail !== undefined
