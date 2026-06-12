@@ -62,6 +62,26 @@ async function latestSnapshot(supabase, rotaId, departmentId, eventType) {
   return data;
 }
 
+// Pure cell-level diff for two already-fetched snapshot row arrays. Returns
+// the set of "memberId|YYYY-MM-DD" GRID CELLS the reviewer changed (added,
+// retyped, or erased) + the sorted affected dates. Used by the read-only
+// History view, which already has both snapshots in hand.
+export function reviewerEditCells(submittedRows, approvedRows) {
+  const occSub = buildOccupancy(submittedRows);
+  const occApp = buildOccupancy(approvedRows);
+  const cells = new Set();
+  const dateSet = new Set();
+  const allKeys = new Set([...occSub.keys(), ...occApp.keys()]);
+  for (const key of allKeys) {
+    if (occSub.get(key) !== occApp.get(key)) {
+      const parts = key.split('|');
+      cells.add(`${parts[0]}|${parts[1]}`);
+      dateSet.add(parts[1]);
+    }
+  }
+  return { cells, dates: [...dateSet].sort() };
+}
+
 export async function computeReviewerEdits(supabase, { rotaId, departmentId }) {
   const empty = { slots: new Set(), dates: [] };
   if (!rotaId || !departmentId) return empty;
