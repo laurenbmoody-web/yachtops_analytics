@@ -24,6 +24,14 @@ function fmtDayLabel(s) {
   catch { return s; }
 }
 
+// Shift-type palette — mirrors the day grid (crew-rota.css shift-cell--*).
+const TYPE_META = [
+  { key: 'duty', label: 'Duty', color: '#1C1B3A' },
+  { key: 'watch', label: 'Watch', color: '#C65A1A' },
+  { key: 'standby', label: 'Standby', color: '#B8935E' },
+  { key: 'training', label: 'Training', color: '#6B7F6B' },
+];
+
 function toWindowShifts(rows) {
   return (rows || []).map((r) => ({
     id: r.id,
@@ -157,6 +165,9 @@ export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd, rota
   const popName = popover ? (crew.find((c) => c.id === popover.memberId)?.name || 'Crew') : '';
   const popLines = popover ? (originalByCell.get(`${popover.memberId}|${popover.date}`) || []) : [];
 
+  const presentTypes = new Set(windowShifts.map((s) => s.shiftType).filter(Boolean));
+  const legendTypes = TYPE_META.filter((t) => presentTypes.has(t.key));
+
   return (
     <div className="rv-resolved-lines">
       <div className="rv-resolved-lines-head">
@@ -178,6 +189,16 @@ export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd, rota
           </button>
         )}
       </div>
+      {legendTypes.length > 0 && (
+        <div className="rv-type-legend">
+          {legendTypes.map((t) => (
+            <span key={t.key} className="rv-type-legend-item">
+              <span className="rv-type-legend-bar" style={{ background: t.color }} />
+              {t.label}
+            </span>
+          ))}
+        </div>
+      )}
       <CrewWeekMatrix
         crew={crew}
         windowShifts={windowShifts}
@@ -186,6 +207,7 @@ export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd, rota
         affectedDates={affectedDates}
         editedCells={editedCells}
         dayList={affectedOnly ? affectedDates : null}
+        colorByType
         onCellClick={onCellClick}
         onStepDay={(dir) => setSelectedDate((s) => addLocalDays(s, dir))}
       />

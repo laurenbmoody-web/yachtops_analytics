@@ -125,7 +125,7 @@ function DayHeader({ dateStr, isToday, isSelected, isAffected }) {
   );
 }
 
-function Cell({ summary, dateStr, isToday, isSelected, isAffected, isEdited, onClick, ariaLabel }) {
+function Cell({ summary, dateStr, isToday, isSelected, isAffected, isEdited, colorByType, onClick, ariaLabel }) {
   const weekend = isWeekend(dateStr);
   const cls = ['cw-c'];
   if (summary.isOff) cls.push('off');
@@ -135,14 +135,15 @@ function Cell({ summary, dateStr, isToday, isSelected, isAffected, isEdited, onC
   if (isSelected) cls.push('is-selected-col');
   if (isAffected) cls.push('is-affected');
   if (isEdited) cls.push('is-edited');
+  if (colorByType && !summary.isOff) cls.push('cw-c--typed');
   if (summary.mlcWarning) cls.push('is-warn');
 
-  // Multi-shift display: show up to two ranges stacked. The gap between
-  // shifts is exactly what MLC cares about — collapsing into one span
-  // (e.g. "06:00–23:00") would lie about that gap, so we never do.
-  // 3+ shifts (rare): first two stacked + "+N more" tag.
-  const visible = summary.onDuty.slice(0, 2);
-  const extra = Math.max(0, summary.onDuty.length - 2);
+  // Multi-shift display: each block is its own stacked line — the gap between
+  // shifts is exactly what MLC cares about, so we never collapse them. In the
+  // type-coloured (History) view every block shows with its type bar; the live
+  // view caps at two + a "+N more" tag.
+  const visible = colorByType ? summary.onDuty : summary.onDuty.slice(0, 2);
+  const extra = colorByType ? 0 : Math.max(0, summary.onDuty.length - 2);
 
   return (
     <button type="button" className={cls.join(' ')} onClick={onClick} aria-label={ariaLabel}>
@@ -156,6 +157,9 @@ function Cell({ summary, dateStr, isToday, isSelected, isAffected, isEdited, onC
           <span className="cw-c-ranges">
             {visible.map((s, i) => (
               <span key={i} className="cw-c-range">
+                {colorByType && (
+                  <span className={`cw-c-bar cw-c-bar--${s.shiftType || 'duty'}`} aria-hidden="true" />
+                )}
                 {hhmm(s.startTime)}–{hhmm(s.endTime)}
               </span>
             ))}
@@ -185,6 +189,7 @@ export default function CrewWeekMatrix({
   affectedDates = [],
   dayList = null,
   editedCells = null,
+  colorByType = false,
 }) {
   // dayList: an explicit, possibly non-contiguous set of date columns (used by
   // the read-only history "dates affected only" filter). When provided it
@@ -299,6 +304,7 @@ export default function CrewWeekMatrix({
                           isSelected={d === selectedDate}
                           isAffected={affectedSet.has(d)}
                           isEdited={editedSet.has(`${c.id}|${d}`)}
+                          colorByType={colorByType}
                           onClick={(e) => onCellClick?.(d, c.id, e.currentTarget.getBoundingClientRect())}
                           ariaLabel={`${c.name} on ${d}`}
                         />
