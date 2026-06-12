@@ -244,6 +244,13 @@
 .rv-resolved-lines .cw-head-row,
 .rv-resolved-lines .cw-row { gap: 4px; }
 .rv-resolved-lines .cw-c { border-radius: 10px; }
+/* Round the crew name tiles + the dept colour strip so the left side of each
+   row reads as one soft unit instead of a hard-edged block. Strip rounds on
+   its outer (left) corners, name tile on its inner (right) corners; they meet
+   flush in the middle. Drop the divider line — the gaps already separate the
+   rounded tiles. */
+.rv-resolved-lines .cw-nm { border-radius: 0 10px 10px 0; border-top: none; }
+.rv-resolved-lines .cw-dept-strip { border-radius: 10px 0 0 10px; }
 .rv-resolved-lines-empty {
   margin-top: 28px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 13px; color: rgba(28, 27, 58, 0.5);
