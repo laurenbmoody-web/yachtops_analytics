@@ -133,10 +133,38 @@ const SupplierOrdersIndex = () => {
           Back to boards
         </button>
 
-        {/* Tab strip — sits BELOW back-to-boards and ABOVE the editorial
-            header. Same order + spacing as the Delivered page. */}
+        {/* Editorial header — meta strip + serif headline. Matches the
+            Delivered page's .di-headblock (marginBottom: 22 from
+            delivery-inbox.css). */}
+        <div style={{ marginBottom: 22 }}>
+          <p className="editorial-meta">
+            <span className="dot">●</span>
+            <span>Orders</span>
+            <span className="bar" />
+            <span className="muted">All supplier orders</span>
+            {!loading && filtered.length > 0 && (
+              <>
+                <span className="bar" />
+                <span className="muted">{filtered.length} order{filtered.length === 1 ? '' : 's'}</span>
+                <span className="bar" />
+                <span className="muted">
+                  {filtered.reduce((sum, o) => sum + (o.item_count || 0), 0)} item
+                  {filtered.reduce((sum, o) => sum + (o.item_count || 0), 0) === 1 ? '' : 's'}
+                </span>
+              </>
+            )}
+          </p>
+          <h1 className="editorial-greeting">
+            ORDERS<span className="period">,</span> <em>all of them</em><span className="period">.</span>
+          </h1>
+        </div>
+
+        {/* Tab strip — sits BETWEEN the editorial header and the filter
+            row. Acts as the boundary between editorial chrome (back / meta
+            / headline) and content controls (filters / table). Same
+            position as the Delivered page. */}
         <div style={{
-          display: 'flex', gap: 4, marginBottom: 14,
+          display: 'flex', gap: 4, marginBottom: 18,
           borderBottom: '1px solid var(--d-border)',
         }}>
           <button
@@ -161,44 +189,19 @@ const SupplierOrdersIndex = () => {
           >Delivered</button>
         </div>
 
-        {/* Editorial header — meta strip + serif headline. Matches the
-            Delivered page (.editorial-meta + .editorial-greeting from
-            editorial.css). */}
-        <div style={{ marginBottom: 22 }}>
-          <p className="editorial-meta">
-            <span className="dot">●</span>
-            <span>Orders</span>
-            <span className="bar" />
-            <span className="muted">All supplier orders</span>
-            {!loading && filtered.length > 0 && (
-              <>
-                <span className="bar" />
-                <span className="muted">{filtered.length} order{filtered.length === 1 ? '' : 's'}</span>
-                <span className="bar" />
-                <span className="muted">
-                  {filtered.reduce((sum, o) => sum + (o.item_count || 0), 0)} item
-                  {filtered.reduce((sum, o) => sum + (o.item_count || 0), 0) === 1 ? '' : 's'}
-                </span>
-              </>
-            )}
-          </p>
-          <h1 className="editorial-greeting">
-            ORDERS<span className="period">,</span> <em>all of them</em><span className="period">.</span>
-          </h1>
-        </div>
-
-        {/* Filters */}
+        {/* Filter row — no enclosing card, just standalone inputs with their
+            own hairline borders. Matches the Delivered page's .dh-filter-bar
+            shape (flex row, no surrounding card, separator beneath). */}
         <div style={{
-          display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap',
-          marginBottom: 18, padding: '12px 14px',
-          background: 'var(--d-card)', border: '1px solid var(--d-border)',
-          borderRadius: 12,
+          display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',
+          paddingBottom: 16, marginBottom: 18,
+          borderBottom: '0.5px solid var(--d-border)',
         }}>
-          <div style={{ position: 'relative', flex: '1 1 220px', minWidth: 220 }}>
+          <div style={{ position: 'relative', flex: '1 1 220px', minWidth: 180 }}>
             <Icon
               name="Search" size={14} strokeWidth={1.5}
               style={{
-                position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+                position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
                 color: 'var(--d-muted-soft)', pointerEvents: 'none',
               }}
             />
@@ -208,10 +211,10 @@ const SupplierOrdersIndex = () => {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               style={{
-                width: '100%', padding: '8px 10px 8px 32px',
+                width: '100%', padding: '9px 12px 9px 34px',
                 fontFamily: 'inherit', fontSize: 13, color: 'var(--d-navy)',
-                background: 'transparent', border: '1px solid var(--d-border)',
-                borderRadius: 8, outline: 'none',
+                background: 'var(--d-card)', border: '0.5px solid var(--d-border)',
+                borderRadius: 10, outline: 'none',
               }}
             />
           </div>
@@ -219,9 +222,9 @@ const SupplierOrdersIndex = () => {
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
             style={{
-              padding: '8px 10px', fontFamily: 'inherit', fontSize: 13,
+              padding: '9px 12px', fontFamily: 'inherit', fontSize: 13,
               color: 'var(--d-navy)', background: 'var(--d-card)',
-              border: '1px solid var(--d-border)', borderRadius: 8,
+              border: '0.5px solid var(--d-border)', borderRadius: 10,
               outline: 'none', cursor: 'pointer',
             }}
           >
