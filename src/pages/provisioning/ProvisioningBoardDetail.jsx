@@ -50,6 +50,7 @@ import InvoiceUploadModal, { PAYMENT_STATUS_OPTIONS } from './components/Invoice
 import ItemDrawer from './components/ItemDrawer';
 import BoardDrawer from './components/BoardDrawer';
 import OrderCard from './components/OrderCard';
+import DeliveryBatchCard from './components/DeliveryBatchCard';
 import BulkActionBar from './components/BulkActionBar';
 import BulkDeleteConfirmModal from './components/BulkDeleteConfirmModal';
 import BulkChangeDeptModal from './components/BulkChangeDeptModal';
@@ -2586,45 +2587,54 @@ const ProvisioningBoardDetail = () => {
                 }, 0);
                 const batchTotalStr = batchTotal > 0 ? `${dispSymbol}${batchTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : null;
 
-                return (
-                  <div key={batchId || supplierName + receivedAt} style={{ borderLeft: `2px solid ${accent.border}`, paddingLeft: 24, paddingBottom: 8 }}>
-                        {/* Batch header row */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: receivedByName ? 6 : 14 }}>
-                          <span style={{ background: accent.badgeBg, color: accent.badgeText, fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 99, letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
-                            {displaySupplier}
-                          </span>
-                          <span style={{ fontSize: 12, color: '#94A3B8' }}>
-                            {batchItems.length} item{batchItems.length !== 1 ? 's' : ''}
-                            {batchTotalStr ? ` · ${batchTotalStr}` : ''}
-                          </span>
-                          <div style={{ flex: 1 }} />
-                          {invoiceData && (
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
-                              <button
-                                onClick={() => setInvoiceModal(invoiceData)}
-                                style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '3px 10px', background: invoiceData.batch.invoice_file_url ? '#ECFDF5' : 'white', border: `1px solid ${invoiceData.batch.invoice_file_url ? '#A7F3D0' : '#E2E8F0'}`, borderRadius: 6, color: invoiceData.batch.invoice_file_url ? '#047857' : '#64748B', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                              >
-                                <Icon name={invoiceData.batch.invoice_file_url ? 'FileCheck' : 'FileUp'} style={{ width: 11, height: 11 }} />
-                                {invoiceData.batch.invoice_file_url ? 'Invoice ✓' : 'Upload invoice'}
-                              </button>
-                              {invoiceData.batch.invoice_file_url && (
-                                <button
-                                  onClick={() => window.open(invoiceData.batch.invoice_file_url, '_blank')}
-                                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#185FA5', background: 'none', border: '1px solid #E2E8F0', borderRadius: 6, padding: '5px 10px', cursor: 'pointer' }}
-                                >
-                                  <Icon name="FileText" size={13} />
-                                  View document
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                        {receivedByName && (
-                          <p style={{ margin: '0 0 12px', fontSize: 11, color: '#94A3B8' }}>
-                            Received by <span style={{ fontWeight: 600, color: '#64748B' }}>{receivedByName}</span>
-                          </p>
-                        )}
+                // Phase Y — DeliveryBatchCard extraction. Header row migrated to
+                // the shared component (same chrome + typography as the standalone
+                // Delivered page). Body slot stays page-specific: items grid +
+                // payment status per row + invoice button in the header's right
+                // slot. See components/DeliveryBatchCard.jsx for the shared shape.
+                const isCargo = supplierName && supplierName !== 'Manual receive';
+                const accentBorder = isCargo ? '#378ADD' : '#1D9E75';
+                const chipBg = isCargo ? 'rgba(55,138,221,0.12)' : 'rgba(30,158,117,0.12)';
+                const chipFg = isCargo ? '#185FA5' : '#0F6E56';
+                const metaParts = [
+                  receivedAt ? new Date(receivedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : null,
+                  receivedByName ? `Received by ${receivedByName}` : null,
+                  `${batchItems.length} item${batchItems.length !== 1 ? 's' : ''}`,
+                  batchTotalStr,
+                ].filter(Boolean);
 
+                const rightSlot = invoiceData ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
+                    <button
+                      onClick={() => setInvoiceModal(invoiceData)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '3px 10px', background: invoiceData.batch.invoice_file_url ? '#ECFDF5' : 'white', border: `1px solid ${invoiceData.batch.invoice_file_url ? '#A7F3D0' : '#E2E8F0'}`, borderRadius: 6, color: invoiceData.batch.invoice_file_url ? '#047857' : '#64748B', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                    >
+                      <Icon name={invoiceData.batch.invoice_file_url ? 'FileCheck' : 'FileUp'} style={{ width: 11, height: 11 }} />
+                      {invoiceData.batch.invoice_file_url ? 'Invoice ✓' : 'Upload invoice'}
+                    </button>
+                    {invoiceData.batch.invoice_file_url && (
+                      <button
+                        onClick={() => window.open(invoiceData.batch.invoice_file_url, '_blank')}
+                        style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#185FA5', background: 'none', border: '1px solid #E2E8F0', borderRadius: 6, padding: '5px 10px', cursor: 'pointer' }}
+                      >
+                        <Icon name="FileText" size={13} />
+                        View document
+                      </button>
+                    )}
+                  </div>
+                ) : null;
+
+                return (
+                  <DeliveryBatchCard
+                    key={batchId || supplierName + receivedAt}
+                    supplierName={displaySupplier}
+                    sourceLabel={isCargo ? 'Delivery' : 'Manual'}
+                    sourceChipBg={chipBg}
+                    sourceChipFg={chipFg}
+                    accentBorder={accentBorder}
+                    metaParts={metaParts}
+                    rightSlot={rightSlot}
+                  >
                         {/* Column headers */}
                         <div style={{ display: 'grid', gridTemplateColumns: ITEM_GRID, gap: 12, padding: '0 0 6px', borderBottom: '0.5px solid #E5E7EB', marginBottom: 0 }}>
                           {COL_HDRS.map((h, i) => (
@@ -2677,7 +2687,7 @@ const ProvisioningBoardDetail = () => {
                             </div>
                           );
                         })}
-                  </div>
+                  </DeliveryBatchCard>
                 );
               };
 

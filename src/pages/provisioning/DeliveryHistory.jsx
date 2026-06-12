@@ -20,6 +20,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
+import DeliveryBatchCard from './components/DeliveryBatchCard';
 import { EditorialDatePicker } from '../../components/editorial';
 import { useCountUp } from './components/SummaryGauges';
 import './delivery-inbox.css';
@@ -50,13 +51,15 @@ const fmtMoney = (amount, currency) => {
 
 const dayKey = (iso) => (iso ? iso.slice(0, 10) : 'unknown');
 
-// Source-type → display label + which 5px bottom-edge colour the .di-card
-// gets (rust / amber / sage / sand) + the small redundant text chip variant.
+// Source-type → label + bottom-edge accent colour (rust / amber / sage /
+// sand). Same conceptual mapping as before but now exposed as raw hex
+// values so DeliveryBatchCard can apply them directly via inline style
+// (no longer routes through the .dh-entry-{rust,amber,sage,sand} CSS).
 const SOURCE_CFG = {
-  delivery:      { label: 'Delivery', edgeClass: 'dh-entry-rust',  chipClass: 'dh-source-chip-rust'  },
-  receipt:       { label: 'Receipt',  edgeClass: 'dh-entry-amber', chipClass: 'dh-source-chip-amber' },
-  shopping_trip: { label: 'Shopping', edgeClass: 'dh-entry-sage',  chipClass: 'dh-source-chip-sage'  },
-  manual:        { label: 'Manual',   edgeClass: 'dh-entry-sand',  chipClass: 'dh-source-chip-sand'  },
+  delivery:      { label: 'Delivery', accentBorder: '#C65A1A', chipBg: 'rgba(198,90,26,0.12)',  chipFg: '#9B4615' },
+  receipt:       { label: 'Receipt',  accentBorder: '#D97706', chipBg: 'rgba(217,119,6,0.12)',  chipFg: '#92400E' },
+  shopping_trip: { label: 'Shopping', accentBorder: '#1D9E75', chipBg: 'rgba(30,158,117,0.12)', chipFg: '#0F6E56' },
+  manual:        { label: 'Manual',   accentBorder: '#94A3B8', chipBg: 'rgba(148,163,184,0.16)', chipFg: '#475569' },
 };
 
 const CLAIM_CFG = {
@@ -125,75 +128,74 @@ const LedgerEntry = ({ entry, userNames, boardNames, expanded, onToggle, onDelet
   const currency = entry.currency || 'USD';
   const boardName = entry.source_board_id ? boardNames[entry.source_board_id] : null;
   const displayTotal = fmtMoney(entry.total_amount, currency);
+  const itemCount = entry._itemCount ?? 0;
 
-  const subParts = [
+  const metaParts = [
     fmtTime(entry.created_at),
-    entry.order_ref ? `Ref: ${entry.order_ref}` : null,
+    entry.order_ref ? `Ref ${entry.order_ref}` : null,
     receivedByName,
     boardName,
+    `${itemCount} item${itemCount !== 1 ? 's' : ''}`,
+    displayTotal,
   ].filter(Boolean);
 
   return (
-    <div className={`di-card dh-entry ${cfg.edgeClass}`} onClick={onToggle}>
-      <div className="dh-entry-band">
-        <Icon name={expanded ? 'ChevronDown' : 'ChevronRight'} className="dh-entry-chev" />
-
-        <div className="dh-entry-text">
-          <div className="dh-entry-title-row">
-            <p className="dh-entry-title">{entry.supplier_name || 'Manual receive'}</p>
-            <SourceChip type={entry.source_type} />
-          </div>
-          <p className="dh-entry-sub">
-            {subParts.join(' · ')}
-            {entry.source_board_id && (
-              <>
-                {subParts.length > 0 && ' · '}
-                <button
-                  onClick={e => { e.stopPropagation(); onNavigate(entry.source_board_id); }}
-                  className="dh-entry-board-link"
-                >View board →</button>
-              </>
-            )}
-          </p>
-        </div>
-
-        <div className="dh-entry-meta-right">
-          <div className="dh-entry-totals">
-            <p className="dh-entry-items">
-              {entry._itemCount ?? 0} item{(entry._itemCount ?? 0) !== 1 ? 's' : ''}
-            </p>
-            {displayTotal && <p className="dh-entry-total">{displayTotal}</p>}
-          </div>
-
+    <DeliveryBatchCard
+      supplierName={entry.supplier_name || 'Manual receive'}
+      sourceLabel={cfg.label}
+      sourceChipBg={cfg.chipBg}
+      sourceChipFg={cfg.chipFg}
+      accentBorder={cfg.accentBorder}
+      metaParts={metaParts}
+      chevron={expanded}
+      onClick={onToggle}
+      rightSlot={
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {entry.source_board_id && (
+            <button
+              onClick={e => { e.stopPropagation(); onNavigate(entry.source_board_id); }}
+              style={{
+                background: 'none', border: 0, padding: 0, cursor: 'pointer',
+                fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                fontSize: 11, fontWeight: 600,
+                color: '#C65A1A', whiteSpace: 'nowrap',
+              }}
+            >View board →</button>
+          )}
           {entry.document_url && (
             <a
               href={entry.document_url}
               target="_blank"
               rel="noreferrer"
               onClick={e => e.stopPropagation()}
-              className="dh-entry-icon-btn"
               title="View document"
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                width: 28, height: 28, borderRadius: 6, color: '#94A3B8',
+                textDecoration: 'none',
+              }}
             >
               <Icon name="FileText" style={{ width: 14, height: 14 }} />
             </a>
           )}
-
-          {/* Delete only shown on 0-item entries */}
-          {(entry._itemCount ?? 0) === 0 && (
+          {itemCount === 0 && (
             <button
               onClick={e => { e.stopPropagation(); onDelete(entry.id); }}
               title="Delete empty entry"
-              className="dh-entry-icon-btn is-danger"
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                width: 28, height: 28, borderRadius: 6, color: '#94A3B8',
+                background: 'none', border: 0, cursor: 'pointer',
+              }}
             >
               <Icon name="Trash2" style={{ width: 13, height: 13 }} />
             </button>
           )}
         </div>
-      </div>
-
-      {/* Expanded: line items */}
+      }
+    >
       {expanded && (
-        <div className="dh-entry-body" onClick={e => e.stopPropagation()}>
+        <div onClick={e => e.stopPropagation()}>
           <div className="dh-items-header">
             <p className="dh-items-header-cell">Item</p>
             <p className="dh-items-header-cell num">Qty</p>
@@ -214,7 +216,7 @@ const LedgerEntry = ({ entry, userNames, boardNames, expanded, onToggle, onDelet
           }
         </div>
       )}
-    </div>
+    </DeliveryBatchCard>
   );
 };
 
