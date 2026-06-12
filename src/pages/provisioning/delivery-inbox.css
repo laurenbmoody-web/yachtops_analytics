@@ -3,27 +3,36 @@
    Page-scoped under .di. Reuses .editorial-meta / .editorial-greeting
    from src/styles/editorial.css for the headline. Card pattern mirrors
    .pv-lane (white card, radius 18, status-driven 5px bottom edge).
+
+   Cool-surface migration: the legacy --di-* token names are now
+   redeclared with the cool --d-* palette hexes (Phases 2-4 of the
+   warm-beige → cool migration). Inbox, Delivery History, and the
+   Return Slip page all compose .di (or .di-slip, sibling) and share
+   this single token block, so re-pointing the hexes here flips the
+   surface on all three pages at once. Token NAMES retained to avoid
+   rewriting 1800+ lines of selectors; consumers keep working
+   unchanged. Mapping verified against editorial-tokens.css.
    ============================================================ */
 
 .di, .di-slip {
-  --di-cream:       #F4EEE4;
+  --di-cream:       #F8FAFC; /* was #F4EEE4 → cool --d-bg */
   --di-card:        #FFFFFF;
-  --di-band:        #FCFAF5;
-  --di-band-soft:   #F8F4EA;
+  --di-band:        #F8FAFC; /* was #FCFAF5 → cool bg (no exact peer) */
+  --di-band-soft:   #EEF0F4; /* was #F8F4EA → cool --d-border-soft */
   --di-navy:        #262A53;
   --di-navy-deep:   #1A1D3F;
-  --di-rust:        #C65A1A;
-  --di-rust-dark:   #A84A14;
-  --di-amber:       #B45309;
-  --di-amber-soft:  #FEF3E2;
+  --di-rust:        #C65A1A; /* identical to --d-orange */
+  --di-rust-dark:   #1A1D3F; /* was #A84A14; hover collapses to --d-navy-deep */
+  --di-amber:       #8B5A1F; /* was #B45309 → cool --d-warn */
+  --di-amber-soft:  #F5E6C1; /* was #FEF3E2 → cool --d-warn-soft */
   --di-sage:        #5C9B6A;
   --di-sage-deep:   #047857;
-  --di-sage-soft:   #ECFDF5;
-  --di-sand:        #DFD7C8;
-  --di-sand-soft:   #F1ECDF;
-  --di-muted:       #695880;
-  --di-faint:       #94A3B8;
-  --di-hairline:    #D4CCBB;
+  --di-sage-soft:   #E8F5EE; /* was #ECFDF5 → cool --d-status-received-bg */
+  --di-sand:        #E5E7EB; /* was #DFD7C8 → cool --d-border */
+  --di-sand-soft:   #EEF0F4; /* was #F1ECDF → cool --d-border-soft */
+  --di-muted:       #7C7E9B; /* was #695880 → cool --d-muted */
+  --di-faint:       #9098B1; /* was #94A3B8 → cool --d-muted-soft */
+  --di-hairline:    #E5E7EB; /* was #D4CCBB → cool --d-border */
   --di-shadow:      0 1px 2px rgba(38, 42, 83, 0.04);
 }
 
@@ -439,7 +448,7 @@
   cursor: pointer;
   transition: background 0.12s;
 }
-.di-claim-all-opt:hover { background: #FBF7EF; }
+.di-claim-all-opt:hover { background: var(--di-sand-soft); }
 
 /* ── Per-row claim step (boards → qty) ─────────────────────── */
 .di-claim-step {
@@ -567,7 +576,7 @@
   width: 100%;
   transition: background 0.12s, color 0.12s;
 }
-.di-rail-list-item:hover { background: #FBF7EF; }
+.di-rail-list-item:hover { background: var(--di-sand-soft); }
 .di-rail-list-item.is-active {
   background: rgba(198, 90, 26, 0.10);
   color: var(--di-rust);
