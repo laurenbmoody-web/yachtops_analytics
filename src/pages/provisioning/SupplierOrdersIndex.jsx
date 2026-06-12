@@ -222,21 +222,27 @@ const SupplierOrdersIndex = () => {
               <option key={s.value} value={s.value}>{s.label}</option>
             ))}
           </select>
-          {/* Date range — same EditorialDatePicker the Delivered page uses
-              so the calendar popovers, formatting, and input chrome match
-              exactly. */}
-          <EditorialDatePicker
-            value={dateFrom}
-            onChange={setDateFrom}
-            placeholder="From date"
-            ariaLabel="From date"
-          />
-          <EditorialDatePicker
-            value={dateTo}
-            onChange={setDateTo}
-            placeholder="To date"
-            ariaLabel="To date"
-          />
+          {/* Date range — wrapped in width-constrained divs that mirror
+              .dh-filter-datepicker (flex: 0 1 170px, min-width: 150px) so
+              the pickers sit inline next to the status select instead of
+              wrapping to full-width rows. Same EditorialDatePicker chrome
+              as the Delivered page. */}
+          <div style={{ flex: '0 1 170px', minWidth: 150 }}>
+            <EditorialDatePicker
+              value={dateFrom}
+              onChange={setDateFrom}
+              placeholder="From date"
+              ariaLabel="From date"
+            />
+          </div>
+          <div style={{ flex: '0 1 170px', minWidth: 150 }}>
+            <EditorialDatePicker
+              value={dateTo}
+              onChange={setDateTo}
+              placeholder="To date"
+              ariaLabel="To date"
+            />
+          </div>
         </div>
 
         {/* Orders list — uses the shared OrderCard component so the
