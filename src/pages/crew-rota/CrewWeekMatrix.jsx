@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import { DEPT_ORDER, MlcTriangle } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
 import { ON_DUTY_TYPES, assessMlc } from './restHours';
@@ -117,7 +117,7 @@ function DayHeader({ dateStr, isToday, isSelected, isAffected }) {
   if (weekend) cls.push('is-weekend');
   if (isAffected) cls.push('is-affected');
   return (
-    <div className={cls.join(' ')}>
+    <div className={cls.join(' ')} data-cw-date={dateStr}>
       <div className="cw-day-head-dow">{WEEKDAY_SHORT[d.getDay()]}</div>
       <div className="cw-day-head-num">{d.getDate()}</div>
       <div className="cw-day-head-mon">{MONTH_SHORT[d.getMonth()]}</div>
@@ -190,7 +190,9 @@ export default function CrewWeekMatrix({
   dayList = null,
   editedCells = null,
   colorByType = false,
+  scrollToDate = null,
 }) {
+  const wrapRef = useRef(null);
   // dayList: an explicit, possibly non-contiguous set of date columns (used by
   // the read-only history "dates affected only" filter). When provided it
   // overrides the 7-day forward window and the step controls are hidden.
@@ -237,6 +239,18 @@ export default function CrewWeekMatrix({
     return ordered.map((d) => [d, byDept.get(d)]);
   }, [crew]);
 
+  // Auto-scroll the grid so the landing day sits just after the sticky crew
+  // column (History uses this instead of a stepper; both modes scroll).
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap || !scrollToDate) return;
+    const el = wrap.querySelector(`[data-cw-date="${scrollToDate}"]`);
+    if (!el) return;
+    const spacer = wrap.querySelector('.cw-head-spacer');
+    const offset = spacer ? spacer.offsetWidth : 0;
+    wrap.scrollLeft = Math.max(0, el.offsetLeft - offset);
+  }, [scrollToDate, days]);
+
   if (days.length === 0) return null;
 
   return (
@@ -251,7 +265,7 @@ export default function CrewWeekMatrix({
         ><ChevronLeft size={16} /></button>
       )}
 
-      <div className="cw-grid-wrap">
+      <div className="cw-grid-wrap" ref={wrapRef}>
         <div className="cw-grid-inner" style={{ '--cw-cols': days.length }}>
           <div className="cw-head-row">
             <div className="cw-head-spacer">Crew</div>

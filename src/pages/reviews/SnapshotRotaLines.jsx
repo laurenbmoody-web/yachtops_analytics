@@ -18,6 +18,15 @@ function pad2(n) { return String(n).padStart(2, '0'); }
 function toLocalStr(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
 function parseLocal(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
 function addLocalDays(s, n) { const d = parseLocal(s); d.setDate(d.getDate() + n); return toLocalStr(d); }
+// Contiguous list of dates from start..end inclusive (off days included), so
+// the grid shows the whole period and scrolls. Guard caps runaway ranges.
+function buildRange(start, end) {
+  if (!start || !end) return [start, end].filter(Boolean);
+  const out = [];
+  let d = start;
+  for (let i = 0; d <= end && i < 400; i += 1) { out.push(d); d = addLocalDays(d, 1); }
+  return out;
+}
 function hhmm(t) { return t ? String(t).slice(0, 5) : ''; }
 function fmtDayLabel(s) {
   try { return parseLocal(s).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); }
@@ -49,6 +58,7 @@ export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd, rota
   const [crew, setCrew] = useState([]);
   const [windowShifts, setWindowShifts] = useState([]);
   const [affectedDates, setAffectedDates] = useState([]);
+  const [fullRange, setFullRange] = useState([]);
   const [editedCells, setEditedCells] = useState(null); // Set<"memberId|date"> or null
   const [originalByCell, setOriginalByCell] = useState(new Map());
   const [hasEdits, setHasEdits] = useState(false);
@@ -101,7 +111,11 @@ export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd, rota
         ? edit.dates
         : (changedDays.length ? changedDays : [dateStart, dateEnd].filter(Boolean));
 
-      const earliestShift = ws.map((s) => s.date).filter(Boolean).sort()[0];
+      const allDates = ws.map((s) => s.date).filter(Boolean).sort();
+      const earliestShift = allDates[0];
+      const latestShift = allDates[allDates.length - 1];
+      // Normal mode shows the whole rota period (contiguous, scrollable).
+      const range = buildRange(earliestShift, latestShift);
       const landOn = affected[0] || dateStart || earliestShift || null;
 
       // Original submitted hours per cell — for the pencil popover.
@@ -143,6 +157,7 @@ export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd, rota
       setCrew(mapped);
       setWindowShifts(ws);
       setAffectedDates(affected);
+      setFullRange(range);
       setEditedCells(edited ? edit.cells : null);
       setOriginalByCell(original);
       setHasEdits(edited);
@@ -189,6 +204,18 @@ export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd, rota
           </button>
         )}
       </div>
+      <CrewWeekMatrix
+        crew={crew}
+        windowShifts={windowShifts}
+        selectedDate={selectedDate}
+        scrollToDate={selectedDate}
+        realToday={null}
+        affectedDates={affectedDates}
+        editedCells={editedCells}
+        dayList={affectedOnly ? affectedDates : fullRange}
+        colorByType
+        onCellClick={onCellClick}
+      />
       {legendTypes.length > 0 && (
         <div className="rv-type-legend">
           {legendTypes.map((t) => (
@@ -199,18 +226,6 @@ export default function SnapshotRotaLines({ snapshotId, dateStart, dateEnd, rota
           ))}
         </div>
       )}
-      <CrewWeekMatrix
-        crew={crew}
-        windowShifts={windowShifts}
-        selectedDate={selectedDate}
-        realToday={null}
-        affectedDates={affectedDates}
-        editedCells={editedCells}
-        dayList={affectedOnly ? affectedDates : null}
-        colorByType
-        onCellClick={onCellClick}
-        onStepDay={(dir) => setSelectedDate((s) => addLocalDays(s, dir))}
-      />
 
       {popover && (
         <>
