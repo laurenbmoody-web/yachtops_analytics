@@ -124,39 +124,51 @@ const SupplierOrdersIndex = () => {
             <Icon name="ChevronLeft" size={14} strokeWidth={1.5} />
             Back to boards
           </button>
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-            <div>
-              <h1 style={{
-                margin: 0, fontFamily: "'DM Serif Display', Georgia, serif",
-                fontSize: 38, lineHeight: 1.05, color: 'var(--d-navy-deep)',
-                letterSpacing: '-0.01em',
-              }}>
-                ORDERS, <em style={{ color: 'var(--d-orange)' }}>all of them</em>
-                <span style={{ color: 'var(--d-orange)' }}>.</span>
-              </h1>
-              <p style={{ margin: '8px 0 0', fontSize: 13.5, color: 'var(--d-muted)' }}>
-                {loading ? 'Loading…' : `${filtered.length} order${filtered.length === 1 ? '' : 's'}`}
-                {!loading && filtered.length !== orders.length && (
-                  <span style={{ color: 'var(--d-muted-soft)' }}> · {orders.length - filtered.length} hidden by filters</span>
-                )}
-              </p>
-            </div>
-            {/* Delivery history sub-link. Orders are outbound (what we sent
-                suppliers); deliveries are inbound (what arrived). The two are
-                related sides of supplier activity and now share this surface
-                as the primary entry point — Delivery history was previously
-                a standalone toolbar button, collapsed into this nav under
-                the unified Orders entry. */}
-            <button
-              onClick={() => navigate('/provisioning/history')}
-              className="pv-toolbar-link"
-              style={{ alignSelf: 'flex-end', marginBottom: 4 }}
-            >
-              <Icon name="BookOpen" size={14} strokeWidth={1.5} />
-              Delivery history
-              <Icon name="ChevronRight" size={12} strokeWidth={1.5} />
-            </button>
-          </div>
+          <h1 style={{
+            margin: 0, fontFamily: "'DM Serif Display', Georgia, serif",
+            fontSize: 38, lineHeight: 1.05, color: 'var(--d-navy-deep)',
+            letterSpacing: '-0.01em',
+          }}>
+            ORDERS, <em style={{ color: 'var(--d-orange)' }}>all of them</em>
+            <span style={{ color: 'var(--d-orange)' }}>.</span>
+          </h1>
+          <p style={{ margin: '8px 0 0', fontSize: 13.5, color: 'var(--d-muted)' }}>
+            {loading ? 'Loading…' : `${filtered.length} order${filtered.length === 1 ? '' : 's'}`}
+            {!loading && filtered.length !== orders.length && (
+              <span style={{ color: 'var(--d-muted-soft)' }}> · {orders.length - filtered.length} hidden by filters</span>
+            )}
+          </p>
+        </div>
+
+        {/* Tab strip — Sent (outbound supplier_orders) / Delivered (inbound
+            provisioning_deliveries). Each tab is a separate route so deep
+            linking + browser back work; tab click is a navigation. The same
+            strip renders at the top of DeliveryHistory.jsx with the
+            Delivered tab active. */}
+        <div style={{
+          display: 'flex', gap: 4, marginBottom: 18,
+          borderBottom: '1px solid var(--d-border)',
+        }}>
+          <button
+            className="pv-orders-tab pv-orders-tab-active"
+            style={{
+              padding: '10px 18px', background: 'none', border: 0, borderBottom: '2px solid var(--d-orange)',
+              fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: 'var(--d-navy-deep)',
+              cursor: 'default', marginBottom: -1,
+            }}
+            aria-current="page"
+          >Sent</button>
+          <button
+            onClick={() => navigate('/provisioning/history')}
+            style={{
+              padding: '10px 18px', background: 'none', border: 0, borderBottom: '2px solid transparent',
+              fontFamily: 'inherit', fontSize: 13.5, fontWeight: 500, color: 'var(--d-muted)',
+              cursor: 'pointer', marginBottom: -1,
+              transition: 'color 120ms ease, border-color 120ms ease',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--d-navy-deep)'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--d-muted)'; }}
+          >Delivered</button>
         </div>
 
         {/* Filters */}
