@@ -665,7 +665,7 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
   const handleApplyFavourite = async (fav) => {
     setApplyingFavId(fav.id);
     try {
-      const saved = await applyOrderItems(fav.id, list.id);
+      const saved = await applyOrderItems(fav.id, list.id, { source: 'favourite' });
       if (saved && saved.length) {
         onAddItems(list.id, saved);
         showToast(`Added ${saved.length} item${saved.length === 1 ? '' : 's'} from ${fav.supplier_name}`, 'success');
@@ -795,11 +795,17 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
   const handleApplyTemplate = async (tpl) => {
     try {
       const items = await fetchListItems(tpl.id);
+      // source: 'template' — provenance tag enabled by the source CHECK
+      // relaxation migration (20260612140000). Overrides any source the
+      // template's source items had (templates themselves contain items
+      // with various original provenances; what matters now is that THIS
+      // copy came from a template).
       const newItems = items.map(({ id, created_at, ...rest }) => ({
         ...rest,
         list_id: list.id,
         status: 'draft',
         quantity_received: null,
+        source: 'template',
       }));
       if (newItems.length) {
         const saved = await upsertItems(newItems);
@@ -879,12 +885,9 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
     const toAdd = allHistItems.filter(h => checkedItems.has(histKey(h)));
     // status: 'draft' to match all other Quick Add apply paths (Favourite,
     // Template) — one source of truth for "items applied from Quick Add
-    // start as draft". source is intentionally omitted; the original
-    // provisioning_items source CHECK enumerates manual / guest_preference /
-    // low_stock / invoice_pattern / smart_suggestion / location_aware,
-    // and 'history' isn't in that set. Provenance is implicit in the
-    // timestamp + batch arrival until the CHECK is relaxed in a future
-    // follow-up.
+    // start as draft". source: 'history' — provenance tag for the
+    // Frequent Items / Past Orders aggregator pipeline. Enabled by the
+    // source CHECK relaxation migration (20260612140000).
     const newItems = toAdd.map(h => ({
       list_id: list.id,
       name: h.name,
@@ -896,6 +899,7 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
       unit: h.unit || 'each',
       quantity_ordered: null,
       status: 'draft',
+      source: 'history',
     }));
     try {
       const saved = await upsertItems(newItems);

@@ -2740,7 +2740,12 @@ export const fetchSupplierOrderItems = async (orderId) => {
 //             apply every line on the order ("Apply all" path).
 //
 // Returns the saved provisioning_items rows.
-export const applyOrderItems = async (orderId, listId, { itemIds = null } = {}) => {
+// Apply items from a supplier order onto a new/existing board.
+// source defaults to 'history' (Past Orders apply path); callers from the
+// Favourites tab pass source: 'favourite' so provenance is honest. Both
+// values were added to the provisioning_items.source CHECK in migration
+// 20260612140000.
+export const applyOrderItems = async (orderId, listId, { itemIds = null, source = 'history' } = {}) => {
   let query = supabase
     .from('supplier_order_items')
     .select('item_name, quantity, unit, notes, brand, size, category, sub_category, department, allergen_flags, supplier_profile_id, estimated_price, estimated_currency')
@@ -2769,12 +2774,7 @@ export const applyOrderItems = async (orderId, listId, { itemIds = null } = {}) 
     estimated_unit_cost: it.estimated_price ?? null,
     currency:            it.estimated_currency || null,
     status:              'draft',
-    // source: intentionally NOT set. The original CHECK constraint
-    // (migration 20260325100000) enumerates manual / guest_preference /
-    // low_stock / invoice_pattern / smart_suggestion / location_aware —
-    // 'favourite' is not in that set. Column is nullable, so omission
-    // is safe; the row's provenance is implicit in the timestamp +
-    // batch of items that landed together.
+    source,
   }));
 
   return await upsertItems(newItems);
