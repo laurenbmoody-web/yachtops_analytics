@@ -3603,3 +3603,210 @@
 .cw-c.off .cw-c-meta { color: #8B8478; }
 .cw-c-rest { font-variant-numeric: tabular-nums; }
 .cw-c-rest.w { color: #C65A1A; font-weight: 500; }
+
+/* ============================================================
+   Hours of Rest log — crew × N-day audit matrix (RestLogView)
+   Rest-focused sibling of the Week matrix: same dept colour
+   spine + sticky name column + navy/cream palette, but cells
+   carry the daily rest figure (not shift ranges) and month
+   mode swaps 1fr day columns for fixed-width ones so a 31-day
+   period scrolls horizontally. All hex values reuse the
+   rota-*/cw-* source above — no new tokens introduced.
+   ============================================================ */
+.rl-card { display: flex; flex-direction: column; gap: 10px; }
+
+.rl-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.rl-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11px;
+  color: #8B8478;
+}
+.rl-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.rl-sw { width: 12px; height: 12px; border-radius: 3px; flex: 0 0 auto; }
+.rl-sw-ok   { background: #1C1B3A; }
+.rl-sw-warn { background: #FDF6F3; border: 1px solid #C65A1A; }
+.rl-sw-off  { background: #F7F5F0; border: 1px solid #DFD8CC; }
+.rl-actions { display: flex; align-items: center; gap: 6px; }
+.rl-actions .crew-rota-pill { display: inline-flex; align-items: center; gap: 5px; }
+
+.rl-grid-wrap { overflow-x: auto; flex: 1; min-width: 0; }
+.rl-grid-inner { min-width: 720px; position: relative; }
+.rl-grid-inner.is-month { min-width: max-content; }
+
+.rl-head-row {
+  display: grid;
+  grid-template-columns: var(--rl-nm-w, 200px) repeat(var(--rl-cols, 7), minmax(56px, 1fr)) var(--rl-sum-w, 66px);
+  gap: 2px;
+  padding-bottom: 10px;
+  margin-bottom: 4px;
+}
+.rl-grid-inner.is-month .rl-head-row {
+  grid-template-columns: var(--rl-nm-w, 200px) repeat(var(--rl-cols), 44px) var(--rl-sum-w, 66px);
+}
+.rl-head-spacer {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #8B8478;
+  display: flex;
+  align-items: flex-end;
+  padding: 0 12px;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: #FFFFFF;
+}
+.rl-head-sum {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #8B8478;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  text-align: center;
+}
+.rl-day-head { text-align: center; padding: 2px 2px 6px; border-radius: 4px; }
+.rl-day-head-dow {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #8B8478;
+}
+.rl-day-head-num {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 17px;
+  color: #1C1B3A;
+  line-height: 1.1;
+}
+.rl-day-head-mon {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 10px;
+  color: #8B8478;
+  line-height: 1;
+  font-style: italic;
+  min-height: 12px;
+}
+.rl-day-head.is-weekend .rl-day-head-num { color: #5F5E5A; }
+.rl-day-head.is-today .rl-day-head-num { color: #C65A1A; font-weight: 500; }
+
+.rl-dept-group { display: flex; align-items: stretch; margin-bottom: 2px; }
+.rl-dept-strip {
+  flex: 0 0 22px;
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rl-dept-strip-text {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.rl-dept-rows { flex: 1; min-width: 0; }
+
+.rl-row {
+  display: grid;
+  grid-template-columns: calc(var(--rl-nm-w, 200px) - 22px) repeat(var(--rl-cols, 7), minmax(56px, 1fr)) var(--rl-sum-w, 66px);
+  gap: 2px;
+  margin-bottom: 2px;
+}
+.rl-grid-inner.is-month .rl-row {
+  grid-template-columns: calc(var(--rl-nm-w, 200px) - 22px) repeat(var(--rl-cols), 44px) var(--rl-sum-w, 66px);
+}
+
+.rl-nm {
+  padding: 8px 12px;
+  min-height: 44px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: #FFFFFF;
+  position: sticky;
+  left: 22px;
+  z-index: 4;
+  border-top: 0.5px solid #ECE6DC;
+  overflow: hidden;
+}
+.rl-nm-line { display: flex; align-items: center; line-height: 1; white-space: nowrap; }
+.rl-nm-name {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1C1B3A;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rl-dot { width: 3px; height: 3px; border-radius: 50%; background: #B4B2A9; margin: 0 7px; flex-shrink: 0; }
+.rl-role {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-weight: 400;
+  color: #8B8478;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rl-c {
+  position: relative;
+  min-height: 44px;
+  border: none;
+  border-radius: 4px;
+  padding: 4px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F7F5F0;
+  color: #1C1B3A;
+}
+.rl-c.f { background: #1C1B3A; color: #F5F1EA; }
+.rl-c.sat { background: #EDEAE3; }
+.rl-c:hover { outline: 0.5px solid #C65A1A; }
+.rl-c.is-warn { background: #FDF6F3; color: #7A2E1E; }
+.rl-c-off { font-size: 11px; color: #B4B2A9; font-style: italic; }
+.rl-c-rest {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.rl-sum {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  background: #FBFAF6;
+  border-radius: 4px;
+}
+.rl-sum-ok { color: #6B7F6B; font-weight: 600; }
+.rl-sum.has-breach { background: #FDF6F3; }
+.rl-sum-count { color: #C65A1A; font-weight: 600; }

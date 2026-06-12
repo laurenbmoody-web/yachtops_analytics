@@ -7,6 +7,8 @@ import RotaTodayGrid from '../trip-detail-view-with-guest-allocation/components/
 import { DEPT_ORDER } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
 import CrewListView from './CrewListView';
 import CrewWeekMatrix, { weekRangeLabel, weekRangeLabelLong } from './CrewWeekMatrix';
+import RestLogView from './RestLogView';
+import { MONTH_NAMES } from './MonthCalendar';
 import HodEditConfirmModal from './HodEditConfirmModal';
 import CancelEditModal from './CancelEditModal';
 import ClearRotaModal from './ClearRotaModal';
@@ -74,6 +76,38 @@ function addLocalDays(s, delta) {
   d.setDate(d.getDate() + delta);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+function toLocalYmd(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+// Jump to the 1st of the month `delta` away — the HOR month-log stepper.
+// Anchoring on the 1st keeps the derived calendar-month columns stable as
+// the chief pages across months.
+function addLocalMonths(s, delta) {
+  const d = parseLocalDate(s);
+  return toLocalYmd(new Date(d.getFullYear(), d.getMonth() + delta, 1));
+}
+// Day columns + fetch window + label for the HOR log, derived from the
+// anchor date and the period. The window carries a 6-day lead-in before the
+// first column so each cell's rolling-7-day weekly rest is accurate from
+// day one. Returned historyDays/forwardDays feed useRotaShifts directly.
+function horLogSpec(anchor, period) {
+  if (period === 'week') {
+    const days = [];
+    for (let i = 0; i < 7; i += 1) days.push(addLocalDays(anchor, i));
+    return { days, historyDays: 6, forwardDays: 6, label: weekRangeLabelLong(anchor) };
+  }
+  const d = parseLocalDate(anchor);
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  const first = new Date(y, m, 1);
+  const last = new Date(y, m + 1, 0);
+  const days = [];
+  for (let i = 1; i <= last.getDate(); i += 1) days.push(toLocalYmd(new Date(y, m, i)));
+  const dayMs = 86400000;
+  const historyDays = Math.round((d - first) / dayMs) + 6;
+  const forwardDays = Math.round((last - d) / dayMs);
+  return { days, historyDays, forwardDays, label: `${MONTH_NAMES[m]} ${y}` };
+}
 
 export default function RotaWorkspace({
   rota,
@@ -90,7 +124,8 @@ export default function RotaWorkspace({
   const now = new Date();
   const realToday = localTodayStr();
   const { user, currentUser, tenantRole, activeTenantId } = useAuth();
-  const [view, setView] = useState('grid');      // 'grid' | 'list' | 'week'
+  const [view, setView] = useState('grid');      // 'grid' | 'list' | 'week' | 'hor'
+  const [horPeriod, setHorPeriod] = useState('month'); // HOR log span: 'week' | 'month'
   // initialDate lets a consumer open the grid on a specific day — the review
   // pane opens on the submission's first shift date so its shifts are visible
   // immediately. Defaults to today (the /crew behaviour).
@@ -109,6 +144,9 @@ export default function RotaWorkspace({
 
   const showToast = useCallback((msg, opts) => onToast?.(msg, opts), [onToast]);
 
+  // HOR log columns + fetch window, derived from the anchor date + period.
+  const hor = useMemo(() => horLogSpec(selectedDate, horPeriod), [selectedDate, horPeriod]);
+
   const {
     crew, windowShifts, loading, error,
     applyPaint, applyTemplate, refetch,
@@ -116,8 +154,14 @@ export default function RotaWorkspace({
     selectedDate,
     {
       // Day view: trailing 7. Week view: ±6 around selectedDate for per-cell
-      // MLC context. rotaId + departmentId scope the fetch to this rota/dept.
-      ...(view === 'week' ? { historyDays: 6, forwardDays: 6 } : { historyDays: 6, forwardDays: 0 }),
+      // MLC context. HOR log: the whole period + a 6-day lead-in for rolling
+      // weekly rest. rotaId + departmentId scope the fetch to this rota/dept.
+      // eslint-disable-next-line no-nested-ternary
+      ...(view === 'hor'
+        ? { historyDays: hor.historyDays, forwardDays: hor.forwardDays }
+        : view === 'week'
+          ? { historyDays: 6, forwardDays: 6 }
+          : { historyDays: 6, forwardDays: 0 }),
       rotaId: rota?.id || null,
       departmentId,
     },
@@ -175,6 +219,7 @@ export default function RotaWorkspace({
   // Vessel-configurable rota grid-start hour (display + slot boundary). The
   // MLC rest math is calendar-day based and unaffected by this.
   const [gridStartHour, setGridStartHour] = useState(DEFAULT_GRID_START_HOUR);
+  const [vesselName, setVesselName] = useState(null);
   const lastPreMidnightSlot = (24 - gridStartHour) * 2 - 1;
 
   const [departments, setDepartments] = useState([]);
@@ -184,11 +229,12 @@ export default function RotaWorkspace({
     (async () => {
       const [veRes, dpRes] = await Promise.all([
         supabase.from('vessels')
-          .select('departments_in_use, operational_day_start_hour').eq('tenant_id', activeTenantId).maybeSingle(),
+          .select('name, departments_in_use, operational_day_start_hour').eq('tenant_id', activeTenantId).maybeSingle(),
         supabase.rpc('get_tenant_departments', { p_tenant_id: activeTenantId }),
       ]);
       if (!alive) return;
       setGridStartHour(veRes.data?.operational_day_start_hour ?? DEFAULT_GRID_START_HOUR);
+      setVesselName(veRes.data?.name ?? null);
       if (dpRes.error) {
         console.error('[RotaWorkspace] get_tenant_departments error:', dpRes.error);
         setDepartments([]);
@@ -208,6 +254,11 @@ export default function RotaWorkspace({
     })();
     return () => { alive = false; };
   }, [activeTenantId]);
+
+  const departmentName = useMemo(
+    () => (departmentId ? (departments.find((d) => d.id === departmentId)?.name || null) : null),
+    [departmentId, departments],
+  );
 
   const total = crew.length;
   const onDuty = crew.filter((c) => c.onNow && !c.offToday).length;
@@ -469,16 +520,25 @@ export default function RotaWorkspace({
             onClick={() => setView(view === 'week' ? 'grid' : 'week')}
             title={view === 'week' ? 'Back to day view' : 'Switch to week view'}
           >Week</button>
-          <button type="button" className="crew-rota-pill disabled" aria-disabled="true" title="Coming soon">Hours of rest log</button>
+          <button
+            type="button"
+            className={`crew-rota-pill${view === 'hor' ? ' active' : ''}`}
+            onClick={() => setView(view === 'hor' ? 'grid' : 'hor')}
+            title={view === 'hor' ? 'Back to day view' : 'Hours of rest log'}
+          >Hours of rest log</button>
         </div>
         <div className="crew-rota-divider" />
         <div className="crew-rota-stepper">
           <button
             type="button"
             className="crew-rota-stepper-btn is-active"
-            aria-label={view === 'week' ? 'Previous week' : 'Previous day'}
-            title={view === 'week' ? 'Previous week' : 'Previous day'}
-            onClick={() => setSelectedDate((s) => addLocalDays(s, view === 'week' ? -7 : -1))}
+            aria-label={view === 'hor' ? (horPeriod === 'month' ? 'Previous month' : 'Previous week') : (view === 'week' ? 'Previous week' : 'Previous day')}
+            title={view === 'hor' ? (horPeriod === 'month' ? 'Previous month' : 'Previous week') : (view === 'week' ? 'Previous week' : 'Previous day')}
+            onClick={() => setSelectedDate((s) => (
+              view === 'hor'
+                ? (horPeriod === 'month' ? addLocalMonths(s, -1) : addLocalDays(s, -7))
+                : addLocalDays(s, view === 'week' ? -7 : -1)
+            ))}
           >←</button>
           <span className="crew-rota-stepper-anchor">
             <button
@@ -489,13 +549,15 @@ export default function RotaWorkspace({
               aria-expanded={datePickerOpen}
               aria-label={view === 'week'
                 ? `Week starting ${fullDateLabel(selectedDateObj)}, ending ${fullDateLabel(parseLocalDate(addLocalDays(selectedDate, 6)))}. Pick a date.`
-                : undefined}
-              title={view === 'week' ? 'Pick a week start' : 'Pick a date'}
+                : view === 'hor' ? `Hours of rest log · ${hor.label}. Pick a date.` : undefined}
+              title={view === 'hor' ? (horPeriod === 'month' ? 'Pick a month' : 'Pick a week start') : (view === 'week' ? 'Pick a week start' : 'Pick a date')}
             >
               <CalendarIcon size={13} />
-              {view === 'week'
-                ? weekRangeLabelLong(selectedDate)
-                : fullDateLabel(selectedDateObj)}
+              {view === 'hor'
+                ? hor.label
+                : view === 'week'
+                  ? weekRangeLabelLong(selectedDate)
+                  : fullDateLabel(selectedDateObj)}
             </button>
             <MonthPicker
               open={datePickerOpen}
@@ -507,13 +569,22 @@ export default function RotaWorkspace({
           <button
             type="button"
             className="crew-rota-stepper-btn is-active"
-            aria-label={view === 'week' ? 'Next week' : 'Next day'}
-            title={view === 'week' ? 'Next week' : 'Next day'}
-            onClick={() => setSelectedDate((s) => addLocalDays(s, view === 'week' ? 7 : 1))}
+            aria-label={view === 'hor' ? (horPeriod === 'month' ? 'Next month' : 'Next week') : (view === 'week' ? 'Next week' : 'Next day')}
+            title={view === 'hor' ? (horPeriod === 'month' ? 'Next month' : 'Next week') : (view === 'week' ? 'Next week' : 'Next day')}
+            onClick={() => setSelectedDate((s) => (
+              view === 'hor'
+                ? (horPeriod === 'month' ? addLocalMonths(s, 1) : addLocalDays(s, 7))
+                : addLocalDays(s, view === 'week' ? 7 : 1)
+            ))}
           >→</button>
-          {view !== 'week' && (
+          {view !== 'week' && view !== 'hor' && (
             <span className="crew-rota-stepper-helper">
               click any name for the rest panel
+            </span>
+          )}
+          {view === 'hor' && (
+            <span className="crew-rota-stepper-helper">
+              daily rest per crew · {horPeriod === 'month' ? 'calendar month' : '7-day week'}
             </span>
           )}
         </div>
@@ -524,6 +595,23 @@ export default function RotaWorkspace({
         <div className="crew-rota-card-header">
           <div className="crew-rota-card-context">{cardContext}</div>
           <div className="crew-rota-pillgroup">
+            {view === 'hor' ? (
+              <>
+                <button
+                  type="button"
+                  className={`crew-rota-pill${horPeriod === 'week' ? ' active' : ''}`}
+                  onClick={() => setHorPeriod('week')}
+                  title="Show one week"
+                >Week</button>
+                <button
+                  type="button"
+                  className={`crew-rota-pill${horPeriod === 'month' ? ' active' : ''}`}
+                  onClick={() => setHorPeriod('month')}
+                  title="Show the calendar month"
+                >Month</button>
+              </>
+            ) : (
+              <>
             <button
               type="button"
               className={`crew-rota-pill${view === 'grid' ? ' active' : ''}`}
@@ -557,6 +645,8 @@ export default function RotaWorkspace({
                 title="Clear every shift on this rota (COMMAND only)"
                 aria-label="Clear rota"
               ><Trash2 size={12} /> Clear rota</button>
+            )}
+              </>
             )}
           </div>
         </div>
@@ -609,6 +699,18 @@ export default function RotaWorkspace({
               gridStartHour={gridStartHour}
               onCellClick={(d) => { setSelectedDate(d); setView('grid'); }}
               onStepDay={(delta) => setSelectedDate((s) => addLocalDays(s, delta))}
+            />
+          ) : view === 'hor' ? (
+            <RestLogView
+              crew={crew}
+              windowShifts={windowShifts || []}
+              days={hor.days}
+              period={horPeriod}
+              realToday={realToday}
+              vesselName={vesselName}
+              periodLabel={hor.label}
+              departmentName={departmentName}
+              onCellClick={(d) => { setSelectedDate(d); setView('grid'); }}
             />
           ) : crew.length === 0 ? (
             // Only a truly crew-less rota gets the bare message. A day with
