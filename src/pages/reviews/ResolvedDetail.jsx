@@ -48,6 +48,7 @@ export default function ResolvedDetail({ item }) {
   const range = fmtDateRange(item.date_start, item.date_end);
   const counts = `${item.day_count} day${item.day_count === 1 ? '' : 's'} · ${item.shift_count} shift${item.shift_count === 1 ? '' : 's'}`;
   const when = fmtWhen(item.decided_at);
+  const submittedWhen = fmtWhen(item.created_at);
   return (
     <div className="rv-resolved">
       <div className="rv-resolved-eyebrow">
@@ -63,7 +64,10 @@ export default function ResolvedDetail({ item }) {
       <div className="rv-resolved-meta">
         <div className="rv-meta-row">
           <span className="rv-meta-k">Submitted by</span>
-          <span className="rv-meta-v"><Person name={item.submitter_name} role={item.submitter_role} /></span>
+          <span className="rv-meta-v">
+            <Person name={item.submitter_name} role={item.submitter_role} />
+            {submittedWhen && <><span className="rv-meta-sep" aria-hidden="true" /><span className="rv-meta-when">{submittedWhen}</span></>}
+          </span>
         </div>
         <div className="rv-meta-row">
           <span className="rv-meta-k">Coverage</span>
@@ -75,7 +79,7 @@ export default function ResolvedDetail({ item }) {
             {item.decided_by_name
               ? <Person name={item.decided_by_name} role={item.decided_by_role} />
               : <span className="rv-meta-person-name">—</span>}
-            {when && <span className="rv-meta-when">{when}</span>}
+            {when && <><span className="rv-meta-sep" aria-hidden="true" /><span className="rv-meta-when">{when}</span></>}
           </span>
         </div>
         {item.decision_note && (
