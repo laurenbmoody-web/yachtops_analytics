@@ -1,31 +1,39 @@
 /* ============================================================
    Provisioning home — editorial restyle.
-   Page-scoped under .pv-board so tokens don't bleed into the
-   dashboard-style provisioning sub-pages (board detail, history,
-   inbox). Mirrors the suppliers-directory CSS pattern.
+   Page-scoped under .pv-board so tokens don't bleed into other
+   provisioning sub-pages. The legacy --pv-* token names are now
+   thin aliases over the shared cool --d-* set (declared in
+   editorial-tokens.css under .pv-dashboard); .pv-board only ever
+   renders composed with .pv-dashboard in index.jsx, so the cool
+   tokens are always resolved when --pv-* references hit.
+
+   Cool migration done in-place to avoid rewriting 600+ lines of
+   .pv-* selectors. If a future surface uses .pv-board WITHOUT
+   .pv-dashboard, redefine the aliases on that surface or restore
+   warm hexes here.
    ============================================================ */
 
 .pv-board {
-  --pv-cream:      #F1F5F9;
-  --pv-card:       #FFFFFF;
-  --pv-navy:       #262A53;
-  --pv-navy-deep:  #1A1D3F;
-  --pv-rust:       #C65A1A;
-  --pv-sand:       #DFD7C8;
-  --pv-sage:       #5C9B6A;
-  --pv-muted:      #695880;
-  --pv-hairline:   #D4CCBB;
-  --pv-track:      rgba(212, 204, 187, 0.5);
+  --pv-cream:      var(--d-bg);
+  --pv-card:       var(--d-card);
+  --pv-navy:       var(--d-navy);
+  --pv-navy-deep:  var(--d-navy-deep);
+  --pv-rust:       var(--d-orange);
+  --pv-sand:       var(--d-border);
+  --pv-sage:       var(--d-sage);
+  --pv-muted:      var(--d-muted);
+  --pv-hairline:   var(--d-border);
+  --pv-track:      rgba(229, 231, 235, 0.6);
 
-  background: var(--pv-cream);
   color: var(--pv-navy);
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   min-height: 100vh;
+  background: var(--pv-cream);
 }
-/* Page-ground override for .pv-board.pv-dashboard moved to
-   provisioning-dashboard.css alongside the matching
-   .editorial-page.pv-dashboard rule — one source of truth for
-   "any page-shell that composes pv-dashboard sits on --d-bg". */
+/* The .pv-board.pv-dashboard override in provisioning-dashboard.css
+   is not loaded by the home page (index.jsx imports board.css only),
+   so the cool bg must live here. --pv-cream itself now resolves to
+   --d-bg via the alias above. */
 
 /* ── Editorial header block ──────────────────────────────── */
 .pv-board-headblock {
@@ -243,7 +251,7 @@
   justify-content: center;
   flex-shrink: 0;
   width: 14px;
-  color: #C4BBA8;
+  color: var(--d-muted-soft);
   opacity: 0;
   transition: opacity 0.15s ease, color 0.15s ease;
   cursor: grab;
@@ -298,7 +306,7 @@
   flex-shrink: 0;
 }
 .pv-lane-lock {
-  color: #B45309;
+  color: var(--d-warn);
   flex-shrink: 0;
   display: flex;
 }
@@ -365,7 +373,7 @@
   cursor: pointer;
   transition: background 0.12s ease, color 0.12s ease;
 }
-.pv-menu-item:hover { background: #F1F5F9; }
+.pv-menu-item:hover { background: var(--d-border-soft); }
 .pv-menu-item-icon {
   width: 14px; height: 14px;
   flex-shrink: 0;
@@ -512,7 +520,7 @@
   transition: background 0.12s, border-color 0.12s;
 }
 .pv-item:hover {
-  background: #F8FAFC;
+  background: var(--d-border-soft);
   border-color: var(--pv-hairline);
 }
 .pv-item-name {

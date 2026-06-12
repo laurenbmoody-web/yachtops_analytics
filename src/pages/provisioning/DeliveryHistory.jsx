@@ -583,12 +583,11 @@ export default function DeliveryHistory() {
     <>
       <Header />
       {/* .di scope brings the delivery-inbox/history styling tokens (chips,
-          cards, source-pill colours) but its default cream bg diverges from
-          the Orders index. Inline-overriding the bg to --d-bg matches the
-          Orders page exactly so the Sent/Delivered tab transition feels
-          like one surface, not two. The inner cards stay white (.di-card)
-          so contrast is preserved. */}
-      <div className="di" style={{ background: 'var(--d-bg)' }}>
+          cards, source-pill colours). Its underlying token block now resolves
+          cool (--di-cream === --d-bg) post cool-surface migration, so the
+          Sent/Delivered tab transition reads as one surface with no inline
+          override required. */}
+      <div className="di">
         {/* Back to boards — matches the Orders index's button. Sits above
             the editorial topbar so it's clearly nav, not content. */}
         {/* Same max-width as .dh-topbar-inner (1240px) so the back button

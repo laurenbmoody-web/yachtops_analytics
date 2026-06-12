@@ -2,6 +2,13 @@ body {
   margin: 0;
   padding: 0;
   font-family: Inter;
+  /* Default app surface is cool (#F8FAFC / --d-bg). Pages that want a
+     warm editorial ground (Pantry, crew rota, trip detail) lift the
+     body via EditorialPageShell.bodyBg / inline document.body assigns
+     on mount and restore on unmount — so the default is what shows
+     between page transitions and on cool surfaces (provisioning home,
+     orders index, board detail) that don't manage body bg themselves. */
+  background: #F8FAFC;
 }
 
 * {

@@ -3,6 +3,7 @@ import Icon from '../../../components/AppIcon';
 import Drawer from './Drawer';
 import SmartSuggestionsPanel from './SmartSuggestionsPanel';
 import StatusBadge from './StatusBadge';
+import SelectionCheckbox from './SelectionCheckbox';
 import { BOARD_TYPES } from '../data/templates';
 import {
   updateProvisioningList,
@@ -284,7 +285,9 @@ const EditMode = ({ list, items = [], trips, tenantId, departments = [], onSaved
       await deleteProvisioningList(list.id);
       onDeleted(list.id);
       onClose();
-    } catch {
+    } catch (err) {
+      console.error('[BoardDrawer.handleDelete] error:', err);
+      showToast(`Couldn't delete board — ${err?.message || err}`, 'error');
       setDeleting(false);
     }
   };
@@ -293,8 +296,9 @@ const EditMode = ({ list, items = [], trips, tenantId, departments = [], onSaved
     try {
       await saveAsTemplate(list.id, true);
       onSaved({ ...list, is_template: true });
-    } catch {
-      // silent
+    } catch (err) {
+      console.error('[BoardDrawer.handleSaveAsTemplate] error:', err);
+      showToast(`Couldn't save as template — ${err?.message || err}`, 'error');
     }
   };
 
@@ -502,7 +506,8 @@ const SuggestionsMode = ({ list, tenantId, onAddItems }) => {
       try {
         const data = await getSmartSuggestions(list.trip_id, tenantId, []);
         if (!cancelled) setSuggestions(data);
-      } catch {
+      } catch (err) {
+        console.error('[BoardDrawer.SuggestionsMode] load error:', err);
         if (!cancelled) setSuggestions({});
       } finally {
         if (!cancelled) setLoading(false);
@@ -533,8 +538,10 @@ const SuggestionsMode = ({ list, tenantId, onAddItems }) => {
     try {
       const saved = await upsertItems(newItems);
       onAddItems(list.id, saved);
-    } catch {
-      // silent
+      showToast(`Added ${saved.length} suggestion${saved.length === 1 ? '' : 's'}`, 'success');
+    } catch (err) {
+      console.error('[BoardDrawer.SuggestionsMode] handleAdd error:', err);
+      showToast(`Couldn't add suggestions — ${err?.message || err}`, 'error');
     }
   };
 
@@ -658,7 +665,7 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
   const handleApplyFavourite = async (fav) => {
     setApplyingFavId(fav.id);
     try {
-      const saved = await applyOrderItems(fav.id, list.id);
+      const saved = await applyOrderItems(fav.id, list.id, { source: 'favourite' });
       if (saved && saved.length) {
         onAddItems(list.id, saved);
         showToast(`Added ${saved.length} item${saved.length === 1 ? '' : 's'} from ${fav.supplier_name}`, 'success');
@@ -788,11 +795,17 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
   const handleApplyTemplate = async (tpl) => {
     try {
       const items = await fetchListItems(tpl.id);
+      // source: 'template' — provenance tag enabled by the source CHECK
+      // relaxation migration (20260612140000). Overrides any source the
+      // template's source items had (templates themselves contain items
+      // with various original provenances; what matters now is that THIS
+      // copy came from a template).
       const newItems = items.map(({ id, created_at, ...rest }) => ({
         ...rest,
         list_id: list.id,
         status: 'draft',
         quantity_received: null,
+        source: 'template',
       }));
       if (newItems.length) {
         const saved = await upsertItems(newItems);
@@ -815,7 +828,8 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
       try {
         const items = await fetchListItems(tplId);
         setPreviewItems(prev => ({ ...prev, [tplId]: items }));
-      } catch {
+      } catch (err) {
+        console.error('[BoardDrawer.TemplatesMode] preview load error:', err);
         setPreviewItems(prev => ({ ...prev, [tplId]: [] }));
       } finally {
         setPreviewLoading(prev => ({ ...prev, [tplId]: false }));
@@ -871,12 +885,9 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
     const toAdd = allHistItems.filter(h => checkedItems.has(histKey(h)));
     // status: 'draft' to match all other Quick Add apply paths (Favourite,
     // Template) — one source of truth for "items applied from Quick Add
-    // start as draft". source is intentionally omitted; the original
-    // provisioning_items source CHECK enumerates manual / guest_preference /
-    // low_stock / invoice_pattern / smart_suggestion / location_aware,
-    // and 'history' isn't in that set. Provenance is implicit in the
-    // timestamp + batch arrival until the CHECK is relaxed in a future
-    // follow-up.
+    // start as draft". source: 'history' — provenance tag for the
+    // Frequent Items / Past Orders aggregator pipeline. Enabled by the
+    // source CHECK relaxation migration (20260612140000).
     const newItems = toAdd.map(h => ({
       list_id: list.id,
       name: h.name,
@@ -888,6 +899,7 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
       unit: h.unit || 'each',
       quantity_ordered: null,
       status: 'draft',
+      source: 'history',
     }));
     try {
       const saved = await upsertItems(newItems);
@@ -1033,12 +1045,13 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
                                 className="flex items-start gap-2 cursor-pointer text-xs"
                                 style={{ padding: '4px 2px' }}
                               >
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  onChange={() => togglePastItemChecked(order.id, it.id)}
-                                  style={{ marginTop: 2, flexShrink: 0 }}
-                                />
+                                <span style={{ marginTop: 2, flexShrink: 0 }}>
+                                  <SelectionCheckbox
+                                    checked={checked}
+                                    onChange={() => togglePastItemChecked(order.id, it.id)}
+                                    ariaLabel="Select item from past order"
+                                  />
+                                </span>
                                 <span className="bd-muted" style={{ lineHeight: 1.4 }}>
                                   <span className="bd-strong">{it.item_name}</span>
                                   {it.brand ? ` · ${it.brand}` : ''}
@@ -1250,13 +1263,13 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
                           : null;
                         return (
                           <div key={key} className="flex items-start gap-2 py-1.5 px-1 rounded-lg transition-colors bd-row-hover">
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => toggleCheck(key)}
-                              className="mt-1 flex-shrink-0"
-                              style={{ accentColor: '#C65A1A' }}
-                            />
+                            <span className="mt-1 flex-shrink-0">
+                              <SelectionCheckbox
+                                checked={isChecked}
+                                onChange={() => toggleCheck(key)}
+                                ariaLabel="Select frequent item"
+                              />
+                            </span>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm leading-snug bd-strong">{h.name}</p>
                               <div className="flex items-center gap-2 flex-wrap mt-0.5">

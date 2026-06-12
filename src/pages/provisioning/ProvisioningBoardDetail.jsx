@@ -51,6 +51,7 @@ import ItemDrawer from './components/ItemDrawer';
 import BoardDrawer from './components/BoardDrawer';
 import OrderCard from './components/OrderCard';
 import DeliveryBatchCard from './components/DeliveryBatchCard';
+import SelectionCheckbox from './components/SelectionCheckbox';
 import BulkActionBar from './components/BulkActionBar';
 import BulkDeleteConfirmModal from './components/BulkDeleteConfirmModal';
 import BulkChangeDeptModal from './components/BulkChangeDeptModal';
@@ -109,30 +110,9 @@ const ACTIVE_ORDER_STATES = new Set([
 const shortOrderRef = (id) => String(id || '').slice(0, 8).toUpperCase();
 
 // Scoped selection checkbox — items-list bulk-selection model only.
-// Native UA checkmark glyphs rendered pixelated at 13-14px; this swaps
-// for an inline SVG that anti-aliases cleanly via currentColor. White
-// fill on the --d-orange background when checked. Indeterminate state
-// deliberately omitted (the dash glyph reads as "remove" which is the
-// opposite intent — the "some selected" state is communicated by the
-// floating action bar's count instead). Styles in bulk-action-bar.css.
-const SelectionCheckbox = ({ checked, onChange, ariaLabel }) => (
-  <label className="pv-sel-checkbox">
-    <input
-      type="checkbox"
-      checked={checked}
-      onChange={onChange}
-      aria-label={ariaLabel}
-      className="pv-sel-checkbox-input"
-    />
-    <span className="pv-sel-checkbox-box">
-      {checked && (
-        <svg className="pv-sel-checkbox-tick" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="3.5 8 7 11 12.5 5" />
-        </svg>
-      )}
-    </span>
-  </label>
-);
+// Lifted into components/SelectionCheckbox.jsx (the SVG-check sweep) so
+// other selection surfaces can adopt it without re-implementing.
+// Imported below alongside the other component imports.
 
 
 // ── Edit Board Modal ──────────────────────────────────────────────────────────
@@ -1605,6 +1585,7 @@ const ProvisioningBoardDetail = () => {
           backLabel="Back to boards"
           rightRail={null}
           showDuty={false}
+          bodyBg="#F8FAFC"
           actionStrip={
             // Sprint 9c.1 Commit 3: unified pill aesthetic per the editorial
             // language. Two visual groups separated by a hairline divider:

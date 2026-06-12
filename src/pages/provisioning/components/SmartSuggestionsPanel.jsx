@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Icon from '../../../components/AppIcon';
+import SelectionCheckbox from './SelectionCheckbox';
 import { SOURCE_META } from '../../../utils/provisioningSuggestions';
 
 const SmartSuggestionsPanel = ({ suggestions, onAdd, onAddAll, loading }) => {
@@ -97,12 +98,13 @@ const SmartSuggestionsPanel = ({ suggestions, onAdd, onAddAll, loading }) => {
                       key={item.id}
                       className={`flex items-start gap-3 px-5 py-3 hover:bg-muted/30 transition-colors ${item.is_allergen_note ? 'bg-red-50/30 dark:bg-red-950/20' : ''}`}
                     >
-                      <input
-                        type="checkbox"
-                        checked={checkedIds.has(item.id)}
-                        onChange={() => toggle(item.id)}
-                        className="mt-0.5 rounded border-border"
-                      />
+                      <span className="mt-0.5 flex-shrink-0">
+                        <SelectionCheckbox
+                          checked={checkedIds.has(item.id)}
+                          onChange={() => toggle(item.id)}
+                          ariaLabel="Select suggestion"
+                        />
+                      </span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className={`text-sm font-medium ${item.is_allergen_note ? 'text-red-600 dark:text-red-400' : 'text-foreground'}`}>

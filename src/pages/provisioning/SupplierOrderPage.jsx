@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import EditorialMetaStrip from '../../components/editorial/EditorialMetaStrip';
+import { useAuth } from '../../contexts/AuthContext';
 import '../pantry/pantry.css';
 import {
   fetchSupplierOrderById,
@@ -14,6 +15,7 @@ import {
   fetchInvoiceSignedUrl,
   sendDeliveryNoteEmails,
   markInvoicePaid,
+  toggleSupplierOrderFavourite,
 } from './utils/provisioningStorage';
 import { showToast } from '../../utils/toast';
 
@@ -736,6 +738,13 @@ function FooterBar({ status, onBack }) {
 export default function SupplierOrderPage() {
   const { boardId, orderId } = useParams();
   const navigate = useNavigate();
+  const { tenantRole } = useAuth();
+  // Favourite star — UI gate only. Server gate is the RPC
+  // toggle_supplier_order_favourite which checks tier + dept intersect.
+  // CREW / VIEW_ONLY don't get the affordance; CHIEF/HOD/COMMAND do.
+  const userTier = (tenantRole || '').toUpperCase();
+  const canFavouriteOrder = ['COMMAND', 'CHIEF', 'HOD'].includes(userTier);
+  const [favouriting, setFavouriting] = useState(false);
 
   const [order, setOrder] = useState(null);
   const [list, setList] = useState(null);
@@ -881,6 +890,27 @@ export default function SupplierOrderPage() {
   // Back-nav: to the board if board-context, else to the Orders index.
   // The order's list_id is also a valid target (if not null) — fall through
   // in that order so users land somewhere familiar.
+  // Favourite toggle — optimistic flip with revert on server rejection.
+  // Same pattern as ProvisioningBoardDetail.handleToggleFavourite / the
+  // Quick Add panel. Server RPC is the actual gate; UI gate is just
+  // affordance-hiding.
+  const handleToggleFavourite = async () => {
+    if (favouriting || !order) return;
+    setFavouriting(true);
+    const next = !order.is_favourite;
+    setOrder(prev => prev ? { ...prev, is_favourite: next, favourited_at: next ? new Date().toISOString() : null } : prev);
+    try {
+      await toggleSupplierOrderFavourite(order.id);
+    } catch (err) {
+      // Revert
+      setOrder(prev => prev ? { ...prev, is_favourite: !next } : prev);
+      const msg = err?.message || 'Could not update favourite';
+      showToast(msg, 'error');
+    } finally {
+      setFavouriting(false);
+    }
+  };
+
   const handleBack = () => {
     if (boardId) navigate(`/provisioning/${boardId}`);
     else if (order?.list_id) navigate(`/provisioning/${order.list_id}`);
@@ -994,8 +1024,8 @@ export default function SupplierOrderPage() {
             Built manually because EditorialHeadline uppercases the title and
             display-case supplier names ("Marina Mercante Palma") need to
             survive intact. */}
-        <div className="p-header-row">
-          <div style={{ flex: 1 }}>
+        <div className="p-header-row" style={{ display: 'flex', alignItems: 'flex-start' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <button
               className="p-back-link"
               onClick={handleBack}
@@ -1048,6 +1078,33 @@ export default function SupplierOrderPage() {
               {order.delivery_date && <> · expected {fmtDateShort(order.delivery_date)}</>}
             </p>
           </div>
+          {/* Favourite star — same affordance as the OrderCard on the
+              standalone Orders index + the board's Orders tab. UI gate
+              hides from CREW; server gate (toggle_supplier_order_favourite
+              RPC) is the actual policy. */}
+          {canFavouriteOrder && (
+            <button
+              type="button"
+              onClick={handleToggleFavourite}
+              disabled={favouriting}
+              title={order.is_favourite ? 'Unfavourite this order' : 'Favourite this order'}
+              aria-label={order.is_favourite ? 'Unfavourite' : 'Favourite'}
+              style={{
+                background: 'none',
+                border: 0,
+                padding: '4px 8px',
+                cursor: favouriting ? 'default' : 'pointer',
+                fontSize: 24,
+                lineHeight: 1,
+                color: order.is_favourite ? '#C65A1A' : '#94A3B8',
+                opacity: favouriting ? 0.5 : 1,
+                marginLeft: 12,
+                flexShrink: 0,
+              }}
+            >
+              {order.is_favourite ? '★' : '☆'}
+            </button>
+          )}
         </div>
 
         {/* Page body — sections dissolve into the editorial background,
