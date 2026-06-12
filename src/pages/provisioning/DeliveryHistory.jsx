@@ -617,14 +617,33 @@ export default function DeliveryHistory() {
         <div className="dh-topbar">
           <div className="dh-topbar-inner">
 
-          {/* Breadcrumb removed in alignment pass with the Orders index —
-              the back-to-boards button above + the Sent/Delivered tab strip
-              below carry the nav now. Mirrored on the Sent tab which has
-              the same structure. */}
+          {/* Editorial header — meta strip + serif headline. Mirrors the
+              Orders index: back / meta / headline above, tabs below. */}
+          <div className="di-headblock">
+            <p className="editorial-meta">
+              <span className="dot">●</span>
+              <span>Delivery History</span>
+              <span className="bar" />
+              <span className="muted">Permanent vessel record</span>
+              {!loading && filtered.length > 0 && (
+                <>
+                  <span className="bar" />
+                  <span className="muted">{filtered.length} deliver{filtered.length === 1 ? 'y' : 'ies'}</span>
+                  <span className="bar" />
+                  <span className="muted">{totalItems} item{totalItems === 1 ? '' : 's'}</span>
+                </>
+              )}
+            </p>
+            <h1 className="editorial-greeting">
+              DELIVERIES<span className="period">,</span> <em>on record</em><span className="period">.</span>
+            </h1>
+          </div>
 
-          {/* Tab strip — mirrors the Orders index spacing exactly. */}
+          {/* Tab strip — sits BETWEEN the editorial header and the filter
+              row. Boundary between editorial chrome and content controls.
+              Same position as the Sent tab so the toggle is a content swap. */}
           <div style={{
-            display: 'flex', gap: 4, marginBottom: 14,
+            display: 'flex', gap: 4, marginBottom: 18,
             borderBottom: '1px solid rgba(38, 42, 83, 0.10)',
           }}>
             <button
@@ -648,27 +667,6 @@ export default function DeliveryHistory() {
               }}
               aria-current="page"
             >Delivered</button>
-          </div>
-
-          {/* Editorial header — meta strip + serif headline (matches the inbox) */}
-          <div className="di-headblock">
-            <p className="editorial-meta">
-              <span className="dot">●</span>
-              <span>Delivery History</span>
-              <span className="bar" />
-              <span className="muted">Permanent vessel record</span>
-              {!loading && filtered.length > 0 && (
-                <>
-                  <span className="bar" />
-                  <span className="muted">{filtered.length} deliver{filtered.length === 1 ? 'y' : 'ies'}</span>
-                  <span className="bar" />
-                  <span className="muted">{totalItems} item{totalItems === 1 ? '' : 's'}</span>
-                </>
-              )}
-            </p>
-            <h1 className="editorial-greeting">
-              DELIVERIES<span className="period">,</span> <em>on record</em><span className="period">.</span>
-            </h1>
           </div>
 
           {/* Filter bar */}
