@@ -4,6 +4,7 @@ import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
+import { EditorialDatePicker } from '../../components/editorial';
 import { fetchAllSupplierOrders } from './utils/provisioningStorage';
 import OrderCard from './components/OrderCard';
 import './provisioning-board.css';
@@ -53,6 +54,10 @@ const SupplierOrdersIndex = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  // From/To date filters — match the Delivered page's affordance. Compared
+  // against sent_at (falling back to created_at for orders never dispatched).
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const userTier = (tenantRole || '').toUpperCase();
   const isCommand = userTier === 'COMMAND';
@@ -83,9 +88,14 @@ const SupplierOrdersIndex = () => {
       }
       if (statusFilter !== 'all' && o.status !== statusFilter) return false;
       if (q && !(o.supplier_name || '').toLowerCase().includes(q)) return false;
+      // Date range — compares against sent_at (or created_at if never sent).
+      // dateFrom / dateTo arrive as 'YYYY-MM-DD' from EditorialDatePicker.
+      const orderDateIso = (o.sent_at || o.created_at || '').slice(0, 10);
+      if (dateFrom && orderDateIso < dateFrom) return false;
+      if (dateTo && orderDateIso > dateTo) return false;
       return true;
     });
-  }, [orders, searchQuery, statusFilter, isCommand, userDept]);
+  }, [orders, searchQuery, statusFilter, dateFrom, dateTo, isCommand, userDept]);
 
   return (
     <>
@@ -212,6 +222,21 @@ const SupplierOrdersIndex = () => {
               <option key={s.value} value={s.value}>{s.label}</option>
             ))}
           </select>
+          {/* Date range — same EditorialDatePicker the Delivered page uses
+              so the calendar popovers, formatting, and input chrome match
+              exactly. */}
+          <EditorialDatePicker
+            value={dateFrom}
+            onChange={setDateFrom}
+            placeholder="From date"
+            ariaLabel="From date"
+          />
+          <EditorialDatePicker
+            value={dateTo}
+            onChange={setDateTo}
+            placeholder="To date"
+            ariaLabel="To date"
+          />
         </div>
 
         {/* Orders list — uses the shared OrderCard component so the

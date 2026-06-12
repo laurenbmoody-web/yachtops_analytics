@@ -614,7 +614,12 @@ export default function DeliveryHistory() {
             instead). */}
 
         {/* ── Topbar (breadcrumb + editorial header + filters) ── */}
-        <div className="dh-topbar">
+        {/* Inline-overriding .dh-topbar's border-bottom (which runs full
+            viewport width) so the separator under the filter bar is short
+            (within the 1240px column) — matches the Sent page. The
+            actual hairline is added below as borderBottom on the
+            filter row container. */}
+        <div className="dh-topbar" style={{ borderBottom: 'none' }}>
           <div className="dh-topbar-inner">
 
           {/* Editorial header — meta strip + serif headline. Mirrors the
@@ -669,8 +674,11 @@ export default function DeliveryHistory() {
             >Delivered</button>
           </div>
 
-          {/* Filter bar */}
-          <div className="dh-filter-bar">
+          {/* Filter bar — short hairline beneath matches the Sent page. */}
+          <div
+            className="dh-filter-bar"
+            style={{ paddingBottom: 16, borderBottom: '0.5px solid var(--di-hairline)' }}
+          >
             <div className="dh-filter-search">
               <Icon name="Search" className="dh-filter-search-icon" />
               <input
