@@ -40,7 +40,7 @@ import { showToast } from '../../utils/toast';
 // don't survive ALL CAPS. Header rendered manually within the editorial-page
 // token scope so the typography still inherits cleanly.
 
-const EDITORIAL_BG = '#F5F1EA';
+const EDITORIAL_BG = '#F8FAFC';
 
 // ───────────────────────────────────────────────────────────
 // Helpers (migrated from SupplierOrderDrawer)

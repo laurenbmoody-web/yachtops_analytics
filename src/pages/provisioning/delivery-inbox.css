@@ -6,10 +6,10 @@
    ============================================================ */
 
 .di, .di-slip {
-  --di-cream:       #F4EEE4;
+  --di-cream:       #F1F5F9;
   --di-card:        #FFFFFF;
-  --di-band:        #FCFAF5;
-  --di-band-soft:   #F8F4EA;
+  --di-band:        #F8FAFC;
+  --di-band-soft:   #F1F5F9;
   --di-navy:        #262A53;
   --di-navy-deep:   #1A1D3F;
   --di-rust:        #C65A1A;
@@ -20,7 +20,7 @@
   --di-sage-deep:   #047857;
   --di-sage-soft:   #ECFDF5;
   --di-sand:        #DFD7C8;
-  --di-sand-soft:   #F1ECDF;
+  --di-sand-soft:   #EEF0F4;
   --di-muted:       #695880;
   --di-faint:       #94A3B8;
   --di-hairline:    #D4CCBB;
@@ -218,7 +218,7 @@
 .di-row:last-of-type { border-bottom: 0; }
 .di-row.is-selected { background: var(--di-band); }
 .di-row.is-fading { opacity: 0; }
-.di-row.is-archived { background: #FAF7EE; }
+.di-row.is-archived { background: #F1F5F9; }
 
 .di-row-check {
   width: 15px; height: 15px;
@@ -439,7 +439,7 @@
   cursor: pointer;
   transition: background 0.12s;
 }
-.di-claim-all-opt:hover { background: #FBF7EF; }
+.di-claim-all-opt:hover { background: #F1F5F9; }
 
 /* ── Per-row claim step (boards → qty) ─────────────────────── */
 .di-claim-step {
@@ -567,7 +567,7 @@
   width: 100%;
   transition: background 0.12s, color 0.12s;
 }
-.di-rail-list-item:hover { background: #FBF7EF; }
+.di-rail-list-item:hover { background: #F1F5F9; }
 .di-rail-list-item.is-active {
   background: rgba(198, 90, 26, 0.10);
   color: var(--di-rust);

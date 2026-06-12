@@ -6,7 +6,7 @@
    ============================================================ */
 
 .pv-board {
-  --pv-cream:      #F4EEE4;
+  --pv-cream:      #F1F5F9;
   --pv-card:       #FFFFFF;
   --pv-navy:       #262A53;
   --pv-navy-deep:  #1A1D3F;
@@ -365,7 +365,7 @@
   cursor: pointer;
   transition: background 0.12s ease, color 0.12s ease;
 }
-.pv-menu-item:hover { background: #FBF7EF; }
+.pv-menu-item:hover { background: #F1F5F9; }
 .pv-menu-item-icon {
   width: 14px; height: 14px;
   flex-shrink: 0;
@@ -512,7 +512,7 @@
   transition: background 0.12s, border-color 0.12s;
 }
 .pv-item:hover {
-  background: #FBF8F1;
+  background: #F8FAFC;
   border-color: var(--pv-hairline);
 }
 .pv-item-name {

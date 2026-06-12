@@ -15,12 +15,12 @@ const Page = ({ children }) => (
   <>
     <style>{`
       * { box-sizing: border-box; }
-      body { margin: 0; background: #FDF8F4; }
+      body { margin: 0; background: #F8FAFC; }
       @keyframes spin { to { transform: rotate(360deg); } }
       @keyframes pulse { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.12); opacity: 0.85; } }
     `}</style>
     <div style={{
-      minHeight: '100vh', background: '#FDF8F4',
+      minHeight: '100vh', background: '#F8FAFC',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       color: '#0F172A', padding: '32px 16px 64px',
     }}>
