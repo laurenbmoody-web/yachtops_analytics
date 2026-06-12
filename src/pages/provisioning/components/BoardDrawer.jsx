@@ -284,7 +284,9 @@ const EditMode = ({ list, items = [], trips, tenantId, departments = [], onSaved
       await deleteProvisioningList(list.id);
       onDeleted(list.id);
       onClose();
-    } catch {
+    } catch (err) {
+      console.error('[BoardDrawer.handleDelete] error:', err);
+      showToast(`Couldn't delete board — ${err?.message || err}`, 'error');
       setDeleting(false);
     }
   };
@@ -293,8 +295,9 @@ const EditMode = ({ list, items = [], trips, tenantId, departments = [], onSaved
     try {
       await saveAsTemplate(list.id, true);
       onSaved({ ...list, is_template: true });
-    } catch {
-      // silent
+    } catch (err) {
+      console.error('[BoardDrawer.handleSaveAsTemplate] error:', err);
+      showToast(`Couldn't save as template — ${err?.message || err}`, 'error');
     }
   };
 
@@ -502,7 +505,8 @@ const SuggestionsMode = ({ list, tenantId, onAddItems }) => {
       try {
         const data = await getSmartSuggestions(list.trip_id, tenantId, []);
         if (!cancelled) setSuggestions(data);
-      } catch {
+      } catch (err) {
+        console.error('[BoardDrawer.SuggestionsMode] load error:', err);
         if (!cancelled) setSuggestions({});
       } finally {
         if (!cancelled) setLoading(false);
@@ -533,8 +537,10 @@ const SuggestionsMode = ({ list, tenantId, onAddItems }) => {
     try {
       const saved = await upsertItems(newItems);
       onAddItems(list.id, saved);
-    } catch {
-      // silent
+      showToast(`Added ${saved.length} suggestion${saved.length === 1 ? '' : 's'}`, 'success');
+    } catch (err) {
+      console.error('[BoardDrawer.SuggestionsMode] handleAdd error:', err);
+      showToast(`Couldn't add suggestions — ${err?.message || err}`, 'error');
     }
   };
 
@@ -815,7 +821,8 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
       try {
         const items = await fetchListItems(tplId);
         setPreviewItems(prev => ({ ...prev, [tplId]: items }));
-      } catch {
+      } catch (err) {
+        console.error('[BoardDrawer.TemplatesMode] preview load error:', err);
         setPreviewItems(prev => ({ ...prev, [tplId]: [] }));
       } finally {
         setPreviewLoading(prev => ({ ...prev, [tplId]: false }));
