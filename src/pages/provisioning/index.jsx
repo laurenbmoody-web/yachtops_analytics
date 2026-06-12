@@ -1097,8 +1097,6 @@ const ProvisioningWorkspace = () => {
                       onQuickAdd={(data) => handleQuickAdd(list.id, data)}
                       onNavigate={(id) => navigate('/provisioning/' + id)}
                       onEditBoard={() => openBoardDrawer(list.id, 'edit')}
-                      onSuggestions={() => openBoardDrawer(list.id, 'suggestions')}
-                      onTemplates={() => openBoardDrawer(list.id, 'templates')}
                       onDuplicate={() => handleDuplicate(list)}
                       onSaveAsTemplate={() => handleSaveAsTemplate(list)}
                       onDelete={() => handleDeleteBoard(list)}
