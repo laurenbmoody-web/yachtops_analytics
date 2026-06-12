@@ -212,7 +212,8 @@ const SupplierOrdersIndex = () => {
               style={{
                 width: '100%', padding: '9px 12px 9px 34px',
                 fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
-                fontSize: 13, color: 'var(--d-navy)',
+                fontSize: 13, fontWeight: 400,
+                color: 'var(--d-navy)',
                 background: 'var(--d-card)', border: '0.5px solid var(--d-border)',
                 borderRadius: 10, outline: 'none',
               }}
@@ -224,7 +225,7 @@ const SupplierOrdersIndex = () => {
             style={{
               padding: '9px 12px',
               fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
-              fontSize: 13,
+              fontSize: 13, fontWeight: 400,
               color: 'var(--d-navy)', background: 'var(--d-card)',
               border: '0.5px solid var(--d-border)', borderRadius: 10,
               outline: 'none', cursor: 'pointer',

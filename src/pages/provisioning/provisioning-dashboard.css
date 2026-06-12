@@ -38,3 +38,18 @@
   color: #94A3B8;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
+
+/* ── Filter-row placeholder hardening (typography unity across Sent /
+   Delivered) ─────────────────────────────────────────────────────────
+   colour + family + weight + opacity all declared so nothing inherits
+   or falls back to a UA default. Same rule on both surfaces' inputs
+   so the placeholders render identical. Originally only colour was
+   declared, which left weight + opacity to defaults that varied. */
+.dh-filter-input::placeholder,
+.pv-orders-filter-input::placeholder,
+.edp-input::placeholder {
+  color: #94A3B8 !important;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif !important;
+  font-weight: 400 !important;
+  opacity: 1 !important;
+}
