@@ -740,7 +740,7 @@ const VesselSettings = () => {
                     <label className="block text-sm font-medium text-foreground mb-1">Vessel Type *</label>
                     <Select
                       value={formState?.vessel_type_label}
-                      onChange={(e) => handleInputChange('vessel_type_label', e?.target?.value)}
+                      onChange={(value) => handleInputChange('vessel_type_label', value)}
                       options={vesselTypeOptions}
                       disabled={viewMode || !canEdit}
                     />
@@ -832,7 +832,7 @@ const VesselSettings = () => {
                     <label className="block text-sm font-medium text-foreground mb-1">Commercial Status</label>
                     <Select
                       value={formState?.commercial_status}
-                      onChange={(e) => handleInputChange('commercial_status', e?.target?.value)}
+                      onChange={(value) => handleInputChange('commercial_status', value)}
                       options={commercialStatusOptions}
                       disabled={viewMode || !canEdit}
                     />
@@ -849,7 +849,7 @@ const VesselSettings = () => {
                     <label className="block text-sm font-medium text-foreground mb-1">Area of Operation</label>
                     <Select
                       value={formState?.area_of_operation}
-                      onChange={(e) => handleInputChange('area_of_operation', e?.target?.value)}
+                      onChange={(value) => handleInputChange('area_of_operation', value)}
                       options={areaOfOperationOptions}
                       disabled={viewMode || !canEdit}
                     />
@@ -896,7 +896,7 @@ const VesselSettings = () => {
                     <label className="block text-sm font-medium text-foreground mb-1">Rota Day Start</label>
                     <Select
                       value={String(formState?.operational_day_start_hour ?? 6)}
-                      onChange={(e) => handleInputChange('operational_day_start_hour', e?.target?.value)}
+                      onChange={(value) => handleInputChange('operational_day_start_hour', value)}
                       options={dayStartHourOptions}
                       disabled={viewMode || !canEdit}
                     />
