@@ -301,9 +301,9 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
               items-grain augmentation, not initialization. */}
           <div className="pv-wizard-route-list">
             {[
-              { key: 'template', icon: '📋', title: 'Template',  desc: 'Pre-built lists' },
-              { key: 'past',     icon: '📂', title: 'From past', desc: 'Boards · Orders · Favourites' },
-              { key: 'blank',    icon: '✦',  title: 'Blank',     desc: 'Start empty' },
+              { key: 'template', icon: 'FileText', title: 'Template',  desc: 'Pre-built lists' },
+              { key: 'past',     icon: 'Folder',   title: 'From past', desc: 'Boards · Orders · Favourites' },
+              { key: 'blank',    icon: 'Plus',     title: 'Blank',     desc: 'Start empty' },
             ].map(opt => (
               <button
                 key={opt.key}
@@ -314,7 +314,9 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
                 }}
                 className="pv-wizard-route-card"
               >
-                <span className="pv-wizard-route-icon">{opt.icon}</span>
+                <span className="pv-wizard-route-icon" aria-hidden="true">
+                  <Icon name={opt.icon} size={22} strokeWidth={1.5} />
+                </span>
                 <span className="pv-wizard-route-text">
                   <span className="pv-wizard-route-title">{opt.title}</span>
                   <span className="pv-wizard-route-desc">{opt.desc}</span>

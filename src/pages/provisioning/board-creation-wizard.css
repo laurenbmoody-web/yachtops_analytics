@@ -329,11 +329,17 @@
   border-bottom-color: var(--d-orange);
 }
 .pv-wizard-route-icon {
-  font-size: 22px;
-  line-height: 1;
-  flex-shrink: 0;
+  /* Wraps a Lucide line-art icon (was a unicode emoji glyph before the
+     editorial refresh). Layout slot stays the same — fixed-width centred
+     box so titles align across tiles. Icon inherits currentColor from
+     the button's text colour for the monochrome editorial feel. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 28px;
-  text-align: center;
+  height: 22px;
+  flex-shrink: 0;
+  color: var(--d-navy);
 }
 .pv-wizard-route-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .pv-wizard-route-title {
