@@ -16,7 +16,7 @@ import { logActivity } from '../../utils/activityStorage';
 
 const VesselSettings = () => {
   const navigate = useNavigate();
-  const { session, loading: authLoading } = useAuth();
+  const { session, loading: authLoading, hasCommandAccess } = useAuth();
 
   // Hub navigation state
   const [activeSection, setActiveSection] = useState('vessel-profile');
@@ -109,9 +109,13 @@ const VesselSettings = () => {
   // be keyed by id (not name). Source from the shared departments table.
   const [departmentOptions, setDepartmentOptions] = useState([]);
 
-  // Check if user has COMMAND role
+  // Edit access = COMMAND. Source from the app's authoritative permission_tier
+  // (useAuth/hasCommandAccess) rather than get_my_context's `role`: that RPC
+  // additionally filters on tenant_members.status = 'ACTIVE', so a COMMAND user
+  // whose status isn't exactly 'ACTIVE' would otherwise be locked to view-only.
+  // Keep the RPC role as a fallback.
   const role = userRole?.toUpperCase();
-  const canEdit = role === 'COMMAND';
+  const canEdit = (typeof hasCommandAccess === 'function' && hasCommandAccess()) || role === 'COMMAND';
 
   useEffect(() => {
     loadVesselSettings();
