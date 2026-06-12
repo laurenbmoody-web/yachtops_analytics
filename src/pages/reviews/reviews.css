@@ -219,6 +219,12 @@
 .rv-resolved { padding: 40px 44px; max-width: 1040px; }
 .rv-resolved-meta { max-width: 560px; }
 .rv-resolved-lines { margin-top: 28px; }
+/* The live grid wraps the scroller in a flex .cw-card (for the edge-step
+   buttons). History hides those buttons and that flex context stops the sticky
+   crew column from pinning on horizontal scroll — so collapse it to a plain
+   block scroller, exactly like the day grid's .rota-grid-wrap. */
+.rv-resolved-lines .cw-card { display: block; }
+.rv-resolved-lines .cw-grid-wrap { flex: none; min-width: 0; overflow-x: auto; }
 .rv-resolved-lines-head {
   display: flex; align-items: center; justify-content: space-between;
   gap: 16px; margin-bottom: 12px; flex-wrap: wrap;
