@@ -28,3 +28,13 @@
 .editorial-page.pv-dashboard {
   background: var(--d-bg);
 }
+
+/* ── SupplierOrdersIndex filter row ─────────────────────────────────
+   Explicit ::placeholder rule for the search input — :placeholder can't
+   be inline-styled, so it lives here. Colour matches Delivered's
+   .dh-filter-input::placeholder (#94A3B8 via --di-faint) so the two
+   pages render identically. */
+.pv-orders-filter-input::placeholder {
+  color: #94A3B8;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}

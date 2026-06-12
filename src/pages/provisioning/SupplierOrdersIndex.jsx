@@ -179,14 +179,22 @@ const SupplierOrdersIndex = () => {
           >Delivered</button>
         </div>
 
-        {/* Filter row — no enclosing card, just standalone inputs with their
-            own hairline borders. Matches the Delivered page's .dh-filter-bar
-            shape (flex row, no surrounding card, separator beneath). */}
-        <div style={{
-          display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',
-          paddingBottom: 16, marginBottom: 18,
-          borderBottom: '0.5px solid var(--d-border)',
-        }}>
+        {/* Filter row — typography forced to Plus Jakarta Sans (same as
+            .dh-filter-bar / .di scope on Delivered) so inherit chains
+            inside the EditorialDatePicker children resolve identically.
+            Without this, the picker inputs use `font-family: inherit` and
+            pick up whatever .pv-dashboard / body declares — which has
+            historically been Inter (from styles/index.css) rather than
+            Plus Jakarta Sans. */}
+        <div
+          className="pv-orders-filter-row"
+          style={{
+            display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',
+            paddingBottom: 16, marginBottom: 18,
+            borderBottom: '0.5px solid var(--d-border)',
+            fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+          }}
+        >
           <div style={{ position: 'relative', flex: '1 1 220px', minWidth: 180 }}>
             <Icon
               name="Search" size={14} strokeWidth={1.5}
@@ -200,9 +208,11 @@ const SupplierOrdersIndex = () => {
               placeholder="Search supplier…"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
+              className="pv-orders-filter-input"
               style={{
                 width: '100%', padding: '9px 12px 9px 34px',
-                fontFamily: 'inherit', fontSize: 13, color: 'var(--d-navy)',
+                fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                fontSize: 13, color: 'var(--d-navy)',
                 background: 'var(--d-card)', border: '0.5px solid var(--d-border)',
                 borderRadius: 10, outline: 'none',
               }}
@@ -212,7 +222,9 @@ const SupplierOrdersIndex = () => {
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
             style={{
-              padding: '9px 12px', fontFamily: 'inherit', fontSize: 13,
+              padding: '9px 12px',
+              fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+              fontSize: 13,
               color: 'var(--d-navy)', background: 'var(--d-card)',
               border: '0.5px solid var(--d-border)', borderRadius: 10,
               outline: 'none', cursor: 'pointer',
