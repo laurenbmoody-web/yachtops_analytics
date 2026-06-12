@@ -8,9 +8,9 @@ import SnapshotRotaLines from './SnapshotRotaLines';
 // (The full rota-snapshot view could be a later enhancement.)
 
 const OUTCOME = {
-  accepted:             { label: 'Accepted', cls: 'ok', icon: 'CheckCircle' },
-  accepted_with_edits:  { label: 'Accepted with edits', cls: 'ok', icon: 'CheckCircle' },
-  rejected:             { label: 'Rejected', cls: 'warn', icon: 'XCircle' },
+  accepted:             { label: 'Accepted', cls: 'ok', icon: 'CheckCircle', verb: 'Accepted by' },
+  accepted_with_edits:  { label: 'Accepted with edits', cls: 'ok', icon: 'CheckCircle', verb: 'Edited & accepted by' },
+  rejected:             { label: 'Rejected', cls: 'warn', icon: 'XCircle', verb: 'Rejected by' },
 };
 
 function fmtWhen(iso) {
@@ -22,11 +22,32 @@ function fmtWhen(iso) {
   } catch { return ''; }
 }
 
+function initials(name) {
+  if (!name) return '—';
+  const parts = String(name).trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '—';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function Person({ name, role }) {
+  return (
+    <span className="rv-meta-person">
+      <span className="rv-meta-avatar" aria-hidden="true">{initials(name)}</span>
+      <span className="rv-meta-person-text">
+        <span className="rv-meta-person-name">{name || 'crew'}</span>
+        {role && <span className="rv-meta-person-role">{role}</span>}
+      </span>
+    </span>
+  );
+}
+
 export default function ResolvedDetail({ item }) {
   if (!item) return null;
-  const o = OUTCOME[item.status] || { label: item.status || 'Resolved', cls: '', icon: 'Info' };
+  const o = OUTCOME[item.status] || { label: item.status || 'Resolved', cls: '', icon: 'Info', verb: 'Decided by' };
   const range = fmtDateRange(item.date_start, item.date_end);
   const counts = `${item.day_count} day${item.day_count === 1 ? '' : 's'} · ${item.shift_count} shift${item.shift_count === 1 ? '' : 's'}`;
+  const when = fmtWhen(item.decided_at);
   return (
     <div className="rv-resolved">
       <div className="rv-resolved-eyebrow">
@@ -39,26 +60,31 @@ export default function ResolvedDetail({ item }) {
         <span>{o.label}</span>
       </div>
 
-      <dl className="rv-resolved-meta">
-        <div>
-          <dt>Submitted by</dt>
-          <dd>{item.submitter_name || 'crew'}{item.submitter_role ? ` · ${item.submitter_role}` : ''}</dd>
+      <div className="rv-resolved-meta">
+        <div className="rv-meta-row">
+          <span className="rv-meta-k">Submitted by</span>
+          <span className="rv-meta-v"><Person name={item.submitter_name} role={item.submitter_role} /></span>
         </div>
-        <div>
-          <dt>Coverage</dt>
-          <dd>{range ? `${range} · ${counts}` : counts}</dd>
+        <div className="rv-meta-row">
+          <span className="rv-meta-k">Coverage</span>
+          <span className="rv-meta-v">{range ? `${range} · ${counts}` : counts}</span>
         </div>
-        <div>
-          <dt>Decided</dt>
-          <dd>{fmtWhen(item.decided_at) || '—'}</dd>
+        <div className="rv-meta-row">
+          <span className="rv-meta-k">{o.verb}</span>
+          <span className="rv-meta-v">
+            {item.decided_by_name
+              ? <Person name={item.decided_by_name} role={item.decided_by_role} />
+              : <span className="rv-meta-person-name">—</span>}
+            {when && <span className="rv-meta-when">{when}</span>}
+          </span>
         </div>
         {item.decision_note && (
-          <div>
-            <dt>{item.status === 'rejected' ? 'Reason' : 'Note'}</dt>
-            <dd>{item.decision_note}</dd>
+          <div className={`rv-meta-note ${o.cls}`}>
+            <span className="rv-meta-note-k">{item.status === 'rejected' ? 'Reason' : 'Note'}</span>
+            <span className="rv-meta-note-v">{item.decision_note}</span>
           </div>
         )}
-      </dl>
+      </div>
 
       <SnapshotRotaLines
         snapshotId={item.snapshot_id}

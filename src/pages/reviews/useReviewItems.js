@@ -134,6 +134,26 @@ async function loadOne(item) {
     }
   }
 
+  // Decider: who accepted / rejected (review_items.decided_by). Resolve to a
+  // display name + role so History can say who made the call, not just when.
+  let deciderName = null;
+  let deciderRole = null;
+  if (item.decided_by && item.tenant_id) {
+    const { data: dm, error: dmErr } = await supabase
+      .from('tenant_members')
+      .select('display_name, role, profiles ( full_name )')
+      .eq('user_id', item.decided_by)
+      .eq('tenant_id', item.tenant_id)
+      .limit(1)
+      .maybeSingle();
+    if (dmErr) {
+      console.warn('[useReviewItems] decider fetch failed:', dmErr);
+    } else if (dm) {
+      deciderName = dm.display_name || dm.profiles?.full_name || null;
+      deciderRole = dm.role || null;
+    }
+  }
+
   return {
     id: item.id,
     created_at: item.created_at,
@@ -141,6 +161,8 @@ async function loadOne(item) {
     decided_at: item.decided_at || null,
     decision_note: item.decision_note || null,
     decided_by: item.decided_by || null,
+    decided_by_name: deciderName,
+    decided_by_role: deciderRole,
     rota_id: rotaId || null,
     department_id: departmentId || null,
     snapshot_id: ctx.snapshot_id || null,
