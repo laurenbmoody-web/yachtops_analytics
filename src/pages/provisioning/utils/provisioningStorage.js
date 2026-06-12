@@ -2855,6 +2855,31 @@ export const fetchSupplierOrderById = async (orderId) => {
   return data;
 };
 
+// Tenant-wide supplier_orders fetch — feeds the standalone Orders index
+// at /provisioning/orders. Returns orders regardless of list_id (orphans
+// from deleted boards survive after the supplier_orders_list_id_set_null
+// migration). RLS scopes to the caller's tenant; dept-scoping happens in
+// JS at the consumer (departments[] denormalised on the row makes the
+// filter trivial without an extra join).
+export const fetchAllSupplierOrders = async (tenantId) => {
+  const { data, error } = await supabase
+    ?.from('supplier_orders')
+    ?.select(`
+      id, list_id, supplier_name, supplier_profile_id, status,
+      created_at, sent_at, delivery_date, delivery_port,
+      currency, departments,
+      supplier_order_items(id),
+      provisioning_list:list_id(id, title)
+    `)
+    ?.eq('tenant_id', tenantId)
+    ?.order('sent_at', { ascending: false, nullsFirst: false });
+  if (error) throw error;
+  return (data || []).map(o => ({
+    ...o,
+    item_count: (o.supplier_order_items || []).length,
+  }));
+};
+
 export const fetchSupplierOrders = async (listId) => {
   const { data, error } = await supabase
     .from('supplier_orders')
