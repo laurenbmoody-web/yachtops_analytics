@@ -93,3 +93,24 @@
   font-weight: 400 !important;
   opacity: 1 !important;
 }
+
+/* ── Font-smoothing parity ───────────────────────────────────────────
+   The real reason placeholders looked different visually after every
+   CSS-rule fix: macOS subpixel rendering. .di scope (Delivered) sets
+   -webkit-font-smoothing: antialiased — renders text noticeably thinner.
+   .pv-dashboard (Sent) doesn't set it, so the browser default
+   (subpixel-antialiased) makes the SAME font at the SAME weight render
+   visually heavier.
+   Pinning both filter-row inputs + their parent containers to the same
+   antialiasing so the two pages match on macOS. */
+.dh-filter-bar,
+.dh-filter-bar input,
+.dh-filter-bar select,
+.dh-filter-bar .edp,
+.pv-orders-filter-row,
+.pv-orders-filter-row input,
+.pv-orders-filter-row select,
+.pv-orders-filter-row .edp {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
