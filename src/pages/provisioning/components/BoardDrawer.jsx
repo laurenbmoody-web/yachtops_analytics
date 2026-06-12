@@ -3,6 +3,7 @@ import Icon from '../../../components/AppIcon';
 import Drawer from './Drawer';
 import SmartSuggestionsPanel from './SmartSuggestionsPanel';
 import StatusBadge from './StatusBadge';
+import SelectionCheckbox from './SelectionCheckbox';
 import { BOARD_TYPES } from '../data/templates';
 import {
   updateProvisioningList,
@@ -1040,12 +1041,13 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
                                 className="flex items-start gap-2 cursor-pointer text-xs"
                                 style={{ padding: '4px 2px' }}
                               >
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  onChange={() => togglePastItemChecked(order.id, it.id)}
-                                  style={{ marginTop: 2, flexShrink: 0 }}
-                                />
+                                <span style={{ marginTop: 2, flexShrink: 0 }}>
+                                  <SelectionCheckbox
+                                    checked={checked}
+                                    onChange={() => togglePastItemChecked(order.id, it.id)}
+                                    ariaLabel="Select item from past order"
+                                  />
+                                </span>
                                 <span className="bd-muted" style={{ lineHeight: 1.4 }}>
                                   <span className="bd-strong">{it.item_name}</span>
                                   {it.brand ? ` · ${it.brand}` : ''}
@@ -1257,13 +1259,13 @@ const TemplatesMode = ({ list, tenantId, onAddItems }) => {
                           : null;
                         return (
                           <div key={key} className="flex items-start gap-2 py-1.5 px-1 rounded-lg transition-colors bd-row-hover">
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => toggleCheck(key)}
-                              className="mt-1 flex-shrink-0"
-                              style={{ accentColor: '#C65A1A' }}
-                            />
+                            <span className="mt-1 flex-shrink-0">
+                              <SelectionCheckbox
+                                checked={isChecked}
+                                onChange={() => toggleCheck(key)}
+                                ariaLabel="Select frequent item"
+                              />
+                            </span>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm leading-snug bd-strong">{h.name}</p>
                               <div className="flex items-center gap-2 flex-wrap mt-0.5">

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Icon from '../../../components/AppIcon';
+import SelectionCheckbox from './SelectionCheckbox';
 import { ITEM_STATUS_ORDER, ITEM_STATUS_CONFIG, getItemStatusConfig } from '../data/statusConfig';
 
 // ── Grid template shared across header / rows / subtotal ─────────────────────
@@ -444,7 +445,7 @@ export const DeptGroup = ({
           style={{ gridTemplateColumns: DETAIL_GRID }}
         >
           <div className="flex items-center justify-center p-2.5">
-            <input type="checkbox" checked={allChecked} onChange={onToggleAll} className="w-3.5 h-3.5 cursor-pointer accent-primary" />
+            <SelectionCheckbox checked={allChecked} onChange={onToggleAll} ariaLabel="Select all items" />
           </div>
           <div className="p-2.5">Item Name</div>
           <div className="p-2.5">Brand</div>
@@ -473,13 +474,11 @@ export const DeptGroup = ({
               style={{ gridTemplateColumns: DETAIL_GRID }}
             >
               {/* Checkbox */}
-              <div className="flex items-center justify-center p-2">
-                <input
-                  type="checkbox"
+              <div className="flex items-center justify-center p-2" onClick={e => e.stopPropagation()}>
+                <SelectionCheckbox
                   checked={isSelected}
                   onChange={() => onToggleItem(item.id)}
-                  className="w-3.5 h-3.5 cursor-pointer accent-primary"
-                  onClick={e => e.stopPropagation()}
+                  ariaLabel="Select item"
                 />
               </div>
 
