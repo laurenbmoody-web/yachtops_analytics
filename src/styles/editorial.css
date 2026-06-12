@@ -76,3 +76,20 @@
   margin: 0 10px;
   flex-shrink: 0;
 }
+
+/* ── Editorial filter-row placeholders ───────────────────────────────
+   Lives here (not in surface-specific CSS) because both
+   SupplierOrdersIndex and DeliveryHistory import editorial.css. The
+   earlier home in provisioning-dashboard.css meant the rules only
+   applied to Sent — Delivered didn't load that file, so its
+   placeholders rendered with the browser-default weight.
+   colour + family + weight + opacity all explicit so nothing inherits
+   or falls back to a UA default. */
+.dh-filter-input::placeholder,
+.pv-orders-filter-input::placeholder,
+.edp-input::placeholder {
+  color: #94A3B8 !important;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif !important;
+  font-weight: 400 !important;
+  opacity: 1 !important;
+}
