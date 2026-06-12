@@ -732,7 +732,11 @@ export default function DeliveryHistory() {
       </div>
 
       {/* ── Main column ── */}
-      <div className="dh-main">
+      {/* .dh-main default padding-top is 28px (delivery-history.css) which
+          opens a wider gap below the filter-row separator than the Sent
+          page has. Inline-overriding to 18px so the separator-to-content
+          distance matches the Sent tab. */}
+      <div className="dh-main" style={{ paddingTop: 18 }}>
 
         {/* Toolbar: count + Export CSV */}
         {!loading && filtered.length > 0 && (
