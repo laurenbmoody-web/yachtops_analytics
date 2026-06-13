@@ -13,7 +13,8 @@ import StatusChangeModal from '../crew-management/components/StatusChangeModal';
 import { getCurrentUser, getDepartmentDisplayName } from '../../utils/authStorage';
 import { getStatusLabel, getStatusBadgeClasses, getStatusDotClass } from '../../utils/crewStatus';
 import { showToast } from '../../utils/toast';
-import { addWorkEntries, getComplianceStatus, getMonthCalendarData, detectBreaches, getCrewWorkEntries, deleteWorkEntriesForDate, runAllHORTests, confirmMonth, getMonthStatus, isMonthEditable, detectBreachedDatesAfterSave, hasBreachNoteForDate, syncRotaBaselineEntries } from './utils/horStorage';
+import { addWorkEntries, getComplianceStatus, getMonthCalendarData, detectBreaches, getCrewWorkEntries, deleteWorkEntriesForDate, runAllHORTests, confirmMonth, getMonthStatus, isMonthEditable, detectBreachedDatesAfterSave, hasBreachNoteForDate, syncRotaBaselineEntries, setHorDbContext, hydrateActualsForMonth } from './utils/horStorage';
+import { fetchWorkEntriesForMonth } from './utils/horWorkEntries';
 import { fetchRotaBaselineForMonth } from './utils/horBaseline';
 import { fetchVesselHorSettings, fetchMonthStatus, submitMonth as submitMonthDb, approveMonth as approveMonthDb, reopenMonth as reopenMonthDb, lockMonth as lockMonthDb } from './utils/horMonthStatus';
 import { fetchBreachReasonsForMonth, signOffBreachReason as signOffBreachReasonDb, unsignBreachReason as unsignBreachReasonDb } from './utils/horBreachReasons';
@@ -280,15 +281,21 @@ const CrewProfile = () => {
     const year = horCurrentMonth?.getFullYear();
     const month = horCurrentMonth?.getMonth();
 
-    // Phase 1 — pull the rota baseline for this month and refresh the
-    // baseline layer in storage (never touches the crew member's actuals).
+    // Tell horStorage which tenant to dual-write actuals to (Phase 5).
+    setHorDbContext({ tenantId: activeTenantId });
+
+    // Phase 5 — hydrate ACTUALS from the DB (system of record) into the cache,
+    // then Phase 1 — fill the remaining days with the rota baseline. Order
+    // matters: actuals first so the baseline only covers days with no actual.
     try {
-      const baseline = await fetchRotaBaselineForMonth({
-        userId: crewId, tenantId: activeTenantId, year, month,
-      });
+      const [baseline, dbActuals] = await Promise.all([
+        fetchRotaBaselineForMonth({ userId: crewId, tenantId: activeTenantId, year, month }),
+        fetchWorkEntriesForMonth({ tenantId: activeTenantId, subjectUserId: crewId, year, jsMonth: month }),
+      ]);
+      hydrateActualsForMonth(crewId, year, month, dbActuals);
       syncRotaBaselineEntries(crewId, year, month, baseline);
     } catch (e) {
-      console.warn('[HOR] rota baseline fetch failed:', e);
+      console.warn('[HOR] baseline/actuals hydrate failed:', e);
     }
 
     // Phase 3 — DB-backed month confirmation workflow. Best-effort: until the
