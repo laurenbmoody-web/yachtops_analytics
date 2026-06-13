@@ -15,10 +15,77 @@
 // surfaced verdicts.
 
 import { assessMlc, restForDay, restForWeek } from '../../crew-rota/restHours';
+import { upsertWorkEntryDay, deleteWorkEntryDay } from './horWorkEntries';
 
 const HOR_STORAGE_KEY = 'cargo_hor_entries';
 const HOR_PRESETS_KEY = 'cargo_hor_presets';
 const HOR_VESSEL_TIMEZONE_KEY = 'cargo_hor_vessel_timezone';
+
+// ── Phase 5: DB persistence context ──────────────────────────────────────────
+// hor_work_entries (DB) is the system of record for ACTUALS; localStorage is a
+// synchronous hydrated cache for the (sync) compliance engine. crew-profile sets
+// the active tenant here so the sync mutators below can dual-write to the DB.
+let _horDbTenantId = null;
+export const setHorDbContext = ({ tenantId } = {}) => { _horDbTenantId = tenantId || null; };
+
+// Merge a crew member's DB actuals into the cache for a month, reconciling with
+// any cached edited rows. Call BEFORE syncRotaBaselineEntries so baseline only
+// fills days with no actual. Rules:
+//   • DB has the date  → DB row wins (replaces the cache row).
+//   • cache-only date  → keep it AND push it to the DB (migrates legacy
+//                        localStorage data + survives an in-flight write that
+//                        hasn't landed yet — re-upserting identical data is safe).
+// Baseline rows and other crews/months are left untouched.
+export const hydrateActualsForMonth = (crewId, year, month, dbRows) => {
+  const all = loadHOREntries() || [];
+  const inMonth = (dateStr) => {
+    if (!dateStr) return false;
+    const d = parseYmd(dateStr);
+    return d.getFullYear() === year && d.getMonth() === month;
+  };
+  const offsetMinutes = getVesselTimezoneOffset();
+  const dbDates = new Set((dbRows || []).map((r) => r?.entry_date));
+
+  // Cache edited rows for this crew+month that the DB doesn't have yet.
+  const cacheOnly = all.filter(
+    (e) => e?.crewId === crewId && e?.source !== 'rota_baseline'
+      && inMonth(e?.date) && !dbDates.has(e?.date),
+  );
+
+  // Rebuild: everything except this crew's edited rows for the month …
+  const kept = all.filter(
+    (e) => !(e?.crewId === crewId && e?.source !== 'rota_baseline' && inMonth(e?.date)),
+  );
+  // … re-add DB rows (authoritative) …
+  (dbRows || []).forEach((r) => {
+    if (!inMonth(r?.entry_date)) return;
+    kept.push({
+      crewId,
+      date: r.entry_date,
+      workSegments: Array.isArray(r.work_segments) ? r.work_segments : [],
+      id: `${crewId}_${r.entry_date}_db`,
+      source: 'edited',
+      vesselTimezoneOffsetMinutes: offsetMinutes,
+      storedInUTC: false,
+    });
+  });
+  // … and re-add the cache-only rows.
+  cacheOnly.forEach((e) => kept.push(e));
+  saveHOREntries(kept);
+
+  // Migrate cache-only days up to the DB (best-effort).
+  if (_horDbTenantId) {
+    cacheOnly.forEach((e) => {
+      upsertWorkEntryDay({
+        tenantId: _horDbTenantId,
+        subjectUserId: crewId,
+        date: e?.date,
+        workSegments: e?.workSegments || [],
+      }).catch(() => {});
+    });
+  }
+  return kept;
+};
 
 // Breach type constants
 export const BREACH_TYPES = {
@@ -156,6 +223,21 @@ export const addWorkEntries = (crewId, newEntries) => {
   const updatedEntries = [...filteredEntries, ...entriesWithCrewId];
   saveHOREntries(updatedEntries);
 
+  // Dual-write actuals to the DB (system of record). Best-effort: the cache
+  // above already reflects the change for the sync engine. Baseline-sourced
+  // rows are never persisted.
+  if (_horDbTenantId) {
+    entriesWithCrewId?.forEach((e) => {
+      if (e?.source === 'rota_baseline') return;
+      upsertWorkEntryDay({
+        tenantId: _horDbTenantId,
+        subjectUserId: crewId,
+        date: e?.date,
+        workSegments: e?.workSegments || [],
+      }).catch((err) => console.warn('[HOR] work-entry DB upsert failed:', err));
+    });
+  }
+
   // Log to activity feed
   if (newEntries?.length > 0) {
     const dates = newDates?.join(', ');
@@ -177,12 +259,18 @@ export const deleteWorkEntriesForDate = (crewId, dateStr) => {
   const allEntries = loadHOREntries();
   
   // Filter out all entries for this crew member and date
-  const filteredEntries = allEntries?.filter(entry => 
+  const filteredEntries = allEntries?.filter(entry =>
     !(entry?.crewId === crewId && entry?.date === dateStr)
   );
-  
+
   saveHOREntries(filteredEntries);
-  
+
+  // Mirror the delete to the DB system of record (best-effort).
+  if (_horDbTenantId) {
+    deleteWorkEntryDay({ tenantId: _horDbTenantId, subjectUserId: crewId, date: dateStr })
+      .catch((err) => console.warn('[HOR] work-entry DB delete failed:', err));
+  }
+
   return filteredEntries;
 };
 
