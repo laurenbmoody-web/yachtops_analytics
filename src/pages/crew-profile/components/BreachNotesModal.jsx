@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import { BREACH_TYPE_LABELS, QUICK_TAGS, upsertBreachNote, getBreachNoteForDate } from '../utils/horBreachNotesStorage';
+import { upsertBreachReason } from '../utils/horBreachReasons';
 
 import ModalShell from '../../../components/ui/ModalShell';
-const BreachNotesModal = ({ isOpen, onClose, breachedDates, userId, currentUserId }) => {
+const BreachNotesModal = ({ isOpen, onClose, breachedDates, userId, currentUserId, tenantId }) => {
   const [notes, setNotes] = useState({});
   const [selectedTags, setSelectedTags] = useState({});
 
@@ -57,8 +58,10 @@ const BreachNotesModal = ({ isOpen, onClose, breachedDates, userId, currentUserI
     });
   };
 
-  const handleSubmit = () => {
-    // Save all breach notes
+  const handleSubmit = async () => {
+    // Save all breach notes. localStorage stays as a mirror so the existing PDF
+    // export + "needs note" gating keep working; the DB row is the record of truth.
+    const dbWrites = [];
     breachedDates?.forEach(breach => {
       const noteText = notes?.[breach?.date]?.trim();
       if (noteText) {
@@ -69,9 +72,20 @@ const BreachNotesModal = ({ isOpen, onClose, breachedDates, userId, currentUserI
           noteText,
           createdByUserId: currentUserId
         });
+        if (tenantId) {
+          dbWrites.push(
+            upsertBreachReason({
+              tenantId,
+              subjectUserId: userId,
+              date: breach?.date,
+              breachTypes: breach?.breachTypes || [],
+              note: noteText,
+            }).catch(err => console.warn('[HOR] breach reason DB write failed:', err))
+          );
+        }
       }
     });
-
+    await Promise.allSettled(dbWrites);
     onClose();
   };
 
