@@ -59,7 +59,6 @@ COMMENT ON COLUMN public.vessels.hor_approver_tier IS
 CREATE TABLE IF NOT EXISTS public.hor_month_status (
   id                   uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id            uuid NOT NULL REFERENCES public.tenants(id)  ON DELETE CASCADE,
-  vessel_id            uuid          REFERENCES public.vessels(id)  ON DELETE SET NULL,
   -- The crew member the month belongs to. Matches the crew-profile route id
   -- (profiles.id / auth user id), NOT tenant_members.id.
   subject_user_id      uuid NOT NULL,

@@ -23,22 +23,20 @@
 -- IDEMPOTENCY: CREATE OR REPLACE FUNCTION. Safe to re-apply.
 -- ─────────────────────────────────────────────────────────────────────────────
 
--- Helper: resolve the tenant's vessel + HOR settings. Treats the active tenant
--- as its vessel (single-vessel-per-tenant is the runtime norm); picks the oldest
--- vessel row deterministically if more than one exists.
+-- Helper: resolve the tenant's HOR settings. The vessels table is keyed by
+-- tenant_id (one row per tenant — the active tenant IS its vessel), so we look
+-- it up by tenant_id; there is no separate vessels.id in the live schema.
 CREATE OR REPLACE FUNCTION public._hor_vessel_settings(p_tenant_id uuid)
-RETURNS TABLE (vessel_id uuid, mode text, approver_tier text)
+RETURNS TABLE (mode text, approver_tier text)
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
-  SELECT v.id,
-         COALESCE(v.hor_confirmation_mode, 'require'),
+  SELECT COALESCE(v.hor_confirmation_mode, 'require'),
          COALESCE(v.hor_approver_tier, 'COMMAND')
   FROM public.vessels v
   WHERE v.tenant_id = p_tenant_id
-  ORDER BY v.created_at NULLS LAST, v.id
   LIMIT 1;
 $$;
 
@@ -57,7 +55,6 @@ SET search_path = public, pg_temp
 AS $function$
 DECLARE
   v_uid        uuid := auth.uid();
-  v_vessel     uuid;
   v_mode       text;
   v_tier       text;  -- approver tier (unused on submit, fetched together)
   v_existing   text;
@@ -71,8 +68,8 @@ BEGIN
     RAISE EXCEPTION 'You are not an active member of this vessel.';
   END IF;
 
-  SELECT s.vessel_id, s.mode, s.approver_tier
-    INTO v_vessel, v_mode, v_tier
+  SELECT s.mode, s.approver_tier
+    INTO v_mode, v_tier
   FROM public._hor_vessel_settings(p_tenant_id) s;
   v_mode := COALESCE(v_mode, 'require');
 
@@ -89,12 +86,12 @@ BEGIN
   v_target := CASE WHEN v_mode = 'trust' THEN 'confirmed' ELSE 'submitted' END;
 
   INSERT INTO public.hor_month_status AS h (
-    tenant_id, vessel_id, subject_user_id, period_year, period_month,
+    tenant_id, subject_user_id, period_year, period_month,
     status, note, dataset_version_hash,
     submitted_at, submitted_by,
     confirmed_at, confirmed_by, updated_at
   ) VALUES (
-    p_tenant_id, v_vessel, v_uid, p_year, p_month,
+    p_tenant_id, v_uid, p_year, p_month,
     v_target, p_note, p_hash,
     now(), v_uid,
     CASE WHEN v_target = 'confirmed' THEN now() ELSE NULL END,
@@ -105,7 +102,6 @@ BEGIN
     status               = v_target,
     note                 = COALESCE(EXCLUDED.note, h.note),
     dataset_version_hash = COALESCE(EXCLUDED.dataset_version_hash, h.dataset_version_hash),
-    vessel_id            = COALESCE(h.vessel_id, EXCLUDED.vessel_id),
     submitted_at         = now(),
     submitted_by         = v_uid,
     confirmed_at         = CASE WHEN v_target = 'confirmed' THEN now()  ELSE NULL END,

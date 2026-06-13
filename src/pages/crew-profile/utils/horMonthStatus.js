@@ -13,23 +13,21 @@ import { supabase } from '../../../lib/supabaseClient';
 
 const toDbMonth = (jsMonth) => jsMonth + 1;
 
-// Per-vessel workflow settings for the active tenant.
-// → { mode: 'require'|'trust', approverTier: 'COMMAND'|'CHIEF'|'HOD', vesselId }
+// Per-vessel workflow settings for the active tenant. The vessels table is
+// keyed by tenant_id (one row per tenant), so we look it up that way.
+// → { mode: 'require'|'trust', approverTier: 'COMMAND'|'CHIEF'|'HOD' }
 export async function fetchVesselHorSettings(tenantId) {
-  const fallback = { mode: 'require', approverTier: 'COMMAND', vesselId: null };
+  const fallback = { mode: 'require', approverTier: 'COMMAND' };
   if (!tenantId) return fallback;
   const { data, error } = await supabase
     .from('vessels')
-    .select('id, hor_confirmation_mode, hor_approver_tier, created_at')
+    .select('hor_confirmation_mode, hor_approver_tier')
     .eq('tenant_id', tenantId)
-    .order('created_at', { ascending: true, nullsFirst: false })
-    .limit(1)
     .maybeSingle();
   if (error || !data) return fallback;
   return {
     mode: data.hor_confirmation_mode || 'require',
     approverTier: data.hor_approver_tier || 'COMMAND',
-    vesselId: data.id,
   };
 }
 
