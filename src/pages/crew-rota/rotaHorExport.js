@@ -26,15 +26,13 @@ import {
   MLC_MAX_REST_PERIODS,
   MLC_LONGEST_REST_PERIOD_MIN,
   MLC_MAX_WORK_STRETCH,
+  MLC_STANDARD_REF,
 } from './restHours';
 
 const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-const STANDARD_REF =
-  `MLC 2006 Standard A2.3 · STCW Code Section A-VIII/1. Minimum rest: ${MLC_DAILY_REST_MIN}h in any 24h `
-  + `and ${MLC_WEEKLY_REST_MIN}h in any 7 days; rest in no more than ${MLC_MAX_REST_PERIODS} periods, one of at least `
-  + `${MLC_LONGEST_REST_PERIOD_MIN}h; interval between rest periods not to exceed ${MLC_MAX_WORK_STRETCH}h.`;
+const STANDARD_REF = MLC_STANDARD_REF;   // shared single source (restHours.js)
 
 // ── shared date helpers ─────────────────────────────────────────────────────
 function pad2(n) { return String(n).padStart(2, '0'); }

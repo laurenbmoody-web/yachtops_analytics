@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import { getComplianceStatus, getMonthCalendarData, detectBreaches, getCrewWorkEntries, BREACH_TYPES, BREACH_DISPLAY_INFO } from './horStorage';
 import { getBreachNotesForMonth } from './horBreachNotesStorage';
+import { MLC_DAILY_REST_MIN, MLC_WEEKLY_REST_MIN, MLC_STANDARD_REF } from '../../crew-rota/restHours';
 
 // Human-readable labels for enforced breach types (for PDF display)
 const ENFORCED_BREACH_LABELS = {
@@ -54,7 +55,14 @@ export const generateHORAuditPDF = async ({ crew, month, includeAuditTrail }) =>
   doc?.setFontSize(8);
   doc?.setFont('helvetica', 'normal');
   doc?.text(`Generated: ${new Date()?.toLocaleString('en-GB')} | Timezone: UTC`, pageWidth - margin, yPosition, { align: 'right' });
-  yPosition += 8;
+  yPosition += 5;
+
+  // Canonical IMO/ILO standard reference — shared verbatim with the rota export.
+  doc?.setFontSize(7);
+  doc?.setTextColor(110, 110, 110);
+  doc?.text(doc?.splitTextToSize(MLC_STANDARD_REF, contentWidth), margin, yPosition);
+  doc?.setTextColor(0, 0, 0);
+  yPosition += 7;
 
   // === CREW INFO & SUMMARY (Side by side) ===
   const leftColX = margin;
@@ -443,11 +451,11 @@ export const generateHORAuditPDF = async ({ crew, month, includeAuditTrail }) =>
         
         // Map to compact human-readable text
         if (episode?.breachType === BREACH_TYPES?.REST_LT_10_IN_24H) {
-          humanTitle = '< 10 hours rest in 24 hours';
+          humanTitle = `< ${MLC_DAILY_REST_MIN} hours rest in 24 hours`;
         } else if (episode?.breachType === BREACH_TYPES?.NO_6H_CONTINUOUS_REST_IN_24H) {
           humanTitle = 'No continuous 6-hour rest';
         } else if (episode?.breachType === BREACH_TYPES?.REST_LT_77_IN_7D) {
-          humanTitle = '< 77 hours rest in 7 days';
+          humanTitle = `< ${MLC_WEEKLY_REST_MIN} hours rest in 7 days`;
         }
         
         // Truncate if too long

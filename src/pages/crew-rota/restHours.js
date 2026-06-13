@@ -21,6 +21,15 @@ export const MLC_MAX_REST_PERIODS = 2;
 export const MLC_LONGEST_REST_PERIOD_MIN = 6;
 export const MLC_MAX_WORK_STRETCH = 14;     // hours
 
+// Canonical regulatory reference line for the formal "Record of Hours of Rest"
+// (IMO/ILO joint Guidelines format; MLC Std A2.3 · STCW A-VIII/1). Single source
+// shared by BOTH the rota and crew-profile PDF generators so the two exports
+// state identical limits. Derived from the constants above.
+export const MLC_STANDARD_REF =
+  `MLC 2006 Standard A2.3 · STCW Code Section A-VIII/1. Minimum rest: ${MLC_DAILY_REST_MIN}h in any 24h `
+  + `and ${MLC_WEEKLY_REST_MIN}h in any 7 days; rest in no more than ${MLC_MAX_REST_PERIODS} periods, one of at least `
+  + `${MLC_LONGEST_REST_PERIOD_MIN}h; interval between rest periods not to exceed ${MLC_MAX_WORK_STRETCH}h.`;
+
 // Shorten-lever safety margin (v1.1). The pre-fill computes the maximum
 // duration that satisfies all rest rules with this many hours of headroom
 // — e.g. with m=1 the daily target becomes 11h rest (10h min + 1h),
