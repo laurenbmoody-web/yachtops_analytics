@@ -11,7 +11,6 @@ import ItemDrawer from './components/ItemDrawer';
 import ReceiveDeliveryModal from './components/ReceiveDeliveryModal';
 import ShareModal from './components/ShareModal';
 import SummaryGauges from './components/SummaryGauges';
-import TemplatePicker from './components/TemplatePicker';
 import PastActivityPicker from './components/PastActivityPicker';
 import {
   fetchProvisioningLists,
@@ -100,7 +99,6 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
   const [tripId, setTripId] = useState('');
   const [isPrivate, setIsPrivate] = useState(true);
   const [localError, setLocalError] = useState('');
-  const [showTemplate, setShowTemplate] = useState(false);
   const [showPast, setShowPast] = useState(false);
   const [creating, setCreating] = useState(false);
 
@@ -148,27 +146,15 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
     ? `${new Date(selectedTrip.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – ${new Date(selectedTrip.endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
     : null;
 
-  // ── Render sub-pickers (overlaid inside the card) ─────────────────────────
-  if (showTemplate) {
-    return (
-      <div className="pv-wizard pv-dashboard is-subview">
-        <TemplatePicker
-          boardType={boardType}
-          guestCount={guestCount}
-          onUse={(items) => { setShowTemplate(false); triggerCreate('template', items); }}
-          onBack={() => setShowTemplate(false)}
-        />
-      </div>
-    );
-  }
-
+  // ── Render sub-picker (overlaid inside the card) ─────────────────────────
   if (showPast) {
     return (
       <div className="pv-wizard pv-dashboard is-subview">
         <PastActivityPicker
           tenantId={tenantId}
           newGuestCount={guestCount}
-          onUse={(items) => { setShowPast(false); triggerCreate('past', items); }}
+          boardType={boardType}
+          onUse={(items, source) => { setShowPast(false); triggerCreate(source || 'past', items); }}
           onBack={() => setShowPast(false)}
         />
       </div>
@@ -294,23 +280,21 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
             {boardType && <span> · {BOARD_TYPES.find(b => b.value === boardType)?.label}</span>}
           </p>
 
-          {/* Three route cards — stacked vertically. "From past" replaces
-              the prior Copy Board + Past Order tiles: same surface,
-              fewer top-level decisions. Internally tabbed: Boards /
-              Orders / Favourites. Frequent Items stays Quick Add only —
-              items-grain augmentation, not initialization. */}
+          {/* Two route cards — stacked vertically. Sprint 9c.5: collapsed
+              from three (Template / From past / Blank) to two. The unified
+              "Build from…" picker (PastActivityPicker) absorbs Templates as
+              a toggle position inside Boards (Live / Past / Templates) and
+              adds Catalogue + Suggestions tabs alongside Past orders. */}
           <div className="pv-wizard-route-list">
             {[
-              { key: 'template', icon: 'FileText', title: 'Template',  desc: 'Pre-built lists' },
-              { key: 'past',     icon: 'Folder',   title: 'From past', desc: 'Boards · Orders · Favourites' },
-              { key: 'blank',    icon: 'Plus',     title: 'Blank',     desc: 'Start empty' },
+              { key: 'blank',  icon: 'Plus',    title: 'Start fresh', desc: 'Empty board, add items as you go' },
+              { key: 'build',  icon: 'Folder',  title: 'Build from…', desc: 'Boards · Past orders · Catalogue · Suggestions' },
             ].map(opt => (
               <button
                 key={opt.key}
                 onClick={() => {
-                  if (opt.key === 'template') setShowTemplate(true);
-                  else if (opt.key === 'past') setShowPast(true);
-                  else triggerCreate('blank', []);
+                  if (opt.key === 'blank') triggerCreate('blank', []);
+                  else setShowPast(true);
                 }}
                 className="pv-wizard-route-card"
               >
