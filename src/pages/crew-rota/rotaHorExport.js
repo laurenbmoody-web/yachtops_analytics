@@ -34,6 +34,28 @@ const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Se
 
 const STANDARD_REF = MLC_STANDARD_REF;   // shared single source (restHours.js)
 
+// Cargo wordmark for the PDF letterhead. Resolves to an <img> (jsPDF accepts it
+// directly) or null if it can't load — the export proceeds either way.
+const CARGO_LOGO_URL = '/assets/images/cargo_merged_originalmark_syne800_true.png';
+function loadCargoLogo() {
+  return new Promise((resolve) => {
+    try {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = CARGO_LOGO_URL;
+    } catch { resolve(null); }
+  });
+}
+// Draw the logo very small at the top-right, just above the "Generated" line.
+function drawCargoLogo(doc, logo, pageW, M = 40) {
+  if (!logo || !logo.naturalWidth) return;
+  const h = 14;
+  let w = h * (logo.naturalWidth / logo.naturalHeight);
+  if (w > 96) w = 96;
+  doc.addImage(logo, 'PNG', pageW - M - w, 20, w, h);
+}
+
 // ── shared date helpers ─────────────────────────────────────────────────────
 function pad2(n) { return String(n).padStart(2, '0'); }
 function parseLocal(s) {
@@ -204,8 +226,9 @@ function fieldPair(doc, label, value, x, y, valueX) {
 }
 
 // Fleet summary page — the crew × day matrix of rest hours (overview).
-function drawSummaryPage(doc, members, days, meta) {
+function drawSummaryPage(doc, members, days, meta, logo) {
   const pageW = doc.internal.pageSize.getWidth();
+  drawCargoLogo(doc, logo, pageW);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
   doc.setTextColor(0);
@@ -221,14 +244,14 @@ function drawSummaryPage(doc, members, days, meta) {
   subParts.push(meta.periodLabel);
   doc.text(subParts.join('  ·  '), 40, 55);
   doc.text(STANDARD_REF, 40, 67, { maxWidth: pageW - 80 });
-  doc.text('Figures are HOURS OF REST per 24h (not hours worked). Shaded = below MLC minimum.', 40, 84);
+  doc.text('Figures are HOURS OF REST per 24h (not hours worked). Shaded = below MLC minimum · * daily · # weekly.', 40, 84);
   doc.text(`Generated ${meta.generatedAt}`, pageW - 40, 40, { align: 'right' });
   doc.setTextColor(0);
 
   const head = [[
     'Crew', 'Role', 'Dept',
     ...days.map((d, i) => dayColLabel(d, i)),
-    'Breach\ndays',
+    'Daily\nbreach', 'Weekly\nbreach',
   ]];
   const wide = days.length > 10;
   const body = members.map((m) => {
@@ -237,12 +260,17 @@ function drawSummaryPage(doc, members, days, meta) {
       const styles = {};
       if (breach) { styles.fillColor = WARN_FILL; styles.textColor = WARN_TEXT; styles.fontStyle = 'bold'; }
       else if (!c || c.isOff) { styles.textColor = OFF_TEXT; }
-      return { content: restLabel(c), styles };
+      // Markers mirror the CSV so daily vs weekly breaches are distinguishable
+      // (the shading alone can't tell them apart).
+      let content = restLabel(c);
+      if (c && !c.isOff && c.dailyLow) content += '*';
+      if (c && c.weeklyLow) content += '#';
+      return { content, styles };
     });
-    const totalBreaches = m.dailyBreachDays + m.weeklyBreachDays;
     return [
       m.name, m.role || '—', m.dept, ...dayCells,
-      { content: String(totalBreaches), styles: totalBreaches > 0 ? { textColor: WARN_TEXT, fontStyle: 'bold' } : {} },
+      { content: String(m.dailyBreachDays), styles: m.dailyBreachDays > 0 ? { textColor: WARN_TEXT, fontStyle: 'bold' } : {} },
+      { content: String(m.weeklyBreachDays), styles: m.weeklyBreachDays > 0 ? { textColor: WARN_TEXT, fontStyle: 'bold' } : {} },
     ];
   });
 
@@ -260,12 +288,13 @@ function drawSummaryPage(doc, members, days, meta) {
 
 // One per-seafarer monthly record: header block + 24h work/rest grid with
 // daily + rolling-7-day rest totals, non-conformities, and signatures.
-function drawSeafarerRecord(doc, member, days, windowShifts, meta) {
+function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo) {
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const M = 36;
 
   // ── Title + standard reference ──
+  drawCargoLogo(doc, logo, pageW, M);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
   doc.setTextColor(0);
@@ -274,7 +303,7 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta) {
   doc.setFontSize(7);
   doc.setTextColor(90);
   doc.text(STANDARD_REF, M, 50, { maxWidth: pageW - 2 * M });
-  doc.text(`Generated ${meta.generatedAt}`, pageW - M, 38, { align: 'right' });
+  doc.text(`Generated ${meta.generatedAt}`, pageW - M, 46, { align: 'right' });
 
   // ── Identity block (two columns) ──
   const colL = M;
@@ -420,18 +449,27 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta) {
     doc.setTextColor(40, 110, 60);
     doc.text('None recorded for this period.', M, ly);
   } else {
-    doc.setTextColor(...WARN_TEXT);
-    const shown = issues.slice(0, 10);
+    // Cap the list to the room above the (fixed) signature block so it can
+    // never overrun into the declaration / signature lines. The signature
+    // separator sits at sy-10 (sy = pageH - M - 46); keep a small gap above it.
+    const sigSepY = pageH - M - 46 - 10;
     const colGap = (pageW - 2 * M) / 2;
+    const availRows = Math.max(1, Math.floor((sigSepY - 6 - ly) / 10));
+    const fitsAll = issues.length <= availRows * 2;
+    const rowsForItems = fitsAll ? availRows : Math.max(1, availRows - 1);
+    const shown = issues.slice(0, rowsForItems * 2);
+    doc.setTextColor(...WARN_TEXT);
     shown.forEach((line, idx) => {
       const col = idx % 2;
       const row = Math.floor(idx / 2);
       doc.text(`• ${line}`, M + col * colGap, ly + row * 10);
     });
-    if (issues.length > shown.length) {
-      const extraRow = Math.ceil(shown.length / 2);
+    if (!fitsAll) {
       doc.setTextColor(90);
-      doc.text(`…and ${issues.length - shown.length} more (see CSV export for the full list).`, M, ly + extraRow * 10);
+      doc.text(
+        `…and ${issues.length - shown.length} more (see CSV export for the full list).`,
+        M, ly + rowsForItems * 10,
+      );
     }
   }
 
@@ -454,17 +492,18 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta) {
   doc.text('Seafarer — signature & date', pageW - M - sigW, line1 + 10);
 }
 
-export function exportRestLogPDF({ rows, days, meta, windowShifts = [] }) {
+export async function exportRestLogPDF({ rows, days, meta, windowShifts = [] }) {
   const members = flatten(rows);
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+  const logo = await loadCargoLogo();
 
   // Page 1 — fleet summary matrix.
-  drawSummaryPage(doc, members, days, meta);
+  drawSummaryPage(doc, members, days, meta, logo);
 
   // Pages 2…N — one formal record per seafarer.
   for (const m of members) {
     doc.addPage();
-    drawSeafarerRecord(doc, m, days, windowShifts, meta);
+    drawSeafarerRecord(doc, m, days, windowShifts, meta, logo);
   }
 
   // Footer page numbers.
