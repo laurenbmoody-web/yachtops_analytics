@@ -16,6 +16,7 @@ import { showToast } from '../../utils/toast';
 import { addWorkEntries, getComplianceStatus, getMonthCalendarData, detectBreaches, getCrewWorkEntries, deleteWorkEntriesForDate, runAllHORTests, confirmMonth, getMonthStatus, isMonthEditable, detectBreachedDatesAfterSave, hasBreachNoteForDate, syncRotaBaselineEntries } from './utils/horStorage';
 import { fetchRotaBaselineForMonth } from './utils/horBaseline';
 import { fetchVesselHorSettings, fetchMonthStatus, submitMonth as submitMonthDb, approveMonth as approveMonthDb, reopenMonth as reopenMonthDb, lockMonth as lockMonthDb } from './utils/horMonthStatus';
+import { fetchBreachReasonsForMonth, signOffBreachReason as signOffBreachReasonDb, unsignBreachReason as unsignBreachReasonDb } from './utils/horBreachReasons';
 import { useRole } from '../../contexts/RoleContext';
 import { PermissionTier } from '../../utils/authStorage';
 import VesselHORDashboard from './components/VesselHORDashboard';
@@ -48,6 +49,7 @@ const CrewProfile = () => {
   const [horData, setHorData] = useState(null);
   const [dbMonthStatus, setDbMonthStatus] = useState(null);     // hor_month_status row (DB)
   const [vesselHorSettings, setVesselHorSettings] = useState(null); // { mode, approverTier }
+  const [breachReasonsByDate, setBreachReasonsByDate] = useState({}); // { 'YYYY-MM-DD': hor_breach_reasons row }
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(null);
   const [showEditDateModal, setShowEditDateModal] = useState(false);
   const { userRole } = useRole();
@@ -293,12 +295,16 @@ const CrewProfile = () => {
     // migration is applied these resolve to defaults/null and the UI falls back
     // to the legacy localStorage status.
     try {
-      const [settings, status] = await Promise.all([
+      const [settings, status, reasons] = await Promise.all([
         fetchVesselHorSettings(activeTenantId),
         fetchMonthStatus({ tenantId: activeTenantId, subjectUserId: crewId, year, jsMonth: month }),
+        fetchBreachReasonsForMonth({ tenantId: activeTenantId, subjectUserId: crewId, year, jsMonth: month }),
       ]);
       setVesselHorSettings(settings);
       setDbMonthStatus(status);
+      const byDate = {};
+      (reasons || []).forEach((r) => { byDate[r.breach_date] = r; });
+      setBreachReasonsByDate(byDate);
     } catch (e) {
       console.warn('[HOR] month-status fetch failed:', e);
     }
@@ -1554,6 +1560,27 @@ const canEdit = (() => {
     }
   };
 
+  // Approver signs off / clears the sign-off on a documented breach reason.
+  const handleSignOffBreach = async (date) => {
+    try {
+      await signOffBreachReasonDb({ tenantId: activeTenantId, subjectUserId: crewId, date });
+      showToast('Breach reason signed off', 'success');
+      await loadHORData();
+    } catch (e) {
+      showToast(e?.message || 'Failed to sign off breach', 'error');
+    }
+  };
+
+  const handleUnsignBreach = async (date) => {
+    try {
+      await unsignBreachReasonDb({ tenantId: activeTenantId, subjectUserId: crewId, date });
+      showToast('Sign-off cleared', 'success');
+      await loadHORData();
+    } catch (e) {
+      showToast(e?.message || 'Failed to clear sign-off', 'error');
+    }
+  };
+
   const renderHOR = () => {
     // Check if user is Command
     const isCommand = currentUser?.tier === PermissionTier?.COMMAND;
@@ -2028,11 +2055,56 @@ const canEdit = (() => {
                         </div>
                       )}
                     </div>
+                    {/* Breach reasons & sign-off (Phase 4) */}
+                    {Object.keys(breachReasonsByDate).length > 0 && (
+                      <div className="mt-6 pt-4 border-t border-border">
+                        <h4 className="text-sm font-semibold text-foreground mb-3">Breach reasons &amp; sign-off</h4>
+                        <div className="space-y-3">
+                          {Object.values(breachReasonsByDate)
+                            .sort((a, b) => (a.breach_date < b.breach_date ? -1 : 1))
+                            .map((r) => {
+                              const signed = !!r.signed_off_at;
+                              return (
+                                <div key={r.breach_date} className="bg-card border border-border rounded-lg p-3">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="flex-1">
+                                      <div className="text-xs font-medium text-muted-foreground mb-1">
+                                        {new Date(r.breach_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                      </div>
+                                      <div className="text-sm text-foreground">{r.note_text}</div>
+                                    </div>
+                                    <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
+                                      signed ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                                             : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
+                                    }`}>
+                                      {signed ? 'Signed off' : 'Awaiting sign-off'}
+                                    </span>
+                                  </div>
+                                  {canApprove && (
+                                    <div className="mt-2 flex justify-end">
+                                      {signed ? (
+                                        <Button variant="outline" size="sm" onClick={() => handleUnsignBreach(r.breach_date)}>
+                                          Clear sign-off
+                                        </Button>
+                                      ) : (
+                                        <Button size="sm" onClick={() => handleSignOffBreach(r.breach_date)}>
+                                          <Icon name="CheckCircle" size={16} />
+                                          Sign off
+                                        </Button>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    )}
                     {/* Quick Entry Button */}
                     <div className="mt-4 pt-4 border-t border-border">
-                      <Button 
-                        variant="default" 
-                        fullWidth 
+                      <Button
+                        variant="default"
+                        fullWidth
                         iconName="Plus"
                         onClick={() => setShowQuickEntry(true)}
                       >
@@ -2267,10 +2339,12 @@ const canEdit = (() => {
                 setShowBreachNotesModal(false);
                 setBreachedDates([]);
                 showToast('Work entries saved successfully', 'success');
+                loadHORData();
               }}
               breachedDates={breachedDates}
               userId={crewId}
               currentUserId={currentUser?.id}
+              tenantId={activeTenantId}
             />
           )}
 
