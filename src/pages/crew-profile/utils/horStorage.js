@@ -768,6 +768,19 @@ export const getMonthCalendarData = (crewId, year, month) => {
   const daysInMonth = new Date(year, month + 1, 0)?.getDate();
   const calendarData = [];
 
+  // Per-date provenance for the baseline-vs-actual marker: a manual/edited
+  // entry makes the day 'actual'; a day carried only by the rota baseline is
+  // 'baseline'. Edited always wins over baseline for the same date.
+  const sourceByDate = {};
+  getCrewWorkEntries(crewId)?.forEach((e) => {
+    if (!e?.date) return;
+    if (e.source === 'rota_baseline') {
+      if (!sourceByDate[e.date]) sourceByDate[e.date] = 'baseline';
+    } else {
+      sourceByDate[e.date] = 'actual';
+    }
+  });
+
   // Get all breaches to mark affected dates
   const breaches = detectBreaches(crewId);
   const breachDates = new Set();
@@ -798,7 +811,8 @@ export const getMonthCalendarData = (crewId, year, month) => {
       date: dateStr,
       day,
       restHours,
-      status
+      status,
+      source: sourceByDate[dateStr] || 'none'   // 'actual' (logged) | 'baseline' (from rota) | 'none'
     });
   }
 

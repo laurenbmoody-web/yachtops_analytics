@@ -58,6 +58,8 @@ const VesselSettings = () => {
     typical_guest_count: '',
     typical_crew_count: '',
     operational_day_start_hour: 6,
+    hor_confirmation_mode: 'require',
+    hor_approver_tier: 'COMMAND',
 
     // Compliance & Structure
     ism_applicable: false,
@@ -177,6 +179,8 @@ const VesselSettings = () => {
         typical_guest_count: vesselData?.typical_guest_count || '',
         typical_crew_count: vesselData?.typical_crew_count || '',
         operational_day_start_hour: vesselData?.operational_day_start_hour ?? 6,
+        hor_confirmation_mode: vesselData?.hor_confirmation_mode || 'require',
+        hor_approver_tier: vesselData?.hor_approver_tier || 'COMMAND',
         ism_applicable: vesselData?.ism_applicable || false,
         isps_applicable: vesselData?.isps_applicable || false,
         departments_in_use: departmentsArray,
@@ -351,6 +355,8 @@ const VesselSettings = () => {
         typical_guest_count: formState?.typical_guest_count ? parseInt(formState?.typical_guest_count, 10) : null,
         typical_crew_count: formState?.typical_crew_count ? parseInt(formState?.typical_crew_count, 10) : null,
         operational_day_start_hour: Math.min(23, Math.max(0, parseInt(formState?.operational_day_start_hour ?? 6, 10) || 0)),
+        hor_confirmation_mode: formState?.hor_confirmation_mode === 'trust' ? 'trust' : 'require',
+        hor_approver_tier: ['COMMAND', 'CHIEF', 'HOD'].includes(formState?.hor_approver_tier) ? formState?.hor_approver_tier : 'COMMAND',
         ism_applicable: formState?.ism_applicable || false,
         isps_applicable: formState?.isps_applicable || false,
         departments_in_use: formState?.departments_in_use || [],
@@ -902,6 +908,37 @@ const VesselSettings = () => {
                     />
                     <p className="text-xs text-muted-foreground mt-1">
                       Hour the daily rota grid begins. Display only — does not change MLC rest calculations.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Hours-of-Rest Confirmation</label>
+                    <Select
+                      value={formState?.hor_confirmation_mode || 'require'}
+                      onChange={(value) => handleInputChange('hor_confirmation_mode', value)}
+                      options={[
+                        { value: 'require', label: 'Require approval' },
+                        { value: 'trust', label: 'Trust crew (auto-confirm)' },
+                      ]}
+                      disabled={viewMode || !canEdit}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Whether a crew member's submitted HOR month must be approved, or confirms on submit.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">HOR Approver Role</label>
+                    <Select
+                      value={formState?.hor_approver_tier || 'COMMAND'}
+                      onChange={(value) => handleInputChange('hor_approver_tier', value)}
+                      options={[
+                        { value: 'COMMAND', label: 'Command' },
+                        { value: 'CHIEF', label: 'Chief / HOD lead' },
+                        { value: 'HOD', label: 'Head of Department' },
+                      ]}
+                      disabled={viewMode || !canEdit || formState?.hor_confirmation_mode === 'trust'}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Role that approves HOR months and signs off breaches. Command may always approve.
                     </p>
                   </div>
                 </div>

@@ -1632,8 +1632,19 @@ const canEdit = (() => {
         restHours: dayData?.restHours || 24,
         workHours: 24 - (dayData?.restHours || 24),
         entries: dateEntries,
-        status: dayData?.status
+        status: dayData?.status,
+        source: dayData?.source
       });
+    };
+
+    // Reset a logged day back to its rota baseline: drop the manual/edited
+    // entry; the baseline re-pulls on the next load.
+    const handleResetToBaseline = () => {
+      if (!selectedCalendarDate?.date) return;
+      deleteWorkEntriesForDate(crewId, selectedCalendarDate.date);
+      setSelectedCalendarDate(null);
+      showToast('Day reset to rota baseline', 'success');
+      loadHORData();
     };
 
     const handleEditDate = () => {
@@ -1908,6 +1919,9 @@ const canEdit = (() => {
                     const restHours = dayData?.restHours || 24;
                     const status = dayData?.status || 'compliant';
                     const isSelected = selectedCalendarDate?.day === day;
+                    // Provenance: a day carried only by the rota baseline (not yet
+                    // logged as an actual) is shown with a dashed edge + 'rota' tag.
+                    const isBaseline = dayData?.source === 'baseline';
 
                     // Color based on status
                     let bgColor = 'bg-green-100 dark:bg-green-900/30';
@@ -1924,12 +1938,15 @@ const canEdit = (() => {
                       <button
                         key={day}
                         onClick={() => handleDateClick(day, dayData)}
-                        className={`${bgColor} rounded-lg p-3 text-center cursor-pointer hover:opacity-80 transition-smooth ${
+                        className={`${bgColor} rounded-lg p-3 text-center cursor-pointer hover:opacity-80 transition-smooth relative ${
                           isSelected ? 'ring-2 ring-primary ring-offset-2' : ''
-                        }`}
+                        } ${isBaseline ? 'border-2 border-dashed border-muted-foreground/40' : ''}`}
                       >
                         <div className="text-xs font-semibold text-foreground mb-1">{day}</div>
                         <div className={`text-sm font-bold ${textColor}`}>{restHours?.toFixed(1)} hrs</div>
+                        {isBaseline && (
+                          <div className="text-[9px] uppercase tracking-wide text-muted-foreground mt-0.5">rota</div>
+                        )}
                       </button>
                     );
                   })}
@@ -1948,6 +1965,10 @@ const canEdit = (() => {
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 rounded bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800" />
                     <span className="text-xs text-muted-foreground">Breach</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded border-2 border-dashed border-muted-foreground/40" />
+                    <span className="text-xs text-muted-foreground">From rota (not yet logged)</span>
                   </div>
                 </div>
               </div>
@@ -2017,6 +2038,17 @@ const canEdit = (() => {
                       >
                         Edit Date
                       </Button>
+                      {selectedCalendarDate?.source === 'actual' && (
+                        <Button
+                          variant="outline"
+                          fullWidth
+                          iconName="RotateCcw"
+                          onClick={handleResetToBaseline}
+                          className="mt-2"
+                        >
+                          Reset to rota baseline
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         fullWidth
