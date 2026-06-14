@@ -179,8 +179,10 @@ export default function RestLogView({
     departmentName,
     periodLabel,
     period,
+    // userId -> display name, so the PDF can attribute each recorded reason.
+    crewNames: Object.fromEntries((crew || []).filter((c) => c.userId).map((c) => [c.userId, c.name])),
     generatedAt: new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }),
-  }), [vesselName, imoNumber, flagState, portOfRegistry, departmentName, periodLabel, period]);
+  }), [vesselName, imoNumber, flagState, portOfRegistry, departmentName, periodLabel, period, crew]);
 
   // Planned breach days with no recorded reason yet — what a chief/command is
   // prompted to justify (and thereby sign off) at the rota stage.
