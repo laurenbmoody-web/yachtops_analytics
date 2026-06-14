@@ -36,10 +36,10 @@ import './crew-profile.css';
 // its identity is stable across renders (a render-local component would
 // remount the input on every keystroke and drop focus).
 const Field = ({ label, required, full, hint, children }) => (
-  <div className={`cp-field-card${full ? ' cp-field-full' : ''}`}>
+  <div className={`cp-field-card${required ? ' cp-accent' : ''}${full ? ' cp-field-full' : ''}`}>
+
     <div className="cp-field-label">
       <span>{label}</span>
-      {required && <span className="cp-req">●</span>}
     </div>
     {children}
     {hint && <p className="cp-field-hint">{hint}</p>}

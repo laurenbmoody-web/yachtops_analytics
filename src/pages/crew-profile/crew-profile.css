@@ -130,6 +130,7 @@ body.crew-profile-editorial {
   padding: 8px 12px;
   transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
+.crew-profile-page .cp-field-card.cp-accent { border-top: 2px solid #C65A1A; }
 .crew-profile-page .cp-field-card:focus-within {
   border-color: #C65A1A;
   box-shadow: 0 0 0 2px #FAECE7;
@@ -147,7 +148,6 @@ body.crew-profile-editorial {
   color: #8B8478;
   margin-bottom: 3px;
 }
-.crew-profile-page .cp-field-label .cp-req { color: #C65A1A; font-size: 6px; }
 
 .crew-profile-page .cp-field-hint {
   font-size: 10px;
