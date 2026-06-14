@@ -89,6 +89,38 @@ function DayHeader({ dateStr, index, isToday }) {
   );
 }
 
+// hh:mm for a 30-min block index (0–47).
+const blockToTime = (i) => `${String(Math.floor((i * 30) / 60)).padStart(2, '0')}:${String((i * 30) % 60).padStart(2, '0')}`;
+
+// Crew's logged work_segments (on-duty 30-min block indices) → rota-shaped shift
+// objects, plus the set of (member|date) days that are logged so the rota plan
+// is dropped for those days (logged actuals win).
+function workEntriesToShifts(workEntries, userToMember) {
+  const loggedShifts = [];
+  const loggedDays = new Set();
+  (workEntries || []).forEach((e) => {
+    const memberId = userToMember.get(e.subject_user_id);
+    if (!memberId) return;
+    const date = String(e.entry_date).slice(0, 10);
+    loggedDays.add(`${memberId}|${date}`);
+    const segs = [...(e.work_segments || [])].map(Number).filter((n) => n >= 0 && n < 48).sort((a, b) => a - b);
+    let i = 0;
+    while (i < segs.length) {
+      let j = i;
+      while (j + 1 < segs.length && segs[j + 1] === segs[j] + 1) j += 1;
+      loggedShifts.push({
+        memberId,
+        date,
+        shiftType: 'duty',
+        startTime: blockToTime(segs[i]),
+        endTime: segs[j] + 1 >= 48 ? '00:00' : blockToTime(segs[j] + 1),
+      });
+      i = j + 1;
+    }
+  });
+  return { loggedShifts, loggedDays };
+}
+
 function Cell({ cell, isToday, isFuture, onClick, ariaLabel }) {
   const weekend = isWeekend(cell.date);
   const cls = ['rl-c'];
@@ -122,6 +154,7 @@ export default function RestLogView({
   periodLabel = '',
   departmentName = null,
   breachReasons = {},
+  workEntries = [],
   tenantId = null,
   canSignOff = false,
   onReasonsSaved,
@@ -132,13 +165,31 @@ export default function RestLogView({
   const wrapRef = useRef(null);
   const [showBreachModal, setShowBreachModal] = useState(false);
 
+  // Overlay the crew's logged actuals onto the rota plan: any day a crew member
+  // has logged is the truth, so drop the rota shifts for that member-day and use
+  // the logged ones instead. The rota fills only the un-logged gaps.
+  const userToMember = useMemo(
+    () => new Map((crew || []).filter((c) => c.userId).map((c) => [c.userId, c.id])),
+    [crew],
+  );
+  const { loggedShifts, loggedDays } = useMemo(
+    () => workEntriesToShifts(workEntries, userToMember),
+    [workEntries, userToMember],
+  );
+  const mergedShifts = useMemo(() => {
+    if (!loggedDays.size) return windowShifts;
+    return (windowShifts || [])
+      .filter((s) => !loggedDays.has(`${s.memberId}|${s.date}`))
+      .concat(loggedShifts);
+  }, [windowShifts, loggedShifts, loggedDays]);
+
   // The 24h "day" anchor for the daily-rest rule: 0 (midnight) for the classic
   // calendar basis, the vessel's operational day-start when opted in. Reframing
   // the shifts by this offset lets the existing rules assess the operational day.
   const dayStartHour = horDayBasis === 'operational' ? (operationalDayStartHour || 0) : 0;
   const framedShifts = useMemo(
-    () => reframeToOperationalDay(windowShifts, dayStartHour),
-    [windowShifts, dayStartHour],
+    () => reframeToOperationalDay(mergedShifts, dayStartHour),
+    [mergedShifts, dayStartHour],
   );
   const basisLabel = dayStartHour
     ? `Rest assessed on a 24-hour day commencing ${String(dayStartHour).padStart(2, '0')}:00`
@@ -340,7 +391,7 @@ export default function RestLogView({
           <button
             type="button"
             className="crew-rota-pill"
-            onClick={() => runExport((e) => exportRestLogPDF({ rows: e.rows, days: e.days, meta: e.meta, windowShifts, breachReasons }))}
+            onClick={() => runExport((e) => exportRestLogPDF({ rows: e.rows, days: e.days, meta: e.meta, windowShifts: mergedShifts, breachReasons }))}
             title="Export the MLC/IMO-ILO Record of Hours of Rest (PDF)"
           ><Download size={12} /> PDF</button>
         </div>
