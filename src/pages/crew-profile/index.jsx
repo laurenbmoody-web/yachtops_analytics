@@ -10,7 +10,7 @@ import QuickEntryModal from './components/QuickEntryModal';
 import BreachNotesModal from './components/BreachNotesModal';
 import StatusHistoryTab from './components/StatusHistoryTab';
 import StatusChangeModal from '../crew-management/components/StatusChangeModal';
-import { getCurrentUser, getDepartmentDisplayName } from '../../utils/authStorage';
+import { getCurrentUser, getDepartmentDisplayName, getTierDisplayName } from '../../utils/authStorage';
 import { getStatusLabel, getStatusBadgeClasses, getStatusDotClass } from '../../utils/crewStatus';
 import { showToast } from '../../utils/toast';
 import { addWorkEntries, getComplianceStatus, getMonthCalendarData, detectBreaches, getCrewWorkEntries, deleteWorkEntriesForDate, runAllHORTests, confirmMonth, getMonthStatus, isMonthEditable, detectBreachedDatesAfterSave, hasBreachNoteForDate, syncRotaBaselineEntries, setHorDbContext, hydrateActualsForMonth } from './utils/horStorage';
@@ -180,10 +180,13 @@ const CrewProfile = () => {
               custom_role_id,
               department_id,
               status,
+              permission_tier,
               permission_tier_override,
+              start_date,
+              joined_at,
               departments(name),
-              roles!tenant_members_role_id_fkey(name),
-              custom_role:tenant_custom_roles(name)
+              roles!tenant_members_role_id_fkey(name, default_permission_tier),
+              custom_role:tenant_custom_roles(name, default_permission_tier)
             `)
             ?.eq('user_id', crewId)
             ?.eq('tenant_id', activeTenantId)
@@ -207,7 +210,13 @@ const CrewProfile = () => {
           department_id: membershipData?.department_id || null,
           role_id: membershipData?.role_id || null,
           custom_role_id: membershipData?.custom_role_id || null,
-          effectiveTier: membershipData?.permission_tier_override || null,
+          effectiveTier:
+            membershipData?.roles?.default_permission_tier ||
+            membershipData?.custom_role?.default_permission_tier ||
+            membershipData?.permission_tier_override ||
+            membershipData?.permission_tier ||
+            null,
+          startDate: membershipData?.start_date || membershipData?.joined_at || null,
           // Initialize empty fields for sections that may not have data yet
           dateOfBirth: '',
           nationality: '',
@@ -820,6 +829,10 @@ const canEdit = (() => {
 
     const headlineTitle = crewMember?.firstName || crewMember?.fullName || 'Crew';
     const headlineQualifier = crewMember?.lastName || 'Profile';
+    const tierLabel = crewMember?.effectiveTier ? getTierDisplayName(crewMember?.effectiveTier) : null;
+    const sinceLabel = crewMember?.startDate
+      ? new Date(crewMember?.startDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
+      : null;
 
     return (
       <div className="mb-8">
@@ -859,11 +872,23 @@ const canEdit = (() => {
             <div className="pt-1">
               <div className="editorial-meta">
                 <span className="dot">•</span>
-                <span>{crewMember?.department || 'Crew'}</span>
-                {crewMember?.roleTitle && (
+                <span>{crewMember?.roleTitle || 'Crew'}</span>
+                {crewMember?.department && (
                   <>
                     <span className="bar" />
-                    <span className="muted">{crewMember?.roleTitle}</span>
+                    <span>{crewMember?.department}</span>
+                  </>
+                )}
+                {tierLabel && (
+                  <>
+                    <span className="bar" />
+                    <span className="muted">{tierLabel}</span>
+                  </>
+                )}
+                {sinceLabel && (
+                  <>
+                    <span className="bar" />
+                    <span className="muted">Since {sinceLabel}</span>
                   </>
                 )}
               </div>
