@@ -706,6 +706,58 @@
 .pv-wizard-row-priority.is-muted  { color: var(--d-muted); }
 .pv-wizard-row-priority.is-orange { color: var(--d-orange); }
 
+/* ── Compact +/- stepper (catalogue rows) ─────────────
+   Sits where the checkbox does on other tabs. Catalogue rows need a
+   quantity in one tap rather than the binary picked/unpicked model
+   the other tabs use — user dials "5 kg apples" without going back to
+   the board to edit. Picked = stepper qty > 0. */
+.pv-wizard-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.pv-wizard-stepbtn {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: transparent;
+  border: 0.5px solid var(--d-border);
+  color: var(--d-muted);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+.pv-wizard-stepbtn:hover:not(:disabled) {
+  border-color: var(--d-orange);
+  color: var(--d-orange);
+}
+.pv-wizard-stepbtn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.pv-wizard-stepqty {
+  min-width: 18px;
+  text-align: center;
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--d-navy-deep);
+  font-variant-numeric: tabular-nums;
+}
+.pv-wizard-stepunit {
+  font-size: 10px;
+  color: var(--d-muted);
+  margin-left: 4px;
+}
+
 /* Two-button CTA footer (Add selected + Add all, suggestions only) */
 .pv-wizard-cta-footer-bar {
   display: flex;
