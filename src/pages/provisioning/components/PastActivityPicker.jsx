@@ -721,26 +721,47 @@ export default function PastActivityPicker({
         </>
       )}
 
-      {/* ── Catalogue tab (placeholder / deeplink stub) ──────────────── */}
+      {/* ── Catalogue tab (live iframe embed) ────────────────────────
+          Embeds provisions.cargotechnology.co.uk directly in the picker
+          column so the user can browse without leaving. Read-only for
+          now — selection / push-to-board integration is on a later
+          roadmap commit ("i dont want to link the two just yet"). The
+          catalogue site has its own auth; if the user isn't signed in
+          the iframe shows the catalogue's login wall. Escape link to
+          open in a full-width new tab when 340px feels cramped. If
+          the host serves X-Frame-Options: DENY the iframe shows
+          blank — fallback link still works in that case. */}
       {tab === 'catalogue' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 4 }}>
-          <p className="pv-wizard-context" style={{ margin: 0 }}>
-            Browse the Cargo Provisions catalogue and push selections back to this board.
-          </p>
-          <p className="pv-wizard-route-desc" style={{ margin: 0 }}>
-            Opens <strong>provisions.cargotechnology.co.uk</strong> in a new tab. The catalogue has
-            its own sign-in. Returning to this page with selections is on the integration roadmap —
-            the picker UI here will fill once the callback contract is agreed.
-          </p>
-          <a
-            href={CATALOGUE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="pv-wizard-btn pv-wizard-btn-primary"
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}
-          >
-            Open Cargo catalogue ↗
-          </a>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, gap: 6, paddingTop: 4 }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'baseline',
+            fontSize: 11,
+            color: 'var(--d-muted)',
+          }}>
+            <span>Cargo Provisions catalogue</span>
+            <a
+              href={CATALOGUE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: 'var(--d-orange)', textDecoration: 'none', fontWeight: 600 }}
+            >
+              Open in new tab ↗
+            </a>
+          </div>
+          <iframe
+            src={CATALOGUE_URL}
+            title="Cargo Provisions catalogue"
+            style={{
+              flex: 1,
+              width: '100%',
+              border: '0.5px solid var(--d-border)',
+              borderRadius: 8,
+              background: 'white',
+              minHeight: 0,
+            }}
+          />
         </div>
       )}
 
