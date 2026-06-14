@@ -901,6 +901,14 @@ const VesselSettings = () => {
                       disabled={viewMode || !canEdit}
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* Rota & HOR */}
+              <div className="bg-card border border-border rounded-lg p-6">
+                <h3 className="text-lg font-medium text-foreground mb-1">Rota &amp; HOR</h3>
+                <p className="text-sm text-muted-foreground mb-4">The rota day-start, and how MLC rest is recorded, confirmed and signed off.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1">Rota Day Start</label>
                     <Select
@@ -913,14 +921,6 @@ const VesselSettings = () => {
                       Start hour of the rota grid — and of the HOR day when the basis is “Operational”.
                     </p>
                   </div>
-                </div>
-              </div>
-
-              {/* Hours of Rest */}
-              <div className="bg-card border border-border rounded-lg p-6">
-                <h3 className="text-lg font-medium text-foreground mb-1">Hours of Rest</h3>
-                <p className="text-sm text-muted-foreground mb-4">How MLC rest is recorded, confirmed and signed off for this vessel.</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1">HOR Day Basis</label>
                     <Select
