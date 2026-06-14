@@ -99,8 +99,14 @@ export default function PastActivityPicker({
   const [selectedTemplateKey, setSelectedTemplateKey] = useState(null); // `saved:<id>` | `lib:<id>`
   const [selectedOrderId, setSelectedOrderId] = useState(null);
 
-  // UI state
+  // UI state — one search input per tab, scoped to the tab so switching
+  // doesn't blow the others' filter away. Each tab's search filters its
+  // own data source (boards titles, template titles, supplier names,
+  // suggestion item names).
   const [boardSearch, setBoardSearch] = useState('');
+  const [templateSearch, setTemplateSearch] = useState('');
+  const [orderSearch, setOrderSearch] = useState('');
+  const [suggestionSearch, setSuggestionSearch] = useState('');
   const [scaleQty, setScaleQty] = useState(true);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
@@ -292,15 +298,25 @@ export default function PastActivityPicker({
     return source.filter(b => b.title?.toLowerCase().includes(q));
   }, [boardsToggle, liveBoards, pastBoards, boardSearch]);
 
-  const visibleTemplates = useMemo(
-    () => [...userTemplates, ...libraryTemplates],
-    [userTemplates, libraryTemplates]
-  );
+  const visibleTemplates = useMemo(() => {
+    const all = [...userTemplates, ...libraryTemplates];
+    if (!templateSearch) return all;
+    const q = templateSearch.toLowerCase();
+    return all.filter(t =>
+      t.title?.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q)
+    );
+  }, [userTemplates, libraryTemplates, templateSearch]);
 
   const visibleOrders = useMemo(() => {
-    if (!favouritesOnly) return pastOrders;
-    return pastOrders.filter(o => favouriteOrderIds.has(o.id) || o.is_favourite);
-  }, [pastOrders, favouritesOnly, favouriteOrderIds]);
+    let list = favouritesOnly
+      ? pastOrders.filter(o => favouriteOrderIds.has(o.id) || o.is_favourite)
+      : pastOrders;
+    if (orderSearch) {
+      const q = orderSearch.toLowerCase();
+      list = list.filter(o => (o.supplier_name || '').toLowerCase().includes(q));
+    }
+    return list;
+  }, [pastOrders, favouritesOnly, favouriteOrderIds, orderSearch]);
 
   // ── Selection helpers ─────────────────────────────────────────────────
   const selectedBoard = selectedBoardId ? boards.find(b => b.id === selectedBoardId) : null;
@@ -470,15 +486,27 @@ export default function PastActivityPicker({
             >Templates</button>
           </div>
 
-          {/* Search (only meaningful on live/past) */}
-          {boardsToggle !== 'templates' && (
+          {/* Search — present on every Boards toggle position so the chrome
+              is consistent. Templates search filters both user-saved and
+              library entries by title/description; Live/Past filter by
+              board title. */}
+          {boardsToggle === 'templates' ? (
+            <input
+              type="text"
+              placeholder="Search templates…"
+              value={templateSearch}
+              onChange={e => setTemplateSearch(e.target.value)}
+              className="pv-wizard-input"
+              style={{ marginTop: 12 }}
+            />
+          ) : (
             <input
               type="text"
               placeholder={boardsToggle === 'live' ? 'Search live boards…' : 'Search past boards…'}
               value={boardSearch}
               onChange={e => setBoardSearch(e.target.value)}
               className="pv-wizard-input"
-              style={{ marginBottom: 10 }}
+              style={{ marginTop: 12 }}
             />
           )}
 
@@ -603,6 +631,15 @@ export default function PastActivityPicker({
             >Favourites</button>
           </div>
 
+          <input
+            type="text"
+            placeholder="Search supplier…"
+            value={orderSearch}
+            onChange={e => setOrderSearch(e.target.value)}
+            className="pv-wizard-input"
+            style={{ marginTop: 12 }}
+          />
+
           <div className="pv-wizard-list">
             {loading && <p className="pv-wizard-empty">Loading orders…</p>}
             {!loading && visibleOrders.length === 0 && (
@@ -682,6 +719,15 @@ export default function PastActivityPicker({
             </p>
           )}
 
+          <input
+            type="text"
+            placeholder="Search suggestions…"
+            value={suggestionSearch}
+            onChange={e => setSuggestionSearch(e.target.value)}
+            className="pv-wizard-input"
+            style={{ marginTop: 12 }}
+          />
+
           {suggestionsLoading && (
             <p className="pv-wizard-empty">Generating suggestions…</p>
           )}
@@ -694,14 +740,21 @@ export default function PastActivityPicker({
             <div className="pv-wizard-list">
               {Object.entries(suggestions || {}).map(([source, items]) => {
                 if (!items?.length) return null;
+                const filtered = suggestionSearch
+                  ? items.filter(i =>
+                      (i.name || '').toLowerCase().includes(suggestionSearch.toLowerCase()) ||
+                      (i.reason || '').toLowerCase().includes(suggestionSearch.toLowerCase())
+                    )
+                  : items;
+                if (!filtered.length) return null;
                 const meta = SOURCE_META[source] || { label: source };
                 return (
                   <React.Fragment key={source}>
                     <div className="pv-wizard-src-head">
                       <span className="pv-wizard-src-label">{meta.label}</span>
-                      <span className="pv-wizard-src-count">{items.length} item{items.length === 1 ? '' : 's'}</span>
+                      <span className="pv-wizard-src-count">{filtered.length} item{filtered.length === 1 ? '' : 's'}</span>
                     </div>
-                    {items.map(item => {
+                    {filtered.map(item => {
                       const isPicked = pickedSuggestionIds.has(item.id);
                       const signal = suggestionSignal(item);
                       return (

@@ -25,7 +25,16 @@ async function getGuestPreferenceSuggestions(tripId, vesselId) {
     const trip = await getTripById(tripId);
     if (!trip?.guests?.length) return [];
 
-    const guestIds = trip.guests.filter(g => g.isActive !== false).map(g => g.guestId).filter(Boolean);
+    // Prefer guests explicitly marked active; fall back to ALL linked
+    // guests if none are flagged. trip_guests.is_active_on_trip defaults
+    // to false in the storage layer, which used to silently empty the
+    // pool when a trip was freshly linked — the user clearly intends
+    // every linked guest to inform suggestions even if no-one's been
+    // toggled "active on trip" yet. Mirrors the wizard's own guest-count
+    // fallback (index.jsx NewBoardColumn).
+    const allGuestIds = trip.guests.map(g => g.guestId).filter(Boolean);
+    const activeGuestIds = trip.guests.filter(g => g.isActive).map(g => g.guestId).filter(Boolean);
+    const guestIds = activeGuestIds.length > 0 ? activeGuestIds : allGuestIds;
     if (!guestIds.length) return [];
 
     // Load guest details for names
