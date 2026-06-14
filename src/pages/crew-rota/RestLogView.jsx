@@ -130,7 +130,6 @@ function Cell({ cell, isToday, isFuture, onClick, ariaLabel }) {
   else if (cell.marginal) cls.push('is-marginal');
   if (isToday) cls.push('is-today-col');
   if (isFuture) cls.push('is-future');
-  if (cell.logged) cls.push('is-logged');
   return (
     <button type="button" className={cls.join(' ')} onClick={onClick} aria-label={ariaLabel}>
       {cell.isOff ? (
@@ -211,11 +210,7 @@ export default function RestLogView({
     ];
     return ordered.map((dept) => {
       const members = byDept.get(dept).map((c) => {
-        const cells = days.map((d) => {
-          const cell = computeCell(c.id, d, framedShifts);
-          cell.logged = loggedDays.has(`${c.id}|${d}`);
-          return cell;
-        });
+        const cells = days.map((d) => computeCell(c.id, d, framedShifts));
         return {
           id: c.id,
           userId: c.userId,
@@ -228,7 +223,7 @@ export default function RestLogView({
       });
       return { dept, color: byDept.get(dept)[0]?.departmentColor || '#5F5E5A', members };
     });
-  }, [crew, days, framedShifts, loggedDays]);
+  }, [crew, days, framedShifts]);
 
   // Land the scroll on today when it falls in the period, else the start.
   useEffect(() => {
@@ -256,9 +251,8 @@ export default function RestLogView({
     crewRoles: Object.fromEntries((crew || []).filter((c) => c.userId).map((c) => [c.userId, getRoleDisplayName(c.role)])),
     horDayStartHour: dayStartHour, // 0 = calendar; >0 = operational anchor
     basisLabel,
-    loggedNote: loggedDays.size ? 'Logged actual hours shown where recorded; otherwise as rostered' : '',
     generatedAt: new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }),
-  }), [vesselName, imoNumber, flagState, portOfRegistry, departmentName, periodLabel, period, crew, dayStartHour, basisLabel, loggedDays]);
+  }), [vesselName, imoNumber, flagState, portOfRegistry, departmentName, periodLabel, period, crew, dayStartHour, basisLabel]);
 
   // Planned breach days with no recorded reason yet — what a chief/command is
   // prompted to justify (and thereby sign off) at the rota stage.
@@ -385,7 +379,6 @@ export default function RestLogView({
           <span className="rl-legend-item"><span className="rl-sw rl-sw-ok" /> compliant</span>
           <span className="rl-legend-item"><span className="rl-sw rl-sw-marg" /> marginal (≤{MLC_DAILY_REST_MIN + 1}h)</span>
           <span className="rl-legend-item"><span className="rl-sw rl-sw-warn" /> below {MLC_DAILY_REST_MIN}h</span>
-          <span className="rl-legend-item"><span className="rl-sw rl-sw-logged" /> logged actual (else rostered)</span>
           <span className="rl-legend-item"><span className="rl-sw rl-sw-off" /> off · cell = rest hours</span>
         </div>
         <div className="rl-actions">

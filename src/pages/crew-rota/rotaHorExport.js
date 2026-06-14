@@ -244,7 +244,7 @@ function drawSummaryPage(doc, members, days, meta, logo) {
   if (meta.departmentName) subParts.push(meta.departmentName);
   subParts.push(meta.periodLabel);
   doc.text(subParts.join('  ·  '), 40, 55);
-  doc.text(`${STANDARD_REF}${meta.basisLabel ? `  ·  ${meta.basisLabel}.` : ''}${meta.loggedNote ? `  ·  ${meta.loggedNote}.` : ''}`, 40, 67, { maxWidth: pageW - 80 });
+  doc.text(`${STANDARD_REF}${meta.basisLabel ? `  ·  ${meta.basisLabel}.` : ''}`, 40, 67, { maxWidth: pageW - 80 });
   doc.text('Figures are HOURS OF REST per 24h (not hours worked). Shaded = below MLC minimum · * daily · # weekly.', 40, 84);
   doc.text(`Generated ${meta.generatedAt}`, pageW - 40, 40, { align: 'right' });
   doc.setTextColor(0);
@@ -359,7 +359,7 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(90);
-  doc.text(`${STANDARD_REF}${meta.basisLabel ? `  ·  ${meta.basisLabel}.` : ''}${meta.loggedNote ? `  ·  ${meta.loggedNote}.` : ''}`, M, 50, { maxWidth: pageW - 2 * M });
+  doc.text(`${STANDARD_REF}${meta.basisLabel ? `  ·  ${meta.basisLabel}.` : ''}`, M, 50, { maxWidth: pageW - 2 * M });
   doc.text(`Generated ${meta.generatedAt}`, pageW - M, 46, { align: 'right' });
 
   // ── Identity block (two columns) ──
