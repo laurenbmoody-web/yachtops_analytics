@@ -152,7 +152,7 @@ const NewBoardColumn = ({ trips, tenantId, userId, onCreated, onCancel }) => {
       <div className="pv-wizard pv-dashboard is-subview">
         <PastActivityPicker
           tenantId={tenantId}
-          tripId={selectedTrip?.supabaseId || null}
+          tripId={selectedTrip?.supabaseId || selectedTrip?.id || null}
           newGuestCount={guestCount}
           boardType={boardType}
           onUse={(items, source) => { setShowPast(false); triggerCreate(source || 'past', items); }}
