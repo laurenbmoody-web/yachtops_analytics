@@ -118,6 +118,7 @@ export default function RestLogView({
   portOfRegistry = null,
   periodLabel = '',
   departmentName = null,
+  breachReasons = {},
   onCellClick,
 }) {
   const wrapRef = useRef(null);
@@ -140,6 +141,7 @@ export default function RestLogView({
         const cells = days.map((d) => computeCell(c.id, d, windowShifts));
         return {
           id: c.id,
+          userId: c.userId,
           name: c.name,
           role: getRoleDisplayName(c.role),
           cells,
@@ -195,7 +197,7 @@ export default function RestLogView({
           <button
             type="button"
             className="crew-rota-pill"
-            onClick={() => exportRestLogPDF({ rows, days, meta, windowShifts })}
+            onClick={() => exportRestLogPDF({ rows, days, meta, windowShifts, breachReasons })}
             title="Export the MLC/IMO-ILO Record of Hours of Rest (PDF)"
           ><Download size={12} /> PDF</button>
         </div>

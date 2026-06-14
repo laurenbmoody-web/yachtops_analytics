@@ -271,6 +271,29 @@ export default function RotaWorkspace({
     return () => { alive = false; };
   }, [activeTenantId]);
 
+  // HOR breach reasons for the visible period — keyed `${userId}|${date}` so the
+  // Record-of-Rest export can show each non-conformity's recorded reason + sign-off.
+  const [breachReasons, setBreachReasons] = useState({});
+  const horFirstDay = hor.days?.[0];
+  const horLastDay = hor.days?.[hor.days.length - 1];
+  useEffect(() => {
+    if (view !== 'hor' || !activeTenantId || !horFirstDay || !horLastDay) return undefined;
+    let alive = true;
+    (async () => {
+      const { data, error } = await supabase
+        .from('hor_breach_reasons')
+        .select('subject_user_id, breach_date, note_text, signed_off_at')
+        .eq('tenant_id', activeTenantId)
+        .gte('breach_date', horFirstDay)
+        .lte('breach_date', horLastDay);
+      if (!alive || error || !data) return;
+      const map = {};
+      data.forEach((r) => { map[`${r.subject_user_id}|${r.breach_date}`] = r; });
+      setBreachReasons(map);
+    })();
+    return () => { alive = false; };
+  }, [view, activeTenantId, horFirstDay, horLastDay]);
+
   const departmentName = useMemo(
     () => (departmentId ? (departments.find((d) => d.id === departmentId)?.name || null) : null),
     [departmentId, departments],
@@ -729,6 +752,7 @@ export default function RotaWorkspace({
               portOfRegistry={vesselIdentity.portOfRegistry}
               periodLabel={hor.label}
               departmentName={departmentName}
+              breachReasons={breachReasons}
               onCellClick={(d) => { setSelectedDate(d); setView('grid'); }}
             />
           ) : crew.length === 0 ? (
