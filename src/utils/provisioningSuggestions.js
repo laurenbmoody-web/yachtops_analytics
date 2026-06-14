@@ -612,15 +612,45 @@ async function getOccasionsSuggestions(tripId, vesselId) {
 // provisioning board. Surfacing them here pollutes the picker with
 // forceps / splints / life-raft components.
 //
-// Match is case-insensitive against any of l1/l2/l3/l4 names. Adding
-// a pattern here automatically scopes the filter down the tree (e.g.
-// "Medical" catches "Medical Equipment", "Medical / First Aid", etc).
-const NON_PROVISIONING_TAXONOMY = /\b(Medical|First[ -]?Aid|Safety|Fire|Pyrotechnic|Life[ -]?Saving|Life[ -]?Raft|EEBD|MFAG|Spare[ -]?Parts|Engineering)\b/i;
+// Match is case-insensitive against the joined text of:
+//   • l1..l4 taxonomy names (when populated)
+//   • stock_locations[].locationName / location paths (often holds
+//     "Vessel > Medical > First Aid" for items with empty taxonomy)
+//   • the item name itself, as a last-resort heuristic for items with
+//     neither taxonomy nor location metadata (forceps/splint/etc.)
+//
+// Adding a pattern here automatically scopes the filter down the tree.
+const NON_PROVISIONING_TAXONOMY = /\b(Medical|First[ -]?Aid|Safety|Fire|Pyrotechnic|Life[ -]?Saving|Life[ -]?Raft|EEBD|MFAG|Spare[ -]?Parts|Engineering|Defibrillat|Sphygmo|Stethoscop)\b/i;
+
+// Item-name patterns that strongly suggest medical/safety equipment
+// even when taxonomy + location are blank. Conservative — only
+// patterns where false positives are very unlikely (e.g. don't match
+// "Scissors" alone since galley scissors exist; do match "splint",
+// "forceps", "clamp" prefixed by medical-context tokens).
+const MEDICAL_NAME_PATTERN = /\b(forceps|splint|gauze|bandage|tourniquet|suture|sphygmo|stethoscop|defibrillat|nebuliz|EpiPen|adrenalin|epinephrin|antiseptic|saline|tweezers\s+(?:medical|first[ -]aid))\b/i;
 
 function isProvisioningRelevant(item) {
   const tax = [item.l1_name, item.l2_name, item.l3_name, item.l4_name]
     .filter(Boolean).join(' / ');
-  return !NON_PROVISIONING_TAXONOMY.test(tax);
+  if (NON_PROVISIONING_TAXONOMY.test(tax)) return false;
+
+  // Location path — stock_locations is a JSONB array of
+  // { locationName, vesselLocationId, qty }. Pull the path text and
+  // run the same denylist. Items imported with empty taxonomy but
+  // filed under "Medical" / "Safety" still get caught here.
+  if (Array.isArray(item.stock_locations)) {
+    const paths = item.stock_locations
+      .map(sl => sl?.locationName || sl?.location_name || sl?.path || '')
+      .filter(Boolean).join(' / ');
+    if (paths && NON_PROVISIONING_TAXONOMY.test(paths)) return false;
+  }
+
+  // Item-name heuristic — only for items with empty taxonomy AND no
+  // location path. Conservative pattern set; bias toward false
+  // negatives (let a borderline item through) over false positives.
+  if (!tax && MEDICAL_NAME_PATTERN.test(item.name || '')) return false;
+
+  return true;
 }
 
 async function getExpiringSoonSuggestions(tripId, vesselId) {
@@ -637,7 +667,7 @@ async function getExpiringSoonSuggestions(tripId, vesselId) {
 
     const { data: items } = await supabase
       ?.from('inventory_items')
-      ?.select('id, name, unit, total_qty, l1_name, l2_name, l3_name, l4_name, usage_department, expiry_date')
+      ?.select('id, name, unit, total_qty, l1_name, l2_name, l3_name, l4_name, usage_department, expiry_date, stock_locations')
       ?.eq('tenant_id', vesselId)
       ?.not('expiry_date', 'is', null)
       ?.lte('expiry_date', cutoff.toISOString().slice(0, 10));
