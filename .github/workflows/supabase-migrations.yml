@@ -43,7 +43,19 @@ jobs:
         run: supabase link --project-ref "$PROJECT_ID"
 
       - name: Show pending migrations
+        continue-on-error: true # informational only — a flaky list must not block the apply
         run: supabase migration list
 
       - name: Apply migrations
-        run: supabase db push
+        # Retry: the pooler occasionally i/o-times-out on connect; db push is
+        # safe to re-attempt (already-applied migrations are skipped via history).
+        run: |
+          set -e
+          for i in 1 2 3; do
+            if supabase db push; then exit 0; fi
+            echo "::warning::db push attempt $i failed; retrying in 10s…"
+            sleep 10
+          done
+          echo "::error::db push failed after 3 attempts"
+          exit 1
+
