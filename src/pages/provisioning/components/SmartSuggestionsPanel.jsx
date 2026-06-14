@@ -5,7 +5,11 @@ import { SOURCE_META } from '../../../utils/provisioningSuggestions';
 
 const SmartSuggestionsPanel = ({ suggestions, onAdd, onAddAll, loading }) => {
   const [checkedIds, setCheckedIds] = useState(new Set());
-  const [expandedSources, setExpandedSources] = useState(new Set(['guest_preference', 'low_stock', 'location_aware']));
+  // Collapsed by default — with seven source groups (post-Occasions /
+  // Expiring-soon expansion) auto-expanding even three is a wall of
+  // rows on open. User taps the source they want; row count stays
+  // visible on the eyebrow so they know what's inside.
+  const [expandedSources, setExpandedSources] = useState(new Set());
 
   const allItems = Object.values(suggestions || {}).flat();
 
