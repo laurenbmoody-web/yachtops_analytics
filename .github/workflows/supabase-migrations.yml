@@ -18,6 +18,7 @@ on:
     branches: [main]
     paths:
       - 'supabase/migrations/**'
+  workflow_dispatch: {} # allow manual "Run workflow" from the Actions tab
 
 # Never let two migration pushes run at once.
 concurrency:
