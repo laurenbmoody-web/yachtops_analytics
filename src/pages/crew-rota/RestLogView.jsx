@@ -193,8 +193,8 @@ export default function RestLogView({
         if (breachReasons[`${m.userId}|${c.date}`]) return; // already explained
         const types = [];
         const labels = [];
-        if (c.dailyLow) { types.push('daily_rest_10h'); labels.push('Daily rest <10h'); }
-        if (c.weeklyLow) { types.push('weekly_rest_77h'); labels.push('Weekly rest <77h'); }
+        if (c.dailyLow) { types.push('daily_rest_10h'); labels.push('Daily'); }
+        if (c.weeklyLow) { types.push('weekly_rest_77h'); labels.push('Weekly'); }
         out.push({
           key: `${m.userId}|${c.date}`,
           userId: m.userId,
@@ -202,7 +202,7 @@ export default function RestLogView({
           role: m.role,
           date: c.date,
           dateLabel: parseLocal(c.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
-          breachLabel: labels.join(' · '),
+          breachLabel: labels.join(' + '),
           breachTypes: types,
         });
       });
