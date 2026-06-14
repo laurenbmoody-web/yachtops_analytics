@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cargo Reference — Crew profile · Personal Details · editorial options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1C1B3A; --ink-muted:#695880; --ink-tertiary:#8B8478;
+    --accent:#C65A1A; --accent-soft:#FAECE7; --accent-deep:#7A2E1E;
+    --paper:#F5F1EA; --paper-line:#E4DCCD; --paper-border:#DFD8CC;
+    --cool:#F8FAFC; --cool-card:#FFFFFF; --cool-line:#E6E8EF; --cool-border:#E5E7EB;
+    --serif:'DM Serif Display', Georgia, serif;
+    --sans:'Plus Jakarta Sans', system-ui, sans-serif;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:#EDEEF2; color:var(--ink); font-family:var(--sans); -webkit-font-smoothing:antialiased; }
+  .wrap{ max-width:1180px; margin:0 auto; padding:40px 28px 80px; }
+  .doc-eyebrow{ font-size:10px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:var(--accent); margin-bottom:10px; }
+  .doc-eyebrow .dot{ color:var(--accent); }
+  h1.doc-title{ font-family:var(--serif); font-weight:500; font-size:46px; line-height:1; letter-spacing:-1.2px; text-transform:uppercase; margin:0 0 14px; }
+  h1.doc-title em{ font-style:italic; font-weight:400; color:var(--accent); text-transform:none; }
+  .doc-intro{ font-size:14px; color:var(--ink-muted); max-width:680px; line-height:1.6; margin:0 0 8px; }
+  .doc-rule{ height:0.5px; background:var(--paper-border); margin:30px 0 44px; border:0; }
+
+  .opt-head{ display:flex; align-items:baseline; gap:14px; margin:0 0 6px; }
+  .opt-tag{ font-family:var(--serif); font-size:13px; font-style:italic; color:#fff; background:var(--ink); border-radius:999px; padding:3px 12px; letter-spacing:.3px; }
+  .opt-name{ font-family:var(--serif); font-size:26px; }
+  .opt-desc{ font-size:13px; color:var(--ink-muted); max-width:760px; line-height:1.6; margin:0 0 22px; }
+  .opt-block{ margin-bottom:58px; }
+
+  /* Shared screen frame */
+  .screen{ display:grid; grid-template-columns:230px 1fr; gap:22px; border-radius:20px; padding:22px; }
+  .screen.on-cool{ background:var(--cool); }
+  .screen.on-paper{ background:var(--paper); }
+
+  /* Nav rail (shared, lightly varied per option) */
+  .rail{ background:#fff; border:1px solid var(--cool-border); border-radius:18px; padding:16px 14px; height:max-content; }
+  .rail.paper{ background:#FBF8F2; border-color:var(--paper-border); }
+  .rail-eyebrow{ font-size:11px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:#9098B1; padding:0 12px; margin-bottom:12px; }
+  .nav-item{ display:flex; align-items:center; gap:10px; padding:11px 14px; border-radius:10px; font-size:13.5px; font-weight:500; color:var(--ink-muted); margin-bottom:2px; }
+  .nav-item .ic{ width:16px; height:16px; opacity:.7; }
+  .nav-item.active{ background:#262A53; color:#fff; box-shadow:inset 3px 0 0 0 var(--accent); }
+  .nav-item.active .ic{ opacity:1; }
+
+  /* ============ OPTION A — Crew Dossier ============ */
+  .a-panel{ background:#FBF8F2; border:1px solid var(--paper-border); border-radius:18px; padding:34px 38px 40px; }
+  .a-head{ display:flex; align-items:flex-end; justify-content:space-between; border-bottom:1.5px solid var(--ink); padding-bottom:14px; margin-bottom:30px; }
+  .a-head .grp{ font-size:10px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:var(--accent); margin-bottom:8px; }
+  .a-head h3{ font-family:var(--serif); font-size:30px; margin:0; line-height:1; }
+  .a-head .idx{ font-family:var(--serif); font-style:italic; font-size:15px; color:var(--ink-tertiary); }
+  .a-grid{ display:grid; grid-template-columns:1fr 1fr; column-gap:54px; row-gap:26px; }
+  .a-grid .full{ grid-column:1 / -1; }
+  .a-field{ border-bottom:1px solid var(--paper-line); padding-bottom:9px; }
+  .a-label{ font-size:9.5px; font-weight:600; letter-spacing:1.6px; text-transform:uppercase; color:var(--ink-tertiary); margin-bottom:7px; }
+  .a-value{ font-size:17px; color:var(--ink); font-weight:500; }
+  .a-value.empty{ font-family:var(--serif); font-style:italic; font-weight:400; color:#BDB4A4; font-size:16px; }
+  .a-hint{ font-size:11px; color:var(--ink-tertiary); margin-top:6px; font-style:italic; font-family:var(--serif); }
+
+  /* ============ OPTION B — Line Fieldsets ============ */
+  .b-panel{ background:#fff; border:1px solid var(--cool-border); border-radius:18px; padding:34px 38px 40px; box-shadow:0 2px 6px rgba(38,42,83,.04); }
+  .b-title{ font-family:var(--serif); font-size:30px; margin:0 0 4px; }
+  .b-sub{ font-size:13px; color:var(--ink-muted); margin:0 0 30px; }
+  .b-section{ margin-bottom:30px; }
+  .b-legend{ display:flex; align-items:center; gap:9px; margin-bottom:18px; }
+  .b-legend .dia{ color:var(--accent); font-size:11px; }
+  .b-legend span{ font-family:var(--serif); font-style:italic; font-size:18px; color:var(--ink); }
+  .b-legend .line{ flex:1; height:1px; background:var(--cool-line); }
+  .b-grid{ display:grid; grid-template-columns:1fr 1fr; column-gap:48px; row-gap:22px; }
+  .b-grid .full{ grid-column:1 / -1; }
+  .b-label{ font-size:10px; font-weight:600; letter-spacing:1.4px; text-transform:uppercase; color:var(--ink-muted); margin-bottom:8px; }
+  .b-input{ border:0; border-bottom:1.5px solid var(--paper-border); padding:6px 2px; font-size:16px; color:var(--ink); font-family:var(--sans); }
+  .b-input.filled{ font-weight:500; }
+  .b-input.focus{ border-bottom-color:var(--accent); }
+  .b-input.empty{ color:#B7BBC9; }
+  .b-input .caret{ float:right; color:var(--ink-tertiary); }
+
+  /* ============ OPTION C — Index Cards ============ */
+  .c-panel{ background:var(--cool); border:1px solid var(--cool-border); border-radius:18px; padding:30px 32px 36px; }
+  .c-top{ display:flex; align-items:center; gap:12px; margin-bottom:26px; }
+  .c-kicker{ font-size:10px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--accent); }
+  .c-title{ font-family:var(--serif); font-size:28px; margin:0; }
+  .c-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+  .c-grid .full{ grid-column:1 / -1; }
+  .c-card{ background:#fff; border:1px solid var(--cool-border); border-radius:13px; padding:14px 16px; }
+  .c-card.active{ border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .c-card.accent{ border-top:2px solid var(--accent); }
+  .c-label{ display:flex; align-items:center; justify-content:space-between; font-size:9.5px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase; color:var(--ink-tertiary); margin-bottom:8px; }
+  .c-label .req{ color:var(--accent); }
+  .c-val{ font-size:16px; color:var(--ink); font-weight:500; }
+  .c-val.empty{ font-family:var(--serif); font-style:italic; font-weight:400; color:#AEB4C2; }
+
+  .legend{ display:flex; gap:18px; flex-wrap:wrap; font-size:12px; color:var(--ink-muted); margin-top:14px; }
+  .legend b{ color:var(--ink); font-weight:600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="doc-eyebrow"><span class="dot">●</span>&nbsp; CARGO · CREW PROFILE · DESIGN OPTIONS</div>
+  <h1 class="doc-title">PERSONAL DETAILS<span>,</span> <em>three editorial cuts</em><span>.</span></h1>
+  <p class="doc-intro">Same data, the same navy/terracotta language we just shipped — three ways to lift the section out of the generic "grey filled boxes" look into the Cargo editorial vibe. The left rail stays as-is; only the content panel changes. Pick one (or mix: e.g. A's read view + B's edit inputs).</p>
+  <hr class="doc-rule">
+
+  <!-- ===================== OPTION A ===================== -->
+  <div class="opt-block">
+    <div class="opt-head"><span class="opt-tag">Option A</span><span class="opt-name">The Crew Dossier</span></div>
+    <p class="opt-desc">Warm paper ground. Reads like a printed crew file: tracked-caps labels, values set in ink, every field underscored by a hairline rule. Empty fields fall back to an italic serif placeholder rather than an empty box. Best "premium document" feel; quietest in edit mode (rules become inputs).</p>
+
+    <div class="screen on-paper">
+      <aside class="rail paper">
+        <div class="rail-eyebrow">Crew Member</div>
+        <div class="nav-item active"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg> Personal Details</div>
+        <div class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#695880" stroke-width="2"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.9a2 2 0 0 1-.4 2.1L8.1 9.9a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c1 .3 1.9.6 2.9.7a2 2 0 0 1 1.7 2z"/></svg> Emergency / Next of Kin</div>
+        <div class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#695880" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg> Banking</div>
+        <div class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#695880" stroke-width="2"><path d="M7 2v5M11 2v5M7 7c0 2 4 2 4 0"/><path d="M9 7v13"/></svg> Preferences</div>
+        <div class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#695880" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> Hours of Rest (HOR)</div>
+        <div class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#695880" stroke-width="2"><path d="M3 16l9-13 9 13M5 16a7 7 0 0 0 14 0"/></svg> Sea Time Tracker</div>
+        <div class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#695880" stroke-width="2"><path d="M3 12h4l2 6 4-12 2 6h6"/></svg> Status History</div>
+      </aside>
+
+      <section class="a-panel">
+        <div class="a-head">
+          <div>
+            <div class="grp">01 — Identity &amp; documents</div>
+            <h3>Personal Details</h3>
+          </div>
+          <div class="idx">Lauren Moody</div>
+        </div>
+        <div class="a-grid">
+          <div class="a-field"><div class="a-label">First Names</div><div class="a-value">Lauren</div></div>
+          <div class="a-field"><div class="a-label">Last Name</div><div class="a-value">Moody</div></div>
+          <div class="a-field"><div class="a-label">Date of Birth</div><div class="a-value empty">not on file</div></div>
+          <div class="a-field"><div class="a-label">Nationality</div><div class="a-value empty">not on file</div></div>
+          <div class="a-field"><div class="a-label">Passport Number</div><div class="a-value empty">not on file</div></div>
+          <div class="a-field"><div class="a-label">Passport Expiry</div><div class="a-value empty">not on file</div></div>
+          <div class="a-field"><div class="a-label">Phone Number</div><div class="a-value empty">not on file</div></div>
+          <div class="a-field"><div class="a-label">Email</div><div class="a-value">lauren.moody@hotmail.co.uk</div></div>
+          <div class="a-field full"><div class="a-label">Home Address</div><div class="a-value empty">not on file</div></div>
+          <div class="a-field"><div class="a-label">Allergies</div><div class="a-value empty">none recorded</div><div class="a-hint">Basic indicator only</div></div>
+          <div class="a-field"><div class="a-label">Medical Conditions</div><div class="a-value empty">none recorded</div><div class="a-hint">Any relevant conditions</div></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ===================== OPTION B ===================== -->
+  <div class="opt-block">
+    <div class="opt-head"><span class="opt-tag">Option B</span><span class="opt-name">Line Fieldsets</span></div>
+    <p class="opt-desc">Cool white card on the navy ground we shipped. Fields are grouped into italic-serif sub-sections (Identity · Travel documents · Contact · Health) with a terracotta diamond marker and a trailing hairline. Inputs are underline-only, not boxed — they go terracotta on focus. Most "form-friendly": looks identical in read and edit.</p>
+
+    <div class="screen on-cool">
+      <aside class="rail">
+        <div class="rail-eyebrow">Crew Member</div>
+        <div class="nav-item active"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg> Personal Details</div>
+        <div class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#695880" stroke-width="2"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.9a2 2 0 0 1-.4 2.1L8.1 9.9a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c1 .3 1.9.6 2.9.7a2 2 0 0 1 1.7 2z"/></svg> Emergency / Next of Kin</div>
+        <div class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#695880" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg> Banking</div>
+        <div class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#695880" stroke-width="2"><path d="M7 2v5M11 2v5M7 7c0 2 4 2 4 0"/><path d="M9 7v13"/></svg> Preferences</div>
+        <div class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#695880" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> Hours of Rest (HOR)</div>
+        <div class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#695880" stroke-width="2"><path d="M3 16l9-13 9 13M5 16a7 7 0 0 0 14 0"/></svg> Sea Time Tracker</div>
+        <div class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#695880" stroke-width="2"><path d="M3 12h4l2 6 4-12 2 6h6"/></svg> Status History</div>
+      </aside>
+
+      <section class="b-panel">
+        <h3 class="b-title">Personal Details</h3>
+        <p class="b-sub">Identity, travel documents and the basics we hold on file.</p>
+
+        <div class="b-section">
+          <div class="b-legend"><span class="dia">◆</span><span>Identity</span><span class="line"></span></div>
+          <div class="b-grid">
+            <div><div class="b-label">First Names</div><div class="b-input filled">Lauren</div></div>
+            <div><div class="b-label">Last Name</div><div class="b-input filled">Moody</div></div>
+            <div><div class="b-label">Date of Birth</div><div class="b-input empty">mm / dd / yyyy</div></div>
+            <div><div class="b-label">Nationality</div><div class="b-input empty">Select nationality <span class="caret">⌄</span></div></div>
+          </div>
+        </div>
+
+        <div class="b-section">
+          <div class="b-legend"><span class="dia">◆</span><span>Travel documents</span><span class="line"></span></div>
+          <div class="b-grid">
+            <div><div class="b-label">Passport Number</div><div class="b-input empty">—</div></div>
+            <div><div class="b-label">Passport Expiry</div><div class="b-input empty">mm / dd / yyyy</div></div>
+          </div>
+        </div>
+
+        <div class="b-section">
+          <div class="b-legend"><span class="dia">◆</span><span>Contact</span><span class="line"></span></div>
+          <div class="b-grid">
+            <div><div class="b-label">Phone Number</div><div class="b-input empty">—</div></div>
+            <div><div class="b-label">Email</div><div class="b-input filled focus">lauren.moody@hotmail.co.uk</div></div>
+            <div class="full"><div class="b-label">Home Address</div><div class="b-input empty">—</div></div>
+          </div>
+        </div>
+
+        <div class="b-section" style="margin-bottom:0">
+          <div class="b-legend"><span class="dia">◆</span><span>Health</span><span class="line"></span></div>
+          <div class="b-grid">
+            <div><div class="b-label">Allergies</div><div class="b-input empty">Basic indicator only</div></div>
+            <div><div class="b-label">Medical Conditions</div><div class="b-input empty">Any relevant conditions</div></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ===================== OPTION C ===================== -->
+  <div class="opt-block">
+    <div class="opt-head"><span class="opt-tag">Option C</span><span class="opt-name">Index Cards</span></div>
+    <p class="opt-desc">Each field is its own soft card on the cool ground. Caps label top-left, value below; required fields get a terracotta tick, the focused field gets a terracotta ring + soft halo. The most modern/scannable; reads well on tablet. Slightly busier than A/B — good if you want fields to feel tappable.</p>
+
+    <div class="screen on-cool">
+      <aside class="rail">
+        <div class="rail-eyebrow">Crew Member</div>
+        <div class="nav-item active"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg> Personal Details</div>
+        <div class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#695880" stroke-width="2"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.9a2 2 0 0 1-.4 2.1L8.1 9.9a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c1 .3 1.9.6 2.9.7a2 2 0 0 1 1.7 2z"/></svg> Emergency / Next of Kin</div>
+        <div class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#695880" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg> Banking</div>
+        <div class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#695880" stroke-width="2"><path d="M7 2v5M11 2v5M7 7c0 2 4 2 4 0"/><path d="M9 7v13"/></svg> Preferences</div>
+        <div class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#695880" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> Hours of Rest (HOR)</div>
+        <div class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#695880" stroke-width="2"><path d="M3 16l9-13 9 13M5 16a7 7 0 0 0 14 0"/></svg> Sea Time Tracker</div>
+        <div class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#695880" stroke-width="2"><path d="M3 12h4l2 6 4-12 2 6h6"/></svg> Status History</div>
+      </aside>
+
+      <section class="c-panel">
+        <div class="c-top">
+          <span class="c-kicker">01 / Identity</span>
+          <h3 class="c-title">Personal Details</h3>
+        </div>
+        <div class="c-grid">
+          <div class="c-card accent"><div class="c-label">First Names <span class="req">●</span></div><div class="c-val">Lauren</div></div>
+          <div class="c-card accent"><div class="c-label">Last Name <span class="req">●</span></div><div class="c-val">Moody</div></div>
+          <div class="c-card"><div class="c-label">Date of Birth</div><div class="c-val empty">mm / dd / yyyy</div></div>
+          <div class="c-card"><div class="c-label">Nationality</div><div class="c-val empty">Select nationality</div></div>
+          <div class="c-card"><div class="c-label">Passport Number</div><div class="c-val empty">—</div></div>
+          <div class="c-card"><div class="c-label">Passport Expiry</div><div class="c-val empty">mm / dd / yyyy</div></div>
+          <div class="c-card"><div class="c-label">Phone Number</div><div class="c-val empty">—</div></div>
+          <div class="c-card active"><div class="c-label">Email <span class="req">●</span></div><div class="c-val">lauren.moody@hotmail.co.uk</div></div>
+          <div class="c-card full"><div class="c-label">Home Address</div><div class="c-val empty">—</div></div>
+          <div class="c-card"><div class="c-label">Allergies</div><div class="c-val empty">Basic indicator only</div></div>
+          <div class="c-card"><div class="c-label">Medical Conditions</div><div class="c-val empty">Any relevant conditions</div></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="legend">
+      <span><b>Tokens used —</b> ink #1C1B3A · muted #695880 · terracotta #C65A1A · soft #FAECE7 · paper #F5F1EA · cool #F8FAFC</span>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
