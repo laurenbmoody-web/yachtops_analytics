@@ -225,7 +225,7 @@ export default function RotaWorkspace({
   // MLC rest math is calendar-day based and unaffected by this.
   const [gridStartHour, setGridStartHour] = useState(DEFAULT_GRID_START_HOUR);
   const [horDayBasis, setHorDayBasis] = useState('calendar');
-  const [horApproverTier, setHorApproverTier] = useState('COMMAND');
+  const [horApproverTier, setHorApproverTier] = useState('CHIEF');
   const [vesselName, setVesselName] = useState(null);
   // Vessel identity for the MLC/IMO-ILO Record of Hours of Rest header. These
   // live on `tenants` (single vessel per tenant), not on `vessels`.
@@ -253,7 +253,7 @@ export default function RotaWorkspace({
       if (!alive) return;
       setGridStartHour(veRes.data?.operational_day_start_hour ?? DEFAULT_GRID_START_HOUR);
       setHorDayBasis(veRes.data?.hor_day_basis || 'calendar');
-      setHorApproverTier(veRes.data?.hor_approver_tier || 'COMMAND');
+      setHorApproverTier(veRes.data?.hor_approver_tier || 'CHIEF');
       setVesselName(veRes.data?.name ?? null);
       setVesselIdentity({
         imoNumber: viRes.data?.imo_number ?? tnRes.data?.imo_number ?? null,
