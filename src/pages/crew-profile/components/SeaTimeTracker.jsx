@@ -203,7 +203,7 @@ const SeaTimeTracker = ({ userId, currentUser }) => {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Non-qualifying:</span>
-                    <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                    <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">
                       {progressData?.nonQualifyingOnboard} days
                     </span>
                   </div>
@@ -309,7 +309,7 @@ const SeaTimeTracker = ({ userId, currentUser }) => {
                           {format(new Date(log.toDateTime), 'dd MMM yyyy HH:mm')}
                         </td>
                         <td className="py-3 px-4">
-                          <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-blue-500/20 text-blue-700 dark:text-blue-400">
+                          <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-indigo-500/20 text-indigo-700 dark:text-indigo-400">
                             {log?.status}
                           </span>
                         </td>
@@ -378,7 +378,7 @@ const SeaTimeTracker = ({ userId, currentUser }) => {
                             {crew?.status}
                           </span>
                           {crew?.watchEligible && (
-                            <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-blue-500/20 text-blue-700 dark:text-blue-400">
+                            <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-indigo-500/20 text-indigo-700 dark:text-indigo-400">
                               Watch Eligible
                             </span>
                           )}

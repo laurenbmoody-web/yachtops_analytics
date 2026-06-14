@@ -196,8 +196,8 @@ const ExportAuditModal = ({ isOpen, onClose, currentMonth, crewList }) => {
                 {generatedFiles?.map((file, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center gap-3 flex-1">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <Icon name="FileText" size={20} className="text-blue-600" />
+                      <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                        <Icon name="FileText" size={20} className="text-indigo-600" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">{file?.fileName}</p>

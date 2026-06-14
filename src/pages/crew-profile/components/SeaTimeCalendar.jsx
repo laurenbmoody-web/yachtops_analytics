@@ -33,7 +33,7 @@ const SeaTimeCalendar = ({ userId, currentMonth, onMonthChange, onDateSelect, ca
       case 'white':
         return 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300';
       case 'blue-striped':
-        return 'bg-blue-500/10 border-blue-500 text-blue-700 dark:text-blue-400 bg-stripes';
+        return 'bg-indigo-500/10 border-indigo-500 text-indigo-700 dark:text-indigo-400 bg-stripes';
       default:
         return 'bg-card border-border text-muted-foreground';
     }
@@ -140,7 +140,7 @@ const SeaTimeCalendar = ({ userId, currentMonth, onMonthChange, onDateSelect, ca
             <span className="text-muted-foreground">Manual Entry</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-blue-500/10 border-2 border-blue-500 bg-stripes"></div>
+            <div className="w-4 h-4 rounded bg-indigo-500/10 border-2 border-indigo-500 bg-stripes"></div>
             <span className="text-muted-foreground">Not Qualifying</span>
           </div>
         </div>
@@ -151,8 +151,8 @@ const SeaTimeCalendar = ({ userId, currentMonth, onMonthChange, onDateSelect, ca
             45deg,
             transparent,
             transparent 4px,
-            rgba(59, 130, 246, 0.1) 4px,
-            rgba(59, 130, 246, 0.1) 8px
+            rgba(99, 102, 241, 0.12) 4px,
+            rgba(99, 102, 241, 0.12) 8px
           );
         }
       `}</style>

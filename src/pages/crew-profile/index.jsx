@@ -25,6 +25,7 @@ import SeaTimeTracker from './components/SeaTimeTracker';
 import { supabase } from '../../lib/supabaseClient';
 import { useTenant } from '../../contexts/TenantContext';
 import { useAuth } from '../../contexts/AuthContext';
+import './crew-profile.css';
 
 
 
@@ -105,6 +106,14 @@ const CrewProfile = () => {
   useEffect(() => {
     // Authentication is handled by AuthContext and ProtectedRoute
     // No need to check getCurrentUser() here
+  }, []);
+
+  // Editorial navy/terracotta skin. Toggled on <body> (not the page
+  // wrapper) so the override reaches the HOR / Sea-Time modals and
+  // drawers, which portal to document.body via ModalShell.
+  useEffect(() => {
+    document.body.classList.add('crew-profile-editorial');
+    return () => document.body.classList.remove('crew-profile-editorial');
   }, []);
 
   // Load crew member data from Supabase
@@ -844,7 +853,7 @@ const canEdit = (() => {
             
             {/* Crew Info */}
             <div>
-              <h2 className="text-3xl font-semibold text-foreground mb-2">
+              <h2 className="crew-profile-name text-3xl font-semibold text-foreground mb-2">
                 {crewMember?.fullName}
               </h2>
               <div className="flex flex-wrap gap-3 mb-2">
@@ -1334,8 +1343,8 @@ const canEdit = (() => {
         </div>
 
         {/* Security Notice */}
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mt-6">
-          <p className="text-sm text-blue-900 dark:text-blue-300 flex items-start gap-2">
+        <div className="bg-[#EEF0F4] dark:bg-[#262A53]/30 border border-[#D9DCE8] dark:border-[#3A3F6B] rounded-lg p-4 mt-6">
+          <p className="text-sm text-[#262A53] dark:text-[#B9BDDD] flex items-start gap-2">
             <Icon name="Lock" size={16} className="flex-shrink-0 mt-0.5" />
             <span>Banking information is encrypted and visible only to authorised personnel.</span>
           </p>
@@ -1790,7 +1799,7 @@ const canEdit = (() => {
                 <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-semibold ${
                   dbStatus === 'locked' ? 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400' :
                   dbStatus === 'confirmed' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
-                  dbStatus === 'submitted' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
+                  dbStatus === 'submitted' ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300' :
                   'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
                 }`}>
                   {dbStatusLabel}
@@ -2261,7 +2270,7 @@ const canEdit = (() => {
 
       {/* Loading State */}
       {!authLoading && session?.user && !profileLoading && !profileError && crewMember && (
-        <main className="p-6 max-w-[1800px] mx-auto">
+        <main className="crew-profile-page p-6 max-w-[1800px] mx-auto">
           {/* Hidden File Input for Avatar Upload */}
           <input
             ref={fileInputRef}
@@ -2287,6 +2296,7 @@ const canEdit = (() => {
           <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr] gap-6">
             {/* Left Navigation */}
             <div className="bg-card border border-border rounded-2xl p-4">
+              <p className="crew-nav-eyebrow px-4 mb-3">Crew Member</p>
               <nav className="space-y-1">
                 {navigationSections?.map(section => (
                   <button
@@ -2297,7 +2307,7 @@ const canEdit = (() => {
                     }}
                     className={`w-full flex items-start gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-smooth text-left ${
                       activeSection === section?.key
-                        ? 'bg-primary text-primary-foreground'
+                        ? 'crew-nav-active bg-primary text-primary-foreground'
                         : 'text-muted-foreground hover:bg-accent hover:text-foreground'
                     }`}
                   >
