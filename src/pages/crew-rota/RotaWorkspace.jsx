@@ -274,6 +274,7 @@ export default function RotaWorkspace({
   // HOR breach reasons for the visible period — keyed `${userId}|${date}` so the
   // Record-of-Rest export can show each non-conformity's recorded reason + sign-off.
   const [breachReasons, setBreachReasons] = useState({});
+  const [reasonsNonce, setReasonsNonce] = useState(0);
   const horFirstDay = hor.days?.[0];
   const horLastDay = hor.days?.[hor.days.length - 1];
   useEffect(() => {
@@ -292,7 +293,7 @@ export default function RotaWorkspace({
       setBreachReasons(map);
     })();
     return () => { alive = false; };
-  }, [view, activeTenantId, horFirstDay, horLastDay]);
+  }, [view, activeTenantId, horFirstDay, horLastDay, reasonsNonce]);
 
   const departmentName = useMemo(
     () => (departmentId ? (departments.find((d) => d.id === departmentId)?.name || null) : null),
@@ -753,6 +754,9 @@ export default function RotaWorkspace({
               periodLabel={hor.label}
               departmentName={departmentName}
               breachReasons={breachReasons}
+              tenantId={activeTenantId}
+              canSignOff={tier === 'CHIEF' || tier === 'COMMAND'}
+              onReasonsSaved={() => setReasonsNonce((n) => n + 1)}
               onCellClick={(d) => { setSelectedDate(d); setView('grid'); }}
             />
           ) : crew.length === 0 ? (
