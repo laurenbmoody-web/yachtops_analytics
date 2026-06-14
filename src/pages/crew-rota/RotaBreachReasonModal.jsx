@@ -71,13 +71,14 @@ export default function RotaBreachReasonModal({ isOpen, onClose, tenantId, breac
     }));
     setSaving(false);
     const failed = results.filter((r) => r.status === 'rejected');
-    // Refresh either way so any rows that DID save drop off the banner.
-    onSaved?.();
     if (failed.length) {
+      onSaved?.(); // refetch only — do NOT optimistically clear rows that didn't save
       const msg = failed[0].reason?.message || String(failed[0].reason) || 'Unknown error.';
       setError(`Couldn’t save ${failed.length} of ${targets.length} — ${msg}`);
       return; // keep the modal open so the reason isn't lost and they can retry
     }
+    // All saved — hand the entries up so the banner/list update instantly.
+    onSaved?.(targets.map((b) => ({ userId: b.userId, date: b.date, note: notes[b.key].trim() })));
     onClose?.();
   };
 

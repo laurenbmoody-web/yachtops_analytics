@@ -289,11 +289,33 @@ export default function RotaWorkspace({
         .lte('breach_date', horLastDay);
       if (!alive || error || !data) return;
       const map = {};
-      data.forEach((r) => { map[`${r.subject_user_id}|${r.breach_date}`] = r; });
-      setBreachReasons(map);
+      data.forEach((r) => { map[`${r.subject_user_id}|${String(r.breach_date).slice(0, 10)}`] = r; });
+      // Merge (don't replace) so a just-saved optimistic entry is never clobbered
+      // by a read that round-tripped the date/uuid in a slightly different shape.
+      setBreachReasons((prev) => ({ ...prev, ...map }));
     })();
     return () => { alive = false; };
   }, [view, activeTenantId, horFirstDay, horLastDay, reasonsNonce]);
+
+  // After the modal saves, fold the reasons straight into state keyed exactly as
+  // the breach exclusion reads them (`${userId}|${date}`) — so the banner/list
+  // update instantly and deterministically — then bump the nonce to reconcile
+  // with the DB.
+  const handleReasonsSaved = useCallback((saved) => {
+    if (Array.isArray(saved) && saved.length) {
+      setBreachReasons((prev) => {
+        const next = { ...prev };
+        saved.forEach((s) => {
+          next[`${s.userId}|${s.date}`] = {
+            subject_user_id: s.userId, breach_date: s.date,
+            note_text: s.note, signed_off_at: new Date().toISOString(),
+          };
+        });
+        return next;
+      });
+    }
+    setReasonsNonce((n) => n + 1);
+  }, []);
 
   const departmentName = useMemo(
     () => (departmentId ? (departments.find((d) => d.id === departmentId)?.name || null) : null),
@@ -756,7 +778,7 @@ export default function RotaWorkspace({
               breachReasons={breachReasons}
               tenantId={activeTenantId}
               canSignOff={tier === 'CHIEF' || tier === 'COMMAND'}
-              onReasonsSaved={() => setReasonsNonce((n) => n + 1)}
+              onReasonsSaved={handleReasonsSaved}
               onCellClick={(d) => { setSelectedDate(d); setView('grid'); }}
             />
           ) : crew.length === 0 ? (
