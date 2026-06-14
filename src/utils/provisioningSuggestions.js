@@ -42,6 +42,20 @@ const META_VALUE_PATTERN = /^(Allergy|Intolerance|once_per_day|fill with|tall gl
 const META_VALUE_CONTAINS = /(Frequency:|Milk:|\|)/i;
 const SERVE_STYLE_VALUE   = /^(Rare|Medium|Medium rare|Well done|Iced|Hot|Cold)$/i;
 
+// Split a multi-item pref value into its constituent items.
+// Guests often enter several drinks/wines/spirits as a single comma-
+// separated string ("Vodka, Aperol, Gin" / "Tignanello, Super Tuscans")
+// and each should surface as its own suggestion line. Don't split
+// metadata values — those use commas as part of the config blob.
+function splitMultiValue(value) {
+  if (!value) return [];
+  if (META_VALUE_PATTERN.test(value) || META_VALUE_CONTAINS.test(value)) return [value];
+  return value
+    .split(/\s*,\s*|\s*&\s*|\s+and\s+/i)
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
 // Translate a (preference key, value) pair into a stockable item shape.
 // Returns null when the pair doesn't describe a buy item — e.g. a coffee
 // preparation instruction like "Iced americano" with key "Coffee" still
@@ -173,27 +187,37 @@ async function getGuestPreferenceSuggestions(tripId, vesselId) {
       //    stored under Food & Beverage.
       if (NON_ITEM_KEYS.has(pref.key)) return;
 
-      // 4. Translate to a buy item shape — if no mapping, skip rather
-      //    than dump raw values like "Rare" or "Iced americano".
-      const item = prefToBuyItem(pref);
-      if (!item) return;
+      // 4. Split multi-item values into separate buy lines.
+      //    "Vodka, Aperol, Gin" becomes three suggestions, one per
+      //    spirit, not one row labelled with the whole string. Empty
+      //    value falls through as a single iteration so generic prefs
+      //    (Wine / Tea without a specific brand) still surface.
+      const valueParts = splitMultiValue(pref.value);
+      const iterValues = valueParts.length > 0 ? valueParts : [pref.value || ''];
 
-      const guest = guestMap[pref.guest_id];
-      const guestName = guest ? `${guest.first_name} ${guest.last_name}` : 'Guest';
-      const itemKey = item.name.toLowerCase().trim();
+      iterValues.forEach(singleValue => {
+        // 5. Translate to a buy item shape — if no mapping, skip rather
+        //    than dump raw values like "Rare" or "Iced americano".
+        const item = prefToBuyItem({ ...pref, value: singleValue });
+        if (!item) return;
 
-      const existing = itemBuckets.get(itemKey);
-      if (existing) {
-        existing.guests.add(guestName);
-        // Promote priority if anyone marks it required.
-        if (pref.pref_type === 'requirement') existing.priority = 'high';
-      } else {
-        itemBuckets.set(itemKey, {
-          item,
-          guests: new Set([guestName]),
-          priority: pref.pref_type === 'requirement' ? 'high' : 'normal',
-        });
-      }
+        const guest = guestMap[pref.guest_id];
+        const guestName = guest ? `${guest.first_name} ${guest.last_name}` : 'Guest';
+        const itemKey = item.name.toLowerCase().trim();
+
+        const existing = itemBuckets.get(itemKey);
+        if (existing) {
+          existing.guests.add(guestName);
+          // Promote priority if anyone marks it required.
+          if (pref.pref_type === 'requirement') existing.priority = 'high';
+        } else {
+          itemBuckets.set(itemKey, {
+            item,
+            guests: new Set([guestName]),
+            priority: pref.pref_type === 'requirement' ? 'high' : 'normal',
+          });
+        }
+      });
     });
 
     itemBuckets.forEach(({ item, guests, priority }, key) => {
