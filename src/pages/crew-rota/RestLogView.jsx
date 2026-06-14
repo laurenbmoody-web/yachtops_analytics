@@ -193,8 +193,9 @@ export default function RestLogView({
     departmentName,
     periodLabel,
     period,
-    // userId -> display name, so the PDF can attribute each recorded reason.
+    // userId -> name / role, so the PDF can attribute each recorded reason.
     crewNames: Object.fromEntries((crew || []).filter((c) => c.userId).map((c) => [c.userId, c.name])),
+    crewRoles: Object.fromEntries((crew || []).filter((c) => c.userId).map((c) => [c.userId, getRoleDisplayName(c.role)])),
     horDayStartHour: dayStartHour, // 0 = calendar; >0 = operational anchor
     basisLabel,
     generatedAt: new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }),
