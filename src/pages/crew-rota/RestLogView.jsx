@@ -89,7 +89,7 @@ function DayHeader({ dateStr, index, isToday }) {
   );
 }
 
-function Cell({ cell, isToday, onClick, ariaLabel }) {
+function Cell({ cell, isToday, isFuture, onClick, ariaLabel }) {
   const weekend = isWeekend(cell.date);
   const cls = ['rl-c'];
   if (cell.isOff) cls.push('off'); else cls.push('f');
@@ -97,6 +97,7 @@ function Cell({ cell, isToday, onClick, ariaLabel }) {
   if (cell.dailyLow) cls.push('is-warn');
   else if (cell.marginal) cls.push('is-marginal');
   if (isToday) cls.push('is-today-col');
+  if (isFuture) cls.push('is-future');
   return (
     <button type="button" className={cls.join(' ')} onClick={onClick} aria-label={ariaLabel}>
       {cell.isOff ? (
@@ -248,6 +249,37 @@ export default function RestLogView({
     };
   }, [rows]);
 
+  // Exports are the signed RECORD: for an in-progress period, clamp to today so
+  // we never assert not-yet-elapsed (still editable) days as fact. Past periods
+  // export whole. Tallies + period label follow the clamp.
+  const buildExport = () => {
+    const ed = realToday ? days.filter((d) => d <= realToday) : days;
+    const clamped = ed.length < days.length;
+    const er = clamped
+      ? rows.map((r) => ({
+        ...r,
+        members: r.members.map((m) => {
+          const cells = m.cells.filter((c) => c.date <= realToday);
+          return {
+            ...m,
+            cells,
+            dailyBreachDays: cells.filter((x) => x.dailyLow).length,
+            weeklyBreachDays: cells.filter((x) => x.weeklyLow).length,
+          };
+        }),
+      }))
+      : rows;
+    const label = (clamped && ed.length)
+      ? `${periodLabel} (to ${parseLocal(ed[ed.length - 1]).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })})`
+      : periodLabel;
+    return { days: ed, rows: er, meta: { ...meta, periodLabel: label }, empty: ed.length === 0 };
+  };
+  const runExport = (fn) => {
+    const e = buildExport();
+    if (e.empty) { window.alert('This period hasn’t started yet — there’s nothing to record.'); return; }
+    fn(e);
+  };
+
   if (days.length === 0) return null;
 
   return (
@@ -302,13 +334,13 @@ export default function RestLogView({
           <button
             type="button"
             className="crew-rota-pill"
-            onClick={() => exportRestLogCSV({ rows, days, meta })}
+            onClick={() => runExport((e) => exportRestLogCSV({ rows: e.rows, days: e.days, meta: e.meta }))}
             title="Export the log as a CSV (spreadsheet)"
           ><Download size={12} /> CSV</button>
           <button
             type="button"
             className="crew-rota-pill"
-            onClick={() => exportRestLogPDF({ rows, days, meta, windowShifts, breachReasons })}
+            onClick={() => runExport((e) => exportRestLogPDF({ rows: e.rows, days: e.days, meta: e.meta, windowShifts, breachReasons }))}
             title="Export the MLC/IMO-ILO Record of Hours of Rest (PDF)"
           ><Download size={12} /> PDF</button>
         </div>
@@ -354,8 +386,9 @@ export default function RestLogView({
                           key={c.date}
                           cell={c}
                           isToday={c.date === realToday}
+                          isFuture={realToday ? c.date > realToday : false}
                           onClick={() => onCellClick?.(c.date)}
-                          ariaLabel={`${m.name} on ${c.date}: ${c.isOff ? 'off duty' : `${fmtRest(c.rest24h)} rest`}`}
+                          ariaLabel={`${m.name} on ${c.date}: ${c.isOff ? 'off duty' : `${fmtRest(c.rest24h)} rest`}${realToday && c.date > realToday ? ' (planned)' : ''}`}
                         />
                       ))}
                       <div className={`rl-sum${totalBreaches > 0 ? ' has-breach' : ''}`}>
