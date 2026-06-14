@@ -7,6 +7,7 @@ import {
   fetchTemplates,
 } from '../utils/provisioningStorage';
 import { TEMPLATES } from '../data/templates';
+import { DATA as CATALOGUE_DATA, GROUP_DEPARTMENT as CATALOGUE_GROUP_DEPT, slug as catalogueSlug } from '../../../data/catalogue';
 import { getSmartSuggestions, SOURCE_META } from '../../../utils/provisioningSuggestions';
 
 // ── PastActivityPicker — the unified "Build from..." picker ────────────────
@@ -53,7 +54,6 @@ import { getSmartSuggestions, SOURCE_META } from '../../../utils/provisioningSug
 //                          so the parent records provenance
 //   onBack         — called when user clicks ← Back
 
-const CATALOGUE_URL = 'https://provisions.cargotechnology.co.uk/';
 const RECENT_DAYS = 60; // boards modified within this window count as "Live"
 
 // Render order for the source groups. Sources with rare / actionable
@@ -142,6 +142,16 @@ export default function PastActivityPicker({
   // Multi-select inside the Suggestions tab — Set of suggestion ids the
   // user has ticked. Cleared on apply / tab change.
   const [pickedSuggestionIds, setPickedSuggestionIds] = useState(new Set());
+  // Catalogue tab — group filter + search + per-category collapse + picked
+  // items. Group key is the uppercase group label from catalogue.js
+  // ("FRESH", "DRINKS"…). 'all' shows every group.
+  const [catalogueGroup, setCatalogueGroup] = useState('all');
+  const [catalogueSearch, setCatalogueSearch] = useState('');
+  const [expandedCatalogueCategories, setExpandedCatalogueCategories] = useState(new Set());
+  // Picked items keyed by `${groupLabel}::${categoryName}::${itemName}`
+  // so duplicates across categories (e.g. "Sweetcorn" in FRESH and FROZEN)
+  // can both be picked independently and distinguished on apply.
+  const [pickedCatalogueKeys, setPickedCatalogueKeys] = useState(new Set());
   // Per-source expand/collapse state. Defaults to the high-signal
   // sources expanded; routine sources collapsed. User can toggle each,
   // or use the "Expand all"/"Collapse all" header link.
@@ -206,6 +216,8 @@ export default function PastActivityPicker({
     setSelectedTemplateKey(null);
     setSelectedOrderId(null);
     setPickedSuggestionIds(new Set());
+    setPickedCatalogueKeys(new Set());
+    setExpandedCatalogueCategories(new Set());
   }, [tab, boardsToggle]);
 
   // Lazy-load smart suggestions on first Suggestions-tab activation. New
@@ -286,6 +298,77 @@ export default function PastActivityPicker({
     () => allSuggestionItems.filter(s => pickedSuggestionIds.has(s.id)),
     [allSuggestionItems, pickedSuggestionIds]
   );
+
+  // ── Catalogue helpers ─────────────────────────────────────────────────
+  const catalogueKey = (groupLabel, categoryName, itemName) =>
+    `${groupLabel}::${categoryName}::${itemName}`;
+
+  const togglePickedCatalogueItem = (key) => {
+    setPickedCatalogueKeys(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const toggleCatalogueCategory = (catKey) => {
+    setExpandedCatalogueCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(catKey)) next.delete(catKey); else next.add(catKey);
+      return next;
+    });
+  };
+
+  // Visible catalogue tree filtered by group selection + search. Returns
+  // a list of [groupLabel, [[categoryName, items], …]] tuples where each
+  // item is augmented with its catalogueKey for selection.
+  const visibleCatalogueTree = useMemo(() => {
+    const q = catalogueSearch.trim().toLowerCase();
+    return CATALOGUE_DATA
+      .filter(([groupLabel]) => catalogueGroup === 'all' || catalogueGroup === groupLabel)
+      .map(([groupLabel, categories]) => {
+        const filteredCats = categories
+          .map(([catName, items]) => {
+            const filteredItems = items
+              .filter(([itemName]) => !q || itemName.toLowerCase().includes(q))
+              .map(([itemName, defaultUnit]) => ({
+                key: catalogueKey(groupLabel, catName, itemName),
+                groupLabel,
+                catName,
+                itemName,
+                defaultUnit,
+              }));
+            return [catName, filteredItems];
+          })
+          .filter(([, items]) => items.length > 0);
+        return [groupLabel, filteredCats];
+      })
+      .filter(([, cats]) => cats.length > 0);
+  }, [catalogueGroup, catalogueSearch]);
+
+  // Build flat picked-items list (provisioning_item shape) on apply.
+  const handleCatalogueApply = () => {
+    const items = [];
+    visibleCatalogueTree.forEach(([groupLabel, cats]) => {
+      const dept = CATALOGUE_GROUP_DEPT[groupLabel] || 'Galley';
+      cats.forEach(([catName, catItems]) => {
+        catItems.forEach(({ key, itemName, defaultUnit }) => {
+          if (!pickedCatalogueKeys.has(key)) return;
+          items.push({
+            name:             itemName,
+            category:         catName,
+            department:       dept,
+            quantity_ordered: 1,
+            unit:             defaultUnit,
+            allergen_flags:   [],
+            status:           'draft',
+          });
+        });
+      });
+    });
+    if (!items.length) return;
+    onUse(items, 'catalogue');
+  };
 
   // ── Derived lists ─────────────────────────────────────────────────────
   const { liveBoards, pastBoards } = useMemo(() => {
@@ -721,48 +804,102 @@ export default function PastActivityPicker({
         </>
       )}
 
-      {/* ── Catalogue tab (live iframe embed) ────────────────────────
-          Embeds provisions.cargotechnology.co.uk directly in the picker
-          column so the user can browse without leaving. Read-only for
-          now — selection / push-to-board integration is on a later
-          roadmap commit ("i dont want to link the two just yet"). The
-          catalogue site has its own auth; if the user isn't signed in
-          the iframe shows the catalogue's login wall. Escape link to
-          open in a full-width new tab when 340px feels cramped. If
-          the host serves X-Frame-Options: DENY the iframe shows
-          blank — fallback link still works in that case. */}
+      {/* ── Catalogue tab (inline catalogue browser) ──────────────────
+          Renders the catalogue data from src/data/catalogue.js (ported
+          from the cargo provisions repo). Group dropdown + search +
+          collapsible categories with multi-select. Adding picks routes
+          through onUse(items, 'catalogue') so provenance flows through.
+          Iframe approach abandoned — provisions.cargotechnology.co.uk
+          ships X-Frame-Options: DENY so the embed showed a broken page. */}
       {tab === 'catalogue' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, gap: 6, paddingTop: 4 }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'baseline',
-            fontSize: 11,
-            color: 'var(--d-muted)',
-          }}>
-            <span>Cargo Provisions catalogue</span>
-            <a
-              href={CATALOGUE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: 'var(--d-orange)', textDecoration: 'none', fontWeight: 600 }}
+        <>
+          {/* Group select dropdown — 'all' includes every group. Uses the
+              existing wizard select chrome so it sits visually next to
+              the search bar without a custom rule. */}
+          <div className="pv-wizard-select-wrap" style={{ marginTop: 10 }}>
+            <select
+              value={catalogueGroup}
+              onChange={e => setCatalogueGroup(e.target.value)}
+              className="pv-wizard-select"
             >
-              Open in new tab ↗
-            </a>
+              <option value="all">All groups</option>
+              {CATALOGUE_DATA.map(([groupLabel]) => (
+                <option key={groupLabel} value={groupLabel}>{groupLabel}</option>
+              ))}
+            </select>
+            <svg className="pv-wizard-select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
           </div>
-          <iframe
-            src={CATALOGUE_URL}
-            title="Cargo Provisions catalogue"
-            style={{
-              flex: 1,
-              width: '100%',
-              border: '0.5px solid var(--d-border)',
-              borderRadius: 8,
-              background: 'white',
-              minHeight: 0,
-            }}
+
+          <input
+            type="text"
+            placeholder="Search catalogue…"
+            value={catalogueSearch}
+            onChange={e => setCatalogueSearch(e.target.value)}
+            className="pv-wizard-input"
+            style={{ marginTop: 12, marginBottom: 6 }}
           />
-        </div>
+
+          <div className="pv-wizard-list">
+            {visibleCatalogueTree.length === 0 && (
+              <p className="pv-wizard-empty">No catalogue items match.</p>
+            )}
+            {visibleCatalogueTree.map(([groupLabel, cats]) => (
+              <React.Fragment key={groupLabel}>
+                {cats.map(([catName, items]) => {
+                  const catKey = `${groupLabel}::${catName}`;
+                  // When the user types a search query, every matching
+                  // category auto-expands so they don't have to tap each
+                  // to see hits. Without a search the user's per-category
+                  // expand state controls visibility.
+                  const isExpanded = catalogueSearch
+                    ? true
+                    : expandedCatalogueCategories.has(catKey);
+                  return (
+                    <React.Fragment key={catKey}>
+                      <button
+                        onClick={() => toggleCatalogueCategory(catKey)}
+                        className="pv-wizard-src-head"
+                        style={{ background: 'none', border: 0, width: '100%', cursor: 'pointer', textAlign: 'left' }}
+                        aria-expanded={isExpanded}
+                      >
+                        <span style={{ color: 'var(--d-muted-soft)', fontSize: 11, marginRight: 2 }} aria-hidden="true">
+                          {isExpanded ? '▾' : '▸'}
+                        </span>
+                        <span className="pv-wizard-src-label">{catName}</span>
+                        <span className="pv-wizard-src-count">{items.length} item{items.length === 1 ? '' : 's'}</span>
+                      </button>
+                      {isExpanded && items.map(({ key, itemName, defaultUnit }) => {
+                        const isPicked = pickedCatalogueKeys.has(key);
+                        return (
+                          <button
+                            key={key}
+                            onClick={() => togglePickedCatalogueItem(key)}
+                            className={`pv-wizard-board-row${isPicked ? ' is-selected' : ''}`}
+                          >
+                            <span className={`pv-wizard-row-checkbox${isPicked ? ' is-checked' : ''}`} aria-hidden="true">
+                              {isPicked ? '✓' : ''}
+                            </span>
+                            <span className="pv-wizard-board-row-body">
+                              <span className="pv-wizard-board-row-head">
+                                <span className="pv-wizard-board-row-title">{itemName}</span>
+                                <span className="pv-wizard-row-priority is-muted">{defaultUnit}</span>
+                              </span>
+                              <span className="pv-wizard-board-row-meta">
+                                <span className="pv-wizard-row-tag">{groupLabel}</span>
+                              </span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </React.Fragment>
+                  );
+                })}
+              </React.Fragment>
+            ))}
+          </div>
+        </>
       )}
 
       {/* ── Suggestions tab — inline editorial rendering (no embedded panel) ── */}
@@ -938,6 +1075,20 @@ export default function PastActivityPicker({
               Add all
             </button>
           </div>
+        </div>
+      )}
+
+      {tab === 'catalogue' && (
+        <div className="pv-wizard-cta-footer">
+          <button
+            onClick={handleCatalogueApply}
+            disabled={pickedCatalogueKeys.size === 0}
+            className="pv-wizard-btn pv-wizard-btn-primary is-block"
+          >
+            {pickedCatalogueKeys.size > 0
+              ? `Add ${pickedCatalogueKeys.size} item${pickedCatalogueKeys.size === 1 ? '' : 's'}`
+              : 'Select items'}
+          </button>
         </div>
       )}
     </div>
