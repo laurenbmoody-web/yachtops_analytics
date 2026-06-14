@@ -1063,95 +1063,109 @@ const canEdit = (() => {
   };
 
   const renderEmergencyContact = () => {
+    const addressClasses = "flex w-full text-sm placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed";
     return (
-      <div className="bg-card border border-border rounded-2xl p-6">
-        <h3 className="text-xl font-semibold text-foreground mb-6">Emergency / Next of Kin</h3>
-        <div className="space-y-8">
-          {/* Emergency Contact */}
-          <div>
-            <h4 className="text-base font-semibold text-foreground mb-4">Emergency Contact</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div>
+        <div className="cp-section-head">
+          <span className="cp-section-kicker">02 / Emergency</span>
+          <h3>Emergency / Next of Kin</h3>
+        </div>
+        <p className="cp-section-sub">Who we call first, and your nominated next of kin.</p>
+
+        {/* Emergency Contact */}
+        <div className="cp-group">
+          <div className="cp-group-head">
+            <span className="dia">◆</span><span className="t">Emergency contact</span><span className="line" />
+          </div>
+          <div className="cp-grid">
+            <Field label="Full Name" required accent>
               <Input
-                label="Full Name"
                 value={formData?.emergencyContactName}
                 onChange={(e) => handleInputChange('emergencyContactName', e?.target?.value)}
                 disabled={!isEditing}
-                required
+                placeholder="—"
               />
+            </Field>
+            <Field label="Relationship">
               <Input
-                label="Relationship"
                 value={formData?.emergencyContactRelationship}
                 onChange={(e) => handleInputChange('emergencyContactRelationship', e?.target?.value)}
                 disabled={!isEditing}
+                placeholder="—"
               />
+            </Field>
+            <Field label="Phone / Contact Number" required accent>
               <Input
-                label="Phone / Contact Number"
                 value={formData?.emergencyContactPhone}
                 onChange={(e) => handleInputChange('emergencyContactPhone', e?.target?.value)}
                 disabled={!isEditing}
-                required
+                placeholder="—"
               />
-              <div className="md:col-span-2">
-                <label className="text-sm font-medium text-foreground mb-2 block">Address</label>
-                <textarea
-                  className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[80px]"
-                  value={formData?.emergencyContactAddress}
-                  onChange={(e) => handleInputChange('emergencyContactAddress', e?.target?.value)}
-                  disabled={!isEditing}
-                  placeholder="Enter full address"
-                />
-              </div>
-            </div>
+            </Field>
+            <Field label="Address" full>
+              <textarea
+                className={addressClasses}
+                value={formData?.emergencyContactAddress}
+                onChange={(e) => handleInputChange('emergencyContactAddress', e?.target?.value)}
+                disabled={!isEditing}
+                placeholder="—"
+              />
+            </Field>
           </div>
+        </div>
 
-          {/* Next of Kin */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-base font-semibold text-foreground">Next of Kin</h4>
-              {isEditing && (
-                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={sameAsEmergency}
-                    onChange={(e) => handleSameAsEmergencyToggle(e?.target?.checked)}
-                    className="rounded border-input text-primary focus:ring-primary"
-                  />
-                  <span>Same as Emergency Contact</span>
-                </label>
-              )}
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Next of Kin */}
+        <div className="cp-group">
+          <div className="cp-group-head">
+            <span className="dia">◆</span><span className="t">Next of kin</span><span className="line" />
+            {isEditing && (
+              <label className="cp-inline-check">
+                <input
+                  type="checkbox"
+                  checked={sameAsEmergency}
+                  onChange={(e) => handleSameAsEmergencyToggle(e?.target?.checked)}
+                />
+                <span>Same as emergency contact</span>
+              </label>
+            )}
+          </div>
+          <div className="cp-grid">
+            <Field label="Full Name">
               <Input
-                label="Full Name"
                 value={formData?.nextOfKinName}
                 onChange={(e) => handleInputChange('nextOfKinName', e?.target?.value)}
                 disabled={!isEditing || sameAsEmergency}
+                placeholder="—"
               />
+            </Field>
+            <Field label="Relationship">
               <Input
-                label="Relationship"
                 value={formData?.nextOfKinRelationship}
                 onChange={(e) => handleInputChange('nextOfKinRelationship', e?.target?.value)}
                 disabled={!isEditing || sameAsEmergency}
+                placeholder="—"
               />
+            </Field>
+            <Field label="Phone / Contact Number">
               <Input
-                label="Phone / Contact Number"
                 value={formData?.nextOfKinPhone}
                 onChange={(e) => handleInputChange('nextOfKinPhone', e?.target?.value)}
                 disabled={!isEditing || sameAsEmergency}
+                placeholder="—"
               />
-              <div className="md:col-span-2">
-                <label className="text-sm font-medium text-foreground mb-2 block">Address</label>
-                <textarea
-                  className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[80px]"
-                  value={formData?.nextOfKinAddress}
-                  onChange={(e) => handleInputChange('nextOfKinAddress', e?.target?.value)}
-                  disabled={!isEditing || sameAsEmergency}
-                  placeholder="Enter full address"
-                />
-              </div>
-            </div>
+            </Field>
+            <Field label="Address" full>
+              <textarea
+                className={addressClasses}
+                value={formData?.nextOfKinAddress}
+                onChange={(e) => handleInputChange('nextOfKinAddress', e?.target?.value)}
+                disabled={!isEditing || sameAsEmergency}
+                placeholder="—"
+              />
+            </Field>
           </div>
         </div>
+
         {isEditing && (
           <div className="flex justify-end gap-3 mt-6">
             <Button variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
@@ -1269,9 +1283,12 @@ const canEdit = (() => {
     const canReveal = role === 'CAPTAIN' || role === 'PURSER' || role === 'ADMIN';
 
     return (
-      <div className="bg-card border border-border rounded-2xl p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-semibold text-foreground">Banking Information</h3>
+      <div>
+        <div className="cp-section-head" style={{ justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span className="cp-section-kicker">03 / Banking</span>
+            <h3>Banking</h3>
+          </div>
           {!isEditing && canReveal && (
             <Button
               variant="ghost"
@@ -1283,129 +1300,152 @@ const canEdit = (() => {
             </Button>
           )}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Input
-            label="Account Holder Name"
-            value={formData?.bankAccountHolder}
-            onChange={(e) => handleInputChange('bankAccountHolder', e?.target?.value)}
-            disabled={!isEditing}
-            required
-          />
-          <Input
-            label="Bank Name"
-            value={formData?.bankName}
-            onChange={(e) => handleInputChange('bankName', e?.target?.value)}
-            disabled={!isEditing}
-            required
-          />
-          <Input
-            label="Account Number / IBAN"
-            value={maskAccountNumber(formData?.bankAccountNumber)}
-            onChange={(e) => handleInputChange('bankAccountNumber', e?.target?.value)}
-            disabled={!isEditing}
-            required
-            description="Masked for security"
-          />
-          <Input
-            label="SWIFT / BIC"
-            value={formData?.bankSwiftBic}
-            onChange={(e) => handleInputChange('bankSwiftBic', e?.target?.value)}
-            disabled={!isEditing}
-          />
-          <Select
-            label="Currency"
-            options={currencyOptions}
-            value={formData?.bankCurrency}
-            onChange={(value) => handleInputChange('bankCurrency', value)}
-            disabled={!isEditing}
-            searchable={true}
-            required
-          />
-          <Select
-            label="Country"
-            options={countryOptions}
-            value={formData?.bankCountry}
-            onChange={(value) => {
-              handleInputChange('bankCountry', value);
-              // Auto-fill bank address country if empty
-              if (!formData?.bankAddressCountry) {
-                handleInputChange('bankAddressCountry', value);
-              }
-            }}
-            disabled={!isEditing}
-            searchable={true}
-            required
-          />
-          <Select
-            label="Account Type"
-            options={accountTypeOptions}
-            value={formData?.bankAccountType}
-            onChange={(value) => handleInputChange('bankAccountType', value)}
-            disabled={!isEditing}
-            placeholder="Select account type (optional)"
-          />
-          {showSortCode && (
-            <Input
-              label="Sort Code"
-              value={formData?.bankSortCode}
-              onChange={(e) => handleInputChange('bankSortCode', e?.target?.value)}
-              disabled={!isEditing}
-              placeholder="XX-XX-XX"
-              required
-              description="Format: XX-XX-XX"
-            />
-          )}
-          {showRoutingNumber && (
-            <Input
-              label="Routing Number (ABA)"
-              value={formData?.bankRoutingNumber}
-              onChange={(e) => handleInputChange('bankRoutingNumber', e?.target?.value)}
-              disabled={!isEditing}
-              placeholder="9-digit routing number"
-              required
-            />
-          )}
-        </div>
+        <p className="cp-section-sub">Held encrypted and visible only to authorised crew.</p>
 
-        {/* Optional Bank Address Section */}
-        <div className="mt-6">
-          <button
-            onClick={() => setShowBankAddress(!showBankAddress)}
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-smooth mb-4"
-            disabled={!isEditing}
-          >
-            <Icon name={showBankAddress ? 'ChevronDown' : 'ChevronRight'} size={16} />
-            <span>Bank Address (Optional)</span>
-          </button>
-          {showBankAddress && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pl-6">
+        <div className="cp-group">
+          <div className="cp-group-head">
+            <span className="dia">◆</span><span className="t">Account</span><span className="line" />
+          </div>
+          <div className="cp-grid">
+            <Field label="Account Holder Name" required accent>
               <Input
-                label="Address Line 1"
-                value={formData?.bankAddressLine1}
-                onChange={(e) => handleInputChange('bankAddressLine1', e?.target?.value)}
+                value={formData?.bankAccountHolder}
+                onChange={(e) => handleInputChange('bankAccountHolder', e?.target?.value)}
                 disabled={!isEditing}
+                placeholder="—"
               />
+            </Field>
+            <Field label="Bank Name" required accent>
               <Input
-                label="Address Line 2"
-                value={formData?.bankAddressLine2}
-                onChange={(e) => handleInputChange('bankAddressLine2', e?.target?.value)}
+                value={formData?.bankName}
+                onChange={(e) => handleInputChange('bankName', e?.target?.value)}
                 disabled={!isEditing}
-                description="Optional"
+                placeholder="—"
               />
+            </Field>
+            <Field label="Account Number / IBAN" required accent hint="Masked for security">
               <Input
-                label="City"
-                value={formData?.bankAddressCity}
-                onChange={(e) => handleInputChange('bankAddressCity', e?.target?.value)}
+                value={maskAccountNumber(formData?.bankAccountNumber)}
+                onChange={(e) => handleInputChange('bankAccountNumber', e?.target?.value)}
                 disabled={!isEditing}
+                placeholder="—"
               />
+            </Field>
+            <Field label="SWIFT / BIC">
+              <Input
+                value={formData?.bankSwiftBic}
+                onChange={(e) => handleInputChange('bankSwiftBic', e?.target?.value)}
+                disabled={!isEditing}
+                placeholder="—"
+              />
+            </Field>
+            <Field label="Currency" required>
               <Select
-                label="Country"
-                options={countryOptions}
-                value={formData?.bankAddressCountry}
-                onChange={(value) => handleInputChange('bankAddressCountry', value)}
+                options={currencyOptions}
+                value={formData?.bankCurrency}
+                onChange={(value) => handleInputChange('bankCurrency', value)}
                 disabled={!isEditing}
                 searchable={true}
               />
+            </Field>
+            <Field label="Country" required>
+              <Select
+                options={countryOptions}
+                value={formData?.bankCountry}
+                onChange={(value) => {
+                  handleInputChange('bankCountry', value);
+                  // Auto-fill bank address country if empty
+                  if (!formData?.bankAddressCountry) {
+                    handleInputChange('bankAddressCountry', value);
+                  }
+                }}
+                disabled={!isEditing}
+                searchable={true}
+              />
+            </Field>
+            <Field label="Account Type">
+              <Select
+                options={accountTypeOptions}
+                value={formData?.bankAccountType}
+                onChange={(value) => handleInputChange('bankAccountType', value)}
+                disabled={!isEditing}
+                placeholder="Select account type (optional)"
+              />
+            </Field>
+            {showSortCode && (
+              <Field label="Sort Code" required hint="Format: XX-XX-XX">
+                <Input
+                  value={formData?.bankSortCode}
+                  onChange={(e) => handleInputChange('bankSortCode', e?.target?.value)}
+                  disabled={!isEditing}
+                  placeholder="XX-XX-XX"
+                />
+              </Field>
+            )}
+            {showRoutingNumber && (
+              <Field label="Routing Number (ABA)" required>
+                <Input
+                  value={formData?.bankRoutingNumber}
+                  onChange={(e) => handleInputChange('bankRoutingNumber', e?.target?.value)}
+                  disabled={!isEditing}
+                  placeholder="9-digit routing number"
+                />
+              </Field>
+            )}
+          </div>
+        </div>
+
+        {/* Optional Bank Address Section */}
+        <div className="cp-group">
+          <div className="cp-group-head">
+            <span className="dia">◆</span><span className="t">Bank address</span>
+            <span className="t" style={{ fontSize: 13, color: '#9098B1' }}>· optional</span>
+            <span className="line" />
+            <button
+              type="button"
+              onClick={() => setShowBankAddress(!showBankAddress)}
+              className="cp-collapse-toggle"
+              disabled={!isEditing}
+            >
+              <Icon name={showBankAddress ? 'ChevronDown' : 'ChevronRight'} size={15} />
+              <span>{showBankAddress ? 'Hide' : 'Add'}</span>
+            </button>
+          </div>
+          {showBankAddress && (
+            <div className="cp-grid">
+              <Field label="Address Line 1">
+                <Input
+                  value={formData?.bankAddressLine1}
+                  onChange={(e) => handleInputChange('bankAddressLine1', e?.target?.value)}
+                  disabled={!isEditing}
+                  placeholder="—"
+                />
+              </Field>
+              <Field label="Address Line 2" hint="Optional">
+                <Input
+                  value={formData?.bankAddressLine2}
+                  onChange={(e) => handleInputChange('bankAddressLine2', e?.target?.value)}
+                  disabled={!isEditing}
+                  placeholder="—"
+                />
+              </Field>
+              <Field label="City">
+                <Input
+                  value={formData?.bankAddressCity}
+                  onChange={(e) => handleInputChange('bankAddressCity', e?.target?.value)}
+                  disabled={!isEditing}
+                  placeholder="—"
+                />
+              </Field>
+              <Field label="Country">
+                <Select
+                  options={countryOptions}
+                  value={formData?.bankAddressCountry}
+                  onChange={(value) => handleInputChange('bankAddressCountry', value)}
+                  disabled={!isEditing}
+                  searchable={true}
+                />
+              </Field>
             </div>
           )}
         </div>
@@ -1465,116 +1505,120 @@ const canEdit = (() => {
       setTimeout(() => setCakeSurprise(false), 2000);
     };
 
+    const taClass = "flex w-full text-sm placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed";
     return (
-      <div className="space-y-6">
-        {/* 1. Dietary Restrictions */}
-        <div className="bg-card border border-border rounded-2xl p-6">
-          <h3 className="text-xl font-semibold text-foreground mb-6">Dietary Restrictions</h3>
-          <div className="space-y-4">
-            <Select
-              label="Dietary category"
-              options={dietaryOptions}
-              value={formData?.dietaryCategory}
-              onChange={(value) => handleInputChange('dietaryCategory', value)}
-              disabled={!isEditing}
-              searchable={true}
-            />
-            <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">Additional notes</label>
+      <div>
+        <div className="cp-section-head">
+          <span className="cp-section-kicker">04 / Preferences</span>
+          <h3>Preferences</h3>
+        </div>
+        <p className="cp-section-sub">Dietary needs and the little touches the interior likes to know.</p>
+
+        {/* Dietary */}
+        <div className="cp-group">
+          <div className="cp-group-head">
+            <span className="dia">◆</span><span className="t">Dietary</span><span className="line" />
+          </div>
+          <div className="cp-grid">
+            <Field label="Dietary category">
+              <Select
+                options={dietaryOptions}
+                value={formData?.dietaryCategory}
+                onChange={(value) => handleInputChange('dietaryCategory', value)}
+                disabled={!isEditing}
+                searchable={true}
+              />
+            </Field>
+            <Field label="Additional notes" full>
               <textarea
-                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[80px]"
+                className={taClass}
                 value={formData?.dietaryNotes}
                 onChange={(e) => handleInputChange('dietaryNotes', e?.target?.value)}
                 disabled={!isEditing}
                 placeholder="e.g. allergies, intolerances"
               />
-            </div>
+            </Field>
           </div>
         </div>
 
-        {/* 2. Birthday Cake Preference */}
-        <div className="bg-card border border-border rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-foreground">Birthday Cake Preference</h3>
+        {/* Birthday cake */}
+        <div className="cp-group">
+          <div className="cp-group-head">
+            <span className="dia">◆</span><span className="t">Birthday cake</span><span className="line" />
             {isEditing && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSurpriseMe}
-                iconName="Sparkles"
-              >
+              <Button variant="outline" size="sm" onClick={handleSurpriseMe} iconName="Sparkles">
                 Surprise me
               </Button>
             )}
           </div>
-          <div>
-            <label className="text-sm font-medium text-foreground mb-2 block">Cake preference</label>
-            <Input
-              value={formData?.cakePreference}
-              onChange={(e) => handleInputChange('cakePreference', e?.target?.value)}
-              disabled={!isEditing}
-              placeholder="e.g. Chocolate cake, vanilla sponge"
-            />
-            {cakeSurprise && (
-              <p className="text-xs text-green-600 dark:text-green-400 mt-2 flex items-center gap-1">
-                <Icon name="Check" size={12} />
-                Surprise option selected!
-              </p>
-            )}
+          <div className="cp-grid">
+            <Field label="Cake preference" full>
+              <Input
+                value={formData?.cakePreference}
+                onChange={(e) => handleInputChange('cakePreference', e?.target?.value)}
+                disabled={!isEditing}
+                placeholder="e.g. Chocolate cake, vanilla sponge"
+              />
+              {cakeSurprise && (
+                <p className="text-xs text-green-600 dark:text-green-400 mt-2 flex items-center gap-1">
+                  <Icon name="Check" size={12} />
+                  Surprise option selected!
+                </p>
+              )}
+            </Field>
           </div>
         </div>
 
-        {/* 3. Favourite Meals */}
-        <div className="bg-card border border-border rounded-2xl p-6">
-          <h3 className="text-xl font-semibold text-foreground mb-6">Favourite Meals</h3>
-          <div>
-            <label className="text-sm font-medium text-foreground mb-2 block">Favourite meals</label>
-            <textarea
-              className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[100px]"
-              value={formData?.favouriteMeals}
-              onChange={(e) => handleInputChange('favouriteMeals', e?.target?.value)}
-              disabled={!isEditing}
-              placeholder="e.g. Italian pasta, fresh seafood, Asian stir-fry"
-            />
+        {/* Favourites */}
+        <div className="cp-group">
+          <div className="cp-group-head">
+            <span className="dia">◆</span><span className="t">Favourites</span><span className="line" />
           </div>
-        </div>
-
-        {/* 4. Favourite Snacks */}
-        <div className="bg-card border border-border rounded-2xl p-6">
-          <h3 className="text-xl font-semibold text-foreground mb-6">Favourite Snacks</h3>
-          <div>
-            <label className="text-sm font-medium text-foreground mb-2 block">Favourite snacks</label>
-            <textarea
-              className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[100px]"
-              value={formData?.favouriteSnacks}
-              onChange={(e) => handleInputChange('favouriteSnacks', e?.target?.value)}
-              disabled={!isEditing}
-              placeholder="e.g. Fresh fruit, nuts, chocolate"
-            />
-          </div>
-        </div>
-
-        {/* 5. Favourite Drinks */}
-        <div className="bg-card border border-border rounded-2xl p-6">
-          <h3 className="text-xl font-semibold text-foreground mb-6">Favourite Drinks</h3>
-          <div className="space-y-4">
-            <Select
-              label="Alcoholic preference"
-              options={alcoholicOptions}
-              value={formData?.alcoholicPreference}
-              onChange={(value) => handleInputChange('alcoholicPreference', value)}
-              disabled={!isEditing}
-            />
-            <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">Non-alcoholic preferences</label>
+          <div className="cp-grid">
+            <Field label="Favourite meals">
               <textarea
-                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[80px]"
+                className={taClass}
+                value={formData?.favouriteMeals}
+                onChange={(e) => handleInputChange('favouriteMeals', e?.target?.value)}
+                disabled={!isEditing}
+                placeholder="e.g. Italian pasta, fresh seafood, Asian stir-fry"
+              />
+            </Field>
+            <Field label="Favourite snacks">
+              <textarea
+                className={taClass}
+                value={formData?.favouriteSnacks}
+                onChange={(e) => handleInputChange('favouriteSnacks', e?.target?.value)}
+                disabled={!isEditing}
+                placeholder="e.g. Fresh fruit, nuts, chocolate"
+              />
+            </Field>
+          </div>
+        </div>
+
+        {/* Drinks */}
+        <div className="cp-group">
+          <div className="cp-group-head">
+            <span className="dia">◆</span><span className="t">Drinks</span><span className="line" />
+          </div>
+          <div className="cp-grid">
+            <Field label="Alcoholic preference">
+              <Select
+                options={alcoholicOptions}
+                value={formData?.alcoholicPreference}
+                onChange={(value) => handleInputChange('alcoholicPreference', value)}
+                disabled={!isEditing}
+              />
+            </Field>
+            <Field label="Non-alcoholic preferences" full>
+              <textarea
+                className={taClass}
                 value={formData?.nonAlcoholicPreferences}
                 onChange={(e) => handleInputChange('nonAlcoholicPreferences', e?.target?.value)}
                 disabled={!isEditing}
                 placeholder="e.g. sparkling water brand, juices, teas, coffee order"
               />
-            </div>
+            </Field>
           </div>
         </div>
 
