@@ -3811,37 +3811,37 @@
 .rl-sum.has-breach { background: #FDF6F3; }
 .rl-sum-count { color: #C65A1A; font-weight: 600; }
 
-/* ── Rota breach-reason modal (rbr-) — editorial, compact ──────────────
+/* ── Rota breach-reason modal (rbr-) — editorial, compact, cool palette ──
    Chief/command records (and thereby signs off) reasons for planned MLC
-   breach days. Tokens mirror editorial.css: ink #1C1B3A · muted #695880 ·
-   accent #C65A1A · border #DFD8CC · serif 'DM Serif Display'. */
+   breach days. White panel + cool-grey strips (no warm beige); ink #1C1B3A,
+   accent #C65A1A, cool border #E6E8EE, serif 'DM Serif Display'. */
 .rbr-panel {
-  background: #FBF9F4; border-radius: 14px; width: 100%; max-width: 660px;
+  background: #FFFFFF; border-radius: 14px; width: 100%; max-width: 680px;
   max-height: 86vh; display: flex; flex-direction: column; overflow: hidden;
-  box-shadow: 0 24px 60px rgba(28, 27, 58, 0.28);
+  box-shadow: 0 24px 60px rgba(20, 24, 45, 0.30);
 }
-.rbr-head { padding: 22px 26px 16px; border-bottom: 1px solid #DFD8CC; position: relative; }
+.rbr-head { padding: 22px 26px 16px; border-bottom: 1px solid #ECEDF2; position: relative; }
 .rbr-title {
   font-family: 'DM Serif Display', Georgia, serif; font-size: 27px; line-height: 1.04;
   color: #1C1B3A; margin: 0; text-transform: uppercase; letter-spacing: -0.5px;
 }
 .rbr-title em { font-style: italic; color: #C65A1A; text-transform: none; }
-.rbr-sub { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 13px; color: #695880; margin: 7px 0 0; max-width: 92%; }
-.rbr-x { position: absolute; top: 18px; right: 20px; background: none; border: none; cursor: pointer; color: #695880; padding: 4px; line-height: 0; }
+.rbr-sub { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 13px; color: #6B6F86; margin: 7px 0 0; max-width: 92%; }
+.rbr-x { position: absolute; top: 18px; right: 20px; background: none; border: none; cursor: pointer; color: #6B6F86; padding: 4px; line-height: 0; }
 .rbr-x:hover { color: #1C1B3A; }
 
-.rbr-bulk { padding: 14px 26px 16px; background: #F3EFE7; border-bottom: 1px solid #DFD8CC; }
+.rbr-bulk { padding: 14px 26px 16px; background: #F6F7F9; border-bottom: 1px solid #ECEDF2; }
 .rbr-label { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 10px; letter-spacing: 1.8px; text-transform: uppercase; color: #1C1B3A; margin: 0 0 8px; }
 .rbr-presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
 .rbr-preset {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 12px; padding: 4px 11px;
-  border-radius: 999px; border: 1px solid #DFD8CC; background: #FBF9F4; color: #695880; cursor: pointer;
+  border-radius: 999px; border: 1px solid #DEE1E8; background: #FFFFFF; color: #6B6F86; cursor: pointer;
 }
 .rbr-preset:hover { border-color: #C65A1A; color: #C65A1A; }
 .rbr-bulk-row { display: flex; gap: 8px; }
 .rbr-input {
   flex: 1; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 13px;
-  padding: 8px 12px; border: 1px solid #DFD8CC; border-radius: 8px; background: #fff; color: #1C1B3A;
+  padding: 8px 12px; border: 1px solid #D7DAE2; border-radius: 8px; background: #fff; color: #1C1B3A;
 }
 .rbr-input:focus { outline: none; border-color: #C65A1A; }
 .rbr-apply {
@@ -3849,34 +3849,54 @@
   font-weight: 600; padding: 8px 14px; border-radius: 8px; border: 1px solid #1C1B3A;
   background: #1C1B3A; color: #fff; cursor: pointer;
 }
-.rbr-apply:disabled { opacity: 0.35; cursor: default; }
+.rbr-apply:disabled { opacity: 0.3; cursor: default; }
 
-.rbr-list { flex: 1; overflow-y: auto; padding: 4px 26px 14px; }
-.rbr-group-label {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 10px; letter-spacing: 1.8px;
-  text-transform: uppercase; color: #695880; margin: 16px 0 4px;
+.rbr-list { flex: 1; overflow-y: auto; padding: 6px 26px 14px; }
+
+/* Per-crew accordion */
+.rbr-acc { border-bottom: 1px solid #EEF0F3; }
+.rbr-acc-head {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 2px;
+  background: none; border: none; cursor: pointer; text-align: left;
 }
-.rbr-row { display: flex; align-items: center; gap: 12px; padding: 7px 0; border-bottom: 1px solid #EFEAE0; }
-.rbr-date { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 12.5px; color: #1C1B3A; width: 96px; flex-shrink: 0; }
+.rbr-acc-head:hover { background: #F8F9FB; }
+.rbr-chev { color: #9499AD; flex-shrink: 0; transition: transform 0.15s ease; }
+.rbr-chev.open { transform: rotate(90deg); }
+.rbr-acc-name { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 14px; font-weight: 600; color: #1C1B3A; }
+.rbr-acc-role { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 12px; color: #6B6F86; margin-left: 6px; font-weight: 400; }
+.rbr-acc-meta { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.rbr-acc-days { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; color: #6B6F86; }
+.rbr-acc-prog { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 11px; font-weight: 600; color: #C65A1A; }
+.rbr-acc-prog.done { color: #2E7D55; display: inline-flex; align-items: center; gap: 3px; }
+
+.rbr-acc-body { padding: 2px 0 10px 28px; }
+.rbr-groupapply {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 11.5px; font-weight: 600;
+  color: #C65A1A; background: none; border: none; cursor: pointer; padding: 4px 0 8px; display: inline-flex; gap: 4px; align-items: center;
+}
+.rbr-groupapply:disabled { color: #B7BAC6; cursor: default; }
+.rbr-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.rbr-date { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 12.5px; color: #1C1B3A; width: 88px; flex-shrink: 0; }
+.rbr-chipcell { width: 132px; flex-shrink: 0; }
 .rbr-chip {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 9.5px; letter-spacing: 0.4px;
-  text-transform: uppercase; padding: 2px 8px; border-radius: 999px; background: #F6E2DC;
-  color: #9A3B22; flex-shrink: 0; white-space: nowrap;
+  text-transform: uppercase; padding: 2px 8px; border-radius: 999px; background: #FCE9E6;
+  color: #A8341F; white-space: nowrap;
 }
 .rbr-rowinput {
   flex: 1; min-width: 0; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 12.5px;
-  padding: 5px 10px; border: 1px solid #DFD8CC; border-radius: 6px; background: #fff; color: #1C1B3A;
+  padding: 5px 10px; border: 1px solid #D7DAE2; border-radius: 6px; background: #fff; color: #1C1B3A;
 }
 .rbr-rowinput:focus { outline: none; border-color: #C65A1A; }
 
-.rbr-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 26px; border-top: 1px solid #DFD8CC; }
-.rbr-count { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: #695880; }
+.rbr-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 26px; border-top: 1px solid #ECEDF2; }
+.rbr-count { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: #6B6F86; }
 .rbr-btns { display: flex; gap: 10px; }
 .rbr-btn-ghost {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 13px; padding: 8px 16px;
-  border-radius: 8px; border: 1px solid #DFD8CC; background: transparent; color: #695880; cursor: pointer;
+  border-radius: 8px; border: 1px solid #DEE1E8; background: transparent; color: #6B6F86; cursor: pointer;
 }
-.rbr-btn-ghost:hover { border-color: #695880; }
+.rbr-btn-ghost:hover { border-color: #9499AD; }
 .rbr-btn-primary {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 13px; font-weight: 600;
   padding: 8px 18px; border-radius: 8px; border: 1px solid #C65A1A; background: #C65A1A; color: #fff;
