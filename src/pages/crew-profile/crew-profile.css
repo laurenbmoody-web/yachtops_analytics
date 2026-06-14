@@ -83,3 +83,112 @@ body.crew-profile-editorial {
   text-transform: uppercase;
   color: #9098B1;
 }
+
+/* ── Option C — "index card" fields ────────────────────────────────
+   Each field renders as a soft card on the cool ground: tracked-caps
+   label, value below, terracotta tick on required fields, terracotta
+   ring + halo on focus. The existing Input/Select keep all their edit
+   logic — we just neutralise their inner chrome so they read as plain
+   card values in both view and edit modes. */
+.crew-profile-page .cp-section-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.crew-profile-page .cp-section-kicker {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #C65A1A;
+}
+.crew-profile-page .cp-section-head h3 {
+  font-size: 28px;
+  margin: 0;
+  line-height: 1;
+}
+.crew-profile-page .cp-section-sub {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-style: italic;
+  font-size: 15px;
+  color: #695880;
+  margin: -14px 0 22px;
+}
+
+.crew-profile-page .cp-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+.crew-profile-page .cp-field-full { grid-column: 1 / -1; }
+
+.crew-profile-page .cp-field-card {
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 13px;
+  padding: 14px 16px;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.crew-profile-page .cp-field-card.cp-accent { border-top: 2px solid #C65A1A; }
+.crew-profile-page .cp-field-card:focus-within {
+  border-color: #C65A1A;
+  box-shadow: 0 0 0 3px #FAECE7;
+}
+
+.crew-profile-page .cp-field-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: #8B8478;
+  margin-bottom: 8px;
+}
+.crew-profile-page .cp-field-label .cp-req { color: #C65A1A; font-size: 7px; }
+
+.crew-profile-page .cp-field-hint {
+  font-size: 11px;
+  color: #8B8478;
+  margin-top: 6px;
+}
+
+/* Strip the inner Input/Select box so the field reads as a plain value
+   sitting in the card. The card itself owns the border + focus ring. */
+.crew-profile-page .cp-field-card .space-y-2 > * + * { margin-top: 0; }
+.crew-profile-page .cp-field-card input,
+.crew-profile-page .cp-field-card textarea,
+.crew-profile-page .cp-field-card button[aria-haspopup="listbox"] {
+  border: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  height: auto !important;
+  min-height: 24px;
+  box-shadow: none !important;
+  font-size: 16px !important;
+  font-weight: 500;
+  color: #1C1B3A !important;
+}
+.crew-profile-page .cp-field-card textarea { min-height: 56px; resize: none; }
+.crew-profile-page .cp-field-card input:disabled,
+.crew-profile-page .cp-field-card textarea:disabled,
+.crew-profile-page .cp-field-card button[aria-haspopup="listbox"]:disabled {
+  opacity: 1 !important;
+  cursor: default;
+}
+.crew-profile-page .cp-field-card input::placeholder,
+.crew-profile-page .cp-field-card textarea::placeholder {
+  color: #AEB4C2;
+  font-style: italic;
+}
+/* The Select dropdown panel re-asserts its own chrome (it's absolutely
+   positioned inside the card) — keep its search input boxed. */
+.crew-profile-page .cp-field-card [role="listbox"] input,
+.crew-profile-page .cp-field-card .absolute input {
+  border: 1px solid #E5E7EB !important;
+  padding: 8px 8px 8px 32px !important;
+  height: 40px !important;
+}

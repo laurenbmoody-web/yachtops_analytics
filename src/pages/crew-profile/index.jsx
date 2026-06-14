@@ -31,6 +31,21 @@ import './crew-profile.css';
 
 
 
+// Option C "index card" field wrapper — tracked-caps label + the control
+// (Input/Select) rendered borderless inside a soft card. Module-level so
+// its identity is stable across renders (a render-local component would
+// remount the input on every keystroke and drop focus).
+const Field = ({ label, required, accent, full, hint, children }) => (
+  <div className={`cp-field-card${accent ? ' cp-accent' : ''}${full ? ' cp-field-full' : ''}`}>
+    <div className="cp-field-label">
+      <span>{label}</span>
+      {required && <span className="cp-req">●</span>}
+    </div>
+    {children}
+    {hint && <p className="cp-field-hint">{hint}</p>}
+  </div>
+);
+
 const CrewProfile = () => {
   const navigate = useNavigate();
   const { crewId } = useParams();
@@ -937,85 +952,105 @@ const canEdit = (() => {
 
   const renderPersonalDetails = () => {
     return (
-      <div className="bg-card border border-border rounded-2xl p-6">
-        <h3 className="text-xl font-semibold text-foreground mb-6">Personal Details</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Input
-            label="First Names"
-            value={formData?.firstName}
-            onChange={(e) => handleInputChange('firstName', e?.target?.value)}
-            disabled={!isEditing}
-          />
-          <Input
-            label="Last Name"
-            value={formData?.lastName}
-            onChange={(e) => handleInputChange('lastName', e?.target?.value)}
-            disabled={!isEditing}
-          />
-          <Input
-            label="Date of Birth"
-            type="date"
-            value={formData?.dateOfBirth}
-            onChange={(e) => handleInputChange('dateOfBirth', e?.target?.value)}
-            disabled={!isEditing}
-          />
-          <Select
-            label="Nationality"
-            options={nationalityOptions}
-            value={formData?.nationality}
-            onChange={(value) => handleInputChange('nationality', value)}
-            disabled={!isEditing}
-            searchable={true}
-            placeholder="Select nationality"
-          />
-          <Input
-            label="Passport Number"
-            value={formData?.passportNumber}
-            onChange={(e) => handleInputChange('passportNumber', e?.target?.value)}
-            disabled={!isEditing}
-          />
-          <Input
-            label="Passport Expiry"
-            type="date"
-            value={formData?.passportExpiry}
-            onChange={(e) => handleInputChange('passportExpiry', e?.target?.value)}
-            disabled={!isEditing}
-          />
-          <Input
-            label="Phone Number"
-            value={formData?.phoneNumber}
-            onChange={(e) => handleInputChange('phoneNumber', e?.target?.value)}
-            disabled={!isEditing}
-          />
-          <Input
-            label="Email"
-            type="email"
-            value={formData?.email}
-            onChange={(e) => handleInputChange('email', e?.target?.value)}
-            disabled={!isEditing}
-          />
-          <div className="md:col-span-2">
+      <div>
+        <div className="cp-section-head">
+          <span className="cp-section-kicker">01 / Identity</span>
+          <h3>Personal Details</h3>
+        </div>
+        <p className="cp-section-sub">Identity, travel documents and the basics we hold on file.</p>
+
+        <div className="cp-grid">
+          <Field label="First Names" required accent>
             <Input
-              label="Home Address"
+              value={formData?.firstName}
+              onChange={(e) => handleInputChange('firstName', e?.target?.value)}
+              disabled={!isEditing}
+              placeholder="—"
+            />
+          </Field>
+          <Field label="Last Name" required accent>
+            <Input
+              value={formData?.lastName}
+              onChange={(e) => handleInputChange('lastName', e?.target?.value)}
+              disabled={!isEditing}
+              placeholder="—"
+            />
+          </Field>
+          <Field label="Date of Birth">
+            <Input
+              type="date"
+              value={formData?.dateOfBirth}
+              onChange={(e) => handleInputChange('dateOfBirth', e?.target?.value)}
+              disabled={!isEditing}
+            />
+          </Field>
+          <Field label="Nationality">
+            <Select
+              options={nationalityOptions}
+              value={formData?.nationality}
+              onChange={(value) => handleInputChange('nationality', value)}
+              disabled={!isEditing}
+              searchable={true}
+              placeholder="Select nationality"
+            />
+          </Field>
+          <Field label="Passport Number">
+            <Input
+              value={formData?.passportNumber}
+              onChange={(e) => handleInputChange('passportNumber', e?.target?.value)}
+              disabled={!isEditing}
+              placeholder="—"
+            />
+          </Field>
+          <Field label="Passport Expiry">
+            <Input
+              type="date"
+              value={formData?.passportExpiry}
+              onChange={(e) => handleInputChange('passportExpiry', e?.target?.value)}
+              disabled={!isEditing}
+            />
+          </Field>
+          <Field label="Phone Number">
+            <Input
+              value={formData?.phoneNumber}
+              onChange={(e) => handleInputChange('phoneNumber', e?.target?.value)}
+              disabled={!isEditing}
+              placeholder="—"
+            />
+          </Field>
+          <Field label="Email" required accent>
+            <Input
+              type="email"
+              value={formData?.email}
+              onChange={(e) => handleInputChange('email', e?.target?.value)}
+              disabled={!isEditing}
+              placeholder="—"
+            />
+          </Field>
+          <Field label="Home Address" full>
+            <Input
               value={formData?.homeAddress}
               onChange={(e) => handleInputChange('homeAddress', e?.target?.value)}
               disabled={!isEditing}
+              placeholder="—"
             />
-          </div>
-          <Input
-            label="Allergies"
-            value={formData?.allergies}
-            onChange={(e) => handleInputChange('allergies', e?.target?.value)}
-            disabled={!isEditing}
-            description="Basic indicator only"
-          />
-          <Input
-            label="Medical Conditions"
-            value={formData?.medicalConditions}
-            onChange={(e) => handleInputChange('medicalConditions', e?.target?.value)}
-            disabled={!isEditing}
-            description="Any relevant medical conditions"
-          />
+          </Field>
+          <Field label="Allergies" hint="Basic indicator only">
+            <Input
+              value={formData?.allergies}
+              onChange={(e) => handleInputChange('allergies', e?.target?.value)}
+              disabled={!isEditing}
+              placeholder="None recorded"
+            />
+          </Field>
+          <Field label="Medical Conditions" hint="Any relevant medical conditions">
+            <Input
+              value={formData?.medicalConditions}
+              onChange={(e) => handleInputChange('medicalConditions', e?.target?.value)}
+              disabled={!isEditing}
+              placeholder="None recorded"
+            />
+          </Field>
         </div>
         {isEditing && (
           <div className="flex justify-end gap-3 mt-6">
