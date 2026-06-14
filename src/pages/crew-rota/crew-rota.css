@@ -3637,8 +3637,6 @@
 .rl-sw-marg { background: #FBEFD9; border: 1px solid #E4C98A; }
 .rl-sw-warn { background: #E4574C; }
 .rl-sw-off  { background: #F7F5F0; border: 1px solid #DFD8CC; }
-.rl-sw-logged { background: #fff; border: 1px solid #DFD8CC; position: relative; }
-.rl-sw-logged::after { content: ''; position: absolute; bottom: 1px; right: 1px; width: 4px; height: 4px; border-radius: 50%; background: #3E7C8C; }
 
 /* ── KPI strip (rl-kpi) ─────────────────────────────────────────────── */
 .rl-kpis { display: flex; gap: 12px; margin: 0 0 14px; flex-wrap: wrap; }
@@ -3814,12 +3812,6 @@
 /* Not-yet-elapsed (planned) days — faded so it's clear they're forecast, not
    the record. Exports clamp these out entirely. */
 .rl-c.is-future { opacity: 0.4; }
-/* Logged-actual marker: a small teal dot, bottom-right, so it's clear the day
-   came from the crew member's own log rather than the rota plan. */
-.rl-c.is-logged::after {
-  content: ''; position: absolute; bottom: 3px; right: 3px;
-  width: 4px; height: 4px; border-radius: 50%; background: #3E7C8C;
-}
 .rl-c-off { font-size: 15px; line-height: 1; color: #DCDCE2; }
 /* Month view: columns flex to fit the width, so cells are narrower — shrink the
    figure and padding to keep a full month on screen without horizontal scroll. */
