@@ -545,6 +545,12 @@ const OCCASION_FANOUT = [
   { name: 'Candles',       category: 'Decor', department: 'Interior', unit: 'pack',    quantity: 1, signalText: 'Celebration', signalCls: 'is-muted'  },
 ];
 
+// Birthdays just before or just after the trip are often celebrated
+// during it ("we'll do the dinner on the last night"). Widen the
+// match window by this many days on each side; the reason text
+// surfaces the distance so the crew knows it's an early/late case.
+const OCCASION_WINDOW_DAYS = 7;
+
 async function getOccasionsSuggestions(tripId, vesselId) {
   try {
     const trip = await getTripById(tripId);
@@ -565,15 +571,36 @@ async function getOccasionsSuggestions(tripId, vesselId) {
       ?.in('id', guestIds)
       ?.eq('tenant_id', vesselId);
 
+    // Widen the match window by ±OCCASION_WINDOW_DAYS so birthdays the
+    // week before/after the trip surface too. The reason text below
+    // makes the relationship explicit so the crew knows whether it's
+    // an early celebration, on-day, or post-trip celebration.
+    const tripStart = new Date(startISO);
+    const tripEnd   = new Date(endISO);
+    const widenedStart = new Date(tripStart.getTime() - OCCASION_WINDOW_DAYS * 86400000);
+    const widenedEnd   = new Date(tripEnd.getTime()   + OCCASION_WINDOW_DAYS * 86400000);
+
     const suggestions = [];
     (guestsData || []).forEach(g => {
       const md = extractMonthDay(g.date_of_birth);
       if (!md) return;
-      const occasionDate = findOccasionDate(md, startISO, endISO);
+      const occasionDate = findOccasionDate(md, widenedStart.toISOString(), widenedEnd.toISOString());
       if (!occasionDate) return;
 
       const guestName = `${g.first_name || ''} ${g.last_name || ''}`.trim() || 'Guest';
       const dateLabel = occasionDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+
+      // Build a context-aware reason line.
+      let reasonText;
+      if (occasionDate >= tripStart && occasionDate <= tripEnd) {
+        reasonText = `${guestName}'s birthday on ${dateLabel}`;
+      } else if (occasionDate < tripStart) {
+        const daysBefore = Math.round((tripStart - occasionDate) / 86400000);
+        reasonText = `${guestName}'s birthday on ${dateLabel} — ${daysBefore} day${daysBefore === 1 ? '' : 's'} before trip starts (early celebration?)`;
+      } else {
+        const daysAfter = Math.round((occasionDate - tripEnd) / 86400000);
+        reasonText = `${guestName}'s birthday on ${dateLabel} — ${daysAfter} day${daysAfter === 1 ? '' : 's'} after trip ends (celebrate on last night?)`;
+      }
 
       OCCASION_FANOUT.forEach((tpl, i) => {
         // Augment cake with guest's cake_preference if recorded.
@@ -586,7 +613,7 @@ async function getOccasionsSuggestions(tripId, vesselId) {
           category: tpl.category,
           department: tpl.department,
           source: 'occasions',
-          reason: `${guestName}'s birthday on ${dateLabel}`,
+          reason: reasonText,
           priority: 'normal',
           quantity_ordered: tpl.quantity,
           unit: tpl.unit,
