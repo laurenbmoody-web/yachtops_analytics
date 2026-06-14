@@ -3809,6 +3809,9 @@
 .rl-c.is-marginal { background: #FBEFD9; color: #C0851F; font-weight: 700; }
 .rl-c.is-warn { background: #E4574C; color: #fff; font-weight: 700; }
 .rl-c.off { background: #fff; }
+/* Not-yet-elapsed (planned) days — faded so it's clear they're forecast, not
+   the record. Exports clamp these out entirely. */
+.rl-c.is-future { opacity: 0.4; }
 .rl-c-off { font-size: 15px; line-height: 1; color: #DCDCE2; }
 /* Month view: columns flex to fit the width, so cells are narrower — shrink the
    figure and padding to keep a full month on screen without horizontal scroll. */
