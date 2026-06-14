@@ -17,6 +17,86 @@ const FOOD_PREFERENCE_CATEGORIES = [
   'Food & Beverage', 'Dietary', 'Wine/Spirits', 'Allergies', 'Galley',
 ];
 
+// Preference keys the wizard inserts (PreferenceAssistantWizard.jsx) that
+// describe service/routine/personality state, NOT a buy item. Even when
+// they're stored under Food & Beverage / Dietary categories they're
+// metadata — surface them and you get "Communication Style" or "Wake Up
+// Time" as suggested items.
+const NON_ITEM_KEYS = new Set([
+  // Service
+  'Crew Familiarity', 'Personality Profile', 'Personality Notes',
+  'Crew Interaction Style', 'Crew Interaction Notes', 'Communication Style',
+  'Crew Presence Preference', 'Dining Service Style', 'Dining Pace',
+  'Table Preferences',
+  // Routine
+  'Wake Up Time', 'Morning Routine', 'Breakfast Time', 'Lunch Time',
+  'Dinner Time', 'Late Night Behaviour', 'Nap Habits', 'Bed Time',
+  // Other meta
+  'Top Things to Remember', 'Favourite Meals',
+]);
+
+// pref.value patterns that signal metadata (NOT a stockable item).
+// e.g. "Milk: Regular | Frequency: once_per_day" — config blob, not a
+// product. Or steak doneness words ("Rare", "Medium").
+const META_VALUE_PATTERN = /^(Allergy|Intolerance|once_per_day|fill with|tall glass|under any circumstance)/i;
+const META_VALUE_CONTAINS = /(Frequency:|Milk:|\|)/i;
+const SERVE_STYLE_VALUE   = /^(Rare|Medium|Medium rare|Well done|Iced|Hot|Cold)$/i;
+
+// Translate a (preference key, value) pair into a stockable item shape.
+// Returns null when the pair doesn't describe a buy item — e.g. a coffee
+// preparation instruction like "Iced americano" with key "Coffee" still
+// resolves to a generic "Coffee" item (we know coffee needs to be on
+// the list), but a steak doneness like "Rare" with key "Steak" doesn't
+// resolve at all (the wizard surfaces a dietary note, not an item — the
+// galley team know to stock steak).
+function prefToBuyItem(pref) {
+  const key   = pref?.key || '';
+  const value = pref?.value || '';
+  if (!key) return null;
+
+  const valueIsMeta = !value
+    || META_VALUE_PATTERN.test(value)
+    || META_VALUE_CONTAINS.test(value)
+    || SERVE_STYLE_VALUE.test(value);
+
+  // Maps drink keys to a generic baseline + how to integrate the
+  // guest's specific value when it's a real brand/type (e.g. wine
+  // "Sauvignon Blanc", tea "Yorkshire", water "Evian").
+  switch (key) {
+    case 'Coffee':
+      return { name: 'Coffee', category: 'Beverages', department: 'Galley', unit: 'pack', quantity: 1 };
+    case 'Tea':
+      return valueIsMeta
+        ? { name: 'Tea', category: 'Beverages', department: 'Galley', unit: 'box', quantity: 1 }
+        : { name: `${value} Tea`, category: 'Beverages', department: 'Galley', unit: 'box', quantity: 1 };
+    case 'Wine':
+    case 'Favourite Wines':
+      return valueIsMeta
+        ? { name: 'Wine', category: 'Beverages', department: 'Bar', unit: 'bottle', quantity: 2 }
+        : { name: value, category: 'Beverages', department: 'Bar', unit: 'bottle', quantity: 2 };
+    case 'Spirits':
+    case 'Favourite Spirits':
+      return valueIsMeta
+        ? { name: 'Spirits', category: 'Spirits', department: 'Bar', unit: 'bottle', quantity: 1 }
+        : { name: value, category: 'Spirits', department: 'Bar', unit: 'bottle', quantity: 1 };
+    case 'Evening Drink':
+    case 'Favourite Evening Drink':
+      return valueIsMeta
+        ? null
+        : { name: value, category: 'Beverages', department: 'Bar', unit: 'each', quantity: 1 };
+    case 'Cocktail':
+    case 'Typical Cocktail':
+      // Cocktails are recipes not single items — skip rather than fake.
+      return null;
+    case 'Water':
+      return valueIsMeta
+        ? { name: 'Water', category: 'Beverages', department: 'Galley', unit: 'bottle', quantity: 12 }
+        : { name: `${value} Water`, category: 'Beverages', department: 'Galley', unit: 'bottle', quantity: 12 };
+    default:
+      return null;
+  }
+}
+
 async function getGuestPreferenceSuggestions(tripId, vesselId) {
   try {
     // Get all guest IDs on this trip. getTripById is async post-A3.1
@@ -56,7 +136,9 @@ async function getGuestPreferenceSuggestions(tripId, vesselId) {
     const guestMap = {};
     (guestsData || []).forEach(g => {
       guestMap[g.id] = g;
-      // Add allergen suggestions
+      // Add allergen suggestions — these stay as "[Allergen check]" notes
+      // (is_allergen_note: true), not as buy items. SmartSuggestionsPanel
+      // renders them with the allergen styling.
       if (g.allergies) {
         const allergens = Array.isArray(g.allergies) ? g.allergies : [g.allergies];
         allergens.filter(Boolean).forEach(a => {
@@ -75,22 +157,60 @@ async function getGuestPreferenceSuggestions(tripId, vesselId) {
       }
     });
 
+    // Dedupe map — multiple guests asking for the same item should
+    // surface ONCE with a combined reason, not once per guest.
+    const itemBuckets = new Map(); // itemKey → { suggestion, guests: [name] }
+
     (prefs || []).forEach(pref => {
-      const guest = guestMap[pref.guest_id];
-      if (!guest) return;
-      const name = `${guest.first_name} ${guest.last_name}`;
-      const item = pref.value || pref.key;
+      // 1. Avoid prefs are restrictions — not buy items. Surfaced by
+      //    the kitchen/service team via the guest profile, not here.
+      if (pref.pref_type === 'avoid') return;
+
+      // 2. Allergies category surfaces via the allergen check above.
+      if (pref.category === 'Allergies') return;
+
+      // 3. Service / routine / personality keys aren't items even when
+      //    stored under Food & Beverage.
+      if (NON_ITEM_KEYS.has(pref.key)) return;
+
+      // 4. Translate to a buy item shape — if no mapping, skip rather
+      //    than dump raw values like "Rare" or "Iced americano".
+      const item = prefToBuyItem(pref);
       if (!item) return;
+
+      const guest = guestMap[pref.guest_id];
+      const guestName = guest ? `${guest.first_name} ${guest.last_name}` : 'Guest';
+      const itemKey = item.name.toLowerCase().trim();
+
+      const existing = itemBuckets.get(itemKey);
+      if (existing) {
+        existing.guests.add(guestName);
+        // Promote priority if anyone marks it required.
+        if (pref.pref_type === 'requirement') existing.priority = 'high';
+      } else {
+        itemBuckets.set(itemKey, {
+          item,
+          guests: new Set([guestName]),
+          priority: pref.pref_type === 'requirement' ? 'high' : 'normal',
+        });
+      }
+    });
+
+    itemBuckets.forEach(({ item, guests, priority }, key) => {
+      const guestList = Array.from(guests);
+      const reason = guestList.length === 1
+        ? `${guestList[0]} prefers`
+        : `${guestList.slice(0, -1).join(', ')} & ${guestList.slice(-1)[0]} prefer`;
       suggestions.push({
-        id: `pref_${pref.guest_id}_${pref.key}_${Math.random().toString(36).slice(2)}`,
-        name: item,
-        category: pref.category === 'Dietary' ? 'Dry Goods' : 'Beverages',
-        department: 'Galley',
+        id: `pref_${key.replace(/\s+/g, '_')}_${Math.random().toString(36).slice(2)}`,
+        name: item.name,
+        category: item.category,
+        department: item.department,
         source: 'guest_preference',
-        reason: `${name} ${pref.pref_type === 'requirement' ? 'requires' : 'prefers'}: ${pref.key || item}`,
-        priority: pref.pref_type === 'requirement' ? 'high' : 'normal',
-        quantity_ordered: 1,
-        unit: 'each',
+        reason,
+        priority,
+        quantity_ordered: item.quantity,
+        unit: item.unit,
         allergen_flags: [],
       });
     });
