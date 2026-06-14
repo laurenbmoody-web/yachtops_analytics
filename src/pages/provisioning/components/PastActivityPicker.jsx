@@ -57,10 +57,12 @@ const CATALOGUE_URL = 'https://provisions.cargotechnology.co.uk/';
 const RECENT_DAYS = 60; // boards modified within this window count as "Live"
 
 // Render order for the source groups. Sources with rare / actionable
-// signal (Occasions, Expiring soon, Guest prefs, Low stock) come first
-// and are expanded by default; routine sources (Master history, Invoice
-// pattern, Location aware) come last and are collapsed by default. The
-// engine returns a free-form object, so the picker pins the order here.
+// signal (Occasions, Expiring soon, Guest prefs, Low stock) come first;
+// routine sources (Master history, Invoice pattern, Location aware)
+// come last. ALL sources are collapsed by default — the eyebrow shows
+// the row count so users know what's inside before tapping. Reduces
+// scroll burden when every source produces (post-Occasions / Expiring-
+// soon expansion).
 const SOURCE_ORDER = [
   'occasions',
   'expiring_soon',
@@ -70,12 +72,7 @@ const SOURCE_ORDER = [
   'invoice_pattern',
   'location_aware',
 ];
-const DEFAULT_EXPANDED_SOURCES = new Set([
-  'occasions',
-  'expiring_soon',
-  'guest_preference',
-  'low_stock',
-]);
+const DEFAULT_EXPANDED_SOURCES = new Set();
 
 // Per-source rightmost chip text + style. Replaces the noisy red badge
 // SmartSuggestionsPanel rendered for every high-priority row. Returns
@@ -218,7 +215,6 @@ export default function PastActivityPicker({
   // engine in that case.
   useEffect(() => {
     if (tab !== 'suggestions') return;
-    if (suggestions !== null) return; // already loaded
     if (!tenantId) return;
     let cancelled = false;
     setSuggestionsLoading(true);
@@ -234,7 +230,13 @@ export default function PastActivityPicker({
       }
     })();
     return () => { cancelled = true; };
-  }, [tab, tripId, tenantId, suggestions]);
+    // Re-fetch when the trip changes — wizard's selectedTrip may
+    // change mid-mount (user picks a different trip from the dropdown
+    // and re-enters the picker). Dropped the suggestions !== null
+    // short-circuit so a stale fetch (e.g. opened picker before
+    // linking a trip) gets superseded by a fresh one with the new
+    // tripId. Tenant + tab transitions also covered.
+  }, [tab, tripId, tenantId]);
 
   // Map raw suggestion rows → provisioning item shape and route through
   // onUse with a 'suggestion' source tag so the wizard creates the board
