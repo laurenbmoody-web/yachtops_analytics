@@ -283,6 +283,7 @@ export default function RotaWorkspace({
   // HOR breach reasons for the visible period — keyed `${userId}|${date}` so the
   // Record-of-Rest export can show each non-conformity's recorded reason + sign-off.
   const [breachReasons, setBreachReasons] = useState({});
+  const [workEntries, setWorkEntries] = useState([]);
   const [reasonsNonce, setReasonsNonce] = useState(0);
   const horFirstDay = hor.days?.[0];
   const horLastDay = hor.days?.[hor.days.length - 1];
@@ -296,12 +297,22 @@ export default function RotaWorkspace({
         .eq('tenant_id', activeTenantId)
         .gte('breach_date', horFirstDay)
         .lte('breach_date', horLastDay);
-      if (!alive || error || !data) return;
-      const map = {};
-      data.forEach((r) => { map[`${r.subject_user_id}|${String(r.breach_date).slice(0, 10)}`] = r; });
-      // Merge (don't replace) so a just-saved optimistic entry is never clobbered
-      // by a read that round-tripped the date/uuid in a slightly different shape.
-      setBreachReasons((prev) => ({ ...prev, ...map }));
+      if (alive && !error && data) {
+        const map = {};
+        data.forEach((r) => { map[`${r.subject_user_id}|${String(r.breach_date).slice(0, 10)}`] = r; });
+        // Merge (don't replace) so a just-saved optimistic entry is never clobbered
+        // by a read that round-tripped the date/uuid in a slightly different shape.
+        setBreachReasons((prev) => ({ ...prev, ...map }));
+      }
+      // Crew's logged actual hours for the period — these override the rota plan
+      // in the HOR record (logged actuals are the source of truth).
+      const we = await supabase
+        .from('hor_work_entries')
+        .select('subject_user_id, entry_date, work_segments')
+        .eq('tenant_id', activeTenantId)
+        .gte('entry_date', horFirstDay)
+        .lte('entry_date', horLastDay);
+      if (alive && !we.error && we.data) setWorkEntries(we.data);
     })();
     return () => { alive = false; };
   }, [view, activeTenantId, horFirstDay, horLastDay, reasonsNonce]);
@@ -788,6 +799,7 @@ export default function RotaWorkspace({
               periodLabel={hor.label}
               departmentName={departmentName}
               breachReasons={breachReasons}
+              workEntries={workEntries}
               tenantId={activeTenantId}
               canSignOff={tierRank(tier) >= tierRank(horApproverTier)}
               onReasonsSaved={handleReasonsSaved}
