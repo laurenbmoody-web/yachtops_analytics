@@ -7,8 +7,7 @@ import {
   fetchTemplates,
 } from '../utils/provisioningStorage';
 import { TEMPLATES } from '../data/templates';
-import { getSmartSuggestions } from '../../../utils/provisioningSuggestions';
-import SmartSuggestionsPanel from './SmartSuggestionsPanel';
+import { getSmartSuggestions, SOURCE_META } from '../../../utils/provisioningSuggestions';
 
 // ── PastActivityPicker — the unified "Build from..." picker ────────────────
 // Single sub-view that consolidates every "starting point" the wizard offers
@@ -57,6 +56,25 @@ import SmartSuggestionsPanel from './SmartSuggestionsPanel';
 const CATALOGUE_URL = 'https://provisions.cargotechnology.co.uk/';
 const RECENT_DAYS = 60; // boards modified within this window count as "Live"
 
+// Per-source rightmost chip text + style. Replaces the noisy red badge
+// SmartSuggestionsPanel rendered for every high-priority row. Returns
+// null when there's no signal worth surfacing.
+function suggestionSignal(s) {
+  if (!s) return null;
+  if (s.is_allergen_note) return { text: 'Allergen', cls: 'is-high' };
+  if (s.priority === 'high') {
+    if (s.source === 'low_stock')         return { text: (s.quantity_ordered === 0 ? 'Out of stock' : 'High priority'), cls: 'is-high' };
+    if (s.source === 'guest_preference')  return { text: 'Required', cls: 'is-high' };
+    if (s.source === 'invoice_pattern')   return { text: 'Overdue', cls: 'is-high' };
+    return { text: 'High priority', cls: 'is-high' };
+  }
+  if (s.source === 'low_stock')                                    return { text: 'Low', cls: 'is-warn' };
+  if (s.source === 'master_history' && s.times_ordered)            return { text: `Ordered ${s.times_ordered}×`, cls: 'is-muted' };
+  if (s.source === 'invoice_pattern')                              return { text: 'Due', cls: 'is-muted' };
+  if (s.source === 'location_aware')                               return { text: 'Stock-up', cls: 'is-muted' };
+  return null;
+}
+
 export default function PastActivityPicker({
   tenantId,
   tripId = null,
@@ -93,6 +111,9 @@ export default function PastActivityPicker({
   // Kept null until first activation so the spinner shows on tab entry.
   const [suggestions, setSuggestions] = useState(null);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  // Multi-select inside the Suggestions tab — Set of suggestion ids the
+  // user has ticked. Cleared on apply / tab change.
+  const [pickedSuggestionIds, setPickedSuggestionIds] = useState(new Set());
 
   // Load all sources concurrently on mount.
   useEffect(() => {
@@ -152,6 +173,7 @@ export default function PastActivityPicker({
     setSelectedBoardId(null);
     setSelectedTemplateKey(null);
     setSelectedOrderId(null);
+    setPickedSuggestionIds(new Set());
   }, [tab, boardsToggle]);
 
   // Lazy-load smart suggestions on first Suggestions-tab activation. New
@@ -202,6 +224,27 @@ export default function PastActivityPicker({
     if (!mapped.length) return;
     onUse(mapped, 'suggestion');
   };
+
+  // Multi-select helpers for the Suggestions tab.
+  const togglePickedSuggestion = (id) => {
+    setPickedSuggestionIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  // Flatten suggestion sources into one array for selection lookups + CTA
+  // disabled checks. Recomputes only when suggestions change.
+  const allSuggestionItems = useMemo(() => {
+    if (!suggestions) return [];
+    return Object.values(suggestions).flat();
+  }, [suggestions]);
+
+  const pickedSuggestionItems = useMemo(
+    () => allSuggestionItems.filter(s => pickedSuggestionIds.has(s.id)),
+    [allSuggestionItems, pickedSuggestionIds]
+  );
 
   // ── Derived lists ─────────────────────────────────────────────────────
   const { liveBoards, pastBoards } = useMemo(() => {
@@ -388,42 +431,42 @@ export default function PastActivityPicker({
         </h3>
       </div>
 
-      {/* Top-level tabs */}
-      <div className="pv-wizard-pill-row" style={{ marginBottom: 12 }}>
+      {/* Top-level tabs — editorial underline strip */}
+      <div className="pv-wizard-tabs">
         <button
           onClick={() => setTab('boards')}
-          className={`pv-wizard-pill${tab === 'boards' ? ' is-active' : ''}`}
+          className={`pv-wizard-tab${tab === 'boards' ? ' is-active' : ''}`}
         >Boards</button>
         <button
           onClick={() => setTab('orders')}
-          className={`pv-wizard-pill${tab === 'orders' ? ' is-active' : ''}`}
+          className={`pv-wizard-tab${tab === 'orders' ? ' is-active' : ''}`}
         >Past orders</button>
         <button
           onClick={() => setTab('catalogue')}
-          className={`pv-wizard-pill${tab === 'catalogue' ? ' is-active' : ''}`}
+          className={`pv-wizard-tab${tab === 'catalogue' ? ' is-active' : ''}`}
         >Catalogue</button>
         <button
           onClick={() => setTab('suggestions')}
-          className={`pv-wizard-pill${tab === 'suggestions' ? ' is-active' : ''}`}
+          className={`pv-wizard-tab${tab === 'suggestions' ? ' is-active' : ''}`}
         >Suggestions</button>
       </div>
 
       {/* ── Boards tab ───────────────────────────────────────────────── */}
       {tab === 'boards' && (
         <>
-          {/* Live / Past / Templates toggle */}
-          <div className="pv-wizard-pill-row" style={{ marginBottom: 10 }}>
+          {/* Live / Past / Templates — segmented control */}
+          <div className="pv-wizard-seg" style={{ marginTop: 10 }}>
             <button
               onClick={() => setBoardsToggle('live')}
-              className={`pv-wizard-pill${boardsToggle === 'live' ? ' is-active' : ''}`}
+              className={`pv-wizard-seg-btn${boardsToggle === 'live' ? ' is-active' : ''}`}
             >Live</button>
             <button
               onClick={() => setBoardsToggle('past')}
-              className={`pv-wizard-pill${boardsToggle === 'past' ? ' is-active' : ''}`}
+              className={`pv-wizard-seg-btn${boardsToggle === 'past' ? ' is-active' : ''}`}
             >Past</button>
             <button
               onClick={() => setBoardsToggle('templates')}
-              className={`pv-wizard-pill${boardsToggle === 'templates' ? ' is-active' : ''}`}
+              className={`pv-wizard-seg-btn${boardsToggle === 'templates' ? ' is-active' : ''}`}
             >Templates</button>
           </div>
 
@@ -458,15 +501,23 @@ export default function PastActivityPicker({
                     onClick={() => setSelectedBoardId(isSelected ? null : board.id)}
                     className={`pv-wizard-board-row${isSelected ? ' is-selected' : ''}`}
                   >
-                    <div className="pv-wizard-board-row-head">
-                      <p className="pv-wizard-board-row-title">{board.title}</p>
-                      <span className="pv-wizard-item-count">{board._itemCount} items</span>
-                    </div>
-                    <p className="pv-wizard-board-row-meta">
-                      {fmtDate(board.updated_at || board.created_at)}
-                      {board._tripName ? ` · ${board._tripName}` : ''}
-                      {board._guestCount > 0 ? ` · ${board._guestCount} guests` : ''}
-                    </p>
+                    <span className={`pv-wizard-row-checkbox${isSelected ? ' is-checked' : ''}`} aria-hidden="true">
+                      {isSelected ? '✓' : ''}
+                    </span>
+                    <span className="pv-wizard-board-row-body">
+                      <span className="pv-wizard-board-row-head">
+                        <span className="pv-wizard-board-row-title">{board.title}</span>
+                        <span className="pv-wizard-item-count">{board._itemCount} items</span>
+                      </span>
+                      <span className="pv-wizard-board-row-meta">
+                        {board.department && (
+                          <span className="pv-wizard-row-tag">{board.department}</span>
+                        )}
+                        {fmtDate(board.updated_at || board.created_at)}
+                        {board._tripName ? ` · ${board._tripName}` : ''}
+                        {board._guestCount > 0 ? ` · ${board._guestCount} guests` : ''}
+                      </span>
+                    </span>
                   </button>
                 );
               })}
@@ -537,15 +588,19 @@ export default function PastActivityPicker({
       {/* ── Past orders tab ──────────────────────────────────────────── */}
       {tab === 'orders' && (
         <>
-          <div className="pv-wizard-pill-row" style={{ marginBottom: 10 }}>
+          {/* All / Favourites — same segmented control as Boards. Star
+              icon kept on the row itself (alongside favourited supplier
+              names) but stripped from the toggle label to keep the
+              chrome quiet. */}
+          <div className="pv-wizard-seg" style={{ marginTop: 10 }}>
             <button
               onClick={() => setFavouritesOnly(false)}
-              className={`pv-wizard-pill${!favouritesOnly ? ' is-active' : ''}`}
-            >All orders</button>
+              className={`pv-wizard-seg-btn${!favouritesOnly ? ' is-active' : ''}`}
+            >All</button>
             <button
               onClick={() => setFavouritesOnly(true)}
-              className={`pv-wizard-pill${favouritesOnly ? ' is-active' : ''}`}
-            >★ Favourites</button>
+              className={`pv-wizard-seg-btn${favouritesOnly ? ' is-active' : ''}`}
+            >Favourites</button>
           </div>
 
           <div className="pv-wizard-list">
@@ -568,17 +623,25 @@ export default function PastActivityPicker({
                   onClick={() => setSelectedOrderId(isSelected ? null : order.id)}
                   className={`pv-wizard-board-row${isSelected ? ' is-selected' : ''}`}
                 >
-                  <div className="pv-wizard-board-row-head">
-                    <p className="pv-wizard-board-row-title">
-                      {order.supplier_name || 'Supplier'}
-                      {isFav && <span style={{ color: 'var(--d-orange)', marginLeft: 6 }}>★</span>}
-                    </p>
-                    <span className="pv-wizard-item-count">{itemCount} item{itemCount === 1 ? '' : 's'}</span>
-                  </div>
-                  <p className="pv-wizard-board-row-meta">
-                    {fmtDate(order.sent_at || order.created_at)}
-                    {depts.length > 0 ? ` · ${depts.join(', ')}` : ''}
-                  </p>
+                  <span className={`pv-wizard-row-checkbox${isSelected ? ' is-checked' : ''}`} aria-hidden="true">
+                    {isSelected ? '✓' : ''}
+                  </span>
+                  <span className="pv-wizard-board-row-body">
+                    <span className="pv-wizard-board-row-head">
+                      <span className="pv-wizard-board-row-title">
+                        {order.supplier_name || 'Supplier'}
+                        {isFav && <span style={{ color: 'var(--d-orange)', marginLeft: 6 }}>★</span>}
+                      </span>
+                      <span className="pv-wizard-item-count">{itemCount} item{itemCount === 1 ? '' : 's'}</span>
+                    </span>
+                    <span className="pv-wizard-board-row-meta">
+                      {depts.length > 0 && (
+                        <span className="pv-wizard-row-tag">{depts[0]}</span>
+                      )}
+                      {fmtDate(order.sent_at || order.created_at)}
+                      {depts.length > 1 ? ` · ${depts.slice(1).join(', ')}` : ''}
+                    </span>
+                  </span>
                 </button>
               );
             })}
@@ -609,25 +672,74 @@ export default function PastActivityPicker({
         </div>
       )}
 
-      {/* ── Suggestions tab (Smart Suggestions, board-create variant) ── */}
+      {/* ── Suggestions tab — inline editorial rendering (no embedded panel) ── */}
       {tab === 'suggestions' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 4, overflow: 'auto' }}>
+        <>
           {!tripId && (
-            <p className="pv-wizard-route-desc" style={{ margin: 0 }}>
+            <p className="pv-wizard-notice">
               No trip linked — guest-preference and location-aware sources will be empty.
               Stock, pattern, and history-based suggestions still apply.
             </p>
           )}
-          <SmartSuggestionsPanel
-            suggestions={suggestions}
-            onAdd={handleSuggestionsApply}
-            onAddAll={handleSuggestionsApply}
-            loading={suggestionsLoading}
-          />
-        </div>
+
+          {suggestionsLoading && (
+            <p className="pv-wizard-empty">Generating suggestions…</p>
+          )}
+
+          {!suggestionsLoading && suggestions && allSuggestionItems.length === 0 && (
+            <p className="pv-wizard-empty">No suggestions to surface yet.</p>
+          )}
+
+          {!suggestionsLoading && allSuggestionItems.length > 0 && (
+            <div className="pv-wizard-list">
+              {Object.entries(suggestions || {}).map(([source, items]) => {
+                if (!items?.length) return null;
+                const meta = SOURCE_META[source] || { label: source };
+                return (
+                  <React.Fragment key={source}>
+                    <div className="pv-wizard-src-head">
+                      <span className="pv-wizard-src-label">{meta.label}</span>
+                      <span className="pv-wizard-src-count">{items.length} item{items.length === 1 ? '' : 's'}</span>
+                    </div>
+                    {items.map(item => {
+                      const isPicked = pickedSuggestionIds.has(item.id);
+                      const signal = suggestionSignal(item);
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => togglePickedSuggestion(item.id)}
+                          className={`pv-wizard-board-row${isPicked ? ' is-selected' : ''}`}
+                        >
+                          <span className={`pv-wizard-row-checkbox${isPicked ? ' is-checked' : ''}`} aria-hidden="true">
+                            {isPicked ? '✓' : ''}
+                          </span>
+                          <span className="pv-wizard-board-row-body">
+                            <span className="pv-wizard-board-row-head">
+                              <span className="pv-wizard-board-row-title">{item.name}</span>
+                              {signal && (
+                                <span className={`pv-wizard-row-priority ${signal.cls}`}>{signal.text}</span>
+                              )}
+                            </span>
+                            <span className="pv-wizard-board-row-meta">
+                              {item.department && (
+                                <span className="pv-wizard-row-tag">{item.department}</span>
+                              )}
+                              {item.reason}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
 
-      {/* CTA footer — only shown when the active tab has a selectable list */}
+      {/* CTA footer — single primary button for boards/orders; two-button
+          row (Add selected + Add all) on suggestions. */}
       {(tab === 'boards' || tab === 'orders') && (
         <div className="pv-wizard-cta-footer">
           <button
@@ -650,6 +762,28 @@ export default function PastActivityPicker({
                       ? 'Select a board'
                       : 'Select an order')}
           </button>
+        </div>
+      )}
+
+      {tab === 'suggestions' && allSuggestionItems.length > 0 && (
+        <div className="pv-wizard-cta-footer">
+          <div className="pv-wizard-cta-footer-bar">
+            <button
+              onClick={() => handleSuggestionsApply(pickedSuggestionItems)}
+              disabled={pickedSuggestionItems.length === 0}
+              className="pv-wizard-btn pv-wizard-btn-primary"
+            >
+              {pickedSuggestionItems.length > 0
+                ? `Add selected (${pickedSuggestionItems.length})`
+                : 'Select suggestions'}
+            </button>
+            <button
+              onClick={() => handleSuggestionsApply(allSuggestionItems)}
+              className="pv-wizard-btn-secondary"
+            >
+              Add all
+            </button>
+          </div>
         </div>
       )}
     </div>
