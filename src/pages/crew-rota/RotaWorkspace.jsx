@@ -230,20 +230,26 @@ export default function RotaWorkspace({
     if (!activeTenantId) { setDepartments([]); return undefined; }
     let alive = true;
     (async () => {
-      const [veRes, dpRes, tnRes] = await Promise.all([
+      const [veRes, dpRes, tnRes, viRes] = await Promise.all([
         supabase.from('vessels')
           .select('name, departments_in_use, operational_day_start_hour').eq('tenant_id', activeTenantId).maybeSingle(),
         supabase.rpc('get_tenant_departments', { p_tenant_id: activeTenantId }),
         supabase.from('tenants')
           .select('imo_number, flag, port_of_registry').eq('id', activeTenantId).maybeSingle(),
+        // Identity is entered in vessel-settings (which writes to vessels) but the
+        // columns were migrated onto tenants — read both and prefer whichever has a
+        // value so IMO / port / flag round-trip onto the PSC-audited record. Kept a
+        // separate query so a missing column here can't break the name lookup above.
+        supabase.from('vessels')
+          .select('imo_number, flag, port_of_registry').eq('tenant_id', activeTenantId).maybeSingle(),
       ]);
       if (!alive) return;
       setGridStartHour(veRes.data?.operational_day_start_hour ?? DEFAULT_GRID_START_HOUR);
       setVesselName(veRes.data?.name ?? null);
       setVesselIdentity({
-        imoNumber: tnRes.data?.imo_number ?? null,
-        flagState: tnRes.data?.flag ?? null,
-        portOfRegistry: tnRes.data?.port_of_registry ?? null,
+        imoNumber: viRes.data?.imo_number ?? tnRes.data?.imo_number ?? null,
+        flagState: viRes.data?.flag ?? tnRes.data?.flag ?? null,
+        portOfRegistry: viRes.data?.port_of_registry ?? tnRes.data?.port_of_registry ?? null,
       });
       if (dpRes.error) {
         console.error('[RotaWorkspace] get_tenant_departments error:', dpRes.error);
