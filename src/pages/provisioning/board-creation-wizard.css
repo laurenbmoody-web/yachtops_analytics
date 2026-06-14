@@ -778,61 +778,64 @@
   to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-/* Backdrop — fixed full-viewport overlay with blur. Click anywhere
-   off the panel closes (handler in component). */
+/* Backdrop — fixed full-viewport overlay with blur. z-index pegged
+   to 9999 so it covers the cargo header (which lives at lower z). */
 .add-items-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 100;
-  background: rgba(38, 42, 83, 0.30);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  z-index: 9999;
+  background: rgba(38, 42, 83, 0.32);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px;
+  padding: 60px 40px 40px;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   color: var(--d-navy);
   animation: add-items-modal-fade-in 140ms ease-out;
 }
 
-/* Card panel — cargo treatment. Max-width keeps it readable on huge
-   monitors; max-height pulls it back from the edges so the backdrop
-   is always visible around it. Stops the click-outside-to-close
-   handler bubbling via stopPropagation in JSX. */
+/* Card panel — cargo treatment with serif headline language.
+   max-width 1100 keeps readable on huge monitors; max-height pulls
+   back from edges so the backdrop is always visible. */
 .add-items-modal-panel {
   width: 100%;
-  max-width: 1080px;
+  max-width: 1100px;
   height: 100%;
   max-height: 720px;
   background: var(--d-card);
-  border: 1px solid var(--d-border);
-  border-bottom: 5px solid var(--d-card-edge);
+  border: 0.5px solid var(--d-border);
+  border-bottom: 5px solid var(--d-orange);
   border-radius: 14px;
-  box-shadow: 0 24px 64px rgba(38, 42, 83, 0.18);
+  box-shadow: 0 28px 72px rgba(38, 42, 83, 0.22);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   animation: add-items-modal-pop-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Header bar */
+/* Header bar — editorial treatment. Serif title with the orange
+   dot affordance the wizard uses; meta strip below with cargo's
+   tracked-caps eyebrow rhythm. */
 .add-items-modal-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 14px 22px;
+  padding: 18px 26px;
   border-bottom: 0.5px solid var(--d-border);
   background: var(--d-card);
 }
 .add-items-modal-title {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: 10px;
   font-family: 'DM Serif Display', Georgia, serif;
-  font-size: 18px;
+  font-size: 22px;
+  line-height: 1;
   color: var(--d-navy-deep);
+  letter-spacing: -0.01em;
 }
 .add-items-modal-dot {
   width: 7px;
@@ -840,12 +843,18 @@
   border-radius: 50%;
   background: var(--d-orange);
   display: inline-block;
+  transform: translateY(-2px);
 }
 .add-items-modal-board-meta {
-  font-size: 11.5px;
-  color: var(--d-muted);
-  letter-spacing: 0.02em;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--d-muted-soft);
   flex: 1;
+  padding-left: 18px;
+  border-left: 0.5px solid var(--d-border);
+  margin-left: 4px;
 }
 .add-items-modal-close {
   width: 32px;
@@ -873,36 +882,49 @@
   overflow: hidden;
 }
 
-/* Sidebar nav */
+/* Sidebar nav — cargo treatment: tracked-caps eyebrow above the
+   nav list, active item gets the orange left-rail accent + slightly
+   warmer cream surface. */
 .add-items-modal-nav {
   border-right: 0.5px solid var(--d-border);
   background: var(--d-bg);
-  padding: 16px 12px;
+  padding: 22px 14px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+}
+.add-items-modal-nav-eyebrow {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--d-muted-soft);
+  padding: 0 12px;
+  margin-bottom: 12px;
 }
 .add-items-modal-nav-item {
   background: none;
   border: 0;
-  padding: 10px 14px;
+  border-left: 2px solid transparent;
+  padding: 10px 14px 10px 12px;
   text-align: left;
   font-family: inherit;
   font-size: 13px;
   font-weight: 600;
   color: var(--d-muted);
-  border-radius: 8px;
+  border-radius: 0 6px 6px 0;
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
+  transition: background 120ms ease, color 120ms ease, border-left-color 120ms ease;
 }
 .add-items-modal-nav-item:hover {
-  background: var(--d-border-soft);
   color: var(--d-navy);
+  background: var(--d-border-soft);
 }
 .add-items-modal-nav-item.is-active {
-  background: var(--d-card);
   color: var(--d-navy-deep);
-  box-shadow: 0 1px 2px rgba(38, 42, 83, 0.06);
+  background: var(--d-card);
+  border-left-color: var(--d-orange);
+  box-shadow: 0 1px 2px rgba(38, 42, 83, 0.04);
 }
 
 /* Main column */

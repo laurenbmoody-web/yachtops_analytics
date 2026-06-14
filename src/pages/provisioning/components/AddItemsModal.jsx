@@ -401,10 +401,10 @@ export default function AddItemsModal({
       <div className="add-items-modal-bar">
         <span className="add-items-modal-title">
           <span className="add-items-modal-dot" aria-hidden="true" />
-          Add from…
+          Add, <em style={{ color: 'var(--d-orange)', fontStyle: 'italic' }}>from</em>.
         </span>
         <span className="add-items-modal-board-meta">
-          {currentItems.length} item{currentItems.length === 1 ? '' : 's'} on this board
+          {currentItems.length} item{currentItems.length === 1 ? '' : 's'} on board
           {currentDepartment ? ` · ${currentDepartment}` : ''}
         </span>
         <button onClick={onClose} className="add-items-modal-close" aria-label="Close">×</button>
@@ -413,6 +413,7 @@ export default function AddItemsModal({
       <div className="add-items-modal-body">
         {/* Sidebar */}
         <nav className="add-items-modal-nav">
+          <span className="add-items-modal-nav-eyebrow">Sources</span>
           {SOURCES.map(s => (
             <button
               key={s.key}
