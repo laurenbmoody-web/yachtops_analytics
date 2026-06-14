@@ -306,8 +306,8 @@ function breachNoteFor(breachReasons, windowShifts, member, ds) {
   return dayShiftNote(windowShifts, member.id, ds) || '—';
 }
 
-// "Recorded by" cell: who logged/signed the reason, their role, and when (one
-// per line). Name + role resolve via the crew maps threaded through meta.
+// "Recorded by" cell: "Name · Role" then the date (two lines). Name + role
+// resolve via the crew maps threaded through meta.
 function breachAttributionFor(breachReasons, meta, member, ds) {
   const r = breachReasons && breachReasons[`${member.userId}|${ds}`];
   if (!r || !r.note_text) return '';
@@ -322,7 +322,8 @@ function breachAttributionFor(breachReasons, meta, member, ds) {
       when = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
     }
   }
-  return [who, role, when].filter(Boolean).join('\n');
+  const nameRole = [who, role].filter(Boolean).join(' · ');
+  return [nameRole, when].filter(Boolean).join('\n');
 }
 
 // Declaration + signature lines, drawn at atY (defaults to near the foot).
@@ -535,7 +536,7 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
     margin: { left: M, right: M, top: 64 },
     head: [['Date', 'Non-conformity', 'Notes / reason (rota or HOR log)', 'Recorded by']],
     body: ncRows,
-    styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 5, lineColor: GRID_LINE, lineWidth: 0.5, valign: 'middle', textColor: [40, 40, 40] },
+    styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 3.5, lineColor: GRID_LINE, lineWidth: 0.5, valign: 'middle', textColor: [40, 40, 40] },
     headStyles: { font: 'helvetica', fillColor: NAVY, textColor: CREAM, fontSize: 8.5, halign: 'left' },
     columnStyles: {
       0: { cellWidth: 70, textColor: WARN_TEXT, fontStyle: 'bold' },

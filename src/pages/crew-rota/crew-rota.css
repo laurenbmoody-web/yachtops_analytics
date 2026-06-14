@@ -3661,7 +3661,7 @@
 
 .rl-grid-wrap { overflow-x: auto; flex: 1; min-width: 0; }
 .rl-grid-inner { min-width: 720px; position: relative; }
-.rl-grid-inner.is-month { min-width: max-content; }
+.rl-grid-inner.is-month { min-width: 0; }
 
 .rl-head-row {
   display: grid;
@@ -3671,7 +3671,7 @@
   margin-bottom: 4px;
 }
 .rl-grid-inner.is-month .rl-head-row {
-  grid-template-columns: var(--rl-nm-w, 200px) repeat(var(--rl-cols), 44px) var(--rl-sum-w, 66px);
+  grid-template-columns: var(--rl-nm-w, 200px) repeat(var(--rl-cols), minmax(24px, 1fr)) var(--rl-sum-w, 66px);
 }
 .rl-head-spacer {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
@@ -3752,7 +3752,7 @@
   margin-bottom: 2px;
 }
 .rl-grid-inner.is-month .rl-row {
-  grid-template-columns: calc(var(--rl-nm-w, 200px) - 22px) repeat(var(--rl-cols), 44px) var(--rl-sum-w, 66px);
+  grid-template-columns: calc(var(--rl-nm-w, 200px) - 22px) repeat(var(--rl-cols), minmax(24px, 1fr)) var(--rl-sum-w, 66px);
 }
 
 .rl-nm {
@@ -3810,6 +3810,12 @@
 .rl-c.is-warn { background: #E4574C; color: #fff; font-weight: 700; }
 .rl-c.off { background: #fff; }
 .rl-c-off { font-size: 15px; line-height: 1; color: #DCDCE2; }
+/* Month view: columns flex to fit the width, so cells are narrower — shrink the
+   figure and padding to keep a full month on screen without horizontal scroll. */
+.rl-grid-inner.is-month .rl-c { min-height: 38px; padding: 2px; border-radius: 3px; }
+.rl-grid-inner.is-month .rl-c-rest { font-size: 10px; gap: 1px; }
+.rl-grid-inner.is-month .rl-c.is-warn,
+.rl-grid-inner.is-month .rl-c.is-marginal { font-size: 10px; }
 .rl-c-rest {
   display: inline-flex;
   align-items: center;
