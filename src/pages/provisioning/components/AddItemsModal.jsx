@@ -369,6 +369,13 @@ export default function AddItemsModal({
       allSuggestionItems
         .filter(s => pickedSuggestionIds.has(s.id))
         .forEach(s => {
+          // estimated_unit_cost is NUMERIC in Postgres — empty string
+          // throws "invalid input syntax for type numeric". Coerce to a
+          // real number or null. Same defensive shape on quantity (?? 1
+          // catches null/undefined but NOT '' — explicit Number() then
+          // fallback to 1 when NaN).
+          const qty = Number(s.quantity ?? s.quantity_ordered);
+          const cost = Number(s.estimated_unit_cost);
           newItems.push({
             list_id: boardId,
             name: s.name,
@@ -377,9 +384,9 @@ export default function AddItemsModal({
             category: s.category || '',
             sub_category: s.sub_category || '',
             department: s.department || currentDepartment || 'Galley',
-            quantity_ordered: s.quantity || s.quantity_ordered || 1,
+            quantity_ordered: Number.isFinite(qty) && qty > 0 ? qty : 1,
             unit: s.unit || 'each',
-            estimated_unit_cost: s.estimated_unit_cost || '',
+            estimated_unit_cost: Number.isFinite(cost) ? cost : null,
             allergen_flags: s.allergen_flags || [],
             source: s.source || 'suggestion',
             notes: s.reason || '',
@@ -403,6 +410,9 @@ export default function AddItemsModal({
           items = rows || [];
         }
         items.filter(r => pickedIds.has(r.id)).forEach(r => {
+          // r.quantity may come back as '' on older order_items rows —
+          // ?? only catches null/undefined, not ''. Number()-coerce.
+          const qty = Number(r.quantity);
           newItems.push({
             list_id: boardId,
             name: r.item_name,
@@ -411,7 +421,7 @@ export default function AddItemsModal({
             category: r.category || '',
             sub_category: r.sub_category || '',
             department: r.department || currentDepartment || 'Galley',
-            quantity_ordered: r.quantity ?? 1,
+            quantity_ordered: Number.isFinite(qty) && qty > 0 ? qty : 1,
             unit: r.unit || 'each',
             allergen_flags: r.allergen_flags || [],
             source: 'history',
