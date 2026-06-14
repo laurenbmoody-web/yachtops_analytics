@@ -58,6 +58,7 @@ const VesselSettings = () => {
     typical_guest_count: '',
     typical_crew_count: '',
     operational_day_start_hour: 6,
+    hor_day_basis: 'calendar',
     hor_confirmation_mode: 'require',
     hor_approver_tier: 'COMMAND',
 
@@ -179,6 +180,7 @@ const VesselSettings = () => {
         typical_guest_count: vesselData?.typical_guest_count || '',
         typical_crew_count: vesselData?.typical_crew_count || '',
         operational_day_start_hour: vesselData?.operational_day_start_hour ?? 6,
+        hor_day_basis: vesselData?.hor_day_basis || 'calendar',
         hor_confirmation_mode: vesselData?.hor_confirmation_mode || 'require',
         hor_approver_tier: vesselData?.hor_approver_tier || 'COMMAND',
         ism_applicable: vesselData?.ism_applicable || false,
@@ -355,6 +357,7 @@ const VesselSettings = () => {
         typical_guest_count: formState?.typical_guest_count ? parseInt(formState?.typical_guest_count, 10) : null,
         typical_crew_count: formState?.typical_crew_count ? parseInt(formState?.typical_crew_count, 10) : null,
         operational_day_start_hour: Math.min(23, Math.max(0, parseInt(formState?.operational_day_start_hour ?? 6, 10) || 0)),
+        hor_day_basis: formState?.hor_day_basis === 'operational' ? 'operational' : 'calendar',
         hor_confirmation_mode: formState?.hor_confirmation_mode === 'trust' ? 'trust' : 'require',
         hor_approver_tier: ['COMMAND', 'CHIEF', 'HOD'].includes(formState?.hor_approver_tier) ? formState?.hor_approver_tier : 'COMMAND',
         ism_applicable: formState?.ism_applicable || false,
@@ -907,7 +910,22 @@ const VesselSettings = () => {
                       disabled={viewMode || !canEdit}
                     />
                     <p className="text-xs text-muted-foreground mt-1">
-                      Hour the daily rota grid begins. Display only — does not change MLC rest calculations.
+                      Hour the daily rota grid begins. Also anchors the HOR 24-hour day when the basis below is set to “Operational day”.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">HOR Day Basis</label>
+                    <Select
+                      value={formState?.hor_day_basis || 'calendar'}
+                      onChange={(value) => handleInputChange('hor_day_basis', value)}
+                      options={[
+                        { value: 'calendar', label: 'Calendar day (00:00–24:00)' },
+                        { value: 'operational', label: `Operational day (from ${String(formState?.operational_day_start_hour ?? 6).padStart(2, '0')}:00)` },
+                      ]}
+                      disabled={viewMode || !canEdit}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      How the Record of Hours of Rest slices the “10h in any 24h” rule. Calendar is the classic IMO/ILO sheet; Operational anchors the 24-hour day to the rota day-start, avoiding false breaches when your day doesn’t begin at midnight. The chosen basis is printed on the record.
                     </p>
                   </div>
                   <div>

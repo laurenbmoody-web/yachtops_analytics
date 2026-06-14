@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Download, AlertTriangle } from 'lucide-react';
 import RotaBreachReasonModal from './RotaBreachReasonModal';
 import { DEPT_ORDER, MlcTriangle } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
-import { ON_DUTY_TYPES, assessMlc, MLC_DAILY_REST_MIN, MLC_WEEKLY_REST_MIN } from './restHours';
+import { ON_DUTY_TYPES, assessMlc, reframeToOperationalDay, MLC_DAILY_REST_MIN, MLC_WEEKLY_REST_MIN } from './restHours';
 import { getContrastText, getRoleDisplayName } from './crewDisplay';
 import { MONTH_SHORT } from './MonthCalendar';
 import { exportRestLogCSV, exportRestLogPDF } from './rotaHorExport';
@@ -123,10 +123,24 @@ export default function RestLogView({
   tenantId = null,
   canSignOff = false,
   onReasonsSaved,
+  horDayBasis = 'calendar',
+  operationalDayStartHour = 0,
   onCellClick,
 }) {
   const wrapRef = useRef(null);
   const [showBreachModal, setShowBreachModal] = useState(false);
+
+  // The 24h "day" anchor for the daily-rest rule: 0 (midnight) for the classic
+  // calendar basis, the vessel's operational day-start when opted in. Reframing
+  // the shifts by this offset lets the existing rules assess the operational day.
+  const dayStartHour = horDayBasis === 'operational' ? (operationalDayStartHour || 0) : 0;
+  const framedShifts = useMemo(
+    () => reframeToOperationalDay(windowShifts, dayStartHour),
+    [windowShifts, dayStartHour],
+  );
+  const basisLabel = dayStartHour
+    ? `Rest assessed on a 24-hour day commencing ${String(dayStartHour).padStart(2, '0')}:00`
+    : 'Rest assessed on a calendar day (00:00–24:00)';
 
   // Dept-grouped rows with per-cell rest + per-member breach tallies. One pass
   // feeds both the rendered matrix and the exports (same source, same order).
@@ -143,7 +157,7 @@ export default function RestLogView({
     ];
     return ordered.map((dept) => {
       const members = byDept.get(dept).map((c) => {
-        const cells = days.map((d) => computeCell(c.id, d, windowShifts));
+        const cells = days.map((d) => computeCell(c.id, d, framedShifts));
         return {
           id: c.id,
           userId: c.userId,
@@ -156,7 +170,7 @@ export default function RestLogView({
       });
       return { dept, color: byDept.get(dept)[0]?.departmentColor || '#5F5E5A', members };
     });
-  }, [crew, days, windowShifts]);
+  }, [crew, days, framedShifts]);
 
   // Land the scroll on today when it falls in the period, else the start.
   useEffect(() => {
@@ -181,8 +195,10 @@ export default function RestLogView({
     period,
     // userId -> display name, so the PDF can attribute each recorded reason.
     crewNames: Object.fromEntries((crew || []).filter((c) => c.userId).map((c) => [c.userId, c.name])),
+    horDayStartHour: dayStartHour, // 0 = calendar; >0 = operational anchor
+    basisLabel,
     generatedAt: new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }),
-  }), [vesselName, imoNumber, flagState, portOfRegistry, departmentName, periodLabel, period, crew]);
+  }), [vesselName, imoNumber, flagState, portOfRegistry, departmentName, periodLabel, period, crew, dayStartHour, basisLabel]);
 
   // Planned breach days with no recorded reason yet — what a chief/command is
   // prompted to justify (and thereby sign off) at the rota stage.
