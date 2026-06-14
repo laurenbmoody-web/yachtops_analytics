@@ -1,31 +1,57 @@
-import React, { useEffect, useState } from 'react';
-import Icon from '../../components/AppIcon';
-import Button from '../../components/ui/Button';
+import React, { useEffect, useMemo, useState } from 'react';
+import { X, CheckCircle } from 'lucide-react';
 import ModalShell from '../../components/ui/ModalShell';
-import { QUICK_TAGS } from '../crew-profile/utils/horBreachNotesStorage';
 import { upsertBreachReason, signOffBreachReason } from '../crew-profile/utils/horBreachReasons';
 
+// A few common operational reasons — clicking one seeds the bulk field as a
+// starting point; it stays fully editable so the actual reason still gets
+// written rather than rubber-stamped.
+const PRESETS = [
+  'Guest trip — extended service',
+  'Turnaround / provisioning',
+  'Charter operations',
+  'Drill / safety operations',
+];
+
 // RotaBreachReasonModal — rota-stage capture of breach reasons by a chief/command.
-// Lists the planned MLC breach days that don't yet have a recorded reason and
-// lets the approver record one per day. Because an approver is entering it, the
-// reason doubles as the sign-off (✓): we upsert the reason then sign it off.
-//
-// Non-blocking ("allow override"): the approver can close without filling every
-// row — unfilled days simply stay without a reason (shown as "—" on the record).
+// Lists the planned MLC breach days that don't yet have a recorded reason. Because
+// an approver is entering it, the reason doubles as the sign-off (✓): we upsert
+// the reason then sign it off. Non-blocking ("allow override") — they can close
+// without filling every row; unfilled days stay "—" on the record.
 //
 // `breaches`: [{ key, userId, name, role, date, dateLabel, breachLabel, breachTypes }]
 export default function RotaBreachReasonModal({ isOpen, onClose, tenantId, breaches = [], onSaved }) {
   const [notes, setNotes] = useState({});
+  const [bulk, setBulk] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (isOpen) setNotes({});
+    if (isOpen) { setNotes({}); setBulk(''); }
   }, [isOpen, breaches]);
+
+  // Group breach days under each crew member so the same reason reads naturally
+  // down a run of consecutive days (the common guest-ops case).
+  const groups = useMemo(() => {
+    const m = new Map();
+    breaches.forEach((b) => {
+      if (!m.has(b.userId)) m.set(b.userId, { userId: b.userId, name: b.name, role: b.role, items: [] });
+      m.get(b.userId).items.push(b);
+    });
+    return Array.from(m.values());
+  }, [breaches]);
 
   if (!isOpen) return null;
 
   const setNote = (key, v) => setNotes((p) => ({ ...p, [key]: v }));
+  const applyToAll = () => {
+    const v = bulk.trim();
+    if (!v) return;
+    const next = {};
+    breaches.forEach((b) => { next[b.key] = v; });
+    setNotes(next);
+  };
   const filledCount = breaches.filter((b) => (notes[b.key] || '').trim()).length;
+  const dirty = filledCount > 0 || bulk.trim().length > 0;
 
   const handleSave = async () => {
     setSaving(true);
@@ -34,13 +60,9 @@ export default function RotaBreachReasonModal({ isOpen, onClose, tenantId, breac
       .map(async (b) => {
         try {
           await upsertBreachReason({
-            tenantId,
-            subjectUserId: b.userId,
-            date: b.date,
-            breachTypes: b.breachTypes || [],
-            note: notes[b.key].trim(),
+            tenantId, subjectUserId: b.userId, date: b.date,
+            breachTypes: b.breachTypes || [], note: notes[b.key].trim(),
           });
-          // Reason entered by an approver = signed off (✓ on the record).
           await signOffBreachReason({ tenantId, subjectUserId: b.userId, date: b.date });
         } catch (err) {
           console.warn('[rota breach reason] save failed:', err);
@@ -53,61 +75,63 @@ export default function RotaBreachReasonModal({ isOpen, onClose, tenantId, breac
   };
 
   return (
-    <ModalShell onClose={onClose} panelClassName="bg-background rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-      <div className="flex items-center justify-between p-6 border-b border-border">
-        <div>
-          <h2 className="text-xl font-semibold text-foreground">Planned breaches need a reason</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Record why each non-compliant day is operationally necessary. As a sign-off authority, your reason is also recorded as the sign-off (✓) on the record.
-          </p>
-        </div>
-        <button onClick={onClose} className="p-2 hover:bg-muted rounded-lg transition-smooth" aria-label="Close">
-          <Icon name="X" size={20} className="text-foreground" />
-        </button>
+    <ModalShell onClose={onClose} isDirty={dirty} isBusy={saving} panelClassName="rbr-panel">
+      <div className="rbr-head">
+        <h2 className="rbr-title">Planned breaches, <em>justified.</em></h2>
+        <p className="rbr-sub">
+          Record why each non-compliant day was operationally necessary. As a sign-off authority, your reason is recorded as the sign-off (✓) on the record.
+        </p>
+        <button className="rbr-x" onClick={onClose} aria-label="Close"><X size={20} /></button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-5">
-        {breaches.map((b) => (
-          <div key={b.key} className="bg-card border border-border rounded-xl p-5 space-y-3">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-base font-semibold text-foreground">{b.name}{b.role ? ` · ${b.role}` : ''}</h3>
-                <p className="text-sm text-muted-foreground mt-0.5">{b.dateLabel}</p>
+      <div className="rbr-bulk">
+        <p className="rbr-label">One reason for all {breaches.length} days</p>
+        <div className="rbr-presets">
+          {PRESETS.map((p) => (
+            <button key={p} type="button" className="rbr-preset" onClick={() => setBulk(p)}>{p}</button>
+          ))}
+        </div>
+        <div className="rbr-bulk-row">
+          <input
+            className="rbr-input"
+            value={bulk}
+            onChange={(e) => setBulk(e.target.value)}
+            placeholder="e.g. Guest trip — service ran past 22:00, early start for breakfast service"
+          />
+          <button type="button" className="rbr-apply" onClick={applyToAll} disabled={!bulk.trim()}>
+            Apply to all
+          </button>
+        </div>
+      </div>
+
+      <div className="rbr-list">
+        {groups.map((g) => (
+          <div key={g.userId}>
+            <p className="rbr-group-label">{g.name}{g.role ? ` · ${g.role}` : ''}</p>
+            {g.items.map((b) => (
+              <div key={b.key} className="rbr-row">
+                <span className="rbr-date">{b.dateLabel}</span>
+                <span className="rbr-chip">{b.breachLabel}</span>
+                <input
+                  className="rbr-rowinput"
+                  value={notes[b.key] || ''}
+                  onChange={(e) => setNote(b.key, e.target.value)}
+                  placeholder="Reason…"
+                />
               </div>
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 text-right">
-                {b.breachLabel}
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {QUICK_TAGS?.map((tag) => (
-                <button
-                  key={tag.id}
-                  onClick={() => setNote(b.key, tag.prefix + (notes[b.key] || '').replace(/^[^:]+:\s*/, ''))}
-                  className="px-3 py-1.5 rounded-lg text-sm font-medium bg-muted text-foreground hover:bg-muted/80 transition-smooth"
-                >
-                  {tag.label}
-                </button>
-              ))}
-            </div>
-            <textarea
-              value={notes[b.key] || ''}
-              onChange={(e) => setNote(b.key, e.target.value)}
-              placeholder="Reason this breach was operationally necessary…"
-              rows={2}
-              className="w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
-            />
+            ))}
           </div>
         ))}
       </div>
 
-      <div className="flex items-center justify-between gap-3 p-6 border-t border-border">
-        <span className="text-xs text-muted-foreground">{filledCount} of {breaches.length} given</span>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={onClose} disabled={saving}>Close without</Button>
-          <Button onClick={handleSave} disabled={saving || filledCount === 0}>
-            <Icon name="CheckCircle" size={18} />
+      <div className="rbr-foot">
+        <span className="rbr-count">{filledCount} of {breaches.length} given</span>
+        <div className="rbr-btns">
+          <button type="button" className="rbr-btn-ghost" onClick={onClose} disabled={saving}>Close without</button>
+          <button type="button" className="rbr-btn-primary" onClick={handleSave} disabled={saving || filledCount === 0}>
+            <CheckCircle size={16} />
             {saving ? 'Saving…' : 'Record & sign off'}
-          </Button>
+          </button>
         </div>
       </div>
     </ModalShell>
