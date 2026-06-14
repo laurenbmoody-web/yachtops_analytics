@@ -109,6 +109,11 @@ function horLogSpec(anchor, period) {
   return { days, historyDays, forwardDays, label: `${MONTH_NAMES[m]} ${y}` };
 }
 
+// Permission-tier hierarchy for HOR sign-off (mirrors _hor_tier_rank in the DB):
+// a member can sign off when their rank ≥ the vessel's configured approver tier.
+const TIER_RANK = { COMMAND: 3, CHIEF: 2, HOD: 1 };
+const tierRank = (t) => TIER_RANK[String(t || '').toUpperCase()] || 0;
+
 export default function RotaWorkspace({
   rota,
   departmentId = null,
@@ -220,6 +225,7 @@ export default function RotaWorkspace({
   // MLC rest math is calendar-day based and unaffected by this.
   const [gridStartHour, setGridStartHour] = useState(DEFAULT_GRID_START_HOUR);
   const [horDayBasis, setHorDayBasis] = useState('calendar');
+  const [horApproverTier, setHorApproverTier] = useState('COMMAND');
   const [vesselName, setVesselName] = useState(null);
   // Vessel identity for the MLC/IMO-ILO Record of Hours of Rest header. These
   // live on `tenants` (single vessel per tenant), not on `vessels`.
@@ -233,7 +239,7 @@ export default function RotaWorkspace({
     (async () => {
       const [veRes, dpRes, tnRes, viRes] = await Promise.all([
         supabase.from('vessels')
-          .select('name, departments_in_use, operational_day_start_hour, hor_day_basis').eq('tenant_id', activeTenantId).maybeSingle(),
+          .select('name, departments_in_use, operational_day_start_hour, hor_day_basis, hor_approver_tier').eq('tenant_id', activeTenantId).maybeSingle(),
         supabase.rpc('get_tenant_departments', { p_tenant_id: activeTenantId }),
         supabase.from('tenants')
           .select('imo_number, flag, port_of_registry').eq('id', activeTenantId).maybeSingle(),
@@ -247,6 +253,7 @@ export default function RotaWorkspace({
       if (!alive) return;
       setGridStartHour(veRes.data?.operational_day_start_hour ?? DEFAULT_GRID_START_HOUR);
       setHorDayBasis(veRes.data?.hor_day_basis || 'calendar');
+      setHorApproverTier(veRes.data?.hor_approver_tier || 'COMMAND');
       setVesselName(veRes.data?.name ?? null);
       setVesselIdentity({
         imoNumber: viRes.data?.imo_number ?? tnRes.data?.imo_number ?? null,
@@ -782,7 +789,7 @@ export default function RotaWorkspace({
               departmentName={departmentName}
               breachReasons={breachReasons}
               tenantId={activeTenantId}
-              canSignOff={tier === 'CHIEF' || tier === 'COMMAND'}
+              canSignOff={tierRank(tier) >= tierRank(horApproverTier)}
               onReasonsSaved={handleReasonsSaved}
               horDayBasis={horDayBasis}
               operationalDayStartHour={gridStartHour}
