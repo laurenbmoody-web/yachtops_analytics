@@ -148,10 +148,11 @@ export default function PastActivityPicker({
   const [catalogueGroup, setCatalogueGroup] = useState('all');
   const [catalogueSearch, setCatalogueSearch] = useState('');
   const [expandedCatalogueCategories, setExpandedCatalogueCategories] = useState(new Set());
-  // Picked items keyed by `${groupLabel}::${categoryName}::${itemName}`
-  // so duplicates across categories (e.g. "Sweetcorn" in FRESH and FROZEN)
-  // can both be picked independently and distinguished on apply.
-  const [pickedCatalogueKeys, setPickedCatalogueKeys] = useState(new Set());
+  // Picked catalogue items as Map<compositeKey, quantity>. Quantity > 0
+  // means picked; entry removed when stepped down to 0. Composite key
+  // is "GROUP::CATEGORY::ITEM" so duplicate names across groups (e.g.
+  // "Sweetcorn" in FRESH and FROZEN) can be picked independently.
+  const [catalogueQtys, setCatalogueQtys] = useState(new Map());
   // Per-source expand/collapse state. Defaults to the high-signal
   // sources expanded; routine sources collapsed. User can toggle each,
   // or use the "Expand all"/"Collapse all" header link.
@@ -216,7 +217,7 @@ export default function PastActivityPicker({
     setSelectedTemplateKey(null);
     setSelectedOrderId(null);
     setPickedSuggestionIds(new Set());
-    setPickedCatalogueKeys(new Set());
+    setCatalogueQtys(new Map());
     setExpandedCatalogueCategories(new Set());
   }, [tab, boardsToggle]);
 
@@ -303,10 +304,15 @@ export default function PastActivityPicker({
   const catalogueKey = (groupLabel, categoryName, itemName) =>
     `${groupLabel}::${categoryName}::${itemName}`;
 
-  const togglePickedCatalogueItem = (key) => {
-    setPickedCatalogueKeys(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
+  // Bump qty by delta, clamped to >= 0. Setting to 0 removes the entry
+  // so size() returns the count of *picked* items.
+  const incCatalogueQty = (key, delta) => {
+    setCatalogueQtys(prev => {
+      const next = new Map(prev);
+      const cur = next.get(key) || 0;
+      const newQty = Math.max(0, cur + delta);
+      if (newQty === 0) next.delete(key);
+      else next.set(key, newQty);
       return next;
     });
   };
@@ -347,18 +353,23 @@ export default function PastActivityPicker({
   }, [catalogueGroup, catalogueSearch]);
 
   // Build flat picked-items list (provisioning_item shape) on apply.
+  // Iterates the full CATALOGUE_DATA tree (not the visible-filtered one)
+  // so applying isn't gated by the current search / group filter — user
+  // can pick across groups, change filters, and still ship every pick.
   const handleCatalogueApply = () => {
     const items = [];
-    visibleCatalogueTree.forEach(([groupLabel, cats]) => {
+    CATALOGUE_DATA.forEach(([groupLabel, categories]) => {
       const dept = CATALOGUE_GROUP_DEPT[groupLabel] || 'Galley';
-      cats.forEach(([catName, catItems]) => {
-        catItems.forEach(({ key, itemName, defaultUnit }) => {
-          if (!pickedCatalogueKeys.has(key)) return;
+      categories.forEach(([catName, catItems]) => {
+        catItems.forEach(([itemName, defaultUnit]) => {
+          const key = catalogueKey(groupLabel, catName, itemName);
+          const qty = catalogueQtys.get(key) || 0;
+          if (qty <= 0) return;
           items.push({
             name:             itemName,
             category:         catName,
             department:       dept,
-            quantity_ordered: 1,
+            quantity_ordered: qty,
             unit:             defaultUnit,
             allergen_flags:   [],
             status:           'draft',
@@ -871,26 +882,43 @@ export default function PastActivityPicker({
                         <span className="pv-wizard-src-count">{items.length} item{items.length === 1 ? '' : 's'}</span>
                       </button>
                       {isExpanded && items.map(({ key, itemName, defaultUnit }) => {
-                        const isPicked = pickedCatalogueKeys.has(key);
+                        const qty = catalogueQtys.get(key) || 0;
+                        const isPicked = qty > 0;
+                        // Row is a non-interactive div so the +/- buttons
+                        // get the clicks cleanly (nested-button HTML is
+                        // invalid and behaves inconsistently). Group tag
+                        // and category-meta line removed — the group is
+                        // already visible in the eyebrow above so each
+                        // row stays clean.
                         return (
-                          <button
+                          <div
                             key={key}
-                            onClick={() => togglePickedCatalogueItem(key)}
                             className={`pv-wizard-board-row${isPicked ? ' is-selected' : ''}`}
+                            style={{ cursor: 'default' }}
                           >
-                            <span className={`pv-wizard-row-checkbox${isPicked ? ' is-checked' : ''}`} aria-hidden="true">
-                              {isPicked ? '✓' : ''}
-                            </span>
                             <span className="pv-wizard-board-row-body">
-                              <span className="pv-wizard-board-row-head">
+                              <span className="pv-wizard-board-row-head" style={{ alignItems: 'center' }}>
                                 <span className="pv-wizard-board-row-title">{itemName}</span>
-                                <span className="pv-wizard-row-priority is-muted">{defaultUnit}</span>
-                              </span>
-                              <span className="pv-wizard-board-row-meta">
-                                <span className="pv-wizard-row-tag">{groupLabel}</span>
                               </span>
                             </span>
-                          </button>
+                            <span className="pv-wizard-stepper">
+                              <button
+                                type="button"
+                                onClick={() => incCatalogueQty(key, -1)}
+                                disabled={qty === 0}
+                                className="pv-wizard-stepbtn"
+                                aria-label={`Decrease ${itemName}`}
+                              >−</button>
+                              <span className="pv-wizard-stepqty">{qty || 0}</span>
+                              <button
+                                type="button"
+                                onClick={() => incCatalogueQty(key, 1)}
+                                className="pv-wizard-stepbtn"
+                                aria-label={`Increase ${itemName}`}
+                              >+</button>
+                              <span className="pv-wizard-stepunit">{defaultUnit}</span>
+                            </span>
+                          </div>
                         );
                       })}
                     </React.Fragment>
@@ -1082,11 +1110,11 @@ export default function PastActivityPicker({
         <div className="pv-wizard-cta-footer">
           <button
             onClick={handleCatalogueApply}
-            disabled={pickedCatalogueKeys.size === 0}
+            disabled={catalogueQtys.size === 0}
             className="pv-wizard-btn pv-wizard-btn-primary is-block"
           >
-            {pickedCatalogueKeys.size > 0
-              ? `Add ${pickedCatalogueKeys.size} item${pickedCatalogueKeys.size === 1 ? '' : 's'}`
+            {catalogueQtys.size > 0
+              ? `Add ${catalogueQtys.size} item${catalogueQtys.size === 1 ? '' : 's'}`
               : 'Select items'}
           </button>
         </div>
