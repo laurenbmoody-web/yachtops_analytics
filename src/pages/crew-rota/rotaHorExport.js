@@ -296,12 +296,30 @@ function dayShiftNote(windowShifts, memberId, ds) {
   return notes.length ? Array.from(new Set(notes)).join('; ') : '';
 }
 
-// Notes-column value for a breach day: the HOR-logged reason wins (with a ✓ when
-// it's been signed off in-app), else the rota-time shift note, else a dash.
+// Notes-column value for a breach day: the HOR-logged reason wins, else the
+// rota-time shift note, else a dash. (No unicode marks — jsPDF's built-in
+// Helvetica can't encode glyphs like ✓ and renders them as garbage.)
 function breachNoteFor(breachReasons, windowShifts, member, ds) {
   const r = breachReasons && breachReasons[`${member.userId}|${ds}`];
-  if (r && r.note_text) return `${r.signed_off_at ? '✓ ' : ''}${r.note_text}`;
+  if (r && r.note_text) return r.note_text;
   return dayShiftNote(windowShifts, member.id, ds) || '—';
+}
+
+// "Recorded by" cell: who logged/signed the reason and when (two lines). Names
+// resolve via the crew map threaded through meta; falls back to blank.
+function breachAttributionFor(breachReasons, crewNames, member, ds) {
+  const r = breachReasons && breachReasons[`${member.userId}|${ds}`];
+  if (!r || !r.note_text) return '';
+  const who = (crewNames && (crewNames[r.signed_off_by] || crewNames[r.updated_by])) || '';
+  const whenIso = r.signed_off_at || r.updated_at;
+  let when = '';
+  if (whenIso) {
+    const d = new Date(whenIso);
+    if (!Number.isNaN(d.getTime())) {
+      when = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+  }
+  return [who, when].filter(Boolean).join('\n');
 }
 
 // Declaration + signature lines, drawn at atY (defaults to near the foot).
@@ -478,6 +496,7 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
       dayRowLabel(ds),
       c.breaches.map((b) => b.label).join(' · '),
       breachNoteFor(breachReasons, windowShifts, member, ds),
+      breachAttributionFor(breachReasons, meta.crewNames, member, ds),
     ]);
   }
 
@@ -496,8 +515,8 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
     M, ly + 12,
   );
 
-  // Dedicated, full-landscape-width table that auto-paginates. The Notes column
-  // carries the reason (rota-time shift note or HOR log, ✓ when signed off).
+  // Dedicated, full-landscape-width table that auto-paginates. Notes carries the
+  // reason (rota-time shift note or HOR log); "Recorded by" the author + date.
   doc.addPage();
   const drawNcHeader = () => {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(0);
@@ -508,14 +527,15 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
   autoTable(doc, {
     startY: 64,
     margin: { left: M, right: M, top: 64 },
-    head: [['Date', 'Non-conformity', 'Notes / reason (rota or HOR log)']],
+    head: [['Date', 'Non-conformity', 'Notes / reason (rota or HOR log)', 'Recorded by']],
     body: ncRows,
-    styles: { fontSize: 8.5, cellPadding: 5, lineColor: GRID_LINE, lineWidth: 0.5, valign: 'middle', textColor: [40, 40, 40] },
-    headStyles: { fillColor: NAVY, textColor: CREAM, fontSize: 8.5, halign: 'left' },
+    styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 5, lineColor: GRID_LINE, lineWidth: 0.5, valign: 'middle', textColor: [40, 40, 40] },
+    headStyles: { font: 'helvetica', fillColor: NAVY, textColor: CREAM, fontSize: 8.5, halign: 'left' },
     columnStyles: {
-      0: { cellWidth: 78, textColor: WARN_TEXT, fontStyle: 'bold' },
-      1: { cellWidth: 250 },
+      0: { cellWidth: 70, textColor: WARN_TEXT, fontStyle: 'bold' },
+      1: { cellWidth: 215 },
       2: { cellWidth: 'auto' },
+      3: { cellWidth: 118, fontSize: 7.5, textColor: [110, 110, 110] },
     },
     theme: 'grid',
     didDrawPage: () => drawNcHeader(),

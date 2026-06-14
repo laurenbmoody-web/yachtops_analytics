@@ -283,7 +283,7 @@ export default function RotaWorkspace({
     (async () => {
       const { data, error } = await supabase
         .from('hor_breach_reasons')
-        .select('subject_user_id, breach_date, note_text, signed_off_at')
+        .select('subject_user_id, breach_date, note_text, signed_off_at, signed_off_by, updated_at, updated_by')
         .eq('tenant_id', activeTenantId)
         .gte('breach_date', horFirstDay)
         .lte('breach_date', horLastDay);
@@ -305,10 +305,13 @@ export default function RotaWorkspace({
     if (Array.isArray(saved) && saved.length) {
       setBreachReasons((prev) => {
         const next = { ...prev };
+        const nowIso = new Date().toISOString();
         saved.forEach((s) => {
           next[`${s.userId}|${s.date}`] = {
             subject_user_id: s.userId, breach_date: s.date,
-            note_text: s.note, signed_off_at: new Date().toISOString(),
+            note_text: s.note,
+            signed_off_at: nowIso, signed_off_by: user?.id,
+            updated_at: nowIso, updated_by: user?.id,
           };
         });
         return next;
