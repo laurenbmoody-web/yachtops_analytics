@@ -27,8 +27,8 @@ export const MLC_MAX_WORK_STRETCH = 14;     // hours
 // state identical limits. Derived from the constants above.
 export const MLC_STANDARD_REF =
   `MLC 2006 Standard A2.3 · STCW Code Section A-VIII/1. Minimum rest: ${MLC_DAILY_REST_MIN}h in any 24h `
-  + `and ${MLC_WEEKLY_REST_MIN}h in any 7 days. Rest may be split into no more than ${MLC_MAX_REST_PERIODS} periods `
-  + `(one of at least ${MLC_LONGEST_REST_PERIOD_MIN}h), with no more than ${MLC_MAX_WORK_STRETCH}h on duty between consecutive rest periods.`;
+  + `and ${MLC_WEEKLY_REST_MIN}h in any 7 days; rest in no more than ${MLC_MAX_REST_PERIODS} periods, `
+  + `one of at least ${MLC_LONGEST_REST_PERIOD_MIN}h.`;
 
 // Shorten-lever safety margin (v1.1). The pre-fill computes the maximum
 // duration that satisfies all rest rules with this many hours of headroom
