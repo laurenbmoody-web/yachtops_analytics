@@ -324,12 +324,12 @@ function breachAttributionFor(breachReasons, crewNames, member, ds) {
 }
 
 // Declaration + signature lines, drawn at atY (defaults to near the foot).
-function drawSignatureBlock(doc, pageW, pageH, M, atY) {
+function drawSignatureBlock(doc, pageW, pageH, M, atY, caption) {
   const sy = atY != null ? atY : pageH - M - 46;
   doc.setDrawColor(...GRID_LINE); doc.setLineWidth(0.5);
   doc.line(M, sy - 10, pageW - M, sy - 10);
   doc.setFont('helvetica', 'italic'); doc.setFontSize(7); doc.setTextColor(70);
-  doc.text('I confirm that the above is a true record of the seafarer’s hours of rest for the period stated.', M, sy);
+  doc.text(caption || 'I confirm that the above is a true record of the seafarer’s hours of rest for the period stated.', M, sy);
   doc.setFont('helvetica', 'normal'); doc.setTextColor(0); doc.setFontSize(8);
   const sigW = (pageW - 2 * M - 40) / 2;
   const line1 = sy + 30;
@@ -512,9 +512,12 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
   // on its own continuation page(s).
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(90);
   doc.text(
-    `${ncRows.length} non-conformity day${ncRows.length === 1 ? '' : 's'} recorded — listed on the following page.`,
+    `${ncRows.length} non-conformity day${ncRows.length === 1 ? '' : 's'} recorded — listed and signed on the following page.`,
     M, ly + 12,
   );
+
+  // The grid is the primary record: sign it on this page regardless of breaches.
+  drawSignatureBlock(doc, pageW, pageH, M);
 
   // Dedicated, full-landscape-width table that auto-paginates. Notes carries the
   // reason (rota-time shift note or HOR log); "Recorded by" the author + date.
@@ -543,7 +546,8 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
   });
   let endY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 64) + 24;
   if (endY > pageH - M - 64) { doc.addPage(); endY = M + 48; }
-  drawSignatureBlock(doc, pageW, pageH, M, endY);
+  drawSignatureBlock(doc, pageW, pageH, M, endY,
+    'I confirm the non-conformities listed above and the reasons recorded are a true and accurate account.');
 }
 
 export async function exportRestLogPDF({ rows, days, meta, windowShifts = [], breachReasons = {} }) {
