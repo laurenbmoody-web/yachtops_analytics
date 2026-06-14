@@ -93,47 +93,47 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-section-head {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 22px;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 .crew-profile-page .cp-section-kicker {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
-  letter-spacing: 2px;
+  letter-spacing: 1.6px;
   text-transform: uppercase;
   color: #C65A1A;
 }
 .crew-profile-page .cp-section-head h3 {
-  font-size: 28px;
+  font-size: 20px;
   margin: 0;
   line-height: 1;
 }
 .crew-profile-page .cp-section-sub {
   font-family: 'DM Serif Display', Georgia, serif;
   font-style: italic;
-  font-size: 15px;
+  font-size: 13px;
   color: #695880;
-  margin: -14px 0 22px;
+  margin: -6px 0 18px;
 }
 
 .crew-profile-page .cp-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 14px;
+  gap: 10px;
 }
 .crew-profile-page .cp-field-full { grid-column: 1 / -1; }
 
 .crew-profile-page .cp-field-card {
   background: #FFFFFF;
   border: 1px solid #E5E7EB;
-  border-radius: 13px;
-  padding: 14px 16px;
+  border-radius: 9px;
+  padding: 8px 12px;
   transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 .crew-profile-page .cp-field-card.cp-accent { border-top: 2px solid #C65A1A; }
 .crew-profile-page .cp-field-card:focus-within {
   border-color: #C65A1A;
-  box-shadow: 0 0 0 3px #FAECE7;
+  box-shadow: 0 0 0 2px #FAECE7;
 }
 
 .crew-profile-page .cp-field-label {
@@ -141,19 +141,19 @@ body.crew-profile-editorial {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 700;
-  letter-spacing: 1.4px;
+  letter-spacing: 1px;
   text-transform: uppercase;
   color: #8B8478;
-  margin-bottom: 8px;
+  margin-bottom: 3px;
 }
-.crew-profile-page .cp-field-label .cp-req { color: #C65A1A; font-size: 7px; }
+.crew-profile-page .cp-field-label .cp-req { color: #C65A1A; font-size: 6px; }
 
 .crew-profile-page .cp-field-hint {
-  font-size: 11px;
+  font-size: 10px;
   color: #8B8478;
-  margin-top: 6px;
+  margin-top: 3px;
 }
 
 /* Strip the inner Input/Select box so the field reads as a plain value
@@ -166,13 +166,13 @@ body.crew-profile-editorial {
   background: transparent !important;
   padding: 0 !important;
   height: auto !important;
-  min-height: 24px;
+  min-height: 20px;
   box-shadow: none !important;
-  font-size: 16px !important;
+  font-size: 14px !important;
   font-weight: 500;
   color: #1C1B3A !important;
 }
-.crew-profile-page .cp-field-card textarea { min-height: 56px; resize: none; }
+.crew-profile-page .cp-field-card textarea { min-height: 40px; resize: none; }
 .crew-profile-page .cp-field-card input:disabled,
 .crew-profile-page .cp-field-card textarea:disabled,
 .crew-profile-page .cp-field-card button[aria-haspopup="listbox"]:disabled {
@@ -194,19 +194,19 @@ body.crew-profile-editorial {
 }
 
 /* Sub-section groups within a tab (Emergency, Banking, Preferences). */
-.crew-profile-page .cp-group { margin-top: 30px; }
+.crew-profile-page .cp-group { margin-top: 20px; }
 .crew-profile-page .cp-group:first-of-type { margin-top: 0; }
 .crew-profile-page .cp-group-head {
   display: flex;
   align-items: center;
-  gap: 9px;
-  margin-bottom: 14px;
+  gap: 8px;
+  margin-bottom: 9px;
 }
-.crew-profile-page .cp-group-head .dia { color: #C65A1A; font-size: 11px; }
+.crew-profile-page .cp-group-head .dia { color: #C65A1A; font-size: 9px; }
 .crew-profile-page .cp-group-head .t {
   font-family: 'DM Serif Display', Georgia, serif;
   font-style: italic;
-  font-size: 18px;
+  font-size: 15px;
   color: #1C1B3A;
   white-space: nowrap;
 }
@@ -224,10 +224,10 @@ body.crew-profile-editorial {
 
 /* A plain read/static value rendered directly in a card (no Input). */
 .crew-profile-page .cp-field-card .cp-static {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 500;
   color: #1C1B3A;
-  min-height: 24px;
+  min-height: 20px;
 }
 .crew-profile-page .cp-field-card .cp-static.cp-empty {
   font-family: 'DM Serif Display', Georgia, serif;
