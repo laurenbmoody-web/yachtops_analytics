@@ -14,6 +14,22 @@ import RoleManagement from '../crew-management/components/RoleManagement';
 import { useAuth } from '../../contexts/AuthContext';
 import { logActivity } from '../../utils/activityStorage';
 
+// Field-label hover/focus tooltip. Pure CSS (not the native `title`, which is
+// slow and unreliable), so it works the same in view mode and edit mode.
+function InfoHint({ text }) {
+  return (
+    <span tabIndex={0} className="relative inline-flex items-center group align-middle outline-none">
+      <Icon name="Info" size={13} className="text-muted-foreground cursor-help" />
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute left-1/2 top-full z-50 mt-1.5 hidden w-64 -translate-x-1/2 rounded-md bg-foreground px-3 py-2 text-xs font-normal normal-case leading-snug text-background shadow-lg group-hover:block group-focus:block"
+      >
+        {text}
+      </span>
+    </span>
+  );
+}
+
 const VesselSettings = () => {
   const navigate = useNavigate();
   const { session, loading: authLoading, hasCommandAccess } = useAuth();
@@ -60,7 +76,7 @@ const VesselSettings = () => {
     operational_day_start_hour: 6,
     hor_day_basis: 'calendar',
     hor_confirmation_mode: 'require',
-    hor_approver_tier: 'COMMAND',
+    hor_approver_tier: 'CHIEF',
 
     // Compliance & Structure
     ism_applicable: false,
@@ -182,7 +198,7 @@ const VesselSettings = () => {
         operational_day_start_hour: vesselData?.operational_day_start_hour ?? 6,
         hor_day_basis: vesselData?.hor_day_basis || 'calendar',
         hor_confirmation_mode: vesselData?.hor_confirmation_mode || 'require',
-        hor_approver_tier: vesselData?.hor_approver_tier || 'COMMAND',
+        hor_approver_tier: vesselData?.hor_approver_tier || 'CHIEF',
         ism_applicable: vesselData?.ism_applicable || false,
         isps_applicable: vesselData?.isps_applicable || false,
         departments_in_use: departmentsArray,
@@ -359,7 +375,7 @@ const VesselSettings = () => {
         operational_day_start_hour: Math.min(23, Math.max(0, parseInt(formState?.operational_day_start_hour ?? 6, 10) || 0)),
         hor_day_basis: formState?.hor_day_basis === 'operational' ? 'operational' : 'calendar',
         hor_confirmation_mode: formState?.hor_confirmation_mode === 'trust' ? 'trust' : 'require',
-        hor_approver_tier: ['COMMAND', 'CHIEF', 'HOD'].includes(formState?.hor_approver_tier) ? formState?.hor_approver_tier : 'COMMAND',
+        hor_approver_tier: ['COMMAND', 'CHIEF', 'HOD'].includes(formState?.hor_approver_tier) ? formState?.hor_approver_tier : 'CHIEF',
         ism_applicable: formState?.ism_applicable || false,
         isps_applicable: formState?.isps_applicable || false,
         departments_in_use: formState?.departments_in_use || [],
@@ -912,9 +928,7 @@ const VesselSettings = () => {
                   <div>
                     <label className="flex items-center gap-1.5 text-sm font-medium text-foreground mb-1">
                       Rota Day Start
-                      <span className="text-muted-foreground cursor-help inline-flex" title="The hour your operational day begins. The rota grid starts here, and — when HOR Day Basis is set to Operational — each 24-hour rest period is measured from this time.">
-                        <Icon name="Info" size={13} />
-                      </span>
+                      <InfoHint text="The hour your operational day begins. The rota grid starts here, and — when HOR Day Basis is set to Operational — each 24-hour rest period is measured from this time." />
                     </label>
                     <Select
                       value={String(formState?.operational_day_start_hour ?? 6)}
@@ -926,9 +940,7 @@ const VesselSettings = () => {
                   <div>
                     <label className="flex items-center gap-1.5 text-sm font-medium text-foreground mb-1">
                       HOR Day Basis
-                      <span className="text-muted-foreground cursor-help inline-flex" title="How each 24-hour window for the '10h rest' rule is measured. Calendar = midnight to midnight (the standard IMO/ILO sheet). Operational = a 24-hour day starting at your Rota Day Start, which avoids false breaches when an overnight rest is split by midnight. The basis is printed on the record.">
-                        <Icon name="Info" size={13} />
-                      </span>
+                      <InfoHint text="How each 24-hour window for the '10h rest' rule is measured. Calendar = midnight to midnight (the standard IMO/ILO sheet). Operational = a 24-hour day starting at your Rota Day Start, which avoids false breaches when an overnight rest is split by midnight. The basis is printed on the record." />
                     </label>
                     <Select
                       value={formState?.hor_day_basis || 'calendar'}
@@ -943,9 +955,7 @@ const VesselSettings = () => {
                   <div>
                     <label className="flex items-center gap-1.5 text-sm font-medium text-foreground mb-1">
                       Hours-of-Rest Confirmation
-                      <span className="text-muted-foreground cursor-help inline-flex" title="What happens when a crew member submits their month of hours. Require approval = an approver must sign it off before it's confirmed. Trust crew = it's confirmed automatically on submit.">
-                        <Icon name="Info" size={13} />
-                      </span>
+                      <InfoHint text="What happens when a crew member submits their month of hours. Require approval = an approver must sign it off before it's confirmed. Trust crew = it's confirmed automatically on submit." />
                     </label>
                     <Select
                       value={formState?.hor_confirmation_mode || 'require'}
@@ -960,12 +970,10 @@ const VesselSettings = () => {
                   <div>
                     <label className="flex items-center gap-1.5 text-sm font-medium text-foreground mb-1">
                       HOR Approver Role
-                      <span className="text-muted-foreground cursor-help inline-flex" title="The lowest rank that can approve HOR months and sign off breaches — equal or higher ranks always can too. 'Command only' restricts it to Command; 'Chief & above' adds Chiefs; 'HOD & above' also lets Heads of Department.">
-                        <Icon name="Info" size={13} />
-                      </span>
+                      <InfoHint text="The lowest rank that can approve HOR months and sign off breaches — equal or higher ranks always can too. 'Command only' restricts it to Command; 'Chief & above' adds Chiefs; 'HOD & above' also lets Heads of Department." />
                     </label>
                     <Select
-                      value={formState?.hor_approver_tier || 'COMMAND'}
+                      value={formState?.hor_approver_tier || 'CHIEF'}
                       onChange={(value) => handleInputChange('hor_approver_tier', value)}
                       options={[
                         { value: 'COMMAND', label: 'Command only' },
