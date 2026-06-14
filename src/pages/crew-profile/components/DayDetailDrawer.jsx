@@ -33,7 +33,7 @@ const DayDetailDrawer = ({ isOpen, onClose, selectedDate, dayData, onUpdate }) =
     } else if (dayData?.state === SEA_SERVICE_STATE?.MANUAL) {
       return 'text-gray-600 dark:text-gray-400';
     } else if (dayData?.state === SEA_SERVICE_STATE?.NON_QUALIFYING) {
-      return 'text-blue-600 dark:text-blue-400';
+      return 'text-indigo-600 dark:text-indigo-400';
     }
 
     return 'text-muted-foreground';

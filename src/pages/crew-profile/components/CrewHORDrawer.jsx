@@ -211,8 +211,8 @@ const CrewHORDrawer = ({ isOpen, onClose, crew, currentMonth, onMonthChange, onN
                     bgColor = 'bg-amber-100 dark:bg-amber-900/30';
                     textColor = 'text-amber-800 dark:text-amber-400';
                   } else if (status === 'pending') {
-                    bgColor = 'bg-blue-100 dark:bg-blue-900/30';
-                    textColor = 'text-blue-800 dark:text-blue-400';
+                    bgColor = 'bg-indigo-100 dark:bg-indigo-900/30';
+                    textColor = 'text-indigo-800 dark:text-indigo-400';
                   }
 
                   return (
@@ -223,7 +223,7 @@ const CrewHORDrawer = ({ isOpen, onClose, crew, currentMonth, onMonthChange, onN
                       <div className="text-xs font-semibold text-foreground mb-1">{day}</div>
                       <div className={`text-sm font-bold ${textColor}`}>{restHours?.toFixed(1)} hrs</div>
                       {status === 'pending' && (
-                        <div className="text-[10px] text-blue-600 dark:text-blue-400 mt-1">Pending</div>
+                        <div className="text-[10px] text-indigo-600 dark:text-indigo-400 mt-1">Pending</div>
                       )}
                     </div>
                   );
@@ -245,7 +245,7 @@ const CrewHORDrawer = ({ isOpen, onClose, crew, currentMonth, onMonthChange, onN
                   <span className="text-xs text-muted-foreground">Breach</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded bg-blue-100 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800" />
+                  <div className="w-4 h-4 rounded bg-indigo-100 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800" />
                   <span className="text-xs text-muted-foreground">Pending</span>
                 </div>
               </div>

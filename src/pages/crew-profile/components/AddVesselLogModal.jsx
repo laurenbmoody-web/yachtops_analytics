@@ -141,8 +141,8 @@ const AddVesselLogModal = ({ isOpen, onClose, onSuccess }) => {
             />
           </div>
 
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-            <p className="text-xs text-blue-600 dark:text-blue-400">
+          <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-4">
+            <p className="text-xs text-indigo-600 dark:text-indigo-400">
               This log entry will automatically populate sea service days for all active crew members.
             </p>
           </div>
