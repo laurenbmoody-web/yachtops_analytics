@@ -25,6 +25,7 @@ import SeaTimeTracker from './components/SeaTimeTracker';
 import { supabase } from '../../lib/supabaseClient';
 import { useTenant } from '../../contexts/TenantContext';
 import { useAuth } from '../../contexts/AuthContext';
+import '../../styles/editorial.css';
 import './crew-profile.css';
 
 
@@ -817,13 +818,16 @@ const canEdit = (() => {
   const renderHeader = () => {
     if (!crewMember) return null;
 
+    const headlineTitle = crewMember?.firstName || crewMember?.fullName || 'Crew';
+    const headlineQualifier = crewMember?.lastName || 'Profile';
+
     return (
-      <div className="bg-card border border-border rounded-2xl p-6 mb-6">
-        <div className="flex items-start justify-between">
+      <div className="mb-8">
+        <div className="flex items-start justify-between gap-6">
           <div className="flex items-start gap-6">
             {/* Profile Photo - Clickable Upload Area */}
             <div className="flex flex-col items-center gap-2">
-              <div 
+              <div
                 onClick={handleAvatarClick}
                 className={`w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 overflow-hidden relative ${
                   canEdit ? 'cursor-pointer hover:ring-2 hover:ring-primary hover:ring-offset-2 hover:ring-offset-background transition-all' : ''
@@ -835,8 +839,8 @@ const canEdit = (() => {
                   </div>
                 )}
                 {avatarPreview || crewMember?.avatarUrl ? (
-                  <img 
-                    src={avatarPreview || crewMember?.avatarUrl} 
+                  <img
+                    src={avatarPreview || crewMember?.avatarUrl}
                     alt={crewMember?.fullName}
                     className="w-full h-full object-cover"
                   />
@@ -850,23 +854,23 @@ const canEdit = (() => {
                 </p>
               )}
             </div>
-            
-            {/* Crew Info */}
-            <div>
-              <h2 className="crew-profile-name text-3xl font-semibold text-foreground mb-2">
-                {crewMember?.fullName}
-              </h2>
-              <div className="flex flex-wrap gap-3 mb-2">
-                <span className="text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">Role:</span>{' '}
-                  {crewMember?.roleTitle || 'No role assigned'}
-                </span>
-                <span className="text-sm text-muted-foreground">•</span>
-                <span className="text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">Department:</span>{' '}
-                  {crewMember?.department || 'No department assigned'}
-                </span>
+
+            {/* Crew Info — canonical editorial headline */}
+            <div className="pt-1">
+              <div className="editorial-meta">
+                <span className="dot">•</span>
+                <span>{crewMember?.department || 'Crew'}</span>
+                {crewMember?.roleTitle && (
+                  <>
+                    <span className="bar" />
+                    <span className="muted">{crewMember?.roleTitle}</span>
+                  </>
+                )}
               </div>
+              <h1 className="editorial-greeting">
+                {headlineTitle}<span className="period">,</span>{' '}
+                <em>{headlineQualifier}</em><span className="period">.</span>
+              </h1>
               {crewMember?.status ? (
                 canEditStatus ? (
                   <button

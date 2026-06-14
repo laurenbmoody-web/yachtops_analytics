@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&display=swap');
+
 /* ============================================================
    Crew Profile — editorial "navy / terracotta" skin.
 
@@ -55,19 +57,15 @@ body.crew-profile-editorial {
    section pages, without restyling the global <Header> or portaled
    modal chrome. */
 
-/* Display serif headlines (crew name, section titles) in navy. Falls
-   back to Georgia where Fraunces/Canela aren't loaded — still reads
-   editorial. */
+/* Display serif section titles in editorial ink, matching the canonical
+   "DM Serif Display" headline used by the page header + other editorial
+   surfaces. Falls back to Georgia where the webfont isn't available. */
 .crew-profile-page h2,
 .crew-profile-page h3 {
-  font-family: 'Fraunces', 'Canela', Georgia, 'Times New Roman', serif;
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, 'Times New Roman', serif;
+  font-weight: 500;
   letter-spacing: -0.01em;
-  color: #1A1D3F;
-}
-
-/* The crew-name headline gets the full editorial weight treatment. */
-.crew-profile-page .crew-profile-name {
-  font-weight: 600;
+  color: #1C1B3A;
 }
 
 /* Active section-nav item: terracotta edge on the navy pill — the
