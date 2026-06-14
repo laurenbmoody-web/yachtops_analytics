@@ -605,6 +605,24 @@ async function getOccasionsSuggestions(tripId, vesselId) {
 
 // ── Query 7: Expiring Soon (inventory_items.expiry_date inside trip window) ──
 
+// Taxonomy categories that aren't provisioning consumables — items here
+// often have expiry dates for compliance/sterility reasons (medical kit
+// components, pyrotechnic flares, life-raft service dates) but they're
+// stocked through medical/safety/engineering channels, not the
+// provisioning board. Surfacing them here pollutes the picker with
+// forceps / splints / life-raft components.
+//
+// Match is case-insensitive against any of l1/l2/l3/l4 names. Adding
+// a pattern here automatically scopes the filter down the tree (e.g.
+// "Medical" catches "Medical Equipment", "Medical / First Aid", etc).
+const NON_PROVISIONING_TAXONOMY = /\b(Medical|First[ -]?Aid|Safety|Fire|Pyrotechnic|Life[ -]?Saving|Life[ -]?Raft|EEBD|MFAG|Spare[ -]?Parts|Engineering)\b/i;
+
+function isProvisioningRelevant(item) {
+  const tax = [item.l1_name, item.l2_name, item.l3_name, item.l4_name]
+    .filter(Boolean).join(' / ');
+  return !NON_PROVISIONING_TAXONOMY.test(tax);
+}
+
 async function getExpiringSoonSuggestions(tripId, vesselId) {
   try {
     const trip = await getTripById(tripId);
@@ -619,7 +637,7 @@ async function getExpiringSoonSuggestions(tripId, vesselId) {
 
     const { data: items } = await supabase
       ?.from('inventory_items')
-      ?.select('id, name, unit, total_qty, l2_name, usage_department, expiry_date')
+      ?.select('id, name, unit, total_qty, l1_name, l2_name, l3_name, l4_name, usage_department, expiry_date')
       ?.eq('tenant_id', vesselId)
       ?.not('expiry_date', 'is', null)
       ?.lte('expiry_date', cutoff.toISOString().slice(0, 10));
@@ -629,6 +647,12 @@ async function getExpiringSoonSuggestions(tripId, vesselId) {
     const fmtDate = (d) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
     (items || []).forEach(item => {
+      // Skip items whose taxonomy is medical / safety / engineering /
+      // life-saving — they have expiry dates for compliance reasons,
+      // not provisioning. Avoids the picker dumping the entire medical
+      // kit (forceps / splints / etc) every time it loads.
+      if (!isProvisioningRelevant(item)) return;
+
       const qty = item.total_qty || 0;
       if (qty <= 0) return; // low_stock covers zero-quantity items
       const exp = new Date(item.expiry_date);
