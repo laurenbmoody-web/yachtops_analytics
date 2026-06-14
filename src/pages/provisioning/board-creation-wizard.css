@@ -758,6 +758,246 @@
   margin-left: 4px;
 }
 
+/* ════════════════════════════════════════════════════════════
+   In-board Add-from modal — centred popover with backdrop blur
+
+   Triggered from the board toolbar's "Add from…" button.
+   Replaces the prior pair of side-by-side panels (Smart
+   Suggestions inline + Quick Add modal). Backdrop blurs the
+   board behind so the picker feels like a focused task while
+   leaving context lightly visible. Card adopts the cargo
+   treatment (white surface, 14px radius, 5px --d-card-edge
+   bottom rule, --d-shadow).
+   ──────────────────────────────────────────────────────────── */
+@keyframes add-items-modal-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes add-items-modal-pop-in {
+  from { opacity: 0; transform: scale(0.98) translateY(6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Backdrop — fixed full-viewport overlay with blur. z-index pegged
+   to 9999 so it covers the cargo header (which lives at lower z). */
+.add-items-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(38, 42, 83, 0.32);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 40px 40px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: var(--d-navy);
+  animation: add-items-modal-fade-in 140ms ease-out;
+}
+
+/* Card panel — cargo treatment with serif headline language.
+   max-width 1100 keeps readable on huge monitors; max-height pulls
+   back from edges so the backdrop is always visible. */
+.add-items-modal-panel {
+  width: 100%;
+  max-width: 1100px;
+  height: 100%;
+  max-height: 720px;
+  background: var(--d-card);
+  border: 0.5px solid var(--d-border);
+  border-bottom: 5px solid var(--d-orange);
+  border-radius: 14px;
+  box-shadow: 0 28px 72px rgba(38, 42, 83, 0.22);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: add-items-modal-pop-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Header bar — editorial treatment. Serif title with the orange
+   dot affordance the wizard uses; meta strip below with cargo's
+   tracked-caps eyebrow rhythm. */
+.add-items-modal-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 26px;
+  border-bottom: 0.5px solid var(--d-border);
+  background: var(--d-card);
+}
+.add-items-modal-title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--d-navy-deep);
+  letter-spacing: -0.01em;
+}
+.add-items-modal-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--d-orange);
+  display: inline-block;
+  transform: translateY(-2px);
+}
+.add-items-modal-board-meta {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--d-muted-soft);
+  flex: 1;
+  padding-left: 18px;
+  border-left: 0.5px solid var(--d-border);
+  margin-left: 4px;
+}
+.add-items-modal-close {
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  color: var(--d-muted);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.add-items-modal-close:hover {
+  background: var(--d-border-soft);
+  color: var(--d-navy);
+}
+
+/* Body — sidebar + main */
+.add-items-modal-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Sidebar nav — cargo treatment: tracked-caps eyebrow above the
+   nav list, active item gets the orange left-rail accent + slightly
+   warmer cream surface. */
+.add-items-modal-nav {
+  border-right: 0.5px solid var(--d-border);
+  background: var(--d-bg);
+  padding: 22px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.add-items-modal-nav-eyebrow {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--d-muted-soft);
+  padding: 0 12px;
+  margin-bottom: 12px;
+}
+.add-items-modal-nav-item {
+  background: none;
+  border: 0;
+  border-left: 2px solid transparent;
+  padding: 10px 14px 10px 12px;
+  text-align: left;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--d-muted);
+  border-radius: 0 6px 6px 0;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-left-color 120ms ease;
+}
+.add-items-modal-nav-item:hover {
+  color: var(--d-navy);
+  background: var(--d-border-soft);
+}
+.add-items-modal-nav-item.is-active {
+  color: var(--d-navy-deep);
+  background: var(--d-card);
+  border-left-color: var(--d-orange);
+  box-shadow: 0 1px 2px rgba(38, 42, 83, 0.04);
+}
+
+/* Main column */
+.add-items-modal-main {
+  padding: 20px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.add-items-modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+/* Catalogue multi-column grid */
+.add-items-modal-catalogue-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 6px;
+  margin: 4px 0 8px;
+}
+.add-items-modal-grid-card {
+  background: var(--d-card);
+  border: 0.5px solid var(--d-border);
+  border-radius: 9px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.add-items-modal-grid-card.is-selected {
+  border-color: var(--d-orange);
+  background: rgba(198, 90, 26, 0.04);
+}
+.add-items-modal-grid-card.is-duplicate {
+  opacity: 0.6;
+  background: var(--d-border-soft);
+}
+.add-items-modal-grid-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--d-navy-deep);
+  line-height: 1.3;
+}
+.add-items-modal-grid-foot {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+.add-items-modal-dup-pill {
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--d-sage-deep);
+  background: var(--d-status-received-bg);
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+/* Footer */
+.add-items-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 24px;
+  border-top: 0.5px solid var(--d-border);
+  background: var(--d-card);
+}
+
 /* Two-button CTA footer (Add selected + Add all, suggestions only) */
 .pv-wizard-cta-footer-bar {
   display: flex;

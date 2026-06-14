@@ -479,9 +479,13 @@ const CrewProfile = () => {
     }
   };
 
+// Own-profile flag at COMPONENT scope — the HOR month submit/approve UI in the
+// render references isOwnProfile, so it must live here, not only inside the
+// canEdit IIFE below (where it was trapped, causing the render ReferenceError).
+const isOwnProfile = session?.user?.id === crewId;
+
 const canEdit = (() => {
   const currentUserId = session?.user?.id;
-  const isOwnProfile = currentUserId === crewId;
 
   // Command roles (Captain, Purser, Admin, Chief) can edit any profile
   const role = tenantMemberRole?.toUpperCase();

@@ -49,6 +49,7 @@ import SendToSupplierModal from './components/SendToSupplierModal';
 import InvoiceUploadModal, { PAYMENT_STATUS_OPTIONS } from './components/InvoiceUploadModal';
 import ItemDrawer from './components/ItemDrawer';
 import BoardDrawer from './components/BoardDrawer';
+import AddItemsModal from './components/AddItemsModal';
 import OrderCard from './components/OrderCard';
 import DeliveryBatchCard from './components/DeliveryBatchCard';
 import SelectionCheckbox from './components/SelectionCheckbox';
@@ -275,6 +276,10 @@ const ProvisioningBoardDetail = () => {
 
   // ── Quick Add panel (Favourites / Templates / Order History) ────────────
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  // Unified "Add items" modal — replaces the prior pair of Suggestions
+  // + Quick Add buttons. Per-lane quick-add input is the fast-path for
+  // single-item-by-hand; this modal is the bulk-from-another-source flow.
+  const [addItemsOpen, setAddItemsOpen] = useState(false);
   // Tracks which order card's star is mid-toggle so we can show a brief
   // disabled state and avoid double-fires while the RPC is in flight.
   const [favouritingOrderId, setFavouritingOrderId] = useState(null);
@@ -374,6 +379,12 @@ const ProvisioningBoardDetail = () => {
   const userTier = (tenantRole || '').toUpperCase();
   const userDept = (user?.department || '').trim();
   const userId = user?.id;
+  const isCommand = userTier === 'COMMAND';
+  // Primary department for AddItemsModal context — first board dept if
+  // multi-dept, else single dept. Drives Frequent items dept-scope toggle.
+  const primaryDept = (Array.isArray(list?.department)
+    ? list.department[0]
+    : (list?.department || '').split(',')[0]) || userDept || null;
   const isOwner = userId && (list?.owner_id === userId || list?.created_by === userId);
   const listDepts = Array.isArray(list?.department)
     ? list.department.filter(Boolean)
@@ -1597,20 +1608,17 @@ const ProvisioningBoardDetail = () => {
             <div className="cargo-ribbon">
               {/* Read actions */}
               <div className="cargo-ribbon-group">
+                {/* "Add from…" opens the bulk-import picker over four
+                    sources (Suggestions / Past orders / Catalogue /
+                    Frequent). Echoes the wizard's "Build from…" so the
+                    parallelism is clear: this is the picker over external
+                    sources, not the per-lane fast inline add. */}
                 <button
                   type="button"
-                  onClick={showSuggestions ? () => setShowSuggestions(false) : handleGetSuggestions}
-                  disabled={suggestionsLoading}
-                  className={`cargo-ribbon-btn${showSuggestions ? ' cargo-ribbon-btn-active' : ''}`}
-                >
-                  <span aria-hidden="true">{suggestionsLoading ? '…' : '✦'}</span> Suggestions
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setQuickAddOpen(true)}
+                  onClick={() => setAddItemsOpen(true)}
                   className="cargo-ribbon-btn"
                 >
-                  <Icon name="FileText" style={{ width: 13, height: 13 }} /> Quick Add
+                  <Icon name="LayoutGrid" style={{ width: 13, height: 13 }} /> Add from…
                 </button>
                 <button
                   type="button"
@@ -3017,10 +3025,10 @@ const ProvisioningBoardDetail = () => {
         onClose={() => setItemDrawer({ open: false, item: null })}
       />
 
-      {/* Quick Add — Favourites / Templates / Order History.
-          Mounted here so the board-detail Templates ribbon button has
-          a real target. Drawer's title comes from BoardDrawer's
-          DRAWER_TITLES['templates'] = 'Quick Add'. */}
+      {/* Quick Add — kept mounted for legacy callers (the templates drawer
+          mode still serves the board-card Save-as-template flow).
+          Standalone Quick Add ribbon button is gone; AddItemsModal below
+          consolidates the bulk-import entry point. */}
       <BoardDrawer
         open={quickAddOpen}
         mode="templates"
@@ -3028,6 +3036,21 @@ const ProvisioningBoardDetail = () => {
         tenantId={activeTenantId}
         onAddItems={handleAddItemsFromQuickAdd}
         onClose={() => setQuickAddOpen(false)}
+      />
+
+      {/* Unified Add-items modal — full-screen takeover. Replaces the
+          Suggestions inline panel + Quick Add side modal entry points.
+          Sources: Suggestions / Past orders / Catalogue / Frequent. */}
+      <AddItemsModal
+        isOpen={addItemsOpen}
+        onClose={() => setAddItemsOpen(false)}
+        boardId={list?.id}
+        tenantId={activeTenantId}
+        tripId={list?.trip_id}
+        currentItems={items}
+        currentDepartment={primaryDept}
+        isCommand={isCommand}
+        onItemsAdded={handleAddItemsFromQuickAdd}
       />
 
       {/* Bulk action bar — floats over the items list when ≥1 item
