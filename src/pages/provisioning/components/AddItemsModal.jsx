@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient';
 import {
   fetchPastOrders,
@@ -374,12 +375,17 @@ export default function AddItemsModal({
 
   if (!isOpen) return null;
 
-  return (
-    <div className="add-items-modal">
+  // Mount via portal to document.body so position: fixed isn't defeated
+  // by an ancestor with a transform / will-change / filter (an
+  // .editorial-page wrapper or one of its parents had something setting
+  // up a containing block, causing the modal to render inline rather
+  // than as a true viewport overlay).
+  return createPortal(
+    <div className="add-items-modal pv-dashboard">
       <div className="add-items-modal-bar">
         <span className="add-items-modal-title">
           <span className="add-items-modal-dot" aria-hidden="true" />
-          Add items
+          Add from…
         </span>
         <span className="add-items-modal-board-meta">
           {currentItems.length} item{currentItems.length === 1 ? '' : 's'} on this board
@@ -717,6 +723,7 @@ export default function AddItemsModal({
               : 'Select items'}
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

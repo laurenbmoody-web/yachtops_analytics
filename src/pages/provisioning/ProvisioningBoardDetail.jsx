@@ -1608,17 +1608,17 @@ const ProvisioningBoardDetail = () => {
             <div className="cargo-ribbon">
               {/* Read actions */}
               <div className="cargo-ribbon-group">
-                {/* Unified "Add items" — bulk import from any source
-                    (Suggestions / Past orders / Catalogue / Frequent).
-                    Replaces the prior pair of separate Suggestions +
-                    Quick Add buttons. Per-lane quick-add input is the
-                    fast path for "add one item by hand". */}
+                {/* "Add from…" opens the bulk-import picker over four
+                    sources (Suggestions / Past orders / Catalogue /
+                    Frequent). Echoes the wizard's "Build from…" so the
+                    parallelism is clear: this is the picker over external
+                    sources, not the per-lane fast inline add. */}
                 <button
                   type="button"
                   onClick={() => setAddItemsOpen(true)}
                   className="cargo-ribbon-btn"
                 >
-                  <Icon name="Plus" style={{ width: 13, height: 13 }} /> Add items
+                  <Icon name="LayoutGrid" style={{ width: 13, height: 13 }} /> Add from…
                 </button>
                 <button
                   type="button"
