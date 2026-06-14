@@ -373,6 +373,15 @@ export default function AddItemsModal({
     }
   };
 
+  // Escape key + click-outside-on-backdrop both close the modal.
+  // Listener only attached while open; cleaned up on close/unmount.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   // Mount via portal to document.body so position: fixed isn't defeated
@@ -381,7 +390,14 @@ export default function AddItemsModal({
   // up a containing block, causing the modal to render inline rather
   // than as a true viewport overlay).
   return createPortal(
-    <div className="add-items-modal pv-dashboard">
+    <div
+      className="add-items-modal-backdrop pv-dashboard"
+      onClick={onClose}
+    >
+      <div
+        className="add-items-modal-panel"
+        onClick={(e) => e.stopPropagation()}
+      >
       <div className="add-items-modal-bar">
         <span className="add-items-modal-title">
           <span className="add-items-modal-dot" aria-hidden="true" />
@@ -722,6 +738,7 @@ export default function AddItemsModal({
               ? `Add ${pickedCount} ${activeSource === 'past_orders' ? 'order' : 'item'}${pickedCount === 1 ? '' : 's'} to board`
               : 'Select items'}
         </button>
+      </div>
       </div>
     </div>,
     document.body

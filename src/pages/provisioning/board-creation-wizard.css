@@ -759,23 +759,61 @@
 }
 
 /* ════════════════════════════════════════════════════════════
-   In-board Add-items modal — full-screen takeover
+   In-board Add-from modal — centred popover with backdrop blur
 
-   Triggered from the board toolbar's "+ Add items" button.
+   Triggered from the board toolbar's "Add from…" button.
    Replaces the prior pair of side-by-side panels (Smart
-   Suggestions inline + Quick Add modal). Sidebar nav for the
-   four sources, main column with the source's contents,
-   sticky footer with the apply CTA.
+   Suggestions inline + Quick Add modal). Backdrop blurs the
+   board behind so the picker feels like a focused task while
+   leaving context lightly visible. Card adopts the cargo
+   treatment (white surface, 14px radius, 5px --d-card-edge
+   bottom rule, --d-shadow).
    ──────────────────────────────────────────────────────────── */
-.add-items-modal {
+@keyframes add-items-modal-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes add-items-modal-pop-in {
+  from { opacity: 0; transform: scale(0.98) translateY(6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Backdrop — fixed full-viewport overlay with blur. Click anywhere
+   off the panel closes (handler in component). */
+.add-items-modal-backdrop {
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: var(--d-card);
+  background: rgba(38, 42, 83, 0.30);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   color: var(--d-navy);
+  animation: add-items-modal-fade-in 140ms ease-out;
+}
+
+/* Card panel — cargo treatment. Max-width keeps it readable on huge
+   monitors; max-height pulls it back from the edges so the backdrop
+   is always visible around it. Stops the click-outside-to-close
+   handler bubbling via stopPropagation in JSX. */
+.add-items-modal-panel {
+  width: 100%;
+  max-width: 1080px;
+  height: 100%;
+  max-height: 720px;
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  border-bottom: 5px solid var(--d-card-edge);
+  border-radius: 14px;
+  box-shadow: 0 24px 64px rgba(38, 42, 83, 0.18);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: add-items-modal-pop-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Header bar */
@@ -784,7 +822,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 14px 24px;
+  padding: 14px 22px;
   border-bottom: 0.5px solid var(--d-border);
   background: var(--d-card);
 }
