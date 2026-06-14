@@ -201,7 +201,7 @@ export default function RestLogView({
           name: m.name,
           role: m.role,
           date: c.date,
-          dateLabel: parseLocal(c.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }),
+          dateLabel: parseLocal(c.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
           breachLabel: labels.join(' · '),
           breachTypes: types,
         });
