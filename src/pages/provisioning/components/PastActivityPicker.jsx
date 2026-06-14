@@ -241,10 +241,14 @@ export default function PastActivityPicker({
   };
 
   // Flatten suggestion sources into one array for selection lookups + CTA
-  // disabled checks. Recomputes only when suggestions change.
+  // disabled checks. Recomputes only when suggestions change. Allergen-
+  // check rows (is_allergen_note: true) are excluded — they're surfaced
+  // in-board as a separate warning panel, no need to clutter the
+  // board-create picker with them. The underlying engine still produces
+  // them for the in-board SuggestionsMode consumer.
   const allSuggestionItems = useMemo(() => {
     if (!suggestions) return [];
-    return Object.values(suggestions).flat();
+    return Object.values(suggestions).flat().filter(s => !s.is_allergen_note);
   }, [suggestions]);
 
   const pickedSuggestionItems = useMemo(
@@ -740,12 +744,17 @@ export default function PastActivityPicker({
             <div className="pv-wizard-list">
               {Object.entries(suggestions || {}).map(([source, items]) => {
                 if (!items?.length) return null;
+                // Strip allergen-check rows from the picker — they're
+                // surfaced as a separate in-board warning panel, no need
+                // to ask the user to "tick to add" an allergen note when
+                // creating a new board.
+                const itemsNoAllergens = items.filter(i => !i.is_allergen_note);
                 const filtered = suggestionSearch
-                  ? items.filter(i =>
+                  ? itemsNoAllergens.filter(i =>
                       (i.name || '').toLowerCase().includes(suggestionSearch.toLowerCase()) ||
                       (i.reason || '').toLowerCase().includes(suggestionSearch.toLowerCase())
                     )
-                  : items;
+                  : itemsNoAllergens;
                 if (!filtered.length) return null;
                 const meta = SOURCE_META[source] || { label: source };
                 return (

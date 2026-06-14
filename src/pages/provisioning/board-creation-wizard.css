@@ -38,6 +38,11 @@
   width: 340px;
   min-width: 340px;
   flex-shrink: 0;
+  /* Match .pv-lane's height so the wizard column doesn't push the
+     kanban row taller when its content (eg the Suggestions list) is
+     long. .pv-wizard-list inside has flex: 1 + overflow-y: auto so
+     the list scrolls internally instead of growing the column. */
+  height: calc(100vh - 220px);
   background: var(--d-bg);
   border: 1px solid var(--d-border);
   border-bottom: 5px solid var(--d-card-edge);
@@ -50,6 +55,7 @@
   box-shadow: var(--d-shadow);
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   color: var(--d-navy);
+  overflow: hidden;
 }
 .pv-wizard.is-subview { min-height: 420px; }
 .pv-wizard.is-subview > * { width: 100%; }
