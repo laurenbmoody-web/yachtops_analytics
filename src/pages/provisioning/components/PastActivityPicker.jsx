@@ -884,16 +884,7 @@ export default function PastActivityPicker({
                         <span style={{ color: 'var(--d-muted-soft)', fontSize: 11, marginRight: 2 }} aria-hidden="true">
                           {isExpanded ? '▾' : '▸'}
                         </span>
-                        {/* Catalogue category names are already Title Case in
-                            the source data; suppress the editorial uppercase
-                            +0.16em letter-spacing the src-label normally applies
-                            (Suggestions eyebrows still get the editorial caps
-                            treatment — they read as "LOW STOCK / OCCASIONS"
-                            eyebrows, not category breadcrumbs). */}
-                        <span
-                          className="pv-wizard-src-label"
-                          style={{ textTransform: 'none', letterSpacing: '0.02em', fontSize: 11 }}
-                        >{catName}</span>
+                        <span className="pv-wizard-src-label">{catName}</span>
                         <span className="pv-wizard-src-count">{items.length} item{items.length === 1 ? '' : 's'}</span>
                       </button>
                       {isExpanded && items.map(({ key, itemName, defaultUnit }) => {
