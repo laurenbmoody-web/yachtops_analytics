@@ -26,6 +26,7 @@ export default function RotaBreachReasonModal({ isOpen, onClose, tenantId, breac
   const [bulk, setBulk] = useState('');
   const [open, setOpen] = useState({}); // userId -> expanded
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   // Collapse breaches under each crew member.
   const groups = useMemo(() => {
@@ -41,8 +42,8 @@ export default function RotaBreachReasonModal({ isOpen, onClose, tenantId, breac
     if (!isOpen) return;
     setNotes({});
     setBulk('');
-    // Start collapsed, except auto-expand when there's only one crew member.
-    setOpen(groups.length === 1 ? { [groups[0].userId]: true } : {});
+    setError('');
+    setOpen({}); // always start collapsed — the user expands a crew member to fill
   }, [isOpen, breaches]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!isOpen) return null;
@@ -59,22 +60,24 @@ export default function RotaBreachReasonModal({ isOpen, onClose, tenantId, breac
 
   const handleSave = async () => {
     setSaving(true);
-    const writes = breaches
-      .filter((b) => (notes[b.key] || '').trim())
-      .map(async (b) => {
-        try {
-          await upsertBreachReason({
-            tenantId, subjectUserId: b.userId, date: b.date,
-            breachTypes: b.breachTypes || [], note: notes[b.key].trim(),
-          });
-          await signOffBreachReason({ tenantId, subjectUserId: b.userId, date: b.date });
-        } catch (err) {
-          console.warn('[rota breach reason] save failed:', err);
-        }
+    setError('');
+    const targets = breaches.filter((b) => (notes[b.key] || '').trim());
+    const results = await Promise.allSettled(targets.map(async (b) => {
+      await upsertBreachReason({
+        tenantId, subjectUserId: b.userId, date: b.date,
+        breachTypes: b.breachTypes || [], note: notes[b.key].trim(),
       });
-    await Promise.allSettled(writes);
+      await signOffBreachReason({ tenantId, subjectUserId: b.userId, date: b.date });
+    }));
     setSaving(false);
+    const failed = results.filter((r) => r.status === 'rejected');
+    // Refresh either way so any rows that DID save drop off the banner.
     onSaved?.();
+    if (failed.length) {
+      const msg = failed[0].reason?.message || String(failed[0].reason) || 'Unknown error.';
+      setError(`Couldn’t save ${failed.length} of ${targets.length} — ${msg}`);
+      return; // keep the modal open so the reason isn't lost and they can retry
+    }
     onClose?.();
   };
 
@@ -155,7 +158,9 @@ export default function RotaBreachReasonModal({ isOpen, onClose, tenantId, breac
       </div>
 
       <div className="rbr-foot">
-        <span className="rbr-count">{filledCount} of {breaches.length} given</span>
+        {error
+          ? <span className="rbr-error">{error}</span>
+          : <span className="rbr-count">{filledCount} of {breaches.length} given</span>}
         <div className="rbr-btns">
           <button type="button" className="rbr-btn-ghost" onClick={onClose} disabled={saving}>Close without</button>
           <button type="button" className="rbr-btn-primary" onClick={handleSave} disabled={saving || filledCount === 0}>
