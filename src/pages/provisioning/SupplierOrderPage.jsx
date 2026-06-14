@@ -4,6 +4,7 @@ import Header from '../../components/navigation/Header';
 import EditorialMetaStrip from '../../components/editorial/EditorialMetaStrip';
 import { useAuth } from '../../contexts/AuthContext';
 import '../pantry/pantry.css';
+import './provisioning-dashboard.css';
 import {
   fetchSupplierOrderById,
   fetchSupplierOrderActivity,
@@ -982,7 +983,7 @@ export default function SupplierOrderPage() {
     return (
       <>
         <Header />
-        <div className="editorial-page">
+        <div className="editorial-page pv-dashboard">
           <p style={{ padding: '40px 0', color: 'rgba(30,39,66,0.5)' }}>Loading order…</p>
         </div>
       </>
@@ -1018,7 +1019,7 @@ export default function SupplierOrderPage() {
   return (
     <>
       <Header />
-      <div className="editorial-page">
+      <div className="editorial-page pv-dashboard">
 
         {/* Editorial header — back link · meta strip · headline · subline.
             Built manually because EditorialHeadline uppercases the title and

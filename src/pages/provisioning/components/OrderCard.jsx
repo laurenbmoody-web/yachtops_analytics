@@ -102,7 +102,17 @@ export default function OrderCard({
       >
         <span className="cargo-order-card-chevron" aria-hidden="true">›</span>
         <div className="cargo-order-card-identity">
-          <h3 className="cargo-order-card-supplier">{displayName}</h3>
+          <h3 className="cargo-order-card-supplier">
+            {displayName}
+            {/* Always show a static ★ next to favourited orders so the
+                indicator persists on read-only contexts (Orders index,
+                board detail) where the toggle button isn't rendered.
+                Interactive toggle button still rendered below when
+                canFavouriteOrder + onToggleFavourite are both provided. */}
+            {order.is_favourite && !canFavouriteOrder && (
+              <span style={{ color: '#C65A1A', marginLeft: 8, fontSize: '0.9em' }} aria-label="Favourited">★</span>
+            )}
+          </h3>
           <div className="cargo-order-card-meta">
             <span className="cargo-order-card-ref">#{orderRef}</span>
             {flag && (

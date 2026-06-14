@@ -497,7 +497,7 @@ export default function PastActivityPicker({
               value={templateSearch}
               onChange={e => setTemplateSearch(e.target.value)}
               className="pv-wizard-input"
-              style={{ marginTop: 12 }}
+              style={{ marginTop: 12, marginBottom: 6 }}
             />
           ) : (
             <input
@@ -506,7 +506,7 @@ export default function PastActivityPicker({
               value={boardSearch}
               onChange={e => setBoardSearch(e.target.value)}
               className="pv-wizard-input"
-              style={{ marginTop: 12 }}
+              style={{ marginTop: 12, marginBottom: 6 }}
             />
           )}
 
@@ -637,7 +637,7 @@ export default function PastActivityPicker({
             value={orderSearch}
             onChange={e => setOrderSearch(e.target.value)}
             className="pv-wizard-input"
-            style={{ marginTop: 12 }}
+            style={{ marginTop: 12, marginBottom: 6 }}
           />
 
           <div className="pv-wizard-list">
@@ -725,7 +725,7 @@ export default function PastActivityPicker({
             value={suggestionSearch}
             onChange={e => setSuggestionSearch(e.target.value)}
             className="pv-wizard-input"
-            style={{ marginTop: 12 }}
+            style={{ marginTop: 12, marginBottom: 6 }}
           />
 
           {suggestionsLoading && (
