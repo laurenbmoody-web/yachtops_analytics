@@ -306,12 +306,14 @@ function breachNoteFor(breachReasons, windowShifts, member, ds) {
   return dayShiftNote(windowShifts, member.id, ds) || '—';
 }
 
-// "Recorded by" cell: who logged/signed the reason and when (two lines). Names
-// resolve via the crew map threaded through meta; falls back to blank.
-function breachAttributionFor(breachReasons, crewNames, member, ds) {
+// "Recorded by" cell: who logged/signed the reason, their role, and when (one
+// per line). Name + role resolve via the crew maps threaded through meta.
+function breachAttributionFor(breachReasons, meta, member, ds) {
   const r = breachReasons && breachReasons[`${member.userId}|${ds}`];
   if (!r || !r.note_text) return '';
-  const who = (crewNames && (crewNames[r.signed_off_by] || crewNames[r.updated_by])) || '';
+  const uid = r.signed_off_by || r.updated_by;
+  const who = (meta && meta.crewNames && meta.crewNames[uid]) || '';
+  const role = (meta && meta.crewRoles && meta.crewRoles[uid]) || '';
   const whenIso = r.signed_off_at || r.updated_at;
   let when = '';
   if (whenIso) {
@@ -320,7 +322,7 @@ function breachAttributionFor(breachReasons, crewNames, member, ds) {
       when = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
     }
   }
-  return [who, when].filter(Boolean).join('\n');
+  return [who, role, when].filter(Boolean).join('\n');
 }
 
 // Declaration + signature lines, drawn at atY (defaults to near the foot).
@@ -497,7 +499,7 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
       dayRowLabel(ds),
       c.breaches.map((b) => b.label).join(' · '),
       breachNoteFor(breachReasons, windowShifts, member, ds),
-      breachAttributionFor(breachReasons, meta.crewNames, member, ds),
+      breachAttributionFor(breachReasons, meta, member, ds),
     ]);
   }
 
