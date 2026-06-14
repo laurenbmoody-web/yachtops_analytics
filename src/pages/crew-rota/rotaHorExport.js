@@ -27,6 +27,7 @@ import {
   MLC_LONGEST_REST_PERIOD_MIN,
   MLC_MAX_WORK_STRETCH,
   MLC_STANDARD_REF,
+  reframeToOperationalDay,
 } from './restHours';
 
 const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -243,7 +244,7 @@ function drawSummaryPage(doc, members, days, meta, logo) {
   if (meta.departmentName) subParts.push(meta.departmentName);
   subParts.push(meta.periodLabel);
   doc.text(subParts.join('  ·  '), 40, 55);
-  doc.text(STANDARD_REF, 40, 67, { maxWidth: pageW - 80 });
+  doc.text(`${STANDARD_REF}${meta.basisLabel ? `  ·  ${meta.basisLabel}.` : ''}`, 40, 67, { maxWidth: pageW - 80 });
   doc.text('Figures are HOURS OF REST per 24h (not hours worked). Shaded = below MLC minimum · * daily · # weekly.', 40, 84);
   doc.text(`Generated ${meta.generatedAt}`, pageW - 40, 40, { align: 'right' });
   doc.setTextColor(0);
@@ -355,7 +356,7 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(90);
-  doc.text(STANDARD_REF, M, 50, { maxWidth: pageW - 2 * M });
+  doc.text(`${STANDARD_REF}${meta.basisLabel ? `  ·  ${meta.basisLabel}.` : ''}`, M, 50, { maxWidth: pageW - 2 * M });
   doc.text(`Generated ${meta.generatedAt}`, pageW - M, 46, { align: 'right' });
 
   // ── Identity block (two columns) ──
@@ -553,10 +554,15 @@ export async function exportRestLogPDF({ rows, days, meta, windowShifts = [], br
   // Page 1 — fleet summary matrix.
   drawSummaryPage(doc, members, days, meta, logo);
 
+  // Operational-day basis re-anchors the daily-rest assessment (no-op for the
+  // default calendar basis). The summary's per-cell rest comes from pre-framed
+  // member.cells; the per-seafarer grids recompute, so reframe their input here.
+  const framedShifts = reframeToOperationalDay(windowShifts, meta.horDayStartHour || 0);
+
   // Pages 2…N — one formal record per seafarer.
   for (const m of members) {
     doc.addPage();
-    drawSeafarerRecord(doc, m, days, windowShifts, meta, logo, breachReasons);
+    drawSeafarerRecord(doc, m, days, framedShifts, meta, logo, breachReasons);
   }
 
   // Footer page numbers.

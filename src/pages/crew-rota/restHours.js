@@ -67,6 +67,41 @@ function onDutyRanges(dayShifts) {
     .filter(Boolean);
 }
 
+const pad2 = (n) => String(n).padStart(2, '0');
+
+// Re-anchor shifts so a 24-hour "day" beginning at dayStartHour reads as a
+// midnight day — i.e. shift the whole timeline back by dayStartHour. This lets
+// every existing calendar-day rule assess an *operational* day without changing
+// any rule logic. dayStartHour 0 (calendar basis) is a no-op.
+//
+// `fields` maps the date/start/end keys for the caller's shift shape
+// (camelCase rest-log shifts vs snake_case DB rows).
+export function reframeToOperationalDay(shifts, dayStartHour = 0, fields = {}) {
+  if (!dayStartHour) return shifts;
+  const dk = fields.date || 'date';
+  const sk = fields.start || 'startTime';
+  const ek = fields.end || 'endTime';
+  const offMs = dayStartHour * 3_600_000;
+  return (shifts || []).map((s) => {
+    const t = hhmmToDecimal(s[sk]);
+    let e = hhmmToDecimal(s[ek]);
+    if (t == null || e == null || !s[dk]) return s;
+    if (e <= t) e += 24; // overnight
+    const [Y, Mo, D] = String(s[dk]).split('-').map(Number);
+    const base = new Date(Y, Mo - 1, D).getTime();
+    const startMs = base + t * 3_600_000 - offMs;
+    const endMs = base + e * 3_600_000 - offMs;
+    const sd = new Date(startMs);
+    const ed = new Date(endMs);
+    return {
+      ...s,
+      [dk]: `${sd.getFullYear()}-${pad2(sd.getMonth() + 1)}-${pad2(sd.getDate())}`,
+      [sk]: `${pad2(sd.getHours())}:${pad2(sd.getMinutes())}`,
+      [ek]: `${pad2(ed.getHours())}:${pad2(ed.getMinutes())}`,
+    };
+  });
+}
+
 // Rule 1 — daily on-duty totals and the implied 24h rest figure.
 export function restForDay(dayShifts) {
   const onDutyHours = onDutyRanges(dayShifts)

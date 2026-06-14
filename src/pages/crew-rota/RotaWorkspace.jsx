@@ -219,6 +219,7 @@ export default function RotaWorkspace({
   // Vessel-configurable rota grid-start hour (display + slot boundary). The
   // MLC rest math is calendar-day based and unaffected by this.
   const [gridStartHour, setGridStartHour] = useState(DEFAULT_GRID_START_HOUR);
+  const [horDayBasis, setHorDayBasis] = useState('calendar');
   const [vesselName, setVesselName] = useState(null);
   // Vessel identity for the MLC/IMO-ILO Record of Hours of Rest header. These
   // live on `tenants` (single vessel per tenant), not on `vessels`.
@@ -232,7 +233,7 @@ export default function RotaWorkspace({
     (async () => {
       const [veRes, dpRes, tnRes, viRes] = await Promise.all([
         supabase.from('vessels')
-          .select('name, departments_in_use, operational_day_start_hour').eq('tenant_id', activeTenantId).maybeSingle(),
+          .select('name, departments_in_use, operational_day_start_hour, hor_day_basis').eq('tenant_id', activeTenantId).maybeSingle(),
         supabase.rpc('get_tenant_departments', { p_tenant_id: activeTenantId }),
         supabase.from('tenants')
           .select('imo_number, flag, port_of_registry').eq('id', activeTenantId).maybeSingle(),
@@ -245,6 +246,7 @@ export default function RotaWorkspace({
       ]);
       if (!alive) return;
       setGridStartHour(veRes.data?.operational_day_start_hour ?? DEFAULT_GRID_START_HOUR);
+      setHorDayBasis(veRes.data?.hor_day_basis || 'calendar');
       setVesselName(veRes.data?.name ?? null);
       setVesselIdentity({
         imoNumber: viRes.data?.imo_number ?? tnRes.data?.imo_number ?? null,
@@ -782,6 +784,8 @@ export default function RotaWorkspace({
               tenantId={activeTenantId}
               canSignOff={tier === 'CHIEF' || tier === 'COMMAND'}
               onReasonsSaved={handleReasonsSaved}
+              horDayBasis={horDayBasis}
+              operationalDayStartHour={gridStartHour}
               onCellClick={(d) => { setSelectedDate(d); setView('grid'); }}
             />
           ) : crew.length === 0 ? (
