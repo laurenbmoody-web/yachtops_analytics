@@ -522,3 +522,200 @@
   font-size: 13px;
   color: var(--d-muted-soft);
 }
+
+/* ════════════════════════════════════════════════════════════
+   Build-from picker — editorial restyle (Sprint 9c.5)
+
+   Replaces the chunky orange pill row + standalone SmartSuggestionsPanel
+   embed with one coherent visual language:
+
+   • .pv-wizard-tabs      — top-level underline tab strip (mirrors the
+                            Sent/Delivered tabs on the Orders index)
+   • .pv-wizard-seg       — sub-toggle segmented control. Used by both
+                            Boards (Live/Past/Templates) AND Past orders
+                            (All/Favourites) so the chrome reads coherent
+                            across tabs that need a sub-axis.
+   • .pv-wizard-src-head  — quiet eyebrow heading above each suggestion
+                            source group (LOW STOCK / REGULAR ORDERS etc).
+   • Row-card additions   — optional inline checkbox + meta-tag chip +
+                            right-aligned priority chip on the existing
+                            .pv-wizard-board-row primitive.
+   ──────────────────────────────────────────────────────────── */
+
+/* Underline tab strip */
+.pv-wizard-tabs {
+  display: flex;
+  gap: 22px;
+  border-bottom: 0.5px solid var(--d-border);
+  margin: 4px 0 4px;
+}
+.pv-wizard-tab {
+  background: none;
+  border: 0;
+  padding: 8px 0;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--d-muted);
+  cursor: pointer;
+  position: relative;
+  transition: color 120ms ease;
+}
+.pv-wizard-tab:hover { color: var(--d-navy); }
+.pv-wizard-tab.is-active { color: var(--d-navy-deep); }
+.pv-wizard-tab.is-active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--d-orange);
+  border-radius: 2px;
+}
+
+/* Segmented sub-toggle */
+.pv-wizard-seg {
+  display: inline-flex;
+  background: var(--d-border-soft);
+  border-radius: 8px;
+  padding: 2px;
+  align-self: flex-start;
+}
+.pv-wizard-seg-btn {
+  background: none;
+  border: 0;
+  padding: 5px 12px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--d-muted);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 120ms ease, color 120ms ease;
+}
+.pv-wizard-seg-btn:hover { color: var(--d-navy); }
+.pv-wizard-seg-btn.is-active {
+  background: var(--d-card);
+  color: var(--d-navy-deep);
+  box-shadow: 0 1px 2px rgba(38, 42, 83, 0.06);
+}
+
+/* Source eyebrow heading (suggestions groups) */
+.pv-wizard-src-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 2px 2px;
+}
+.pv-wizard-src-head:first-child { padding-top: 2px; }
+.pv-wizard-src-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--d-muted-soft);
+}
+.pv-wizard-src-count {
+  font-size: 10px;
+  color: var(--d-muted);
+  margin-left: auto;
+}
+
+/* Row card additions — inline checkbox + meta tag + priority chip.
+   Built on top of .pv-wizard-board-row so single-select and multi-select
+   surfaces share the same card primitive. */
+.pv-wizard-board-row { display: flex; align-items: flex-start; gap: 10px; }
+.pv-wizard-board-row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.pv-wizard-board-row-body .pv-wizard-board-row-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.pv-wizard-board-row-body .pv-wizard-board-row-title { display: block; }
+.pv-wizard-board-row-body .pv-wizard-board-row-meta { display: block; margin: 0; }
+.pv-wizard-row-checkbox {
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--d-border);
+  border-radius: 3px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  background: var(--d-card);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: transparent;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+.pv-wizard-row-checkbox.is-checked {
+  background: var(--d-orange);
+  border-color: var(--d-orange);
+  color: white;
+}
+
+/* Tiny uppercase department / category tag inline in the meta row */
+.pv-wizard-row-tag {
+  display: inline-block;
+  background: var(--d-border-soft);
+  color: var(--d-muted);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.pv-wizard-row-tag.is-warn {
+  background: var(--d-warn-soft);
+  color: var(--d-warn);
+}
+.pv-wizard-row-tag.is-danger {
+  background: var(--d-danger-soft);
+  color: var(--d-danger);
+}
+
+/* Right-aligned priority / signal chip — replaces the noisy red "High
+   priority" badge from SmartSuggestionsPanel. Sits where item count
+   would, same Outfit-bold rhythm. */
+.pv-wizard-row-priority {
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  margin-left: 8px;
+}
+.pv-wizard-row-priority.is-high   { color: var(--d-danger); }
+.pv-wizard-row-priority.is-warn   { color: var(--d-warn); }
+.pv-wizard-row-priority.is-muted  { color: var(--d-muted); }
+
+/* Two-button CTA footer (Add selected + Add all, suggestions only) */
+.pv-wizard-cta-footer-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.pv-wizard-cta-footer-bar .pv-wizard-btn-primary { flex: 1; }
+.pv-wizard-btn-secondary {
+  padding: 9px 14px;
+  background: none;
+  color: var(--d-navy);
+  border: 0.5px solid var(--d-border);
+  border-radius: 9px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+.pv-wizard-btn-secondary:hover { border-color: var(--d-orange); color: var(--d-orange); }
+
+/* Inline notice (no-trip-linked banner on Suggestions tab) */
+.pv-wizard-notice {
+  font-size: 11.5px;
+  color: var(--d-muted);
+  margin: -4px 0 0;
+  line-height: 1.5;
+}
