@@ -35,8 +35,8 @@ import './crew-profile.css';
 // (Input/Select) rendered borderless inside a soft card. Module-level so
 // its identity is stable across renders (a render-local component would
 // remount the input on every keystroke and drop focus).
-const Field = ({ label, required, accent, full, hint, children }) => (
-  <div className={`cp-field-card${accent ? ' cp-accent' : ''}${full ? ' cp-field-full' : ''}`}>
+const Field = ({ label, required, full, hint, children }) => (
+  <div className={`cp-field-card${full ? ' cp-field-full' : ''}`}>
     <div className="cp-field-label">
       <span>{label}</span>
       {required && <span className="cp-req">●</span>}
@@ -960,7 +960,7 @@ const canEdit = (() => {
         <p className="cp-section-sub">Identity, travel documents and the basics we hold on file.</p>
 
         <div className="cp-grid">
-          <Field label="First Names" required accent>
+          <Field label="First Names" required>
             <Input
               value={formData?.firstName}
               onChange={(e) => handleInputChange('firstName', e?.target?.value)}
@@ -968,7 +968,7 @@ const canEdit = (() => {
               placeholder="—"
             />
           </Field>
-          <Field label="Last Name" required accent>
+          <Field label="Last Name" required>
             <Input
               value={formData?.lastName}
               onChange={(e) => handleInputChange('lastName', e?.target?.value)}
@@ -1018,7 +1018,7 @@ const canEdit = (() => {
               placeholder="—"
             />
           </Field>
-          <Field label="Email" required accent>
+          <Field label="Email" required>
             <Input
               type="email"
               value={formData?.email}
@@ -1078,7 +1078,7 @@ const canEdit = (() => {
             <span className="dia">◆</span><span className="t">Emergency contact</span><span className="line" />
           </div>
           <div className="cp-grid">
-            <Field label="Full Name" required accent>
+            <Field label="Full Name" required>
               <Input
                 value={formData?.emergencyContactName}
                 onChange={(e) => handleInputChange('emergencyContactName', e?.target?.value)}
@@ -1094,7 +1094,7 @@ const canEdit = (() => {
                 placeholder="—"
               />
             </Field>
-            <Field label="Phone / Contact Number" required accent>
+            <Field label="Phone / Contact Number" required>
               <Input
                 value={formData?.emergencyContactPhone}
                 onChange={(e) => handleInputChange('emergencyContactPhone', e?.target?.value)}
@@ -1307,7 +1307,7 @@ const canEdit = (() => {
             <span className="dia">◆</span><span className="t">Account</span><span className="line" />
           </div>
           <div className="cp-grid">
-            <Field label="Account Holder Name" required accent>
+            <Field label="Account Holder Name" required>
               <Input
                 value={formData?.bankAccountHolder}
                 onChange={(e) => handleInputChange('bankAccountHolder', e?.target?.value)}
@@ -1315,7 +1315,7 @@ const canEdit = (() => {
                 placeholder="—"
               />
             </Field>
-            <Field label="Bank Name" required accent>
+            <Field label="Bank Name" required>
               <Input
                 value={formData?.bankName}
                 onChange={(e) => handleInputChange('bankName', e?.target?.value)}
@@ -1323,7 +1323,7 @@ const canEdit = (() => {
                 placeholder="—"
               />
             </Field>
-            <Field label="Account Number / IBAN" required accent hint="Masked for security">
+            <Field label="Account Number / IBAN" required hint="Masked for security">
               <Input
                 value={maskAccountNumber(formData?.bankAccountNumber)}
                 onChange={(e) => handleInputChange('bankAccountNumber', e?.target?.value)}
