@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { Download } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Download, AlertTriangle } from 'lucide-react';
+import RotaBreachReasonModal from './RotaBreachReasonModal';
 import { DEPT_ORDER, MlcTriangle } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
 import { ON_DUTY_TYPES, assessMlc, MLC_DAILY_REST_MIN, MLC_WEEKLY_REST_MIN } from './restHours';
 import { getContrastText, getRoleDisplayName } from './crewDisplay';
@@ -119,9 +120,13 @@ export default function RestLogView({
   periodLabel = '',
   departmentName = null,
   breachReasons = {},
+  tenantId = null,
+  canSignOff = false,
+  onReasonsSaved,
   onCellClick,
 }) {
   const wrapRef = useRef(null);
+  const [showBreachModal, setShowBreachModal] = useState(false);
 
   // Dept-grouped rows with per-cell rest + per-member breach tallies. One pass
   // feeds both the rendered matrix and the exports (same source, same order).
@@ -177,10 +182,62 @@ export default function RestLogView({
     generatedAt: new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }),
   }), [vesselName, imoNumber, flagState, portOfRegistry, departmentName, periodLabel, period]);
 
+  // Planned breach days with no recorded reason yet — what a chief/command is
+  // prompted to justify (and thereby sign off) at the rota stage.
+  const unjustifiedBreaches = useMemo(() => {
+    const out = [];
+    rows.forEach((r) => r.members.forEach((m) => {
+      if (!m.userId) return;
+      m.cells.forEach((c) => {
+        if (!c.dailyLow && !c.weeklyLow) return;
+        if (breachReasons[`${m.userId}|${c.date}`]) return; // already explained
+        const types = [];
+        const labels = [];
+        if (c.dailyLow) { types.push('daily_rest_10h'); labels.push('Daily rest <10h'); }
+        if (c.weeklyLow) { types.push('weekly_rest_77h'); labels.push('Weekly rest <77h'); }
+        out.push({
+          key: `${m.userId}|${c.date}`,
+          userId: m.userId,
+          name: m.name,
+          role: m.role,
+          date: c.date,
+          dateLabel: parseLocal(c.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }),
+          breachLabel: labels.join(' · '),
+          breachTypes: types,
+        });
+      });
+    }));
+    return out;
+  }, [rows, breachReasons]);
+
   if (days.length === 0) return null;
 
   return (
     <div className="rl-card">
+      {canSignOff && unjustifiedBreaches.length > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+          margin: '0 0 10px', borderRadius: 8, background: '#FCEBEB', color: '#A32D2D',
+          fontSize: 13, fontWeight: 500,
+        }}>
+          <AlertTriangle size={16} />
+          <span style={{ flex: 1 }}>
+            {unjustifiedBreaches.length} planned breach day{unjustifiedBreaches.length === 1 ? '' : 's'} need a reason for the record.
+          </span>
+          <button type="button" className="crew-rota-pill" onClick={() => setShowBreachModal(true)}>
+            Record &amp; sign off
+          </button>
+        </div>
+      )}
+      {showBreachModal && (
+        <RotaBreachReasonModal
+          isOpen={showBreachModal}
+          onClose={() => setShowBreachModal(false)}
+          tenantId={tenantId}
+          breaches={unjustifiedBreaches}
+          onSaved={onReasonsSaved}
+        />
+      )}
       <div className="rl-toolbar">
         <div className="rl-legend">
           <span className="rl-legend-item"><span className="rl-sw rl-sw-ok" /> ≥{MLC_DAILY_REST_MIN}h daily rest</span>
