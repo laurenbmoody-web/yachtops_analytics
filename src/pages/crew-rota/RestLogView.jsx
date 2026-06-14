@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Download, AlertTriangle } from 'lucide-react';
+import { Download } from 'lucide-react';
 import RotaBreachReasonModal from './RotaBreachReasonModal';
-import { DEPT_ORDER, MlcTriangle } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
+import { DEPT_ORDER } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
 import { ON_DUTY_TYPES, assessMlc, reframeToOperationalDay, MLC_DAILY_REST_MIN, MLC_WEEKLY_REST_MIN } from './restHours';
 import { getContrastText, getRoleDisplayName } from './crewDisplay';
 import { MONTH_SHORT } from './MonthCalendar';
@@ -66,6 +66,9 @@ function computeCell(memberId, dateStr, windowShifts) {
     rest24h: mlc.rest24h,
     pastWeekHours: mlc.pastWeekHours,
     dailyLow: !isOff && mlc.rest24h < MLC_DAILY_REST_MIN,
+    // "Marginal" = met the 10h floor but with under an hour to spare, i.e. ~14h
+    // on duty — right at the max-work-stretch limit too. Surfaced in amber.
+    marginal: !isOff && mlc.rest24h >= MLC_DAILY_REST_MIN && mlc.rest24h < MLC_DAILY_REST_MIN + 1,
     weeklyLow: mlc.pastWeekHours < MLC_WEEKLY_REST_MIN,
   };
 }
@@ -92,16 +95,14 @@ function Cell({ cell, isToday, onClick, ariaLabel }) {
   if (cell.isOff) cls.push('off'); else cls.push('f');
   if (weekend && cell.isOff) cls.push('sat');
   if (cell.dailyLow) cls.push('is-warn');
+  else if (cell.marginal) cls.push('is-marginal');
   if (isToday) cls.push('is-today-col');
   return (
     <button type="button" className={cls.join(' ')} onClick={onClick} aria-label={ariaLabel}>
       {cell.isOff ? (
-        <span className="rl-c-off">off</span>
+        <span className="rl-c-off">·</span>
       ) : (
-        <span className="rl-c-rest">
-          {fmtRest(cell.rest24h)}
-          {cell.dailyLow && <MlcTriangle size={9} />}
-        </span>
+        <span className="rl-c-rest">{fmtRest(cell.rest24h)}</span>
       )}
     </button>
   );
@@ -229,25 +230,58 @@ export default function RestLogView({
     return out;
   }, [rows, breachReasons]);
 
+  // Fleet KPIs for the period (scoped to whoever's in view / the dept filter).
+  const kpi = useMemo(() => {
+    let onDuty = 0; let breach = 0; let marginal = 0;
+    const breachCrew = new Set();
+    rows.forEach((r) => r.members.forEach((m) => m.cells.forEach((c) => {
+      if (c.isOff) return;
+      onDuty += 1;
+      if (c.dailyLow) { breach += 1; breachCrew.add(m.id); }
+      else if (c.marginal) marginal += 1;
+    })));
+    return {
+      breach,
+      marginal,
+      breachCrew: breachCrew.size,
+      rate: onDuty ? Math.round(((onDuty - breach) / onDuty) * 100) : 100,
+    };
+  }, [rows]);
+
   if (days.length === 0) return null;
 
   return (
     <div className="rl-card">
-      {canSignOff && unjustifiedBreaches.length > 0 && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
-          margin: '0 0 10px', borderRadius: 8, background: '#FCEBEB', color: '#A32D2D',
-          fontSize: 13, fontWeight: 500,
-        }}>
-          <AlertTriangle size={16} />
-          <span style={{ flex: 1 }}>
-            {unjustifiedBreaches.length} planned breach day{unjustifiedBreaches.length === 1 ? '' : 's'} need a reason for the record.
-          </span>
-          <button type="button" className="crew-rota-pill" onClick={() => setShowBreachModal(true)}>
-            Record &amp; sign off
-          </button>
+      <div className="rl-kpis">
+        <div className="rl-kpi rl-kpi-green">
+          <div className="rl-kpi-n">{kpi.rate}%</div>
+          <div className="rl-kpi-l">MLC compliance</div>
+          <div className="rl-kpi-s">days with ≥{MLC_DAILY_REST_MIN}h rest</div>
         </div>
-      )}
+        <div className="rl-kpi rl-kpi-red">
+          <div className="rl-kpi-n">{kpi.breach}</div>
+          <div className="rl-kpi-l">Breach days</div>
+          <div className="rl-kpi-s">{kpi.breachCrew} of {crew.length} crew</div>
+        </div>
+        <div className="rl-kpi rl-kpi-amber">
+          <div className="rl-kpi-n">{kpi.marginal}</div>
+          <div className="rl-kpi-l">Marginal days</div>
+          <div className="rl-kpi-s">≤{MLC_DAILY_REST_MIN + 1}h — at the limit</div>
+        </div>
+        {canSignOff && unjustifiedBreaches.length > 0 ? (
+          <button type="button" className="rl-kpi rl-kpi-red rl-kpi-action" onClick={() => setShowBreachModal(true)}>
+            <div className="rl-kpi-n">{unjustifiedBreaches.length}</div>
+            <div className="rl-kpi-l">Reasons outstanding</div>
+            <div className="rl-kpi-s">record &amp; sign off →</div>
+          </button>
+        ) : (
+          <div className="rl-kpi">
+            <div className="rl-kpi-n">{unjustifiedBreaches.length}</div>
+            <div className="rl-kpi-l">Reasons outstanding</div>
+            <div className="rl-kpi-s">{unjustifiedBreaches.length === 0 ? 'all recorded' : 'awaiting sign-off'}</div>
+          </div>
+        )}
+      </div>
       {showBreachModal && (
         <RotaBreachReasonModal
           isOpen={showBreachModal}
@@ -259,9 +293,10 @@ export default function RestLogView({
       )}
       <div className="rl-toolbar">
         <div className="rl-legend">
-          <span className="rl-legend-item"><span className="rl-sw rl-sw-ok" /> ≥{MLC_DAILY_REST_MIN}h daily rest</span>
-          <span className="rl-legend-item"><span className="rl-sw rl-sw-warn" /> below MLC minimum</span>
-          <span className="rl-legend-item"><span className="rl-sw rl-sw-off" /> off duty</span>
+          <span className="rl-legend-item"><span className="rl-sw rl-sw-ok" /> compliant</span>
+          <span className="rl-legend-item"><span className="rl-sw rl-sw-marg" /> marginal (≤{MLC_DAILY_REST_MIN + 1}h)</span>
+          <span className="rl-legend-item"><span className="rl-sw rl-sw-warn" /> below {MLC_DAILY_REST_MIN}h</span>
+          <span className="rl-legend-item"><span className="rl-sw rl-sw-off" /> off · cell = rest hours</span>
         </div>
         <div className="rl-actions">
           <button
