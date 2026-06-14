@@ -1,0 +1,48 @@
+name: Supabase — apply migrations
+
+# Applies any pending SQL migrations to the linked Supabase project whenever
+# files under supabase/migrations change on main. Replaces the manual
+# "paste the new migration into the dashboard after each merge" step.
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   SUPABASE_ACCESS_TOKEN  – Personal access token (supabase.com/dashboard/account/tokens)
+#   SUPABASE_DB_PASSWORD   – Project DB password (Project Settings → Database)
+#   SUPABASE_PROJECT_ID    – Project ref, e.g. gwexbrbasfysbheeklyq (Project Settings → General)
+#
+# ⚠ One-time before relying on this: the project's migration history must be
+#   baselined so `db push` doesn't try to re-run already-applied migrations.
+#   See README / the PR notes for the `supabase migration repair` step.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+
+# Never let two migration pushes run at once.
+concurrency:
+  group: supabase-migrations
+  cancel-in-progress: false
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link project
+        run: supabase link --project-ref "$PROJECT_ID"
+
+      - name: Show pending migrations
+        run: supabase migration list
+
+      - name: Apply migrations
+        run: supabase db push
