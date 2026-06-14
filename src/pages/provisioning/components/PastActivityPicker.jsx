@@ -7,6 +7,8 @@ import {
   fetchTemplates,
 } from '../utils/provisioningStorage';
 import { TEMPLATES } from '../data/templates';
+import { getSmartSuggestions } from '../../../utils/provisioningSuggestions';
+import SmartSuggestionsPanel from './SmartSuggestionsPanel';
 
 // ── PastActivityPicker — the unified "Build from..." picker ────────────────
 // Single sub-view that consolidates every "starting point" the wizard offers
@@ -28,11 +30,21 @@ import { TEMPLATES } from '../data/templates';
 //                (provisions.cargotechnology.co.uk). Has its own auth +
 //                API; kept separated so users don't accidentally cross-
 //                authenticate. Callback contract TBD — placeholder UI only.
-//   Suggestions — AI insights placeholder. Will hook into trip/board
-//                context to propose a starter list. Placeholder UI only.
+//   Suggestions — AI-driven starter list. Calls getSmartSuggestions with
+//                  the wizard's tripId + tenantId (no currentItems — this
+//                  is a fresh board), groups results by source via the
+//                  shared SmartSuggestionsPanel, and routes apply through
+//                  onUse() so the wizard creates the board with the
+//                  picked items. Same five sources the in-board panel
+//                  uses (guest_preference, low_stock, invoice_pattern,
+//                  location_aware, master_history). No trip selected →
+//                  guest/location sources return empty but stock /
+//                  pattern / history still surface.
 //
 // Props:
 //   tenantId       — current tenant/vessel id
+//   tripId         — supabaseId of the linked trip (drives guest +
+//                    location suggestion sources); null if unlinked
 //   newGuestCount  — guest count on the new trip (for board copy scaling
 //                    and template scaling)
 //   boardType      — chosen board type (charter/owner/yard/…); used to
@@ -47,6 +59,7 @@ const RECENT_DAYS = 60; // boards modified within this window count as "Live"
 
 export default function PastActivityPicker({
   tenantId,
+  tripId = null,
   newGuestCount = 0,
   boardType = '',
   onUse,
@@ -73,6 +86,13 @@ export default function PastActivityPicker({
   const [scaleQty, setScaleQty] = useState(true);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
+
+  // Smart suggestions — lazy-loaded the first time the user opens the tab
+  // because the multi-source query (guest prefs + inventory + delivery
+  // history + master pattern) is the heaviest fetch in this picker.
+  // Kept null until first activation so the spinner shows on tab entry.
+  const [suggestions, setSuggestions] = useState(null);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
 
   // Load all sources concurrently on mount.
   useEffect(() => {
@@ -133,6 +153,55 @@ export default function PastActivityPicker({
     setSelectedTemplateKey(null);
     setSelectedOrderId(null);
   }, [tab, boardsToggle]);
+
+  // Lazy-load smart suggestions on first Suggestions-tab activation. New
+  // board so currentItems is empty — master_history surfaces everything
+  // that's been ordered ≥3 times. tripId may be null (no trip linked);
+  // guest_preference + location_aware short-circuit to [] inside the
+  // engine in that case.
+  useEffect(() => {
+    if (tab !== 'suggestions') return;
+    if (suggestions !== null) return; // already loaded
+    if (!tenantId) return;
+    let cancelled = false;
+    setSuggestionsLoading(true);
+    (async () => {
+      try {
+        const data = await getSmartSuggestions(tripId, tenantId, []);
+        if (!cancelled) setSuggestions(data);
+      } catch (err) {
+        console.error('[PastActivityPicker] suggestions load error:', err);
+        if (!cancelled) setSuggestions({});
+      } finally {
+        if (!cancelled) setSuggestionsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [tab, tripId, tenantId, suggestions]);
+
+  // Map raw suggestion rows → provisioning item shape and route through
+  // onUse with a 'suggestion' source tag so the wizard creates the board
+  // with these items. Mirrors BoardDrawer.SuggestionsMode.handleAdd's
+  // mapping but skips the upsertItems call (board doesn't exist yet —
+  // triggerCreate inserts the items as part of board creation).
+  const handleSuggestionsApply = (items) => {
+    const mapped = (items || []).map(s => ({
+      name:             s.name,
+      brand:            s.brand || null,
+      size:             s.size || null,
+      category:         s.category || null,
+      sub_category:     s.sub_category || null,
+      department:       s.department || 'Galley',
+      quantity_ordered: s.quantity || s.quantity_ordered || s.avg_quantity || 1,
+      unit:             s.unit || 'each',
+      estimated_unit_cost: s.estimated_unit_cost || null,
+      allergen_flags:   s.allergen_flags || [],
+      notes:            s.reason || null,
+      status:           'draft',
+    }));
+    if (!mapped.length) return;
+    onUse(mapped, 'suggestion');
+  };
 
   // ── Derived lists ─────────────────────────────────────────────────────
   const { liveBoards, pastBoards } = useMemo(() => {
@@ -540,16 +609,21 @@ export default function PastActivityPicker({
         </div>
       )}
 
-      {/* ── Suggestions tab (placeholder for AI flow) ────────────────── */}
+      {/* ── Suggestions tab (Smart Suggestions, board-create variant) ── */}
       {tab === 'suggestions' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 4 }}>
-          <p className="pv-wizard-context" style={{ margin: 0 }}>
-            AI-proposed starter list based on trip type, guest count, and past patterns.
-          </p>
-          <p className="pv-wizard-route-desc" style={{ margin: 0 }}>
-            Coming next. The in-board <em>Smart Suggestions</em> panel already does items-grain
-            augmentation; this tab will use the same signals to seed a whole board from blank.
-          </p>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 4, overflow: 'auto' }}>
+          {!tripId && (
+            <p className="pv-wizard-route-desc" style={{ margin: 0 }}>
+              No trip linked — guest-preference and location-aware sources will be empty.
+              Stock, pattern, and history-based suggestions still apply.
+            </p>
+          )}
+          <SmartSuggestionsPanel
+            suggestions={suggestions}
+            onAdd={handleSuggestionsApply}
+            onAddAll={handleSuggestionsApply}
+            loading={suggestionsLoading}
+          />
         </div>
       )}
 
