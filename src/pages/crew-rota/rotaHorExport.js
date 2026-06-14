@@ -485,36 +485,44 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachR
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(40, 110, 60);
     doc.text('None recorded for this period.', M, ly + 12);
     drawSignatureBlock(doc, pageW, pageH, M);
-  } else {
-    // Auto-paginating table: flows onto continuation pages as needed; the
-    // Notes column carries the reason (rota-time shift note or HOR log, ✓ when
-    // signed off). Signatures are drawn after the table.
-    autoTable(doc, {
-      startY: ly + 6,
-      margin: { left: M, right: M, top: 60 },
-      head: [['Date', 'Non-conformity', 'Notes / reason (rota or HOR log)']],
-      body: ncRows,
-      styles: { fontSize: 8, cellPadding: 4, lineColor: GRID_LINE, lineWidth: 0.5, valign: 'middle', textColor: [40, 40, 40] },
-      headStyles: { fillColor: NAVY, textColor: CREAM, fontSize: 8, halign: 'left' },
-      columnStyles: {
-        0: { cellWidth: 72, textColor: WARN_TEXT, fontStyle: 'bold' },
-        1: { cellWidth: 240 },
-        2: { cellWidth: 'auto' },
-      },
-      theme: 'grid',
-      didDrawPage: (data) => {
-        if (data.pageNumber > 1) {
-          doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(0);
-          doc.text(`Record of Hours of Rest (continued) — ${member.name || ''}`, M, 40);
-          doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(90);
-          doc.text(`${meta.vesselName || ''} · ${meta.periodLabel || ''}`, M, 52);
-        }
-      },
-    });
-    let endY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : ly) + 22;
-    if (endY > pageH - M - 64) { doc.addPage(); endY = M + 48; }
-    drawSignatureBlock(doc, pageW, pageH, M, endY);
+    return;
   }
+
+  // A2 — keep the grid page clean: note the count here, then put the full list
+  // on its own continuation page(s).
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(90);
+  doc.text(
+    `${ncRows.length} non-conformity day${ncRows.length === 1 ? '' : 's'} recorded — listed on the following page.`,
+    M, ly + 12,
+  );
+
+  // Dedicated, full-landscape-width table that auto-paginates. The Notes column
+  // carries the reason (rota-time shift note or HOR log, ✓ when signed off).
+  doc.addPage();
+  const drawNcHeader = () => {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(0);
+    doc.text(`Recorded non-conformities — ${member.name || ''}`, M, 40);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(90);
+    doc.text(`${meta.vesselName || ''}${meta.periodLabel ? ` · ${meta.periodLabel}` : ''}`, M, 52);
+  };
+  autoTable(doc, {
+    startY: 64,
+    margin: { left: M, right: M, top: 64 },
+    head: [['Date', 'Non-conformity', 'Notes / reason (rota or HOR log)']],
+    body: ncRows,
+    styles: { fontSize: 8.5, cellPadding: 5, lineColor: GRID_LINE, lineWidth: 0.5, valign: 'middle', textColor: [40, 40, 40] },
+    headStyles: { fillColor: NAVY, textColor: CREAM, fontSize: 8.5, halign: 'left' },
+    columnStyles: {
+      0: { cellWidth: 78, textColor: WARN_TEXT, fontStyle: 'bold' },
+      1: { cellWidth: 250 },
+      2: { cellWidth: 'auto' },
+    },
+    theme: 'grid',
+    didDrawPage: () => drawNcHeader(),
+  });
+  let endY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 64) + 24;
+  if (endY > pageH - M - 64) { doc.addPage(); endY = M + 48; }
+  drawSignatureBlock(doc, pageW, pageH, M, endY);
 }
 
 export async function exportRestLogPDF({ rows, days, meta, windowShifts = [], breachReasons = {} }) {
