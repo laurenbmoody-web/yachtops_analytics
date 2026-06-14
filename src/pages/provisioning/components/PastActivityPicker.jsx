@@ -56,6 +56,12 @@ import { getSmartSuggestions, SOURCE_META } from '../../../utils/provisioningSug
 
 const RECENT_DAYS = 60; // boards modified within this window count as "Live"
 
+// Catalogue group labels in source data are SCREAMING UPPERCASE
+// ("FRESH", "DRY / PANTRY"). Render them as Title Case in the dropdown
+// so they sit visually quieter — pills carrying the same labels were
+// removed earlier so the uppercase shouting no longer makes sense.
+const formatGroupLabel = (s) => s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+
 // Render order for the source groups. Sources with rare / actionable
 // signal (Occasions, Expiring soon, Guest prefs, Low stock) come first;
 // routine sources (Master history, Invoice pattern, Location aware)
@@ -835,7 +841,7 @@ export default function PastActivityPicker({
             >
               <option value="all">All groups</option>
               {CATALOGUE_DATA.map(([groupLabel]) => (
-                <option key={groupLabel} value={groupLabel}>{groupLabel}</option>
+                <option key={groupLabel} value={groupLabel}>{formatGroupLabel(groupLabel)}</option>
               ))}
             </select>
             <svg className="pv-wizard-select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
