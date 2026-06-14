@@ -704,6 +704,7 @@
 .pv-wizard-row-priority.is-high   { color: var(--d-danger); }
 .pv-wizard-row-priority.is-warn   { color: var(--d-warn); }
 .pv-wizard-row-priority.is-muted  { color: var(--d-muted); }
+.pv-wizard-row-priority.is-orange { color: var(--d-orange); }
 
 /* Two-button CTA footer (Add selected + Add all, suggestions only) */
 .pv-wizard-cta-footer-bar {
