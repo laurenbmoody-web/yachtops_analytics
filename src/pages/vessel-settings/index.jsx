@@ -910,7 +910,7 @@ const VesselSettings = () => {
                       disabled={viewMode || !canEdit}
                     />
                     <p className="text-xs text-muted-foreground mt-1">
-                      Hour the daily rota grid begins. Also anchors the HOR 24-hour day when the basis below is set to “Operational day”.
+                      Start hour of the rota grid — and of the HOR day when the basis is “Operational”.
                     </p>
                   </div>
                   <div>
@@ -925,7 +925,7 @@ const VesselSettings = () => {
                       disabled={viewMode || !canEdit}
                     />
                     <p className="text-xs text-muted-foreground mt-1">
-                      How the Record of Hours of Rest slices the “10h in any 24h” rule. Calendar is the classic IMO/ILO sheet; Operational anchors the 24-hour day to the rota day-start, avoiding false breaches when your day doesn’t begin at midnight. The chosen basis is printed on the record.
+                      How the “10h in any 24h” rule is sliced. Operational anchors the day to your rota start to avoid midnight-split false breaches. Printed on the record.
                     </p>
                   </div>
                   <div>
@@ -940,7 +940,7 @@ const VesselSettings = () => {
                       disabled={viewMode || !canEdit}
                     />
                     <p className="text-xs text-muted-foreground mt-1">
-                      Whether a crew member's submitted HOR month must be approved, or confirms on submit.
+                      Approve each submitted HOR month, or auto-confirm on submit.
                     </p>
                   </div>
                   <div>
@@ -956,7 +956,7 @@ const VesselSettings = () => {
                       disabled={viewMode || !canEdit || formState?.hor_confirmation_mode === 'trust'}
                     />
                     <p className="text-xs text-muted-foreground mt-1">
-                      Role that approves HOR months and signs off breaches. Command may always approve.
+                      Approves HOR months and signs off breaches (Command always can).
                     </p>
                   </div>
                 </div>
