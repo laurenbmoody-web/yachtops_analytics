@@ -630,14 +630,23 @@ const NON_PROVISIONING_TAXONOMY = /\b(Medical|First[ -]?Aid|Safety|Fire|Pyrotech
 const MEDICAL_NAME_PATTERN = /\b(forceps|splint|gauze|bandage|tourniquet|suture|sphygmo|stethoscop|defibrillat|nebuliz|EpiPen|adrenalin|epinephrin|antiseptic|saline|tweezers\s+(?:medical|first[ -]aid))\b/i;
 
 function isProvisioningRelevant(item) {
+  // Canonical inventory folder path lives in the top-level `location`
+  // (L1 folder name, e.g. "Medical") and `sub_location` (rest of the
+  // path, e.g. "First Aid > Splints"). Items imported via the parser
+  // and items added via the inventory modal both write here even when
+  // l1..l4 taxonomy is empty. This is the most reliable single signal.
+  const folder = [item.location, item.sub_location].filter(Boolean).join(' > ');
+  if (folder && NON_PROVISIONING_TAXONOMY.test(folder)) return false;
+
+  // l1..l4 taxonomy (secondary signal for items added via the
+  // category-based UI rather than the folder UI).
   const tax = [item.l1_name, item.l2_name, item.l3_name, item.l4_name]
     .filter(Boolean).join(' / ');
   if (NON_PROVISIONING_TAXONOMY.test(tax)) return false;
 
-  // Location path — stock_locations is a JSONB array of
-  // { locationName, vesselLocationId, qty }. Pull the path text and
-  // run the same denylist. Items imported with empty taxonomy but
-  // filed under "Medical" / "Safety" still get caught here.
+  // stock_locations JSONB array of { locationName, vesselLocationId, qty }
+  // — locationName usually a room/cabinet, sometimes carries the full
+  // folder path. Same denylist.
   if (Array.isArray(item.stock_locations)) {
     const paths = item.stock_locations
       .map(sl => sl?.locationName || sl?.location_name || sl?.path || '')
@@ -646,9 +655,9 @@ function isProvisioningRelevant(item) {
   }
 
   // Item-name heuristic — only for items with empty taxonomy AND no
-  // location path. Conservative pattern set; bias toward false
-  // negatives (let a borderline item through) over false positives.
-  if (!tax && MEDICAL_NAME_PATTERN.test(item.name || '')) return false;
+  // folder data. Conservative pattern set; bias toward false negatives
+  // (let a borderline item through) over false positives.
+  if (!tax && !folder && MEDICAL_NAME_PATTERN.test(item.name || '')) return false;
 
   return true;
 }
@@ -667,7 +676,7 @@ async function getExpiringSoonSuggestions(tripId, vesselId) {
 
     const { data: items } = await supabase
       ?.from('inventory_items')
-      ?.select('id, name, unit, total_qty, l1_name, l2_name, l3_name, l4_name, usage_department, expiry_date, stock_locations')
+      ?.select('id, name, unit, total_qty, l1_name, l2_name, l3_name, l4_name, location, sub_location, usage_department, expiry_date, stock_locations')
       ?.eq('tenant_id', vesselId)
       ?.not('expiry_date', 'is', null)
       ?.lte('expiry_date', cutoff.toISOString().slice(0, 10));
