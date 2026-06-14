@@ -286,9 +286,44 @@ function drawSummaryPage(doc, members, days, meta, logo) {
   });
 }
 
+// Concatenated rota shift notes for a member on a day — the "reason given at
+// rota time" that feeds the Notes column.
+function dayShiftNote(windowShifts, memberId, ds) {
+  const notes = (windowShifts || [])
+    .filter((s) => s.member_id === memberId && s.shift_date === ds && s.notes)
+    .map((s) => String(s.notes).trim())
+    .filter(Boolean);
+  return notes.length ? Array.from(new Set(notes)).join('; ') : '';
+}
+
+// Notes-column value for a breach day: the HOR-logged reason wins (with a ✓ when
+// it's been signed off in-app), else the rota-time shift note, else a dash.
+function breachNoteFor(breachReasons, windowShifts, member, ds) {
+  const r = breachReasons && breachReasons[`${member.userId}|${ds}`];
+  if (r && r.note_text) return `${r.signed_off_at ? '✓ ' : ''}${r.note_text}`;
+  return dayShiftNote(windowShifts, member.id, ds) || '—';
+}
+
+// Declaration + signature lines, drawn at atY (defaults to near the foot).
+function drawSignatureBlock(doc, pageW, pageH, M, atY) {
+  const sy = atY != null ? atY : pageH - M - 46;
+  doc.setDrawColor(...GRID_LINE); doc.setLineWidth(0.5);
+  doc.line(M, sy - 10, pageW - M, sy - 10);
+  doc.setFont('helvetica', 'italic'); doc.setFontSize(7); doc.setTextColor(70);
+  doc.text('I confirm that the above is a true record of the seafarer’s hours of rest for the period stated.', M, sy);
+  doc.setFont('helvetica', 'normal'); doc.setTextColor(0); doc.setFontSize(8);
+  const sigW = (pageW - 2 * M - 40) / 2;
+  const line1 = sy + 30;
+  doc.line(M, line1, M + sigW, line1);
+  doc.line(pageW - M - sigW, line1, pageW - M, line1);
+  doc.setFontSize(7); doc.setTextColor(90);
+  doc.text('Master / Authorised officer — signature & date', M, line1 + 10);
+  doc.text('Seafarer — signature & date', pageW - M - sigW, line1 + 10);
+}
+
 // One per-seafarer monthly record: header block + 24h work/rest grid with
 // daily + rolling-7-day rest totals, non-conformities, and signatures.
-function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo) {
+function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo, breachReasons) {
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const M = 36;
@@ -430,69 +465,59 @@ function drawSeafarerRecord(doc, member, days, windowShifts, meta, logo) {
   doc.text('below MLC minimum', M + 133, ly);
   doc.text('Overnight work is attributed to the day it commenced.', pageW - M, ly, { align: 'right' });
 
-  // ── Non-conformities ──
+  // ── Non-conformities (per-day table, with recorded reason) ──
   ly += 16;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(0);
   doc.text('Recorded non-conformities', M, ly);
-  ly += 11;
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
-  const issues = [];
+
+  const ncRows = [];
   for (const ds of days) {
     const c = computeCellFull(windowShifts, member.id, ds);
-    for (const b of c.breaches) {
-      // weekly rule fires on every breaching day; keep daily/structural verbatim,
-      // and keep weekly too (auditors want the dated trail).
-      issues.push(`${dayRowLabel(ds)} — ${b.label}`);
-    }
-  }
-  if (issues.length === 0) {
-    doc.setTextColor(40, 110, 60);
-    doc.text('None recorded for this period.', M, ly);
-  } else {
-    // Cap the list to the room above the (fixed) signature block so it can
-    // never overrun into the declaration / signature lines. The signature
-    // separator sits at sy-10 (sy = pageH - M - 46); keep a small gap above it.
-    const sigSepY = pageH - M - 46 - 10;
-    const colGap = (pageW - 2 * M) / 2;
-    const availRows = Math.max(1, Math.floor((sigSepY - 6 - ly) / 10));
-    const fitsAll = issues.length <= availRows * 2;
-    const rowsForItems = fitsAll ? availRows : Math.max(1, availRows - 1);
-    const shown = issues.slice(0, rowsForItems * 2);
-    doc.setTextColor(...WARN_TEXT);
-    shown.forEach((line, idx) => {
-      const col = idx % 2;
-      const row = Math.floor(idx / 2);
-      doc.text(`• ${line}`, M + col * colGap, ly + row * 10);
-    });
-    if (!fitsAll) {
-      doc.setTextColor(90);
-      doc.text(
-        `…and ${issues.length - shown.length} more (see CSV export for the full list).`,
-        M, ly + rowsForItems * 10,
-      );
-    }
+    if (!c.breaches || c.breaches.length === 0) continue;
+    ncRows.push([
+      dayRowLabel(ds),
+      c.breaches.map((b) => b.label).join(' · '),
+      breachNoteFor(breachReasons, windowShifts, member, ds),
+    ]);
   }
 
-  // ── Declaration + signatures (anchored near the foot) ──
-  const sy = pageH - M - 46;
-  doc.setDrawColor(...GRID_LINE); doc.setLineWidth(0.5);
-  doc.line(M, sy - 10, pageW - M, sy - 10);
-  doc.setFont('helvetica', 'italic'); doc.setFontSize(7); doc.setTextColor(70);
-  doc.text(
-    'I confirm that the above is a true record of the seafarer’s hours of rest for the period stated.',
-    M, sy,
-  );
-  doc.setFont('helvetica', 'normal'); doc.setTextColor(0); doc.setFontSize(8);
-  const sigW = (pageW - 2 * M - 40) / 2;
-  const line1 = sy + 30;
-  doc.line(M, line1, M + sigW, line1);
-  doc.line(pageW - M - sigW, line1, pageW - M, line1);
-  doc.setFontSize(7); doc.setTextColor(90);
-  doc.text('Master / Authorised officer — signature & date', M, line1 + 10);
-  doc.text('Seafarer — signature & date', pageW - M - sigW, line1 + 10);
+  if (ncRows.length === 0) {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(40, 110, 60);
+    doc.text('None recorded for this period.', M, ly + 12);
+    drawSignatureBlock(doc, pageW, pageH, M);
+  } else {
+    // Auto-paginating table: flows onto continuation pages as needed; the
+    // Notes column carries the reason (rota-time shift note or HOR log, ✓ when
+    // signed off). Signatures are drawn after the table.
+    autoTable(doc, {
+      startY: ly + 6,
+      margin: { left: M, right: M, top: 60 },
+      head: [['Date', 'Non-conformity', 'Notes / reason (rota or HOR log)']],
+      body: ncRows,
+      styles: { fontSize: 8, cellPadding: 4, lineColor: GRID_LINE, lineWidth: 0.5, valign: 'middle', textColor: [40, 40, 40] },
+      headStyles: { fillColor: NAVY, textColor: CREAM, fontSize: 8, halign: 'left' },
+      columnStyles: {
+        0: { cellWidth: 72, textColor: WARN_TEXT, fontStyle: 'bold' },
+        1: { cellWidth: 240 },
+        2: { cellWidth: 'auto' },
+      },
+      theme: 'grid',
+      didDrawPage: (data) => {
+        if (data.pageNumber > 1) {
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(0);
+          doc.text(`Record of Hours of Rest (continued) — ${member.name || ''}`, M, 40);
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(90);
+          doc.text(`${meta.vesselName || ''} · ${meta.periodLabel || ''}`, M, 52);
+        }
+      },
+    });
+    let endY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : ly) + 22;
+    if (endY > pageH - M - 64) { doc.addPage(); endY = M + 48; }
+    drawSignatureBlock(doc, pageW, pageH, M, endY);
+  }
 }
 
-export async function exportRestLogPDF({ rows, days, meta, windowShifts = [] }) {
+export async function exportRestLogPDF({ rows, days, meta, windowShifts = [], breachReasons = {} }) {
   const members = flatten(rows);
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
   const logo = await loadCargoLogo();
@@ -503,7 +528,7 @@ export async function exportRestLogPDF({ rows, days, meta, windowShifts = [] }) 
   // Pages 2…N — one formal record per seafarer.
   for (const m of members) {
     doc.addPage();
-    drawSeafarerRecord(doc, m, days, windowShifts, meta, logo);
+    drawSeafarerRecord(doc, m, days, windowShifts, meta, logo, breachReasons);
   }
 
   // Footer page numbers.
