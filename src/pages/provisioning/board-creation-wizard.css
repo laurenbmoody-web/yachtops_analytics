@@ -926,6 +926,70 @@
   border-left-color: var(--d-orange);
   box-shadow: 0 1px 2px rgba(38, 42, 83, 0.04);
 }
+/* Per-source pick count — small orange chip on the right of the
+   sidebar nav item so the user can see picks they've made in other
+   tabs without having to switch back. */
+.add-items-modal-nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.add-items-modal-nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--d-orange);
+  color: white;
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* Indeterminate checkbox state — used on past-order parent rows when
+   some-but-not-all child items are picked. */
+.pv-wizard-row-checkbox.is-indeterminate {
+  background: var(--d-orange);
+  border-color: var(--d-orange);
+  color: white;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+/* Past-order expand button — small ▾/▸ on the right of the parent row */
+.add-items-modal-expand-btn {
+  width: 26px;
+  height: 26px;
+  background: none;
+  border: 0;
+  color: var(--d-muted);
+  font-size: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 120ms ease, color 120ms ease;
+}
+.add-items-modal-expand-btn:hover {
+  background: var(--d-border-soft);
+  color: var(--d-navy);
+}
+
+/* Indented child rows under an expanded past-order */
+.add-items-modal-children {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 2px 0 6px 20px;
+  padding-left: 12px;
+  border-left: 0.5px solid var(--d-border);
+}
+.add-items-modal-child-row {
+  background: var(--d-bg);
+}
 
 /* Main column */
 .add-items-modal-main {

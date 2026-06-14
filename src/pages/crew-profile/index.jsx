@@ -37,6 +37,7 @@ import './crew-profile.css';
 // remount the input on every keystroke and drop focus).
 const Field = ({ label, required, full, hint, children }) => (
   <div className={`cp-field-card${required ? ' cp-accent' : ''}${full ? ' cp-field-full' : ''}`}>
+
     <div className="cp-field-label">
       <span>{label}</span>
     </div>

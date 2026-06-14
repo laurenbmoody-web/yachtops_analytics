@@ -79,9 +79,18 @@ export default function AddItemsModal({
   const [expandedSuggestionSources, setExpandedSuggestionSources] = useState(new Set());
   const [expandedCatalogueCategories, setExpandedCatalogueCategories] = useState(new Set());
 
-  // Selections
+  // Selections — persist across source switches so the user can mix
+  // picks from Suggestions + Past orders + Catalogue + Frequent into
+  // a single Add-to-board action. handleApply walks all four sets.
   const [pickedSuggestionIds, setPickedSuggestionIds] = useState(new Set());
-  const [pickedOrderId, setPickedOrderId] = useState(null);
+  // Past orders: drill-down model. pickedPastItems is Map<orderId,
+  // Set<itemId>>. Ticking the parent row picks every item in the
+  // order; expanding lets the user untick individual items. Empty set
+  // means none picked for that order; missing key means not touched.
+  const [pickedPastItems, setPickedPastItems] = useState(new Map());
+  const [expandedOrderIds, setExpandedOrderIds] = useState(new Set());
+  const [orderItemsCache, setOrderItemsCache] = useState(new Map()); // orderId → [items]
+  const [orderItemsLoading, setOrderItemsLoading] = useState(new Set());
   const [catalogueQtys, setCatalogueQtys] = useState(new Map());
   const [frequentQtys, setFrequentQtys] = useState(new Map());
 
@@ -138,7 +147,10 @@ export default function AddItemsModal({
     if (!isOpen) {
       setSearch('');
       setPickedSuggestionIds(new Set());
-      setPickedOrderId(null);
+      setPickedPastItems(new Map());
+      setExpandedOrderIds(new Set());
+      setOrderItemsCache(new Map());
+      setOrderItemsLoading(new Set());
       setCatalogueQtys(new Map());
       setFrequentQtys(new Map());
       setSuggestions(null);
@@ -257,14 +269,95 @@ export default function AddItemsModal({
     });
   };
 
+  // ── Past order drill-down helpers ───────────────────────────────────
+  // Lazy-load an order's items into the cache when its row is expanded
+  // or its parent ticked. Cached so toggling expand doesn't re-fetch.
+  const loadOrderItems = async (orderId) => {
+    if (orderItemsCache.has(orderId) || orderItemsLoading.has(orderId)) return;
+    setOrderItemsLoading(prev => new Set(prev).add(orderId));
+    try {
+      const { data: rows } = await supabase
+        ?.from('supplier_order_items')
+        ?.select('id, item_name, brand, size, category, sub_category, department, allergen_flags, quantity, unit')
+        ?.eq('order_id', orderId);
+      setOrderItemsCache(prev => {
+        const next = new Map(prev);
+        next.set(orderId, rows || []);
+        return next;
+      });
+    } catch (err) {
+      console.error('[AddItemsModal] order items load error:', err);
+    } finally {
+      setOrderItemsLoading(prev => {
+        const next = new Set(prev);
+        next.delete(orderId);
+        return next;
+      });
+    }
+  };
+
+  const toggleOrderExpanded = (orderId) => {
+    const isExpanding = !expandedOrderIds.has(orderId);
+    setExpandedOrderIds(prev => {
+      const next = new Set(prev);
+      if (next.has(orderId)) next.delete(orderId); else next.add(orderId);
+      return next;
+    });
+    if (isExpanding) loadOrderItems(orderId);
+  };
+
+  // Tick the parent → all items picked. Untick → none. Indeterminate
+  // when some but not all are picked.
+  const toggleWholeOrder = async (orderId) => {
+    if (!orderItemsCache.has(orderId)) await loadOrderItems(orderId);
+    const items = orderItemsCache.get(orderId) || [];
+    setPickedPastItems(prev => {
+      const next = new Map(prev);
+      const current = next.get(orderId);
+      const allPicked = items.length > 0 && current && current.size === items.length;
+      if (allPicked) next.delete(orderId);
+      else next.set(orderId, new Set(items.map(i => i.id)));
+      return next;
+    });
+  };
+
+  const togglePastItem = (orderId, itemId) => {
+    setPickedPastItems(prev => {
+      const next = new Map(prev);
+      const set = new Set(next.get(orderId) || []);
+      if (set.has(itemId)) set.delete(itemId);
+      else set.add(itemId);
+      if (set.size === 0) next.delete(orderId);
+      else next.set(orderId, set);
+      return next;
+    });
+  };
+
+  const pastOrderState = (orderId) => {
+    const picks = pickedPastItems.get(orderId);
+    const items = orderItemsCache.get(orderId);
+    if (!picks || picks.size === 0) return 'none';
+    if (!items || items.length === 0) return 'all'; // not loaded but parent ticked
+    if (picks.size >= items.length) return 'all';
+    return 'some';
+  };
+
   // ── Apply ────────────────────────────────────────────────────────────
-  const pickedCount = useMemo(() => {
-    if (activeSource === 'suggestions') return pickedSuggestionIds.size;
-    if (activeSource === 'past_orders') return pickedOrderId ? 1 : 0;
-    if (activeSource === 'catalogue')   return catalogueQtys.size;
-    if (activeSource === 'frequent')    return frequentQtys.size;
-    return 0;
-  }, [activeSource, pickedSuggestionIds, pickedOrderId, catalogueQtys, frequentQtys]);
+  // Per-source counts shown as sidebar badges so the user knows their
+  // picks in other tabs are still there.
+  const countSuggestions = pickedSuggestionIds.size;
+  const countPastOrders = useMemo(() => {
+    let total = 0;
+    pickedPastItems.forEach(set => { total += set.size; });
+    return total;
+  }, [pickedPastItems]);
+  const countCatalogue = catalogueQtys.size;
+  const countFrequent = frequentQtys.size;
+  const totalPicked = countSuggestions + countPastOrders + countCatalogue + countFrequent;
+  // CTA uses the active source's count so the user understands what
+  // "Add N items" refers to in the moment they click. handleApply
+  // ships all four sources.
+  const pickedCount = totalPicked;
 
   const handleApply = async () => {
     if (!boardId || pickedCount === 0) return;
@@ -272,33 +365,54 @@ export default function AddItemsModal({
     try {
       const newItems = [];
 
-      if (activeSource === 'suggestions') {
-        allSuggestionItems
-          .filter(s => pickedSuggestionIds.has(s.id))
-          .forEach(s => {
-            newItems.push({
-              list_id: boardId,
-              name: s.name,
-              brand: s.brand || '',
-              size: s.size || '',
-              category: s.category || '',
-              sub_category: s.sub_category || '',
-              department: s.department || currentDepartment || 'Galley',
-              quantity_ordered: s.quantity || s.quantity_ordered || 1,
-              unit: s.unit || 'each',
-              estimated_unit_cost: s.estimated_unit_cost || '',
-              allergen_flags: s.allergen_flags || [],
-              source: s.source || 'suggestion',
-              notes: s.reason || '',
-              status: 'draft',
-            });
+      // Suggestions
+      allSuggestionItems
+        .filter(s => pickedSuggestionIds.has(s.id))
+        .forEach(s => {
+          // estimated_unit_cost is NUMERIC in Postgres — empty string
+          // throws "invalid input syntax for type numeric". Coerce to a
+          // real number or null. Same defensive shape on quantity (?? 1
+          // catches null/undefined but NOT '' — explicit Number() then
+          // fallback to 1 when NaN).
+          const qty = Number(s.quantity ?? s.quantity_ordered);
+          const cost = Number(s.estimated_unit_cost);
+          newItems.push({
+            list_id: boardId,
+            name: s.name,
+            brand: s.brand || '',
+            size: s.size || '',
+            category: s.category || '',
+            sub_category: s.sub_category || '',
+            department: s.department || currentDepartment || 'Galley',
+            quantity_ordered: Number.isFinite(qty) && qty > 0 ? qty : 1,
+            unit: s.unit || 'each',
+            estimated_unit_cost: Number.isFinite(cost) ? cost : null,
+            allergen_flags: s.allergen_flags || [],
+            source: s.source || 'suggestion',
+            notes: s.reason || '',
+            status: 'draft',
           });
-      } else if (activeSource === 'past_orders' && pickedOrderId) {
-        const { data: rows } = await supabase
-          ?.from('supplier_order_items')
-          ?.select('item_name, brand, size, category, sub_category, department, allergen_flags, quantity, unit')
-          ?.eq('order_id', pickedOrderId);
-        (rows || []).forEach(r => {
+        });
+
+      // Past orders — drill-down picks. For each order with picks,
+      // resolve from cache (already loaded on expand/parent-tick) or
+      // fetch on demand. Each item picked → one board item.
+      const pastOrderIds = Array.from(pickedPastItems.keys());
+      for (const orderId of pastOrderIds) {
+        const pickedIds = pickedPastItems.get(orderId);
+        if (!pickedIds || pickedIds.size === 0) continue;
+        let items = orderItemsCache.get(orderId);
+        if (!items) {
+          const { data: rows } = await supabase
+            ?.from('supplier_order_items')
+            ?.select('id, item_name, brand, size, category, sub_category, department, allergen_flags, quantity, unit')
+            ?.eq('order_id', orderId);
+          items = rows || [];
+        }
+        items.filter(r => pickedIds.has(r.id)).forEach(r => {
+          // r.quantity may come back as '' on older order_items rows —
+          // ?? only catches null/undefined, not ''. Number()-coerce.
+          const qty = Number(r.quantity);
           newItems.push({
             list_id: boardId,
             name: r.item_name,
@@ -307,55 +421,57 @@ export default function AddItemsModal({
             category: r.category || '',
             sub_category: r.sub_category || '',
             department: r.department || currentDepartment || 'Galley',
-            quantity_ordered: r.quantity ?? 1,
+            quantity_ordered: Number.isFinite(qty) && qty > 0 ? qty : 1,
             unit: r.unit || 'each',
             allergen_flags: r.allergen_flags || [],
             source: 'history',
             status: 'draft',
           });
         });
-      } else if (activeSource === 'catalogue') {
-        CATALOGUE_DATA.forEach(([groupLabel, categories]) => {
-          const dept = CATALOGUE_GROUP_DEPT[groupLabel] || 'Galley';
-          categories.forEach(([catName, catItems]) => {
-            catItems.forEach(([itemName, defaultUnit]) => {
-              const key = `${groupLabel}::${catName}::${itemName}`;
-              const qty = catalogueQtys.get(key) || 0;
-              if (qty <= 0) return;
-              newItems.push({
-                list_id: boardId,
-                name: itemName,
-                category: catName,
-                department: dept,
-                quantity_ordered: qty,
-                unit: defaultUnit,
-                allergen_flags: [],
-                source: 'catalogue',
-                status: 'draft',
-              });
+      }
+
+      // Catalogue
+      CATALOGUE_DATA.forEach(([groupLabel, categories]) => {
+        const dept = CATALOGUE_GROUP_DEPT[groupLabel] || 'Galley';
+        categories.forEach(([catName, catItems]) => {
+          catItems.forEach(([itemName, defaultUnit]) => {
+            const key = `${groupLabel}::${catName}::${itemName}`;
+            const qty = catalogueQtys.get(key) || 0;
+            if (qty <= 0) return;
+            newItems.push({
+              list_id: boardId,
+              name: itemName,
+              category: catName,
+              department: dept,
+              quantity_ordered: qty,
+              unit: defaultUnit,
+              allergen_flags: [],
+              source: 'catalogue',
+              status: 'draft',
             });
           });
         });
-      } else if (activeSource === 'frequent') {
-        (frequent || []).forEach(h => {
-          const qty = frequentQtys.get(h.id || h.key) || 0;
-          if (qty <= 0) return;
-          newItems.push({
-            list_id: boardId,
-            name: h.name,
-            brand: h.brand || '',
-            size: h.size || '',
-            category: h.category || '',
-            sub_category: h.sub_category || '',
-            department: h.department || currentDepartment || 'Galley',
-            quantity_ordered: qty,
-            unit: h.unit || 'each',
-            allergen_flags: [],
-            source: 'history',
-            status: 'draft',
-          });
+      });
+
+      // Frequent
+      (frequent || []).forEach(h => {
+        const qty = frequentQtys.get(h.id || h.key) || 0;
+        if (qty <= 0) return;
+        newItems.push({
+          list_id: boardId,
+          name: h.name,
+          brand: h.brand || '',
+          size: h.size || '',
+          category: h.category || '',
+          sub_category: h.sub_category || '',
+          department: h.department || currentDepartment || 'Galley',
+          quantity_ordered: qty,
+          unit: h.unit || 'each',
+          allergen_flags: [],
+          source: 'history',
+          status: 'draft',
         });
-      }
+      });
 
       if (!newItems.length) {
         setApplying(false);
@@ -401,7 +517,7 @@ export default function AddItemsModal({
       <div className="add-items-modal-bar">
         <span className="add-items-modal-title">
           <span className="add-items-modal-dot" aria-hidden="true" />
-          Add, <em style={{ color: 'var(--d-orange)', fontStyle: 'italic' }}>from</em>.
+          ADD, <em style={{ color: 'var(--d-orange)', fontStyle: 'italic' }}>from</em>
         </span>
         <span className="add-items-modal-board-meta">
           {currentItems.length} item{currentItems.length === 1 ? '' : 's'} on board
@@ -411,18 +527,27 @@ export default function AddItemsModal({
       </div>
 
       <div className="add-items-modal-body">
-        {/* Sidebar */}
+        {/* Sidebar — per-source count badges so the user knows their
+            picks in other tabs are still there. */}
         <nav className="add-items-modal-nav">
           <span className="add-items-modal-nav-eyebrow">Sources</span>
-          {SOURCES.map(s => (
-            <button
-              key={s.key}
-              onClick={() => setActiveSource(s.key)}
-              className={`add-items-modal-nav-item${activeSource === s.key ? ' is-active' : ''}`}
-            >
-              {s.label}
-            </button>
-          ))}
+          {SOURCES.map(s => {
+            const count = s.key === 'suggestions' ? countSuggestions
+                        : s.key === 'past_orders' ? countPastOrders
+                        : s.key === 'catalogue'   ? countCatalogue
+                        : s.key === 'frequent'    ? countFrequent
+                        : 0;
+            return (
+              <button
+                key={s.key}
+                onClick={() => setActiveSource(s.key)}
+                className={`add-items-modal-nav-item${activeSource === s.key ? ' is-active' : ''}`}
+              >
+                {s.label}
+                {count > 0 && <span className="add-items-modal-nav-badge">{count}</span>}
+              </button>
+            );
+          })}
         </nav>
 
         {/* Main content */}
@@ -536,31 +661,88 @@ export default function AddItemsModal({
                   </p>
                 )}
                 {visibleOrders.map(order => {
-                  const isSelected = pickedOrderId === order.id;
                   const itemCount = Number(order.item_count) || 0;
                   const isFav = favouriteOrderIds.has(order.id) || order.is_favourite;
+                  const isExpanded = expandedOrderIds.has(order.id);
+                  const state = pastOrderState(order.id); // 'none' | 'some' | 'all'
+                  const childItems = orderItemsCache.get(order.id);
+                  const isLoading = orderItemsLoading.has(order.id);
                   return (
-                    <button
-                      key={order.id}
-                      onClick={() => setPickedOrderId(isSelected ? null : order.id)}
-                      className={`pv-wizard-board-row${isSelected ? ' is-selected' : ''}`}
-                    >
-                      <span className={`pv-wizard-row-checkbox${isSelected ? ' is-checked' : ''}`}>
-                        {isSelected ? '✓' : ''}
-                      </span>
-                      <span className="pv-wizard-board-row-body">
-                        <span className="pv-wizard-board-row-head">
-                          <span className="pv-wizard-board-row-title">
-                            {order.supplier_name || 'Supplier'}
-                            {isFav && <span style={{ color: 'var(--d-orange)', marginLeft: 6 }}>★</span>}
+                    <React.Fragment key={order.id}>
+                      <div
+                        className={`pv-wizard-board-row${state !== 'none' ? ' is-selected' : ''}`}
+                        style={{ alignItems: 'center' }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => toggleWholeOrder(order.id)}
+                          className={`pv-wizard-row-checkbox${state === 'all' ? ' is-checked' : ''}${state === 'some' ? ' is-indeterminate' : ''}`}
+                          aria-label={state === 'all' ? 'Unselect order' : 'Select whole order'}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          {state === 'all' ? '✓' : state === 'some' ? '—' : ''}
+                        </button>
+                        <span className="pv-wizard-board-row-body" style={{ cursor: 'default' }}>
+                          <span className="pv-wizard-board-row-head">
+                            <span className="pv-wizard-board-row-title">
+                              {order.supplier_name || 'Supplier'}
+                              {isFav && <span style={{ color: 'var(--d-orange)', marginLeft: 6 }}>★</span>}
+                            </span>
+                            <span className="pv-wizard-item-count">{itemCount} item{itemCount === 1 ? '' : 's'}</span>
                           </span>
-                          <span className="pv-wizard-item-count">{itemCount} item{itemCount === 1 ? '' : 's'}</span>
+                          <span className="pv-wizard-board-row-meta">
+                            {order.sent_at ? new Date(order.sent_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+                          </span>
                         </span>
-                        <span className="pv-wizard-board-row-meta">
-                          {order.sent_at ? new Date(order.sent_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
-                        </span>
-                      </span>
-                    </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleOrderExpanded(order.id)}
+                          className="add-items-modal-expand-btn"
+                          aria-label={isExpanded ? 'Collapse items' : 'Expand items'}
+                        >
+                          {isExpanded ? '▾' : '▸'}
+                        </button>
+                      </div>
+                      {isExpanded && (
+                        <div className="add-items-modal-children">
+                          {isLoading && <p className="pv-wizard-empty" style={{ padding: '8px 16px' }}>Loading items…</p>}
+                          {!isLoading && childItems && childItems.length === 0 && (
+                            <p className="pv-wizard-empty" style={{ padding: '8px 16px' }}>No items.</p>
+                          )}
+                          {!isLoading && (childItems || []).map(it => {
+                            const isPicked = (pickedPastItems.get(order.id) || new Set()).has(it.id);
+                            const dup = isDuplicate(it.item_name);
+                            return (
+                              <button
+                                key={it.id}
+                                onClick={() => !dup && togglePastItem(order.id, it.id)}
+                                disabled={dup}
+                                className={`pv-wizard-board-row add-items-modal-child-row${isPicked ? ' is-selected' : ''}`}
+                                style={dup ? { opacity: 0.55 } : null}
+                              >
+                                <span className={`pv-wizard-row-checkbox${isPicked ? ' is-checked' : ''}`}>
+                                  {isPicked ? '✓' : ''}
+                                </span>
+                                <span className="pv-wizard-board-row-body">
+                                  <span className="pv-wizard-board-row-head">
+                                    <span className="pv-wizard-board-row-title" style={{ fontSize: 12 }}>{it.item_name}</span>
+                                    <span className="pv-wizard-row-priority is-muted">
+                                      {dup ? 'Already on board' : `${it.quantity || 1} ${it.unit || 'each'}`}
+                                    </span>
+                                  </span>
+                                  {(it.brand || it.size || it.department) && (
+                                    <span className="pv-wizard-board-row-meta">
+                                      {it.department && <span className="pv-wizard-row-tag">{it.department}</span>}
+                                      {[it.brand, it.size].filter(Boolean).join(' · ')}
+                                    </span>
+                                  )}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </React.Fragment>
                   );
                 })}
               </div>
@@ -736,7 +918,7 @@ export default function AddItemsModal({
           {applying
             ? 'Adding…'
             : pickedCount > 0
-              ? `Add ${pickedCount} ${activeSource === 'past_orders' ? 'order' : 'item'}${pickedCount === 1 ? '' : 's'} to board`
+              ? `Add ${pickedCount} item${pickedCount === 1 ? '' : 's'} to board`
               : 'Select items'}
         </button>
       </div>
