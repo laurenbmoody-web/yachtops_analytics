@@ -910,19 +910,26 @@ const VesselSettings = () => {
                 <p className="text-sm text-muted-foreground mb-4">The rota day-start, and how MLC rest is recorded, confirmed and signed off.</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Rota Day Start</label>
+                    <label className="flex items-center gap-1.5 text-sm font-medium text-foreground mb-1">
+                      Rota Day Start
+                      <span className="text-muted-foreground cursor-help inline-flex" title="The hour your operational day begins. The rota grid starts here, and — when HOR Day Basis is set to Operational — each 24-hour rest period is measured from this time.">
+                        <Icon name="Info" size={13} />
+                      </span>
+                    </label>
                     <Select
                       value={String(formState?.operational_day_start_hour ?? 6)}
                       onChange={(value) => handleInputChange('operational_day_start_hour', value)}
                       options={dayStartHourOptions}
                       disabled={viewMode || !canEdit}
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Start hour of the rota grid — and of the HOR day when the basis is “Operational”.
-                    </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">HOR Day Basis</label>
+                    <label className="flex items-center gap-1.5 text-sm font-medium text-foreground mb-1">
+                      HOR Day Basis
+                      <span className="text-muted-foreground cursor-help inline-flex" title="How each 24-hour window for the '10h rest' rule is measured. Calendar = midnight to midnight (the standard IMO/ILO sheet). Operational = a 24-hour day starting at your Rota Day Start, which avoids false breaches when an overnight rest is split by midnight. The basis is printed on the record.">
+                        <Icon name="Info" size={13} />
+                      </span>
+                    </label>
                     <Select
                       value={formState?.hor_day_basis || 'calendar'}
                       onChange={(value) => handleInputChange('hor_day_basis', value)}
@@ -932,12 +939,14 @@ const VesselSettings = () => {
                       ]}
                       disabled={viewMode || !canEdit}
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      How the “10h in any 24h” rule is sliced. Operational anchors the day to your rota start to avoid midnight-split false breaches. Printed on the record.
-                    </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Hours-of-Rest Confirmation</label>
+                    <label className="flex items-center gap-1.5 text-sm font-medium text-foreground mb-1">
+                      Hours-of-Rest Confirmation
+                      <span className="text-muted-foreground cursor-help inline-flex" title="What happens when a crew member submits their month of hours. Require approval = an approver must sign it off before it's confirmed. Trust crew = it's confirmed automatically on submit.">
+                        <Icon name="Info" size={13} />
+                      </span>
+                    </label>
                     <Select
                       value={formState?.hor_confirmation_mode || 'require'}
                       onChange={(value) => handleInputChange('hor_confirmation_mode', value)}
@@ -947,25 +956,24 @@ const VesselSettings = () => {
                       ]}
                       disabled={viewMode || !canEdit}
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Approve each submitted HOR month, or auto-confirm on submit.
-                    </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">HOR Approver Role</label>
+                    <label className="flex items-center gap-1.5 text-sm font-medium text-foreground mb-1">
+                      HOR Approver Role
+                      <span className="text-muted-foreground cursor-help inline-flex" title="The lowest rank that can approve HOR months and sign off breaches — equal or higher ranks always can too. 'Command only' restricts it to Command; 'Chief & above' adds Chiefs; 'HOD & above' also lets Heads of Department.">
+                        <Icon name="Info" size={13} />
+                      </span>
+                    </label>
                     <Select
                       value={formState?.hor_approver_tier || 'COMMAND'}
                       onChange={(value) => handleInputChange('hor_approver_tier', value)}
                       options={[
-                        { value: 'COMMAND', label: 'Command' },
-                        { value: 'CHIEF', label: 'Chief / HOD lead' },
-                        { value: 'HOD', label: 'Head of Department' },
+                        { value: 'COMMAND', label: 'Command only' },
+                        { value: 'CHIEF', label: 'Chief & above' },
+                        { value: 'HOD', label: 'HOD & above' },
                       ]}
                       disabled={viewMode || !canEdit || formState?.hor_confirmation_mode === 'trust'}
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Approves HOR months and signs off breaches (Command always can).
-                    </p>
                   </div>
                 </div>
               </div>
