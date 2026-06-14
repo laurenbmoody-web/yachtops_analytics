@@ -494,6 +494,191 @@ export async function getMasterHistorySuggestions(vesselId, currentItems = []) {
   }
 }
 
+// ── Query 6: Occasions (guest birthdays falling inside the trip) ─────────────
+
+// guests.date_of_birth is TEXT. Common shapes:
+//   "1990-06-18"   ISO YYYY-MM-DD
+//   "18/06/1990"   DD/MM/YYYY (UK form, fleet default)
+//   "06/18/1990"   MM/DD/YYYY (we can't distinguish from DD/MM cleanly,
+//                  so we accept the UK form and ignore ambiguous strings
+//                  with month > 12)
+// Returns { month, day } or null when unparseable.
+function extractMonthDay(dob) {
+  if (!dob) return null;
+  const iso = String(dob).match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (iso) {
+    const m = parseInt(iso[2], 10);
+    const d = parseInt(iso[3], 10);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) return { month: m, day: d };
+  }
+  const slash = String(dob).match(/^(\d{1,2})[\/\-](\d{1,2})/);
+  if (slash) {
+    const a = parseInt(slash[1], 10);
+    const b = parseInt(slash[2], 10);
+    // UK form first: day/month
+    if (a >= 1 && a <= 31 && b >= 1 && b <= 12) return { month: b, day: a };
+  }
+  return null;
+}
+
+// Walk each day in trip [start, end] inclusive; return the Date the
+// birthday lands on, or null when no day in the range matches MM-DD.
+function findOccasionDate(monthDay, startISO, endISO) {
+  if (!monthDay || !startISO || !endISO) return null;
+  const start = new Date(startISO);
+  const end = new Date(endISO);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+  const cur = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+  while (cur.getTime() <= endDay.getTime()) {
+    if (cur.getMonth() + 1 === monthDay.month && cur.getDate() === monthDay.day) {
+      return new Date(cur);
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+  return null;
+}
+
+const OCCASION_FANOUT = [
+  { name: 'Birthday cake', category: 'Bakery', department: 'Galley',  unit: 'each',    quantity: 1, signalText: 'Surprise',    signalCls: 'is-orange' },
+  { name: 'Champagne',     category: 'Beverages', department: 'Bar',  unit: 'bottle',  quantity: 2, signalText: 'Surprise',    signalCls: 'is-orange' },
+  { name: 'Candles',       category: 'Decor', department: 'Interior', unit: 'pack',    quantity: 1, signalText: 'Celebration', signalCls: 'is-muted'  },
+];
+
+async function getOccasionsSuggestions(tripId, vesselId) {
+  try {
+    const trip = await getTripById(tripId);
+    if (!trip?.guests?.length) return [];
+    const startISO = trip.startDate || trip.start_date;
+    const endISO   = trip.endDate   || trip.end_date;
+    if (!startISO || !endISO) return [];
+
+    // Same active-then-fallback pattern as guest prefs.
+    const allGuestIds = trip.guests.map(g => g.guestId).filter(Boolean);
+    const activeGuestIds = trip.guests.filter(g => g.isActive).map(g => g.guestId).filter(Boolean);
+    const guestIds = activeGuestIds.length > 0 ? activeGuestIds : allGuestIds;
+    if (!guestIds.length) return [];
+
+    const { data: guestsData } = await supabase
+      ?.from('guests')
+      ?.select('id, first_name, last_name, date_of_birth, cake_preference')
+      ?.in('id', guestIds)
+      ?.eq('tenant_id', vesselId);
+
+    const suggestions = [];
+    (guestsData || []).forEach(g => {
+      const md = extractMonthDay(g.date_of_birth);
+      if (!md) return;
+      const occasionDate = findOccasionDate(md, startISO, endISO);
+      if (!occasionDate) return;
+
+      const guestName = `${g.first_name || ''} ${g.last_name || ''}`.trim() || 'Guest';
+      const dateLabel = occasionDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+
+      OCCASION_FANOUT.forEach((tpl, i) => {
+        // Augment cake with guest's cake_preference if recorded.
+        const name = (tpl.name === 'Birthday cake' && g.cake_preference)
+          ? `Birthday cake — ${g.cake_preference}`
+          : tpl.name;
+        suggestions.push({
+          id: `occ_${g.id}_${i}`,
+          name,
+          category: tpl.category,
+          department: tpl.department,
+          source: 'occasions',
+          reason: `${guestName}'s birthday on ${dateLabel}`,
+          priority: 'normal',
+          quantity_ordered: tpl.quantity,
+          unit: tpl.unit,
+          allergen_flags: [],
+          _signal: { text: tpl.signalText, cls: tpl.signalCls },
+        });
+      });
+    });
+
+    return suggestions;
+  } catch (err) {
+    console.warn('[provisioningSuggestions] occasions query failed:', err);
+    return [];
+  }
+}
+
+// ── Query 7: Expiring Soon (inventory_items.expiry_date inside trip window) ──
+
+async function getExpiringSoonSuggestions(tripId, vesselId) {
+  try {
+    const trip = await getTripById(tripId);
+    const startISO = trip?.startDate || trip?.start_date;
+    const endISO   = trip?.endDate   || trip?.end_date;
+    if (!startISO || !endISO) return [];
+
+    const tripStart  = new Date(startISO);
+    const tripEnd    = new Date(endISO);
+    const cutoff     = new Date(tripEnd.getTime() + 7 * 24 * 60 * 60 * 1000); // include 7d past return
+    if (Number.isNaN(tripStart.getTime()) || Number.isNaN(tripEnd.getTime())) return [];
+
+    const { data: items } = await supabase
+      ?.from('inventory_items')
+      ?.select('id, name, unit, total_qty, l2_name, usage_department, expiry_date')
+      ?.eq('tenant_id', vesselId)
+      ?.not('expiry_date', 'is', null)
+      ?.lte('expiry_date', cutoff.toISOString().slice(0, 10));
+
+    const suggestions = [];
+    const tripDays = Math.max(1, Math.round((tripEnd - tripStart) / (1000 * 60 * 60 * 24)));
+    const fmtDate = (d) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+
+    (items || []).forEach(item => {
+      const qty = item.total_qty || 0;
+      if (qty <= 0) return; // low_stock covers zero-quantity items
+      const exp = new Date(item.expiry_date);
+      if (Number.isNaN(exp.getTime())) return;
+
+      let signalText, signalCls, priority, reason;
+      if (exp <= tripStart) {
+        signalText = `Expires ${fmtDate(exp)}`;
+        signalCls  = 'is-high';
+        priority   = 'high';
+        reason     = `${qty} in inventory — trip starts ${fmtDate(tripStart)}`;
+      } else if (exp <= tripEnd) {
+        signalText = `Expires ${fmtDate(exp)}`;
+        signalCls  = 'is-warn';
+        priority   = 'normal';
+        reason     = `Won't last the ${tripDays}-day trip`;
+      } else {
+        signalText = `Expires ${fmtDate(exp)}`;
+        signalCls  = 'is-muted';
+        priority   = 'normal';
+        reason     = `Refresh before departure`;
+      }
+
+      suggestions.push({
+        id: `exp_${item.id}`,
+        name: item.name,
+        category: item.l2_name || 'Other',
+        department: item.usage_department || 'Galley',
+        source: 'expiring_soon',
+        reason,
+        priority,
+        quantity_ordered: Math.max(1, qty),
+        unit: item.unit || 'each',
+        allergen_flags: [],
+        inventory_item_id: item.id,
+        _signal: { text: signalText, cls: signalCls },
+      });
+    });
+
+    return suggestions.sort((a, b) => {
+      const ap = a.priority === 'high' ? 0 : 1;
+      const bp = b.priority === 'high' ? 0 : 1;
+      return ap - bp;
+    });
+  } catch (err) {
+    console.warn('[provisioningSuggestions] expiring-soon query failed:', err);
+    return [];
+  }
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 
 /**
@@ -506,27 +691,33 @@ export async function getMasterHistorySuggestions(vesselId, currentItems = []) {
  * @returns {Promise<Object>}
  */
 export async function getSmartSuggestions(tripId, vesselId, currentItems = []) {
-  const [guestPrefs, lowStock, invoicePattern, locationAware, masterHistory] = await Promise.allSettled([
+  const [guestPrefs, lowStock, invoicePattern, locationAware, masterHistory, occasions, expiringSoon] = await Promise.allSettled([
     tripId ? getGuestPreferenceSuggestions(tripId, vesselId) : Promise.resolve([]),
     getLowStockSuggestions(vesselId),
     getInvoicePatternSuggestions(vesselId),
     tripId ? getLocationAwareSuggestions(tripId) : Promise.resolve([]),
     getMasterHistorySuggestions(vesselId, currentItems),
+    tripId ? getOccasionsSuggestions(tripId, vesselId) : Promise.resolve([]),
+    tripId ? getExpiringSoonSuggestions(tripId, vesselId) : Promise.resolve([]),
   ]);
 
   return {
-    guest_preference: guestPrefs.status === 'fulfilled' ? guestPrefs.value : [],
-    low_stock: lowStock.status === 'fulfilled' ? lowStock.value : [],
-    invoice_pattern: invoicePattern.status === 'fulfilled' ? invoicePattern.value : [],
-    location_aware: locationAware.status === 'fulfilled' ? locationAware.value : [],
-    master_history: masterHistory.status === 'fulfilled' ? masterHistory.value : [],
+    occasions:         occasions.status         === 'fulfilled' ? occasions.value         : [],
+    expiring_soon:     expiringSoon.status      === 'fulfilled' ? expiringSoon.value      : [],
+    guest_preference:  guestPrefs.status        === 'fulfilled' ? guestPrefs.value        : [],
+    low_stock:         lowStock.status          === 'fulfilled' ? lowStock.value          : [],
+    master_history:    masterHistory.status     === 'fulfilled' ? masterHistory.value     : [],
+    invoice_pattern:   invoicePattern.status    === 'fulfilled' ? invoicePattern.value    : [],
+    location_aware:    locationAware.status     === 'fulfilled' ? locationAware.value     : [],
   };
 }
 
 export const SOURCE_META = {
+  occasions:        { label: 'Occasions', icon: 'Cake', color: 'text-orange-500' },
+  expiring_soon:    { label: 'Expiring Soon', icon: 'Clock', color: 'text-rose-500' },
   guest_preference: { label: 'Guest Preferences', icon: 'Users', color: 'text-purple-500' },
-  low_stock: { label: 'Low Stock', icon: 'AlertTriangle', color: 'text-amber-500' },
-  invoice_pattern: { label: 'Regular Order', icon: 'RefreshCw', color: 'text-blue-500' },
-  location_aware: { label: 'Location / Passage', icon: 'Map', color: 'text-green-500' },
-  master_history: { label: 'Regular Orders', icon: 'History', color: 'text-teal-500' },
+  low_stock:        { label: 'Low Stock', icon: 'AlertTriangle', color: 'text-amber-500' },
+  invoice_pattern:  { label: 'Regular Order', icon: 'RefreshCw', color: 'text-blue-500' },
+  location_aware:   { label: 'Location / Passage', icon: 'Map', color: 'text-green-500' },
+  master_history:   { label: 'Regular Orders', icon: 'History', color: 'text-teal-500' },
 };

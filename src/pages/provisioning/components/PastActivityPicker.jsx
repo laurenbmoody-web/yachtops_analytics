@@ -56,11 +56,36 @@ import { getSmartSuggestions, SOURCE_META } from '../../../utils/provisioningSug
 const CATALOGUE_URL = 'https://provisions.cargotechnology.co.uk/';
 const RECENT_DAYS = 60; // boards modified within this window count as "Live"
 
+// Render order for the source groups. Sources with rare / actionable
+// signal (Occasions, Expiring soon, Guest prefs, Low stock) come first
+// and are expanded by default; routine sources (Master history, Invoice
+// pattern, Location aware) come last and are collapsed by default. The
+// engine returns a free-form object, so the picker pins the order here.
+const SOURCE_ORDER = [
+  'occasions',
+  'expiring_soon',
+  'guest_preference',
+  'low_stock',
+  'master_history',
+  'invoice_pattern',
+  'location_aware',
+];
+const DEFAULT_EXPANDED_SOURCES = new Set([
+  'occasions',
+  'expiring_soon',
+  'guest_preference',
+  'low_stock',
+]);
+
 // Per-source rightmost chip text + style. Replaces the noisy red badge
 // SmartSuggestionsPanel rendered for every high-priority row. Returns
 // null when there's no signal worth surfacing.
 function suggestionSignal(s) {
   if (!s) return null;
+  // Sources that carry an explicit _signal (occasions / expiring_soon)
+  // use it verbatim — keeps the engine in control of chip semantics for
+  // signals that don't fit the generic priority/source heuristic.
+  if (s._signal) return s._signal;
   if (s.is_allergen_note) return { text: 'Allergen', cls: 'is-high' };
   if (s.priority === 'high') {
     if (s.source === 'low_stock')         return { text: (s.quantity_ordered === 0 ? 'Out of stock' : 'High priority'), cls: 'is-high' };
@@ -120,6 +145,10 @@ export default function PastActivityPicker({
   // Multi-select inside the Suggestions tab — Set of suggestion ids the
   // user has ticked. Cleared on apply / tab change.
   const [pickedSuggestionIds, setPickedSuggestionIds] = useState(new Set());
+  // Per-source expand/collapse state. Defaults to the high-signal
+  // sources expanded; routine sources collapsed. User can toggle each,
+  // or use the "Expand all"/"Collapse all" header link.
+  const [expandedSources, setExpandedSources] = useState(DEFAULT_EXPANDED_SOURCES);
 
   // Load all sources concurrently on mount.
   useEffect(() => {
@@ -741,61 +770,101 @@ export default function PastActivityPicker({
           )}
 
           {!suggestionsLoading && allSuggestionItems.length > 0 && (
-            <div className="pv-wizard-list">
-              {Object.entries(suggestions || {}).map(([source, items]) => {
-                if (!items?.length) return null;
-                // Strip allergen-check rows from the picker — they're
-                // surfaced as a separate in-board warning panel, no need
-                // to ask the user to "tick to add" an allergen note when
-                // creating a new board.
-                const itemsNoAllergens = items.filter(i => !i.is_allergen_note);
-                const filtered = suggestionSearch
-                  ? itemsNoAllergens.filter(i =>
-                      (i.name || '').toLowerCase().includes(suggestionSearch.toLowerCase()) ||
-                      (i.reason || '').toLowerCase().includes(suggestionSearch.toLowerCase())
-                    )
-                  : itemsNoAllergens;
-                if (!filtered.length) return null;
-                const meta = SOURCE_META[source] || { label: source };
-                return (
-                  <React.Fragment key={source}>
-                    <div className="pv-wizard-src-head">
-                      <span className="pv-wizard-src-label">{meta.label}</span>
-                      <span className="pv-wizard-src-count">{filtered.length} item{filtered.length === 1 ? '' : 's'}</span>
-                    </div>
-                    {filtered.map(item => {
-                      const isPicked = pickedSuggestionIds.has(item.id);
-                      const signal = suggestionSignal(item);
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => togglePickedSuggestion(item.id)}
-                          className={`pv-wizard-board-row${isPicked ? ' is-selected' : ''}`}
-                        >
-                          <span className={`pv-wizard-row-checkbox${isPicked ? ' is-checked' : ''}`} aria-hidden="true">
-                            {isPicked ? '✓' : ''}
-                          </span>
-                          <span className="pv-wizard-board-row-body">
-                            <span className="pv-wizard-board-row-head">
-                              <span className="pv-wizard-board-row-title">{item.name}</span>
-                              {signal && (
-                                <span className={`pv-wizard-row-priority ${signal.cls}`}>{signal.text}</span>
-                              )}
+            <>
+              {/* Expand all / Collapse all — toggles every populated source. */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 2 }}>
+                <button
+                  onClick={() => {
+                    const populated = SOURCE_ORDER.filter(src => (suggestions?.[src] || []).filter(i => !i.is_allergen_note).length > 0);
+                    const allOpen = populated.every(src => expandedSources.has(src));
+                    setExpandedSources(allOpen ? new Set() : new Set(populated));
+                  }}
+                  style={{
+                    background: 'none', border: 0, padding: 0,
+                    font: 'inherit', fontSize: 10.5, fontWeight: 600,
+                    color: 'var(--d-muted)', cursor: 'pointer',
+                    letterSpacing: '0.06em',
+                  }}
+                >
+                  {SOURCE_ORDER.filter(src => (suggestions?.[src] || []).filter(i => !i.is_allergen_note).length > 0).every(src => expandedSources.has(src))
+                    ? 'Collapse all'
+                    : 'Expand all'}
+                </button>
+              </div>
+
+              <div className="pv-wizard-list">
+                {SOURCE_ORDER.map(source => {
+                  const items = suggestions?.[source];
+                  if (!items?.length) return null;
+                  // Strip allergen-check rows from the picker — they're
+                  // surfaced as a separate in-board warning panel, no need
+                  // to ask the user to "tick to add" an allergen note when
+                  // creating a new board.
+                  const itemsNoAllergens = items.filter(i => !i.is_allergen_note);
+                  const filtered = suggestionSearch
+                    ? itemsNoAllergens.filter(i =>
+                        (i.name || '').toLowerCase().includes(suggestionSearch.toLowerCase()) ||
+                        (i.reason || '').toLowerCase().includes(suggestionSearch.toLowerCase())
+                      )
+                    : itemsNoAllergens;
+                  if (!filtered.length) return null;
+                  const meta = SOURCE_META[source] || { label: source };
+                  const isExpanded = expandedSources.has(source);
+                  return (
+                    <React.Fragment key={source}>
+                      <button
+                        onClick={() => setExpandedSources(prev => {
+                          const next = new Set(prev);
+                          if (next.has(source)) next.delete(source); else next.add(source);
+                          return next;
+                        })}
+                        className="pv-wizard-src-head"
+                        style={{
+                          background: 'none', border: 0, width: '100%',
+                          cursor: 'pointer', textAlign: 'left',
+                        }}
+                        aria-expanded={isExpanded}
+                      >
+                        <span style={{ color: 'var(--d-muted-soft)', fontSize: 11, marginRight: 2 }} aria-hidden="true">
+                          {isExpanded ? '▾' : '▸'}
+                        </span>
+                        <span className="pv-wizard-src-label">{meta.label}</span>
+                        <span className="pv-wizard-src-count">{filtered.length} item{filtered.length === 1 ? '' : 's'}</span>
+                      </button>
+                      {isExpanded && filtered.map(item => {
+                        const isPicked = pickedSuggestionIds.has(item.id);
+                        const signal = suggestionSignal(item);
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => togglePickedSuggestion(item.id)}
+                            className={`pv-wizard-board-row${isPicked ? ' is-selected' : ''}`}
+                          >
+                            <span className={`pv-wizard-row-checkbox${isPicked ? ' is-checked' : ''}`} aria-hidden="true">
+                              {isPicked ? '✓' : ''}
                             </span>
-                            <span className="pv-wizard-board-row-meta">
-                              {item.department && (
-                                <span className="pv-wizard-row-tag">{item.department}</span>
-                              )}
-                              {item.reason}
+                            <span className="pv-wizard-board-row-body">
+                              <span className="pv-wizard-board-row-head">
+                                <span className="pv-wizard-board-row-title">{item.name}</span>
+                                {signal && (
+                                  <span className={`pv-wizard-row-priority ${signal.cls}`}>{signal.text}</span>
+                                )}
+                              </span>
+                              <span className="pv-wizard-board-row-meta">
+                                {item.department && (
+                                  <span className="pv-wizard-row-tag">{item.department}</span>
+                                )}
+                                {item.reason}
+                              </span>
                             </span>
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </React.Fragment>
-                );
-              })}
-            </div>
+                          </button>
+                        );
+                      })}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+            </>
           )}
         </>
       )}
