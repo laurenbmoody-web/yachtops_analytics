@@ -12,6 +12,7 @@ import StatusHistoryTab from './components/StatusHistoryTab';
 import StatusChangeModal from '../crew-management/components/StatusChangeModal';
 import { getCurrentUser, getDepartmentDisplayName, getTierDisplayName } from '../../utils/authStorage';
 import { getInitials } from '../../utils/profileHelpers';
+import DocumentsTab from './components/DocumentsTab';
 import { getStatusLabel, getStatusBadgeClasses, getStatusDotClass } from '../../utils/crewStatus';
 import { showToast } from '../../utils/toast';
 import { addWorkEntries, getComplianceStatus, getMonthCalendarData, detectBreaches, getCrewWorkEntries, deleteWorkEntriesForDate, runAllHORTests, confirmMonth, getMonthStatus, isMonthEditable, detectBreachedDatesAfterSave, hasBreachNoteForDate, syncRotaBaselineEntries, setHorDbContext, hydrateActualsForMonth } from './utils/horStorage';
@@ -798,6 +799,7 @@ const canEdit = (() => {
   const navigationSections = [
     { key: 'personal', label: 'Personal Details', icon: 'User' },
     { key: 'emergency', label: 'Emergency / Next of Kin', icon: 'Phone' },
+    { key: 'documents', label: 'Documents', icon: 'FileText' },
     { key: 'banking', label: 'Banking', icon: 'CreditCard' },
     { key: 'preferences', label: 'Preferences', icon: 'Utensils' },
     { key: 'hor', label: 'Hours of Rest (HOR)', icon: 'Clock' },
@@ -962,7 +964,7 @@ const canEdit = (() => {
           <span className="cp-section-kicker">01 / Identity</span>
           <h3>Personal Details</h3>
         </div>
-        <p className="cp-section-sub">Identity, travel documents and the basics we hold on file.</p>
+        <p className="cp-section-sub">Identity, contact and the basics we hold on file.</p>
 
         <div className="cp-grid">
           <Field label="First Names" required>
@@ -997,22 +999,6 @@ const canEdit = (() => {
               disabled={!isEditing}
               searchable={true}
               placeholder="Select nationality"
-            />
-          </Field>
-          <Field label="Passport Number">
-            <Input
-              value={formData?.passportNumber}
-              onChange={(e) => handleInputChange('passportNumber', e?.target?.value)}
-              disabled={!isEditing}
-              placeholder="—"
-            />
-          </Field>
-          <Field label="Passport Expiry">
-            <Input
-              type="date"
-              value={formData?.passportExpiry}
-              onChange={(e) => handleInputChange('passportExpiry', e?.target?.value)}
-              disabled={!isEditing}
             />
           </Field>
           <Field label="Phone Number">
@@ -1291,7 +1277,7 @@ const canEdit = (() => {
       <div>
         <div className="cp-section-head" style={{ justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span className="cp-section-kicker">03 / Banking</span>
+            <span className="cp-section-kicker">04 / Banking</span>
             <h3>Banking</h3>
           </div>
           {!isEditing && canReveal && (
@@ -1514,7 +1500,7 @@ const canEdit = (() => {
     return (
       <div>
         <div className="cp-section-head">
-          <span className="cp-section-kicker">04 / Preferences</span>
+          <span className="cp-section-kicker">05 / Preferences</span>
           <h3>Preferences</h3>
         </div>
         <p className="cp-section-sub">Dietary needs and the little touches the interior likes to know.</p>
@@ -2270,6 +2256,15 @@ const canEdit = (() => {
         return renderPersonalDetails();
       case 'emergency':
         return renderEmergencyContact();
+      case 'documents':
+        return (
+          <DocumentsTab
+            userId={crewId}
+            tenantId={activeTenantId}
+            createdBy={session?.user?.id}
+            canEdit={canEdit}
+          />
+        );
       case 'banking':
         return renderBanking();
       case 'preferences':
