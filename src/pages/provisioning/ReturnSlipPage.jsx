@@ -46,7 +46,7 @@ const REASON_OPTIONS = [
 const fmtCurrency = (val) => {
   const n = parseFloat(val);
   if (isNaN(n)) return '—';
-  return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
+  return n.toLocaleString('en-GB', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
 };
 
 // ─── Editorial form field (label + input/textarea) ──────────────────────────

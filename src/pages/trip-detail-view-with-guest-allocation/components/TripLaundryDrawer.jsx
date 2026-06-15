@@ -121,7 +121,7 @@ const TripLaundryDrawer = ({ isOpen, onClose, trip }) => {
     const start = new Date(trip?.startDate);
     const end = new Date(trip?.endDate);
     const options = { month: 'short', day: 'numeric', year: 'numeric' };
-    return `${start?.toLocaleDateString('en-US', options)} – ${end?.toLocaleDateString('en-US', options)}`;
+    return `${start?.toLocaleDateString('en-GB', options)} – ${end?.toLocaleDateString('en-GB', options)}`;
   };
 
   const getTripGuests = () => {

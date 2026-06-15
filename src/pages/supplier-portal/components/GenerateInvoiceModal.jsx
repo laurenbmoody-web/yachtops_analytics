@@ -28,7 +28,7 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
 const fmtMoney = (n, currency) => {
   const num = Number(n) || 0;
   try {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-GB', {
       style: 'currency', currency, minimumFractionDigits: 2,
     }).format(num);
   } catch {

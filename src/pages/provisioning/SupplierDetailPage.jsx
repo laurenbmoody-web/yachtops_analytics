@@ -75,7 +75,7 @@ const countryName = (iso) => {
 const fmtMoney = (n, currency = 'EUR') => {
   if (n == null || n === '') return '—';
   try {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-GB', {
       style: 'currency',
       currency,
       maximumFractionDigits: Number.isInteger(n) ? 0 : 2,
@@ -88,7 +88,7 @@ const fmtMoney = (n, currency = 'EUR') => {
 const fmtMoneyCompact = (n, currency = 'EUR') => {
   if (n == null) return '—';
   try {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-GB', {
       style: 'currency',
       currency,
       maximumFractionDigits: 0,

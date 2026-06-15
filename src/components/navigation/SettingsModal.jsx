@@ -430,8 +430,8 @@ const SettingsModal = ({ isOpen, onClose }) => {
                     <p className="text-sm font-medium text-foreground mb-1">Current Time</p>
                     <p className="text-sm text-muted-foreground">
                       {manualTimezoneEnabled 
-                        ? `Manual GMT${manualOffset} - ${new Date()?.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'long' })}`
-                        : new Date()?.toLocaleString('en-US', { timeZone: settings?.timezone, dateStyle: 'full', timeStyle: 'long' })
+                        ? `Manual GMT${manualOffset} - ${new Date()?.toLocaleString('en-GB', { dateStyle: 'full', timeStyle: 'long' })}`
+                        : new Date()?.toLocaleString('en-GB', { timeZone: settings?.timezone, dateStyle: 'full', timeStyle: 'long' })
                       }
                     </p>
                   </div>

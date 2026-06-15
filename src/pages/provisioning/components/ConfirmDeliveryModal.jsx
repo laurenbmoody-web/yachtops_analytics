@@ -92,7 +92,7 @@ const ConfirmDeliveryModal = ({ userId, onClose, onConfirmed }) => {
       for (const boardId of boardIds) {
         const boardMatches = matches.filter(m => m.matched_board_id === boardId);
         const first = boardMatches[0];
-        const scannedAt = first.scanned_at ? new Date(first.scanned_at).toLocaleDateString() : null;
+        const scannedAt = first.scanned_at ? new Date(first.scanned_at).toLocaleDateString('en-GB') : null;
         const noteStr = [
           'Cross-department delivery',
           first.scanned_by ? `scanned by ${first.scanned_by}` : null,

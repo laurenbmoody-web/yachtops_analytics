@@ -116,7 +116,7 @@ const formatExpiryDate = (dateStr) => {
   try {
     const d = new Date(dateStr);
     if (isNaN(d?.getTime())) return '—';
-    return d?.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    return d?.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' });
   } catch {
     return '—';
   }

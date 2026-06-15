@@ -115,12 +115,12 @@ const ReviewQueuePanel = ({ cards, onAccept, onReject, onEdit, onConvertToPlanne
 
   const formatDate = (dateStr) => {
     const date = new Date(dateStr);
-    return date?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return date?.toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
   const formatTime = (dateStr) => {
     const date = new Date(dateStr);
-    return date?.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    return date?.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   };
 
   return (

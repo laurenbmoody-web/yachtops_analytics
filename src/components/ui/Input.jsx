@@ -1,5 +1,6 @@
 import React from "react";
 import { cn } from "../../utils/cn";
+import DateInput from "./DateInput";
 
 const Input = React.forwardRef(({
     className,
@@ -65,6 +66,20 @@ const Input = React.forwardRef(({
                 </label>
             )}
 
+            {type === "date" ? (
+                <DateInput
+                    ref={ref}
+                    id={inputId}
+                    value={props?.value}
+                    onChange={props?.onChange}
+                    disabled={props?.disabled}
+                    className={cn(
+                        baseInputClasses,
+                        error && "border-destructive focus-visible:ring-destructive",
+                        className
+                    )}
+                />
+            ) : (
             <input
                 type={type}
                 className={cn(
@@ -76,6 +91,7 @@ const Input = React.forwardRef(({
                 id={inputId}
                 {...props}
             />
+            )}
 
             {description && !error && (
                 <p className="text-sm text-muted-foreground">

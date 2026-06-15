@@ -335,13 +335,13 @@ const ItemDetailView = () => {
                 {item?.createdAt && (
                   <div>
                     <span className="font-medium">Created:</span>{' '}
-                    {new Date(item?.createdAt)?.toLocaleDateString()}
+                    {new Date(item?.createdAt)?.toLocaleDateString('en-GB')}
                   </div>
                 )}
                 {item?.updatedAt && (
                   <div>
                     <span className="font-medium">Updated:</span>{' '}
-                    {new Date(item?.updatedAt)?.toLocaleDateString()}
+                    {new Date(item?.updatedAt)?.toLocaleDateString('en-GB')}
                   </div>
                 )}
               </div>

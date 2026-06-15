@@ -696,7 +696,7 @@ const CardDetailModal = ({
                 />
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  {new Date(card?.dueDate)?.toLocaleDateString()}
+                  {new Date(card?.dueDate)?.toLocaleDateString('en-GB')}
                 </p>
               )}
             </div>

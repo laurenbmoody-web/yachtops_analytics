@@ -542,8 +542,8 @@ const RotationCalendar = ({ templates, departmentId, tenantId, currentUserId }) 
           Previous Week
         </Button>
         <h3 className="text-lg font-semibold text-foreground">
-          {weekDates?.[0]?.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} –{' '}
-          {weekDates?.[6]?.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+          {weekDates?.[0]?.toLocaleDateString('en-GB', { month: 'long', day: 'numeric' })} –{' '}
+          {weekDates?.[6]?.toLocaleDateString('en-GB', { month: 'long', day: 'numeric', year: 'numeric' })}
         </h3>
         <div className="flex items-center gap-2">
           <button
@@ -732,7 +732,7 @@ const RotationCalendar = ({ templates, departmentId, tenantId, currentUserId }) 
                     backgroundColor: color?.bg,
                     borderLeft: `3px solid ${color?.border}`,
                   } : {}}
-                  title={templateName ? `${templateName} — click to change` : `Assign duty to ${member?.name} on ${date?.toLocaleDateString()}`}
+                  title={templateName ? `${templateName} — click to change` : `Assign duty to ${member?.name} on ${date?.toLocaleDateString('en-GB')}`}
                 >
                   {templateName && color ? (
                     <div className="w-full h-full flex items-center justify-center px-2 py-1.5">
@@ -782,7 +782,7 @@ const RotationCalendar = ({ templates, departmentId, tenantId, currentUserId }) 
 
 // ── Duty Set Assignment Modal ──
 const DutySetAssignModal = ({ member, date, templates, currentAssignment, saving, onClose, onSelect }) => {
-  const dateLabel = date?.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  const dateLabel = date?.toLocaleDateString('en-GB', { weekday: 'long', month: 'long', day: 'numeric' });
 
   return (
     <div

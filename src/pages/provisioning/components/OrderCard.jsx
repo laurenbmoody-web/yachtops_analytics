@@ -58,7 +58,7 @@ const DEFAULT_STATUS_COLOR = { bg: '#F1F5F9', text: '#475569' };
 
 const fmtCur = (a, c = 'EUR') => {
   try {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: c }).format(Number(a) || 0);
+    return new Intl.NumberFormat('en-GB', { style: 'currency', currency: c }).format(Number(a) || 0);
   } catch { return `${c} ${Number(a || 0).toFixed(2)}`; }
 };
 

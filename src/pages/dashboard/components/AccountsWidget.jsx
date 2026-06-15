@@ -6,7 +6,7 @@ const AccountsWidget = ({ title, account }) => {
   const navigate = useNavigate();
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-GB', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 0,

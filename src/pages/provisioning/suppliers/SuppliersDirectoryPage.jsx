@@ -40,7 +40,7 @@ const formatSpend = (amount, currency = 'EUR') => {
   if (!amount) return '—';
   const sym = CURRENCY_SYMBOL[currency] || '';
   const rounded = Math.round(amount);
-  return `${sym}${rounded.toLocaleString('en-US')}`;
+  return `${sym}${rounded.toLocaleString('en-GB')}`;
 };
 
 const formatLastOrder = (iso) => {

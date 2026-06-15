@@ -252,7 +252,7 @@ const TeamJobsBoardManagement = () => {
                       </div>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Icon name="Calendar" size={12} />
-                        <span>{new Date(card?.dueDate)?.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                        <span>{new Date(card?.dueDate)?.toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}</span>
                       </div>
                     </div>
 
