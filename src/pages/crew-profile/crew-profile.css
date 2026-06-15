@@ -184,23 +184,31 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .cp-field-card textarea { min-height: 40px; resize: none; }
 
-/* Native <select> / boxed input used inside a field card (blood type,
-   allergies status, confirmed-on date) — keep a light box so they read as
-   editable controls, distinct from the borderless text values. Selectors
-   are card-scoped + element-qualified so they beat the neutralise rule. */
+/* Native <select> + secondary text inputs inside a field card.
+   The card itself is the only box — these controls inherit it (borderless +
+   transparent), exactly like the plain text Inputs, so there's no
+   distracting box-in-box. The native <select> keeps its caret, so it still
+   reads as a dropdown. Selectors are card-scoped + element-qualified so they
+   beat the generic neutralise rule above. */
 .crew-profile-page .cp-field-card select.cp-inline-select,
 .crew-profile-page .cp-field-card input.cp-inline-box {
   width: 100%;
-  border: 1px solid #E5E7EB !important;
-  background: #fff !important;
-  border-radius: 7px;
-  padding: 6px 9px !important;
+  border: 0 !important;
+  background: transparent !important;
+  border-radius: 0;
+  padding: 0 !important;
   height: auto !important;
-  min-height: 34px;
+  min-height: 20px;
   font-size: 14px !important;
+  font-weight: 500;
   color: #1C1B3A !important;
 }
-.crew-profile-page .cp-field-card input.cp-inline-box:disabled { background: #F8FAFC !important; opacity: 1 !important; }
+.crew-profile-page .cp-field-card select.cp-inline-select {
+  appearance: auto;
+  -webkit-appearance: auto;
+  cursor: pointer;
+}
+.crew-profile-page .cp-field-card input.cp-inline-box:disabled { background: transparent !important; opacity: 1 !important; }
 .crew-profile-page .cp-field-card input:disabled,
 .crew-profile-page .cp-field-card textarea:disabled,
 .crew-profile-page .cp-field-card button[aria-haspopup="listbox"]:disabled {
@@ -212,14 +220,33 @@ body.crew-profile-editorial {
   color: #AEB4C2;
   font-style: italic;
 }
-/* The Select dropdown panel re-asserts its own chrome (it's absolutely
-   positioned inside the card) — keep its search input boxed. */
-.crew-profile-page .cp-field-card [role="listbox"] input,
-.crew-profile-page .cp-field-card .absolute input {
-  border: 1px solid #E5E7EB !important;
-  padding: 8px 8px 8px 32px !important;
-  height: 40px !important;
+
+/* Searchable Select dropdown (Nationality) — editorial panel. The trigger
+   button is neutralised to a borderless card value above; this styles the
+   floating panel it opens: soft border, rounded, lifted shadow, and a clean
+   search field — instead of the default boxy/high-contrast list. */
+.crew-profile-page .cp-field-card .absolute.z-50 {
+  border: 1px solid #E6E8EF !important;
+  border-radius: 12px !important;
+  box-shadow: 0 14px 38px -10px rgba(28, 27, 58, 0.28) !important;
+  overflow: hidden;
+  margin-top: 7px;
+  padding: 4px;
 }
+.crew-profile-page .cp-field-card .absolute.z-50 input {
+  border: 1px solid #E6E8EF !important;
+  border-radius: 9px !important;
+  padding: 8px 10px 8px 32px !important;
+  height: 38px !important;
+  background: #F8FAFC !important;
+  font-weight: 400 !important;
+}
+.crew-profile-page .cp-field-card .absolute.z-50 input:focus {
+  border-color: #C65A1A !important;
+  box-shadow: 0 0 0 2px #FAECE7 !important;
+  background: #fff !important;
+}
+.crew-profile-page .cp-field-card .absolute.z-50 [class*="rounded-sm"] { border-radius: 8px !important; }
 
 /* Sub-section groups within a tab (Emergency, Banking, Preferences). */
 .crew-profile-page .cp-group { margin-top: 20px; }
@@ -305,9 +332,12 @@ body.crew-profile-editorial {
   color: #8B8478;
 }
 /* Multi-phone editor (Personal Details). */
-.crew-profile-page .cp-phone-rows { display: flex; flex-direction: column; gap: 6px; }
-.crew-profile-page .cp-phone-row { display: flex; align-items: center; gap: 6px; }
-.crew-profile-page .cp-field-card select.cp-phone-labelsel { width: 120px; flex: 0 0 120px; }
+.crew-profile-page .cp-phone-rows { display: flex; flex-direction: column; gap: 2px; }
+/* Borderless controls need a little structure between rows — a hairline
+   divider keeps multiple numbers legible without re-boxing each field. */
+.crew-profile-page .cp-phone-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #EEF1F6; }
+.crew-profile-page .cp-phone-row:last-of-type { border-bottom: 0; }
+.crew-profile-page .cp-field-card select.cp-phone-labelsel { width: 104px; flex: 0 0 104px; color: #695880 !important; font-weight: 600 !important; }
 .crew-profile-page .cp-phone-remove { color: #8B8478; padding: 2px; flex: 0 0 auto; }
 .crew-profile-page .cp-phone-remove:hover { color: #A32D2D; }
 .crew-profile-page .cp-phone-add {
@@ -326,6 +356,51 @@ body.crew-profile-editorial {
   font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
   color: #8B8478; min-width: 64px;
 }
+
+/* Tag / chip input — allergies + medical conditions. Each item is a discrete
+   removable chip rather than a comma-blob, so entries read cleanly and can't
+   be ambiguously merged. Stored as a comma-joined string (no schema change). */
+.crew-profile-page .cp-taginput {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.crew-profile-page .cp-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.crew-profile-page .cp-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #F4EBE3;
+  color: #1C1B3A;
+  border: 1px solid #EBD9CC;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.crew-profile-page .cp-tag button {
+  display: inline-flex;
+  align-items: center;
+  color: #B07A53;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.crew-profile-page .cp-tag button:hover { color: #A32D2D; }
+.crew-profile-page .cp-tag-field {
+  flex: 1;
+  min-width: 120px;
+  border: 0 !important;
+  background: transparent !important;
+  padding: 2px 0 !important;
+  font-size: 14px !important;
+  color: #1C1B3A !important;
+  outline: none;
+}
+.crew-profile-page .cp-tag-field::placeholder { color: #AEB4C2; font-style: italic; }
 
 /* Profile completion meter (header). */
 .crew-profile-page .cp-completion { max-width: 360px; margin-top: 12px; }
