@@ -293,6 +293,29 @@ body.crew-profile-editorial {
   font-size: 11.5px;
   color: #8B8478;
 }
+/* Multi-phone editor (Personal Details). */
+.crew-profile-page .cp-phone-rows { display: flex; flex-direction: column; gap: 6px; }
+.crew-profile-page .cp-phone-row { display: flex; align-items: center; gap: 6px; }
+.crew-profile-page .cp-field-card select.cp-phone-labelsel { width: 120px; flex: 0 0 120px; }
+.crew-profile-page .cp-phone-remove { color: #8B8478; padding: 2px; flex: 0 0 auto; }
+.crew-profile-page .cp-phone-remove:hover { color: #A32D2D; }
+.crew-profile-page .cp-phone-add {
+  align-self: flex-start;
+  font-size: 12px;
+  font-weight: 600;
+  color: #C65A1A;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 2px 0;
+}
+.crew-profile-page .cp-phone-list { display: flex; flex-direction: column; gap: 3px; }
+.crew-profile-page .cp-phone-read { font-size: 14px; color: #1C1B3A; display: flex; gap: 8px; align-items: baseline; }
+.crew-profile-page .cp-phone-tag {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: #8B8478; min-width: 64px;
+}
+
 /* Profile completion meter (header). */
 .crew-profile-page .cp-completion { max-width: 360px; margin-top: 12px; }
 .crew-profile-page .cp-completion-top {
