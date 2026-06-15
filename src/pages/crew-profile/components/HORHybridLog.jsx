@@ -2,19 +2,20 @@ import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react'
 import Icon from '../../../components/AppIcon';
 import { showToast } from '../../../utils/toast';
 import { getCrewWorkEntries, addWorkEntries, deleteWorkEntriesForDate } from '../utils/horStorage';
+import { fetchShiftTemplates, saveShiftTemplate, deleteShiftTemplate } from '../utils/horWorkEntries';
 
 // ── HOR hybrid log — compact calendar (overview) + inline-edit day list ──────
 // The month calendar on the left is an always-on overview; the day list on the
 // right is editable inline. Clicking a calendar day jumps to and expands its
-// row. The expanded row carries a rota-style drag-paint grid with a shift-type
-// palette (duty/watch/standby/training) — the same vocabulary + colours as the
-// rota — and saves automatically. Rest figures + statuses come from the props
-// the parent derives via the shared restHours engine; this component edits +
-// draws only, it never re-implements the MLC maths.
+// row, which carries a rota-style drag-paint grid + shift-type palette
+// (duty/watch/standby/training — same vocabulary + colours as the rota) and
+// saves automatically. Reusable per-user TEMPLATES (DB, owner-scoped) can be
+// saved from a day and applied to one day or, in bulk mode, a range/selection
+// of days at once. Rest figures + statuses come from the props the parent
+// derives via the shared restHours engine — this component edits + draws only.
 
 const SEG_PER_DAY = 48; // 30-minute segments
 
-// Rota shift-type palette (RotationTemplateEditor.TYPE_COLOR). 'erase' clears.
 const TYPE_COLOR = { duty: '#1C1B3A', watch: '#C65A1A', standby: '#B8935E', training: '#6B7F6B' };
 const PALETTE = [['duty', 'Duty'], ['watch', 'Watch'], ['standby', 'Standby'], ['training', 'Training']];
 
@@ -24,7 +25,6 @@ const segToHHMM = (i) => {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 };
 
-// Worked segments (+ types) → contiguous same-type blocks in decimal hours.
 const segmentsToTypedBlocks = (segs, types = {}) => {
   const on = new Set(segs || []);
   const typeAt = (i) => types[i] || types[String(i)] || 'duty';
@@ -93,7 +93,23 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
   const draftRef = useRef({ segs: new Set(), types: {} });
   const rowRefs = useRef({});
 
-  // Per-date segments + types, from the same localStorage cache the engine uses.
+  // Templates (DB, owner-scoped) + the editor's apply/save sub-state.
+  const [templates, setTemplates] = useState([]);
+  const [showApply, setShowApply] = useState(false);
+  const [savingTpl, setSavingTpl] = useState(false);
+  const [tplName, setTplName] = useState('');
+
+  // Bulk-apply: select a range / set of days, then apply one template to all.
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkSel, setBulkSel] = useState(() => new Set());
+  const [bulkAnchor, setBulkAnchor] = useState(null);
+  const [bulkTplId, setBulkTplId] = useState('');
+
+  const loadTemplates = useCallback(() => {
+    fetchShiftTemplates().then((t) => setTemplates(t || [])).catch(() => setTemplates([]));
+  }, []);
+  useEffect(() => { loadTemplates(); }, [loadTemplates]);
+
   const { segsByDate, typesByDate } = useMemo(() => {
     const segs = {};
     const types = {};
@@ -115,11 +131,12 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
     return new Date(y, m - 1, 1).getDay();
   }, [calendarData]);
 
-  // Seed the draft from the selected day's current segments/types.
   useEffect(() => {
     if (!selectedDate) return;
     setDraftSegs(new Set(segsByDate[selectedDate] || []));
     setDraftTypes({ ...(typesByDate[selectedDate] || {}) });
+    setShowApply(false);
+    setSavingTpl(false);
     dirty.current = false;
     const el = rowRefs.current[selectedDate];
     if (el?.scrollIntoView) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -138,7 +155,6 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate, crewId]);
 
-  // End any paint drag on a global mouseup; persist if cells changed.
   useEffect(() => {
     const up = () => {
       painting.current = false;
@@ -176,6 +192,81 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
     showToast('Reset to rota baseline', 'success');
   };
 
+  // ── Templates ──────────────────────────────────────────────────────────────
+  const doSaveTemplate = async () => {
+    const name = (tplName || '').trim();
+    if (!name) return;
+    try {
+      await saveShiftTemplate({
+        name,
+        workSegments: Array.from(draftSegs).sort((a, b) => a - b),
+        segmentTypes: draftTypes,
+      });
+      setTplName('');
+      setSavingTpl(false);
+      loadTemplates();
+      showToast('Template saved', 'success');
+    } catch (e) {
+      showToast('Could not save template', 'error');
+    }
+  };
+  const applyTemplateToDay = (tpl) => {
+    const segs = (tpl.work_segments || []).map(Number);
+    const types = tpl.segment_types || {};
+    setDraftSegs(new Set(segs));
+    setDraftTypes({ ...types });
+    addWorkEntries(crewId, [{ date: selectedDate, workSegments: segs, segmentTypes: types, source: 'edited' }]);
+    afterSave();
+    setShowApply(false);
+    showToast(`Applied “${tpl.name}”`, 'success');
+  };
+  const duplicateTemplate = async (tpl) => {
+    try {
+      await saveShiftTemplate({ name: `${tpl.name} copy`, workSegments: tpl.work_segments || [], segmentTypes: tpl.segment_types || {} });
+      loadTemplates();
+    } catch (e) { showToast('Could not duplicate', 'error'); }
+  };
+  const removeTemplate = async (tpl) => {
+    try { await deleteShiftTemplate(tpl.id); loadTemplates(); if (bulkTplId === tpl.id) setBulkTplId(''); }
+    catch (e) { showToast('Could not delete', 'error'); }
+  };
+
+  // ── Bulk apply ───────────────────────────────────────────────────────────────
+  const toggleBulk = (date, shiftKey) => {
+    setBulkSel((prev) => {
+      const n = new Set(prev);
+      if (shiftKey && bulkAnchor) {
+        const order = calendarData.map((c) => c.date);
+        let a = order.indexOf(bulkAnchor);
+        let b = order.indexOf(date);
+        if (a > b) [a, b] = [b, a];
+        for (let i = a; i <= b; i += 1) n.add(order[i]);
+      } else if (n.has(date)) {
+        n.delete(date);
+      } else {
+        n.add(date);
+      }
+      return n;
+    });
+    if (!shiftKey) setBulkAnchor(date);
+  };
+  const exitBulk = () => { setBulkMode(false); setBulkSel(new Set()); setBulkAnchor(null); };
+  const applyBulk = () => {
+    const tpl = templates.find((t) => t.id === bulkTplId);
+    if (!tpl || bulkSel.size === 0) return;
+    const dates = Array.from(bulkSel);
+    const segs = (tpl.work_segments || []).map(Number);
+    addWorkEntries(crewId, dates.map((d) => ({ date: d, workSegments: segs, segmentTypes: tpl.segment_types || {}, source: 'edited' })));
+    afterSave();
+    showToast(`Applied “${tpl.name}” to ${dates.length} day(s)`, 'success');
+    exitBulk();
+  };
+
+  const onCalendarDay = (cd, e) => {
+    if (bulkMode) toggleBulk(cd.date, e.shiftKey);
+    else setSelectedDate(cd.date);
+  };
+
   const renderEditor = (cd) => {
     const segs = Array.from(draftSegs);
     const onDuty = onDutyHours(segs);
@@ -192,7 +283,6 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
           <span className="src">{isRota ? 'pre-filled from rota' : cd.source === 'actual' ? 'logged' : 'no entry'}</span>
         </div>
 
-        {/* Type palette — pick a brush, then drag across the grid. */}
         <div className="cp-pal">
           {PALETTE.map(([k, label]) => (
             <button key={k} type="button" className={`cp-pal-b${brush === k ? ' act' : ''}`} onClick={() => setBrush(k)}>
@@ -204,7 +294,6 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
           </button>
         </div>
 
-        {/* 48-cell drag-paint grid (00:00–24:00, 30-min cells). */}
         <div className="cp-paint" onMouseLeave={() => { painting.current = false; }}>
           {Array.from({ length: SEG_PER_DAY }).map((_, i) => {
             const onCell = draftSegs.has(i);
@@ -223,14 +312,46 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
         <Ticks />
 
         <div className="cp-presets">
-          {isRota && (
-            <button type="button" className="cp-preset act" onClick={logAsRostered}>✓ Log as rostered</button>
-          )}
+          {isRota && <button type="button" className="cp-preset act" onClick={logAsRostered}>✓ Log as rostered</button>}
           <button type="button" className="cp-preset" onClick={clearDay}>Clear (off)</button>
-          {cd.source === 'actual' && (
-            <button type="button" className="cp-preset" onClick={resetToBaseline}>Reset to rota</button>
-          )}
+          {cd.source === 'actual' && <button type="button" className="cp-preset" onClick={resetToBaseline}>Reset to rota</button>}
+          <button type="button" className="cp-preset" onClick={() => { setShowApply((v) => !v); setSavingTpl(false); }}>Apply template ▾</button>
+          <button type="button" className="cp-tlink" onClick={() => { setSavingTpl((v) => !v); setShowApply(false); }}>save as template ›</button>
         </div>
+
+        {savingTpl && (
+          <div className="cp-timeinputs">
+            <div style={{ flex: 1 }}>
+              <label>Template name</label>
+              <input
+                type="text"
+                value={tplName}
+                placeholder="e.g. 4-on 8-off watch"
+                onChange={(e) => setTplName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') doSaveTemplate(); }}
+                style={{ width: '100%' }}
+              />
+            </div>
+            <button type="button" className="apply" onClick={doSaveTemplate}>Save</button>
+          </div>
+        )}
+
+        {showApply && (
+          <div className="cp-tplmenu">
+            {templates.length === 0 ? (
+              <p className="empty">No templates yet — paint a day and “save as template”.</p>
+            ) : templates.map((t) => (
+              <div key={t.id} className="cp-tplrow">
+                <button type="button" className="name" onClick={() => applyTemplateToDay(t)}>
+                  {t.name}
+                  <span className="hrs">{((t.work_segments || []).length * 0.5)}h</span>
+                </button>
+                <button type="button" className="ic" title="Duplicate" onClick={() => duplicateTemplate(t)}><Icon name="Copy" size={14} /></button>
+                <button type="button" className="ic del" title="Delete" onClick={() => removeTemplate(t)}><Icon name="Trash2" size={14} /></button>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="cp-restbox">
           On duty <b className="ink">{Number(onDuty.toFixed(1))}h</b> · Rest{' '}
@@ -243,6 +364,24 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
 
   return (
     <div className="cp-flatcard p-6">
+      {/* Bulk-apply toolbar */}
+      <div className="cp-hor-toolbar">
+        {!bulkMode ? (
+          <button type="button" className="cp-preset" onClick={() => setBulkMode(true)}>Bulk apply template…</button>
+        ) : (
+          <div className="cp-bulkbar">
+            <span className="n">{bulkSel.size} day{bulkSel.size === 1 ? '' : 's'} selected</span>
+            <select value={bulkTplId} onChange={(e) => setBulkTplId(e.target.value)}>
+              <option value="">Choose template…</option>
+              {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+            <button type="button" className="apply" disabled={!bulkTplId || bulkSel.size === 0} onClick={applyBulk}>Apply</button>
+            <button type="button" className="cp-tlink" onClick={exitBulk}>cancel</button>
+            <span className="hint">click days (shift-click for a range)</span>
+          </div>
+        )}
+      </div>
+
       <div className="cp-hor-wrap">
         {/* Compact calendar overview */}
         <div className="cp-hor-cal">
@@ -259,9 +398,10 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
             {calendarData.map((cd) => {
               const isProvisional = cd.date > todayStr && cd.source !== 'actual';
               const tone = cd.status === 'breach' ? 'red' : cd.status === 'warning' ? 'amber' : '';
-              const cls = `cp-hor-c${tone ? ` ${tone}` : ''}${isProvisional ? ' future' : ''}${selectedDate === cd.date ? ' sel' : ''}`;
+              const picked = bulkMode && bulkSel.has(cd.date);
+              const cls = `cp-hor-c${tone ? ` ${tone}` : ''}${isProvisional ? ' future' : ''}${(!bulkMode && selectedDate === cd.date) || picked ? ' sel' : ''}`;
               return (
-                <div key={cd.date} className={cls} onClick={() => setSelectedDate(cd.date)}>
+                <div key={cd.date} className={cls} onClick={(e) => onCalendarDay(cd, e)}>
                   <div className="d">{cd.day}</div>
                   <div className="v">{Number((cd.restHours ?? 24).toFixed(1))}</div>
                 </div>
@@ -269,26 +409,29 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
             })}
           </div>
           <p className="cp-hor-hint">
-            Tap any day to open it on the right, then drag across the grid to paint hours. Pick a type (duty / watch / standby / training) first.
+            {bulkMode
+              ? 'Click days (shift-click for a range), pick a template, then Apply.'
+              : 'Tap any day to open it on the right, then drag across the grid to paint hours. Pick a type first.'}
           </p>
         </div>
 
         {/* Inline-edit day list */}
         <div className="cp-hor-list">
           {calendarData.map((cd) => {
-            if (selectedDate === cd.date) return <React.Fragment key={cd.date}>{renderEditor(cd)}</React.Fragment>;
+            if (!bulkMode && selectedDate === cd.date) return <React.Fragment key={cd.date}>{renderEditor(cd)}</React.Fragment>;
             const segs = segsByDate[cd.date] || [];
             const onDuty = onDutyHours(segs);
             const isOff = onDuty === 0;
             const rest = cd.restHours ?? (24 - onDuty);
             const tone = toneForRest(rest, isOff);
             const isRota = cd.source === 'baseline';
+            const picked = bulkMode && bulkSel.has(cd.date);
             return (
               <div
                 key={cd.date}
-                className="cp-il"
+                className={`cp-il${picked ? ' picked' : ''}`}
                 ref={(el) => { rowRefs.current[cd.date] = el; }}
-                onClick={() => setSelectedDate(cd.date)}
+                onClick={(e) => onCalendarDay(cd, e)}
               >
                 <div className="dd">
                   <b>{dayLabel(cd.date)}</b>
