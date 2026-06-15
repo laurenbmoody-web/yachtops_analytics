@@ -1830,9 +1830,12 @@ const ProvisioningBoardDetail = () => {
         )}
 
         {/* ── Allergen banner ───────────────────────────────────────────
-            White surface with a 4px --d-danger left rail. Tighter
-            padding + smaller serif; bottom margin so the items
-            table below isn't crashed into it. */}
+            White surface, 4px --d-danger left rail. Per guest: serif
+            name on top (visual anchor), allergens beneath in tight
+            sans-semibold red. Two-row stack inside the banner row so
+            the name reads as identity and the allergens read as
+            attributes — fixes the "name feels weak" issue when the
+            allergen list was visually heavier than the guest itself. */}
         {allergenGuests.length > 0 && (
           <div
             style={{
@@ -1844,7 +1847,7 @@ const ProvisioningBoardDetail = () => {
               padding: '10px 16px',
               display: 'flex',
               alignItems: 'center',
-              gap: 12,
+              gap: 14,
               boxShadow: 'var(--d-shadow)',
             }}
             className="pv-dashboard"
@@ -1866,20 +1869,34 @@ const ProvisioningBoardDetail = () => {
               Allergen alert
             </span>
             <span style={{
-              fontFamily: "'DM Serif Display', Georgia, serif",
-              fontSize: 13.5,
-              lineHeight: 1.3,
-              color: 'var(--d-navy-deep)',
-              letterSpacing: '-0.005em',
               flex: 1,
+              minWidth: 0,
+              display: 'inline-flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '2px 14px',
             }}>
               {allergenGuests.map((g, i) => (
                 <React.Fragment key={i}>
                   {i > 0 && (
-                    <span style={{ color: 'var(--d-muted-soft)', margin: '0 8px', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", fontSize: 12 }}>·</span>
+                    <span style={{ color: 'var(--d-border)', fontSize: 16, alignSelf: 'center' }} aria-hidden="true">·</span>
                   )}
-                  <span>{g.name}</span>
-                  <em style={{ color: 'var(--d-danger)', fontStyle: 'normal', marginLeft: 5 }}>{g.allergies}</em>
+                  <span style={{ display: 'inline-flex', flexDirection: 'column', lineHeight: 1.1 }}>
+                    <span style={{
+                      fontFamily: "'DM Serif Display', Georgia, serif",
+                      fontSize: 15,
+                      color: 'var(--d-navy-deep)',
+                      letterSpacing: '-0.01em',
+                    }}>{g.name}</span>
+                    <span style={{
+                      fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                      fontSize: 10.5,
+                      fontWeight: 600,
+                      color: 'var(--d-danger)',
+                      letterSpacing: '0.03em',
+                      marginTop: 2,
+                    }}>{g.allergies}</span>
+                  </span>
                 </React.Fragment>
               ))}
             </span>
