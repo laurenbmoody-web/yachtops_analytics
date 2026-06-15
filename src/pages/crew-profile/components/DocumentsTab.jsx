@@ -3,7 +3,9 @@ import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import LogoSpinner from '../../../components/LogoSpinner';
 import { showToast } from '../../../utils/toast';
-import { DOC_CATEGORIES, getDocTypeLabel } from '../documentTypes';
+import {
+  DOC_CATEGORIES, CORE_DOCUMENT_TYPE_IDS, coreDocumentTypes, getDocTypeLabel,
+} from '../documentTypes';
 import {
   fetchCrewDocuments, deleteCrewDocument, getExpiryStatus,
   EXPIRY_STATUS_CLASSES, formatDocDate,
@@ -15,6 +17,7 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit }) => {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [presetType, setPresetType] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -29,8 +32,8 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit }) => {
 
   useEffect(() => { if (userId) load(); }, [userId, load]);
 
-  const openAdd = () => { setEditing(null); setModalOpen(true); };
-  const openEdit = (d) => { setEditing(d); setModalOpen(true); };
+  const openAdd = (preset = null) => { setEditing(null); setPresetType(preset); setModalOpen(true); };
+  const openEdit = (d) => { setEditing(d); setPresetType(null); setModalOpen(true); };
 
   const handleDelete = async (d) => {
     if (!window.confirm(`Delete "${getDocTypeLabel(d.doc_type, d.details)}"? This cannot be undone.`)) return;
@@ -43,10 +46,47 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit }) => {
     }
   };
 
-  // Expiry summary across all docs.
   const flagged = docs.map((d) => getExpiryStatus(d.expiry_date));
   const expiredCount = flagged.filter((s) => s.level === 'expired').length;
   const soonCount = flagged.filter((s) => s.level === 'red' || s.level === 'amber').length;
+
+  // Meta line shared by core + additional rows.
+  const metaBits = (d) => [
+    d.document_number && `№ ${d.document_number}`,
+    d.flag_state,
+    d.issuing_authority,
+    d.details?.grade,
+    d.expiry_date ? `Expires ${formatDocDate(d.expiry_date)}` : 'No expiry',
+  ].filter(Boolean);
+
+  const renderActions = (d) => (
+    <div className="flex items-center gap-2 flex-shrink-0">
+      <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap ${EXPIRY_STATUS_CLASSES[getExpiryStatus(d.expiry_date).level]}`}>
+        {getExpiryStatus(d.expiry_date).label}
+      </span>
+      {d.file_url && (
+        <a href={d.file_url} target="_blank" rel="noreferrer" className="p-1.5 hover:bg-muted rounded-lg text-muted-foreground" title="View file"><Icon name="Paperclip" size={15} /></a>
+      )}
+      {canEdit && (
+        <>
+          <button onClick={() => openEdit(d)} className="p-1.5 hover:bg-muted rounded-lg text-muted-foreground" title="Edit"><Icon name="Pencil" size={15} /></button>
+          <button onClick={() => handleDelete(d)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500" title="Delete"><Icon name="Trash2" size={15} /></button>
+        </>
+      )}
+    </div>
+  );
+
+  const renderDocRow = (d) => (
+    <div key={d.id} className="cp-doc-row">
+      <div className="min-w-0">
+        <div className="cp-doc-title">{getDocTypeLabel(d.doc_type, d.details)}</div>
+        <div className="cp-doc-meta">{metaBits(d).map((b, i) => <span key={i}>{b}</span>)}</div>
+      </div>
+      {renderActions(d)}
+    </div>
+  );
+
+  const additional = docs.filter((d) => !CORE_DOCUMENT_TYPE_IDS.includes(d.doc_type));
 
   return (
     <div>
@@ -55,12 +95,11 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit }) => {
           <span className="cp-section-kicker">03 / Documents</span>
           <h3>Documents</h3>
         </div>
-        {canEdit && <Button iconName="Plus" onClick={openAdd} size="sm">Add document</Button>}
+        {canEdit && <Button iconName="Plus" onClick={() => openAdd()} size="sm">Add document</Button>}
       </div>
       <p className="cp-section-sub">Travel documents, medical &amp; safety certificates, and qualifications — with expiry tracking.</p>
 
-      {/* Expiry summary */}
-      {!loading && docs.length > 0 && (expiredCount > 0 || soonCount > 0) && (
+      {!loading && (expiredCount > 0 || soonCount > 0) && (
         <div className="flex flex-wrap gap-2 mb-4">
           {expiredCount > 0 && (
             <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${EXPIRY_STATUS_CLASSES.expired}`}>
@@ -77,59 +116,48 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit }) => {
 
       {loading ? (
         <div className="flex items-center justify-center py-16"><LogoSpinner size={32} /></div>
-      ) : docs.length === 0 ? (
-        <div className="cp-field-card text-center py-10">
-          <Icon name="FileText" size={32} className="text-muted-foreground mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">No documents yet.</p>
-          {canEdit && <Button variant="outline" size="sm" iconName="Plus" className="mt-3" onClick={openAdd}>Add the first one</Button>}
-        </div>
       ) : (
-        DOC_CATEGORIES.map((cat) => {
-          const rows = docs.filter((d) => (d.category || 'other') === cat.id);
-          if (rows.length === 0) return null;
-          return (
-            <div className="cp-group" key={cat.id}>
-              <div className="cp-group-head">
-                <span className="dia">◆</span><span className="t">{cat.label}</span><span className="line" />
-              </div>
-              <div className="space-y-2">
-                {rows.map((d) => {
-                  const s = getExpiryStatus(d.expiry_date);
-                  return (
-                    <div key={d.id} className="cp-doc-row">
-                      <div className="min-w-0">
-                        <div className="cp-doc-title">{getDocTypeLabel(d.doc_type, d.details)}</div>
-                        <div className="cp-doc-meta">
-                          {d.document_number && <span>№ {d.document_number}</span>}
-                          {d.flag_state && <span>{d.flag_state}</span>}
-                          {d.issuing_authority && <span>{d.issuing_authority}</span>}
-                          {d.details?.grade && <span>{d.details.grade}</span>}
-                          <span>{d.expiry_date ? `Expires ${formatDocDate(d.expiry_date)}` : 'No expiry'}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap ${EXPIRY_STATUS_CLASSES[s.level]}`}>
-                          {s.label}
-                        </span>
-                        {d.file_url && (
-                          <a href={d.file_url} target="_blank" rel="noreferrer" className="p-1.5 hover:bg-muted rounded-lg text-muted-foreground" title="View file">
-                            <Icon name="Paperclip" size={15} />
-                          </a>
-                        )}
-                        {canEdit && (
-                          <>
-                            <button onClick={() => openEdit(d)} className="p-1.5 hover:bg-muted rounded-lg text-muted-foreground" title="Edit"><Icon name="Pencil" size={15} /></button>
-                            <button onClick={() => handleDelete(d)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500" title="Delete"><Icon name="Trash2" size={15} /></button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+        <>
+          {/* Core documents — always shown as slots */}
+          <div className="cp-group">
+            <div className="cp-group-head">
+              <span className="dia">◆</span><span className="t">Required for all crew</span><span className="line" />
             </div>
-          );
-        })
+            <div className="space-y-2">
+              {coreDocumentTypes().map((t) => {
+                const existing = docs.find((d) => d.doc_type === t.id);
+                if (existing) return renderDocRow(existing);
+                return (
+                  <div key={t.id} className="cp-doc-row cp-doc-empty">
+                    <div className="min-w-0">
+                      <div className="cp-doc-title">{t.label}</div>
+                      <div className="cp-doc-meta"><span>Not added yet</span></div>
+                    </div>
+                    {canEdit ? (
+                      <Button variant="outline" size="xs" iconName="Plus" onClick={() => openAdd(t.id)}>Add</Button>
+                    ) : (
+                      <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold ${EXPIRY_STATUS_CLASSES.none}`}>Missing</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Additional documents — visas, role-specific quals, other */}
+          {additional.length > 0 && DOC_CATEGORIES.map((cat) => {
+            const rows = additional.filter((d) => (d.category || 'other') === cat.id);
+            if (rows.length === 0) return null;
+            return (
+              <div className="cp-group" key={cat.id}>
+                <div className="cp-group-head">
+                  <span className="dia">◆</span><span className="t">{cat.label}</span><span className="line" />
+                </div>
+                <div className="space-y-2">{rows.map(renderDocRow)}</div>
+              </div>
+            );
+          })}
+        </>
       )}
 
       <AddDocumentModal
@@ -140,6 +168,7 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit }) => {
         tenantId={tenantId}
         createdBy={createdBy}
         existing={editing}
+        presetType={presetType}
       />
     </div>
   );
