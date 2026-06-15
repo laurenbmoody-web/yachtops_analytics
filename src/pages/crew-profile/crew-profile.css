@@ -320,6 +320,16 @@ body.crew-profile-editorial {
   margin-top: 1px;
 }
 
+/* Flat editorial surface — replaces the legacy `div.bg-card` "3D bottom
+   edge" widget (tailwind.css gives every div.bg-card a heavy 5px bottom
+   border; this soft card deliberately avoids that class so it doesn't
+   inherit it). Used for the HOR log, breaches section, and view toggle. */
+.crew-profile-page .cp-flatcard {
+  background: #FFFFFF;
+  border: 1px solid #E6E8EF;
+  border-radius: 14px;
+}
+
 /* Legend swatches mirror the soft calendar palette. */
 .crew-profile-page .cp-cal-swatch { width: 16px; height: 16px; border-radius: 4px; background: #E7F0E9; }
 .crew-profile-page .cp-cal-swatch.amber { background: #FBEFD9; }

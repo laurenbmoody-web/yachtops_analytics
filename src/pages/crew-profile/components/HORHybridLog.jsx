@@ -243,7 +243,7 @@ const HORHybridLog = ({
   };
 
   return (
-    <div className="bg-card border border-border rounded-xl p-6">
+    <div className="cp-flatcard p-6">
       <div className="cp-hor-wrap">
         {/* Compact calendar overview */}
         <div className="cp-hor-cal">
