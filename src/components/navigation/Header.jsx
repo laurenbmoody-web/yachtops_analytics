@@ -9,6 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { useInboxCount } from '../../hooks/useInboxCount';
 import { getCurrentUser, clearCurrentUser, hasCommandAccess, loadUsers } from '../../utils/authStorage';
+import { getInitials } from '../../utils/profileHelpers';
 import { canAccessGuestManagement } from '../../pages/guest-management-dashboard/utils/guestPermissions';
 import { canAccessTrips } from '../../pages/trips-management-dashboard/utils/tripPermissions';
 import NotificationsDrawer from './NotificationsDrawer';
@@ -98,7 +99,7 @@ const Header = () => {
       // Fetch profile data (full_name)
       const { data: profile, error: profileError } = await supabase
         ?.from('profiles')
-        ?.select('id, full_name, email')
+        ?.select('id, full_name, email, avatar_url')
         ?.eq('id', authUser?.id)
         ?.single();
 
@@ -612,8 +613,12 @@ const Header = () => {
               onClick={() => setUserMenuOpen(!userMenuOpen)}
               className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg transition-smooth"
             >
-              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold text-sm">
-                {displayFullName?.charAt(0)?.toUpperCase() || 'U'}
+              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold text-sm overflow-hidden">
+                {profileData?.avatar_url ? (
+                  <img src={profileData?.avatar_url} alt={displayFullName || 'Profile'} className="w-full h-full object-cover" />
+                ) : (
+                  getInitials(displayFullName) || 'U'
+                )}
               </div>
               <Icon name="ChevronDown" size={16} color="var(--color-foreground)" />
             </button>

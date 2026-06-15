@@ -11,6 +11,7 @@ import BreachNotesModal from './components/BreachNotesModal';
 import StatusHistoryTab from './components/StatusHistoryTab';
 import StatusChangeModal from '../crew-management/components/StatusChangeModal';
 import { getCurrentUser, getDepartmentDisplayName, getTierDisplayName } from '../../utils/authStorage';
+import { getInitials } from '../../utils/profileHelpers';
 import { getStatusLabel, getStatusBadgeClasses, getStatusDotClass } from '../../utils/crewStatus';
 import { showToast } from '../../utils/toast';
 import { addWorkEntries, getComplianceStatus, getMonthCalendarData, detectBreaches, getCrewWorkEntries, deleteWorkEntriesForDate, runAllHORTests, confirmMonth, getMonthStatus, isMonthEditable, detectBreachedDatesAfterSave, hasBreachNoteForDate, syncRotaBaselineEntries, setHorDbContext, hydrateActualsForMonth } from './utils/horStorage';
@@ -876,6 +877,10 @@ const canEdit = (() => {
                     alt={crewMember?.fullName}
                     className="w-full h-full object-cover"
                   />
+                ) : getInitials(crewMember?.fullName) ? (
+                  <span className="text-primary font-semibold text-2xl tracking-wide">
+                    {getInitials(crewMember?.fullName)}
+                  </span>
                 ) : (
                   <Icon name="User" size={48} className="text-primary" />
                 )}
