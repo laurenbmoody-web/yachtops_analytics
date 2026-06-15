@@ -89,6 +89,28 @@ function DayHeader({ dateStr, index, isToday }) {
   );
 }
 
+const hhmmToDec = (t) => { if (!t) return null; const [h, m] = String(t).split(':').map(Number); return h + (m || 0) / 60; };
+const nextDateStr = (dateStr) => { const d = parseLocal(dateStr); d.setDate(d.getDate() + 1); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
+
+// Calendar basis: split any shift running past midnight into a start-day part
+// (…→24:00) and a next-day part (00:00→…), so each calendar day is credited only
+// the on-duty hours that physically fall on it. This makes a PLANNED overnight
+// rota shift attribute the same way logged actuals and the crew profile already
+// do (logged work_segments are stored per-day, so they are split by
+// construction). Operational basis reconciles overnight work via
+// reframeToOperationalDay, so it is left untouched there.
+const splitAtMidnight = (shifts) => {
+  const out = [];
+  for (const s of (shifts || [])) {
+    const st = hhmmToDec(s.startTime);
+    const en = hhmmToDec(s.endTime);
+    if (st == null || en == null || en >= st) { out.push(s); continue; }
+    out.push({ ...s, endTime: '24:00' });
+    if (en > 0) out.push({ ...s, date: nextDateStr(s.date), startTime: '00:00', endTime: s.endTime });
+  }
+  return out;
+};
+
 // Crew's logged work_segments (on-duty 30-min block indices) → rota-shaped shift
 // objects, plus the set of (member|date) days that are logged so the rota plan
 // is dropped for those days (logged actuals win). Uses the shared engine
@@ -177,7 +199,9 @@ export default function RestLogView({
   // the shifts by this offset lets the existing rules assess the operational day.
   const dayStartHour = horDayBasis === 'operational' ? (operationalDayStartHour || 0) : 0;
   const framedShifts = useMemo(
-    () => reframeToOperationalDay(mergedShifts, dayStartHour),
+    () => (dayStartHour
+      ? reframeToOperationalDay(mergedShifts, dayStartHour)
+      : splitAtMidnight(mergedShifts)),
     [mergedShifts, dayStartHour],
   );
   const basisLabel = dayStartHour
