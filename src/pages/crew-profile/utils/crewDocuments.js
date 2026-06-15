@@ -74,6 +74,29 @@ export const uploadDocumentFile = async (userId, file) => {
   };
 };
 
+const fileToBase64 = (file) => new Promise((resolve, reject) => {
+  const r = new FileReader();
+  r.onload = () => resolve(String(r.result).split(',')[1]);
+  r.onerror = reject;
+  r.readAsDataURL(file);
+});
+
+/**
+ * Send a file to the parse-crew-document edge function (Claude vision) and
+ * return suggested fields { doc_type, document_number, issue_date,
+ * expiry_date, issuing_authority, flag_state, details }. Suggestions only —
+ * the user confirms before saving.
+ */
+export const parseDocumentFile = async (file) => {
+  const base64 = await fileToBase64(file);
+  const { data, error } = await supabase.functions.invoke('parse-crew-document', {
+    body: { base64, mediaType: file.type || 'application/octet-stream' },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data?.suggestion || {};
+};
+
 export const saveCrewDocument = async (doc) => {
   const payload = {
     user_id: doc.userId,

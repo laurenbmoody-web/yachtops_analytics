@@ -13,7 +13,7 @@ const blank = {
   fileUrl: null, fileName: null, mimeType: null, sizeBytes: null,
 };
 
-const AddDocumentModal = ({ isOpen, onClose, onSaved, userId, tenantId, createdBy, existing, presetType }) => {
+const AddDocumentModal = ({ isOpen, onClose, onSaved, userId, tenantId, createdBy, existing, presetType, prefill, prefillFile }) => {
   const [form, setForm] = useState(blank);
   const [file, setFile] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -35,11 +35,25 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, userId, tenantId, createdB
         mimeType: existing.mime_type || null,
         sizeBytes: existing.size_bytes || null,
       });
+      setFile(null);
+    } else if (prefill) {
+      // AI-suggested fields from a scanned document, plus the file itself.
+      setForm({
+        ...blank,
+        docType: prefill.doc_type || presetType || '',
+        documentNumber: prefill.document_number || '',
+        issuingAuthority: prefill.issuing_authority || '',
+        flagState: prefill.flag_state || '',
+        issueDate: prefill.issue_date || '',
+        expiryDate: prefill.expiry_date || '',
+        details: prefill.details || {},
+      });
+      setFile(prefillFile || null);
     } else {
       setForm({ ...blank, docType: presetType || '' });
+      setFile(null);
     }
-    setFile(null);
-  }, [isOpen, existing, presetType]);
+  }, [isOpen, existing, presetType, prefill, prefillFile]);
 
   if (!isOpen) return null;
 
@@ -98,6 +112,13 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, userId, tenantId, createdB
         </h3>
         <button onClick={onClose} className="p-1.5 hover:bg-muted rounded-lg"><Icon name="X" size={18} /></button>
       </div>
+
+      {prefill && !form.id && (
+        <div className="flex items-start gap-2 mb-4 px-3 py-2 rounded-lg text-xs" style={{ background: '#FAEEDA', color: '#7A2E1E' }}>
+          <Icon name="Sparkles" size={14} className="flex-shrink-0 mt-0.5" />
+          <span>Auto-filled from the scan — please check each field before saving.</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Type picker (categorised) */}
