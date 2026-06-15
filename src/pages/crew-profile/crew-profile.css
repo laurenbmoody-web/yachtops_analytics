@@ -402,6 +402,17 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .cp-tag-field::placeholder { color: #AEB4C2; font-style: italic; }
 
+/* Emergency-contact role checkboxes + read-mode role tags. */
+.crew-profile-page .cp-check-row { display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 2px 0; }
+.crew-profile-page .cp-role-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.crew-profile-page .cp-stale-flag {
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #A32D2D;
+  white-space: nowrap;
+}
+
 /* Profile completion meter (header). */
 .crew-profile-page .cp-completion { max-width: 360px; margin-top: 12px; }
 .crew-profile-page .cp-completion-top {

@@ -16,6 +16,7 @@ export const fetchCrewProfileData = async (userId) => {
 export const profileDataToFormData = ({ personal, banking }) => {
   const p = personal || {};
   const ec = p.emergency_contact || {};
+  const ec2 = ec.secondary || {};
   const nk = p.next_of_kin || {};
   const pref = p.preferences || {};
   const b = banking || {};
@@ -40,10 +41,22 @@ export const profileDataToFormData = ({ personal, banking }) => {
     emergencyContactRelationship: ec.relationship || '',
     emergencyContactPhone: ec.phone || '',
     emergencyContactAddress: ec.address || '',
+    emergencyContactCountry: ec.country || '',
+    emergencyContactPreferredMethod: ec.preferredMethod || '',
+    emergencyContactNotifyMedical: ec.notifyMedical ?? false,
+    emergencyContactHandlesAffairs: ec.handlesAffairs ?? false,
+    emergencyContactLastVerified: ec.lastVerified || '',
+    emergencyContact2Name: ec2.name || '',
+    emergencyContact2Relationship: ec2.relationship || '',
+    emergencyContact2Phone: ec2.phone || '',
+    emergencyContact2Country: ec2.country || '',
+    emergencyContact2PreferredMethod: ec2.preferredMethod || '',
     nextOfKinName: nk.name || '',
     nextOfKinRelationship: nk.relationship || '',
     nextOfKinPhone: nk.phone || '',
     nextOfKinAddress: nk.address || '',
+    nextOfKinPreferredMethod: nk.preferredMethod || '',
+    nextOfKinLastVerified: nk.lastVerified || '',
     bankAccountHolder: b.account_holder || '',
     bankName: b.bank_name || '',
     bankAccountNumber: b.account_number || '',
@@ -92,10 +105,22 @@ export const saveCrewProfileData = async (userId, f) => {
     emergency_contact: {
       name: f.emergencyContactName || '', relationship: f.emergencyContactRelationship || '',
       phone: f.emergencyContactPhone || '', address: f.emergencyContactAddress || '',
+      country: f.emergencyContactCountry || '',
+      preferredMethod: f.emergencyContactPreferredMethod || '',
+      notifyMedical: !!f.emergencyContactNotifyMedical,
+      handlesAffairs: !!f.emergencyContactHandlesAffairs,
+      lastVerified: f.emergencyContactLastVerified || '',
+      secondary: {
+        name: f.emergencyContact2Name || '', relationship: f.emergencyContact2Relationship || '',
+        phone: f.emergencyContact2Phone || '', country: f.emergencyContact2Country || '',
+        preferredMethod: f.emergencyContact2PreferredMethod || '',
+      },
     },
     next_of_kin: {
       name: f.nextOfKinName || '', relationship: f.nextOfKinRelationship || '',
       phone: f.nextOfKinPhone || '', address: f.nextOfKinAddress || '',
+      preferredMethod: f.nextOfKinPreferredMethod || '',
+      lastVerified: f.nextOfKinLastVerified || '',
     },
     preferences: {
       dietaryCategory: f.dietaryCategory || '', dietaryNotes: f.dietaryNotes || '',
