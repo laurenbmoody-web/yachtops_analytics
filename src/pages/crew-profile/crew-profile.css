@@ -172,6 +172,24 @@ body.crew-profile-editorial {
   color: #1C1B3A !important;
 }
 .crew-profile-page .cp-field-card textarea { min-height: 40px; resize: none; }
+
+/* Native <select> / boxed input used inside a field card (blood type,
+   allergies status, confirmed-on date) — keep a light box so they read as
+   editable controls, distinct from the borderless text values. Selectors
+   are card-scoped + element-qualified so they beat the neutralise rule. */
+.crew-profile-page .cp-field-card select.cp-inline-select,
+.crew-profile-page .cp-field-card input.cp-inline-box {
+  width: 100%;
+  border: 1px solid #E5E7EB !important;
+  background: #fff !important;
+  border-radius: 7px;
+  padding: 6px 9px !important;
+  height: auto !important;
+  min-height: 34px;
+  font-size: 14px !important;
+  color: #1C1B3A !important;
+}
+.crew-profile-page .cp-field-card input.cp-inline-box:disabled { background: #F8FAFC !important; opacity: 1 !important; }
 .crew-profile-page .cp-field-card input:disabled,
 .crew-profile-page .cp-field-card textarea:disabled,
 .crew-profile-page .cp-field-card button[aria-haspopup="listbox"]:disabled {

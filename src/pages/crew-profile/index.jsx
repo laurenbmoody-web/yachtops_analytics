@@ -14,6 +14,7 @@ import StatusChangeModal from '../crew-management/components/StatusChangeModal';
 import { getCurrentUser, getDepartmentDisplayName, getTierDisplayName } from '../../utils/authStorage';
 import { getInitials } from '../../utils/profileHelpers';
 import DocumentsTab from './components/DocumentsTab';
+import { fetchCrewProfileData, profileDataToFormData, saveCrewProfileData } from './utils/crewProfileData';
 import { getStatusLabel, getStatusBadgeClasses, getStatusDotClass } from '../../utils/crewStatus';
 import { showToast } from '../../utils/toast';
 import { addWorkEntries, getComplianceStatus, getMonthCalendarData, detectBreaches, getCrewWorkEntries, deleteWorkEntriesForDate, runAllHORTests, confirmMonth, getMonthStatus, isMonthEditable, detectBreachedDatesAfterSave, hasBreachNoteForDate, syncRotaBaselineEntries, setHorDbContext, hydrateActualsForMonth } from './utils/horStorage';
@@ -294,7 +295,17 @@ const CrewProfile = () => {
           alcoholicPreference: crew?.crewPreferences?.alcoholicPreference || 'None',
           nonAlcoholicPreferences: crew?.crewPreferences?.nonAlcoholicPreferences || ''
         });
-        
+
+        // Merge persisted personal-details + banking over the defaults.
+        try {
+          const saved = await fetchCrewProfileData(crewId);
+          if (saved?.personal || saved?.banking) {
+            setFormData((prev) => ({ ...prev, ...profileDataToFormData(saved) }));
+          }
+        } catch (e) {
+          console.warn('[profile] crew detail load failed', e);
+        }
+
       } catch (err) {
         console.error('PROFILE unexpected error:', err);
         setProfileError('An unexpected error occurred while loading the profile.');
@@ -433,6 +444,16 @@ const CrewProfile = () => {
           hint: error?.hint
         });
         showToast(`Failed to save profile: ${error?.message || 'Unknown error'}`, 'error');
+        return;
+      }
+
+      // Persist the rest of the profile (personal details, contact, health,
+      // emergency/next-of-kin, banking, preferences) to their own tables.
+      try {
+        await saveCrewProfileData(crewId, formData);
+      } catch (e) {
+        console.error('PROFILE SAVE: crew detail save error', e);
+        showToast(`Failed to save profile details: ${e?.message || 'Unknown error'}`, 'error');
         return;
       }
 
@@ -977,6 +998,17 @@ const canEdit = (() => {
   };
 
   const renderPersonalDetails = () => {
+    const allergiesReadText = (f) => {
+      const conf = f?.allergiesConfirmedAt
+        ? ` (confirmed ${new Date(f.allergiesConfirmedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })})`
+        : '';
+      switch (f?.allergiesStatus) {
+        case 'no_known': return `No known allergies${conf}`;
+        case 'not_provided': return 'Not yet provided';
+        case 'has': return f?.allergies || 'Has allergies (details pending)';
+        default: return f?.allergies || 'Not yet provided';
+      }
+    };
     return (
       <div>
         <div className="cp-section-head">
@@ -1037,6 +1069,31 @@ const canEdit = (() => {
               placeholder="—"
             />
           </Field>
+          <Field label="Secondary Email">
+            <Input
+              type="email"
+              value={formData?.secondaryEmail}
+              onChange={(e) => handleInputChange('secondaryEmail', e?.target?.value)}
+              disabled={!isEditing}
+              placeholder="—"
+            />
+          </Field>
+          <Field label="Blood Type">
+            {isEditing ? (
+              <select
+                className="cp-inline-select"
+                value={formData?.bloodType || ''}
+                onChange={(e) => handleInputChange('bloodType', e?.target?.value)}
+              >
+                <option value="">—</option>
+                {['A+', 'A−', 'B+', 'B−', 'AB+', 'AB−', 'O+', 'O−', 'Unknown'].map((b) => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+            ) : (
+              <div className={`cp-static${formData?.bloodType ? '' : ' cp-empty'}`}>{formData?.bloodType || '—'}</div>
+            )}
+          </Field>
           <Field label="Home Address" full>
             <Input
               value={formData?.homeAddress}
@@ -1045,15 +1102,47 @@ const canEdit = (() => {
               placeholder="—"
             />
           </Field>
-          <Field label="Allergies" hint="Basic indicator only">
-            <Input
-              value={formData?.allergies}
-              onChange={(e) => handleInputChange('allergies', e?.target?.value)}
-              disabled={!isEditing}
-              placeholder="None recorded"
-            />
+          <Field label="Allergies" full hint={isEditing ? 'Confirm status, then add detail if any' : undefined}>
+            {isEditing ? (
+              <>
+                <select
+                  className="cp-inline-select"
+                  value={formData?.allergiesStatus || ''}
+                  onChange={(e) => handleInputChange('allergiesStatus', e?.target?.value)}
+                >
+                  <option value="">— Select —</option>
+                  <option value="no_known">No known allergies</option>
+                  <option value="not_provided">Not yet provided</option>
+                  <option value="has">Has allergies</option>
+                </select>
+                {formData?.allergiesStatus === 'has' && (
+                  <input
+                    className="cp-inline-box mt-2"
+                    value={formData?.allergies || ''}
+                    onChange={(e) => handleInputChange('allergies', e?.target?.value)}
+                    placeholder="List known allergies"
+                  />
+                )}
+                {formData?.allergiesStatus === 'no_known' && (
+                  <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>Confirmed on</span>
+                    <input
+                      type="date"
+                      className="cp-inline-box"
+                      style={{ width: 'auto' }}
+                      value={formData?.allergiesConfirmedAt || ''}
+                      onChange={(e) => handleInputChange('allergiesConfirmedAt', e?.target?.value)}
+                    />
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className={`cp-static${(formData?.allergiesStatus || formData?.allergies) ? '' : ' cp-empty'}`}>
+                {allergiesReadText(formData)}
+              </div>
+            )}
           </Field>
-          <Field label="Medical Conditions" hint="Any relevant medical conditions">
+          <Field label="Medical Conditions" full hint="Any relevant medical conditions">
             <Input
               value={formData?.medicalConditions}
               onChange={(e) => handleInputChange('medicalConditions', e?.target?.value)}
