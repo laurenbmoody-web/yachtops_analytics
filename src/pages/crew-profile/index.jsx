@@ -1093,6 +1093,30 @@ const canEdit = (() => {
               placeholder="—"
             />
           </Field>
+          <Field label="Preferred Name">
+            <Input
+              value={formData?.preferredName}
+              onChange={(e) => handleInputChange('preferredName', e?.target?.value)}
+              disabled={!isEditing}
+              placeholder="—"
+            />
+          </Field>
+          <Field label="Pronouns">
+            {isEditing ? (
+              <select
+                className="cp-inline-select"
+                value={formData?.pronouns || ''}
+                onChange={(e) => handleInputChange('pronouns', e?.target?.value)}
+              >
+                <option value="">—</option>
+                {['she/her', 'he/him', 'they/them', 'she/they', 'he/they', 'Prefer not to say'].map((o) => (
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </select>
+            ) : (
+              <div className={`cp-static${formData?.pronouns ? '' : ' cp-empty'}`}>{formData?.pronouns || '—'}</div>
+            )}
+          </Field>
           <Field label="Date of Birth">
             <Input
               type="date"
@@ -1135,22 +1159,6 @@ const canEdit = (() => {
               disabled={!isEditing}
               placeholder="—"
             />
-          </Field>
-          <Field label="Blood Type">
-            {isEditing ? (
-              <select
-                className="cp-inline-select"
-                value={formData?.bloodType || ''}
-                onChange={(e) => handleInputChange('bloodType', e?.target?.value)}
-              >
-                <option value="">—</option>
-                {['A+', 'A−', 'B+', 'B−', 'AB+', 'AB−', 'O+', 'O−', 'Unknown'].map((b) => (
-                  <option key={b} value={b}>{b}</option>
-                ))}
-              </select>
-            ) : (
-              <div className={`cp-static${formData?.bloodType ? '' : ' cp-empty'}`}>{formData?.bloodType || '—'}</div>
-            )}
           </Field>
           <Field label="Home Address" full>
             <Input
@@ -1207,6 +1215,22 @@ const canEdit = (() => {
               disabled={!isEditing}
               placeholder="None recorded"
             />
+          </Field>
+          <Field label="Blood Type">
+            {isEditing ? (
+              <select
+                className="cp-inline-select"
+                value={formData?.bloodType || ''}
+                onChange={(e) => handleInputChange('bloodType', e?.target?.value)}
+              >
+                <option value="">—</option>
+                {['A+', 'A−', 'B+', 'B−', 'AB+', 'AB−', 'O+', 'O−', 'Unknown'].map((b) => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+            ) : (
+              <div className={`cp-static${formData?.bloodType ? '' : ' cp-empty'}`}>{formData?.bloodType || '—'}</div>
+            )}
           </Field>
         </div>
         {isEditing && (
