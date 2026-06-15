@@ -1285,10 +1285,13 @@ const canEdit = (() => {
 
     return (
       <div>
-        <div className="cp-section-head" style={{ justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span className="cp-section-kicker">04 / Banking</span>
-            <h3>Banking</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+          <div>
+            <div className="cp-section-head">
+              <span className="cp-section-kicker">04 / Banking</span>
+              <h3>Banking</h3>
+            </div>
+            <p className="cp-section-sub">Held encrypted and visible only to authorised crew.</p>
           </div>
           {!isEditing && canReveal && (
             <Button
@@ -1301,7 +1304,6 @@ const canEdit = (() => {
             </Button>
           )}
         </div>
-        <p className="cp-section-sub">Held encrypted and visible only to authorised crew.</p>
 
         <div className="cp-group">
           <div className="cp-group-head">

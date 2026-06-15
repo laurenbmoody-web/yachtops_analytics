@@ -90,14 +90,16 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit }) => {
 
   return (
     <div>
-      <div className="cp-section-head" style={{ justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span className="cp-section-kicker">03 / Documents</span>
-          <h3>Documents</h3>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+        <div>
+          <div className="cp-section-head">
+            <span className="cp-section-kicker">03 / Documents</span>
+            <h3>Documents</h3>
+          </div>
+          <p className="cp-section-sub">Travel documents, medical &amp; safety certificates, and qualifications — with expiry tracking.</p>
         </div>
         {canEdit && <Button iconName="Plus" onClick={() => openAdd()} size="sm">Add document</Button>}
       </div>
-      <p className="cp-section-sub">Travel documents, medical &amp; safety certificates, and qualifications — with expiry tracking.</p>
 
       {!loading && (expiredCount > 0 || soonCount > 0) && (
         <div className="flex flex-wrap gap-2 mb-4">
