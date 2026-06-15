@@ -123,6 +123,17 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .cp-field-full { grid-column: 1 / -1; }
 
+/* Name row: narrow prefix + first + last, so the identity block pairs
+   cleanly with no orphaned half-cell. */
+.crew-profile-page .cp-name-row {
+  display: grid;
+  grid-template-columns: 120px 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 640px) {
+  .crew-profile-page .cp-name-row { grid-template-columns: 1fr; }
+}
+
 .crew-profile-page .cp-field-card {
   background: #FFFFFF;
   border: 1px solid #E5E7EB;
