@@ -1830,23 +1830,21 @@ const ProvisioningBoardDetail = () => {
         )}
 
         {/* ── Allergen banner ───────────────────────────────────────────
-            Cargo treatment: --d-warn-soft surface, tracked-caps eyebrow,
-            guest names in serif italic, Lucide AlertTriangle icon, 5px
-            warn bottom edge to match the cargo card vocabulary. Each
-            guest gets its own visual chunk so multiple allergies stay
-            readable instead of running together. */}
+            White surface with a 4px --d-danger left rail. Tighter
+            padding + smaller serif; bottom margin so the items
+            table below isn't crashed into it. */}
         {allergenGuests.length > 0 && (
           <div
             style={{
-              margin: '12px 24px 0',
-              background: 'var(--d-warn-soft)',
-              border: '0.5px solid rgba(139, 90, 31, 0.20)',
-              borderBottom: '5px solid var(--d-warn)',
-              borderRadius: 12,
-              padding: '12px 18px 14px',
+              margin: '12px 24px 16px',
+              background: 'var(--d-card)',
+              border: '0.5px solid var(--d-border)',
+              borderLeft: '4px solid var(--d-danger)',
+              borderRadius: 10,
+              padding: '10px 16px',
               display: 'flex',
-              alignItems: 'flex-start',
-              gap: 14,
+              alignItems: 'center',
+              gap: 12,
               boxShadow: 'var(--d-shadow)',
             }}
             className="pv-dashboard"
@@ -1854,47 +1852,45 @@ const ProvisioningBoardDetail = () => {
           >
             <Icon
               name="AlertTriangle"
-              style={{ width: 18, height: 18, color: 'var(--d-warn)', flexShrink: 0, marginTop: 2 }}
+              style={{ width: 16, height: 16, color: 'var(--d-danger)', flexShrink: 0 }}
               aria-hidden="true"
             />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{
-                margin: 0,
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: '0.16em',
-                textTransform: 'uppercase',
-                color: 'var(--d-warn)',
-              }}>
-                Allergen alert
-              </p>
-              <p style={{
-                margin: '4px 0 0',
-                fontFamily: "'DM Serif Display', Georgia, serif",
-                fontSize: 15.5,
-                lineHeight: 1.35,
-                color: 'var(--d-navy-deep)',
-                letterSpacing: '-0.005em',
-              }}>
-                {allergenGuests.map((g, i) => (
-                  <React.Fragment key={i}>
-                    {i > 0 && (
-                      <span style={{ color: 'var(--d-muted-soft)', margin: '0 8px', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", fontSize: 13 }}>·</span>
-                    )}
-                    <span>{g.name}</span>
-                    <em style={{ color: 'var(--d-warn)', fontStyle: 'italic', marginLeft: 6 }}>{g.allergies}</em>
-                  </React.Fragment>
-                ))}
-              </p>
-              <p style={{
-                margin: '6px 0 0',
-                fontSize: 11.5,
-                color: 'var(--d-muted)',
-                fontStyle: 'italic',
-              }}>
-                Highlighted rows may be affected.
-              </p>
-            </div>
+            <span style={{
+              fontSize: 9.5,
+              fontWeight: 700,
+              letterSpacing: '0.16em',
+              textTransform: 'uppercase',
+              color: 'var(--d-danger)',
+              flexShrink: 0,
+            }}>
+              Allergen alert
+            </span>
+            <span style={{
+              fontFamily: "'DM Serif Display', Georgia, serif",
+              fontSize: 13.5,
+              lineHeight: 1.3,
+              color: 'var(--d-navy-deep)',
+              letterSpacing: '-0.005em',
+              flex: 1,
+            }}>
+              {allergenGuests.map((g, i) => (
+                <React.Fragment key={i}>
+                  {i > 0 && (
+                    <span style={{ color: 'var(--d-muted-soft)', margin: '0 8px', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", fontSize: 12 }}>·</span>
+                  )}
+                  <span>{g.name}</span>
+                  <em style={{ color: 'var(--d-danger)', fontStyle: 'italic', marginLeft: 5 }}>{g.allergies}</em>
+                </React.Fragment>
+              ))}
+            </span>
+            <span style={{
+              fontSize: 11,
+              color: 'var(--d-muted)',
+              fontStyle: 'italic',
+              flexShrink: 0,
+            }}>
+              Highlighted rows may be affected
+            </span>
           </div>
         )}
 
