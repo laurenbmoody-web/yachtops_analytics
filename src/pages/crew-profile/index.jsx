@@ -15,7 +15,8 @@ import { getCurrentUser, getDepartmentDisplayName, getTierDisplayName } from '..
 import { getInitials } from '../../utils/profileHelpers';
 import DocumentsTab from './components/DocumentsTab';
 import ProfileCompletionMeter from './components/ProfileCompletionMeter';
-import { fetchCrewProfileData, profileDataToFormData, saveCrewProfileData } from './utils/crewProfileData';
+import { fetchCrewProfileData, profileDataToFormData, saveCrewProfileData, logBankingView } from './utils/crewProfileData';
+import { ibanWarning, swiftWarning } from './utils/bankingValidation';
 import { fetchCrewDocuments } from './utils/crewDocuments';
 import DateInput from '../../components/ui/DateInput';
 import { computeProfileCompletion } from './utils/profileCompletion';
@@ -231,6 +232,13 @@ const CrewProfile = () => {
     if (!crewId) return;
     fetchCrewDocuments(crewId).then(setCrewDocs).catch(() => {});
   }, [crewId]);
+
+  // Audit: record when a non-owner (e.g. command) opens crew banking.
+  useEffect(() => {
+    if (activeSection !== 'banking' || !crewId || !session?.user?.id) return;
+    if (session.user.id === crewId) return; // viewing own banking isn't audited
+    logBankingView(crewId, { id: session.user.id, name: myProfile?.full_name || '' });
+  }, [activeSection, crewId, session?.user?.id, myProfile?.full_name]);
 
   // Load crew member data from Supabase
   useEffect(() => {
@@ -546,7 +554,8 @@ const CrewProfile = () => {
       // Persist the rest of the profile (personal details, contact, health,
       // emergency/next-of-kin, banking, preferences) to their own tables.
       try {
-        await saveCrewProfileData(crewId, formData);
+        const actorName = myProfile?.full_name || crewMember?.fullName || '';
+        await saveCrewProfileData(crewId, formData, { id: session?.user?.id, name: actorName });
       } catch (e) {
         console.error('PROFILE SAVE: crew detail save error', e);
         showToast(`Failed to save profile details: ${e?.message || 'Unknown error'}`, 'error');
@@ -1744,6 +1753,9 @@ const canEdit = (() => {
                 disabled={!isEditing}
                 placeholder="—"
               />
+              {isEditing && ibanWarning(formData?.bankAccountNumber) && (
+                <p className="cp-field-warn">{ibanWarning(formData?.bankAccountNumber)}</p>
+              )}
             </Field>
             <Field label="SWIFT / BIC">
               <Input
@@ -1752,6 +1764,9 @@ const canEdit = (() => {
                 disabled={!isEditing}
                 placeholder="—"
               />
+              {isEditing && swiftWarning(formData?.bankSwiftBic) && (
+                <p className="cp-field-warn">{swiftWarning(formData?.bankSwiftBic)}</p>
+              )}
             </Field>
             <Field label="Currency" required>
               <Select
@@ -1871,6 +1886,18 @@ const canEdit = (() => {
             <span>Banking information is encrypted and visible only to authorised personnel.</span>
           </p>
         </div>
+
+        {/* Audit note — high-risk payroll data */}
+        {(formData?.bankingLastEditedByName || formData?.bankingLastViewedByName) && (
+          <p className="text-xs text-muted-foreground mt-3 flex flex-wrap gap-x-2">
+            {formData?.bankingLastEditedByName && (
+              <span>Last edited by {formData.bankingLastEditedByName}{formData?.bankingUpdatedAt ? ` · ${new Date(formData.bankingUpdatedAt).toLocaleString('en-GB')}` : ''}.</span>
+            )}
+            {formData?.bankingLastViewedByName && (
+              <span>Last viewed by {formData.bankingLastViewedByName}{formData?.bankingLastViewedAt ? ` · ${new Date(formData.bankingLastViewedAt).toLocaleString('en-GB')}` : ''}.</span>
+            )}
+          </p>
+        )}
 
         {isEditing && (
           <div className="flex justify-end gap-3 mt-6">
