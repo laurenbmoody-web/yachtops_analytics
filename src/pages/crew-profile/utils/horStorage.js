@@ -72,6 +72,7 @@ export const hydrateActualsForMonth = (crewId, year, month, dbRows) => {
       crewId,
       date: r.entry_date,
       workSegments: Array.isArray(r.work_segments) ? r.work_segments : [],
+      segmentTypes: (r.segment_types && typeof r.segment_types === 'object') ? r.segment_types : {},
       id: `${crewId}_${r.entry_date}_db`,
       source: 'edited',
       vesselTimezoneOffsetMinutes: offsetMinutes,
@@ -90,6 +91,7 @@ export const hydrateActualsForMonth = (crewId, year, month, dbRows) => {
         subjectUserId: crewId,
         date: e?.date,
         workSegments: e?.workSegments || [],
+        segmentTypes: e?.segmentTypes || {},
       }).catch(() => {});
     });
   }
@@ -243,6 +245,7 @@ export const addWorkEntries = (crewId, newEntries) => {
         subjectUserId: crewId,
         date: e?.date,
         workSegments: e?.workSegments || [],
+        segmentTypes: e?.segmentTypes || {},
       }).catch((err) => console.warn('[HOR] work-entry DB upsert failed:', err));
     });
   }
@@ -310,35 +313,48 @@ const segIndexToHHMM = (i) => {
 // One day's worked blocks → contiguous on-duty shift ranges in the engine's
 // camelCase shape. Adjacent blocks merge; a block worked through midnight ends
 // at "24:00" so restHours' stretch walk can join it to the next day's 00:00.
-const segmentsToShifts = (dateStr, workSegments) => {
+const segmentsToShifts = (dateStr, workSegments, segmentTypes = {}) => {
   const worked = new Array(48).fill(false);
   (workSegments || []).forEach((s) => { if (s >= 0 && s < 48) worked[s] = true; });
+  // Type per block (default 'duty'); a run breaks when duty stops OR the type
+  // changes, so a watch→standby day emits two adjacent shifts like the rota.
+  const typeAt = (i) => segmentTypes[i] || segmentTypes[String(i)] || 'duty';
   const shifts = [];
   let start = null;
+  let curType = null;
   for (let i = 0; i < 48; i += 1) {
-    if (worked[i] && start === null) start = i;
-    if (!worked[i] && start !== null) {
-      shifts.push({ date: dateStr, startTime: segIndexToHHMM(start), endTime: segIndexToHHMM(i), shiftType: 'duty' });
-      start = null;
+    const on = worked[i];
+    const t = on ? typeAt(i) : null;
+    if (start !== null && (!on || t !== curType)) {
+      shifts.push({ date: dateStr, startTime: segIndexToHHMM(start), endTime: segIndexToHHMM(i), shiftType: curType });
+      start = null; curType = null;
     }
+    if (on && start === null) { start = i; curType = t; }
   }
   if (start !== null) {
-    shifts.push({ date: dateStr, startTime: segIndexToHHMM(start), endTime: '24:00', shiftType: 'duty' });
+    shifts.push({ date: dateStr, startTime: segIndexToHHMM(start), endTime: '24:00', shiftType: curType });
   }
   return shifts;
 };
 
 // A crew member's entire logged history as a flat shift list (one entry per
-// date after addWorkEntries, but segments are unioned defensively).
+// date after addWorkEntries, but segments + types are merged defensively).
 const crewShifts = (crewId) => {
-  const byDate = new Map();
+  const segByDate = new Map();   // date → Set(seg)
+  const typeByDate = new Map();  // date → { seg: type }
   for (const e of getCrewWorkEntries(crewId)) {
     if (!e?.date) continue;
-    if (!byDate.has(e.date)) byDate.set(e.date, new Set());
-    (e.workSegments || []).forEach((s) => byDate.get(e.date).add(s));
+    if (!segByDate.has(e.date)) { segByDate.set(e.date, new Set()); typeByDate.set(e.date, {}); }
+    const set = segByDate.get(e.date);
+    const tmap = typeByDate.get(e.date);
+    (e.workSegments || []).forEach((s) => set.add(s));
+    const et = e.segmentTypes || {};
+    Object.keys(et).forEach((k) => { tmap[k] = et[k]; });
   }
   const shifts = [];
-  for (const [date, segSet] of byDate) shifts.push(...segmentsToShifts(date, Array.from(segSet)));
+  for (const [date, segSet] of segByDate) {
+    shifts.push(...segmentsToShifts(date, Array.from(segSet), typeByDate.get(date) || {}));
+  }
   // Re-anchor to the vessel's operational day before any rule assessment, the
   // same step the rota's RestLogView applies. Calendar basis (_horDayStartHour
   // = 0) is a no-op, so this is identical to the previous behaviour until a

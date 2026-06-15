@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useEffect, useState } from 'react';
+import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import Icon from '../../../components/AppIcon';
 import { showToast } from '../../../utils/toast';
 import { getCrewWorkEntries, addWorkEntries, deleteWorkEntriesForDate } from '../utils/horStorage';
@@ -6,61 +6,51 @@ import { getCrewWorkEntries, addWorkEntries, deleteWorkEntriesForDate } from '..
 // ── HOR hybrid log — compact calendar (overview) + inline-edit day list ──────
 // The month calendar on the left is an always-on overview; the day list on the
 // right is editable inline. Clicking a calendar day jumps to and expands its
-// row. The expanded row paints via presets ("As rostered" / "Clear") or typed
-// times and saves automatically. Rest figures + day statuses come straight
-// from the props the parent already derives via the shared restHours engine —
-// this component never re-implements the MLC maths, it only edits + draws.
+// row. The expanded row carries a rota-style drag-paint grid with a shift-type
+// palette (duty/watch/standby/training) — the same vocabulary + colours as the
+// rota — and saves automatically. Rest figures + statuses come from the props
+// the parent derives via the shared restHours engine; this component edits +
+// draws only, it never re-implements the MLC maths.
 
 const SEG_PER_DAY = 48; // 30-minute segments
 
-const hhmmToSeg = (t) => {
-  const [h, m] = String(t || '').split(':').map(Number);
-  return Math.max(0, Math.min(48, Math.round(((h || 0) * 60 + (m || 0)) / 30)));
-};
+// Rota shift-type palette (RotationTemplateEditor.TYPE_COLOR). 'erase' clears.
+const TYPE_COLOR = { duty: '#1C1B3A', watch: '#C65A1A', standby: '#B8935E', training: '#6B7F6B' };
+const PALETTE = [['duty', 'Duty'], ['watch', 'Watch'], ['standby', 'Standby'], ['training', 'Training']];
+
 const segToHHMM = (i) => {
   const h = Math.floor(i / 2);
   const m = (i % 2) * 30;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 };
 
-// Worked 30-min segments → contiguous [startHour, endHour] ranges for the bar.
-const segmentsToIntervals = (segs) => {
+// Worked segments (+ types) → contiguous same-type blocks in decimal hours.
+const segmentsToTypedBlocks = (segs, types = {}) => {
   const on = new Set(segs || []);
+  const typeAt = (i) => types[i] || types[String(i)] || 'duty';
   const out = [];
   let start = null;
+  let cur = null;
   for (let i = 0; i < SEG_PER_DAY; i += 1) {
     const isOn = on.has(i);
-    if (isOn && start === null) start = i;
-    if (!isOn && start !== null) { out.push([start / 2, i / 2]); start = null; }
+    const t = isOn ? typeAt(i) : null;
+    if (start !== null && (!isOn || t !== cur)) {
+      out.push({ s: start / 2, e: i / 2, type: cur });
+      start = null; cur = null;
+    }
+    if (isOn && start === null) { start = i; cur = t; }
   }
-  if (start !== null) out.push([start / 2, SEG_PER_DAY / 2]);
+  if (start !== null) out.push({ s: start / 2, e: 24, type: cur });
   return out;
 };
 
-// A single contiguous on-duty block from typed times. end <= start means the
-// block runs to midnight (the single-day model can't represent a true overnight
-// wrap; the crew can split it across two days if needed).
-const timesToSegments = (start, end) => {
-  const s = hhmmToSeg(start);
-  let e = hhmmToSeg(end);
-  if (e <= s) e = SEG_PER_DAY;
-  const segs = [];
-  for (let i = s; i < e; i += 1) segs.push(i);
-  return segs;
-};
-
 const onDutyHours = (segs) => (segs?.length || 0) * 0.5;
-
-// Tone for a rest figure, matching the calendar bands (breach < 10h,
-// marginal < 11h, else compliant). Used only for colour, not for the
-// authoritative status (which the parent computes via the engine).
 const toneForRest = (rest, isOff) => {
   if (isOff) return 'off';
   if (rest < 10) return 'red';
   if (rest < 11) return 'amber';
   return 'green';
 };
-
 const dayLabel = (dateStr) => {
   const [y, m, d] = String(dateStr).split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' });
@@ -68,10 +58,18 @@ const dayLabel = (dateStr) => {
 
 const DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-const Bar = ({ intervals, rota, big }) => (
-  <div className={`cp-bar${rota ? ' rota' : ''}${big ? ' big' : ''}`}>
-    {intervals.map(([s, e], i) => (
-      <span key={i} className="blk" style={{ left: `${(s / 24) * 100}%`, width: `${((e - s) / 24) * 100}%` }} />
+const Bar = ({ blocks, rota, big }) => (
+  <div className={`cp-bar${big ? ' big' : ''}`}>
+    {blocks.map((b, i) => (
+      <span
+        key={i}
+        className={`blk${rota ? ' rota' : ''}`}
+        style={{
+          left: `${(b.s / 24) * 100}%`,
+          width: `${((b.e - b.s) / 24) * 100}%`,
+          ...(rota ? {} : { background: TYPE_COLOR[b.type] || TYPE_COLOR.duty }),
+        }}
+      />
     ))}
   </div>
 );
@@ -84,39 +82,32 @@ const Ticks = () => (
   </div>
 );
 
-const HORHybridLog = ({
-  crewId,
-  calendarData = [],
-  monthName,
-  todayStr,
-  onMonthChange,
-  onChanged,
-}) => {
+const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthChange, onChanged }) => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [typeMode, setTypeMode] = useState(false);
-  const [draftStart, setDraftStart] = useState('08:00');
-  const [draftEnd, setDraftEnd] = useState('18:00');
+  const [brush, setBrush] = useState('duty');
+  const [draftSegs, setDraftSegs] = useState(() => new Set());
+  const [draftTypes, setDraftTypes] = useState({});
+  const painting = useRef(false);
+  const dirty = useRef(false);
+  const draftRef = useRef({ segs: new Set(), types: {} });
   const rowRefs = useRef({});
-  const listRef = useRef(null);
 
-  // Per-date worked segments (unioned), recomputed when the month data changes
-  // or after a local save. Reads the same localStorage cache the engine uses.
-  const segsByDate = useMemo(() => {
-    const map = new Map();
+  // Per-date segments + types, from the same localStorage cache the engine uses.
+  const { segsByDate, typesByDate } = useMemo(() => {
+    const segs = {};
+    const types = {};
     for (const e of getCrewWorkEntries(crewId) || []) {
       if (!e?.date) continue;
-      const set = map.get(e.date) || new Set();
+      const set = new Set(segs[e.date] || []);
       (e.workSegments || []).forEach((s) => set.add(s));
-      map.set(e.date, set);
+      segs[e.date] = Array.from(set).sort((a, b) => a - b);
+      types[e.date] = { ...(types[e.date] || {}), ...(e.segmentTypes || {}) };
     }
-    const out = {};
-    for (const [date, set] of map) out[date] = Array.from(set).sort((a, b) => a - b);
-    return out;
+    return { segsByDate: segs, typesByDate: types };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [crewId, calendarData, refreshKey]);
 
-  // First-of-month weekday for the calendar's leading blanks.
   const startDow = useMemo(() => {
     const first = calendarData[0];
     if (!first?.date) return 0;
@@ -124,66 +115,74 @@ const HORHybridLog = ({
     return new Date(y, m - 1, 1).getDay();
   }, [calendarData]);
 
-  // Scroll the selected row into view when the selection changes.
+  // Seed the draft from the selected day's current segments/types.
   useEffect(() => {
     if (!selectedDate) return;
+    setDraftSegs(new Set(segsByDate[selectedDate] || []));
+    setDraftTypes({ ...(typesByDate[selectedDate] || {}) });
+    dirty.current = false;
     const el = rowRefs.current[selectedDate];
     if (el?.scrollIntoView) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }, [selectedDate]);
-
-  // Reset the typed-times sub-mode whenever a different day is opened, seeding
-  // the inputs from that day's current first/last on-duty block.
-  useEffect(() => {
-    setTypeMode(false);
-    if (!selectedDate) return;
-    const iv = segmentsToIntervals(segsByDate[selectedDate]);
-    if (iv.length) {
-      setDraftStart(segToHHMM(Math.round(iv[0][0] * 2)));
-      setDraftEnd(segToHHMM(Math.round(iv[iv.length - 1][1] * 2)));
-    } else {
-      setDraftStart('08:00');
-      setDraftEnd('18:00');
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
-  const afterSave = () => {
-    setRefreshKey((k) => k + 1);
-    if (onChanged) onChanged();
-  };
+  useEffect(() => { draftRef.current = { segs: draftSegs, types: draftTypes }; }, [draftSegs, draftTypes]);
 
-  const saveSegments = (dateStr, segs, msg) => {
-    addWorkEntries(crewId, [{ date: dateStr, workSegments: segs, source: 'edited' }]);
+  const afterSave = () => { setRefreshKey((k) => k + 1); if (onChanged) onChanged(); };
+
+  const persistDraft = useCallback(() => {
+    if (!selectedDate) return;
+    const segs = Array.from(draftRef.current.segs).sort((a, b) => a - b);
+    addWorkEntries(crewId, [{ date: selectedDate, workSegments: segs, segmentTypes: draftRef.current.types, source: 'edited' }]);
     afterSave();
-    showToast(msg, 'success');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate, crewId]);
+
+  // End any paint drag on a global mouseup; persist if cells changed.
+  useEffect(() => {
+    const up = () => {
+      painting.current = false;
+      if (dirty.current) { dirty.current = false; persistDraft(); }
+    };
+    window.addEventListener('mouseup', up);
+    return () => window.removeEventListener('mouseup', up);
+  }, [persistDraft]);
+
+  const applyBrush = (i) => {
+    dirty.current = true;
+    setDraftSegs((prev) => {
+      const n = new Set(prev);
+      if (brush === 'erase') n.delete(i); else n.add(i);
+      return n;
+    });
+    setDraftTypes((prev) => {
+      const n = { ...prev };
+      if (brush === 'erase') delete n[i]; else n[i] = brush;
+      return n;
+    });
   };
 
-  const handleAsRostered = (dateStr) => {
-    // Confirm the rota's hours as the logged actual (current segments == rota
-    // for a baseline day). If there are no segments it logs an off day.
-    saveSegments(dateStr, segsByDate[dateStr] || [], 'Logged as rostered');
+  const clearDay = () => {
+    setDraftSegs(new Set());
+    setDraftTypes({});
+    addWorkEntries(crewId, [{ date: selectedDate, workSegments: [], segmentTypes: {}, source: 'edited' }]);
+    afterSave();
+    showToast('Day cleared — logged as off', 'success');
   };
-  const handleClear = (dateStr) => {
-    saveSegments(dateStr, [], 'Day cleared — logged as off');
-  };
-  const handleApplyTimes = (dateStr) => {
-    saveSegments(dateStr, timesToSegments(draftStart, draftEnd), 'Hours logged');
-    setTypeMode(false);
-  };
-  const handleResetToBaseline = (dateStr) => {
-    deleteWorkEntriesForDate(crewId, dateStr);
+  const logAsRostered = () => { persistDraft(); showToast('Logged as rostered', 'success'); };
+  const resetToBaseline = () => {
+    deleteWorkEntriesForDate(crewId, selectedDate);
     afterSave();
     showToast('Reset to rota baseline', 'success');
   };
 
   const renderEditor = (cd) => {
-    const segs = typeMode ? timesToSegments(draftStart, draftEnd) : (segsByDate[cd.date] || []);
+    const segs = Array.from(draftSegs);
     const onDuty = onDutyHours(segs);
     const isOff = onDuty === 0;
     const rest = Math.max(0, 24 - onDuty);
     const tone = toneForRest(rest, isOff);
     const isRota = cd.source === 'baseline';
-    const intervals = segmentsToIntervals(segs);
     const statusWord = isOff ? 'off' : tone === 'red' ? '✕ breach' : tone === 'amber' ? '⚠ marginal' : '✓ compliant';
 
     return (
@@ -192,46 +191,46 @@ const HORHybridLog = ({
           <span className="dt">{dayLabel(cd.date)}</span>
           <span className="src">{isRota ? 'pre-filled from rota' : cd.source === 'actual' ? 'logged' : 'no entry'}</span>
         </div>
-        <Bar intervals={intervals} rota={isRota && !typeMode} big />
+
+        {/* Type palette — pick a brush, then drag across the grid. */}
+        <div className="cp-pal">
+          {PALETTE.map(([k, label]) => (
+            <button key={k} type="button" className={`cp-pal-b${brush === k ? ' act' : ''}`} onClick={() => setBrush(k)}>
+              <span className="sw" style={{ background: TYPE_COLOR[k] }} />{label}
+            </button>
+          ))}
+          <button type="button" className={`cp-pal-b${brush === 'erase' ? ' act' : ''}`} onClick={() => setBrush('erase')}>
+            <span className="sw erase" />Erase
+          </button>
+        </div>
+
+        {/* 48-cell drag-paint grid (00:00–24:00, 30-min cells). */}
+        <div className="cp-paint" onMouseLeave={() => { painting.current = false; }}>
+          {Array.from({ length: SEG_PER_DAY }).map((_, i) => {
+            const onCell = draftSegs.has(i);
+            const t = onCell ? (draftTypes[i] || draftTypes[String(i)] || 'duty') : null;
+            return (
+              <div
+                key={i}
+                className={`cp-paint-c${onCell ? ' on' : ''}`}
+                style={onCell ? { background: TYPE_COLOR[t] } : undefined}
+                onMouseDown={() => { painting.current = true; applyBrush(i); }}
+                onMouseEnter={() => { if (painting.current) applyBrush(i); }}
+              />
+            );
+          })}
+        </div>
         <Ticks />
 
-        {typeMode ? (
-          <div className="cp-timeinputs">
-            <div>
-              <label>On duty from</label>
-              <input type="time" value={draftStart} onChange={(e) => setDraftStart(e.target.value)} />
-            </div>
-            <div>
-              <label>Until</label>
-              <input type="time" value={draftEnd} onChange={(e) => setDraftEnd(e.target.value)} />
-            </div>
-            <button type="button" className="apply" onClick={() => handleApplyTimes(cd.date)}>Apply</button>
-            <button type="button" className="cp-tlink" onClick={() => setTypeMode(false)}>cancel</button>
-          </div>
-        ) : (
-          <div className="cp-presets">
-            <button
-              type="button"
-              className={`cp-preset${isRota ? ' act' : ''}`}
-              onClick={() => handleAsRostered(cd.date)}
-            >
-              ✓ As rostered
-            </button>
-            <button
-              type="button"
-              className={`cp-preset${isOff && cd.source === 'actual' ? ' act' : ''}`}
-              onClick={() => handleClear(cd.date)}
-            >
-              Clear
-            </button>
-            {cd.source === 'actual' && (
-              <button type="button" className="cp-preset" onClick={() => handleResetToBaseline(cd.date)}>
-                Reset to rota
-              </button>
-            )}
-            <button type="button" className="cp-tlink" onClick={() => setTypeMode(true)}>type times instead ›</button>
-          </div>
-        )}
+        <div className="cp-presets">
+          {isRota && (
+            <button type="button" className="cp-preset act" onClick={logAsRostered}>✓ Log as rostered</button>
+          )}
+          <button type="button" className="cp-preset" onClick={clearDay}>Clear (off)</button>
+          {cd.source === 'actual' && (
+            <button type="button" className="cp-preset" onClick={resetToBaseline}>Reset to rota</button>
+          )}
+        </div>
 
         <div className="cp-restbox">
           On duty <b className="ink">{Number(onDuty.toFixed(1))}h</b> · Rest{' '}
@@ -270,12 +269,12 @@ const HORHybridLog = ({
             })}
           </div>
           <p className="cp-hor-hint">
-            Tap any day to jump to it on the right and edit. Green = compliant, dashed = still from the rota (not yet logged).
+            Tap any day to open it on the right, then drag across the grid to paint hours. Pick a type (duty / watch / standby / training) first.
           </p>
         </div>
 
         {/* Inline-edit day list */}
-        <div className="cp-hor-list" ref={listRef}>
+        <div className="cp-hor-list">
           {calendarData.map((cd) => {
             if (selectedDate === cd.date) return <React.Fragment key={cd.date}>{renderEditor(cd)}</React.Fragment>;
             const segs = segsByDate[cd.date] || [];
@@ -295,7 +294,7 @@ const HORHybridLog = ({
                   <b>{dayLabel(cd.date)}</b>
                   <span>{cd.source === 'actual' ? 'logged' : isRota ? 'from rota' : '—'}</span>
                 </div>
-                <div className="bw"><Bar intervals={segmentsToIntervals(segs)} rota={isRota} /></div>
+                <div className="bw"><Bar blocks={segmentsToTypedBlocks(segs, typesByDate[cd.date])} rota={isRota} /></div>
                 <div className={`rr ${tone === 'off' ? 'off' : tone === 'red' ? 'red' : tone === 'amber' ? 'amber' : ''}`}>
                   {isOff ? 'off' : `${Number(rest.toFixed(1))}h rest`}
                 </div>
