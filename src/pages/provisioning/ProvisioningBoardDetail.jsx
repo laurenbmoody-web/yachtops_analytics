@@ -1932,8 +1932,8 @@ const ProvisioningBoardDetail = () => {
             full-width banner was crowding the toolbar — see Option B. */}
 
         {/* ── Toolbar ───────────────────────────────────────────────────── */}
-        <div className="pv-board-toolbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <div className="pv-board-toolbar">
+          <div className="pv-board-toolbar-left">
             {/* Master select-all — toggles every item in the current
                 filtered view. Per-dept-group scoped select-alls live
                 inside each dept-group's table header below. */}
@@ -1942,31 +1942,30 @@ const ProvisioningBoardDetail = () => {
               onChange={toggleAll}
               ariaLabel={allChecked ? 'Deselect all items in view' : 'Select all items in view'}
             />
-            {/* Search */}
-            <div style={{ position: 'relative' }}>
-              <Icon name="Search" style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', width: 13, height: 13, color: '#CBD5E1', pointerEvents: 'none' }} />
+            <div className="pv-board-search-wrap">
+              <Icon name="Search" className="pv-board-search-icon" aria-hidden="true" />
               <input
                 type="text"
                 placeholder="Search items…"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                style={{ paddingLeft: 28, paddingRight: 10, paddingTop: 6, paddingBottom: 6, fontSize: 12, background: '#F8FAFC', border: '1px solid #F1F5F9', borderRadius: 7, color: '#0F172A', outline: 'none', width: 220 }}
+                className="pv-board-search-input"
               />
             </div>
-            {/* Dept filter */}
             <select
               value={deptFilter}
               onChange={e => setDeptFilter(e.target.value)}
-              style={{ fontSize: 11, background: 'white', border: '1px solid #F1F5F9', borderRadius: 7, padding: '6px 10px', color: '#64748B', outline: 'none', cursor: 'pointer' }}
+              className="pv-board-filter-select"
+              aria-label="Filter by department"
             >
               <option value="all">All depts</option>
               {departments.map(d => <option key={d.id || d.name} value={d.name}>{d.name}</option>)}
             </select>
-            {/* Status filter */}
             <select
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
-              style={{ fontSize: 11, background: 'white', border: '1px solid #F1F5F9', borderRadius: 7, padding: '6px 10px', color: '#64748B', outline: 'none', cursor: 'pointer' }}
+              className="pv-board-filter-select"
+              aria-label="Filter by status"
             >
               <option value="all">All statuses</option>
               {ITEM_STATUS_FILTER_ORDER.map(val => {
@@ -1974,17 +1973,6 @@ const ProvisioningBoardDetail = () => {
                 return <option key={val} value={val}>{cfg.label}</option>;
               })}
             </select>
-            {hasFilters && (
-              <button
-                onClick={() => { setSearchQuery(''); setDeptFilter('all'); setStatusFilter('all'); }}
-                style={{ fontSize: 11, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
-                onMouseEnter={e => e.currentTarget.style.color = '#1E3A5F'}
-                onMouseLeave={e => e.currentTarget.style.color = '#94A3B8'}
-              >
-                Clear filters
-              </button>
-            )}
-            {/* Group by */}
             <select
               value={groupBy}
               onChange={e => {
@@ -1995,36 +1983,45 @@ const ProvisioningBoardDetail = () => {
                   setSortDirection('asc');
                 }
               }}
-              style={{ fontSize: 11, background: 'white', border: '1px solid #F1F5F9', borderRadius: 7, padding: '6px 10px', color: '#64748B', outline: 'none', cursor: 'pointer' }}
+              className="pv-board-filter-select"
+              aria-label="Group items"
             >
               <option value="category">Group: Category</option>
               <option value="none">Group: None</option>
             </select>
-            {/* Show received toggle */}
+            {hasFilters && (
+              <button
+                type="button"
+                onClick={() => { setSearchQuery(''); setDeptFilter('all'); setStatusFilter('all'); }}
+                className="pv-board-clear-filters"
+              >
+                Clear filters
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setShowReceived(p => !p)}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: 'none', border: 'none', cursor: 'pointer' }}
+              className="pv-board-toggle"
+              aria-pressed={showReceived}
             >
-              <div style={{ width: 28, height: 16, borderRadius: 99, background: showReceived ? '#1E3A5F' : '#E2E8F0', position: 'relative', flexShrink: 0, transition: 'background 0.2s' }}>
-                <div style={{ position: 'absolute', top: 2, left: showReceived ? 14 : 2, width: 12, height: 12, borderRadius: '50%', background: 'white', boxShadow: '0 1px 2px rgba(0,0,0,0.2)', transition: 'left 0.2s' }} />
-              </div>
-              <span style={{ fontSize: 11, color: '#64748B', whiteSpace: 'nowrap' }}>Show received</span>
+              <span className={`pv-board-toggle-track${showReceived ? ' is-on' : ''}`}>
+                <span className="pv-board-toggle-knob" />
+              </span>
+              <span className="pv-board-toggle-lbl">Show received</span>
             </button>
           </div>
-          {/* Progress */}
           {(() => {
             const totalItems = items.length;
             const receivedItems = items.filter(i => i.status === 'received').length;
             const pct = totalItems > 0 ? receivedItems / totalItems : 0;
             return (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                <span style={{ fontSize: 11, color: '#94A3B8', whiteSpace: 'nowrap' }}>
-                  {receivedItems} of {totalItems} items received
-                </span>
-                <div style={{ width: 64, height: 3, background: '#F1F5F9', borderRadius: 99, overflow: 'hidden', flexShrink: 0 }}>
-                  <div style={{ height: '100%', width: `${Math.round(pct * 100)}%`, background: 'linear-gradient(90deg, #4A90E2, #34D399)', borderRadius: 99, transition: 'width 0.4s' }} />
+              <div className="pv-board-progress">
+                <div className="pv-board-progress-bar">
+                  <span style={{ width: `${Math.round(pct * 100)}%` }} />
                 </div>
+                <span className="pv-board-progress-lbl">
+                  {receivedItems} / {totalItems} received
+                </span>
               </div>
             );
           })()}
