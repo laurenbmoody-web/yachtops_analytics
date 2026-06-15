@@ -811,9 +811,17 @@ const canEdit = (() => {
     { key: 'emergency', label: 'Emergency / Next of Kin', icon: 'Phone' },
     { key: 'banking', label: 'Banking', icon: 'CreditCard' },
     { key: 'preferences', label: 'Preferences', icon: 'Utensils' },
+    { key: 'documents', label: 'Documents', icon: 'FileText' },
     { key: 'hor', label: 'Hours of Rest (HOR)', icon: 'Clock' },
     { key: 'seatime', label: 'Sea Time Tracker', icon: 'Ship' },
     { key: 'history', label: 'Status History', icon: 'Activity' }
+  ];
+
+  // Grouped left rail (Option C): items live under quiet section labels.
+  const navGroups = [
+    { label: 'Profile', keys: ['personal', 'emergency', 'banking', 'preferences', 'documents'] },
+    { label: 'Compliance', keys: ['hor', 'seatime'] },
+    { label: 'Activity', keys: ['history'] },
   ];
 
   const canEditStatus = isVesselAdmin || currentUserPermissionTier === 'COMMAND';
@@ -2114,6 +2122,22 @@ const canEdit = (() => {
     );
   };
 
+  // Placeholder until the document store is wired to this tab. Kept as a real
+  // case so the Documents nav item doesn't fall through to Personal Details.
+  const renderDocuments = () => (
+    <div>
+      <div className="cp-section-head">
+        <span className="cp-section-kicker">04 / Documents</span>
+        <h3>Documents</h3>
+      </div>
+      <p className="cp-section-sub">Certificates, contracts and travel documents held on file.</p>
+      <div className="cp-flatcard p-10 text-center">
+        <Icon name="FileText" size={30} className="text-muted-foreground mx-auto mb-3" />
+        <p className="text-sm text-muted-foreground">Document storage is coming to this tab.</p>
+      </div>
+    </div>
+  );
+
   const renderContent = () => {
     switch (activeSection) {
       case 'personal':
@@ -2126,6 +2150,8 @@ const canEdit = (() => {
         return renderPreferences();
       case 'hor':
         return renderHOR();
+      case 'documents':
+        return renderDocuments();
       case 'seatime':
         return renderSeaTime();
       case 'history':
@@ -2233,26 +2259,31 @@ const canEdit = (() => {
 
           {/* Main Layout: Left Navigation + Content */}
           <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr] gap-6">
-            {/* Left Navigation */}
-            <div className="bg-card border border-border rounded-2xl p-4">
-              <p className="crew-nav-eyebrow px-4 mb-3">Crew Member</p>
-              <nav className="space-y-1">
-                {navigationSections?.map(section => (
-                  <button
-                    key={section?.key}
-                    onClick={() => {
-                      setActiveSection(section?.key);
-                      setIsEditing(false);
-                    }}
-                    className={`w-full flex items-start gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-smooth text-left ${
-                      activeSection === section?.key
-                        ? 'crew-nav-active bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                    }`}
-                  >
-                    <Icon name={section?.icon} size={18} className="text-primary" />
-                    <span className="leading-tight break-words">{section?.label}</span>
-                  </button>
+            {/* Left Navigation — grouped editorial rail (flat, no 3D edge) */}
+            <div className="cp-flatcard p-3">
+              <nav>
+                {navGroups.map((group, gi) => (
+                  <div key={group.label}>
+                    <div className={`cp-nav-grp${gi === 0 ? ' first' : ''}`}>{group.label}</div>
+                    {group.keys.map((key) => {
+                      const section = navigationSections.find((s) => s.key === key);
+                      if (!section) return null;
+                      const isActive = activeSection === section.key;
+                      return (
+                        <button
+                          key={section.key}
+                          onClick={() => {
+                            setActiveSection(section.key);
+                            setIsEditing(false);
+                          }}
+                          className={`cp-nav-it${isActive ? ' active' : ''}`}
+                        >
+                          <Icon name={section.icon} size={18} />
+                          <span className="leading-tight break-words">{section.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 ))}
               </nav>
             </div>

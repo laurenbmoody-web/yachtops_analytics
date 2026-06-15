@@ -330,6 +330,34 @@ body.crew-profile-editorial {
   border-radius: 14px;
 }
 
+/* Grouped left rail (Option C): items under quiet section labels, active
+   row in terracotta on a soft tint. Icons inherit the row's currentColor. */
+.crew-profile-page .cp-nav-grp {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: #AEB4C2;
+  padding: 14px 10px 6px;
+}
+.crew-profile-page .cp-nav-grp.first { padding-top: 4px; }
+.crew-profile-page .cp-nav-it {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #695880;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.crew-profile-page .cp-nav-it:hover { background: #F6F7FA; color: #1C1B3A; }
+.crew-profile-page .cp-nav-it.active { color: #C65A1A; font-weight: 700; background: #FAECE7; }
+
 /* Legend swatches mirror the soft calendar palette. */
 .crew-profile-page .cp-cal-swatch { width: 16px; height: 16px; border-radius: 4px; background: #E7F0E9; }
 .crew-profile-page .cp-cal-swatch.amber { background: #FBEFD9; }
