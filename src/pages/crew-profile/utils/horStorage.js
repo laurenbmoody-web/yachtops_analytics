@@ -14,7 +14,7 @@
 // (buildBlockMap, checkRestEventWindow, …) are retained but no longer drive the
 // surfaced verdicts.
 
-import { assessMlc, restForDay, restForWeek } from '../../crew-rota/restHours';
+import { assessMlc, restForDay, restForWeek, reframeToOperationalDay } from '../../crew-rota/restHours';
 import { upsertWorkEntryDay, deleteWorkEntryDay } from './horWorkEntries';
 
 const HOR_STORAGE_KEY = 'cargo_hor_entries';
@@ -26,7 +26,16 @@ const HOR_VESSEL_TIMEZONE_KEY = 'cargo_hor_vessel_timezone';
 // synchronous hydrated cache for the (sync) compliance engine. crew-profile sets
 // the active tenant here so the sync mutators below can dual-write to the DB.
 let _horDbTenantId = null;
-export const setHorDbContext = ({ tenantId } = {}) => { _horDbTenantId = tenantId || null; };
+// The vessel's 24h-day anchor for the daily-rest rule: 0 = calendar (midnight),
+// >0 = operational day commencing that hour. MUST mirror the rota's RestLogView
+// (`horDayBasis === 'operational' ? operationalDayStartHour : 0`) so the profile,
+// rota and vessel record assess the identical day. Default 0 keeps behaviour
+// unchanged until crew-profile supplies the vessel setting.
+let _horDayStartHour = 0;
+export const setHorDbContext = ({ tenantId, horDayStartHour } = {}) => {
+  _horDbTenantId = tenantId || null;
+  if (horDayStartHour !== undefined) _horDayStartHour = horDayStartHour || 0;
+};
 
 // Merge a crew member's DB actuals into the cache for a month, reconciling with
 // any cached edited rows. Call BEFORE syncRotaBaselineEntries so baseline only
@@ -330,7 +339,13 @@ const crewShifts = (crewId) => {
   }
   const shifts = [];
   for (const [date, segSet] of byDate) shifts.push(...segmentsToShifts(date, Array.from(segSet)));
-  return shifts;
+  // Re-anchor to the vessel's operational day before any rule assessment, the
+  // same step the rota's RestLogView applies. Calendar basis (_horDayStartHour
+  // = 0) is a no-op, so this is identical to the previous behaviour until a
+  // vessel opts into an operational day. Centralised here so every assessment
+  // path (getMonthCalendarData, detectBreaches, calculateLast24/7HoursRest,
+  // getRestHoursForDate) inherits the basis consistently.
+  return reframeToOperationalDay(shifts, _horDayStartHour);
 };
 
 const latestLoggedDate = (crewId) => {
