@@ -357,3 +357,82 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-cal-swatch.amber { background: #FBEFD9; }
 .crew-profile-page .cp-cal-swatch.red { background: #FBEAE8; }
 .crew-profile-page .cp-cal-swatch.rota { background: #FFFFFF; border: 1px dashed #CFCABE; }
+
+/* ── HOR hybrid — compact calendar (left) + inline-edit day list (right) ───
+   Mirrors the approved hybrid mockup: month overview always on, each day a
+   row with a 24h timeline bar (navy = on duty, hatched = still as rostered);
+   the selected day's row expands into an inline editor (paint via presets or
+   type times), saving automatically. */
+.crew-profile-page .cp-hor-wrap { display: flex; gap: 18px; }
+.crew-profile-page .cp-hor-cal { width: 300px; flex-shrink: 0; }
+@media (max-width: 1024px) {
+  .crew-profile-page .cp-hor-wrap { flex-direction: column; }
+  .crew-profile-page .cp-hor-cal { width: 100%; }
+}
+.crew-profile-page .cp-hor-subh {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  color: #7b7f93; margin-bottom: 10px;
+}
+.crew-profile-page .cp-hor-subh .mo { color: #1C1B3A; font-size: 13px; }
+.crew-profile-page .cp-hor-navbtn { background: none; border: 0; cursor: pointer; color: #1C1B3A; padding: 2px 7px; border-radius: 6px; line-height: 1; }
+.crew-profile-page .cp-hor-navbtn:hover { background: #F1F5F9; }
+.crew-profile-page .cp-hor-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.crew-profile-page .cp-hor-dow { font-size: 8.5px; text-transform: uppercase; color: #9aa0b0; text-align: center; font-weight: 600; padding-bottom: 2px; }
+.crew-profile-page .cp-hor-c {
+  border-radius: 7px; min-height: 42px; padding: 4px 2px; text-align: center; cursor: pointer;
+  background: #E7F0E9; border: 1px solid transparent;
+}
+.crew-profile-page .cp-hor-c:hover { filter: brightness(0.975); }
+.crew-profile-page .cp-hor-c.amber { background: #FBEFD9; }
+.crew-profile-page .cp-hor-c.red { background: #FBEAE8; }
+.crew-profile-page .cp-hor-c.future { background: #fff; border: 1px dashed #CFCABE; }
+.crew-profile-page .cp-hor-c.sel { outline: 2px solid #1C1B3A; outline-offset: 1px; }
+.crew-profile-page .cp-hor-c .d { font-size: 10px; font-weight: 600; color: #3f6b50; }
+.crew-profile-page .cp-hor-c.amber .d { color: #8a6a1f; }
+.crew-profile-page .cp-hor-c.red .d { color: #9a463f; }
+.crew-profile-page .cp-hor-c.future .d { color: #9aa0b0; }
+.crew-profile-page .cp-hor-c .v { font-size: 10px; font-weight: 700; color: #5E8E6F; }
+.crew-profile-page .cp-hor-c.amber .v { color: #C0851F; }
+.crew-profile-page .cp-hor-c.red .v { color: #E4574C; }
+.crew-profile-page .cp-hor-c.future .v { color: #b9bdc9; }
+.crew-profile-page .cp-hor-c.blank { visibility: hidden; }
+.crew-profile-page .cp-hor-hint { font-size: 11px; color: #7b7f93; margin-top: 12px; line-height: 1.5; }
+
+.crew-profile-page .cp-hor-list { flex: 1; border-left: 1px solid #ECEAE3; padding-left: 16px; max-height: 560px; overflow: auto; }
+.crew-profile-page .cp-il { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid #f1efe9; cursor: pointer; }
+.crew-profile-page .cp-il:hover { background: #FBFAF7; }
+.crew-profile-page .cp-il .dd { width: 84px; font-size: 12px; flex-shrink: 0; }
+.crew-profile-page .cp-il .dd b { display: block; font-weight: 600; color: #1C1B3A; }
+.crew-profile-page .cp-il .dd span { color: #9aa0b0; font-size: 11px; }
+.crew-profile-page .cp-il .bw { flex: 1; min-width: 0; }
+.crew-profile-page .cp-il .rr { width: 78px; text-align: right; font-size: 12px; font-weight: 600; color: #5E8E6F; flex-shrink: 0; }
+.crew-profile-page .cp-il .rr.off { color: #9aa0b0; font-weight: 500; }
+.crew-profile-page .cp-il .rr.amber { color: #C0851F; }
+.crew-profile-page .cp-il .rr.red { color: #E4574C; }
+.crew-profile-page .cp-bar { position: relative; height: 24px; background: #F4F2EC; border-radius: 6px; overflow: hidden; border: 1px solid #e6e3da; }
+.crew-profile-page .cp-bar.big { height: 44px; }
+.crew-profile-page .cp-bar .blk { position: absolute; top: 0; bottom: 0; background: #1C1B3A; opacity: 0.9; }
+.crew-profile-page .cp-bar.rota .blk { background: repeating-linear-gradient(45deg, #c7cad6, #c7cad6 4px, #d7dae2 4px, #d7dae2 8px); }
+.crew-profile-page .cp-ticks { position: relative; height: 12px; margin-top: 3px; }
+.crew-profile-page .cp-ticks span { position: absolute; font-size: 8px; color: #aab; transform: translateX(-50%); }
+/* Expanded (selected) inline editor row. */
+.crew-profile-page .cp-ed { border: 1px solid #1C1B3A; border-radius: 11px; padding: 13px; margin: 8px 0; background: #fbfdfb; }
+.crew-profile-page .cp-ed .top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 9px; }
+.crew-profile-page .cp-ed .dt { font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; color: #1C1B3A; }
+.crew-profile-page .cp-ed .src { font-size: 11px; color: #7b7f93; }
+.crew-profile-page .cp-presets { display: flex; gap: 7px; align-items: center; margin: 11px 0 8px; flex-wrap: wrap; }
+.crew-profile-page .cp-preset { font-size: 11.5px; border: 1px solid #dde1e8; background: #fff; border-radius: 999px; padding: 4px 11px; cursor: pointer; color: #555; }
+.crew-profile-page .cp-preset:hover { border-color: #c3c8d2; }
+.crew-profile-page .cp-preset.act { border-color: #C65A1A; color: #C65A1A; }
+.crew-profile-page .cp-tlink { font-size: 11.5px; color: #C65A1A; font-weight: 600; cursor: pointer; margin-left: auto; background: none; border: 0; }
+.crew-profile-page .cp-restbox { font-size: 13px; color: #1C1B3A; }
+.crew-profile-page .cp-restbox b { color: #5E8E6F; }
+.crew-profile-page .cp-restbox b.ink { color: #1C1B3A; }
+.crew-profile-page .cp-restbox b.amber { color: #C0851F; }
+.crew-profile-page .cp-restbox b.red { color: #E4574C; }
+.crew-profile-page .cp-restbox .auto { font-size: 11px; color: #9aa0b0; margin-left: 6px; }
+.crew-profile-page .cp-timeinputs { display: flex; gap: 12px; align-items: flex-end; margin: 8px 0; }
+.crew-profile-page .cp-timeinputs label { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.04em; color: #7b7f93; display: block; margin-bottom: 3px; }
+.crew-profile-page .cp-timeinputs input { border: 1px solid #DFE3EC; border-radius: 8px; padding: 6px 8px; font-size: 13px; color: #1C1B3A; }
+.crew-profile-page .cp-timeinputs .apply { background: #1C1B3A; color: #fff; border: 0; border-radius: 8px; padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; }

@@ -8,6 +8,7 @@ import Icon from '../../components/AppIcon';
 import LogoSpinner from '../../components/LogoSpinner';
 import QuickEntryModal from './components/QuickEntryModal';
 import BreachNotesModal from './components/BreachNotesModal';
+import HORHybridLog from './components/HORHybridLog';
 import StatusHistoryTab from './components/StatusHistoryTab';
 import StatusChangeModal from '../crew-management/components/StatusChangeModal';
 import { getCurrentUser, getDepartmentDisplayName, getTierDisplayName } from '../../utils/authStorage';
@@ -1988,190 +1989,20 @@ const canEdit = (() => {
                 <div className="cp-kpi-l">Breach days</div>
               </div>
             </div>
-            {/* Calendar and Detail Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6">
-              {/* Calendar Section */}
-              <div className="bg-card border border-border rounded-xl p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h4 className="text-lg font-semibold text-foreground">Calendar</h4>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleMonthChange(-1)}
-                      className="p-2 hover:bg-muted rounded-lg transition-smooth"
-                    >
-                      <Icon name="ChevronLeft" size={18} className="text-foreground" />
-                    </button>
-                    <span className="text-sm font-medium text-foreground min-w-[140px] text-center">{monthName}</span>
-                    <button
-                      onClick={() => handleMonthChange(1)}
-                      className="p-2 hover:bg-muted rounded-lg transition-smooth"
-                    >
-                      <Icon name="ChevronRight" size={18} className="text-foreground" />
-                    </button>
-                  </div>
-                </div>
+            {/* Hybrid: compact calendar overview + inline-edit day list.
+                Replaces the old wide calendar + per-date panel — per-day
+                editing now happens inline in the list, on the shared engine. */}
+            <HORHybridLog
+              crewId={crewId}
+              calendarData={calendarData}
+              monthName={monthName}
+              todayStr={todayStr}
+              onMonthChange={handleMonthChange}
+              onChanged={loadHORData}
+            />
 
-                {/* Calendar Grid */}
-                <div className="grid grid-cols-7 gap-2">
-                  {/* Day Headers */}
-                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']?.map((day, index) => (
-                    <div key={index} className="text-center text-xs font-semibold text-muted-foreground py-2">
-                      {day}
-                    </div>
-                  ))}
-
-                  {/* Empty cells for days before month starts */}
-                  {Array.from({ length: startingDayOfWeek })?.map((_, index) => (
-                    <div key={`empty-${index}`} className="aspect-square" />
-                  ))}
-
-                  {/* Calendar days */}
-                  {Array.from({ length: daysInMonth })?.map((_, index) => {
-                    const day = index + 1;
-                    const dayData = calendarData?.find(d => d?.day === day);
-                    const restHours = dayData?.restHours || 24;
-                    const status = dayData?.status || 'compliant';
-                    const isSelected = selectedCalendarDate?.day === day;
-                    // Provenance: a day carried only by the rota baseline (not yet
-                    // logged as an actual) is shown with a dashed edge + 'rota' tag.
-                    // Provisional = a FUTURE day still carried by the rota
-                    // (not yet logged as an actual) → white + dashed. Past and
-                    // present days read as the record, painted by status.
-                    const isProvisional = dayData?.date > todayStr && dayData?.source !== 'actual';
-
-                    // Soft-green editorial palette: sage = compliant, amber =
-                    // marginal, terracotta-red = breach (see crew-profile.css).
-                    const toneClass =
-                      status === 'breach' ? 'cp-cal-red'
-                      : status === 'warning' ? 'cp-cal-amber'
-                      : '';
-
-                    return (
-                      <button
-                        key={day}
-                        onClick={() => handleDateClick(day, dayData)}
-                        className={`cp-cal-cell${toneClass ? ` ${toneClass}` : ''}${
-                          isSelected ? ' is-selected' : ''
-                        }${isProvisional ? ' is-baseline' : ''}`}
-                      >
-                        <div className="cp-cal-d">{day}</div>
-                        <div className="cp-cal-v">{restHours?.toFixed(1)}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Legend */}
-                <div className="flex items-center gap-6 mt-6 pt-4 border-t border-border">
-                  <div className="flex items-center gap-2">
-                    <div className="cp-cal-swatch" />
-                    <span className="text-xs text-muted-foreground">Compliant</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="cp-cal-swatch amber" />
-                    <span className="text-xs text-muted-foreground">Marginal</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="cp-cal-swatch red" />
-                    <span className="text-xs text-muted-foreground">Breach</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="cp-cal-swatch rota" />
-                    <span className="text-xs text-muted-foreground">From rota (not yet logged)</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Date Detail / Breaches Panel */}
-              <div className="bg-card border border-border rounded-xl p-6 flex flex-col">
-                {selectedCalendarDate ? (
-                  // Show selected date details
-                  (<>
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-lg font-semibold text-foreground">Date Details</h4>
-                      <button
-                        onClick={() => setSelectedCalendarDate(null)}
-                        className="p-1.5 hover:bg-muted rounded-lg transition-smooth"
-                      >
-                        <Icon name="X" size={16} className="text-muted-foreground" />
-                      </button>
-                    </div>
-                    <div className="space-y-4 flex-1">
-                      {/* Date Info */}
-                      <div className="bg-muted/30 rounded-lg p-4">
-                        <div className="text-sm text-muted-foreground mb-1">Date</div>
-                        <div className="text-lg font-semibold text-foreground">
-                          {new Date(selectedCalendarDate?.date)?.toLocaleDateString('en-GB', { 
-                            day: 'numeric', 
-                            month: 'long', 
-                            year: 'numeric' 
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Rest Hours */}
-                      <div className="bg-muted/30 rounded-lg p-4">
-                        <div className="text-sm text-muted-foreground mb-1">Rest Hours</div>
-                        <div className="text-2xl font-bold text-foreground">
-                          {selectedCalendarDate?.restHours?.toFixed(1)} hrs
-                        </div>
-                      </div>
-
-                      {/* Work Hours */}
-                      <div className="bg-muted/30 rounded-lg p-4">
-                        <div className="text-sm text-muted-foreground mb-1">Work Hours</div>
-                        <div className="text-2xl font-bold text-foreground">
-                          {selectedCalendarDate?.workHours?.toFixed(1)} hrs
-                        </div>
-                      </div>
-
-                      {/* Status */}
-                      <div className="bg-muted/30 rounded-lg p-4">
-                        <div className="text-sm text-muted-foreground mb-2">Status</div>
-                        <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-semibold ${
-                          selectedCalendarDate?.status === 'compliant' ?'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                            : selectedCalendarDate?.status === 'warning' ?'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' :'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                        }`}>
-                          {selectedCalendarDate?.status === 'compliant' ? 'Compliant' :
-                           selectedCalendarDate?.status === 'warning' ? 'Warning' : 'Breach'}
-                        </span>
-                      </div>
-                    </div>
-                    {/* Edit Button */}
-                    <div className="mt-4 pt-4 border-t border-border">
-                      <Button
-                        variant="outline"
-                        fullWidth
-                        iconName="Edit"
-                        onClick={handleEditDate}
-                      >
-                        Edit Date
-                      </Button>
-                      {selectedCalendarDate?.source === 'actual' && (
-                        <Button
-                          variant="outline"
-                          fullWidth
-                          iconName="RotateCcw"
-                          onClick={handleResetToBaseline}
-                          className="mt-2"
-                        >
-                          Reset to rota baseline
-                        </Button>
-                      )}
-                      <Button
-                        variant="outline"
-                        fullWidth
-                        iconName="Trash2"
-                        onClick={handleDeleteDate}
-                        className="mt-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-                      >
-                        Delete All Entries
-                      </Button>
-                    </div>
-                  </>)
-                ) : (
-                  // Show breaches list when no date selected
-                  (<>
+            {/* Breaches & sign-off (Phase 4) — preserved full-width below the log */}
+            <div className="bg-card border border-border rounded-xl p-6 flex flex-col">
                     <h4 className="text-lg font-semibold text-foreground mb-4">Breaches</h4>
                     <div className="flex-1 space-y-3 overflow-y-auto max-h-[500px]">
                       {breaches?.length > 0 ? (
@@ -2252,9 +2083,6 @@ const canEdit = (() => {
                         Add Entry
                       </Button>
                     </div>
-                  </>)
-                )}
-              </div>
             </div>
           </>)
         )}
