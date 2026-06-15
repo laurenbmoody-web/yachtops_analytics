@@ -4,6 +4,8 @@ import Icon from '../../../components/AppIcon';
 import LogoSpinner from '../../../components/LogoSpinner';
 import { supabase } from '../../../lib/supabaseClient';
 import { getCurrentUser } from '../../../utils/authStorage';
+import { fetchExpiringDocuments, getExpiryStatus } from '../../crew-profile/utils/crewDocuments';
+import { getDocTypeLabel } from '../../crew-profile/documentTypes';
 
 const getActiveTenantId = () => localStorage.getItem('cargo_active_tenant_id') || null;
 
@@ -111,6 +113,45 @@ const TodaySnapshotWidget = () => {
             title: event?.summary || event?.action || 'Activity'
           });
         });
+
+        // 4. Crew documents expiring (or already expired) — surface as
+        //    Today items so the dedicated DocumentExpiryWidget can come
+        //    off the dashboard. RLS gates the fetch (crew see own docs;
+        //    COMMAND sees the tenant). Time slot shows "Expired" / "in
+        //    Nd" so it sorts alongside time-stamped items via sortKey =
+        //    today's timestamp - urgency weight (expired first).
+        try {
+          const docs = await fetchExpiringDocuments(90);
+          (docs || []).slice(0, 5).forEach((d) => {
+            const s = getExpiryStatus(d.expiry_date);
+            const days = s?.days ?? null;
+            let timeLabel = 'Expired';
+            if (days != null) {
+              if (days < 0) timeLabel = `Expired ${Math.abs(days)}d ago`;
+              else if (days === 0) timeLabel = 'Expires today';
+              else timeLabel = `in ${days}d`;
+            }
+            const icon = s?.level === 'expired' ? 'AlertOctagon'
+                       : s?.level === 'urgent'  ? 'AlertTriangle'
+                       : 'Calendar';
+            const color = s?.level === 'expired' ? 'text-red-500'
+                        : s?.level === 'urgent'  ? 'text-amber-500'
+                        : 'text-muted-foreground';
+            // Negative offset on sortKey so expiries pin to the top
+            // when there are jobs/activities later in the day.
+            const urgencyOffset = days == null ? -1000 : Math.min(0, days) * 60 * 1000;
+            items?.push({
+              sortKey: new Date(new Date(startISO).getTime() + urgencyOffset).toISOString(),
+              time: timeLabel,
+              icon,
+              color,
+              title: `${getDocTypeLabel(d.doc_type) || d.doc_type}${d.crew_name ? ` — ${d.crew_name}` : ''}`,
+            });
+          });
+        } catch (err) {
+          // Read-only enrichment — never block the snapshot on it.
+          console.warn('[TodaySnapshotWidget] doc expiry fetch failed:', err?.message);
+        }
 
         // Sort all items chronologically (earliest first)
         items?.sort((a, b) => new Date(a.sortKey) - new Date(b.sortKey));
