@@ -1077,38 +1077,40 @@ const canEdit = (() => {
         <p className="cp-section-sub">Identity, contact and the basics we hold on file.</p>
 
         <div className="cp-grid">
-          <Field label="First Names" required>
-            <Input
-              value={formData?.firstName}
-              onChange={(e) => handleInputChange('firstName', e?.target?.value)}
-              disabled={!isEditing}
-              placeholder="—"
-            />
-          </Field>
-          <Field label="Last Name" required>
-            <Input
-              value={formData?.lastName}
-              onChange={(e) => handleInputChange('lastName', e?.target?.value)}
-              disabled={!isEditing}
-              placeholder="—"
-            />
-          </Field>
-          <Field label="Prefix">
-            {isEditing ? (
-              <select
-                className="cp-inline-select"
-                value={formData?.prefix || ''}
-                onChange={(e) => handleInputChange('prefix', e?.target?.value)}
-              >
-                <option value="">—</option>
-                {['Mr', 'Mrs', 'Ms', 'Miss', 'Mx', 'Dr', 'Capt', 'Chief', 'Sir', 'Dame'].map((o) => (
-                  <option key={o} value={o}>{o}</option>
-                ))}
-              </select>
-            ) : (
-              <div className={`cp-static${formData?.prefix ? '' : ' cp-empty'}`}>{formData?.prefix || '—'}</div>
-            )}
-          </Field>
+          <div className="cp-field-full cp-name-row">
+            <Field label="Prefix">
+              {isEditing ? (
+                <select
+                  className="cp-inline-select"
+                  value={formData?.prefix || ''}
+                  onChange={(e) => handleInputChange('prefix', e?.target?.value)}
+                >
+                  <option value="">—</option>
+                  {['Mr', 'Mrs', 'Ms', 'Miss', 'Mx', 'Dr', 'Capt', 'Chief', 'Sir', 'Dame'].map((o) => (
+                    <option key={o} value={o}>{o}</option>
+                  ))}
+                </select>
+              ) : (
+                <div className={`cp-static${formData?.prefix ? '' : ' cp-empty'}`}>{formData?.prefix || '—'}</div>
+              )}
+            </Field>
+            <Field label="First Names" required>
+              <Input
+                value={formData?.firstName}
+                onChange={(e) => handleInputChange('firstName', e?.target?.value)}
+                disabled={!isEditing}
+                placeholder="—"
+              />
+            </Field>
+            <Field label="Last Name" required>
+              <Input
+                value={formData?.lastName}
+                onChange={(e) => handleInputChange('lastName', e?.target?.value)}
+                disabled={!isEditing}
+                placeholder="—"
+              />
+            </Field>
+          </div>
           <Field label="Preferred Name">
             <Input
               value={formData?.preferredName}
@@ -1224,7 +1226,7 @@ const canEdit = (() => {
               </div>
             )}
           </Field>
-          <Field label="Medical Conditions" full hint="Any relevant medical conditions">
+          <Field label="Medical Conditions" hint="Any relevant medical conditions">
             <Input
               value={formData?.medicalConditions}
               onChange={(e) => handleInputChange('medicalConditions', e?.target?.value)}
