@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import LogoSpinner from '../../../components/LogoSpinner';
@@ -8,7 +8,7 @@ import {
 } from '../documentTypes';
 import {
   fetchCrewDocuments, deleteCrewDocument, getExpiryStatus,
-  EXPIRY_STATUS_CLASSES, formatDocDate,
+  EXPIRY_STATUS_CLASSES, formatDocDate, parseDocumentFile,
 } from '../utils/crewDocuments';
 import AddDocumentModal from './AddDocumentModal';
 
@@ -18,6 +18,56 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit }) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [presetType, setPresetType] = useState(null);
+
+  // AI scan-and-autofill queue.
+  const [prefill, setPrefill] = useState(null);
+  const [prefillFile, setPrefillFile] = useState(null);
+  const [scanQueue, setScanQueue] = useState([]);
+  const [scanIdx, setScanIdx] = useState(0);
+  const [scanning, setScanning] = useState(false);
+  const scanInputRef = useRef(null);
+
+  const processOne = useCallback(async (files, idx) => {
+    setScanning(true);
+    try {
+      const suggestion = await parseDocumentFile(files[idx]);
+      setEditing(null);
+      setPresetType(null);
+      setPrefill(suggestion);
+      setPrefillFile(files[idx]);
+      setModalOpen(true);
+    } catch (e) {
+      showToast(`Couldn't read ${files[idx]?.name || 'file'}`, 'error');
+      if (idx + 1 < files.length) { setScanIdx(idx + 1); processOne(files, idx + 1); }
+      else { setScanQueue([]); setScanIdx(0); }
+    } finally {
+      setScanning(false);
+    }
+  }, []);
+
+  const onScanFiles = (e) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (!files.length) return;
+    setScanQueue(files);
+    setScanIdx(0);
+    processOne(files, 0);
+  };
+
+  // Closing the modal (saved or cancelled) advances the scan queue.
+  const closeModal = () => {
+    setModalOpen(false);
+    setPrefill(null);
+    setPrefillFile(null);
+    if (scanQueue.length && scanIdx + 1 < scanQueue.length) {
+      const next = scanIdx + 1;
+      setScanIdx(next);
+      processOne(scanQueue, next);
+    } else {
+      setScanQueue([]);
+      setScanIdx(0);
+    }
+  };
 
   const load = useCallback(async () => {
     try {
@@ -98,8 +148,30 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit }) => {
           </div>
           <p className="cp-section-sub">Travel documents, medical &amp; safety certificates, and qualifications — with expiry tracking.</p>
         </div>
-        {canEdit && <Button iconName="Plus" onClick={() => openAdd()} size="sm">Add document</Button>}
+        {canEdit && (
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <input
+              ref={scanInputRef}
+              type="file"
+              accept="image/*,application/pdf"
+              multiple
+              onChange={onScanFiles}
+              className="hidden"
+            />
+            <Button variant="outline" iconName="Sparkles" size="sm" onClick={() => scanInputRef.current?.click()}>
+              Scan &amp; auto-fill
+            </Button>
+            <Button iconName="Plus" size="sm" onClick={() => openAdd()}>Add document</Button>
+          </div>
+        )}
       </div>
+
+      {scanning && (
+        <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg text-xs" style={{ background: '#FAEEDA', color: '#7A2E1E' }}>
+          <LogoSpinner size={14} />
+          <span>Reading document{scanQueue.length > 1 ? ` ${scanIdx + 1} of ${scanQueue.length}` : ''} with AI…</span>
+        </div>
+      )}
 
       {!loading && (expiredCount > 0 || soonCount > 0) && (
         <div className="flex flex-wrap gap-2 mb-4">
@@ -164,13 +236,15 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit }) => {
 
       <AddDocumentModal
         isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={closeModal}
         onSaved={load}
         userId={userId}
         tenantId={tenantId}
         createdBy={createdBy}
         existing={editing}
         presetType={presetType}
+        prefill={prefill}
+        prefillFile={prefillFile}
       />
     </div>
   );
