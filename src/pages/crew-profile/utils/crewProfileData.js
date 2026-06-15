@@ -24,6 +24,7 @@ export const profileDataToFormData = ({ personal, banking }) => {
   return {
     dateOfBirth: p.date_of_birth || '',
     nationality: p.nationality || '',
+    prefix: p.prefix || '',
     preferredName: p.preferred_name || '',
     pronouns: p.pronouns || '',
     phones,
@@ -77,6 +78,7 @@ export const saveCrewProfileData = async (userId, f) => {
     user_id: userId,
     date_of_birth: f.dateOfBirth || null,
     nationality: f.nationality || null,
+    prefix: f.prefix || null,
     preferred_name: f.preferredName || null,
     pronouns: f.pronouns || null,
     phones,
