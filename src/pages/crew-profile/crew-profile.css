@@ -748,12 +748,22 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-preset:hover { border-color: #c3c8d2; }
 .crew-profile-page .cp-preset.act { border-color: #C65A1A; color: #C65A1A; }
 .crew-profile-page .cp-tlink { font-size: 11.5px; color: #C65A1A; font-weight: 600; cursor: pointer; margin-left: auto; background: none; border: 0; }
-.crew-profile-page .cp-restbox { font-size: 13px; color: #1C1B3A; }
-.crew-profile-page .cp-restbox b { color: #5E8E6F; }
-.crew-profile-page .cp-restbox b.ink { color: #1C1B3A; }
-.crew-profile-page .cp-restbox b.amber { color: #C0851F; }
-.crew-profile-page .cp-restbox b.red { color: #E4574C; }
-.crew-profile-page .cp-restbox .auto { font-size: 11px; color: #9aa0b0; margin-left: 6px; transition: color .15s ease; }
+.crew-profile-page .cp-restbox { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #1C1B3A; }
+.crew-profile-page .cp-restbox .dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; background: #b9bdc9; }
+.crew-profile-page .cp-restbox .dot.green { background: #5E8E6F; }
+.crew-profile-page .cp-restbox .dot.amber { background: #C0851F; }
+.crew-profile-page .cp-restbox .dot.red { background: #E4574C; }
+.crew-profile-page .cp-restbox .rest { font-weight: 700; color: #5E8E6F; }
+.crew-profile-page .cp-restbox .rest.amber { color: #C0851F; }
+.crew-profile-page .cp-restbox .rest.red { color: #E4574C; }
+.crew-profile-page .cp-restbox .rest.off { color: #9aa0b0; }
+.crew-profile-page .cp-restbox .sub { color: #9aa0b0; }
+.crew-profile-page .cp-restbox .right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.crew-profile-page .cp-restbox .verdict { font-size: 13px; font-weight: 700; color: #5E8E6F; }
+.crew-profile-page .cp-restbox .verdict.amber { color: #C0851F; }
+.crew-profile-page .cp-restbox .verdict.red { color: #E4574C; }
+.crew-profile-page .cp-restbox .verdict.off { color: #9aa0b0; }
+.crew-profile-page .cp-restbox .auto { font-size: 11px; color: #9aa0b0; transition: color .15s ease; }
 .crew-profile-page .cp-restbox .auto.saved { color: #5E8E6F; font-weight: 700; font-size: 12px; animation: cpSavedPop .25s ease; }
 @keyframes cpSavedPop { 0% { opacity: 0; transform: translateY(2px); } 100% { opacity: 1; transform: translateY(0); } }
 .crew-profile-page .cp-timeinputs { display: flex; gap: 12px; align-items: flex-end; margin: 8px 0; }

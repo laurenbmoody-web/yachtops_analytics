@@ -325,7 +325,7 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
     const rest = Math.max(0, 24 - onDuty);
     const tone = toneForRest(rest, isOff);
     const isRota = cd.source === 'baseline';
-    const statusWord = isOff ? 'off' : tone === 'red' ? '✕ breach' : tone === 'amber' ? '⚠ marginal' : '✓ compliant';
+    const statusWord = tone === 'off' ? 'Off' : tone === 'red' ? 'Below minimum' : tone === 'amber' ? 'Borderline' : 'Compliant';
 
     return (
       <div className="cp-ed" ref={(el) => { rowRefs.current[cd.date] = el; }}>
@@ -406,9 +406,13 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
         )}
 
         <div className="cp-restbox">
-          On duty <b className="ink">{Number(onDuty.toFixed(1))}h</b> · Rest{' '}
-          <b className={tone === 'off' ? '' : tone}>{Number(rest.toFixed(1))}h</b> {statusWord}
-          {savedFlash && <span className="auto saved">✓ Saved</span>}
+          <span className={`dot ${tone}`} />
+          <b className={`rest ${tone}`}>{Number(rest.toFixed(1))}h rest</b>
+          <span className="sub"> · {Number(onDuty.toFixed(1))}h on duty</span>
+          <span className="right">
+            {savedFlash && <span className="auto saved">✓ Saved</span>}
+            <span className={`verdict ${tone}`}>{statusWord}</span>
+          </span>
         </div>
       </div>
     );
