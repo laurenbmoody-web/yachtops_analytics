@@ -1716,7 +1716,6 @@ const canEdit = (() => {
     // Use real data from storage
     const last24HoursRest = horData?.last24HoursRest || 24;
     const last7DaysRest = horData?.last7DaysRest || 168;
-    const isCompliant = horData?.isCompliant !== false;
 
     const breaches = horData?.breaches || [];
 
@@ -1733,6 +1732,18 @@ const canEdit = (() => {
     const { daysInMonth, startingDayOfWeek, year, month } = getDaysInMonth(horCurrentMonth);
     const monthName = horCurrentMonth?.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
     const calendarData = horData?.calendarData || [];
+
+    // Editorial KPI tile tones + month-level aggregates. Presentation only —
+    // derived from the existing per-day statuses, NOT the shared rest engine
+    // (that wiring, incl. the marginal tier + vessel day-basis, lands later).
+    // Daily marginal band mirrors the agreed language: amber at 10–11h rest.
+    const dailyTone = last24HoursRest >= 11 ? '' : last24HoursRest >= 10 ? 'amber' : 'red';
+    const weeklyTone = last7DaysRest >= 77 ? '' : 'red';
+    const ratedDays = calendarData.filter(d => d?.status).length;
+    const breachDayCount = calendarData.filter(d => d?.status === 'breach').length;
+    const compliantDays = calendarData.filter(d => d?.status && d?.status !== 'breach').length;
+    const monthCompliantPct = ratedDays > 0 ? Math.round((compliantDays / ratedDays) * 100) : 100;
+    const monthTone = breachDayCount > 0 ? 'red' : monthCompliantPct === 100 ? '' : 'amber';
 
     // Get month status
     const monthStatus = getMonthStatus(crewId, year, month);
@@ -1950,57 +1961,24 @@ const canEdit = (() => {
                 )}
               </div>
             </div>
-            {/* Top Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Card 1: Last 24 Hours Rest */}
-              <div className="bg-card border border-border rounded-xl p-6">
-                <h4 className="text-sm font-medium text-muted-foreground mb-3">Last 24 Hours Rest</h4>
-                <div className="text-4xl font-bold text-foreground mb-2">{last24HoursRest} hrs</div>
-                <div className="flex items-center gap-2">
-                  <Icon 
-                    name={last24HoursRest >= 10 ? 'CheckCircle' : 'AlertCircle'} 
-                    size={16} 
-                    className={last24HoursRest >= 10 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}
-                  />
-                  <span className={`text-sm font-medium ${
-                    last24HoursRest >= 10 
-                      ? 'text-green-600 dark:text-green-400' :'text-red-600 dark:text-red-400'
-                  }`}>
-                    {last24HoursRest >= 10 ? 'Compliant' : 'Breach'}
-                  </span>
-                </div>
+            {/* Top Summary — editorial KPI tiles (match the rota rest-log strip
+                + the approved hybrid mockup). */}
+            <div className="cp-kpis">
+              <div className={`cp-kpi${dailyTone ? ` cp-kpi-${dailyTone}` : ''}`}>
+                <div className="cp-kpi-n">{last24HoursRest}h</div>
+                <div className="cp-kpi-l">Last 24h rest</div>
               </div>
-
-              {/* Card 2: Last 7 Days Rest */}
-              <div className="bg-card border border-border rounded-xl p-6">
-                <h4 className="text-sm font-medium text-muted-foreground mb-3">Last 7 Days Rest</h4>
-                <div className="text-4xl font-bold text-foreground mb-2">{last7DaysRest} hrs</div>
-                <div className="flex items-center gap-2">
-                  <Icon 
-                    name={last7DaysRest >= 77 ? 'CheckCircle' : 'AlertCircle'} 
-                    size={16} 
-                    className={last7DaysRest >= 77 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}
-                  />
-                  <span className={`text-sm font-medium ${
-                    last7DaysRest >= 77 
-                      ? 'text-green-600 dark:text-green-400' :'text-red-600 dark:text-red-400'
-                  }`}>
-                    {last7DaysRest >= 77 ? 'Compliant' : 'Breach'}
-                  </span>
-                </div>
+              <div className={`cp-kpi${weeklyTone ? ` cp-kpi-${weeklyTone}` : ''}`}>
+                <div className="cp-kpi-n">{last7DaysRest}h</div>
+                <div className="cp-kpi-l">Last 7-day rest</div>
               </div>
-
-              {/* Card 3: Compliance Status */}
-              <div className="bg-card border border-border rounded-xl p-6">
-                <h4 className="text-sm font-medium text-muted-foreground mb-3">Compliance Status</h4>
-                <div className="flex items-center justify-center h-[calc(100%-2rem)]">
-                  <span className={`inline-block px-6 py-3 rounded-full text-lg font-bold ${
-                    isCompliant 
-                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                  }`}>
-                    {isCompliant ? 'COMPLIANT' : 'NON-COMPLIANT'}
-                  </span>
-                </div>
+              <div className={`cp-kpi${monthTone ? ` cp-kpi-${monthTone}` : ''}`}>
+                <div className="cp-kpi-n">{monthCompliantPct}%</div>
+                <div className="cp-kpi-l">Month compliant</div>
+              </div>
+              <div className={`cp-kpi ${breachDayCount > 0 ? 'cp-kpi-red' : 'cp-kpi-ink'}`}>
+                <div className="cp-kpi-n">{breachDayCount}</div>
+                <div className="cp-kpi-l">Breach days</div>
               </div>
             </div>
             {/* Calendar and Detail Section */}
@@ -2051,30 +2029,24 @@ const canEdit = (() => {
                     // logged as an actual) is shown with a dashed edge + 'rota' tag.
                     const isBaseline = dayData?.source === 'baseline';
 
-                    // Color based on status
-                    let bgColor = 'bg-green-100 dark:bg-green-900/30';
-                    let textColor = 'text-green-800 dark:text-green-400';
-                    if (status === 'breach') {
-                      bgColor = 'bg-red-100 dark:bg-red-900/30';
-                      textColor = 'text-red-800 dark:text-red-400';
-                    } else if (status === 'warning') {
-                      bgColor = 'bg-amber-100 dark:bg-amber-900/30';
-                      textColor = 'text-amber-800 dark:text-amber-400';
-                    }
+                    // Soft-green editorial palette: sage = compliant, amber =
+                    // marginal, terracotta-red = breach (see crew-profile.css).
+                    const toneClass =
+                      status === 'breach' ? 'cp-cal-red'
+                      : status === 'warning' ? 'cp-cal-amber'
+                      : '';
 
                     return (
                       <button
                         key={day}
                         onClick={() => handleDateClick(day, dayData)}
-                        className={`${bgColor} rounded-lg p-3 text-center cursor-pointer hover:opacity-80 transition-smooth relative ${
-                          isSelected ? 'ring-2 ring-primary ring-offset-2' : ''
-                        } ${isBaseline ? 'border-2 border-dashed border-muted-foreground/40' : ''}`}
+                        className={`cp-cal-cell${toneClass ? ` ${toneClass}` : ''}${
+                          isSelected ? ' is-selected' : ''
+                        }${isBaseline ? ' is-baseline' : ''}`}
                       >
-                        <div className="text-xs font-semibold text-foreground mb-1">{day}</div>
-                        <div className={`text-sm font-bold ${textColor}`}>{restHours?.toFixed(1)} hrs</div>
-                        {isBaseline && (
-                          <div className="text-[9px] uppercase tracking-wide text-muted-foreground mt-0.5">rota</div>
-                        )}
+                        <div className="cp-cal-d">{day}</div>
+                        <div className="cp-cal-v">{restHours?.toFixed(1)}</div>
+                        {isBaseline && <div className="cp-cal-tag">rota</div>}
                       </button>
                     );
                   })}
@@ -2083,19 +2055,19 @@ const canEdit = (() => {
                 {/* Legend */}
                 <div className="flex items-center gap-6 mt-6 pt-4 border-t border-border">
                   <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 rounded bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800" />
+                    <div className="cp-cal-swatch" />
                     <span className="text-xs text-muted-foreground">Compliant</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 rounded bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800" />
-                    <span className="text-xs text-muted-foreground">Warning</span>
+                    <div className="cp-cal-swatch amber" />
+                    <span className="text-xs text-muted-foreground">Marginal</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 rounded bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800" />
+                    <div className="cp-cal-swatch red" />
                     <span className="text-xs text-muted-foreground">Breach</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 rounded border-2 border-dashed border-muted-foreground/40" />
+                    <div className="cp-cal-swatch rota" />
                     <span className="text-xs text-muted-foreground">From rota (not yet logged)</span>
                   </div>
                 </div>
