@@ -1829,16 +1829,71 @@ const ProvisioningBoardDetail = () => {
           </div>
         )}
 
-        {/* ── Allergen banner ───────────────────────────────────────────── */}
+        {/* ── Allergen banner ───────────────────────────────────────────
+            Cargo treatment: --d-warn-soft surface, tracked-caps eyebrow,
+            guest names in serif italic, Lucide AlertTriangle icon, 5px
+            warn bottom edge to match the cargo card vocabulary. Each
+            guest gets its own visual chunk so multiple allergies stay
+            readable instead of running together. */}
         {allergenGuests.length > 0 && (
-          <div className="mx-6 mt-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 rounded-xl px-4 py-3 text-sm text-amber-800 dark:text-amber-300 flex items-start gap-2">
-            <span className="flex-shrink-0 mt-0.5">⚠</span>
-            <div>
-              <span className="font-semibold">Allergen alert: </span>
-              {allergenGuests.map((g, i) => (
-                <span key={i}>{i > 0 && ' · '}<strong>{g.name}</strong> - {g.allergies}</span>
-              ))}
-              <span className="text-amber-600 dark:text-amber-400"> · Highlighted rows may be affected.</span>
+          <div
+            style={{
+              margin: '12px 24px 0',
+              background: 'var(--d-warn-soft)',
+              border: '0.5px solid rgba(139, 90, 31, 0.20)',
+              borderBottom: '5px solid var(--d-warn)',
+              borderRadius: 12,
+              padding: '12px 18px 14px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 14,
+              boxShadow: 'var(--d-shadow)',
+            }}
+            className="pv-dashboard"
+            role="alert"
+          >
+            <Icon
+              name="AlertTriangle"
+              style={{ width: 18, height: 18, color: 'var(--d-warn)', flexShrink: 0, marginTop: 2 }}
+              aria-hidden="true"
+            />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{
+                margin: 0,
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '0.16em',
+                textTransform: 'uppercase',
+                color: 'var(--d-warn)',
+              }}>
+                Allergen alert
+              </p>
+              <p style={{
+                margin: '4px 0 0',
+                fontFamily: "'DM Serif Display', Georgia, serif",
+                fontSize: 15.5,
+                lineHeight: 1.35,
+                color: 'var(--d-navy-deep)',
+                letterSpacing: '-0.005em',
+              }}>
+                {allergenGuests.map((g, i) => (
+                  <React.Fragment key={i}>
+                    {i > 0 && (
+                      <span style={{ color: 'var(--d-muted-soft)', margin: '0 8px', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", fontSize: 13 }}>·</span>
+                    )}
+                    <span>{g.name}</span>
+                    <em style={{ color: 'var(--d-warn)', fontStyle: 'italic', marginLeft: 6 }}>{g.allergies}</em>
+                  </React.Fragment>
+                ))}
+              </p>
+              <p style={{
+                margin: '6px 0 0',
+                fontSize: 11.5,
+                color: 'var(--d-muted)',
+                fontStyle: 'italic',
+              }}>
+                Highlighted rows may be affected.
+              </p>
             </div>
           </div>
         )}
