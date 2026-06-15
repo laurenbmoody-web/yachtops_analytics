@@ -1879,14 +1879,13 @@ const ProvisioningBoardDetail = () => {
                     <span style={{ color: 'var(--d-muted-soft)', margin: '0 8px', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", fontSize: 12 }}>·</span>
                   )}
                   <span>{g.name}</span>
-                  <em style={{ color: 'var(--d-danger)', fontStyle: 'italic', marginLeft: 5 }}>{g.allergies}</em>
+                  <em style={{ color: 'var(--d-danger)', fontStyle: 'normal', marginLeft: 5 }}>{g.allergies}</em>
                 </React.Fragment>
               ))}
             </span>
             <span style={{
               fontSize: 11,
               color: 'var(--d-muted)',
-              fontStyle: 'italic',
               flexShrink: 0,
             }}>
               Highlighted rows may be affected
