@@ -268,6 +268,8 @@ const ProvisioningBoardDetail = () => {
   const [expandedHistory, setExpandedHistory] = useState(null);
   const [activityEvents, setActivityEvents] = useState([]);
   const [activityLoading, setActivityLoading] = useState(false);
+  const [allergenOpen, setAllergenOpen] = useState(false);
+  const allergenRef = useRef(null);
 
   // ── Supplier Orders ──────────────────────────────────────────────────────
   const [showSendModal, setShowSendModal] = useState(false);
@@ -554,6 +556,18 @@ const ProvisioningBoardDetail = () => {
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
   }, [showMenu]);
+
+  useEffect(() => {
+    if (!allergenOpen) return;
+    const h = (e) => { if (allergenRef.current && !allergenRef.current.contains(e.target)) setAllergenOpen(false); };
+    const key = (e) => { if (e.key === 'Escape') setAllergenOpen(false); };
+    document.addEventListener('mousedown', h);
+    document.addEventListener('keydown', key);
+    return () => {
+      document.removeEventListener('mousedown', h);
+      document.removeEventListener('keydown', key);
+    };
+  }, [allergenOpen]);
 
   // Load deliveries when Deliveries or History tab becomes active; auto-repair unbatched items
   useEffect(() => {
@@ -1544,16 +1558,34 @@ const ProvisioningBoardDetail = () => {
     editorialHeadline = titleStr.toUpperCase();
     editorialQualifier = deptTags[0] || 'Provisioning';
   }
-  // Subtitle carries the operational state — status + overdue flag — that
-  // used to live as inline chips next to the H1 in the predecessor design.
-  const editorialSubtitle = [
-    statusLabel,
-  ].filter(Boolean).join(' · ');
-  // Meta strip — translates the existing metaItems to the editorial segment
-  // shape. Dept chips are dropped from the strip (they were a different
-  // visual pattern); first dept lands in the qualifier instead.
+  // Subtitle is intentionally empty — operational state (status, allergens)
+  // moves to chips that sit between the headline and the toolbar, so the
+  // headline reads as identity, not state. Status used to live here.
+  // Empty string (not null) so EditorialHeadline's `??` fallback to the
+  // generic Pantry greeting doesn't fire.
+  const editorialSubtitle = '';
+  // Meta strip carries the identity context: trip type (Charter/Owner/…),
+  // trip name, date range, guest count. Replaces the prior strip that only
+  // held trip name and forced status to sit awkwardly in the subtitle.
+  const tripGuestCount = Array.isArray(trip?.guests)
+    ? (trip.guests.filter(g => g.isActive).length || trip.guests.length)
+    : 0;
+  const formatRangeDate = (iso) => {
+    if (!iso) return null;
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toUpperCase();
+  };
+  const tripStart = formatRangeDate(trip?.startDate);
+  const tripEnd = formatRangeDate(trip?.endDate);
+  const tripDateLabel = tripStart && tripEnd
+    ? (tripStart === tripEnd ? tripStart : `${tripStart} – ${tripEnd}`)
+    : (tripStart || tripEnd || null);
   const editorialMeta = [
+    trip?.tripType && { label: String(trip.tripType).toUpperCase() },
     trip && { label: trip.title || trip.name },
+    tripDateLabel && { label: tripDateLabel },
+    tripGuestCount > 0 && { label: `${tripGuestCount} GUEST${tripGuestCount !== 1 ? 'S' : ''}` },
   ].filter(Boolean);
 
   // ── States ────────────────────────────────────────────────────────────────
@@ -1597,18 +1629,16 @@ const ProvisioningBoardDetail = () => {
           meta={editorialMeta}
           backTo="/provisioning"
           backLabel="Back to boards"
-          rightRail={null}
           showDuty={false}
           bodyBg="#F8FAFC"
-          actionStrip={
-            // Sprint 9c.1 Commit 3: unified pill aesthetic per the editorial
-            // language. Two visual groups separated by a hairline divider:
-            // read actions (Suggestions / Templates / PDF / Print) on the
-            // left, write actions (Receive Items / Send to Supplier or
-            // Submit for Approval / overflow menu) on the right. Send to
-            // Supplier is the lone "primary" action — filled navy when its
-            // gating condition (hasSendableItems) holds.
-            <div className="cargo-ribbon">
+          rightRail={
+            // Option-B split header: ribbon moves to the right rail as a
+            // vertical action stack. Two visual groups separated by a thin
+            // divider: read actions (Add from… / Print-PDF) above, write
+            // actions (Receive Items / Send to Supplier / Submit for
+            // Approval / overflow) below. Send to Supplier is the lone
+            // "primary" action — filled navy when hasSendableItems holds.
+            <div className="cargo-ribbon cargo-ribbon-vertical">
               {/* Read actions */}
               <div className="cargo-ribbon-group">
                 {/* "Add from…" opens the bulk-import picker over four
@@ -1705,6 +1735,65 @@ const ProvisioningBoardDetail = () => {
                 </div>
               </div>
             </div>
+          }
+          actionStrip={
+            // Status + allergen chips: identity-adjacent pieces that don't
+            // belong in the meta line (state, not identity) nor in the
+            // sticky toolbar (read-only, not actionable). Sits between the
+            // headline and the tabs. Allergen chip toggles a popover with
+            // the full per-guest breakdown — replaces the prior full-width
+            // banner that crowded the toolbar.
+            (statusLabel || allergenGuests.length > 0) && (
+              <div className="pv-board-chip-row">
+                {statusLabel && (
+                  <span
+                    className="pv-board-chip pv-board-chip-status"
+                    style={{ background: '#FEF3C7', color: '#92400E' }}
+                    data-status={list?.status || ''}
+                  >
+                    {statusLabel}
+                  </span>
+                )}
+                {allergenGuests.length > 0 && (
+                  <div className="pv-board-chip-wrap" ref={allergenRef}>
+                    <button
+                      type="button"
+                      className="pv-board-chip pv-board-chip-allergen"
+                      aria-haspopup="dialog"
+                      aria-expanded={allergenOpen}
+                      onClick={() => setAllergenOpen(v => !v)}
+                    >
+                      <Icon name="AlertTriangle" style={{ width: 11, height: 11 }} aria-hidden="true" />
+                      {allergenGuests.length} allergen{allergenGuests.length !== 1 ? 's' : ''}
+                      <span aria-hidden="true" className="pv-board-chip-caret">{allergenOpen ? '▾' : '›'}</span>
+                    </button>
+                    {allergenOpen && (
+                      <div className="pv-board-allergen-popover" role="dialog" aria-label="Allergen alert">
+                        <div className="pv-board-allergen-popover-head">
+                          <Icon
+                            name="AlertTriangle"
+                            style={{ width: 14, height: 14, color: 'var(--d-danger)', flexShrink: 0 }}
+                            aria-hidden="true"
+                          />
+                          <span className="pv-board-allergen-popover-title">Allergen alert</span>
+                        </div>
+                        <div className="pv-board-allergen-popover-list">
+                          {allergenGuests.map((g, i) => (
+                            <div key={i} className="pv-board-allergen-popover-row">
+                              <span className="pv-board-allergen-popover-name">{g.name}</span>
+                              <span className="pv-board-allergen-popover-all">{g.allergies}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="pv-board-allergen-popover-foot">
+                          Highlighted rows may be affected
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
           }
         >
 
@@ -1830,89 +1919,12 @@ const ProvisioningBoardDetail = () => {
           </div>
         )}
 
-        {/* ── Allergen banner ───────────────────────────────────────────
-            White surface, 4px --d-danger left rail. Per guest: serif
-            name on top (visual anchor), allergens beneath in tight
-            sans-semibold red. Two-row stack inside the banner row so
-            the name reads as identity and the allergens read as
-            attributes — fixes the "name feels weak" issue when the
-            allergen list was visually heavier than the guest itself. */}
-        {allergenGuests.length > 0 && (
-          <div
-            style={{
-              margin: '12px 24px 16px',
-              background: 'var(--d-card)',
-              border: '0.5px solid var(--d-border)',
-              borderLeft: '4px solid var(--d-danger)',
-              borderRadius: 10,
-              padding: '10px 16px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 14,
-              boxShadow: 'var(--d-shadow)',
-            }}
-            className="pv-dashboard"
-            role="alert"
-          >
-            <Icon
-              name="AlertTriangle"
-              style={{ width: 16, height: 16, color: 'var(--d-danger)', flexShrink: 0 }}
-              aria-hidden="true"
-            />
-            <span style={{
-              fontSize: 9.5,
-              fontWeight: 700,
-              letterSpacing: '0.16em',
-              textTransform: 'uppercase',
-              color: 'var(--d-danger)',
-              flexShrink: 0,
-            }}>
-              Allergen alert
-            </span>
-            <span style={{
-              flex: 1,
-              minWidth: 0,
-              display: 'inline-flex',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '2px 14px',
-            }}>
-              {allergenGuests.map((g, i) => (
-                <React.Fragment key={i}>
-                  {i > 0 && (
-                    <span style={{ color: 'var(--d-border)', fontSize: 16, alignSelf: 'center' }} aria-hidden="true">·</span>
-                  )}
-                  <span style={{ display: 'inline-flex', flexDirection: 'column', lineHeight: 1.1 }}>
-                    <span style={{
-                      fontFamily: "'DM Serif Display', Georgia, serif",
-                      fontSize: 15,
-                      color: 'var(--d-navy-deep)',
-                      letterSpacing: '-0.01em',
-                    }}>{g.name}</span>
-                    <span style={{
-                      fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
-                      fontSize: 10.5,
-                      fontWeight: 600,
-                      color: 'var(--d-danger)',
-                      letterSpacing: '0.03em',
-                      marginTop: 2,
-                    }}>{g.allergies}</span>
-                  </span>
-                </React.Fragment>
-              ))}
-            </span>
-            <span style={{
-              fontSize: 11,
-              color: 'var(--d-muted)',
-              flexShrink: 0,
-            }}>
-              Highlighted rows may be affected
-            </span>
-          </div>
-        )}
+        {/* Allergen alert moved to a chip in the header's actionStrip slot;
+            click the chip to open the full per-guest popover. The prior
+            full-width banner was crowding the toolbar — see Option B. */}
 
         {/* ── Toolbar ───────────────────────────────────────────────────── */}
-        <div style={{ background: 'white', borderBottom: '1px solid #F1F5F9', padding: '10px 32px', position: 'sticky', top: 0, zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+        <div className="pv-board-toolbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             {/* Master select-all — toggles every item in the current
                 filtered view. Per-dept-group scoped select-alls live

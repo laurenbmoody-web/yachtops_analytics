@@ -29,3 +29,156 @@
   background: var(--d-bg);
 }
 
+/* ── Board-detail Option B layout ─────────────────────────────
+   Vertical action ribbon, header chip row (status + allergen),
+   and a cargo-styled sticky toolbar. The right-rail variant of
+   .cargo-ribbon stacks groups vertically with full-width buttons
+   so the header reads: identity (left) → actions (right). */
+
+.cargo-ribbon-vertical {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  margin: 0;
+  min-width: 220px;
+  max-width: 260px;
+}
+.cargo-ribbon-vertical .cargo-ribbon-group {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+.cargo-ribbon-vertical .cargo-ribbon-btn {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 9px 14px;
+}
+.cargo-ribbon-vertical .cargo-ribbon-btn-icon {
+  align-self: flex-end;
+  width: 34px;
+  padding: 8px 0;
+  justify-content: center;
+}
+.cargo-ribbon-vertical .cargo-ribbon-divider {
+  width: 100%;
+  height: 1px;
+  margin: 2px 0;
+}
+
+/* Chip row between the headline and tabs. */
+.pv-board-chip-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 14px 0 4px;
+}
+.pv-board-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: none;
+  cursor: default;
+  white-space: nowrap;
+}
+.pv-board-chip-allergen {
+  background: var(--d-danger-soft);
+  color: var(--d-danger);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.pv-board-chip-allergen:hover { background: #F8DEDE; }
+.pv-board-chip-caret { font-size: 12px; line-height: 1; margin-left: 2px; }
+.pv-board-chip-wrap { position: relative; display: inline-flex; }
+
+/* Allergen popover — replaces the old full-width banner.
+   Anchored to the chip; closes on outside-click or Escape. */
+.pv-board-allergen-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  min-width: 320px;
+  max-width: 480px;
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  border-left: 4px solid var(--d-danger);
+  border-radius: 10px;
+  box-shadow: 0 14px 36px rgba(38, 42, 83, 0.18);
+  padding: 14px 16px 12px;
+}
+.pv-board-allergen-popover-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.pv-board-allergen-popover-title {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--d-danger);
+}
+.pv-board-allergen-popover-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pv-board-allergen-popover-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--d-border-soft);
+}
+.pv-board-allergen-popover-row:last-child { border-bottom: 0; }
+.pv-board-allergen-popover-name {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 15px;
+  color: var(--d-navy-deep);
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+.pv-board-allergen-popover-all {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--d-danger);
+  letter-spacing: 0.03em;
+}
+.pv-board-allergen-popover-foot {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--d-border-soft);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--d-muted);
+  letter-spacing: 0.02em;
+}
+
+/* Sticky toolbar — cargo card surface so it reads as a coordinated
+   bar, not a raw white strip. Sticks beneath the tabs. */
+.pv-board-toolbar {
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  border-bottom: 5px solid var(--d-card-edge);
+  border-radius: 14px;
+  box-shadow: var(--d-shadow);
+  margin: 12px 24px 14px;
+  padding: 10px 18px;
+  position: sticky;
+  top: 8px;
+  z-index: 30;
+}
+
