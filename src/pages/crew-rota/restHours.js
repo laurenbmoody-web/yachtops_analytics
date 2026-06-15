@@ -102,6 +102,78 @@ export function reframeToOperationalDay(shifts, dayStartHour = 0, fields = {}) {
   });
 }
 
+// ── Canonical segment ↔ shift translation (the one midnight rule) ───────────
+// HOR is entered/stored as 30-min calendar-day blocks (indices 0..47), but the
+// rules above assess SHIFTS with start/end times. Every surface (the profile
+// log, the rota Rest Log, the rota-derived baseline) must translate between the
+// two the SAME way, or identical hours can read differently. These two
+// functions are that single source of truth — do not re-implement them locally.
+//
+// The midnight rule, written once:
+//   • a block running to the end of the day ends at "24:00" (so a full 0..47
+//     day = 24h on duty / 0 rest, NOT a 00:00→00:00 "unknown" that gets dropped);
+//   • any work past midnight is its own piece on the NEXT calendar day.
+
+// 30-min block index → "HH:MM" (48 → "24:00").
+export const segIndexToHHMM = (i) => {
+  if (i >= 48) return '24:00';
+  return `${pad2(Math.floor(i / 2))}:${pad2((i % 2) * 30)}`;
+};
+
+// One calendar day's worked block indices (0..47) → contiguous on-duty shift
+// ranges in the engine's shape. Adjacent blocks merge; a run breaks when duty
+// stops OR the shift type changes (so a watch→standby day emits two adjacent
+// shifts). A block running to the day end closes at "24:00" so the overnight
+// (+24) and max-stretch logic join it to the next day's 00:00. Default 'duty'.
+export function segmentsToShifts(dateStr, workSegments, segmentTypes = {}) {
+  const worked = new Array(48).fill(false);
+  (workSegments || []).forEach((s) => { const n = Number(s); if (n >= 0 && n < 48) worked[n] = true; });
+  const typeAt = (i) => segmentTypes[i] || segmentTypes[String(i)] || 'duty';
+  const shifts = [];
+  let start = null;
+  let curType = null;
+  for (let i = 0; i < 48; i += 1) {
+    const on = worked[i];
+    const t = on ? typeAt(i) : null;
+    if (start !== null && (!on || t !== curType)) {
+      shifts.push({ date: dateStr, startTime: segIndexToHHMM(start), endTime: segIndexToHHMM(i), shiftType: curType });
+      start = null; curType = null;
+    }
+    if (on && start === null) { start = i; curType = t; }
+  }
+  if (start !== null) {
+    shifts.push({ date: dateStr, startTime: segIndexToHHMM(start), endTime: '24:00', shiftType: curType });
+  }
+  return shifts;
+}
+
+// Inverse: a single shift (date + "HH:MM" start/end) → its on-duty 30-min block
+// indices per CALENDAR day, carrying any post-midnight spill onto the NEXT day
+// rather than dropping it. e.g. 18:00→02:00 on 2026-06-01 →
+//   [{date:'2026-06-01',segments:[36..47]}, {date:'2026-06-02',segments:[0..3]}].
+// start === end is treated as "unknown" (dropped) — matching onDutyRanges.
+export function shiftToOnDutySegments(dateStr, startTime, endTime) {
+  const s = hhmmToDecimal(startTime);
+  let e = hhmmToDecimal(endTime);
+  if (s == null || e == null || s === e || !dateStr) return [];
+  if (e <= s) e += 24; // overnight
+  const startIdx = Math.max(0, Math.floor(s * 2));
+  const endIdx = Math.ceil(e * 2); // may exceed 48 for overnight
+  const out = [];
+  const dayOne = [];
+  for (let i = startIdx; i < Math.min(48, endIdx); i += 1) dayOne.push(i);
+  if (dayOne.length) out.push({ date: dateStr, segments: dayOne });
+  if (endIdx > 48) {
+    const [Y, Mo, D] = String(dateStr).split('-').map(Number);
+    const next = new Date(Y, Mo - 1, D + 1);
+    const nextDate = `${next.getFullYear()}-${pad2(next.getMonth() + 1)}-${pad2(next.getDate())}`;
+    const dayTwo = [];
+    for (let i = 48; i < endIdx; i += 1) dayTwo.push(i - 48);
+    if (dayTwo.length) out.push({ date: nextDate, segments: dayTwo });
+  }
+  return out;
+}
+
 // Rule 1 — daily on-duty totals and the implied 24h rest figure.
 export function restForDay(dayShifts) {
   const onDutyHours = onDutyRanges(dayShifts)

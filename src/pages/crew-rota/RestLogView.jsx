@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Download } from 'lucide-react';
 import RotaBreachReasonModal from './RotaBreachReasonModal';
 import { DEPT_ORDER } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
-import { ON_DUTY_TYPES, assessMlc, reframeToOperationalDay, MLC_DAILY_REST_MIN, MLC_WEEKLY_REST_MIN } from './restHours';
+import { ON_DUTY_TYPES, assessMlc, reframeToOperationalDay, segmentsToShifts, MLC_DAILY_REST_MIN, MLC_WEEKLY_REST_MIN } from './restHours';
 import { getContrastText, getRoleDisplayName } from './crewDisplay';
 import { MONTH_SHORT } from './MonthCalendar';
 import { exportRestLogCSV, exportRestLogPDF } from './rotaHorExport';
@@ -89,12 +89,11 @@ function DayHeader({ dateStr, index, isToday }) {
   );
 }
 
-// hh:mm for a 30-min block index (0–47).
-const blockToTime = (i) => `${String(Math.floor((i * 30) / 60)).padStart(2, '0')}:${String((i * 30) % 60).padStart(2, '0')}`;
-
 // Crew's logged work_segments (on-duty 30-min block indices) → rota-shaped shift
 // objects, plus the set of (member|date) days that are logged so the rota plan
-// is dropped for those days (logged actuals win).
+// is dropped for those days (logged actuals win). Uses the shared engine
+// converter so a full 0..47 day reads as 24h on duty (not dropped) and the
+// midnight rule matches the profile + baseline exactly.
 function workEntriesToShifts(workEntries, userToMember) {
   const loggedShifts = [];
   const loggedDays = new Set();
@@ -103,19 +102,9 @@ function workEntriesToShifts(workEntries, userToMember) {
     if (!memberId) return;
     const date = String(e.entry_date).slice(0, 10);
     loggedDays.add(`${memberId}|${date}`);
-    const segs = [...(e.work_segments || [])].map(Number).filter((n) => n >= 0 && n < 48).sort((a, b) => a - b);
-    let i = 0;
-    while (i < segs.length) {
-      let j = i;
-      while (j + 1 < segs.length && segs[j + 1] === segs[j] + 1) j += 1;
-      loggedShifts.push({
-        memberId,
-        date,
-        shiftType: 'duty',
-        startTime: blockToTime(segs[i]),
-        endTime: segs[j] + 1 >= 48 ? '00:00' : blockToTime(segs[j] + 1),
-      });
-      i = j + 1;
+    const segs = (e.work_segments || []).map(Number).filter((n) => n >= 0 && n < 48);
+    for (const sh of segmentsToShifts(date, segs, e.segment_types || {})) {
+      loggedShifts.push({ ...sh, memberId });
     }
   });
   return { loggedShifts, loggedDays };

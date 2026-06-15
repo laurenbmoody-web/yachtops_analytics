@@ -9,30 +9,14 @@
 // tenant_members.id for the active tenant first.
 
 import { supabase } from '../../../lib/supabaseClient';
-import { ON_DUTY_TYPES } from '../../crew-rota/restHours';
+import { ON_DUTY_TYPES, shiftToOnDutySegments } from '../../crew-rota/restHours';
 
 const pad2 = (n) => String(n).padStart(2, '0');
 const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-const hhmmToDecimal = (t) => {
-  if (!t) return null;
-  const [h, m] = String(t).split(':').map(Number);
-  return h + (m || 0) / 60;
-};
 
-// One shift's start/end → 30-min block indices (0..47) on its shift_date.
-// Overnight shifts (end <= start) are clipped to the day end for the baseline;
-// the spill is reflected on the next day only once actuals are recorded.
-function shiftToSegments(startTime, endTime) {
-  const s = hhmmToDecimal(startTime);
-  let e = hhmmToDecimal(endTime);
-  if (s == null || e == null || s === e) return [];
-  if (e <= s) e = 24;
-  const startIdx = Math.max(0, Math.floor(s * 2));
-  const endIdx = Math.min(48, Math.ceil(e * 2));
-  const segs = [];
-  for (let i = startIdx; i < endIdx; i += 1) segs.push(i);
-  return segs;
-}
+// Shift→segment translation (with the same midnight rule + next-day spill the
+// profile log and rota Rest Log use) lives in the shared engine,
+// restHours.shiftToOnDutySegments — no local copy.
 
 // Returns { 'YYYY-MM-DD': number[] } of baseline work-block indices for the
 // month. Empty object when the member can't be resolved or has no rota shifts.
@@ -74,9 +58,14 @@ export async function fetchRotaBaselineForMonth({ userId, tenantId, year, month 
   for (const r of rows) {
     if (!ON_DUTY_TYPES.has(r.shift_type)) continue; // off / medical ⇒ rest
     const owner = ownerById.get(r.rota_id) === 'trip' ? 'trip' : 'vessel';
-    if (!byDate.has(r.shift_date)) byDate.set(r.shift_date, { trip: new Set(), vessel: new Set() });
-    const bucket = byDate.get(r.shift_date)[owner];
-    for (const seg of shiftToSegments(r.start_time, r.end_time)) bucket.add(seg);
+    // An overnight shift yields a piece on its start date AND a spill piece on
+    // the next date — both seeded, so the baseline matches how the same hours
+    // would be logged as actuals.
+    for (const part of shiftToOnDutySegments(r.shift_date, r.start_time, r.end_time)) {
+      if (!byDate.has(part.date)) byDate.set(part.date, { trip: new Set(), vessel: new Set() });
+      const bucket = byDate.get(part.date)[owner];
+      for (const seg of part.segments) bucket.add(seg);
+    }
   }
 
   const out = {};
