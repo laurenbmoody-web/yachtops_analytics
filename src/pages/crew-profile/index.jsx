@@ -1342,8 +1342,7 @@ const canEdit = (() => {
       return (
         <Field label="Last Verified" hint={isEditing && !disabled ? 'Date you last confirmed these details' : undefined}>
           {isEditing && !disabled ? (
-            <input
-              type="date"
+            <DateInput
               className="cp-inline-box"
               value={v || ''}
               onChange={(e) => handleInputChange(field, e?.target?.value)}
@@ -1419,7 +1418,6 @@ const canEdit = (() => {
             <Field label="Preferred Contact Method">
               {methodField('emergencyContactPreferredMethod')}
             </Field>
-            {verifiedField('emergencyContactLastVerified')}
             <Field label="Address" full>
               <textarea
                 className={addressClasses}
@@ -1429,7 +1427,7 @@ const canEdit = (() => {
                 placeholder="—"
               />
             </Field>
-            <Field label="This contact's role" full hint={isEditing ? 'Flag what this person handles — they may differ' : undefined}>
+            <Field label="This contact's role" hint={isEditing ? 'Flag what this person handles — they may differ' : undefined}>
               {isEditing ? (
                 <div className="cp-check-row">
                   <label className="cp-inline-check">
@@ -1459,6 +1457,7 @@ const canEdit = (() => {
                 </div>
               )}
             </Field>
+            {verifiedField('emergencyContactLastVerified')}
           </div>
         </div>
 
