@@ -1,6 +1,24 @@
 import { supabase } from '../lib/supabaseClient';
 
 /**
+ * Derive up to two uppercase initials from a person's name.
+ * "Lauren Moody" → "LM", "Madonna" → "M", empty → "" (callers can
+ * fall back to a generic icon when this returns nothing).
+ *
+ * @param {string} name - full name
+ * @returns {string} 0–2 uppercase letters
+ */
+export const getInitials = (name) => {
+  const parts = String(name || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length === 0) return '';
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+};
+
+/**
  * Ensures a profile row exists for the given session user.
  * Safe to call multiple times - uses upsert with smart defaults.
  * Includes retry logic for network errors.
