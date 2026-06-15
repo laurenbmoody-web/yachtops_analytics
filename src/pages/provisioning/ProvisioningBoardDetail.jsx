@@ -1474,7 +1474,10 @@ const ProvisioningBoardDetail = () => {
     Deck:        { bg: '#DCFCE7', color: '#166534' },
     Engineering: { bg: '#FFF7ED', color: '#9A3412' },
   };
-  const getDeptChip = (dept) => DEPT_CHIP_STYLES[dept] || { bg: '#F1F5F9', color: '#64748B' };
+  // Fallback chip for any dept outside the canonical 4 (e.g. Bridge,
+  // Admin). Cool border-soft + muted ink so the chip doesn't sit warmer
+  // than the cool dashboard surface around it.
+  const getDeptChip = (dept) => DEPT_CHIP_STYLES[dept] || { bg: '#EEF0F4', color: '#7C7E9B' };
 
   // Per-row item-status pill palette comes from the unified statusConfig.
   // getItemStatusConfig(status).badge yields {bg, color, border, dot}; label
@@ -1620,19 +1623,17 @@ const ProvisioningBoardDetail = () => {
                 >
                   <Icon name="LayoutGrid" style={{ width: 13, height: 13 }} /> Add from…
                 </button>
-                <button
-                  type="button"
-                  onClick={() => { showToast('Use "Save as PDF" in the print dialog', 'success'); setTimeout(() => window.print(), 300); }}
-                  className="cargo-ribbon-btn"
-                >
-                  <Icon name="FileDown" style={{ width: 13, height: 13 }} /> PDF
-                </button>
+                {/* PDF + Print were two separate buttons that both called
+                    window.print() — the only difference was a toast hinting
+                    "Save as PDF in the print dialog" before PDF. Same dialog,
+                    same outcome. Collapsed into one entry point. */}
                 <button
                   type="button"
                   onClick={() => window.print()}
                   className="cargo-ribbon-btn"
+                  title="Print or Save as PDF (use the system dialog's PDF option)"
                 >
-                  <Icon name="Printer" style={{ width: 13, height: 13 }} /> Print
+                  <Icon name="Printer" style={{ width: 13, height: 13 }} /> Print / PDF
                 </button>
               </div>
 
