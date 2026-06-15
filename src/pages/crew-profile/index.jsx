@@ -14,7 +14,10 @@ import StatusChangeModal from '../crew-management/components/StatusChangeModal';
 import { getCurrentUser, getDepartmentDisplayName, getTierDisplayName } from '../../utils/authStorage';
 import { getInitials } from '../../utils/profileHelpers';
 import DocumentsTab from './components/DocumentsTab';
+import ProfileCompletionMeter from './components/ProfileCompletionMeter';
 import { fetchCrewProfileData, profileDataToFormData, saveCrewProfileData } from './utils/crewProfileData';
+import { fetchCrewDocuments } from './utils/crewDocuments';
+import { computeProfileCompletion } from './utils/profileCompletion';
 import { getStatusLabel, getStatusBadgeClasses, getStatusDotClass } from '../../utils/crewStatus';
 import { showToast } from '../../utils/toast';
 import { addWorkEntries, getComplianceStatus, getMonthCalendarData, detectBreaches, getCrewWorkEntries, deleteWorkEntriesForDate, runAllHORTests, confirmMonth, getMonthStatus, isMonthEditable, detectBreachedDatesAfterSave, hasBreachNoteForDate, syncRotaBaselineEntries, setHorDbContext, hydrateActualsForMonth } from './utils/horStorage';
@@ -135,6 +138,13 @@ const CrewProfile = () => {
     document.body.classList.add('crew-profile-editorial');
     return () => document.body.classList.remove('crew-profile-editorial');
   }, []);
+
+  // Documents drive part of the profile-completion meter.
+  const [crewDocs, setCrewDocs] = useState([]);
+  useEffect(() => {
+    if (!crewId) return;
+    fetchCrewDocuments(crewId).then(setCrewDocs).catch(() => {});
+  }, [crewId]);
 
   // Load crew member data from Supabase
   useEffect(() => {
@@ -895,6 +905,7 @@ const canEdit = (() => {
     const sinceLabel = crewMember?.startDate
       ? new Date(crewMember?.startDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
       : null;
+    const completion = computeProfileCompletion({ formData, crewMember, docs: crewDocs });
 
     return (
       <div className="mb-8">
@@ -979,6 +990,11 @@ const canEdit = (() => {
                   </span>
                 )
               ) : null}
+              <ProfileCompletionMeter
+                percent={completion.percent}
+                missing={completion.missing}
+                onJump={(tab) => { setActiveSection(tab); setIsEditing(false); }}
+              />
             </div>
           </div>
 
