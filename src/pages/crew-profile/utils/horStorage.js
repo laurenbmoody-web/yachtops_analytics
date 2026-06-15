@@ -14,7 +14,7 @@
 // (buildBlockMap, checkRestEventWindow, …) are retained but no longer drive the
 // surfaced verdicts.
 
-import { assessMlc, restForDay, restForWeek, reframeToOperationalDay } from '../../crew-rota/restHours';
+import { assessMlc, restForDay, restForWeek, reframeToOperationalDay, segmentsToShifts } from '../../crew-rota/restHours';
 import { upsertWorkEntryDay, deleteWorkEntryDay } from './horWorkEntries';
 
 const HOR_STORAGE_KEY = 'cargo_hor_entries';
@@ -302,40 +302,9 @@ const parseYmd = (s) => { const [y, m, d] = String(s).split('-').map(Number); re
 const addDaysStr = (s, n) => { const d = parseYmd(s); d.setDate(d.getDate() + n); return ymdLocal(d); };
 const fmtDateLong = (s) => parseYmd(s).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
-// 30-min block index (0..47, or 48 for the day's end) → "HH:MM".
-const segIndexToHHMM = (i) => {
-  if (i >= 48) return '24:00';
-  const h = Math.floor(i / 2);
-  const m = (i % 2) * 30;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-};
-
-// One day's worked blocks → contiguous on-duty shift ranges in the engine's
-// camelCase shape. Adjacent blocks merge; a block worked through midnight ends
-// at "24:00" so restHours' stretch walk can join it to the next day's 00:00.
-const segmentsToShifts = (dateStr, workSegments, segmentTypes = {}) => {
-  const worked = new Array(48).fill(false);
-  (workSegments || []).forEach((s) => { if (s >= 0 && s < 48) worked[s] = true; });
-  // Type per block (default 'duty'); a run breaks when duty stops OR the type
-  // changes, so a watch→standby day emits two adjacent shifts like the rota.
-  const typeAt = (i) => segmentTypes[i] || segmentTypes[String(i)] || 'duty';
-  const shifts = [];
-  let start = null;
-  let curType = null;
-  for (let i = 0; i < 48; i += 1) {
-    const on = worked[i];
-    const t = on ? typeAt(i) : null;
-    if (start !== null && (!on || t !== curType)) {
-      shifts.push({ date: dateStr, startTime: segIndexToHHMM(start), endTime: segIndexToHHMM(i), shiftType: curType });
-      start = null; curType = null;
-    }
-    if (on && start === null) { start = i; curType = t; }
-  }
-  if (start !== null) {
-    shifts.push({ date: dateStr, startTime: segIndexToHHMM(start), endTime: '24:00', shiftType: curType });
-  }
-  return shifts;
-};
+// Segment→shift translation now lives in the shared engine (restHours.
+// segmentsToShifts) so the profile, rota Rest Log and baseline all apply the
+// identical midnight rule. Imported above — no local copy.
 
 // A crew member's entire logged history as a flat shift list (one entry per
 // date after addWorkEntries, but segments + types are merged defensively).
