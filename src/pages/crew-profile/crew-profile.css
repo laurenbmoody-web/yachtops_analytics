@@ -560,8 +560,87 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-bar.big { height: 44px; }
 .crew-profile-page .cp-bar .blk { position: absolute; top: 0; bottom: 0; background: #1C1B3A; opacity: 0.9; }
 .crew-profile-page .cp-bar.rota .blk { background: repeating-linear-gradient(45deg, #c7cad6, #c7cad6 4px, #d7dae2 4px, #d7dae2 8px); }
-.crew-profile-page .cp-ticks { position: relative; height: 12px; margin-top: 3px; }
-.crew-profile-page .cp-ticks span { position: absolute; font-size: 8px; color: #aab; transform: translateX(-50%); }
+.crew-profile-page .cp-ticks {
+  position: relative;
+  height: 14px;
+  margin-top: 4px;
+}
+.crew-profile-page .cp-ticks span {
+  position: absolute;
+  font-size: 9px;
+  color: #6b6b7a;
+  font-weight: 600;
+  transform: translateX(-50%);
+  top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+/* Minor ticks every hour — small tick marks above each hour position,
+   no label. Major ticks (every 3h) carry the hour number. */
+.crew-profile-page .cp-ticks span.minor {
+  width: 1px;
+  height: 4px;
+  background: #c8c4b8;
+  top: 0;
+  margin: 0;
+}
+.crew-profile-page .cp-ticks span.major::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  width: 1px;
+  height: 4px;
+  background: #6b6b7a;
+  transform: translateX(-50%);
+}
+.crew-profile-page .cp-paint {
+  display: flex;
+  gap: 0;
+  height: 38px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #d8d4c8;
+  /* Vertical hairlines every 30 min (one per cell, 48 lines across).
+     Heavier line every 2h so the user can roughly pin time visually
+     even without the hover indicator. */
+  background:
+    repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent calc((100% - 0.5px) / 48),
+      #e3dfd2 calc((100% - 0.5px) / 48),
+      #e3dfd2 calc(100% / 48)
+    ),
+    repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent calc((100% - 1px) / 12),
+      #c6bfa9 calc((100% - 1px) / 12),
+      #c6bfa9 calc(100% / 12)
+    ),
+    #F4F2EC;
+  user-select: none;
+}
+.crew-profile-page .cp-paint-c {
+  flex: 1;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.08s ease, filter 0.08s ease, box-shadow 0.08s ease;
+}
+/* Empty-cell hover — fills with a faint warm cream so the user sees
+   exactly which slot they're about to paint. Painted cells keep their
+   brightness-shift hover. */
+.crew-profile-page .cp-paint-c:hover {
+  background: rgba(38, 42, 83, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(38, 42, 83, 0.18);
+}
+.crew-profile-page .cp-paint-c.on {
+  background: var(--paint-bg, currentColor);
+}
+.crew-profile-page .cp-paint-c.on:hover {
+  filter: brightness(1.12);
+  box-shadow: none;
+}
 /* Expanded (selected) inline editor row. */
 .crew-profile-page .cp-ed { border: 1px solid #1C1B3A; border-radius: 11px; padding: 13px; margin: 8px 0; background: #fbfdfb; }
 .crew-profile-page .cp-ed .top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 9px; }
@@ -595,14 +674,6 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-pal-b.act { border-color: #1C1B3A; box-shadow: inset 0 0 0 1px #1C1B3A; }
 .crew-profile-page .cp-pal-b .sw { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
 .crew-profile-page .cp-pal-b .sw.erase { background: repeating-linear-gradient(45deg, #e7e7e7, #e7e7e7 2px, #fff 2px, #fff 4px); border: 1px solid #dde1e8; }
-.crew-profile-page .cp-paint {
-  display: flex; gap: 1px; height: 38px; border-radius: 6px; overflow: hidden;
-  border: 1px solid #e6e3da; background: #F4F2EC; user-select: none;
-}
-.crew-profile-page .cp-paint-c { flex: 1; background: transparent; cursor: pointer; transition: filter 0.08s ease; }
-.crew-profile-page .cp-paint-c:hover { filter: brightness(0.92); }
-.crew-profile-page .cp-paint-c.on:hover { filter: brightness(1.12); }
-
 /* Bulk-apply toolbar + per-user template menu. */
 .crew-profile-page .cp-hor-toolbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
 .crew-profile-page .cp-bulkbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }

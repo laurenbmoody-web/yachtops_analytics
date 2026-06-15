@@ -76,9 +76,18 @@ const Bar = ({ blocks, rota, big }) => (
 
 const Ticks = () => (
   <div className="cp-ticks">
-    {[0, 6, 12, 18, 24].map((h) => (
-      <span key={h} style={{ left: `${(h / 24) * 100}%` }}>{h}</span>
-    ))}
+    {Array.from({ length: 25 }).map((_, h) => {
+      const isMajor = h % 3 === 0; // 0, 3, 6, 9, 12, 15, 18, 21, 24
+      return (
+        <span
+          key={h}
+          className={isMajor ? 'major' : 'minor'}
+          style={{ left: `${(h / 24) * 100}%` }}
+        >
+          {isMajor ? h : ''}
+        </span>
+      );
+    })}
   </div>
 );
 
