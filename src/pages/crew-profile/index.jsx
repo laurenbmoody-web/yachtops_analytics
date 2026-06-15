@@ -604,6 +604,7 @@ const CrewProfile = () => {
         nextOfKinName: prev?.emergencyContactName,
         nextOfKinRelationship: prev?.emergencyContactRelationship,
         nextOfKinPhone: prev?.emergencyContactPhone,
+        nextOfKinEmail: prev?.emergencyContactEmail,
         nextOfKinAddress: prev?.emergencyContactAddress
       }));
     }
@@ -1389,6 +1390,15 @@ const canEdit = (() => {
                 placeholder="—"
               />
             </Field>
+            <Field label="Email">
+              <Input
+                type="email"
+                value={formData?.emergencyContactEmail}
+                onChange={(e) => handleInputChange('emergencyContactEmail', e?.target?.value)}
+                disabled={!isEditing}
+                placeholder="—"
+              />
+            </Field>
             <Field label="Country / Time Zone" hint={isEditing ? 'So crew know when it\'s a sensible hour to call' : undefined}>
               <Input
                 value={formData?.emergencyContactCountry}
@@ -1477,6 +1487,15 @@ const canEdit = (() => {
                   placeholder="—"
                 />
               </Field>
+              <Field label="Email">
+                <Input
+                  type="email"
+                  value={formData?.emergencyContact2Email}
+                  onChange={(e) => handleInputChange('emergencyContact2Email', e?.target?.value)}
+                  disabled={!isEditing}
+                  placeholder="—"
+                />
+              </Field>
               <Field label="Country / Time Zone">
                 <Input
                   value={formData?.emergencyContact2Country}
@@ -1530,6 +1549,15 @@ const canEdit = (() => {
               <Input
                 value={formData?.nextOfKinPhone}
                 onChange={(e) => handleInputChange('nextOfKinPhone', e?.target?.value)}
+                disabled={!isEditing || sameAsEmergency}
+                placeholder="—"
+              />
+            </Field>
+            <Field label="Email">
+              <Input
+                type="email"
+                value={formData?.nextOfKinEmail}
+                onChange={(e) => handleInputChange('nextOfKinEmail', e?.target?.value)}
                 disabled={!isEditing || sameAsEmergency}
                 placeholder="—"
               />
