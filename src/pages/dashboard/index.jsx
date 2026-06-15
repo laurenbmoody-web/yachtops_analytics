@@ -20,7 +20,6 @@ import TodaySnapshotWidget from './components/TodaySnapshotWidget';
 import RecentActivityWidget from './components/RecentActivityWidget';
 import AccountsWidget from './components/AccountsWidget';
 import InventoryHealthWidget from './components/InventoryHealthWidget';
-import DocumentExpiryWidget from './components/DocumentExpiryWidget';
 import QuickActionsCenter from './components/QuickActionsCenter';
 import LaundryLogWidget from './components/LaundryLogWidget';
 import ReportDefectModal from '../defects/components/ReportDefectModal';
@@ -655,8 +654,6 @@ const Dashboard = () => {
         return <AccountsWidget title="Owner Accounts" account={OWNER_ACCOUNT} />;
       case 'inventoryHealth':
         return <InventoryHealthWidget />;
-      case 'documentExpiry':
-        return <DocumentExpiryWidget />;
       case 'provisioning':
         return <ProvisioningWidget />;
       case 'pantry':

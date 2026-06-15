@@ -10,6 +10,7 @@ import {
   NOTIFICATION_TYPES,
   SEVERITY
 } from '../../pages/team-jobs-management/utils/notifications';
+import { fetchDerivedNotifications } from '../../lib/derivedNotifications';
 import {
   fetchDbNotifications,
   markDbNotificationRead,
@@ -33,11 +34,17 @@ const NotificationsDrawer = ({ isOpen, onClose }) => {
   const loadNotifications = async () => {
     if (!userId) return;
     const unreadOnly = activeTab === 'unread';
-    // Merge the legacy localStorage feed (jobs/inventory/HOR/delivery) with
-    // the server-backed DB feed (rota decisions, cross-device), newest first.
+    // Merge three sources, newest first:
+    //   1. localStorage (legacy, per-browser — jobs/inventory/HOR/delivery)
+    //   2. DB notifications (cross-device — rota decisions, returns)
+    //   3. Derived (synthesized from authoritative tables — crew document
+    //      expiries; rendered always-unread since the underlying signal
+    //      vanishes when the doc is renewed). See lib/derivedNotifications.
     const local = getUserNotifications(userId, unreadOnly) || [];
     const db = await fetchDbNotifications(userId, { unreadOnly });
-    const merged = [...local, ...db].sort(
+    const derived = await fetchDerivedNotifications();
+    const visibleDerived = unreadOnly ? derived.filter(d => !d.isRead) : derived;
+    const merged = [...local, ...db, ...visibleDerived].sort(
       (a, b) => new Date(b?.createdAt || 0) - new Date(a?.createdAt || 0),
     );
     setNotifications(merged);
@@ -83,6 +90,8 @@ const NotificationsDrawer = ({ isOpen, onClose }) => {
         return 'Inbox';
       case 'RETURN_CONFIRMED':
         return 'PackageCheck';
+      case 'DOC_EXPIRY':
+        return 'FileWarning';
       case NOTIFICATION_TYPES?.JOB_PENDING_ACCEPTANCE:
         return 'Clock';
       case NOTIFICATION_TYPES?.JOB_HANDOFF_ACCEPTED:

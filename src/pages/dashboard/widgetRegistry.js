@@ -60,12 +60,6 @@ export const WIDGET_META = {
     allowedTiers: WIDGET_PERMISSIONS.ALL,
     defaultColumn: 'right',
   },
-  documentExpiry: {
-    id: 'documentExpiry',
-    title: 'Document expiries',
-    allowedTiers: WIDGET_PERMISSIONS.ALL,
-    defaultColumn: 'right',
-  },
   provisioning: {
     id: 'provisioning',
     title: 'Provisioning',
@@ -83,5 +77,5 @@ export const WIDGET_META = {
 export const DEFAULT_LAYOUT = {
   left:   ['teamJobs', 'todaySnapshot', 'recentActivity'],
   center: ['vesselView', 'laundry', 'quickActions', 'pantry'],
-  right:  ['documentExpiry', 'charterAccounts', 'ownerAccounts', 'inventoryHealth', 'provisioning'],
+  right:  ['charterAccounts', 'ownerAccounts', 'inventoryHealth', 'provisioning'],
 };
