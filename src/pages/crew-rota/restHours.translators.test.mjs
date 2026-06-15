@@ -10,7 +10,10 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { segmentsToShifts, shiftToOnDutySegments, assessMlc, restForDay } from './restHours.js';
+import {
+  segmentsToShifts, shiftToOnDutySegments, assessMlc, restForDay,
+  workEntriesToShifts, mergeLoggedOverPlan,
+} from './restHours.js';
 
 const seq = (a, b) => Array.from({ length: b - a }, (_, i) => a + i); // [a, b)
 
@@ -64,6 +67,40 @@ test('overnight shift: baseline (shift→segments) matches logged segments', () 
   // Day 1: 6h on duty → 18h rest. Day 2: 2h on duty → 22h rest.
   assert.equal(restForDay(fromLogged.filter((s) => s.date === '2026-06-01')).rest24h, 18);
   assert.equal(restForDay(fromLogged.filter((s) => s.date === '2026-06-02')).rest24h, 22);
+});
+
+// ── Logged actuals override the plan (rota Rest Log AND planning grid) ────────
+// A crew member's logged day must replace the rota plan for that member-day, so
+// the rolling-rest assessment a chief sees while planning reflects what was
+// actually worked — not what was merely rostered. Both surfaces share this.
+test('mergeLoggedOverPlan: a logged day replaces the planned shift for that member-day', () => {
+  const userToMember = new Map([['user-1', 'm1']]);
+  const plan = [
+    { memberId: 'm1', date: '2026-06-01', startTime: '08:00', endTime: '18:00', shiftType: 'duty' }, // rostered 10h
+    { memberId: 'm1', date: '2026-06-02', startTime: '08:00', endTime: '18:00', shiftType: 'duty' }, // untouched
+    { memberId: 'm2', date: '2026-06-01', startTime: '08:00', endTime: '18:00', shiftType: 'duty' }, // other member, kept
+  ];
+  // m1 actually worked the whole of 1 Jun (a breach the plan would never show).
+  const { loggedShifts, loggedDays } = workEntriesToShifts(
+    [{ subject_user_id: 'user-1', entry_date: '2026-06-01', work_segments: seq(0, 48) }],
+    userToMember,
+  );
+  assert.ok(loggedDays.has('m1|2026-06-01'));
+
+  const merged = mergeLoggedOverPlan(plan, loggedShifts, loggedDays);
+  const m1Jun1 = merged.filter((s) => s.memberId === 'm1' && s.date === '2026-06-01');
+  // Plan dropped, actual used: one 24h shift → 0h rest (breach), not the 10h plan.
+  assert.deepEqual(m1Jun1.map((s) => [s.startTime, s.endTime]), [['00:00', '24:00']]);
+  assert.equal(restForDay(m1Jun1).rest24h, 0);
+  // Other days / members are left exactly as planned.
+  assert.equal(merged.filter((s) => s.memberId === 'm1' && s.date === '2026-06-02').length, 1);
+  assert.equal(merged.filter((s) => s.memberId === 'm2' && s.date === '2026-06-01').length, 1);
+});
+
+// No logged actuals ⇒ the plan passes through untouched (and by identity).
+test('mergeLoggedOverPlan: empty logged set returns the plan unchanged', () => {
+  const plan = [{ memberId: 'm1', date: '2026-06-01', startTime: '08:00', endTime: '18:00', shiftType: 'duty' }];
+  assert.equal(mergeLoggedOverPlan(plan, [], new Set()), plan);
 });
 
 // ── The 14h continuous-on-duty rule still joins across midnight ───────────────

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import { DEPT_ORDER, MlcTriangle } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
-import { ON_DUTY_TYPES, assessMlc } from './restHours';
+import { ON_DUTY_TYPES, assessMlc, workEntriesToShifts, mergeLoggedOverPlan } from './restHours';
 import { getContrastText, getRoleDisplayName } from './crewDisplay';
 import { MONTH_SHORT, MONTH_NAMES } from './MonthCalendar';
 
@@ -87,19 +87,26 @@ export function weekRangeLabelLong(selectedDate) {
   return `${fmt(start)} — ${fmt(end)}`;
 }
 
-// Per (crew, day) summary for a single cell. Trailing-7 MLC sliced from
-// the parent windowShifts.
-function cellSummary(memberId, dateStr, windowShifts) {
-  const dayShifts = windowShifts.filter(
+// Per (crew, day) summary for a single cell. The visible shift bars stay the
+// PLAN (planShifts) — this is a planning surface. The rest-hours/breach math,
+// though, is assessed against assessShifts: the plan with logged actuals
+// overlaid for any day a crew member has already recorded. So a chief building
+// next week sees breach warnings driven by what the crew actually worked over
+// the elapsed part of the rolling window, not by what was merely rostered.
+function cellSummary(memberId, dateStr, planShifts, assessShifts) {
+  const dayPlan = planShifts.filter(
     (s) => s.memberId === memberId && s.date === dateStr,
   );
   const weekStart = addLocalDays(dateStr, -6);
-  const weekShifts = windowShifts.filter(
+  const dayAssess = assessShifts.filter(
+    (s) => s.memberId === memberId && s.date === dateStr,
+  );
+  const weekAssess = assessShifts.filter(
     (s) => s.memberId === memberId && s.date >= weekStart && s.date <= dateStr,
   );
-  const onDuty = dayShifts.filter((s) => ON_DUTY_TYPES.has(s.shiftType));
+  const onDuty = dayPlan.filter((s) => ON_DUTY_TYPES.has(s.shiftType));
   const isOff = onDuty.length === 0;
-  const mlc = assessMlc({ dayShifts, weekShifts });
+  const mlc = assessMlc({ dayShifts: dayAssess, weekShifts: weekAssess });
   return {
     onDuty,
     isOff,
@@ -180,6 +187,7 @@ function Cell({ summary, dateStr, isToday, isSelected, isAffected, isEdited, col
 export default function CrewWeekMatrix({
   crew = [],
   windowShifts = [],
+  workEntries = [],
   selectedDate,
   realToday,
   // eslint-disable-next-line no-unused-vars
@@ -207,6 +215,18 @@ export default function CrewWeekMatrix({
   // Dates to flag as "changed in this submission" (read-only history view).
   // Empty on the live grid, so this is a no-op there.
   const affectedSet = useMemo(() => new Set(affectedDates), [affectedDates]);
+
+  // Overlay logged actuals onto the plan for the rest/breach assessment, so the
+  // rolling-7-day warnings reflect what crew actually worked (not just what was
+  // rostered). The visible shift bars still come from windowShifts (the plan).
+  const userToMember = useMemo(
+    () => new Map((crew || []).filter((c) => c.userId).map((c) => [c.userId, c.id])),
+    [crew],
+  );
+  const assessShifts = useMemo(() => {
+    const { loggedShifts, loggedDays } = workEntriesToShifts(workEntries, userToMember);
+    return mergeLoggedOverPlan(windowShifts, loggedShifts, loggedDays);
+  }, [windowShifts, workEntries, userToMember]);
   // gridStartHour is received here through the same prop path the day grid
   // uses, so when the vessel-configurable boundary lands later, flipping
   // the single source feeds both views together. The matrix is keyed by
@@ -308,7 +328,7 @@ export default function CrewWeekMatrix({
                       </div>
                     </div>
                     {days.map((d) => {
-                      const summary = cellSummary(c.id, d, windowShifts);
+                      const summary = cellSummary(c.id, d, windowShifts, assessShifts);
                       return (
                         <Cell
                           key={d}

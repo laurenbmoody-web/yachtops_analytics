@@ -288,34 +288,43 @@ export default function RotaWorkspace({
   const horFirstDay = hor.days?.[0];
   const horLastDay = hor.days?.[hor.days.length - 1];
   useEffect(() => {
-    if (view !== 'hor' || !activeTenantId || !horFirstDay || !horLastDay) return undefined;
+    if (!activeTenantId || !horFirstDay || !horLastDay) return undefined;
     let alive = true;
+    // Logged actuals are needed by BOTH the HOR/Rest Log tab and the planning
+    // grid (so its rolling-rest warnings reflect what was actually worked).
+    // Range: the HOR month plus a ±7-day cushion around the selected day, so the
+    // week grid's trailing-7 context still has actuals at month boundaries.
+    const weStart = [horFirstDay, addLocalDays(selectedDate, -7)].sort()[0];
+    const weEnd = [horLastDay, addLocalDays(selectedDate, 7)].sort().reverse()[0];
     (async () => {
-      const { data, error } = await supabase
-        .from('hor_breach_reasons')
-        .select('subject_user_id, breach_date, note_text, signed_off_at, signed_off_by, updated_at, updated_by')
-        .eq('tenant_id', activeTenantId)
-        .gte('breach_date', horFirstDay)
-        .lte('breach_date', horLastDay);
-      if (alive && !error && data) {
-        const map = {};
-        data.forEach((r) => { map[`${r.subject_user_id}|${String(r.breach_date).slice(0, 10)}`] = r; });
-        // Merge (don't replace) so a just-saved optimistic entry is never clobbered
-        // by a read that round-tripped the date/uuid in a slightly different shape.
-        setBreachReasons((prev) => ({ ...prev, ...map }));
+      if (view === 'hor') {
+        const { data, error } = await supabase
+          .from('hor_breach_reasons')
+          .select('subject_user_id, breach_date, note_text, signed_off_at, signed_off_by, updated_at, updated_by')
+          .eq('tenant_id', activeTenantId)
+          .gte('breach_date', horFirstDay)
+          .lte('breach_date', horLastDay);
+        if (alive && !error && data) {
+          const map = {};
+          data.forEach((r) => { map[`${r.subject_user_id}|${String(r.breach_date).slice(0, 10)}`] = r; });
+          // Merge (don't replace) so a just-saved optimistic entry is never clobbered
+          // by a read that round-tripped the date/uuid in a slightly different shape.
+          setBreachReasons((prev) => ({ ...prev, ...map }));
+        }
       }
-      // Crew's logged actual hours for the period — these override the rota plan
-      // in the HOR record (logged actuals are the source of truth).
+      // Crew's logged actual hours — these override the rota plan wherever a day
+      // is logged (logged actuals are the source of truth) for both the HOR
+      // record and the grid's breach assessment.
       const we = await supabase
         .from('hor_work_entries')
         .select('subject_user_id, entry_date, work_segments')
         .eq('tenant_id', activeTenantId)
-        .gte('entry_date', horFirstDay)
-        .lte('entry_date', horLastDay);
+        .gte('entry_date', weStart)
+        .lte('entry_date', weEnd);
       if (alive && !we.error && we.data) setWorkEntries(we.data);
     })();
     return () => { alive = false; };
-  }, [view, activeTenantId, horFirstDay, horLastDay, reasonsNonce]);
+  }, [view, activeTenantId, horFirstDay, horLastDay, selectedDate, reasonsNonce]);
 
   // After the modal saves, fold the reasons straight into state keyed exactly as
   // the breach exclusion reads them (`${userId}|${date}`) — so the banner/list
@@ -779,6 +788,7 @@ export default function RotaWorkspace({
             <CrewWeekMatrix
               crew={crew}
               windowShifts={windowShifts || []}
+              workEntries={workEntries}
               selectedDate={selectedDate}
               realToday={realToday}
               gridStartHour={gridStartHour}

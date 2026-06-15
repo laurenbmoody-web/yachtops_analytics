@@ -147,6 +147,36 @@ export function segmentsToShifts(dateStr, workSegments, segmentTypes = {}) {
   return shifts;
 }
 
+// Crew's logged work_segments → rota-shaped shift objects (tagged with memberId),
+// plus the set of "memberId|date" days that have a logged actual. Callers drop
+// the rota plan for those days and use the logged shifts instead — logged
+// actuals are the source of truth. Shared by the rota Rest Log and the planning
+// grid so both assess rest against the same merged picture.
+export function workEntriesToShifts(workEntries, userToMember) {
+  const loggedShifts = [];
+  const loggedDays = new Set();
+  (workEntries || []).forEach((e) => {
+    const memberId = userToMember.get(e.subject_user_id);
+    if (!memberId) return;
+    const date = String(e.entry_date).slice(0, 10);
+    loggedDays.add(`${memberId}|${date}`);
+    const segs = (e.work_segments || []).map(Number).filter((n) => n >= 0 && n < 48);
+    for (const sh of segmentsToShifts(date, segs, e.segment_types || {})) {
+      loggedShifts.push({ ...sh, memberId });
+    }
+  });
+  return { loggedShifts, loggedDays };
+}
+
+// Overlay logged actuals onto the rota plan: drop any planned shift on a
+// memberId|date that has a logged actual, then add the logged shifts.
+export function mergeLoggedOverPlan(planShifts, loggedShifts, loggedDays) {
+  if (!loggedDays || !loggedDays.size) return planShifts || [];
+  return (planShifts || [])
+    .filter((s) => !loggedDays.has(`${s.memberId}|${s.date}`))
+    .concat(loggedShifts || []);
+}
+
 // Inverse: a single shift (date + "HH:MM" start/end) → its on-duty 30-min block
 // indices per CALENDAR day, carrying any post-midnight spill onto the NEXT day
 // rather than dropping it. e.g. 18:00→02:00 on 2026-06-01 →
