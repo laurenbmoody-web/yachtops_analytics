@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Download } from 'lucide-react';
 import RotaBreachReasonModal from './RotaBreachReasonModal';
 import { DEPT_ORDER } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
-import { ON_DUTY_TYPES, assessMlc, reframeToOperationalDay, segmentsToShifts, MLC_DAILY_REST_MIN, MLC_WEEKLY_REST_MIN } from './restHours';
+import { ON_DUTY_TYPES, assessMlc, reframeToOperationalDay, workEntriesToShifts, mergeLoggedOverPlan, MLC_DAILY_REST_MIN, MLC_WEEKLY_REST_MIN } from './restHours';
 import { getContrastText, getRoleDisplayName } from './crewDisplay';
 import { MONTH_SHORT } from './MonthCalendar';
 import { exportRestLogCSV, exportRestLogPDF } from './rotaHorExport';
@@ -111,27 +111,6 @@ const splitAtMidnight = (shifts) => {
   return out;
 };
 
-// Crew's logged work_segments (on-duty 30-min block indices) → rota-shaped shift
-// objects, plus the set of (member|date) days that are logged so the rota plan
-// is dropped for those days (logged actuals win). Uses the shared engine
-// converter so a full 0..47 day reads as 24h on duty (not dropped) and the
-// midnight rule matches the profile + baseline exactly.
-function workEntriesToShifts(workEntries, userToMember) {
-  const loggedShifts = [];
-  const loggedDays = new Set();
-  (workEntries || []).forEach((e) => {
-    const memberId = userToMember.get(e.subject_user_id);
-    if (!memberId) return;
-    const date = String(e.entry_date).slice(0, 10);
-    loggedDays.add(`${memberId}|${date}`);
-    const segs = (e.work_segments || []).map(Number).filter((n) => n >= 0 && n < 48);
-    for (const sh of segmentsToShifts(date, segs, e.segment_types || {})) {
-      loggedShifts.push({ ...sh, memberId });
-    }
-  });
-  return { loggedShifts, loggedDays };
-}
-
 function Cell({ cell, isToday, isFuture, onClick, ariaLabel }) {
   const weekend = isWeekend(cell.date);
   const cls = ['rl-c'];
@@ -187,12 +166,10 @@ export default function RestLogView({
     () => workEntriesToShifts(workEntries, userToMember),
     [workEntries, userToMember],
   );
-  const mergedShifts = useMemo(() => {
-    if (!loggedDays.size) return windowShifts;
-    return (windowShifts || [])
-      .filter((s) => !loggedDays.has(`${s.memberId}|${s.date}`))
-      .concat(loggedShifts);
-  }, [windowShifts, loggedShifts, loggedDays]);
+  const mergedShifts = useMemo(
+    () => mergeLoggedOverPlan(windowShifts, loggedShifts, loggedDays),
+    [windowShifts, loggedShifts, loggedDays],
+  );
 
   // The 24h "day" anchor for the daily-rest rule: 0 (midnight) for the classic
   // calendar basis, the vessel's operational day-start when opted in. Reframing
