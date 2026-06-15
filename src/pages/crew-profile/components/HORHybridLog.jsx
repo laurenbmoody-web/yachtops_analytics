@@ -325,7 +325,7 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
           <button type="button" className="cp-preset" onClick={clearDay}>Clear (off)</button>
           {cd.source === 'actual' && <button type="button" className="cp-preset" onClick={resetToBaseline}>Reset to rota</button>}
           <button type="button" className="cp-preset" onClick={() => { setShowApply((v) => !v); setSavingTpl(false); }}>Apply template ▾</button>
-          <button type="button" className="cp-tlink" onClick={() => { setSavingTpl((v) => !v); setShowApply(false); }}>save as template ›</button>
+          <button type="button" className="cp-preset act" onClick={() => { setSavingTpl((v) => !v); setShowApply(false); }}>+ Add template</button>
         </div>
 
         {savingTpl && (
@@ -348,7 +348,7 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
         {showApply && (
           <div className="cp-tplmenu">
             {templates.length === 0 ? (
-              <p className="empty">No templates yet — paint a day and “save as template”.</p>
+              <p className="empty">No templates yet — paint a day, then “+ Add template”.</p>
             ) : templates.map((t) => (
               <div key={t.id} className="cp-tplrow">
                 <button type="button" className="name" onClick={() => applyTemplateToDay(t)}>
