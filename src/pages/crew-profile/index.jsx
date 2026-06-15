@@ -1745,6 +1745,12 @@ const canEdit = (() => {
     const monthCompliantPct = ratedDays > 0 ? Math.round((compliantDays / ratedDays) * 100) : 100;
     const monthTone = breachDayCount > 0 ? 'red' : monthCompliantPct === 100 ? '' : 'amber';
 
+    // Today (local YYYY-MM-DD) — drives the "provisional / future" calendar
+    // dash. A day still carried by the rota (not logged) reads as the final
+    // HOR once it's in the past, so only FUTURE rota days render dashed.
+    const _today = new Date();
+    const todayStr = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, '0')}-${String(_today.getDate()).padStart(2, '0')}`;
+
     // Get month status
     const monthStatus = getMonthStatus(crewId, year, month);
 
@@ -2027,7 +2033,10 @@ const canEdit = (() => {
                     const isSelected = selectedCalendarDate?.day === day;
                     // Provenance: a day carried only by the rota baseline (not yet
                     // logged as an actual) is shown with a dashed edge + 'rota' tag.
-                    const isBaseline = dayData?.source === 'baseline';
+                    // Provisional = a FUTURE day still carried by the rota
+                    // (not yet logged as an actual) → white + dashed. Past and
+                    // present days read as the record, painted by status.
+                    const isProvisional = dayData?.date > todayStr && dayData?.source !== 'actual';
 
                     // Soft-green editorial palette: sage = compliant, amber =
                     // marginal, terracotta-red = breach (see crew-profile.css).
@@ -2042,11 +2051,10 @@ const canEdit = (() => {
                         onClick={() => handleDateClick(day, dayData)}
                         className={`cp-cal-cell${toneClass ? ` ${toneClass}` : ''}${
                           isSelected ? ' is-selected' : ''
-                        }${isBaseline ? ' is-baseline' : ''}`}
+                        }${isProvisional ? ' is-baseline' : ''}`}
                       >
                         <div className="cp-cal-d">{day}</div>
                         <div className="cp-cal-v">{restHours?.toFixed(1)}</div>
-                        {isBaseline && <div className="cp-cal-tag">rota</div>}
                       </button>
                     );
                   })}
