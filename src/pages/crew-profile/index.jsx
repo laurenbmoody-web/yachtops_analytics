@@ -96,6 +96,47 @@ const PhonesEditor = ({ phones, disabled, onChange }) => {
   );
 };
 
+// Discrete-entry editor for allergies / medical conditions. Each item is a
+// removable chip (add with Enter or comma); reads back as a comma-joined
+// string, so it drops into the existing text columns with no schema change.
+const TagInput = ({ value, disabled, onChange, placeholder }) => {
+  const tags = String(value || '').split(',').map((t) => t.trim()).filter(Boolean);
+  const [draft, setDraft] = useState('');
+  const commit = (raw) => {
+    const v = raw.trim().replace(/,$/, '').trim();
+    setDraft('');
+    if (!v || tags.some((t) => t.toLowerCase() === v.toLowerCase())) return;
+    onChange([...tags, v].join(', '));
+  };
+  const remove = (t) => onChange(tags.filter((x) => x !== t).join(', '));
+
+  if (disabled) {
+    if (!tags.length) return <div className="cp-static cp-empty">{placeholder || '—'}</div>;
+    return <div className="cp-tags">{tags.map((t) => <span key={t} className="cp-tag">{t}</span>)}</div>;
+  }
+  return (
+    <div className="cp-taginput">
+      {tags.map((t) => (
+        <span key={t} className="cp-tag">
+          {t}
+          <button type="button" onClick={() => remove(t)} aria-label={`Remove ${t}`}><Icon name="X" size={12} /></button>
+        </span>
+      ))}
+      <input
+        className="cp-tag-field"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); commit(draft); }
+          else if (e.key === 'Backspace' && !draft && tags.length) remove(tags[tags.length - 1]);
+        }}
+        onBlur={() => commit(draft)}
+        placeholder={tags.length ? 'Add another…' : (placeholder || 'Type and press Enter')}
+      />
+    </div>
+  );
+};
+
 const CrewProfile = () => {
   const navigate = useNavigate();
   const { crewId } = useParams();
@@ -1200,12 +1241,13 @@ const canEdit = (() => {
                   <option value="has">Has allergies</option>
                 </select>
                 {formData?.allergiesStatus === 'has' && (
-                  <input
-                    className="cp-inline-box mt-2"
-                    value={formData?.allergies || ''}
-                    onChange={(e) => handleInputChange('allergies', e?.target?.value)}
-                    placeholder="List known allergies"
-                  />
+                  <div className="mt-2">
+                    <TagInput
+                      value={formData?.allergies}
+                      onChange={(next) => handleInputChange('allergies', next)}
+                      placeholder="Add an allergy, then Enter"
+                    />
+                  </div>
                 )}
                 {formData?.allergiesStatus === 'no_known' && (
                   <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
@@ -1226,10 +1268,10 @@ const canEdit = (() => {
               </div>
             )}
           </Field>
-          <Field label="Medical Conditions" hint="Any relevant medical conditions">
-            <Input
+          <Field label="Medical Conditions" hint={isEditing ? 'Add each condition, then Enter' : undefined}>
+            <TagInput
               value={formData?.medicalConditions}
-              onChange={(e) => handleInputChange('medicalConditions', e?.target?.value)}
+              onChange={(next) => handleInputChange('medicalConditions', next)}
               disabled={!isEditing}
               placeholder="None recorded"
             />
