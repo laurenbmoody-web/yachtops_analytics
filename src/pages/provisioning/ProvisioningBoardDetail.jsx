@@ -1641,11 +1641,11 @@ const ProvisioningBoardDetail = () => {
           bodyBg="#F8FAFC"
           rightRail={
             // Option-B split header: ribbon moves to the right rail as a
-            // vertical action stack. Two visual groups separated by a thin
-            // divider: read actions (Add from… / Print-PDF) above, write
-            // actions (Receive Items / Send to Supplier / Submit for
-            // Approval / overflow) below. Send to Supplier is the lone
+            // vertical action stack. Read actions (Add from… / Print-PDF)
+            // above write actions (Receive Items / Send to Supplier /
+            // Submit for Approval / ⋯). Send to Supplier is the lone
             // "primary" action — filled navy when hasSendableItems holds.
+            // ⋯ sits on the same row as Submit for Approval, to its left.
             <div className="cargo-ribbon cargo-ribbon-vertical">
               {/* Read actions */}
               <div className="cargo-ribbon-group">
@@ -1675,8 +1675,6 @@ const ProvisioningBoardDetail = () => {
                 </button>
               </div>
 
-              <div className="cargo-ribbon-divider" aria-hidden="true" />
-
               {/* Write actions */}
               <div className="cargo-ribbon-group">
                 <button
@@ -1697,60 +1695,63 @@ const ProvisioningBoardDetail = () => {
                     <Icon name="Send" style={{ width: 13, height: 13 }} /> Send to Supplier
                   </button>
                 )}
-                {isDraftOrPending && (
-                  <button
-                    type="button"
-                    onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)}
-                    className="cargo-ribbon-btn"
-                  >
-                    <Icon name="Send" style={{ width: 13, height: 13 }} /> Submit for Approval
-                  </button>
-                )}
-                <div className="relative" ref={menuRef}>
-                  <button
-                    type="button"
-                    onClick={() => setShowMenu(v => !v)}
-                    className="cargo-ribbon-btn cargo-ribbon-btn-icon"
-                    aria-label="More board actions"
-                    aria-haspopup="menu"
-                    aria-expanded={showMenu}
-                  >
-                    <Icon name="MoreHorizontal" style={{ width: 14, height: 14 }} />
-                  </button>
-                  {showMenu && (
-                    <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[185px] z-50">
-                      {canEdit && (
-                        <button onClick={() => { setShowMenu(false); setShowEditModal(true); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
-                          <Icon name="Pencil" className="w-4 h-4" /> Edit Board
-                        </button>
-                      )}
-                      <button onClick={handleDuplicate} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
-                        <Icon name="Copy" className="w-4 h-4" /> Duplicate
-                      </button>
-                      <button onClick={handleSaveAsTemplateBoard} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
-                        <Icon name="FileText" className="w-4 h-4" /> Save as Template
-                      </button>
-                      {canDelete && (
-                        <>
-                          <div className="my-1 border-t border-border" />
-                          <button onClick={handleDeleteBoard} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 flex items-center gap-2">
-                            <Icon name="Trash2" className="w-4 h-4" /> Delete Board
+                {/* Bottom row: overflow + Submit for Approval share a line
+                    so ⋯ sits to the LEFT of Submit, not below it. */}
+                <div className="cargo-ribbon-bottom">
+                  <div className="relative" ref={menuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setShowMenu(v => !v)}
+                      className="cargo-ribbon-btn cargo-ribbon-btn-icon"
+                      aria-label="More board actions"
+                      aria-haspopup="menu"
+                      aria-expanded={showMenu}
+                    >
+                      <Icon name="MoreHorizontal" style={{ width: 14, height: 14 }} />
+                    </button>
+                    {showMenu && (
+                      <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[185px] z-50">
+                        {canEdit && (
+                          <button onClick={() => { setShowMenu(false); setShowEditModal(true); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
+                            <Icon name="Pencil" className="w-4 h-4" /> Edit Board
                           </button>
-                        </>
-                      )}
-                    </div>
+                        )}
+                        <button onClick={handleDuplicate} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
+                          <Icon name="Copy" className="w-4 h-4" /> Duplicate
+                        </button>
+                        <button onClick={handleSaveAsTemplateBoard} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
+                          <Icon name="FileText" className="w-4 h-4" /> Save as Template
+                        </button>
+                        {canDelete && (
+                          <>
+                            <div className="my-1 border-t border-border" />
+                            <button onClick={handleDeleteBoard} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 flex items-center gap-2">
+                              <Icon name="Trash2" className="w-4 h-4" /> Delete Board
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {isDraftOrPending && (
+                    <button
+                      type="button"
+                      onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)}
+                      className="cargo-ribbon-btn"
+                    >
+                      <Icon name="Send" style={{ width: 13, height: 13 }} /> Submit for Approval
+                    </button>
                   )}
                 </div>
               </div>
             </div>
           }
-          actionStrip={
-            // Status + allergen chips: identity-adjacent pieces that don't
-            // belong in the meta line (state, not identity) nor in the
-            // sticky toolbar (read-only, not actionable). Sits between the
-            // headline and the tabs. Allergen chip toggles a popover with
-            // the full per-guest breakdown — replaces the prior full-width
-            // banner that crowded the toolbar.
+          headerExtra={
+            // Status + allergen chips: identity-adjacent pieces. Render
+            // INSIDE the left column (below the headline) via the shell's
+            // headerExtra slot so the column stretches down to meet the
+            // ribbon's bottom — closes the void that appeared when chips
+            // lived in the full-width actionStrip below the row.
             (statusLabel || allergenGuests.length > 0) && (
               <div className="pv-board-chip-row">
                 {statusLabel && (

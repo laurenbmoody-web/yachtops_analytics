@@ -30,15 +30,11 @@
 }
 
 /* ── Board-detail Option B layout ─────────────────────────────
-   Vertical action ribbon, header chip row (status + allergen),
-   and a cargo-styled sticky toolbar. The right-rail variant of
-   .cargo-ribbon stacks groups vertically with full-width buttons
-   so the header reads: identity (left) → actions (right).
-
-   The header row stretches: title block on the left grows to fit
-   meta + headline + chips, and the ribbon's `align-self: flex-end`
-   pulls it down to baseline with the chip row instead of hanging
-   at the top of the column. */
+   Vertical action ribbon and chips both live in the header row.
+   Chips render inside the left column (via EditorialPageShell's
+   `headerExtra` slot) so the column grows to title + chips height,
+   and the ribbon's `align-self: flex-end` pulls its bottom down to
+   match. The result: ribbon bottom button sits next to the chips. */
 .editorial-page.pv-dashboard .p-header-row {
   align-items: stretch;
 }
@@ -55,10 +51,10 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 6px;
+  gap: 8px;
   margin: 0;
-  min-width: 210px;
-  max-width: 240px;
+  min-width: 220px;
+  max-width: 250px;
 }
 .cargo-ribbon-vertical .cargo-ribbon-group {
   display: flex;
@@ -73,26 +69,37 @@
   font-size: 11.5px;
 }
 .cargo-ribbon-vertical .cargo-ribbon-btn-icon {
-  align-self: flex-end;
-  width: 30px;
+  width: 32px;
   padding: 6px 0;
   justify-content: center;
-}
-.cargo-ribbon-vertical .cargo-ribbon-divider {
-  width: 100%;
-  height: 1px;
-  margin: 2px 0;
+  flex-shrink: 0;
 }
 
-/* Chip row between the headline and tabs — clear vertical breathing
-   room above so it sits as a distinct identity-state band, and below
-   so it doesn't crowd the tabs. */
+/* Bottom row pairs ⋯ (left) with Submit for Approval (right) on a
+   single horizontal line — replaces the prior stacked layout where
+   ⋯ hung as its own row beneath Submit. */
+.cargo-ribbon-vertical .cargo-ribbon-bottom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+.cargo-ribbon-vertical .cargo-ribbon-bottom > .relative {
+  flex-shrink: 0;
+}
+.cargo-ribbon-vertical .cargo-ribbon-bottom .cargo-ribbon-btn:not(.cargo-ribbon-btn-icon) {
+  flex: 1;
+}
+
+/* Chip row sits inside the left column right below the headline.
+   Margin-top separates it from the title; the parent column stretch
+   provides the breathing room before the tabs. */
 .pv-board-chip-row {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin: 22px 0 28px;
+  margin: 18px 0 0;
 }
 .pv-board-chip {
   display: inline-flex;
