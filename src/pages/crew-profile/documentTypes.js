@@ -31,7 +31,7 @@ export const DOCUMENT_TYPES = [
   { id: 'stcw_advanced_ff', label: 'STCW Advanced Firefighting', category: 'medical' },
   { id: 'stcw_pscrb', label: 'STCW PSCRB (survival craft)', category: 'medical' },
   { id: 'stcw_medical_care', label: 'STCW Medical First Aid / Care', category: 'medical' },
-  { id: 'pdsd', label: 'Proficiency in Designated Security Duties (PDSD)', category: 'medical' },
+  { id: 'pdsd', label: 'PSA / PDSD (ship security)', category: 'medical' },
 
   // Qualifications
   {
@@ -64,7 +64,15 @@ export const DOCUMENT_TYPES = [
   },
 ];
 
+// Documents every crew member is expected to hold — always shown as slots
+// on the Documents tab (filled or as an empty prompt). Everything else is
+// added on demand via "Add document".
+export const CORE_DOCUMENT_TYPE_IDS = ['passport', 'stcw_basic', 'eng1', 'pdsd'];
+
 export const getDocType = (id) => DOCUMENT_TYPES.find((t) => t.id === id) || null;
+
+export const coreDocumentTypes = () =>
+  CORE_DOCUMENT_TYPE_IDS.map(getDocType).filter(Boolean);
 
 export const getDocTypeLabel = (id, details) => {
   const t = getDocType(id);

@@ -275,6 +275,13 @@ body.crew-profile-editorial {
   font-size: 11.5px;
   color: #8B8478;
 }
+/* Empty core-document slot — dashed, muted, awaiting upload. */
+.crew-profile-page .cp-doc-empty {
+  border-style: dashed;
+  border-color: #D6D9E2;
+  background: #FBFCFD;
+}
+.crew-profile-page .cp-doc-empty .cp-doc-title { color: #6F7396; font-weight: 500; }
 
 /* ── HOR — editorial KPI tiles + soft-green calendar ───────────────────
    Visual-only restyle, matching the rota rest-log KPI strip (.rl-kpi) and

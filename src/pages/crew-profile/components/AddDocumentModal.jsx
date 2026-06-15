@@ -13,7 +13,7 @@ const blank = {
   fileUrl: null, fileName: null, mimeType: null, sizeBytes: null,
 };
 
-const AddDocumentModal = ({ isOpen, onClose, onSaved, userId, tenantId, createdBy, existing }) => {
+const AddDocumentModal = ({ isOpen, onClose, onSaved, userId, tenantId, createdBy, existing, presetType }) => {
   const [form, setForm] = useState(blank);
   const [file, setFile] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -36,10 +36,10 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, userId, tenantId, createdB
         sizeBytes: existing.size_bytes || null,
       });
     } else {
-      setForm(blank);
+      setForm({ ...blank, docType: presetType || '' });
     }
     setFile(null);
-  }, [isOpen, existing]);
+  }, [isOpen, existing, presetType]);
 
   if (!isOpen) return null;
 
