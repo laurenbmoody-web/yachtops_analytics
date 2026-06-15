@@ -1581,9 +1581,17 @@ const ProvisioningBoardDetail = () => {
   const tripDateLabel = tripStart && tripEnd
     ? (tripStart === tripEnd ? tripStart : `${tripStart} – ${tripEnd}`)
     : (tripStart || tripEnd || null);
+  // Drop placeholder trip names ("New", "Untitled", "New Trip") so they
+  // don't pollute the meta strip — they're default labels from the trip
+  // form, not real identifiers.
+  const rawTripName = trip?.title || trip?.name || '';
+  const PLACEHOLDER_TRIP_NAMES = new Set(['NEW', 'NEW TRIP', 'UNTITLED', 'UNTITLED TRIP', 'UNNAMED', 'UNNAMED TRIP']);
+  const meaningfulTripName = rawTripName && !PLACEHOLDER_TRIP_NAMES.has(rawTripName.trim().toUpperCase())
+    ? rawTripName
+    : null;
   const editorialMeta = [
     trip?.tripType && { label: String(trip.tripType).toUpperCase() },
-    trip && { label: trip.title || trip.name },
+    meaningfulTripName && { label: meaningfulTripName },
     tripDateLabel && { label: tripDateLabel },
     tripGuestCount > 0 && { label: `${tripGuestCount} GUEST${tripGuestCount !== 1 ? 'S' : ''}` },
   ].filter(Boolean);

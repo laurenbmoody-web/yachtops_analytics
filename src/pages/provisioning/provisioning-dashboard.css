@@ -33,32 +33,41 @@
    Vertical action ribbon, header chip row (status + allergen),
    and a cargo-styled sticky toolbar. The right-rail variant of
    .cargo-ribbon stacks groups vertically with full-width buttons
-   so the header reads: identity (left) → actions (right). */
+   so the header reads: identity (left) → actions (right).
+
+   Center-align the header row's flex children so a short title
+   stays vertically balanced against the tall ribbon column —
+   avoids the empty void below the title block when the headline
+   is shorter than the ribbon. */
+.editorial-page.pv-dashboard .p-header-row {
+  align-items: center;
+}
 
 .cargo-ribbon-vertical {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 10px;
+  gap: 6px;
   margin: 0;
-  min-width: 220px;
-  max-width: 260px;
+  min-width: 210px;
+  max-width: 240px;
 }
 .cargo-ribbon-vertical .cargo-ribbon-group {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 6px;
+  gap: 4px;
 }
 .cargo-ribbon-vertical .cargo-ribbon-btn {
   width: 100%;
   justify-content: flex-start;
-  padding: 9px 14px;
+  padding: 6px 12px;
+  font-size: 11.5px;
 }
 .cargo-ribbon-vertical .cargo-ribbon-btn-icon {
   align-self: flex-end;
-  width: 34px;
-  padding: 8px 0;
+  width: 30px;
+  padding: 6px 0;
   justify-content: center;
 }
 .cargo-ribbon-vertical .cargo-ribbon-divider {
@@ -73,7 +82,7 @@
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin: 14px 0 4px;
+  margin: 8px 0 0;
 }
 .pv-board-chip {
   display: inline-flex;
