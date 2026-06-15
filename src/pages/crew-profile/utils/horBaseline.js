@@ -19,19 +19,26 @@ const hhmmToDecimal = (t) => {
   return h + (m || 0) / 60;
 };
 
-// One shift's start/end → 30-min block indices (0..47) on its shift_date.
-// Overnight shifts (end <= start) are clipped to the day end for the baseline;
-// the spill is reflected on the next day only once actuals are recorded.
+// One shift's start/end → 30-min block indices (0..47), split across midnight:
+// { today } on its shift_date and { next } spilling onto the following day.
+// Worked hours are never dropped — an overnight shift's post-midnight portion
+// is credited to the next calendar day, matching logged actuals and the engine.
 function shiftToSegments(startTime, endTime) {
   const s = hhmmToDecimal(startTime);
-  let e = hhmmToDecimal(endTime);
-  if (s == null || e == null || s === e) return [];
-  if (e <= s) e = 24;
+  const e = hhmmToDecimal(endTime);
+  if (s == null || e == null || s === e) return { today: [], next: [] };
   const startIdx = Math.max(0, Math.floor(s * 2));
-  const endIdx = Math.min(48, Math.ceil(e * 2));
-  const segs = [];
-  for (let i = startIdx; i < endIdx; i += 1) segs.push(i);
-  return segs;
+  const today = [];
+  const next = [];
+  if (e < s) {
+    for (let i = startIdx; i < 48; i += 1) today.push(i);
+    const endIdx = Math.min(48, Math.ceil(e * 2));
+    for (let i = 0; i < endIdx; i += 1) next.push(i);
+  } else {
+    const endIdx = Math.min(48, Math.ceil(e * 2));
+    for (let i = startIdx; i < endIdx; i += 1) today.push(i);
+  }
+  return { today, next };
 }
 
 // Returns { 'YYYY-MM-DD': number[] } of baseline work-block indices for the
@@ -58,29 +65,50 @@ export async function fetchRotaBaselineForMonth({ userId, tenantId, year, month 
 
   const start = ymd(new Date(year, month, 1));
   const end = ymd(new Date(year, month + 1, 0));
+  // Fetch from the previous day too, so an overnight shift on the last day of the
+  // prior month correctly spills its post-midnight hours onto day 1 of this one.
+  const fetchStart = ymd(new Date(year, month, 0));
   const { data: rows, error } = await supabase
     .from('rota_shifts')
     .select('shift_date, start_time, end_time, shift_type, rota_id')
     .eq('tenant_id', tenantId)
     .eq('member_id', memberId)
-    .gte('shift_date', start)
+    .gte('shift_date', fetchStart)
     .lte('shift_date', end)
     .order('shift_date', { ascending: true });
   if (error || !rows) return {};
 
   // Accumulate per date, separating trip-rota from vessel-rota contributions so
-  // a trip rota can take precedence on days where both exist.
+  // a trip rota can take precedence on days where both exist. Overnight shifts
+  // credit their start day AND the next day (the post-midnight spill).
   const byDate = new Map(); // date -> { trip:Set, vessel:Set }
+  const ensure = (date) => {
+    if (!byDate.has(date)) byDate.set(date, { trip: new Set(), vessel: new Set() });
+    return byDate.get(date);
+  };
+  const nextYmd = (dateStr) => {
+    const [Y, Mo, D] = dateStr.split('-').map(Number);
+    const d = new Date(Y, Mo - 1, D); d.setDate(d.getDate() + 1);
+    return ymd(d);
+  };
   for (const r of rows) {
     if (!ON_DUTY_TYPES.has(r.shift_type)) continue; // off / medical ⇒ rest
     const owner = ownerById.get(r.rota_id) === 'trip' ? 'trip' : 'vessel';
-    if (!byDate.has(r.shift_date)) byDate.set(r.shift_date, { trip: new Set(), vessel: new Set() });
-    const bucket = byDate.get(r.shift_date)[owner];
-    for (const seg of shiftToSegments(r.start_time, r.end_time)) bucket.add(seg);
+    const { today, next } = shiftToSegments(r.start_time, r.end_time);
+    const todayBucket = ensure(r.shift_date)[owner];
+    for (const seg of today) todayBucket.add(seg);
+    if (next.length) {
+      const nextBucket = ensure(nextYmd(r.shift_date))[owner];
+      for (const seg of next) nextBucket.add(seg);
+    }
   }
 
+  // Emit only dates within the requested month — the −1 day fetch and any
+  // last-day spill onto next month inform attribution but aren't returned here
+  // (the adjacent month's own fetch covers them).
   const out = {};
   for (const [date, { trip, vessel }] of byDate) {
+    if (date < start || date > end) continue;
     const chosen = trip.size > 0 ? trip : vessel;
     out[date] = Array.from(chosen).sort((a, b) => a - b);
   }
