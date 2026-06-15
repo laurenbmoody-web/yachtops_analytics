@@ -149,6 +149,7 @@ const CrewProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
   const [sameAsEmergency, setSameAsEmergency] = useState(false);
+  const [showSecondEmergency, setShowSecondEmergency] = useState(false);
   const [showAccountNumber, setShowAccountNumber] = useState(false);
   const [showBankAddress, setShowBankAddress] = useState(false);
   const [cakeSurprise, setCakeSurprise] = useState(false);
@@ -1305,18 +1306,64 @@ const canEdit = (() => {
 
   const renderEmergencyContact = () => {
     const addressClasses = "flex w-full text-sm placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed";
+    const CONTACT_METHODS = ['Call', 'WhatsApp', 'Text / SMS', 'Email', 'Any'];
+
+    // Small read/edit select for "preferred contact method". Plain helper
+    // (not an inner component) so React keeps the inputs mounted across renders.
+    const methodField = (field, disabled = false) => (
+      isEditing && !disabled ? (
+        <select
+          className="cp-inline-select"
+          value={formData?.[field] || ''}
+          onChange={(e) => handleInputChange(field, e?.target?.value)}
+        >
+          <option value="">—</option>
+          {CONTACT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+        </select>
+      ) : (
+        <div className={`cp-static${formData?.[field] ? '' : ' cp-empty'}`}>{formData?.[field] || '—'}</div>
+      )
+    );
+
+    // "Last verified" date + a gentle stale flag (>12 months → please reverify),
+    // so old numbers get refreshed rather than silently rotting.
+    const verifiedField = (field, disabled = false) => {
+      const v = formData?.[field];
+      const stale = v && (Date.now() - new Date(v).getTime()) > 365 * 24 * 60 * 60 * 1000;
+      return (
+        <Field label="Last Verified" hint={isEditing && !disabled ? 'Date you last confirmed these details' : undefined}>
+          {isEditing && !disabled ? (
+            <input
+              type="date"
+              className="cp-inline-box"
+              value={v || ''}
+              onChange={(e) => handleInputChange(field, e?.target?.value)}
+            />
+          ) : (
+            <div className={`cp-static${v ? '' : ' cp-empty'}`}>
+              {v ? new Date(v).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Not verified'}
+              {stale && <span className="cp-stale-flag">⚠ please reverify</span>}
+            </div>
+          )}
+        </Field>
+      );
+    };
+
+    const hasSecond = !!(formData?.emergencyContact2Name || formData?.emergencyContact2Phone);
+    const secondOpen = showSecondEmergency || hasSecond;
+
     return (
       <div>
         <div className="cp-section-head">
           <span className="cp-section-kicker">02 / Emergency</span>
           <h3>Emergency / Next of Kin</h3>
         </div>
-        <p className="cp-section-sub">Who we call first, and your nominated next of kin.</p>
+        <p className="cp-section-sub">Who we call first — and who does what — if we can't reach you mid-passage.</p>
 
-        {/* Emergency Contact */}
+        {/* Emergency Contact (primary) */}
         <div className="cp-group">
           <div className="cp-group-head">
-            <span className="dia">◆</span><span className="t">Emergency contact</span><span className="line" />
+            <span className="dia">◆</span><span className="t">Primary emergency contact</span><span className="line" />
           </div>
           <div className="cp-grid">
             <Field label="Full Name" required>
@@ -1343,6 +1390,18 @@ const canEdit = (() => {
                 placeholder="—"
               />
             </Field>
+            <Field label="Country / Time Zone" hint={isEditing ? 'So crew know when it\'s a sensible hour to call' : undefined}>
+              <Input
+                value={formData?.emergencyContactCountry}
+                onChange={(e) => handleInputChange('emergencyContactCountry', e?.target?.value)}
+                disabled={!isEditing}
+                placeholder="e.g. UK (GMT/BST)"
+              />
+            </Field>
+            <Field label="Preferred Contact Method">
+              {methodField('emergencyContactPreferredMethod')}
+            </Field>
+            {verifiedField('emergencyContactLastVerified')}
             <Field label="Address" full>
               <textarea
                 className={addressClasses}
@@ -1352,7 +1411,88 @@ const canEdit = (() => {
                 placeholder="—"
               />
             </Field>
+            <Field label="This contact's role" full hint={isEditing ? 'Flag what this person handles — they may differ' : undefined}>
+              {isEditing ? (
+                <div className="cp-check-row">
+                  <label className="cp-inline-check">
+                    <input
+                      type="checkbox"
+                      checked={!!formData?.emergencyContactNotifyMedical}
+                      onChange={(e) => handleInputChange('emergencyContactNotifyMedical', e?.target?.checked)}
+                    />
+                    <span>Notify in a medical emergency</span>
+                  </label>
+                  <label className="cp-inline-check">
+                    <input
+                      type="checkbox"
+                      checked={!!formData?.emergencyContactHandlesAffairs}
+                      onChange={(e) => handleInputChange('emergencyContactHandlesAffairs', e?.target?.checked)}
+                    />
+                    <span>Handles affairs / decisions</span>
+                  </label>
+                </div>
+              ) : (
+                <div className="cp-role-tags">
+                  {formData?.emergencyContactNotifyMedical && <span className="cp-tag">Medical emergency</span>}
+                  {formData?.emergencyContactHandlesAffairs && <span className="cp-tag">Handles affairs</span>}
+                  {!formData?.emergencyContactNotifyMedical && !formData?.emergencyContactHandlesAffairs && (
+                    <span className="cp-static cp-empty">No role flagged</span>
+                  )}
+                </div>
+              )}
+            </Field>
           </div>
+        </div>
+
+        {/* Second emergency contact — the first is often unreachable mid-passage. */}
+        <div className="cp-group">
+          <div className="cp-group-head">
+            <span className="dia">◆</span><span className="t">Second emergency contact</span><span className="line" />
+            {isEditing && !secondOpen && (
+              <button type="button" className="cp-phone-add" onClick={() => setShowSecondEmergency(true)}>+ Add a backup contact</button>
+            )}
+          </div>
+          {secondOpen ? (
+            <div className="cp-grid">
+              <Field label="Full Name">
+                <Input
+                  value={formData?.emergencyContact2Name}
+                  onChange={(e) => handleInputChange('emergencyContact2Name', e?.target?.value)}
+                  disabled={!isEditing}
+                  placeholder="—"
+                />
+              </Field>
+              <Field label="Relationship">
+                <Input
+                  value={formData?.emergencyContact2Relationship}
+                  onChange={(e) => handleInputChange('emergencyContact2Relationship', e?.target?.value)}
+                  disabled={!isEditing}
+                  placeholder="—"
+                />
+              </Field>
+              <Field label="Phone / Contact Number">
+                <Input
+                  value={formData?.emergencyContact2Phone}
+                  onChange={(e) => handleInputChange('emergencyContact2Phone', e?.target?.value)}
+                  disabled={!isEditing}
+                  placeholder="—"
+                />
+              </Field>
+              <Field label="Country / Time Zone">
+                <Input
+                  value={formData?.emergencyContact2Country}
+                  onChange={(e) => handleInputChange('emergencyContact2Country', e?.target?.value)}
+                  disabled={!isEditing}
+                  placeholder="e.g. AUS (AEST)"
+                />
+              </Field>
+              <Field label="Preferred Contact Method">
+                {methodField('emergencyContact2PreferredMethod')}
+              </Field>
+            </div>
+          ) : (
+            <div className="cp-static cp-empty">No second contact added.</div>
+          )}
         </div>
 
         {/* Next of Kin */}
@@ -1395,6 +1535,10 @@ const canEdit = (() => {
                 placeholder="—"
               />
             </Field>
+            <Field label="Preferred Contact Method">
+              {methodField('nextOfKinPreferredMethod', sameAsEmergency)}
+            </Field>
+            {verifiedField('nextOfKinLastVerified', sameAsEmergency)}
             <Field label="Address" full>
               <textarea
                 className={addressClasses}
