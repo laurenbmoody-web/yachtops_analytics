@@ -107,6 +107,10 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
   const [showApply, setShowApply] = useState(false);
   const [savingTpl, setSavingTpl] = useState(false);
   const [tplName, setTplName] = useState('');
+  // Brief "✓ Saved" confirmation after each autosave — makes the silent
+  // auto-persist visible so it's never ambiguous whether a change stuck.
+  const [savedFlash, setSavedFlash] = useState(false);
+  const savedTimer = useRef(null);
 
   // Bulk-apply: select a range / set of days, then apply one template to all.
   const [bulkMode, setBulkMode] = useState(false);
@@ -154,7 +158,14 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
 
   useEffect(() => { draftRef.current = { segs: draftSegs, types: draftTypes }; }, [draftSegs, draftTypes]);
 
-  const afterSave = () => { setRefreshKey((k) => k + 1); if (onChanged) onChanged(); };
+  const afterSave = () => {
+    setRefreshKey((k) => k + 1);
+    setSavedFlash(true);
+    if (savedTimer.current) clearTimeout(savedTimer.current);
+    savedTimer.current = setTimeout(() => setSavedFlash(false), 2200);
+    if (onChanged) onChanged();
+  };
+  useEffect(() => () => { if (savedTimer.current) clearTimeout(savedTimer.current); }, []);
 
   const persistDraft = useCallback(() => {
     if (!selectedDate) return;
@@ -365,7 +376,7 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
         <div className="cp-restbox">
           On duty <b className="ink">{Number(onDuty.toFixed(1))}h</b> · Rest{' '}
           <b className={tone === 'off' ? '' : tone}>{Number(rest.toFixed(1))}h</b> {statusWord}
-          <span className="auto">saves automatically</span>
+          <span className={`auto${savedFlash ? ' saved' : ''}`}>{savedFlash ? '✓ Saved' : 'saves automatically'}</span>
         </div>
       </div>
     );

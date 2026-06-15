@@ -751,7 +751,9 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-restbox b.ink { color: #1C1B3A; }
 .crew-profile-page .cp-restbox b.amber { color: #C0851F; }
 .crew-profile-page .cp-restbox b.red { color: #E4574C; }
-.crew-profile-page .cp-restbox .auto { font-size: 11px; color: #9aa0b0; margin-left: 6px; }
+.crew-profile-page .cp-restbox .auto { font-size: 11px; color: #9aa0b0; margin-left: 6px; transition: color .15s ease; }
+.crew-profile-page .cp-restbox .auto.saved { color: #5E8E6F; font-weight: 700; font-size: 12px; animation: cpSavedPop .25s ease; }
+@keyframes cpSavedPop { 0% { opacity: 0; transform: translateY(2px); } 100% { opacity: 1; transform: translateY(0); } }
 .crew-profile-page .cp-timeinputs { display: flex; gap: 12px; align-items: flex-end; margin: 8px 0; }
 .crew-profile-page .cp-timeinputs label { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.04em; color: #7b7f93; display: block; margin-bottom: 3px; }
 .crew-profile-page .cp-timeinputs input { border: 1px solid #DFE3EC; border-radius: 8px; padding: 6px 8px; font-size: 13px; color: #1C1B3A; }

@@ -1469,7 +1469,7 @@ const canEdit = (() => {
               <button type="button" className="cp-phone-add" onClick={() => setShowSecondEmergency(true)}>+ Add a backup contact</button>
             )}
           </div>
-          {secondOpen ? (
+          {secondOpen && (
             <div className="cp-grid">
               <Field label="Full Name">
                 <Input
@@ -1516,8 +1516,6 @@ const canEdit = (() => {
                 {methodField('emergencyContact2PreferredMethod')}
               </Field>
             </div>
-          ) : (
-            <div className="cp-static cp-empty">No second contact added.</div>
           )}
         </div>
 
