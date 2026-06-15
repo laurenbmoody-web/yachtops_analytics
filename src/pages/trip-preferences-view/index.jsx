@@ -132,7 +132,7 @@ const TripPreferencesView = () => {
 
   const formatTimestamp = (timestamp) => {
     const date = new Date(timestamp);
-    return date?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return date?.toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
   const getPriorityColor = (priority) => {

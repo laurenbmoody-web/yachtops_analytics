@@ -270,9 +270,9 @@ const TripItineraryTimeline = () => {
                   {sortedDays.map((day) => {
                     const isToday = day?.event_date === todayDate;
                     const dayDate = new Date(day?.event_date);
-                    const dayOfWeek = dayDate?.toLocaleDateString('en-US', { weekday: 'short' });
+                    const dayOfWeek = dayDate?.toLocaleDateString('en-GB', { weekday: 'short' });
                     const dayNum = dayDate?.getDate();
-                    const month = dayDate?.toLocaleDateString('en-US', { month: 'short' });
+                    const month = dayDate?.toLocaleDateString('en-GB', { month: 'short' });
                     return (
                       <button
                         key={day?.id}
@@ -398,7 +398,7 @@ const DayCard = React.forwardRef(({
   onEdit, onDelete, onAddActivity, onEditActivity, onDeleteActivity,
 }, ref) => {
   const dayDate = new Date(day?.event_date);
-  const formattedDate = dayDate?.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const formattedDate = dayDate?.toLocaleDateString('en-GB', { weekday: 'short', month: 'short', day: 'numeric' });
   const stopConfig = getStopTypeConfig(day?.stop_type);
   const aboardIds = Array.isArray(day?.aboard_guest_ids) ? day.aboard_guest_ids : [];
   const activities = Array.isArray(day?.activities) ? day.activities : [];

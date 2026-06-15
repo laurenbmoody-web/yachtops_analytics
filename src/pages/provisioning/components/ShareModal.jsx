@@ -45,8 +45,8 @@ const ShareLinkRow = ({ share, onRevoke }) => {
           …/shared/{share.token.slice(0, 12)}…
         </p>
         <p style={{ fontSize: 10, color: 'var(--color-muted-foreground, #94A3B8)', marginTop: 1 }}>
-          {share.permission === 'edit' ? 'Can edit' : 'Can view'} · Created {new Date(share.created_at).toLocaleDateString()}
-          {share.last_accessed_at && ` · Last used ${new Date(share.last_accessed_at).toLocaleDateString()}`}
+          {share.permission === 'edit' ? 'Can edit' : 'Can view'} · Created {new Date(share.created_at).toLocaleDateString('en-GB')}
+          {share.last_accessed_at && ` · Last used ${new Date(share.last_accessed_at).toLocaleDateString('en-GB')}`}
         </p>
       </div>
       <button

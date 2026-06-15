@@ -63,7 +63,7 @@ const TaskDetailModal = ({ task, onClose, onComplete, onUpdate, currentUser, use
   };
   
   const formatTimestamp = (date) => {
-    return new Date(date)?.toLocaleString('en-US', {
+    return new Date(date)?.toLocaleString('en-GB', {
       month: 'short',
       day: 'numeric',
       hour: 'numeric',
@@ -88,7 +88,7 @@ const TaskDetailModal = ({ task, onClose, onComplete, onUpdate, currentUser, use
                 </div>
                 <div className="flex items-center gap-1">
                   <Icon name="Calendar" size={14} />
-                  <span>Due: {new Date(task.dueDate)?.toLocaleDateString()} {task?.dueTime}</span>
+                  <span>Due: {new Date(task.dueDate)?.toLocaleDateString('en-GB')} {task?.dueTime}</span>
                 </div>
                 <div className={`px-2 py-1 rounded text-xs font-medium ${
                   task?.priority === 'high' ? 'bg-error/10 text-error' :

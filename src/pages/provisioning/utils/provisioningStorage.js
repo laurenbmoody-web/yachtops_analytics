@@ -1042,7 +1042,7 @@ export const fetchSupplierOrdersForLists = async (listIds) => {
 
 export const formatCurrency = (amount, currency = 'USD') => {
   if (!amount && amount !== 0) return '—';
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency, minimumFractionDigits: 0 }).format(amount);
+  return new Intl.NumberFormat('en-GB', { style: 'currency', currency, minimumFractionDigits: 0 }).format(amount);
 };
 
 // ── Share links ───────────────────────────────────────────────────────────────

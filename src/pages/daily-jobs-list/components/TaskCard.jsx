@@ -25,7 +25,7 @@ const TaskCard = ({ task, userId, isChiefStew, getCrewMember, onComplete }) => {
 
     if (dueDateStr === todayStr) return { text: 'Today', color: 'text-red-600' };
     if (dueDateStr === tomorrowStr) return { text: 'Tomorrow', color: 'text-amber-600' };
-    return { text: dueDate?.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), color: 'text-muted-foreground' };
+    return { text: dueDate?.toLocaleDateString('en-GB', { month: 'short', day: 'numeric' }), color: 'text-muted-foreground' };
   };
 
   const dueIndicator = getDueIndicator();

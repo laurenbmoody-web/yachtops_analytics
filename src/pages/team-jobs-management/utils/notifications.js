@@ -164,7 +164,7 @@ export const notifyChiefsPendingAcceptance = (department, jobTitle, jobId, dueDa
   const chiefIds = chiefs?.map(c => c?.id);
   if (chiefIds?.length === 0) return;
   
-  const dueDateStr = dueDate ? ` • Due ${new Date(dueDate)?.toLocaleDateString()}` : '';
+  const dueDateStr = dueDate ? ` • Due ${new Date(dueDate)?.toLocaleDateString('en-GB')}` : '';
   
   sendNotification(chiefIds, {
     type: NOTIFICATION_TYPES?.JOB_PENDING_ACCEPTANCE,
@@ -223,7 +223,7 @@ export const notifySenderDeclined = (senderId, jobTitle, jobId, declinedByDept, 
  * @param {string} dueDate - Job due date
  */
 export const notifyJobAssigned = (assigneeIds, jobTitle, jobId, dueDate) => {
-  const dueDateStr = dueDate ? ` • Due ${new Date(dueDate)?.toLocaleDateString()}` : '';
+  const dueDateStr = dueDate ? ` • Due ${new Date(dueDate)?.toLocaleDateString('en-GB')}` : '';
   
   sendNotification(assigneeIds, {
     type: NOTIFICATION_TYPES?.JOB_ASSIGNED_TO_YOU,

@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
+import DateInput from '../../../components/ui/DateInput';
 import Select from '../../../components/ui/Select';
 import { Checkbox } from '../../../components/ui/Checkbox';
 import { supabase } from '../../../lib/supabaseClient';
@@ -594,7 +595,7 @@ const JobEditModal = ({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">Due Date *</label>
-                  <input type="date" value={dueDate} onChange={(e) => setDueDate(e?.target?.value)}
+                  <DateInput value={dueDate} onChange={(e) => setDueDate(e?.target?.value)}
                     className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
                 </div>
                 <div>

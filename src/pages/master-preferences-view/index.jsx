@@ -134,7 +134,7 @@ const MasterPreferencesView = () => {
 
   const formatTimestamp = (timestamp) => {
     const date = new Date(timestamp);
-    return date?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return date?.toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
   const getPriorityBadgeColor = (priority) => {

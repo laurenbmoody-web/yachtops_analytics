@@ -3,6 +3,7 @@ import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import ModalShell from '../../../components/ui/ModalShell';
+import DateInput from '../../../components/ui/DateInput';
 import { showToast } from '../../../utils/toast';
 import { groupedDocumentTypes, getDocType } from '../documentTypes';
 import { saveCrewDocument, uploadDocumentFile } from '../utils/crewDocuments';
@@ -152,11 +153,11 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, userId, tenantId, createdB
 
         <div>
           <label className={labelCls}>Issue date</label>
-          <input type="date" className={boxCls} value={form.issueDate || ''} onChange={(e) => set('issueDate', e.target.value)} />
+          <DateInput className={boxCls} value={form.issueDate || ''} onChange={(e) => set('issueDate', e.target.value)} />
         </div>
         <div>
           <label className={labelCls}>Expiry date</label>
-          <input type="date" className={boxCls} value={form.expiryDate || ''} onChange={(e) => set('expiryDate', e.target.value)} />
+          <DateInput className={boxCls} value={form.expiryDate || ''} onChange={(e) => set('expiryDate', e.target.value)} />
         </div>
 
         {/* Type-specific fields → details jsonb */}
@@ -169,7 +170,7 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, userId, tenantId, createdB
                 {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
             ) : f.type === 'date' ? (
-              <input type="date" className={boxCls} value={form.details?.[f.key] || ''} onChange={(e) => setDetail(f.key, e.target.value)} />
+              <DateInput className={boxCls} value={form.details?.[f.key] || ''} onChange={(e) => setDetail(f.key, e.target.value)} />
             ) : (
               <Input value={form.details?.[f.key] || ''} onChange={(e) => setDetail(f.key, e.target.value)} placeholder="—" />
             )}

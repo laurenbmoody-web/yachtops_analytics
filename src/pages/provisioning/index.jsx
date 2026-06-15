@@ -459,7 +459,7 @@ const ProvisioningWorkspace = () => {
       .then(d => {
         if (d?.rates) {
           setSummaryFxRates({ GBP: 1, USD: d.rates.USD || 1.27, EUR: d.rates.EUR || 1.17 });
-          const ts = d.date ? new Date(d.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
+          const ts = d.date ? new Date(d.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
           setSummaryFxLabel(ts ? `Rates as of ${ts}` : '');
         }
       })

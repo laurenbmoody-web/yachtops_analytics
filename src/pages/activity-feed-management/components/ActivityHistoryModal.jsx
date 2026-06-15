@@ -124,7 +124,7 @@ const ActivityHistoryModal = ({ isOpen, onClose, entityType, entityId, entityLab
               {displayedEvents?.map((event, index) => {
                 const isNewest = index === 0;
                 const relativeTime = formatDistanceToNow(new Date(event?.createdAt), { addSuffix: true });
-                const absoluteTime = new Date(event?.createdAt)?.toLocaleString('en-US', {
+                const absoluteTime = new Date(event?.createdAt)?.toLocaleString('en-GB', {
                   month: 'short',
                   day: 'numeric',
                   year: 'numeric',

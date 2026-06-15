@@ -210,7 +210,7 @@ const PreferencesDirectory = () => {
     if (diffDays < 7) return `Updated ${diffDays} days ago`;
     if (diffDays < 30) return `Updated ${Math.floor(diffDays / 7)} weeks ago`;
     
-    return `Updated ${date?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    return `Updated ${date?.toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })}`;
   };
 
   // Filter guests based on search and filters

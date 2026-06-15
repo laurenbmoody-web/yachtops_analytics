@@ -121,7 +121,7 @@ const daysUntil = (d) => {
 const formatCurrency = (amount, currency = 'USD') => {
   if (amount == null || isNaN(Number(amount))) return '—';
   try {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-GB', {
       style: 'currency',
       currency,
       minimumFractionDigits: 2,
@@ -1274,7 +1274,7 @@ const fmtActivityEvent = (event) => {
       let amtStr = '';
       if (amt != null) {
         try {
-          amtStr = ' · ' + new Intl.NumberFormat('en-US', { style: 'currency', currency: cur }).format(Number(amt));
+          amtStr = ' · ' + new Intl.NumberFormat('en-GB', { style: 'currency', currency: cur }).format(Number(amt));
         } catch { amtStr = ` · ${cur} ${Number(amt).toFixed(2)}`; }
       }
       return {
@@ -1299,7 +1299,7 @@ const fmtActivityEvent = (event) => {
       const amt = event.payload?.quoted_price;
       let amtStr = '';
       if (amt != null) {
-        try { amtStr = new Intl.NumberFormat('en-US', { style: 'currency', currency: cur }).format(Number(amt)); }
+        try { amtStr = new Intl.NumberFormat('en-GB', { style: 'currency', currency: cur }).format(Number(amt)); }
         catch { amtStr = `${cur} ${Number(amt).toFixed(2)}`; }
       }
       const auto = event.payload?.auto_accepted;
@@ -1315,7 +1315,7 @@ const fmtActivityEvent = (event) => {
       const amt = event.payload?.agreed_price;
       let amtStr = '';
       if (amt != null) {
-        try { amtStr = new Intl.NumberFormat('en-US', { style: 'currency', currency: cur }).format(Number(amt)); }
+        try { amtStr = new Intl.NumberFormat('en-GB', { style: 'currency', currency: cur }).format(Number(amt)); }
         catch { amtStr = `${cur} ${Number(amt).toFixed(2)}`; }
       }
       return {

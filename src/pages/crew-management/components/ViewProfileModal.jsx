@@ -112,7 +112,7 @@ const ViewProfileModal = ({ isOpen, onClose, userId }) => {
                 {profile?.date_of_birth && (
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1">Date of Birth</label>
-                    <p className="text-sm text-foreground">{new Date(profile?.date_of_birth)?.toLocaleDateString()}</p>
+                    <p className="text-sm text-foreground">{new Date(profile?.date_of_birth)?.toLocaleDateString('en-GB')}</p>
                   </div>
                 )}
                 {profile?.nationality && (

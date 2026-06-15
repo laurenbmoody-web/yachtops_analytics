@@ -46,7 +46,7 @@ const fmtTime = (iso) => {
 const fmtMoney = (amount, currency) => {
   if (amount == null || isNaN(parseFloat(amount))) return null;
   const sym = currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '$';
-  return `${sym}${parseFloat(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `${sym}${parseFloat(amount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
 const dayKey = (iso) => (iso ? iso.slice(0, 10) : 'unknown');

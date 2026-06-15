@@ -51,7 +51,7 @@ const EDITORIAL_BG = '#F8FAFC';
 
 const fmtMoney = (n, currency = 'EUR') => {
   if (n == null || n === '') return '—';
-  try { return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(Number(n)); }
+  try { return new Intl.NumberFormat('en-GB', { style: 'currency', currency }).format(Number(n)); }
   catch { return `${currency} ${Number(n).toFixed(2)}`; }
 };
 

@@ -337,7 +337,7 @@ const ReadFirstItemDetailView = () => {
                   <div>
                     <p className="text-gray-500">Created</p>
                     <p className="text-gray-900 font-medium">
-                      {new Date(item?.createdAt)?.toLocaleDateString()}
+                      {new Date(item?.createdAt)?.toLocaleDateString('en-GB')}
                     </p>
                   </div>
                 )}
@@ -345,7 +345,7 @@ const ReadFirstItemDetailView = () => {
                   <div>
                     <p className="text-gray-500">Last Updated</p>
                     <p className="text-gray-900 font-medium">
-                      {new Date(item?.updatedAt)?.toLocaleDateString()}
+                      {new Date(item?.updatedAt)?.toLocaleDateString('en-GB')}
                     </p>
                   </div>
                 )}

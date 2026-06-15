@@ -17,6 +17,7 @@ import DocumentsTab from './components/DocumentsTab';
 import ProfileCompletionMeter from './components/ProfileCompletionMeter';
 import { fetchCrewProfileData, profileDataToFormData, saveCrewProfileData } from './utils/crewProfileData';
 import { fetchCrewDocuments } from './utils/crewDocuments';
+import DateInput from '../../components/ui/DateInput';
 import { computeProfileCompletion } from './utils/profileCompletion';
 import { getStatusLabel, getStatusBadgeClasses, getStatusDotClass } from '../../utils/crewStatus';
 import { showToast } from '../../utils/toast';
@@ -1210,10 +1211,8 @@ const canEdit = (() => {
                 {formData?.allergiesStatus === 'no_known' && (
                   <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                     <span>Confirmed on</span>
-                    <input
-                      type="date"
+                    <DateInput
                       className="cp-inline-box"
-                      style={{ width: 'auto' }}
                       value={formData?.allergiesConfirmedAt || ''}
                       onChange={(e) => handleInputChange('allergiesConfirmedAt', e?.target?.value)}
                     />

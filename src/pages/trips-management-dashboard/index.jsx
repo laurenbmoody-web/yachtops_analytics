@@ -302,7 +302,7 @@ const TripsManagementDashboard = () => {
     const end = new Date(endDate);
     const startOptions = { month: 'short', day: 'numeric' };
     const endOptions = { month: 'short', day: 'numeric', year: 'numeric' };
-    return `${start?.toLocaleDateString('en-US', startOptions)} — ${end?.toLocaleDateString('en-US', endOptions)}`;
+    return `${start?.toLocaleDateString('en-GB', startOptions)} — ${end?.toLocaleDateString('en-GB', endOptions)}`;
   };
 
   // Calculate derived metrics
@@ -359,7 +359,7 @@ const TripsManagementDashboard = () => {
   const formatBadgeDate = (date) => {
     if (!date) return null;
     const day = date?.getDate();
-    const month = date?.toLocaleDateString('en-US', { month: 'short' })?.toUpperCase();
+    const month = date?.toLocaleDateString('en-GB', { month: 'short' })?.toUpperCase();
     return { day, month };
   };
   
