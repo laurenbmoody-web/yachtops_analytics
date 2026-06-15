@@ -101,7 +101,7 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
   const dirty = useRef(false);
   const draftRef = useRef({ segs: new Set(), types: {} });
   const rowRefs = useRef({});
-  const rootRef = useRef(null);
+  const wrapRef = useRef(null);
 
   // Templates (DB, owner-scoped) + the editor's apply/save sub-state.
   const [templates, setTemplates] = useState([]);
@@ -168,12 +168,14 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
   };
   useEffect(() => () => { if (savedTimer.current) clearTimeout(savedTimer.current); }, []);
 
-  // Click anywhere outside the HOR card to collapse the open day editor. Paint
-  // drags fire mousedown inside the card, so they're never caught here.
+  // Click anywhere on the page outside the calendar + day list to collapse the
+  // open editor. Clicks inside the wrap (calendar days, day rows, the editor
+  // itself + its paint drags) keep their own behaviour, so this never fights
+  // the re-click-to-collapse toggle.
   useEffect(() => {
     if (!selectedDate || bulkMode) return undefined;
     const onDown = (e) => {
-      if (rootRef.current && !rootRef.current.contains(e.target)) setSelectedDate(null);
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setSelectedDate(null);
     };
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
@@ -330,7 +332,7 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
         <div className="top">
           <span className="dt">{dayLabel(cd.date)}</span>
           <span className="src">{isRota ? 'pre-filled from rota' : cd.source === 'actual' ? 'logged' : 'no entry'}</span>
-          <button type="button" className="cp-ed-collapse" onClick={() => setSelectedDate(null)} aria-label="Collapse day">Collapse ▴</button>
+          <button type="button" className="cp-ed-collapse" onClick={() => setSelectedDate(null)} aria-label="Collapse day" title="Collapse">▴</button>
         </div>
 
         <div className="cp-pal">
@@ -413,7 +415,7 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
   };
 
   return (
-    <div className="cp-flatcard p-6" ref={rootRef}>
+    <div className="cp-flatcard p-6">
       {/* Bulk-apply toolbar */}
       <div className="cp-hor-toolbar">
         {!bulkMode ? (
@@ -432,7 +434,7 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
         )}
       </div>
 
-      <div className="cp-hor-wrap">
+      <div className="cp-hor-wrap" ref={wrapRef}>
         {/* Compact calendar overview */}
         <div className="cp-hor-cal">
           <div className="cp-hor-subh">
