@@ -250,3 +250,78 @@ body.crew-profile-editorial {
   padding: 0;
 }
 .crew-profile-page .cp-collapse-toggle:hover { color: #C65A1A; }
+
+/* ── HOR — editorial KPI tiles + soft-green calendar ───────────────────
+   Visual-only restyle, matching the rota rest-log KPI strip (.rl-kpi) and
+   the approved profile-HOR hybrid mockup (soft-green "B"). The compliance
+   numbers and per-day statuses are unchanged here — the shared-engine math
+   (marginal tier, vessel day-basis) is wired in a later, verifiable pass. */
+.crew-profile-page .cp-kpis { display: flex; gap: 11px; flex-wrap: wrap; }
+.crew-profile-page .cp-kpi {
+  flex: 1;
+  min-width: 150px;
+  background: #FFFFFF;
+  border: 1px solid #E6E3DA;
+  border-top: 3px solid #5E8E6F;     /* sage default = compliant */
+  border-radius: 11px;
+  padding: 13px 16px;
+}
+.crew-profile-page .cp-kpi-ink   { border-top-color: #1C1B3A; }
+.crew-profile-page .cp-kpi-amber { border-top-color: #C0851F; }
+.crew-profile-page .cp-kpi-red   { border-top-color: #E4574C; }
+.crew-profile-page .cp-kpi .cp-kpi-n {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 28px;
+  line-height: 1;
+  color: #5E8E6F;
+}
+.crew-profile-page .cp-kpi-ink   .cp-kpi-n { color: #1C1B3A; }
+.crew-profile-page .cp-kpi-amber .cp-kpi-n { color: #C0851F; }
+.crew-profile-page .cp-kpi-red   .cp-kpi-n { color: #E4574C; }
+.crew-profile-page .cp-kpi .cp-kpi-l {
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #7b7f93;
+  margin-top: 7px;
+  font-weight: 600;
+}
+
+/* Soft-green month calendar (mockup variant B). */
+.crew-profile-page .cp-cal-cell {
+  border-radius: 8px;
+  min-height: 56px;
+  padding: 7px 4px;
+  text-align: center;
+  cursor: pointer;
+  background: #E7F0E9;               /* --greenbg */
+  border: 1px solid transparent;
+  transition: filter 0.12s ease, box-shadow 0.12s ease;
+}
+.crew-profile-page .cp-cal-cell:hover { filter: brightness(0.975); }
+.crew-profile-page .cp-cal-amber { background: #FBEFD9; }
+.crew-profile-page .cp-cal-red   { background: #FBEAE8; }
+.crew-profile-page .cp-cal-d { font-size: 11px; font-weight: 600; color: #3f6b50; }
+.crew-profile-page .cp-cal-amber .cp-cal-d { color: #8a6a1f; }
+.crew-profile-page .cp-cal-red   .cp-cal-d { color: #9a463f; }
+.crew-profile-page .cp-cal-v { font-size: 12px; font-weight: 700; color: #5E8E6F; margin-top: 2px; }
+.crew-profile-page .cp-cal-amber .cp-cal-v { color: #C0851F; }
+.crew-profile-page .cp-cal-red   .cp-cal-v { color: #E4574C; }
+/* A day still carried by the rota baseline (not yet logged) — white, dashed. */
+.crew-profile-page .cp-cal-cell.is-baseline { background: #FFFFFF; border: 1px dashed #CFCABE; }
+.crew-profile-page .cp-cal-cell.is-baseline .cp-cal-d { color: #9aa0b0; }
+.crew-profile-page .cp-cal-cell.is-baseline .cp-cal-v { color: #b9bdc9; }
+.crew-profile-page .cp-cal-cell.is-selected { box-shadow: 0 0 0 2px #1C1B3A; }
+.crew-profile-page .cp-cal-tag {
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9aa0b0;
+  margin-top: 1px;
+}
+
+/* Legend swatches mirror the soft calendar palette. */
+.crew-profile-page .cp-cal-swatch { width: 16px; height: 16px; border-radius: 4px; background: #E7F0E9; }
+.crew-profile-page .cp-cal-swatch.amber { background: #FBEFD9; }
+.crew-profile-page .cp-cal-swatch.red { background: #FBEAE8; }
+.crew-profile-page .cp-cal-swatch.rota { background: #FFFFFF; border: 1px dashed #CFCABE; }
