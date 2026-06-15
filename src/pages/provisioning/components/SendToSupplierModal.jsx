@@ -460,12 +460,12 @@ const SendToSupplierModal = ({
   // ── Render ──────────────────────────────────────────────────────
   const inputCls = 'w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary';
   const labelCls = 'block text-[11px] font-medium mb-1';
-  const ACCENT = '#C65A1A';        // terracotta
-  const INK = '#1C1B3A';           // navy ink
-  const MUTED = '#695880';         // muted navy
-  const CREAM = '#F1F5F9';         // ready-group surface
-  const HAIRLINE = '#DFD8CC';
-  const FAINT = '#B4B2A9';
+  const ACCENT = '#C65A1A';        // terracotta — unchanged (matches --d-orange)
+  const INK = '#1A1D3F';           // --d-navy-deep
+  const MUTED = '#7C7E9B';         // --d-muted (was warm #695880)
+  const CREAM = '#F1F5F9';         // ready-group surface — cool slate, intentional
+  const HAIRLINE = '#E5E7EB';      // --d-border (was warm sand #DFD8CC)
+  const FAINT = '#9098B1';         // --d-muted-soft (was warm stone #B4B2A9)
   const SERIF = "'DM Serif Display', Georgia, serif";
 
   const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
