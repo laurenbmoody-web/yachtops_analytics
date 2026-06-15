@@ -108,3 +108,35 @@ export const deleteCrewDocument = async (id) => {
   const { error } = await supabase?.from('personal_documents')?.delete()?.eq('id', id);
   if (error) throw error;
 };
+
+/**
+ * Documents expiring within `withinDays` (or already expired), newest-expiry
+ * first. RLS scopes the result automatically: a crew member sees only their
+ * own; COMMAND sees their whole tenant's crew. Each row is enriched with the
+ * crew member's name for the dashboard list.
+ */
+export const fetchExpiringDocuments = async (withinDays = 90) => {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() + withinDays);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+
+  const { data, error } = await supabase
+    ?.from('personal_documents')
+    ?.select('id, user_id, doc_type, details, expiry_date')
+    ?.not('expiry_date', 'is', null)
+    ?.lte('expiry_date', cutoffStr)
+    ?.order('expiry_date', { ascending: true });
+  if (error) {
+    console.error('[docs] expiring fetch failed', error);
+    return [];
+  }
+  const docs = data || [];
+  const ids = [...new Set(docs.map((d) => d.user_id).filter(Boolean))];
+  const names = {};
+  if (ids.length) {
+    const { data: profs } = await supabase?.from('profiles')?.select('id, full_name')?.in('id', ids);
+    (profs || []).forEach((p) => { names[p.id] = p.full_name; });
+  }
+  return docs.map((d) => ({ ...d, crew_name: names[d.user_id] || null }));
+};
+

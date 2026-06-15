@@ -3,7 +3,10 @@ import { arrayMove } from '@dnd-kit/sortable';
 import { useAuth } from '../../contexts/AuthContext';
 import { WIDGET_META, DEFAULT_LAYOUT } from './widgetRegistry';
 
-const STORAGE_KEY = 'cargo_dashboard_layout_v1_';
+// v2: reset saved layouts once so the Document-expiries compliance widget
+// surfaces for existing users (absence in a saved layout otherwise means
+// "removed", so it can't be auto-appended without resurrecting removals).
+const STORAGE_KEY = 'cargo_dashboard_layout_v2_';
 const COLUMNS = ['left', 'center', 'right'];
 
 export const useDashboardLayout = () => {
