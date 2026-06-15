@@ -1093,6 +1093,22 @@ const canEdit = (() => {
               placeholder="—"
             />
           </Field>
+          <Field label="Prefix">
+            {isEditing ? (
+              <select
+                className="cp-inline-select"
+                value={formData?.prefix || ''}
+                onChange={(e) => handleInputChange('prefix', e?.target?.value)}
+              >
+                <option value="">—</option>
+                {['Mr', 'Mrs', 'Ms', 'Miss', 'Mx', 'Dr', 'Capt', 'Chief', 'Sir', 'Dame'].map((o) => (
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </select>
+            ) : (
+              <div className={`cp-static${formData?.prefix ? '' : ' cp-empty'}`}>{formData?.prefix || '—'}</div>
+            )}
+          </Field>
           <Field label="Preferred Name">
             <Input
               value={formData?.preferredName}
