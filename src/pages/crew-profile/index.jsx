@@ -1897,7 +1897,7 @@ const canEdit = (() => {
         </div>
         {/* Command-Only Toggle */}
         {isCommand && (
-          <div className="bg-card border border-border rounded-xl p-2 inline-flex gap-2">
+          <div className="cp-flatcard p-2 inline-flex gap-2">
             <button
               onClick={() => setHorView('my')}
               className={`px-6 py-2 rounded-lg text-sm font-medium transition-smooth ${
@@ -1925,8 +1925,9 @@ const canEdit = (() => {
         ) : (
           // My HOR View (existing)
           (<>
-            {/* Month Status & Confirm Button */}
-            <div className="flex items-center justify-between bg-card border border-border rounded-xl p-4">
+            {/* Month status & confirm — light strip with a hairline, not a
+                boxed widget (the old div.bg-card 3D edge is retired here). */}
+            <div className="flex items-center justify-between pb-4 border-b border-border">
               <div className="flex items-center gap-3">
                 <span className="text-sm font-medium text-foreground">Month Status:</span>
                 <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-semibold ${
@@ -2003,9 +2004,12 @@ const canEdit = (() => {
               onChanged={loadHORData}
             />
 
-            {/* Breaches & sign-off (Phase 4) — preserved full-width below the log */}
-            <div className="bg-card border border-border rounded-xl p-6 flex flex-col">
-                    <h4 className="text-lg font-semibold text-foreground mb-4">Breaches</h4>
+            {/* Breaches & sign-off (Phase 4) — editorial section, not a boxed widget */}
+            <div className="cp-flatcard p-6 flex flex-col">
+                    <div className="cp-section-head">
+                      <span className="cp-section-kicker">Compliance</span>
+                      <h3>Breaches</h3>
+                    </div>
                     <div className="flex-1 space-y-3 overflow-y-auto max-h-[500px]">
                       {breaches?.length > 0 ? (
                         breaches?.map(breach => (
