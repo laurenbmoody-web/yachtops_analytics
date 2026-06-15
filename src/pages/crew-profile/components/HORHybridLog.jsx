@@ -101,6 +101,7 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
   const dirty = useRef(false);
   const draftRef = useRef({ segs: new Set(), types: {} });
   const rowRefs = useRef({});
+  const rootRef = useRef(null);
 
   // Templates (DB, owner-scoped) + the editor's apply/save sub-state.
   const [templates, setTemplates] = useState([]);
@@ -167,6 +168,17 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
   };
   useEffect(() => () => { if (savedTimer.current) clearTimeout(savedTimer.current); }, []);
 
+  // Click anywhere outside the HOR card to collapse the open day editor. Paint
+  // drags fire mousedown inside the card, so they're never caught here.
+  useEffect(() => {
+    if (!selectedDate || bulkMode) return undefined;
+    const onDown = (e) => {
+      if (rootRef.current && !rootRef.current.contains(e.target)) setSelectedDate(null);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [selectedDate, bulkMode]);
+
   const persistDraft = useCallback(() => {
     if (!selectedDate) return;
     const segs = Array.from(draftRef.current.segs).sort((a, b) => a - b);
@@ -206,9 +218,26 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
     showToast('Day cleared — logged as off', 'success');
   };
   const logAsRostered = () => { persistDraft(); showToast('Logged as rostered', 'success'); };
-  const resetToBaseline = () => {
-    deleteWorkEntriesForDate(crewId, selectedDate);
-    afterSave();
+  const resetToBaseline = async () => {
+    const date = selectedDate;
+    if (!date) return;
+    deleteWorkEntriesForDate(crewId, date);
+    // onChanged === parent loadHORData: re-pulls the rota baseline into the
+    // cache for the now-cleared day. Await it, then repaint the grid from the
+    // restored baseline — the draft only auto-syncs on day-switch, so without
+    // this the editor keeps showing the old edits and the reset looks like a
+    // no-op.
+    if (onChanged) await onChanged();
+    const restored = (getCrewWorkEntries(crewId) || []).filter((e) => e?.date === date);
+    const segs = new Set();
+    const types = {};
+    for (const e of restored) {
+      (e.workSegments || []).forEach((s) => segs.add(s));
+      Object.assign(types, e.segmentTypes || {});
+    }
+    setDraftSegs(segs);
+    setDraftTypes(types);
+    setRefreshKey((k) => k + 1);
     showToast('Reset to rota baseline', 'success');
   };
 
@@ -284,7 +313,7 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
 
   const onCalendarDay = (cd, e) => {
     if (bulkMode) toggleBulk(cd.date, e.shiftKey);
-    else setSelectedDate(cd.date);
+    else setSelectedDate((cur) => (cur === cd.date ? null : cd.date)); // click again to collapse
   };
 
   const renderEditor = (cd) => {
@@ -301,6 +330,7 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
         <div className="top">
           <span className="dt">{dayLabel(cd.date)}</span>
           <span className="src">{isRota ? 'pre-filled from rota' : cd.source === 'actual' ? 'logged' : 'no entry'}</span>
+          <button type="button" className="cp-ed-collapse" onClick={() => setSelectedDate(null)} aria-label="Collapse day">Collapse ▴</button>
         </div>
 
         <div className="cp-pal">
@@ -376,14 +406,14 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
         <div className="cp-restbox">
           On duty <b className="ink">{Number(onDuty.toFixed(1))}h</b> · Rest{' '}
           <b className={tone === 'off' ? '' : tone}>{Number(rest.toFixed(1))}h</b> {statusWord}
-          <span className={`auto${savedFlash ? ' saved' : ''}`}>{savedFlash ? '✓ Saved' : 'saves automatically'}</span>
+          {savedFlash && <span className="auto saved">✓ Saved</span>}
         </div>
       </div>
     );
   };
 
   return (
-    <div className="cp-flatcard p-6">
+    <div className="cp-flatcard p-6" ref={rootRef}>
       {/* Bulk-apply toolbar */}
       <div className="cp-hor-toolbar">
         {!bulkMode ? (
@@ -431,7 +461,7 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
           <p className="cp-hor-hint">
             {bulkMode
               ? 'Click days (shift-click for a range), pick a template, then Apply.'
-              : 'Tap any day to open it on the right, then drag across the grid to paint hours. Pick a type first.'}
+              : 'Tap any day to open it on the right, then drag across the grid to paint hours. Pick a type first. Click the day again (or anywhere off the editor) to collapse it.'}
           </p>
         </div>
 

@@ -738,9 +738,11 @@ body.crew-profile-editorial {
 }
 /* Expanded (selected) inline editor row. */
 .crew-profile-page .cp-ed { border: 1px solid #1C1B3A; border-radius: 11px; padding: 13px; margin: 8px 0; background: #fbfdfb; }
-.crew-profile-page .cp-ed .top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 9px; }
+.crew-profile-page .cp-ed .top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 9px; }
 .crew-profile-page .cp-ed .dt { font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; color: #1C1B3A; }
-.crew-profile-page .cp-ed .src { font-size: 11px; color: #7b7f93; }
+.crew-profile-page .cp-ed .src { font-size: 11px; color: #7b7f93; margin-left: auto; }
+.crew-profile-page .cp-ed-collapse { font-size: 11px; color: #7b7f93; background: none; border: 0; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+.crew-profile-page .cp-ed-collapse:hover { color: #1C1B3A; background: #f1f2f6; }
 .crew-profile-page .cp-presets { display: flex; gap: 7px; align-items: center; margin: 11px 0 8px; flex-wrap: wrap; }
 .crew-profile-page .cp-preset { font-size: 11.5px; border: 1px solid #dde1e8; background: #fff; border-radius: 999px; padding: 4px 11px; cursor: pointer; color: #555; }
 .crew-profile-page .cp-preset:hover { border-color: #c3c8d2; }
