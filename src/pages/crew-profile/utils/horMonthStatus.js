@@ -17,17 +17,26 @@ const toDbMonth = (jsMonth) => jsMonth + 1;
 // keyed by tenant_id (one row per tenant), so we look it up that way.
 // → { mode: 'require'|'trust', approverTier: 'COMMAND'|'CHIEF'|'HOD' }
 export async function fetchVesselHorSettings(tenantId) {
-  const fallback = { mode: 'require', approverTier: 'COMMAND' };
+  const fallback = {
+    mode: 'require',
+    approverTier: 'COMMAND',
+    dayBasis: 'calendar',
+    operationalDayStartHour: 0,
+  };
   if (!tenantId) return fallback;
   const { data, error } = await supabase
     .from('vessels')
-    .select('hor_confirmation_mode, hor_approver_tier')
+    .select('hor_confirmation_mode, hor_approver_tier, hor_day_basis, operational_day_start_hour')
     .eq('tenant_id', tenantId)
     .maybeSingle();
   if (error || !data) return fallback;
   return {
     mode: data.hor_confirmation_mode || 'require',
     approverTier: data.hor_approver_tier || 'COMMAND',
+    // Day-basis for the 24h rest rule — MUST match the rota's RestLogView so a
+    // day reconciles identically across rota → profile → vessel record.
+    dayBasis: data.hor_day_basis || 'calendar',
+    operationalDayStartHour: data.operational_day_start_hour ?? 0,
   };
 }
 

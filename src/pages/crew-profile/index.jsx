@@ -315,8 +315,11 @@ const CrewProfile = () => {
     const year = horCurrentMonth?.getFullYear();
     const month = horCurrentMonth?.getMonth();
 
-    // Tell horStorage which tenant to dual-write actuals to (Phase 5).
-    setHorDbContext({ tenantId: activeTenantId });
+    // Tell horStorage which tenant to dual-write actuals to (Phase 5). Reset
+    // the day-basis to calendar up front; the real vessel setting is applied
+    // once fetchVesselHorSettings resolves below (so a failed/slow fetch can't
+    // leave a stale operational anchor across month/tenant switches).
+    setHorDbContext({ tenantId: activeTenantId, horDayStartHour: 0 });
 
     // Phase 5 — hydrate ACTUALS from the DB (system of record) into the cache,
     // then Phase 1 — fill the remaining days with the rota baseline. Order
@@ -342,6 +345,13 @@ const CrewProfile = () => {
         fetchBreachReasonsForMonth({ tenantId: activeTenantId, subjectUserId: crewId, year, jsMonth: month }),
       ]);
       setVesselHorSettings(settings);
+      // Feed the vessel's day-basis to the compliance engine BEFORE the
+      // assessment calls below, so the profile assesses the identical 24h day
+      // as the rota/vessel record (calendar = no-op; operational re-anchors).
+      setHorDbContext({
+        tenantId: activeTenantId,
+        horDayStartHour: settings?.dayBasis === 'operational' ? (settings?.operationalDayStartHour || 0) : 0,
+      });
       setDbMonthStatus(status);
       const byDate = {};
       (reasons || []).forEach((r) => { byDate[r.breach_date] = r; });
