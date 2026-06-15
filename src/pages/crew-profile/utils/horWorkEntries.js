@@ -21,7 +21,7 @@ export async function fetchWorkEntriesForMonth({ tenantId, subjectUserId, year, 
   const end = `${year}-${pad2(jsMonth + 1)}-${pad2(new Date(year, jsMonth + 1, 0).getDate())}`;
   const { data, error } = await supabase
     .from('hor_work_entries')
-    .select('entry_date, work_segments, source, updated_at')
+    .select('entry_date, work_segments, segment_types, source, updated_at')
     .eq('tenant_id', tenantId)
     .eq('subject_user_id', subjectUserId)
     .gte('entry_date', start)
@@ -31,7 +31,7 @@ export async function fetchWorkEntriesForMonth({ tenantId, subjectUserId, year, 
 }
 
 // Upsert one day's actual (replaces the prior row for that date).
-export async function upsertWorkEntryDay({ tenantId, subjectUserId, date, workSegments }) {
+export async function upsertWorkEntryDay({ tenantId, subjectUserId, date, workSegments, segmentTypes }) {
   if (!tenantId || !subjectUserId || !date) return null;
   const { data, error } = await supabase
     .from('hor_work_entries')
@@ -41,6 +41,7 @@ export async function upsertWorkEntryDay({ tenantId, subjectUserId, date, workSe
         subject_user_id: subjectUserId,
         entry_date: date,
         work_segments: workSegments || [],
+        segment_types: segmentTypes || {},
         source: 'edited',
         updated_by: (await supabase.auth.getUser())?.data?.user?.id || null,
         updated_at: new Date().toISOString(),
@@ -62,5 +63,39 @@ export async function deleteWorkEntryDay({ tenantId, subjectUserId, date }) {
     .eq('tenant_id', tenantId)
     .eq('subject_user_id', subjectUserId)
     .eq('entry_date', date);
+  if (error) throw error;
+}
+
+// ── User-scoped shift templates ──────────────────────────────────────────────
+// Each crew member keeps their own reusable patterns (RLS: owner = auth.uid()).
+// Not vessel- or role-scoped. Shape mirrors a logged day so a template applies
+// exactly like one: { work_segments:int[], segment_types:{seg:type} }.
+
+export async function fetchShiftTemplates() {
+  const { data, error } = await supabase
+    .from('hor_shift_templates')
+    .select('id, name, work_segments, segment_types, created_at')
+    .order('created_at', { ascending: true });
+  if (error || !data) return [];
+  return data;
+}
+
+export async function saveShiftTemplate({ name, workSegments, segmentTypes }) {
+  const { data, error } = await supabase
+    .from('hor_shift_templates')
+    .insert({
+      name: (name || 'Untitled').trim(),
+      work_segments: workSegments || [],
+      segment_types: segmentTypes || {},
+    })
+    .select()
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteShiftTemplate(id) {
+  if (!id) return;
+  const { error } = await supabase.from('hor_shift_templates').delete().eq('id', id);
   if (error) throw error;
 }
