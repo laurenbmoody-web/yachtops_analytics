@@ -53,6 +53,49 @@ const Field = ({ label, required, full, hint, children }) => (
   </div>
 );
 
+const PHONE_LABELS = ['Mobile', 'WhatsApp', 'Sat phone', 'Home', 'Work', 'Other'];
+
+// Multiple phone entries (mobile / WhatsApp / sat phone). Reads as a list
+// in view mode; rows of label + number in edit mode.
+const PhonesEditor = ({ phones, disabled, onChange }) => {
+  const rows = Array.isArray(phones) && phones.length ? phones : [{ label: 'Mobile', value: '' }];
+  const update = (i, key, val) => onChange(rows.map((r, idx) => (idx === i ? { ...r, [key]: val } : r)));
+  const add = () => onChange([...rows, { label: 'Mobile', value: '' }]);
+  const remove = (i) => onChange(rows.filter((_, idx) => idx !== i));
+
+  if (disabled) {
+    const filled = rows.filter((r) => r.value);
+    if (!filled.length) return <div className="cp-static cp-empty">—</div>;
+    return (
+      <div className="cp-phone-list">
+        {filled.map((r, i) => (
+          <div key={i} className="cp-phone-read">
+            <span className="cp-phone-tag">{r.label}</span>
+            <span>{r.value}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="cp-phone-rows">
+      {rows.map((r, i) => (
+        <div key={i} className="cp-phone-row">
+          <select className="cp-inline-select cp-phone-labelsel" value={r.label} onChange={(e) => update(i, 'label', e.target.value)}>
+            {PHONE_LABELS.map((l) => <option key={l} value={l}>{l}</option>)}
+          </select>
+          <input className="cp-inline-box" value={r.value} onChange={(e) => update(i, 'value', e.target.value)} placeholder="Number" />
+          {rows.length > 1 && (
+            <button type="button" className="cp-phone-remove" onClick={() => remove(i)} aria-label="Remove"><Icon name="X" size={14} /></button>
+          )}
+        </div>
+      ))}
+      <button type="button" className="cp-phone-add" onClick={add}>+ Add phone</button>
+    </div>
+  );
+};
+
 const CrewProfile = () => {
   const navigate = useNavigate();
   const { crewId } = useParams();
@@ -1068,12 +1111,11 @@ const canEdit = (() => {
               placeholder="Select nationality"
             />
           </Field>
-          <Field label="Phone Number">
-            <Input
-              value={formData?.phoneNumber}
-              onChange={(e) => handleInputChange('phoneNumber', e?.target?.value)}
+          <Field label="Phone Numbers" full>
+            <PhonesEditor
+              phones={formData?.phones}
               disabled={!isEditing}
-              placeholder="—"
+              onChange={(next) => handleInputChange('phones', next)}
             />
           </Field>
           <Field label="Email" required>
