@@ -165,6 +165,15 @@ body.crew-profile-editorial {
   color: #8B8478;
   margin-top: 3px;
 }
+/* Soft, non-blocking validation warning (IBAN/SWIFT typo catcher). */
+.crew-profile-page .cp-field-warn {
+  font-size: 10px;
+  color: #A32D2D;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
 
 /* Strip the inner Input/Select box so the field reads as a plain value
    sitting in the card. The card itself owns the border + focus ring. */

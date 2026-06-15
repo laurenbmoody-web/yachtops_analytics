@@ -57,6 +57,11 @@ export const profileDataToFormData = ({ personal, banking }) => {
     bankAddressLine2: b.address_line2 || '',
     bankAddressCity: b.city || '',
     bankAddressCountry: b.address_country || '',
+    // Banking audit (read-only display).
+    bankingLastEditedByName: b.last_edited_by_name || '',
+    bankingUpdatedAt: b.updated_at || '',
+    bankingLastViewedByName: b.last_viewed_by_name || '',
+    bankingLastViewedAt: b.last_viewed_at || '',
     dietaryCategory: pref.dietaryCategory || 'None / No restrictions',
     dietaryNotes: pref.dietaryNotes || '',
     cakePreference: pref.cakePreference || '',
@@ -67,7 +72,7 @@ export const profileDataToFormData = ({ personal, banking }) => {
   };
 };
 
-export const saveCrewProfileData = async (userId, f) => {
+export const saveCrewProfileData = async (userId, f, actor = null) => {
   if (!userId) return;
   const now = new Date().toISOString();
   const phones = Array.isArray(f.phones) && f.phones.length
@@ -121,6 +126,8 @@ export const saveCrewProfileData = async (userId, f) => {
     address_line2: f.bankAddressLine2 || null,
     city: f.bankAddressCity || null,
     address_country: f.bankAddressCountry || null,
+    last_edited_by: actor?.id || null,
+    last_edited_by_name: actor?.name || null,
     updated_at: now,
   };
 
@@ -130,4 +137,21 @@ export const saveCrewProfileData = async (userId, f) => {
   ]);
   if (pdRes?.error) throw pdRes.error;
   if (bankRes?.error) throw bankRes.error;
+};
+
+/**
+ * Record that a non-owner (e.g. command) viewed a crew member's banking.
+ * Update-only: if no banking row exists yet there is nothing to view, so
+ * this is a no-op rather than creating an empty row.
+ */
+export const logBankingView = async (userId, actor) => {
+  if (!userId || !actor?.id) return;
+  await supabase
+    ?.from('crew_banking')
+    ?.update({
+      last_viewed_by: actor.id,
+      last_viewed_by_name: actor.name || null,
+      last_viewed_at: new Date().toISOString(),
+    })
+    ?.eq('user_id', userId);
 };
