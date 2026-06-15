@@ -1581,9 +1581,17 @@ const ProvisioningBoardDetail = () => {
   const tripDateLabel = tripStart && tripEnd
     ? (tripStart === tripEnd ? tripStart : `${tripStart} – ${tripEnd}`)
     : (tripStart || tripEnd || null);
+  // Drop placeholder trip names ("New", "Untitled", "New Trip") so they
+  // don't pollute the meta strip — they're default labels from the trip
+  // form, not real identifiers.
+  const rawTripName = trip?.title || trip?.name || '';
+  const PLACEHOLDER_TRIP_NAMES = new Set(['NEW', 'NEW TRIP', 'UNTITLED', 'UNTITLED TRIP', 'UNNAMED', 'UNNAMED TRIP']);
+  const meaningfulTripName = rawTripName && !PLACEHOLDER_TRIP_NAMES.has(rawTripName.trim().toUpperCase())
+    ? rawTripName
+    : null;
   const editorialMeta = [
     trip?.tripType && { label: String(trip.tripType).toUpperCase() },
-    trip && { label: trip.title || trip.name },
+    meaningfulTripName && { label: meaningfulTripName },
     tripDateLabel && { label: tripDateLabel },
     tripGuestCount > 0 && { label: `${tripGuestCount} GUEST${tripGuestCount !== 1 ? 'S' : ''}` },
   ].filter(Boolean);
@@ -1633,11 +1641,11 @@ const ProvisioningBoardDetail = () => {
           bodyBg="#F8FAFC"
           rightRail={
             // Option-B split header: ribbon moves to the right rail as a
-            // vertical action stack. Two visual groups separated by a thin
-            // divider: read actions (Add from… / Print-PDF) above, write
-            // actions (Receive Items / Send to Supplier / Submit for
-            // Approval / overflow) below. Send to Supplier is the lone
+            // vertical action stack. Read actions (Add from… / Print-PDF)
+            // above write actions (Receive Items / Send to Supplier /
+            // Submit for Approval / ⋯). Send to Supplier is the lone
             // "primary" action — filled navy when hasSendableItems holds.
+            // ⋯ sits on the same row as Submit for Approval, to its left.
             <div className="cargo-ribbon cargo-ribbon-vertical">
               {/* Read actions */}
               <div className="cargo-ribbon-group">
@@ -1667,8 +1675,6 @@ const ProvisioningBoardDetail = () => {
                 </button>
               </div>
 
-              <div className="cargo-ribbon-divider" aria-hidden="true" />
-
               {/* Write actions */}
               <div className="cargo-ribbon-group">
                 <button
@@ -1689,60 +1695,63 @@ const ProvisioningBoardDetail = () => {
                     <Icon name="Send" style={{ width: 13, height: 13 }} /> Send to Supplier
                   </button>
                 )}
-                {isDraftOrPending && (
-                  <button
-                    type="button"
-                    onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)}
-                    className="cargo-ribbon-btn"
-                  >
-                    <Icon name="Send" style={{ width: 13, height: 13 }} /> Submit for Approval
-                  </button>
-                )}
-                <div className="relative" ref={menuRef}>
-                  <button
-                    type="button"
-                    onClick={() => setShowMenu(v => !v)}
-                    className="cargo-ribbon-btn cargo-ribbon-btn-icon"
-                    aria-label="More board actions"
-                    aria-haspopup="menu"
-                    aria-expanded={showMenu}
-                  >
-                    <Icon name="MoreHorizontal" style={{ width: 14, height: 14 }} />
-                  </button>
-                  {showMenu && (
-                    <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[185px] z-50">
-                      {canEdit && (
-                        <button onClick={() => { setShowMenu(false); setShowEditModal(true); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
-                          <Icon name="Pencil" className="w-4 h-4" /> Edit Board
-                        </button>
-                      )}
-                      <button onClick={handleDuplicate} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
-                        <Icon name="Copy" className="w-4 h-4" /> Duplicate
-                      </button>
-                      <button onClick={handleSaveAsTemplateBoard} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
-                        <Icon name="FileText" className="w-4 h-4" /> Save as Template
-                      </button>
-                      {canDelete && (
-                        <>
-                          <div className="my-1 border-t border-border" />
-                          <button onClick={handleDeleteBoard} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 flex items-center gap-2">
-                            <Icon name="Trash2" className="w-4 h-4" /> Delete Board
+                {/* Bottom row: overflow + Submit for Approval share a line
+                    so ⋯ sits to the LEFT of Submit, not below it. */}
+                <div className="cargo-ribbon-bottom">
+                  <div className="relative" ref={menuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setShowMenu(v => !v)}
+                      className="cargo-ribbon-btn cargo-ribbon-btn-icon"
+                      aria-label="More board actions"
+                      aria-haspopup="menu"
+                      aria-expanded={showMenu}
+                    >
+                      <Icon name="MoreHorizontal" style={{ width: 14, height: 14 }} />
+                    </button>
+                    {showMenu && (
+                      <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[185px] z-50">
+                        {canEdit && (
+                          <button onClick={() => { setShowMenu(false); setShowEditModal(true); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
+                            <Icon name="Pencil" className="w-4 h-4" /> Edit Board
                           </button>
-                        </>
-                      )}
-                    </div>
+                        )}
+                        <button onClick={handleDuplicate} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
+                          <Icon name="Copy" className="w-4 h-4" /> Duplicate
+                        </button>
+                        <button onClick={handleSaveAsTemplateBoard} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
+                          <Icon name="FileText" className="w-4 h-4" /> Save as Template
+                        </button>
+                        {canDelete && (
+                          <>
+                            <div className="my-1 border-t border-border" />
+                            <button onClick={handleDeleteBoard} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 flex items-center gap-2">
+                              <Icon name="Trash2" className="w-4 h-4" /> Delete Board
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {isDraftOrPending && (
+                    <button
+                      type="button"
+                      onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)}
+                      className="cargo-ribbon-btn"
+                    >
+                      <Icon name="Send" style={{ width: 13, height: 13 }} /> Submit for Approval
+                    </button>
                   )}
                 </div>
               </div>
             </div>
           }
-          actionStrip={
-            // Status + allergen chips: identity-adjacent pieces that don't
-            // belong in the meta line (state, not identity) nor in the
-            // sticky toolbar (read-only, not actionable). Sits between the
-            // headline and the tabs. Allergen chip toggles a popover with
-            // the full per-guest breakdown — replaces the prior full-width
-            // banner that crowded the toolbar.
+          headerExtra={
+            // Status + allergen chips: identity-adjacent pieces. Render
+            // INSIDE the left column (below the headline) via the shell's
+            // headerExtra slot so the column stretches down to meet the
+            // ribbon's bottom — closes the void that appeared when chips
+            // lived in the full-width actionStrip below the row.
             (statusLabel || allergenGuests.length > 0) && (
               <div className="pv-board-chip-row">
                 {statusLabel && (
@@ -1924,8 +1933,8 @@ const ProvisioningBoardDetail = () => {
             full-width banner was crowding the toolbar — see Option B. */}
 
         {/* ── Toolbar ───────────────────────────────────────────────────── */}
-        <div className="pv-board-toolbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <div className="pv-board-toolbar">
+          <div className="pv-board-toolbar-left">
             {/* Master select-all — toggles every item in the current
                 filtered view. Per-dept-group scoped select-alls live
                 inside each dept-group's table header below. */}
@@ -1934,31 +1943,30 @@ const ProvisioningBoardDetail = () => {
               onChange={toggleAll}
               ariaLabel={allChecked ? 'Deselect all items in view' : 'Select all items in view'}
             />
-            {/* Search */}
-            <div style={{ position: 'relative' }}>
-              <Icon name="Search" style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', width: 13, height: 13, color: '#CBD5E1', pointerEvents: 'none' }} />
+            <div className="pv-board-search-wrap">
+              <Icon name="Search" className="pv-board-search-icon" aria-hidden="true" />
               <input
                 type="text"
                 placeholder="Search items…"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                style={{ paddingLeft: 28, paddingRight: 10, paddingTop: 6, paddingBottom: 6, fontSize: 12, background: '#F8FAFC', border: '1px solid #F1F5F9', borderRadius: 7, color: '#0F172A', outline: 'none', width: 220 }}
+                className="pv-board-search-input"
               />
             </div>
-            {/* Dept filter */}
             <select
               value={deptFilter}
               onChange={e => setDeptFilter(e.target.value)}
-              style={{ fontSize: 11, background: 'white', border: '1px solid #F1F5F9', borderRadius: 7, padding: '6px 10px', color: '#64748B', outline: 'none', cursor: 'pointer' }}
+              className="pv-board-filter-select"
+              aria-label="Filter by department"
             >
               <option value="all">All depts</option>
               {departments.map(d => <option key={d.id || d.name} value={d.name}>{d.name}</option>)}
             </select>
-            {/* Status filter */}
             <select
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
-              style={{ fontSize: 11, background: 'white', border: '1px solid #F1F5F9', borderRadius: 7, padding: '6px 10px', color: '#64748B', outline: 'none', cursor: 'pointer' }}
+              className="pv-board-filter-select"
+              aria-label="Filter by status"
             >
               <option value="all">All statuses</option>
               {ITEM_STATUS_FILTER_ORDER.map(val => {
@@ -1966,17 +1974,6 @@ const ProvisioningBoardDetail = () => {
                 return <option key={val} value={val}>{cfg.label}</option>;
               })}
             </select>
-            {hasFilters && (
-              <button
-                onClick={() => { setSearchQuery(''); setDeptFilter('all'); setStatusFilter('all'); }}
-                style={{ fontSize: 11, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
-                onMouseEnter={e => e.currentTarget.style.color = '#1E3A5F'}
-                onMouseLeave={e => e.currentTarget.style.color = '#94A3B8'}
-              >
-                Clear filters
-              </button>
-            )}
-            {/* Group by */}
             <select
               value={groupBy}
               onChange={e => {
@@ -1987,36 +1984,45 @@ const ProvisioningBoardDetail = () => {
                   setSortDirection('asc');
                 }
               }}
-              style={{ fontSize: 11, background: 'white', border: '1px solid #F1F5F9', borderRadius: 7, padding: '6px 10px', color: '#64748B', outline: 'none', cursor: 'pointer' }}
+              className="pv-board-filter-select"
+              aria-label="Group items"
             >
               <option value="category">Group: Category</option>
               <option value="none">Group: None</option>
             </select>
-            {/* Show received toggle */}
+            {hasFilters && (
+              <button
+                type="button"
+                onClick={() => { setSearchQuery(''); setDeptFilter('all'); setStatusFilter('all'); }}
+                className="pv-board-clear-filters"
+              >
+                Clear filters
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setShowReceived(p => !p)}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: 'none', border: 'none', cursor: 'pointer' }}
+              className="pv-board-toggle"
+              aria-pressed={showReceived}
             >
-              <div style={{ width: 28, height: 16, borderRadius: 99, background: showReceived ? '#1E3A5F' : '#E2E8F0', position: 'relative', flexShrink: 0, transition: 'background 0.2s' }}>
-                <div style={{ position: 'absolute', top: 2, left: showReceived ? 14 : 2, width: 12, height: 12, borderRadius: '50%', background: 'white', boxShadow: '0 1px 2px rgba(0,0,0,0.2)', transition: 'left 0.2s' }} />
-              </div>
-              <span style={{ fontSize: 11, color: '#64748B', whiteSpace: 'nowrap' }}>Show received</span>
+              <span className={`pv-board-toggle-track${showReceived ? ' is-on' : ''}`}>
+                <span className="pv-board-toggle-knob" />
+              </span>
+              <span className="pv-board-toggle-lbl">Show received</span>
             </button>
           </div>
-          {/* Progress */}
           {(() => {
             const totalItems = items.length;
             const receivedItems = items.filter(i => i.status === 'received').length;
             const pct = totalItems > 0 ? receivedItems / totalItems : 0;
             return (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                <span style={{ fontSize: 11, color: '#94A3B8', whiteSpace: 'nowrap' }}>
-                  {receivedItems} of {totalItems} items received
-                </span>
-                <div style={{ width: 64, height: 3, background: '#F1F5F9', borderRadius: 99, overflow: 'hidden', flexShrink: 0 }}>
-                  <div style={{ height: '100%', width: `${Math.round(pct * 100)}%`, background: 'linear-gradient(90deg, #4A90E2, #34D399)', borderRadius: 99, transition: 'width 0.4s' }} />
+              <div className="pv-board-progress">
+                <div className="pv-board-progress-bar">
+                  <span style={{ width: `${Math.round(pct * 100)}%` }} />
                 </div>
+                <span className="pv-board-progress-lbl">
+                  {receivedItems} / {totalItems} received
+                </span>
               </div>
             );
           })()}

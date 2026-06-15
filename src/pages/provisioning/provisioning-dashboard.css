@@ -30,50 +30,76 @@
 }
 
 /* ── Board-detail Option B layout ─────────────────────────────
-   Vertical action ribbon, header chip row (status + allergen),
-   and a cargo-styled sticky toolbar. The right-rail variant of
-   .cargo-ribbon stacks groups vertically with full-width buttons
-   so the header reads: identity (left) → actions (right). */
+   Vertical action ribbon and chips both live in the header row.
+   Chips render inside the left column (via EditorialPageShell's
+   `headerExtra` slot) so the column grows to title + chips height,
+   and the ribbon's `align-self: flex-end` pulls its bottom down to
+   match. The result: ribbon bottom button sits next to the chips. */
+.editorial-page.pv-dashboard .p-header-row {
+  align-items: stretch;
+}
+.editorial-page.pv-dashboard .p-header-row > div:first-child {
+  display: flex;
+  flex-direction: column;
+}
+.editorial-page.pv-dashboard .p-header-row .cargo-ribbon-vertical {
+  align-self: flex-end;
+  margin-bottom: 4px;
+}
 
 .cargo-ribbon-vertical {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 10px;
+  gap: 8px;
   margin: 0;
   min-width: 220px;
-  max-width: 260px;
+  max-width: 250px;
 }
 .cargo-ribbon-vertical .cargo-ribbon-group {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 6px;
+  gap: 4px;
 }
 .cargo-ribbon-vertical .cargo-ribbon-btn {
   width: 100%;
   justify-content: flex-start;
-  padding: 9px 14px;
+  padding: 6px 12px;
+  font-size: 11.5px;
 }
 .cargo-ribbon-vertical .cargo-ribbon-btn-icon {
-  align-self: flex-end;
-  width: 34px;
-  padding: 8px 0;
+  width: 32px;
+  padding: 6px 0;
   justify-content: center;
-}
-.cargo-ribbon-vertical .cargo-ribbon-divider {
-  width: 100%;
-  height: 1px;
-  margin: 2px 0;
+  flex-shrink: 0;
 }
 
-/* Chip row between the headline and tabs. */
+/* Bottom row pairs ⋯ (left) with Submit for Approval (right) on a
+   single horizontal line — replaces the prior stacked layout where
+   ⋯ hung as its own row beneath Submit. */
+.cargo-ribbon-vertical .cargo-ribbon-bottom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+.cargo-ribbon-vertical .cargo-ribbon-bottom > .relative {
+  flex-shrink: 0;
+}
+.cargo-ribbon-vertical .cargo-ribbon-bottom .cargo-ribbon-btn:not(.cargo-ribbon-btn-icon) {
+  flex: 1;
+}
+
+/* Chip row sits inside the left column right below the headline.
+   Margin-top separates it from the title; the parent column stretch
+   provides the breathing room before the tabs. */
 .pv-board-chip-row {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin: 14px 0 4px;
+  margin: 18px 0 0;
 }
 .pv-board-chip {
   display: inline-flex;
@@ -176,9 +202,169 @@
   border-radius: 14px;
   box-shadow: var(--d-shadow);
   margin: 12px 24px 14px;
-  padding: 10px 18px;
+  padding: 12px 18px;
   position: sticky;
   top: 8px;
   z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.pv-board-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Search input — light cool surface, internal search icon. */
+.pv-board-search-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.pv-board-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 13px;
+  height: 13px;
+  color: var(--d-muted);
+  pointer-events: none;
+}
+.pv-board-search-input {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  background: var(--d-bg);
+  border: 1px solid var(--d-border);
+  border-radius: 8px;
+  padding: 7px 12px 7px 30px;
+  color: var(--d-navy-deep);
+  outline: none;
+  min-width: 220px;
+  transition: border-color 0.12s, background 0.12s;
+}
+.pv-board-search-input::placeholder { color: var(--d-muted-soft); }
+.pv-board-search-input:focus {
+  background: var(--d-card);
+  border-color: var(--d-muted-soft);
+}
+
+/* Filter selects — custom chevron, no default browser arrow. */
+.pv-board-filter-select {
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--d-muted);
+  background-color: var(--d-card);
+  border: 1px solid var(--d-border);
+  border-radius: 8px;
+  padding: 7px 28px 7px 12px;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237C7E9B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  background-size: 11px;
+  transition: border-color 0.12s, color 0.12s;
+}
+.pv-board-filter-select:hover {
+  border-color: var(--d-muted-soft);
+  color: var(--d-navy-deep);
+}
+
+.pv-board-clear-filters {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--d-muted-soft);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  transition: color 0.12s;
+}
+.pv-board-clear-filters:hover { color: var(--d-navy-deep); }
+
+/* Show-received toggle — navy track when on, cool border-soft when off. */
+.pv-board-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.pv-board-toggle-track {
+  width: 28px;
+  height: 16px;
+  border-radius: 99px;
+  background: var(--d-border);
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.pv-board-toggle-track.is-on { background: var(--d-navy-deep); }
+.pv-board-toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: left 0.2s;
+}
+.pv-board-toggle-track.is-on .pv-board-toggle-knob { left: 14px; }
+.pv-board-toggle-lbl {
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--d-muted);
+  white-space: nowrap;
+}
+
+/* Progress strip — orange fill bar over a soft track, with numeric label
+   in the Outfit numeric face so received counts read at a glance. */
+.pv-board-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.pv-board-progress-bar {
+  width: 140px;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--d-border-soft);
+  position: relative;
+  overflow: hidden;
+}
+.pv-board-progress-bar > span {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--d-orange);
+  border-radius: 99px;
+  transition: width 0.4s;
+}
+.pv-board-progress-lbl {
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--d-muted);
+  font-feature-settings: "tnum" 1;
+  white-space: nowrap;
 }
 

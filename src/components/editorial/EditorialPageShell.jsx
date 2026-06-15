@@ -68,6 +68,14 @@ export default function EditorialPageShell({
   // Optional action strip slot — sits below the headline, full width
   actionStrip = null,
 
+  // Optional extra content inside the left column, below the headline but
+  // ABOVE the action strip. Use for content that should "belong" to the
+  // identity block (chips, status pills) so the right-rail's vertical
+  // bottom alignment lines up with these extras instead of with the bare
+  // headline — closes the empty void between a short title and a tall
+  // right rail. First consumer: Provisioning board detail's chip row.
+  headerExtra = null,
+
   // Body bg lift
   manageBodyBg = true,
   bodyBg = EDITORIAL_BG_WARM,
@@ -108,6 +116,7 @@ export default function EditorialPageShell({
             qualifier={qualifier}
             subtitle={subtitle}
           />
+          {headerExtra}
         </div>
         {resolvedRightRail}
       </div>
