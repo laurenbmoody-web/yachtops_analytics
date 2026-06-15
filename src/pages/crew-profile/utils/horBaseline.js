@@ -42,12 +42,15 @@ export async function fetchRotaBaselineForMonth({ userId, tenantId, year, month 
 
   const start = ymd(new Date(year, month, 1));
   const end = ymd(new Date(year, month + 1, 0));
+  // Fetch from the previous day too, so an overnight shift on the last day of the
+  // prior month spills its post-midnight hours onto day 1 of this month.
+  const fetchStart = ymd(new Date(year, month, 0));
   const { data: rows, error } = await supabase
     .from('rota_shifts')
     .select('shift_date, start_time, end_time, shift_type, rota_id')
     .eq('tenant_id', tenantId)
     .eq('member_id', memberId)
-    .gte('shift_date', start)
+    .gte('shift_date', fetchStart)
     .lte('shift_date', end)
     .order('shift_date', { ascending: true });
   if (error || !rows) return {};
@@ -68,8 +71,12 @@ export async function fetchRotaBaselineForMonth({ userId, tenantId, year, month 
     }
   }
 
+  // Emit only dates within the requested month — the −1 day fetch and any
+  // last-day spill onto the next month inform attribution but aren't returned
+  // here (the adjacent month's own fetch covers those days).
   const out = {};
   for (const [date, { trip, vessel }] of byDate) {
+    if (date < start || date > end) continue;
     const chosen = trip.size > 0 ? trip : vessel;
     out[date] = Array.from(chosen).sort((a, b) => a - b);
   }
