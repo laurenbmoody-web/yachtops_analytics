@@ -379,9 +379,8 @@ export default function RestLogView({
       <div className="rl-toolbar">
         <div className="rl-legend">
           <span className="rl-legend-item"><span className="rl-sw rl-sw-ok" /> compliant</span>
-          <span className="rl-legend-item"><span className="rl-sw rl-sw-marg" /> marginal (≤{MLC_DAILY_REST_MIN + 1}h)</span>
+          <span className="rl-legend-item"><span className="rl-sw rl-sw-marg" /> borderline (≤{MLC_DAILY_REST_MIN + 1}h)</span>
           <span className="rl-legend-item"><span className="rl-sw rl-sw-warn" /> below {MLC_DAILY_REST_MIN}h</span>
-          <span className="rl-legend-item"><span className="rl-sw rl-sw-off" /> off · cell = rest hours</span>
         </div>
         <div className="rl-actions">
           <div className="rl-export" ref={exportRef}>
