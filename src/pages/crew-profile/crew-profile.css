@@ -92,15 +92,23 @@ body.crew-profile-editorial {
    card values in both view and edit modes. */
 .crew-profile-page .cp-section-head {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 18px;
 }
 .crew-profile-page .cp-section-kicker {
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 1.6px;
   text-transform: uppercase;
+  color: #C65A1A;
+}
+/* Section number prefix — same serif + size as the title, terracotta. */
+.crew-profile-page .cp-section-num {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1;
   color: #C65A1A;
 }
 .crew-profile-page .cp-section-head h3 {

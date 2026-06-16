@@ -1188,10 +1188,9 @@ const canEdit = (() => {
     return (
       <div>
         <div className="cp-section-head">
-          <span className="cp-section-kicker">01 / Identity</span>
+          <span className="cp-section-num">01 /</span>
           <h3>Personal Details</h3>
         </div>
-        <p className="cp-section-sub">Identity, contact and the basics we hold on file.</p>
 
         <div className="cp-grid">
           <div className="cp-field-full cp-name-row">
@@ -1427,10 +1426,9 @@ const canEdit = (() => {
     return (
       <div>
         <div className="cp-section-head">
-          <span className="cp-section-kicker">02 / Emergency</span>
+          <span className="cp-section-num">02 /</span>
           <h3>Emergency / Next of Kin</h3>
         </div>
-        <p className="cp-section-sub">Who we call first — and who does what — if we can't reach you mid-passage.</p>
 
         {/* Emergency Contact (primary) */}
         <div className="cp-group">
@@ -1769,10 +1767,9 @@ const canEdit = (() => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
           <div>
             <div className="cp-section-head">
-              <span className="cp-section-kicker">04 / Banking</span>
+              <span className="cp-section-num">03 /</span>
               <h3>Banking</h3>
             </div>
-            <p className="cp-section-sub">Held encrypted and visible only to authorised crew.</p>
           </div>
           {!isEditing && canReveal && (
             <Button
@@ -2011,10 +2008,9 @@ const canEdit = (() => {
     return (
       <div>
         <div className="cp-section-head">
-          <span className="cp-section-kicker">05 / Preferences</span>
+          <span className="cp-section-num">04 /</span>
           <h3>Preferences</h3>
         </div>
-        <p className="cp-section-sub">Dietary needs and the little touches the interior likes to know.</p>
 
         {/* Dietary */}
         <div className="cp-group">
@@ -2605,10 +2601,9 @@ const canEdit = (() => {
   const renderDocuments = () => (
     <div>
       <div className="cp-section-head">
-        <span className="cp-section-kicker">04 / Documents</span>
+        <span className="cp-section-num">05 /</span>
         <h3>Documents</h3>
       </div>
-      <p className="cp-section-sub">Certificates, contracts and travel documents held on file.</p>
       <div className="cp-flatcard p-10 text-center">
         <Icon name="FileText" size={30} className="text-muted-foreground mx-auto mb-3" />
         <p className="text-sm text-muted-foreground">Document storage is coming to this tab.</p>
