@@ -12,6 +12,7 @@ import ReviewRightPane from './ReviewRightPane';
 import ResolvedDetail from './ResolvedDetail';
 import InboxSidebar from './InboxSidebar';
 import OrdersReviewPanel from './OrdersReviewPanel';
+import OrderApprovalRightPane from './OrderApprovalRightPane';
 import { useProvisioningApprovals } from './useProvisioningApprovals';
 import './reviews.css';
 
@@ -132,12 +133,56 @@ export default function ReviewsPage() {
   const handleResolved = () => { refetch(); };
 
   if (activeCategory === 'orders') {
+    // Selection state for the orders queue lives on the URL so deep
+    // links from the bell notification (?selected=<request_id>) drop
+    // the approver straight onto the right pane.
+    const ordersSelectedId = searchParams.get('selected');
+    const ordersItems = provisioningApprovals.items;
+    const ordersSelected = ordersItems.find(i => i.id === ordersSelectedId) || ordersItems[0] || null;
+    const handleOrdersSelect = (id) => setSearchParams({ selected: id });
+    const handleOrdersResolved = async () => {
+      // Refetch + clear the selection if the resolved item disappears.
+      await provisioningApprovals.refetch();
+      setSearchParams({}, { replace: true });
+    };
+    const ordersToast = (msg, opts) => showToast(msg, opts);
     return (
       <>
         <Header />
         <div className="rv-page">
-          <InboxSidebar activeCategory="orders" counts={{ rotas: subtitleCount, orders: provisioningApprovals.items.length }} />
-          <OrdersReviewPanel />
+          <InboxSidebar activeCategory="orders" counts={{ rotas: subtitleCount, orders: ordersItems.length }} />
+          <OrdersReviewPanel
+            items={ordersItems}
+            loading={provisioningApprovals.loading}
+            selectedId={ordersSelected?.id}
+            onSelect={handleOrdersSelect}
+          />
+          <section className="rv-rightpane-col" aria-label="Approval detail">
+            {ordersSelected ? (
+              <OrderApprovalRightPane
+                key={ordersSelected.id}
+                request={ordersSelected}
+                onResolved={handleOrdersResolved}
+                onToast={ordersToast}
+              />
+            ) : (
+              <div className="rv-rp-blank" role="status">
+                <Icon name="Check" size={36} color="#8B8478" className="rv-rp-blank-icon" />
+                <div className="rv-rp-blank-title">
+                  {provisioningApprovals.loading ? 'Loading…' : 'Nothing to review'}
+                </div>
+                <div className="rv-rp-blank-sub">
+                  When boards are submitted for your approval they'll appear here.
+                </div>
+              </div>
+            )}
+          </section>
+          {toast && (
+            <div
+              className={`rv-toast${toast.error ? ' error' : ''}`}
+              role={toast.error ? 'alert' : 'status'}
+            >{toast.msg}</div>
+          )}
         </div>
       </>
     );

@@ -1,16 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
-import { useProvisioningApprovals } from './useProvisioningApprovals';
 
-// OrdersReviewPanel — pending provisioning approvals assigned to the
-// current user. List strip rendered with the same eyebrow/title/
-// subtitle rhythm as the rotas queue. Click a card → navigate to the
-// board; the board itself already renders the "Your review" chip + the
-// Approve / Request changes buttons (PR3 of the approval-routing
-// feature). PR C will introduce a right-pane summary so the approver
-// can scan the items without leaving the inbox; for now click-through
-// is the simplest correct behaviour.
+// OrdersReviewPanel — list strip of pending provisioning approvals
+// assigned to the current user. Cards are SELECTABLE (not navigation
+// triggers) so the right pane can show a summary + decision buttons.
+// The pane carries its own "Open full board" deep-link for when the
+// approver wants the real layout.
 
 function timeAgo(iso) {
   if (!iso) return '';
@@ -31,10 +27,8 @@ const tidyBoardType = (t) => {
   return upper;
 };
 
-export default function OrdersReviewPanel() {
+export default function OrdersReviewPanel({ items, loading, selectedId, onSelect }) {
   const navigate = useNavigate();
-  const { items, loading } = useProvisioningApprovals();
-
   const count = items.length;
   const subtitle = loading
     ? 'Loading…'
@@ -60,8 +54,9 @@ export default function OrdersReviewPanel() {
             <button
               key={it.id}
               type="button"
-              className="rv-cc"
-              onClick={() => navigate(`/provisioning/${it.list_id}`)}
+              className={`rv-cc${it.id === selectedId ? ' selected' : ''}`}
+              onClick={() => onSelect?.(it.id)}
+              aria-current={it.id === selectedId ? 'true' : undefined}
               aria-label={`${it.board_title} — ${it.is_re_approval ? 'quote review, ' : ''}submitted by ${it.submitter_name}, ${timeAgo(it.created_at)}`}
             >
               <div className="rv-cc-head">
