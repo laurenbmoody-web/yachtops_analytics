@@ -384,11 +384,11 @@ function OffVesselSection({ crew, gridStartHour, onCrewClick }) {
 
 // ── Grid ────────────────────────────────────────────────────────────────────
 
-// Department order for the signed-in user:
-//  - COMMAND, or no own department → canonical order
-//  - CHIEF/HOD/CREW with a department → own dept first, then the rest
-//    by crew-count desc, ties broken by canonical index then name
-function orderDepartments(byDept, crew, tenantRole, ownDeptId) {
+// Department order for the signed-in user: their own department first — so
+// EVERY tier (COMMAND included) sees their own rota at the top — then the
+// remaining departments in canonical order. A user with no/absent own
+// department falls back to plain canonical order.
+function orderDepartments(byDept, crew, ownDeptId) {
   const present = Array.from(byDept.keys());
   const canonIdx = (n) => {
     const i = CANONICAL_DEPTS.indexOf(n);
@@ -396,22 +396,16 @@ function orderDepartments(byDept, crew, tenantRole, ownDeptId) {
   };
   const canonicalSort = (a, b) => canonIdx(a) - canonIdx(b) || a.localeCompare(b);
 
-  const isCommand = String(tenantRole || '').toUpperCase() === 'COMMAND';
   let ownDeptName = null;
   if (ownDeptId) {
     const m = crew.find(c => c.departmentId === ownDeptId);
     ownDeptName = m?.department || null;
   }
 
-  if (isCommand || !ownDeptName || !byDept.has(ownDeptName)) {
+  if (!ownDeptName || !byDept.has(ownDeptName)) {
     return [...present].sort(canonicalSort);
   }
-  const rest = present
-    .filter(d => d !== ownDeptName)
-    .sort((a, b) =>
-      (byDept.get(b).length - byDept.get(a).length)
-      || canonIdx(a) - canonIdx(b)
-      || a.localeCompare(b));
+  const rest = present.filter(d => d !== ownDeptName).sort(canonicalSort);
   return [ownDeptName, ...rest];
 }
 
@@ -482,11 +476,22 @@ export default function RotaTodayGrid({
     if (!byDept.has(d)) byDept.set(d, []);
     byDept.get(d).push(c);
   }
-  // Sort crew within each department (state rank → role rank → name).
-  for (const arr of byDept.values()) arr.sort(sortWithinDept);
+  // Sort crew within each department (state rank → role rank → name), then
+  // pin the signed-in user's own row to the top of their department so they
+  // always see their own rota first, regardless of permission tier.
+  for (const arr of byDept.values()) {
+    arr.sort(sortWithinDept);
+    if (user?.id) {
+      const idx = arr.findIndex(c => c.userId === user.id);
+      if (idx > 0) {
+        const [mine] = arr.splice(idx, 1);
+        arr.unshift(mine);
+      }
+    }
+  }
 
   const orderedDepts = orderDepartments(
-    byDept, onVessel, tenantRole, currentUser?.department_id || null,
+    byDept, onVessel, currentUser?.department_id || null,
   );
 
   // Adaptive crew-column width (Correction 4). Pure CSS can't fit a

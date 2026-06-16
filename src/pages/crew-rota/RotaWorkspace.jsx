@@ -417,7 +417,12 @@ export default function RotaWorkspace({
     if (!res.ok) showToast(`Couldn’t save that change — try again. (${res.error})`);
   }, [rota, mode, shiftType, myMemberId, applyPaint, syncDeptDraft, showToast, gridStartHour, lastPreMidnightSlot]);
 
-  const canEdit = !!rota?.id && !loading && !error;
+  // Read-only tiers (crew) can view but never edit. Editors are COMMAND /
+  // CHIEF / HOD (HOD submits for approval, CHIEF / COMMAND publish — enforced
+  // by the footer CTA). Reviewer mode (/reviews) is always a CHIEF / COMMAND
+  // reviewer, so editing is allowed there regardless.
+  const tierCanEdit = mode === 'reviewer' || ['COMMAND', 'CHIEF', 'HOD'].includes(tier);
+  const canEdit = tierCanEdit && !!rota?.id && !loading && !error;
   const [hodConfirmOpen, setHodConfirmOpen] = useState(false);
 
   // ── HOD discard model ──────────────────────────────────────────────────────
