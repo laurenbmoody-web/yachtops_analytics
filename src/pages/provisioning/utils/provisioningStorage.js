@@ -42,6 +42,7 @@ import { loadTrips, findTripByAnyId } from '../../trips-management-dashboard/uti
 export const PROVISIONING_STATUS = {
   DRAFT: 'draft',
   PENDING_APPROVAL: 'pending_approval',
+  QUOTE_RECEIVED: 'quote_received',
   SENT_TO_SUPPLIER: 'sent_to_supplier',
   PARTIALLY_DELIVERED: 'partially_delivered',
   DELIVERED_WITH_DISCREPANCIES: 'delivered_with_discrepancies',
