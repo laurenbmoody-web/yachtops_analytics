@@ -13,6 +13,22 @@ import { supabase } from '../../../lib/supabaseClient';
 
 const toDbMonth = (jsMonth) => jsMonth + 1;
 
+// Active members' permission tiers for a tenant, keyed by user_id. Used to make
+// the sign-off UI rank-aware (mirrors the RPCs): who may approve whom, and
+// whether the subject is top-of-chain (self-certifies). RLS scopes to tenant.
+export async function fetchActiveMemberTiers(tenantId) {
+  if (!tenantId) return {};
+  const { data, error } = await supabase
+    .from('tenant_members')
+    .select('user_id, permission_tier')
+    .eq('tenant_id', tenantId)
+    .eq('active', true);
+  if (error || !data) return {};
+  const byUser = {};
+  data.forEach((r) => { byUser[r.user_id] = r.permission_tier; });
+  return byUser;
+}
+
 // Per-vessel workflow settings for the active tenant. The vessels table is
 // keyed by tenant_id (one row per tenant), so we look it up that way.
 // → { mode: 'require'|'trust', approverTier: 'COMMAND'|'CHIEF'|'HOD' }
