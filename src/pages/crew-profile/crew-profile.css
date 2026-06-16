@@ -334,6 +334,37 @@ body.crew-profile-editorial {
   color: #AEB4C2;
 }
 
+/* Grid with a little air above (e.g. the dietary line under the allergy ref). */
+.crew-profile-page .cp-grid-spaced { margin-top: 10px; }
+
+/* Birthday — a read-only cross-reference row: value on the left, a quiet
+   jump-link to Personal Details on the right (mirrors the allergy ref). */
+.crew-profile-page .cp-field-card .cp-static.cp-birthday {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.crew-profile-page .cp-birthday .cp-empty { color: #AEB4C2; font-weight: 400; }
+
+/* Spice tolerance — value + a 4-step diamond scale echoing the ◆ group motif. */
+.crew-profile-page .cp-spice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 20px;
+}
+.crew-profile-page .cp-spice-val { font-size: 14px; font-weight: 500; color: #1C1B3A; }
+.crew-profile-page .cp-spice-scale { display: inline-flex; gap: 5px; }
+.crew-profile-page .cp-spice-pip {
+  width: 8px;
+  height: 8px;
+  transform: rotate(45deg);
+  border-radius: 1.5px;
+  background: #E3E1D8;
+}
+.crew-profile-page .cp-spice-pip.on { background: #C65A1A; }
+
 /* A full-width collapsible group toggle (Banking → bank address). */
 .crew-profile-page .cp-collapse-toggle {
   display: inline-flex;

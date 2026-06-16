@@ -81,8 +81,23 @@ export const profileDataToFormData = ({ personal, banking }) => {
     dietaryCategory: pref.dietaryCategory || 'None / No restrictions',
     dietaryNotes: pref.dietaryNotes || '',
     cakePreference: pref.cakePreference || '',
+    // Tastes — favouriteMeals is reused as the "Loves" tag list (comma-joined),
+    // so any existing free-text favourites carry straight over as chips.
     favouriteMeals: pref.favouriteMeals || '',
     favouriteSnacks: pref.favouriteSnacks || '',
+    avoid: pref.avoid || '',
+    tasteNotes: pref.tasteNotes || '',
+    // How you like to eat
+    appetite: pref.appetite || '',
+    spiceLevel: pref.spiceLevel || '',
+    breakfast: pref.breakfast || '',
+    // Coffee & tea
+    coffeeOrder: pref.coffeeOrder || '',
+    tea: pref.tea || '',
+    // A little about you
+    comfortFood: pref.comfortFood || '',
+    // Retained from earlier versions so nothing is lost on save, even though the
+    // redesigned Preferences tab no longer surfaces a dedicated drinks section.
     alcoholicPreference: pref.alcoholicPreference || 'None',
     nonAlcoholicPreferences: pref.nonAlcoholicPreferences || '',
   };
@@ -136,7 +151,12 @@ export const saveCrewProfileData = async (userId, f, actor = null) => {
     preferences: {
       dietaryCategory: f.dietaryCategory || '', dietaryNotes: f.dietaryNotes || '',
       cakePreference: f.cakePreference || '', favouriteMeals: f.favouriteMeals || '',
-      favouriteSnacks: f.favouriteSnacks || '', alcoholicPreference: f.alcoholicPreference || '',
+      favouriteSnacks: f.favouriteSnacks || '', avoid: f.avoid || '',
+      tasteNotes: f.tasteNotes || '', appetite: f.appetite || '',
+      spiceLevel: f.spiceLevel || '', breakfast: f.breakfast || '',
+      coffeeOrder: f.coffeeOrder || '', tea: f.tea || '',
+      comfortFood: f.comfortFood || '',
+      alcoholicPreference: f.alcoholicPreference || '',
       nonAlcoholicPreferences: f.nonAlcoholicPreferences || '',
     },
     updated_at: now,
