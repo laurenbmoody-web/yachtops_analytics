@@ -94,10 +94,17 @@ jobs:
       - name: Apply migrations
         # Retry: the pooler occasionally i/o-times-out on connect; db push is
         # safe to re-attempt (already-applied migrations are skipped via history).
+        #
+        # `--include-all` lets CLI insert out-of-order migrations whose
+        # version is older than the last applied remote one. We hit this
+        # whenever two engineers cut migrations with overlapping prefixes
+        # (e.g. 20260615150000_X applied via Studio while 20260615150000_Y
+        # waited on the branch). Without the flag, db push refuses and
+        # prints exactly this advice — so we may as well take it.
         run: |
           set -e
           for i in 1 2 3; do
-            if supabase db push; then exit 0; fi
+            if supabase db push --include-all; then exit 0; fi
             echo "::warning::db push attempt $i failed; retrying in 10s…"
             sleep 10
           done
