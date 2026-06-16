@@ -1427,7 +1427,7 @@ const canEdit = (() => {
       <div>
         <div className="cp-section-head">
           <span className="cp-section-num">02 /</span>
-          <h3>Emergency / Next of Kin</h3>
+          <h3>Emergency</h3>
         </div>
 
         {/* Emergency Contact (primary) */}
