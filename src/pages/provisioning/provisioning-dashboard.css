@@ -92,7 +92,14 @@
      headline), giving equal breathing room above and below.
    - Tabs row drops its `margin-top: auto` so the chip row claims the
      centering space, not the tabs row. */
-.editorial-page.pv-dashboard .p-context-bar { margin-bottom: 5px; }
+/* Rhythm of the top of the header column:
+   - 24px between BACK TO BOARDS and the meta strip (was 10) — gives
+     the back link clear breathing room as a navigation control.
+   - 0px between the meta strip and the headline — meta reads as an
+     eyebrow tightly bound to the title, not a separate band.
+   - 8px below the headline before the chip row. */
+.editorial-page.pv-dashboard .p-back-link { margin-bottom: 24px; }
+.editorial-page.pv-dashboard .p-context-bar { margin-bottom: 0; }
 .editorial-page.pv-dashboard .p-greeting { margin-bottom: 8px; }
 
 /* Chip row sits inside the left column right below the headline.
