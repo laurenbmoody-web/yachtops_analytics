@@ -61,23 +61,90 @@ function subLabel(s) {
   return `${s.shift_type} · service`;
 }
 
+// Apply an AI-proposed change to a set of snake_case shift rows, returning a
+// modified copy. The model identifies the target block by date + start time;
+// 'remove' drops it, 'shorten'/'shift' rewrite its times. Used purely to
+// RECOMPUTE rest deltas — it never writes to the DB.
+function applyChange(rows, change) {
+  if (!change || !change.shift_date) return rows;
+  const targetHH = (change.original_start || '').slice(0, 5);
+  return rows.flatMap(r => {
+    const isTarget = r.shift_date === change.shift_date
+      && ON_DUTY_TYPES.has(r.shift_type)
+      && (!targetHH || (r.start_time || '').slice(0, 5) === targetHH);
+    if (!isTarget) return [r];
+    if (change.action === 'remove') return [];
+    return [{ ...r, start_time: change.new_start || r.start_time, end_time: change.new_end || r.end_time }];
+  });
+}
+
+function effect(name, fromH, toH, minH) {
+  const ok = (h) => h >= minH;
+  return {
+    name,
+    from: fmtHours(fromH),
+    to: fmtHours(toH),
+    fromColor: ok(fromH) ? '#2D5A3A' : '#7A2E1E',
+    toColor: ok(toH) ? '#2D5A3A' : '#7A2E1E',
+    note: ok(toH) ? 'now compliant' : `${fmtHours(Math.max(0, minH - toH))} short`,
+    noteColor: ok(toH) ? '#2D5A3A' : '#7A2E1E',
+  };
+}
+
+// Turn one AI suggestion into the shape RestPanelPopover renders, computing the
+// real rest deltas by applying the proposed change and re-running assessMlc.
+function enrichSuggestion(sg, ctx) {
+  const { todayRows, weekRows, effDate, rest24h, pastWeekHours, dailyBelow, weeklyBelow } = ctx;
+  const change = sg.change || null;
+  const newWeek = applyChange(weekRows, change);
+  const newToday = change && change.shift_date === effDate ? applyChange(todayRows, change) : todayRows;
+  const rep = assessMlc({ dayShifts: newToday.map(toCamelShift), weekShifts: newWeek.map(toCamelShift) });
+
+  const effects = [];
+  if (dailyBelow) effects.push(effect('Daily rest', rest24h, rep.rest24h, 10));
+  if (weeklyBelow) effects.push(effect('Weekly rest', pastWeekHours, rep.pastWeekHours, 77));
+  if (!dailyBelow && !weeklyBelow) {
+    effects.push({
+      name: 'Rest pattern',
+      to: rep.anyBreach ? 'still breached' : 'compliant',
+      toColor: rep.anyBreach ? '#7A2E1E' : '#2D5A3A',
+      note: rep.anyBreach ? 'needs another change' : 'splits within MLC',
+      noteColor: rep.anyBreach ? '#7A2E1E' : '#2D5A3A',
+    });
+  }
+
+  return {
+    type: sg.confidence === 'high' ? 'confident' : 'judgment',
+    pill: sg.confidence === 'high' ? 'High confidence' : 'Judgement call',
+    headline: sg.headline,
+    body: sg.body,
+    effects,
+    primaryAction: 'Adjust in grid',
+    secondaryAction: 'Dismiss',
+  };
+}
+
 // Friendly label per on-duty shift type.
 const TYPE_LABELS = { duty: 'Duty', watch: 'Watch', standby: 'Standby', training: 'Training' };
 
-export function useRotaRestData(memberId) {
+export function useRotaRestData(memberId, crewName = null, crewRole = null, crewDept = null) {
   // AuthContext exposes `activeTenantId`, not `tenantId`.
   const { user, activeTenantId } = useAuth();
   const tenantId = activeTenantId;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  // AI rest suggestions (hybrid: model proposes the change, we compute deltas).
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    if (!user || !tenantId || !memberId) { setData(null); return undefined; }
+    if (!user || !tenantId || !memberId) { setData(null); setSuggestions([]); return undefined; }
 
     setLoading(true);
     setError(null);
+    setSuggestions([]);
 
     (async () => {
       try {
@@ -265,8 +332,45 @@ export function useRotaRestData(memberId) {
           tripStats,
           onDutyWeekLabel: fmtHours(mlcReport.onDutyWeek),
           daysWorked,
-          suggestions: [],
         });
+
+        // ── AI rest suggestions (hybrid: model proposes the change, we
+        //    recompute the real before→after deltas with assessMlc) ──
+        if (mlcWarning) {
+          setSuggestionsLoading(true);
+          try {
+            const blocks = todayRows
+              .filter(s => ON_DUTY_TYPES.has(s.shift_type))
+              .map(s => ({ start: (s.start_time || '').slice(0, 5), end: (s.end_time || '').slice(0, 5), type: s.shift_type }));
+            const weekDays = [];
+            for (let i = 6; i >= 0; i -= 1) {
+              const ds = addDays(effDate, -i);
+              const onD = weekRows
+                .filter(s => s.shift_date === ds && ON_DUTY_TYPES.has(s.shift_type))
+                .reduce((a, s) => a + shiftHours(s), 0);
+              weekDays.push({ date: ds, on_duty_hours: Math.round(onD), rest_hours: Math.round(Math.max(0, 24 - onD)) });
+            }
+            const { data: aiRes } = await supabase.functions.invoke('generate-rest-insights', {
+              body: {
+                member: { name: crewName || 'This crew member', role: crewRole, department: crewDept },
+                breaches: mlcReport.breaches.map(b => ({ rule: b.rule, label: b.label })),
+                today: { date: effDate, rest_hours: Math.round(rest24h), on_duty_hours: Math.round(onDutyToday), blocks },
+                week: { rest_hours: Math.round(pastWeekHours), days: weekDays },
+              },
+            });
+            if (cancelled) return;
+            const rawSuggestions = Array.isArray(aiRes?.suggestions) ? aiRes.suggestions : [];
+            const enriched = rawSuggestions.map(sg => enrichSuggestion(sg, {
+              todayRows, weekRows, effDate, rest24h, pastWeekHours, dailyBelow, weeklyBelow,
+            }));
+            if (!cancelled) setSuggestions(enriched);
+          } catch (aiErr) {
+            // AI is best-effort — never break the panel if it fails.
+            if (!cancelled) setSuggestions([]);
+          } finally {
+            if (!cancelled) setSuggestionsLoading(false);
+          }
+        }
       } catch (e) {
         if (!cancelled) setError(e?.message ?? String(e));
       } finally {
@@ -275,7 +379,7 @@ export function useRotaRestData(memberId) {
     })();
 
     return () => { cancelled = true; };
-  }, [user, tenantId, memberId]);
+  }, [user, tenantId, memberId, crewName, crewRole, crewDept]);
 
-  return { data, loading, error };
+  return { data, loading, error, suggestions, suggestionsLoading };
 }

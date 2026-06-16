@@ -47,7 +47,9 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
 
   // Hook must run unconditionally (before the early return). It no-ops
   // when crew is null and returns null data while the query is in flight.
-  const { data: restData } = useRotaRestData(crew?.id);
+  const { data: restData, suggestions, suggestionsLoading } = useRotaRestData(
+    crew?.id, crew?.name, crew?.role, crew?.department,
+  );
 
   if (!crew) return null;
 
@@ -228,13 +230,15 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
         </div>
 
         {/* 6 · AI suggestions (violation only) */}
-        {warn && data.suggestions.length > 0 && (
+        {warn && (suggestionsLoading || suggestions.length > 0) && (
           <div className="rest-section">
             <SectionHead label="WORTH CONSIDERING" accent />
             <div className="rest-section-summary">
-              Two ways to bring {data.fullName.split(' ')[0]} into compliance without losing coverage.
+              {suggestionsLoading
+                ? `Looking for ways to bring ${data.fullName.split(' ')[0]} back into compliance…`
+                : `${suggestions.length === 1 ? 'A way' : `${suggestions.length} ways`} to bring ${data.fullName.split(' ')[0]} into compliance without losing coverage.`}
             </div>
-            {data.suggestions.map((sg, i) => (
+            {suggestions.map((sg, i) => (
               <div key={i} className={`rest-suggestion ${sg.type}`}>
                 <span className={`rest-conf-pill ${sg.type}`}>{sg.pill}</span>
                 <div
@@ -263,15 +267,14 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
                   ))}
                 </div>
                 <div className="rest-actions">
-                  <button type="button" className="rest-btn primary">{sg.primaryAction}</button>
-                  <button type="button" className="rest-btn ghost">{sg.secondaryAction}</button>
+                  <button type="button" className="rest-btn primary" onClick={onViewSchedule}>{sg.primaryAction}</button>
+                  <button type="button" className="rest-btn ghost" onClick={onOpenHor}>{sg.secondaryAction}</button>
                 </div>
               </div>
             ))}
             <div className="rest-suggestion-why">
-              Suggestions weigh MLC compliance against guest service coverage and crew
-              qualifications.{' '}
-              <a href="#why" onClick={(e) => e.preventDefault()}>Why these two?</a>
+              AI-generated from this rota — the before/after rest figures are computed by
+              Cargo’s MLC engine, not the model. Always confirm coverage before applying.
             </div>
           </div>
         )}
