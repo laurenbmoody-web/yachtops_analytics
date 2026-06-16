@@ -19,11 +19,14 @@ const CAPACITY_OPTIONS = [
   'Other'
 ];
 
+// Maps to the four MCA service types recorded separately on a MIN 642
+// testimonial. A day with watch hours >= the configured minimum is auto-upgraded
+// to Watchkeeping by the rules engine regardless of this choice.
 const SEA_SERVICE_TYPES = [
-  'Underway',
-  'In port',
-  'Yard period',
-  'Standby'
+  { value: 'Underway', label: 'Seagoing (underway)' },
+  { value: 'Standby', label: 'Standby (anchor / in port)' },
+  { value: 'In port', label: 'In port' },
+  { value: 'Yard period', label: 'Shipyard / refit' }
 ];
 
 const AddManualEntryModal = ({ isOpen, onClose, userId, onSuccess }) => {
@@ -40,6 +43,7 @@ const AddManualEntryModal = ({ isOpen, onClose, userId, onSuccess }) => {
     endDate: '',
     capacityServed: '',
     watchkeepingRole: false,
+    watchHours: '',
     locationTradingArea: '',
     seaServiceType: 'Underway'
   });
@@ -52,6 +56,7 @@ const AddManualEntryModal = ({ isOpen, onClose, userId, onSuccess }) => {
     officialNumber: '',
     vesselStatusType: 'Commercial Yacht',
     grossTonnage: '',
+    lengthM: '',
     propulsionPowerKW: '',
     propulsionPowerHP: '',
     vesselType: 'Motor Yacht',
@@ -123,6 +128,7 @@ const AddManualEntryModal = ({ isOpen, onClose, userId, onSuccess }) => {
         officialNumber: vessel?.officialNumber || '',
         vesselStatusType: vessel?.vesselStatusType || 'Commercial Yacht',
         grossTonnage: vessel?.grossTonnage?.toString() || '',
+        lengthM: vessel?.loa?.toString() || '',
         propulsionPowerKW: vessel?.propulsionPowerKW?.toString() || '',
         propulsionPowerHP: '',
         vesselType: vessel?.vesselType || 'Motor Yacht',
@@ -164,6 +170,10 @@ const AddManualEntryModal = ({ isOpen, onClose, userId, onSuccess }) => {
     }
     if (!vesselDetails?.grossTonnage || isNaN(parseFloat(vesselDetails?.grossTonnage))) {
       showToast('Please provide valid Gross Tonnage', 'error');
+      return false;
+    }
+    if (!vesselDetails?.lengthM || isNaN(parseFloat(vesselDetails?.lengthM))) {
+      showToast('Please provide a valid registered / load-line length (m)', 'error');
       return false;
     }
     if (!vesselDetails?.propulsionPowerKW || isNaN(parseFloat(vesselDetails?.propulsionPowerKW))) {
@@ -230,10 +240,17 @@ const AddManualEntryModal = ({ isOpen, onClose, userId, onSuccess }) => {
         addManualSeaServiceEntry(userId, {
           vesselName: vesselDetails?.vesselName,
           savedVesselId,
+          // Snapshot the gating vessel facts onto the entry so the rules engine
+          // can evaluate it without a managed vessel record.
+          grossTonnage: parseFloat(vesselDetails?.grossTonnage),
+          lengthM: parseFloat(vesselDetails?.lengthM),
+          vesselStatusType: vesselDetails?.vesselStatusType,
+          vesselType: vesselDetails?.vesselType,
           date: dateStr,
           vesselStatus: null,
           capacityServed: servicePeriod?.capacityServed,
           watchkeepingRole: servicePeriod?.watchkeepingRole,
+          watchHours: servicePeriod?.watchHours ? parseFloat(servicePeriod?.watchHours) : 0,
           locationTradingArea: servicePeriod?.locationTradingArea,
           seaServiceType: servicePeriod?.seaServiceType,
           noteReason: evidenceNotes?.noteReason,
@@ -264,6 +281,7 @@ const AddManualEntryModal = ({ isOpen, onClose, userId, onSuccess }) => {
       endDate: '',
       capacityServed: '',
       watchkeepingRole: false,
+      watchHours: '',
       locationTradingArea: '',
       seaServiceType: 'Underway'
     });
@@ -389,14 +407,33 @@ const AddManualEntryModal = ({ isOpen, onClose, userId, onSuccess }) => {
                 </Select>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  checked={servicePeriod?.watchkeepingRole}
-                  onChange={(e) => setServicePeriod({ ...servicePeriod, watchkeepingRole: e?.target?.checked })}
-                />
-                <label className="text-sm text-foreground">
-                  Watchkeeping / Navigational role
-                </label>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={servicePeriod?.watchkeepingRole}
+                    onChange={(e) => setServicePeriod({ ...servicePeriod, watchkeepingRole: e?.target?.checked })}
+                  />
+                  <label className="text-sm text-foreground">
+                    Watchkeeping / Navigational role
+                  </label>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Watch hours (per day)
+                  </label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="24"
+                    step="0.5"
+                    value={servicePeriod?.watchHours}
+                    onChange={(e) => setServicePeriod({ ...servicePeriod, watchHours: e?.target?.value })}
+                    placeholder="e.g., 6"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    A day with ≥4 watch hours is classified as watchkeeping service.
+                  </p>
+                </div>
               </div>
 
               <div>
@@ -419,7 +456,7 @@ const AddManualEntryModal = ({ isOpen, onClose, userId, onSuccess }) => {
                   onChange={(e) => setServicePeriod({ ...servicePeriod, seaServiceType: e?.target?.value })}
                 >
                   {SEA_SERVICE_TYPES?.map(type => (
-                    <option key={type} value={type}>{type}</option>
+                    <option key={type?.value} value={type?.value}>{type?.label}</option>
                   ))}
                 </Select>
               </div>
@@ -541,15 +578,29 @@ const AddManualEntryModal = ({ isOpen, onClose, userId, onSuccess }) => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
-                      Propulsion Power (kW) <span className="text-red-500">*</span>
+                      Registered / Load-line length (m) <span className="text-red-500">*</span>
                     </label>
                     <Input
                       type="number"
-                      value={vesselDetails?.propulsionPowerKW}
-                      onChange={(e) => setVesselDetails({ ...vesselDetails, propulsionPowerKW: e?.target?.value })}
-                      placeholder="2400"
+                      step="0.01"
+                      value={vesselDetails?.lengthM}
+                      onChange={(e) => setVesselDetails({ ...vesselDetails, lengthM: e?.target?.value })}
+                      placeholder="18"
                     />
+                    <p className="text-xs text-muted-foreground mt-1">Gates whether seagoing service qualifies (≥15m).</p>
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Propulsion Power (kW) <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="number"
+                    value={vesselDetails?.propulsionPowerKW}
+                    onChange={(e) => setVesselDetails({ ...vesselDetails, propulsionPowerKW: e?.target?.value })}
+                    placeholder="2400"
+                  />
                 </div>
 
                 {/* HP Converter */}
