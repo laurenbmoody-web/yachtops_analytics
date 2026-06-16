@@ -14,7 +14,6 @@ import StatusChangeModal from '../crew-management/components/StatusChangeModal';
 import { getCurrentUser, getDepartmentDisplayName, getTierDisplayName } from '../../utils/authStorage';
 import { getInitials } from '../../utils/profileHelpers';
 import DocumentsTab from './components/DocumentsTab';
-import ProfileCompletionMeter from './components/ProfileCompletionMeter';
 import { fetchCrewProfileData, profileDataToFormData, saveCrewProfileData, logBankingView } from './utils/crewProfileData';
 import { ibanWarning, swiftWarning } from './utils/bankingValidation';
 import { fetchCrewDocuments } from './utils/crewDocuments';
@@ -178,6 +177,17 @@ const CrewProfile = () => {
   const [myProfile, setMyProfile] = useState(null);
   const [statusChangeModalOpen, setStatusChangeModalOpen] = useState(false);
   const [statusChangeSaving, setStatusChangeSaving] = useState(false);
+  // Profile-completion dropdown — opened by clicking the % badge on the avatar.
+  const [completionOpen, setCompletionOpen] = useState(false);
+  const completionRef = useRef(null);
+  useEffect(() => {
+    if (!completionOpen) return undefined;
+    const onDown = (e) => {
+      if (completionRef.current && !completionRef.current.contains(e.target)) setCompletionOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [completionOpen]);
 
   // Fetch tenant member role for permission checks
   useEffect(() => {
@@ -1013,7 +1023,7 @@ const canEdit = (() => {
         <div className="flex items-start justify-between gap-6">
           <div className="flex items-start gap-6">
             {/* Profile Photo — clickable upload, wrapped in the completion ring */}
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-2 cp-avatar-col" ref={completionRef}>
               <div className="cp-avatar-ring">
                 <svg className="cp-avatar-ring-svg" viewBox="0 0 112 112" aria-hidden="true">
                   <circle className="track" cx="56" cy="56" r="52" />
@@ -1052,17 +1062,48 @@ const canEdit = (() => {
                     <Icon name="User" size={48} className="text-primary" />
                   )}
                 </div>
-                <div
-                  className={`cp-avatar-pct${ringComplete ? ' is-complete' : ''}`}
-                  title={ringComplete ? 'Profile complete' : `${ringPct}% complete`}
-                >
-                  {ringComplete ? '✓' : `${ringPct}%`}
-                </div>
+                {ringComplete ? (
+                  <span className="cp-avatar-pct is-complete" title="Profile complete">✓</span>
+                ) : (
+                  <button
+                    type="button"
+                    className={`cp-avatar-pct cp-avatar-pct-btn${completionOpen ? ' is-open' : ''}`}
+                    onClick={() => setCompletionOpen((v) => !v)}
+                    aria-expanded={completionOpen}
+                    title={`${ringPct}% complete — ${completion.missing.length} to finish`}
+                  >
+                    {ringPct}%
+                  </button>
+                )}
               </div>
               {canEdit && (
                 <p className="text-xs text-muted-foreground text-center max-w-[100px]">
                   Click to upload photo
                 </p>
+              )}
+
+              {/* What's left to fill in — drops down from the % badge. */}
+              {completionOpen && !ringComplete && completion.missing.length > 0 && (
+                <div className="cp-completion-pop">
+                  <div className="cp-completion-pop-head">
+                    <span className="pct">{ringPct}% complete</span>
+                    <span className="rem">{completion.missing.length} to finish</span>
+                  </div>
+                  <ul className="cp-completion-pop-list">
+                    {completion.missing.map((m) => (
+                      <li key={m.key}>
+                        <button
+                          type="button"
+                          onClick={() => { setActiveSection(m.tab); setIsEditing(false); setCompletionOpen(false); }}
+                        >
+                          <span className="dot" />
+                          <span className="lbl">{m.label}</span>
+                          <span className="go">›</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </div>
 
@@ -1094,11 +1135,7 @@ const canEdit = (() => {
                 {headlineTitle}<span className="period">,</span>{' '}
                 <em>{headlineQualifier}</em><span className="period">.</span>
               </h1>
-              <ProfileCompletionMeter
-                percent={completion.percent}
-                missing={completion.missing}
-                onJump={(tab) => { setActiveSection(tab); setIsEditing(false); }}
-              >
+              <div className="cp-completion-row">
                 {crewMember?.status ? (
                   canEditStatus ? (
                     <button
@@ -1116,7 +1153,8 @@ const canEdit = (() => {
                     </span>
                   )
                 ) : null}
-              </ProfileCompletionMeter>
+                {ringComplete && <span className="cp-complete-note">✓ Profile complete</span>}
+              </div>
             </div>
           </div>
 
