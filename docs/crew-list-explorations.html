@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cargo — Rota list view explorations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #1C1B3A;
+    --cream: #F5F1EA;
+    --paper: #FFFFFF;
+    --line: #DFD8CC;
+    --line-soft: #ECE6DC;
+    --muted: #8B8478;
+    --rust: #C65A1A;
+    --plum: #695880;
+    --sand: #C9C0AE;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 40px 32px 80px;
+    background: var(--cream);
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    color: var(--navy);
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  .pagehead { font-family: 'DM Serif Display', Georgia, serif; font-size: 30px; margin: 0 0 4px; }
+  .pagehead em { color: var(--rust); font-style: italic; }
+  .pagesub { color: var(--plum); font-size: 14px; margin: 0 0 40px; max-width: 560px; line-height: 1.5; }
+
+  .opt { margin-bottom: 52px; }
+  .opt-tag { font-size: 9px; font-weight: 700; letter-spacing: 1.8px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .opt-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 20px; font-style: italic; color: var(--plum); margin: 0 0 6px; }
+  .opt-note { font-size: 12.5px; color: var(--muted); margin: 0 0 16px; line-height: 1.5; max-width: 620px; }
+  .opt-note b { color: var(--navy); font-weight: 600; }
+
+  .card { background: var(--paper); border: 0.5px solid var(--line); border-radius: 12px; border-top: 2px solid var(--navy); overflow: hidden; }
+  .dept { display: flex; align-items: center; gap: 12px; padding: 16px 20px 8px; }
+  .dept-label { font-size: 9px; letter-spacing: 1.8px; text-transform: uppercase; color: var(--muted); font-weight: 700; flex-shrink: 0; }
+  .dept-rule { height: 0.5px; background: var(--line); flex: 1; }
+
+  .avatar { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; background: #ECE6DC; color: #5C5440; }
+  .nm { font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; line-height: 1.1; }
+  .role { font-size: 11px; color: var(--muted); }
+  .warn-dot { color: var(--rust); }
+
+  /* 24h timeline shared bits */
+  .tl { position: relative; height: 22px; background: #F4F1EB; border-radius: 6px; overflow: hidden; }
+  .tl-block { position: absolute; top: 3px; bottom: 3px; background: var(--navy); border-radius: 4px; }
+  .tl-block.warn { background: var(--rust); }
+  .tl-tick { position: absolute; top: 0; bottom: 0; width: 1px; background: #E2DCD0; }
+  .tl-axis { display: flex; justify-content: space-between; font-size: 8.5px; color: var(--sand); letter-spacing: 0.5px; margin-top: 3px; }
+
+  /* hours figure */
+  .hrs-on { font-family: 'DM Serif Display', Georgia, serif; font-size: 15px; }
+  .hrs-off { font-size: 10px; color: var(--muted); }
+  .hrs-on.warn { color: var(--rust); }
+
+  .pill { font-size: 10px; font-weight: 600; padding: 4px 10px; border-radius: 999px; letter-spacing: 0.3px; }
+  .pill.off { background: #ECE6DC; color: #6B6552; }
+  .pill.on { background: #E4EDE4; color: #3F6B3F; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 class="pagehead">Rota <em>list view</em> — four ways</h1>
+  <p class="pagesub">Same six crew, same data (Chief Stew &amp; Marco work a split watch; Emma a long single day). Each option is built around one question: <b style="color:var(--navy)">when do I start, break and finish today?</b></p>
+
+  <!-- ============================================================ -->
+  <!-- OPTION A — inline timeline, always visible -->
+  <!-- ============================================================ -->
+  <div class="opt">
+    <div class="opt-tag">Option A · ambient timeline</div>
+    <div class="opt-title">See the day without clicking.</div>
+    <p class="opt-note">Every row carries a slim 24-hour bar. Work blocks are solid; the gap between them <b>is</b> the break. Start &amp; finish times sit right on the blocks, so split watches read instantly. Tapping still opens the full rest panel. Best for at-a-glance scanning of a whole department.</p>
+
+    <div class="card">
+      <div class="dept"><span class="dept-label">Interior · 6 crew</span><span class="dept-rule"></span></div>
+
+      <!-- Chief Stew — split + warn -->
+      <div style="display:grid; grid-template-columns: 38px 168px 1fr 96px 70px; gap:14px; align-items:center; padding:12px 20px; border-bottom:0.5px solid var(--line-soft); background:#FCF6F2;">
+        <div class="avatar" style="background:#FAECE7;color:#7A2E1E;">CS</div>
+        <div><div class="nm">Chief Stew <span class="warn-dot">⚠</span></div><div class="role">Chief Stewardess</div></div>
+        <div>
+          <div class="tl">
+            <span class="tl-tick" style="left:25%"></span><span class="tl-tick" style="left:50%"></span><span class="tl-tick" style="left:75%"></span>
+            <span class="tl-block warn" style="left:0%; width:16.6%"></span>
+            <span class="tl-block warn" style="left:50%; width:16.6%"></span>
+          </div>
+          <div class="tl-axis"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+        </div>
+        <div style="text-align:right;"><span class="hrs-on warn">8h on</span><br><span class="hrs-off">16h off</span></div>
+        <div style="text-align:right;"><span class="pill off">Off now</span></div>
+      </div>
+
+      <!-- Claire — single -->
+      <div style="display:grid; grid-template-columns: 38px 168px 1fr 96px 70px; gap:14px; align-items:center; padding:12px 20px; border-bottom:0.5px solid var(--line-soft);">
+        <div class="avatar">CD</div>
+        <div><div class="nm">Claire Dubois</div><div class="role">Chief Stewardess</div></div>
+        <div>
+          <div class="tl">
+            <span class="tl-tick" style="left:25%"></span><span class="tl-tick" style="left:50%"></span><span class="tl-tick" style="left:75%"></span>
+            <span class="tl-block" style="left:37.5%; width:33.3%"></span>
+          </div>
+          <div class="tl-axis"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+        </div>
+        <div style="text-align:right;"><span class="hrs-on">8h on</span><br><span class="hrs-off">16h off</span></div>
+        <div style="text-align:right;"><span class="pill off">Off now</span></div>
+      </div>
+
+      <!-- Emma — long single -->
+      <div style="display:grid; grid-template-columns: 38px 168px 1fr 96px 70px; gap:14px; align-items:center; padding:12px 20px;">
+        <div class="avatar">EL</div>
+        <div><div class="nm">Emma Larsen</div><div class="role">Third Steward/ess</div></div>
+        <div>
+          <div class="tl">
+            <span class="tl-tick" style="left:25%"></span><span class="tl-tick" style="left:50%"></span><span class="tl-tick" style="left:75%"></span>
+            <span class="tl-block" style="left:33.3%; width:41.6%"></span>
+          </div>
+          <div class="tl-axis"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+        </div>
+        <div style="text-align:right;"><span class="hrs-on">10h on</span><br><span class="hrs-off">14h off</span></div>
+        <div style="text-align:right;"><span class="pill off">Off now</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- OPTION B — expandable row -->
+  <!-- ============================================================ -->
+  <div class="opt">
+    <div class="opt-tag">Option B · tap to expand</div>
+    <div class="opt-title">Tidy list, full detail on tap.</div>
+    <p class="opt-note">Rows stay compact (name · shift summary · hours). Tapping a row slides open an inline panel with a plain-English breakdown — <b>Start · Break · Finish</b> — plus the timeline. No popover, no context switch. Best when the list is long and you only want detail for one person at a time. (Emma's row shown expanded.)</p>
+
+    <div class="card">
+      <div class="dept"><span class="dept-label">Interior · 6 crew</span><span class="dept-rule"></span></div>
+
+      <!-- collapsed -->
+      <div style="display:grid; grid-template-columns: 38px 1fr 110px 70px 20px; gap:14px; align-items:center; padding:13px 20px; border-bottom:0.5px solid var(--line-soft);">
+        <div class="avatar" style="background:#FAECE7;color:#7A2E1E;">CS</div>
+        <div><div class="nm">Chief Stew <span class="warn-dot">⚠</span></div><div class="role">Chief Stewardess · 00:00–04:00 · 12:00–16:00</div></div>
+        <div style="text-align:right;"><span class="hrs-on warn">8h on</span> <span class="hrs-off">· 16h off</span></div>
+        <div style="text-align:right;"><span class="pill off">Off now</span></div>
+        <div style="color:var(--sand); text-align:center;">⌄</div>
+      </div>
+
+      <!-- expanded: Emma -->
+      <div style="border-bottom:0.5px solid var(--line-soft); background:#FBF8F3;">
+        <div style="display:grid; grid-template-columns: 38px 1fr 110px 70px 20px; gap:14px; align-items:center; padding:13px 20px;">
+          <div class="avatar">EL</div>
+          <div><div class="nm">Emma Larsen</div><div class="role">Third Steward/ess · 08:00–18:00</div></div>
+          <div style="text-align:right;"><span class="hrs-on">10h on</span> <span class="hrs-off">· 14h off</span></div>
+          <div style="text-align:right;"><span class="pill off">Off now</span></div>
+          <div style="color:var(--rust); text-align:center;">⌃</div>
+        </div>
+        <div style="padding:4px 20px 20px 72px;">
+          <div style="display:flex; gap:28px; margin-bottom:14px;">
+            <div><div style="font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:2px;">Start</div><div style="font-family:'DM Serif Display',serif; font-size:20px;">08:00</div></div>
+            <div><div style="font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:2px;">Break</div><div style="font-family:'DM Serif Display',serif; font-size:20px; color:var(--muted);">none</div></div>
+            <div><div style="font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:2px;">Finish</div><div style="font-family:'DM Serif Display',serif; font-size:20px;">18:00</div></div>
+            <div style="margin-left:auto; align-self:flex-end;"><a href="#" style="font-size:11px; color:var(--rust); text-decoration:none; border-bottom:0.5px solid #FAECE7;">Open day grid →</a></div>
+          </div>
+          <div class="tl" style="height:26px;">
+            <span class="tl-tick" style="left:25%"></span><span class="tl-tick" style="left:50%"></span><span class="tl-tick" style="left:75%"></span>
+            <span class="tl-block" style="left:33.3%; width:41.6%; display:flex; align-items:center; justify-content:space-between; padding:0 8px; color:#F5F1EA; font-size:9px;"><span>08:00</span><span>18:00</span></span>
+          </div>
+          <div class="tl-axis"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
+        </div>
+      </div>
+
+      <!-- collapsed: Claire -->
+      <div style="display:grid; grid-template-columns: 38px 1fr 110px 70px 20px; gap:14px; align-items:center; padding:13px 20px;">
+        <div class="avatar">CD</div>
+        <div><div class="nm">Claire Dubois</div><div class="role">Chief Stewardess · 09:00–17:00</div></div>
+        <div style="text-align:right;"><span class="hrs-on">8h on</span> <span class="hrs-off">· 16h off</span></div>
+        <div style="text-align:right;"><span class="pill off">Off now</span></div>
+        <div style="color:var(--sand); text-align:center;">⌄</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- OPTION C — explicit segment chips -->
+  <!-- ============================================================ -->
+  <div class="opt">
+    <div class="opt-tag">Option C · spelled-out segments</div>
+    <div class="opt-title">No interpretation needed.</div>
+    <p class="opt-note">Each shift is broken into labelled chips — <b>Start</b>, <b>Break</b>, <b>Finish</b> — shown right in the row. Split watches list every block. Zero timeline-reading; great for crew who just want the numbers. Costs vertical space, so denser crews scroll more.</p>
+
+    <div class="card">
+      <div class="dept"><span class="dept-label">Interior · 6 crew</span><span class="dept-rule"></span></div>
+
+      <!-- Chief Stew split -->
+      <div style="display:flex; align-items:center; gap:14px; padding:14px 20px; border-bottom:0.5px solid var(--line-soft); background:#FCF6F2;">
+        <div class="avatar" style="background:#FAECE7;color:#7A2E1E;">CS</div>
+        <div style="min-width:150px;"><div class="nm">Chief Stew <span class="warn-dot">⚠</span></div><div class="role">Chief Stewardess</div></div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; flex:1;">
+          <span style="display:inline-flex; gap:5px; align-items:center; background:var(--navy); color:#F5F1EA; border-radius:7px; padding:5px 10px; font-size:11px; font-weight:600;">▶ 00:00–04:00</span>
+          <span style="display:inline-flex; gap:5px; align-items:center; background:#F0EBE1; color:var(--muted); border-radius:7px; padding:5px 10px; font-size:11px; font-weight:600;">☕ break 04:00–12:00</span>
+          <span style="display:inline-flex; gap:5px; align-items:center; background:var(--navy); color:#F5F1EA; border-radius:7px; padding:5px 10px; font-size:11px; font-weight:600;">■ 12:00–16:00</span>
+        </div>
+        <div style="text-align:right; min-width:80px;"><span class="hrs-on warn">8h on</span><br><span class="hrs-off">16h off</span></div>
+      </div>
+
+      <!-- Emma single -->
+      <div style="display:flex; align-items:center; gap:14px; padding:14px 20px; border-bottom:0.5px solid var(--line-soft);">
+        <div class="avatar">EL</div>
+        <div style="min-width:150px;"><div class="nm">Emma Larsen</div><div class="role">Third Steward/ess</div></div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; flex:1;">
+          <span style="display:inline-flex; gap:5px; align-items:center; background:var(--navy); color:#F5F1EA; border-radius:7px; padding:5px 10px; font-size:11px; font-weight:600;">▶ starts 08:00</span>
+          <span style="display:inline-flex; gap:5px; align-items:center; background:#F0EBE1; color:var(--muted); border-radius:7px; padding:5px 10px; font-size:11px; font-weight:600;">no break</span>
+          <span style="display:inline-flex; gap:5px; align-items:center; background:var(--navy); color:#F5F1EA; border-radius:7px; padding:5px 10px; font-size:11px; font-weight:600;">■ finishes 18:00</span>
+        </div>
+        <div style="text-align:right; min-width:80px;"><span class="hrs-on">10h on</span><br><span class="hrs-off">14h off</span></div>
+      </div>
+
+      <!-- Claire single -->
+      <div style="display:flex; align-items:center; gap:14px; padding:14px 20px;">
+        <div class="avatar">CD</div>
+        <div style="min-width:150px;"><div class="nm">Claire Dubois</div><div class="role">Chief Stewardess</div></div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; flex:1;">
+          <span style="display:inline-flex; gap:5px; align-items:center; background:var(--navy); color:#F5F1EA; border-radius:7px; padding:5px 10px; font-size:11px; font-weight:600;">▶ starts 09:00</span>
+          <span style="display:inline-flex; gap:5px; align-items:center; background:#F0EBE1; color:var(--muted); border-radius:7px; padding:5px 10px; font-size:11px; font-weight:600;">no break</span>
+          <span style="display:inline-flex; gap:5px; align-items:center; background:var(--navy); color:#F5F1EA; border-radius:7px; padding:5px 10px; font-size:11px; font-weight:600;">■ finishes 17:00</span>
+        </div>
+        <div style="text-align:right; min-width:80px;"><span class="hrs-on">8h on</span><br><span class="hrs-off">16h off</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- OPTION D — crew card with plain-English summary -->
+  <!-- ============================================================ -->
+  <div class="opt">
+    <div class="opt-tag">Option D · personal cards</div>
+    <div class="opt-title">Reads like a shift card.</div>
+    <p class="opt-note">A larger card per crew member: timeline, big start/finish, and a one-line summary in plain English (&ldquo;Two watches&hellip;&rdquo; / &ldquo;Straight through, no break&rdquo;). Most personal — feels like &ldquo;my day&rdquo; for a crew member opening the app. Fewer fit on screen, so better for a focused/own-row view than scanning a big department.</p>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+      <!-- Chief Stew card -->
+      <div class="card" style="border-top-color:var(--rust);">
+        <div style="display:flex; align-items:center; gap:12px; padding:16px 18px 12px;">
+          <div class="avatar" style="background:#FAECE7;color:#7A2E1E;">CS</div>
+          <div style="flex:1;"><div class="nm">Chief Stew</div><div class="role">Chief Stewardess</div></div>
+          <span class="pill off">Off now</span>
+        </div>
+        <div style="padding:0 18px;">
+          <div class="tl" style="height:26px;">
+            <span class="tl-tick" style="left:25%"></span><span class="tl-tick" style="left:50%"></span><span class="tl-tick" style="left:75%"></span>
+            <span class="tl-block warn" style="left:0%; width:16.6%"></span>
+            <span class="tl-block warn" style="left:50%; width:16.6%"></span>
+          </div>
+          <div class="tl-axis"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+        </div>
+        <div style="padding:12px 18px 18px; font-size:12.5px; color:var(--plum); line-height:1.5;">
+          <b style="color:var(--rust);">Two watches</b> · 00:00–04:00 and 12:00–16:00 · 8h worked.
+          <div style="color:var(--rust); font-size:11px; margin-top:6px;">⚠ Rest below MLC minimum</div>
+        </div>
+      </div>
+
+      <!-- Emma card -->
+      <div class="card">
+        <div style="display:flex; align-items:center; gap:12px; padding:16px 18px 12px;">
+          <div class="avatar">EL</div>
+          <div style="flex:1;"><div class="nm">Emma Larsen</div><div class="role">Third Steward/ess</div></div>
+          <span class="pill off">Off now</span>
+        </div>
+        <div style="padding:0 18px;">
+          <div class="tl" style="height:26px;">
+            <span class="tl-tick" style="left:25%"></span><span class="tl-tick" style="left:50%"></span><span class="tl-tick" style="left:75%"></span>
+            <span class="tl-block" style="left:33.3%; width:41.6%; display:flex; align-items:center; justify-content:space-between; padding:0 8px; color:#F5F1EA; font-size:9px;"><span>08:00</span><span>18:00</span></span>
+          </div>
+          <div class="tl-axis"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+        </div>
+        <div style="padding:12px 18px 18px; font-size:12.5px; color:var(--plum); line-height:1.5;">
+          <b style="color:var(--navy);">Straight through</b> · 08:00 → 18:00, no break · 10h worked.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p style="font-size:12px; color:var(--muted); border-top:0.5px solid var(--line); padding-top:18px;">My pick: <b style="color:var(--navy)">A + B together</b> — the ambient timeline (A) for instant scanning, with tap-to-expand (B) for the spelled-out Start · Break · Finish. That keeps the list dense but gives a crew member the exact times in one tap. Tell me which direction (or mix) you want and I'll build it.</p>
+</div>
+</body>
+</html>
