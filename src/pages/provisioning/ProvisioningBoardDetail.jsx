@@ -126,8 +126,19 @@ const EditBoardModal = ({ list, onSaved, onClose }) => {
     notes: list.notes || '',
     port_location: list.port_location || '',
     currency: list.currency || 'GBP',
+    trip_id: list.trip_id || '',
   });
   const [saving, setSaving] = useState(false);
+  const [trips, setTrips] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadTrips()
+      .then(list => { if (!cancelled) setTrips(list || []); })
+      .catch(() => { if (!cancelled) setTrips([]); });
+    return () => { cancelled = true; };
+  }, []);
+
   const initial = useMemo(() => ({
     title: list.title || '',
     board_type: list.board_type || 'general',
@@ -135,6 +146,7 @@ const EditBoardModal = ({ list, onSaved, onClose }) => {
     notes: list.notes || '',
     port_location: list.port_location || '',
     currency: list.currency || 'GBP',
+    trip_id: list.trip_id || '',
   }), [list]);
   const isDirty = JSON.stringify(form) !== JSON.stringify(initial);
 
@@ -149,6 +161,7 @@ const EditBoardModal = ({ list, onSaved, onClose }) => {
         notes: form.notes,
         port_location: form.port_location.trim() || null,
         currency: form.currency,
+        trip_id: form.trip_id || null,
       });
       onSaved(updated);
     } catch {
@@ -157,6 +170,24 @@ const EditBoardModal = ({ list, onSaved, onClose }) => {
       setSaving(false);
     }
   };
+
+  // "Last saved" strap: relative time + a hint that the full audit
+  // trail lives on the History tab. Notes-style line, not a chip.
+  const lastSavedLabel = (() => {
+    const iso = list.updated_at || list.created_at;
+    if (!iso) return null;
+    const then = new Date(iso);
+    if (Number.isNaN(then.getTime())) return null;
+    const diffMs = Date.now() - then.getTime();
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return `${days}d ago`;
+    return then.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  })();
 
   return (
     <ModalShell
@@ -217,6 +248,26 @@ const EditBoardModal = ({ list, onSaved, onClose }) => {
           </div>
         </div>
 
+        <div className="pv-edit-modal-field">
+          <label className="pv-edit-modal-label" htmlFor="ebm-trip">Linked trip</label>
+          <select
+            id="ebm-trip"
+            value={form.trip_id}
+            onChange={e => setForm(f => ({ ...f, trip_id: e.target.value }))}
+            className="pv-edit-modal-select"
+          >
+            <option value="">No trip linked</option>
+            {trips.map(t => {
+              const name = t.title || t.name || 'Trip';
+              const type = t.tripType ? ` · ${t.tripType}` : '';
+              const start = t.startDate ? ` · ${new Date(t.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : '';
+              return (
+                <option key={t.id} value={t.id}>{name}{type}{start}</option>
+              );
+            })}
+          </select>
+        </div>
+
         <div className="pv-edit-modal-grid">
           <div className="pv-edit-modal-field">
             <label className="pv-edit-modal-label" htmlFor="ebm-port">Port / location</label>
@@ -258,21 +309,28 @@ const EditBoardModal = ({ list, onSaved, onClose }) => {
       </div>
 
       <div className="pv-edit-modal-foot">
-        <button
-          type="button"
-          onClick={onClose}
-          className="pv-edit-modal-btn pv-edit-modal-btn-ghost"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving || !form.title.trim()}
-          className="pv-edit-modal-btn pv-edit-modal-btn-primary"
-        >
-          {saving ? 'Saving…' : 'Save changes'}
-        </button>
+        {lastSavedLabel && (
+          <span className="pv-edit-modal-saved">
+            Last saved {lastSavedLabel} · full timeline on the History tab
+          </span>
+        )}
+        <div className="pv-edit-modal-actions">
+          <button
+            type="button"
+            onClick={onClose}
+            className="pv-edit-modal-btn pv-edit-modal-btn-ghost"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving || !form.title.trim()}
+            className="pv-edit-modal-btn pv-edit-modal-btn-primary"
+          >
+            {saving ? 'Saving…' : 'Save changes'}
+          </button>
+        </div>
       </div>
     </ModalShell>
   );
