@@ -30,7 +30,7 @@ export function useProvisioningApprovals() {
       // 1. Open requests for me.
       const { data: reqs, error: rErr } = await supabase
         .from('provisioning_approval_requests')
-        .select('id, list_id, submitter_id, status, comment, created_at')
+        .select('id, list_id, submitter_id, status, comment, created_at, prev_status')
         .eq('approver_id', user.id)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
@@ -69,6 +69,8 @@ export function useProvisioningApprovals() {
           status:           r.status,
           comment:          r.comment,
           created_at:       r.created_at,
+          prev_status:      r.prev_status || null,
+          is_re_approval:   r.prev_status === 'quote_received',
           board_title:      list.title || 'Untitled board',
           board_type:       list.board_type || 'general',
           primary_dept:     depts[0] || null,
