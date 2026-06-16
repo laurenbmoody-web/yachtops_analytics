@@ -1700,13 +1700,54 @@ const ProvisioningBoardDetail = () => {
                     <Icon name="Send" style={{ width: 13, height: 13 }} /> Send to Supplier
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={() => setShowReceiveModal(true)}
-                  className="cargo-ribbon-btn"
-                >
-                  <Icon name="PackageCheck" style={{ width: 13, height: 13 }} /> Receive Items
-                </button>
+                {/* Final row: ⋯ overflow menu on the LEFT, Receive Items
+                    on the RIGHT. Pairs the two so ⋯ sits next to the
+                    last button in the stack instead of floating on the
+                    tabs row. */}
+                <div className="cargo-ribbon-bottom">
+                  <div className="relative" ref={menuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setShowMenu(v => !v)}
+                      className="cargo-ribbon-btn cargo-ribbon-btn-icon"
+                      aria-label="More board actions"
+                      aria-haspopup="menu"
+                      aria-expanded={showMenu}
+                    >
+                      <Icon name="MoreHorizontal" style={{ width: 14, height: 14 }} />
+                    </button>
+                    {showMenu && (
+                      <div className="pv-board-menu" role="menu">
+                        {canEdit && (
+                          <button onClick={() => { setShowMenu(false); setShowEditModal(true); }} className="pv-board-menu-item">
+                            <Icon name="Pencil" style={{ width: 14, height: 14 }} /> Edit Board
+                          </button>
+                        )}
+                        <button onClick={handleDuplicate} className="pv-board-menu-item">
+                          <Icon name="Copy" style={{ width: 14, height: 14 }} /> Duplicate
+                        </button>
+                        <button onClick={handleSaveAsTemplateBoard} className="pv-board-menu-item">
+                          <Icon name="FileText" style={{ width: 14, height: 14 }} /> Save as Template
+                        </button>
+                        {canDelete && (
+                          <>
+                            <div className="pv-board-menu-divider" />
+                            <button onClick={handleDeleteBoard} className="pv-board-menu-item pv-board-menu-item-danger">
+                              <Icon name="Trash2" style={{ width: 14, height: 14 }} /> Delete Board
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowReceiveModal(true)}
+                    className="cargo-ribbon-btn"
+                  >
+                    <Icon name="PackageCheck" style={{ width: 13, height: 13 }} /> Receive Items
+                  </button>
+                </div>
               </div>
             </div>
           }
@@ -1791,47 +1832,6 @@ const ProvisioningBoardDetail = () => {
                 activeTab={activeTab}
                 onTabChange={setActiveTab}
               />
-              {/* ⋯ floats at the right edge of the tabs row — sits on the
-                  tabs baseline in the gap just before the right-rail
-                  stack, level with Submit for Approval at the stack's
-                  bottom. */}
-              <div className="pv-board-tabs-more">
-                <div className="relative" ref={menuRef}>
-                  <button
-                    type="button"
-                    onClick={() => setShowMenu(v => !v)}
-                    className="cargo-ribbon-btn cargo-ribbon-btn-icon"
-                    aria-label="More board actions"
-                    aria-haspopup="menu"
-                    aria-expanded={showMenu}
-                  >
-                    <Icon name="MoreHorizontal" style={{ width: 14, height: 14 }} />
-                  </button>
-                  {showMenu && (
-                    <div className="pv-board-menu" role="menu">
-                      {canEdit && (
-                        <button onClick={() => { setShowMenu(false); setShowEditModal(true); }} className="pv-board-menu-item">
-                          <Icon name="Pencil" style={{ width: 14, height: 14 }} /> Edit Board
-                        </button>
-                      )}
-                      <button onClick={handleDuplicate} className="pv-board-menu-item">
-                        <Icon name="Copy" style={{ width: 14, height: 14 }} /> Duplicate
-                      </button>
-                      <button onClick={handleSaveAsTemplateBoard} className="pv-board-menu-item">
-                        <Icon name="FileText" style={{ width: 14, height: 14 }} /> Save as Template
-                      </button>
-                      {canDelete && (
-                        <>
-                          <div className="pv-board-menu-divider" />
-                          <button onClick={handleDeleteBoard} className="pv-board-menu-item pv-board-menu-item-danger">
-                            <Icon name="Trash2" style={{ width: 14, height: 14 }} /> Delete Board
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
             {/* Toolbar lives INSIDE the header's left column so the
                 column stretches all the way down to the toolbar's bottom

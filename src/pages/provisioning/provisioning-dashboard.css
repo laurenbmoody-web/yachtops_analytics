@@ -31,14 +31,15 @@
 
 /* ── Board-detail Option B layout ─────────────────────────────
    Header row: identity block on the left (meta + headline + chips +
-   tabs), 5-button ribbon stack on the right. The tabs row's bottom
-   hairline lives on the TOOLBAR below instead — see `.pv-board-toolbar`
-   — so tabs and filter-bar share a single rule between them and the
-   items table (Variant C). */
+   tabs + toolbar), 5-button ribbon stack on the right. A single
+   full-width hairline at the row's bottom marks the "divide line":
+   the stack's last row (⋯ + Receive Items) and the toolbar's filter
+   controls both rest on it. */
 .editorial-page.pv-dashboard .p-header-row {
   align-items: stretch;
-  margin-bottom: 0;
+  margin-bottom: 1.75rem;
   padding-bottom: 14px;
+  border-bottom: 1px solid var(--d-border);
 }
 .editorial-page.pv-dashboard .p-header-row > div:first-child {
   display: flex;
@@ -74,6 +75,28 @@
   justify-content: flex-start;
   padding: 6px 12px;
   font-size: 11.5px;
+}
+
+/* Final row pairs ⋯ (icon, flex-shrink: 0) with Receive Items
+   (flex: 1) so the menu trigger sits to the LEFT of the last button
+   in the stack on a single horizontal line. */
+.cargo-ribbon-vertical .cargo-ribbon-bottom {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+.cargo-ribbon-vertical .cargo-ribbon-bottom > .relative {
+  flex-shrink: 0;
+}
+.cargo-ribbon-vertical .cargo-ribbon-bottom .cargo-ribbon-btn:not(.cargo-ribbon-btn-icon) {
+  flex: 1;
+}
+.cargo-ribbon-vertical .cargo-ribbon-btn-icon {
+  width: 32px;
+  padding: 6px 0;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 /* Tighten the meta line + headline → chip row → tabs rhythm so the
@@ -325,18 +348,16 @@
   letter-spacing: 0.02em;
 }
 
-/* Toolbar — Variant C, now living inside the header's left column so
-   the right rail stretches down to its hairline. No card chrome, no
-   top rule; bottom rule is the "divide line" the 5-button stack
-   rests on. */
+/* Toolbar — lives inside the header's left column. No chrome of its
+   own; the full-width hairline at .p-header-row's bottom is the
+   shared "divide line" for the toolbar AND the stack's final row. */
 .pv-board-toolbar {
   background: transparent;
   border: 0;
   border-radius: 0;
   box-shadow: none;
   margin: 0;
-  padding: 12px 0 14px;
-  border-bottom: 1px solid var(--d-border);
+  padding: 12px 0 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
