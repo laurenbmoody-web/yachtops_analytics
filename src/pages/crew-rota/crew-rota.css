@@ -3621,6 +3621,9 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 10px;
+  /* Breathing room: separate the legend/export line from the KPI cards above
+     and push the grid below it down so the line isn't crammed against either. */
+  margin: 12px 0 22px;
 }
 .rl-legend {
   display: flex;
