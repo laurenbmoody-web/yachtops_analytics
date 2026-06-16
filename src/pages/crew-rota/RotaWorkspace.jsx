@@ -13,6 +13,7 @@ import HodEditConfirmModal from './HodEditConfirmModal';
 import CancelEditModal from './CancelEditModal';
 import ClearRotaModal from './ClearRotaModal';
 import RestPanelPopover from './RestPanelPopover';
+import DepartmentFilter from './DepartmentFilter';
 import PatternPicker from './PatternPicker';
 import SimpleTemplateEditor from './SimpleTemplateEditor';
 import RotationTemplateEditor from './RotationTemplateEditor';
@@ -144,6 +145,10 @@ export default function RotaWorkspace({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [editor, setEditor] = useState(null);
   const [applyTarget, setApplyTarget] = useState(null);
+  // Which departments are shown in the grid. null until departments resolve,
+  // then seeded per tier (see the init effect below). Drives the multi-select
+  // department filter for COMMAND / CHIEF.
+  const [visibleDeptIds, setVisibleDeptIds] = useState(null);
 
   const tier = String(user?.permission_tier || tenantRole || '').toUpperCase();
 
@@ -354,9 +359,52 @@ export default function RotaWorkspace({
     [departmentId, departments],
   );
 
-  const total = crew.length;
-  const onDuty = crew.filter((c) => c.onNow && !c.offToday).length;
-  const presentDepts = DEPT_ORDER.filter((d) => crew.some((c) => c.department === d));
+  // ── Permission-scoped visibility + edit access ────────────────────────────
+  const ownDeptId = currentUser?.department_id || null;
+  // Departments actually present on this rota (id + name), for the filter.
+  const presentDeptList = useMemo(() => {
+    const seen = new Map();
+    for (const c of crew) {
+      if (c.departmentId && !seen.has(c.departmentId)) seen.set(c.departmentId, c.department);
+    }
+    return Array.from(seen, ([id, name]) => ({ id, name }))
+      .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  }, [crew]);
+
+  // Departments the viewer may EDIT. null = all (COMMAND). A CHIEF / HOD edits
+  // their own department only; crew edit nothing. Reviewers edit the dept
+  // under review. Other visible departments render read-only.
+  const editableDeptIds = useMemo(() => {
+    if (mode === 'reviewer') return departmentId ? new Set([departmentId]) : null;
+    if (tier === 'COMMAND') return null;
+    if ((tier === 'CHIEF' || tier === 'HOD') && ownDeptId) return new Set([ownDeptId]);
+    return new Set();
+  }, [mode, departmentId, tier, ownDeptId]);
+
+  // The filter is offered to viewers who can see more than one department.
+  const canFilterDepts = (tier === 'COMMAND' || tier === 'CHIEF') && presentDeptList.length > 1;
+
+  // Seed visible departments once they're known: COMMAND sees all; CHIEF
+  // defaults to their own department (and expands others via the filter);
+  // everyone else is already fetch-scoped to their own department.
+  useEffect(() => {
+    if (visibleDeptIds !== null || presentDeptList.length === 0) return;
+    if (tier === 'CHIEF' && ownDeptId && presentDeptList.some((d) => d.id === ownDeptId)) {
+      setVisibleDeptIds(new Set([ownDeptId]));
+    } else {
+      setVisibleDeptIds(new Set(presentDeptList.map((d) => d.id)));
+    }
+  }, [visibleDeptIds, presentDeptList, tier, ownDeptId]);
+
+  // Crew filtered to the visible departments (dept-less crew always shown).
+  const visibleCrew = useMemo(() => {
+    if (!visibleDeptIds) return crew;
+    return crew.filter((c) => !c.departmentId || visibleDeptIds.has(c.departmentId));
+  }, [crew, visibleDeptIds]);
+
+  const total = visibleCrew.length;
+  const onDuty = visibleCrew.filter((c) => c.onNow && !c.offToday).length;
+  const presentDepts = DEPT_ORDER.filter((d) => visibleCrew.some((c) => c.department === d));
   const cardContext = isToday
     ? `${presentDepts.join(' · ')}  —  ${total} crew · ${onDuty} on duty`
     : `${presentDepts.join(' · ')}  —  ${total} crew`;
@@ -387,6 +435,12 @@ export default function RotaWorkspace({
   // Single paint handler — single click (lo === hi) and drag ranges both.
   const handlePaint = useCallback(async (crewMember, loSlot, hiSlot) => {
     if (!rota?.id) { showToast('No active rota resolved — cannot edit yet.'); return; }
+    // Edit-scope guard: a viewer can only paint departments they own. Other
+    // departments are shown read-only (e.g. a chief expanding Deck for context).
+    if (editableDeptIds && !editableDeptIds.has(crewMember.departmentId)) {
+      showToast('You can only edit your own department’s rota.');
+      return;
+    }
     const lo0 = Math.min(loSlot, hiSlot);
     const hi0 = Math.max(loSlot, hiSlot);
     if (lo0 > lastPreMidnightSlot) {
@@ -415,7 +469,7 @@ export default function RotaWorkspace({
       gridStartHour,
     });
     if (!res.ok) showToast(`Couldn’t save that change — try again. (${res.error})`);
-  }, [rota, mode, shiftType, myMemberId, applyPaint, syncDeptDraft, showToast, gridStartHour, lastPreMidnightSlot]);
+  }, [rota, mode, shiftType, myMemberId, applyPaint, syncDeptDraft, showToast, gridStartHour, lastPreMidnightSlot, editableDeptIds]);
 
   // Read-only tiers (crew) can view but never edit. Editors are COMMAND /
   // CHIEF / HOD (HOD submits for approval, CHIEF / COMMAND publish — enforced
@@ -596,7 +650,7 @@ export default function RotaWorkspace({
   // state without the parent lifting any of it.
   const slotState = {
     view, selectedDate, selectedDateObj, isToday, now: isToday ? now : null,
-    crew, total, onDuty, editMode, draftDayCount, editCount,
+    crew: visibleCrew, total, onDuty, editMode, draftDayCount, editCount,
     enterEdit, exitEdit,
   };
 
@@ -694,6 +748,14 @@ export default function RotaWorkspace({
         <div className="crew-rota-card-header">
           <div className="crew-rota-card-context">{cardContext}</div>
           <div className="crew-rota-pillgroup">
+            {canFilterDepts && (
+              <DepartmentFilter
+                departments={presentDeptList}
+                value={visibleDeptIds || new Set(presentDeptList.map((d) => d.id))}
+                onChange={setVisibleDeptIds}
+                lockedId={ownDeptId}
+              />
+            )}
             {view === 'hor' ? (
               <>
                 <button
@@ -791,7 +853,7 @@ export default function RotaWorkspace({
             </div>
           ) : view === 'week' ? (
             <CrewWeekMatrix
-              crew={crew}
+              crew={visibleCrew}
               windowShifts={windowShifts || []}
               workEntries={workEntries}
               selectedDate={selectedDate}
@@ -802,7 +864,7 @@ export default function RotaWorkspace({
             />
           ) : view === 'hor' ? (
             <RestLogView
-              crew={crew}
+              crew={visibleCrew}
               windowShifts={windowShifts || []}
               days={hor.days}
               period={horPeriod}
@@ -822,7 +884,7 @@ export default function RotaWorkspace({
               operationalDayStartHour={gridStartHour}
               onCellClick={(d) => { setSelectedDate(d); setView('grid'); }}
             />
-          ) : crew.length === 0 ? (
+          ) : visibleCrew.length === 0 ? (
             // Only a truly crew-less rota gets the bare message. A day with
             // crew but no shifts still renders the grid — empty cells are
             // paintable, so COMMAND/CHIEF/HOD can drag hours straight in
@@ -832,18 +894,19 @@ export default function RotaWorkspace({
             </div>
           ) : view === 'grid' ? (
             <RotaTodayGrid
-              crew={crew}
+              crew={visibleCrew}
               now={isToday ? now : null}
               gridStartHour={gridStartHour}
               onCrewClick={setSelectedCrew}
               editMode={editMode}
               onPaint={handlePaint}
+              editableDeptIds={editableDeptIds}
               deptStatus={statusByDept}
               highlightSlots={highlightSlots}
               viewDate={selectedDate}
             />
           ) : (
-            <CrewListView crew={crew} onCrewClick={setSelectedCrew} />
+            <CrewListView crew={visibleCrew} onCrewClick={setSelectedCrew} />
           )}
         </div>
 

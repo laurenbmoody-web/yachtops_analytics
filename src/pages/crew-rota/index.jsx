@@ -129,11 +129,14 @@ export default function CrewRotaPage() {
 
   const tier = String(user?.permission_tier || tenantRole || '').toUpperCase();
 
-  // Permission-scoped view. COMMAND sees the whole vessel; everyone else is
-  // scoped to their own department (crew read-only, HOD edit→submit, chief
-  // edit→publish — the edit-gating + footer CTA inside RotaWorkspace enforce
-  // the tier). A scoped user with no department falls back to the full view.
-  const scopeDeptId = tier === 'COMMAND' ? null : (currentUser?.department_id || null);
+  // Permission-scoped view. COMMAND and CHIEF can load the whole vessel
+  // (CHIEF defaults to their own department but can expand others into view);
+  // HOD and crew are scoped to their own department only. Edit access is
+  // enforced separately inside RotaWorkspace (crew read-only, HOD edit→submit,
+  // CHIEF edit→publish own dept only, COMMAND edit any). A user with no
+  // department falls back to the full view.
+  const canSeeAllDepts = tier === 'COMMAND' || tier === 'CHIEF';
+  const scopeDeptId = canSeeAllDepts ? null : (currentUser?.department_id || null);
 
   useEffect(() => {
     const prev = document.body.style.background;
