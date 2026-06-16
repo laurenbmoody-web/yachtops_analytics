@@ -1009,6 +1009,7 @@ export default function RotaWorkspace({
 
       <RestPanelPopover
         crew={selectedCrew}
+        anchorDate={selectedDate}
         onClose={() => setSelectedCrew(null)}
         onViewSchedule={() => { setSelectedCrew(null); setView('grid'); }}
         onOpenHor={() => { setSelectedCrew(null); setView('hor'); }}

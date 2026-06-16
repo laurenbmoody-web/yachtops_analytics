@@ -127,7 +127,7 @@ function enrichSuggestion(sg, ctx) {
 // Friendly label per on-duty shift type.
 const TYPE_LABELS = { duty: 'Duty', watch: 'Watch', standby: 'Standby', training: 'Training' };
 
-export function useRotaRestData(memberId, crewName = null, crewRole = null, crewDept = null) {
+export function useRotaRestData(memberId, crewName = null, crewRole = null, crewDept = null, anchorDate = null) {
   // AuthContext exposes `activeTenantId`, not `tenantId`.
   const { user, activeTenantId } = useAuth();
   const tenantId = activeTenantId;
@@ -148,17 +148,16 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
 
     (async () => {
       try {
-        // Anchor the 7-day window on this member's most recent dated
-        // shift (consistent with the grid's effective-date fallback).
-        const { data: latest } = await supabase
-          .from('rota_shifts')
-          .select('shift_date')
-          .eq('tenant_id', tenantId)
-          .eq('member_id', memberId)
-          .order('shift_date', { ascending: false })
-          .limit(1);
-        const effDate = (latest ?? [])[0]?.shift_date
-          || new Date().toISOString().slice(0, 10);
+        // Anchor the 7-day window on the date the rota page is VIEWING (passed
+        // in), so the panel always reflects the same week as the grid/list. A
+        // member with future-dated shifts must NOT pull a future week here —
+        // that's what made the panel disagree with the row's MLC verdict.
+        const localToday = (() => {
+          const d = new Date();
+          const p = (n) => String(n).padStart(2, '0');
+          return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+        })();
+        const effDate = anchorDate || localToday;
 
         // Fetch 13 days so each of the 7 charted days has a full trailing
         // 7-day window behind it (the chart shows the ROLLING 7-day rest total
@@ -379,7 +378,7 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
     })();
 
     return () => { cancelled = true; };
-  }, [user, tenantId, memberId, crewName, crewRole, crewDept]);
+  }, [user, tenantId, memberId, crewName, crewRole, crewDept, anchorDate]);
 
   return { data, loading, error, suggestions, suggestionsLoading };
 }
