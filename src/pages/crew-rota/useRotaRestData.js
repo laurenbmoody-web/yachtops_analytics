@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import { hhmmToDecimal } from './useRotaShifts';
-import { ON_DUTY_TYPES, assessMlc } from './restHours';
+import { ON_DUTY_TYPES, assessMlc, restForWeek } from './restHours';
 
 const WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -80,16 +80,23 @@ export function useRotaRestData(memberId) {
         const effDate = (latest ?? [])[0]?.shift_date
           || new Date().toISOString().slice(0, 10);
 
-        const windowStart = new Date(`${effDate}T00:00:00`);
-        windowStart.setDate(windowStart.getDate() - 6);
-        const windowStartStr = windowStart.toISOString().slice(0, 10);
+        // Fetch 13 days so each of the 7 charted days has a full trailing
+        // 7-day window behind it (the chart shows the ROLLING 7-day rest total
+        // as of each day, not that single day's rest).
+        const dateMinus = (n) => {
+          const d = new Date(`${effDate}T00:00:00`);
+          d.setDate(d.getDate() - n);
+          return d.toISOString().slice(0, 10);
+        };
+        const fetchStartStr = dateMinus(12);
+        const weekStartStr = dateMinus(6);
 
         const { data: rows, error: sErr } = await supabase
           .from('rota_shifts')
           .select('id, shift_date, start_time, end_time, shift_type, sub_type, notes')
           .eq('tenant_id', tenantId)
           .eq('member_id', memberId)
-          .gte('shift_date', windowStartStr)
+          .gte('shift_date', fetchStartStr)
           .lte('shift_date', effDate)
           .order('shift_date', { ascending: true })
           .order('start_time', { ascending: true });
@@ -98,13 +105,15 @@ export function useRotaRestData(memberId) {
 
         const all = rows ?? [];
         const todayRows = all.filter(s => s.shift_date === effDate);
+        // The trailing 7 days drive the MLC weekly assessment + breakdown.
+        const weekRows = all.filter(s => s.shift_date >= weekStartStr);
         const offToday = todayRows.length > 0 && todayRows.every(s => s.shift_type === 'off');
 
         // Shared MLC assessment — totals stay identical to the prior
         // inline math; rules 3 + 4 are now also reflected in mlcWarning.
         const mlcReport = assessMlc({
           dayShifts: todayRows.map(toCamelShift),
-          weekShifts: all.map(toCamelShift),
+          weekShifts: weekRows.map(toCamelShift),
         });
         const onDutyToday = mlcReport.onDutyToday;
         const rest24h = mlcReport.rest24h;
@@ -156,22 +165,25 @@ export function useRotaRestData(memberId) {
           }
         }
 
-        // ── Rolling 7-day rest chart (rest hours per day) ──
+        // ── Rolling 7-day rest chart: each bar is the trailing-7-day rest
+        //    total AS OF that day (evolving toward today's total, which equals
+        //    the headline pastWeekHours). Same restForWeek basis as the
+        //    headline so the last bar and the headline always agree. ──
         const weekChart = [];
         for (let i = 6; i >= 0; i -= 1) {
           const d = new Date(`${effDate}T00:00:00`);
           d.setDate(d.getDate() - i);
           const ds = d.toISOString().slice(0, 10);
-          const dayRows = all.filter(s => s.shift_date === ds);
-          const dayOnDuty = dayRows
-            .filter(s => ON_DUTY_TYPES.has(s.shift_type))
-            .reduce((sum, s) => sum + shiftHours(s), 0);
-          const restH = Math.max(0, 24 - dayOnDuty);
+          const winStart = new Date(d);
+          winStart.setDate(winStart.getDate() - 6);
+          const winStartStr = winStart.toISOString().slice(0, 10);
+          const winRows = all.filter(s => s.shift_date >= winStartStr && s.shift_date <= ds);
+          const rollingRest = restForWeek(winRows.map(toCamelShift)).pastWeekHours;
           weekChart.push({
             day: WEEKDAY[d.getDay()],
             date: ds,
-            hours: Math.round(restH),
-            status: restH >= 11 ? 'ok' : 'low',
+            hours: Math.round(rollingRest),
+            status: rollingRest >= 77 ? 'ok' : 'low',
             isToday: ds === effDate,
           });
         }
@@ -180,7 +192,7 @@ export function useRotaRestData(memberId) {
         //    trip-scoped totals arrive with trip integration later) ──
         const typeHours = {};
         const typeCount = {};
-        for (const s of all) {
+        for (const s of weekRows) {
           if (!ON_DUTY_TYPES.has(s.shift_type)) continue;
           typeHours[s.shift_type] = (typeHours[s.shift_type] || 0) + shiftHours(s);
           typeCount[s.shift_type] = (typeCount[s.shift_type] || 0) + 1;
@@ -192,7 +204,7 @@ export function useRotaRestData(memberId) {
           sub: typeCount[t] ? `${typeCount[t]} shift${typeCount[t] > 1 ? 's' : ''}` : 'none rostered',
         }));
         const daysWorked = new Set(
-          all.filter(s => ON_DUTY_TYPES.has(s.shift_type)).map(s => s.shift_date),
+          weekRows.filter(s => ON_DUTY_TYPES.has(s.shift_type)).map(s => s.shift_date),
         ).size;
 
         const banner = mlcWarning
