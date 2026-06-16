@@ -1718,37 +1718,36 @@ const ProvisioningBoardDetail = () => {
             // ⋯ and Submit for Approval sit between the tabs and the
             // ribbon stack on that same baseline.
             <>
-            {(statusLabel || allergenGuests.length > 0) && (
-              <div className="pv-board-chip-row">
-                {statusLabel && (
-                  <span
-                    className="pv-board-chip pv-board-chip-status"
-                    style={{ background: '#FEF3C7', color: '#92400E' }}
-                    data-status={list?.status || ''}
+            <div className="pv-board-chip-row">
+              {statusLabel && (
+                <span
+                  className="pv-board-chip pv-board-chip-status"
+                  style={{ background: '#FEF3C7', color: '#92400E' }}
+                  data-status={list?.status || ''}
+                >
+                  {statusLabel}
+                </span>
+              )}
+              {allergenGuests.length > 0 && (
+                <div className="pv-board-chip-wrap" ref={allergenRef}>
+                  <button
+                    type="button"
+                    className="pv-board-chip pv-board-chip-allergen"
+                    aria-haspopup="dialog"
+                    aria-expanded={allergenOpen}
+                    onClick={() => setAllergenOpen(v => !v)}
                   >
-                    {statusLabel}
-                  </span>
-                )}
-                {allergenGuests.length > 0 && (
-                  <div className="pv-board-chip-wrap" ref={allergenRef}>
-                    <button
-                      type="button"
-                      className="pv-board-chip pv-board-chip-allergen"
-                      aria-haspopup="dialog"
-                      aria-expanded={allergenOpen}
-                      onClick={() => setAllergenOpen(v => !v)}
-                    >
-                      <Icon name="AlertTriangle" style={{ width: 11, height: 11 }} aria-hidden="true" />
-                      {allergenGuests.length} allergen{allergenGuests.length !== 1 ? 's' : ''}
-                      <span aria-hidden="true" className="pv-board-chip-caret">{allergenOpen ? '▾' : '›'}</span>
-                    </button>
-                    {allergenOpen && (
-                      <div className="pv-board-allergen-popover" role="dialog" aria-label="Allergen alert">
-                        <div className="pv-board-allergen-popover-head">
-                          <Icon
-                            name="AlertTriangle"
-                            style={{ width: 14, height: 14, color: 'var(--d-danger)', flexShrink: 0 }}
-                            aria-hidden="true"
+                    <Icon name="AlertTriangle" style={{ width: 11, height: 11 }} aria-hidden="true" />
+                    {allergenGuests.length} allergen{allergenGuests.length !== 1 ? 's' : ''}
+                    <span aria-hidden="true" className="pv-board-chip-caret">{allergenOpen ? '▾' : '›'}</span>
+                  </button>
+                  {allergenOpen && (
+                    <div className="pv-board-allergen-popover" role="dialog" aria-label="Allergen alert">
+                      <div className="pv-board-allergen-popover-head">
+                        <Icon
+                          name="AlertTriangle"
+                          style={{ width: 14, height: 14, color: 'var(--d-danger)', flexShrink: 0 }}
+                          aria-hidden="true"
                           />
                           <span className="pv-board-allergen-popover-title">Allergen alert</span>
                         </div>
@@ -1767,8 +1766,20 @@ const ProvisioningBoardDetail = () => {
                     )}
                   </div>
                 )}
-              </div>
-            )}
+              {(() => {
+                const totalItems = items.length;
+                const receivedItems = items.filter(i => i.status === 'received').length;
+                if (totalItems === 0) return null;
+                const pct = receivedItems / totalItems;
+                return (
+                  <span className="pv-board-chip pv-board-chip-progress" title={`${receivedItems} of ${totalItems} items received`}>
+                    <span className="pv-board-chip-progress-num">{receivedItems} / {totalItems}</span>
+                    <span className="pv-board-chip-progress-bar"><span style={{ width: `${Math.round(pct * 100)}%` }} /></span>
+                    received
+                  </span>
+                );
+              })()}
+            </div>
             <div className="pv-board-tabs-row">
               <EditorialTabNav
                 tabs={[
@@ -1820,6 +1831,88 @@ const ProvisioningBoardDetail = () => {
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+            {/* Toolbar lives INSIDE the header's left column so the
+                column stretches all the way down to the toolbar's bottom
+                hairline. With the right rail's `align-self: flex-end`,
+                this lands the 5-button stack's bottom (Receive Items)
+                on that same hairline — the "divide line" the stack rests
+                on. */}
+            <div className="pv-board-toolbar">
+              <div className="pv-board-toolbar-left">
+                <SelectionCheckbox
+                  checked={allChecked}
+                  onChange={toggleAll}
+                  ariaLabel={allChecked ? 'Deselect all items in view' : 'Select all items in view'}
+                />
+                <div className="pv-board-search-wrap">
+                  <Icon name="Search" className="pv-board-search-icon" aria-hidden="true" />
+                  <input
+                    type="text"
+                    placeholder="Search items…"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="pv-board-search-input"
+                  />
+                </div>
+                <select
+                  value={deptFilter}
+                  onChange={e => setDeptFilter(e.target.value)}
+                  className="pv-board-filter-select"
+                  aria-label="Filter by department"
+                >
+                  <option value="all">All depts</option>
+                  {departments.map(d => <option key={d.id || d.name} value={d.name}>{d.name}</option>)}
+                </select>
+                <select
+                  value={statusFilter}
+                  onChange={e => setStatusFilter(e.target.value)}
+                  className="pv-board-filter-select"
+                  aria-label="Filter by status"
+                >
+                  <option value="all">All statuses</option>
+                  {ITEM_STATUS_FILTER_ORDER.map(val => {
+                    const cfg = ITEM_STATUS_CONFIG[val];
+                    return <option key={val} value={val}>{cfg.label}</option>;
+                  })}
+                </select>
+                <select
+                  value={groupBy}
+                  onChange={e => {
+                    const next = e.target.value;
+                    setGroupBy(next);
+                    if (next === 'category' && sortColumn === 'category') {
+                      setSortColumn('item');
+                      setSortDirection('asc');
+                    }
+                  }}
+                  className="pv-board-filter-select"
+                  aria-label="Group items"
+                >
+                  <option value="category">Group: Category</option>
+                  <option value="none">Group: None</option>
+                </select>
+                {hasFilters && (
+                  <button
+                    type="button"
+                    onClick={() => { setSearchQuery(''); setDeptFilter('all'); setStatusFilter('all'); }}
+                    className="pv-board-clear-filters"
+                  >
+                    Clear filters
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowReceived(p => !p)}
+                  className="pv-board-toggle"
+                  aria-pressed={showReceived}
+                >
+                  <span className={`pv-board-toggle-track${showReceived ? ' is-on' : ''}`}>
+                    <span className="pv-board-toggle-knob" />
+                  </span>
+                  <span className="pv-board-toggle-lbl">Show received</span>
+                </button>
               </div>
             </div>
             </>
@@ -1937,105 +2030,8 @@ const ProvisioningBoardDetail = () => {
           </div>
         )}
 
-        {/* Allergen alert moved to a chip in the header's actionStrip slot;
-            click the chip to open the full per-guest popover. The prior
-            full-width banner was crowding the toolbar — see Option B. */}
-
-        {/* ── Toolbar ───────────────────────────────────────────────────── */}
-        <div className="pv-board-toolbar">
-          <div className="pv-board-toolbar-left">
-            {/* Master select-all — toggles every item in the current
-                filtered view. Per-dept-group scoped select-alls live
-                inside each dept-group's table header below. */}
-            <SelectionCheckbox
-              checked={allChecked}
-              onChange={toggleAll}
-              ariaLabel={allChecked ? 'Deselect all items in view' : 'Select all items in view'}
-            />
-            <div className="pv-board-search-wrap">
-              <Icon name="Search" className="pv-board-search-icon" aria-hidden="true" />
-              <input
-                type="text"
-                placeholder="Search items…"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="pv-board-search-input"
-              />
-            </div>
-            <select
-              value={deptFilter}
-              onChange={e => setDeptFilter(e.target.value)}
-              className="pv-board-filter-select"
-              aria-label="Filter by department"
-            >
-              <option value="all">All depts</option>
-              {departments.map(d => <option key={d.id || d.name} value={d.name}>{d.name}</option>)}
-            </select>
-            <select
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
-              className="pv-board-filter-select"
-              aria-label="Filter by status"
-            >
-              <option value="all">All statuses</option>
-              {ITEM_STATUS_FILTER_ORDER.map(val => {
-                const cfg = ITEM_STATUS_CONFIG[val];
-                return <option key={val} value={val}>{cfg.label}</option>;
-              })}
-            </select>
-            <select
-              value={groupBy}
-              onChange={e => {
-                const next = e.target.value;
-                setGroupBy(next);
-                if (next === 'category' && sortColumn === 'category') {
-                  setSortColumn('item');
-                  setSortDirection('asc');
-                }
-              }}
-              className="pv-board-filter-select"
-              aria-label="Group items"
-            >
-              <option value="category">Group: Category</option>
-              <option value="none">Group: None</option>
-            </select>
-            {hasFilters && (
-              <button
-                type="button"
-                onClick={() => { setSearchQuery(''); setDeptFilter('all'); setStatusFilter('all'); }}
-                className="pv-board-clear-filters"
-              >
-                Clear filters
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setShowReceived(p => !p)}
-              className="pv-board-toggle"
-              aria-pressed={showReceived}
-            >
-              <span className={`pv-board-toggle-track${showReceived ? ' is-on' : ''}`}>
-                <span className="pv-board-toggle-knob" />
-              </span>
-              <span className="pv-board-toggle-lbl">Show received</span>
-            </button>
-          </div>
-          {(() => {
-            const totalItems = items.length;
-            const receivedItems = items.filter(i => i.status === 'received').length;
-            const pct = totalItems > 0 ? receivedItems / totalItems : 0;
-            return (
-              <div className="pv-board-progress">
-                <div className="pv-board-progress-bar">
-                  <span style={{ width: `${Math.round(pct * 100)}%` }} />
-                </div>
-                <span className="pv-board-progress-lbl">
-                  {receivedItems} / {totalItems} received
-                </span>
-              </div>
-            );
-          })()}
-        </div>
+        {/* Toolbar (filter row) moved into headerExtra above so the right
+            rail stack extends down to the toolbar's bottom hairline. */}
 
         {/* ── Items area ────────────────────────────────────────────────── */}
         {activeTab === 'items' && <div style={{ padding: '24px 0 48px' }}>
