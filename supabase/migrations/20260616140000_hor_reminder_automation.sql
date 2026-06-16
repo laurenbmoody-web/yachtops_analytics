@@ -81,6 +81,7 @@ BEGIN
   CREATE TEMP TABLE _plan ON COMMIT DROP AS
   WITH mem AS (
     SELECT tm.tenant_id, tm.user_id, tm.id AS tm_id, tm.permission_tier,
+           tm.department_id, public._hor_tier_rank(tm.permission_tier) AS rnk,
            COALESCE(p.full_name, 'Crew') AS name
     FROM public.tenant_members tm
     LEFT JOIN public.profiles p ON p.id = tm.user_id
@@ -147,6 +148,7 @@ BEGIN
                        WHERE l.tenant_id = m.tenant_id AND l.subject_user_id = m.user_id
                          AND l.kind = 'overdue' AND l.channel = ch.channel AND l.sent_on = p_run)
   ),
+  -- Rank-based escalation copy: crew -> dept HOD + Chief; HOD -> Chief; Chief -> Command.
   t3copy AS (
     SELECT m.tenant_id, m.user_id AS subject_user_id, m.name AS subject_name,
            r.user_id AS recipient_user_id, r.name AS recipient_name,
@@ -155,9 +157,13 @@ BEGIN
            (m.name||' has not signed off Hours of Rest for '||v_prev_lbl||'.')::text,
            '/month-end'::text
     FROM mem m
-    JOIN mem r ON r.tenant_id = m.tenant_id
-              AND public._hor_tier_rank(r.permission_tier) >= 2
-              AND r.user_id <> m.user_id
+    JOIN mem r ON r.tenant_id = m.tenant_id AND r.user_id <> m.user_id
+              AND (
+                    (m.rnk = 0 AND ( (r.rnk = 1 AND r.department_id IS NOT NULL AND r.department_id = m.department_id)
+                                     OR r.rnk = 2 ))
+                 OR (m.rnk = 1 AND r.rnk = 2)
+                 OR (m.rnk = 2 AND r.rnk = 3)
+                  )
     WHERE COALESCE((SELECT s.status FROM st_prev s WHERE s.subject_user_id = m.user_id AND s.tenant_id = m.tenant_id), 'open') = 'open'
       AND NOT EXISTS (SELECT 1 FROM public.hor_reminder_log l
                        WHERE l.tenant_id = m.tenant_id AND l.subject_user_id = m.user_id
@@ -176,10 +182,13 @@ BEGIN
            pl.action_url, false, now()
     FROM _plan pl WHERE pl.channel = 'in_app';
 
+    -- Only log in-app rows here; the email layer logs its own sends so they
+    -- aren't deduped away before an email actually goes out.
     INSERT INTO public.hor_reminder_log
       (tenant_id, subject_user_id, recipient_user_id, period_year, period_month, kind, channel, sent_on)
     SELECT pl.tenant_id, pl.subject_user_id, pl.recipient_user_id, pl.period_year, pl.period_month, pl.kind, pl.channel, p_run
     FROM _plan pl
+    WHERE pl.channel = 'in_app'
     ON CONFLICT DO NOTHING;
   END IF;
 
