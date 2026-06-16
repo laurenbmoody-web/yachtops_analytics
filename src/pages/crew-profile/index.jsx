@@ -140,6 +140,36 @@ const TagInput = ({ value, disabled, onChange, placeholder }) => {
   );
 };
 
+// Spice tolerance — a 4-step scale. Reads back as small terracotta diamonds
+// (echoing the ◆ group motif); edits as a plain inline dropdown in the card.
+const SPICE_LEVELS = ['Mild', 'Medium', 'Hot', 'Very hot'];
+const SpiceField = ({ value, disabled, onChange }) => {
+  if (disabled) {
+    if (!value) return <div className="cp-static cp-empty">—</div>;
+    const idx = SPICE_LEVELS.indexOf(value);
+    return (
+      <div className="cp-spice">
+        <span className="cp-spice-val">{value}</span>
+        <span className="cp-spice-scale" aria-hidden="true">
+          {SPICE_LEVELS.map((_, i) => (
+            <span key={i} className={`cp-spice-pip${i <= idx ? ' on' : ''}`} />
+          ))}
+        </span>
+      </div>
+    );
+  }
+  return (
+    <select
+      className="cp-inline-select"
+      value={value || ''}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      <option value="">Not set</option>
+      {SPICE_LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
+    </select>
+  );
+};
+
 // Human-readable allergy summary from the Personal Details fields. Shared so
 // the Preferences section can cross-reference the SAME record (single source).
 const allergiesReadText = (f) => {
@@ -2036,12 +2066,21 @@ const canEdit = (() => {
       { value: 'Other (free text)', label: 'Other (free text)' }
     ];
 
-    const alcoholicOptions = [
-      { value: 'Wine', label: 'Wine' },
-      { value: 'Spirits', label: 'Spirits' },
-      { value: 'Beer', label: 'Beer' },
-      { value: 'None', label: 'None' }
+    const appetiteOptions = [
+      { value: 'Light', label: 'Light' },
+      { value: 'Average', label: 'Average' },
+      { value: 'Hearty', label: 'Hearty' }
     ];
+
+    // Birthday is held once in Personal Details (date of birth) and shown here
+    // as day + month, so the galley knows when to bake without re-keying it.
+    const birthdayText = (() => {
+      const raw = formData?.dateOfBirth;
+      if (!raw) return '';
+      const d = new Date(raw);
+      if (Number.isNaN(d.getTime())) return '';
+      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+    })();
 
     const handleSurpriseMe = () => {
       handleInputChange('cakePreference', "Chef's choice");
@@ -2057,8 +2096,8 @@ const canEdit = (() => {
           <h3>Preferences</h3>
         </div>
 
-        {/* Allergies & safety — cross-referenced from Personal Details so the
-            galley always sees the same record. Edited only at the source. */}
+        {/* ◆ Dietary & safety — allergies are cross-referenced from Personal
+            Details (single source of truth), with the dietary line alongside. */}
         {(() => {
           const hasAllergy = formData?.allergiesStatus === 'has'
             || (Array.isArray(formData?.allergies) ? formData.allergies.length > 0 : !!formData?.allergies);
@@ -2067,7 +2106,7 @@ const canEdit = (() => {
           return (
             <div className="cp-group">
               <div className="cp-group-head">
-                <span className="dia">◆</span><span className="t">Allergies &amp; safety</span><span className="line" />
+                <span className="dia">◆</span><span className="t">Dietary &amp; safety</span><span className="line" />
               </div>
               <div className={`cp-allergy-ref ${tone}`}>
                 <Icon name={hasAllergy ? 'AlertTriangle' : unset ? 'HelpCircle' : 'ShieldCheck'} size={18} className="ic" />
@@ -2079,42 +2118,137 @@ const canEdit = (() => {
                   {unset ? 'Add in Personal Details' : 'Manage in Personal Details'} ›
                 </button>
               </div>
-              <p className="cp-allergy-note">Held once in Personal Details so the galley and HODs always see the same record — update it there and it stays in sync here.</p>
+              <div className="cp-grid cp-grid-spaced">
+                <Field label="Dietary">
+                  <Select
+                    options={dietaryOptions}
+                    value={formData?.dietaryCategory}
+                    onChange={(value) => handleInputChange('dietaryCategory', value)}
+                    disabled={!isEditing}
+                    searchable={true}
+                  />
+                </Field>
+                <Field label="Additional notes">
+                  <Input
+                    value={formData?.dietaryNotes}
+                    onChange={(e) => handleInputChange('dietaryNotes', e?.target?.value)}
+                    disabled={!isEditing}
+                    placeholder="e.g. intolerances, textures to avoid"
+                  />
+                </Field>
+              </div>
+              <p className="cp-allergy-note">Allergies are held once in Personal Details so the galley and HODs always see the same record — update them there and they stay in sync here.</p>
             </div>
           );
         })()}
 
-        {/* Dietary */}
+        {/* ◆ How you like to eat */}
         <div className="cp-group">
           <div className="cp-group-head">
-            <span className="dia">◆</span><span className="t">Dietary</span><span className="line" />
+            <span className="dia">◆</span><span className="t">How you like to eat</span><span className="line" />
           </div>
           <div className="cp-grid">
-            <Field label="Dietary category">
-              <Select
-                options={dietaryOptions}
-                value={formData?.dietaryCategory}
-                onChange={(value) => handleInputChange('dietaryCategory', value)}
+            <Field label="Appetite">
+              {isEditing ? (
+                <Select
+                  options={appetiteOptions}
+                  value={formData?.appetite}
+                  onChange={(value) => handleInputChange('appetite', value)}
+                  placeholder="Select"
+                />
+              ) : (
+                <div className={`cp-static${formData?.appetite ? '' : ' cp-empty'}`}>
+                  {formData?.appetite || '—'}
+                </div>
+              )}
+            </Field>
+            <Field label="Spice">
+              <SpiceField
+                value={formData?.spiceLevel}
                 disabled={!isEditing}
-                searchable={true}
+                onChange={(value) => handleInputChange('spiceLevel', value)}
               />
             </Field>
-            <Field label="Additional notes" full>
-              <textarea
-                className={taClass}
-                value={formData?.dietaryNotes}
-                onChange={(e) => handleInputChange('dietaryNotes', e?.target?.value)}
+            <Field label="Breakfast">
+              <Input
+                value={formData?.breakfast}
+                onChange={(e) => handleInputChange('breakfast', e?.target?.value)}
                 disabled={!isEditing}
-                placeholder="e.g. allergies, intolerances"
+                placeholder="e.g. Grab-and-go, full cooked"
+              />
+            </Field>
+            <Field label="Snacks">
+              <Input
+                value={formData?.favouriteSnacks}
+                onChange={(e) => handleInputChange('favouriteSnacks', e?.target?.value)}
+                disabled={!isEditing}
+                placeholder="e.g. Salted nuts, dark chocolate"
               />
             </Field>
           </div>
         </div>
 
-        {/* Birthday cake */}
+        {/* ◆ Coffee & tea */}
         <div className="cp-group">
           <div className="cp-group-head">
-            <span className="dia">◆</span><span className="t">Birthday cake</span><span className="line" />
+            <span className="dia">◆</span><span className="t">Coffee &amp; tea</span><span className="line" />
+          </div>
+          <div className="cp-grid">
+            <Field label="Coffee order">
+              <Input
+                value={formData?.coffeeOrder}
+                onChange={(e) => handleInputChange('coffeeOrder', e?.target?.value)}
+                disabled={!isEditing}
+                placeholder="e.g. Flat white, oat, no sugar"
+              />
+            </Field>
+            <Field label="Tea">
+              <Input
+                value={formData?.tea}
+                onChange={(e) => handleInputChange('tea', e?.target?.value)}
+                disabled={!isEditing}
+                placeholder="e.g. Builders, splash of milk"
+              />
+            </Field>
+          </div>
+        </div>
+
+        {/* ◆ Tastes — Loves reuses the existing favouriteMeals store as a tag list. */}
+        <div className="cp-group">
+          <div className="cp-group-head">
+            <span className="dia">◆</span><span className="t">Tastes</span><span className="line" />
+          </div>
+          <div className="cp-grid">
+            <Field label="Loves" hint={isEditing ? 'e.g. Asian, fresh seafood — Enter after each' : undefined}>
+              <TagInput
+                value={formData?.favouriteMeals}
+                disabled={!isEditing}
+                onChange={(value) => handleInputChange('favouriteMeals', value)}
+              />
+            </Field>
+            <Field label="Rather avoid" hint={isEditing ? 'e.g. Pork, mushrooms — Enter after each' : undefined}>
+              <TagInput
+                value={formData?.avoid}
+                disabled={!isEditing}
+                onChange={(value) => handleInputChange('avoid', value)}
+              />
+            </Field>
+            <Field label="Anything else" full>
+              <textarea
+                className={taClass}
+                value={formData?.tasteNotes}
+                onChange={(e) => handleInputChange('tasteNotes', e?.target?.value)}
+                disabled={!isEditing}
+                placeholder="e.g. Loves blue cheese · no pineapple on pizza"
+              />
+            </Field>
+          </div>
+        </div>
+
+        {/* ◆ A little about you */}
+        <div className="cp-group">
+          <div className="cp-group-head">
+            <span className="dia">◆</span><span className="t">A little about you</span><span className="line" />
             {isEditing && (
               <Button variant="outline" size="sm" onClick={handleSurpriseMe} iconName="Sparkles">
                 Surprise me
@@ -2122,74 +2256,39 @@ const canEdit = (() => {
             )}
           </div>
           <div className="cp-grid">
-            <Field label="Cake preference" full>
+            <Field label="Birthday">
+              <div className="cp-static cp-birthday">
+                {birthdayText
+                  ? <span>{birthdayText}</span>
+                  : <span className="cp-empty">Not set</span>}
+                <button type="button" className="cp-allergy-jump" onClick={() => { setActiveSection('personal'); setIsEditing(false); }}>
+                  {birthdayText ? 'Personal Details' : 'Add in Personal Details'} ›
+                </button>
+              </div>
+            </Field>
+            <Field label="Birthday cake">
               <Input
                 value={formData?.cakePreference}
                 onChange={(e) => handleInputChange('cakePreference', e?.target?.value)}
                 disabled={!isEditing}
-                placeholder="e.g. Chocolate cake, vanilla sponge"
+                placeholder="e.g. Chocolate, vanilla sponge"
               />
-              {cakeSurprise && (
-                <p className="text-xs text-green-600 dark:text-green-400 mt-2 flex items-center gap-1">
-                  <Icon name="Check" size={12} />
-                  Surprise option selected!
-                </p>
-              )}
             </Field>
-          </div>
-        </div>
-
-        {/* Favourites */}
-        <div className="cp-group">
-          <div className="cp-group-head">
-            <span className="dia">◆</span><span className="t">Favourites</span><span className="line" />
-          </div>
-          <div className="cp-grid">
-            <Field label="Favourite meals">
-              <textarea
-                className={taClass}
-                value={formData?.favouriteMeals}
-                onChange={(e) => handleInputChange('favouriteMeals', e?.target?.value)}
+            <Field label="Comfort food / pick-me-up" full>
+              <Input
+                value={formData?.comfortFood}
+                onChange={(e) => handleInputChange('comfortFood', e?.target?.value)}
                 disabled={!isEditing}
-                placeholder="e.g. Italian pasta, fresh seafood, Asian stir-fry"
-              />
-            </Field>
-            <Field label="Favourite snacks">
-              <textarea
-                className={taClass}
-                value={formData?.favouriteSnacks}
-                onChange={(e) => handleInputChange('favouriteSnacks', e?.target?.value)}
-                disabled={!isEditing}
-                placeholder="e.g. Fresh fruit, nuts, chocolate"
+                placeholder="e.g. Mac & cheese after a rough watch"
               />
             </Field>
           </div>
-        </div>
-
-        {/* Drinks */}
-        <div className="cp-group">
-          <div className="cp-group-head">
-            <span className="dia">◆</span><span className="t">Drinks</span><span className="line" />
-          </div>
-          <div className="cp-grid">
-            <Field label="Alcoholic preference">
-              <Select
-                options={alcoholicOptions}
-                value={formData?.alcoholicPreference}
-                onChange={(value) => handleInputChange('alcoholicPreference', value)}
-                disabled={!isEditing}
-              />
-            </Field>
-            <Field label="Non-alcoholic preferences" full>
-              <textarea
-                className={taClass}
-                value={formData?.nonAlcoholicPreferences}
-                onChange={(e) => handleInputChange('nonAlcoholicPreferences', e?.target?.value)}
-                disabled={!isEditing}
-                placeholder="e.g. sparkling water brand, juices, teas, coffee order"
-              />
-            </Field>
-          </div>
+          {cakeSurprise && (
+            <p className="text-xs text-green-600 dark:text-green-400 mt-2 flex items-center gap-1">
+              <Icon name="Check" size={12} />
+              Surprise option selected!
+            </p>
+          )}
         </div>
 
         {/* Single Save/Cancel buttons at bottom */}
