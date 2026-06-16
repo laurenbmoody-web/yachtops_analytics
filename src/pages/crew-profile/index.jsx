@@ -1210,7 +1210,12 @@ const canEdit = (() => {
           <h3>Personal Details</h3>
         </div>
 
-        <div className="cp-grid">
+        {/* Identity */}
+        <div className="cp-group">
+          <div className="cp-group-head">
+            <span className="dia">◆</span><span className="t">Identity</span><span className="line" />
+          </div>
+          <div className="cp-grid">
           <div className="cp-field-full cp-name-row">
             <Field label="Prefix">
               {isEditing ? (
@@ -1287,6 +1292,15 @@ const canEdit = (() => {
               placeholder="Select nationality"
             />
           </Field>
+          </div>
+        </div>
+
+        {/* Contact */}
+        <div className="cp-group">
+          <div className="cp-group-head">
+            <span className="dia">◆</span><span className="t">Contact</span><span className="line" />
+          </div>
+          <div className="cp-grid">
           <Field label="Phone Numbers" full>
             <PhonesEditor
               phones={formData?.phones}
@@ -1320,6 +1334,15 @@ const canEdit = (() => {
               placeholder="—"
             />
           </Field>
+          </div>
+        </div>
+
+        {/* Medical */}
+        <div className="cp-group">
+          <div className="cp-group-head">
+            <span className="dia">◆</span><span className="t">Medical</span><span className="line" />
+          </div>
+          <div className="cp-grid">
           <Field label="Allergies" full hint={isEditing ? 'Confirm status, then add detail if any' : undefined}>
             {isEditing ? (
               <>
@@ -1383,6 +1406,7 @@ const canEdit = (() => {
               <div className={`cp-static${formData?.bloodType ? '' : ' cp-empty'}`}>{formData?.bloodType || '—'}</div>
             )}
           </Field>
+          </div>
         </div>
         {isEditing && (
           <div className="flex justify-end gap-3 mt-6">
