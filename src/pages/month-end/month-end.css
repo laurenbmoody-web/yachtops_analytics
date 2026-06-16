@@ -1,6 +1,7 @@
 /* Month-end hub — editorial (Cargo) styling: navy ink, terracotta accent,
    DM Serif headings, soft field-card rows. */
-.month-end-page { min-height: 100vh; background: #F8FAFC; padding: 28px 20px 60px; }
+/* padding-top clears the fixed 64px Cargo nav-header. */
+.month-end-page { min-height: calc(100vh - 64px); background: #F8FAFC; padding: 92px 20px 60px; }
 .me-wrap { max-width: 980px; margin: 0 auto; font-family: 'Inter', system-ui, sans-serif; }
 
 .me-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
@@ -10,11 +11,16 @@
 .me-monthnav button { border: 0; background: none; cursor: pointer; color: #8B8478; font-size: 18px; line-height: 1; padding: 0 2px; }
 .me-monthnav button:hover { color: #C65A1A; }
 
-/* Rollup card */
-.me-card { background: #fff; border: 1px solid #E6E8EF; border-radius: 12px; padding: 18px 20px; margin-bottom: 24px; }
-.me-card-head { display: flex; align-items: baseline; gap: 9px; margin-bottom: 14px; }
-.me-card-head .dia { color: #C65A1A; font-size: 9px; }
-.me-card-head .t { font-family: 'DM Serif Display', Georgia, serif; font-size: 17px; color: #1C1B3A; }
+/* Compliance pack — collapsible box (one per pack: HOR, breach, sea time…) */
+.me-pack { background: #fff; border: 1px solid #E6E8EF; border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+.me-pack-head { display: flex; align-items: center; gap: 9px; width: 100%; padding: 16px 20px; background: none; border: 0; cursor: pointer; text-align: left; font: inherit; }
+.me-pack-head:hover { background: #FCFCFB; }
+.me-pack-head .dia { color: #C65A1A; font-size: 9px; }
+.me-pack-head .t { font-family: 'DM Serif Display', Georgia, serif; font-size: 17px; color: #1C1B3A; }
+.me-pack-badge { font-size: 11px; font-weight: 600; color: #9A6B1C; background: #FBEFD7; border-radius: 999px; padding: 3px 9px; }
+.me-chev { color: #8B8478; margin-left: 10px; flex: 0 0 auto; transition: transform 0.18s ease; }
+.me-chev.open { transform: rotate(180deg); }
+.me-pack-body { padding: 2px 20px 20px; }
 .me-progress-label { margin-left: auto; font-size: 13px; font-weight: 600; color: #8B8478; }
 .me-bar { height: 10px; border-radius: 5px; background: #EEF0F4; overflow: hidden; }
 .me-bar span { display: block; height: 100%; border-radius: 5px; background: #5C9B6A; transition: width 0.3s ease; }
@@ -24,6 +30,8 @@
 
 /* Sections + rows */
 .me-section { margin-bottom: 22px; }
+.me-pack-body .me-section:first-of-type { margin-top: 22px; }
+.me-pack-body .me-section:last-child { margin-bottom: 0; }
 .me-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .me-section-title { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #8B8478; }
 
