@@ -1,7 +1,7 @@
 import React from 'react';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
-import { VERIFICATION_STATUS, SEA_SERVICE_SOURCE, SEA_SERVICE_STATE } from '../utils/seaTimeStorage';
+import { VERIFICATION_STATUS, SEA_SERVICE_SOURCE, SEA_SERVICE_STATE, SEA_SERVICE_TYPE_LABELS } from '../utils/seaTimeStorage';
 import { format } from 'date-fns';
 
 const DayDetailDrawer = ({ isOpen, onClose, selectedDate, dayData, onUpdate }) => {
@@ -83,6 +83,12 @@ const DayDetailDrawer = ({ isOpen, onClose, selectedDate, dayData, onUpdate }) =
                 </h3>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Service type:</span>
+                    <span className="text-sm font-medium text-foreground">
+                      {SEA_SERVICE_TYPE_LABELS?.[dayData?.serviceType] || '—'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Qualifies for path:</span>
                     <span className={`text-sm font-medium ${
                       dayData?.qualifiesForSelectedPath
@@ -91,6 +97,11 @@ const DayDetailDrawer = ({ isOpen, onClose, selectedDate, dayData, onUpdate }) =
                       {dayData?.qualifiesForSelectedPath ? 'YES' : 'NO'}
                     </span>
                   </div>
+                  {dayData?.qualifiesForSelectedPath && dayData?.qualificationReason && (
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                      {dayData?.qualificationReason}
+                    </p>
+                  )}
                   {!dayData?.qualifiesForSelectedPath && dayData?.nonQualifyingReasons && (
                     <div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
                       <p className="text-xs font-semibold text-red-600 dark:text-red-400 mb-2">

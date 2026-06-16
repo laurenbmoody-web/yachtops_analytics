@@ -10,7 +10,9 @@ const VESSELS_KEY = 'cargo_seatime_vessels_v1';
 const CREW_ONBOARD_KEY = 'cargo_seatime_crew_onboard_v1';
 const VESSEL_SERVICE_LOG_KEY = 'cargo_seatime_vessel_log_v1';
 const PERSONAL_SEA_SERVICE_KEY = 'cargo_seatime_personal_v1';
-const PATHS_CONFIG_KEY = 'cargo_seatime_paths_v1';
+// Phase 0: config-driven rules engine. Bumped to v2 so the old single-target
+// (1095 ring) path config is superseded by the four-service-type model below.
+const RULES_CONFIG_KEY = 'cargo_seatime_rules_v2';
 const SAVED_VESSELS_KEY = 'cargo_seatime_saved_vessels_v1';
 
 // ============================================
@@ -70,43 +72,122 @@ export const VERIFICATION_STATUS = {
 };
 
 // ============================================
-// PATH CONFIGURATION
+// MCA SERVICE TYPES (Phase 0)
+// The four service types that MCA testimonials (MIN 642) record separately.
+// Every sea-service day resolves to exactly ONE primary type so the four
+// buckets reconcile to the total day count. Requirement bars then decide which
+// of these primary types contribute toward each threshold.
 // ============================================
 
+export const SEA_SERVICE_TYPE = {
+  SEAGOING: 'seagoing',       // Actual seagoing service (vessel underway)
+  WATCHKEEPING: 'watchkeeping', // Seagoing day with a recorded navigational watch >= min hours
+  STANDBY: 'standby',         // At anchor / in port / standby
+  YARD: 'yard'               // Shipyard / refit service
+};
+
+export const SEA_SERVICE_TYPE_LABELS = {
+  seagoing: 'Seagoing',
+  watchkeeping: 'Watchkeeping',
+  standby: 'Standby',
+  yard: 'Shipyard'
+};
+
+// ============================================
+// RULES ENGINE CONFIGURATION (Phase 0)
+// ============================================
+// EVERY numeric threshold here is a CONFIG VALUE, not a hard-coded constant,
+// because the MCA rules changed in 2026 and will change again. Edit the config
+// (or override via localStorage) rather than touching qualification logic.
+//
+// ⚠️ COMPLIANCE: all figures below are TO BE CONFIRMED against the live notices
+// (MSN 1858 Amendment 2 for OOW day thresholds + size gates; MIN 642 for the
+// testimonial field layout; standby cap + watchkeeping daily minimum). Do NOT
+// surface a "MCA-compliant" claim until these are verified. See
+// docs/sea-time-tracker-deep-dive.md.
+
 /**
- * Get all available qualification paths
- * V1: MCA OOW (Yachts) only
- * Architecture allows adding more paths later
+ * Default rules configuration. Returned when nothing is stored yet.
+ */
+export const getDefaultRulesConfig = () => ({
+  version: '2026.06-draft',
+  lastReviewed: '2026-06-16',
+  reviewStatus: 'UNVERIFIED', // until diffed against live MCA notices
+  thresholds: {
+    // A day counts as watchkeeping only if recorded watch >= this many hours.
+    watchkeepingMinHours: 4,
+    // Seagoing service for the OOW pathway only counts on vessels >= this length.
+    seagoingMinLengthM: 15,
+    // Standby contribution is capped by the templates — exact figure TBC.
+    standbyCapDays: 90
+  },
+  paths: [
+    {
+      id: 'mca-oow-yachts',
+      name: 'MCA OOW (Yachts)',
+      reference: 'MSN 1858 Amendment 2',
+      color: '#3b82f6',
+      // Multiple requirement bars per pathway instead of one 1095 ring.
+      requirements: [
+        {
+          id: 'seagoing-15m',
+          label: 'Seagoing service (≥15m)',
+          // Which primary service types contribute. Watchkeeping days happen at
+          // sea, so they also count as seagoing service.
+          countsTypes: ['seagoing', 'watchkeeping'],
+          targetDays: 365,
+          gates: { minLengthM: 15, minGT: 80 },
+          note: 'Actual seagoing days on a vessel ≥15m load-line / registered length.'
+        },
+        {
+          id: 'watchkeeping',
+          label: 'Watchkeeping service',
+          countsTypes: ['watchkeeping'],
+          targetDays: 120,
+          gates: { minLengthM: 15, minGT: 80 },
+          note: 'Days with a recorded navigational watch ≥4 hours.'
+        }
+      ]
+    }
+  ]
+});
+
+/**
+ * Load the rules config (config-driven thresholds).
+ */
+export const getRulesConfig = () => {
+  try {
+    const stored = localStorage.getItem(RULES_CONFIG_KEY);
+    if (stored) return JSON.parse(stored);
+    const def = getDefaultRulesConfig();
+    localStorage.setItem(RULES_CONFIG_KEY, JSON.stringify(def));
+    return def;
+  } catch (error) {
+    console.error('Error loading rules config:', error);
+    return getDefaultRulesConfig();
+  }
+};
+
+/**
+ * Persist the rules config.
+ */
+export const saveRulesConfig = (config) => {
+  try {
+    localStorage.setItem(RULES_CONFIG_KEY, JSON.stringify(config));
+    return true;
+  } catch (error) {
+    console.error('Error saving rules config:', error);
+    return false;
+  }
+};
+
+/**
+ * Get all available qualification paths (for the path selector).
+ * Architecture allows adding more paths via config.
  */
 export const getQualificationPaths = () => {
-  try {
-    const stored = localStorage.getItem(PATHS_CONFIG_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-    
-    // Default V1 configuration
-    const defaultPaths = [
-      {
-        id: 'mca-oow-yachts',
-        name: 'MCA OOW (Yachts)',
-        targetDays: 1095, // 3 years
-        color: '#3b82f6', // Blue
-        qualificationRules: {
-          minGT: 80, // Minimum 80 GT
-          commercialStatus: ['COMMERCIAL', 'PRIVATE'], // Both commercial and private yachts
-          excludeYardTime: true, // Yard time doesn't count
-          requiresWatchEligible: false // V1: not enforced
-        }
-      }
-    ];
-    
-    localStorage.setItem(PATHS_CONFIG_KEY, JSON.stringify(defaultPaths));
-    return defaultPaths;
-  } catch (error) {
-    console.error('Error loading qualification paths:', error);
-    return [];
-  }
+  const config = getRulesConfig();
+  return config?.paths || [];
 };
 
 /**
@@ -140,6 +221,7 @@ export const loadVessels = () => {
         officialNumber: 'OFF789',
         flag: 'Cayman Islands',
         grossTonnage: 499,
+        lengthM: 42, // registered / load-line length (m) — gates seagoing service
         engineKW: 2400,
         vesselType: 'Motor Yacht',
         commercialStatus: 'COMMERCIAL',
@@ -515,19 +597,30 @@ export const addManualSeaServiceEntry = (userId, entry) => {
   const records = loadPersonalSeaService();
   
   const newEntry = {
-    id: `sea-service-${Date.now()}`,
+    // Randomised suffix: a multi-day range creates entries in a tight loop, so
+    // Date.now() alone collides and breaks later edit/delete-by-id.
+    id: `sea-service-${Date.now()}-${Math.random()?.toString(36)?.substr(2, 9)}`,
     userId,
     vesselId: entry?.vesselId || null,
     vesselName: entry?.vesselName || '',
     savedVesselId: entry?.savedVesselId || null,
+    // Vessel facts snapshotted onto the entry so it can be evaluated even
+    // though manual entries don't reference a managed vessel record.
+    grossTonnage: entry?.grossTonnage != null ? Number(entry?.grossTonnage) : null,
+    lengthM: entry?.lengthM != null ? Number(entry?.lengthM) : null,
+    vesselStatusType: entry?.vesselStatusType || null,
+    vesselType: entry?.vesselType || null,
     date: entry?.date,
     source: SEA_SERVICE_SOURCE?.MANUAL,
     vesselStatus: entry?.vesselStatus || null,
     capacityServed: entry?.capacityServed || '',
     watchkeepingRole: entry?.watchkeepingRole || false,
+    watchHours: entry?.watchHours != null ? Number(entry?.watchHours) : 0,
     locationTradingArea: entry?.locationTradingArea || '',
     seaServiceType: entry?.seaServiceType || 'Underway',
+    serviceType: null, // primary MCA type, computed by recompute
     qualifiesForSelectedPath: false, // Will be computed
+    qualificationReason: '',
     state: SEA_SERVICE_STATE?.MANUAL,
     verificationStatus: VERIFICATION_STATUS?.NOT_SUBMITTED,
     verifiedBy: null,
@@ -648,7 +741,10 @@ export const autoPopulatePersonalSeaService = (vesselId) => {
             source: SEA_SERVICE_SOURCE?.VESSEL_AUTO,
             vesselStatus: log?.status,
             capacityServed,
+            watchHours: log?.watchHours != null ? Number(log?.watchHours) : 0,
+            serviceType: null, // primary MCA type, computed by recompute
             qualifiesForSelectedPath: false, // Will be computed by qualification check
+            qualificationReason: '',
             state: SEA_SERVICE_STATE?.PENDING,
             verificationStatus: VERIFICATION_STATUS?.NOT_SUBMITTED,
             verifiedBy: null,
@@ -686,128 +782,262 @@ export const autoPopulatePersonalSeaService = (vesselId) => {
 };
 
 // ============================================
-// QUALIFICATION LOGIC
+// QUALIFICATION LOGIC (Phase 0 — config-driven rules engine)
 // ============================================
 
 /**
- * Check if a sea service day qualifies for a specific path
+ * Resolve the vessel facts that gate qualification for a given entry.
+ * - Auto entries reference a managed vessel record.
+ * - Manual entries carry a snapshot of the facts (GT / length / type), falling
+ *   back to a saved vessel if one is linked.
+ * Returns { grossTonnage, lengthM, vesselType }.
  */
-export const checkQualificationForPath = (seaServiceDay, pathId) => {
-  const path = getPathById(pathId);
-  if (!path) return { qualifies: false, reasons: ['Path not found'] };
-  
-  const vessel = getVesselById(seaServiceDay?.vesselId);
-  if (!vessel) return { qualifies: false, reasons: ['Vessel data not available'] };
-  
-  const rules = path?.qualificationRules;
-  const reasons = [];
-  
-  // Check minimum GT
-  if (rules?.minGT && vessel?.grossTonnage < rules?.minGT) {
-    reasons?.push(`Vessel GT (${vessel?.grossTonnage}) below minimum (${rules?.minGT})`);
+export const getEntryVesselFacts = (entry) => {
+  if (entry?.source === SEA_SERVICE_SOURCE?.VESSEL_AUTO) {
+    const vessel = getVesselById(entry?.vesselId);
+    return {
+      grossTonnage: vessel?.grossTonnage ?? null,
+      lengthM: vessel?.lengthM ?? vessel?.loa ?? null,
+      vesselType: vessel?.vesselType ?? null
+    };
   }
-  
-  // Check commercial status
-  if (rules?.commercialStatus && !rules?.commercialStatus?.includes(vessel?.commercialStatus)) {
-    reasons?.push(`Vessel commercial status (${vessel?.commercialStatus}) not eligible`);
-  }
-  
-  // Check yard time exclusion
-  if (rules?.excludeYardTime && seaServiceDay?.vesselStatus === VESSEL_STATUS?.IN_YARD) {
-    reasons?.push('Yard time does not count towards qualification');
-  }
-  
-  // Check watch eligibility (if required)
-  if (rules?.requiresWatchEligible) {
-    const crewStatus = getCrewOnboardStatus(seaServiceDay?.userId, seaServiceDay?.vesselId);
-    if (crewStatus && !crewStatus?.watchEligible) {
-      reasons?.push('Crew member not watch-eligible');
-    }
-  }
-  
+
+  // Manual entry: prefer the snapshot stored on the entry, then a saved vessel.
+  const saved = entry?.savedVesselId ? getSavedVesselById(entry?.savedVesselId) : null;
   return {
-    qualifies: reasons?.length === 0,
-    reasons
+    grossTonnage: entry?.grossTonnage ?? saved?.grossTonnage ?? null,
+    lengthM: entry?.lengthM ?? saved?.loa ?? null,
+    vesselType: entry?.vesselType ?? saved?.vesselType ?? null
   };
 };
 
 /**
- * Recompute qualification status for all user's sea service days
+ * Classify the single primary MCA service type for a day.
+ * Exactly one of: yard | watchkeeping | standby | seagoing — so the four
+ * buckets reconcile to the total day count.
+ */
+export const classifyServiceType = (entry, config = getRulesConfig()) => {
+  const minWatch = config?.thresholds?.watchkeepingMinHours ?? 4;
+  const status = entry?.vesselStatus;
+  const typeText = (entry?.seaServiceType || '').toLowerCase();
+
+  // 1) Shipyard / refit always takes precedence.
+  if (status === VESSEL_STATUS?.IN_YARD || typeText?.includes('yard')) {
+    return SEA_SERVICE_TYPE?.YARD;
+  }
+
+  // 2) A recorded watch >= the configured minimum makes it a watchkeeping day.
+  if (Number(entry?.watchHours) >= minWatch) {
+    return SEA_SERVICE_TYPE?.WATCHKEEPING;
+  }
+
+  // 3) At anchor / in port / explicit standby → standby.
+  if (
+    status === VESSEL_STATUS?.ANCHOR ||
+    status === VESSEL_STATUS?.IN_PORT ||
+    typeText?.includes('standby') ||
+    typeText?.includes('port')
+  ) {
+    return SEA_SERVICE_TYPE?.STANDBY;
+  }
+
+  // 4) Otherwise underway at sea → seagoing.
+  return SEA_SERVICE_TYPE?.SEAGOING;
+};
+
+/**
+ * Evaluate an entry against a path's requirement bars.
+ * Returns:
+ *   serviceType   — primary MCA type
+ *   countsToward  — { [requirementId]: boolean }
+ *   qualifies     — counts toward at least one requirement
+ *   reason        — human-readable headline (why it counts / doesn't)
+ *   reasons       — detailed human-readable list (gate failures etc.)
+ */
+export const evaluateEntryQualification = (entry, pathId, config = getRulesConfig()) => {
+  const path = getPathById(pathId);
+  const serviceType = classifyServiceType(entry, config);
+  const facts = getEntryVesselFacts(entry);
+  const labels = SEA_SERVICE_TYPE_LABELS;
+
+  const result = { serviceType, countsToward: {}, qualifies: false, reason: '', reasons: [] };
+
+  if (!path) {
+    result.reason = 'No qualification path selected.';
+    return result;
+  }
+
+  // Gate failures shared across requirements (collected once for messaging).
+  const gateReasons = new Set();
+  const matchedRequirements = [];
+
+  (path?.requirements || []).forEach(req => {
+    const typeMatches = (req?.countsTypes || []).includes(serviceType);
+    if (!typeMatches) {
+      result.countsToward[req.id] = false;
+      return;
+    }
+
+    const gates = req?.gates || {};
+    let passes = true;
+
+    if (gates?.minLengthM != null) {
+      if (facts?.lengthM == null) {
+        passes = false;
+        gateReasons.add(`Vessel length is missing — ${gates.minLengthM} m minimum can't be confirmed.`);
+      } else if (Number(facts.lengthM) < gates.minLengthM) {
+        passes = false;
+        gateReasons.add(`Vessel length (${facts.lengthM} m) is below the ${gates.minLengthM} m minimum for ${req.label}.`);
+      }
+    }
+
+    if (gates?.minGT != null) {
+      if (facts?.grossTonnage == null) {
+        passes = false;
+        gateReasons.add(`Vessel GT is missing — ${gates.minGT} GT minimum can't be confirmed.`);
+      } else if (Number(facts.grossTonnage) < gates.minGT) {
+        passes = false;
+        gateReasons.add(`Vessel GT (${facts.grossTonnage}) is below the ${gates.minGT} GT minimum.`);
+      }
+    }
+
+    result.countsToward[req.id] = passes;
+    if (passes) matchedRequirements.push(req.label);
+  });
+
+  result.qualifies = Object.values(result.countsToward).some(Boolean);
+
+  if (result.qualifies) {
+    result.reason = `Counts as ${matchedRequirements.join(' + ')}.`;
+  } else if (serviceType === SEA_SERVICE_TYPE?.YARD) {
+    result.reason = 'Shipyard service — does not count toward seagoing or watchkeeping days.';
+    result.reasons = [result.reason];
+  } else if (serviceType === SEA_SERVICE_TYPE?.STANDBY) {
+    const cap = config?.thresholds?.standbyCapDays;
+    result.reason = `Standby service — limited contribution${cap != null ? ` (cap ${cap} days)` : ''}; not counted in the primary bars.`;
+    result.reasons = [result.reason];
+  } else {
+    // Seagoing/watchkeeping day that failed the vessel-size gates.
+    result.reasons = Array.from(gateReasons);
+    result.reason = result.reasons[0] || `${labels[serviceType]} service does not meet the requirements for this path.`;
+  }
+
+  return result;
+};
+
+/**
+ * Back-compat shim: returns { qualifies, reasons } for a day on a path.
+ */
+export const checkQualificationForPath = (seaServiceDay, pathId) => {
+  const { qualifies, reasons, reason } = evaluateEntryQualification(seaServiceDay, pathId);
+  return { qualifies, reasons: reasons?.length ? reasons : (qualifies ? [] : [reason]) };
+};
+
+/**
+ * Recompute qualification status for all of a user's sea service days.
+ * Loads once, mutates, saves the SAME array (fixes the prior no-op persist).
  */
 export const recomputeQualificationForUser = (userId, pathId) => {
-  const records = getPersonalSeaServiceForUser(userId);
-  
-  records?.forEach(record => {
-    const { qualifies, reasons } = checkQualificationForPath(record, pathId);
-    
-    // Update qualification status
-    record.qualifiesForSelectedPath = qualifies;
-    
-    // Update state based on qualification and verification
+  const all = loadPersonalSeaService();
+  const config = getRulesConfig();
+
+  all?.forEach(record => {
+    if (record?.userId !== userId) return;
+
+    const evalRes = evaluateEntryQualification(record, pathId, config);
+
+    record.serviceType = evalRes.serviceType;
+    record.countsToward = evalRes.countsToward;
+    record.qualifiesForSelectedPath = evalRes.qualifies;
+    record.qualificationReason = evalRes.reason;
+
+    // Update state based on qualification and verification.
     if (record?.source === SEA_SERVICE_SOURCE?.MANUAL) {
       record.state = SEA_SERVICE_STATE?.MANUAL;
-    } else if (qualifies && record?.verificationStatus === VERIFICATION_STATUS?.VERIFIED) {
+    } else if (evalRes.qualifies && record?.verificationStatus === VERIFICATION_STATUS?.VERIFIED) {
       record.state = SEA_SERVICE_STATE?.VERIFIED;
-    } else if (qualifies) {
+    } else if (evalRes.qualifies) {
       record.state = SEA_SERVICE_STATE?.PENDING;
     } else {
       record.state = SEA_SERVICE_STATE?.NON_QUALIFYING;
     }
-    
-    // Store non-qualification reasons
-    if (!qualifies && reasons?.length > 0) {
-      record.nonQualifyingReasons = reasons;
+
+    if (evalRes.reasons?.length > 0) {
+      record.nonQualifyingReasons = evalRes.reasons;
     } else {
-      delete record?.nonQualifyingReasons;
+      delete record.nonQualifyingReasons;
     }
   });
-  
-  savePersonalSeaService(loadPersonalSeaService());
+
+  savePersonalSeaService(all);
 };
 
 // ============================================
-// PROGRESS CALCULATION
+// PROGRESS CALCULATION (Phase 0 — multi-requirement)
 // ============================================
 
+const isVerified = (r) => r?.verificationStatus === VERIFICATION_STATUS?.VERIFIED;
+const isPendingVerification = (r) =>
+  r?.verificationStatus === VERIFICATION_STATUS?.NOT_SUBMITTED ||
+  r?.verificationStatus === VERIFICATION_STATUS?.SUBMITTED;
+
 /**
- * Get progress summary for user on selected path
+ * Get progress summary for user on selected path.
+ * Returns multiple requirement bars plus the four-bucket day breakdown.
  */
 export const getProgressSummary = (userId, pathId) => {
   const path = getPathById(pathId);
   if (!path) return null;
-  
-  const records = getPersonalSeaServiceForUser(userId);
-  
-  // Recompute qualification for current path
+
+  // Recompute first so countsToward / serviceType are persisted, then read back.
   recomputeQualificationForUser(userId, pathId);
-  
-  const verifiedQualifying = records?.filter(r => 
-    r?.qualifiesForSelectedPath && r?.verificationStatus === VERIFICATION_STATUS?.VERIFIED
-  )?.length;
-  
-  const pendingQualifying = records?.filter(r => 
-    r?.qualifiesForSelectedPath && 
-    (r?.verificationStatus === VERIFICATION_STATUS?.NOT_SUBMITTED || 
-     r?.verificationStatus === VERIFICATION_STATUS?.SUBMITTED)
-  )?.length;
-  
-  const manualDays = records?.filter(r => r?.source === SEA_SERVICE_SOURCE?.MANUAL)?.length;
-  
-  const nonQualifyingOnboard = records?.filter(r => 
-    r?.source === SEA_SERVICE_SOURCE?.VESSEL_AUTO && !r?.qualifiesForSelectedPath
-  )?.length;
-  
-  const remaining = Math.max(0, path?.targetDays - verifiedQualifying);
-  
+  const records = getPersonalSeaServiceForUser(userId);
+
+  // Per-requirement progress bars.
+  const requirements = (path?.requirements || []).map(req => {
+    const counted = records?.filter(r => r?.countsToward?.[req.id]) || [];
+    const verified = counted.filter(isVerified).length;
+    const pending = counted.filter(isPendingVerification).length;
+    const target = req?.targetDays || 0;
+    const gateLabel = [
+      req?.gates?.minLengthM != null ? `≥${req.gates.minLengthM}m` : null,
+      req?.gates?.minGT != null ? `≥${req.gates.minGT}GT` : null
+    ].filter(Boolean).join(' · ');
+
+    return {
+      id: req.id,
+      label: req.label,
+      note: req.note,
+      gateLabel,
+      target,
+      verified,
+      pending,
+      total: verified + pending,
+      remaining: Math.max(0, target - verified),
+      percentComplete: target ? Math.min(100, Math.round((verified / target) * 100)) : 0,
+      percentLogged: target ? Math.min(100, Math.round(((verified + pending) / target) * 100)) : 0
+    };
+  });
+
+  // Four-bucket breakdown — every day has exactly one primary type, so these
+  // reconcile to the total day count.
+  const buckets = {
+    [SEA_SERVICE_TYPE.SEAGOING]: 0,
+    [SEA_SERVICE_TYPE.WATCHKEEPING]: 0,
+    [SEA_SERVICE_TYPE.STANDBY]: 0,
+    [SEA_SERVICE_TYPE.YARD]: 0
+  };
+  records?.forEach(r => {
+    const t = r?.serviceType || SEA_SERVICE_TYPE.SEAGOING;
+    if (buckets[t] != null) buckets[t] += 1;
+  });
+
   return {
     pathName: path?.name,
-    targetDays: path?.targetDays,
-    verifiedQualifying,
-    pendingQualifying,
-    manualDays,
-    nonQualifyingOnboard,
-    remaining,
-    percentComplete: Math.min(100, Math.round((verifiedQualifying / path?.targetDays) * 100))
+    reference: path?.reference,
+    requirements,
+    buckets,
+    totalDays: records?.length || 0
   };
 };
 
@@ -960,10 +1190,13 @@ const SeaTimeActions = {
 };
 
 export default {
-  // Path management
+  // Rules config + path management
+  getDefaultRulesConfig,
+  getRulesConfig,
+  saveRulesConfig,
   getQualificationPaths,
   getPathById,
-  
+
   // Vessel management
   loadVessels,
   saveVessels,
@@ -1003,7 +1236,10 @@ export default {
   // Auto-population
   autoPopulatePersonalSeaService,
   
-  // Qualification
+  // Qualification (config-driven rules engine)
+  getEntryVesselFacts,
+  classifyServiceType,
+  evaluateEntryQualification,
   checkQualificationForPath,
   recomputeQualificationForUser,
   

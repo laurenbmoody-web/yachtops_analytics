@@ -7,7 +7,7 @@ import DayDetailDrawer from './DayDetailDrawer';
 import AddManualEntryModal from './AddManualEntryModal';
 import AddVesselLogModal from './AddVesselLogModal';
 import ManageCrewAssignmentModal from './ManageCrewAssignmentModal';
-import { getQualificationPaths, getProgressSummary, getMonthCalendarData, updatePersonalSeaServiceEntry, getVesselServiceLogForVessel, getActiveCrewForVessel, getCurrentVessel, recomputeQualificationForUser } from '../utils/seaTimeStorage';
+import { getQualificationPaths, getProgressSummary, getMonthCalendarData, updatePersonalSeaServiceEntry, getVesselServiceLogForVessel, getActiveCrewForVessel, getCurrentVessel, recomputeQualificationForUser, getRulesConfig, SEA_SERVICE_TYPE, SEA_SERVICE_TYPE_LABELS } from '../utils/seaTimeStorage';
 import { hasCommandAccess, loadUsers } from '../../../utils/authStorage';
 import { showToast } from '../../../utils/toast';
 import { format } from 'date-fns';
@@ -31,6 +31,15 @@ const SeaTimeTracker = ({ userId, currentUser }) => {
   const paths = getQualificationPaths();
   const vessel = getCurrentVessel();
   const users = loadUsers();
+  const rulesConfig = getRulesConfig();
+
+  // Icon + label per service-type bucket (status never encoded in colour alone).
+  const BUCKET_META = {
+    [SEA_SERVICE_TYPE.SEAGOING]: { icon: 'Ship', tone: 'text-blue-600 dark:text-blue-400' },
+    [SEA_SERVICE_TYPE.WATCHKEEPING]: { icon: 'Compass', tone: 'text-green-600 dark:text-green-400' },
+    [SEA_SERVICE_TYPE.STANDBY]: { icon: 'Anchor', tone: 'text-amber-600 dark:text-amber-400' },
+    [SEA_SERVICE_TYPE.YARD]: { icon: 'Wrench', tone: 'text-slate-600 dark:text-slate-400' }
+  };
 
   // Load data
   useEffect(() => {
@@ -147,86 +156,108 @@ const SeaTimeTracker = ({ userId, currentUser }) => {
       {/* My Sea Time View */}
       {view === 'my' && (
         <>
-          {/* Progress Widgets */}
+          {/* Progress — multiple requirement bars per pathway */}
           {progressData && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Widget 1: Primary Progress */}
+            <div className="space-y-4">
+              {/* Header + config provenance */}
               <div className="bg-card border border-border rounded-2xl p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <Icon name="Target" size={24} className="text-primary" />
-                  <h3 className="text-lg font-semibold text-foreground">
-                    {progressData?.pathName}
-                  </h3>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-end justify-between">
-                    <span className="text-3xl font-bold text-foreground">
-                      {progressData?.verifiedQualifying}
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      / {progressData?.targetDays} days
-                    </span>
-                  </div>
-                  <div className="w-full bg-muted/30 rounded-full h-3 overflow-hidden">
-                    <div
-                      className="bg-primary h-full rounded-full transition-all"
-                      style={{ width: `${progressData?.percentComplete}%` }}
-                    ></div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {progressData?.percentComplete}% complete
-                  </p>
-                </div>
-              </div>
-
-              {/* Widget 2: Breakdown */}
-              <div className="bg-card border border-border rounded-2xl p-6">
-                <h3 className="text-sm font-semibold text-foreground mb-4">Breakdown</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Verified:</span>
-                    <span className="text-sm font-semibold text-green-600 dark:text-green-400">
-                      {progressData?.verifiedQualifying} days
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Pending:</span>
-                    <span className="text-sm font-semibold text-yellow-600 dark:text-yellow-400">
-                      {progressData?.pendingQualifying} days
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Manual:</span>
-                    <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
-                      {progressData?.manualDays} days
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Non-qualifying:</span>
-                    <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">
-                      {progressData?.nonQualifyingOnboard} days
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Widget 3: Remaining */}
-              <div className="bg-card border border-border rounded-2xl p-6">
-                <h3 className="text-sm font-semibold text-foreground mb-4">Remaining</h3>
-                <div className="space-y-3">
-                  <div>
-                    <div className="text-3xl font-bold text-foreground mb-1">
-                      {progressData?.remaining}
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  <div className="flex items-center gap-3">
+                    <Icon name="Target" size={24} className="text-primary" />
+                    <div>
+                      <h3 className="text-lg font-semibold text-foreground">
+                        {progressData?.pathName}
+                      </h3>
+                      {progressData?.reference && (
+                        <p className="text-xs text-muted-foreground">{progressData?.reference}</p>
+                      )}
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      qualifying days needed
-                    </p>
                   </div>
-                  <div className="pt-3 border-t border-border">
-                    <p className="text-xs text-muted-foreground">
-                      Estimated completion based on rolling average (V2 feature)
-                    </p>
-                  </div>
+                  {rulesConfig?.reviewStatus === 'UNVERIFIED' && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                      <Icon name="AlertTriangle" size={14} className="text-amber-600 dark:text-amber-400" />
+                      <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                        Draft thresholds — pending MCA verification
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Requirement bars */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-5">
+                  {progressData?.requirements?.map(req => (
+                    <div key={req?.id} className="bg-muted/20 border border-border rounded-xl p-4">
+                      <div className="flex items-start justify-between gap-2 mb-3">
+                        <div>
+                          <h4 className="text-sm font-semibold text-foreground">{req?.label}</h4>
+                          {req?.gateLabel && (
+                            <span className="inline-block mt-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                              {req?.gateLabel}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-right whitespace-nowrap">
+                          <span className="text-2xl font-bold text-foreground">{req?.verified}</span>
+                          <span className="text-sm text-muted-foreground"> / {req?.target}</span>
+                        </div>
+                      </div>
+
+                      {/* Two-tone bar: verified (solid) + pending (light) */}
+                      <div
+                        className="relative w-full bg-muted/40 rounded-full h-3 overflow-hidden"
+                        role="progressbar"
+                        aria-valuenow={req?.verified}
+                        aria-valuemin={0}
+                        aria-valuemax={req?.target}
+                        aria-label={`${req?.label}: ${req?.verified} of ${req?.target} verified days`}
+                      >
+                        <div
+                          className="absolute inset-y-0 left-0 bg-primary/30 rounded-full transition-all"
+                          style={{ width: `${req?.percentLogged}%` }}
+                        ></div>
+                        <div
+                          className="absolute inset-y-0 left-0 bg-primary rounded-full transition-all"
+                          style={{ width: `${req?.percentComplete}%` }}
+                        ></div>
+                      </div>
+
+                      <div className="flex items-center justify-between mt-2 text-xs">
+                        <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                          <Icon name="CheckCircle" size={12} /> {req?.verified} verified
+                        </span>
+                        <span className="flex items-center gap-1 text-yellow-600 dark:text-yellow-400">
+                          <Icon name="Clock" size={12} /> {req?.pending} pending
+                        </span>
+                        <span className="text-muted-foreground">{req?.remaining} to go</span>
+                      </div>
+                      {req?.note && (
+                        <p className="text-[11px] text-muted-foreground mt-2">{req?.note}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Four-bucket service breakdown */}
+              <div className="bg-card border border-border rounded-2xl p-6">
+                <h3 className="text-sm font-semibold text-foreground mb-4">
+                  Service breakdown ({progressData?.totalDays} days logged)
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[SEA_SERVICE_TYPE.SEAGOING, SEA_SERVICE_TYPE.WATCHKEEPING, SEA_SERVICE_TYPE.STANDBY, SEA_SERVICE_TYPE.YARD]?.map(type => (
+                    <div key={type} className="bg-muted/20 border border-border rounded-xl p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Icon name={BUCKET_META?.[type]?.icon} size={16} className={BUCKET_META?.[type]?.tone} />
+                        <span className="text-xs font-medium text-muted-foreground">
+                          {SEA_SERVICE_TYPE_LABELS?.[type]}
+                        </span>
+                      </div>
+                      <span className="text-2xl font-bold text-foreground">
+                        {progressData?.buckets?.[type] || 0}
+                      </span>
+                      <span className="text-xs text-muted-foreground"> days</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
