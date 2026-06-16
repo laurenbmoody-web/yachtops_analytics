@@ -30,13 +30,15 @@
 }
 
 /* ── Board-detail Option B layout ─────────────────────────────
-   Chips and the tabs row both live INSIDE the header row's left
-   column (via EditorialPageShell's `headerExtra` slot). That makes
-   the left column grow all the way down to the tabs hairline, and
-   the right rail's `align-self: flex-end` lands the ribbon's bottom
-   button (Send to Supplier) on the same baseline as the tab labels. */
+   Header row carries a single full-width bottom hairline. Both the
+   left column (tabs + ⋯ + Submit) and the right rail (4-button
+   stack) end with 14px padding-bottom so their content sits a hair
+   above this shared line. */
 .editorial-page.pv-dashboard .p-header-row {
   align-items: stretch;
+  border-bottom: 1px solid var(--d-border);
+  margin-bottom: 1.75rem;
+  padding-bottom: 14px;
 }
 .editorial-page.pv-dashboard .p-header-row > div:first-child {
   display: flex;
@@ -74,15 +76,6 @@
   font-size: 11.5px;
 }
 
-/* Read/write group divider — full-width hairline, sits between
-   Print/PDF and Receive Items. */
-.cargo-ribbon-vertical .cargo-ribbon-divider {
-  width: 100%;
-  height: 1px;
-  margin: 2px 0;
-  background: var(--d-border-soft);
-}
-
 /* Chip row sits inside the left column right below the headline. */
 .pv-board-chip-row {
   display: flex;
@@ -92,38 +85,53 @@
   margin: 18px 0 0;
 }
 
-/* Tabs row inside the header's left column. `margin-top: auto` pushes
-   it to the bottom of the column so its baseline matches the ribbon's
-   bottom button (Submit for Approval) on the right rail. The hairline
-   runs across both the tab nav and the ⋯ slot via a shared bottom
-   border on the row itself. */
+/* Tabs row — three slots:
+     1. EditorialTabNav (left, natural width)
+     2. .pv-board-tabs-more (⋯ in the middle, pushed away from tabs
+        via margin-left: auto)
+     3. .pv-board-tabs-submit (right, fixed-width column matching the
+        ribbon stack so Submit anchors directly beneath Send to
+        Supplier)
+   No border here — the hairline lives on the parent .p-header-row
+   so it runs full width across both columns. `margin-top: auto`
+   pins the row to the bottom of the header column. */
 .editorial-page.pv-dashboard .pv-board-tabs-row {
   display: flex;
   align-items: flex-end;
   gap: 24px;
-  margin: 24px 0 1.75rem;
+  margin: 24px 0 0;
   margin-top: auto;
-  border-bottom: 1px solid var(--d-border);
 }
 .editorial-page.pv-dashboard .pv-board-tabs-row .editorial-tab-nav {
-  flex: 1;
   margin: 0;
   border-bottom: 0;
-  padding-bottom: 14px;
+  padding-bottom: 0;
 }
 .editorial-page.pv-dashboard .pv-board-tabs-row .editorial-tab {
   margin-bottom: 0;
+  padding-bottom: 0;
 }
-.pv-board-tabs-actions {
+.pv-board-tabs-more {
   display: flex;
   align-items: center;
-  padding-bottom: 10px;
+  margin-left: auto;
 }
-.pv-board-tabs-actions .cargo-ribbon-btn-icon {
+.pv-board-tabs-more .cargo-ribbon-btn-icon {
   width: 32px;
   padding: 6px 0;
   justify-content: center;
   flex-shrink: 0;
+}
+.pv-board-tabs-submit {
+  width: 220px;
+  display: flex;
+  justify-content: flex-start;
+}
+.pv-board-tabs-submit .cargo-ribbon-btn {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 6px 12px;
+  font-size: 11.5px;
 }
 .pv-board-chip {
   display: inline-flex;
