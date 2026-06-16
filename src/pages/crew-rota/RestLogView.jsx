@@ -154,6 +154,18 @@ export default function RestLogView({
 }) {
   const wrapRef = useRef(null);
   const [showBreachModal, setShowBreachModal] = useState(false);
+  const [showExport, setShowExport] = useState(false);
+  const exportRef = useRef(null);
+
+  // Close the Export menu on an outside click or Escape.
+  useEffect(() => {
+    if (!showExport) return undefined;
+    const onDocClick = (e) => { if (exportRef.current && !exportRef.current.contains(e.target)) setShowExport(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setShowExport(false); };
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDocClick); document.removeEventListener('keydown', onKey); };
+  }, [showExport]);
 
   // Overlay the crew's logged actuals onto the rota plan: any day a crew member
   // has logged is the truth, so drop the rota shifts for that member-day and use
@@ -372,18 +384,36 @@ export default function RestLogView({
           <span className="rl-legend-item"><span className="rl-sw rl-sw-off" /> off · cell = rest hours</span>
         </div>
         <div className="rl-actions">
-          <button
-            type="button"
-            className="crew-rota-pill"
-            onClick={() => runExport((e) => exportRestLogCSV({ rows: e.rows, days: e.days, meta: e.meta }))}
-            title="Export the log as a CSV (spreadsheet)"
-          ><Download size={12} /> CSV</button>
-          <button
-            type="button"
-            className="crew-rota-pill"
-            onClick={() => runExport((e) => exportRestLogPDF({ rows: e.rows, days: e.days, meta: e.meta, windowShifts: mergedShifts, breachReasons }))}
-            title="Export the MLC/IMO-ILO Record of Hours of Rest (PDF)"
-          ><Download size={12} /> PDF</button>
+          <div className="rl-export" ref={exportRef}>
+            <button
+              type="button"
+              className="crew-rota-pill"
+              onClick={() => setShowExport((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={showExport}
+              title="Export the rest log"
+            ><Download size={12} /> Export ▾</button>
+            {showExport && (
+              <div className="rl-export-menu" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => { setShowExport(false); runExport((e) => exportRestLogPDF({ rows: e.rows, days: e.days, meta: e.meta, windowShifts: mergedShifts, breachReasons })); }}
+                >
+                  <span className="rl-export-t">Record of Hours of Rest</span>
+                  <span className="rl-export-s">MLC / IMO-ILO PDF — the compliance record</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => { setShowExport(false); runExport((e) => exportRestLogCSV({ rows: e.rows, days: e.days, meta: e.meta })); }}
+                >
+                  <span className="rl-export-t">Data (CSV)</span>
+                  <span className="rl-export-s">Raw rest hours for spreadsheets / payroll</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

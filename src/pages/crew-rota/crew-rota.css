@@ -3662,6 +3662,41 @@
 .rl-actions { display: flex; align-items: center; gap: 6px; }
 .rl-actions .crew-rota-pill { display: inline-flex; align-items: center; gap: 5px; }
 
+/* Single Export control + its drop menu (PDF compliance record / CSV data). */
+.rl-export { position: relative; }
+.rl-export-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 248px;
+  background: #fff;
+  border: 1px solid #E6E3DA;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(28, 27, 58, 0.12);
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rl-export-menu button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: 7px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.rl-export-menu button:hover { background: #F7F5F0; }
+.rl-export-t { font-size: 12.5px; font-weight: 600; color: #1C1B3A; }
+.rl-export-s { font-size: 10.5px; color: #9aa0b0; }
+
 .rl-grid-wrap { overflow-x: auto; flex: 1; min-width: 0; }
 .rl-grid-inner { min-width: 720px; position: relative; }
 .rl-grid-inner.is-month { min-width: 0; }
