@@ -1,5 +1,13 @@
 -- ─────────────────────────────────────────────────────────────────────────────
--- 20260615150000_hor_segment_types_and_templates.sql
+-- 20260615151000_hor_segment_types_and_templates.sql
+--
+-- Note: original timestamp 20260615150000 collided with
+-- 20260615150000_crew_personal_details_preferred_name_pronouns.sql, which
+-- had been applied via Studio before this CI flow caught up. Bumped to
+-- 20260615151000 so the schema_migrations primary key (version) is
+-- unique. SQL itself is fully idempotent (CREATE TABLE / ADD COLUMN
+-- IF NOT EXISTS throughout), so re-running it after Studio-applied
+-- changes is a NOTICE-only operation.
 --
 -- WHAT: Bring the personal HOR logger to parity with the rota — capture the
 --       SHIFT TYPE of each logged block, and let crew keep their own reusable
