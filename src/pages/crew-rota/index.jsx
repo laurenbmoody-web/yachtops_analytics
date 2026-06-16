@@ -269,10 +269,10 @@ export default function CrewRotaPage() {
   // Title block — reacts to the workspace's selected date / crew counts.
   const renderHeader = ({ view, selectedDate, selectedDateObj, isToday, total, onDuty }) => {
     const meta = view === 'week'
-      ? `Week of ${weekRangeLabel(selectedDate)} · ${total} crew on this trip`
+      ? `Week of ${weekRangeLabel(selectedDate)} · ${total} crew on board`
       : isToday
-        ? `${fullDateLabel(selectedDateObj)} · ${total} crew on this trip · ${onDuty} on duty now`
-        : `${fullDateLabel(selectedDateObj)} · ${total} crew on this trip`;
+        ? `${fullDateLabel(selectedDateObj)} · ${total} crew on board · ${onDuty} on duty now`
+        : `${fullDateLabel(selectedDateObj)} · ${total} crew on board`;
     return (
       <div className="crew-rota-titleblock">
         <div className="crew-rota-meta">{meta}</div>
@@ -319,8 +319,8 @@ export default function CrewRotaPage() {
       <Header />
       <div className="editorial-page">
 
-        <button type="button" className="crew-rota-back" onClick={() => navigate(-1)}>
-          ← Back to trip
+        <button type="button" className="crew-rota-back" onClick={() => navigate('/dashboard')}>
+          ← Back to dashboard
         </button>
 
         <RotaWorkspace
