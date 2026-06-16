@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
-import { getRoleDisplayName, getContrastText, getRoleRank, UNKNOWN_RANK } from '../../crew-rota/crewDisplay';
+import { getRoleDisplayName, getContrastText } from '../../crew-rota/crewDisplay';
+import { renderStateOf, sortWithinDept, orderDepartments } from '../../crew-rota/crewOrder';
 
 // currentStatus → section. null history falls back to on-vessel
 // (treat unknown as active until we know otherwise).
@@ -15,30 +16,6 @@ const OFF_VESSEL_LABEL = {
   travelling: 'Travelling',
   invited: 'Invited',
 };
-// Department canonical fallback order (signed-in-user rules layered on top).
-const CANONICAL_DEPTS = ['Deck', 'Interior', 'Galley', 'Engineering', 'Bridge', 'Shore'];
-
-// On-vessel render state from today's shift.
-function renderStateOf(crew) {
-  if (crew.activeOnShift) return 'active';
-  if (crew.medicalToday) return 'medical';
-  return 'off'; // shift_type 'off' OR no shift row
-}
-const STATE_RANK = { active: 0, off: 1, medical: 2 };
-
-function sortWithinDept(a, b) {
-  const sa = STATE_RANK[renderStateOf(a)];
-  const sb = STATE_RANK[renderStateOf(b)];
-  if (sa !== sb) return sa - sb;
-  const ra = getRoleRank(a.role);
-  const rb = getRoleRank(b.role);
-  if (ra !== rb) return ra - rb;
-  if (ra === UNKNOWN_RANK) {
-    const byRole = String(a.role || '').localeCompare(String(b.role || ''));
-    if (byRole !== 0) return byRole;
-  }
-  return String(a.name || '').localeCompare(String(b.name || ''));
-}
 
 function firstName(n) { return String(n || '').trim().split(/\s+/)[0] || ''; }
 
@@ -390,30 +367,6 @@ function OffVesselSection({ crew, gridStartHour, onCrewClick }) {
 
 // ── Grid ────────────────────────────────────────────────────────────────────
 
-// Department order for the signed-in user: their own department first — so
-// EVERY tier (COMMAND included) sees their own rota at the top — then the
-// remaining departments in canonical order. A user with no/absent own
-// department falls back to plain canonical order.
-function orderDepartments(byDept, crew, ownDeptId) {
-  const present = Array.from(byDept.keys());
-  const canonIdx = (n) => {
-    const i = CANONICAL_DEPTS.indexOf(n);
-    return i === -1 ? 999 : i;
-  };
-  const canonicalSort = (a, b) => canonIdx(a) - canonIdx(b) || a.localeCompare(b);
-
-  let ownDeptName = null;
-  if (ownDeptId) {
-    const m = crew.find(c => c.departmentId === ownDeptId);
-    ownDeptName = m?.department || null;
-  }
-
-  if (!ownDeptName || !byDept.has(ownDeptName)) {
-    return [...present].sort(canonicalSort);
-  }
-  const rest = present.filter(d => d !== ownDeptName).sort(canonicalSort);
-  return [ownDeptName, ...rest];
-}
 
 export default function RotaTodayGrid({
   crew = [], now = new Date(), onCrewClick, gridStartHour = 6,
