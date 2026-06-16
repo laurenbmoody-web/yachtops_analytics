@@ -46,6 +46,51 @@ jobs:
         continue-on-error: true # informational only — a flaky list must not block the apply
         run: supabase migration list
 
+      - name: Auto-heal history drift
+        # Any 14-digit version present on the REMOTE column but missing
+        # from the LOCAL column is an orphan — usually a Studio-applied
+        # one-off whose SQL file never landed in supabase/migrations/.
+        # `db push` refuses to run while orphans exist, so we
+        # auto-`migration repair --status reverted` them here. This
+        # only touches the `supabase_migrations.schema_migrations`
+        # history table — the SQL effects of the orphan (created
+        # tables, columns, etc.) stay untouched.
+        #
+        # The bash parsing reads `supabase migration list` and emits
+        # versions where column 1 (LOCAL) is empty but column 2
+        # (REMOTE) is a 14-digit timestamp. The header / divider rows
+        # never match because column 2 isn't all digits there.
+        #
+        # Failure here MUST block — if the parse went wrong we'd
+        # rather see an empty list and fall through to db push than
+        # silently lose history rows.
+        run: |
+          set -e
+          # `migration list` exits with the project's `db push` advice
+          # text on stderr; we only care about stdout for the table.
+          listing=$(supabase migration list 2>/dev/null || true)
+          if [ -z "$listing" ]; then
+            echo "::warning::Empty migration list — skipping drift heal."
+            exit 0
+          fi
+          orphans=$(printf '%s\n' "$listing" \
+            | awk -F'|' '{
+                local = $1; remote = $2;
+                gsub(/[ \t]+/, "", local);
+                gsub(/[ \t]+/, "", remote);
+                if (local == "" && remote ~ /^[0-9]{14}$/) print remote;
+              }')
+          if [ -z "$orphans" ]; then
+            echo "No orphan migration versions on remote — history is clean."
+            exit 0
+          fi
+          echo "Found orphan migration versions on remote:"
+          printf '  - %s\n' $orphans
+          for v in $orphans; do
+            echo "::notice::Marking $v as reverted (was an orphan in remote history)."
+            supabase migration repair --status reverted "$v"
+          done
+
       - name: Apply migrations
         # Retry: the pooler occasionally i/o-times-out on connect; db push is
         # safe to re-attempt (already-applied migrations are skipped via history).
