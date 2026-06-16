@@ -143,10 +143,9 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit }) => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
         <div>
           <div className="cp-section-head">
-            <span className="cp-section-kicker">03 / Documents</span>
+            <span className="cp-section-num">05 /</span>
             <h3>Documents</h3>
           </div>
-          <p className="cp-section-sub">Travel documents, medical &amp; safety certificates, and qualifications — with expiry tracking.</p>
         </div>
         {canEdit && (
           <div className="flex items-center gap-2 flex-shrink-0">
