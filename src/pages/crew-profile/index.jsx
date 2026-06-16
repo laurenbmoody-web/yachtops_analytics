@@ -1233,8 +1233,9 @@ const canEdit = (() => {
             </div>
           </div>
 
-          {/* Edit Button */}
-          {canEdit && (
+          {/* Edit Button — only on the editable profile sections; the HOR,
+              Documents, Sea Time and Status History tabs aren't edited here. */}
+          {canEdit && ['personal', 'emergency', 'banking', 'preferences'].includes(activeSection) && (
             <Button
               variant="outline"
               iconName="Edit"
@@ -2468,6 +2469,7 @@ const canEdit = (() => {
     const canLock = viewerTier === 'COMMAND';
     const submitLabel = vesselHorSettings?.mode === 'trust' ? 'Confirm Month' : 'Submit for Approval';
     const dbStatusLabel = { open: 'Open', submitted: 'Submitted', confirmed: 'Confirmed', locked: 'Locked' }[dbStatus] || 'Open';
+    const dbStatusColor = { open: '#E2A33C', submitted: '#6C6CCF', confirmed: '#5C9B6A', locked: '#9098B1' }[dbStatus] || '#E2A33C';
 
     const handleDateClick = (day, dayData) => {
       const dateStr = dayData?.date;
@@ -2592,10 +2594,9 @@ const canEdit = (() => {
 
     return (
       <div className="space-y-6">
-        {/* Title */}
-        <div>
-          <h3 className="text-2xl font-semibold text-foreground">Hours of Rest (HOR)</h3>
-          <p className="text-sm text-muted-foreground mt-1">Fast monitoring view of rest compliance</p>
+        {/* Title — editorial serif, in line with the profile section heads. */}
+        <div className="cp-section-head">
+          <h3>Hours of Rest</h3>
         </div>
         {/* Command-Only Toggle */}
         {isCommand && (
@@ -2628,50 +2629,44 @@ const canEdit = (() => {
         ) : (
           // My HOR View (existing)
           (<>
-            {/* Month status & confirm — light strip with a hairline, not a
-                boxed widget (the old div.bg-card 3D edge is retired here). */}
-            <div className="flex items-center justify-between pb-4 border-b border-border">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-foreground">Month Status:</span>
-                <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-semibold ${
-                  dbStatus === 'locked' ? 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400' :
-                  dbStatus === 'confirmed' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
-                  dbStatus === 'submitted' ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300' :
-                  'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
-                }`}>
-                  {dbStatusLabel}
-                </span>
-              </div>
+            {/* Month status & actions — a calm hairline strip: the status reads
+                as a quiet dot + label, the primary action sits in terracotta to
+                match the rest of the editorial UI. */}
+            <div className="cp-hor-bar">
+              <span className="cp-hor-status">
+                <span className="dot" style={{ background: dbStatusColor }} />
+                {dbStatusLabel}
+              </span>
               <div className="flex items-center gap-2">
                 {/* Crew: submit own open month */}
                 {isOwnProfile && dbStatus === 'open' && (
-                  <Button onClick={handleConfirmMonth}>
-                    <Icon name="CheckCircle" size={18} />
+                  <button type="button" className="cp-hor-btn cp-hor-btn-primary" onClick={handleConfirmMonth}>
+                    <Icon name="CheckCircle" size={16} />
                     {submitLabel}
-                  </Button>
+                  </button>
                 )}
                 {isOwnProfile && dbStatus === 'submitted' && (
-                  <span className="text-xs text-muted-foreground">Awaiting approval</span>
+                  <span className="cp-hor-await">Awaiting approval</span>
                 )}
                 {/* Approver: act on a submitted month */}
                 {canApprove && dbStatus === 'submitted' && (
                   <>
-                    <Button onClick={handleApproveMonth}>
-                      <Icon name="CheckCircle" size={18} />
+                    <button type="button" className="cp-hor-btn cp-hor-btn-ghost" onClick={handleReopenMonth}>Send back</button>
+                    <button type="button" className="cp-hor-btn cp-hor-btn-primary" onClick={handleApproveMonth}>
+                      <Icon name="CheckCircle" size={16} />
                       Approve
-                    </Button>
-                    <Button variant="outline" onClick={handleReopenMonth}>Send back</Button>
+                    </button>
                   </>
                 )}
                 {/* Confirmed: reopen, and COMMAND can lock */}
                 {canApprove && dbStatus === 'confirmed' && (
-                  <Button variant="outline" onClick={handleReopenMonth}>Reopen</Button>
+                  <button type="button" className="cp-hor-btn cp-hor-btn-ghost" onClick={handleReopenMonth}>Reopen</button>
                 )}
                 {canLock && dbStatus === 'confirmed' && (
-                  <Button onClick={handleLockMonth}>
-                    <Icon name="Lock" size={18} />
+                  <button type="button" className="cp-hor-btn cp-hor-btn-ghost" onClick={handleLockMonth}>
+                    <Icon name="Lock" size={16} />
                     Lock
-                  </Button>
+                  </button>
                 )}
               </div>
             </div>

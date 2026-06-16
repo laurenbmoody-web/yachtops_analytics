@@ -130,6 +130,43 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .cp-field-full { grid-column: 1 / -1; }
 
+/* Hours of Rest — month status + actions strip. A calm hairline bar: the
+   status is a quiet dot + label; the primary action is terracotta to sit in
+   line with the rest of the editorial UI. */
+.crew-profile-page .cp-hor-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #E6E8EF;
+}
+.crew-profile-page .cp-hor-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1C1B3A;
+}
+.crew-profile-page .cp-hor-status .dot { width: 9px; height: 9px; border-radius: 999px; flex: 0 0 auto; }
+.crew-profile-page .cp-hor-await { font-size: 12px; color: #8B8478; font-style: italic; }
+.crew-profile-page .cp-hor-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 9px;
+  padding: 9px 16px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.crew-profile-page .cp-hor-btn-primary { background: #C65A1A; border: 1px solid #C65A1A; color: #FFFFFF; }
+.crew-profile-page .cp-hor-btn-primary:hover { background: #B14E16; border-color: #B14E16; }
+.crew-profile-page .cp-hor-btn-ghost { background: #FFFFFF; border: 1px solid #E5E7EB; color: #1C1B3A; }
+.crew-profile-page .cp-hor-btn-ghost:hover { background: #FAFAF8; border-color: #D7DAE2; }
+
 /* Name row: narrow prefix + first + last, so the identity block pairs
    cleanly with no orphaned half-cell. */
 .crew-profile-page .cp-name-row {
