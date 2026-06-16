@@ -12,6 +12,12 @@ export const WIDGET_META = {
     allowedTiers: WIDGET_PERMISSIONS.ALL,
     defaultColumn: 'left',
   },
+  rota: {
+    id: 'rota',
+    title: 'Rota',
+    allowedTiers: WIDGET_PERMISSIONS.ALL,
+    defaultColumn: 'left',
+  },
   todaySnapshot: {
     id: 'todaySnapshot',
     title: "Today's Snapshot",
@@ -75,7 +81,7 @@ export const WIDGET_META = {
 };
 
 export const DEFAULT_LAYOUT = {
-  left:   ['teamJobs', 'todaySnapshot', 'recentActivity'],
+  left:   ['teamJobs', 'rota', 'todaySnapshot', 'recentActivity'],
   center: ['vesselView', 'laundry', 'quickActions', 'pantry'],
   right:  ['charterAccounts', 'ownerAccounts', 'inventoryHealth', 'provisioning'],
 };

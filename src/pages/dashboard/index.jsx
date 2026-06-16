@@ -16,6 +16,7 @@ import ErrorBoundary from '../../components/ErrorBoundary';
 import Header from '../../components/navigation/Header';
 import BlueprintNavigator from '../../components/dashboard/BlueprintNavigator';
 import TeamJobListWidget from './components/TeamJobListWidget';
+import RotaWidget from './components/RotaWidget';
 import TodaySnapshotWidget from './components/TodaySnapshotWidget';
 import RecentActivityWidget from './components/RecentActivityWidget';
 import AccountsWidget from './components/AccountsWidget';
@@ -621,6 +622,8 @@ const Dashboard = () => {
     switch (id) {
       case 'teamJobs':
         return <TeamJobListWidget />;
+      case 'rota':
+        return <RotaWidget />;
       case 'todaySnapshot':
         return <TodaySnapshotWidget />;
       case 'recentActivity':

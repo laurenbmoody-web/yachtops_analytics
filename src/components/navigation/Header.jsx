@@ -201,6 +201,7 @@ const Header = () => {
     { label: 'Provisioning', path: '/provisioning', icon: 'ShoppingBag' },
     { label: 'Guests', path: '/guest-management-dashboard', icon: 'Users' },
     { label: 'Crew', path: '/crew-management', icon: 'Users' },
+    { label: 'Rota', path: '/crew', icon: 'CalendarClock' },
     { label: 'Jobs', path: '/team-jobs-management', icon: 'CheckSquare' },
     { label: 'Defects', path: '/defects', icon: 'AlertTriangle' },
     { label: 'Calendar', path: '/ops-vessel-calendar', icon: 'Calendar' },
