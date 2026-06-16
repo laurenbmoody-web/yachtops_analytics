@@ -1699,12 +1699,14 @@ const ProvisioningBoardDetail = () => {
             </div>
           }
           headerExtra={
-            // Status + allergen chips: identity-adjacent pieces. Render
-            // INSIDE the left column (below the headline) via the shell's
-            // headerExtra slot so the column stretches down to meet the
-            // ribbon's bottom — closes the void that appeared when chips
-            // lived in the full-width actionStrip below the row.
-            (statusLabel || allergenGuests.length > 0) && (
+            // Left column carries the chip row AND the tabs row so the
+            // column extends down to the tabs hairline. With the ribbon's
+            // `align-self: flex-end` on the right, this lands the bottom
+            // button (Send to Supplier) on the same baseline as the tabs.
+            // ⋯ and Submit for Approval sit between the tabs and the
+            // ribbon stack on that same baseline.
+            <>
+            {(statusLabel || allergenGuests.length > 0) && (
               <div className="pv-board-chip-row">
                 {statusLabel && (
                   <span
@@ -1754,71 +1756,68 @@ const ProvisioningBoardDetail = () => {
                   </div>
                 )}
               </div>
-            )
-          }
-        >
-
-        {/* Tabs row carries the overflow ⋯ menu and Submit for Approval on
-            the right, aligned to the same baseline as the tab labels. The
-            EditorialTabNav's bottom hairline runs full-width beneath both. */}
-        <div className="pv-board-tabs-row">
-          <EditorialTabNav
-            tabs={[
-              { id: 'items', label: 'Items' },
-              { id: 'deliveries', label: 'Deliveries' },
-              { id: 'orders', label: 'Orders' },
-              { id: 'history', label: 'History' },
-            ]}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-          />
-          <div className="pv-board-tabs-actions">
-            <div className="relative" ref={menuRef}>
-              <button
-                type="button"
-                onClick={() => setShowMenu(v => !v)}
-                className="cargo-ribbon-btn cargo-ribbon-btn-icon"
-                aria-label="More board actions"
-                aria-haspopup="menu"
-                aria-expanded={showMenu}
-              >
-                <Icon name="MoreHorizontal" style={{ width: 14, height: 14 }} />
-              </button>
-              {showMenu && (
-                <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[185px] z-50">
-                  {canEdit && (
-                    <button onClick={() => { setShowMenu(false); setShowEditModal(true); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
-                      <Icon name="Pencil" className="w-4 h-4" /> Edit Board
-                    </button>
-                  )}
-                  <button onClick={handleDuplicate} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
-                    <Icon name="Copy" className="w-4 h-4" /> Duplicate
+            )}
+            <div className="pv-board-tabs-row">
+              <EditorialTabNav
+                tabs={[
+                  { id: 'items', label: 'Items' },
+                  { id: 'deliveries', label: 'Deliveries' },
+                  { id: 'orders', label: 'Orders' },
+                  { id: 'history', label: 'History' },
+                ]}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+              />
+              <div className="pv-board-tabs-actions">
+                <div className="relative" ref={menuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setShowMenu(v => !v)}
+                    className="cargo-ribbon-btn cargo-ribbon-btn-icon"
+                    aria-label="More board actions"
+                    aria-haspopup="menu"
+                    aria-expanded={showMenu}
+                  >
+                    <Icon name="MoreHorizontal" style={{ width: 14, height: 14 }} />
                   </button>
-                  <button onClick={handleSaveAsTemplateBoard} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
-                    <Icon name="FileText" className="w-4 h-4" /> Save as Template
-                  </button>
-                  {canDelete && (
-                    <>
-                      <div className="my-1 border-t border-border" />
-                      <button onClick={handleDeleteBoard} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 flex items-center gap-2">
-                        <Icon name="Trash2" className="w-4 h-4" /> Delete Board
+                  {showMenu && (
+                    <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[185px] z-50">
+                      {canEdit && (
+                        <button onClick={() => { setShowMenu(false); setShowEditModal(true); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
+                          <Icon name="Pencil" className="w-4 h-4" /> Edit Board
+                        </button>
+                      )}
+                      <button onClick={handleDuplicate} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
+                        <Icon name="Copy" className="w-4 h-4" /> Duplicate
                       </button>
-                    </>
+                      <button onClick={handleSaveAsTemplateBoard} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
+                        <Icon name="FileText" className="w-4 h-4" /> Save as Template
+                      </button>
+                      {canDelete && (
+                        <>
+                          <div className="my-1 border-t border-border" />
+                          <button onClick={handleDeleteBoard} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 flex items-center gap-2">
+                            <Icon name="Trash2" className="w-4 h-4" /> Delete Board
+                          </button>
+                        </>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
+                {isDraftOrPending && (
+                  <button
+                    type="button"
+                    onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)}
+                    className="cargo-ribbon-btn"
+                  >
+                    <Icon name="Send" style={{ width: 13, height: 13 }} /> Submit for Approval
+                  </button>
+                )}
+              </div>
             </div>
-            {isDraftOrPending && (
-              <button
-                type="button"
-                onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)}
-                className="cargo-ribbon-btn"
-              >
-                <Icon name="Send" style={{ width: 13, height: 13 }} /> Submit for Approval
-              </button>
-            )}
-          </div>
-        </div>
+            </>
+          }
+        >
 
         {/* ── Smart Suggestions panel ──────────────────────────────────── */}
         {showSuggestions && (
