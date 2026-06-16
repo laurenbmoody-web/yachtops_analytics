@@ -62,10 +62,27 @@ export default function OrdersReviewPanel() {
               type="button"
               className="rv-cc"
               onClick={() => navigate(`/provisioning/${it.list_id}`)}
-              aria-label={`${it.board_title} — submitted by ${it.submitter_name}, ${timeAgo(it.created_at)}`}
+              aria-label={`${it.board_title} — ${it.is_re_approval ? 'quote review, ' : ''}submitted by ${it.submitter_name}, ${timeAgo(it.created_at)}`}
             >
               <div className="rv-cc-head">
-                <div className="rv-cc-dept">{tidyBoardType(it.board_type)}</div>
+                <div className="rv-cc-dept">
+                  {tidyBoardType(it.board_type)}
+                  {it.is_re_approval && (
+                    <span
+                      title="Re-submitted with supplier quotes"
+                      style={{
+                        marginLeft: 8,
+                        padding: '2px 8px',
+                        borderRadius: 999,
+                        background: '#FFEDD5',
+                        color: '#9A3412',
+                        fontSize: 10,
+                        fontWeight: 700,
+                        letterSpacing: '0.12em',
+                      }}
+                    >QUOTE REVIEW</span>
+                  )}
+                </div>
                 <div className="rv-cc-time">{timeAgo(it.created_at)}</div>
               </div>
               <div className="rv-cc-rota">{it.board_title}</div>

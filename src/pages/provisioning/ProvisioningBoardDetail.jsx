@@ -1732,10 +1732,11 @@ const ProvisioningBoardDetail = () => {
   }, [list]);
   const currency = list?.currency || 'GBP';
   const isDraftOrPending = list?.status === PROVISIONING_STATUS.DRAFT || list?.status === PROVISIONING_STATUS.PENDING_APPROVAL;
-  // Submit for Approval is only valid from the draft state — re-submit
-  // would be a no-op (RPC throws P0004). pending_approval boards show
-  // their review chip instead, landed in PR3.
-  const canSubmitForApproval = list?.status === PROVISIONING_STATUS.DRAFT;
+  // Submit for Approval is valid from draft (initial submission) or
+  // quote_received (re-submission after the supplier's quote landed).
+  // Pending-approval boards show their review chip instead.
+  const isQuoteReceived = list?.status === PROVISIONING_STATUS.QUOTE_RECEIVED;
+  const canSubmitForApproval = list?.status === PROVISIONING_STATUS.DRAFT || isQuoteReceived;
 
   // ── Style constants ───────────────────────────────────────────────────────
 
@@ -1944,8 +1945,12 @@ const ProvisioningBoardDetail = () => {
                     type="button"
                     onClick={handleSubmitForApproval}
                     className="cargo-ribbon-btn"
+                    title={isQuoteReceived
+                      ? 'Supplier quote in — re-submit for approval at the quoted prices'
+                      : undefined}
                   >
-                    <Icon name="Send" style={{ width: 13, height: 13 }} /> Submit for Approval
+                    <Icon name="Send" style={{ width: 13, height: 13 }} />
+                    {isQuoteReceived ? 'Re-submit for approval' : 'Submit for Approval'}
                   </button>
                 )}
                 {/* When current user is the assigned approver of a
@@ -2003,15 +2008,30 @@ const ProvisioningBoardDetail = () => {
             // ribbon stack on that same baseline.
             <>
             <div className="pv-board-chip-row">
-              {statusLabel && (
-                <span
-                  className="pv-board-chip pv-board-chip-status"
-                  style={{ background: '#FEF3C7', color: '#92400E' }}
-                  data-status={list?.status || ''}
-                >
-                  {statusLabel}
-                </span>
-              )}
+              {statusLabel && (() => {
+                // Status chip palette per board state. Pending review +
+                // quote-in are the "needs attention" colours (warm cream),
+                // post-shipping states use a quieter cool tint.
+                const STATUS_CHIP_PALETTE = {
+                  draft:                        { bg: '#F1F5F9', fg: '#475569', label: 'DRAFT' },
+                  pending_approval:             { bg: '#FEF3C7', fg: '#92400E', label: 'PENDING APPROVAL' },
+                  quote_received:               { bg: '#FFEDD5', fg: '#9A3412', label: 'QUOTE IN' },
+                  sent_to_supplier:             { bg: '#DBEAFE', fg: '#1E40AF', label: 'SENT TO SUPPLIER' },
+                  partially_delivered:          { bg: '#FEF3C7', fg: '#92400E', label: 'PARTIALLY DELIVERED' },
+                  delivered_with_discrepancies: { bg: '#FEE2E2', fg: '#991B1B', label: 'DISCREPANCIES' },
+                  delivered:                    { bg: '#D1FAE5', fg: '#065F46', label: 'DELIVERED' },
+                };
+                const cfg = STATUS_CHIP_PALETTE[list?.status] || { bg: '#FEF3C7', fg: '#92400E', label: statusLabel };
+                return (
+                  <span
+                    className="pv-board-chip pv-board-chip-status"
+                    style={{ background: cfg.bg, color: cfg.fg }}
+                    data-status={list?.status || ''}
+                  >
+                    {cfg.label}
+                  </span>
+                );
+              })()}
               {allergenGuests.length > 0 && (
                 <div className="pv-board-chip-wrap" ref={allergenRef}>
                   <button
@@ -2073,16 +2093,26 @@ const ProvisioningBoardDetail = () => {
                   || (approverProfile?.email ? approverProfile.email.split('@')[0] : 'reviewer');
                 const submitterName = submitterProfile?.full_name
                   || (submitterProfile?.email ? submitterProfile.email.split('@')[0] : 'someone');
+                // Re-approval (prev_status was quote_received) uses
+                // tighter copy so the approver knows they're signing
+                // off on the supplier's actual numbers, not estimates.
+                const isReApproval = approvalRequest.prev_status === PROVISIONING_STATUS.QUOTE_RECEIVED;
                 if (isPending) {
+                  const pendingLabel = isApprover
+                    ? (isReApproval ? 'Your quote review' : 'Your review')
+                    : (isReApproval
+                        ? `Quote review · ${approverName}`
+                        : `Awaiting ${approverName}`);
+                  const pendingTitle = isApprover
+                    ? `Submitted by ${submitterName} — ${isReApproval ? 'quote review' : 'your review'}`
+                    : `${isReApproval ? 'Awaiting quote review by ' : 'Awaiting review by '}${approverName}`;
                   return (
                     <span
                       className="pv-board-chip pv-board-chip-review"
-                      title={isApprover
-                        ? `Submitted by ${submitterName} — your review`
-                        : `Awaiting review by ${approverName}`}
+                      title={pendingTitle}
                     >
                       <Icon name="Send" style={{ width: 11, height: 11 }} aria-hidden="true" />
-                      {isApprover ? 'Your review' : `Awaiting ${approverName}`}
+                      {pendingLabel}
                     </span>
                   );
                 }
