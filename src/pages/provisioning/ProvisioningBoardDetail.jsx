@@ -1675,8 +1675,6 @@ const ProvisioningBoardDetail = () => {
                 </button>
               </div>
 
-              <div className="cargo-ribbon-divider" aria-hidden="true" />
-
               {/* Write actions */}
               <div className="cargo-ribbon-group">
                 <button
@@ -1695,15 +1693,6 @@ const ProvisioningBoardDetail = () => {
                     title={!hasSendableItems ? 'Add items to the board before sending' : undefined}
                   >
                     <Icon name="Send" style={{ width: 13, height: 13 }} /> Send to Supplier
-                  </button>
-                )}
-                {isDraftOrPending && (
-                  <button
-                    type="button"
-                    onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)}
-                    className="cargo-ribbon-btn"
-                  >
-                    <Icon name="Send" style={{ width: 13, height: 13 }} /> Submit for Approval
                   </button>
                 )}
               </div>
@@ -1779,11 +1768,10 @@ const ProvisioningBoardDetail = () => {
                 activeTab={activeTab}
                 onTabChange={setActiveTab}
               />
-              {/* ⋯ board-actions menu — sits on the tabs baseline in the
-                  gap between the tab labels and the right-rail stack, so
-                  it doesn't crowd the stack but stays on the same line as
-                  Submit for Approval at the stack's bottom. */}
-              <div className="pv-board-tabs-actions">
+              {/* ⋯ sits in the gap between the tab labels and the Submit
+                  slot. Submit for Approval anchors to the right edge,
+                  vertically aligned beneath the right-rail stack column. */}
+              <div className="pv-board-tabs-more">
                 <div className="relative" ref={menuRef}>
                   <button
                     type="button"
@@ -1819,6 +1807,17 @@ const ProvisioningBoardDetail = () => {
                     </div>
                   )}
                 </div>
+              </div>
+              <div className="pv-board-tabs-submit">
+                {isDraftOrPending && (
+                  <button
+                    type="button"
+                    onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)}
+                    className="cargo-ribbon-btn"
+                  >
+                    <Icon name="Send" style={{ width: 13, height: 13 }} /> Submit for Approval
+                  </button>
+                )}
               </div>
             </div>
             </>
