@@ -83,28 +83,6 @@
   background: var(--d-border-soft);
 }
 
-/* Bottom row of the stack pairs ⋯ (flex-shrink:0 icon) with Submit
-   for Approval (flex:1) so the menu trigger sits LEFT of the
-   workflow button on the final row. */
-.cargo-ribbon-vertical .cargo-ribbon-bottom {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  width: 100%;
-}
-.cargo-ribbon-vertical .cargo-ribbon-bottom > .relative {
-  flex-shrink: 0;
-}
-.cargo-ribbon-vertical .cargo-ribbon-bottom .cargo-ribbon-btn:not(.cargo-ribbon-btn-icon) {
-  flex: 1;
-}
-.cargo-ribbon-vertical .cargo-ribbon-btn-icon {
-  width: 32px;
-  padding: 6px 0;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
 /* Chip row sits inside the left column right below the headline. */
 .pv-board-chip-row {
   display: flex;
@@ -114,24 +92,38 @@
   margin: 18px 0 0;
 }
 
-/* Tabs row inside the header's left column. `margin-top: auto`
-   pushes it to the bottom of the column so its baseline matches the
-   ribbon's bottom button on the right rail. */
+/* Tabs row inside the header's left column. `margin-top: auto` pushes
+   it to the bottom of the column so its baseline matches the ribbon's
+   bottom button (Submit for Approval) on the right rail. The hairline
+   runs across both the tab nav and the ⋯ slot via a shared bottom
+   border on the row itself. */
 .editorial-page.pv-dashboard .pv-board-tabs-row {
   display: flex;
   align-items: flex-end;
   gap: 24px;
   margin: 24px 0 1.75rem;
   margin-top: auto;
+  border-bottom: 1px solid var(--d-border);
 }
 .editorial-page.pv-dashboard .pv-board-tabs-row .editorial-tab-nav {
   flex: 1;
   margin: 0;
-  border-bottom: 1px solid var(--d-border);
+  border-bottom: 0;
   padding-bottom: 14px;
 }
 .editorial-page.pv-dashboard .pv-board-tabs-row .editorial-tab {
   margin-bottom: 0;
+}
+.pv-board-tabs-actions {
+  display: flex;
+  align-items: center;
+  padding-bottom: 10px;
+}
+.pv-board-tabs-actions .cargo-ribbon-btn-icon {
+  width: 32px;
+  padding: 6px 0;
+  justify-content: center;
+  flex-shrink: 0;
 }
 .pv-board-chip {
   display: inline-flex;
