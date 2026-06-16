@@ -1694,7 +1694,7 @@ const ProvisioningBoardDetail = () => {
                     type="button"
                     onClick={handleSendToSupplier}
                     disabled={!hasSendableItems}
-                    className="cargo-ribbon-btn cargo-ribbon-btn-primary"
+                    className="cargo-ribbon-btn"
                     title={!hasSendableItems ? 'Add items to the board before sending' : undefined}
                   >
                     <Icon name="Send" style={{ width: 13, height: 13 }} /> Send to Supplier
