@@ -606,6 +606,7 @@
   gap: 8px;
 }
 .rest-chart-axis {
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -615,7 +616,16 @@
   text-align: right;
   padding-right: 4px;
 }
-.rest-chart-axis .mlc { color: #C65A1A; font-weight: 500; }
+/* Pull the 77h label out of the flex flow and pin it to the orange MLC line
+   (which sits at bottom:77% on each bar) so label and line line up. */
+.rest-chart-axis .mlc {
+  position: absolute;
+  right: 4px;
+  bottom: 77%;
+  transform: translateY(50%);
+  color: #C65A1A;
+  font-weight: 500;
+}
 .rest-chart-col { display: flex; flex-direction: column; gap: 6px; }
 .rest-chart-bar {
   position: relative;
