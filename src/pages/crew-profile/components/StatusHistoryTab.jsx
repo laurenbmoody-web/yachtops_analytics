@@ -207,7 +207,7 @@ const StatusHistoryTab = ({ userId, tenantId }) => {
                         <p className="text-xs text-muted-foreground mt-0.5">
                           Changed by {entry.changed_by_name || 'Unknown'}
                           {' '}from{' '}
-                          <span className="italic">{getStatusLabel(entry.old_status)}</span>
+                          <span className="font-medium text-foreground">{getStatusLabel(entry.old_status)}</span>
                         </p>
                       ) : (
                         <p className="text-xs text-muted-foreground mt-0.5">
@@ -216,7 +216,7 @@ const StatusHistoryTab = ({ userId, tenantId }) => {
                       )}
 
                       {entry.notes && (
-                        <p className="text-xs text-muted-foreground mt-1 italic bg-muted/40 rounded px-2 py-1">
+                        <p className="text-xs text-muted-foreground mt-1 bg-muted/40 rounded px-2 py-1">
                           "{entry.notes}"
                         </p>
                       )}
