@@ -335,15 +335,14 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
           <button type="button" className="cp-ed-collapse" onClick={() => setSelectedDate(null)} aria-label="Collapse day" title="Collapse">▴</button>
         </div>
 
-        <div className="cp-pal">
-          {PALETTE.map(([k, label]) => (
-            <button key={k} type="button" className={`cp-pal-b${brush === k ? ' act' : ''}`} onClick={() => setBrush(k)}>
-              <span className="sw" style={{ background: TYPE_COLOR[k] }} />{label}
-            </button>
-          ))}
-          <button type="button" className={`cp-pal-b${brush === 'erase' ? ' act' : ''}`} onClick={() => setBrush('erase')}>
-            <span className="sw erase" />Erase
-          </button>
+        <div className="cp-restbox">
+          <span className={`dot ${tone}`} />
+          <b className={`rest ${tone}`}>{Number(rest.toFixed(1))}h rest</b>
+          <span className="sub"> · {Number(onDuty.toFixed(1))}h on duty</span>
+          <span className="right">
+            {savedFlash && <span className="auto saved">✓ Saved</span>}
+            <span className={`verdict ${tone}`}>{statusWord}</span>
+          </span>
         </div>
 
         <div className="cp-paint" onMouseLeave={() => { painting.current = false; }}>
@@ -404,16 +403,6 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
             ))}
           </div>
         )}
-
-        <div className="cp-restbox">
-          <span className={`dot ${tone}`} />
-          <b className={`rest ${tone}`}>{Number(rest.toFixed(1))}h rest</b>
-          <span className="sub"> · {Number(onDuty.toFixed(1))}h on duty</span>
-          <span className="right">
-            {savedFlash && <span className="auto saved">✓ Saved</span>}
-            <span className={`verdict ${tone}`}>{statusWord}</span>
-          </span>
-        </div>
       </div>
     );
   };
@@ -423,7 +412,23 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
       {/* Bulk-apply toolbar */}
       <div className="cp-hor-toolbar">
         {!bulkMode ? (
-          <button type="button" className="cp-preset" onClick={() => setBulkMode(true)}>Bulk apply template…</button>
+          <>
+            {/* The shift-type brush lives on this line (not inside each day box)
+                so the open day editor has more room for the hours readout. */}
+            {selectedDate && (
+              <div className="cp-pal">
+                {PALETTE.map(([k, label]) => (
+                  <button key={k} type="button" className={`cp-pal-b${brush === k ? ' act' : ''}`} onClick={() => setBrush(k)}>
+                    <span className="sw" style={{ background: TYPE_COLOR[k] }} />{label}
+                  </button>
+                ))}
+                <button type="button" className={`cp-pal-b${brush === 'erase' ? ' act' : ''}`} onClick={() => setBrush('erase')}>
+                  <span className="sw erase" />Erase
+                </button>
+              </div>
+            )}
+            <button type="button" className="cp-preset" onClick={() => setBulkMode(true)}>Bulk apply template…</button>
+          </>
         ) : (
           <div className="cp-bulkbar">
             <span className="n">{bulkSel.size} day{bulkSel.size === 1 ? '' : 's'} selected</span>

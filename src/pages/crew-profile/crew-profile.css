@@ -748,6 +748,10 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-preset:hover { border-color: #c3c8d2; }
 .crew-profile-page .cp-preset.act { border-color: #C65A1A; color: #C65A1A; }
 .crew-profile-page .cp-tlink { font-size: 11.5px; color: #C65A1A; font-weight: 600; cursor: pointer; margin-left: auto; background: none; border: 0; }
+/* Sits near the top of the open day editor now (was the footer), so give it a
+   little room before the paint grid and a touch more weight — it's the headline. */
+.crew-profile-page .cp-ed .cp-restbox { margin-bottom: 11px; }
+.crew-profile-page .cp-ed .cp-restbox .rest { font-size: 16px; }
 .crew-profile-page .cp-restbox { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #1C1B3A; }
 .crew-profile-page .cp-restbox .dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; background: #b9bdc9; }
 .crew-profile-page .cp-restbox .dot.green { background: #5E8E6F; }
@@ -783,8 +787,12 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-pal-b.act { border-color: #1C1B3A; box-shadow: inset 0 0 0 1px #1C1B3A; }
 .crew-profile-page .cp-pal-b .sw { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
 .crew-profile-page .cp-pal-b .sw.erase { background: repeating-linear-gradient(45deg, #e7e7e7, #e7e7e7 2px, #fff 2px, #fff 4px); border: 1px solid #dde1e8; }
-/* Bulk-apply toolbar + per-user template menu. */
-.crew-profile-page .cp-hor-toolbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+/* Bulk-apply toolbar + per-user template menu. Now also carries the shift-type
+   brush palette on the left, with the bulk/template controls pushed to the right. */
+.crew-profile-page .cp-hor-toolbar { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; margin-bottom: 12px; }
+.crew-profile-page .cp-hor-toolbar .cp-pal { margin: 0; }
+.crew-profile-page .cp-hor-toolbar > .cp-preset,
+.crew-profile-page .cp-hor-toolbar > .cp-bulkbar { margin-left: auto; }
 .crew-profile-page .cp-bulkbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .crew-profile-page .cp-bulkbar .n { font-size: 12px; font-weight: 600; color: #1C1B3A; }
 .crew-profile-page .cp-bulkbar select { border: 1px solid #DFE3EC; border-radius: 8px; padding: 6px 8px; font-size: 12.5px; color: #1C1B3A; background: #fff; }
