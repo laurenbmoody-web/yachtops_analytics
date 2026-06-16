@@ -284,6 +284,33 @@ body.crew-profile-editorial {
   white-space: nowrap;
 }
 .crew-profile-page .cp-group-head .line { flex: 1; height: 1px; background: #E6E8EF; }
+
+/* Allergy cross-reference — read-only mirror of the Personal Details record. */
+.crew-profile-page .cp-allergy-ref {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; border-radius: 10px; border: 1px solid #E6E8EF; background: #F8FAFC;
+}
+.crew-profile-page .cp-allergy-ref .ic { flex: 0 0 auto; }
+.crew-profile-page .cp-allergy-ref .body { min-width: 0; }
+.crew-profile-page .cp-allergy-ref .lbl {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: #8B8478; display: flex; align-items: center; gap: 6px; margin-bottom: 2px;
+}
+.crew-profile-page .cp-allergy-ref .sev {
+  font-size: 8.5px; font-weight: 800; letter-spacing: 0.6px; padding: 1px 6px; border-radius: 999px;
+  background: #F2C9C0; color: #8E2A1D;
+}
+.crew-profile-page .cp-allergy-ref .val { font-size: 14px; font-weight: 600; color: #1C1B3A; }
+.crew-profile-page .cp-allergy-ref.is-alert { background: #FCEDEA; border-color: #F2C9C0; }
+.crew-profile-page .cp-allergy-ref.is-alert .ic { color: #C0392B; }
+.crew-profile-page .cp-allergy-ref.is-ok .ic { color: #5C9B6A; }
+.crew-profile-page .cp-allergy-ref.is-unset .ic { color: #9098B1; }
+.crew-profile-page .cp-allergy-jump {
+  margin-left: auto; flex: 0 0 auto; font-size: 12px; font-weight: 600; color: #C65A1A;
+  background: none; border: 0; cursor: pointer; white-space: nowrap;
+}
+.crew-profile-page .cp-allergy-jump:hover { text-decoration: underline; }
+.crew-profile-page .cp-allergy-note { font-size: 11px; color: #8B8478; margin-top: 6px; }
 .crew-profile-page .cp-inline-check {
   display: flex;
   align-items: center;
