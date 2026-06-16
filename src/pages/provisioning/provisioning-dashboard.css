@@ -286,6 +286,169 @@
   color: var(--d-orange);
 }
 
+/* ── Provisioning approval settings page ─────────────────────
+   Lives in vessel-settings under the Provisioning Approval section.
+   Reuses the existing edit-modal field / button styles for selects,
+   inputs and footer actions. */
+.pv-approval-settings {
+  font-family: var(--font-sans);
+  color: var(--d-navy-deep);
+  max-width: 820px;
+}
+.pv-approval-settings-head {
+  margin-bottom: 24px;
+}
+.pv-approval-settings-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-weight: 400;
+  font-size: 28px;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--d-navy-deep);
+  margin: 0 0 6px;
+}
+.pv-approval-settings-sub {
+  font-size: 13px;
+  color: var(--d-muted);
+  margin: 0;
+  max-width: 640px;
+  line-height: 1.5;
+}
+.pv-approval-settings-status {
+  font-size: 13px;
+  color: var(--d-muted);
+}
+.pv-approval-settings-error {
+  color: var(--d-danger);
+}
+
+.pv-approval-card {
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  border-radius: 14px;
+  box-shadow: var(--d-shadow);
+  padding: 22px 24px;
+  margin-bottom: 16px;
+}
+.pv-approval-card-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-weight: 400;
+  font-size: 18px;
+  color: var(--d-navy-deep);
+  margin: 0 0 4px;
+}
+.pv-approval-card-sub {
+  font-size: 12px;
+  color: var(--d-muted);
+  margin: 0 0 14px;
+}
+
+.pv-approval-rules {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.pv-approval-rule {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--d-border-soft);
+}
+.pv-approval-rule:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.pv-approval-rule-toggle {
+  background: none;
+  border: 0;
+  padding: 4px 0 0;
+  cursor: pointer;
+}
+.pv-approval-rule-text {
+  flex: 1;
+  min-width: 0;
+}
+.pv-approval-rule-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--d-navy-deep);
+  margin-bottom: 2px;
+}
+.pv-approval-rule-desc {
+  font-size: 12px;
+  color: var(--d-muted);
+  line-height: 1.5;
+}
+
+.pv-approval-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.pv-approval-table th {
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--d-muted-soft);
+  padding: 0 12px 10px 0;
+  border-bottom: 1px solid var(--d-border-soft);
+}
+.pv-approval-table th:last-child { padding-right: 0; }
+.pv-approval-table td {
+  padding: 12px 12px 12px 0;
+  border-bottom: 1px solid var(--d-border-soft);
+  color: var(--d-navy-deep);
+  vertical-align: middle;
+}
+.pv-approval-table td:last-child { padding-right: 0; }
+.pv-approval-table tr:last-child td { border-bottom: 0; }
+
+.pv-approval-chip-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pv-approval-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--d-border);
+  font-size: 12px;
+  color: var(--d-navy-deep);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.pv-approval-chip:hover {
+  border-color: var(--d-orange);
+  color: var(--d-orange);
+}
+.pv-approval-chip.is-on {
+  background: var(--d-navy-deep);
+  color: #FFF;
+  border-color: var(--d-navy-deep);
+}
+.pv-approval-chip input[type="checkbox"] {
+  display: none;
+}
+
+.pv-approval-foot {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 16px;
+  margin-top: 8px;
+}
+
 /* Allergen popover — replaces the old full-width banner.
    Anchored to the chip; closes on outside-click or Escape. */
 .pv-board-allergen-popover {
