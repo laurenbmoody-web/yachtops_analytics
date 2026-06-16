@@ -140,6 +140,20 @@ const TagInput = ({ value, disabled, onChange, placeholder }) => {
   );
 };
 
+// Human-readable allergy summary from the Personal Details fields. Shared so
+// the Preferences section can cross-reference the SAME record (single source).
+const allergiesReadText = (f) => {
+  const conf = f?.allergiesConfirmedAt
+    ? ` (confirmed ${new Date(f.allergiesConfirmedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })})`
+    : '';
+  switch (f?.allergiesStatus) {
+    case 'no_known': return `No known allergies${conf}`;
+    case 'not_provided': return 'Not yet provided';
+    case 'has': return f?.allergies || 'Has allergies (details pending)';
+    default: return f?.allergies || 'Not yet provided';
+  }
+};
+
 const CrewProfile = () => {
   const navigate = useNavigate();
   const { crewId } = useParams();
@@ -1192,17 +1206,6 @@ const canEdit = (() => {
   };
 
   const renderPersonalDetails = () => {
-    const allergiesReadText = (f) => {
-      const conf = f?.allergiesConfirmedAt
-        ? ` (confirmed ${new Date(f.allergiesConfirmedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })})`
-        : '';
-      switch (f?.allergiesStatus) {
-        case 'no_known': return `No known allergies${conf}`;
-        case 'not_provided': return 'Not yet provided';
-        case 'has': return f?.allergies || 'Has allergies (details pending)';
-        default: return f?.allergies || 'Not yet provided';
-      }
-    };
     return (
       <div>
         <div className="cp-section-head">
@@ -2053,6 +2056,33 @@ const canEdit = (() => {
           <span className="cp-section-num">04 /</span>
           <h3>Preferences</h3>
         </div>
+
+        {/* Allergies & safety — cross-referenced from Personal Details so the
+            galley always sees the same record. Edited only at the source. */}
+        {(() => {
+          const hasAllergy = formData?.allergiesStatus === 'has'
+            || (Array.isArray(formData?.allergies) ? formData.allergies.length > 0 : !!formData?.allergies);
+          const unset = !formData?.allergiesStatus && !formData?.allergies;
+          const tone = hasAllergy ? 'is-alert' : unset ? 'is-unset' : 'is-ok';
+          return (
+            <div className="cp-group">
+              <div className="cp-group-head">
+                <span className="dia">◆</span><span className="t">Allergies &amp; safety</span><span className="line" />
+              </div>
+              <div className={`cp-allergy-ref ${tone}`}>
+                <Icon name={hasAllergy ? 'AlertTriangle' : unset ? 'HelpCircle' : 'ShieldCheck'} size={18} className="ic" />
+                <div className="body">
+                  <div className="lbl">Allergies {hasAllergy && <span className="sev">medical safety</span>}</div>
+                  <div className="val">{allergiesReadText(formData)}</div>
+                </div>
+                <button type="button" className="cp-allergy-jump" onClick={() => { setActiveSection('personal'); setIsEditing(false); }}>
+                  {unset ? 'Add in Personal Details' : 'Manage in Personal Details'} ›
+                </button>
+              </div>
+              <p className="cp-allergy-note">Held once in Personal Details so the galley and HODs always see the same record — update it there and it stays in sync here.</p>
+            </div>
+          );
+        })()}
 
         {/* Dietary */}
         <div className="cp-group">
