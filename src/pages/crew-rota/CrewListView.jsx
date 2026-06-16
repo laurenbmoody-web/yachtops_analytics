@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { DEPT_ORDER, MlcTriangle } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
+import { getContrastText } from './crewDisplay';
+import { useAuth } from '../../contexts/AuthContext';
+
+const DEPT_BADGE_LABEL = { draft: 'Draft', pending_approval: 'Pending', published: 'Published' };
 
 function avatarColors(onDuty) {
   return onDuty
@@ -156,7 +160,11 @@ function CrewRow({ crew, onClick }) {
   );
 }
 
-export default function CrewListView({ crew = [], onCrewClick }) {
+export default function CrewListView({ crew = [], onCrewClick, deptStatus = null }) {
+  const { user, currentUser, tenantRole } = useAuth();
+  const viewerTier = String(user?.permission_tier || tenantRole || '').toUpperCase();
+  const viewerDeptId = currentUser?.department_id || null;
+
   const byDept = new Map();
   for (const c of crew) {
     const d = c.department || 'Other';
@@ -169,18 +177,50 @@ export default function CrewListView({ crew = [], onCrewClick }) {
   ];
 
   return (
-    <div>
-      {orderedDepts.map((dept, idx) => (
-        <div key={dept}>
-          <div className={`crew-list-dept${idx === 0 ? ' first' : ''}`}>
-            <span className="crew-list-dept-label">{dept} · {byDept.get(dept).length} crew</span>
-            <span className="crew-list-dept-rule" />
+    <div className="crew-list-view">
+      {orderedDepts.map((dept) => {
+        const members = byDept.get(dept);
+        const color = members[0]?.departmentColor || '#5F5E5A';
+        const deptId = members[0]?.departmentId || null;
+        const statusRow = deptId && deptStatus ? deptStatus.get(deptId) : null;
+        const badge = statusRow?.status
+          ? (DEPT_BADGE_LABEL[statusRow.status] || statusRow.status)
+          : null;
+        const canSeeUnpublished = viewerTier === 'COMMAND' || (!!viewerDeptId && viewerDeptId === deptId);
+        const showUnpublished = statusRow?.status === 'published'
+          && statusRow?.hasUnpublishedChanges
+          && canSeeUnpublished;
+
+        return (
+          <div key={dept} className="rota-dept-group">
+            {(badge || showUnpublished) && (
+              <div className="rota-dept-badges">
+                {badge && <div className={`rota-dept-badge st-${statusRow.status}`}>{badge}</div>}
+                {showUnpublished && (
+                  <div className="rota-dept-badge st-unpublished" title="Edits made since this rota was published — not yet re-published">
+                    Unpublished changes
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="rota-dept-body">
+              <div
+                className="rota-dept-strip"
+                style={{ background: color, color: getContrastText(color) }}
+                role="rowheader"
+                aria-label={`${dept} department${badge ? ` — ${badge}` : ''}`}
+              >
+                <span className="rota-dept-strip-text">{dept}</span>
+              </div>
+              <div className="rota-dept-rows">
+                {members.map(c => (
+                  <CrewRow key={c.id} crew={c} onClick={onCrewClick} />
+                ))}
+              </div>
+            </div>
           </div>
-          {byDept.get(dept).map(c => (
-            <CrewRow key={c.id} crew={c} onClick={onCrewClick} />
-          ))}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

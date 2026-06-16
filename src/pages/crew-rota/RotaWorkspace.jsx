@@ -906,7 +906,7 @@ export default function RotaWorkspace({
               viewDate={selectedDate}
             />
           ) : (
-            <CrewListView crew={visibleCrew} onCrewClick={setSelectedCrew} />
+            <CrewListView crew={visibleCrew} onCrewClick={setSelectedCrew} deptStatus={statusByDept} />
           )}
         </div>
 
