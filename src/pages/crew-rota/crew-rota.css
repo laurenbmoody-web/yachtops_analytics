@@ -262,21 +262,19 @@
 }
 .crew-list-row:hover {
   background: #FAFAF7;
-  border-left: 2px solid #C65A1A;
-  padding-left: 12px;
+  border-left-color: #C65A1A;
 }
 .crew-list-row.off-day { opacity: 0.55; }
 .crew-list-row.mlc-warn {
   background: #FDF6F3;
-  border-left: 2px solid #C65A1A;
-  padding-left: 12px;
+  border-left-color: #C65A1A;
 }
 .crew-list-row.is-open { background: #FBF8F3; }
 .crew-list-chev { color: #C9C0AE; justify-self: center; transition: transform 0.15s; }
 .crew-list-item.is-open .crew-list-chev { transform: rotate(180deg); color: #C65A1A; }
 
-/* Inline Start · Break · Finish · Worked breakdown shown in the collapsed row. */
-.cl-istats { display: inline-flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+/* Inline Start · Break · Finish · Worked breakdown shown in the collapsed row.
+   Fixed-width columns so every field lines up vertically across crew rows. */
 .cl-istat { display: inline-flex; align-items: baseline; gap: 5px; }
 .cl-istat-cap { font-size: 8.5px; letter-spacing: 1px; text-transform: uppercase; color: #A89F8C; }
 .cl-istat-v {
@@ -285,7 +283,8 @@
 }
 .cl-istat-v.muted { color: #8B8478; }
 .cl-istat-v.warn { color: #C65A1A; }
-.cl-istat-off { color: #8B8478; }
+.cl-istat-off { grid-column: 2 / -1; color: #8B8478; }
+.cl-istat-warn { color: #C65A1A; font-weight: 500; }
 
 /* Expandable per-crew detail — now just the 24h timeline bar. */
 .crew-list-detail { padding: 2px 16px 18px 56px; background: #FBF8F3; }
@@ -340,12 +339,12 @@
   font-size: 11px;
   color: #695880;
   margin-top: 4px;
-  display: flex;
+  display: grid;
+  grid-template-columns: 168px 90px 132px 96px 84px 1fr;
   align-items: baseline;
-  flex-wrap: wrap;
-  gap: 10px;
+  column-gap: 16px;
 }
-.crew-list-role-name { flex-shrink: 0; }
+.crew-list-role-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .crew-list-rest { text-align: right; }
 .crew-list-rest-num {
   font-family: 'DM Serif Display', Georgia, serif;
