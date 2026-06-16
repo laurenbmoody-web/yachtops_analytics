@@ -140,16 +140,13 @@ const TagInput = ({ value, disabled, onChange, placeholder }) => {
   );
 };
 
-// Spice tolerance — a 4-step scale shown as chilli outlines that fill in with
-// terracotta up to the chosen level. Clickable in edit mode (click a chilli to
+// Spice tolerance — a 4-step scale shown as flame icons (lucide) that fill with
+// terracotta up to the chosen level. Clickable in edit mode (click a flame to
 // set that level; click the current top one again to clear); static in read.
 const SPICE_LEVELS = ['Mild', 'Medium', 'Hot', 'Very hot'];
-const CHILLI_PATH = 'M14.5 4.2c-.5 1.1-.3 2.2.6 3.1 M15.1 7.4c2.2.2 3.7 2 3.6 4.2-.2 4.6-4 8.4-8.6 8.4-2.7 0-4.9-2.2-4.9-4.9 0-2.6 2.1-4.7 4.7-4.7 1.9 0 3 .9 3.9 2.1.5.7 1.2.5 1.2-.4 0-1.3-.1-2.6-.1-3.8z';
-const Chilli = ({ filled }) => (
-  <svg viewBox="0 0 24 24" className="cp-chilli" aria-hidden="true">
-    <path d={CHILLI_PATH} fill={filled ? '#C65A1A' : 'none'} stroke="#C65A1A"
-      strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
-  </svg>
+const Flame = ({ on }) => (
+  <Icon name="Flame" size={19} strokeWidth={1.8}
+    color={on ? '#C65A1A' : '#D6CCC2'} fill={on ? '#C65A1A' : 'none'} />
 );
 const SpiceField = ({ value, disabled, onChange }) => {
   const idx = SPICE_LEVELS.indexOf(value); // -1 when not set
@@ -158,7 +155,7 @@ const SpiceField = ({ value, disabled, onChange }) => {
     return (
       <div className="cp-spice">
         <span className="cp-spice-row">
-          {SPICE_LEVELS.map((_, i) => <Chilli key={i} filled={i <= idx} />)}
+          {SPICE_LEVELS.map((_, i) => <Flame key={i} on={i <= idx} />)}
         </span>
         <span className="cp-spice-val">{value}</span>
       </div>
@@ -177,7 +174,7 @@ const SpiceField = ({ value, disabled, onChange }) => {
             aria-pressed={i <= idx}
             onClick={() => onChange(i === idx ? '' : lvl)}
           >
-            <Chilli filled={i <= idx} />
+            <Flame on={i <= idx} />
           </button>
         ))}
       </span>

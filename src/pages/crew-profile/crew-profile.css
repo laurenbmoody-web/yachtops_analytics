@@ -358,8 +358,7 @@ body.crew-profile-editorial {
   gap: 10px;
   min-height: 20px;
 }
-.crew-profile-page .cp-spice-row { display: inline-flex; align-items: center; gap: 2px; }
-.crew-profile-page .cp-chilli { width: 22px; height: 22px; display: block; }
+.crew-profile-page .cp-spice-row { display: inline-flex; align-items: center; gap: 3px; }
 .crew-profile-page .cp-chilli-btn {
   display: inline-flex;
   padding: 1px;
