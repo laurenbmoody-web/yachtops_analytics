@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { DEPT_ORDER, MlcTriangle } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
 
 function avatarColors(onDuty) {
@@ -7,20 +8,75 @@ function avatarColors(onDuty) {
     : { bg: '#ECE6DC', fg: '#5C5440' };
 }
 
+function pad2(n) { return String(n).padStart(2, '0'); }
+
+// Decimal hours (overnight blocks run past 24) → "HH:MM", wrapped to a 24h clock.
+function decToHHMM(dec) {
+  if (dec == null) return '';
+  let total = Math.round(dec * 60);
+  total = ((total % 1440) + 1440) % 1440;
+  return `${pad2(Math.floor(total / 60))}:${pad2(total % 60)}`;
+}
+
 // "today 08:00–14:00, 18:00–22:00" → "08:00–14:00 · 18:00–22:00"
-// Strips the leading "today ", swaps comma separators for middots,
-// normalises hyphen ranges to en-dashes. Non-time shift text
-// (e.g. "off today, back Saturday 08:00") is left readable.
 function formatShift(shiftText) {
   if (!shiftText) return '';
-  const cleaned = shiftText.replace(/^today\s+/i, '');
-  return cleaned
+  return shiftText.replace(/^today\s+/i, '')
     .split(', ')
     .map(s => s.replace(/-/g, '–'))
     .join(' · ');
 }
 
+// Break down a member's on-duty blocks into the three things a crew member
+// actually wants: when they start, when (and for how long) they break, and
+// when they finish. Blocks come from crew.shifts (decimal start/end, on-duty
+// only, overnight already extended past 24). The gaps between blocks are breaks.
+function dayBreakdown(crew) {
+  const blocks = [...(crew.shifts || [])].sort((a, b) => a.start - b.start);
+  if (blocks.length === 0) return null;
+  const breaks = [];
+  for (let i = 1; i < blocks.length; i += 1) {
+    const s = blocks[i - 1].end;
+    const e = blocks[i].start;
+    if (e > s) breaks.push({ start: s, end: e });
+  }
+  return {
+    start: blocks[0].start,
+    finish: blocks[blocks.length - 1].end,
+    breaks,
+    blocks,
+  };
+}
+
+// 24-hour mini-timeline. Each on-duty block is positioned by its start/end as a
+// fraction of the day; the empty space between blocks reads as the break.
+function DayTimeline({ blocks, warn }) {
+  return (
+    <>
+      <div className="cl-tl">
+        {[25, 50, 75].map(p => <span key={p} className="cl-tl-tick" style={{ left: `${p}%` }} />)}
+        {blocks.map((b, i) => {
+          const left = Math.max(0, Math.min(100, (b.start / 24) * 100));
+          const width = Math.max(2, Math.min(100 - left, ((b.end - b.start) / 24) * 100));
+          return (
+            <span
+              key={i}
+              className={`cl-tl-block${warn ? ' warn' : ''}`}
+              style={{ left: `${left}%`, width: `${width}%` }}
+            >
+              <span className="cl-tl-edge">{decToHHMM(b.start)}</span>
+              <span className="cl-tl-edge">{decToHHMM(b.end)}</span>
+            </span>
+          );
+        })}
+      </div>
+      <div className="cl-tl-axis"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
+    </>
+  );
+}
+
 function CrewRow({ crew, onClick }) {
+  const [open, setOpen] = useState(false);
   const isOff = crew.offToday;
   const onDuty = crew.onNow && !isOff;
   const { bg, fg } = avatarColors(onDuty);
@@ -35,47 +91,95 @@ function CrewRow({ crew, onClick }) {
     'crew-list-row',
     isOff ? 'off-day' : '',
     crew.mlcWarning ? 'mlc-warn' : '',
+    open ? 'is-open' : '',
   ].filter(Boolean).join(' ');
 
+  const bd = isOff ? null : dayBreakdown(crew);
+  const breakText = bd && bd.breaks.length
+    ? bd.breaks.map(b => `${decToHHMM(b.start)}–${decToHHMM(b.end)}`).join(', ')
+    : 'none';
+
+  const toggle = () => setOpen(o => !o);
+
   return (
-    <div
-      className={rowCls}
-      onClick={() => onClick?.(crew)}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.(crew); }
-      }}
-    >
-      <div className="crew-list-avatar" style={{ background: bg, color: fg }}>
-        {crew.initials}
+    <div className={`crew-list-item${open ? ' is-open' : ''}`}>
+      <div
+        className={rowCls}
+        onClick={toggle}
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+        }}
+      >
+        <div className="crew-list-avatar" style={{ background: bg, color: fg }}>
+          {crew.initials}
+        </div>
+
+        <div>
+          <div className="crew-list-name">
+            {crew.name}
+            {crew.mlcWarning && <MlcTriangle />}
+          </div>
+          <div className="crew-list-role">
+            {crew.role} · {formatShift(crew.shiftText)}
+            {crew.mlcWarning && (
+              <span style={{ color: '#C65A1A', fontWeight: 500 }}> · rest below MLC</span>
+            )}
+          </div>
+        </div>
+
+        {isOff ? (
+          <div />
+        ) : (
+          <div className="crew-list-rest">
+            <div className={`crew-list-rest-num ${crew.mlcWarning ? 'warning' : ''}`}>
+              {crew.workHours || '—'} <span className="crew-list-rest-on">on</span>
+            </div>
+            <div className="crew-list-rest-cap">{crew.offHours || '—'} off</div>
+          </div>
+        )}
+
+        <div className={`crew-list-pill ${pill.cls}`}>{pill.label}</div>
+
+        <ChevronDown className="crew-list-chev" size={16} aria-hidden="true" />
       </div>
 
-      <div>
-        <div className="crew-list-name">
-          {crew.name}
-          {crew.mlcWarning && <MlcTriangle />}
-        </div>
-        <div className="crew-list-role">
-          {crew.role} · {formatShift(crew.shiftText)}
-          {crew.mlcWarning && (
-            <span style={{ color: '#C65A1A', fontWeight: 500 }}> · rest below MLC</span>
+      {open && (
+        <div className="crew-list-detail">
+          {bd ? (
+            <>
+              <div className="cl-stats">
+                <div className="cl-stat">
+                  <div className="cl-stat-cap">Start</div>
+                  <div className="cl-stat-v">{decToHHMM(bd.start)}</div>
+                </div>
+                <div className="cl-stat">
+                  <div className="cl-stat-cap">Break</div>
+                  <div className={`cl-stat-v${breakText === 'none' ? ' muted' : ''}`}>{breakText}</div>
+                </div>
+                <div className="cl-stat">
+                  <div className="cl-stat-cap">Finish</div>
+                  <div className="cl-stat-v">{decToHHMM(bd.finish)}</div>
+                </div>
+                <div className="cl-stat">
+                  <div className="cl-stat-cap">Worked</div>
+                  <div className={`cl-stat-v${crew.mlcWarning ? ' warn' : ''}`}>{crew.workHours || '—'}</div>
+                </div>
+                <button
+                  type="button"
+                  className="cl-detail-link"
+                  onClick={(e) => { e.stopPropagation(); onClick?.(crew); }}
+                >Rest &amp; MLC detail →</button>
+              </div>
+              <DayTimeline blocks={bd.blocks} warn={crew.mlcWarning} />
+            </>
+          ) : (
+            <div className="cl-off-msg">Off today — no scheduled hours.</div>
           )}
         </div>
-      </div>
-
-      {isOff ? (
-        <div />
-      ) : (
-        <div className="crew-list-rest">
-          <div className={`crew-list-rest-num ${crew.mlcWarning ? 'warning' : ''}`}>
-            {crew.workHours || '—'} <span className="crew-list-rest-on">on</span>
-          </div>
-          <div className="crew-list-rest-cap">{crew.offHours || '—'} off</div>
-        </div>
       )}
-
-      <div className={`crew-list-pill ${pill.cls}`}>{pill.label}</div>
     </div>
   );
 }
