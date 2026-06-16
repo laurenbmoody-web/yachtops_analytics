@@ -124,8 +124,19 @@ const EditBoardModal = ({ list, onSaved, onClose }) => {
     board_type: list.board_type || 'general',
     status: list.status || PROVISIONING_STATUS.DRAFT,
     notes: list.notes || '',
+    port_location: list.port_location || '',
+    currency: list.currency || 'GBP',
   });
   const [saving, setSaving] = useState(false);
+  const initial = useMemo(() => ({
+    title: list.title || '',
+    board_type: list.board_type || 'general',
+    status: list.status || PROVISIONING_STATUS.DRAFT,
+    notes: list.notes || '',
+    port_location: list.port_location || '',
+    currency: list.currency || 'GBP',
+  }), [list]);
+  const isDirty = JSON.stringify(form) !== JSON.stringify(initial);
 
   const handleSave = async () => {
     if (!form.title.trim()) return;
@@ -136,6 +147,8 @@ const EditBoardModal = ({ list, onSaved, onClose }) => {
         board_type: form.board_type,
         status: form.status,
         notes: form.notes,
+        port_location: form.port_location.trim() || null,
+        currency: form.currency,
       });
       onSaved(updated);
     } catch {
@@ -145,47 +158,120 @@ const EditBoardModal = ({ list, onSaved, onClose }) => {
     }
   };
 
-  const fieldCls = 'w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:border-primary';
-
   return (
-    <ModalShell onClose={onClose} panelClassName="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="text-base font-bold text-foreground">Edit Board</h2>
-        <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground">
-          <Icon name="X" className="w-5 h-5" />
+    <ModalShell
+      onClose={onClose}
+      isDirty={isDirty}
+      isBusy={saving}
+      panelClassName="pv-edit-modal pv-dashboard"
+    >
+      <div className="pv-edit-modal-head">
+        <div>
+          <span className="pv-edit-modal-eyebrow">Provisioning Board</span>
+          <h2 className="pv-edit-modal-title">Edit, <em>details</em>.</h2>
+        </div>
+        <button onClick={onClose} className="pv-edit-modal-close" aria-label="Close">
+          <Icon name="X" style={{ width: 16, height: 16 }} />
         </button>
       </div>
-      <div className="space-y-3">
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">Title</label>
-          <input type="text" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} className={fieldCls} />
+
+      <div className="pv-edit-modal-body">
+        <div className="pv-edit-modal-field">
+          <label className="pv-edit-modal-label" htmlFor="ebm-title">Title</label>
+          <input
+            id="ebm-title"
+            type="text"
+            value={form.title}
+            onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+            className="pv-edit-modal-input"
+            placeholder="e.g. Med Charter — Galley"
+          />
         </div>
-        {/* Board type — Sprint 9c.1a. Sits between Title and Port/Location. */}
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">Board type</label>
-          <select value={form.board_type} onChange={e => setForm(f => ({ ...f, board_type: e.target.value }))} className={fieldCls}>
-            {BOARD_TYPES.map(bt => (
-              <option key={bt.value} value={bt.value}>{bt.label}</option>
-            ))}
-          </select>
+
+        <div className="pv-edit-modal-grid">
+          <div className="pv-edit-modal-field">
+            <label className="pv-edit-modal-label" htmlFor="ebm-type">Board type</label>
+            <select
+              id="ebm-type"
+              value={form.board_type}
+              onChange={e => setForm(f => ({ ...f, board_type: e.target.value }))}
+              className="pv-edit-modal-select"
+            >
+              {BOARD_TYPES.map(bt => (
+                <option key={bt.value} value={bt.value}>{bt.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="pv-edit-modal-field">
+            <label className="pv-edit-modal-label" htmlFor="ebm-status">Status</label>
+            <select
+              id="ebm-status"
+              value={form.status}
+              onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+              className="pv-edit-modal-select"
+            >
+              {Object.values(PROVISIONING_STATUS).map(v => (
+                <option key={v} value={v}>{v.replace(/_/g, ' ')}</option>
+              ))}
+            </select>
+          </div>
         </div>
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">Status</label>
-          <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={fieldCls}>
-            {Object.values(PROVISIONING_STATUS).map(v => (
-              <option key={v} value={v}>{v.replace(/_/g, ' ')}</option>
-            ))}
-          </select>
+
+        <div className="pv-edit-modal-grid">
+          <div className="pv-edit-modal-field">
+            <label className="pv-edit-modal-label" htmlFor="ebm-port">Port / location</label>
+            <input
+              id="ebm-port"
+              type="text"
+              value={form.port_location}
+              onChange={e => setForm(f => ({ ...f, port_location: e.target.value }))}
+              className="pv-edit-modal-input"
+              placeholder="e.g. Palma de Mallorca"
+            />
+          </div>
+          <div className="pv-edit-modal-field">
+            <label className="pv-edit-modal-label" htmlFor="ebm-cur">Currency</label>
+            <select
+              id="ebm-cur"
+              value={form.currency}
+              onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}
+              className="pv-edit-modal-select"
+            >
+              <option value="GBP">GBP — £</option>
+              <option value="EUR">EUR — €</option>
+              <option value="USD">USD — $</option>
+            </select>
+          </div>
         </div>
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">Notes</label>
-          <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} className={`${fieldCls} resize-none`} />
+
+        <div className="pv-edit-modal-field">
+          <label className="pv-edit-modal-label" htmlFor="ebm-notes">Notes</label>
+          <textarea
+            id="ebm-notes"
+            value={form.notes}
+            onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+            rows={3}
+            className="pv-edit-modal-textarea"
+            placeholder="Anything the team should know — special requests, dietary themes, supplier preferences…"
+          />
         </div>
       </div>
-      <div className="flex justify-end gap-2 mt-5">
-        <button onClick={onClose} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground">Cancel</button>
-        <button onClick={handleSave} disabled={saving || !form.title.trim()} className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/80 disabled:opacity-40">
-          {saving ? 'Saving…' : 'Save'}
+
+      <div className="pv-edit-modal-foot">
+        <button
+          type="button"
+          onClick={onClose}
+          className="pv-edit-modal-btn pv-edit-modal-btn-ghost"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving || !form.title.trim()}
+          className="pv-edit-modal-btn pv-edit-modal-btn-primary"
+        >
+          {saving ? 'Saving…' : 'Save changes'}
         </button>
       </div>
     </ModalShell>
