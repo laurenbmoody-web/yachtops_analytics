@@ -790,7 +790,11 @@ body.crew-profile-editorial {
 /* Bulk-apply toolbar + per-user template menu. Now also carries the shift-type
    brush palette on the left, with the bulk/template controls pushed to the right. */
 .crew-profile-page .cp-hor-toolbar { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; margin-bottom: 12px; }
-.crew-profile-page .cp-hor-toolbar .cp-pal { margin: 0; }
+/* Sit the brush above the day-editor column, right of the calendar divider:
+   calendar 300px + 18px wrap gap + 16px list padding = 334px. Reset when the
+   two columns stack on narrow screens. */
+.crew-profile-page .cp-hor-toolbar .cp-pal { margin: 0 0 0 334px; }
+@media (max-width: 1024px) { .crew-profile-page .cp-hor-toolbar .cp-pal { margin-left: 0; } }
 .crew-profile-page .cp-hor-toolbar > .cp-preset,
 .crew-profile-page .cp-hor-toolbar > .cp-bulkbar { margin-left: auto; }
 .crew-profile-page .cp-bulkbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
