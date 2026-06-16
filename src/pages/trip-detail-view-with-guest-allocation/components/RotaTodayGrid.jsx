@@ -314,43 +314,49 @@ function DepartmentSection({
     && canSeeUnpublished;
   return (
     <div className="rota-dept-group">
-      <div
-        className="rota-dept-strip"
-        style={{ background: color, color: getContrastText(color) }}
-        role="rowheader"
-        aria-label={`${deptName} department${badge ? ` — ${badge}` : ''}`}
-      >
-        <span className="rota-dept-strip-text">{deptName}</span>
-      </div>
-      <div className="rota-dept-rows">
-        {badge && (
-          <div className={`rota-dept-badge st-${deptStatusRow.status}`}>
-            {badge}
-          </div>
-        )}
-        {showUnpublished && (
-          <div className="rota-dept-badge st-unpublished" title="Edits made since this rota was published — not yet re-published">
-            Unpublished changes
-          </div>
-        )}
-        {crew.map(c => (
-          <CrewRow
-            key={c.id}
-            crew={c}
-            gridStartHour={gridStartHour}
-            onCrewClick={onCrewClick}
-            mode={renderStateOf(c)}
-            editMode={editMode}
-            onCellPointerDown={onCellPointerDown}
-            onCellPointerEnter={onCellPointerEnter}
-            onCellKey={onCellKey}
-            dragRange={drag && drag.crewId === c.id
-              ? { lo: Math.min(drag.start, drag.cur), hi: Math.max(drag.start, drag.cur) }
-              : null}
-            highlightSlots={highlightSlots}
-            viewDate={viewDate}
-          />
-        ))}
+      {(badge || showUnpublished) && (
+        <div className="rota-dept-badges">
+          {badge && (
+            <div className={`rota-dept-badge st-${deptStatusRow.status}`}>
+              {badge}
+            </div>
+          )}
+          {showUnpublished && (
+            <div className="rota-dept-badge st-unpublished" title="Edits made since this rota was published — not yet re-published">
+              Unpublished changes
+            </div>
+          )}
+        </div>
+      )}
+      <div className="rota-dept-body">
+        <div
+          className="rota-dept-strip"
+          style={{ background: color, color: getContrastText(color) }}
+          role="rowheader"
+          aria-label={`${deptName} department${badge ? ` — ${badge}` : ''}`}
+        >
+          <span className="rota-dept-strip-text">{deptName}</span>
+        </div>
+        <div className="rota-dept-rows">
+          {crew.map(c => (
+            <CrewRow
+              key={c.id}
+              crew={c}
+              gridStartHour={gridStartHour}
+              onCrewClick={onCrewClick}
+              mode={renderStateOf(c)}
+              editMode={editMode}
+              onCellPointerDown={onCellPointerDown}
+              onCellPointerEnter={onCellPointerEnter}
+              onCellKey={onCellKey}
+              dragRange={drag && drag.crewId === c.id
+                ? { lo: Math.min(drag.start, drag.cur), hi: Math.max(drag.start, drag.cur) }
+                : null}
+              highlightSlots={highlightSlots}
+              viewDate={viewDate}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
