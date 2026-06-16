@@ -248,13 +248,14 @@
 }
 .crew-list-dept-rule { height: 0.5px; background: #DFD8CC; flex: 1; }
 
+.crew-list-item { border-bottom: 0.5px solid #ECE6DC; }
+
 .crew-list-row {
   display: grid;
-  grid-template-columns: 40px 1fr auto auto;
+  grid-template-columns: 40px 1fr auto auto 18px;
   gap: 14px;
   align-items: center;
   padding: 12px 0;
-  border-bottom: 0.5px solid #ECE6DC;
   cursor: pointer;
   border-left: 2px solid transparent;
   transition: background 0.15s, border-color 0.15s, padding-left 0.15s;
@@ -270,6 +271,42 @@
   border-left: 2px solid #C65A1A;
   padding-left: 12px;
 }
+.crew-list-row.is-open { background: #FBF8F3; }
+.crew-list-chev { color: #C9C0AE; justify-self: center; transition: transform 0.15s; }
+.crew-list-item.is-open .crew-list-chev { transform: rotate(180deg); color: #C65A1A; }
+
+/* Expandable per-crew detail — the Start · Break · Finish breakdown. */
+.crew-list-detail { padding: 2px 16px 20px 56px; background: #FBF8F3; }
+.cl-stats { display: flex; align-items: flex-end; gap: 28px; margin-bottom: 14px; flex-wrap: wrap; }
+.cl-stat-cap { font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: #8B8478; margin-bottom: 3px; }
+.cl-stat-v { font-family: 'DM Serif Display', Georgia, serif; font-size: 19px; line-height: 1; color: #1C1B3A; }
+.cl-stat-v.muted { color: #8B8478; }
+.cl-stat-v.warn { color: #C65A1A; }
+.cl-detail-link {
+  margin-left: auto; align-self: flex-end;
+  background: none; border: none; cursor: pointer;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11px; color: #C65A1A;
+  border-bottom: 0.5px solid #FAECE7; padding: 0 0 2px;
+}
+.cl-tl {
+  position: relative; height: 24px; max-width: 560px;
+  background: #F1EDE5; border-radius: 6px; overflow: hidden;
+}
+.cl-tl-tick { position: absolute; top: 0; bottom: 0; width: 1px; background: #E2DCD0; }
+.cl-tl-block {
+  position: absolute; top: 3px; bottom: 3px;
+  background: #1C1B3A; border-radius: 4px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 7px; color: #F5F1EA; font-size: 9px; font-weight: 500;
+  overflow: hidden; white-space: nowrap; gap: 6px;
+}
+.cl-tl-block.warn { background: #C65A1A; }
+.cl-tl-axis {
+  display: flex; justify-content: space-between; max-width: 560px;
+  font-size: 8.5px; color: #C9C0AE; letter-spacing: 0.5px; margin-top: 4px;
+}
+.cl-off-msg { font-size: 12.5px; color: #8B8478; }
 
 .crew-list-avatar {
   width: 40px;
