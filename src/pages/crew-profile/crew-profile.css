@@ -436,31 +436,38 @@ body.crew-profile-editorial {
   border-radius: 999px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); white-space: nowrap;
 }
 .crew-profile-page .cp-avatar-pct.is-complete { border-color: #CDE6D3; color: #3F7A52; }
+/* The % badge doubles as the "what's left to fill in" trigger. */
+.crew-profile-page .cp-avatar-pct-btn { cursor: pointer; transition: border-color .12s ease, box-shadow .12s ease, transform .12s ease; }
+.crew-profile-page .cp-avatar-pct-btn:hover { border-color: #C65A1A; box-shadow: 0 2px 6px rgba(198,90,26,0.22); }
+.crew-profile-page .cp-avatar-pct-btn.is-open { border-color: #C65A1A; box-shadow: 0 0 0 2px #FAECE7; }
 
-.crew-profile-page .cp-completion { margin-top: 10px; }
-.crew-profile-page .cp-completion-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
-.crew-profile-page .cp-outstanding {
-  font-size: 12px; font-weight: 600; color: #C65A1A;
-  background: none; border: 0; cursor: pointer; padding: 0;
-}
+.crew-profile-page .cp-avatar-col { position: relative; }
+.crew-profile-page .cp-completion-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
 .crew-profile-page .cp-complete-note { font-size: 12px; font-weight: 600; color: #5C9B6A; }
-.crew-profile-page .cp-completion-missing {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
+
+/* "What's left to fill in" dropdown, anchored under the % badge. */
+.crew-profile-page .cp-completion-pop {
+  position: absolute; top: 118px; left: -4px; width: 252px; z-index: 40;
+  background: #fff; border: 1px solid #ECE8DE; border-radius: 12px;
+  box-shadow: 0 12px 34px rgba(28,27,58,0.14); padding: 8px;
+  text-align: left;
 }
-.crew-profile-page .cp-completion-chip {
-  font-size: 11px;
-  font-weight: 500;
-  color: #1C1B3A;
-  background: #FAEEDA;
-  border: 1px solid #F0DFC0;
-  border-radius: 999px;
-  padding: 3px 9px;
-  cursor: pointer;
+.crew-profile-page .cp-completion-pop-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding: 4px 8px 8px; border-bottom: 1px solid #F2EFE8; margin-bottom: 4px;
 }
-.crew-profile-page .cp-completion-chip:hover { border-color: #C65A1A; }
+.crew-profile-page .cp-completion-pop-head .pct { font-size: 12px; font-weight: 800; color: #C65A1A; }
+.crew-profile-page .cp-completion-pop-head .rem { font-size: 11px; color: #8B8478; }
+.crew-profile-page .cp-completion-pop-list { list-style: none; margin: 0; padding: 0; max-height: 280px; overflow-y: auto; }
+.crew-profile-page .cp-completion-pop-list button {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: none; border: 0; cursor: pointer; text-align: left;
+  padding: 7px 8px; border-radius: 8px; font-size: 12.5px; color: #1C1B3A;
+}
+.crew-profile-page .cp-completion-pop-list button:hover { background: #FAEEDA; }
+.crew-profile-page .cp-completion-pop-list .dot { width: 6px; height: 6px; border-radius: 50%; background: #C65A1A; flex: 0 0 auto; }
+.crew-profile-page .cp-completion-pop-list .lbl { flex: 1; }
+.crew-profile-page .cp-completion-pop-list .go { color: #C65A1A; font-weight: 700; }
 
 /* Empty core-document slot — dashed, muted, awaiting upload. */
 .crew-profile-page .cp-doc-empty {
