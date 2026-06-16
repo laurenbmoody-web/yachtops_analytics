@@ -92,6 +92,10 @@ const NotificationsDrawer = ({ isOpen, onClose }) => {
         return 'PackageCheck';
       case 'DOC_EXPIRY':
         return 'FileWarning';
+      case 'PROVISIONING_APPROVAL_PENDING':
+        return 'Send';
+      case 'PROVISIONING_APPROVAL_DECIDED':
+        return 'CheckCircle';
       case NOTIFICATION_TYPES?.JOB_PENDING_ACCEPTANCE:
         return 'Clock';
       case NOTIFICATION_TYPES?.JOB_HANDOFF_ACCEPTED:
