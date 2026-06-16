@@ -23,6 +23,24 @@ function decToHHMM(dec) {
   return `${pad2(Math.floor(total / 60))}:${pad2(total % 60)}`;
 }
 
+// Human-readable reason for a single failed MLC rule (from assessMlc's breach
+// rows). Names the rest-based cause so the worked-hours figure isn't blamed.
+function formatBreach(b) {
+  const r = (v) => Math.round(Number(v) || 0);
+  switch (b.rule) {
+    case 'daily_rest_10h':
+      return `only ${r(b.actual)}h rest in 24h (min ${b.limit}h)`;
+    case 'weekly_rest_77h':
+      return `only ${r(b.actual)}h rest in 7 days (min ${b.limit}h)`;
+    case 'rest_period_split':
+      return `rest split across ${b.actual?.periodCount} periods`;
+    case 'max_work_stretch_14h':
+      return `${r(b.actual)}h continuous on duty (max ${b.limit}h)`;
+    default:
+      return b.label || null;
+  }
+}
+
 // Break down a member's on-duty blocks into the three things a crew member
 // actually wants: when they start, when (and for how long) they break, and
 // when they finish. Blocks come from crew.shifts (decimal start/end, on-duty
@@ -95,6 +113,10 @@ function CrewRow({ crew, onClick }) {
     ? bd.breaks.map(b => `${decToHHMM(b.start)}–${decToHHMM(b.end)}`).join(', ')
     : 'none';
 
+  // Spell out WHICH MLC rule is breaching — the breach is driven by the rest
+  // pattern / rolling week, not by the hours worked, so name the actual rule.
+  const breachReasons = (crew.mlcReport?.breaches || []).map(formatBreach).filter(Boolean);
+
   const toggle = () => setOpen(o => !o);
 
   return (
@@ -125,7 +147,7 @@ function CrewRow({ crew, onClick }) {
                 <span className="cl-istat"><span className="cl-istat-cap">Start</span><span className="cl-istat-v">{decToHHMM(bd.start)}</span></span>
                 <span className="cl-istat"><span className="cl-istat-cap">Break</span><span className={`cl-istat-v${breakText === 'none' ? ' muted' : ''}`}>{breakText}</span></span>
                 <span className="cl-istat"><span className="cl-istat-cap">Finish</span><span className="cl-istat-v">{decToHHMM(bd.finish)}</span></span>
-                <span className="cl-istat"><span className="cl-istat-cap">Worked</span><span className={`cl-istat-v${crew.mlcWarning ? ' warn' : ''}`}>{crew.workHours || '—'}</span></span>
+                <span className="cl-istat"><span className="cl-istat-cap">Worked</span><span className="cl-istat-v">{crew.workHours || '—'}</span></span>
               </>
             ) : (
               <span className="cl-istat-off">off today</span>
@@ -141,6 +163,12 @@ function CrewRow({ crew, onClick }) {
 
       {open && (
         <div className="crew-list-detail">
+          {crew.mlcWarning && breachReasons.length > 0 && (
+            <div className="cl-breach">
+              <MlcTriangle size={11} />
+              <span>MLC breach — {breachReasons.join(' · ')}</span>
+            </div>
+          )}
           {bd ? (
             <>
               <DayTimeline blocks={bd.blocks} warn={crew.mlcWarning} />
