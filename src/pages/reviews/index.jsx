@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import { useAuth } from '../../contexts/AuthContext';
@@ -11,7 +11,16 @@ import CompactReviewItemCard from './CompactReviewItemCard';
 import ReviewRightPane from './ReviewRightPane';
 import ResolvedDetail from './ResolvedDetail';
 import InboxSidebar from './InboxSidebar';
+import OrdersReviewPanel from './OrdersReviewPanel';
 import './reviews.css';
+
+// Map pathname → active category. /reviews and /reviews/rotas both
+// resolve to the rotas queue (the historical default), keeping deep
+// links to the existing surface working.
+const categoryFromPath = (pathname) => {
+  if (pathname.startsWith('/reviews/orders')) return 'orders';
+  return 'rotas';
+};
 
 // ReviewsPage — the split-view inbox. Three columns: sidebar (categories) ·
 // list strip (compact cards) · right pane (the selected submission's rota +
@@ -21,6 +30,8 @@ import './reviews.css';
 export default function ReviewsPage() {
   const { user } = useAuth();
   const { currentTenantMember, activeTenantId } = useTenant();
+  const location = useLocation();
+  const activeCategory = categoryFromPath(location.pathname);
 
   const tier = (currentTenantMember?.permission_tier || '').toUpperCase();
   const userDeptId = currentTenantMember?.department_id || null;
@@ -114,11 +125,23 @@ export default function ReviewsPage() {
   // ?selected to the next item (or clears it when the inbox empties).
   const handleResolved = () => { refetch(); };
 
+  if (activeCategory === 'orders') {
+    return (
+      <>
+        <Header />
+        <div className="rv-page">
+          <InboxSidebar activeCategory="orders" counts={{ rotas: subtitleCount }} />
+          <OrdersReviewPanel />
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <Header />
       <div className="rv-page">
-        <InboxSidebar count={subtitleCount} />
+        <InboxSidebar activeCategory="rotas" counts={{ rotas: subtitleCount }} />
 
         {/* Middle — list strip */}
         <section className="rv-liststrip" aria-label="Rota submissions">
