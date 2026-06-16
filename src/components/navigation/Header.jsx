@@ -175,6 +175,27 @@ const Header = () => {
     return () => { cancelled = true; clearInterval(id); };
   }, [authUser, notificationsOpen]);
 
+  // Realtime: new notification rows for this user should bump the
+  // badge immediately, not on the next 30s poll tick. INSERT fires the
+  // "new row" event; the same listener also catches UPDATE so the
+  // count drops the moment another tab marks something read.
+  useEffect(() => {
+    if (!authUser?.id) return undefined;
+    const ch = supabase
+      .channel(`notifications-badge-${authUser.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${authUser.id}` },
+        async () => {
+          const local = getUnreadCount(authUser.id) || 0;
+          const db = await fetchDbUnreadCount(authUser.id);
+          setUnreadCount(local + db);
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [authUser?.id]);
+
   // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
