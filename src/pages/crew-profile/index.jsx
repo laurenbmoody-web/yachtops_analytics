@@ -2458,6 +2458,13 @@ const canEdit = (() => {
     const _today = new Date();
     const todayStr = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, '0')}-${String(_today.getDate()).padStart(2, '0')}`;
 
+    // A month can only be signed off once it has fully elapsed — you can't
+    // certify rest for days that haven't happened yet. Sign-off opens on the
+    // month's last calendar day (todayStr >= last day of the viewed month).
+    const lastDayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+    const monthComplete = todayStr >= lastDayStr;
+    const monthEndLabel = new Date(year, month, daysInMonth).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+
     // Get month status
     const monthStatus = getMonthStatus(crewId, year, month);
 
@@ -2608,12 +2615,15 @@ const canEdit = (() => {
           )}
           {!isVesselView && (
             <div className="cp-hor-actions">
-              {/* Crew: submit own open month */}
-              {isOwnProfile && dbStatus === 'open' && (
+              {/* Crew: submit own open month — only once the month has ended. */}
+              {isOwnProfile && dbStatus === 'open' && monthComplete && (
                 <button type="button" className="cp-hor-btn cp-hor-btn-primary" onClick={handleConfirmMonth}>
                   <Icon name="CheckCircle" size={16} />
                   {submitLabel}
                 </button>
+              )}
+              {isOwnProfile && dbStatus === 'open' && !monthComplete && (
+                <span className="cp-hor-await">Month in progress · sign-off opens {monthEndLabel}</span>
               )}
               {isOwnProfile && dbStatus === 'submitted' && (
                 <span className="cp-hor-await">Awaiting approval</span>
