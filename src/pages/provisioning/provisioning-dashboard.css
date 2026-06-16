@@ -76,22 +76,6 @@
   padding: 6px 12px;
   font-size: 11.5px;
 }
-
-/* Final row pairs ⋯ (icon, flex-shrink: 0) with Receive Items
-   (flex: 1) so the menu trigger sits to the LEFT of the last button
-   in the stack on a single horizontal line. */
-.cargo-ribbon-vertical .cargo-ribbon-bottom {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  width: 100%;
-}
-.cargo-ribbon-vertical .cargo-ribbon-bottom > .relative {
-  flex-shrink: 0;
-}
-.cargo-ribbon-vertical .cargo-ribbon-bottom .cargo-ribbon-btn:not(.cargo-ribbon-btn-icon) {
-  flex: 1;
-}
 .cargo-ribbon-vertical .cargo-ribbon-btn-icon {
   width: 32px;
   padding: 6px 0;
@@ -111,13 +95,15 @@
 .editorial-page.pv-dashboard .p-context-bar { margin-bottom: 5px; }
 .editorial-page.pv-dashboard .p-greeting { margin-bottom: 8px; }
 
-/* Chip row sits inside the left column right below the headline. */
+/* Chip row sits inside the left column right below the headline.
+   Explicit top + bottom margins so chips never collide with the tab
+   row when the column shrinks. */
 .pv-board-chip-row {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin: auto 0;
+  margin: 18px 0 24px;
 }
 
 /* Tabs row — three slots:
@@ -350,19 +336,24 @@
 
 /* Toolbar — lives inside the header's left column. No chrome of its
    own; the full-width hairline at .p-header-row's bottom is the
-   shared "divide line" for the toolbar AND the stack's final row. */
+   shared "divide line" for the toolbar AND the stack's final row.
+   `margin-top: 16px` separates it from the tabs row above. The ⋯
+   menu sits at the right end (separate flex child) so it floats in
+   the gap before the right rail. */
 .pv-board-toolbar {
   background: transparent;
   border: 0;
   border-radius: 0;
   box-shadow: none;
-  margin: 0;
-  padding: 12px 0 0;
+  margin: 16px 0 0;
+  padding: 0 0 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
+}
+.pv-board-toolbar .pv-board-tabs-more {
+  margin-left: auto;
 }
 .pv-board-toolbar-left {
   display: flex;
