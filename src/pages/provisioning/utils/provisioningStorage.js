@@ -353,6 +353,11 @@ export const submitProvisioningForApproval = async (listId, comment = null) => {
 // Fetch the current approval state of a board via the
 // provisioning_active_approval view (latest request per list, RLS
 // applied via security_invoker). Returns the row or null.
+//
+// Defensive against the schema-not-yet-migrated case: if the view
+// doesn't exist on this environment (HTTP 404 / PGRST205), we silently
+// return null instead of spamming the console. The feature simply
+// degrades to "no active approval" until the migration lands.
 export const fetchActiveApprovalRequest = async (listId) => {
   const { data, error } = await supabase
     ?.from('provisioning_active_approval')
@@ -360,6 +365,8 @@ export const fetchActiveApprovalRequest = async (listId) => {
     ?.eq('list_id', listId)
     ?.maybeSingle();
   if (error) {
+    const code = error?.code;
+    if (code === 'PGRST205' || code === '42P01') return null; // view missing
     console.error('[provisioningStorage] fetchActiveApprovalRequest error:', error);
     return null;
   }

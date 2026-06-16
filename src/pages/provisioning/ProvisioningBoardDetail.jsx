@@ -1331,6 +1331,9 @@ const ProvisioningBoardDetail = () => {
         showToast('No approver configured for this vessel — add a COMMAND member in Settings.', 'error');
       } else if (code === 'P0004') {
         showToast('Board is already submitted.', 'error');
+      } else if (code === 'PGRST202') {
+        // RPC not found on the schema — migrations haven't applied yet.
+        showToast('Approval routing not yet deployed on this environment.', 'error');
       } else {
         showToast('Failed to submit for approval', 'error');
       }
