@@ -761,8 +761,22 @@
    at x = var, aligned with the (strip-less) hour header / totals. */
 .rota-dept-group {
   display: flex;
-  align-items: stretch;
+  flex-direction: column;
   margin-bottom: 2px;
+}
+/* Status badges sit ABOVE the strip+rows block (not inside the rows column),
+   so the coloured strip spans only the crew rows and lines up with them —
+   it no longer rides up beside the badge. */
+.rota-dept-badges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+/* The strip + rows row. align-items: stretch makes the 22px colour strip
+   exactly as tall as the crew rows beside it. */
+.rota-dept-body {
+  display: flex;
+  align-items: stretch;
 }
 .rota-dept-strip {
   flex: 0 0 22px;
