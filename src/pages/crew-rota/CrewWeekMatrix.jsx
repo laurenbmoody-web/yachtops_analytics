@@ -126,10 +126,14 @@ function cellSummary(memberId, dateStr, planShifts, assessShifts) {
   const onDuty = dayPlan.filter((s) => ON_DUTY_TYPES.has(s.shiftType));
   const isOff = onDuty.length === 0;
   const mlc = assessMlc({ dayShifts: dayAssess, weekShifts: weekAssess });
+  const workHours = isOff ? null : workHoursOf(onDuty);
   return {
     onDuty,
     isOff,
-    workHours: isOff ? null : workHoursOf(onDuty),
+    workHours,
+    // Hours off-duty that day — the complement of hours worked. Shown beside
+    // the worked figure ("8h on · 16h off") so the rota reads at a glance.
+    offHours: isOff ? null : Math.max(0, 24 - workHours),
     mlcWarning: isOff ? false : mlc.anyBreach,
   };
 }
@@ -192,8 +196,11 @@ function Cell({ summary, dateStr, isToday, isSelected, isAffected, isEdited, col
             {extra > 0 && <span className="cw-c-more">+{extra} more</span>}
           </span>
           <span className="cw-c-meta">
-            <span className={`cw-c-rest${summary.mlcWarning ? ' w' : ''}`}>
-              {fmtHours(summary.workHours) || '—'}
+            <span className="cw-c-hours">
+              <span className={`cw-c-rest${summary.mlcWarning ? ' w' : ''}`}>
+                {fmtHours(summary.workHours) || '—'} on
+              </span>
+              <span className="cw-c-off-h">{fmtHours(summary.offHours)} off</span>
             </span>
             {summary.mlcWarning && <MlcTriangle size={9} />}
           </span>
