@@ -308,6 +308,11 @@
   font-size: 8.5px; color: #C9C0AE; letter-spacing: 0.5px; margin-top: 4px;
 }
 .cl-off-msg { font-size: 12.5px; color: #8B8478; }
+.cl-breach {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 10px;
+  font-size: 11.5px; color: #C65A1A;
+}
 
 .crew-list-avatar {
   width: 34px;
