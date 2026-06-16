@@ -129,6 +129,12 @@ export default function CrewRotaPage() {
 
   const tier = String(user?.permission_tier || tenantRole || '').toUpperCase();
 
+  // Permission-scoped view. COMMAND sees the whole vessel; everyone else is
+  // scoped to their own department (crew read-only, HOD edit→submit, chief
+  // edit→publish — the edit-gating + footer CTA inside RotaWorkspace enforce
+  // the tier). A scoped user with no department falls back to the full view.
+  const scopeDeptId = tier === 'COMMAND' ? null : (currentUser?.department_id || null);
+
   useEffect(() => {
     const prev = document.body.style.background;
     document.body.style.background = EDITORIAL_BG;
@@ -329,7 +335,7 @@ export default function CrewRotaPage() {
           // remounts opening there when the diff lands.
           key={reviewerEdits?.dates?.[0] || 'default'}
           rota={rota}
-          departmentId={null}
+          departmentId={scopeDeptId}
           mode="submitter"
           initialDate={reviewerEdits?.dates?.[0] || null}
           highlightSlots={reviewerEdits?.slots?.size ? reviewerEdits.slots : null}
