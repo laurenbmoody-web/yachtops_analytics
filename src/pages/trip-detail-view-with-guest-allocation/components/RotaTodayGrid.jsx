@@ -417,8 +417,12 @@ function orderDepartments(byDept, crew, ownDeptId) {
 
 export default function RotaTodayGrid({
   crew = [], now = new Date(), onCrewClick, gridStartHour = 6,
-  editMode = false, onPaint, deptStatus, highlightSlots = null, viewDate = null,
+  editMode = false, onPaint, editableDeptIds = null,
+  deptStatus, highlightSlots = null, viewDate = null,
 }) {
+  // editableDeptIds: Set of department ids the viewer may edit, or null = all
+  // editable (COMMAND). Departments outside the set render read-only even in
+  // edit mode (e.g. a chief who's expanded another department for context).
   // `now = null` suppresses the wall-clock indicator entirely — used when
   // the page is showing a non-today date, where a "now" line would be
   // visually misleading (the data isn't from today).
@@ -540,7 +544,7 @@ export default function RotaTodayGrid({
               crew={deptCrew}
               gridStartHour={gridStartHour}
               onCrewClick={onCrewClick}
-              editMode={editMode}
+              editMode={editMode && (!editableDeptIds || editableDeptIds.has(deptId))}
               onCellPointerDown={beginDrag}
               onCellPointerEnter={extendDrag}
               onCellKey={onCellKey}

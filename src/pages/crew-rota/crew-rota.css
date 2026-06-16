@@ -69,11 +69,87 @@
   color: #C9C0AE;
   cursor: not-allowed;
 }
+.crew-rota-pill[aria-haspopup] { display: inline-flex; align-items: center; }
 .crew-rota-divider {
   width: 1px;
   align-self: stretch;
   min-height: 22px;
   background: #DFD8CC;
+}
+
+/* ── Department filter dropdown (COMMAND / CHIEF) ───────────────── */
+.crew-rota-deptfilter { position: relative; }
+.crew-rota-deptfilter-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  min-width: 200px;
+  background: #FFFFFF;
+  border: 0.5px solid #DFD8CC;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px -8px rgba(28,27,58,0.22);
+  padding: 6px;
+}
+.crew-rota-deptfilter-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 6px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: #8B8478;
+}
+.crew-rota-deptfilter-actions button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #695880;
+  font: inherit;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.crew-rota-deptfilter-actions button:hover { color: #1C1B3A; text-decoration: underline; }
+.crew-rota-deptfilter-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 7px;
+  padding: 7px 8px;
+  cursor: pointer;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px;
+  color: #1C1B3A;
+  text-align: left;
+}
+.crew-rota-deptfilter-item:hover:not(:disabled) { background: #F7F5F0; }
+.crew-rota-deptfilter-item.is-locked { cursor: default; color: #8B8478; }
+.crew-rota-deptfilter-check {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #C9C0AE;
+  border-radius: 4px;
+  color: #F5F1EA;
+  flex-shrink: 0;
+}
+.crew-rota-deptfilter-item.is-on .crew-rota-deptfilter-check {
+  background: #1C1B3A;
+  border-color: #1C1B3A;
+}
+.crew-rota-deptfilter-you {
+  margin-left: auto;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8B8478;
 }
 .crew-rota-stepper {
   display: flex;
