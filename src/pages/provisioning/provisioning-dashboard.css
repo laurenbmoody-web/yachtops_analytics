@@ -274,6 +274,18 @@
   transition: width 0.4s;
 }
 
+/* Review-state chips on the identity row. Pending review uses a navy
+   pill (action-required-but-routine), changes_requested uses warm cream
+   ground with terracotta text so it reads as "needs attention". */
+.pv-board-chip-review {
+  background: var(--d-navy-deep);
+  color: #FFF;
+}
+.pv-board-chip-changes {
+  background: #FEF3E8;
+  color: var(--d-orange);
+}
+
 /* Allergen popover — replaces the old full-width banner.
    Anchored to the chip; closes on outside-click or Escape. */
 .pv-board-allergen-popover {

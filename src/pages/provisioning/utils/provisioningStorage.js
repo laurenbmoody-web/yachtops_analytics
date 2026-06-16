@@ -350,6 +350,45 @@ export const submitProvisioningForApproval = async (listId, comment = null) => {
   return data; // jsonb → JS object
 };
 
+// Fetch the current approval state of a board via the
+// provisioning_active_approval view (latest request per list, RLS
+// applied via security_invoker). Returns the row or null.
+export const fetchActiveApprovalRequest = async (listId) => {
+  const { data, error } = await supabase
+    ?.from('provisioning_active_approval')
+    ?.select('*')
+    ?.eq('list_id', listId)
+    ?.maybeSingle();
+  if (error) {
+    console.error('[provisioningStorage] fetchActiveApprovalRequest error:', error);
+    return null;
+  }
+  return data || null;
+};
+
+// Approver decides on a pending request. decision in
+// ('approve', 'request_changes'). Comment is required when decision is
+// 'request_changes' (RPC enforces it with SQLSTATE P0005).
+//
+// Relevant SQLSTATEs:
+//   P0002 — request not found
+//   P0005 — missing comment on request_changes
+//   P0006 — caller is not the assigned approver
+//   P0007 — request was already decided
+export const decideProvisioningApproval = async (requestId, decision, comment = null) => {
+  const { data, error } = await supabase
+    ?.rpc('decide_provisioning_approval', {
+      p_request_id: requestId,
+      p_decision:   decision,
+      p_comment:    comment,
+    });
+  if (error) {
+    console.error('[provisioningStorage] decideProvisioningApproval error:', error);
+    throw error;
+  }
+  return data; // jsonb → JS object
+};
+
 // ── Items ─────────────────────────────────────────────────────────────────────
 
 export const fetchListItems = async (listId) => {

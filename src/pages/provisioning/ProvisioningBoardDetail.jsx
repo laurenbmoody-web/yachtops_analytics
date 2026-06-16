@@ -18,6 +18,8 @@ import {
   deleteProvisioningItem,
   updateProvisioningList,
   submitProvisioningForApproval,
+  fetchActiveApprovalRequest,
+  decideProvisioningApproval,
   deleteProvisioningList,
   duplicateList,
   fetchVesselDepartments,
@@ -422,6 +424,17 @@ const ProvisioningBoardDetail = () => {
   const [allergenOpen, setAllergenOpen] = useState(false);
   const allergenRef = useRef(null);
 
+  // Approval routing — PR3. Tracks the most recent approval request
+  // row for the board so we can render the reviewer banner or the
+  // "changes requested" chip. Reload after status flips so optimistic
+  // local state stays in sync with the request lifecycle.
+  const [approvalRequest, setApprovalRequest] = useState(null);
+  const [approverProfile, setApproverProfile] = useState(null);
+  const [submitterProfile, setSubmitterProfile] = useState(null);
+  const [decisionModal, setDecisionModal] = useState(null); // 'approve' | 'request_changes' | null
+  const [decisionComment, setDecisionComment] = useState('');
+  const [deciding, setDeciding] = useState(false);
+
   // ── Supplier Orders ──────────────────────────────────────────────────────
   const [showSendModal, setShowSendModal] = useState(false);
   const [supplierOrders, setSupplierOrders] = useState([]);
@@ -719,6 +732,34 @@ const ProvisioningBoardDetail = () => {
       document.removeEventListener('keydown', key);
     };
   }, [allergenOpen]);
+
+  // Load the active approval request whenever the board loads or its
+  // status flips. Resolves approver/submitter names so the banner can
+  // read "Submitted by Lauren · 2h ago" without a second fetch.
+  useEffect(() => {
+    if (!list?.id) return;
+    let cancelled = false;
+    (async () => {
+      const req = await fetchActiveApprovalRequest(list.id);
+      if (cancelled) return;
+      setApprovalRequest(req);
+      if (!req) {
+        setApproverProfile(null);
+        setSubmitterProfile(null);
+        return;
+      }
+      const ids = [req.approver_id, req.submitter_id].filter(Boolean);
+      if (ids.length === 0) return;
+      const { data } = await supabase
+        ?.from('profiles')
+        ?.select('id, full_name, email')
+        ?.in('id', ids) || {};
+      if (cancelled || !Array.isArray(data)) return;
+      setApproverProfile(data.find(p => p.id === req.approver_id) || null);
+      setSubmitterProfile(data.find(p => p.id === req.submitter_id) || null);
+    })();
+    return () => { cancelled = true; };
+  }, [list?.id, list?.status]);
 
   // Load deliveries when Deliveries or History tab becomes active; auto-repair unbatched items
   useEffect(() => {
@@ -1296,6 +1337,43 @@ const ProvisioningBoardDetail = () => {
     }
   };
 
+  // Reviewer decision — approve or request_changes. request_changes
+  // requires a comment, collected via the decisionModal popup. Both
+  // outcomes flip the board back to draft so the submitter can act.
+  const handleDecide = async (decision) => {
+    if (!approvalRequest?.id) return;
+    if (decision === 'request_changes' && !decisionComment.trim()) {
+      showToast('Add a comment so the submitter knows what to fix.', 'error');
+      return;
+    }
+    setDeciding(true);
+    try {
+      const result = await decideProvisioningApproval(
+        approvalRequest.id,
+        decision,
+        decision === 'request_changes' ? decisionComment.trim() : null,
+      );
+      setList(prev => ({ ...prev, status: PROVISIONING_STATUS.DRAFT }));
+      setApprovalRequest(prev => prev ? {
+        ...prev,
+        status: result?.status || (decision === 'approve' ? 'approved' : 'changes_requested'),
+        comment: decision === 'request_changes' ? decisionComment.trim() : prev.comment,
+        decided_at: new Date().toISOString(),
+      } : prev);
+      setDecisionModal(null);
+      setDecisionComment('');
+      showToast(decision === 'approve' ? 'Approved' : 'Changes requested', 'success');
+    } catch (err) {
+      const code = err?.code;
+      if (code === 'P0005') showToast('A comment is required.', 'error');
+      else if (code === 'P0006') showToast('Only the assigned approver can decide.', 'error');
+      else if (code === 'P0007') showToast('Already decided.', 'error');
+      else showToast('Failed to submit decision', 'error');
+    } finally {
+      setDeciding(false);
+    }
+  };
+
   const handleDuplicate = async () => {
     setShowMenu(false);
     try {
@@ -1867,7 +1945,32 @@ const ProvisioningBoardDetail = () => {
                     <Icon name="Send" style={{ width: 13, height: 13 }} /> Submit for Approval
                   </button>
                 )}
-                {canSendToSupplier && (
+                {/* When current user is the assigned approver of a
+                    pending request, the Send to Supplier slot is
+                    swapped for the two decision buttons. Once they
+                    decide the board returns to draft, the request
+                    flips to approved/changes_requested, and this slot
+                    reverts to Send to Supplier. */}
+                {approvalRequest?.status === 'pending'
+                  && approvalRequest?.approver_id === user?.id ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => { setDecisionComment(''); setDecisionModal('request_changes'); }}
+                      className="cargo-ribbon-btn"
+                    >
+                      <Icon name="AlertTriangle" style={{ width: 13, height: 13 }} /> Request changes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDecide('approve')}
+                      disabled={deciding}
+                      className="cargo-ribbon-btn"
+                    >
+                      <Icon name="Check" style={{ width: 13, height: 13 }} /> Approve
+                    </button>
+                  </>
+                ) : canSendToSupplier && (
                   <button
                     type="button"
                     onClick={handleSendToSupplier}
@@ -1954,6 +2057,42 @@ const ProvisioningBoardDetail = () => {
                     <span className="pv-board-chip-progress-num">{receivedItems} / {totalItems}</span>
                     <span className="pv-board-chip-progress-bar"><span style={{ width: `${Math.round(pct * 100)}%` }} /></span>
                     received
+                  </span>
+                );
+              })()}
+              {(() => {
+                if (!approvalRequest) return null;
+                const isApprover = approvalRequest.approver_id === user?.id;
+                const isPending  = approvalRequest.status === 'pending';
+                const isChanges  = approvalRequest.status === 'changes_requested';
+                if (!isPending && !isChanges) return null;
+                const approverName = approverProfile?.full_name
+                  || (approverProfile?.email ? approverProfile.email.split('@')[0] : 'reviewer');
+                const submitterName = submitterProfile?.full_name
+                  || (submitterProfile?.email ? submitterProfile.email.split('@')[0] : 'someone');
+                if (isPending) {
+                  return (
+                    <span
+                      className="pv-board-chip pv-board-chip-review"
+                      title={isApprover
+                        ? `Submitted by ${submitterName} — your review`
+                        : `Awaiting review by ${approverName}`}
+                    >
+                      <Icon name="Send" style={{ width: 11, height: 11 }} aria-hidden="true" />
+                      {isApprover ? 'Your review' : `Awaiting ${approverName}`}
+                    </span>
+                  );
+                }
+                // changes_requested — both submitter and approver see the chip; popover carries the comment
+                return (
+                  <span
+                    className="pv-board-chip pv-board-chip-changes"
+                    title={approvalRequest.comment
+                      ? `“${approvalRequest.comment}” — ${approverName}`
+                      : `Changes requested by ${approverName}`}
+                  >
+                    <Icon name="AlertTriangle" style={{ width: 11, height: 11 }} aria-hidden="true" />
+                    Changes requested
                   </span>
                 );
               })()}
@@ -3173,6 +3312,64 @@ const ProvisioningBoardDetail = () => {
           onSaved={(updated) => { setList(prev => ({ ...prev, ...updated })); setShowEditModal(false); showToast('Board saved', 'success'); }}
           onClose={() => setShowEditModal(false)}
         />
+      )}
+
+      {decisionModal === 'request_changes' && (
+        <ModalShell
+          onClose={() => { if (!deciding) { setDecisionModal(null); setDecisionComment(''); } }}
+          isDirty={!!decisionComment.trim()}
+          isBusy={deciding}
+          panelClassName="pv-edit-modal pv-dashboard"
+        >
+          <div className="pv-edit-modal-head">
+            <div>
+              <span className="pv-edit-modal-eyebrow">Reviewer decision</span>
+              <h2 className="pv-edit-modal-title">Request, <em>changes</em>.</h2>
+            </div>
+            <button
+              onClick={() => { setDecisionModal(null); setDecisionComment(''); }}
+              className="pv-edit-modal-close"
+              aria-label="Close"
+              disabled={deciding}
+            >
+              <Icon name="X" style={{ width: 16, height: 16 }} />
+            </button>
+          </div>
+          <div className="pv-edit-modal-body">
+            <div className="pv-edit-modal-field">
+              <label className="pv-edit-modal-label" htmlFor="ebm-comment">What needs to change?</label>
+              <textarea
+                id="ebm-comment"
+                value={decisionComment}
+                onChange={e => setDecisionComment(e.target.value)}
+                rows={4}
+                autoFocus
+                className="pv-edit-modal-textarea"
+                placeholder="Be specific so the submitter can act on it — quantities, missing items, supplier swap, etc."
+              />
+            </div>
+          </div>
+          <div className="pv-edit-modal-foot">
+            <div className="pv-edit-modal-actions">
+              <button
+                type="button"
+                onClick={() => { setDecisionModal(null); setDecisionComment(''); }}
+                className="pv-edit-modal-btn pv-edit-modal-btn-ghost"
+                disabled={deciding}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDecide('request_changes')}
+                disabled={deciding || !decisionComment.trim()}
+                className="pv-edit-modal-btn pv-edit-modal-btn-primary"
+              >
+                {deciding ? 'Sending…' : 'Send to submitter'}
+              </button>
+            </div>
+          </div>
+        </ModalShell>
       )}
 
       {showReceiveModal && (
