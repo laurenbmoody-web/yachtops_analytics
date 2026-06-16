@@ -91,6 +91,13 @@ export function deriveCrew(member, memberShifts, weekShifts, now = new Date(), i
     return { start, end, type: s.shiftType, subType: s.subType };
   }).filter(r => r.start != null && r.end != null);
 
+  // Hours WORKED today — sum of the on-duty shift durations (overnight blocks
+  // already extended past midnight above). The complement (24 − worked) is the
+  // hours off. Shown on the rota's list/week views as "8h on · 16h off".
+  const workHoursToday = shiftRanges.reduce(
+    (sum, r) => sum + Math.max(0, r.end - r.start), 0,
+  );
+
   // Rest-hour math via the shared MLC utility. Covers all four rules
   // (10h/24h, 77h/7d, ≤2 rest periods one ≥6h, ≤14h continuous on-duty);
   // mlcWarning trips if any rule breaches.
@@ -144,6 +151,8 @@ export function deriveCrew(member, memberShifts, weekShifts, now = new Date(), i
     shifts: shiftRanges,
     shiftText,
     rest24h: offToday ? null : fmtHours(rest24hDecimal),
+    workHours: offToday ? null : fmtHours(workHoursToday),
+    offHours: offToday ? null : fmtHours(Math.max(0, 24 - workHoursToday)),
     pastWeek: fmtHours(pastWeekHours),
     rest24hDecimal,
     pastWeekHours,

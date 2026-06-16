@@ -69,9 +69,9 @@ function CrewRow({ crew, onClick }) {
       ) : (
         <div className="crew-list-rest">
           <div className={`crew-list-rest-num ${crew.mlcWarning ? 'warning' : ''}`}>
-            {crew.rest24h || '—'}
+            {crew.workHours || '—'} <span className="crew-list-rest-on">on</span>
           </div>
-          <div className="crew-list-rest-cap">Rest 24h</div>
+          <div className="crew-list-rest-cap">{crew.offHours || '—'} off</div>
         </div>
       )}
 
