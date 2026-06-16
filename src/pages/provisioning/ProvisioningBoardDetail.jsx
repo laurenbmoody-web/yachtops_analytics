@@ -1695,6 +1695,15 @@ const ProvisioningBoardDetail = () => {
                     <Icon name="Send" style={{ width: 13, height: 13 }} /> Send to Supplier
                   </button>
                 )}
+                {isDraftOrPending && (
+                  <button
+                    type="button"
+                    onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)}
+                    className="cargo-ribbon-btn"
+                  >
+                    <Icon name="Send" style={{ width: 13, height: 13 }} /> Submit for Approval
+                  </button>
+                )}
               </div>
             </div>
           }
@@ -1768,9 +1777,10 @@ const ProvisioningBoardDetail = () => {
                 activeTab={activeTab}
                 onTabChange={setActiveTab}
               />
-              {/* ⋯ sits in the gap between the tab labels and the Submit
-                  slot. Submit for Approval anchors to the right edge,
-                  vertically aligned beneath the right-rail stack column. */}
+              {/* ⋯ floats at the right edge of the tabs row — sits on the
+                  tabs baseline in the gap just before the right-rail
+                  stack, level with Submit for Approval at the stack's
+                  bottom. */}
               <div className="pv-board-tabs-more">
                 <div className="relative" ref={menuRef}>
                   <button
@@ -1807,17 +1817,6 @@ const ProvisioningBoardDetail = () => {
                     </div>
                   )}
                 </div>
-              </div>
-              <div className="pv-board-tabs-submit">
-                {isDraftOrPending && (
-                  <button
-                    type="button"
-                    onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)}
-                    className="cargo-ribbon-btn"
-                  >
-                    <Icon name="Send" style={{ width: 13, height: 13 }} /> Submit for Approval
-                  </button>
-                )}
               </div>
             </div>
             </>
