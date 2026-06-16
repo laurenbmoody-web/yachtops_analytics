@@ -30,13 +30,15 @@
 }
 
 /* ── Board-detail Option B layout ─────────────────────────────
-   Chips and the tabs row both live INSIDE the header row's left
-   column (via EditorialPageShell's `headerExtra` slot). That makes
-   the left column grow all the way down to the tabs hairline, and
-   the right rail's `align-self: flex-end` lands the ribbon's bottom
-   button (Send to Supplier) on the same baseline as the tab labels. */
+   Header row carries a single full-width bottom hairline. Both the
+   left column (tabs + ⋯ + Submit) and the right rail (4-button
+   stack) end with 14px padding-bottom so their content sits a hair
+   above this shared line. */
 .editorial-page.pv-dashboard .p-header-row {
   align-items: stretch;
+  border-bottom: 1px solid var(--d-border);
+  margin-bottom: 1.75rem;
+  padding-bottom: 14px;
 }
 .editorial-page.pv-dashboard .p-header-row > div:first-child {
   display: flex;
@@ -47,9 +49,11 @@
   align-self: flex-end;
 }
 
-/* Ribbon — single flat stack, uniform 4px gap so Send to Supplier
-   sits flush with Receive Items rather than gapped via the prior
-   read/write group division. */
+/* Ribbon — vertical stack. Uniform 4px gap throughout (within
+   groups, across the divider, and into the ⋯+Submit footer row) so
+   the spacing reads as a single rhythm. Stack pins to flex-end of
+   the header column so its bottom (the ⋯+Submit row) lands on the
+   tabs baseline. */
 .cargo-ribbon-vertical {
   display: flex;
   flex-direction: column;
@@ -60,7 +64,10 @@
   max-width: 250px;
 }
 .cargo-ribbon-vertical .cargo-ribbon-group {
-  display: contents;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
 }
 .cargo-ribbon-vertical .cargo-ribbon-btn {
   width: 100%;
@@ -69,52 +76,121 @@
   font-size: 11.5px;
 }
 
+/* Tighten the meta line + headline → chip row → tabs rhythm so the
+   identity block reads as one band rather than three loose pieces.
+   - Meta strip sits closer to the headline (5px vs the inherited 10).
+   - Headline bottom margin tightens to 8px.
+   - Chip row uses `margin: auto 0` so it's vertically centered in the
+     free space between headline and tabs (instead of clinging to the
+     headline), giving equal breathing room above and below.
+   - Tabs row drops its `margin-top: auto` so the chip row claims the
+     centering space, not the tabs row. */
+.editorial-page.pv-dashboard .p-context-bar { margin-bottom: 5px; }
+.editorial-page.pv-dashboard .p-greeting { margin-bottom: 8px; }
+
 /* Chip row sits inside the left column right below the headline. */
 .pv-board-chip-row {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin: 18px 0 0;
+  margin: auto 0;
 }
 
-/* Tabs row inside the header's left column. `margin-top: auto`
-   pushes it to the bottom of the column so its baseline matches the
-   ribbon's bottom button on the right rail. The shared hairline
-   beneath both tabs and the action buttons runs full-column-width;
-   the gap to the ribbon is part of the flex layout. */
+/* Tabs row — three slots:
+     1. EditorialTabNav (left, natural width)
+     2. .pv-board-tabs-more (⋯ in the middle, pushed away from tabs
+        via margin-left: auto)
+     3. .pv-board-tabs-submit (right, fixed-width column matching the
+        ribbon stack so Submit anchors directly beneath Send to
+        Supplier)
+   No border here — the hairline lives on the parent .p-header-row
+   so it runs full width across both columns. */
 .editorial-page.pv-dashboard .pv-board-tabs-row {
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
   gap: 24px;
-  margin: 24px 0 1.75rem;
-  border-bottom: 1px solid var(--d-border);
-  margin-top: auto;
+  margin: 0;
 }
 .editorial-page.pv-dashboard .pv-board-tabs-row .editorial-tab-nav {
   margin: 0;
   border-bottom: 0;
-  padding-bottom: 14px;
+  padding-bottom: 0;
 }
 .editorial-page.pv-dashboard .pv-board-tabs-row .editorial-tab {
   margin-bottom: 0;
+  padding-bottom: 0;
 }
-.pv-board-tabs-actions {
+.pv-board-tabs-more {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding-bottom: 8px;
+  margin-left: auto;
+  position: relative;
 }
-.pv-board-tabs-actions .cargo-ribbon-btn {
-  font-size: 11.5px;
-  padding: 6px 12px;
-}
-.pv-board-tabs-actions .cargo-ribbon-btn-icon {
+.pv-board-tabs-more .cargo-ribbon-btn-icon {
   width: 32px;
   padding: 6px 0;
   justify-content: center;
   flex-shrink: 0;
+}
+
+/* Hover state — drop the inherited warm beige fill from pantry.css
+   in favour of a cool surface with terracotta text + matching ring,
+   so the ribbon matches the rest of the dashboard palette. Primary
+   buttons keep their filled-navy hover unchanged. */
+.editorial-page.pv-dashboard .cargo-ribbon-btn:not(.cargo-ribbon-btn-primary):hover {
+  background: var(--d-card);
+  color: var(--d-orange);
+  border-color: var(--d-orange);
+}
+
+/* ⋯ overflow menu — cool-surface popover matching the rest of the
+   pv-dashboard scope. Drops the tailwind tokens (which resolve to the
+   warm theme) for explicit --d-* values. */
+.pv-board-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 50;
+  min-width: 200px;
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  border-radius: 12px;
+  box-shadow: 0 14px 36px rgba(38, 42, 83, 0.14);
+  padding: 6px;
+}
+.pv-board-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--d-navy-deep);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s, color 0.12s;
+}
+.pv-board-menu-item:hover {
+  background: var(--d-bg);
+  color: var(--d-orange);
+}
+.pv-board-menu-item-danger {
+  color: var(--d-danger);
+}
+.pv-board-menu-item-danger:hover {
+  background: var(--d-danger-soft);
+  color: var(--d-danger);
+}
+.pv-board-menu-divider {
+  height: 1px;
+  background: var(--d-border-soft);
+  margin: 4px 0;
 }
 .pv-board-chip {
   display: inline-flex;

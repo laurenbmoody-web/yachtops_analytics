@@ -14,7 +14,6 @@ import StatusChangeModal from '../crew-management/components/StatusChangeModal';
 import { getCurrentUser, getDepartmentDisplayName, getTierDisplayName } from '../../utils/authStorage';
 import { getInitials } from '../../utils/profileHelpers';
 import DocumentsTab from './components/DocumentsTab';
-import ProfileCompletionMeter from './components/ProfileCompletionMeter';
 import { fetchCrewProfileData, profileDataToFormData, saveCrewProfileData, logBankingView } from './utils/crewProfileData';
 import { ibanWarning, swiftWarning } from './utils/bankingValidation';
 import { fetchCrewDocuments } from './utils/crewDocuments';
@@ -182,6 +181,17 @@ const CrewProfile = () => {
   const [myProfile, setMyProfile] = useState(null);
   const [statusChangeModalOpen, setStatusChangeModalOpen] = useState(false);
   const [statusChangeSaving, setStatusChangeSaving] = useState(false);
+  // Profile-completion dropdown — opened by clicking the % badge on the avatar.
+  const [completionOpen, setCompletionOpen] = useState(false);
+  const completionRef = useRef(null);
+  useEffect(() => {
+    if (!completionOpen) return undefined;
+    const onDown = (e) => {
+      if (completionRef.current && !completionRef.current.contains(e.target)) setCompletionOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [completionOpen]);
 
   // Re-sign the stored signature object paths into short-lived display URLs
   // whenever the month status row changes (paths outlive any single signed URL).
@@ -1020,42 +1030,98 @@ const canEdit = (() => {
       ? new Date(crewMember?.startDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
       : null;
     const completion = computeProfileCompletion({ formData, crewMember, docs: crewDocs });
+    // Profile-completion ring drawn around the avatar (r=52 in a 112 viewBox).
+    const RING_C = 2 * Math.PI * 52;
+    const ringPct = Math.max(0, Math.min(100, Math.round(completion.percent || 0)));
+    const ringComplete = ringPct >= 100;
+    const ringOffset = RING_C * (1 - ringPct / 100);
 
     return (
       <div className="mb-8">
         <div className="flex items-start justify-between gap-6">
           <div className="flex items-start gap-6">
-            {/* Profile Photo - Clickable Upload Area */}
-            <div className="flex flex-col items-center gap-2">
-              <div
-                onClick={handleAvatarClick}
-                className={`w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 overflow-hidden relative ${
-                  canEdit ? 'cursor-pointer hover:ring-2 hover:ring-primary hover:ring-offset-2 hover:ring-offset-background transition-all' : ''
-                }`}
-              >
-                {avatarUploading && (
-                  <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-10">
-                    <LogoSpinner size={24} />
-                  </div>
-                )}
-                {avatarPreview || crewMember?.avatarUrl ? (
-                  <img
-                    src={avatarPreview || crewMember?.avatarUrl}
-                    alt={crewMember?.fullName}
-                    className="w-full h-full object-cover"
+            {/* Profile Photo — clickable upload, wrapped in the completion ring */}
+            <div className="flex flex-col items-center gap-2 cp-avatar-col" ref={completionRef}>
+              <div className="cp-avatar-ring">
+                <svg className="cp-avatar-ring-svg" viewBox="0 0 112 112" aria-hidden="true">
+                  <circle className="track" cx="56" cy="56" r="52" />
+                  <circle
+                    className={`fill${ringComplete ? ' is-complete' : ''}`}
+                    cx="56"
+                    cy="56"
+                    r="52"
+                    transform="rotate(-90 56 56)"
+                    strokeDasharray={RING_C}
+                    strokeDashoffset={ringOffset}
                   />
-                ) : getInitials(crewMember?.fullName) ? (
-                  <span className="text-primary font-semibold text-2xl tracking-wide">
-                    {getInitials(crewMember?.fullName)}
-                  </span>
+                </svg>
+                <div
+                  onClick={handleAvatarClick}
+                  className={`cp-avatar-photo w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 overflow-hidden relative ${
+                    canEdit ? 'cursor-pointer hover:ring-2 hover:ring-primary hover:ring-offset-2 hover:ring-offset-background transition-all' : ''
+                  }`}
+                >
+                  {avatarUploading && (
+                    <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-10">
+                      <LogoSpinner size={24} />
+                    </div>
+                  )}
+                  {avatarPreview || crewMember?.avatarUrl ? (
+                    <img
+                      src={avatarPreview || crewMember?.avatarUrl}
+                      alt={crewMember?.fullName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : getInitials(crewMember?.fullName) ? (
+                    <span className="text-primary font-semibold text-2xl tracking-wide">
+                      {getInitials(crewMember?.fullName)}
+                    </span>
+                  ) : (
+                    <Icon name="User" size={48} className="text-primary" />
+                  )}
+                </div>
+                {ringComplete ? (
+                  <span className="cp-avatar-pct is-complete" title="Profile complete">✓</span>
                 ) : (
-                  <Icon name="User" size={48} className="text-primary" />
+                  <button
+                    type="button"
+                    className={`cp-avatar-pct cp-avatar-pct-btn${completionOpen ? ' is-open' : ''}`}
+                    onClick={() => setCompletionOpen((v) => !v)}
+                    aria-expanded={completionOpen}
+                    title={`${ringPct}% complete — ${completion.missing.length} to finish`}
+                  >
+                    {ringPct}%
+                  </button>
                 )}
               </div>
               {canEdit && (
                 <p className="text-xs text-muted-foreground text-center max-w-[100px]">
                   Click to upload photo
                 </p>
+              )}
+
+              {/* What's left to fill in — drops down from the % badge. */}
+              {completionOpen && !ringComplete && completion.missing.length > 0 && (
+                <div className="cp-completion-pop">
+                  <div className="cp-completion-pop-head">
+                    <span className="pct">{ringPct}% complete</span>
+                    <span className="rem">{completion.missing.length} to finish</span>
+                  </div>
+                  <ul className="cp-completion-pop-list">
+                    {completion.missing.map((m) => (
+                      <li key={m.key}>
+                        <button
+                          type="button"
+                          onClick={() => { setActiveSection(m.tab); setIsEditing(false); setCompletionOpen(false); }}
+                        >
+                          <span className="dot" />
+                          <span className="lbl">{m.label}</span>
+                          <span className="go">›</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </div>
 
@@ -1087,28 +1153,26 @@ const canEdit = (() => {
                 {headlineTitle}<span className="period">,</span>{' '}
                 <em>{headlineQualifier}</em><span className="period">.</span>
               </h1>
-              {crewMember?.status ? (
-                canEditStatus ? (
-                  <button
-                    onClick={() => setStatusChangeModalOpen(true)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity ${getStatusBadgeClasses(crewMember?.status)}`}
-                  >
-                    <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotClass(crewMember?.status)}`} />
-                    {getStatusLabel(crewMember?.status)}
-                    <Icon name="ChevronDown" size={10} />
-                  </button>
-                ) : (
-                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeClasses(crewMember?.status)}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotClass(crewMember?.status)}`} />
-                    {getStatusLabel(crewMember?.status)}
-                  </span>
-                )
-              ) : null}
-              <ProfileCompletionMeter
-                percent={completion.percent}
-                missing={completion.missing}
-                onJump={(tab) => { setActiveSection(tab); setIsEditing(false); }}
-              />
+              <div className="cp-completion-row">
+                {crewMember?.status ? (
+                  canEditStatus ? (
+                    <button
+                      onClick={() => setStatusChangeModalOpen(true)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity ${getStatusBadgeClasses(crewMember?.status)}`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotClass(crewMember?.status)}`} />
+                      {getStatusLabel(crewMember?.status)}
+                      <Icon name="ChevronDown" size={10} />
+                    </button>
+                  ) : (
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeClasses(crewMember?.status)}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotClass(crewMember?.status)}`} />
+                      {getStatusLabel(crewMember?.status)}
+                    </span>
+                  )
+                ) : null}
+                {ringComplete && <span className="cp-complete-note">✓ Profile complete</span>}
+              </div>
             </div>
           </div>
 
@@ -1142,10 +1206,9 @@ const canEdit = (() => {
     return (
       <div>
         <div className="cp-section-head">
-          <span className="cp-section-kicker">01 / Identity</span>
+          <span className="cp-section-num">01 /</span>
           <h3>Personal Details</h3>
         </div>
-        <p className="cp-section-sub">Identity, contact and the basics we hold on file.</p>
 
         <div className="cp-grid">
           <div className="cp-field-full cp-name-row">
@@ -1381,10 +1444,9 @@ const canEdit = (() => {
     return (
       <div>
         <div className="cp-section-head">
-          <span className="cp-section-kicker">02 / Emergency</span>
-          <h3>Emergency / Next of Kin</h3>
+          <span className="cp-section-num">02 /</span>
+          <h3>Emergency</h3>
         </div>
-        <p className="cp-section-sub">Who we call first — and who does what — if we can't reach you mid-passage.</p>
 
         {/* Emergency Contact (primary) */}
         <div className="cp-group">
@@ -1723,10 +1785,9 @@ const canEdit = (() => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
           <div>
             <div className="cp-section-head">
-              <span className="cp-section-kicker">04 / Banking</span>
+              <span className="cp-section-num">03 /</span>
               <h3>Banking</h3>
             </div>
-            <p className="cp-section-sub">Held encrypted and visible only to authorised crew.</p>
           </div>
           {!isEditing && canReveal && (
             <Button
@@ -1965,10 +2026,9 @@ const canEdit = (() => {
     return (
       <div>
         <div className="cp-section-head">
-          <span className="cp-section-kicker">05 / Preferences</span>
+          <span className="cp-section-num">04 /</span>
           <h3>Preferences</h3>
         </div>
-        <p className="cp-section-sub">Dietary needs and the little touches the interior likes to know.</p>
 
         {/* Dietary */}
         <div className="cp-group">
@@ -2633,10 +2693,9 @@ const canEdit = (() => {
   const renderDocuments = () => (
     <div>
       <div className="cp-section-head">
-        <span className="cp-section-kicker">04 / Documents</span>
+        <span className="cp-section-num">05 /</span>
         <h3>Documents</h3>
       </div>
-      <p className="cp-section-sub">Certificates, contracts and travel documents held on file.</p>
       <div className="cp-flatcard p-10 text-center">
         <Icon name="FileText" size={30} className="text-muted-foreground mx-auto mb-3" />
         <p className="text-sm text-muted-foreground">Document storage is coming to this tab.</p>
