@@ -114,7 +114,7 @@ const TagInput = ({ value, disabled, onChange, placeholder }) => {
   const remove = (t) => onChange(tags.filter((x) => x !== t).join(', '));
 
   if (disabled) {
-    if (!tags.length) return <div className="cp-static cp-empty">{placeholder || '—'}</div>;
+    if (!tags.length) return <div className="cp-static cp-empty">—</div>;
     return <div className="cp-tags">{tags.map((t) => <span key={t} className="cp-tag">{t}</span>)}</div>;
   }
   return (
@@ -140,33 +140,49 @@ const TagInput = ({ value, disabled, onChange, placeholder }) => {
   );
 };
 
-// Spice tolerance — a 4-step scale. Reads back as small terracotta diamonds
-// (echoing the ◆ group motif); edits as a plain inline dropdown in the card.
+// Spice tolerance — a 4-step scale shown as chilli outlines that fill in with
+// terracotta up to the chosen level. Clickable in edit mode (click a chilli to
+// set that level; click the current top one again to clear); static in read.
 const SPICE_LEVELS = ['Mild', 'Medium', 'Hot', 'Very hot'];
+const CHILLI_PATH = 'M14.5 4.2c-.5 1.1-.3 2.2.6 3.1 M15.1 7.4c2.2.2 3.7 2 3.6 4.2-.2 4.6-4 8.4-8.6 8.4-2.7 0-4.9-2.2-4.9-4.9 0-2.6 2.1-4.7 4.7-4.7 1.9 0 3 .9 3.9 2.1.5.7 1.2.5 1.2-.4 0-1.3-.1-2.6-.1-3.8z';
+const Chilli = ({ filled }) => (
+  <svg viewBox="0 0 24 24" className="cp-chilli" aria-hidden="true">
+    <path d={CHILLI_PATH} fill={filled ? '#C65A1A' : 'none'} stroke="#C65A1A"
+      strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+  </svg>
+);
 const SpiceField = ({ value, disabled, onChange }) => {
+  const idx = SPICE_LEVELS.indexOf(value); // -1 when not set
   if (disabled) {
-    if (!value) return <div className="cp-static cp-empty">—</div>;
-    const idx = SPICE_LEVELS.indexOf(value);
+    if (idx < 0) return <div className="cp-static cp-empty">—</div>;
     return (
       <div className="cp-spice">
-        <span className="cp-spice-val">{value}</span>
-        <span className="cp-spice-scale" aria-hidden="true">
-          {SPICE_LEVELS.map((_, i) => (
-            <span key={i} className={`cp-spice-pip${i <= idx ? ' on' : ''}`} />
-          ))}
+        <span className="cp-spice-row">
+          {SPICE_LEVELS.map((_, i) => <Chilli key={i} filled={i <= idx} />)}
         </span>
+        <span className="cp-spice-val">{value}</span>
       </div>
     );
   }
   return (
-    <select
-      className="cp-inline-select"
-      value={value || ''}
-      onChange={(e) => onChange(e.target.value)}
-    >
-      <option value="">Not set</option>
-      {SPICE_LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
-    </select>
+    <div className="cp-spice">
+      <span className="cp-spice-row">
+        {SPICE_LEVELS.map((lvl, i) => (
+          <button
+            type="button"
+            key={lvl}
+            className="cp-chilli-btn"
+            title={lvl}
+            aria-label={lvl}
+            aria-pressed={i <= idx}
+            onClick={() => onChange(i === idx ? '' : lvl)}
+          >
+            <Chilli filled={i <= idx} />
+          </button>
+        ))}
+      </span>
+      <span className={`cp-spice-val${idx < 0 ? ' is-empty' : ''}`}>{value || 'Not set'}</span>
+    </div>
   );
 };
 
@@ -2219,18 +2235,20 @@ const canEdit = (() => {
             <span className="dia">◆</span><span className="t">Tastes</span><span className="line" />
           </div>
           <div className="cp-grid">
-            <Field label="Loves" hint={isEditing ? 'e.g. Asian, fresh seafood — Enter after each' : undefined}>
+            <Field label="Loves">
               <TagInput
                 value={formData?.favouriteMeals}
                 disabled={!isEditing}
                 onChange={(value) => handleInputChange('favouriteMeals', value)}
+                placeholder="Asian, fresh seafood… (Enter)"
               />
             </Field>
-            <Field label="Rather avoid" hint={isEditing ? 'e.g. Pork, mushrooms — Enter after each' : undefined}>
+            <Field label="Rather avoid">
               <TagInput
                 value={formData?.avoid}
                 disabled={!isEditing}
                 onChange={(value) => handleInputChange('avoid', value)}
+                placeholder="Pork, mushrooms… (Enter)"
               />
             </Field>
             <Field label="Anything else" full>

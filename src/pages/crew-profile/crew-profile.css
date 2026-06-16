@@ -233,7 +233,10 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .cp-field-card input::placeholder,
 .crew-profile-page .cp-field-card textarea::placeholder {
-  color: #AEB4C2;
+  color: #C3C8D2;
+  font-size: 12.5px !important;
+  font-style: italic;
+  font-weight: 400;
 }
 
 /* Searchable Select dropdown (Nationality) — editorial panel. The trigger
@@ -347,23 +350,28 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .cp-birthday .cp-empty { color: #AEB4C2; font-weight: 400; }
 
-/* Spice tolerance — value + a 4-step diamond scale echoing the ◆ group motif. */
+/* Spice tolerance — a 4-step chilli scale that fills with terracotta up to the
+   chosen level, plus a quiet label. Click a chilli to set (edit mode). */
 .crew-profile-page .cp-spice {
   display: flex;
   align-items: center;
   gap: 10px;
   min-height: 20px;
 }
-.crew-profile-page .cp-spice-val { font-size: 14px; font-weight: 500; color: #1C1B3A; }
-.crew-profile-page .cp-spice-scale { display: inline-flex; gap: 5px; }
-.crew-profile-page .cp-spice-pip {
-  width: 8px;
-  height: 8px;
-  transform: rotate(45deg);
-  border-radius: 1.5px;
-  background: #E3E1D8;
+.crew-profile-page .cp-spice-row { display: inline-flex; align-items: center; gap: 2px; }
+.crew-profile-page .cp-chilli { width: 22px; height: 22px; display: block; }
+.crew-profile-page .cp-chilli-btn {
+  display: inline-flex;
+  padding: 1px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: transform 0.1s ease;
 }
-.crew-profile-page .cp-spice-pip.on { background: #C65A1A; }
+.crew-profile-page .cp-chilli-btn:hover { transform: translateY(-1px); }
+.crew-profile-page .cp-spice-val { font-size: 13px; font-weight: 500; color: #1C1B3A; }
+.crew-profile-page .cp-spice-val.is-empty { color: #BFC4CF; font-weight: 400; }
 
 /* A full-width collapsible group toggle (Banking → bank address). */
 .crew-profile-page .cp-collapse-toggle {
@@ -474,7 +482,7 @@ body.crew-profile-editorial {
   color: #1C1B3A !important;
   outline: none;
 }
-.crew-profile-page .cp-tag-field::placeholder { color: #AEB4C2; }
+.crew-profile-page .cp-tag-field::placeholder { color: #C3C8D2; font-size: 12.5px; font-style: italic; }
 
 /* Emergency-contact role checkboxes + read-mode role tags. */
 .crew-profile-page .cp-check-row { display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 2px 0; }
