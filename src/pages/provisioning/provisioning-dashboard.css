@@ -30,14 +30,14 @@
 }
 
 /* ── Board-detail Option B layout ─────────────────────────────
-   Header row carries a single full-width bottom hairline. Both the
-   left column (tabs + ⋯ + Submit) and the right rail (4-button
-   stack) end with 14px padding-bottom so their content sits a hair
-   above this shared line. */
+   Header row: identity block on the left (meta + headline + chips +
+   tabs), 5-button ribbon stack on the right. The tabs row's bottom
+   hairline lives on the TOOLBAR below instead — see `.pv-board-toolbar`
+   — so tabs and filter-bar share a single rule between them and the
+   items table (Variant C). */
 .editorial-page.pv-dashboard .p-header-row {
   align-items: stretch;
-  border-bottom: 1px solid var(--d-border);
-  margin-bottom: 1.75rem;
+  margin-bottom: 0;
   padding-bottom: 14px;
 }
 .editorial-page.pv-dashboard .p-header-row > div:first-child {
@@ -284,18 +284,21 @@
   letter-spacing: 0.02em;
 }
 
-/* Sticky toolbar — cargo card surface so it reads as a coordinated
-   bar, not a raw white strip. Sticks beneath the tabs. */
+/* Toolbar — Variant C: continuous with the tabs row above. No card
+   chrome, no top hairline. A single hairline at the toolbar's bottom
+   separates the whole identity → nav → filter band from the items
+   table below. Background matches the page bg so sticky covers
+   scrolled content. */
 .pv-board-toolbar {
-  background: var(--d-card);
-  border: 1px solid var(--d-border);
-  border-bottom: 5px solid var(--d-card-edge);
-  border-radius: 14px;
-  box-shadow: var(--d-shadow);
-  margin: 12px 24px 14px;
-  padding: 12px 18px;
+  background: var(--d-bg);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  margin: 0 0 24px;
+  padding: 12px 0 14px;
+  border-bottom: 1px solid var(--d-border);
   position: sticky;
-  top: 8px;
+  top: 0;
   z-index: 30;
   display: flex;
   align-items: center;
