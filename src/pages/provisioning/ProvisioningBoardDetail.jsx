@@ -1675,15 +1675,20 @@ const ProvisioningBoardDetail = () => {
                 </button>
               </div>
 
-              {/* Write actions */}
+              {/* Write actions — workflow order top→bottom: Submit for
+                  Approval → Send to Supplier → Receive Items. Submit
+                  starts the cycle (draft/pending only), Send dispatches
+                  to the supplier, Receive closes it when goods land. */}
               <div className="cargo-ribbon-group">
-                <button
-                  type="button"
-                  onClick={() => setShowReceiveModal(true)}
-                  className="cargo-ribbon-btn"
-                >
-                  <Icon name="PackageCheck" style={{ width: 13, height: 13 }} /> Receive Items
-                </button>
+                {isDraftOrPending && (
+                  <button
+                    type="button"
+                    onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)}
+                    className="cargo-ribbon-btn"
+                  >
+                    <Icon name="Send" style={{ width: 13, height: 13 }} /> Submit for Approval
+                  </button>
+                )}
                 {canSendToSupplier && (
                   <button
                     type="button"
@@ -1695,15 +1700,13 @@ const ProvisioningBoardDetail = () => {
                     <Icon name="Send" style={{ width: 13, height: 13 }} /> Send to Supplier
                   </button>
                 )}
-                {isDraftOrPending && (
-                  <button
-                    type="button"
-                    onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)}
-                    className="cargo-ribbon-btn"
-                  >
-                    <Icon name="Send" style={{ width: 13, height: 13 }} /> Submit for Approval
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setShowReceiveModal(true)}
+                  className="cargo-ribbon-btn"
+                >
+                  <Icon name="PackageCheck" style={{ width: 13, height: 13 }} /> Receive Items
+                </button>
               </div>
             </div>
           }
@@ -1794,23 +1797,23 @@ const ProvisioningBoardDetail = () => {
                     <Icon name="MoreHorizontal" style={{ width: 14, height: 14 }} />
                   </button>
                   {showMenu && (
-                    <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[185px] z-50">
+                    <div className="pv-board-menu" role="menu">
                       {canEdit && (
-                        <button onClick={() => { setShowMenu(false); setShowEditModal(true); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
-                          <Icon name="Pencil" className="w-4 h-4" /> Edit Board
+                        <button onClick={() => { setShowMenu(false); setShowEditModal(true); }} className="pv-board-menu-item">
+                          <Icon name="Pencil" style={{ width: 14, height: 14 }} /> Edit Board
                         </button>
                       )}
-                      <button onClick={handleDuplicate} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
-                        <Icon name="Copy" className="w-4 h-4" /> Duplicate
+                      <button onClick={handleDuplicate} className="pv-board-menu-item">
+                        <Icon name="Copy" style={{ width: 14, height: 14 }} /> Duplicate
                       </button>
-                      <button onClick={handleSaveAsTemplateBoard} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2">
-                        <Icon name="FileText" className="w-4 h-4" /> Save as Template
+                      <button onClick={handleSaveAsTemplateBoard} className="pv-board-menu-item">
+                        <Icon name="FileText" style={{ width: 14, height: 14 }} /> Save as Template
                       </button>
                       {canDelete && (
                         <>
-                          <div className="my-1 border-t border-border" />
-                          <button onClick={handleDeleteBoard} className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 flex items-center gap-2">
-                            <Icon name="Trash2" className="w-4 h-4" /> Delete Board
+                          <div className="pv-board-menu-divider" />
+                          <button onClick={handleDeleteBoard} className="pv-board-menu-item pv-board-menu-item-danger">
+                            <Icon name="Trash2" style={{ width: 14, height: 14 }} /> Delete Board
                           </button>
                         </>
                       )}
