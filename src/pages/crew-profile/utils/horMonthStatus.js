@@ -56,26 +56,38 @@ export async function fetchMonthStatus({ tenantId, subjectUserId, year, jsMonth 
 }
 
 // Crew submits their own month. In 'trust' mode this returns a 'confirmed' row.
-export async function submitMonth({ tenantId, year, jsMonth, note = null, hash = null }) {
+// `signature` (optional) carries the drawn-signature audit trail:
+//   { path, name, ip, ua } — path is the hor-signatures object from
+//   uploadSignature(); the rest is the signer's name / IP / user agent.
+export async function submitMonth({ tenantId, year, jsMonth, note = null, hash = null, signature = null }) {
   const { data, error } = await supabase.rpc('hor_submit_month', {
     p_tenant_id: tenantId,
     p_year: year,
     p_month: toDbMonth(jsMonth),
     p_note: note,
     p_hash: hash,
+    p_sig_path: signature?.path || null,
+    p_signed_name: signature?.name || null,
+    p_signed_ip: signature?.ip || null,
+    p_signed_ua: signature?.ua || null,
   });
   if (error) throw error;
   return data;
 }
 
-// Approver confirms a submitted month.
-export async function approveMonth({ tenantId, subjectUserId, year, jsMonth, note = null }) {
+// Approver confirms a submitted month, optionally with a counter-signature
+// (same { path, name, ip, ua } shape as submitMonth's `signature`).
+export async function approveMonth({ tenantId, subjectUserId, year, jsMonth, note = null, signature = null }) {
   const { data, error } = await supabase.rpc('hor_approve_month', {
     p_tenant_id: tenantId,
     p_subject_user_id: subjectUserId,
     p_year: year,
     p_month: toDbMonth(jsMonth),
     p_note: note,
+    p_sig_path: signature?.path || null,
+    p_signed_name: signature?.name || null,
+    p_signed_ip: signature?.ip || null,
+    p_signed_ua: signature?.ua || null,
   });
   if (error) throw error;
   return data;

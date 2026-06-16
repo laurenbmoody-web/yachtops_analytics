@@ -30,6 +30,8 @@ import { fetchBreachReasonsForMonth, signOffBreachReason as signOffBreachReasonD
 import { useRole } from '../../contexts/RoleContext';
 import { PermissionTier } from '../../utils/authStorage';
 import VesselHORDashboard from './components/VesselHORDashboard';
+import SignOffModal from './components/SignOffModal';
+import { getSignatureUrl } from './utils/horSignatures';
 import SeaTimeTracker from './components/SeaTimeTracker';
 import { supabase } from '../../lib/supabaseClient';
 import { useTenant } from '../../contexts/TenantContext';
@@ -160,6 +162,8 @@ const CrewProfile = () => {
   const [horCurrentMonth, setHorCurrentMonth] = useState(new Date());
   const [horData, setHorData] = useState(null);
   const [dbMonthStatus, setDbMonthStatus] = useState(null);     // hor_month_status row (DB)
+  const [signOff, setSignOff] = useState(null);                 // sign-off modal config, or null
+  const [sigUrls, setSigUrls] = useState({ submit: null, approve: null }); // re-signed signature image URLs
   const [vesselHorSettings, setVesselHorSettings] = useState(null); // { mode, approverTier }
   const [breachReasonsByDate, setBreachReasonsByDate] = useState({}); // { 'YYYY-MM-DD': hor_breach_reasons row }
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(null);
@@ -178,6 +182,20 @@ const CrewProfile = () => {
   const [myProfile, setMyProfile] = useState(null);
   const [statusChangeModalOpen, setStatusChangeModalOpen] = useState(false);
   const [statusChangeSaving, setStatusChangeSaving] = useState(false);
+
+  // Re-sign the stored signature object paths into short-lived display URLs
+  // whenever the month status row changes (paths outlive any single signed URL).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [submit, approve] = await Promise.all([
+        getSignatureUrl(dbMonthStatus?.submit_signature_path),
+        getSignatureUrl(dbMonthStatus?.approve_signature_path),
+      ]);
+      if (!cancelled) setSigUrls({ submit, approve });
+    })();
+    return () => { cancelled = true; };
+  }, [dbMonthStatus?.submit_signature_path, dbMonthStatus?.approve_signature_path]);
 
   // Fetch tenant member role for permission checks
   useEffect(() => {
@@ -2071,35 +2089,57 @@ const canEdit = (() => {
     );
   };
 
-  // Crew submits their own month. In 'require' mode this awaits an approver;
-  // in 'trust' mode the RPC returns it already confirmed.
-  const handleConfirmMonth = async () => {
+  const monthLabelFor = (d) => d?.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+
+  // Crew submits their own month — opens the sign-off modal; the actual submit
+  // runs on confirm, carrying the captured drawn signature + audit trail. In
+  // 'require' mode this awaits an approver; in 'trust' mode the RPC returns it
+  // already confirmed.
+  const handleConfirmMonth = () => {
     if (!crewId) return;
-    const year = horCurrentMonth?.getFullYear();
-    const month = horCurrentMonth?.getMonth();
-    try {
-      const row = await submitMonthDb({ tenantId: activeTenantId, year, jsMonth: month });
-      // Mirror into the legacy localStorage store so existing PDF/exports stay coherent.
-      confirmMonth(crewId, year, month);
-      showToast(row?.status === 'confirmed' ? 'Month confirmed' : 'Month submitted for approval', 'success');
-      await loadHORData();
-    } catch (e) {
-      console.error('[HOR] submit failed:', e);
-      showToast(e?.message || 'Failed to submit month', 'error');
-    }
+    setSignOff({
+      kind: 'submit',
+      title: 'Sign off your Hours of Rest',
+      confirmLabel: vesselHorSettings?.mode === 'trust' ? 'Sign & confirm' : 'Sign & submit',
+      declaration:
+        'I confirm that the Hours of Rest recorded for this month are a true and accurate record of the rest I have taken, in accordance with MLC 2006 / STCW requirements.',
+      periodLabel: monthLabelFor(horCurrentMonth),
+      defaultName:
+        crewMember?.fullName && crewMember.fullName !== 'Unknown'
+          ? crewMember.fullName
+          : myProfile?.full_name || '',
+      onConfirm: async (signature) => {
+        const year = horCurrentMonth?.getFullYear();
+        const month = horCurrentMonth?.getMonth();
+        const row = await submitMonthDb({ tenantId: activeTenantId, year, jsMonth: month, signature });
+        // Mirror into the legacy localStorage store so existing PDF/exports stay coherent.
+        confirmMonth(crewId, year, month);
+        showToast(row?.status === 'confirmed' ? 'Month confirmed' : 'Month submitted for approval', 'success');
+        await loadHORData();
+      },
+    });
   };
 
-  // Approver actions (operate on the viewed crew member's month).
-  const handleApproveMonth = async () => {
-    const year = horCurrentMonth?.getFullYear();
-    const month = horCurrentMonth?.getMonth();
-    try {
-      await approveMonthDb({ tenantId: activeTenantId, subjectUserId: crewId, year, jsMonth: month });
-      showToast('Month approved', 'success');
-      await loadHORData();
-    } catch (e) {
-      showToast(e?.message || 'Failed to approve month', 'error');
-    }
+  // Approver counter-signs the viewed crew member's submitted month — opens the
+  // sign-off modal; the approve RPC (with the captain's signature) runs on confirm.
+  const handleApproveMonth = () => {
+    setSignOff({
+      kind: 'approve',
+      title: 'Counter-sign Hours of Rest',
+      confirmLabel: 'Sign & approve',
+      declaration: `I have reviewed the Hours of Rest for ${
+        crewMember?.fullName || 'this crew member'
+      } for this period and, as Master, approve them as an accurate record.`,
+      periodLabel: monthLabelFor(horCurrentMonth),
+      defaultName: myProfile?.full_name || '',
+      onConfirm: async (signature) => {
+        const year = horCurrentMonth?.getFullYear();
+        const month = horCurrentMonth?.getMonth();
+        await approveMonthDb({ tenantId: activeTenantId, subjectUserId: crewId, year, jsMonth: month, signature });
+        showToast('Month approved & counter-signed', 'success');
+        await loadHORData();
+      },
+    });
   };
 
   const handleReopenMonth = async () => {
@@ -2406,6 +2446,57 @@ const canEdit = (() => {
                 )}
               </div>
             </div>
+            {/* Signature receipt — the drawn signatures + audit trail captured
+                at submit (crew) and approve (captain). Shown once a month has
+                been signed; the image URLs are re-signed on each load. */}
+            {(dbMonthStatus?.submit_signature_path || dbMonthStatus?.approve_signature_path) && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {dbMonthStatus?.submit_signature_path && (
+                  <div className="cp-flatcard p-4">
+                    <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground mb-2">
+                      Signed by crew
+                    </div>
+                    {sigUrls?.submit && (
+                      <img
+                        src={sigUrls.submit}
+                        alt="Crew signature"
+                        className="h-16 w-auto max-w-full bg-white rounded border border-border"
+                      />
+                    )}
+                    <div className="mt-2 text-sm font-medium text-foreground">
+                      {dbMonthStatus?.submit_signed_name || crewMember?.fullName || '—'}
+                    </div>
+                    {dbMonthStatus?.submitted_at && (
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(dbMonthStatus.submitted_at).toLocaleString('en-GB')}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {dbMonthStatus?.approve_signature_path && (
+                  <div className="cp-flatcard p-4">
+                    <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground mb-2">
+                      Counter-signed (Master)
+                    </div>
+                    {sigUrls?.approve && (
+                      <img
+                        src={sigUrls.approve}
+                        alt="Master signature"
+                        className="h-16 w-auto max-w-full bg-white rounded border border-border"
+                      />
+                    )}
+                    <div className="mt-2 text-sm font-medium text-foreground">
+                      {dbMonthStatus?.approve_signed_name || '—'}
+                    </div>
+                    {dbMonthStatus?.confirmed_at && (
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(dbMonthStatus.confirmed_at).toLocaleString('en-GB')}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             {/* Top Summary — editorial KPI tiles (match the rota rest-log strip
                 + the approved hybrid mockup). */}
             <div className="cp-kpis">
@@ -2798,6 +2889,22 @@ const canEdit = (() => {
             currentStatus={crewMember?.status}
             saving={statusChangeSaving}
           />
+
+          {/* HOR month sign-off — drawn signature + audit trail (crew submit /
+              master counter-sign). The transition RPC runs on confirm. */}
+          {signOff && (
+            <SignOffModal
+              isOpen={!!signOff}
+              onClose={() => setSignOff(null)}
+              onConfirm={signOff.onConfirm}
+              title={signOff.title}
+              declaration={signOff.declaration}
+              periodLabel={signOff.periodLabel}
+              defaultName={signOff.defaultName}
+              confirmLabel={signOff.confirmLabel}
+              kind={signOff.kind}
+            />
+          )}
         </main>
       )}
     </div>
