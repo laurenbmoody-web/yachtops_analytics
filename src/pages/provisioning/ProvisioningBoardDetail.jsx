@@ -257,14 +257,20 @@ const EditBoardModal = ({ list, onSaved, onClose }) => {
             className="pv-edit-modal-select"
           >
             <option value="">No trip linked</option>
-            {trips.map(t => {
-              const name = t.title || t.name || 'Trip';
-              const type = t.tripType ? ` · ${t.tripType}` : '';
-              const start = t.startDate ? ` · ${new Date(t.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : '';
-              return (
-                <option key={t.id} value={t.id}>{name}{type}{start}</option>
-              );
-            })}
+            {trips
+              // `list.trip_id` is a uuid column — only trips with a
+              // supabaseId can actually be saved against it. Legacy
+              // localStorage-only trips (no supabaseId) would PATCH 400
+              // on save, so we hide them from the picker.
+              .filter(t => !!t.supabaseId)
+              .map(t => {
+                const name = t.title || t.name || 'Trip';
+                const type = t.tripType ? ` · ${t.tripType}` : '';
+                const start = t.startDate ? ` · ${new Date(t.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : '';
+                return (
+                  <option key={t.supabaseId} value={t.supabaseId}>{name}{type}{start}</option>
+                );
+              })}
           </select>
         </div>
 
