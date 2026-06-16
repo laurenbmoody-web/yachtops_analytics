@@ -11,9 +11,11 @@ import { ChevronDown, Check } from 'lucide-react';
 //   departments  [{ id, name }]  — the departments present on this rota
 //   value        Set<id>         — currently-visible department ids
 //   onChange     (Set<id>) => void
-//   lockedId     id | null       — a department that can't be hidden (the
-//                                  viewer's own dept, so a chief always sees it)
-export default function DepartmentFilter({ departments, value, onChange, lockedId = null }) {
+//   ownId        id | null       — the viewer's own department. Pinned to the
+//                                  top of the list and tagged "you", but still
+//                                  toggleable so the viewer can hide it and
+//                                  focus solely on another department.
+export default function DepartmentFilter({ departments, value, onChange, ownId = null }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -24,26 +26,31 @@ export default function DepartmentFilter({ departments, value, onChange, lockedI
     return () => document.removeEventListener('pointerdown', onDoc);
   }, [open]);
 
+  // Own department first, the rest in their given order.
+  const ordered = [...departments].sort((a, b) => {
+    if (a.id === ownId) return -1;
+    if (b.id === ownId) return 1;
+    return 0;
+  });
+
   const total = departments.length;
   const shown = departments.filter((d) => value.has(d.id)).length;
   const allShown = shown === total;
   const label = allShown ? 'All departments' : `${shown} of ${total} departments`;
 
   const toggle = (id) => {
-    if (id === lockedId) return;            // own dept is always visible
     const next = new Set(value);
     if (next.has(id)) next.delete(id); else next.add(id);
-    // Never allow an empty view — keep at least the locked dept (or the one
-    // just toggled off becomes back on if it was the last).
+    // Never allow an empty view — keep at least one department selected.
     if (next.size === 0) return;
     onChange(next);
   };
 
   const setAll = (on) => {
     if (on) { onChange(new Set(departments.map((d) => d.id))); return; }
-    // "None" still keeps the locked department visible (and falls back to the
-    // first department when there's no lock) so the grid is never empty.
-    const keep = lockedId || departments[0]?.id;
+    // "Just mine" focuses on the viewer's own department (or the first one
+    // when there's no own dept), so the grid is never empty.
+    const keep = ownId || departments[0]?.id;
     onChange(new Set(keep ? [keep] : []));
   };
 
@@ -67,23 +74,21 @@ export default function DepartmentFilter({ departments, value, onChange, lockedI
             <span>·</span>
             <button type="button" onClick={() => setAll(false)}>Just mine</button>
           </div>
-          {departments.map((d) => {
+          {ordered.map((d) => {
             const checked = value.has(d.id);
-            const locked = d.id === lockedId;
+            const isOwn = d.id === ownId;
             return (
               <button
                 key={d.id}
                 type="button"
                 role="option"
                 aria-selected={checked}
-                className={`crew-rota-deptfilter-item${checked ? ' is-on' : ''}${locked ? ' is-locked' : ''}`}
+                className={`crew-rota-deptfilter-item${checked ? ' is-on' : ''}`}
                 onClick={() => toggle(d.id)}
-                disabled={locked}
-                title={locked ? 'Your own department is always shown' : undefined}
               >
                 <span className="crew-rota-deptfilter-check">{checked ? <Check size={12} /> : null}</span>
                 <span>{d.name}</span>
-                {locked && <span className="crew-rota-deptfilter-you">you</span>}
+                {isOwn && <span className="crew-rota-deptfilter-you">you</span>}
               </button>
             );
           })}

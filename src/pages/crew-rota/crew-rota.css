@@ -127,8 +127,7 @@
   color: #1C1B3A;
   text-align: left;
 }
-.crew-rota-deptfilter-item:hover:not(:disabled) { background: #F7F5F0; }
-.crew-rota-deptfilter-item.is-locked { cursor: default; color: #8B8478; }
+.crew-rota-deptfilter-item:hover { background: #F7F5F0; }
 .crew-rota-deptfilter-check {
   width: 14px;
   height: 14px;

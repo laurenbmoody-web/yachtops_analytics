@@ -753,7 +753,7 @@ export default function RotaWorkspace({
                 departments={presentDeptList}
                 value={visibleDeptIds || new Set(presentDeptList.map((d) => d.id))}
                 onChange={setVisibleDeptIds}
-                lockedId={ownDeptId}
+                ownId={ownDeptId}
               />
             )}
             {view === 'hor' ? (
