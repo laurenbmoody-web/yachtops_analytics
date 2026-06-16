@@ -487,3 +487,180 @@
    count moved to a chip on the identity row (.pv-board-chip-progress
    above). Old .pv-board-progress* rules removed. */
 
+/* ── Edit Board modal ─────────────────────────────────────────
+   Mounted inside ModalShell with `.pv-edit-modal.pv-dashboard` on
+   the panel. The `.pv-dashboard` class lights up the cool token
+   scope (--d-bg, --d-card, --d-orange, …) inside the portal subtree
+   since CSS variables don't inherit across React-portal siblings. */
+.pv-edit-modal {
+  width: 100%;
+  max-width: 560px;
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  border-bottom: 5px solid var(--d-card-edge);
+  border-radius: 14px;
+  box-shadow: 0 28px 72px rgba(38, 42, 83, 0.18);
+  padding: 28px 30px 22px;
+  font-family: var(--font-sans);
+  color: var(--d-navy-deep);
+}
+
+.pv-edit-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+.pv-edit-modal-eyebrow {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--d-muted-soft);
+  margin-bottom: 4px;
+}
+.pv-edit-modal-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-weight: 400;
+  font-size: 28px;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--d-navy-deep);
+  margin: 0;
+}
+.pv-edit-modal-title em {
+  font-style: italic;
+  color: var(--d-orange);
+}
+.pv-edit-modal-close {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--d-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.pv-edit-modal-close:hover {
+  background: var(--d-bg);
+  color: var(--d-navy-deep);
+  border-color: var(--d-border);
+}
+
+.pv-edit-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.pv-edit-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.pv-edit-modal-field {
+  display: flex;
+  flex-direction: column;
+}
+.pv-edit-modal-label {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--d-muted-soft);
+  margin-bottom: 6px;
+}
+
+.pv-edit-modal-input,
+.pv-edit-modal-textarea,
+.pv-edit-modal-select {
+  width: 100%;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--d-navy-deep);
+  background: var(--d-bg);
+  border: 1px solid var(--d-border);
+  border-radius: 9px;
+  padding: 9px 12px;
+  outline: none;
+  transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
+}
+.pv-edit-modal-input::placeholder,
+.pv-edit-modal-textarea::placeholder {
+  color: var(--d-muted-soft);
+}
+.pv-edit-modal-input:focus,
+.pv-edit-modal-textarea:focus,
+.pv-edit-modal-select:focus {
+  background: var(--d-card);
+  border-color: var(--d-orange);
+  box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.12);
+}
+.pv-edit-modal-textarea {
+  resize: vertical;
+  min-height: 76px;
+  font-family: var(--font-sans);
+  line-height: 1.5;
+}
+.pv-edit-modal-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 32px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237C7E9B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+}
+
+.pv-edit-modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--d-border-soft);
+}
+.pv-edit-modal-btn {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s, opacity 0.12s;
+}
+.pv-edit-modal-btn-ghost {
+  background: transparent;
+  color: var(--d-muted);
+  border-color: transparent;
+}
+.pv-edit-modal-btn-ghost:hover {
+  color: var(--d-orange);
+}
+.pv-edit-modal-btn-primary {
+  background: var(--d-navy-deep);
+  color: #fff;
+  border-color: var(--d-navy-deep);
+}
+.pv-edit-modal-btn-primary:hover:not(:disabled) {
+  background: var(--d-orange);
+  border-color: var(--d-orange);
+}
+.pv-edit-modal-btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
