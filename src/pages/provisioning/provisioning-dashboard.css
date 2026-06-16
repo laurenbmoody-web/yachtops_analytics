@@ -47,9 +47,11 @@
   align-self: flex-end;
 }
 
-/* Ribbon — single flat stack, uniform 4px gap so Send to Supplier
-   sits flush with Receive Items rather than gapped via the prior
-   read/write group division. */
+/* Ribbon — vertical stack. Uniform 4px gap throughout (within
+   groups, across the divider, and into the ⋯+Submit footer row) so
+   the spacing reads as a single rhythm. Stack pins to flex-end of
+   the header column so its bottom (the ⋯+Submit row) lands on the
+   tabs baseline. */
 .cargo-ribbon-vertical {
   display: flex;
   flex-direction: column;
@@ -60,13 +62,47 @@
   max-width: 250px;
 }
 .cargo-ribbon-vertical .cargo-ribbon-group {
-  display: contents;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
 }
 .cargo-ribbon-vertical .cargo-ribbon-btn {
   width: 100%;
   justify-content: flex-start;
   padding: 6px 12px;
   font-size: 11.5px;
+}
+
+/* Read/write group divider — full-width hairline, sits between
+   Print/PDF and Receive Items. */
+.cargo-ribbon-vertical .cargo-ribbon-divider {
+  width: 100%;
+  height: 1px;
+  margin: 2px 0;
+  background: var(--d-border-soft);
+}
+
+/* Bottom row of the stack pairs ⋯ (flex-shrink:0 icon) with Submit
+   for Approval (flex:1) so the menu trigger sits LEFT of the
+   workflow button on the final row. */
+.cargo-ribbon-vertical .cargo-ribbon-bottom {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+.cargo-ribbon-vertical .cargo-ribbon-bottom > .relative {
+  flex-shrink: 0;
+}
+.cargo-ribbon-vertical .cargo-ribbon-bottom .cargo-ribbon-btn:not(.cargo-ribbon-btn-icon) {
+  flex: 1;
+}
+.cargo-ribbon-vertical .cargo-ribbon-btn-icon {
+  width: 32px;
+  padding: 6px 0;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 /* Chip row sits inside the left column right below the headline. */
@@ -80,41 +116,22 @@
 
 /* Tabs row inside the header's left column. `margin-top: auto`
    pushes it to the bottom of the column so its baseline matches the
-   ribbon's bottom button on the right rail. The shared hairline
-   beneath both tabs and the action buttons runs full-column-width;
-   the gap to the ribbon is part of the flex layout. */
+   ribbon's bottom button on the right rail. */
 .editorial-page.pv-dashboard .pv-board-tabs-row {
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
   gap: 24px;
   margin: 24px 0 1.75rem;
-  border-bottom: 1px solid var(--d-border);
   margin-top: auto;
 }
 .editorial-page.pv-dashboard .pv-board-tabs-row .editorial-tab-nav {
+  flex: 1;
   margin: 0;
-  border-bottom: 0;
+  border-bottom: 1px solid var(--d-border);
   padding-bottom: 14px;
 }
 .editorial-page.pv-dashboard .pv-board-tabs-row .editorial-tab {
   margin-bottom: 0;
-}
-.pv-board-tabs-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-bottom: 8px;
-}
-.pv-board-tabs-actions .cargo-ribbon-btn {
-  font-size: 11.5px;
-  padding: 6px 12px;
-}
-.pv-board-tabs-actions .cargo-ribbon-btn-icon {
-  width: 32px;
-  padding: 6px 0;
-  justify-content: center;
-  flex-shrink: 0;
 }
 .pv-board-chip {
   display: inline-flex;
