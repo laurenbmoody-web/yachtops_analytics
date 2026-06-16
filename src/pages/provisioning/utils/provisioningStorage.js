@@ -374,6 +374,48 @@ export const fetchActiveApprovalRequest = async (listId) => {
   return data || null;
 };
 
+// Quote-file upload. Uploads the file to the existing
+// `provisioning-invoices` bucket under quotes/<listId>/<timestamp>.<ext>
+// (kept in the same bucket so we don't need a second RLS policy set),
+// then calls the SECURITY DEFINER RPC that stamps the URL on the list
+// row and flips status to quote_received if currently sent_to_supplier.
+//
+// Returns the RPC result on success or null on upload failure.
+export const uploadProvisioningQuoteFile = async (file, listId) => {
+  if (!file || !listId) return null;
+  try {
+    const ext  = (file.name || '').split('.').pop() || 'pdf';
+    const path = `quotes/${listId}/${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase?.storage
+      ?.from('provisioning-invoices')
+      ?.upload(path, file, { upsert: true });
+    if (upErr) {
+      console.error('[uploadProvisioningQuoteFile] upload error:', upErr.message, upErr);
+      return null;
+    }
+    const { data: urlData } = await supabase?.storage
+      ?.from('provisioning-invoices')
+      ?.getPublicUrl(path);
+    const fileUrl = urlData?.publicUrl;
+    if (!fileUrl) return null;
+
+    const { data, error: rpcErr } = await supabase
+      ?.rpc('record_provisioning_quote_file', {
+        p_list_id:   listId,
+        p_file_url:  fileUrl,
+        p_filename:  file.name || null,
+      });
+    if (rpcErr) {
+      console.error('[uploadProvisioningQuoteFile] RPC error:', rpcErr);
+      throw rpcErr;
+    }
+    return data;
+  } catch (err) {
+    console.error('[uploadProvisioningQuoteFile] threw:', err);
+    throw err;
+  }
+};
+
 // Approver decides on a pending request. decision in
 // ('approve', 'request_changes'). Comment is required when decision is
 // 'request_changes' (RPC enforces it with SQLSTATE P0005).
