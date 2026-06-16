@@ -264,7 +264,6 @@
 }
 .crew-list-row:hover { background: #FAFAF7; }
 .crew-list-row.off-day { opacity: 0.55; }
-.crew-list-row.mlc-warn { background: #FCF4EE; }
 .crew-list-row.is-open { background: #FBF1EA; }
 .crew-list-chev { color: #C9C0AE; justify-self: center; transition: transform 0.15s; }
 .crew-list-item.is-open .crew-list-chev { transform: rotate(180deg); color: #C65A1A; }
