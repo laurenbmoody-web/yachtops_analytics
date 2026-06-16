@@ -2469,7 +2469,8 @@ const canEdit = (() => {
     const canLock = viewerTier === 'COMMAND';
     const submitLabel = vesselHorSettings?.mode === 'trust' ? 'Confirm Month' : 'Submit for Approval';
     const dbStatusLabel = { open: 'Open', submitted: 'Submitted', confirmed: 'Confirmed', locked: 'Locked' }[dbStatus] || 'Open';
-    const dbStatusColor = { open: '#E2A33C', submitted: '#6C6CCF', confirmed: '#5C9B6A', locked: '#9098B1' }[dbStatus] || '#E2A33C';
+    // Vessel-wide view has no single month, so it shows just the plain title.
+    const isVesselView = isCommand && horView === 'vessel';
 
     const handleDateClick = (day, dayData) => {
       const dateStr = dayData?.date;
@@ -2594,9 +2595,51 @@ const canEdit = (() => {
 
     return (
       <div className="space-y-6">
-        {/* Title — editorial serif, in line with the profile section heads. */}
-        <div className="cp-section-head">
-          <h3>Hours of Rest</h3>
+        {/* Header — editorial "HOR, <status>." (navy + terracotta serif),
+            mirroring the LAUREN, Moody. name treatment, with the workflow action
+            on the right. The vessel-wide view carries no month, so just a title. */}
+        <div className="cp-hor-head">
+          {isVesselView ? (
+            <h3 className="cp-hor-title">Hours of Rest</h3>
+          ) : (
+            <h3 className="cp-hor-title">
+              HOR<span className="pn">,</span> <em>{dbStatusLabel}</em><span className="pn">.</span>
+            </h3>
+          )}
+          {!isVesselView && (
+            <div className="cp-hor-actions">
+              {/* Crew: submit own open month */}
+              {isOwnProfile && dbStatus === 'open' && (
+                <button type="button" className="cp-hor-btn cp-hor-btn-primary" onClick={handleConfirmMonth}>
+                  <Icon name="CheckCircle" size={16} />
+                  {submitLabel}
+                </button>
+              )}
+              {isOwnProfile && dbStatus === 'submitted' && (
+                <span className="cp-hor-await">Awaiting approval</span>
+              )}
+              {/* Approver: act on a submitted month */}
+              {canApprove && dbStatus === 'submitted' && (
+                <>
+                  <button type="button" className="cp-hor-btn cp-hor-btn-ghost" onClick={handleReopenMonth}>Send back</button>
+                  <button type="button" className="cp-hor-btn cp-hor-btn-primary" onClick={handleApproveMonth}>
+                    <Icon name="CheckCircle" size={16} />
+                    Approve
+                  </button>
+                </>
+              )}
+              {/* Confirmed: reopen, and COMMAND can lock */}
+              {canApprove && dbStatus === 'confirmed' && (
+                <button type="button" className="cp-hor-btn cp-hor-btn-ghost" onClick={handleReopenMonth}>Reopen</button>
+              )}
+              {canLock && dbStatus === 'confirmed' && (
+                <button type="button" className="cp-hor-btn cp-hor-btn-ghost" onClick={handleLockMonth}>
+                  <Icon name="Lock" size={16} />
+                  Lock
+                </button>
+              )}
+            </div>
+          )}
         </div>
         {/* Command-Only Toggle */}
         {isCommand && (
@@ -2629,47 +2672,6 @@ const canEdit = (() => {
         ) : (
           // My HOR View (existing)
           (<>
-            {/* Month status & actions — a calm hairline strip: the status reads
-                as a quiet dot + label, the primary action sits in terracotta to
-                match the rest of the editorial UI. */}
-            <div className="cp-hor-bar">
-              <span className="cp-hor-status">
-                <span className="dot" style={{ background: dbStatusColor }} />
-                {dbStatusLabel}
-              </span>
-              <div className="flex items-center gap-2">
-                {/* Crew: submit own open month */}
-                {isOwnProfile && dbStatus === 'open' && (
-                  <button type="button" className="cp-hor-btn cp-hor-btn-primary" onClick={handleConfirmMonth}>
-                    <Icon name="CheckCircle" size={16} />
-                    {submitLabel}
-                  </button>
-                )}
-                {isOwnProfile && dbStatus === 'submitted' && (
-                  <span className="cp-hor-await">Awaiting approval</span>
-                )}
-                {/* Approver: act on a submitted month */}
-                {canApprove && dbStatus === 'submitted' && (
-                  <>
-                    <button type="button" className="cp-hor-btn cp-hor-btn-ghost" onClick={handleReopenMonth}>Send back</button>
-                    <button type="button" className="cp-hor-btn cp-hor-btn-primary" onClick={handleApproveMonth}>
-                      <Icon name="CheckCircle" size={16} />
-                      Approve
-                    </button>
-                  </>
-                )}
-                {/* Confirmed: reopen, and COMMAND can lock */}
-                {canApprove && dbStatus === 'confirmed' && (
-                  <button type="button" className="cp-hor-btn cp-hor-btn-ghost" onClick={handleReopenMonth}>Reopen</button>
-                )}
-                {canLock && dbStatus === 'confirmed' && (
-                  <button type="button" className="cp-hor-btn cp-hor-btn-ghost" onClick={handleLockMonth}>
-                    <Icon name="Lock" size={16} />
-                    Lock
-                  </button>
-                )}
-              </div>
-            </div>
             {/* Signature receipt — the drawn signatures + audit trail captured
                 at submit (crew) and approve (captain). Shown once a month has
                 been signed; the image URLs are re-signed on each load. */}
