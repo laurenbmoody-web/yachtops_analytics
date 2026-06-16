@@ -118,7 +118,6 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .cp-section-sub {
   font-family: 'DM Serif Display', Georgia, serif;
-  font-style: italic;
   font-size: 13px;
   color: #695880;
   margin: -6px 0 18px;
@@ -235,7 +234,6 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-field-card input::placeholder,
 .crew-profile-page .cp-field-card textarea::placeholder {
   color: #AEB4C2;
-  font-style: italic;
 }
 
 /* Searchable Select dropdown (Nationality) — editorial panel. The trigger
@@ -281,7 +279,6 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-group-head .dia { color: #C65A1A; font-size: 9px; }
 .crew-profile-page .cp-group-head .t {
   font-family: 'DM Serif Display', Georgia, serif;
-  font-style: italic;
   font-size: 15px;
   color: #1C1B3A;
   white-space: nowrap;
@@ -306,8 +303,6 @@ body.crew-profile-editorial {
   min-height: 20px;
 }
 .crew-profile-page .cp-field-card .cp-static.cp-empty {
-  font-family: 'DM Serif Display', Georgia, serif;
-  font-style: italic;
   font-weight: 400;
   color: #AEB4C2;
 }
@@ -421,7 +416,7 @@ body.crew-profile-editorial {
   color: #1C1B3A !important;
   outline: none;
 }
-.crew-profile-page .cp-tag-field::placeholder { color: #AEB4C2; font-style: italic; }
+.crew-profile-page .cp-tag-field::placeholder { color: #AEB4C2; }
 
 /* Emergency-contact role checkboxes + read-mode role tags. */
 .crew-profile-page .cp-check-row { display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 2px 0; }
