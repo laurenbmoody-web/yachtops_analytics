@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
+import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import { useTenant } from '../../contexts/TenantContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -45,6 +46,7 @@ export default function MonthEnd() {
   const [reminded, setReminded] = useState({});    // userId -> true (this session)
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState('');
+  const [openHor, setOpenHor] = useState(true);  // compliance-pack accordion
 
   const load = useCallback(async () => {
     if (!activeTenantId) return;
@@ -159,72 +161,90 @@ export default function MonthEnd() {
   };
 
   return (
-    <div className="month-end-page">
-      <div className="me-wrap">
-        <div className="me-head">
-          <div>
-            <h1 className="me-title">Month-end</h1>
-            <div className="me-eyebrow">Compliance sign-off</div>
+    <>
+      <Header />
+      <div className="month-end-page">
+        <div className="me-wrap">
+          <div className="me-head">
+            <div>
+              <h1 className="me-title">Month-end</h1>
+              <div className="me-eyebrow">Compliance sign-off</div>
+            </div>
+            <div className="me-monthnav">
+              <button type="button" onClick={() => stepMonth(-1)} aria-label="Previous month">‹</button>
+              <span>{monthLabel}</span>
+              <button type="button" onClick={() => stepMonth(1)} aria-label="Next month">›</button>
+            </div>
           </div>
-          <div className="me-monthnav">
-            <button type="button" onClick={() => stepMonth(-1)} aria-label="Previous month">‹</button>
-            <span>{monthLabel}</span>
-            <button type="button" onClick={() => stepMonth(1)} aria-label="Next month">›</button>
+
+          {/* Compliance packs — each a collapsible box. Hours of Rest today;
+              breach sign-offs / sea time can be added as sibling packs. */}
+          <div className="me-pack">
+            <button
+              type="button"
+              className="me-pack-head"
+              aria-expanded={openHor}
+              onClick={() => setOpenHor((v) => !v)}
+            >
+              <span className="dia">◆</span>
+              <span className="t">Hours of Rest</span>
+              {!openHor && counts.open > 0 && (
+                <span className="me-pack-badge">{counts.open} to action</span>
+              )}
+              <span className="me-progress-label">{counts.done} of {counts.total} signed off</span>
+              <Icon name="ChevronDown" size={18} className={`me-chev${openHor ? ' open' : ''}`} />
+            </button>
+
+            {openHor && (
+              <div className="me-pack-body">
+                <div className="me-bar"><span style={{ width: `${pct}%` }} /></div>
+                <div className="me-chips">
+                  <span className="me-chip"><span className="d" style={{ background: '#5C9B6A' }} />{counts.confirmed} confirmed</span>
+                  {counts.locked > 0 && <span className="me-chip"><span className="d" style={{ background: '#9098B1' }} />{counts.locked} locked</span>}
+                  <span className="me-chip"><span className="d" style={{ background: '#6C6CCF' }} />{counts.submitted} awaiting approval</span>
+                  <span className="me-chip"><span className="d" style={{ background: '#E2A33C' }} />{counts.open} not started</span>
+                </div>
+
+                {loading ? (
+                  <div className="me-empty">Loading…</div>
+                ) : (
+                  <>
+                    {/* Needs action */}
+                    {(outstanding.length > 0 || awaiting.length > 0) && (
+                      <div className="me-section">
+                        <div className="me-section-head">
+                          <span className="me-section-title">Needs action</span>
+                          {outstanding.length > 0 && (
+                            <button type="button" className="me-btn me-btn-primary" disabled={busy} onClick={remindAll}>
+                              <Icon name="Bell" size={14} />
+                              {busy ? 'Sending…' : `Send reminders to all (${outstanding.length})`}
+                            </button>
+                          )}
+                        </div>
+                        {[...outstanding, ...awaiting].map(renderRow)}
+                      </div>
+                    )}
+
+                    {/* Complete */}
+                    {complete.length > 0 && (
+                      <div className="me-section">
+                        <div className="me-section-head">
+                          <span className="me-section-title">Complete</span>
+                        </div>
+                        {complete.map(renderRow)}
+                      </div>
+                    )}
+
+                    {rows.length === 0 && <div className="me-empty">No crew on this vessel yet.</div>}
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* HOR rollup */}
-        <div className="me-card">
-          <div className="me-card-head">
-            <span className="dia">◆</span>
-            <span className="t">Hours of Rest</span>
-            <span className="me-progress-label">{counts.done} of {counts.total} signed off</span>
-          </div>
-          <div className="me-bar"><span style={{ width: `${pct}%` }} /></div>
-          <div className="me-chips">
-            <span className="me-chip"><span className="d" style={{ background: '#5C9B6A' }} />{counts.confirmed} confirmed</span>
-            {counts.locked > 0 && <span className="me-chip"><span className="d" style={{ background: '#9098B1' }} />{counts.locked} locked</span>}
-            <span className="me-chip"><span className="d" style={{ background: '#6C6CCF' }} />{counts.submitted} awaiting approval</span>
-            <span className="me-chip"><span className="d" style={{ background: '#E2A33C' }} />{counts.open} not started</span>
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="me-empty">Loading…</div>
-        ) : (
-          <>
-            {/* Needs action */}
-            {(outstanding.length > 0 || awaiting.length > 0) && (
-              <div className="me-section">
-                <div className="me-section-head">
-                  <span className="me-section-title">Needs action</span>
-                  {outstanding.length > 0 && (
-                    <button type="button" className="me-btn me-btn-primary" disabled={busy} onClick={remindAll}>
-                      <Icon name="Bell" size={14} />
-                      {busy ? 'Sending…' : `Send reminders to all (${outstanding.length})`}
-                    </button>
-                  )}
-                </div>
-                {[...outstanding, ...awaiting].map(renderRow)}
-              </div>
-            )}
-
-            {/* Complete */}
-            {complete.length > 0 && (
-              <div className="me-section">
-                <div className="me-section-head">
-                  <span className="me-section-title">Complete</span>
-                </div>
-                {complete.map(renderRow)}
-              </div>
-            )}
-
-            {rows.length === 0 && <div className="me-empty">No crew on this vessel yet.</div>}
-          </>
-        )}
+        {toast && <div className="me-toast">{toast}</div>}
       </div>
-
-      {toast && <div className="me-toast">{toast}</div>}
-    </div>
+    </>
   );
 }
