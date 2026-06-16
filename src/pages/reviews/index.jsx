@@ -12,6 +12,7 @@ import ReviewRightPane from './ReviewRightPane';
 import ResolvedDetail from './ResolvedDetail';
 import InboxSidebar from './InboxSidebar';
 import OrdersReviewPanel from './OrdersReviewPanel';
+import { useProvisioningApprovals } from './useProvisioningApprovals';
 import './reviews.css';
 
 // Map pathname → active category. /reviews and /reviews/rotas both
@@ -35,6 +36,11 @@ export default function ReviewsPage() {
 
   const tier = (currentTenantMember?.permission_tier || '').toUpperCase();
   const userDeptId = currentTenantMember?.department_id || null;
+
+  // Pending count for the "Order approvals" sidebar badge. Lives at
+  // the page level (not inside OrdersReviewPanel) so the badge stays
+  // accurate while the user is sitting on the rotas queue.
+  const provisioningApprovals = useProvisioningApprovals();
 
   // Eyebrow: "<TIER>" / "<TIER> · <DEPT>" for the list-strip title.
   const [deptName, setDeptName] = useState(null);
@@ -130,7 +136,7 @@ export default function ReviewsPage() {
       <>
         <Header />
         <div className="rv-page">
-          <InboxSidebar activeCategory="orders" counts={{ rotas: subtitleCount }} />
+          <InboxSidebar activeCategory="orders" counts={{ rotas: subtitleCount, orders: provisioningApprovals.items.length }} />
           <OrdersReviewPanel />
         </div>
       </>
@@ -141,7 +147,7 @@ export default function ReviewsPage() {
     <>
       <Header />
       <div className="rv-page">
-        <InboxSidebar activeCategory="rotas" counts={{ rotas: subtitleCount }} />
+        <InboxSidebar activeCategory="rotas" counts={{ rotas: subtitleCount, orders: provisioningApprovals.items.length }} />
 
         {/* Middle — list strip */}
         <section className="rv-liststrip" aria-label="Rota submissions">
