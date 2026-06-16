@@ -17,6 +17,7 @@ import {
   updateProvisioningItem,
   deleteProvisioningItem,
   updateProvisioningList,
+  submitProvisioningForApproval,
   deleteProvisioningList,
   duplicateList,
   fetchVesselDepartments,
@@ -1272,6 +1273,29 @@ const ProvisioningBoardDetail = () => {
     } catch { showToast('Failed to update status', 'error'); }
   };
 
+  // Submit for Approval — calls the atomic RPC that resolves the
+  // approver, writes the approval_requests row, flips the board to
+  // pending_approval, and notifies the approver. The toast quotes the
+  // approver name returned from the RPC so the submitter knows where
+  // it went.
+  const handleSubmitForApproval = async () => {
+    setShowMenu(false);
+    try {
+      const result = await submitProvisioningForApproval(id);
+      setList(prev => ({ ...prev, status: PROVISIONING_STATUS.PENDING_APPROVAL }));
+      showToast(`Sent to ${result?.approver_name || 'reviewer'} for approval`, 'success');
+    } catch (err) {
+      const code = err?.code;
+      if (code === 'P0003') {
+        showToast('No approver configured for this vessel — add a COMMAND member in Settings.', 'error');
+      } else if (code === 'P0004') {
+        showToast('Board is already submitted.', 'error');
+      } else {
+        showToast('Failed to submit for approval', 'error');
+      }
+    }
+  };
+
   const handleDuplicate = async () => {
     setShowMenu(false);
     try {
@@ -1627,6 +1651,10 @@ const ProvisioningBoardDetail = () => {
   }, [list]);
   const currency = list?.currency || 'GBP';
   const isDraftOrPending = list?.status === PROVISIONING_STATUS.DRAFT || list?.status === PROVISIONING_STATUS.PENDING_APPROVAL;
+  // Submit for Approval is only valid from the draft state — re-submit
+  // would be a no-op (RPC throws P0004). pending_approval boards show
+  // their review chip instead, landed in PR3.
+  const canSubmitForApproval = list?.status === PROVISIONING_STATUS.DRAFT;
 
   // ── Style constants ───────────────────────────────────────────────────────
 
@@ -1830,10 +1858,10 @@ const ProvisioningBoardDetail = () => {
                   starts the cycle (draft/pending only), Send dispatches
                   to the supplier, Receive closes it when goods land. */}
               <div className="cargo-ribbon-group">
-                {isDraftOrPending && (
+                {canSubmitForApproval && (
                   <button
                     type="button"
-                    onClick={() => handleStatusUpdate(PROVISIONING_STATUS.PENDING_APPROVAL)}
+                    onClick={handleSubmitForApproval}
                     className="cargo-ribbon-btn"
                   >
                     <Icon name="Send" style={{ width: 13, height: 13 }} /> Submit for Approval

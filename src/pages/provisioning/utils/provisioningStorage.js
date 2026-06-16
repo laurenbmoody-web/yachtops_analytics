@@ -323,6 +323,33 @@ export const deleteProvisioningList = async (listId) => {
   }
 };
 
+// ── Approval routing ──────────────────────────────────────────────────────────
+//
+// Submit a draft board for approval. The RPC resolves the approver,
+// writes the approval_requests row, flips the board to pending_approval,
+// and posts a notification — all in one transaction.
+//
+// Returns { request_id, approver_id, approver_name, status }. The
+// approver_name lets the UI render a "Sent to <name> for review" toast
+// without a second profile fetch.
+//
+// Server-side errors surface as PostgrestError; relevant SQLSTATEs:
+//   P0002 — list not found
+//   P0003 — no eligible approver (vessel has no COMMAND member)
+//   P0004 — board is not in draft status (re-submit is a no-op)
+export const submitProvisioningForApproval = async (listId, comment = null) => {
+  const { data, error } = await supabase
+    ?.rpc('submit_provisioning_for_approval', {
+      p_list_id: listId,
+      p_comment: comment,
+    });
+  if (error) {
+    console.error('[provisioningStorage] submitProvisioningForApproval error:', error);
+    throw error;
+  }
+  return data; // jsonb → JS object
+};
+
 // ── Items ─────────────────────────────────────────────────────────────────────
 
 export const fetchListItems = async (listId) => {
