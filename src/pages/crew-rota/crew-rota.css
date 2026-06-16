@@ -252,7 +252,7 @@
 
 .crew-list-row {
   display: grid;
-  grid-template-columns: 40px 1fr auto auto 18px;
+  grid-template-columns: 40px 1fr auto 18px;
   gap: 14px;
   align-items: center;
   padding: 12px 0;
@@ -275,15 +275,22 @@
 .crew-list-chev { color: #C9C0AE; justify-self: center; transition: transform 0.15s; }
 .crew-list-item.is-open .crew-list-chev { transform: rotate(180deg); color: #C65A1A; }
 
-/* Expandable per-crew detail — the Start · Break · Finish breakdown. */
-.crew-list-detail { padding: 2px 16px 20px 56px; background: #FBF8F3; }
-.cl-stats { display: flex; align-items: flex-end; gap: 28px; margin-bottom: 14px; flex-wrap: wrap; }
-.cl-stat-cap { font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: #8B8478; margin-bottom: 3px; }
-.cl-stat-v { font-family: 'DM Serif Display', Georgia, serif; font-size: 19px; line-height: 1; color: #1C1B3A; }
-.cl-stat-v.muted { color: #8B8478; }
-.cl-stat-v.warn { color: #C65A1A; }
+/* Inline Start · Break · Finish · Worked breakdown shown in the collapsed row. */
+.cl-istats { display: inline-flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.cl-istat { display: inline-flex; align-items: baseline; gap: 5px; }
+.cl-istat-cap { font-size: 8.5px; letter-spacing: 1px; text-transform: uppercase; color: #A89F8C; }
+.cl-istat-v {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 14px; line-height: 1; letter-spacing: -0.2px; color: #1C1B3A;
+}
+.cl-istat-v.muted { color: #8B8478; }
+.cl-istat-v.warn { color: #C65A1A; }
+.cl-istat-off { color: #8B8478; }
+
+/* Expandable per-crew detail — now just the 24h timeline bar. */
+.crew-list-detail { padding: 2px 16px 18px 56px; background: #FBF8F3; }
+.cl-detail-foot { display: flex; justify-content: flex-end; margin-top: 8px; }
 .cl-detail-link {
-  margin-left: auto; align-self: flex-end;
   background: none; border: none; cursor: pointer;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 11px; color: #C65A1A;
@@ -332,8 +339,13 @@
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 11px;
   color: #695880;
-  margin-top: 2px;
+  margin-top: 4px;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
 }
+.crew-list-role-name { flex-shrink: 0; }
 .crew-list-rest { text-align: right; }
 .crew-list-rest-num {
   font-family: 'DM Serif Display', Georgia, serif;

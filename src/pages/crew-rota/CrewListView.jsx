@@ -18,15 +18,6 @@ function decToHHMM(dec) {
   return `${pad2(Math.floor(total / 60))}:${pad2(total % 60)}`;
 }
 
-// "today 08:00–14:00, 18:00–22:00" → "08:00–14:00 · 18:00–22:00"
-function formatShift(shiftText) {
-  if (!shiftText) return '';
-  return shiftText.replace(/^today\s+/i, '')
-    .split(', ')
-    .map(s => s.replace(/-/g, '–'))
-    .join(' · ');
-}
-
 // Break down a member's on-duty blocks into the three things a crew member
 // actually wants: when they start, when (and for how long) they break, and
 // when they finish. Blocks come from crew.shifts (decimal start/end, on-duty
@@ -123,23 +114,22 @@ function CrewRow({ crew, onClick }) {
             {crew.mlcWarning && <MlcTriangle />}
           </div>
           <div className="crew-list-role">
-            {crew.role} · {formatShift(crew.shiftText)}
+            <span className="crew-list-role-name">{crew.role}</span>
+            {bd ? (
+              <span className="cl-istats">
+                <span className="cl-istat"><span className="cl-istat-cap">Start</span><span className="cl-istat-v">{decToHHMM(bd.start)}</span></span>
+                <span className="cl-istat"><span className="cl-istat-cap">Break</span><span className={`cl-istat-v${breakText === 'none' ? ' muted' : ''}`}>{breakText}</span></span>
+                <span className="cl-istat"><span className="cl-istat-cap">Finish</span><span className="cl-istat-v">{decToHHMM(bd.finish)}</span></span>
+                <span className="cl-istat"><span className="cl-istat-cap">Worked</span><span className={`cl-istat-v${crew.mlcWarning ? ' warn' : ''}`}>{crew.workHours || '—'}</span></span>
+              </span>
+            ) : (
+              <span className="cl-istat-off">off today</span>
+            )}
             {crew.mlcWarning && (
-              <span style={{ color: '#C65A1A', fontWeight: 500 }}> · rest below MLC</span>
+              <span style={{ color: '#C65A1A', fontWeight: 500 }}>· rest below MLC</span>
             )}
           </div>
         </div>
-
-        {isOff ? (
-          <div />
-        ) : (
-          <div className="crew-list-rest">
-            <div className={`crew-list-rest-num ${crew.mlcWarning ? 'warning' : ''}`}>
-              {crew.workHours || '—'} <span className="crew-list-rest-on">on</span>
-            </div>
-            <div className="crew-list-rest-cap">{crew.offHours || '—'} off</div>
-          </div>
-        )}
 
         <div className={`crew-list-pill ${pill.cls}`}>{pill.label}</div>
 
@@ -150,30 +140,14 @@ function CrewRow({ crew, onClick }) {
         <div className="crew-list-detail">
           {bd ? (
             <>
-              <div className="cl-stats">
-                <div className="cl-stat">
-                  <div className="cl-stat-cap">Start</div>
-                  <div className="cl-stat-v">{decToHHMM(bd.start)}</div>
-                </div>
-                <div className="cl-stat">
-                  <div className="cl-stat-cap">Break</div>
-                  <div className={`cl-stat-v${breakText === 'none' ? ' muted' : ''}`}>{breakText}</div>
-                </div>
-                <div className="cl-stat">
-                  <div className="cl-stat-cap">Finish</div>
-                  <div className="cl-stat-v">{decToHHMM(bd.finish)}</div>
-                </div>
-                <div className="cl-stat">
-                  <div className="cl-stat-cap">Worked</div>
-                  <div className={`cl-stat-v${crew.mlcWarning ? ' warn' : ''}`}>{crew.workHours || '—'}</div>
-                </div>
+              <DayTimeline blocks={bd.blocks} warn={crew.mlcWarning} />
+              <div className="cl-detail-foot">
                 <button
                   type="button"
                   className="cl-detail-link"
                   onClick={(e) => { e.stopPropagation(); onClick?.(crew); }}
                 >Rest &amp; MLC detail →</button>
               </div>
-              <DayTimeline blocks={bd.blocks} warn={crew.mlcWarning} />
             </>
           ) : (
             <div className="cl-off-msg">Off today — no scheduled hours.</div>
