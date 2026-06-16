@@ -423,43 +423,27 @@ body.crew-profile-editorial {
 }
 
 /* Profile completion meter (header). */
-.crew-profile-page .cp-completion { max-width: 360px; margin-top: 12px; }
-.crew-profile-page .cp-completion-top {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 5px;
+/* Completion ring drawn around the avatar. */
+.crew-profile-page .cp-avatar-ring { position: relative; width: 112px; height: 112px; display: flex; align-items: center; justify-content: center; }
+.crew-profile-page .cp-avatar-ring-svg { position: absolute; inset: 0; width: 112px; height: 112px; pointer-events: none; }
+.crew-profile-page .cp-avatar-ring-svg .track { fill: none; stroke: #E6E8EF; stroke-width: 4; }
+.crew-profile-page .cp-avatar-ring-svg .fill { fill: none; stroke: #C65A1A; stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset .5s ease; }
+.crew-profile-page .cp-avatar-ring-svg .fill.is-complete { stroke: #5C9B6A; }
+.crew-profile-page .cp-avatar-pct {
+  position: absolute; bottom: -2px; left: 50%; transform: translateX(-50%);
+  background: #fff; border: 1px solid #F0E0CC; color: #C65A1A;
+  font-size: 10.5px; font-weight: 800; line-height: 1; padding: 3px 7px;
+  border-radius: 999px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); white-space: nowrap;
 }
-.crew-profile-page .cp-completion-pct {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #6F7396;
+.crew-profile-page .cp-avatar-pct.is-complete { border-color: #CDE6D3; color: #3F7A52; }
+
+.crew-profile-page .cp-completion { margin-top: 10px; }
+.crew-profile-page .cp-completion-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.crew-profile-page .cp-outstanding {
+  font-size: 12px; font-weight: 600; color: #C65A1A;
+  background: none; border: 0; cursor: pointer; padding: 0;
 }
-.crew-profile-page .cp-completion-toggle {
-  font-size: 11px;
-  font-weight: 600;
-  color: #C65A1A;
-  background: none;
-  border: 0;
-  cursor: pointer;
-  padding: 0;
-}
-.crew-profile-page .cp-completion-bar {
-  height: 6px;
-  border-radius: 999px;
-  background: #E6E8EF;
-  overflow: hidden;
-}
-.crew-profile-page .cp-completion-fill {
-  height: 100%;
-  border-radius: 999px;
-  background: #C65A1A;
-  transition: width 0.3s ease;
-}
-.crew-profile-page .cp-completion-fill.is-complete { background: #5C9B6A; }
+.crew-profile-page .cp-complete-note { font-size: 12px; font-weight: 600; color: #5C9B6A; }
 .crew-profile-page .cp-completion-missing {
   display: flex;
   flex-wrap: wrap;
