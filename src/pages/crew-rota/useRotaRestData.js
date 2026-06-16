@@ -15,6 +15,19 @@ import { ON_DUTY_TYPES, assessMlc, restForWeek } from './restHours';
 
 const WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+// Add n days to a 'YYYY-MM-DD' string using LOCAL date components — never
+// round-trips through toISOString (UTC), which would drift a day in
+// negative-offset timezones and desync the chart window from the headline.
+function addDays(dateStr, n) {
+  const [y, m, d] = String(dateStr).split('-').map(Number);
+  const dt = new Date(y, m - 1, d + n);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+function weekdayOf(dateStr) {
+  const [y, m, d] = String(dateStr).split('-').map(Number);
+  return WEEKDAY[new Date(y, m - 1, d).getDay()];
+}
+
 // DB rows arrive snake_case; the shared MLC utility expects camelCase.
 function toCamelShift(s) {
   return {
@@ -83,13 +96,8 @@ export function useRotaRestData(memberId) {
         // Fetch 13 days so each of the 7 charted days has a full trailing
         // 7-day window behind it (the chart shows the ROLLING 7-day rest total
         // as of each day, not that single day's rest).
-        const dateMinus = (n) => {
-          const d = new Date(`${effDate}T00:00:00`);
-          d.setDate(d.getDate() - n);
-          return d.toISOString().slice(0, 10);
-        };
-        const fetchStartStr = dateMinus(12);
-        const weekStartStr = dateMinus(6);
+        const fetchStartStr = addDays(effDate, -12);
+        const weekStartStr = addDays(effDate, -6);
 
         const { data: rows, error: sErr } = await supabase
           .from('rota_shifts')
@@ -171,16 +179,12 @@ export function useRotaRestData(memberId) {
         //    headline so the last bar and the headline always agree. ──
         const weekChart = [];
         for (let i = 6; i >= 0; i -= 1) {
-          const d = new Date(`${effDate}T00:00:00`);
-          d.setDate(d.getDate() - i);
-          const ds = d.toISOString().slice(0, 10);
-          const winStart = new Date(d);
-          winStart.setDate(winStart.getDate() - 6);
-          const winStartStr = winStart.toISOString().slice(0, 10);
+          const ds = addDays(effDate, -i);
+          const winStartStr = addDays(ds, -6);
           const winRows = all.filter(s => s.shift_date >= winStartStr && s.shift_date <= ds);
           const rollingRest = restForWeek(winRows.map(toCamelShift)).pastWeekHours;
           weekChart.push({
-            day: WEEKDAY[d.getDay()],
+            day: weekdayOf(ds),
             date: ds,
             hours: Math.round(rollingRest),
             status: rollingRest >= 77 ? 'ok' : 'low',
