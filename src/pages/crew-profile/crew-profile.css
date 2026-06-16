@@ -266,8 +266,12 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-field-card .absolute.z-50 [class*="rounded-sm"] { border-radius: 8px !important; }
 
 /* Sub-section groups within a tab (Emergency, Banking, Preferences). */
-.crew-profile-page .cp-group { margin-top: 20px; }
-.crew-profile-page .cp-group:first-of-type { margin-top: 0; }
+.crew-profile-page .cp-group { margin-top: 0; }
+/* Spacing sits BETWEEN groups, not above the first one — keyed off a preceding
+   group sibling rather than :first-of-type, which broke when the section header
+   is wrapped in its own div (Banking/Documents), leaving the first group with a
+   stray top margin on top of the header gap. */
+.crew-profile-page .cp-group ~ .cp-group { margin-top: 20px; }
 .crew-profile-page .cp-group-head {
   display: flex;
   align-items: center;
