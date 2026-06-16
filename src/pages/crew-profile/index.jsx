@@ -24,7 +24,11 @@ import { showToast } from '../../utils/toast';
 import { addWorkEntries, getComplianceStatus, getMonthCalendarData, detectBreaches, getCrewWorkEntries, deleteWorkEntriesForDate, runAllHORTests, confirmMonth, getMonthStatus, isMonthEditable, detectBreachedDatesAfterSave, hasBreachNoteForDate, syncRotaBaselineEntries, setHorDbContext, hydrateActualsForMonth } from './utils/horStorage';
 import { fetchWorkEntriesForMonth } from './utils/horWorkEntries';
 import { fetchRotaBaselineForMonth } from './utils/horBaseline';
-import { fetchVesselHorSettings, fetchMonthStatus, submitMonth as submitMonthDb, approveMonth as approveMonthDb, reopenMonth as reopenMonthDb, lockMonth as lockMonthDb } from './utils/horMonthStatus';
+import { fetchVesselHorSettings, fetchMonthStatus, fetchActiveMemberTiers, submitMonth as submitMonthDb, approveMonth as approveMonthDb, reopenMonth as reopenMonthDb, lockMonth as lockMonthDb } from './utils/horMonthStatus';
+
+// HOR approver hierarchy (mirrors the DB _hor_tier_rank): COMMAND > CHIEF > HOD.
+const HOR_TIER_RANK = { COMMAND: 3, CHIEF: 2, HOD: 1 };
+const horRankOf = (tier) => HOR_TIER_RANK[String(tier || '').toUpperCase()] || 0;
 import { fetchBreachReasonsForMonth, signOffBreachReason as signOffBreachReasonDb, unsignBreachReason as unsignBreachReasonDb } from './utils/horBreachReasons';
 import { useRole } from '../../contexts/RoleContext';
 import { PermissionTier } from '../../utils/authStorage';
@@ -218,6 +222,7 @@ const CrewProfile = () => {
   const [horCurrentMonth, setHorCurrentMonth] = useState(new Date());
   const [horData, setHorData] = useState(null);
   const [dbMonthStatus, setDbMonthStatus] = useState(null);     // hor_month_status row (DB)
+  const [horMemberTiers, setHorMemberTiers] = useState({});     // { user_id: permission_tier } — active members
   const [signOff, setSignOff] = useState(null);                 // sign-off modal config, or null
   const [sigUrls, setSigUrls] = useState({ submit: null, approve: null }); // re-signed signature image URLs
   const [vesselHorSettings, setVesselHorSettings] = useState(null); // { mode, approverTier }
@@ -542,12 +547,14 @@ const CrewProfile = () => {
     // migration is applied these resolve to defaults/null and the UI falls back
     // to the legacy localStorage status.
     try {
-      const [settings, status, reasons] = await Promise.all([
+      const [settings, status, reasons, memberTiers] = await Promise.all([
         fetchVesselHorSettings(activeTenantId),
         fetchMonthStatus({ tenantId: activeTenantId, subjectUserId: crewId, year, jsMonth: month }),
         fetchBreachReasonsForMonth({ tenantId: activeTenantId, subjectUserId: crewId, year, jsMonth: month }),
+        fetchActiveMemberTiers(activeTenantId),
       ]);
       setVesselHorSettings(settings);
+      setHorMemberTiers(memberTiers);
       // Feed the vessel's day-basis to the compliance engine BEFORE the
       // assessment calls below, so the profile assesses the identical 24h day
       // as the rota/vessel record (calendar = no-op; operational re-anchors).
@@ -2324,12 +2331,25 @@ const canEdit = (() => {
   // runs on confirm, carrying the captured drawn signature + audit trail. In
   // 'require' mode this awaits an approver; in 'trust' mode the RPC returns it
   // already confirmed.
+  // Rank-aware sign-off. The required approver rank is the higher of the
+  // subject's own rank and the vessel approver tier; if no OTHER active member
+  // meets it, the subject is top-of-chain (e.g. the Master) and self-certifies
+  // with a single signature — mirroring the hor_submit_month RPC.
+  const horRosterLoaded = Object.keys(horMemberTiers).length > 0;
+  const horRequiredRank = Math.max(
+    horRankOf(horMemberTiers[crewId]),
+    horRankOf(vesselHorSettings?.approverTier || 'COMMAND'),
+  );
+  const horSelfCertifies = horRosterLoaded && !Object.entries(horMemberTiers).some(
+    ([uid, t]) => uid !== crewId && horRankOf(t) >= horRequiredRank,
+  );
+
   const handleConfirmMonth = () => {
     if (!crewId) return;
     setSignOff({
       kind: 'submit',
-      title: 'Sign off your Hours of Rest',
-      confirmLabel: vesselHorSettings?.mode === 'trust' ? 'Sign & confirm' : 'Sign & submit',
+      title: horSelfCertifies ? 'Certify your Hours of Rest' : 'Sign off your Hours of Rest',
+      confirmLabel: (vesselHorSettings?.mode === 'trust' || horSelfCertifies) ? 'Sign & confirm' : 'Sign & submit',
       declaration:
         'I confirm that the Hours of Rest recorded for this month are a true and accurate record of the rest I have taken, in accordance with MLC 2006 / STCW requirements.',
       periodLabel: monthLabelFor(horCurrentMonth),
@@ -2458,6 +2478,13 @@ const canEdit = (() => {
     const _today = new Date();
     const todayStr = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, '0')}-${String(_today.getDate()).padStart(2, '0')}`;
 
+    // A month can only be signed off once it has fully elapsed — you can't
+    // certify rest for days that haven't happened yet. Sign-off opens on the
+    // month's last calendar day (todayStr >= last day of the viewed month).
+    const lastDayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+    const monthComplete = todayStr >= lastDayStr;
+    const monthEndLabel = new Date(year, month, daysInMonth).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+
     // Get month status
     const monthStatus = getMonthStatus(crewId, year, month);
 
@@ -2465,9 +2492,20 @@ const canEdit = (() => {
     const dbStatus = dbMonthStatus?.status || 'open';
     const approverTier = vesselHorSettings?.approverTier || 'COMMAND';
     const viewerTier = currentUserPermissionTier;
-    const canApprove = !isOwnProfile && (viewerTier === 'COMMAND' || viewerTier === approverTier);
+    // Rank-aware: an approver must be at/above the vessel tier AND not outranked
+    // by the subject (no junior countersigning a senior). Mirrors the RPC.
+    const viewerRank = horRankOf(horMemberTiers[session?.user?.id] || viewerTier);
+    const subjectRank = horRankOf(horMemberTiers[crewId]);
+    const requiredApproverRank = Math.max(subjectRank, horRankOf(approverTier));
+    const canApprove = !isOwnProfile && viewerRank >= requiredApproverRank;
     const canLock = viewerTier === 'COMMAND';
-    const submitLabel = vesselHorSettings?.mode === 'trust' ? 'Confirm Month' : 'Submit for Approval';
+    const submitLabel = (vesselHorSettings?.mode === 'trust' || horSelfCertifies) ? 'Confirm Month' : 'Submit for Approval';
+    // A confirmed month with only the submitter's signature (no counter-sign,
+    // confirmed by the submitter) is a self-certification (e.g. the Master).
+    const isSelfCertified = dbStatus === 'confirmed'
+      && !dbMonthStatus?.approve_signature_path
+      && !!dbMonthStatus?.submitted_by
+      && dbMonthStatus?.submitted_by === dbMonthStatus?.confirmed_by;
     const dbStatusLabel = { open: 'Open', submitted: 'Submitted', confirmed: 'Confirmed', locked: 'Locked' }[dbStatus] || 'Open';
     // Vessel-wide view has no single month, so it shows just the plain title.
     const isVesselView = isCommand && horView === 'vessel';
@@ -2608,12 +2646,15 @@ const canEdit = (() => {
           )}
           {!isVesselView && (
             <div className="cp-hor-actions">
-              {/* Crew: submit own open month */}
-              {isOwnProfile && dbStatus === 'open' && (
+              {/* Crew: submit own open month — only once the month has ended. */}
+              {isOwnProfile && dbStatus === 'open' && monthComplete && (
                 <button type="button" className="cp-hor-btn cp-hor-btn-primary" onClick={handleConfirmMonth}>
                   <Icon name="CheckCircle" size={16} />
                   {submitLabel}
                 </button>
+              )}
+              {isOwnProfile && dbStatus === 'open' && !monthComplete && (
+                <span className="cp-hor-await">Month in progress · sign-off opens {monthEndLabel}</span>
               )}
               {isOwnProfile && dbStatus === 'submitted' && (
                 <span className="cp-hor-await">Awaiting approval</span>
@@ -2680,7 +2721,7 @@ const canEdit = (() => {
                 {dbMonthStatus?.submit_signature_path && (
                   <div className="cp-flatcard p-4">
                     <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground mb-2">
-                      Signed by crew
+                      {isSelfCertified ? 'Self-certified' : 'Signed by crew'}
                     </div>
                     {sigUrls?.submit && (
                       <img

@@ -691,6 +691,18 @@ const Header = () => {
                     </button>
                   )}
 
+                  {/* Month-end - for COMMAND and CHIEF */}
+                  {(isCommandRole || isChiefRole) && (
+                    <button
+                      type="button"
+                      onClick={() => handleNavigation('/month-end', 'Month-end')}
+                      className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-smooth flex items-center gap-3"
+                    >
+                      <Icon name="CalendarCheck" size={16} />
+                      Month-end
+                    </button>
+                  )}
+
                   {/* Guest Management - ONLY for COMMAND */}
                   {isCommandRole && (
                     <button
