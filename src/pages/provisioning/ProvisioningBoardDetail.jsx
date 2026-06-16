@@ -20,6 +20,7 @@ import {
   submitProvisioningForApproval,
   fetchActiveApprovalRequest,
   decideProvisioningApproval,
+  uploadProvisioningQuoteFile,
   deleteProvisioningList,
   duplicateList,
   fetchVesselDepartments,
@@ -434,6 +435,8 @@ const ProvisioningBoardDetail = () => {
   const [decisionModal, setDecisionModal] = useState(null); // 'approve' | 'request_changes' | null
   const [decisionComment, setDecisionComment] = useState('');
   const [deciding, setDeciding] = useState(false);
+  const quoteFileInputRef = useRef(null);
+  const [uploadingQuote, setUploadingQuote] = useState(false);
 
   // ── Supplier Orders ──────────────────────────────────────────────────────
   const [showSendModal, setShowSendModal] = useState(false);
@@ -1343,6 +1346,47 @@ const ProvisioningBoardDetail = () => {
   // Reviewer decision — approve or request_changes. request_changes
   // requires a comment, collected via the decisionModal popup. Both
   // outcomes flip the board back to draft so the submitter can act.
+  // Quote file upload — uploads to storage then calls the RPC that
+  // attaches it to the list and flips status to quote_received iff
+  // currently sent_to_supplier. Idempotent — uploading a revised PDF
+  // updates the URL without regressing the lifecycle.
+  const handleQuoteFileChange = async (e) => {
+    const file = e.target?.files?.[0];
+    if (!file) return;
+    setUploadingQuote(true);
+    try {
+      const result = await uploadProvisioningQuoteFile(file, id);
+      if (!result) {
+        showToast('Could not upload quote file', 'error');
+      } else {
+        setList(prev => ({
+          ...prev,
+          quote_file_url: prev?.quote_file_url ?? null,
+          quote_file_name: file.name,
+          quote_file_uploaded_at: new Date().toISOString(),
+          status: result.status || prev?.status,
+        }));
+        // Re-fetch the list to pull the new URL fields the RPC stamped.
+        try {
+          const fresh = await supabase
+            ?.from('provisioning_lists')
+            ?.select('quote_file_url, quote_file_uploaded_at, quote_file_name, status')
+            ?.eq('id', id)
+            ?.maybeSingle();
+          if (fresh?.data) setList(prev => ({ ...prev, ...fresh.data }));
+        } catch { /* best-effort */ }
+        showToast(result.flipped
+          ? 'Quote attached — board ready to re-submit for approval'
+          : 'Quote attached', 'success');
+      }
+    } catch (err) {
+      showToast('Could not upload quote file', 'error');
+    } finally {
+      setUploadingQuote(false);
+      if (quoteFileInputRef.current) quoteFileInputRef.current.value = '';
+    }
+  };
+
   const handleDecide = async (decision) => {
     if (!approvalRequest?.id) return;
     if (decision === 'request_changes' && !decisionComment.trim()) {
@@ -2252,6 +2296,26 @@ const ProvisioningBoardDetail = () => {
                       <button onClick={handleSaveAsTemplateBoard} className="pv-board-menu-item">
                         <Icon name="FileText" style={{ width: 14, height: 14 }} /> Save as Template
                       </button>
+                      <div className="pv-board-menu-divider" />
+                      <button
+                        onClick={() => { setShowMenu(false); quoteFileInputRef.current?.click(); }}
+                        className="pv-board-menu-item"
+                        disabled={uploadingQuote}
+                      >
+                        <Icon name="Upload" style={{ width: 14, height: 14 }} />
+                        {list?.quote_file_url
+                          ? (uploadingQuote ? 'Uploading…' : 'Replace quote file')
+                          : (uploadingQuote ? 'Uploading…' : 'Upload supplier quote')}
+                      </button>
+                      {list?.quote_file_url && (
+                        <button
+                          onClick={() => { setShowMenu(false); window.open(list.quote_file_url, '_blank', 'noopener'); }}
+                          className="pv-board-menu-item"
+                        >
+                          <Icon name="FileText" style={{ width: 14, height: 14 }} />
+                          View quote file
+                        </button>
+                      )}
                       {canDelete && (
                         <>
                           <div className="pv-board-menu-divider" />
@@ -3346,6 +3410,17 @@ const ProvisioningBoardDetail = () => {
           onClose={() => setShowEditModal(false)}
         />
       )}
+
+      {/* Hidden input drives the "Upload supplier quote" menu item.
+          PDF / image only. Multiple = false; supplier sends one quote
+          per board. */}
+      <input
+        ref={quoteFileInputRef}
+        type="file"
+        accept=".pdf,image/*"
+        onChange={handleQuoteFileChange}
+        style={{ display: 'none' }}
+      />
 
       {decisionModal === 'request_changes' && (
         <ModalShell
