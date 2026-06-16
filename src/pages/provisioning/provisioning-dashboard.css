@@ -76,13 +76,25 @@
   font-size: 11.5px;
 }
 
+/* Tighten the meta line + headline → chip row → tabs rhythm so the
+   identity block reads as one band rather than three loose pieces.
+   - Meta strip sits closer to the headline (5px vs the inherited 10).
+   - Headline bottom margin tightens to 8px.
+   - Chip row uses `margin: auto 0` so it's vertically centered in the
+     free space between headline and tabs (instead of clinging to the
+     headline), giving equal breathing room above and below.
+   - Tabs row drops its `margin-top: auto` so the chip row claims the
+     centering space, not the tabs row. */
+.editorial-page.pv-dashboard .p-context-bar { margin-bottom: 5px; }
+.editorial-page.pv-dashboard .p-greeting { margin-bottom: 8px; }
+
 /* Chip row sits inside the left column right below the headline. */
 .pv-board-chip-row {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin: 18px 0 0;
+  margin: auto 0;
 }
 
 /* Tabs row — three slots:
@@ -93,14 +105,12 @@
         ribbon stack so Submit anchors directly beneath Send to
         Supplier)
    No border here — the hairline lives on the parent .p-header-row
-   so it runs full width across both columns. `margin-top: auto`
-   pins the row to the bottom of the header column. */
+   so it runs full width across both columns. */
 .editorial-page.pv-dashboard .pv-board-tabs-row {
   display: flex;
   align-items: flex-end;
   gap: 24px;
-  margin: 24px 0 0;
-  margin-top: auto;
+  margin: 0;
 }
 .editorial-page.pv-dashboard .pv-board-tabs-row .editorial-tab-nav {
   margin: 0;
