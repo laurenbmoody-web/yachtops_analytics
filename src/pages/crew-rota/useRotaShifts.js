@@ -411,7 +411,7 @@ export function useRotaShifts(
   const weekTrailingStart = useMemo(() => {
     const d = new Date(`${anchorDate}T00:00:00`);
     d.setDate(d.getDate() - 6);
-    return d.toISOString().slice(0, 10);
+    return toLocalYmd(d);
   }, [anchorDate]);
   const crew = useMemo(
     () => members.map((m) => {

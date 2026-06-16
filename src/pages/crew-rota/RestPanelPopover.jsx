@@ -32,7 +32,7 @@ function SectionHead({ label }) {
   return <div className="rest-section-label">{label}</div>;
 }
 
-export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpenHor }) {
+export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpenHor, anchorDate = null }) {
   useEffect(() => {
     if (!crew) return undefined;
     const prevOverflow = document.body.style.overflow;
@@ -48,7 +48,7 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
   // Hook must run unconditionally (before the early return). It no-ops
   // when crew is null and returns null data while the query is in flight.
   const { data: restData, suggestions, suggestionsLoading } = useRotaRestData(
-    crew?.id, crew?.name, crew?.role, crew?.department,
+    crew?.id, crew?.name, crew?.role, crew?.department, anchorDate,
   );
 
   if (!crew) return null;
