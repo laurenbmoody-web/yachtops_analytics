@@ -48,12 +48,31 @@ function addLocalDays(s, n) {
   d.setDate(d.getDate() + n);
   return toLocalStr(d);
 }
-function fmtRest(decimal) {
+function fmtHours(decimal) {
   if (decimal == null) return null;
   const total = Math.max(0, Math.round(decimal * 60));
   const h = Math.floor(total / 60);
   const m = total % 60;
   return m === 0 ? `${h}h` : `${h}h${pad2(m)}`;
+}
+function minutesOf(t) {
+  if (!t) return null;
+  const [h, m] = String(t).split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+// Total hours WORKED across a day's on-duty shifts. Each block's duration is
+// end − start, wrapping past midnight when the shift crosses 00:00. The gaps
+// between blocks are the crew member's breaks (shown as separate range lines).
+function workHoursOf(onDuty) {
+  let mins = 0;
+  for (const s of onDuty) {
+    const a = minutesOf(s.startTime);
+    let b = minutesOf(s.endTime);
+    if (a == null || b == null) continue;
+    if (b <= a) b += 24 * 60;
+    mins += b - a;
+  }
+  return mins / 60;
 }
 function hhmm(t) { return t ? String(t).slice(0, 5) : ''; }
 function isWeekend(dateStr) {
@@ -110,7 +129,7 @@ function cellSummary(memberId, dateStr, planShifts, assessShifts) {
   return {
     onDuty,
     isOff,
-    rest24h: isOff ? null : mlc.rest24h,
+    workHours: isOff ? null : workHoursOf(onDuty),
     mlcWarning: isOff ? false : mlc.anyBreach,
   };
 }
@@ -174,7 +193,7 @@ function Cell({ summary, dateStr, isToday, isSelected, isAffected, isEdited, col
           </span>
           <span className="cw-c-meta">
             <span className={`cw-c-rest${summary.mlcWarning ? ' w' : ''}`}>
-              {fmtRest(summary.rest24h) || '—'}
+              {fmtHours(summary.workHours) || '—'}
             </span>
             {summary.mlcWarning && <MlcTriangle size={9} />}
           </span>
