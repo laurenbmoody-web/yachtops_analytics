@@ -1,0 +1,141 @@
+/* Change Status modal — editorial (Cargo) styling, matching the crew-profile
+   field-card language: DM Serif Display headings, navy ink, terracotta accent,
+   tracked-caps labels, soft borders + focus halo. Scoped under .scm because the
+   modal is portaled to document.body, outside the .crew-profile-page tree. */
+.scm-panel {
+  background: #FFFFFF;
+  border: 1px solid #ECEAE3;
+  border-radius: 16px;
+  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
+  width: min(440px, 92vw);
+  overflow: hidden;
+}
+.scm { font-family: 'Inter', system-ui, sans-serif; color: #1C1B3A; }
+
+.scm-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 22px 14px;
+  border-bottom: 1px solid #F0F1F5;
+}
+.scm-title {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 22px;
+  line-height: 1.1;
+  color: #1C1B3A;
+}
+.scm-sub { font-size: 13px; color: #6B7280; margin-top: 3px; }
+.scm-close { color: #9098B1; padding: 2px; border: 0; background: none; cursor: pointer; }
+.scm-close:hover { color: #1C1B3A; }
+.scm-close:disabled { cursor: default; opacity: 0.5; }
+
+.scm-body { padding: 16px 22px 4px; display: flex; flex-direction: column; gap: 16px; }
+.scm-field { display: flex; flex-direction: column; }
+.scm-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #8B8478;
+  margin-bottom: 7px;
+}
+.scm-label .opt { font-weight: 600; letter-spacing: 0.06em; color: #AEB4C2; }
+
+/* Status option rows */
+.scm-options { display: flex; flex-direction: column; gap: 6px; }
+.scm-opt {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  text-align: left;
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  padding: 10px 13px;
+  cursor: pointer;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+.scm-opt:hover { background: #FAFAF8; }
+.scm-opt.is-sel {
+  border-color: #C65A1A;
+  box-shadow: 0 0 0 2px #FAECE7;
+  background: #FFFDFB;
+}
+.scm-dot { width: 9px; height: 9px; border-radius: 999px; flex: 0 0 auto; }
+.scm-opt-label { font-size: 14px; font-weight: 500; color: #1C1B3A; }
+.scm-opt.is-sel .scm-opt-label { font-weight: 600; }
+.scm-current {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #AEB4C2;
+}
+
+/* Field-card wrapper for date / time / note (borderless control inside). */
+.scm-inputcard {
+  display: flex;
+  gap: 8px;
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 9px;
+  padding: 9px 12px;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.scm-inputcard:focus-within { border-color: #C65A1A; box-shadow: 0 0 0 2px #FAECE7; }
+.scm-inputcard input,
+.scm-inputcard textarea {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1C1B3A;
+  outline: none;
+  font-family: inherit;
+}
+.scm-inputcard input[type="time"] { flex: 0 0 96px; }
+.scm-inputcard textarea { resize: none; min-height: 38px; line-height: 1.4; }
+.scm-inputcard textarea::placeholder { color: #C3C8D2; font-size: 12.5px; font-style: italic; }
+
+.scm-future {
+  font-size: 11px;
+  color: #B7791F;
+  margin-top: 7px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Footer — permission note + actions. */
+.scm-foot { padding: 14px 22px 18px; margin-top: 6px; }
+.scm-perm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #8B8478;
+  margin-bottom: 12px;
+}
+.scm-perm svg { color: #5C9B6A; flex: 0 0 auto; }
+.scm-actions { display: flex; gap: 10px; }
+.scm-btn {
+  flex: 1;
+  border-radius: 9px;
+  padding: 10px 16px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.scm-btn-ghost { background: #FFFFFF; border: 1px solid #E5E7EB; color: #1C1B3A; }
+.scm-btn-ghost:hover { background: #FAFAF8; border-color: #D7DAE2; }
+.scm-btn-primary { background: #C65A1A; border: 1px solid #C65A1A; color: #FFFFFF; }
+.scm-btn-primary:hover:not(:disabled) { background: #B14E16; border-color: #B14E16; }
+.scm-btn:disabled { cursor: default; }
+.scm-btn-primary:disabled { background: #E7E4EC; border-color: #E7E4EC; color: #ADA9BC; }
