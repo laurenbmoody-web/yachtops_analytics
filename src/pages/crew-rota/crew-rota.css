@@ -249,27 +249,23 @@
 .crew-list-dept-rule { height: 0.5px; background: #DFD8CC; flex: 1; }
 
 .crew-list-item { border-bottom: 0.5px solid #ECE6DC; }
+/* List-scoped tweaks to the shared dept-spine layout (don't touch the grid). */
+.crew-list-view .rota-dept-group { margin-bottom: 10px; }
+.crew-list-view .rota-dept-rows .crew-list-item:last-child { border-bottom: none; }
 
 .crew-list-row {
   display: grid;
-  grid-template-columns: 40px 1fr auto 18px;
-  gap: 14px;
+  grid-template-columns: 34px 1fr auto 18px;
+  gap: 12px;
   align-items: center;
-  padding: 12px 0;
+  padding: 9px 0 9px 14px;
   cursor: pointer;
-  border-left: 2px solid transparent;
-  transition: background 0.15s, border-color 0.15s, padding-left 0.15s;
+  transition: background 0.15s;
 }
-.crew-list-row:hover {
-  background: #FAFAF7;
-  border-left-color: #C65A1A;
-}
+.crew-list-row:hover { background: #FAFAF7; }
 .crew-list-row.off-day { opacity: 0.55; }
-.crew-list-row.mlc-warn {
-  background: #FDF6F3;
-  border-left-color: #C65A1A;
-}
-.crew-list-row.is-open { background: #FBF8F3; }
+.crew-list-row.mlc-warn { background: #FCF4EE; }
+.crew-list-row.is-open { background: #FBF1EA; }
 .crew-list-chev { color: #C9C0AE; justify-self: center; transition: transform 0.15s; }
 .crew-list-item.is-open .crew-list-chev { transform: rotate(180deg); color: #C65A1A; }
 
@@ -287,7 +283,7 @@
 .cl-istat-warn { color: #C65A1A; font-weight: 500; }
 
 /* Expandable per-crew detail — now just the 24h timeline bar. */
-.crew-list-detail { padding: 2px 16px 18px 56px; background: #FBF8F3; }
+.crew-list-detail { padding: 2px 16px 18px 60px; background: #FBF1EA; }
 .cl-detail-foot { display: flex; justify-content: flex-end; margin-top: 8px; }
 .cl-detail-link {
   background: none; border: none; cursor: pointer;
@@ -315,19 +311,19 @@
 .cl-off-msg { font-size: 12.5px; color: #8B8478; }
 
 .crew-list-avatar {
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 .crew-list-name {
   font-family: 'DM Serif Display', Georgia, serif;
-  font-size: 17px;
+  font-size: 15px;
   line-height: 1.1;
   letter-spacing: -0.3px;
   display: flex;
@@ -340,9 +336,9 @@
   color: #695880;
   margin-top: 4px;
   display: grid;
-  grid-template-columns: 168px 90px 132px 96px 84px 1fr;
+  grid-template-columns: 150px 88px 130px 94px 80px 1fr;
   align-items: baseline;
-  column-gap: 16px;
+  column-gap: 14px;
 }
 .crew-list-role-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .crew-list-rest { text-align: right; }
