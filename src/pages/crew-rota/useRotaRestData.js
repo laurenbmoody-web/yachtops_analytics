@@ -3,8 +3,9 @@
 //
 // Returns a shape compatible with what RestPanelPopover already reads
 // (the old MOCK_REST_DATA entry): timeline / weekChart / labels /
-// banner prose / *Meta / *Summary. Trip insights + AI suggestions stay
-// hardcoded placeholders per spec (trip + AI engine are later steps).
+// banner prose / *Meta / *Summary. The shift-type breakdown is now computed
+// live from the loaded 7-day window; trip-scoped totals + AI suggestions
+// remain later steps (trip + AI engine).
 
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
@@ -47,18 +48,8 @@ function subLabel(s) {
   return `${s.shift_type} · service`;
 }
 
-// Hardcoded placeholders (trip + AI are later steps).
-function staticTripInsights(firstName) {
-  return {
-    tripMeta: 'This trip so far · day 3 of 5',
-    tripSummary: `<em>${firstName}</em> has worked across the first three days of the Marchetti charter.`,
-    tripStats: [
-      { num: '—', label: 'Duty', sub: 'Trip totals land with trip integration' },
-      { num: '—', label: 'Watch', sub: 'Later step' },
-      { num: '—', label: 'Standby', sub: 'Later step' },
-    ],
-  };
-}
+// Friendly label per on-duty shift type.
+const TYPE_LABELS = { duty: 'Duty', watch: 'Watch', standby: 'Standby', training: 'Training' };
 
 export function useRotaRestData(memberId) {
   // AuthContext exposes `activeTenantId`, not `tenantId`.
@@ -185,7 +176,25 @@ export function useRotaRestData(memberId) {
           });
         }
 
-        const firstName = '';
+        // ── Shift-type breakdown over the loaded 7-day window (real data;
+        //    trip-scoped totals arrive with trip integration later) ──
+        const typeHours = {};
+        const typeCount = {};
+        for (const s of all) {
+          if (!ON_DUTY_TYPES.has(s.shift_type)) continue;
+          typeHours[s.shift_type] = (typeHours[s.shift_type] || 0) + shiftHours(s);
+          typeCount[s.shift_type] = (typeCount[s.shift_type] || 0) + 1;
+        }
+        const typeKeys = ['duty', 'watch', 'standby', ...(typeHours.training ? ['training'] : [])];
+        const tripStats = typeKeys.map(t => ({
+          num: fmtHours(typeHours[t] || 0),
+          label: TYPE_LABELS[t],
+          sub: typeCount[t] ? `${typeCount[t]} shift${typeCount[t] > 1 ? 's' : ''}` : 'none rostered',
+        }));
+        const daysWorked = new Set(
+          all.filter(s => ON_DUTY_TYPES.has(s.shift_type)).map(s => s.shift_date),
+        ).size;
+
         const banner = mlcWarning
           ? (() => {
               if (dailyBelow && weeklyBelow) {
@@ -216,8 +225,6 @@ export function useRotaRestData(memberId) {
             })()
           : { headline: null, body: null };
 
-        const trip = staticTripInsights(firstName || 'This crew member');
-
         if (cancelled) return;
         setData({
           mlcWarning,
@@ -226,7 +233,9 @@ export function useRotaRestData(memberId) {
           pastWeekLabel: `Past week ${fmtHours(pastWeekHours)}`,
           bannerHeadline: banner.headline,
           bannerBody: banner.body,
-          timelineMeta: '18:30 yesterday → now',
+          timelineMeta: 'Today · 00:00 → 24:00',
+          timelineStart: '00:00',
+          timelineEnd: '24:00',
           timelineSummary: offToday
             ? '24h off duty · no shifts today'
             : `${fmtHours(rest24h)} rest · ${fmtHours(onDutyToday)} on duty`,
@@ -236,7 +245,10 @@ export function useRotaRestData(memberId) {
           chartShort: weeklyBelow ? `${Math.round(77 - pastWeekHours)}h short` : null,
           chartShortOf: weeklyBelow ? '77h weekly minimum' : null,
           weekChart,
-          ...trip,
+          tripMeta: 'Shift breakdown · last 7 days',
+          tripStats,
+          onDutyWeekLabel: fmtHours(mlcReport.onDutyWeek),
+          daysWorked,
           suggestions: [],
         });
       } catch (e) {

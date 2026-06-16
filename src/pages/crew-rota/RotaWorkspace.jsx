@@ -1007,7 +1007,12 @@ export default function RotaWorkspace({
         onClearAll={() => handleClearRota('all')}
       />
 
-      <RestPanelPopover crew={selectedCrew} onClose={() => setSelectedCrew(null)} />
+      <RestPanelPopover
+        crew={selectedCrew}
+        onClose={() => setSelectedCrew(null)}
+        onViewSchedule={() => { setSelectedCrew(null); setView('grid'); }}
+        onOpenHor={() => { setSelectedCrew(null); setView('hor'); }}
+      />
     </>
   );
 }
