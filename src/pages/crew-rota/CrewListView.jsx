@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { DEPT_ORDER, MlcTriangle } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
+import { MlcTriangle } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
 import { getContrastText } from './crewDisplay';
+import { groupAndOrderCrew } from './crewOrder';
 import { useAuth } from '../../contexts/AuthContext';
 
 const DEPT_BADGE_LABEL = { draft: 'Draft', pending_approval: 'Pending', published: 'Published' };
@@ -165,21 +166,16 @@ export default function CrewListView({ crew = [], onCrewClick, deptStatus = null
   const viewerTier = String(user?.permission_tier || tenantRole || '').toUpperCase();
   const viewerDeptId = currentUser?.department_id || null;
 
-  const byDept = new Map();
-  for (const c of crew) {
-    const d = c.department || 'Other';
-    if (!byDept.has(d)) byDept.set(d, []);
-    byDept.get(d).push(c);
-  }
-  const orderedDepts = [
-    ...DEPT_ORDER.filter(d => byDept.has(d)),
-    ...Array.from(byDept.keys()).filter(d => !DEPT_ORDER.includes(d)),
-  ];
+  // Identical ordering to the day grid: own department first, signed-in user
+  // pinned to the top of their department, then canonical department order.
+  const orderedGroups = groupAndOrderCrew(crew, {
+    userId: user?.id || null,
+    ownDeptId: viewerDeptId,
+  });
 
   return (
     <div className="crew-list-view">
-      {orderedDepts.map((dept) => {
-        const members = byDept.get(dept);
+      {orderedGroups.map(([dept, members]) => {
         const color = members[0]?.departmentColor || '#5F5E5A';
         const deptId = members[0]?.departmentId || null;
         const statusRow = deptId && deptStatus ? deptStatus.get(deptId) : null;
