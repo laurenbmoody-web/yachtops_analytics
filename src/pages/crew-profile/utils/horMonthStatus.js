@@ -55,6 +55,23 @@ export async function fetchMonthStatus({ tenantId, subjectUserId, year, jsMonth 
   return data || null;
 }
 
+// All month-status rows for one tenant + period (every crew member), keyed by
+// subject_user_id. RLS scopes this to the caller's tenant. Used by the command
+// dashboard so the whole roster's workflow state loads in a single query.
+export async function fetchMonthStatusesForMonth({ tenantId, year, jsMonth }) {
+  if (!tenantId) return {};
+  const { data, error } = await supabase
+    .from('hor_month_status')
+    .select('*')
+    .eq('tenant_id', tenantId)
+    .eq('period_year', year)
+    .eq('period_month', toDbMonth(jsMonth));
+  if (error) return {};
+  const byUser = {};
+  (data || []).forEach((row) => { byUser[row.subject_user_id] = row; });
+  return byUser;
+}
+
 // Crew submits their own month. In 'trust' mode this returns a 'confirmed' row.
 // `signature` (optional) carries the drawn-signature audit trail:
 //   { path, name, ip, ua } — path is the hor-signatures object from

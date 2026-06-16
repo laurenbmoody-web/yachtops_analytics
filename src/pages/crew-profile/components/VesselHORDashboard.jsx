@@ -1,450 +1,329 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import Select from '../../../components/ui/Select';
-import { loadUsers, Department } from '../../../utils/authStorage';
-import { getComplianceStatus, detectBreaches, getCrewWorkEntries, getMonthConfirmation, sendManualNudge } from '../utils/horStorage';
-import { getCurrentUser } from '../../../utils/authStorage';
-import CrewHORDrawer from './CrewHORDrawer';
-import ExportAuditModal from './ExportAuditModal';
-import RequestCorrectionModal from './RequestCorrectionModal';
-
-
+import { supabase } from '../../../lib/supabaseClient';
+import { useTenant } from '../../../contexts/TenantContext';
 import { showToast } from '../../../utils/toast';
+import { fetchTenantCrew } from '../utils/tenantCrew';
+import {
+  fetchMonthStatusesForMonth,
+  fetchVesselHorSettings,
+  approveMonth,
+  reopenMonth,
+} from '../utils/horMonthStatus';
+import SignOffModal from './SignOffModal';
 
-const VesselHORDashboard = ({ currentMonth, onMonthChange }) => {
-  const [searchQuery, setSearchQuery] = useState('');
+// Vessel HOR command view — the Captain's fleet oversight of every crew member's
+// monthly Hours-of-Rest workflow state, DB-backed (hor_month_status). Submitted
+// months can be multi-selected and counter-signed in one signing action; the
+// drawn signature is captured once and applied to every selected month.
+//
+// Per-crew detail (the calendar, breaches, single approve/reopen) lives on the
+// crew member's own profile HOR tab — "View" routes there.
+
+const STATUS_META = {
+  open:      { label: 'Open',      cls: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' },
+  submitted: { label: 'Submitted', cls: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300' },
+  confirmed: { label: 'Confirmed', cls: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
+  locked:    { label: 'Locked',    cls: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400' },
+};
+
+const fmt = (ts) => (ts ? new Date(ts).toLocaleString('en-GB') : '—');
+
+const VesselHORDashboard = ({ currentMonth, onMonthChange, viewerTier }) => {
+  const { activeTenantId } = useTenant();
+  const navigate = useNavigate();
+
+  const [crew, setCrew] = useState([]);
+  const [statuses, setStatuses] = useState({});       // subject_user_id -> hor_month_status row
+  const [settings, setSettings] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [crewList, setCrewList] = useState([]);
-  const [filteredCrew, setFilteredCrew] = useState([]);
-  const [selectedCrew, setSelectedCrew] = useState(null);
-  const [showCrewDrawer, setShowCrewDrawer] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [showCorrectionModal, setShowCorrectionModal] = useState(false);
-  const [correctionTarget, setCorrectionTarget] = useState(null);
-  const [sortConfig, setSortConfig] = useState({ column: null, direction: null });
-  const [showLockMonthModal, setShowLockMonthModal] = useState(false);
-  const [showUnlockMonthModal, setShowUnlockMonthModal] = useState(false);
-  const [isMonthLocked, setIsMonthLocked] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [signOff, setSignOff] = useState(null);
+  const [myName, setMyName] = useState('');
 
-  // Load crew list with HOR summary
-  useEffect(() => {
-    loadCrewData();
-    checkMonthLockStatus();
-  }, [currentMonth]);
-
-  // Apply filters
-  useEffect(() => {
-    applyFilters();
-  }, [crewList, searchQuery, departmentFilter, statusFilter, sortConfig]);
-
-  const checkMonthLockStatus = () => {
-    const users = loadUsers();
-    if (users?.length === 0) return;
-    
-    const year = currentMonth?.getFullYear();
-    const month = currentMonth?.getMonth();
-    const firstCrewConfirmation = getMonthConfirmation(users?.[0]?.id, year, month);
-    
-    setIsMonthLocked(firstCrewConfirmation?.locked || false);
-  };
-
-  const loadCrewData = () => {
-    const users = loadUsers();
-    const crewWithHOR = users?.map(user => {
-      const complianceStatus = getComplianceStatus(user?.id);
-      const entries = getCrewWorkEntries(user?.id);
-      const breaches = detectBreaches(user?.id);
-      
-      // Calculate month progress
-      const year = currentMonth?.getFullYear();
-      const month = currentMonth?.getMonth();
-      const daysInMonth = new Date(year, month + 1, 0)?.getDate();
-      const today = new Date();
-      const currentDay = today?.getMonth() === month && today?.getFullYear() === year ? today?.getDate() : daysInMonth;
-      
-      const entriesThisMonth = entries?.filter(entry => {
-        const entryDate = new Date(entry?.date);
-        return entryDate?.getMonth() === month && entryDate?.getFullYear() === year;
-      });
-      
-      const uniqueDatesLogged = new Set(entriesThisMonth?.map(e => e?.date))?.size;
-      const monthProgress = `${uniqueDatesLogged}/${currentDay} days logged`;
-      
-      // Determine month status
-      let monthStatus = 'Draft';
-      const monthConfirmation = getMonthConfirmation(user?.id, year, month);
-      if (monthConfirmation?.locked) {
-        monthStatus = 'Locked';
-      } else if (monthConfirmation?.confirmed) {
-        monthStatus = 'Confirmed by Crew';
-      }
-      
-      // Rolling 24h status
-      const rolling24hStatus = complianceStatus?.last24HoursRest >= 10 ? 'Compliant' : 'Breach';
-      
-      // Rolling 7d status
-      const rolling7dStatus = complianceStatus?.last7DaysRest >= 77 ? 'Compliant' : 'Breach';
-      
-      // Last updated
-      const lastEntry = entries?.sort((a, b) => new Date(b?.timestamp) - new Date(a?.timestamp))?.[0];
-      const lastUpdated = lastEntry?.timestamp ? new Date(lastEntry?.timestamp)?.toLocaleString('en-GB') : 'Never';
-      
-      // Overall status for filtering
-      let overallStatus = 'Compliant';
-      if (uniqueDatesLogged < currentDay) {
-        overallStatus = 'Missing entries';
-      } else if (monthStatus === 'Draft') {
-        overallStatus = 'Not confirmed';
-      } else if (rolling24hStatus === 'Breach' || rolling7dStatus === 'Breach') {
-        overallStatus = 'Breach';
-      }
-      
-      return {
-        ...user,
-        monthProgress,
-        monthStatus,
-        rolling24hStatus,
-        rolling7dStatus,
-        lastUpdated,
-        overallStatus,
-        uniqueDatesLogged,
-        currentDay
-      };
-    });
-    
-    setCrewList(crewWithHOR);
-  };
-
-  const applyFilters = () => {
-    let filtered = [...crewList];
-    
-    // Search filter
-    if (searchQuery?.trim()) {
-      const query = searchQuery?.toLowerCase();
-      filtered = filtered?.filter(crew => 
-        crew?.fullName?.toLowerCase()?.includes(query) ||
-        crew?.roleTitle?.toLowerCase()?.includes(query) ||
-        crew?.department?.toLowerCase()?.includes(query)
-      );
-    }
-    
-    // Department filter
-    if (departmentFilter !== 'All') {
-      filtered = filtered?.filter(crew => crew?.department === departmentFilter);
-    }
-    
-    // Status filter
-    if (statusFilter !== 'All') {
-      filtered = filtered?.filter(crew => crew?.overallStatus === statusFilter);
-    }
-    
-    // Sort
-    if (sortConfig?.column) {
-      filtered?.sort((a, b) => {
-        let aVal = a?.[sortConfig?.column];
-        let bVal = b?.[sortConfig?.column];
-        
-        if (sortConfig?.column === 'name') {
-          aVal = a?.fullName;
-          bVal = b?.fullName;
-        }
-        
-        if (typeof aVal === 'string') {
-          aVal = aVal?.toLowerCase();
-          bVal = bVal?.toLowerCase();
-        }
-        
-        if (aVal < bVal) return sortConfig?.direction === 'asc' ? -1 : 1;
-        if (aVal > bVal) return sortConfig?.direction === 'asc' ? 1 : -1;
-        return 0;
-      });
-    }
-    
-    setFilteredCrew(filtered);
-  };
-
-  const handleSort = (column) => {
-    setSortConfig(prev => {
-      if (prev?.column === column) {
-        if (prev?.direction === 'asc') return { column, direction: 'desc' };
-        if (prev?.direction === 'desc') return { column: null, direction: null };
-      }
-      return { column, direction: 'asc' };
-    });
-  };
-
-  const renderSortIcon = (column) => {
-    if (sortConfig?.column !== column) {
-      return (
-        <div className="inline-flex flex-col ml-1 opacity-30">
-          <Icon name="ChevronUp" size={12} className="-mb-1" />
-          <Icon name="ChevronDown" size={12} />
-        </div>
-      );
-    }
-    if (sortConfig?.direction === 'asc') {
-      return <Icon name="ChevronUp" size={14} className="inline ml-1 text-primary" />;
-    } else if (sortConfig?.direction === 'desc') {
-      return <Icon name="ChevronDown" size={14} className="inline ml-1 text-primary" />;
-    }
-    return null;
-  };
-
-  const handleViewCrew = (crew) => {
-    setSelectedCrew(crew);
-    setShowCrewDrawer(true);
-  };
-
-  const handleNudge = (crew) => {
-    const currentUser = getCurrentUser();
-    const result = sendManualNudge(crew?.id, crew?.fullName, currentUser?.id);
-    
-    if (result?.success) {
-      showToast(result?.message, 'success');
-    } else {
-      showToast(result?.message || 'Failed to send nudge', 'error');
-    }
-  };
-
-  const handleRequestCorrection = (crew) => {
-    setCorrectionTarget(crew);
-    setShowCorrectionModal(true);
-  };
-
-  const handleMonthChangeInternal = (direction) => {
-    const newMonth = new Date(currentMonth?.getFullYear(), currentMonth?.getMonth() + direction, 1);
-    const today = new Date();
-    if (newMonth > today) return; // Prevent future months
-    onMonthChange(newMonth);
-  };
-
+  const year = currentMonth?.getFullYear();
+  const jsMonth = currentMonth?.getMonth();
   const monthName = currentMonth?.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
-  const departmentOptions = [
-    { value: 'All', label: 'All Departments' },
-    { value: Department?.BRIDGE, label: 'Bridge' },
-    { value: Department?.INTERIOR, label: 'Interior' },
-    { value: Department?.DECK, label: 'Deck' },
-    { value: Department?.ENGINEERING, label: 'Engineering' },
-    { value: Department?.GALLEY, label: 'Galley' },
-    { value: Department?.SECURITY, label: 'Security' },
-    { value: Department?.SPA, label: 'Spa' },
-    { value: Department?.AVIATION, label: 'Aviation' }
-  ];
+  const approverTier = settings?.approverTier || 'COMMAND';
+  const canApprove = viewerTier === 'COMMAND' || viewerTier === approverTier;
+
+  const load = async () => {
+    if (!activeTenantId) return;
+    setLoading(true);
+    const [crewRows, statusMap, vesselSettings] = await Promise.all([
+      fetchTenantCrew(activeTenantId),
+      fetchMonthStatusesForMonth({ tenantId: activeTenantId, year, jsMonth }),
+      fetchVesselHorSettings(activeTenantId),
+    ]);
+    setCrew(crewRows);
+    setStatuses(statusMap);
+    setSettings(vesselSettings);
+    setSelectedIds([]);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeTenantId, year, jsMonth]);
+
+  // Current user's name, to prefill the counter-signature.
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      const uid = data?.user?.id;
+      if (!uid) return;
+      const { data: prof } = await supabase.from('profiles').select('full_name').eq('id', uid).maybeSingle();
+      setMyName(prof?.full_name || '');
+    })();
+  }, []);
+
+  const rows = useMemo(
+    () => crew.map((c) => {
+      const statusRow = statuses[c.id] || null;
+      return { ...c, status: statusRow?.status || 'open', statusRow };
+    }),
+    [crew, statuses],
+  );
+
+  const departmentOptions = useMemo(() => {
+    const set = Array.from(new Set(crew.map((c) => c.department).filter(Boolean))).sort();
+    return [{ value: 'All', label: 'All departments' }, ...set.map((d) => ({ value: d, label: d }))];
+  }, [crew]);
 
   const statusOptions = [
-    { value: 'All', label: 'All Status' },
-    { value: 'Compliant', label: 'Compliant' },
-    { value: 'Breach', label: 'Breach' },
-    { value: 'Missing entries', label: 'Missing entries' },
-    { value: 'Not confirmed', label: 'Not confirmed' }
+    { value: 'All', label: 'All statuses' },
+    { value: 'open', label: 'Open' },
+    { value: 'submitted', label: 'Submitted' },
+    { value: 'confirmed', label: 'Confirmed' },
+    { value: 'locked', label: 'Locked' },
   ];
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rows.filter((r) => {
+      if (q && !(`${r.fullName} ${r.roleTitle} ${r.department}`.toLowerCase().includes(q))) return false;
+      if (departmentFilter !== 'All' && r.department !== departmentFilter) return false;
+      if (statusFilter !== 'All' && r.status !== statusFilter) return false;
+      return true;
+    });
+  }, [rows, search, departmentFilter, statusFilter]);
+
+  // Only submitted months awaiting approval are selectable for counter-sign.
+  const selectableIds = useMemo(
+    () => filtered.filter((r) => r.status === 'submitted').map((r) => r.id),
+    [filtered],
+  );
+  const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.includes(id));
+
+  const toggle = (id) =>
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const toggleAll = () =>
+    setSelectedIds(allSelected ? [] : selectableIds);
+
+  const openBulkSign = (ids) => {
+    const targets = rows.filter((r) => ids.includes(r.id) && r.status === 'submitted');
+    if (targets.length === 0) return;
+    setSignOff({
+      subjectIds: targets.map((r) => r.id),
+      title: targets.length === 1 ? 'Counter-sign Hours of Rest' : `Counter-sign ${targets.length} months`,
+      declaration:
+        targets.length === 1
+          ? `I have reviewed the Hours of Rest for ${targets[0].fullName} for ${monthName} and, as Master, approve them as an accurate record.`
+          : `I have reviewed the Hours of Rest for the ${targets.length} selected crew members for ${monthName} and, as Master, approve them as accurate records.`,
+    });
+  };
+
+  // One signature → applied to every selected month. Partial failures are
+  // reported but don't abort the batch.
+  const runBulkSign = async (signature) => {
+    const ids = signOff?.subjectIds || [];
+    let ok = 0;
+    const errors = [];
+    for (const subjectUserId of ids) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await approveMonth({ tenantId: activeTenantId, subjectUserId, year, jsMonth, signature });
+        ok += 1;
+      } catch (e) {
+        errors.push(e?.message || 'error');
+      }
+    }
+    if (ok) showToast(`Counter-signed ${ok} month${ok > 1 ? 's' : ''}`, 'success');
+    if (errors.length) showToast(`${errors.length} could not be signed`, 'error');
+    await load();
+  };
+
+  const handleReopen = async (crewRow) => {
+    if (!window.confirm(`Reopen ${crewRow.fullName}'s ${monthName} for corrections? This clears the existing signatures.`)) return;
+    try {
+      await reopenMonth({ tenantId: activeTenantId, subjectUserId: crewRow.id, year, jsMonth });
+      showToast('Month reopened', 'success');
+      await load();
+    } catch (e) {
+      showToast(e?.message || 'Failed to reopen', 'error');
+    }
+  };
+
+  const viewCrew = (crewRow) => navigate(`/profile/${crewRow.id}?tab=hor`);
+
+  const stepMonth = (dir) => {
+    const next = new Date(year, jsMonth + dir, 1);
+    if (next > new Date()) return; // no future months
+    onMonthChange(next);
+  };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h3 className="text-2xl font-semibold text-foreground">Vessel HOR</h3>
-        <p className="text-sm text-muted-foreground mt-1">Monthly compliance overview by crew member</p>
+        <p className="text-sm text-muted-foreground mt-1">Monthly sign-off status by crew member</p>
       </div>
 
-      {/* Controls Row */}
+      {/* Controls */}
       <div className="bg-card border border-border rounded-xl p-4 space-y-4">
-        {/* Month Selector */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleMonthChangeInternal(-1)}
-              className="p-2 hover:bg-muted rounded-lg transition-smooth"
-            >
-              <Icon name="ChevronLeft" size={18} className="text-foreground" />
-            </button>
-            <span className="text-sm font-medium text-foreground min-w-[140px] text-center">{monthName}</span>
-            <button
-              onClick={() => handleMonthChangeInternal(1)}
-              className="p-2 hover:bg-muted rounded-lg transition-smooth"
-            >
-              <Icon name="ChevronRight" size={18} className="text-foreground" />
-            </button>
-          </div>
-          <Button onClick={() => setShowExportModal(true)}>
-            <Icon name="Download" size={18} />
-            Export Audit Pack
-          </Button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => stepMonth(-1)} className="p-2 hover:bg-muted rounded-lg transition-smooth">
+            <Icon name="ChevronLeft" size={18} className="text-foreground" />
+          </button>
+          <span className="text-sm font-medium text-foreground min-w-[140px] text-center">{monthName}</span>
+          <button onClick={() => stepMonth(1)} className="p-2 hover:bg-muted rounded-lg transition-smooth">
+            <Icon name="ChevronRight" size={18} className="text-foreground" />
+          </button>
         </div>
-
-        {/* Filters */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Input
-            placeholder="Search by name, rank, department..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e?.target?.value)}
-            icon="Search"
-          />
-          <Select
-            value={departmentFilter}
-            onChange={(value) => setDepartmentFilter(value)}
-            options={departmentOptions}
-          />
-          <Select
-            value={statusFilter}
-            onChange={(value) => setStatusFilter(value)}
-            options={statusOptions}
-          />
+          <Input placeholder="Search by name, rank, department…" value={search} onChange={(e) => setSearch(e?.target?.value)} icon="Search" />
+          <Select value={departmentFilter} onChange={setDepartmentFilter} options={departmentOptions} />
+          <Select value={statusFilter} onChange={setStatusFilter} options={statusOptions} />
         </div>
       </div>
 
-      {/* Crew Table */}
+      {/* Bulk action bar */}
+      {canApprove && selectedIds.length > 0 && (
+        <div className="flex items-center justify-between bg-primary/5 border border-primary/20 rounded-xl px-4 py-3">
+          <span className="text-sm text-foreground">
+            {selectedIds.length} submitted month{selectedIds.length > 1 ? 's' : ''} selected
+          </span>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setSelectedIds([])}>Clear</Button>
+            <Button onClick={() => openBulkSign(selectedIds)}>
+              <Icon name="PenLine" size={16} />
+              Counter-sign selected
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Table */}
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-muted/30 border-b border-border">
               <tr>
-                <th 
-                  className="text-left p-4 text-sm font-medium text-foreground cursor-pointer hover:bg-muted/50 transition-colors select-none"
-                  onClick={() => handleSort('name')}
-                >
-                  <div className="flex items-center">
-                    Crew Member
-                    {renderSortIcon('name')}
-                  </div>
-                </th>
-                <th 
-                  className="text-left p-4 text-sm font-medium text-foreground cursor-pointer hover:bg-muted/50 transition-colors select-none"
-                  onClick={() => handleSort('department')}
-                >
-                  <div className="flex items-center">
-                    Department
-                    {renderSortIcon('department')}
-                  </div>
-                </th>
-                <th className="text-left p-4 text-sm font-medium text-foreground">Month Progress</th>
+                {canApprove && (
+                  <th className="w-12 p-4">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all submitted"
+                      checked={allSelected}
+                      disabled={selectableIds.length === 0}
+                      onChange={toggleAll}
+                      className="w-4 h-4 rounded border-border"
+                    />
+                  </th>
+                )}
+                <th className="text-left p-4 text-sm font-medium text-foreground">Crew Member</th>
+                <th className="text-left p-4 text-sm font-medium text-foreground">Department</th>
                 <th className="text-left p-4 text-sm font-medium text-foreground">Month Status</th>
-                <th className="text-left p-4 text-sm font-medium text-foreground">Rolling 24h</th>
-                <th className="text-left p-4 text-sm font-medium text-foreground">Rolling 7d</th>
-                <th className="text-left p-4 text-sm font-medium text-foreground">Last Updated</th>
+                <th className="text-left p-4 text-sm font-medium text-foreground">Submitted</th>
+                <th className="text-left p-4 text-sm font-medium text-foreground">Counter-signed</th>
                 <th className="text-right p-4 text-sm font-medium text-foreground">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredCrew?.length === 0 ? (
-                <tr>
-                  <td colSpan="8" className="p-8 text-center text-muted-foreground">
-                    No crew members found
-                  </td>
-                </tr>
+              {loading ? (
+                <tr><td colSpan={canApprove ? 7 : 6} className="p-8 text-center text-muted-foreground">Loading…</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={canApprove ? 7 : 6} className="p-8 text-center text-muted-foreground">No crew members found</td></tr>
               ) : (
-                filteredCrew?.map(crew => (
-                  <tr key={crew?.id} className="border-b border-border hover:bg-muted/20 transition-smooth">
-                    <td className="p-4">
-                      <div>
-                        <div className="text-sm font-medium text-foreground">{crew?.fullName}</div>
-                        <div className="text-xs text-muted-foreground">{crew?.roleTitle}</div>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <span className="text-sm text-foreground">{crew?.department}</span>
-                    </td>
-                    <td className="p-4">
-                      <span className="text-sm text-foreground">{crew?.monthProgress}</span>
-                    </td>
-                    <td className="p-4">
-                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
-                        crew?.monthStatus === 'Locked' ? 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400' :
-                        crew?.monthStatus === 'Confirmed by Crew'? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
-                      }`}>
-                        {crew?.monthStatus}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
-                        crew?.rolling24hStatus === 'Compliant' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                      }`}>
-                        {crew?.rolling24hStatus}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
-                        crew?.rolling7dStatus === 'Compliant' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                      }`}>
-                        {crew?.rolling7dStatus}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      <span className="text-xs text-muted-foreground">{crew?.lastUpdated}</span>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleViewCrew(crew)}
-                          className="p-1.5 hover:bg-muted rounded-lg transition-smooth"
-                          title="View"
-                        >
-                          <Icon name="Eye" size={16} className="text-foreground" />
-                        </button>
-                        <button
-                          onClick={() => handleNudge(crew)}
-                          className="p-1.5 hover:bg-muted rounded-lg transition-smooth"
-                          title="Nudge"
-                        >
-                          <Icon name="Bell" size={16} className="text-foreground" />
-                        </button>
-                        <button
-                          onClick={() => handleRequestCorrection(crew)}
-                          className="p-1.5 hover:bg-muted rounded-lg transition-smooth"
-                          title="Request correction"
-                        >
-                          <Icon name="AlertCircle" size={16} className="text-foreground" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                filtered.map((r) => {
+                  const meta = STATUS_META[r.status] || STATUS_META.open;
+                  const selectable = r.status === 'submitted';
+                  return (
+                    <tr key={r.id} className="border-b border-border hover:bg-muted/20 transition-smooth">
+                      {canApprove && (
+                        <td className="p-4">
+                          <input
+                            type="checkbox"
+                            aria-label={`Select ${r.fullName}`}
+                            checked={selectedIds.includes(r.id)}
+                            disabled={!selectable}
+                            onChange={() => toggle(r.id)}
+                            className="w-4 h-4 rounded border-border disabled:opacity-30"
+                          />
+                        </td>
+                      )}
+                      <td className="p-4">
+                        <div className="text-sm font-medium text-foreground">{r.fullName}</div>
+                        <div className="text-xs text-muted-foreground">{r.roleTitle}</div>
+                      </td>
+                      <td className="p-4"><span className="text-sm text-foreground">{r.department}</span></td>
+                      <td className="p-4">
+                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${meta.cls}`}>{meta.label}</span>
+                      </td>
+                      <td className="p-4"><span className="text-xs text-muted-foreground">{fmt(r.statusRow?.submitted_at)}</span></td>
+                      <td className="p-4">
+                        {r.statusRow?.approve_signed_name ? (
+                          <div>
+                            <div className="text-xs font-medium text-foreground">{r.statusRow.approve_signed_name}</div>
+                            <div className="text-xs text-muted-foreground">{fmt(r.statusRow?.confirmed_at)}</div>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center justify-end gap-2">
+                          {canApprove && r.status === 'submitted' && (
+                            <button onClick={() => openBulkSign([r.id])} className="p-1.5 hover:bg-muted rounded-lg transition-smooth" title="Counter-sign">
+                              <Icon name="PenLine" size={16} className="text-foreground" />
+                            </button>
+                          )}
+                          {canApprove && (r.status === 'confirmed') && (
+                            <button onClick={() => handleReopen(r)} className="p-1.5 hover:bg-muted rounded-lg transition-smooth" title="Reopen">
+                              <Icon name="RotateCcw" size={16} className="text-foreground" />
+                            </button>
+                          )}
+                          <button onClick={() => viewCrew(r)} className="p-1.5 hover:bg-muted rounded-lg transition-smooth" title="View">
+                            <Icon name="Eye" size={16} className="text-foreground" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Crew HOR Drawer */}
-      {showCrewDrawer && selectedCrew && (
-        <CrewHORDrawer
-          isOpen={showCrewDrawer}
-          onClose={() => {
-            setShowCrewDrawer(false);
-            setSelectedCrew(null);
-          }}
-          crew={selectedCrew}
-          currentMonth={currentMonth}
-          onMonthChange={onMonthChange}
-          onNudge={handleNudge}
-          onRequestCorrection={handleRequestCorrection}
-        />
-      )}
-
-      {/* Export Audit Modal */}
-      {showExportModal && (
-        <ExportAuditModal
-          isOpen={showExportModal}
-          onClose={() => setShowExportModal(false)}
-          currentMonth={currentMonth}
-          crewList={crewList}
-        />
-      )}
-
-      {/* Request Correction Modal */}
-      {showCorrectionModal && correctionTarget && (
-        <RequestCorrectionModal
-          isOpen={showCorrectionModal}
-          onClose={() => {
-            setShowCorrectionModal(false);
-            setCorrectionTarget(null);
-          }}
-          crew={correctionTarget}
-          currentMonth={currentMonth}
+      {signOff && (
+        <SignOffModal
+          isOpen={!!signOff}
+          onClose={() => setSignOff(null)}
+          onConfirm={runBulkSign}
+          title={signOff.title}
+          declaration={signOff.declaration}
+          periodLabel={monthName}
+          defaultName={myName}
+          confirmLabel="Sign & approve"
+          kind="approve"
         />
       )}
     </div>

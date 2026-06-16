@@ -2392,9 +2392,10 @@ const canEdit = (() => {
         )}
         {/* Conditional Rendering */}
         {horView === 'vessel' && isCommand ? (
-          <VesselHORDashboard 
+          <VesselHORDashboard
             currentMonth={horCurrentMonth}
             onMonthChange={setHorCurrentMonth}
+            viewerTier={currentUserPermissionTier}
           />
         ) : (
           // My HOR View (existing)
