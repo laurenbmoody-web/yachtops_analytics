@@ -32,7 +32,7 @@ function SectionHead({ label }) {
   return <div className="rest-section-label">{label}</div>;
 }
 
-export default function RestPanelPopover({ crew, onClose }) {
+export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpenHor }) {
   useEffect(() => {
     if (!crew) return undefined;
     const prevOverflow = document.body.style.overflow;
@@ -87,8 +87,9 @@ export default function RestPanelPopover({ crew, onClose }) {
     statusLabel,
   ].filter(Boolean).join(' · ').toUpperCase();
 
-  const tripSummaryHtml = data.tripSummary
-    || `<em>${data.fullName}</em> has worked steadily across the first three days of the Marchetti charter.`;
+  const tripSummaryHtml = data.daysWorked > 0
+    ? `<em>${data.fullName}</em> worked <strong>${data.onDutyWeekLabel}</strong> on duty across <strong>${data.daysWorked}</strong> day${data.daysWorked === 1 ? '' : 's'} in the last 7 days.`
+    : `<em>${data.fullName}</em> has no on-duty hours rostered in the last 7 days.`;
 
   return (
     <>
@@ -137,7 +138,7 @@ export default function RestPanelPopover({ crew, onClose }) {
 
         {/* 3 · 24h timeline with shift-type sub-labels */}
         <div className="rest-section">
-          <SectionHead label={`LAST 24 HOURS · ${data.timelineMeta.toUpperCase()}`} />
+          <SectionHead label={data.timelineMeta.toUpperCase()} />
           <div className="rest-section-summary">{data.timelineSummary}</div>
           <div className="rest-timeline-strip">
             {data.timeline.map((seg, i) => (
@@ -150,11 +151,10 @@ export default function RestPanelPopover({ crew, onClose }) {
                 {seg.sub && <div className="rest-seg-sub">{seg.sub}</div>}
               </div>
             ))}
-            <div className="rest-timeline-now" />
           </div>
           <div className="rest-timeline-axis">
-            <span>18:30 yesterday</span>
-            <span style={{ color: '#C65A1A', fontWeight: 500 }}>↑ now</span>
+            <span>{data.timelineStart}</span>
+            <span>{data.timelineEnd}</span>
           </div>
         </div>
 
@@ -285,13 +285,13 @@ export default function RestPanelPopover({ crew, onClose }) {
               <button type="button" className="rest-btn ghost">Add note</button>
             </>
           ) : (
-            <button type="button" className="rest-btn primary">View full schedule</button>
+            <button type="button" className="rest-btn primary" onClick={onViewSchedule}>View full schedule</button>
           )}
-          <button type="button" className="rest-btn ghost push">Hours of rest log →</button>
+          <button type="button" className="rest-btn ghost push" onClick={onOpenHor}>Hours of rest log →</button>
         </div>
         <div className="rest-footer-prose">
-          Once the rota is locked for tomorrow, {data.fullName.split(' ')[0]} sees her
-          next 24 hours and any pending corrections she's submitted.
+          Once the rota is locked for tomorrow, {data.fullName.split(' ')[0]} sees their
+          next 24 hours and any pending corrections they've submitted.
         </div>
 
       </div>
