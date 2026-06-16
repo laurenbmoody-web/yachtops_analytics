@@ -116,18 +116,16 @@ function CrewRow({ crew, onClick }) {
           <div className="crew-list-role">
             <span className="crew-list-role-name">{crew.role}</span>
             {bd ? (
-              <span className="cl-istats">
+              <>
                 <span className="cl-istat"><span className="cl-istat-cap">Start</span><span className="cl-istat-v">{decToHHMM(bd.start)}</span></span>
                 <span className="cl-istat"><span className="cl-istat-cap">Break</span><span className={`cl-istat-v${breakText === 'none' ? ' muted' : ''}`}>{breakText}</span></span>
                 <span className="cl-istat"><span className="cl-istat-cap">Finish</span><span className="cl-istat-v">{decToHHMM(bd.finish)}</span></span>
                 <span className="cl-istat"><span className="cl-istat-cap">Worked</span><span className={`cl-istat-v${crew.mlcWarning ? ' warn' : ''}`}>{crew.workHours || '—'}</span></span>
-              </span>
+              </>
             ) : (
               <span className="cl-istat-off">off today</span>
             )}
-            {crew.mlcWarning && (
-              <span style={{ color: '#C65A1A', fontWeight: 500 }}>· rest below MLC</span>
-            )}
+            {crew.mlcWarning && <span className="cl-istat-warn">rest below MLC</span>}
           </div>
         </div>
 
