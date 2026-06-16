@@ -75,20 +75,26 @@
   flex-shrink: 0;
 }
 
-/* Bottom row pairs ⋯ (left) with Submit for Approval (right) on a
-   single horizontal line — replaces the prior stacked layout where
-   ⋯ hung as its own row beneath Submit. */
-.cargo-ribbon-vertical .cargo-ribbon-bottom {
+/* Tabs row — pairs the EditorialTabNav (left) with ⋯ + Submit for
+   Approval (right), so those actions ride the same baseline as the
+   tab labels and sit just above the tab nav's hairline. The nav's
+   own border-bottom carries through behind both halves of the row. */
+.editorial-page.pv-dashboard .pv-board-tabs-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+.editorial-page.pv-dashboard .pv-board-tabs-row .editorial-tab-nav {
+  flex: 1;
+  margin-bottom: 0;
+}
+.pv-board-tabs-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
-  width: 100%;
-}
-.cargo-ribbon-vertical .cargo-ribbon-bottom > .relative {
-  flex-shrink: 0;
-}
-.cargo-ribbon-vertical .cargo-ribbon-bottom .cargo-ribbon-btn:not(.cargo-ribbon-btn-icon) {
-  flex: 1;
+  gap: 8px;
+  padding-bottom: 10px;
+  margin-bottom: 1.75rem;
 }
 
 /* Chip row sits inside the left column right below the headline.
