@@ -112,13 +112,13 @@ const SeaServiceCalendar = ({ entries, vessels, config, serviceFilter }) => {
           const segs = [...byEntry.values()];
           const lanes = packLanes(segs);
           return (
-            <div className="stc-wk" key={wi} style={{ minHeight: 30 + lanes * 26 }}>
+            <div className="stc-wk" key={wi} style={{ minHeight: 24 + lanes * 24 }}>
               <div className="stc-cells">
                 {week.map((cell, ci) => (
                   <i key={ci} className={!cell ? 'off' : (ci >= 5 ? 'wknd' : '')}>{cell ? cell.day : ''}</i>
                 ))}
               </div>
-              <div className="stc-ov" style={{ gridTemplateRows: `repeat(${lanes}, 22px)` }}>
+              <div className="stc-ov" style={{ gridTemplateRows: `repeat(${lanes}, 20px)` }}>
                 {segs.map((s) => (
                   <div key={s.info.entryId} style={{ gridColumn: `${s.startCol + 1} / ${s.endCol + 2}`, gridRow: s.lane + 1 }}>
                     <TypeBar type={s.info.type} qual={s.info.qual} excluded={s.info.excluded}

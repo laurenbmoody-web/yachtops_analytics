@@ -189,47 +189,61 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
             <SeaServiceCalendar entries={entries} vessels={vessels} config={config} serviceFilter={serviceFilter} />
           </div>
         )}
-        <div style={{ marginTop: 12, display: logView === 'list' ? 'block' : 'none' }}>
+        <div style={{ padding: '8px 18px 0', display: logView === 'list' ? 'block' : 'none' }}>
           {shown.length === 0 && <div className="std-foot">No sea service logged yet — use “Log sea time”.</div>}
-          {shown.map(e => {
-            const v = vessels[e.vesselId] || {}, tm = TYPE_META[e.type], c = classify(e, v, config), sm = SOURCE_META[e.source] || SOURCE_META.manual;
-            const isExcluded = !!e.excluded, isQual = !isExcluded && c.qual, isBad = !isExcluded && !c.qual;
-            const detail = e.type === 'watchkeeping' ? `${e.watchHours}h watch · ${e.capacity}` : (e.detailOverride || `${tm.hint} · ${e.capacity}`);
-            const qualLabel = e.type === 'seagoing' ? 'Qualifies · seagoing' : e.type === 'watchkeeping' ? 'Qualifies · watchkeeping' : e.type === 'standby' ? 'Counts · standby' : 'Counts · shipyard';
-            return (
-              <div className="std-row" key={e.id} style={{ opacity: isExcluded ? 0.5 : 1 }}>
-                <div><div className="date">{e.dateMain}</div><div className="datesub">{e.dateSub}</div></div>
-                <div>
-                  <div className="std-flex std-ac" style={{ gap: 8, flexWrap: 'wrap' }}>
-                    <span className="vn">{v.name}</span>
-                    <span className="std-tag" style={{ color: sm.color, background: sm.bg }}>{sm.label}</span>
-                  </div>
-                  <div className="vs">{v.flag} · {v.gt}GT · {v.lengthM}m · IMO {v.imo}</div>
-                </div>
-                <div>
-                  <span className="std-pill" style={{ color: tm.color, background: tm.bg }}>
-                    <span style={{ width: 8, height: 8, borderRadius: 3, background: tm.color, display: 'inline-block' }} /> {tm.label}
-                  </span>
-                  <div className="vs" style={{ marginTop: 4 }}>{detail}</div>
-                </div>
-                <div className="std-right">
-                  {isExcluded && <span className="std-pill" style={{ color: '#5A6478', background: '#EEF0F3' }}>Excluded from pack</span>}
-                  {isQual && <span className="std-pill" style={{ color: '#5E8E6F', background: '#E7F0E9' }}><Icon name="Check" size={12} /> {qualLabel}</span>}
-                  {isBad && (
-                    <div>
-                      <span className="std-pill" style={{ color: '#A32D2D', background: '#FCEDEA' }}><Icon name="X" size={12} /> Non-qualifying</span>
-                      <div className="vs" style={{ color: '#A32D2D', marginTop: 4, textAlign: 'right' }}>{c.reason}</div>
-                      <button className="std-fix" onClick={() => e.type === 'watchkeeping' ? reclassify(e.id) : excludeEntry(e.id)}>
-                        {e.type === 'watchkeeping' ? 'Reclassify to standby' : 'Exclude from pack'}
-                      </button>
+          {(() => {
+            const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            const groups = [];
+            const idx = {};
+            shown.forEach(e => {
+              const d = e.from ? new Date(e.from + 'T00:00:00') : null;
+              const key = d ? `${MONTHS[d.getMonth()]} ${d.getFullYear()}` : 'Earlier service';
+              if (idx[key] == null) { idx[key] = groups.length; groups.push({ key, items: [] }); }
+              groups[idx[key]].items.push(e);
+            });
+            return groups.map(g => (
+              <div key={g.key} className="std-agroup">
+                <div className="std-amonth">{g.key}</div>
+                {g.items.map(e => {
+                  const v = vessels[e.vesselId] || {}, tm = TYPE_META[e.type], c = classify(e, v, config), sm = SOURCE_META[e.source] || SOURCE_META.manual;
+                  const isExcluded = !!e.excluded, isQual = !isExcluded && c.qual, isBad = !isExcluded && !c.qual;
+                  const detail = e.type === 'watchkeeping' ? `${e.watchHours}h watch · ${e.capacity}` : (e.detailOverride || `${tm.hint} · ${e.capacity}`);
+                  const qualLabel = e.type === 'seagoing' ? 'Qualifies · seagoing' : e.type === 'watchkeeping' ? 'Qualifies · watchkeeping' : e.type === 'standby' ? 'Counts · standby' : 'Counts · shipyard';
+                  return (
+                    <div className="std-arow" key={e.id} style={{ opacity: isExcluded ? 0.55 : 1 }}>
+                      <span className="std-arail" style={{ background: isExcluded ? '#CBC8C0' : tm.color }} />
+                      <div className="std-adate">{e.dateMain}<span>{e.days} {e.days === 1 ? 'day' : 'days'}</span></div>
+                      <div className="std-amid">
+                        <div className="std-flex std-ac" style={{ gap: 7, flexWrap: 'wrap' }}>
+                          <span className="std-avn">{v.name}</span>
+                          <span className="std-tag" style={{ color: sm.color, background: sm.bg }}>{sm.label}</span>
+                        </div>
+                        <div className="std-avs">{v.flag} · {v.gt}GT · {v.lengthM}m · IMO {v.imo} · {detail}</div>
+                      </div>
+                      <div className="std-aright">
+                        <span className="std-pill" style={{ color: tm.color, background: tm.bg }}>
+                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: tm.color, display: 'inline-block' }} /> {tm.label}
+                        </span>
+                        {isExcluded && <span className="std-pill" style={{ color: '#5A6478', background: '#EEF0F3' }}>Excluded from pack</span>}
+                        {isQual && <span className="std-pill" style={{ color: '#5E8E6F', background: '#E7F0E9' }}><Icon name="Check" size={12} /> {qualLabel}</span>}
+                        {isBad && (
+                          <>
+                            <span className="std-pill" style={{ color: '#A32D2D', background: '#FCEDEA' }}><Icon name="X" size={12} /> Non-qualifying</span>
+                            <div className="std-avs" style={{ color: '#A32D2D', textAlign: 'right', maxWidth: 230 }}>{c.reason}</div>
+                            <button className="std-fix" onClick={() => e.type === 'watchkeeping' ? reclassify(e.id) : excludeEntry(e.id)}>
+                              {e.type === 'watchkeeping' ? 'Reclassify to standby' : 'Exclude from pack'}
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
+                  );
+                })}
               </div>
-            );
-          })}
+            ));
+          })()}
         </div>
-        <div className="std-foot">{live.length} entries in pack · {buckets.total} qualifying days{excludedCount ? ` · ${excludedCount} excluded` : ''}</div>
+        <div className="std-foot" style={{ padding: '14px 18px 18px' }}>{live.length} entries in pack · {buckets.total} qualifying days{excludedCount ? ` · ${excludedCount} excluded` : ''}</div>
       </div>
     );
   };
