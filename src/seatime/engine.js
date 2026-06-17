@@ -10,11 +10,16 @@
 /** @typedef {'seagoing'|'watchkeeping'|'standby'|'yard'} ServiceType */
 /** @typedef {'manual'|'ais'|'rota'} Source */
 
-// ── Config — thresholds (ALL to be confirmed) ──────────────────────────────
+import { SERVICE_RULES } from './pathways.js';
+
+// ── Config — thresholds sourced from MSN 1858 Amd 2 (deck) / MSN 1859 (engine).
+// Standby is NOT a flat cap: it may not exceed actual seagoing service (1858
+// §5.2). Yard service is capped at 90 days (1858 §3.3 / 1859 §5.2). ────────────
 export const DEFAULT_CONFIG = {
-  watchMinHours: 4,     // TODO(MIN642): MCA 4h/24h watchkeeping minimum — confirm.
-  standbyCapDays: 90,   // TODO(MIN642): standby contribution cap — confirm exact figure.
-  minLengthM: 15        // TODO(MIN642): vessel-size gate for OOW/Master (Yachts) — confirm.
+  watchMinHours: 4,        // 4h/24h = 1 day (1858/1859 §5) HIGH
+  minLengthM: 15,          // OOW/Master <3000 vessel-size gate (1858 §3.3) HIGH
+  yardCapDays: 90,         // yard service cap; never counts as actual seagoing HIGH
+  standbyMode: 'le_seagoing' // standby total ≤ actual seagoing service (1858 §5.2) HIGH
 };
 
 // ── Pathways (CoC targets) — required days per requirement bar ──────────────
@@ -26,18 +31,20 @@ export const PATHWAYS = {
 };
 export const DEFAULT_PATHWAY = 'oow3000';
 
-// ── Service-type metadata (colours + icon paths from the mock) ──────────────
+// ── Service-type metadata. Colours are a restrained, harmonious set (calm,
+// low-saturation tints) so the four buckets read as a family rather than four
+// competing colours; terracotta stays reserved for the brand accent. ──────────
 export const TYPE_META = {
-  seagoing:     { label: 'Seagoing',     color: '#1F6F8B', bg: '#E3F0F4', hint: 'Days at sea on passage',      icon: 'M3 16c3 0 3-2 6-2s3 2 6 2 3-2 6-2M5 13l1-6h12l1 6M9 7V5h6v2' },
-  watchkeeping: { label: 'Watchkeeping', color: '#4C5FB0', bg: '#ECEEFA', hint: '≥4h bridge watch / day',      icon: 'M12 7v5l3 2M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z' },
-  standby:      { label: 'Standby',      color: '#B7791F', bg: '#FBF0DA', hint: 'Subject to regulatory cap',   icon: 'M12 8v4m0 4h.01M12 3 3 20h18L12 3Z' },
-  yard:         { label: 'Yard',         color: '#5B6675', bg: '#ECEEF2', hint: 'Shipyard / refit service',    icon: 'M3 21h18M5 21V8l7-4 7 4v13M9 21v-6h6v6' }
+  seagoing:     { label: 'Seagoing',     color: '#3A5A74', bg: '#EDF1F5', hint: 'Days at sea on passage',      icon: 'M3 16c3 0 3-2 6-2s3 2 6 2 3-2 6-2M5 13l1-6h12l1 6M9 7V5h6v2' },
+  watchkeeping: { label: 'Watchkeeping', color: '#4F5D8A', bg: '#ECEEF6', hint: '≥4h bridge watch / day',      icon: 'M12 7v5l3 2M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z' },
+  standby:      { label: 'Standby',      color: '#8B6B3F', bg: '#F3ECDD', hint: 'Subject to regulatory cap',   icon: 'M12 8v4m0 4h.01M12 3 3 20h18L12 3Z' },
+  yard:         { label: 'Yard',         color: '#6B7280', bg: '#F0F1F4', hint: 'Shipyard / refit service',    icon: 'M3 21h18M5 21V8l7-4 7 4v13M9 21v-6h6v6' }
 };
 
 export const SOURCE_META = {
-  manual: { label: 'MANUAL', color: '#5A6478', bg: '#EEF0F3' },
-  ais:    { label: 'AIS',    color: '#1F6F8B', bg: '#E3F0F4' },
-  rota:   { label: 'ROTA',   color: '#4C5FB0', bg: '#ECEEFA' }
+  manual: { label: 'MANUAL', color: '#6B7280', bg: '#F0F1F4' },
+  ais:    { label: 'AIS',    color: '#3A5A74', bg: '#EDF1F5' },
+  rota:   { label: 'ROTA',   color: '#4F5D8A', bg: '#ECEEF6' }
 };
 
 // ── Verifier profiles — config-driven; a 4th is data ONLY (no engine change) ─
@@ -111,16 +118,20 @@ export const classify = (entry, vessel, config = DEFAULT_CONFIG) => {
  */
 export const computeBuckets = (entries, vessels, config = DEFAULT_CONFIG) => {
   const live = entries.filter(e => !e.excluded);
-  let seagoing = 0, watchkeeping = 0, standbyRaw = 0, yard = 0;
+  let seagoing = 0, watchkeeping = 0, standbyRaw = 0, yardRaw = 0;
   for (const e of live) {
     const c = classify(e, vessels[e.vesselId], config);
     if (e.type === 'seagoing' && c.qual) seagoing += e.days;
     else if (e.type === 'watchkeeping' && c.qual) watchkeeping += e.days;
     else if (e.type === 'standby') standbyRaw += e.days;
-    else if (e.type === 'yard') yard += e.days;
+    else if (e.type === 'yard') yardRaw += e.days;
   }
-  const standby = Math.min(standbyRaw, config.standbyCapDays);
-  return { seagoing, watchkeeping, standby, standbyRaw, yard, total: seagoing + watchkeeping + standby + yard };
+  // Watchkeeping is part of actual seagoing service; standby may not exceed it.
+  const actualSeagoing = seagoing + watchkeeping;
+  const standby = Math.min(standbyRaw, actualSeagoing);
+  const yard = Math.min(yardRaw, config.yardCapDays ?? 90);
+  const onboardDays = live.reduce((n, e) => n + e.days, 0); // onboard = signed-on, any activity
+  return { seagoing, watchkeeping, standby, standbyRaw, yard, yardRaw, actualSeagoing, onboardDays, total: seagoing + watchkeeping + standby + yard };
 };
 
 /**
@@ -150,6 +161,35 @@ export const computeRequirements = (buckets, prior, pathway) => {
   });
 };
 
+/**
+ * Build the progress bars for a specific CERTIFICATE (from pathways.js). Only
+ * the requirement fields the certificate actually defines are shown, so each
+ * CoC tracks its real MCA thresholds. Months convert at SERVICE_RULES.monthDays.
+ * `prior` = lifetime accrual baseline { onboard, seagoing, watchkeeping }.
+ */
+export const buildRequirementBars = (buckets, prior = {}, cert) => {
+  const md = SERVICE_RULES.monthDays;
+  const cur = {
+    onboard: (prior.onboard || 0) + (buckets.onboardDays || 0),
+    seagoing: (prior.seagoing || 0) + buckets.seagoing,
+    watchkeeping: (prior.watchkeeping || 0) + buckets.watchkeeping,
+    actualSea: (prior.seagoing || 0) + buckets.seagoing + buckets.watchkeeping
+  };
+  const r = cert?.requires || {};
+  const bars = [];
+  const add = (key, label, current, targetDays) => {
+    const met = current >= targetDays;
+    bars.push({ key, label, current, required: targetDays, met, remaining: Math.max(0, targetDays - current), pct: targetDays ? Math.min(100, Math.round(current / targetDays * 100)) : 100 });
+  };
+  if (r.onboardMonths) add('onboard', 'Onboard yacht service', cur.onboard, r.onboardMonths * md);
+  if (r.seagoingDays) add('seagoing', `Seagoing service${r.minVesselMetres ? ` (≥${r.minVesselMetres}m)` : ''}`, cur.seagoing, r.seagoingDays);
+  if (r.seagoingMonths) add('seagoing', 'Seagoing service', cur.seagoing, r.seagoingMonths * md);
+  if (r.watchkeepingDays) add('watchkeeping', 'Watchkeeping service', cur.watchkeeping, r.watchkeepingDays);
+  if (r.actualSeaServiceMonths) add('actualSea', 'Actual sea service', cur.actualSea, r.actualSeaServiceMonths * md);
+  if (!bars.length) bars.push({ key: 'none', label: 'No additional qualifying service required', current: 0, required: 0, met: true, remaining: 0, pct: 100 });
+  return bars;
+};
+
 // ── Validation gate — generation BLOCKED unless every rule passes ───────────
 /**
  * @param {Object} p
@@ -177,11 +217,11 @@ export const runChecks = ({ entries, vessels, config = DEFAULT_CONFIG, signatory
     ? { ok: false, label: `Vessel size gate (≥${config.minLengthM}m)`, detail: `Seagoing service claimed on a vessel under ${config.minLengthM}m — exclude it or change the pathway.` }
     : { ok: true, label: `Vessel size gate (≥${config.minLengthM}m)`, detail: `All qualifying seagoing service is on vessels ≥${config.minLengthM}m.` });
 
-  // 3) Standby within cap.
+  // 3) Standby within limit — standby may not exceed actual seagoing service.
   const b = computeBuckets(entries, vessels, config);
-  checks.push(b.standbyRaw > config.standbyCapDays
-    ? { ok: false, label: 'Standby within cap', detail: `Standby exceeds the ${config.standbyCapDays}-day cap.` }
-    : { ok: true, label: 'Standby within cap', detail: `${b.standbyRaw} / ${config.standbyCapDays} standby days — within cap. // TODO(MIN642): confirm exact cap.` });
+  checks.push(b.standbyRaw > b.actualSeagoing
+    ? { ok: false, label: 'Standby within limit', detail: `Standby (${b.standbyRaw}d) exceeds actual seagoing service (${b.actualSeagoing}d). MCA caps standby at your seagoing total (MSN 1858 §5.2) — exclude the excess.` }
+    : { ok: true, label: 'Standby within limit', detail: `${b.standbyRaw}d standby ≤ ${b.actualSeagoing}d actual seagoing — within limit (MSN 1858 §5.2).` });
 
   // 4) Vessel records complete (GT + registered length present).
   const usedVessels = [...new Set(live.map(e => e.vesselId))].map(id => vessels[id]);

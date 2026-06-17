@@ -8,7 +8,7 @@ export const SEED_VESSELS = {
 };
 
 // Prior (lifetime) accrual baseline added to the current period for the bars.
-export const SEED_PRIOR = { seagoing: 284, watchkeeping: 95, total: 590 };
+export const SEED_PRIOR = { onboard: 590, seagoing: 284, watchkeeping: 95, total: 590 };
 
 export const SEED_SEAFARER = {
   fullName: 'Lauren Moody',

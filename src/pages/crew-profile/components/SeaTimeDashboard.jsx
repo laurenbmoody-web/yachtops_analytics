@@ -4,9 +4,12 @@ import { supabase } from '../../../lib/supabase';
 import { fetchEntriesForUser, addManualEntries } from '../utils/seaTimeService';
 import { adaptLiveEntries } from '../utils/seaTimeLiveAdapter';
 import {
-  DEFAULT_CONFIG, PATHWAYS, DEFAULT_PATHWAY, TYPE_META, SOURCE_META, VERIFIER_PROFILES,
-  classify, computeBuckets, computeRequirements, runChecks, buildTestimonialDataset
+  DEFAULT_CONFIG, TYPE_META, SOURCE_META, VERIFIER_PROFILES,
+  classify, computeBuckets, buildRequirementBars, runChecks, buildTestimonialDataset
 } from '../../../seatime/engine';
+import {
+  DEPARTMENTS, CERTIFICATES, DEFAULT_CERTIFICATE, eligibleCertificates, rolesForDepartment
+} from '../../../seatime/pathways';
 import { SEED_VESSELS, SEED_ENTRIES, SEED_PRIOR, SEED_SEAFARER } from '../../../seatime/seed';
 import { buildAssurance, makeQrDataUrl, renderPackPdf, downloadBytes } from '../../../seatime/packExport';
 import './sea-time-dashboard.css';
@@ -26,7 +29,9 @@ const ZERO_PRIOR = { seagoing: 0, watchkeeping: 0, total: 0 };
 
 const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
   const config = DEFAULT_CONFIG;
-  const [pathwayId, setPathwayId] = useState(DEFAULT_PATHWAY);
+  const [deptId, setDeptId] = useState('deck');
+  const [roleId, setRoleId] = useState('master');
+  const [certId, setCertId] = useState(DEFAULT_CERTIFICATE);
   const [serviceFilter, setServiceFilter] = useState('all');
   const [verifier, setVerifier] = useState('pya');
   const [signatory, setSignatory] = useState('master');
@@ -47,7 +52,15 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
   const ledgerRef = useRef(null);
 
   const flash = (msg) => { setToast(msg); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 2600); };
-  const pathway = PATHWAYS[pathwayId];
+
+  // department → role → certificate selection
+  const deptRoles = useMemo(() => rolesForDepartment(deptId), [deptId]);
+  const eligibleCerts = useMemo(() => eligibleCertificates(roleId), [roleId]);
+  const activeCertId = eligibleCerts.some(c => c.id === certId) ? certId : (eligibleCerts[0]?.id || null);
+  const cert = activeCertId ? CERTIFICATES[activeCertId] : null;
+
+  const changeDept = (id) => { setDeptId(id); const r = rolesForDepartment(id)[0]; setRoleId(r?.id || ''); const ec = eligibleCertificates(r?.id); setCertId(ec[0]?.id || ''); };
+  const changeRole = (id) => { setRoleId(id); const ec = eligibleCertificates(id); setCertId(ec[0]?.id || ''); };
 
   // ── load live data ──
   const loadLive = async () => {
@@ -80,15 +93,16 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
 
   // ── derived ──
   const buckets = useMemo(() => computeBuckets(entries, vessels, config), [entries, vessels]);
-  const requirements = useMemo(() => computeRequirements(buckets, prior, pathway), [buckets, prior, pathway]);
+  const requirements = useMemo(() => (cert ? buildRequirementBars(buckets, prior, cert) : []), [buckets, prior, cert]);
   const { checks, canGenerate, passed, total, readinessPct } = useMemo(() => runChecks({ entries, vessels, config, signatory, verifier, docMet }), [entries, vessels, signatory, verifier, docMet]);
   const dataset = useMemo(() => buildTestimonialDataset({ seafarer, entries, vessels, signatory, verifier }), [seafarer, entries, vessels, signatory, verifier]);
   const assurance = useMemo(() => buildAssurance(dataset), [dataset]);
 
-  const totalReq = requirements.find(r => r.key === 'total');
-  const arcPct = Math.min(100, Math.round(totalReq.current / pathway.total * 100));
+  // arc tracks the certificate's largest single requirement (its headline gate)
+  const primary = requirements.reduce((a, b) => (b.required > (a?.required || 0) ? b : a), null) || requirements[0];
+  const arcPct = primary && primary.required ? Math.min(100, Math.round(primary.current / primary.required * 100)) : (cert ? 100 : 0);
   const arcOffset = Math.round(565 * (1 - arcPct / 100));
-  const daysToGo = Math.max(0, pathway.total - totalReq.current);
+  const daysToGo = primary ? primary.remaining : 0;
   const live = entries.filter(e => !e.excluded);
   const badCount = live.filter(e => !classify(e, vessels[e.vesselId], config).qual).length;
   const hasAttention = badCount > 0;
@@ -149,8 +163,6 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
     setEntries(es => [entry, ...es]); setDrawerOpen(false); setSigned(false); flash('Sea time logged & classified');
   };
 
-  const reqAccent = (key, met) => key === 'seagoing' ? '#1F6F8B' : key === 'watchkeeping' ? (met ? '#27A567' : '#4C5FB0') : '#C65A1A';
-
   // ── logged-service ledger (part of the Countdown page) ──
   const LedgerTable = () => {
     const filters = [['all', 'All'], ['seagoing', 'Seagoing'], ['watchkeeping', 'Watchkeeping'], ['standby', 'Standby'], ['yard', 'Yard']];
@@ -189,11 +201,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
                 </div>
                 <div className="std-right">
                   {isExcluded && <span className="std-pill" style={{ color: '#5A6478', background: '#EEF0F3' }}>Excluded from pack</span>}
-                  {isQual && <span className="std-pill" style={{ color: '#1F7A4D', background: '#DEF3E7' }}><Icon name="Check" size={12} /> {qualLabel}</span>}
+                  {isQual && <span className="std-pill" style={{ color: '#1F7A4D', background: '#E8F1EB' }}><Icon name="Check" size={12} /> {qualLabel}</span>}
                   {isBad && (
                     <div>
-                      <span className="std-pill" style={{ color: '#C0392B', background: '#FBE7E4' }}><Icon name="X" size={12} /> Non-qualifying</span>
-                      <div className="vs" style={{ color: '#C0392B', marginTop: 4, textAlign: 'right' }}>{c.reason}</div>
+                      <span className="std-pill" style={{ color: '#A3402F', background: '#F6E9E6' }}><Icon name="X" size={12} /> Non-qualifying</span>
+                      <div className="vs" style={{ color: '#A3402F', marginTop: 4, textAlign: 'right' }}>{c.reason}</div>
                       <button className="std-fix" onClick={() => e.type === 'watchkeeping' ? reclassify(e.id) : excludeEntry(e.id)}>
                         {e.type === 'watchkeeping' ? 'Reclassify to standby' : 'Exclude from pack'}
                       </button>
@@ -213,10 +225,18 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
     <div className="std">
       <div className="std-head">
         <div className="std-title"><span className="num">07</span><span className="sl">/</span>Sea Time Tracker</div>
-        <div className="std-flex std-ac" style={{ gap: 12, flexWrap: 'wrap' }}>
-          <select className="std-select" style={{ width: 'auto' }} value={pathwayId} onChange={e => setPathwayId(e.target.value)}>
-            {Object.values(PATHWAYS).map(p => <option key={p.id} value={p.id}>{p.short}</option>)}
+        <div className="std-flex std-ac" style={{ gap: 8, flexWrap: 'wrap' }}>
+          <select className="std-select" value={deptId} onChange={e => changeDept(e.target.value)} aria-label="Department">
+            {Object.values(DEPARTMENTS).map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
           </select>
+          <select className="std-select" value={roleId} onChange={e => changeRole(e.target.value)} aria-label="Role">
+            {deptRoles.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+          </select>
+          {eligibleCerts.length > 0 && (
+            <select className="std-select" value={activeCertId} onChange={e => setCertId(e.target.value)} aria-label="Target certificate">
+              {eligibleCerts.map(c => <option key={c.id} value={c.id}>{c.short}</option>)}
+            </select>
+          )}
           <button className="std-logbtn" onClick={() => setDrawerOpen(true)}><Icon name="Plus" size={16} /> Log sea time</button>
         </div>
       </div>
@@ -228,39 +248,55 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
       )}
 
       {/* ── hero ── */}
-      <div className="std-card std-hero">
-        <div className="std-arc-wrap">
-          <svg width="240" height="240" viewBox="0 0 240 240">
-            <circle cx="120" cy="120" r="90" fill="none" stroke="#F0F2F5" strokeWidth="20" />
-            <circle cx="120" cy="120" r="90" fill="none" stroke="#C65A1A" strokeWidth="20" strokeLinecap="round"
-              strokeDasharray="565" strokeDashoffset={arcOffset} transform="rotate(-90 120 120)" style={{ transition: 'stroke-dashoffset 1.4s cubic-bezier(.2,.8,.2,1)' }} />
-          </svg>
-          <div className="std-arc-center"><div className="pct">{arcPct}%</div><div className="cap">toward your next certificate</div></div>
-        </div>
-        <div>
-          <div className="mlabel rustlabel">Next certificate</div>
-          <h3>{pathway.label}</h3>
-          <div className="lead"><b>{totalReq.current} of {pathway.total}</b> qualifying days logged — <b>{daysToGo} days to go</b>.</div>
-          <div className="std-reqmini">
-            {requirements.map(r => (
-              <div className="c" key={r.key}>
-                <div className="l" style={{ color: reqAccent(r.key, r.met) }}>{r.short}</div>
-                <div className="n">{r.current} / {r.required}</div>
-                <div className="std-bar"><i className="std-grow" style={{ width: `${r.pct}%`, background: r.met ? '#27A567' : '#C65A1A' }} /></div>
-              </div>
-            ))}
+      {cert ? (
+        <div className="std-card std-hero">
+          <div className="std-arc-wrap">
+            <svg width="230" height="230" viewBox="0 0 240 240">
+              <circle cx="120" cy="120" r="90" fill="none" stroke="#F0EFEA" strokeWidth="20" />
+              <circle cx="120" cy="120" r="90" fill="none" stroke="#C65A1A" strokeWidth="20" strokeLinecap="round"
+                strokeDasharray="565" strokeDashoffset={arcOffset} transform="rotate(-90 120 120)" style={{ transition: 'stroke-dashoffset 1.4s cubic-bezier(.2,.8,.2,1)' }} />
+            </svg>
+            <div className="std-arc-center"><div className="pct">{arcPct}%</div><div className="cap">toward this certificate</div></div>
           </div>
-          <div className={`std-nudge ${hasAttention ? '' : 'clear'}`}>
-            <IcoPath d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2ZM9 21h6M10 17v4m4-4v4" color={hasAttention ? '#C65A1A' : '#1F7A4D'} size={20} />
-            <div>
-              <div className="nt">{hasAttention ? `${badCount} logged ${badCount === 1 ? 'entry needs' : 'entries need'} attention.` : "On your current rota you'll qualify by 12 Sept 2026."}</div>
-              <div className="ns">{hasAttention ? 'Non-qualifying service is excluded from your totals — review and re-tag to keep your pack clean.' : 'Request 40 more bridge-watch days this season to bring eligibility forward to July.'}</div>
-              {!hasAttention && <div className="priv">Private to you.</div>}
+          <div>
+            <div className="mlabel rustlabel">Target certificate · {cert.msn}</div>
+            <h3>{cert.label}</h3>
+            <div className="lead">
+              {primary && primary.required
+                ? <><b>{primary.current} of {primary.required}</b> days on the leading requirement — <b>{daysToGo} to go</b>.</>
+                : <>No additional qualifying service required for this step.</>}
             </div>
-            {hasAttention && <button className="std-reviewbtn" onClick={() => ledgerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Review</button>}
+            {cert.note && <div className="ns" style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>{cert.note}</div>}
+            <div className="std-reqmini">
+              {requirements.map(r => (
+                <div className="c" key={r.key}>
+                  <div className="l">{r.label}</div>
+                  <div className="n">{r.required ? `${r.current} / ${r.required}` : '—'}</div>
+                  <div className="std-bar"><i className="std-grow" style={{ width: `${r.pct}%`, background: r.met ? '#1F7A4D' : '#C65A1A' }} /></div>
+                </div>
+              ))}
+            </div>
+            <div className={`std-nudge ${hasAttention ? '' : 'clear'}`}>
+              <IcoPath d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2ZM9 21h6M10 17v4m4-4v4" color={hasAttention ? '#C65A1A' : '#1F7A4D'} size={20} />
+              <div>
+                <div className="nt">{hasAttention ? `${badCount} logged ${badCount === 1 ? 'entry needs' : 'entries need'} attention.` : 'Your logged service is qualifying and on track.'}</div>
+                <div className="ns">{hasAttention ? 'Non-qualifying service is excluded from your totals — review and re-tag to keep your pack clean.' : 'Keep logging — projected eligibility updates as you add service.'}</div>
+                {!hasAttention && <div className="priv">Private to you.</div>}
+              </div>
+              {hasAttention && <button className="std-reviewbtn" onClick={() => ledgerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Review</button>}
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="std-card std-pad">
+          <div className="mlabel rustlabel">Logging only</div>
+          <h3 className="serif" style={{ fontSize: 24, margin: '6px 0' }}>This role builds your record, not a CoC</h3>
+          <div className="lead" style={{ fontSize: 14, color: 'var(--ink-soft)' }}>
+            Interior and galley service doesn’t accrue toward a Certificate of Competency, but your sea days are still
+            logged here for your CV, visa and tax day-counts — and feed a testimonial of service below.
+          </div>
+        </div>
+      )}
 
       {/* ── bucket pills ── */}
       <div className="std-bpills" style={{ marginTop: 18 }}>
@@ -295,18 +331,18 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
           </div>
 
           <div className="std-steps">
-            <div className="std-step dark">
+            <div className="std-step">
               <div className="sh">
                 <span className="std-badge">1</span>
                 <div><div className="st">Validate</div><div className="ss">Blocked until every rule clears</div></div>
-                <span className="std-chip-ready" style={{ marginLeft: 'auto', color: '#fff', background: canGenerate ? '#27A567' : '#C65A1A' }}>{passed} of {total} checks cleared</span>
+                <span className="std-chip-ready" style={{ marginLeft: 'auto', color: '#fff', background: canGenerate ? '#1F7A4D' : '#C65A1A' }}>{passed} of {total} cleared</span>
               </div>
-              <div className="std-readbar"><i className="std-grow" style={{ display: 'block', height: '100%', width: `${readinessPct}%`, background: canGenerate ? '#27A567' : '#C65A1A', borderRadius: 999 }} /></div>
+              <div className="std-readbar"><i className="std-grow" style={{ display: 'block', height: '100%', width: `${readinessPct}%`, background: canGenerate ? '#1F7A4D' : '#C65A1A', borderRadius: 999 }} /></div>
               <div style={{ marginTop: 6 }}>
                 {checks.map((c, i) => (
                   <div className="std-check" key={i}>
-                    <span className="box" style={{ background: c.ok ? '#27A567' : '#C0392B' }}><Icon name={c.ok ? 'Check' : 'X'} size={12} color="#fff" /></span>
-                    <div><div className="ct" style={{ color: c.ok ? '#CFE8D8' : '#F0B7B0' }}>{c.label}</div><div className="cd">{c.detail}</div></div>
+                    <span className="box" style={{ background: c.ok ? '#1F7A4D' : '#A3402F' }}><Icon name={c.ok ? 'Check' : 'X'} size={12} color="#fff" /></span>
+                    <div><div className="ct" style={{ color: c.ok ? '#1F7A4D' : '#A3402F' }}>{c.label}</div><div className="cd">{c.detail}</div></div>
                   </div>
                 ))}
               </div>
@@ -317,8 +353,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
               {vp.docs.map(d => {
                 const met = !!docMet[d.id];
                 return (
-                  <div className="std-doc" key={d.id} onClick={() => toggleDoc(d.id)} style={{ background: met ? '#EAF7EF' : '#fff', borderColor: met ? '#BFE3CC' : '#E6E8EC' }}>
-                    <span className="dbox" style={{ borderColor: met ? '#27A567' : '#C7CCD5', background: met ? '#27A567' : '#fff' }}>{met && <Icon name="Check" size={12} color="#fff" />}</span>
+                  <div className="std-doc" key={d.id} onClick={() => toggleDoc(d.id)} style={{ background: met ? '#E8F1EB' : '#fff', borderColor: met ? '#CFE2D5' : '#E6E8EC' }}>
+                    <span className="dbox" style={{ borderColor: met ? '#1F7A4D' : '#C7CCD5', background: met ? '#1F7A4D' : '#fff' }}>{met && <Icon name="Check" size={12} color="#fff" />}</span>
                     <span style={{ fontSize: 13, fontWeight: 600 }}>{d.label}</span>
                   </div>
                 );
@@ -333,9 +369,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
                   const sel = signatory === o.key;
                   return (
                     <div className="std-sigcard" key={o.key} onClick={() => pickSignatory(o.key)}
-                      style={{ borderColor: sel ? (o.bad ? '#C0392B' : '#27A567') : '#E6E8EC', background: sel ? (o.bad ? '#FBEDEB' : '#EAF7EF') : '#fff' }}>
+                      style={{ borderColor: sel ? (o.bad ? '#A3402F' : '#1F7A4D') : '#E6E8EC', background: sel ? (o.bad ? '#F6E9E6' : '#E8F1EB') : '#fff' }}>
                       <div className="nm">{o.name}</div>
-                      <div className="sb" style={{ color: o.bad ? '#C0392B' : '#8A93A3' }}>{o.sub}</div>
+                      <div className="sb" style={{ color: o.bad ? '#A3402F' : '#8A93A3' }}>{o.sub}</div>
                     </div>
                   );
                 })}
@@ -350,14 +386,14 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
           </div>
 
           <div className="std-issue">
-            <span className="std-gate-ic" style={{ background: canGenerate ? '#DEF3E7' : '#FBE7E4' }}><Icon name={canGenerate ? 'Check' : 'X'} size={20} color={canGenerate ? '#1F7A4D' : '#C0392B'} /></span>
+            <span className="std-gate-ic" style={{ background: canGenerate ? '#E8F1EB' : '#F6E9E6' }}><Icon name={canGenerate ? 'Check' : 'X'} size={20} color={canGenerate ? '#1F7A4D' : '#A3402F'} /></span>
             <div>
               <div className="mlabel">Step 4 · Issue</div>
               <div style={{ fontWeight: 800, fontSize: 15 }}>{canGenerate ? 'All checks passed' : `${checks.filter(c => !c.ok).length} check(s) blocking generation`}</div>
               <div className="vs">{canGenerate ? `Ready to generate a first-pass-clean pack for ${vp.short}.` : 'Resolve every item in step 1 to continue.'}</div>
             </div>
             <button className="std-genbtn" onClick={onGenerate}
-              style={{ background: canGenerate ? '#C65A1A' : '#2E3850', color: canGenerate ? '#fff' : '#6B7689', cursor: canGenerate ? 'pointer' : 'not-allowed' }}>
+              style={{ background: canGenerate ? '#C65A1A' : '#E8E6DF', color: canGenerate ? '#fff' : '#A8A29A', cursor: canGenerate ? 'pointer' : 'not-allowed' }}>
               <Icon name={canGenerate ? 'FileCheck' : 'Lock'} size={15} /> {canGenerate ? (signed ? 'Regenerate pack' : 'Generate signed pack') : 'Blocked'}
             </button>
           </div>
@@ -457,10 +493,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
               {form.vesselId && vessels[form.vesselId] && (() => {
                 const pc = classify({ ...form }, vessels[form.vesselId], config);
                 return (
-                  <div className="std-preview" style={{ background: pc.qual ? '#F1F9F4' : '#FDF1EF', borderColor: pc.qual ? '#CFE8D8' : '#F3D5CF' }}>
-                    <Icon name={pc.qual ? 'Check' : 'X'} size={16} color={pc.qual ? '#1F7A4D' : '#C0392B'} />
+                  <div className="std-preview" style={{ background: pc.qual ? '#E8F1EB' : '#F6E9E6', borderColor: pc.qual ? '#CFE2D5' : '#E7C9C2' }}>
+                    <Icon name={pc.qual ? 'Check' : 'X'} size={16} color={pc.qual ? '#1F7A4D' : '#A3402F'} />
                     <div>
-                      <div style={{ fontWeight: 700, fontSize: 13, color: pc.qual ? '#1F7A4D' : '#C0392B' }}>{pc.qual ? 'Will qualify' : 'Will be flagged non-qualifying'} · {formDays()} {formDays() === 1 ? 'day' : 'days'}</div>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: pc.qual ? '#1F7A4D' : '#A3402F' }}>{pc.qual ? 'Will qualify' : 'Will be flagged non-qualifying'} · {formDays()} {formDays() === 1 ? 'day' : 'days'}</div>
                       <div className="vs" style={{ marginTop: 2 }}>{pc.reason || `${TYPE_META[form.type].label} service on ${vessels[form.vesselId].name} — counts toward your ${TYPE_META[form.type].label.toLowerCase()} total.`}</div>
                     </div>
                   </div>
@@ -475,7 +511,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
         </>
       )}
 
-      {toast && <div className="std-toast"><Icon name="Check" size={16} color="#27A567" /> {toast}</div>}
+      {toast && <div className="std-toast"><Icon name="Check" size={16} color="#1F7A4D" /> {toast}</div>}
     </div>
   );
 };

@@ -4,8 +4,10 @@ import assert from 'node:assert/strict';
 
 import {
   DEFAULT_CONFIG, PATHWAYS, classify, computeBuckets, computeRequirements,
-  runChecks, computeAssurance, buildTestimonialDataset, getVerifierProfiles
+  runChecks, computeAssurance, buildTestimonialDataset, getVerifierProfiles,
+  buildRequirementBars
 } from './engine.js';
+import { CERTIFICATES, ROLES, eligibleCertificates, SERVICE_RULES } from './pathways.js';
 import { SEED_VESSELS, SEED_ENTRIES, SEED_PRIOR, SEED_SEAFARER } from './seed.js';
 
 const V = SEED_VESSELS;
@@ -39,11 +41,23 @@ test('computeBuckets totals each type separately and caps standby', () => {
   assert.equal(b.total, 14 + 31 + 8 + 8);
 });
 
-test('standby is capped at config.standbyCapDays', () => {
-  const entries = [{ id: 's', vesselId: 'v1', type: 'standby', days: 200, watchHours: 0 }];
-  const b = computeBuckets(entries, V, { ...DEFAULT_CONFIG, standbyCapDays: 90 });
+test('standby may not exceed actual seagoing service (MSN 1858 §5.2)', () => {
+  // 200 standby days but no seagoing => 0 counted standby.
+  let b = computeBuckets([{ id: 's', vesselId: 'v1', type: 'standby', days: 200, watchHours: 0 }], V, DEFAULT_CONFIG);
   assert.equal(b.standbyRaw, 200);
-  assert.equal(b.standby, 90);
+  assert.equal(b.standby, 0);
+  // With 30 seagoing days, standby counts up to 30.
+  b = computeBuckets([
+    { id: 'a', vesselId: 'v3', type: 'seagoing', days: 30, watchHours: 0 },
+    { id: 's', vesselId: 'v1', type: 'standby', days: 200, watchHours: 0 }
+  ], V, DEFAULT_CONFIG);
+  assert.equal(b.standby, 30);
+});
+
+test('yard service is capped at 90 days', () => {
+  const b = computeBuckets([{ id: 'y', vesselId: 'v1', type: 'yard', days: 150, watchHours: 0 }], V, DEFAULT_CONFIG);
+  assert.equal(b.yardRaw, 150);
+  assert.equal(b.yard, 90);
 });
 
 // --- requirement bars: prior + current vs pathway ----------------------------
@@ -111,6 +125,44 @@ test('content hash changes if any totalled field changes', () => {
   const a2 = computeAssurance({ verifierShort: 'PYA', buckets: { ...b, seagoing: b.seagoing + 1, total: b.total + 1 }, signatory: 'master' });
   assert.notEqual(a1.contentHash, a2.contentHash);
   assert.match(a1.verificationRef, /^CARGO-STT-/);
+});
+
+// --- certificate thresholds (MSN 1858/1859) + per-cert bars ------------------
+test('certificate requirement bars reflect each CoC (MSN 1858)', () => {
+  const md = SERVICE_RULES.monthDays;
+  const b = computeBuckets(SEED_ENTRIES, SEED_VESSELS, DEFAULT_CONFIG);
+
+  // OOW <3000GT: 36 months onboard + 365 seagoing days (no watchkeeping bar).
+  const oow = buildRequirementBars(b, SEED_PRIOR, CERTIFICATES.OOW_YACHT_3000);
+  assert.deepEqual(oow.map(x => x.key).sort(), ['onboard', 'seagoing']);
+  assert.equal(oow.find(x => x.key === 'onboard').required, 36 * md);
+  assert.equal(oow.find(x => x.key === 'seagoing').required, 365);
+  assert.ok(!oow.some(x => x.key === 'watchkeeping')); // OOW has no watchkeeping-day figure
+
+  // Master <500GT: 12 months + 120 watchkeeping days.
+  const m500 = buildRequirementBars(b, SEED_PRIOR, CERTIFICATES.MASTER_YACHT_500);
+  assert.equal(m500.find(x => x.key === 'watchkeeping').required, 120);
+  assert.equal(m500.find(x => x.key === 'onboard').required, 12 * md);
+
+  // Master <3000GT: 240 watchkeeping days.
+  const m3000 = buildRequirementBars(b, SEED_PRIOR, CERTIFICATES.MASTER_YACHT_3000);
+  assert.equal(m3000.find(x => x.key === 'watchkeeping').required, 240);
+
+  // Chief Mate <3000GT: no additional service.
+  const cm = buildRequirementBars(b, SEED_PRIOR, CERTIFICATES.CHIEF_MATE_YACHT_3000);
+  assert.equal(cm[0].key, 'none');
+});
+
+test('engine certificates use kW gates (MSN 1859)', () => {
+  assert.equal(CERTIFICATES.Y4.requires.minPowerKW, 350);
+  assert.equal(CERTIFICATES.Y1.requires.minPowerKW, 1500);
+  assert.equal(CERTIFICATES.MEOL_Y.requires.minPowerKW, 200);
+});
+
+test('roles map to eligible certificate families', () => {
+  assert.ok(eligibleCertificates('master').every(c => c.family === 'DECK'));
+  assert.ok(eligibleCertificates('chief_engineer').every(c => c.family === 'ENGINE'));
+  assert.equal(eligibleCertificates('stewardess').length, 0); // interior accrues nothing
 });
 
 // --- testimonial dataset: four totals kept separate --------------------------
