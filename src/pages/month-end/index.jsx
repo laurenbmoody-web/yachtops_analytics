@@ -152,7 +152,7 @@ export default function MonthEnd() {
           )}
           {r.status === 'submitted' && (
             r.canApprove
-              ? <button type="button" className="me-btn me-btn-primary" onClick={() => navigate(`/profile/${r.id}?tab=hor`)}>Review &amp; approve</button>
+              ? <button type="button" className="me-btn me-btn-primary" onClick={() => navigate(`/profile/${r.id}?tab=hor&period=${year}-${pad2(jsMonth + 1)}`)}>Review &amp; approve</button>
               : <span className="me-meta">Awaiting {approverTier.toLowerCase()}</span>
           )}
         </div>
