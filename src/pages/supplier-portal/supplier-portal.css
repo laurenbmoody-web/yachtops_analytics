@@ -2642,7 +2642,7 @@
     minmax(150px, 1.3fr) /* price     */
     minmax(180px, 1.6fr) /* note      */
     100px             /* line total   */
-    36px;             /* action       */
+    72px;             /* action (✓ + ✗) */
   gap: 12px;
   align-items: center;
   padding: 8px 18px;
@@ -2797,9 +2797,11 @@
 #sp-root .sod-wq-cell-price .sod-price-saving { font-size: 10px; }
 
 /* ── action icons ────────────────────────────────────────────────────── */
-#sp-root .sod-wq-cell-action { display: flex; justify-content: flex-end; }
+#sp-root .sod-wq-cell-action {
+  display: flex; justify-content: flex-end; gap: 4px;
+}
 #sp-root .sod-wq-icon-btn {
-  width: 28px; height: 28px; padding: 0;
+  width: 30px; height: 28px; padding: 0;
   border: 1px solid var(--line);
   background: #fff;
   border-radius: 6px;
@@ -2811,6 +2813,12 @@
 #sp-root .sod-wq-icon-btn svg { width: 13px; height: 13px; stroke-width: 1.9; }
 #sp-root .sod-wq-icon-btn:hover:not(:disabled) {
   border-color: var(--navy); color: var(--navy);
+}
+#sp-root .sod-wq-icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+#sp-root .sod-wq-icon-check { color: #2E7D5A; border-color: #BFE0CF; }
+#sp-root .sod-wq-icon-check:hover:not(:disabled) {
+  background: #E8F0E5; color: #2E7D5A; border-color: #5C9B6A;
 }
 #sp-root .sod-wq-icon-x { color: var(--red); border-color: #F0CBC2; }
 #sp-root .sod-wq-icon-x:hover:not(:disabled) { background: #FBE8E2; color: var(--red); border-color: var(--red); }
