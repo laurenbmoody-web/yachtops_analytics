@@ -1,0 +1,26 @@
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 20260617131500_activity_events_summary_nullable.sql
+--
+-- Same problem as 20260611120000 (which loosened actor_name): the audit
+-- trigger that fires on provisioning_items writes a NEW activity_events
+-- row whose summary is built from auth.uid()-bound context. When the
+-- write happens from a session that has no auth.uid() — backfill
+-- migrations, Studio SQL Editor, SECURITY DEFINER calls without
+-- propagated identity — the summary lookup yields NULL and the INSERT
+-- fails with 23502, taking the whole migration queue down with it.
+--
+-- The most recent symptom: the Bar-pseudo-dept backfill migration
+-- (20260617132100) and the supplier-quote trigger fix (20260617150000)
+-- both block on
+--   ERROR: null value in column "summary" of relation "activity_events"
+--          violates not-null constraint
+-- which means the supplier portal stays broken (NEW.supplier_order_id
+-- error on every quote) because the fix can't land.
+--
+-- Following the actor_name precedent: drop NOT NULL on summary. Reads
+-- already tolerate NULL — every activity-feed consumer COALESCEs to a
+-- generic "Audited event" string. Application writes that omit the
+-- column won't change behaviour. This unblocks the queue.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+ALTER TABLE public.activity_events ALTER COLUMN summary DROP NOT NULL;
