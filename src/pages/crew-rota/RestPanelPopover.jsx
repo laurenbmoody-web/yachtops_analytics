@@ -10,16 +10,6 @@ import { useRotaRestData } from './useRotaRestData';
 const CHART_SCALE = 100; // y-axis tops out at 100h
 const MLC_WEEKLY = 77;
 
-const WarnTriangle = ({ size = 20, color = '#7A2E1E' }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-    stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-    style={{ flexShrink: 0, marginTop: 2 }}>
-    <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-    <line x1="12" y1="9" x2="12" y2="13"/>
-    <line x1="12" y1="17" x2="12.01" y2="17"/>
-  </svg>
-);
-
 const CloseIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
     stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -112,31 +102,39 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
               {warn && <span className="rest-id-pill">{data.mlcChip || 'Below MLC'}</span>}
             </div>
             <div className="rest-id-role">{roleLine}</div>
-            <div className="rest-id-sub">
-              Today · <b>{data.rest24hLabel}</b> · <b>{data.pastWeekLabel}</b>
-            </div>
+            {warn ? (
+              /* Rolling-7 rest meter — replaces the old narrative banner. The
+                 chip names the breach; the meter carries the number + shortfall. */
+              <div className="rest-id-meter">
+                <div className="rest-id-meter-cap">Rolling 7-day rest</div>
+                <div className="rest-id-meter-track">
+                  <div
+                    className={`rest-id-meter-fill${data.weeklyBelow ? ' low' : ' ok'}`}
+                    style={{ width: `${Math.max(0, Math.min(100, (data.weeklyHours / CHART_SCALE) * 100))}%` }}
+                  />
+                  <div
+                    className="rest-id-meter-mark"
+                    style={{ left: `${(MLC_WEEKLY / CHART_SCALE) * 100}%` }}
+                  />
+                </div>
+                <div className={`rest-id-meter-lbl${data.weeklyBelow ? ' low' : ' ok'}`}>
+                  <b>{data.weeklyHours}h</b>
+                  {data.weeklyBelow
+                    ? ` · ${MLC_WEEKLY - data.weeklyHours}h below the ${MLC_WEEKLY}h minimum`
+                    : ` · meets the ${MLC_WEEKLY}h minimum`}
+                  <span className="dim"> · {data.rest24hLabel} today</span>
+                </div>
+              </div>
+            ) : (
+              <div className="rest-id-sub">
+                Today · <b>{data.rest24hLabel}</b> · <b>{data.pastWeekLabel}</b>
+              </div>
+            )}
           </div>
           <button type="button" className="rest-close" onClick={onClose} aria-label="Close">
             <CloseIcon />
           </button>
         </div>
-
-        {/* 2 · Narrative compliance banner (violation only) */}
-        {warn && data.bannerHeadline && (
-          <div className="rest-banner">
-            <WarnTriangle />
-            <div>
-              <div
-                className="rest-banner-headline"
-                dangerouslySetInnerHTML={{ __html: data.bannerHeadline }}
-              />
-              <div
-                className="rest-banner-body"
-                dangerouslySetInnerHTML={{ __html: data.bannerBody }}
-              />
-            </div>
-          </div>
-        )}
 
         {/* 3 · 24h timeline with shift-type sub-labels */}
         <div className="rest-section">
@@ -186,18 +184,17 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
               return (
                 <div key={i} className="rest-chart-col">
                   <div className={barCls}>
-                    {d.isToday && <span className="rest-chart-today">TODAY</span>}
                     <div className="rest-mlc-line" />
+                    {/* Neutral fill; a THIN outline encodes compliance (green ≥77h,
+                        terracotta below). Today also gets a tinted fill. */}
                     <div
-                      className={`rest-chart-fill ${compliant ? 'ok' : 'low'}`}
+                      className={`rest-chart-fill ${compliant ? 'ok' : 'low'}${d.isToday ? ' today' : ''}`}
                       style={{ height: `${pct}%` }}
-                    />
-                    <span
-                      className="rest-chart-value"
-                      style={{ color: compliant ? '#2D5A3A' : '#7A2E1E' }}
                     >
-                      {d.hours}h{d.confirmed ? ' ✓' : ''}
-                    </span>
+                      <span className="rest-chart-value">
+                        {d.hours}h{d.confirmed ? ' ✓' : ''}
+                      </span>
+                    </div>
                   </div>
                   <div className={`rest-chart-day${d.isToday ? ' today' : ''}${d.projected ? ' proj' : ''}`}>
                     {d.label || (d.isToday ? `${d.day} · today` : d.day)}

@@ -470,6 +470,46 @@
 }
 .rest-id-sub b { color: #7A2E1E; font-weight: 500; }
 .rest-popover-panel.compliant .rest-id-sub b { color: #2D5A3A; }
+
+/* Header rest meter — replaces the old narrative banner for breaching crew. */
+.rest-id-meter { margin-top: 11px; max-width: 360px; }
+.rest-id-meter-cap {
+  font-size: 9px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #A89F8C;
+  margin-bottom: 6px;
+}
+.rest-id-meter-track {
+  position: relative;
+  height: 9px;
+  border-radius: 5px;
+  background: #EFEAE0;
+}
+.rest-id-meter-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 5px;
+}
+.rest-id-meter-fill.low { background: #E0A98F; }
+.rest-id-meter-fill.ok  { background: #9CC0A2; }
+.rest-id-meter-mark {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: #C65A1A;
+}
+.rest-id-meter-lbl {
+  font-size: 10px;
+  margin-top: 7px;
+  color: #7A2E1E;
+}
+.rest-id-meter-lbl.ok { color: #2D5A3A; }
+.rest-id-meter-lbl b { font-weight: 700; }
+.rest-id-meter-lbl .dim { color: #8B8478; font-weight: 400; }
 .rest-close {
   background: transparent;
   border: 0.5px solid #DFD8CC;
@@ -627,18 +667,10 @@
   font-weight: 500;
 }
 .rest-chart-col { display: flex; flex-direction: column; gap: 6px; }
+/* Track is now an invisible positioning frame; the bar itself is the fill. */
 .rest-chart-bar {
   position: relative;
   height: 120px;
-  background: #FAFAF7;
-  border: 0.5px solid #ECE6DC;
-  border-radius: 4px;
-  overflow: hidden;
-}
-.rest-chart-bar.today {
-  border: 1.5px solid #C65A1A;
-  background: #FFFCFA;
-  box-shadow: 0 0 0 3px #FAECE7;
 }
 .rest-chart-bar.projected { opacity: 0.72; }
 .rest-chart-today {
@@ -658,29 +690,41 @@
   left: 0;
   right: 0;
   bottom: 77%;
-  height: 1px;
-  background: #C65A1A;
+  border-top: 1px dashed #C65A1A;
+  opacity: 0.7;
   z-index: 1;
 }
+/* Neutral fill sized to the day's hours; a THIN outline encodes compliance
+   (green ≥77h, terracotta below). Open-bottomed so it reads as a column. */
 .rest-chart-fill {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  border-radius: 0 0 3px 3px;
-}
-.rest-chart-fill.ok  { background: #C7DCC9; }
-.rest-chart-fill.low { background: #F5C9B8; }
-.rest-chart-value {
-  position: absolute;
-  bottom: 5px;
-  left: 0;
-  right: 0;
-  text-align: center;
-  font-size: 10px;
-  font-weight: 500;
+  background: #F2EEE6;
+  border: 1px solid #E3B4A0;
+  border-bottom: 0;
+  border-radius: 4px 4px 0 0;
   z-index: 2;
 }
+.rest-chart-fill.ok  { border-color: #9CC0A2; }
+.rest-chart-fill.low { border-color: #E3B4A0; }
+/* Today: keep the outline but add a soft tinted fill in its state colour. */
+.rest-chart-fill.today.low { background: #F0D9CE; border-color: #C65A1A; border-width: 1.5px; }
+.rest-chart-fill.today.ok  { background: #DCE9DC; border-color: #3C7A4E; border-width: 1.5px; }
+.rest-chart-value {
+  position: absolute;
+  top: -16px;
+  left: -3px;
+  right: -3px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: #8B8478;
+  z-index: 2;
+}
+.rest-chart-fill.today .rest-chart-value { color: #7A2E1E; }
+.rest-chart-fill.today.ok .rest-chart-value { color: #2D5A3A; }
 .rest-chart-day {
   font-family: 'DM Serif Display', Georgia, serif;
   font-size: 11px;
