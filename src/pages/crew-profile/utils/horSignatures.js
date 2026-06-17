@@ -43,7 +43,12 @@ export async function uploadSignature(dataUrl, kind = 'submit') {
 export async function getSignatureUrl(path) {
   if (!path) return null;
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, SIGNED_URL_TTL);
-  if (error) return null;
+  if (error) {
+    // Don't break the record view, but surface why a signature didn't render
+    // (e.g. storage RLS) instead of silently showing a blank panel.
+    console.error('[HOR] getSignatureUrl failed for', path, error);
+    return null;
+  }
   return data?.signedUrl || null;
 }
 
