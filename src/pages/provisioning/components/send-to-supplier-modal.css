@@ -26,21 +26,23 @@
 .stsm-titlewrap { min-width: 0; }
 .stsm-title {
   font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 400;
   line-height: 1.1;
   color: #1C1B3A;
-  letter-spacing: -0.005em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 .stsm-title-accent { color: #C65A1A; }
 .stsm-title-q {
   font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
   font-style: italic;
   font-weight: 400;
-  font-size: 20px;
+  font-size: 24px;
   color: #C65A1A;
   margin-left: 6px;
-  letter-spacing: -0.005em;
+  letter-spacing: 0;
+  text-transform: none;
   white-space: nowrap;
 }
 .stsm-sub {
@@ -156,88 +158,109 @@
   letter-spacing: 0.005em;
 }
 
-/* ── Group / supplier row ─────────────────────────────────────────── */
-/* Editorial supplier rows: hairline-separated, not boxed. The whole
-   block sits as one "list" with each supplier as a row, terracotta
-   thin left-rail on hover, no chunky individual card chrome. */
+/* ── Supplier rows ───────────────────────────────────────────────── */
+/* Editorial supplier rows: hairline-separated, not boxed. Each row
+   is a clickable accordion — chevron rotates open, item list reveals
+   below. Assigned and unassigned share the same row chrome; the
+   unassigned variant swaps the contact line for the picker. */
 .stsm-grouplist { display: flex; flex-direction: column; }
-.stsm-group {
-  display: flex;
+
+.stsm-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px 4px;
+  gap: 12px 16px;
+  padding: 14px 4px;
   border-bottom: 1px solid #F0F1F5;
   transition: opacity 0.15s ease;
-  position: relative;
 }
-.stsm-group:last-of-type { border-bottom: 0; }
-.stsm-group.is-sent { opacity: 0.55; }
-.stsm-group::before {
-  content: '';
-  position: absolute;
-  left: -8px;
-  top: 16px;
-  bottom: 16px;
-  width: 2px;
-  border-radius: 999px;
-  background: transparent;
-  transition: background 0.15s ease;
+.stsm-row:last-of-type { border-bottom: 0; }
+.stsm-row.is-sent { opacity: 0.55; }
+
+.stsm-row-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  min-width: 0;
+  width: 100%;
 }
-.stsm-group:hover::before { background: #C65A1A; }
-.stsm-group.is-sent::before,
-.stsm-group.is-sent:hover::before { background: #0F6E56; }
-.stsm-group-text { min-width: 0; flex: 1; }
-.stsm-group-name {
+.stsm-row-main:focus-visible { outline: 2px solid #FAECE7; outline-offset: 4px; border-radius: 6px; }
+
+.stsm-chev {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 22px;
+  color: #8B8478;
+  flex-shrink: 0;
+  transition: transform 0.15s ease, color 0.12s ease;
+}
+.stsm-chev.is-open { transform: rotate(90deg); color: #C65A1A; }
+.stsm-row-main:hover .stsm-chev { color: #1C1B3A; }
+.stsm-chev.is-open ~ * .stsm-row-name,
+.stsm-row.is-open .stsm-row-name { color: #1C1B3A; }
+
+.stsm-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+.stsm-row-name {
   font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 400;
   color: #1C1B3A;
-  line-height: 1.15;
+  line-height: 1.2;
   letter-spacing: -0.005em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.stsm-group-meta {
+.stsm-row-meta {
   color: #8B8478;
-  font-family: inherit;
+  font-family: 'Inter', system-ui, sans-serif;
   font-weight: 500;
   font-size: 12.5px;
-  margin-left: 8px;
+  margin-left: 6px;
   letter-spacing: 0.01em;
 }
-.stsm-group-contact {
+.stsm-row-contact {
   font-size: 12px;
   color: #8B8478;
-  margin-top: 4px;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.stsm-group-add {
+.stsm-row-add {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   font-size: 11.5px;
   font-weight: 600;
   color: #C65A1A;
-  background: none;
-  border: 0;
-  padding: 2px 0;
-  margin-top: 3px;
   cursor: pointer;
+  width: max-content;
 }
-.stsm-group-add:hover { color: #B14E16; }
+.stsm-row-add:hover { color: #B14E16; }
 
 .stsm-sent {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #0F6E56;
   flex-shrink: 0;
@@ -247,60 +270,91 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 4px;
+  gap: 5px;
   flex-shrink: 0;
+  justify-self: end;
 }
+.stsm-row-actions-unassigned {
+  flex-direction: row;
+  align-items: center;
+  width: min(360px, 100%);
+  gap: 8px;
+}
+.stsm-row-actions-unassigned .stsm-picker-wrap { flex: 1; min-width: 0; }
+
 .stsm-btnpair { display: flex; align-items: center; gap: 6px; }
 .stsm-hint {
   font-size: 10.5px;
-  font-style: italic;
   color: #8B8478;
   text-align: right;
 }
 
-/* ── Unassigned bucket ────────────────────────────────────────────── */
-/* Neutral soft-cream surface — a quiet island that reads as "needs
-   attention" without screaming terracotta. */
-.stsm-unassigned {
-  background: #FAFAF8;
-  border: 1px solid #ECEAE3;
-  border-radius: 13px;
-  padding: 16px 18px;
+/* Item list — reveals under a row when expanded. Quiet, indented,
+   hairline-topped. */
+.stsm-itemlist {
+  grid-column: 1 / -1;
+  margin: 8px 0 4px 28px;
+  padding: 10px 0 6px;
+  border-top: 1px dashed #ECEAE3;
+  list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-top: 14px;
+  gap: 6px;
 }
-.stsm-unassigned .stsm-group-name { font-size: 17px; }
-.stsm-unassigned-note {
+.stsm-itemrow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: #1C1B3A;
+  padding: 2px 0;
+}
+.stsm-itemrow.is-sent { color: #8B8478; text-decoration: line-through; }
+.stsm-itemname {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+.stsm-itemqty {
   font-size: 12px;
   color: #8B8478;
-  margin-top: -2px;
+  font-feature-settings: 'tnum';
+  flex-shrink: 0;
 }
-.stsm-unassigned-row {
-  display: flex;
-  align-items: stretch;
-  gap: 8px;
-}
-.stsm-unassigned-row .stsm-supplier-picker { flex: 1; min-width: 0; }
 
-/* SupplierPicker's input — wear the editorial field-card directly so the
-   picker's relative wrapper can host its absolute dropdown unchanged. */
+/* SupplierPicker input — sits inline on the Unassigned row. Compact
+   field-card matching the editorial system: soft surface, terracotta
+   halo on focus, plain Inter copy (no italic placeholder). */
 .stsm-picker-input {
   width: 100%;
-  background: #FFFFFF;
-  border: 1px solid #E5E7EB;
+  background: #FAFAF8;
+  border: 1px solid #ECEAE3;
   border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 14px;
+  padding: 9px 12px;
+  font-size: 13px;
   font-weight: 500;
   color: #1C1B3A;
   outline: none;
-  font-family: inherit;
-  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+  font-family: 'Inter', system-ui, sans-serif;
+  letter-spacing: 0.01em;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
-.stsm-picker-input::placeholder { color: #C3C8D2; }
-.stsm-picker-input:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.stsm-picker-input::placeholder {
+  color: #AEB4C2;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-weight: 500;
+  font-style: normal;
+  letter-spacing: 0.01em;
+}
+.stsm-picker-input:focus {
+  background: #FFFFFF;
+  border-color: #C65A1A;
+  box-shadow: 0 0 0 3px #FAECE7;
+}
 
 /* ── Buttons ──────────────────────────────────────────────────────── */
 .stsm-btn {
