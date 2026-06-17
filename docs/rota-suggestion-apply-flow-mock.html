@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Apply suggestion to grid — flow mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1C1B3A; --serif:'DM Serif Display',Georgia,serif; --sans:'Plus Jakarta Sans',system-ui,sans-serif;
+    --tan:#8B8478; --tan2:#A89F8C; --faint:#C9C0AE;
+    --line:#ECE6DC; --line2:#DFD8CC; --tile:#FCFBF8;
+    --terra:#C65A1A; --terra-deep:#7A2E1E; --green:#3C7A4E; --purple:#695880;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:#EDEAE3;font-family:var(--sans);padding:36px 28px 70px;color:var(--ink);}
+  h1{font-family:var(--serif);font-weight:400;font-size:24px;margin:0 0 4px;}
+  .lede{font-size:13px;color:var(--tan);margin:0 0 28px;max-width:740px;line-height:1.55;}
+  .steps{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;}
+  .step{width:360px;}
+  .step-cap{font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--purple);font-weight:700;margin:0 4px 11px;}
+  .step-cap .n{display:inline-flex;width:17px;height:17px;border-radius:50%;background:var(--ink);color:#fff;
+               align-items:center;justify-content:center;font-size:9px;margin-right:7px;vertical-align:middle;}
+  .arrow{align-self:center;color:var(--faint);font-size:24px;}
+
+  .card{background:#fff;border-radius:14px;border:0.5px solid var(--line2);
+        box-shadow:0 18px 46px -28px rgba(28,27,58,.30);padding:18px 18px 16px;}
+
+  .sec-label{font-size:9px;letter-spacing:1.4px;text-transform:uppercase;color:var(--tan2);}
+  .sug-conf{font-size:8.5px;letter-spacing:1px;text-transform:uppercase;color:var(--green);
+            background:#EEF4EE;border:0.5px solid #D2E3D4;border-radius:999px;padding:3px 9px;font-weight:600;}
+  .sug-h{font-family:var(--serif);font-size:17px;margin:11px 0 6px;}
+  .sug-b{font-size:11.5px;color:#5A554B;line-height:1.5;}
+  .eff{margin-top:12px;background:#FAF8F4;border:0.5px solid var(--line);border-radius:8px;padding:10px 12px;}
+  .eff .c{font-size:8.5px;letter-spacing:1px;text-transform:uppercase;color:var(--tan2);}
+  .eff .row{font-family:var(--serif);font-size:16px;margin-top:4px;}
+  .eff .row .to{color:var(--green);}
+  .btn{display:inline-block;border-radius:8px;padding:9px 15px;font-size:12px;font-weight:600;cursor:pointer;border:0.5px solid var(--line2);}
+  .btn.primary{background:var(--ink);color:#F5F1EA;border-color:var(--ink);}
+  .btn.ghost{background:transparent;color:var(--ink);}
+  .btn-row{display:flex;gap:9px;margin-top:14px;}
+
+  /* freed block banner */
+  .freed{background:#FBF1EA;border:0.5px solid #F2CDBE;border-radius:8px;padding:11px 13px;margin-bottom:14px;}
+  .freed .t{font-size:11px;color:var(--terra-deep);}
+  .freed .t b{font-weight:700;}
+  .freed .tally{font-size:10.5px;margin-top:6px;font-weight:600;}
+  .freed .tally.full{color:var(--green);}
+  .freed .tally.part{color:var(--terra);}
+
+  /* candidate rows */
+  .cand{border:0.5px solid var(--line);border-radius:9px;padding:11px 12px;margin-bottom:9px;}
+  .cand.picked{border-color:#9CC0A2;background:#FCFEFC;}
+  .cand-top{display:flex;align-items:center;gap:9px;}
+  .cand-av{width:30px;height:30px;border-radius:50%;background:#F1ECE2;border:0.5px solid var(--line2);
+           display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:var(--purple);flex-shrink:0;}
+  .cand-name{font-weight:600;font-size:12.5px;}
+  .cand-role{font-size:9.5px;color:var(--tan2);letter-spacing:.3px;text-transform:uppercase;}
+  .cand-head{margin-left:auto;text-align:right;}
+  .cand-head .h{font-size:9px;letter-spacing:.5px;text-transform:uppercase;color:var(--tan2);}
+  .cand-head .v{font-family:var(--serif);font-size:14px;color:var(--green);}
+  .cand-head .v.tight{color:var(--terra);}
+  /* headroom bar */
+  .room{height:5px;border-radius:4px;background:#EFEAE0;margin-top:9px;position:relative;overflow:hidden;}
+  .room .used{position:absolute;left:0;top:0;bottom:0;background:#D9CFC0;}
+  .room .add{position:absolute;top:0;bottom:0;background:#9CC0A2;}
+  /* allocation stepper */
+  .alloc{display:flex;align-items:center;gap:10px;margin-top:10px;}
+  .alloc .lbl{font-size:10px;color:var(--tan);flex:1;}
+  .alloc .lbl b{color:var(--ink);}
+  .stepper{display:flex;align-items:center;border:0.5px solid var(--line2);border-radius:7px;overflow:hidden;}
+  .stepper button{border:0;background:#F7F5F0;width:26px;height:26px;font-size:14px;cursor:pointer;color:var(--ink);}
+  .stepper .val{width:42px;text-align:center;font-size:12px;font-weight:600;}
+
+  /* preview / confirm */
+  .pv{border-bottom:0.5px solid var(--line);padding:10px 0;}
+  .pv:last-child{border-bottom:0;}
+  .pv-name{font-size:12px;font-weight:600;margin-bottom:6px;display:flex;justify-content:space-between;}
+  .pv-name .delta{font-size:10px;color:var(--green);font-weight:500;}
+  .pv-line{font-size:10.5px;color:var(--tan);display:flex;align-items:center;gap:7px;}
+  .chip{font-size:9px;border-radius:999px;padding:2px 8px;font-weight:600;}
+  .chip.ok{background:#EEF4EE;color:var(--green);border:0.5px solid #D2E3D4;}
+  .chip.warn{background:#FBEEE9;color:var(--terra);border:0.5px solid #F2CDBE;}
+  .grid-diff{margin-top:4px;font-size:10px;color:#5A554B;line-height:1.7;}
+  .grid-diff .rm{color:var(--terra-deep);}
+  .grid-diff .add{color:var(--green);}
+  .why{font-size:10.5px;color:var(--tan);margin-top:13px;line-height:1.5;}
+</style>
+</head>
+<body>
+  <h1>Apply a suggestion to the grid — flow</h1>
+  <p class="lede">Shortlist (chief picks) · spread across several crew · preview &amp; confirm. The freed hours from
+     Chief's afternoon watch get allocated to crew who have rest headroom, every recipient is re-checked against MLC,
+     and nothing is written until Confirm. Mock only — for sign-off before building.</p>
+
+  <div class="steps">
+
+    <!-- STEP 1 -->
+    <div class="step">
+      <div class="step-cap"><span class="n">1</span>Suggestion</div>
+      <div class="card">
+        <span class="sug-conf">High confidence</span>
+        <div class="sug-h">Remove afternoon watch today</div>
+        <div class="sug-b">The 12:00–16:00 watch pushes today toward continuous duty. Freeing it gains rest and chips the weekly deficit. Spread the cover across interior crew with headroom.</div>
+        <div class="eff">
+          <div class="c">Chief — rolling 7-day rest</div>
+          <div class="row">72h → <span class="to">76h</span></div>
+        </div>
+        <div class="btn-row">
+          <span class="btn primary">Apply to grid →</span>
+          <span class="btn ghost">Dismiss</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow">→</div>
+
+    <!-- STEP 2 -->
+    <div class="step">
+      <div class="step-cap"><span class="n">2</span>Assign coverage</div>
+      <div class="card">
+        <div class="freed">
+          <div class="t">Freeing <b>12:00–16:00</b> from Chief Stew · <b>4h</b> to cover</div>
+          <div class="tally full">4h of 4h allocated ✓</div>
+        </div>
+
+        <!-- candidate 1 -->
+        <div class="cand picked">
+          <div class="cand-top">
+            <div class="cand-av">SP</div>
+            <div>
+              <div class="cand-name">Sophie P.</div>
+              <div class="cand-role">2nd Stew</div>
+            </div>
+            <div class="cand-head"><div class="h">Headroom</div><div class="v">+14h</div></div>
+          </div>
+          <div class="room"><div class="used" style="width:55%"></div><div class="add" style="left:55%;width:9%"></div></div>
+          <div class="alloc">
+            <div class="lbl">Take <b>12:00–14:00</b> · still 12h rest today</div>
+            <div class="stepper"><button>–</button><div class="val">2h</div><button>+</button></div>
+          </div>
+        </div>
+
+        <!-- candidate 2 -->
+        <div class="cand picked">
+          <div class="cand-top">
+            <div class="cand-av">MR</div>
+            <div>
+              <div class="cand-name">Mia R.</div>
+              <div class="cand-role">3rd Stew</div>
+            </div>
+            <div class="cand-head"><div class="h">Headroom</div><div class="v">+10h</div></div>
+          </div>
+          <div class="room"><div class="used" style="width:62%"></div><div class="add" style="left:62%;width:9%"></div></div>
+          <div class="alloc">
+            <div class="lbl">Take <b>14:00–16:00</b> · still 11h rest today</div>
+            <div class="stepper"><button>–</button><div class="val">2h</div><button>+</button></div>
+          </div>
+        </div>
+
+        <!-- candidate 3 (available, none taken) -->
+        <div class="cand">
+          <div class="cand-top">
+            <div class="cand-av">JK</div>
+            <div>
+              <div class="cand-name">Jess K.</div>
+              <div class="cand-role">Relief Stewardess</div>
+            </div>
+            <div class="cand-head"><div class="h">Headroom</div><div class="v">+16h</div></div>
+          </div>
+          <div class="room"><div class="used" style="width:40%"></div></div>
+          <div class="alloc">
+            <div class="lbl">Available — none assigned</div>
+            <div class="stepper"><button>–</button><div class="val">0h</div><button>+</button></div>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <span class="btn primary">Review changes →</span>
+          <span class="btn ghost">Back</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow">→</div>
+
+    <!-- STEP 3 -->
+    <div class="step">
+      <div class="step-cap"><span class="n">3</span>Preview &amp; confirm</div>
+      <div class="card">
+        <div class="sec-label" style="margin-bottom:8px;">3 crew affected · today's grid</div>
+
+        <div class="pv">
+          <div class="pv-name">Chief Stew <span class="delta">+4h rest</span></div>
+          <div class="grid-diff"><span class="rm">– remove 12:00–16:00 watch</span></div>
+          <div class="pv-line">Weekly <b style="color:#5A554B">72h → 76h</b> <span class="chip warn">1h short of 77h</span> Daily <span class="chip ok">16h ✓</span></div>
+        </div>
+
+        <div class="pv">
+          <div class="pv-name">Sophie P. · 2nd Stew</div>
+          <div class="grid-diff"><span class="add">+ add 12:00–14:00 service</span></div>
+          <div class="pv-line">Weekly <span class="chip ok">60h ✓</span> Daily <span class="chip ok">12h ✓</span></div>
+        </div>
+
+        <div class="pv">
+          <div class="pv-name">Mia R. · 3rd Stew</div>
+          <div class="grid-diff"><span class="add">+ add 14:00–16:00 service</span></div>
+          <div class="pv-line">Weekly <span class="chip ok">58h ✓</span> Daily <span class="chip ok">11h ✓</span></div>
+        </div>
+
+        <div class="why">Every recipient re-checked with the same MLC engine — none pushed into breach. Chief still 1h short, so the panel will keep suggesting one more small change. Confirm writes all three edits to the grid in one go (undoable).</div>
+
+        <div class="btn-row">
+          <span class="btn primary">Confirm &amp; apply</span>
+          <span class="btn ghost">Back</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>
