@@ -25,6 +25,7 @@ const SignOffModal = ({
   defaultName = '',
   confirmLabel = 'Sign & submit',
   kind = 'submit',     // 'submit' | 'approve' — filename hint only
+  breaches = [],       // [{ date, note, documented, signed }] — shown for awareness
 }) => {
   const [dataUrl, setDataUrl] = useState(null);
   const [name, setName] = useState(defaultName);
@@ -68,6 +69,48 @@ const SignOffModal = ({
         </div>
 
         <p className="text-sm text-muted-foreground leading-relaxed">{declaration}</p>
+
+        {/* Rest-hour breaches in this period — surfaced so the signer knowingly
+            includes them in the sign-off, with each day's documented-reason /
+            sign-off state. */}
+        {breaches.length > 0 && (
+          <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10 p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Icon name="AlertTriangle" size={15} className="text-amber-600 dark:text-amber-400" />
+              <span className="text-sm font-semibold text-foreground">
+                {breaches.length} rest-hour breach{breaches.length > 1 ? 'es' : ''} this period
+              </span>
+            </div>
+            <ul className="space-y-1.5 max-h-40 overflow-y-auto pr-0.5">
+              {breaches.map((b) => (
+                <li key={b.date} className="flex items-start justify-between gap-2 text-xs">
+                  <span className="min-w-0 text-foreground">
+                    <span className="font-medium">
+                      {new Date(b.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                    </span>
+                    {b.note
+                      ? <span className="text-muted-foreground"> — {b.note}</span>
+                      : <span className="text-muted-foreground italic"> — no reason documented</span>}
+                  </span>
+                  <span className={`shrink-0 px-2 py-0.5 rounded-full font-semibold ${
+                    b.signed
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                      : b.documented
+                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
+                        : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                  }`}>
+                    {b.signed ? 'Signed off' : b.documented ? 'Awaiting sign-off' : 'No reason'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-[11px] text-muted-foreground mt-2">
+              {kind === 'approve'
+                ? 'These breaches are included in your counter-signature. Sign off each reason on the HOR page if needed.'
+                : 'These breaches are included in this sign-off. Add a reason for any marked “No reason”.'}
+            </p>
+          </div>
+        )}
 
         <div>
           <label className="block text-xs font-medium text-muted-foreground mb-1.5">
