@@ -7,17 +7,19 @@ import DayDetailDrawer from './DayDetailDrawer';
 import AddManualEntryModal from './AddManualEntryModal';
 import AddVesselLogModal from './AddVesselLogModal';
 import ManageCrewAssignmentModal from './ManageCrewAssignmentModal';
-import { getQualificationPaths, getProgressSummary, getMonthCalendarData, updatePersonalSeaServiceEntry, getVesselServiceLogForVessel, getActiveCrewForVessel, getCurrentVessel, recomputeQualificationForUser, getRulesConfig, SEA_SERVICE_TYPE, SEA_SERVICE_TYPE_LABELS } from '../utils/seaTimeStorage';
+import { getQualificationPaths, getVesselServiceLogForVessel, getActiveCrewForVessel, getCurrentVessel, SEA_SERVICE_TYPE, SEA_SERVICE_TYPE_LABELS } from '../utils/seaTimeStorage';
+import * as seaTimeService from '../utils/seaTimeService';
 import { hasCommandAccess, loadUsers } from '../../../utils/authStorage';
 import { showToast } from '../../../utils/toast';
 import { format } from 'date-fns';
 
-const SeaTimeTracker = ({ userId, currentUser }) => {
+const SeaTimeTracker = ({ userId, tenantId, currentUser }) => {
   const [view, setView] = useState('my'); // 'my' or 'vessel'
   const [selectedPath, setSelectedPath] = useState('mca-oow-yachts');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [calendarData, setCalendarData] = useState({});
   const [progressData, setProgressData] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedDayData, setSelectedDayData] = useState(null);
   const [showDayDrawer, setShowDayDrawer] = useState(false);
@@ -31,7 +33,6 @@ const SeaTimeTracker = ({ userId, currentUser }) => {
   const paths = getQualificationPaths();
   const vessel = getCurrentVessel();
   const users = loadUsers();
-  const rulesConfig = getRulesConfig();
 
   // Icon + label per service-type bucket (status never encoded in colour alone).
   const BUCKET_META = {
@@ -44,30 +45,36 @@ const SeaTimeTracker = ({ userId, currentUser }) => {
   // Load data
   useEffect(() => {
     loadData();
-  }, [userId, selectedPath, currentMonth, view]);
+  }, [userId, tenantId, selectedPath, currentMonth, view]);
 
-  const loadData = () => {
+  const loadData = async () => {
     if (view === 'my') {
-      // Load My Sea Time data
-      const calendar = getMonthCalendarData(userId, currentMonth?.getFullYear(), currentMonth?.getMonth());
-      setCalendarData(calendar);
-
-      const progress = getProgressSummary(userId, selectedPath);
-      setProgressData(progress);
+      if (!tenantId || !userId) return;
+      setLoading(true);
+      try {
+        const [calendar, progress] = await Promise.all([
+          seaTimeService.getMonthCalendarData(tenantId, userId, selectedPath, currentMonth?.getFullYear(), currentMonth?.getMonth()),
+          seaTimeService.getProgressSummary(tenantId, userId, selectedPath)
+        ]);
+        setCalendarData(calendar || {});
+        setProgressData(progress);
+      } catch (error) {
+        console.error('Error loading sea time:', error);
+        showToast('Failed to load sea time', 'error');
+      } finally {
+        setLoading(false);
+      }
     } else if (view === 'vessel' && vessel) {
-      // Load Vessel Sea Time data
-      const logs = getVesselServiceLogForVessel(vessel?.id);
-      setVesselLogs(logs);
-
-      const crew = getActiveCrewForVessel(vessel?.id);
-      setActiveCrew(crew);
+      // Command "Vessel Sea Time" view still runs on the localStorage prototype
+      // (Phase 2 attestation cockpit will migrate it).
+      setVesselLogs(getVesselServiceLogForVessel(vessel?.id));
+      setActiveCrew(getActiveCrewForVessel(vessel?.id));
     }
   };
 
   const handlePathChange = (newPath) => {
+    // Qualification is computed on read against the selected path; just reload.
     setSelectedPath(newPath);
-    // Recompute qualification for new path
-    recomputeQualificationForUser(userId, newPath);
   };
 
   const handleDateSelect = (date, dayData) => {
@@ -76,20 +83,40 @@ const SeaTimeTracker = ({ userId, currentUser }) => {
     setShowDayDrawer(true);
   };
 
-  const handleDayUpdate = (entryId, updates) => {
-    updatePersonalSeaServiceEntry(entryId, updates);
-    loadData();
-    showToast('Sea service day updated', 'success');
+  const handleDayUpdate = async (entryId, updates) => {
+    try {
+      // The drawer's "Submit for Verification" passes a verificationStatus; route
+      // that through the sign-off RPC. Everything else is a field edit.
+      if (updates?.verificationStatus) {
+        await seaTimeService.submitEntries(tenantId, [entryId]);
+        showToast('Submitted for verification', 'success');
+      } else {
+        await seaTimeService.updateEntry(entryId, updates);
+        showToast('Sea service day updated', 'success');
+      }
+      await loadData();
+    } catch (error) {
+      console.error('Error updating day:', error);
+      showToast('Update failed', 'error');
+    }
   };
 
-  const handleSubmitForVerification = () => {
-    // Submit current month for verification
-    const startDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-    const endDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
-
-    // This would call submitForVerification from storage
-    showToast('Month submitted for verification', 'success');
-    loadData();
+  const handleSubmitForVerification = async () => {
+    const ids = Object.values(calendarData || {})
+      .filter(e => e?.rawVerificationStatus === 'draft')
+      .map(e => e?.id);
+    if (!ids.length) {
+      showToast('No draft days this month to submit', 'info');
+      return;
+    }
+    try {
+      await seaTimeService.submitEntries(tenantId, ids);
+      showToast(`${ids.length} day(s) submitted for verification`, 'success');
+      await loadData();
+    } catch (error) {
+      console.error('Error submitting:', error);
+      showToast('Submit failed', 'error');
+    }
   };
 
   const handleExport = () => {
@@ -173,7 +200,7 @@ const SeaTimeTracker = ({ userId, currentUser }) => {
                       )}
                     </div>
                   </div>
-                  {rulesConfig?.reviewStatus === 'UNVERIFIED' && (
+                  {progressData?.reviewStatus !== 'VERIFIED' && (
                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30">
                       <Icon name="AlertTriangle" size={14} className="text-amber-600 dark:text-amber-400" />
                       <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
@@ -448,6 +475,7 @@ const SeaTimeTracker = ({ userId, currentUser }) => {
         isOpen={showAddManualModal}
         onClose={() => setShowAddManualModal(false)}
         userId={userId}
+        tenantId={tenantId}
         onSuccess={loadData}
       />
       <AddVesselLogModal

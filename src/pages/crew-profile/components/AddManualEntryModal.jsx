@@ -4,7 +4,8 @@ import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import Select from '../../../components/ui/Select';
 import { Checkbox } from '../../../components/ui/Checkbox';
-import { addManualSeaServiceEntry, loadSavedVessels, saveSavedVessel, loadCrewOnboardStatus, CREW_STATUS } from '../utils/seaTimeStorage';
+import { loadSavedVessels, saveSavedVessel, loadCrewOnboardStatus, CREW_STATUS } from '../utils/seaTimeStorage';
+import * as seaTimeService from '../utils/seaTimeService';
 import { showToast } from '../../../utils/toast';
 
 import ModalShell from '../../../components/ui/ModalShell';
@@ -29,7 +30,7 @@ const SEA_SERVICE_TYPES = [
   { value: 'Yard period', label: 'Shipyard / refit' }
 ];
 
-const AddManualEntryModal = ({ isOpen, onClose, userId, onSuccess }) => {
+const AddManualEntryModal = ({ isOpen, onClose, userId, tenantId, onSuccess }) => {
   const [step, setStep] = useState(1);
   const [showMoreDetails, setShowMoreDetails] = useState(false);
   const [useExistingVessel, setUseExistingVessel] = useState(false);
@@ -195,8 +196,13 @@ const AddManualEntryModal = ({ isOpen, onClose, userId, onSuccess }) => {
     setStep(step - 1);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e?.preventDefault();
+
+    if (!tenantId) {
+      showToast('No active vessel context — cannot save', 'error');
+      return;
+    }
 
     try {
       // Save vessel if requested
@@ -229,36 +235,30 @@ const AddManualEntryModal = ({ isOpen, onClose, userId, onSuccess }) => {
         }
       }
 
-      // Generate entries for date range
-      const startDate = new Date(servicePeriod?.startDate);
-      const endDate = new Date(servicePeriod?.endDate);
-      let entriesCreated = 0;
-
-      for (let d = new Date(startDate); d <= endDate; d?.setDate(d?.getDate() + 1)) {
-        const dateStr = d?.toISOString()?.split('T')?.[0];
-        
-        addManualSeaServiceEntry(userId, {
-          vesselName: vesselDetails?.vesselName,
-          savedVesselId,
-          // Snapshot the gating vessel facts onto the entry so the rules engine
-          // can evaluate it without a managed vessel record.
-          grossTonnage: parseFloat(vesselDetails?.grossTonnage),
-          lengthM: parseFloat(vesselDetails?.lengthM),
-          vesselStatusType: vesselDetails?.vesselStatusType,
-          vesselType: vesselDetails?.vesselType,
-          date: dateStr,
-          vesselStatus: null,
+      // Persist the date range to Supabase (one row per day). Vessel facts are
+      // snapshotted onto each row so the rules engine can evaluate it.
+      const entriesCreated = await seaTimeService.addManualEntries(tenantId, userId, {
+        period: {
+          startDate: servicePeriod?.startDate,
+          endDate: servicePeriod?.endDate,
           capacityServed: servicePeriod?.capacityServed,
-          watchkeepingRole: servicePeriod?.watchkeepingRole,
-          watchHours: servicePeriod?.watchHours ? parseFloat(servicePeriod?.watchHours) : 0,
+          watchHours: servicePeriod?.watchHours,
           locationTradingArea: servicePeriod?.locationTradingArea,
           seaServiceType: servicePeriod?.seaServiceType,
-          noteReason: evidenceNotes?.noteReason,
-          documents,
-          markedForVerification: evidenceNotes?.markedForVerification
-        });
-        entriesCreated++;
-      }
+          pathId: 'mca-oow-yachts'
+        },
+        vessel: {
+          vesselName: vesselDetails?.vesselName,
+          flag: vesselDetails?.flag,
+          imoNumber: vesselDetails?.imoNumber,
+          officialNumber: vesselDetails?.officialNumber,
+          vesselType: vesselDetails?.vesselType,
+          grossTonnage: parseFloat(vesselDetails?.grossTonnage),
+          lengthM: parseFloat(vesselDetails?.lengthM)
+        },
+        note: evidenceNotes?.noteReason,
+        documents
+      });
 
       showToast(`${entriesCreated} sea service ${entriesCreated === 1 ? 'entry' : 'entries'} added`, 'success');
       onSuccess?.();
