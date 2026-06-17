@@ -20,13 +20,19 @@
 -- dept name.
 -- ─────────────────────────────────────────────────────────────────────────────
 
-UPDATE public.provisioning_items pi
-   SET department = d.name
+WITH creator_dept AS (
+  SELECT
+    pl.id     AS list_id,
+    d.name    AS dept_name
   FROM public.provisioning_lists pl
   JOIN public.vessels         v  ON v.id  = pl.vessel_id
   JOIN public.tenant_members  tm ON tm.user_id   = pl.created_by
-                                AND tm.tenant_id = v.tenant_id
-                                AND tm.active IS NOT FALSE
+                                 AND tm.tenant_id = v.tenant_id
+                                 AND tm.active IS NOT FALSE
   JOIN public.departments     d  ON d.id  = tm.department_id
- WHERE pi.list_id = pl.id
-   AND (pi.department IS DISTINCT FROM d.name);
+)
+UPDATE public.provisioning_items pi
+   SET department = cd.dept_name
+  FROM creator_dept cd
+ WHERE pi.list_id = cd.list_id
+   AND (pi.department IS DISTINCT FROM cd.dept_name);
