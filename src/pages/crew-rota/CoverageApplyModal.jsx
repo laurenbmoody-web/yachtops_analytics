@@ -28,6 +28,7 @@ export default function CoverageApplyModal({
     () => (freed && sourceCrew ? buildCandidates({ sourceMember: sourceCrew, crew }) : []),
     [freed, sourceCrew, crew],
   );
+  const candById = useMemo(() => new Map(candidates.map((c) => [c.id, c])), [candidates]);
 
   const [step, setStep] = useState('assign'); // 'assign' | 'preview'
   const [alloc, setAlloc] = useState(null);    // { [memberId]: hours }
@@ -40,6 +41,7 @@ export default function CoverageApplyModal({
     setAlloc(defaultSpread(candidates, freed.hours).alloc);
   }, [open, freed, candidates]);
 
+  // All hooks must run before any early return (React rules-of-hooks).
   if (!open || !freed) return null;
 
   const freedH = Math.round(freed.hours);
@@ -59,7 +61,6 @@ export default function CoverageApplyModal({
     .map((c) => ({ id: c.id, hours: alloc?.[c.id] || 0 }))
     .filter((a) => a.hours > 0);
   const slices = sliceFreed(freed, orderedAllocs);
-  const candById = useMemo(() => new Map(candidates.map((c) => [c.id, c])), [candidates]);
 
   const handleConfirm = async () => {
     if (busy) return;
