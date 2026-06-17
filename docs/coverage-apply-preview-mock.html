@@ -41,6 +41,8 @@
   .legend i.n{background:var(--seg-new);}
   .legend i.d{background:var(--seg-duty);}
   .legend i.r{background:var(--seg-rest);border:1px solid #cdd6cd;}
+  .legend i.f{background:var(--seg-rest);border:1px solid var(--seg-new);
+              background-image:repeating-linear-gradient(45deg,transparent,transparent 2px,rgba(200,100,60,.45) 2px,rgba(200,100,60,.45) 3.5px);}
 
   /* timeline bar with ticks */
   .bar{position:relative;display:flex;height:18px;border-radius:5px;overflow:hidden;background:var(--seg-rest);}
@@ -48,6 +50,9 @@
   .bar .seg.new{background:var(--seg-new);}
   .bar .seg.duty{background:var(--seg-duty);}
   .bar .seg.rest{background:var(--seg-rest);}
+  /* freed = was on-duty, now released to rest — hatched so the change reads */
+  .bar .seg.freed{background:var(--seg-rest);
+    background-image:repeating-linear-gradient(45deg,transparent,transparent 3px,rgba(200,100,60,.5) 3px,rgba(200,100,60,.5) 5px);}
   .ticks{position:relative;height:13px;margin-top:3px;}
   .ticks span{position:absolute;transform:translateX(-50%);font-size:8.5px;color:var(--faint);letter-spacing:.3px;}
   .ticks span:first-child{transform:none;}
@@ -145,6 +150,7 @@
           <span class="sub">2 crew affected · 2026-06-18</span>
           <span class="legend">
             <span><i class="n"></i>cover</span>
+            <span><i class="f"></i>freed</span>
             <span><i class="d"></i>duty</span>
             <span><i class="r"></i>rest</span>
           </span>
@@ -159,6 +165,17 @@
               <div class="delta">+4h rest</div>
             </div>
             <div class="change"><span class="rm">– remove 00:00–04:00</span></div>
+            <div class="bar">
+              <div class="seg freed" style="width:16.6%"></div>
+              <div class="seg rest" style="width:33.4%"></div>
+              <div class="seg duty" style="width:41.7%"></div>
+              <div class="seg rest" style="width:8.3%"></div>
+            </div>
+            <div class="ticks"><span style="left:0">00</span><span style="left:25%">06</span><span style="left:50%">12</span><span style="left:75%">18</span><span style="left:100%">24</span></div>
+            <div class="compliance">
+              <span class="k">Daily</span><span class="chip ok">24h ✓</span>
+              <span class="k">Weekly</span><span class="chip ok">81h ✓</span>
+            </div>
           </div>
         </div>
 
@@ -193,7 +210,7 @@
           </div>
         </div>
       </div>
-      <div class="col-note"><b>Why it reads cleaner:</b> a single avatar gutter aligns every crew member, the rest delta sits flush-right on the name line, and the timeline gains 00–24 ticks so the cover position is legible. Even 16px rhythm on hairline dividers.</div>
+      <div class="col-note"><b>Why it reads cleaner:</b> a single avatar gutter aligns every crew member, the rest delta sits flush-right on the name line, and <b>both</b> crew get a 24h timeline with 00–24 ticks — the source shows the watch (hatched "freed") turning into rest, the recipient shows where the cover lands. Even rhythm on hairline dividers.</div>
     </div>
 
     <!-- ============== VARIANT B — Stacked tiles ============== -->
@@ -220,6 +237,22 @@
             <div class="delta give">+4h rest</div>
           </div>
           <div class="change"><span class="rm" style="color:var(--terra-deep)">– remove 00:00–04:00</span></div>
+          <div class="bar">
+            <div class="seg freed" style="width:16.6%"></div>
+            <div class="seg rest" style="width:33.4%"></div>
+            <div class="seg duty" style="width:41.7%"></div>
+            <div class="seg rest" style="width:8.3%"></div>
+          </div>
+          <div class="ticks"><span style="left:0">00</span><span style="left:25%">06</span><span style="left:50%">12</span><span style="left:75%">18</span><span style="left:100%">24</span></div>
+          <div class="legend">
+            <span><i class="f"></i>freed</span>
+            <span><i class="d"></i>duty</span>
+            <span><i class="r"></i>rest</span>
+          </div>
+          <div class="compliance">
+            <span class="chip ok">Daily 24h ✓</span>
+            <span class="chip ok">Weekly 81h ✓</span>
+          </div>
         </div>
 
         <!-- recipient tile -->
@@ -256,7 +289,7 @@
           </div>
         </div>
       </div>
-      <div class="col-note"><b>Why it reads cleaner:</b> each crew member is a self-contained tile, so give-back and cover never blur together. The source tile keeps its warm terracotta wash; recipient tiles carry the timeline + per-tile legend. More air, slightly taller.</div>
+      <div class="col-note"><b>Why it reads cleaner:</b> each crew member is a self-contained tile, so give-back and cover never blur together. Both tiles carry their own 24h timeline — source shows the freed watch becoming rest, recipient shows the new cover. The source keeps its warm terracotta wash. More air, slightly taller.</div>
     </div>
 
   </div>
