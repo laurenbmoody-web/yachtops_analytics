@@ -295,9 +295,9 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
         <div className="rest-actions">
           {warn ? (
             <>
-              <button type="button" className="rest-btn primary">Adjust shift</button>
-              <button type="button" className="rest-btn ghost">Log violation reason</button>
-              <button type="button" className="rest-btn ghost">Add note</button>
+              <button type="button" className="rest-btn primary" onClick={onViewSchedule}>Adjust shift</button>
+              <button type="button" className="rest-btn ghost" onClick={onOpenHor}>Log violation reason</button>
+              <button type="button" className="rest-btn ghost" onClick={onOpenHor}>Add note</button>
             </>
           ) : (
             <button type="button" className="rest-btn primary" onClick={onViewSchedule}>View full schedule</button>

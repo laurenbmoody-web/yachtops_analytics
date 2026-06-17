@@ -149,38 +149,47 @@ export function generateRankedSuggestions({
     }
   }
 
-  // Score + de-dupe by freed signature.
+  // Score + de-dupe by freed signature. Each candidate is scored defensively
+  // so one bad row (odd times, missing shifts) can't empty the whole list.
   const seen = new Set();
   const scored = [];
   for (const r of raw) {
     const sig = `${r.freed.date}|${r.freed.start}|${r.freed.end}|${r.change.action}`;
     if (seen.has(sig)) continue;
     seen.add(sig);
+    try {
+      const restTo = projectWeekly(r.change, allRows, effDate);
+      const closed = weeklyDeficit > 0 ? Math.min(restTo - restFrom, weeklyDeficit) / weeklyDeficit : 1;
+      const resolvesWeekly = restTo >= MLC_WEEKLY_REST_MIN;
+      let cov;
+      try {
+        cov = evaluateCoverage({ sourceMember, freed: r.freed, roster, windowShifts });
+      } catch {
+        cov = { ok: false, partial: false, crewCount: 0, unassigned: r.freed.hours, roles: [] };
+      }
+      const coverageScore = cov.ok ? Math.max(0.4, 1 - 0.15 * (cov.crewCount - 1)) : (cov.partial ? 0.3 : 0.1);
+      // Balance: rest restored (0.5) + breach resolution (0.2) + coverage (0.3).
+      const score = 0.5 * Math.max(0, closed) + 0.2 * (resolvesWeekly ? 1 : 0) + 0.3 * coverageScore;
+      const confidence = (resolvesWeekly && cov.ok) || (closed >= 0.5 && cov.ok) ? 'high' : 'medium';
 
-    const restTo = projectWeekly(r.change, allRows, effDate);
-    const closed = weeklyDeficit > 0 ? Math.min(restTo - restFrom, weeklyDeficit) / weeklyDeficit : 1;
-    const resolvesWeekly = restTo >= MLC_WEEKLY_REST_MIN;
-    const cov = evaluateCoverage({ sourceMember, freed: r.freed, roster, windowShifts });
-    const coverageScore = cov.ok ? Math.max(0.4, 1 - 0.15 * (cov.crewCount - 1)) : (cov.partial ? 0.3 : 0.1);
-    // Balance: rest restored (0.5) + breach resolution (0.2) + coverage (0.3).
-    const score = 0.5 * Math.max(0, closed) + 0.2 * (resolvesWeekly ? 1 : 0) + 0.3 * coverageScore;
-    const confidence = (resolvesWeekly && cov.ok) || (closed >= 0.5 && cov.ok) ? 'high' : 'medium';
-
-    scored.push({
-      id: sig,
-      kind: r.kind,
-      change: r.change,
-      freedBlock: r.freed,
-      restFrom,
-      restTo,
-      resolvesWeekly,
-      dailyBelow,
-      coverage: cov,
-      dayLabel: dayLabel(r.freed.date, effDate),
-      blockLabel: `${r.freed.start}–${r.freed.end}`,
-      score,
-      confidence,
-    });
+      scored.push({
+        id: sig,
+        kind: r.kind,
+        change: r.change,
+        freedBlock: r.freed,
+        restFrom,
+        restTo: Number.isFinite(restTo) ? restTo : restFrom,
+        resolvesWeekly,
+        dailyBelow,
+        coverage: cov,
+        dayLabel: dayLabel(r.freed.date, effDate),
+        blockLabel: `${r.freed.start}–${r.freed.end}`,
+        score: Number.isFinite(score) ? score : 0,
+        confidence,
+      });
+    } catch {
+      // Skip a candidate that can't be scored rather than failing the panel.
+    }
   }
 
   scored.sort((a, b) => (b.score - a.score) || (a.id < b.id ? -1 : 1));
