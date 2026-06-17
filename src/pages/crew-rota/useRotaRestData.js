@@ -14,8 +14,10 @@ import { hhmmToDecimal } from './useRotaShifts';
 import { ON_DUTY_TYPES, assessMlc, restForWeek } from './restHours';
 import { generateRankedSuggestions } from './suggestionEngine';
 
-// Session cache so re-opening the panel for an unchanged rota returns the
-// identical ranked suggestions + copy (no re-roll, no extra model call).
+// Session cache for AI COPY only (headline/body), keyed by member + the
+// semantic content of a fix. The structural payload (change/freedBlock/shift
+// ids) is always rebuilt from the fresh engine result, so a fix is never
+// re-offered with a stale shift id after it's been applied.
 const SUGGESTION_CACHE = new Map();
 
 const WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -388,41 +390,55 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
               nowHHMM,
             });
 
-            // Stable cache key: who, when, and exactly which ranked fixes.
-            const cacheKey = `${memberId}|${effDate}|${ranked.map(r => r.id).join(',')}`;
-            if (SUGGESTION_CACHE.has(cacheKey)) {
-              if (!cancelled) setSuggestions(SUGGESTION_CACHE.get(cacheKey));
-            } else if (ranked.length === 0) {
+            // Cache the AI COPY only — keyed by who + the semantic content that
+            // drives the wording (block, whether it resolves, coverage, remaining
+            // breach). The structural payload (change/freedBlock/shift ids) is
+            // ALWAYS rebuilt from the FRESH engine result, so an applied change is
+            // never re-offered carrying a stale shift id. We only call the model
+            // for ranked fixes whose copy we haven't written yet.
+            if (ranked.length === 0) {
               if (!cancelled) setSuggestions([]);
             } else {
-              let copyById = new Map();
-              try {
-                const { data: aiRes } = await supabase.functions.invoke('generate-rest-insights', {
-                  body: {
-                    member: { name: crewName || 'This crew member', role: crewRole, department: crewDept },
-                    breaches: mlcReport.breaches.map(b => ({ label: b.label })),
-                    changes: ranked.map(r => ({
-                      id: r.id,
-                      kind: r.kind,
-                      day_label: r.dayLabel,
-                      block_label: r.blockLabel,
-                      freed_hours: Math.round(r.freedBlock.hours),
-                      rest_from: Math.round(r.restFrom),
-                      rest_to: Math.round(r.restTo),
-                      resolves: r.resolvesAll,
-                      remaining_breaches: r.remainingBreaches || [],
-                      coverage_ok: !!r.coverage.ok,
-                      coverage_roles: Array.from(new Set(r.coverage.roles || [])),
-                    })),
-                  },
-                });
-                copyById = new Map((aiRes?.copy || []).map(c => [c.id, c]));
-              } catch {
-                // Copy is best-effort; fall back to templated text below.
+              const copyKey = (r) => `${memberId}|${r.id}|${r.resolvesAll ? 1 : 0}|${r.coverage.ok ? 1 : 0}|${(r.remainingBreaches || []).join('~')}`;
+              const copyById = new Map();
+              const missing = [];
+              for (const r of ranked) {
+                const ck = copyKey(r);
+                if (SUGGESTION_CACHE.has(ck)) copyById.set(r.id, SUGGESTION_CACHE.get(ck));
+                else missing.push(r);
+              }
+              if (missing.length) {
+                try {
+                  const { data: aiRes } = await supabase.functions.invoke('generate-rest-insights', {
+                    body: {
+                      member: { name: crewName || 'This crew member', role: crewRole, department: crewDept },
+                      breaches: mlcReport.breaches.map(b => ({ label: b.label })),
+                      changes: missing.map(r => ({
+                        id: r.id,
+                        kind: r.kind,
+                        day_label: r.dayLabel,
+                        block_label: r.blockLabel,
+                        freed_hours: Math.round(r.freedBlock.hours),
+                        rest_from: Math.round(r.restFrom),
+                        rest_to: Math.round(r.restTo),
+                        resolves: r.resolvesAll,
+                        remaining_breaches: r.remainingBreaches || [],
+                        coverage_ok: !!r.coverage.ok,
+                        coverage_roles: Array.from(new Set(r.coverage.roles || [])),
+                      })),
+                    },
+                  });
+                  const byId = new Map((aiRes?.copy || []).map(c => [c.id, c]));
+                  for (const r of missing) {
+                    const c = byId.get(r.id);
+                    if (c) { copyById.set(r.id, c); SUGGESTION_CACHE.set(copyKey(r), c); }
+                  }
+                } catch {
+                  // Copy is best-effort; fall back to templated text below.
+                }
               }
               if (cancelled) return;
               const enriched = ranked.map(r => buildSuggestion(r, copyById.get(r.id), effDate));
-              SUGGESTION_CACHE.set(cacheKey, enriched);
               if (!cancelled) setSuggestions(enriched);
             }
           } catch (aiErr) {
