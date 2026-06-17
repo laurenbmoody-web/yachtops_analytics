@@ -930,3 +930,28 @@
   color: var(--d-muted);
   letter-spacing: 0.02em;
 }
+
+/* Unread pulse on the reviewer-note chip — fades a soft ring in and
+   out so a returning submitter notices the note without it feeling
+   like a marquee. State is `.is-unread`; cleared by the chip's click
+   handler (which also persists to localStorage). Respects
+   prefers-reduced-motion. */
+@keyframes pv-chip-note-pulse-approved {
+  0%   { box-shadow: 0 0 0 0   rgba(26, 29, 63, 0.30); }
+  70%  { box-shadow: 0 0 0 8px rgba(26, 29, 63, 0);    }
+  100% { box-shadow: 0 0 0 0   rgba(26, 29, 63, 0);    }
+}
+@keyframes pv-chip-note-pulse-changes {
+  0%   { box-shadow: 0 0 0 0   rgba(198, 90, 26, 0.30); }
+  70%  { box-shadow: 0 0 0 8px rgba(198, 90, 26, 0);    }
+  100% { box-shadow: 0 0 0 0   rgba(198, 90, 26, 0);    }
+}
+.pv-board-chip-note.is-unread.pv-board-chip-note-approved {
+  animation: pv-chip-note-pulse-approved 1.8s ease-out infinite;
+}
+.pv-board-chip-note.is-unread.pv-board-chip-note-changes {
+  animation: pv-chip-note-pulse-changes 1.8s ease-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pv-board-chip-note.is-unread { animation: none; }
+}

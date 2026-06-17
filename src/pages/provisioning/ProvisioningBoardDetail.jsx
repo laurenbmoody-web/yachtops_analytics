@@ -436,7 +436,35 @@ const ProvisioningBoardDetail = () => {
   const [decisionComment, setDecisionComment] = useState('');
   const [deciding, setDeciding] = useState(false);
   const [reviewNoteOpen, setReviewNoteOpen] = useState(false);
+  const [reviewNoteSeen, setReviewNoteSeen] = useState(false);
   const reviewNoteRef = useRef(null);
+
+  // Per-user / per-request "have I read this reviewer note" memory.
+  // Persisted in localStorage so the chip stops pulsing once the user
+  // has actually opened it, even across reloads. Approvers don't see
+  // the pulse on their own note — they wrote it.
+  const reviewNoteSeenKey = (approvalRequest?.id && user?.id)
+    ? `cargo.provReviewNoteSeen.${user.id}.${approvalRequest.id}`
+    : null;
+  useEffect(() => {
+    if (!approvalRequest?.id || !user?.id) { setReviewNoteSeen(false); return; }
+    // The author of the note doesn't need a pulse to tell them about it.
+    if (approvalRequest.approver_id === user.id) { setReviewNoteSeen(true); return; }
+    try {
+      const v = window.localStorage.getItem(reviewNoteSeenKey);
+      setReviewNoteSeen(v === '1');
+    } catch { setReviewNoteSeen(false); }
+  }, [approvalRequest?.id, approvalRequest?.approver_id, user?.id, reviewNoteSeenKey]);
+
+  // Open → mark seen + persist. Once dismissed, the chip stops
+  // pulsing for this user/request forever.
+  const handleReviewNoteToggle = () => {
+    setReviewNoteOpen(v => !v);
+    if (!reviewNoteSeen && reviewNoteSeenKey) {
+      setReviewNoteSeen(true);
+      try { window.localStorage.setItem(reviewNoteSeenKey, '1'); } catch { /* private mode */ }
+    }
+  };
   const quoteFileInputRef = useRef(null);
   const [uploadingQuote, setUploadingQuote] = useState(false);
 
@@ -2192,9 +2220,17 @@ const ProvisioningBoardDetail = () => {
                 // `isApproved` paints navy/cream (positive); `isChanges`
                 // paints terracotta/cream (action-required).
                 if (isApproved || isChanges) {
-                  const chipClass = isApproved
-                    ? 'pv-board-chip pv-board-chip-note pv-board-chip-note-approved'
-                    : 'pv-board-chip pv-board-chip-note pv-board-chip-note-changes';
+                  // Pulse while the current viewer hasn't opened it
+                  // — drops the moment they click. Approvers don't
+                  // see the pulse on their own note (handled by the
+                  // seen-state effect above).
+                  const unread = !reviewNoteSeen;
+                  const chipClass = [
+                    'pv-board-chip',
+                    'pv-board-chip-note',
+                    isApproved ? 'pv-board-chip-note-approved' : 'pv-board-chip-note-changes',
+                    unread ? 'is-unread' : null,
+                  ].filter(Boolean).join(' ');
                   const label = isApproved
                     ? 'Note from approver'
                     : 'Changes requested';
@@ -2206,7 +2242,7 @@ const ProvisioningBoardDetail = () => {
                       <button
                         type="button"
                         className={chipClass}
-                        onClick={() => setReviewNoteOpen(v => !v)}
+                        onClick={handleReviewNoteToggle}
                         aria-haspopup="dialog"
                         aria-expanded={reviewNoteOpen}
                       >
