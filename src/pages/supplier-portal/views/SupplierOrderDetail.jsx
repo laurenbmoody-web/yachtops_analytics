@@ -27,7 +27,10 @@ const NO_PERMISSION_TITLE = "Your role doesn't have permission for this action."
 // indexes so this Timeline renders identically to its pre-migration
 // behaviour.
 const TIMELINE_STEPS = [
-  { key: 'sent',       label: 'Sent' },
+  // Step 0 keys off the server-side 'sent' status but reads as "Received"
+  // in the supplier UI — from the supplier's POV the order just landed
+  // in their inbox; "Sent" is how the crew side describes the same event.
+  { key: 'sent',       label: 'Received' },
   { key: 'confirming', label: 'Confirming' },
   { key: 'picking',    label: 'Picking' },
   { key: 'packed',     label: 'Packed' },
@@ -538,7 +541,7 @@ const Timeline = ({ order, items, canEdit, onAdvance }) => {
 
   const stepWhen = (idx) => {
     if (idx === 0) {
-      return fmtTimestamp(order.sent_at || order.created_at) || 'Sent';
+      return fmtTimestamp(order.sent_at || order.created_at) || 'Received';
     }
     if (idx === currentIdx) {
       // "Confirming" gets the X of Y progress hint.
@@ -747,17 +750,6 @@ const PriceCell = ({ item, currency, canEdit, onQuote }) => {
     }
   };
 
-  // Delta vs estimate for the active draft.
-  const draftNum = Number(draft);
-  const estNum = Number(item.estimated_price);
-  let deltaChip = null;
-  if (editable && !Number.isNaN(draftNum) && estNum > 0 && draftNum !== estNum) {
-    const pct = ((draftNum - estNum) / estNum) * 100;
-    const cls = pct >= 0 ? 'up' : 'down';
-    const sign = pct >= 0 ? '+' : '';
-    deltaChip = <span className={`sod-price-delta ${cls}`}>{sign}{pct.toFixed(1)}%</span>;
-  }
-
   // ── Branch by status ──────────────────────────────────────────────────
 
   if (status === 'unavailable' || itemUnavailable) {
@@ -768,36 +760,33 @@ const PriceCell = ({ item, currency, canEdit, onQuote }) => {
     );
   }
 
+  // Single price column that flows with the line's status — the crew's
+  // estimate is never surfaced here (intentional: supplier prices from
+  // their own cost, not from a vessel-side budget guess). The label
+  // tells the supplier where the line is in the lifecycle:
+  //   awaiting_quote → "Quote required"   (editable input)
+  //   quoted         → "Awaiting vessel"  (readonly)
+  //   in_discussion  → "In query"         (readonly)
+  //   agreed         → "Final"            (readonly, locked)
+  //   declined       → "Re-quote"         (editable input)
   if (status === 'agreed') {
     const agreedFmt = formatCurrency(item.agreed_price, item.agreed_currency || fallbackCurrency);
-    const drift = item.estimated_price != null
-      && item.agreed_price != null
-      && Number(item.estimated_price) !== Number(item.agreed_price);
     return (
       <div className="sod-price-cell">
-        <span className="sod-price-quoted-label">Agreed</span>
+        <span className="sod-price-quoted-label sod-price-final-label">Final</span>
         <span className="sod-price-readonly">{agreedFmt}</span>
-        {drift && (
-          <span className="sod-price-readonly-sub">
-            est. {formatCurrency(item.estimated_price, item.estimated_currency || fallbackCurrency)}
-          </span>
-        )}
       </div>
     );
   }
 
   if (status === 'quoted' || status === 'in_discussion') {
     const quotedFmt = formatCurrency(item.quoted_price, item.quoted_currency || fallbackCurrency);
-    const estFmt = formatCurrency(item.estimated_price, item.estimated_currency || fallbackCurrency);
     return (
       <div className="sod-price-cell">
         <span className="sod-price-quoted-label">
-          {status === 'in_discussion' ? 'Quoted (in query)' : 'Quoted · awaiting vessel'}
+          {status === 'in_discussion' ? 'In query' : 'Awaiting vessel'}
         </span>
         <span className="sod-price-readonly">{quotedFmt}</span>
-        {item.estimated_price != null && (
-          <span className="sod-price-readonly-sub">est. {estFmt}</span>
-        )}
         {status === 'in_discussion' && (
           <span className="sod-price-discussion-badge">In discussion</span>
         )}
@@ -809,7 +798,7 @@ const PriceCell = ({ item, currency, canEdit, onQuote }) => {
   return (
     <div className="sod-price-cell">
       <span className="sod-price-quoted-label">
-        {status === 'declined' ? 'Re-quote' : 'Your quote'}
+        {status === 'declined' ? 'Re-quote' : 'Quote required'}
       </span>
       <div className="sod-price-input-wrap">
         <input
@@ -825,15 +814,9 @@ const PriceCell = ({ item, currency, canEdit, onQuote }) => {
           title={canEdit ? 'Set your quoted price — Enter to save, Esc to revert' : NO_PERMISSION_TITLE}
         />
         <span className="sod-price-input-currency">{fallbackCurrency}</span>
-        {deltaChip}
       </div>
-      {item.estimated_price != null && (
-        <span className="sod-price-readonly-sub">
-          est. {formatCurrency(item.estimated_price, item.estimated_currency || fallbackCurrency)}
-        </span>
-      )}
       {status === 'declined' && (
-        <span className="sod-price-declined-tag">Declined — adjust and confirm</span>
+        <span className="sod-price-declined-tag">Declined — adjust and re-quote</span>
       )}
       {saving && <span className="sod-price-saving">saving…</span>}
       {error && <span className="sod-price-saving" style={{ color: 'var(--red)' }}>{error}</span>}
@@ -1107,12 +1090,6 @@ const ItemRow = ({ item, currency, canEdit, onUpdate, onQuote }) => {
         />
       </div>
 
-      <div className="sod-wq-cell sod-wq-cell-est">
-        {item.estimated_price != null
-          ? formatCurrency(item.estimated_price, item.estimated_currency || currency)
-          : <span className="sod-wq-muted">—</span>}
-      </div>
-
       <div className="sod-wq-cell sod-wq-cell-price">
         <PriceCell item={item} currency={currency} canEdit={canEdit} onQuote={onQuote} />
       </div>
@@ -1183,14 +1160,29 @@ const ItemsCard = ({
   // agreed > quoted > estimated > unit. Unavailable lines and lines with
   // no usable price at any level are excluded so the total reflects what
   // will actually invoice.
-  const subtotal = items.reduce((s, i) => {
-    if (i.status === 'unavailable') return s;
+  //
+  // VAT pulls from supplier_order_items.vat_rate_snapshot — that column
+  // is populated at invoice generation time using the supplier's VAT
+  // rules. Before then it's null on every line, so we show "on invoice"
+  // rather than "—" / 0.00 to make clear the figure will land later.
+  let subtotal = 0;
+  let vatTotal = 0;
+  let anyVatRate = false;
+  for (const i of items) {
+    if (i.status === 'unavailable') continue;
     const price = Number(
       i.agreed_price ?? i.quoted_price ?? i.estimated_price ?? i.unit_price ?? 0,
     ) || 0;
     const qty = Number(i.quantity) || 0;
-    return s + price * qty;
-  }, 0);
+    const lineTotal = price * qty;
+    subtotal += lineTotal;
+    const rate = Number(i.vat_rate_snapshot);
+    if (!Number.isNaN(rate) && rate > 0) {
+      anyVatRate = true;
+      vatTotal += lineTotal * (rate / 100);
+    }
+  }
+  const grandTotal = subtotal + vatTotal;
 
   // Progress segments for the header bar — done / sub / unavailable widths
   // sum to (done + sub + un) / total; the remaining gap is the "to do"
@@ -1246,8 +1238,7 @@ const ItemsCard = ({
         <div className="sod-wq-cell sod-wq-cell-unit">Unit</div>
         <div className="sod-wq-cell sod-wq-cell-size">Size</div>
         <div className="sod-wq-cell sod-wq-cell-qty">Qty</div>
-        <div className="sod-wq-cell sod-wq-cell-est">Est.</div>
-        <div className="sod-wq-cell sod-wq-cell-price">Your quote</div>
+        <div className="sod-wq-cell sod-wq-cell-price">Price</div>
         <div className="sod-wq-cell sod-wq-cell-note">Note / Sub</div>
         <div className="sod-wq-cell sod-wq-cell-total">Line total</div>
         <div className="sod-wq-cell sod-wq-cell-action" />
@@ -1313,12 +1304,16 @@ const ItemsCard = ({
           <div className="sod-totals-value">{formatCurrency(0, currency)}</div>
         </div>
         <div className="sod-totals-row">
-          <div className="sod-totals-label">VAT (estimated)</div>
-          <div className="sod-totals-value">—</div>
+          <div className="sod-totals-label">VAT</div>
+          <div className="sod-totals-value">
+            {anyVatRate
+              ? formatCurrency(vatTotal, currency)
+              : <span className="sod-totals-deferred">on invoice</span>}
+          </div>
         </div>
         <div className="sod-totals-row sod-totals-grand">
           <div className="sod-totals-label">Estimated Total</div>
-          <div className="sod-totals-value">{formatCurrency(subtotal, currency)}</div>
+          <div className="sod-totals-value">{formatCurrency(grandTotal, currency)}</div>
         </div>
       </div>
     </div>
