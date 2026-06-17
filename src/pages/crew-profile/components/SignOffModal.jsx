@@ -99,7 +99,15 @@ const SignOffModal = ({
                         ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
                         : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
                   }`}>
-                    {b.signed ? 'Signed off' : b.documented ? 'Awaiting sign-off' : 'No reason'}
+                    {/* "Awaiting sign-off" means an APPROVER hasn't counter-signed
+                        the reason yet — only meaningful in the approve flow. On the
+                        crew's own certify/submit modal the reason is theirs and is
+                        being signed now, so show the neutral "Reason documented". */}
+                    {b.signed
+                      ? 'Signed off'
+                      : b.documented
+                        ? (kind === 'approve' ? 'Awaiting sign-off' : 'Reason documented')
+                        : 'No reason'}
                   </span>
                 </li>
               ))}
