@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Breach Notes — apply-to-all + compact rows</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#1C1B3A; --terra:#C65A1A; --terra-h:#B14E16; --muted:#8B8478; --muted2:#6B7280;
+    --faint:#AEB4C2; --hair:#F0F1F5; --bd:#ECEAE3; --bd2:#E8E6DF; --field:#FAFAF8; --tint:#FBEFE9; --green:#5C9B6A;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#EEECE6;font-family:'Inter',system-ui,sans-serif;color:var(--navy);padding:44px 16px 80px}
+  .wrap{max-width:580px;margin:0 auto}
+  .pageh{font-family:'DM Serif Display',Georgia,serif;font-size:24px;margin:0 0 4px}
+  .pagesub{color:var(--muted2);font-size:13.5px;margin:0 0 24px}
+
+  .panel{background:#fff;border:1px solid var(--bd);border-radius:16px;box-shadow:0 24px 60px -16px rgba(28,27,58,.32);overflow:hidden}
+  .head{padding:20px 24px 15px;border-bottom:1px solid var(--hair)}
+  .title{font-family:'DM Serif Display',Georgia,serif;font-size:22px;line-height:1.1}
+  .sub{font-size:13px;color:var(--muted2);margin-top:3px}
+
+  .lbl{display:block;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+  .optn{color:var(--faint);font-weight:600}
+
+  /* apply-to-all bar */
+  .all{background:#FCF7F3;border-bottom:1px solid var(--hair);padding:16px 24px 18px}
+  .all .lbl{color:var(--terra-h)}
+  .all-input{display:flex;gap:10px;align-items:stretch}
+  input.field{width:100%;background:#fff;border:1px solid var(--bd2);border-radius:10px;padding:10px 13px;font-size:13.5px;color:var(--navy);font-family:inherit}
+  input.field::placeholder{color:var(--faint)}
+  input.field:focus{outline:none;border-color:var(--terra);box-shadow:0 0 0 3px #FAECE7}
+  .apply{white-space:nowrap;background:var(--terra);border:1px solid var(--terra);color:#fff;border-radius:10px;padding:0 16px;font-size:13px;font-weight:600;cursor:pointer}
+  .apply:hover{background:var(--terra-h);border-color:var(--terra-h)}
+  .tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
+  .pill{border:1px solid var(--bd2);background:#fff;color:#4A4A63;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap}
+  .pill.sel{background:var(--terra);border-color:var(--terra);color:#fff}
+
+  /* compact per-day rows */
+  .rows{padding:4px 0}
+  .r{display:grid;grid-template-columns:96px 40px 1fr 22px;align-items:center;gap:12px;padding:10px 24px;border-bottom:1px solid var(--hair)}
+  .r:last-child{border-bottom:0}
+  .r .date{font-family:'DM Serif Display',Georgia,serif;font-size:14.5px}
+  .r .rest{font-size:12px;color:var(--muted)}
+  .r input.field{background:var(--field)}
+  .r .tick{color:var(--green);font-size:16px;text-align:center}
+  .r .tick.empty{color:#E3E1DA}
+  .rowhead{display:grid;grid-template-columns:96px 40px 1fr 22px;gap:12px;padding:9px 24px 7px;border-bottom:1px solid var(--hair)}
+  .rowhead .lbl{margin:0}
+
+  .foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 24px;border-top:1px solid var(--hair)}
+  .prog{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+  .btn{display:inline-flex;align-items:center;gap:7px;background:var(--terra);border:1px solid var(--terra);color:#fff;border-radius:10px;padding:9px 18px;font-size:13.5px;font-weight:600;cursor:pointer}
+  .btn:hover{background:var(--terra-h);border-color:var(--terra-h)}
+  .note{font-size:12px;color:var(--muted2);margin:22px 0 0;line-height:1.55}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 class="pageh">Breach Notes — the refined version</h1>
+  <p class="pagesub">Apply-to-all bar on top, then tight per-day rows. Type once, tweak the odd day. No big cards, no scroll.</p>
+
+  <div class="panel">
+    <div class="head">
+      <div class="title">Breach notes required</div>
+      <div class="sub">5 days need a reason before sign-off.</div>
+    </div>
+
+    <!-- apply to all -->
+    <div class="all">
+      <label class="lbl">Apply to all days <span class="optn">type once · fills every row below</span></label>
+      <div class="all-input">
+        <input class="field" placeholder="e.g. Guest charter — night security watch" value="Guest charter — night security watch"/>
+        <button class="apply">Apply to 5</button>
+      </div>
+      <div class="tags">
+        <span class="pill sel">Guest trip</span><span class="pill">Turnaround / provisioning</span><span class="pill">Night watch / security</span><span class="pill">Medical / emergency</span><span class="pill">Drill / operations</span>
+      </div>
+    </div>
+
+    <!-- per-day rows -->
+    <div class="rowhead"><span class="lbl">Date</span><span class="lbl">Rest</span><span class="lbl">Reason</span><span></span></div>
+    <div class="rows">
+      <div class="r"><span class="date">27/06/2026</span><span class="rest">0.0h</span><input class="field" value="Guest charter — night security watch"/><span class="tick">✓</span></div>
+      <div class="r"><span class="date">29/06/2026</span><span class="rest">0.0h</span><input class="field" value="Guest charter — night security watch"/><span class="tick">✓</span></div>
+      <div class="r"><span class="date">30/06/2026</span><span class="rest">0.0h</span><input class="field" value="Medical assist — crew injury"/><span class="tick">✓</span></div>
+      <div class="r"><span class="date">01/07/2026</span><span class="rest">0.0h</span><input class="field" value="Guest charter — night security watch"/><span class="tick">✓</span></div>
+      <div class="r"><span class="date">02/07/2026</span><span class="rest">0.0h</span><input class="field" placeholder="Add reason…"/><span class="tick empty">○</span></div>
+    </div>
+
+    <div class="foot"><span class="prog">4 of 5 done</span><button class="btn">✓ Submit notes</button></div>
+  </div>
+
+  <p class="note"><strong>How it flows:</strong> type a reason once, hit <em>Apply to 5</em> → every row fills. Row 30/06 shows an individual tweak (a different cause), and 02/07 is still empty so the tick is hollow and the count reads 4 of 5. Quick-tag pills prefix the apply-to-all reason. Submit stays disabled until all five ticks are green.</p>
+</div>
+</body>
+</html>
