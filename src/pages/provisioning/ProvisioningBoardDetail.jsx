@@ -435,6 +435,8 @@ const ProvisioningBoardDetail = () => {
   const [decisionModal, setDecisionModal] = useState(null); // 'approve' | 'request_changes' | null
   const [decisionComment, setDecisionComment] = useState('');
   const [deciding, setDeciding] = useState(false);
+  const [reviewNoteOpen, setReviewNoteOpen] = useState(false);
+  const reviewNoteRef = useRef(null);
   const quoteFileInputRef = useRef(null);
   const [uploadingQuote, setUploadingQuote] = useState(false);
 
@@ -735,6 +737,21 @@ const ProvisioningBoardDetail = () => {
       document.removeEventListener('keydown', key);
     };
   }, [allergenOpen]);
+
+  // Review-note popover — same outside-click / Escape pattern as
+  // the allergen chip. Triggered by the "Note from <approver>" chip
+  // on approved + changes_requested boards.
+  useEffect(() => {
+    if (!reviewNoteOpen) return undefined;
+    const h = (e) => { if (reviewNoteRef.current && !reviewNoteRef.current.contains(e.target)) setReviewNoteOpen(false); };
+    const k = (e) => { if (e.key === 'Escape') setReviewNoteOpen(false); };
+    document.addEventListener('mousedown', h);
+    document.addEventListener('keydown', k);
+    return () => {
+      document.removeEventListener('mousedown', h);
+      document.removeEventListener('keydown', k);
+    };
+  }, [reviewNoteOpen]);
 
   // Load the active approval request whenever the board loads or its
   // status flips. Resolves approver/submitter names so the banner can
@@ -2132,14 +2149,18 @@ const ProvisioningBoardDetail = () => {
                 const isApprover = approvalRequest.approver_id === user?.id;
                 const isPending  = approvalRequest.status === 'pending';
                 const isChanges  = approvalRequest.status === 'changes_requested';
-                if (!isPending && !isChanges) return null;
+                const isApproved = approvalRequest.status === 'approved';
+                const hasComment = !!(approvalRequest.comment && approvalRequest.comment.trim());
+                // Only show the chip for states the user cares about
+                // post-decision: pending review, changes-requested, OR
+                // approved-with-note. A bare "approved" with no
+                // comment doesn't earn a chip — it's just the
+                // happy-path return to draft.
+                if (!isPending && !isChanges && !(isApproved && hasComment)) return null;
                 const approverName = approverProfile?.full_name
                   || (approverProfile?.email ? approverProfile.email.split('@')[0] : 'reviewer');
                 const submitterName = submitterProfile?.full_name
                   || (submitterProfile?.email ? submitterProfile.email.split('@')[0] : 'someone');
-                // Re-approval (prev_status was quote_received) uses
-                // tighter copy so the approver knows they're signing
-                // off on the supplier's actual numbers, not estimates.
                 const isReApproval = approvalRequest.prev_status === PROVISIONING_STATUS.QUOTE_RECEIVED;
                 if (isPending) {
                   const pendingLabel = isApprover
@@ -2160,18 +2181,63 @@ const ProvisioningBoardDetail = () => {
                     </span>
                   );
                 }
-                // changes_requested — both submitter and approver see the chip; popover carries the comment
-                return (
-                  <span
-                    className="pv-board-chip pv-board-chip-changes"
-                    title={approvalRequest.comment
-                      ? `“${approvalRequest.comment}” — ${approverName}`
-                      : `Changes requested by ${approverName}`}
-                  >
-                    <Icon name="AlertTriangle" style={{ width: 11, height: 11 }} aria-hidden="true" />
-                    Changes requested
-                  </span>
-                );
+                // Decided with a comment — render the chip as a
+                // button that opens a popover with the full note.
+                // `isApproved` paints navy/cream (positive); `isChanges`
+                // paints terracotta/cream (action-required).
+                if (isApproved || isChanges) {
+                  const chipClass = isApproved
+                    ? 'pv-board-chip pv-board-chip-note pv-board-chip-note-approved'
+                    : 'pv-board-chip pv-board-chip-note pv-board-chip-note-changes';
+                  const label = isApproved
+                    ? 'Note from approver'
+                    : 'Changes requested';
+                  const decidedAt = approvalRequest.decided_at
+                    ? new Date(approvalRequest.decided_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                    : null;
+                  return (
+                    <div className="pv-board-chip-wrap" ref={reviewNoteRef}>
+                      <button
+                        type="button"
+                        className={chipClass}
+                        onClick={() => setReviewNoteOpen(v => !v)}
+                        aria-haspopup="dialog"
+                        aria-expanded={reviewNoteOpen}
+                      >
+                        <Icon name={isApproved ? 'CheckCircle' : 'AlertTriangle'} style={{ width: 11, height: 11 }} aria-hidden="true" />
+                        {label}
+                        <span aria-hidden="true" className="pv-board-chip-caret">{reviewNoteOpen ? '▾' : '›'}</span>
+                      </button>
+                      {reviewNoteOpen && (
+                        <div className="pv-board-review-popover" role="dialog" aria-label="Reviewer note">
+                          <div className="pv-board-review-popover-head">
+                            <Icon
+                              name={isApproved ? 'CheckCircle' : 'AlertTriangle'}
+                              style={{ width: 14, height: 14, color: isApproved ? 'var(--d-navy-deep)' : 'var(--d-orange)', flexShrink: 0 }}
+                              aria-hidden="true"
+                            />
+                            <span className="pv-board-review-popover-title">
+                              {isApproved ? 'Approved' : 'Changes requested'}
+                              {' · '}
+                              {approverName}
+                            </span>
+                          </div>
+                          {hasComment ? (
+                            <p className="pv-board-review-popover-body">"{approvalRequest.comment}"</p>
+                          ) : (
+                            <p className="pv-board-review-popover-body" style={{ color: 'var(--d-muted)' }}>No note from the approver.</p>
+                          )}
+                          {decidedAt && (
+                            <div className="pv-board-review-popover-foot">
+                              {decidedAt}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+                return null;
               })()}
             </div>
             <div className="pv-board-tabs-row">

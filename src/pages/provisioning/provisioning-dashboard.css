@@ -852,3 +852,81 @@
   cursor: not-allowed;
 }
 
+
+/* Reviewer-note chip + popover ─────────────────────────────────
+   Surfaces the approver's comment on the board so the submitter sees
+   what was written when their request was approved or sent back.
+   Variant determines the paint:
+     - .pv-board-chip-note-approved → navy fill on white, signals
+       positive review with context.
+     - .pv-board-chip-note-changes  → warm cream + terracotta text,
+       reuses the existing changes-requested colour vocabulary. */
+.pv-board-chip-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  border: none;
+  transition: background 0.12s, color 0.12s;
+}
+.pv-board-chip-note-approved {
+  background: #EEF0F4;
+  color: var(--d-navy-deep);
+}
+.pv-board-chip-note-approved:hover {
+  background: var(--d-navy-deep);
+  color: #FFF;
+}
+.pv-board-chip-note-changes {
+  background: #FFEDD5;
+  color: #9A3412;
+}
+.pv-board-chip-note-changes:hover { background: #FCDDB1; }
+
+.pv-board-review-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  min-width: 320px;
+  max-width: 480px;
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  border-radius: 10px;
+  box-shadow: 0 14px 36px rgba(38, 42, 83, 0.18);
+  padding: 14px 16px 12px;
+}
+.pv-board-review-popover-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.pv-board-review-popover-title {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--d-navy-deep);
+}
+.pv-board-review-popover-body {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-style: italic;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--d-navy-deep);
+  margin: 0;
+  padding: 6px 0;
+  border-left: 3px solid var(--d-orange);
+  padding-left: 12px;
+}
+.pv-board-review-popover-foot {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--d-border-soft);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--d-muted);
+  letter-spacing: 0.02em;
+}
