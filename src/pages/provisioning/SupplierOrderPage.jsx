@@ -514,16 +514,28 @@ function LinesSection({ order, acceptAllBusy, quoteRowBusy, onAcceptAllQuoted, o
               );
             }
 
+            // Defensive: if the supplier set a price (quoted_price /
+            // agreed_price) but the auto-accept trigger hasn't moved
+            // quote_status off 'awaiting_quote', fall through to the
+            // quoted/agreed branches so the chief still sees the
+            // figure. Order of preference: agreed > quoted > estimated.
+            const hasAgreed = it.agreed_price != null && Number(it.agreed_price) > 0;
+            const hasQuoted = it.quoted_price != null && Number(it.quoted_price) > 0;
+            const effectiveQStatus =
+              qStatus === 'awaiting_quote'
+                ? (hasAgreed ? 'agreed' : (hasQuoted ? 'quoted' : 'awaiting_quote'))
+                : qStatus;
+
             let priceCell, statusCell;
-            if (qStatus === 'agreed') {
+            if (effectiveQStatus === 'agreed') {
               priceCell = (
                 <>
-                  <div style={{ fontWeight: 700 }}>{fmtMoney(it.agreed_price, cur)}</div>
-                  <div style={{ fontSize: 10.5, color: 'rgba(30,39,66,0.5)', marginTop: 2 }}>Agreed</div>
+                  <div style={{ fontWeight: 700 }}>{fmtMoney(it.agreed_price ?? it.quoted_price, cur)}</div>
+                  <div style={{ fontSize: 10.5, color: 'rgba(30,39,66,0.5)', marginTop: 2 }}>Final</div>
                 </>
               );
-              statusCell = <span className="cargo-od-pill tonal-green">Agreed</span>;
-            } else if (qStatus === 'awaiting_quote') {
+              statusCell = <span className="cargo-od-pill tonal-green">Final</span>;
+            } else if (effectiveQStatus === 'awaiting_quote') {
               priceCell = (
                 <div style={{ color: 'rgba(30,39,66,0.55)' }}>est. {fmtMoney(it.estimated_price, cur)}</div>
               );

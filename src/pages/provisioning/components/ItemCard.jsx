@@ -43,6 +43,28 @@ const ItemCard = ({ item, supplierOrderItem, supplierOrder, onClick, onStatusCha
     if (onQuantityChange) onQuantityChange(item, next);
   };
 
+  // At-a-glance supplier pips. The hasNote pip lights when the supplier
+  // left a note for this line (supplier_item_note); the hasChanges pip
+  // lights when they overrode qty/unit/size from the crew's original
+  // ask. Both compute upstream in supplierOrderIndex; their tooltips
+  // here describe what changed so the chief doesn't need to drill in.
+  const hasNote = !!supplierOrderItem?.hasNote;
+  const hasChanges = !!supplierOrderItem?.hasChanges;
+  const changeBits = [];
+  if (supplierOrderItem?.qtyChanged) {
+    changeBits.push(`Qty ${supplierOrderItem.requestedQuantity} → ${supplierOrderItem.quantity}`);
+  }
+  if (supplierOrderItem?.unitChanged) {
+    changeBits.push(`Unit ${supplierOrderItem.requestedUnit} → ${supplierOrderItem.unit}`);
+  }
+  if (supplierOrderItem?.sizeChanged) {
+    changeBits.push(`Size ${supplierOrderItem.requestedSize} → ${supplierOrderItem.size}`);
+  }
+  const changesTitle = changeBits.length > 0
+    ? `Supplier changed:\n${changeBits.join('\n')}`
+    : '';
+  const noteTitle = hasNote ? `Note from supplier:\n"${supplierOrderItem.supplierNote}"` : '';
+
   return (
     <>
       <div
@@ -57,6 +79,32 @@ const ItemCard = ({ item, supplierOrderItem, supplierOrder, onClick, onStatusCha
         <span className="pv-item-name">
           {item.name || 'Untitled'}
         </span>
+
+        {/* Supplier pips — small inline indicators that the supplier
+            wrote a note or overrode qty/unit/size on this line. Click
+            still opens the drawer (event bubbles up to the parent). */}
+        {(hasNote || hasChanges) && (
+          <span className="pv-item-supplier-pips" aria-hidden="true">
+            {hasChanges && (
+              <span className="pv-item-pip pv-item-pip-changes" title={changesTitle}>
+                <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4z" />
+                </svg>
+              </span>
+            )}
+            {hasNote && (
+              <span className="pv-item-pip pv-item-pip-note" title={noteTitle}>
+                <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="13" rx="2.5" />
+                  <path d="M8 20l-1-3" />
+                  <line x1="7.5" y1="9" x2="16.5" y2="9" />
+                  <line x1="7.5" y1="13" x2="13.5" y2="13" />
+                </svg>
+              </span>
+            )}
+          </span>
+        )}
 
         {/* Qty controls — stop propagation so taps on the stepper don't open the drawer */}
         <div className="pv-item-stepper" onClick={e => e.stopPropagation()}>
