@@ -1246,3 +1246,91 @@
   border-color: var(--d-orange);
 }
 .ord-rp-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Allergen chip — interactive variant. Positioned relative so the
+   shared .pv-board-allergen-popover anchors beneath it; click toggles
+   the popover, Esc / outside-click closes (handled by the panel). */
+.ord-rp-chip-allergen-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.ord-rp-chip-allergen {
+  border: 0;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.ord-rp-chip-allergen:hover { background: #F8DEDE; }
+.ord-rp-chip-caret {
+  font-size: 12px;
+  line-height: 1;
+  margin-left: 2px;
+  color: var(--d-danger);
+}
+
+/* Allergen popover — duplicated from provisioning-dashboard.css since
+   that file isn't loaded on /reviews. Identical visual treatment so
+   the chip-click experience matches the board detail page. */
+.ord-rp-chip-allergen-wrap .pv-board-allergen-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  min-width: 320px;
+  max-width: 480px;
+  background: var(--d-card);
+  border: 1px solid var(--d-border);
+  border-left: 4px solid var(--d-danger);
+  border-radius: 10px;
+  box-shadow: 0 14px 36px rgba(38, 42, 83, 0.18);
+  padding: 14px 16px 12px;
+}
+.ord-rp-chip-allergen-wrap .pv-board-allergen-popover-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.ord-rp-chip-allergen-wrap .pv-board-allergen-popover-title {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--d-danger);
+}
+.ord-rp-chip-allergen-wrap .pv-board-allergen-popover-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ord-rp-chip-allergen-wrap .pv-board-allergen-popover-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--d-border-soft);
+}
+.ord-rp-chip-allergen-wrap .pv-board-allergen-popover-row:last-child { border-bottom: 0; }
+.ord-rp-chip-allergen-wrap .pv-board-allergen-popover-name {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 15px;
+  color: var(--d-navy-deep);
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+.ord-rp-chip-allergen-wrap .pv-board-allergen-popover-all {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--d-danger);
+  letter-spacing: 0.03em;
+}
+.ord-rp-chip-allergen-wrap .pv-board-allergen-popover-foot {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--d-border-soft);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--d-muted);
+  letter-spacing: 0.02em;
+}

@@ -49,10 +49,26 @@ export default function OrderApprovalRightPane({ request, onResolved, onToast })
   const [pastSpend, setPastSpend]           = useState([]);
   const [supplierOrders, setSupplierOrders] = useState([]);
   const [loading, setLoading]               = useState(true);
-  const [decisionModal, setDecisionModal]   = useState(null);
+  const [decisionModal, setDecisionModal]   = useState(null); // 'approve' | 'request_changes' | null
   const [comment, setComment]               = useState('');
   const [busy, setBusy]                     = useState(false);
   const [collapseUnchanged, setCollapseUnchanged] = useState(false);
+  const [allergenOpen, setAllergenOpen]     = useState(false);
+  const allergenRef = React.useRef(null);
+
+  // Close allergen popover on outside-click / Escape — same pattern as
+  // the board detail allergen chip so the interactions feel uniform.
+  useEffect(() => {
+    if (!allergenOpen) return undefined;
+    const h = (e) => { if (allergenRef.current && !allergenRef.current.contains(e.target)) setAllergenOpen(false); };
+    const k = (e) => { if (e.key === 'Escape') setAllergenOpen(false); };
+    document.addEventListener('mousedown', h);
+    document.addEventListener('keydown', k);
+    return () => {
+      document.removeEventListener('mousedown', h);
+      document.removeEventListener('keydown', k);
+    };
+  }, [allergenOpen]);
 
   // Load everything in parallel when a different request is selected.
   useEffect(() => {
@@ -299,10 +315,43 @@ export default function OrderApprovalRightPane({ request, onResolved, onToast })
             <span className="ord-rp-chip">Port: <strong>&nbsp;{list.port_location}</strong></span>
           )}
           {allergenGuests.length > 0 && (
-            <span className="ord-rp-chip ord-rp-chip-warn">
-              <Icon name="AlertTriangle" size={12} className="ord-rp-chip-icon" />
-              <strong>{allergenGuests.length} allergen{allergenGuests.length === 1 ? '' : 's'}</strong>
-            </span>
+            <div className="ord-rp-chip-allergen-wrap" ref={allergenRef}>
+              <button
+                type="button"
+                className="ord-rp-chip ord-rp-chip-warn ord-rp-chip-allergen"
+                onClick={() => setAllergenOpen(v => !v)}
+                aria-haspopup="dialog"
+                aria-expanded={allergenOpen}
+                title="Per-guest allergen breakdown"
+              >
+                <Icon name="AlertTriangle" size={12} className="ord-rp-chip-icon" />
+                <strong>{allergenGuests.length} allergen{allergenGuests.length === 1 ? '' : 's'}</strong>
+                <span aria-hidden="true" className="ord-rp-chip-caret">{allergenOpen ? '▾' : '›'}</span>
+              </button>
+              {allergenOpen && (
+                <div className="pv-board-allergen-popover" role="dialog" aria-label="Allergen alert">
+                  <div className="pv-board-allergen-popover-head">
+                    <Icon
+                      name="AlertTriangle"
+                      style={{ width: 14, height: 14, color: 'var(--d-danger)', flexShrink: 0 }}
+                      aria-hidden="true"
+                    />
+                    <span className="pv-board-allergen-popover-title">Allergen alert</span>
+                  </div>
+                  <div className="pv-board-allergen-popover-list">
+                    {allergenGuests.map((g, i) => (
+                      <div key={i} className="pv-board-allergen-popover-row">
+                        <span className="pv-board-allergen-popover-name">{g.name}</span>
+                        <span className="pv-board-allergen-popover-all">{g.allergies}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="pv-board-allergen-popover-foot">
+                    Highlighted rows may be affected
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </header>
@@ -367,23 +416,8 @@ export default function OrderApprovalRightPane({ request, onResolved, onToast })
           )}
         </div>
 
-        {/* Allergens */}
-        {allergenGuests.length > 0 && (
-          <div className="ord-rp-allergens">
-            <div className="ord-rp-allergens-row">
-              <span className="ord-rp-allergens-title">⚠ Allergens</span>
-              {allergenGuests.map((g, i) => (
-                <React.Fragment key={i}>
-                  {i > 0 && <span className="ord-rp-allergens-div" aria-hidden="true">·</span>}
-                  <span className="ord-rp-guest">
-                    <span className="ord-rp-guest-name">{g.name}</span>
-                    <span className="ord-rp-guest-allergy">{g.allergies}</span>
-                  </span>
-                </React.Fragment>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Allergens: per-guest detail lives in the header chip's
+            popover now — no inline banner here to avoid duplication. */}
 
         {/* Items */}
         <div className="ord-rp-section-head">
@@ -502,13 +536,87 @@ export default function OrderApprovalRightPane({ request, onResolved, onToast })
           <button
             type="button"
             className="ord-rp-btn ord-rp-btn-primary"
-            onClick={() => handleDecide('approve')}
+            onClick={() => { setComment(''); setDecisionModal('approve'); }}
             disabled={busy}
           >
             <Icon name="Check" size={14} /> {busy ? 'Working…' : (request?.is_re_approval ? 'Approve quote' : 'Approve')}
           </button>
         </div>
       </footer>
+
+      {/* Approve modal — confirmation step with optional note. Lets the
+          approver dictate a supplier, port change, delivery instructions
+          etc. as a comment on the approved request. Submitter sees it on
+          the board's review chip + the History timeline. */}
+      {decisionModal === 'approve' && (
+        <ModalShell
+          onClose={() => { if (!busy) { setDecisionModal(null); setComment(''); } }}
+          isDirty={!!comment.trim()}
+          isBusy={busy}
+          panelClassName="pv-edit-modal pv-dashboard"
+        >
+          <div className="pv-edit-modal-head">
+            <div>
+              <span className="pv-edit-modal-eyebrow">Reviewer decision</span>
+              <h2 className="pv-edit-modal-title">
+                {request?.is_re_approval ? <>Approve, <em>quote</em>.</> : <>Approve, <em>order</em>.</>}
+              </h2>
+            </div>
+            <button
+              onClick={() => { setDecisionModal(null); setComment(''); }}
+              className="pv-edit-modal-close"
+              aria-label="Close"
+              disabled={busy}
+            >
+              <Icon name="X" size={16} />
+            </button>
+          </div>
+          <div className="pv-edit-modal-body">
+            <p style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 13,
+              color: 'var(--d-muted)',
+              margin: '0 0 14px',
+              lineHeight: 1.5,
+            }}>
+              Approving will release the board back to <strong style={{ color: 'var(--d-navy-deep)' }}>{request?.submitter_name?.split(' ')[0] || 'the submitter'}</strong> {request?.is_re_approval ? 'with the supplier quote locked in' : 'so they can send it to a supplier'}.
+            </p>
+            <div className="pv-edit-modal-field">
+              <label className="pv-edit-modal-label" htmlFor="ord-rp-approve-note">
+                Note <span style={{ fontWeight: 500, color: 'var(--d-muted-soft)', textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
+              </label>
+              <textarea
+                id="ord-rp-approve-note"
+                value={comment}
+                onChange={e => setComment(e.target.value)}
+                rows={3}
+                className="pv-edit-modal-textarea"
+                placeholder="e.g. Use Frantoio Mediterranean for the oil, drop off at Antibes instead of Palma, delivery before 10am…"
+              />
+            </div>
+          </div>
+          <div className="pv-edit-modal-foot">
+            <div className="pv-edit-modal-actions">
+              <button
+                type="button"
+                onClick={() => { setDecisionModal(null); setComment(''); }}
+                className="pv-edit-modal-btn pv-edit-modal-btn-ghost"
+                disabled={busy}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDecide('approve')}
+                disabled={busy}
+                className="pv-edit-modal-btn pv-edit-modal-btn-primary"
+              >
+                {busy ? 'Approving…' : (request?.is_re_approval ? 'Approve quote' : 'Approve & release')}
+              </button>
+            </div>
+          </div>
+        </ModalShell>
+      )}
 
       {/* Request changes modal */}
       {decisionModal === 'request_changes' && (
