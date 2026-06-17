@@ -274,19 +274,19 @@
   flex-shrink: 0;
   justify-self: end;
 }
-.stsm-row-actions-unassigned {
-  flex-direction: row;
-  align-items: center;
-  width: min(360px, 100%);
-  gap: 8px;
-}
-.stsm-row-actions-unassigned .stsm-picker-wrap { flex: 1; min-width: 0; }
-
 .stsm-btnpair { display: flex; align-items: center; gap: 6px; }
 .stsm-hint {
   font-size: 10.5px;
   color: #8B8478;
   text-align: right;
+}
+
+/* Unassigned row's picker sub-row — full width below the main row,
+   aligned past the chevron so it reads as a continuation of the row,
+   not a separate element. Sits above the expanded item list. */
+.stsm-row-picker {
+  grid-column: 1 / -1;
+  margin: 8px 0 2px 28px;
 }
 
 /* Item list — reveals under a row when expanded. Quiet, indented,
