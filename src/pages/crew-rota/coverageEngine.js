@@ -13,7 +13,7 @@
 // weekly ≥77h/7d. Structural rules (split / 14h stretch) are left to the
 // preview's note rather than the auto-spread.
 
-import { MLC_DAILY_REST_MIN, MLC_WEEKLY_REST_MIN, assessMlc } from './restHours';
+import { MLC_DAILY_REST_MIN, MLC_WEEKLY_REST_MIN, ON_DUTY_TYPES, assessMlc } from './restHours';
 
 // Add n days to a 'YYYY-MM-DD' string via local date components.
 function addDaysStr(dateStr, n) {
@@ -44,6 +44,27 @@ export const blockHours = (start, end) => {
   if (d <= 0) d += 24; // overnight
   return d;
 };
+
+// Two time ranges overlap (decimal hours, with overnight wrap normalised).
+function rangesOverlap(aStart, aEnd, bStart, bEnd) {
+  if (aStart == null || bStart == null) return false;
+  const aE = aEnd <= aStart ? aEnd + 24 : aEnd;
+  const bE = bEnd <= bStart ? bEnd + 24 : bEnd;
+  return aStart < bE && bStart < aE;
+}
+
+// Is a member genuinely FREE across [start,end] on `date` — i.e. has NO on-duty
+// block overlapping that window? Coverage only makes sense if the recipient is
+// resting then; someone already on duty during the block can't add a body, so
+// reassigning to them just leaves the position unstaffed. `windowShifts` is the
+// camelCase shift list for the loaded window.
+export function isFreeDuring({ memberId, date, start, end, windowShifts }) {
+  const s = toDec(start); const e = toDec(end);
+  return !(windowShifts || []).some((sh) => sh.memberId === memberId
+    && sh.date === date
+    && ON_DUTY_TYPES.has(sh.shiftType)
+    && rangesOverlap(s, e, toDec(sh.startTime), toDec(sh.endTime)));
+}
 
 // One candidate's spare capacity on the breach date.
 export function candidateHeadroom(member) {

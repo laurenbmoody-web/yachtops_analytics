@@ -13,7 +13,7 @@ import {
   assessMlc, ON_DUTY_TYPES, MLC_WEEKLY_REST_MIN, MLC_DAILY_REST_MIN,
 } from './restHours';
 import {
-  blockHours, buildCandidates, defaultSpread, sliceFreed, assessRecipient,
+  blockHours, buildCandidates, defaultSpread, sliceFreed, assessRecipient, isFreeDuring,
 } from './coverageEngine';
 
 const addDays = (dateStr, n) => {
@@ -86,8 +86,14 @@ function freedFor(change, allRows) {
 
 // Can same-dept crew absorb the freed hours without any of them breaching?
 function evaluateCoverage({ sourceMember, freed, roster, windowShifts }) {
-  const cands = buildCandidates({ sourceMember, crew: roster || [] });
-  if (cands.length === 0 || !freed) return { ok: false, partial: false, crewCount: 0, unassigned: freed?.hours || 0, roles: [] };
+  if (!freed) return { ok: false, partial: false, crewCount: 0, unassigned: 0, roles: [] };
+  // Only crew who are actually free across the freed window can absorb it —
+  // someone already on duty then can't add a body (no real coverage).
+  const cands = buildCandidates({ sourceMember, crew: roster || [] })
+    .filter((c) => isFreeDuring({
+      memberId: c.id, date: freed.date, start: freed.start, end: freed.end, windowShifts,
+    }));
+  if (cands.length === 0) return { ok: false, partial: false, crewCount: 0, unassigned: freed.hours || 0, roles: [] };
   const { alloc, unassigned } = defaultSpread(cands, freed.hours);
   const ordered = cands.map(c => ({ id: c.id, hours: alloc[c.id] || 0 })).filter(a => a.hours > 0);
   const slices = sliceFreed(freed, ordered);
