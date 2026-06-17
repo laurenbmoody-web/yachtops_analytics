@@ -2366,3 +2366,227 @@
   color: var(--muted-strong);
   margin-right: 6px;
 }
+
+/* ── Per-line + order-level supplier notes ───────────────────────────── */
+/* Editorial typography for the new sub flow + note flow on the supplier
+   order detail page. Scoped under .sod- like the rest of the order detail
+   styles. */
+
+.sod-note-tag {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8B8478;
+  margin-right: 6px;
+}
+.sod-item-note-sub .sod-note-tag { color: #B14E16; }
+.sod-item-note-supplier .sod-note-tag { color: #5C9B6A; }
+
+.sod-note-link {
+  background: none;
+  border: 0;
+  padding: 4px 0 0;
+  margin-top: 2px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #C65A1A;
+  cursor: pointer;
+  text-decoration: none;
+  letter-spacing: 0.01em;
+}
+.sod-note-link:hover { color: #B14E16; text-decoration: underline; }
+
+/* Inline expand rows (sub + note). Hairline-separated band below the
+   item row, with soft cream background so the editor reads as part of
+   the row but distinct. */
+.sod-expand-row > td {
+  background: #FAFAF8;
+  border-top: 1px solid #ECEAE3;
+  border-bottom: 1px solid #ECEAE3;
+  padding: 14px 20px 16px;
+}
+.sod-expand {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sod-expand-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sod-expand-title {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 16px;
+  font-weight: 400;
+  color: #1C1B3A;
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+}
+.sod-expand-sub {
+  font-size: 12px;
+  color: #8B8478;
+  letter-spacing: 0.01em;
+}
+
+.sod-expand-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 10px;
+  align-items: end;
+}
+.sod-expand-field { display: flex; flex-direction: column; }
+.sod-expand-field-wide { grid-column: 1 / 2; }
+.sod-expand-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #8B8478;
+  margin-bottom: 6px;
+}
+.sod-expand-opt {
+  color: #AEB4C2;
+  font-weight: 600;
+  margin-left: 4px;
+  letter-spacing: 0.06em;
+  font-style: italic;
+  text-transform: lowercase;
+}
+
+.sod-expand-input,
+.sod-expand-textarea {
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #1C1B3A;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.sod-expand-textarea { resize: vertical; line-height: 1.5; }
+.sod-expand-input::placeholder,
+.sod-expand-textarea::placeholder { color: #C3C8D2; }
+.sod-expand-input:focus,
+.sod-expand-textarea:focus {
+  border-color: #C65A1A;
+  box-shadow: 0 0 0 3px #FAECE7;
+}
+
+.sod-expand-price {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sod-expand-currency {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #8B8478;
+  text-transform: uppercase;
+}
+
+.sod-expand-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+.sod-expand-cancel,
+.sod-expand-save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+  font-family: inherit;
+}
+.sod-expand-cancel {
+  background: #FFFFFF;
+  border-color: #E5E7EB;
+  color: #1C1B3A;
+}
+.sod-expand-cancel:hover:not(:disabled) { background: #FAFAF8; border-color: #D7DAE2; }
+.sod-expand-save {
+  background: #C65A1A;
+  border-color: #C65A1A;
+  color: #FFFFFF;
+}
+.sod-expand-save:hover:not(:disabled) { background: #B14E16; border-color: #B14E16; }
+.sod-expand-cancel:disabled,
+.sod-expand-save:disabled { cursor: default; opacity: 0.6; }
+
+/* Order-level "Message to vessel" — sits inside ItemsCard right below
+   the totals footer. Same editorial card language as the row expands. */
+.sod-order-message {
+  margin: 20px 24px 22px;
+  padding: 16px 18px 14px;
+  background: #FAFAF8;
+  border: 1px solid #ECEAE3;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sod-order-message-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sod-order-message-title {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 16px;
+  font-weight: 400;
+  color: #1C1B3A;
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+}
+.sod-order-message-sub {
+  font-size: 12px;
+  color: #8B8478;
+  letter-spacing: 0.01em;
+}
+.sod-order-message-textarea {
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #1C1B3A;
+  outline: none;
+  width: 100%;
+  resize: vertical;
+  line-height: 1.5;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.sod-order-message-textarea::placeholder { color: #C3C8D2; }
+.sod-order-message-textarea:focus {
+  border-color: #C65A1A;
+  box-shadow: 0 0 0 3px #FAECE7;
+}
+.sod-order-message-foot {
+  min-height: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+.sod-order-message-status {
+  font-size: 11px;
+  color: #8B8478;
+  letter-spacing: 0.01em;
+}
+.sod-order-message-status.sod-saved { color: #0F6E56; }

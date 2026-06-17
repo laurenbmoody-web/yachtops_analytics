@@ -10,6 +10,7 @@ import EditDeliveryModal from '../components/EditDeliveryModal';
 import ReassignModal from '../components/ReassignModal';
 import GenerateInvoiceModal from '../components/GenerateInvoiceModal';
 import SupplierModal from '../components/SupplierModal';
+import { supabase } from '../../../lib/supabaseClient';
 
 const NO_PERMISSION_TITLE = "Your role doesn't have permission for this action.";
 
@@ -842,7 +843,82 @@ const ItemRow = ({ item, currency, canEdit, threadOpen, onToggleThread, onUpdate
   //               item.unit_price (currently inferred from server only when available)
   const unitPrice = item.unit_price != null ? Number(item.unit_price) : null;
 
+  // Inline expand state for Sub (substitute_description + sub price) and
+  // Note (supplier_item_note). Mutually exclusive — opening one closes the
+  // other so the row never balloons to two expanded sub-rows.
+  const [subExpanded, setSubExpanded] = useState(false);
+  const [noteExpanded, setNoteExpanded] = useState(false);
+  const [subDescDraft, setSubDescDraft] = useState(item.substitute_description || '');
+  const [subPriceDraft, setSubPriceDraft] = useState(
+    item.quoted_price != null ? String(item.quoted_price) : '',
+  );
+  const [noteDraft, setNoteDraft] = useState(item.supplier_item_note || '');
+  const [expandSaving, setExpandSaving] = useState(false);
+
+  // Re-seed drafts whenever the upstream row changes — keeps the expand
+  // forms reflecting the persisted values after a save round-trip.
+  useEffect(() => {
+    setSubDescDraft(item.substitute_description || '');
+    setSubPriceDraft(item.quoted_price != null ? String(item.quoted_price) : '');
+    setNoteDraft(item.supplier_item_note || '');
+  }, [item.id, item.substitute_description, item.quoted_price, item.supplier_item_note]);
+
+  const openSub = () => { setSubExpanded(true); setNoteExpanded(false); };
+  const openNote = () => { setNoteExpanded(true); setSubExpanded(false); };
+
+  const saveSub = async () => {
+    const description = subDescDraft.trim();
+    if (!description) {
+      window.alert('Describe the substitute item before saving.');
+      return;
+    }
+    let priceNum = null;
+    if (subPriceDraft.trim()) {
+      priceNum = Number(subPriceDraft);
+      if (Number.isNaN(priceNum) || priceNum < 0) {
+        window.alert('Substitute price is not a valid number.');
+        return;
+      }
+    }
+    setExpandSaving(true);
+    try {
+      const updates = {
+        status: 'substituted',
+        substitute_description: description,
+      };
+      if (priceNum != null) {
+        updates.quoted_price = priceNum;
+        updates.quoted_currency = currency;
+      }
+      await onUpdate(item.id, updates);
+      setSubExpanded(false);
+    } catch (e) {
+      window.alert(`Save failed: ${e.message}`);
+    } finally {
+      setExpandSaving(false);
+    }
+  };
+
+  const saveNote = async () => {
+    setExpandSaving(true);
+    try {
+      await onUpdate(item.id, { supplier_item_note: noteDraft.trim() || null });
+      setNoteExpanded(false);
+    } catch (e) {
+      window.alert(`Save failed: ${e.message}`);
+    } finally {
+      setExpandSaving(false);
+    }
+  };
+
   const handleAct = async (next) => {
+    // Sub no longer commits inline — it opens the expand so the supplier
+    // can describe what they're substituting with and (optionally) the
+    // sub's price before the row flips status.
+    if (next === 'substituted') {
+      openSub();
+      return;
+    }
     // Confirming a line without a quote price is a no-op the supplier
     // will regret — the vessel needs the number to approve. Guard it.
     if (next === 'confirmed') {
@@ -865,6 +941,7 @@ const ItemRow = ({ item, currency, canEdit, threadOpen, onToggleThread, onUpdate
   };
 
   const isPending = status === 'pending';
+  const hasNote = !!(item.supplier_item_note && item.supplier_item_note.trim());
 
   return (
     <>
@@ -921,7 +998,23 @@ const ItemRow = ({ item, currency, canEdit, threadOpen, onToggleThread, onUpdate
 
               {item.notes && <div className="sod-item-note">{item.notes}</div>}
               {status === 'substituted' && item.substitute_description && (
-                <div className="sod-item-note">{item.substitute_description}</div>
+                <div className="sod-item-note sod-item-note-sub">
+                  <span className="sod-note-tag">SUBSTITUTE</span> {item.substitute_description}
+                </div>
+              )}
+              {hasNote && (
+                <div className="sod-item-note sod-item-note-supplier">
+                  <span className="sod-note-tag">NOTE TO VESSEL</span> {item.supplier_item_note}
+                </div>
+              )}
+              {canEdit && !noteExpanded && (
+                <button
+                  type="button"
+                  className="sod-note-link"
+                  onClick={openNote}
+                >
+                  {hasNote ? 'Edit note' : '+ Note to vessel'}
+                </button>
               )}
             </div>
           </div>
@@ -978,6 +1071,102 @@ const ItemRow = ({ item, currency, canEdit, threadOpen, onToggleThread, onUpdate
         </td>
       </tr>
 
+      {subExpanded && (
+        <tr className="sod-expand-row">
+          <td colSpan={7}>
+            <div className="sod-expand">
+              <div className="sod-expand-head">
+                <span className="sod-expand-title">Substitute for {item.item_name}</span>
+                <span className="sod-expand-sub">
+                  Tell the vessel what you're swapping in — they'll see this on their board.
+                </span>
+              </div>
+              <div className="sod-expand-grid">
+                <div className="sod-expand-field sod-expand-field-wide">
+                  <label className="sod-expand-label">Sub with</label>
+                  <input
+                    type="text"
+                    className="sod-expand-input"
+                    placeholder="e.g. Pacific oysters (Coffin Bay)"
+                    value={subDescDraft}
+                    onChange={(e) => setSubDescDraft(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <div className="sod-expand-field">
+                  <label className="sod-expand-label">
+                    Sub price <span className="sod-expand-opt">optional</span>
+                  </label>
+                  <div className="sod-expand-price">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="sod-expand-input"
+                      placeholder="0.00"
+                      value={subPriceDraft}
+                      onChange={(e) => setSubPriceDraft(e.target.value)}
+                    />
+                    <span className="sod-expand-currency">{currency || 'EUR'}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="sod-expand-foot">
+                <button
+                  type="button"
+                  className="sod-expand-cancel"
+                  onClick={() => setSubExpanded(false)}
+                  disabled={expandSaving}
+                >Cancel</button>
+                <button
+                  type="button"
+                  className="sod-expand-save"
+                  onClick={saveSub}
+                  disabled={expandSaving}
+                >{expandSaving ? 'Saving…' : 'Save substitute'}</button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+
+      {noteExpanded && (
+        <tr className="sod-expand-row">
+          <td colSpan={7}>
+            <div className="sod-expand">
+              <div className="sod-expand-head">
+                <span className="sod-expand-title">Note to vessel — {item.item_name}</span>
+                <span className="sod-expand-sub">
+                  Anything the chief should know about this line.
+                </span>
+              </div>
+              <textarea
+                className="sod-expand-textarea"
+                rows={3}
+                placeholder="e.g. New season — flavour is lighter than last batch."
+                value={noteDraft}
+                onChange={(e) => setNoteDraft(e.target.value)}
+                autoFocus
+              />
+              <div className="sod-expand-foot">
+                <button
+                  type="button"
+                  className="sod-expand-cancel"
+                  onClick={() => setNoteExpanded(false)}
+                  disabled={expandSaving}
+                >Cancel</button>
+                <button
+                  type="button"
+                  className="sod-expand-save"
+                  onClick={saveNote}
+                  disabled={expandSaving}
+                >{expandSaving ? 'Saving…' : (hasNote ? 'Update note' : 'Save note')}</button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+
       {threadOpen && (
         <tr className="sod-thread-row">
           <td colSpan={7}>
@@ -1011,6 +1200,8 @@ const ItemsCard = ({
   onItemUpdate,
   onItemQuote,
   onConfirmAll,
+  order,
+  onOrderUpdate,
 }) => {
   const itemCount = items.length;
   const totalQty = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
@@ -1125,6 +1316,62 @@ const ItemsCard = ({
           <div className="sod-totals-label">Estimated Total</div>
           <div className="sod-totals-value">{formatCurrency(subtotal, currency)}</div>
         </div>
+      </div>
+
+      <OrderMessageBox order={order} canEdit={canEdit} onOrderUpdate={onOrderUpdate} />
+    </div>
+  );
+};
+
+// Order-level "Message to vessel" box. Lives under the totals footer
+// because that's where the supplier finishes their pass on the order.
+// Saves on blur. Writes to supplier_orders.supplier_notes which the
+// vessel side already surfaces (see SupplierOrderPage.jsx).
+const OrderMessageBox = ({ order, canEdit, onOrderUpdate }) => {
+  const initial = order?.supplier_notes || '';
+  const [draft, setDraft] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState(null);
+
+  useEffect(() => {
+    setDraft(order?.supplier_notes || '');
+  }, [order?.id, order?.supplier_notes]);
+
+  const commit = async () => {
+    const next = (draft || '').trim();
+    if (next === (initial || '').trim()) return;
+    if (!onOrderUpdate) return;
+    setSaving(true);
+    try {
+      await onOrderUpdate({ supplier_notes: next || null });
+      setSavedAt(Date.now());
+    } catch (e) {
+      window.alert(`Save failed: ${e.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="sod-order-message">
+      <div className="sod-order-message-head">
+        <span className="sod-order-message-title">Message to vessel</span>
+        <span className="sod-order-message-sub">
+          Anything they should know about this order as a whole — delivery, weather, payment.
+        </span>
+      </div>
+      <textarea
+        className="sod-order-message-textarea"
+        rows={3}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        placeholder="e.g. Heatwave in the Med — we'll ship cold-chain on Saturday morning, please confirm receiver is on-board."
+        disabled={!canEdit}
+      />
+      <div className="sod-order-message-foot">
+        {saving && <span className="sod-order-message-status">Saving…</span>}
+        {!saving && savedAt && <span className="sod-order-message-status sod-saved">Saved.</span>}
       </div>
     </div>
   );
@@ -1961,6 +2208,20 @@ const SupplierOrderDetail = () => {
     refetchActivity();
   }, [mergeItem, refetchActivity]);
 
+  // Persist a top-level supplier_orders field (currently only
+  // supplier_notes is wired through this — used by the order-level
+  // "Message to vessel" textarea under the totals footer).
+  const handleOrderUpdate = useCallback(async (updates) => {
+    const { data, error } = await supabase
+      .from('supplier_orders')
+      .update(updates)
+      .eq('id', orderId)
+      .select()
+      .single();
+    if (error) throw error;
+    if (data) applyOrderUpdate(data);
+  }, [orderId, applyOrderUpdate]);
+
   const handleConfirmAll = useCallback(async () => {
     if (!window.confirm('Confirm every pending item on this order?')) return;
     try {
@@ -2149,6 +2410,8 @@ const SupplierOrderDetail = () => {
         onItemUpdate={handleItemUpdate}
         onItemQuote={handleItemQuote}
         onConfirmAll={handleConfirmAll}
+        order={order}
+        onOrderUpdate={handleOrderUpdate}
       />
 
       {/* ── Yacht client + Standing notes (locked equal heights) ── */}
