@@ -283,6 +283,30 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
           });
         }
 
+        // ── Two forward "projected" days — the actionable look-ahead. Same
+        //    trailing rolling-7 basis as the bars above, but the window now
+        //    reaches into ROSTERED (not-yet-worked) days, so they read as a
+        //    projection (muted, italic), not a compliance record. Two days is
+        //    the horizon a chief can realistically still trim; beyond that the
+        //    roster is too soft to act on. A dip here is preventable — unlike
+        //    today's bar, which is already-worked history. ──
+        let projectedLow = false;
+        for (let i = 1; i <= 2; i += 1) {
+          const ds = addDays(effDate, i);
+          const winStartStr = addDays(ds, -6);
+          const winRows = all.filter(s => s.shift_date >= winStartStr && s.shift_date <= ds);
+          const rollingRest = restForWeek(winRows.map(toCamelShift)).pastWeekHours;
+          if (rollingRest < 77) projectedLow = true;
+          weekChart.push({
+            day: weekdayOf(ds),
+            date: ds,
+            hours: Math.round(rollingRest),
+            status: rollingRest >= 77 ? 'ok' : 'low',
+            isToday: false,
+            projected: true,
+          });
+        }
+
         // ── Shift-type breakdown over the loaded 7-day window (real data;
         //    trip-scoped totals arrive with trip integration later) ──
         const typeHours = {};
@@ -367,7 +391,9 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
             : `${fmtHours(rest24h)} rest · ${fmtHours(onDutyToday)} on duty`,
           timeline,
           chartMeta: 'Rolling 7d rest · evolving by day',
-          chartSummary: `${Math.round(pastWeekHours)}h projected by tonight`,
+          chartSummary: projectedLow
+            ? `${Math.round(pastWeekHours)}h by tonight · dips below 77h in the next 2 days`
+            : `${Math.round(pastWeekHours)}h by tonight · holds above 77h over the next 2 days`,
           chartShort: weeklyBelow ? `${Math.round(77 - pastWeekHours)}h short` : null,
           chartShortOf: weeklyBelow ? '77h weekly minimum' : null,
           weekChart,

@@ -185,7 +185,13 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
           />
           {/* Shortfall now lives in the section tag; summary stays the trend line. */}
           <div className="rest-section-summary">{data.chartSummary}</div>
-          <div className="rest-chart-row">
+          {/* Columns are data-driven: 7 trailing bars + 2 projected forward days.
+             A hairline divider before the projected pair separates record from
+             forecast without crowding the modal. */}
+          <div
+            className="rest-chart-row"
+            style={{ gridTemplateColumns: `40px repeat(${data.weekChart.length}, 1fr)`, gap: 6 }}
+          >
             <div className="rest-chart-axis">
               <span>{CHART_SCALE}h</span>
               <span className="mlc">{MLC_WEEKLY}h</span>
@@ -194,13 +200,19 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
             {data.weekChart.map((d, i) => {
               const pct = Math.min(100, (d.hours / CHART_SCALE) * 100);
               const compliant = d.hours >= MLC_WEEKLY;
+              // First projected day gets a hairline rule before it, splitting
+              // the worked record (left) from the 2-day forecast (right).
+              const firstProjected = d.projected && !data.weekChart[i - 1]?.projected;
               const barCls = [
                 'rest-chart-bar',
                 d.isToday ? 'today' : '',
                 d.projected ? 'projected' : '',
               ].filter(Boolean).join(' ');
               return (
-                <div key={i} className="rest-chart-col">
+                <div
+                  key={i}
+                  className={`rest-chart-col${firstProjected ? ' proj-start' : ''}`}
+                >
                   <div className={barCls}>
                     <div className="rest-mlc-line" />
                     {/* Neutral fill; a THIN outline encodes compliance (green ≥77h,

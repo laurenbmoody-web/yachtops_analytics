@@ -654,7 +654,17 @@
   color: #C65A1A;
   font-weight: 500;
 }
-.rest-chart-col { display: flex; flex-direction: column; gap: 6px; }
+.rest-chart-col { position: relative; display: flex; flex-direction: column; gap: 6px; }
+/* Hairline in the gutter before the first projected day — splits the worked
+   record (left) from the 2-day forecast (right) without narrowing any bar. */
+.rest-chart-col.proj-start::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: 0;
+  bottom: 22px;
+  border-left: 1px dashed #E3D9C8;
+}
 /* Track is now an invisible positioning frame; the bar itself is the fill. */
 .rest-chart-bar {
   position: relative;
