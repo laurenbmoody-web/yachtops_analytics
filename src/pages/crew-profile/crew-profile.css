@@ -930,3 +930,15 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-sig-ink img { height: 54px; width: auto; max-width: 100%; object-fit: contain; }
 .crew-profile-page .cp-sig-name { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 16px; line-height: 1.2; color: #1C1B3A; }
 .crew-profile-page .cp-sig-meta { margin-top: 3px; font-size: 11px; color: #AEB4C2; }
+
+/* Approver review summary — scannable card shown to the master on a submitted
+   month (breach days + documented reasons; full grid stays below). */
+.crew-profile-page .cp-review { border: 1px solid #ECEAE3; border-radius: 14px; background: #FBFAF8; padding: 18px 20px; }
+.crew-profile-page .cp-review-sub { margin-top: 6px; font-size: 13px; line-height: 1.5; color: #6B7280; }
+.crew-profile-page .cp-review-breaches { margin-top: 14px; border-top: 1px solid #F0F1F5; }
+.crew-profile-page .cp-review-brow { display: flex; gap: 14px; padding: 9px 0; border-bottom: 1px solid #F0F1F5; font-size: 13px; }
+.crew-profile-page .cp-review-bdate { flex: none; min-width: 92px; font-weight: 600; color: #1C1B3A; }
+.crew-profile-page .cp-review-bnote { color: #6B7280; }
+.crew-profile-page .cp-review-bnote.none { color: #C65A1A; font-style: italic; }
+.crew-profile-page .cp-review-clean { margin-top: 12px; font-size: 13px; color: #6B7280; }
+.crew-profile-page .cp-review-hint { margin-top: 12px; font-size: 11px; color: #AEB4C2; }
