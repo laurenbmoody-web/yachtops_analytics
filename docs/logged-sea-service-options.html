@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Logged sea service — 3 creative directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1C1B3A; --ink-2:#262A53; --ink-soft:#695880; --muted:#8B8478; --muted-2:#6B7280; --faint:#AEB4C2;
+  --rust:#C65A1A; --rust-2:#B14E16; --rust-tint:#FAECE7; --card:#fff; --bg:#F8FAFC;
+  --border:#E6E8EF; --border-2:#E5E7EB; --hair:#F0F1F5; --hair-2:#ECEAE3;
+  --sage:#5E8E6F; --sage-soft:#E7F0E9; --amber:#C0851F; --clay:#A32D2D; --clay-soft:#FCEDEA;
+  --t-sea:#3A5A74; --t-sea-bg:#EDF1F5; --t-watch:#4F5D8A; --t-watch-bg:#ECEEF6;
+  --t-sb:#8B6B3F; --t-sb-bg:#F3ECDD; --t-yd:#6B7280; --t-yd-bg:#F0F1F4;
+  --serif:'DM Serif Display',Georgia,serif; --sans:'Inter',system-ui,sans-serif;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);font-family:var(--sans);color:var(--ink);}
+.wrap{max-width:1060px;margin:0 auto;padding:32px 26px 90px;}
+.intro{color:var(--ink-soft);font-size:13.5px;margin:0 0 8px;}
+.intro b{color:var(--ink);}
+.opt-h{margin:46px 0 16px;border-top:2px solid var(--ink);padding-top:14px;}
+.opt-h .tag{display:inline-block;background:var(--ink);color:#fff;font-weight:700;font-size:11px;letter-spacing:.04em;border-radius:6px;padding:3px 9px;margin-bottom:9px;}
+.opt-h h2{font-family:var(--serif);font-weight:500;font-size:23px;color:var(--ink);margin:0 0 4px;letter-spacing:-.01em;}
+.opt-h p{color:var(--muted-2);font-size:13px;margin:0;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 24px;}
+.serif{font-family:var(--serif);font-weight:500;letter-spacing:-.01em;}
+.caps{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);}
+.ico{width:1em;height:1em;vertical-align:-.12em;}
+.flex{display:flex;}.ac{align-items:center;}.between{justify-content:space-between;}.wrapf{flex-wrap:wrap;}
+
+/* shared header bits */
+.lh{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:4px;}
+.lh h4{font-family:var(--serif);font-weight:500;font-size:17px;margin:0;}
+.filter{display:inline-flex;background:#F1F5F9;border-radius:9px;padding:3px;gap:2px;}
+.filter b{font-weight:600;font-size:12px;color:#7b7f93;border-radius:7px;padding:5px 11px;cursor:pointer;}
+.filter b.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(28,27,58,.08);}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;border-radius:999px;padding:3px 9px;}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:700;letter-spacing:.07em;border-radius:5px;padding:2px 6px;}
+.dot{width:7px;height:7px;border-radius:50%;flex:none;display:inline-block;}
+.ok{color:var(--sage);background:var(--sage-soft);} .bad{color:var(--clay);background:var(--clay-soft);} .ex{color:var(--muted-2);background:var(--hair);}
+
+/* =================== OPTION A — voyage rail =================== */
+.a-month{font-size:9.5px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--faint);padding:14px 0 7px;}
+.a-month:first-child{padding-top:2px;}
+.a-row{display:grid;grid-template-columns:14px 110px 1fr auto;gap:14px;align-items:center;padding:11px 0;border-top:1px solid var(--hair);}
+.a-rail{width:4px;height:38px;border-radius:3px;}
+.a-date{font-family:var(--serif);font-weight:500;font-size:15px;color:var(--ink);line-height:1.1;}
+.a-date span{display:block;font-family:var(--sans);font-size:10.5px;font-weight:500;color:var(--muted);letter-spacing:.01em;}
+.a-vn{font-size:13.5px;font-weight:600;color:var(--ink);}
+.a-vs{font-size:11px;color:var(--faint);margin-top:1px;}
+
+/* =================== OPTION B — chip-forward cards =================== */
+.b-totals{display:flex;gap:7px;flex-wrap:wrap;}
+.b-tot{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;border-radius:999px;padding:4px 11px;}
+.b-tot b{font-family:var(--serif);font-weight:500;font-size:14px;}
+.b-list{display:flex;flex-direction:column;gap:8px;margin-top:16px;}
+.b-card{display:grid;grid-template-columns:120px 1fr auto;gap:14px;align-items:center;border:1px solid var(--border);border-radius:11px;padding:11px 14px;background:#fff;}
+.b-typechip{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;font-weight:700;border-radius:8px;padding:6px 11px;}
+.b-card .d{font-size:13px;font-weight:600;color:var(--ink);}
+.b-card .ds{font-size:10.5px;color:var(--muted);}
+.b-card .vn{font-size:13.5px;font-weight:600;}
+.b-card .vs{font-size:11px;color:var(--faint);margin-top:1px;}
+
+/* =================== OPTION C — editorial register =================== */
+.c-tbl{width:100%;border-collapse:collapse;margin-top:10px;}
+.c-tbl th{text-align:left;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);padding:0 10px 9px;border-bottom:1px solid var(--border);}
+.c-tbl td{padding:11px 10px;border-bottom:1px solid var(--hair);vertical-align:middle;}
+.c-tbl tr:hover td{background:#FBFAF8;}
+.c-date{font-family:var(--serif);font-weight:500;font-size:14px;color:var(--ink);}
+.c-date span{display:block;font-family:var(--sans);font-size:10px;font-weight:500;color:var(--muted);}
+.c-vn{font-size:13.5px;font-weight:600;}
+.c-vs{font-size:10.5px;color:var(--faint);}
+.foot{font-size:12px;color:var(--muted);padding-top:14px;}
+.fix{background:#fff;color:var(--rust);border:1px solid #EBD3C2;border-radius:7px;padding:4px 9px;font-weight:600;font-size:11px;cursor:pointer;margin-top:5px;}
+</style></head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="ship" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M3 16c3 0 3-2 6-2s3 2 6 2 3-2 6-2M5 13l1-6h12l1 6M9 7V5h6v2"/></symbol>
+<symbol id="compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.9"/><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" d="M15.5 8.5l-2 5-5 2 2-5z"/></symbol>
+<symbol id="anchor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.2" fill="none" stroke="currentColor" stroke-width="1.9"/><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M12 7v13M5 13a7 7 0 0014 0"/></symbol>
+<symbol id="wrench" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M14.5 6a3.5 3.5 0 00-4.6 4.3l-5.3 5.3a1.6 1.6 0 102.3 2.3l5.3-5.3A3.5 3.5 0 0018 9.5l-2 2-1.5-1.5 2-2A3.5 3.5 0 0014.5 6z"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4 10-10"/></symbol>
+<symbol id="x" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M7 7l10 10M17 7 7 17"/></symbol>
+</defs></svg>
+
+<div class="wrap">
+  <p class="intro"><b>Logged sea service — three ways.</b> Same data, real Cargo editorial styling (Inter + DM Serif, navy/terracotta, soft borders).
+  Each tightens the spacing differently and adds colour/header character. Pick one (or mix).</p>
+
+  <!-- ============ OPTION A ============ -->
+  <div class="opt-h"><span class="tag">Option A</span><h2>Voyage rail — month-grouped, colour spine</h2>
+    <p>Entries grouped by month with a tracked-caps label; a slim service-type colour rail down the left ties each voyage to its bucket. Serif dates, tight rhythm.</p></div>
+  <div class="card">
+    <div class="lh"><h4>Logged sea service</h4>
+      <div class="filter"><b class="on">All</b><b>Seagoing</b><b>Watchkeeping</b><b>Standby</b><b>Yard</b></div></div>
+
+    <div class="a-month">January 2026</div>
+    <div class="a-row"><span class="a-rail" style="background:var(--t-watch)"></span>
+      <div class="a-date">04–28 Jan<span>24 days</span></div>
+      <div><div class="a-vn">M/Y Pelorus II <span class="tag" style="color:var(--t-watch);background:var(--t-watch-bg)">ROTA</span></div><div class="a-vs">Marshall Is. · 1450 GT · 68 m · IMO 9345678</div></div>
+      <div style="text-align:right"><span class="chip" style="color:var(--t-watch);background:var(--t-watch-bg)"><svg class="ico"><use href="#compass"/></svg> Watchkeeping</span><div style="margin-top:5px"><span class="chip ok"><svg class="ico"><use href="#check"/></svg> Qualifies</span></div></div></div>
+
+    <div class="a-month">February 2026</div>
+    <div class="a-row"><span class="a-rail" style="background:var(--t-sea)"></span>
+      <div class="a-date">01–14 Feb<span>14 days</span></div>
+      <div><div class="a-vn">M/Y Pelorus II <span class="tag" style="color:var(--t-watch);background:var(--t-watch-bg)">ROTA</span></div><div class="a-vs">Marshall Is. · 1450 GT · 68 m · IMO 9345678</div></div>
+      <div style="text-align:right"><span class="chip" style="color:var(--t-sea);background:var(--t-sea-bg)"><svg class="ico"><use href="#ship"/></svg> Seagoing</span><div style="margin-top:5px"><span class="chip ok"><svg class="ico"><use href="#check"/></svg> Qualifies</span></div></div></div>
+    <div class="a-row" style="opacity:.5"><span class="a-rail" style="background:#CBC8C0"></span>
+      <div class="a-date">20–24 Feb<span>5 days</span></div>
+      <div><div class="a-vn">S/Y Tern <span class="tag" style="color:var(--t-yd);background:var(--t-yd-bg)">MANUAL</span></div><div class="a-vs">Malta · 18 GT · 12 m · IMO 9234567</div></div>
+      <div style="text-align:right"><span class="chip ex">Excluded from pack</span></div></div>
+
+    <div class="a-month">March 2026</div>
+    <div class="a-row"><span class="a-rail" style="background:var(--t-sb)"></span>
+      <div class="a-date">02 Mar<span>1 day</span></div>
+      <div><div class="a-vn">M/Y Aurora Borealis <span class="tag" style="color:var(--t-yd);background:var(--t-yd-bg)">MANUAL</span></div><div class="a-vs">Reclassified from watchkeeping</div></div>
+      <div style="text-align:right"><span class="chip" style="color:var(--t-sb);background:var(--t-sb-bg)"><svg class="ico"><use href="#anchor"/></svg> Standby</span><div style="margin-top:5px"><span class="chip ok"><svg class="ico"><use href="#check"/></svg> Counts</span></div></div></div>
+    <div class="a-row"><span class="a-rail" style="background:var(--t-watch)"></span>
+      <div class="a-date">12–18 Mar<span>7 days</span></div>
+      <div><div class="a-vn">M/Y Aurora Borealis <span class="tag" style="color:var(--t-sea);background:var(--t-sea-bg)">AIS</span></div><div class="a-vs">6h watch · Master</div></div>
+      <div style="text-align:right"><span class="chip" style="color:var(--t-watch);background:var(--t-watch-bg)"><svg class="ico"><use href="#compass"/></svg> Watchkeeping</span><div style="margin-top:5px"><span class="chip ok"><svg class="ico"><use href="#check"/></svg> Qualifies</span></div></div></div>
+
+    <div class="a-month">April 2026</div>
+    <div class="a-row"><span class="a-rail" style="background:var(--t-sb)"></span>
+      <div class="a-date">03–10 Apr<span>8 days</span></div>
+      <div><div class="a-vn">M/Y Aurora Borealis <span class="tag" style="color:var(--t-yd);background:var(--t-yd-bg)">MANUAL</span></div><div class="a-vs">Subject to regulatory cap · Master</div></div>
+      <div style="text-align:right"><span class="chip" style="color:var(--t-sb);background:var(--t-sb-bg)"><svg class="ico"><use href="#anchor"/></svg> Standby</span><div style="margin-top:5px"><span class="chip ok"><svg class="ico"><use href="#check"/></svg> Counts</span></div></div></div>
+    <div class="a-row"><span class="a-rail" style="background:var(--t-yd)"></span>
+      <div class="a-date">15–22 Apr<span>8 days</span></div>
+      <div><div class="a-vn">M/Y Aurora Borealis <span class="tag" style="color:var(--t-yd);background:var(--t-yd-bg)">MANUAL</span></div><div class="a-vs">Shipyard / refit · Master</div></div>
+      <div style="text-align:right"><span class="chip" style="color:var(--t-yd);background:var(--t-yd-bg)"><svg class="ico"><use href="#wrench"/></svg> Shipyard</span><div style="margin-top:5px"><span class="chip ok"><svg class="ico"><use href="#check"/></svg> Counts</span></div></div></div>
+    <div class="foot">6 entries in pack · 62 qualifying days · 1 excluded</div>
+  </div>
+
+  <!-- ============ OPTION B ============ -->
+  <div class="opt-h"><span class="tag">Option B</span><h2>Chip-forward — colour totals header + type chips</h2>
+    <p>The header carries the colour: a little totals strip (filled service-type chips). Each entry is a compact card led by a bold filled type chip. Generous but even gaps.</p></div>
+  <div class="card">
+    <div class="lh"><h4>Logged sea service</h4>
+      <div class="b-totals">
+        <span class="b-tot" style="color:var(--t-sea);background:var(--t-sea-bg)"><svg class="ico"><use href="#ship"/></svg><b>14</b> Seagoing</span>
+        <span class="b-tot" style="color:var(--t-watch);background:var(--t-watch-bg)"><svg class="ico"><use href="#compass"/></svg><b>31</b> Watch</span>
+        <span class="b-tot" style="color:var(--t-sb);background:var(--t-sb-bg)"><svg class="ico"><use href="#anchor"/></svg><b>9</b> Standby</span>
+        <span class="b-tot" style="color:var(--t-yd);background:var(--t-yd-bg)"><svg class="ico"><use href="#wrench"/></svg><b>8</b> Yard</span>
+      </div></div>
+    <div class="b-list">
+      <div class="b-card"><span class="b-typechip" style="color:var(--t-watch);background:var(--t-watch-bg)"><svg class="ico"><use href="#compass"/></svg> Watchkeeping</span>
+        <div><div class="d">04–28 Jan <span class="ds">· 24 days · 8h watch</span></div><div class="vn">M/Y Pelorus II <span class="tag" style="color:var(--t-watch);background:var(--t-watch-bg)">ROTA</span></div><div class="vs">Marshall Is. · 1450 GT · 68 m</div></div>
+        <span class="chip ok"><svg class="ico"><use href="#check"/></svg> Qualifies</span></div>
+      <div class="b-card"><span class="b-typechip" style="color:var(--t-sea);background:var(--t-sea-bg)"><svg class="ico"><use href="#ship"/></svg> Seagoing</span>
+        <div><div class="d">01–14 Feb <span class="ds">· 14 days</span></div><div class="vn">M/Y Pelorus II <span class="tag" style="color:var(--t-watch);background:var(--t-watch-bg)">ROTA</span></div><div class="vs">Marshall Is. · 1450 GT · 68 m</div></div>
+        <span class="chip ok"><svg class="ico"><use href="#check"/></svg> Qualifies</span></div>
+      <div class="b-card" style="opacity:.55"><span class="b-typechip ex">Seagoing</span>
+        <div><div class="d">20–24 Feb <span class="ds">· 5 days</span></div><div class="vn">S/Y Tern <span class="tag" style="color:var(--t-yd);background:var(--t-yd-bg)">MANUAL</span></div><div class="vs">Malta · 18 GT · 12 m</div></div>
+        <span class="chip ex">Excluded</span></div>
+      <div class="b-card"><span class="b-typechip" style="color:var(--t-watch);background:var(--t-watch-bg)"><svg class="ico"><use href="#compass"/></svg> Watchkeeping</span>
+        <div><div class="d">12–18 Mar <span class="ds">· 7 days · 6h watch</span></div><div class="vn">M/Y Aurora Borealis <span class="tag" style="color:var(--t-sea);background:var(--t-sea-bg)">AIS</span></div><div class="vs">Cayman Is. · 380 GT · 42 m</div></div>
+        <span class="chip ok"><svg class="ico"><use href="#check"/></svg> Qualifies</span></div>
+      <div class="b-card"><span class="b-typechip" style="color:var(--t-sb);background:var(--t-sb-bg)"><svg class="ico"><use href="#anchor"/></svg> Standby</span>
+        <div><div class="d">03–10 Apr <span class="ds">· 8 days</span></div><div class="vn">M/Y Aurora Borealis <span class="tag" style="color:var(--t-yd);background:var(--t-yd-bg)">MANUAL</span></div><div class="vs">Cayman Is. · 380 GT · 42 m</div></div>
+        <span class="chip ok"><svg class="ico"><use href="#check"/></svg> Counts</span></div>
+      <div class="b-card"><span class="b-typechip" style="color:var(--t-yd);background:var(--t-yd-bg)"><svg class="ico"><use href="#wrench"/></svg> Shipyard</span>
+        <div><div class="d">15–22 Apr <span class="ds">· 8 days</span></div><div class="vn">M/Y Aurora Borealis <span class="tag" style="color:var(--t-yd);background:var(--t-yd-bg)">MANUAL</span></div><div class="vs">Cayman Is. · 380 GT · 42 m</div></div>
+        <span class="chip ok"><svg class="ico"><use href="#check"/></svg> Counts</span></div>
+    </div>
+  </div>
+
+  <!-- ============ OPTION C ============ -->
+  <div class="opt-h"><span class="tag">Option C</span><h2>Editorial register — caps column headers, dense</h2>
+    <p>A proper register: tracked-caps column headers, serif date column, compact rows with a hover tint. The most "document" of the three — closest to the HOR table density.</p></div>
+  <div class="card">
+    <div class="lh" style="margin-bottom:8px"><h4>Logged sea service</h4>
+      <div class="filter"><b class="on">All</b><b>Seagoing</b><b>Watchkeeping</b><b>Standby</b><b>Yard</b></div></div>
+    <table class="c-tbl">
+      <thead><tr><th style="width:104px">Period</th><th>Vessel</th><th style="width:150px">Service</th><th style="width:170px">Outcome</th></tr></thead>
+      <tbody>
+        <tr><td><div class="c-date">04–28 Jan<span>24 days</span></div></td>
+          <td><div class="c-vn">M/Y Pelorus II <span class="tag" style="color:var(--t-watch);background:var(--t-watch-bg)">ROTA</span></div><div class="c-vs">Marshall Is. · 1450 GT · 68 m · IMO 9345678</div></td>
+          <td><span class="chip" style="color:var(--t-watch);background:var(--t-watch-bg)"><span class="dot" style="background:var(--t-watch)"></span> Watchkeeping</span><div class="c-vs" style="margin-top:3px">8h watch · Master</div></td>
+          <td><span class="chip ok"><svg class="ico"><use href="#check"/></svg> Qualifies · watchkeeping</span></td></tr>
+        <tr><td><div class="c-date">01–14 Feb<span>14 days</span></div></td>
+          <td><div class="c-vn">M/Y Pelorus II <span class="tag" style="color:var(--t-watch);background:var(--t-watch-bg)">ROTA</span></div><div class="c-vs">Marshall Is. · 1450 GT · 68 m · IMO 9345678</div></td>
+          <td><span class="chip" style="color:var(--t-sea);background:var(--t-sea-bg)"><span class="dot" style="background:var(--t-sea)"></span> Seagoing</span></td>
+          <td><span class="chip ok"><svg class="ico"><use href="#check"/></svg> Qualifies · seagoing</span></td></tr>
+        <tr style="opacity:.5"><td><div class="c-date">20–24 Feb<span>5 days</span></div></td>
+          <td><div class="c-vn">S/Y Tern <span class="tag" style="color:var(--t-yd);background:var(--t-yd-bg)">MANUAL</span></div><div class="c-vs">Malta · 18 GT · 12 m · IMO 9234567</div></td>
+          <td><span class="chip" style="color:var(--t-sea);background:var(--t-sea-bg)"><span class="dot" style="background:var(--t-sea)"></span> Seagoing</span></td>
+          <td><span class="chip ex">Excluded from pack</span></td></tr>
+        <tr><td><div class="c-date">12–18 Mar<span>7 days</span></div></td>
+          <td><div class="c-vn">M/Y Aurora Borealis <span class="tag" style="color:var(--t-sea);background:var(--t-sea-bg)">AIS</span></div><div class="c-vs">Cayman Is. · 380 GT · 42 m · IMO 9123456</div></td>
+          <td><span class="chip" style="color:var(--t-watch);background:var(--t-watch-bg)"><span class="dot" style="background:var(--t-watch)"></span> Watchkeeping</span><div class="c-vs" style="margin-top:3px">6h watch · Master</div></td>
+          <td><span class="chip ok"><svg class="ico"><use href="#check"/></svg> Qualifies · watchkeeping</span></td></tr>
+        <tr><td><div class="c-date">03–10 Apr<span>8 days</span></div></td>
+          <td><div class="c-vn">M/Y Aurora Borealis <span class="tag" style="color:var(--t-yd);background:var(--t-yd-bg)">MANUAL</span></div><div class="c-vs">Cayman Is. · 380 GT · 42 m · IMO 9123456</div></td>
+          <td><span class="chip" style="color:var(--t-sb);background:var(--t-sb-bg)"><span class="dot" style="background:var(--t-sb)"></span> Standby</span></td>
+          <td><span class="chip ok"><svg class="ico"><use href="#check"/></svg> Counts · standby</span></td></tr>
+        <tr><td><div class="c-date">15–22 Apr<span>8 days</span></div></td>
+          <td><div class="c-vn">M/Y Aurora Borealis <span class="tag" style="color:var(--t-yd);background:var(--t-yd-bg)">MANUAL</span></div><div class="c-vs">Cayman Is. · 380 GT · 42 m · IMO 9123456</div></td>
+          <td><span class="chip" style="color:var(--t-yd);background:var(--t-yd-bg)"><span class="dot" style="background:var(--t-yd)"></span> Shipyard</span></td>
+          <td><span class="chip ok"><svg class="ico"><use href="#check"/></svg> Counts · shipyard</span></td></tr>
+      </tbody>
+    </table>
+    <div class="foot">6 entries in pack · 62 qualifying days · 1 excluded</div>
+  </div>
+
+  <p class="intro" style="margin-top:40px;border-top:1px solid var(--border);padding-top:16px">
+  Tell me which (A / B / C, or a hybrid like “A’s month groups + C’s caps headers”) and I’ll build it into the live page.</p>
+</div>
+</body></html>
