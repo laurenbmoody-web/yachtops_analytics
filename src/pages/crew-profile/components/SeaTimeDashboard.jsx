@@ -251,7 +251,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
       {cert ? (
         <div className="std-card std-hero">
           <div className="std-arc-wrap">
-            <svg width="230" height="230" viewBox="0 0 240 240">
+            <svg width="188" height="188" viewBox="0 0 240 240">
               <circle cx="120" cy="120" r="90" fill="none" stroke="#F0EFEA" strokeWidth="20" />
               <circle cx="120" cy="120" r="90" fill="none" stroke="#C65A1A" strokeWidth="20" strokeLinecap="round"
                 strokeDasharray="565" strokeDashoffset={arcOffset} transform="rotate(-90 120 120)" style={{ transition: 'stroke-dashoffset 1.4s cubic-bezier(.2,.8,.2,1)' }} />
