@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sea Time Tracker — finished page (My Sea Time, B-workspace)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Mirror of src/pages/crew-profile/components/sea-time.css (.stt scope). */
+body{margin:0;background:#F1F4F8;}
+.page{max-width:1080px;margin:0 auto;padding:34px 26px 90px;}
+.note{font-family:'Plus Jakarta Sans',sans-serif;color:#7C7E9B;font-size:13px;margin:0 0 22px;}
+.note b{color:#1A1D3F;}
+.stt{--d-card:#FFFFFF;--d-card-edge:#C8CBDA;--d-border:#E5E7EB;--d-border-soft:#EEF0F4;--d-navy:#262A53;
+  --d-navy-deep:#1A1D3F;--d-orange:#C65A1A;--d-muted:#7C7E9B;--d-muted-soft:#9098B1;--d-shadow:0 2px 6px rgba(38,42,83,.04);
+  --d-sage:#5C9B6A;--d-sage-deep:#047857;--d-warn:#8B5A1F;--d-warn-soft:#F5E6C1;
+  --t-seagoing:#3B6FB0;--t-seagoing-soft:#E6EEF7;--t-watch:#047857;--t-watch-soft:#E8F5EE;
+  --t-standby:#8B5A1F;--t-standby-soft:#F5E6C1;--t-yard:#5B6275;--t-yard-soft:#EEF0F4;
+  --serif:'DM Serif Display',Georgia,serif;--sans:'Plus Jakarta Sans',system-ui,sans-serif;
+  font-family:var(--sans);color:var(--d-navy);}
+.stt *{box-sizing:border-box;}
+.stt-eyebrow{font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--d-muted-soft);}
+.stt-title{font-family:var(--serif);font-weight:400;font-size:30px;line-height:1.05;color:var(--d-navy-deep);margin:6px 0 2px;}
+.stt-serif{font-family:var(--serif);font-weight:400;color:var(--d-navy-deep);line-height:1;}
+.stt-muted{color:var(--d-muted);}.stt-msoft{color:var(--d-muted-soft);}
+.stt-lbl{font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--d-muted-soft);}
+.stt-card{background:var(--d-card);border:1px solid var(--d-border);border-radius:16px;box-shadow:var(--d-shadow);}
+.stt-card.feat{border-bottom:4px solid var(--d-card-edge);}.stt-pad{padding:22px;}
+.stt-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;}
+.stt-select{font-size:13px;font-weight:600;color:var(--d-navy-deep);border:1px solid var(--d-border);border-radius:9px;padding:7px 11px;background:#fff;}
+.stt-toggle{display:inline-flex;background:#fff;border:1px solid var(--d-border);border-radius:999px;padding:3px;}
+.stt-toggle button{border:0;background:transparent;font-family:var(--sans);font-weight:700;font-size:13px;color:var(--d-muted);border-radius:999px;padding:7px 16px;cursor:pointer;}
+.stt-toggle button.on{background:var(--d-navy-deep);color:#fff;}
+.stt-badge-uv{display:inline-flex;align-items:center;gap:7px;background:var(--d-warn-soft);color:var(--d-warn);border:1px solid #E7D3A3;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:700;}
+.stt-grid{display:grid;grid-template-columns:336px 1fr;gap:18px;align-items:start;margin-top:18px;}
+.stt-stack{display:flex;flex-direction:column;gap:16px;}
+@media(max-width:880px){.stt-grid{grid-template-columns:1fr;}}
+.flex{display:flex;}.between{justify-content:space-between;}.ac{align-items:center;}.astart{align-items:flex-start;}
+.stt-req{padding:14px 0;border-top:1px solid var(--d-border-soft);}.stt-req:first-of-type{border-top:0;padding-top:4px;}
+.stt-req-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:9px;}
+.stt-req-name{font-weight:700;font-size:14px;color:var(--d-navy-deep);}
+.stt-gate{display:inline-block;font-size:10px;font-weight:700;color:var(--d-orange);background:#FBEFE6;border-radius:999px;padding:2px 8px;margin-left:7px;}
+.stt-req-count b{font-family:var(--serif);font-size:24px;color:var(--d-navy-deep);}
+.stt-bar{position:relative;height:9px;border-radius:999px;background:var(--d-border-soft);overflow:hidden;}
+.stt-bar .logged{position:absolute;inset:0 auto 0 0;background:#CFE0D6;border-radius:999px;}
+.stt-bar .verified{position:absolute;top:0;bottom:0;left:0;background:var(--d-sage);border-radius:999px;}
+.stt-req-legend{display:flex;gap:14px;margin-top:8px;font-size:11.5px;font-weight:600;}
+.stt-req-legend .v{color:var(--d-sage-deep);}.stt-req-legend .p{color:var(--d-warn);}.stt-req-legend .r{color:var(--d-muted);}
+.stt-mix-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-top:1px solid var(--d-border-soft);}
+.stt-mix-row:first-of-type{border-top:0;}
+.stt-mix-name{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;}
+.stt-mix-row b{font-family:var(--serif);font-size:18px;color:var(--d-navy-deep);}
+.stt-dot{width:9px;height:9px;border-radius:3px;display:inline-block;}
+.stt-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--sans);font-weight:700;font-size:13px;border-radius:10px;padding:11px 16px;border:1px solid var(--d-border);background:#fff;color:var(--d-navy-deep);cursor:pointer;width:100%;}
+.stt-btn.accent{background:var(--d-orange);color:#fff;border-color:var(--d-orange);}
+.stt-btn.primary{background:var(--d-navy-deep);color:#fff;border-color:var(--d-navy-deep);}
+.stt-ghost{width:auto !important;}
+.stt-cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.stt-cal-nav{display:flex;align-items:center;gap:8px;}
+.stt-iconbtn{width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--d-border);border-radius:9px;background:#fff;color:var(--d-navy-deep);cursor:pointer;font-size:16px;}
+.stt-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+.stt-cal .dh{text-align:center;font-size:10.5px;font-weight:700;letter-spacing:.4px;color:var(--d-muted-soft);padding-bottom:2px;}
+.stt-day{aspect-ratio:1;border:1.5px solid var(--d-border);border-radius:10px;padding:6px;display:flex;flex-direction:column;justify-content:space-between;background:#fff;cursor:pointer;}
+.stt-day .d{font-size:12.5px;font-weight:600;color:var(--d-navy);}
+.stt-day .t{font-size:8.5px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;display:flex;align-items:center;gap:3px;}
+.stt-day.dim{opacity:.32;}
+.stt-day.seagoing{background:var(--t-seagoing-soft);border-color:#BCD2EA;}.stt-day.seagoing .t{color:var(--t-seagoing);}
+.stt-day.watchkeeping{background:var(--t-watch-soft);border-color:#B7DEC8;}.stt-day.watchkeeping .t{color:var(--t-watch);}
+.stt-day.standby{background:var(--t-standby-soft);border-color:#E7D3A3;}.stt-day.standby .t{color:var(--t-standby);}
+.stt-day.yard{background:var(--t-yard-soft);border-color:#D5D9E2;}.stt-day.yard .t{color:var(--t-yard);}
+.stt-day .vm{margin-left:auto;font-size:10px;}
+.stt-cal-legend{display:flex;flex-wrap:wrap;gap:13px;margin-top:14px;padding-top:14px;border-top:1px solid var(--d-border-soft);font-size:11.5px;font-weight:600;color:var(--d-muted);}
+.stt-cal-legend span{display:flex;align-items:center;gap:6px;}
+.stt-vstat{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.stt-vstat .cell{border:1px solid var(--d-border);border-radius:11px;padding:13px;}
+.stt-vstat .n{font-family:var(--serif);font-size:24px;color:var(--d-navy-deep);line-height:1;}
+.stt-vstat .l{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;margin-top:5px;display:flex;align-items:center;gap:5px;}
+.stt-empty{text-align:center;padding:40px 22px;}
+.stt-empty h3{font-family:var(--serif);font-weight:400;font-size:22px;color:var(--d-navy-deep);margin:10px 0 6px;}
+.stt-empty p{color:var(--d-muted);font-size:14px;max-width:440px;margin:0 auto 16px;}
+.ic{width:1em;height:1em;vertical-align:-.125em;}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="ship" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M3 14l1.5 5h15L21 14M5 14V8h14v6M9 8V5h6v3M12 14V8"/></symbol>
+<symbol id="compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M15.5 8.5l-2 5-5 2 2-5z"/></symbol>
+<symbol id="anchor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 7v13M5 13a7 7 0 0014 0"/></symbol>
+<symbol id="wrench" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M14.5 6a3.5 3.5 0 00-4.6 4.3l-5.3 5.3a1.6 1.6 0 102.3 2.3l5.3-5.3A3.5 3.5 0 0018 9.5l-2 2-1.5-1.5 2-2A3.5 3.5 0 0014.5 6z"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M20 7L10 17l-5-5"/></symbol>
+<symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 8v4.5l3 2"/></symbol>
+<symbol id="file" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M6 3h8l4 4v14H6zM14 3v4h4"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 5v14M5 12h14"/></symbol>
+<symbol id="send" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M21 3L3 10l7 3 3 7z"/></symbol>
+</defs></svg>
+
+<div class="page">
+  <p class="note"><b>Finished page — My Sea Time (B-workspace).</b> This is the real implemented layout
+  (<code>SeaTimeTracker.jsx</code> + <code>sea-time.css</code>) with sample data, so you can assess it while your
+  DB is still empty. The empty-state variant is shown at the bottom.</p>
+
+  <div class="stt">
+    <!-- Header -->
+    <div class="stt-card feat stt-pad">
+      <div class="stt-head">
+        <div>
+          <div class="stt-eyebrow">Profile · Compliance</div>
+          <h2 class="stt-title">Sea Time Tracker</h2>
+          <div class="flex ac" style="gap:10px;margin-top:8px;font-size:13px;">
+            <span class="stt-muted">Officer of the Watch</span><span class="stt-msoft">·</span>
+            <span class="stt-select">MCA OOW (Yachts) ▾</span>
+          </div>
+        </div>
+        <div class="stt-toggle"><button class="on">My Sea Time</button><button>Vessel Sea Time</button></div>
+      </div>
+    </div>
+
+    <!-- Workspace -->
+    <div class="stt-grid">
+      <!-- LEFT -->
+      <div class="stt-stack">
+        <div class="stt-card feat stt-pad">
+          <div class="flex between astart" style="margin-bottom:6px;">
+            <div><div class="stt-lbl">MCA OOW (Yachts)</div><div class="stt-msoft" style="font-size:11px;margin-top:2px;">MSN 1858 Amendment 2</div></div>
+            <span class="stt-badge-uv"><svg class="ic"><use href="#clock"/></svg> Draft</span>
+          </div>
+          <div class="stt-req">
+            <div class="stt-req-top"><div class="stt-req-name">Seagoing service<span class="stt-gate">≥15m · ≥80GT</span></div><div class="stt-req-count"><b>212</b> <span class="stt-muted">/ 365</span></div></div>
+            <div class="stt-bar"><div class="logged" style="width:64%"></div><div class="verified" style="width:58%"></div></div>
+            <div class="stt-req-legend"><span class="v"><svg class="ic"><use href="#check"/></svg> 212 verified</span><span class="p"><svg class="ic"><use href="#clock"/></svg> 21 pending</span><span class="r">153 to go</span></div>
+          </div>
+          <div class="stt-req">
+            <div class="stt-req-top"><div class="stt-req-name">Watchkeeping service<span class="stt-gate">watch ≥4h</span></div><div class="stt-req-count"><b>78</b> <span class="stt-muted">/ 120</span></div></div>
+            <div class="stt-bar"><div class="logged" style="width:71%"></div><div class="verified" style="width:65%"></div></div>
+            <div class="stt-req-legend"><span class="v"><svg class="ic"><use href="#check"/></svg> 78 verified</span><span class="p"><svg class="ic"><use href="#clock"/></svg> 7 pending</span><span class="r">42 to go</span></div>
+          </div>
+        </div>
+
+        <div class="stt-card stt-pad">
+          <div class="stt-lbl" style="margin-bottom:10px;">Service mix · 318 days</div>
+          <div class="stt-mix-row"><span class="stt-mix-name" style="color:var(--t-seagoing)"><svg class="ic"><use href="#ship"/></svg> Seagoing</span><b>198</b></div>
+          <div class="stt-mix-row"><span class="stt-mix-name" style="color:var(--t-watch)"><svg class="ic"><use href="#compass"/></svg> Watchkeeping</span><b>78</b></div>
+          <div class="stt-mix-row"><span class="stt-mix-name" style="color:var(--t-standby)"><svg class="ic"><use href="#anchor"/></svg> Standby</span><b>31</b></div>
+          <div class="stt-mix-row"><span class="stt-mix-name" style="color:var(--t-yard)"><svg class="ic"><use href="#wrench"/></svg> Shipyard</span><b>11</b></div>
+        </div>
+
+        <div class="stt-stack" style="gap:10px;">
+          <button class="stt-btn accent"><svg class="ic"><use href="#plus"/></svg> Add sea service</button>
+          <button class="stt-btn"><svg class="ic"><use href="#file"/></svg> Generate testimonial</button>
+        </div>
+      </div>
+
+      <!-- RIGHT -->
+      <div class="stt-stack">
+        <div class="stt-card stt-pad">
+          <div class="stt-cal-head">
+            <div class="stt-cal-nav"><button class="stt-iconbtn">‹</button><h3 class="stt-serif" style="font-size:19px;min-width:150px;text-align:center;">September 2026</h3><button class="stt-iconbtn">›</button></div>
+            <button class="stt-btn stt-ghost">Today</button>
+          </div>
+          <div class="stt-cal">
+            <div class="dh">Mon</div><div class="dh">Tue</div><div class="dh">Wed</div><div class="dh">Thu</div><div class="dh">Fri</div><div class="dh">Sat</div><div class="dh">Sun</div>
+            <div class="stt-day dim"><span class="d">31</span></div>
+            <div class="stt-day watchkeeping"><span class="d">1</span><span class="t"><svg class="ic"><use href="#compass"/></svg>W<span class="vm" style="color:var(--d-sage-deep)"><svg class="ic"><use href="#check"/></svg></span></span></div>
+            <div class="stt-day watchkeeping"><span class="d">2</span><span class="t"><svg class="ic"><use href="#compass"/></svg>W<span class="vm" style="color:var(--d-sage-deep)"><svg class="ic"><use href="#check"/></svg></span></span></div>
+            <div class="stt-day seagoing"><span class="d">3</span><span class="t"><svg class="ic"><use href="#ship"/></svg>S<span class="vm" style="color:var(--d-sage-deep)"><svg class="ic"><use href="#check"/></svg></span></span></div>
+            <div class="stt-day seagoing"><span class="d">4</span><span class="t"><svg class="ic"><use href="#ship"/></svg>S</span></div>
+            <div class="stt-day standby"><span class="d">5</span><span class="t"><svg class="ic"><use href="#anchor"/></svg>SB</span></div>
+            <div class="stt-day standby"><span class="d">6</span><span class="t"><svg class="ic"><use href="#anchor"/></svg>SB</span></div>
+            <div class="stt-day watchkeeping"><span class="d">7</span><span class="t"><svg class="ic"><use href="#compass"/></svg>W<span class="vm" style="color:var(--d-warn)"><svg class="ic"><use href="#clock"/></svg></span></span></div>
+            <div class="stt-day watchkeeping"><span class="d">8</span><span class="t"><svg class="ic"><use href="#compass"/></svg>W<span class="vm" style="color:var(--d-warn)"><svg class="ic"><use href="#clock"/></svg></span></span></div>
+            <div class="stt-day seagoing"><span class="d">9</span><span class="t"><svg class="ic"><use href="#ship"/></svg>S</span></div>
+            <div class="stt-day seagoing"><span class="d">10</span><span class="t"><svg class="ic"><use href="#ship"/></svg>S</span></div>
+            <div class="stt-day yard"><span class="d">11</span><span class="t"><svg class="ic"><use href="#wrench"/></svg>Y</span></div>
+            <div class="stt-day yard"><span class="d">12</span><span class="t"><svg class="ic"><use href="#wrench"/></svg>Y</span></div>
+            <div class="stt-day yard"><span class="d">13</span><span class="t"><svg class="ic"><use href="#wrench"/></svg>Y</span></div>
+            <div class="stt-day watchkeeping"><span class="d">14</span><span class="t"><svg class="ic"><use href="#compass"/></svg>W</span></div>
+          </div>
+          <div class="stt-cal-legend">
+            <span><span class="stt-dot" style="background:var(--t-seagoing)"></span><svg class="ic"><use href="#ship"/></svg> Seagoing</span>
+            <span><span class="stt-dot" style="background:var(--t-watch)"></span><svg class="ic"><use href="#compass"/></svg> Watchkeeping</span>
+            <span><span class="stt-dot" style="background:var(--t-standby)"></span><svg class="ic"><use href="#anchor"/></svg> Standby</span>
+            <span><span class="stt-dot" style="background:var(--t-yard)"></span><svg class="ic"><use href="#wrench"/></svg> Shipyard</span>
+          </div>
+        </div>
+
+        <div class="stt-card stt-pad">
+          <div class="flex between ac" style="margin-bottom:14px;">
+            <div class="stt-lbl">Verification</div>
+            <button class="stt-btn primary stt-ghost"><svg class="ic"><use href="#send"/></svg> Submit 28 draft days</button>
+          </div>
+          <div class="stt-vstat">
+            <div class="cell"><div class="n">290</div><div class="l" style="color:var(--d-sage-deep)"><svg class="ic"><use href="#check"/></svg> Captain signed</div></div>
+            <div class="cell"><div class="n">28</div><div class="l" style="color:var(--d-warn)"><svg class="ic"><use href="#clock"/></svg> Pending</div></div>
+            <div class="cell"><div class="n">0</div><div class="l stt-msoft"><svg class="ic"><use href="#file"/></svg> Draft</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty state variant -->
+    <div style="height:34px"></div>
+    <p class="note" style="margin:0 0 14px;"><b>Empty state</b> (first run / no data — what you'd see right now):</p>
+    <div class="stt-card feat">
+      <div class="stt-empty">
+        <svg class="ic" style="width:38px;height:38px;color:var(--d-orange)"><use href="#ship"/></svg>
+        <h3>No sea service logged yet</h3>
+        <p>Add your first entry to start building MCA-qualifying sea time. Days classify automatically into seagoing, watchkeeping, standby and shipyard service.</p>
+        <button class="stt-btn accent stt-ghost" style="margin:0 auto;"><svg class="ic"><use href="#plus"/></svg> Add sea service</button>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

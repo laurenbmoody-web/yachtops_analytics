@@ -1,161 +1,84 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Icon from '../../../components/AppIcon';
-import Button from '../../../components/ui/Button';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, startOfWeek, endOfWeek } from 'date-fns';
 
-const SeaTimeCalendar = ({ userId, currentMonth, onMonthChange, onDateSelect, calendarData }) => {
+// Editorial calendar: days are coloured by MCA service type (icon + letter, never
+// colour alone) with a small verification mark (check = captain-signed, clock =
+// pending). Styles live in sea-time.css (.stt-* scope).
+
+const TYPE_META = {
+  seagoing: { letter: 'S', label: 'Seagoing', icon: 'Ship' },
+  watchkeeping: { letter: 'W', label: 'Watchkeeping', icon: 'Compass' },
+  standby: { letter: 'SB', label: 'Standby', icon: 'Anchor' },
+  yard: { letter: 'Y', label: 'Shipyard', icon: 'Wrench' }
+};
+
+const SeaTimeCalendar = ({ currentMonth, onMonthChange, onDateSelect, calendarData }) => {
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
   const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
-
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-  const handlePrevMonth = () => {
-    onMonthChange(subMonths(currentMonth, 1));
-  };
-
-  const handleNextMonth = () => {
-    onMonthChange(addMonths(currentMonth, 1));
-  };
-
-  const handleToday = () => {
-    onMonthChange(new Date());
-  };
-
-  const getColorClass = (colorState) => {
-    switch (colorState) {
-      case 'green':
-        return 'bg-green-500/20 border-green-500 text-green-700 dark:text-green-400';
-      case 'yellow':
-        return 'bg-yellow-500/20 border-yellow-500 text-yellow-700 dark:text-yellow-400';
-      case 'white':
-        return 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300';
-      case 'blue-striped':
-        return 'bg-indigo-500/10 border-indigo-500 text-indigo-700 dark:text-indigo-400 bg-stripes';
-      default:
-        return 'bg-card border-border text-muted-foreground';
-    }
-  };
-
-  const getLabel = (colorState) => {
-    switch (colorState) {
-      case 'green':
-        return 'Q';
-      case 'yellow':
-        return 'Q';
-      case 'white':
-        return 'M';
-      case 'blue-striped':
-        return '—';
-      default:
-        return '';
-    }
+  const vMark = (status) => {
+    if (status === 'VERIFIED') return <Icon name="Check" size={11} style={{ color: 'var(--d-sage-deep)' }} className="stt-day-vmark" />;
+    if (status === 'SUBMITTED') return <Icon name="Clock" size={11} style={{ color: 'var(--d-warn)' }} className="stt-day-vmark" />;
+    return null;
   };
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-6">
-      {/* Month Navigation */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Button
-            onClick={handlePrevMonth}
-            variant="outline"
-            className="px-3 py-2"
-          >
-            <Icon name="ChevronLeft" size={18} />
-          </Button>
-          <h3 className="text-lg font-semibold text-foreground min-w-[180px] text-center">
+    <div>
+      <div className="stt-cal-head">
+        <div className="stt-cal-nav">
+          <button className="stt-iconbtn" aria-label="Previous month" onClick={() => onMonthChange(subMonths(currentMonth, 1))}>
+            <Icon name="ChevronLeft" size={17} />
+          </button>
+          <h3 className="stt-serif" style={{ fontSize: 19, minWidth: 150, textAlign: 'center' }}>
             {format(currentMonth, 'MMMM yyyy')}
           </h3>
-          <Button
-            onClick={handleNextMonth}
-            variant="outline"
-            className="px-3 py-2"
-          >
-            <Icon name="ChevronRight" size={18} />
-          </Button>
+          <button className="stt-iconbtn" aria-label="Next month" onClick={() => onMonthChange(addMonths(currentMonth, 1))}>
+            <Icon name="ChevronRight" size={17} />
+          </button>
         </div>
-        <Button onClick={handleToday} variant="outline">
-          Today
-        </Button>
+        <button className="stt-btn stt-ghost" onClick={() => onMonthChange(new Date())}>Today</button>
       </div>
-      {/* Calendar Grid */}
-      <div className="grid grid-cols-7 gap-2">
-        {/* Day Headers */}
-        {dayNames?.map(day => (
-          <div
-            key={day}
-            className="text-center text-xs font-medium text-muted-foreground py-2"
-          >
-            {day}
-          </div>
-        ))}
 
-        {/* Calendar Days */}
-        {calendarDays?.map((day, index) => {
+      <div className="stt-cal" role="grid" aria-label="Sea service calendar">
+        {dayNames.map(d => <div key={d} className="dh" role="columnheader">{d}</div>)}
+        {calendarDays.map((day, i) => {
           const dateStr = format(day, 'yyyy-MM-dd');
-          const dayData = calendarData?.[dateStr];
-          const isCurrentMonth = isSameMonth(day, currentMonth);
-          const colorState = dayData?.colorState || 'default';
-
+          const data = calendarData?.[dateStr];
+          const inMonth = isSameMonth(day, currentMonth);
+          const meta = data?.serviceType ? TYPE_META[data.serviceType] : null;
           return (
             <button
-              key={index}
-              onClick={() => onDateSelect(day, dayData)}
-              className={`
-                aspect-square p-2 rounded-lg border-2 transition-all
-                ${getColorClass(colorState)}
-                ${!isCurrentMonth ? 'opacity-30' : ''}
-                hover:ring-2 hover:ring-primary/50
-                flex flex-col items-center justify-center
-              `}
+              key={i}
+              role="gridcell"
+              aria-label={`${format(day, 'd MMMM yyyy')}${meta ? ', ' + meta.label : ', no service'}`}
+              className={`stt-day ${!inMonth ? 'dim' : ''} ${meta ? data.serviceType : ''}`}
+              onClick={() => inMonth && onDateSelect(day, data)}
             >
-              <span className="text-sm font-medium">
-                {format(day, 'd')}
-              </span>
-              {dayData && (
-                <span className="text-xs font-bold mt-1">
-                  {getLabel(colorState)}
+              <span className="d">{format(day, 'd')}</span>
+              {data && meta && (
+                <span className="t">
+                  <Icon name={meta.icon} size={10} /> {meta.letter}
+                  <span className="vmark">{vMark(data.verificationStatus)}</span>
                 </span>
               )}
             </button>
           );
         })}
       </div>
-      {/* Legend */}
-      <div className="mt-6 pt-6 border-t border-border">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-green-500/20 border-2 border-green-500"></div>
-            <span className="text-muted-foreground">Qualifying & Verified</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-yellow-500/20 border-2 border-yellow-500"></div>
-            <span className="text-muted-foreground">Pending Verification</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600"></div>
-            <span className="text-muted-foreground">Manual Entry</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-indigo-500/10 border-2 border-indigo-500 bg-stripes"></div>
-            <span className="text-muted-foreground">Not Qualifying</span>
-          </div>
-        </div>
+
+      <div className="stt-cal-legend">
+        {Object.entries(TYPE_META).map(([k, m]) => (
+          <span key={k}>
+            <span className="stt-dot" style={{ background: `var(--t-${k === 'watchkeeping' ? 'watch' : k})` }}></span>
+            <Icon name={m.icon} size={12} /> {m.label}
+          </span>
+        ))}
       </div>
-      <style jsx>{`
-        .bg-stripes {
-          background-image: repeating-linear-gradient(
-            45deg,
-            transparent,
-            transparent 4px,
-            rgba(99, 102, 241, 0.12) 4px,
-            rgba(99, 102, 241, 0.12) 8px
-          );
-        }
-      `}</style>
     </div>
   );
 };

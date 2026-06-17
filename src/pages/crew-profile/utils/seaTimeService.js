@@ -164,7 +164,17 @@ export const getProgressSummary = async (tenantId, userId, pathId) => {
   const path = (config?.paths || []).find(p => p.id === pathId);
   if (!path) return null;
   const records = await fetchEntriesForUser(tenantId, userId, pathId);
-  return { ...summariseProgress(path, records), reviewStatus: config?.reviewStatus };
+
+  // Verification status tally (uses the DB enum on each row) for the panel.
+  const statusCounts = { draft: 0, pending: 0, signed: 0, rejected: 0 };
+  for (const r of records) {
+    if (r.rawVerificationStatus === 'captain_signed') statusCounts.signed += 1;
+    else if (r.rawVerificationStatus === 'pending') statusCounts.pending += 1;
+    else if (r.rawVerificationStatus === 'rejected') statusCounts.rejected += 1;
+    else statusCounts.draft += 1;
+  }
+
+  return { ...summariseProgress(path, records), reviewStatus: config?.reviewStatus, statusCounts };
 };
 
 // ── Writes ───────────────────────────────────────────────────────────────

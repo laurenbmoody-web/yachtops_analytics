@@ -13,6 +13,7 @@ import * as seaTimeService from '../utils/seaTimeService';
 import { hasCommandAccess, loadUsers } from '../../../utils/authStorage';
 import { showToast } from '../../../utils/toast';
 import { format } from 'date-fns';
+import './sea-time.css';
 
 const SeaTimeTracker = ({ userId, tenantId, currentUser }) => {
   const [view, setView] = useState('my'); // 'my' or 'vessel'
@@ -130,230 +131,164 @@ const SeaTimeTracker = ({ userId, tenantId, currentUser }) => {
     return user?.fullName || 'Unknown';
   };
 
+  const TYPE_COLOR = {
+    [SEA_SERVICE_TYPE.SEAGOING]: 'var(--t-seagoing)',
+    [SEA_SERVICE_TYPE.WATCHKEEPING]: 'var(--t-watch)',
+    [SEA_SERVICE_TYPE.STANDBY]: 'var(--t-standby)',
+    [SEA_SERVICE_TYPE.YARD]: 'var(--t-yard)'
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Global Header */}
-      <div className="bg-card border border-border rounded-2xl p-6">
-        <div className="flex items-start justify-between mb-4">
+    <div className="stt space-y-5">
+      {/* Global Header — editorial */}
+      <div className="stt-card feat stt-pad">
+        <div className="stt-head">
           <div>
-            <h2 className="text-2xl font-semibold text-foreground mb-2">Sea Time Tracker</h2>
-            <div className="text-sm text-muted-foreground space-y-1">
-              <div>
-                <span className="font-medium">Current Role:</span>{' '}
-                {currentUser?.roleTitle || 'N/A'}
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-medium">Selected Path:</span>
-                <Select
-                  value={selectedPath}
-                  onChange={(e) => handlePathChange(e?.target?.value)}
-                  className="text-sm inline-block w-auto"
-                >
-                  {paths?.map(path => (
-                    <option key={path?.id} value={path?.id}>
-                      {path?.name}
-                    </option>
-                  ))}
-                </Select>
-              </div>
+            <div className="stt-eyebrow">Profile · Compliance</div>
+            <h2 className="stt-title">Sea Time Tracker</h2>
+            <div className="flex items-center gap-3 mt-2" style={{ fontSize: '13px' }}>
+              <span className="stt-muted">{currentUser?.roleTitle || 'Crew'}</span>
+              <span className="stt-msoft">·</span>
+              <select className="stt-select" value={selectedPath} onChange={(e) => handlePathChange(e?.target?.value)}>
+                {paths?.map(path => <option key={path?.id} value={path?.id}>{path?.name}</option>)}
+              </select>
             </div>
           </div>
 
-          {/* View Toggle */}
-          <div className="flex items-center gap-2 bg-muted/30 rounded-lg p-1">
-            <button
-              onClick={() => setView('my')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-smooth ${
-                view === 'my' ?'bg-primary text-primary-foreground' :'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              My Sea Time
-            </button>
-            {isCommand && (
-              <button
-                onClick={() => setView('vessel')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-smooth ${
-                  view === 'vessel' ?'bg-primary text-primary-foreground' :'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Vessel Sea Time
-              </button>
-            )}
-          </div>
+          {isCommand && (
+            <div className="stt-toggle">
+              <button className={view === 'my' ? 'on' : ''} onClick={() => setView('my')}>My Sea Time</button>
+              <button className={view === 'vessel' ? 'on' : ''} onClick={() => setView('vessel')}>Vessel Sea Time</button>
+            </div>
+          )}
         </div>
       </div>
-      {/* My Sea Time View */}
+      {/* My Sea Time View — editorial B-workspace */}
       {view === 'my' && (
         <>
-          {/* No active vessel context — explain rather than render blank */}
           {!tenantId && (
-            <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6 flex items-start gap-3">
-              <Icon name="Info" size={20} className="text-amber-600 dark:text-amber-400 mt-0.5" />
+            <div className="stt-notice">
+              <Icon name="Info" size={20} style={{ color: 'var(--d-warn)', marginTop: 2 }} />
               <div>
-                <p className="text-sm font-semibold text-foreground">No active vessel selected</p>
-                <p className="text-sm text-muted-foreground mt-1">
+                <p style={{ fontWeight: 700, color: 'var(--d-navy-deep)', fontSize: 14 }}>No active vessel selected</p>
+                <p className="stt-muted" style={{ fontSize: 13, marginTop: 4 }}>
                   Sea time is recorded per vessel. Select a vessel to view and log sea service.
                 </p>
               </div>
             </div>
           )}
 
-          {/* First-run empty state — make it obvious the tracker is live with no data yet */}
+          {/* First-run empty state */}
           {tenantId && !loading && progressData && progressData.totalDays === 0 && (
-            <div className="bg-card border border-border rounded-2xl p-8 text-center">
-              <Icon name="Ship" size={40} className="text-primary mx-auto mb-3" />
-              <h3 className="text-lg font-semibold text-foreground">No sea service logged yet</h3>
-              <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-                Add your first entry to start building your MCA-qualifying sea time. Days are
-                classified automatically into seagoing, watchkeeping, standby and shipyard service.
-              </p>
-              <div className="mt-4">
-                <Button onClick={() => setShowAddManualModal(true)} iconName="Plus">
-                  Add sea service
-                </Button>
+            <div className="stt-card feat">
+              <div className="stt-empty">
+                <Icon name="Ship" size={38} style={{ color: 'var(--d-orange)' }} />
+                <h3>No sea service logged yet</h3>
+                <p>Add your first entry to start building MCA-qualifying sea time. Days classify
+                  automatically into seagoing, watchkeeping, standby and shipyard service.</p>
+                <button className="stt-btn accent stt-ghost" style={{ width: 'auto', margin: '0 auto' }} onClick={() => setShowAddManualModal(true)}>
+                  <Icon name="Plus" size={16} /> Add sea service
+                </button>
               </div>
             </div>
           )}
 
-          {/* Progress — multiple requirement bars per pathway */}
-          {progressData && (
-            <div className="space-y-4">
-              {/* Header + config provenance */}
-              <div className="bg-card border border-border rounded-2xl p-6">
-                <div className="flex items-start justify-between gap-4 flex-wrap">
-                  <div className="flex items-center gap-3">
-                    <Icon name="Target" size={24} className="text-primary" />
+          {tenantId && progressData && progressData.totalDays > 0 && (
+            <div className="stt-grid">
+              {/* LEFT RAIL — progress + service mix + actions */}
+              <div className="stt-stack">
+                <div className="stt-card feat stt-pad">
+                  <div className="flex items-start justify-between gap-3" style={{ marginBottom: 6 }}>
                     <div>
-                      <h3 className="text-lg font-semibold text-foreground">
-                        {progressData?.pathName}
-                      </h3>
-                      {progressData?.reference && (
-                        <p className="text-xs text-muted-foreground">{progressData?.reference}</p>
-                      )}
+                      <div className="stt-lbl">{progressData.pathName}</div>
+                      {progressData.reference && <div className="stt-msoft" style={{ fontSize: 11, marginTop: 2 }}>{progressData.reference}</div>}
+                    </div>
+                    {progressData.reviewStatus !== 'VERIFIED' && (
+                      <span className="stt-badge-uv"><Icon name="ShieldAlert" size={13} /> Draft</span>
+                    )}
+                  </div>
+
+                  {progressData.requirements?.map(req => (
+                    <div key={req.id} className="stt-req">
+                      <div className="stt-req-top">
+                        <div className="stt-req-name">{req.label}{req.gateLabel && <span className="stt-gate">{req.gateLabel}</span>}</div>
+                        <div className="stt-req-count"><b>{req.verified}</b> <span className="stt-muted">/ {req.target}</span></div>
+                      </div>
+                      <div className="stt-bar" role="progressbar" aria-valuenow={req.verified} aria-valuemin={0} aria-valuemax={req.target}
+                        aria-label={`${req.label}: ${req.verified} of ${req.target} verified days`}>
+                        <div className="logged" style={{ width: `${req.percentLogged}%` }}></div>
+                        <div className="verified" style={{ width: `${req.percentComplete}%` }}></div>
+                      </div>
+                      <div className="stt-req-legend">
+                        <span className="v"><Icon name="Check" size={12} /> {req.verified} verified</span>
+                        <span className="p"><Icon name="Clock" size={12} /> {req.pending} pending</span>
+                        <span className="r">{req.remaining} to go</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Service mix */}
+                <div className="stt-card stt-pad">
+                  <div className="stt-lbl" style={{ marginBottom: 10 }}>Service mix · {progressData.totalDays} days</div>
+                  {[SEA_SERVICE_TYPE.SEAGOING, SEA_SERVICE_TYPE.WATCHKEEPING, SEA_SERVICE_TYPE.STANDBY, SEA_SERVICE_TYPE.YARD].map(type => (
+                    <div key={type} className="stt-mix-row">
+                      <span className="stt-mix-name" style={{ color: TYPE_COLOR[type] }}>
+                        <Icon name={BUCKET_META?.[type]?.icon} size={15} /> {SEA_SERVICE_TYPE_LABELS[type]}
+                      </span>
+                      <b>{progressData.buckets?.[type] || 0}</b>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="stt-stack" style={{ gap: 10 }}>
+                  <button className="stt-btn accent" onClick={() => setShowAddManualModal(true)}><Icon name="Plus" size={16} /> Add sea service</button>
+                  <button className="stt-btn" onClick={handleExport}><Icon name="FileCheck" size={16} /> Generate testimonial</button>
+                </div>
+              </div>
+
+              {/* RIGHT — calendar + verification */}
+              <div className="stt-stack">
+                <div className="stt-card stt-pad">
+                  <SeaTimeCalendar
+                    userId={userId}
+                    currentMonth={currentMonth}
+                    onMonthChange={setCurrentMonth}
+                    onDateSelect={handleDateSelect}
+                    calendarData={calendarData}
+                  />
+                </div>
+
+                <div className="stt-card stt-pad">
+                  <div className="flex items-center justify-between" style={{ marginBottom: 14 }}>
+                    <div className="stt-lbl">Verification</div>
+                    <button className="stt-btn primary stt-ghost" style={{ width: 'auto' }} onClick={handleSubmitForVerification}>
+                      <Icon name="Send" size={14} /> Submit {progressData.statusCounts?.draft || 0} draft days
+                    </button>
+                  </div>
+                  <div className="stt-vstat">
+                    <div className="cell">
+                      <div className="n">{progressData.statusCounts?.signed || 0}</div>
+                      <div className="l" style={{ color: 'var(--d-sage-deep)' }}><Icon name="Check" size={12} /> Captain signed</div>
+                    </div>
+                    <div className="cell">
+                      <div className="n">{progressData.statusCounts?.pending || 0}</div>
+                      <div className="l" style={{ color: 'var(--d-warn)' }}><Icon name="Clock" size={12} /> Pending</div>
+                    </div>
+                    <div className="cell">
+                      <div className="n">{progressData.statusCounts?.draft || 0}</div>
+                      <div className="l stt-msoft"><Icon name="FileText" size={12} /> Draft</div>
                     </div>
                   </div>
-                  {progressData?.reviewStatus !== 'VERIFIED' && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                      <Icon name="AlertTriangle" size={14} className="text-amber-600 dark:text-amber-400" />
-                      <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
-                        Draft thresholds — pending MCA verification
-                      </span>
-                    </div>
+                  {progressData.statusCounts?.rejected > 0 && (
+                    <p style={{ fontSize: 12, color: 'var(--d-warn)', marginTop: 10 }}>
+                      {progressData.statusCounts.rejected} day(s) were rejected — open them in the calendar for the reason.
+                    </p>
                   )}
-                </div>
-
-                {/* Requirement bars */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-5">
-                  {progressData?.requirements?.map(req => (
-                    <div key={req?.id} className="bg-muted/20 border border-border rounded-xl p-4">
-                      <div className="flex items-start justify-between gap-2 mb-3">
-                        <div>
-                          <h4 className="text-sm font-semibold text-foreground">{req?.label}</h4>
-                          {req?.gateLabel && (
-                            <span className="inline-block mt-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                              {req?.gateLabel}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-right whitespace-nowrap">
-                          <span className="text-2xl font-bold text-foreground">{req?.verified}</span>
-                          <span className="text-sm text-muted-foreground"> / {req?.target}</span>
-                        </div>
-                      </div>
-
-                      {/* Two-tone bar: verified (solid) + pending (light) */}
-                      <div
-                        className="relative w-full bg-muted/40 rounded-full h-3 overflow-hidden"
-                        role="progressbar"
-                        aria-valuenow={req?.verified}
-                        aria-valuemin={0}
-                        aria-valuemax={req?.target}
-                        aria-label={`${req?.label}: ${req?.verified} of ${req?.target} verified days`}
-                      >
-                        <div
-                          className="absolute inset-y-0 left-0 bg-primary/30 rounded-full transition-all"
-                          style={{ width: `${req?.percentLogged}%` }}
-                        ></div>
-                        <div
-                          className="absolute inset-y-0 left-0 bg-primary rounded-full transition-all"
-                          style={{ width: `${req?.percentComplete}%` }}
-                        ></div>
-                      </div>
-
-                      <div className="flex items-center justify-between mt-2 text-xs">
-                        <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
-                          <Icon name="CheckCircle" size={12} /> {req?.verified} verified
-                        </span>
-                        <span className="flex items-center gap-1 text-yellow-600 dark:text-yellow-400">
-                          <Icon name="Clock" size={12} /> {req?.pending} pending
-                        </span>
-                        <span className="text-muted-foreground">{req?.remaining} to go</span>
-                      </div>
-                      {req?.note && (
-                        <p className="text-[11px] text-muted-foreground mt-2">{req?.note}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Four-bucket service breakdown */}
-              <div className="bg-card border border-border rounded-2xl p-6">
-                <h3 className="text-sm font-semibold text-foreground mb-4">
-                  Service breakdown ({progressData?.totalDays} days logged)
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {[SEA_SERVICE_TYPE.SEAGOING, SEA_SERVICE_TYPE.WATCHKEEPING, SEA_SERVICE_TYPE.STANDBY, SEA_SERVICE_TYPE.YARD]?.map(type => (
-                    <div key={type} className="bg-muted/20 border border-border rounded-xl p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Icon name={BUCKET_META?.[type]?.icon} size={16} className={BUCKET_META?.[type]?.tone} />
-                        <span className="text-xs font-medium text-muted-foreground">
-                          {SEA_SERVICE_TYPE_LABELS?.[type]}
-                        </span>
-                      </div>
-                      <span className="text-2xl font-bold text-foreground">
-                        {progressData?.buckets?.[type] || 0}
-                      </span>
-                      <span className="text-xs text-muted-foreground"> days</span>
-                    </div>
-                  ))}
                 </div>
               </div>
             </div>
           )}
-
-          {/* Calendar */}
-          <SeaTimeCalendar
-            userId={userId}
-            currentMonth={currentMonth}
-            onMonthChange={setCurrentMonth}
-            onDateSelect={handleDateSelect}
-            calendarData={calendarData}
-          />
-
-          {/* Actions */}
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={() => setShowAddManualModal(true)}
-              iconName="Plus"
-            >
-              Add Manual Entry
-            </Button>
-            <Button
-              onClick={handleExport}
-              variant="outline"
-              iconName="Download"
-            >
-              Export
-            </Button>
-            <Button
-              onClick={handleSubmitForVerification}
-              variant="outline"
-              iconName="Send"
-            >
-              Submit for Verification
-            </Button>
-          </div>
         </>
       )}
       {/* Vessel Sea Time View (Command Only) */}
