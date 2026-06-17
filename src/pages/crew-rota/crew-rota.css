@@ -4185,6 +4185,8 @@
 
 .cov-cand { border: 0.5px solid #ECE6DC; border-radius: 9px; padding: 11px 12px; margin-bottom: 9px; }
 .cov-cand.picked { border-color: #9CC0A2; background: #FCFEFC; }
+.cov-cand.breach { border-color: #F2CDBE; background: #FCF3EF; }
+.cov-alloc-lbl .warn { color: #C65A1A; font-weight: 500; }
 .cov-cand-top { display: flex; align-items: center; gap: 9px; }
 .cov-cand-av {
   width: 30px; height: 30px; border-radius: 50%; background: #F1ECE2; border: 0.5px solid #DFD8CC;

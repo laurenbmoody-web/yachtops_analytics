@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
-  buildCandidates, defaultSpread, sliceFreed, recipientAfter, buildApplyPlan,
+  buildCandidates, defaultSpread, sliceFreed, assessRecipient, buildApplyPlan,
 } from './coverageEngine';
 
 // CoverageApplyModal — turns a rest suggestion into real grid edits. The hours
@@ -20,7 +20,7 @@ import {
 //   onClose       () => void
 //   onToast       (msg, opts?) => void
 export default function CoverageApplyModal({
-  open, suggestion, sourceCrew, crew, base,
+  open, suggestion, sourceCrew, crew, windowShifts, base,
   ensureDraft, applyTemplate, onApplied, onClose, onToast,
 }) {
   const freed = suggestion?.freedBlock || null;
@@ -62,7 +62,21 @@ export default function CoverageApplyModal({
     .filter((a) => a.hours > 0);
   const slices = sliceFreed(freed, orderedAllocs);
 
+  // Full four-rule MLC re-check for a recipient given their carved slice.
+  const assessFor = (id) => {
+    const slice = slices.find((s) => s.id === id);
+    return assessRecipient({
+      memberId: id,
+      windowShifts,
+      date: freed.date,
+      block: slice ? { ...slice, shiftType: freed.sourceShiftType } : null,
+    });
+  };
+  // True if any chosen recipient would breach ANY MLC rule — blocks Confirm.
+  const recipientBreach = slices.some((s) => assessFor(s.id).anyBreach);
+
   const handleConfirm = async () => {
+    if (recipientBreach) return;
     if (busy) return;
     setBusy(true);
     try {
@@ -118,9 +132,11 @@ export default function CoverageApplyModal({
               </div>
             ) : candidates.map((c) => {
               const hours = alloc?.[c.id] || 0;
-              const after = recipientAfter(c, hours);
+              const a = assessFor(c.id);
+              const slice = slices.find((s) => s.id === c.id);
+              const breaks = hours > 0 && a.anyBreach;
               return (
-                <div key={c.id} className={`cov-cand${hours > 0 ? ' picked' : ''}`}>
+                <div key={c.id} className={`cov-cand${hours > 0 ? ' picked' : ''}${breaks ? ' breach' : ''}`}>
                   <div className="cov-cand-top">
                     <div className="cov-cand-av">{c.initials}</div>
                     <div>
@@ -135,7 +151,9 @@ export default function CoverageApplyModal({
                   <div className="cov-alloc">
                     <div className="cov-alloc-lbl">
                       {hours > 0
-                        ? <>Takes <b>{slices.find((s) => s.id === c.id)?.start}–{slices.find((s) => s.id === c.id)?.end}</b> · {fmt(after.rest24)} rest today</>
+                        ? (breaks
+                            ? <span className="warn">Takes <b>{slice?.start}–{slice?.end}</b> · would breach — {a.structuralNote || (!a.dailyOk ? 'under 10h rest' : 'under 77h week')}</span>
+                            : <>Takes <b>{slice?.start}–{slice?.end}</b> · {fmt(a.rest24)} rest today</>)
                         : 'Available — none assigned'}
                     </div>
                     <div className="cov-stepper">
@@ -176,29 +194,33 @@ export default function CoverageApplyModal({
               </div>
             </div>
 
-            {/* Recipients */}
+            {/* Recipients — full four-rule re-check */}
             {slices.map((s) => {
               const c = candById.get(s.id);
-              const after = recipientAfter(c, s.hours);
+              const a = assessFor(s.id);
               return (
                 <div key={s.id} className="cov-pv">
                   <div className="cov-pv-name">{c.name} · {c.role}</div>
                   <div className="cov-pv-diff"><span className="add">+ add {s.start}–{s.end}</span></div>
                   <div className="cov-pv-line">
-                    Daily <span className={`cov-chip ${after.dailyOk ? 'ok' : 'warn'}`}>{fmt(after.rest24)}{after.dailyOk ? ' ✓' : ' ✗'}</span>
-                    Weekly <span className={`cov-chip ${after.weeklyOk ? 'ok' : 'warn'}`}>{fmt(after.week)}{after.weeklyOk ? ' ✓' : ' ✗'}</span>
+                    Daily <span className={`cov-chip ${a.dailyOk ? 'ok' : 'warn'}`}>{fmt(a.rest24)}{a.dailyOk ? ' ✓' : ' ✗'}</span>
+                    Weekly <span className={`cov-chip ${a.weeklyOk ? 'ok' : 'warn'}`}>{fmt(a.week)}{a.weeklyOk ? ' ✓' : ' ✗'}</span>
+                    {a.structuralNote && <span className="cov-chip warn">{a.structuralNote} ✗</span>}
                   </div>
                 </div>
               );
             })}
 
+            {recipientBreach && (
+              <div className="cov-note warn">This split would push a recipient into an MLC breach. Go back and re-allocate — coverage can't create a new breach.</div>
+            )}
             {remaining > 0 && (
               <div className="cov-note warn">{remaining}h still unassigned — the source keeps that portion. Go back to allocate it fully.</div>
             )}
-            <div className="cov-note">Recipients re-checked against the 10h daily / 77h weekly limits. Confirm writes all edits to the grid as draft.</div>
+            <div className="cov-note">Recipients re-checked against all four MLC rules (10h daily · 77h weekly · rest split · 14h continuous). Confirm writes all edits to the grid as draft.</div>
 
             <div className="cov-actions">
-              <button type="button" className="cov-btn primary" disabled={busy} onClick={handleConfirm}>
+              <button type="button" className="cov-btn primary" disabled={busy || recipientBreach} onClick={handleConfirm}>
                 {busy ? 'Applying…' : 'Confirm & apply'}
               </button>
               <button type="button" className="cov-btn ghost" disabled={busy} onClick={() => setStep('assign')}>Back</button>
