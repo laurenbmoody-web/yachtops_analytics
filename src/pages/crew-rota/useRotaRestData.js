@@ -378,13 +378,40 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
           try {
             const sourceMember = sourceMemberRef.current
               || { id: memberId, department: crewDept, role: crewRole, name: crewName };
+            // All-crew shifts across the suggestion window — coverage must be
+            // judged on the REAL roster for whatever day a fix lands on, incl.
+            // FUTURE days the grid doesn't load in Day view. Falls back to the
+            // grid window if the roster fetch is unavailable.
+            const roster = rosterRef.current || [];
+            const rosterIds = roster.map((r) => r.id).filter(Boolean);
+            let coverageShifts = windowShiftsRef.current || [];
+            if (rosterIds.length) {
+              const { data: crewRows } = await supabase
+                .from('rota_shifts')
+                .select('member_id, shift_date, start_time, end_time, shift_type, sub_type')
+                .eq('tenant_id', tenantId)
+                .in('member_id', rosterIds)
+                .gte('shift_date', fetchStartStr)
+                .lte('shift_date', fetchEndStr);
+              if (cancelled) return;
+              if (crewRows) {
+                coverageShifts = crewRows.map((r) => ({
+                  memberId: r.member_id,
+                  date: r.shift_date,
+                  startTime: r.start_time,
+                  endTime: r.end_time,
+                  shiftType: r.shift_type,
+                  subType: r.sub_type,
+                }));
+              }
+            }
             const ranked = generateRankedSuggestions({
               sourceMember,
               effDate,
               allRows: all,
               report: mlcReport,
-              roster: rosterRef.current || [],
-              windowShifts: windowShiftsRef.current || [],
+              roster,
+              windowShifts: coverageShifts,
               limit: 2,
               realToday: localToday,
               nowHHMM,
