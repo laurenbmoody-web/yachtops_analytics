@@ -28,21 +28,24 @@ const TASKS = [
   { id: 'inventory',  cat: 'Accounts & stores',   icon: 'Package',       title: 'Inventory counts',        note: 'Bond · galley · medical · deck', cta: 'View',      done: 4,  total: 4,  status: 'complete',     planned: true },
 ];
 
-// Editorial palette: terracotta is the ONLY accent, reserved for "needs action".
-// In-progress reads navy ink; complete recedes into quiet grey.
-const STATUS = {
-  'needs-action': { label: 'Needs action', dot: '#C65A1A', text: '#B14E16', bar: '#C65A1A' },
-  'in-progress':  { label: 'In progress',  dot: '#1C1B3A', text: '#3F3E5C', bar: '#1C1B3A' },
-  'complete':     { label: 'Done',         dot: '#C7C3B6', text: '#9A958A', bar: '#CFCBBE' },
+// Two-state model: a pack is either OUTSTANDING or DONE — "in progress" and
+// "needs action" mean the same thing (not finished), and the progress bar carries
+// how far along each one is. Terracotta is the only accent, reserved for what's
+// outstanding; completed packs recede into quiet grey. The underlying status field
+// is kept only to sort (not-started → in-flight → done) and seed progress.
+const DISPLAY = {
+  outstanding: { label: 'Outstanding', dot: '#C65A1A', text: '#B14E16', bar: '#1C1B3A' },
+  complete:    { label: 'Done',        dot: '#C7C3B6', text: '#9A958A', bar: '#CFCBBE' },
 };
+const stateOf = (t) => (t.status === 'complete' ? 'complete' : 'outstanding');
 const ORDER = { 'needs-action': 0, 'in-progress': 1, 'complete': 2 };
 const pct = (t) => (t.total ? Math.round((t.done / t.total) * 100) : 0);
 
 function Row({ task }) {
-  const s = STATUS[task.status];
-  const cls = task.status === 'needs-action' ? ' is-action' : task.status === 'complete' ? ' is-done' : '';
+  const state = stateOf(task);
+  const s = DISPLAY[state];
   return (
-    <div className={`mp-row${cls}`}>
+    <div className={`mp-row${state === 'outstanding' ? ' is-action' : ' is-done'}`}>
       <span className="mp-row-ico"><Icon name={task.icon} size={19} /></span>
       <div className="mp-row-who">
         <div className="mp-row-title">
@@ -59,11 +62,8 @@ function Row({ task }) {
         <span className="mp-dot" style={{ background: s.dot }} />{s.label}
       </span>
       <div className="mp-row-act">
-        <button
-          type="button"
-          className={`mp-link${task.status === 'needs-action' ? '' : task.status === 'in-progress' ? ' is-ink' : ' is-mut'}`}
-        >
-          {task.status === 'complete' ? 'View' : task.cta} →
+        <button type="button" className={`mp-link${state === 'complete' ? ' is-mut' : ''}`}>
+          {state === 'complete' ? 'View' : task.cta} →
         </button>
       </div>
     </div>

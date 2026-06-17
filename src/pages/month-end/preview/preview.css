@@ -35,10 +35,11 @@
 .mp-cat-rule { flex: 1; height: 1px; background: #ECEAE3; align-self: center; }
 .mp-cat-meta { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
 
-/* Pack rows — pure hairline list, no card boxes */
-.mp-row { display: grid; grid-template-columns: 24px 1fr 150px 112px 100px; align-items: center; gap: 18px; padding: 15px 6px; border-bottom: 1px solid #F0EEE7; }
+/* Pack rows — pure hairline list, no card boxes. Every row keeps its bottom
+   hairline so stacked outstanding rows read as separate items, not one block. */
+.mp-row { display: grid; grid-template-columns: 24px 1fr 150px 112px 100px; align-items: center; gap: 18px; padding: 15px 6px 15px 13px; border-bottom: 1px solid #F0EEE7; }
 .mp-row:last-child { border-bottom: 0; }
-.mp-row.is-action { box-shadow: inset 3px 0 0 0 #C65A1A; border-bottom: 0; padding-left: 13px; }
+.mp-row.is-action { box-shadow: inset 3px 0 0 0 #C65A1A; }
 .mp-row.is-done { opacity: 0.6; }
 .mp-row-ico { color: #9A958A; display: flex; }
 .mp-row.is-action .mp-row-ico { color: #C65A1A; }
