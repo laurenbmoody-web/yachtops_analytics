@@ -460,14 +460,10 @@ const SendToSupplierModal = ({
   // ── Render ──────────────────────────────────────────────────────
   const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
-  // Italic terracotta qualifier next to the headline + tracked-caps
-  // subtitle underneath. Editorial double-tier — the headline carries
-  // the brand voice, the subtitle gives the count.
-  const titleQualifier = allDone
-    ? null
-    : readySupplierCount > 0
-      ? `to ${plural(readySupplierCount, 'supplier')}.`
-      : unassigned.length > 0 ? 'still to assign.' : null;
+  // Title is static "Send, to supplier." — terracotta italic qualifier
+  // carries the brand voice; the dynamic counts live in the subtitle.
+  const titleText = allDone ? 'All orders sent' : 'Send';
+  const titleQualifier = allDone ? null : 'to supplier.';
   const subtitleBits = allDone
     ? [`${plural(sentOrderCount, 'order')} created`]
     : [
@@ -555,8 +551,8 @@ const SendToSupplierModal = ({
         <header className="stsm-head">
           <div className="stsm-titlewrap">
             <div className="stsm-title">
-              {allDone ? 'All orders sent' : 'Send orders'}
-              <span className="stsm-title-accent">.</span>
+              {titleText}
+              <span className="stsm-title-accent">{allDone ? '.' : ','}</span>
               {titleQualifier && <span className="stsm-title-q">{titleQualifier}</span>}
             </div>
             <div className="stsm-sub">
@@ -605,10 +601,7 @@ const SendToSupplierModal = ({
             <div className="stsm-body">
               {/* Shared delivery context — applies to every order this session. */}
               <section className="stsm-section">
-                <h3 className="stsm-subhead is-first">
-                  Where it's going
-                  <span className="stsm-subhead-q">delivery brief.</span>
-                </h3>
+                <h3 className="stsm-subhead is-first">delivery brief.</h3>
                 <div className="stsm-grid">
                   <div className="stsm-field">
                     <label className="stsm-label">
@@ -675,10 +668,7 @@ const SendToSupplierModal = ({
               </section>
 
               <section className="stsm-section">
-                <h3 className="stsm-subhead">
-                  Who's getting them
-                  <span className="stsm-subhead-q">your suppliers.</span>
-                </h3>
+                <h3 className="stsm-subhead">suppliers list.</h3>
                 {groups.length > 0 && (
                   <div className="stsm-grouplist">
                     {groups.map(gi => (
