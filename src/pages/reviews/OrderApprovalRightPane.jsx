@@ -579,7 +579,11 @@ export default function OrderApprovalRightPane({ request, onResolved, onToast })
               margin: '0 0 14px',
               lineHeight: 1.5,
             }}>
-              Approving will release the board back to <strong style={{ color: 'var(--d-navy-deep)' }}>{request?.submitter_name?.split(' ')[0] || 'the submitter'}</strong> {request?.is_re_approval ? 'with the supplier quote locked in' : 'so they can send it to a supplier'}.
+              {request?.is_re_approval ? (
+                <>Approving locks in the supplier's quote on this board. <strong style={{ color: 'var(--d-navy-deep)' }}>{request?.submitter_name?.split(' ')[0] || 'The submitter'}</strong> can then confirm the order with the supplier at the agreed prices.</>
+              ) : (
+                <>Approving releases the board back to <strong style={{ color: 'var(--d-navy-deep)' }}>{request?.submitter_name?.split(' ')[0] || 'the submitter'}</strong> so they can send it to a supplier.</>
+              )}
             </p>
             <div className="pv-edit-modal-field">
               <label className="pv-edit-modal-label" htmlFor="ord-rp-approve-note">
@@ -591,7 +595,9 @@ export default function OrderApprovalRightPane({ request, onResolved, onToast })
                 onChange={e => setComment(e.target.value)}
                 rows={3}
                 className="pv-edit-modal-textarea"
-                placeholder="e.g. Use Frantoio Mediterranean for the oil, drop off at Antibes instead of Palma, delivery before 10am…"
+                placeholder={request?.is_re_approval
+                  ? "e.g. Accept the £20 increase on tuna, confirm 10am delivery, hold the wine order until next week…"
+                  : "e.g. Use Frantoio Mediterranean for the oil, drop off at Antibes instead of Palma, delivery before 10am…"}
               />
             </div>
           </div>
