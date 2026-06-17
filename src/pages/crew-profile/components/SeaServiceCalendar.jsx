@@ -121,7 +121,7 @@ const SeaServiceCalendar = ({ entries, vessels, config, serviceFilter }) => {
           const segs = [...byEntry.values()];
           const lanes = packLanes(segs);
           return (
-            <div className="stc-wk" key={wi} style={{ minHeight: 24 + lanes * 24 }}>
+            <div className="stc-wk" key={wi} style={{ minHeight: 46 + lanes * 26 }}>
               <div className="stc-cells">
                 {week.map((cell, ci) => (
                   <i key={ci} className={!cell ? 'off' : (ci >= 5 ? 'wknd' : '')}>{cell ? cell.day : ''}</i>
