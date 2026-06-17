@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
-  buildCandidates, defaultSpread, sliceFreed, assessRecipient, buildApplyPlan,
+  buildCandidates, defaultSpread, sliceFreed, assessRecipient, buildApplyPlan, isFreeDuring,
 } from './coverageEngine';
 import { ON_DUTY_TYPES, MLC_DAILY_REST_MIN, MLC_WEEKLY_REST_MIN } from './restHours';
 
@@ -39,8 +39,15 @@ export default function CoverageApplyModal({
     || (freed.date === realToday && !!nowHHMM && (freed.start || '').slice(0, 5) <= nowHHMM)
   );
   const candidates = useMemo(
-    () => (freed && sourceCrew ? buildCandidates({ sourceMember: sourceCrew, crew }) : []),
-    [freed, sourceCrew, crew],
+    () => (freed && sourceCrew
+      ? buildCandidates({ sourceMember: sourceCrew, crew })
+        // A recipient must be FREE across the freed window — someone already on
+        // duty then can't add a body, so reassigning to them is no real cover.
+        .filter((c) => isFreeDuring({
+          memberId: c.id, date: freed.date, start: freed.start, end: freed.end, windowShifts,
+        }))
+      : []),
+    [freed, sourceCrew, crew, windowShifts],
   );
   const candById = useMemo(() => new Map(candidates.map((c) => [c.id, c])), [candidates]);
 
@@ -231,8 +238,9 @@ export default function CoverageApplyModal({
 
             {candidates.length === 0 ? (
               <div className="cov-empty">
-                No same-department crew have rest headroom to absorb these hours.
-                You can still free the block and assign cover manually in the grid.
+                No same-department crew are free during {freed.start}–{freed.end} with the rest
+                headroom to absorb these hours — everyone else is already on duty then. You can
+                still free the block and arrange cover manually in the grid.
               </div>
             ) : candidates.map((c) => {
               const hours = alloc?.[c.id] || 0;

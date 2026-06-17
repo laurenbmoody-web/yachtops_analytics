@@ -116,13 +116,18 @@ function fallbackBody(r) {
   const verb = r.kind === 'day_off' ? 'A full day off'
     : r.kind === 'future_off' ? 'Dropping this block'
       : r.kind === 'shorten' ? 'Trimming this block' : 'Freeing this block';
+  // Coverage clause — only claim someone absorbs it when crew are actually free
+  // during the block; otherwise be explicit that it would need manual cover.
+  const coverage = r.coverage.ok
+    ? `${who} can absorb the coverage.`
+    : 'No one in the department is free during the block, so it would need manual cover.';
   // Be honest when the lever eases load but doesn't clear the breach (e.g. a
   // structural 14h-continuous breach from already-worked days that no
   // forward reschedule can undo).
   if (!r.resolvesAll && r.remainingBreaches && r.remainingBreaches.length) {
-    return `${verb} ${r.dayLabel} eases ${who === 'another crew member in the department' ? 'the' : 'their'} load, but doesn’t clear the breach on its own (${r.remainingBreaches.join(' · ')}).`;
+    return `${verb} ${r.dayLabel} eases the load, but doesn’t clear the breach on its own (${r.remainingBreaches.join(' · ')}). ${coverage}`;
   }
-  return `${verb} ${r.dayLabel} helps close the rest deficit. ${who} can absorb the coverage.`;
+  return `${verb} ${r.dayLabel} helps close the rest deficit. ${coverage}`;
 }
 
 
@@ -406,6 +411,7 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
                       rest_to: Math.round(r.restTo),
                       resolves: r.resolvesAll,
                       remaining_breaches: r.remainingBreaches || [],
+                      coverage_ok: !!r.coverage.ok,
                       coverage_roles: Array.from(new Set(r.coverage.roles || [])),
                     })),
                   },

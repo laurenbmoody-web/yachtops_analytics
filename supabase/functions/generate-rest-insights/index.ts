@@ -20,6 +20,7 @@
 //       rest_to:       number,                 // rolling-7 after
 //       resolves:      boolean,                // fully restores MLC compliance?
 //       remaining_breaches: string[],          // rules still breaching if PARTIAL
+//       coverage_ok:   boolean,                // is anyone free to cover the block?
 //       coverage_roles: string[],              // generic roles absorbing cover
 //     } ]
 //   }
@@ -50,6 +51,7 @@ interface ChangeIn {
   rest_to: number;
   resolves: boolean;
   remaining_breaches?: string[];
+  coverage_ok?: boolean;
   coverage_roles?: string[];
 }
 interface RequestBody {
@@ -68,6 +70,7 @@ For EACH change you are given, write:
 Rules:
 - HONESTY (most important): Each change is tagged either RESOLVES (it fully restores MLC compliance) or PARTIAL (it eases the load but a breach REMAINS). Only a RESOLVES change may say it brings the crew back into compliance / clears the breach / fixes it. For a PARTIAL change you MUST make clear it only reduces the load and the breach is NOT cleared — name the remaining breach(es) given, in plain words. Never imply or let a reader infer that a PARTIAL change restores compliance. Do not say "now compliant", "back in compliance", "resolves the breach", or similar for a PARTIAL change.
 - If a PARTIAL breach is a continuous-hours / stretch breach on past days, it reflects already-worked time, so note that rescheduling can't undo it.
+- COVERAGE: Each change says either COVERAGE OK (name the role(s) that absorb the block) or NO COVERAGE (nobody in the department is free during the block). For NO COVERAGE you MUST say plainly that no one is free to take it and it would need manual cover — never invent a role or claim someone absorbs it.
 - DATES: use the day_label provided ("today", "tomorrow", a weekday) — never print a YYYY-MM-DD date.
 - Do NOT state rest-hour numbers; the system displays the exact before/after itself.
 - Voice: concise, confident, no hedging, no exclamation marks, no emoji. Chief-to-chief. Honest beats reassuring.
@@ -98,10 +101,13 @@ function buildUserPrompt(body: RequestBody): string {
     const status = c.resolves
       ? 'RESOLVES (fully restores MLC compliance)'
       : `PARTIAL (eases the load but does NOT clear it — still breaching: ${remaining})`;
+    const coverage = c.coverage_ok
+      ? `COVERAGE OK (absorbed by: ${roles})`
+      : 'NO COVERAGE (nobody in the department is free during the block — needs manual cover)';
     lines.push(
       `- id=${c.id} · ${kindLabel} · ${c.day_label} · block ${c.block_label} · frees ${c.freed_hours}h`
       + ` · ${status}`
-      + ` · coverage absorbed by: ${roles}`,
+      + ` · ${coverage}`,
     );
   }
   return lines.join('\n').trim();
