@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Breach Notes — layout options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#1C1B3A; --terra:#C65A1A; --terra-h:#B14E16; --muted:#8B8478; --muted2:#6B7280;
+    --faint:#AEB4C2; --hair:#F0F1F5; --bd:#ECEAE3; --bd2:#E8E6DF; --field:#FAFAF8; --tint:#FBEFE9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#EEECE6;font-family:'Inter',system-ui,sans-serif;color:var(--navy);padding:40px 16px 80px}
+  .wrap{max-width:680px;margin:0 auto}
+  .pageh{font-family:'DM Serif Display',Georgia,serif;font-size:26px;margin:0 0 4px}
+  .pagesub{color:var(--muted2);font-size:14px;margin:0 0 28px}
+  .opt-label{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--terra);margin:30px 0 4px}
+  .opt-desc{font-size:13px;color:var(--muted2);margin:0 0 12px}
+
+  /* shared panel (the modal) */
+  .panel{background:#fff;border:1px solid var(--bd);border-radius:16px;box-shadow:0 24px 60px -16px rgba(28,27,58,.32);overflow:hidden}
+  .head{padding:20px 24px 14px;border-bottom:1px solid var(--hair)}
+  .title{font-family:'DM Serif Display',Georgia,serif;font-size:22px;line-height:1.1}
+  .sub{font-size:13px;color:var(--muted2);margin-top:3px}
+  .foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 24px;border-top:1px solid var(--hair)}
+  .prog{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+  .btn{display:inline-flex;align-items:center;gap:7px;background:var(--terra);border:1px solid var(--terra);color:#fff;border-radius:10px;padding:9px 18px;font-size:13.5px;font-weight:600;cursor:pointer}
+  .btn:hover{background:var(--terra-h);border-color:var(--terra-h)}
+  .lbl{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+  .req{color:var(--terra)} .optn{color:var(--faint);font-weight:600}
+  .pill{border:1px solid var(--bd2);background:#F6F5F2;color:#4A4A63;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap}
+  .pill.sel{background:var(--terra);border-color:var(--terra);color:#fff}
+  .typepill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:999px;font-size:10.5px;font-weight:600;background:var(--tint);color:var(--terra-h)}
+  .date{font-family:'DM Serif Display',Georgia,serif;color:var(--navy)}
+  .rest{font-size:12px;color:var(--muted)}
+  input.field,textarea.field{width:100%;background:var(--field);border:1px solid var(--bd2);border-radius:10px;padding:9px 12px;font-size:13.5px;color:var(--navy);font-family:inherit}
+  textarea.field{min-height:60px;resize:vertical}
+  input.field::placeholder,textarea.field::placeholder{color:var(--faint)}
+  input.field:focus,textarea.field:focus{outline:none;background:#FFFDFB;border-color:var(--terra);box-shadow:0 0 0 3px #FAECE7}
+
+  /* ---------- Option 1: TABLE ROWS ---------- */
+  .t-row{display:grid;grid-template-columns:96px 44px 1fr 34px;align-items:center;gap:12px;padding:11px 24px;border-bottom:1px solid var(--hair)}
+  .t-head{padding:9px 24px;border-bottom:1px solid var(--hair)}
+  .t-head .lbl{display:grid;grid-template-columns:96px 44px 1fr 34px;gap:12px}
+  .t-date{font-size:14.5px}
+  .tagbtn{width:30px;height:30px;border-radius:999px;border:1px dashed var(--bd2);background:#fff;color:var(--terra);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .t-reasonwrap{display:flex;align-items:center;gap:8px;min-width:0}
+
+  /* ---------- Option 2: LIST + EDITOR ---------- */
+  .md{display:grid;grid-template-columns:172px 1fr}
+  .md-list{border-right:1px solid var(--hair);padding:8px}
+  .md-day{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:9px;cursor:pointer;font-size:13.5px}
+  .md-day.sel{background:#FFFDFB;box-shadow:inset 2px 0 0 0 var(--terra);}
+  .md-day:hover:not(.sel){background:#FAFAF8}
+  .dot{width:8px;height:8px;border-radius:999px;flex:0 0 auto}
+  .dot.need{background:#E2A33C}.dot.done{background:#5C9B6A}
+  .md-day .d{font-family:'DM Serif Display',Georgia,serif}
+  .md-prog{margin-top:6px;padding:8px 10px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+  .md-edit{padding:18px 22px}
+  .md-edit .eh{display:flex;align-items:baseline;gap:10px;margin-bottom:14px}
+  .md-edit .eh .date{font-size:19px}
+
+  /* ---------- Option 3: ACCORDION ---------- */
+  .ac-row{border-bottom:1px solid var(--hair)}
+  .ac-head{display:flex;align-items:center;gap:12px;padding:13px 24px;cursor:pointer}
+  .ac-chev{color:var(--faint);font-size:12px;width:12px}
+  .ac-date{font-size:15px}
+  .ac-status{margin-left:auto;font-size:11px;font-weight:600;border-radius:999px;padding:3px 11px}
+  .ac-status.need{background:#FBEEDC;color:#9A6B1C}
+  .ac-status.done{background:#E7F3EA;color:#3F7A52}
+  .ac-body{padding:0 24px 18px 48px}
+  .rowtags{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 class="pageh">Breach Notes — three compact layouts</h1>
+  <p class="pagesub">Same editorial styling, sample data (5 breached days). Pick the structure you like.</p>
+
+  <!-- ===================== OPTION 1: TABLE ===================== -->
+  <div class="opt-label">Option 1 · Table rows</div>
+  <p class="opt-desc">One slim row per day, inline reason, compact tag button. ~5–6 days visible, minimal scroll.</p>
+  <div class="panel">
+    <div class="head"><div class="title">Breach notes required</div><div class="sub">Add a short reason for each breached day.</div></div>
+    <div class="t-head"><div class="lbl"><span>Date</span><span>Rest</span><span>Reason <span class="req">required</span></span><span>Tag</span></div></div>
+
+    <div class="t-row">
+      <span class="date t-date">27/06/2026</span><span class="rest">0.0h</span>
+      <div class="t-reasonwrap"><span class="typepill">Night watch</span><input class="field" value="Guest departure security watch"/></div>
+      <button class="tagbtn">+</button>
+    </div>
+    <div class="t-row">
+      <span class="date t-date">29/06/2026</span><span class="rest">0.0h</span>
+      <div class="t-reasonwrap"><input class="field" placeholder="Add reason…"/></div>
+      <button class="tagbtn">+</button>
+    </div>
+    <div class="t-row">
+      <span class="date t-date">30/06/2026</span><span class="rest">0.0h</span>
+      <div class="t-reasonwrap"><input class="field" placeholder="Add reason…"/></div>
+      <button class="tagbtn">+</button>
+    </div>
+    <div class="t-row">
+      <span class="date t-date">01/07/2026</span><span class="rest">0.0h</span>
+      <div class="t-reasonwrap"><input class="field" placeholder="Add reason…"/></div>
+      <button class="tagbtn">+</button>
+    </div>
+    <div class="t-row">
+      <span class="date t-date">02/07/2026</span><span class="rest">0.0h</span>
+      <div class="t-reasonwrap"><input class="field" placeholder="Add reason…"/></div>
+      <button class="tagbtn">+</button>
+    </div>
+    <div class="foot"><span class="prog">1 of 5 done</span><button class="btn">✓ Submit notes</button></div>
+  </div>
+
+  <!-- ===================== OPTION 2: LIST + EDITOR ===================== -->
+  <div class="opt-label">Option 2 · List + editor</div>
+  <p class="opt-desc">Slim day list with status dots; the selected day edits on the right. Scales to many days, no long scroll.</p>
+  <div class="panel">
+    <div class="head"><div class="title">Breach notes required</div><div class="sub">Pick a day, add its reason. Dots show what's left.</div></div>
+    <div class="md">
+      <div class="md-list">
+        <div class="md-day sel"><span class="dot need"></span><span class="d">27/06</span></div>
+        <div class="md-day"><span class="dot need"></span><span class="d">29/06</span></div>
+        <div class="md-day"><span class="dot done"></span><span class="d">30/06</span></div>
+        <div class="md-day"><span class="dot need"></span><span class="d">01/07</span></div>
+        <div class="md-day"><span class="dot need"></span><span class="d">02/07</span></div>
+        <div class="md-prog">1 of 5 done</div>
+      </div>
+      <div class="md-edit">
+        <div class="eh"><span class="date">27/06/2026</span><span class="rest">Rest 0.0h</span></div>
+        <div class="lbl" style="margin-bottom:8px">Quick tags <span class="optn">optional</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px">
+          <span class="pill sel">Night watch / security</span><span class="pill">Guest trip</span><span class="pill">Turnaround</span><span class="pill">Medical</span><span class="pill">Drill / ops</span>
+        </div>
+        <div class="lbl" style="margin-bottom:8px">Reason <span class="req">required</span></div>
+        <textarea class="field">Guest departure security watch</textarea>
+      </div>
+    </div>
+    <div class="foot"><span class="prog">1 of 5 done</span><button class="btn">✓ Submit notes</button></div>
+  </div>
+
+  <!-- ===================== OPTION 3: ACCORDION ===================== -->
+  <div class="opt-label">Option 3 · Accordion</div>
+  <p class="opt-desc">Collapsed one-line rows; tap one to expand its tags + reason inline. Best when only a few days need a note.</p>
+  <div class="panel">
+    <div class="head"><div class="title">Breach notes required</div><div class="sub">Tap a day to add its reason.</div></div>
+
+    <div class="ac-row">
+      <div class="ac-head"><span class="ac-chev">▸</span><span class="date ac-date">27/06/2026</span><span class="rest">0.0h</span><span class="ac-status need">Needs reason</span></div>
+    </div>
+    <div class="ac-row">
+      <div class="ac-head"><span class="ac-chev">▾</span><span class="date ac-date">29/06/2026</span><span class="rest">0.0h</span><span class="ac-status need">Needs reason</span></div>
+      <div class="ac-body">
+        <div class="rowtags"><span class="pill sel">Guest trip</span><span class="pill">Turnaround</span><span class="pill">Night watch</span><span class="pill">Medical</span><span class="pill">Drill / ops</span></div>
+        <textarea class="field" placeholder="Add reason…"></textarea>
+      </div>
+    </div>
+    <div class="ac-row">
+      <div class="ac-head"><span class="ac-chev">▸</span><span class="date ac-date">30/06/2026</span><span class="rest">0.0h</span><span class="ac-status done">✓ Added</span></div>
+    </div>
+    <div class="ac-row">
+      <div class="ac-head"><span class="ac-chev">▸</span><span class="date ac-date">01/07/2026</span><span class="rest">0.0h</span><span class="ac-status need">Needs reason</span></div>
+    </div>
+    <div class="ac-row">
+      <div class="ac-head"><span class="ac-chev">▸</span><span class="date ac-date">02/07/2026</span><span class="rest">0.0h</span><span class="ac-status need">Needs reason</span></div>
+    </div>
+    <div class="foot"><span class="prog">1 of 5 done</span><button class="btn">✓ Submit notes</button></div>
+  </div>
+
+</div>
+</body>
+</html>
