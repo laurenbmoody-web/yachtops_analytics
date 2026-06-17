@@ -67,7 +67,7 @@ export function useProvisioningApprovals() {
           id:               r.id,
           list_id:          r.list_id,
           status:           r.status,
-          comment:          r.comment,
+          comment:          r.comment || null,
           created_at:       r.created_at,
           prev_status:      r.prev_status || null,
           is_re_approval:   r.prev_status === 'quote_received',
