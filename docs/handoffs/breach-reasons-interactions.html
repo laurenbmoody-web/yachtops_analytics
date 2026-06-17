@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Breach reasons — interaction options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#1C1B3A; --terra:#C65A1A; --terra-h:#B14E16; --muted:#8B8478; --muted2:#6B7280;
+    --faint:#AEB4C2; --hair:#F0F1F5; --bd:#ECEAE3; --bd2:#E8E6DF; --field:#FAFAF8; --tint:#FBEFE9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#EEECE6;font-family:'Inter',system-ui,sans-serif;color:var(--navy);padding:40px 16px 80px}
+  .wrap{max-width:600px;margin:0 auto}
+  .pageh{font-family:'DM Serif Display',Georgia,serif;font-size:26px;margin:0 0 4px}
+  .pagesub{color:var(--muted2);font-size:14px;margin:0 0 26px}
+  .opt-label{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--terra);margin:34px 0 4px}
+  .opt-desc{font-size:13px;color:var(--muted2);margin:0 0 12px;line-height:1.5}
+
+  .panel{background:#fff;border:1px solid var(--bd);border-radius:16px;box-shadow:0 24px 60px -16px rgba(28,27,58,.32);overflow:hidden}
+  .head{padding:20px 24px 14px;border-bottom:1px solid var(--hair)}
+  .title{font-family:'DM Serif Display',Georgia,serif;font-size:22px;line-height:1.1}
+  .sub{font-size:13px;color:var(--muted2);margin-top:3px}
+  .body{padding:18px 24px 6px}
+  .foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 24px;border-top:1px solid var(--hair)}
+  .prog{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+  .btn{display:inline-flex;align-items:center;gap:7px;background:var(--terra);border:1px solid var(--terra);color:#fff;border-radius:10px;padding:9px 18px;font-size:13.5px;font-weight:600;cursor:pointer}
+  .btn:hover{background:var(--terra-h);border-color:var(--terra-h)}
+  .lbl{display:block;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+  .req{color:var(--terra)} .optn{color:var(--faint);font-weight:600}
+  .pill{border:1px solid var(--bd2);background:#F6F5F2;color:#4A4A63;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap}
+  .pill.sel{background:var(--terra);border-color:var(--terra);color:#fff}
+  .daychip{border:1px solid var(--bd2);background:#fff;color:var(--navy);border-radius:999px;padding:4px 11px;font-size:11.5px;font-weight:600;font-family:'DM Serif Display',Georgia,serif}
+  .date{font-family:'DM Serif Display',Georgia,serif;color:var(--navy)}
+  .rest{font-size:12px;color:var(--muted)}
+  textarea.field,input.field{width:100%;background:var(--field);border:1px solid var(--bd2);border-radius:10px;padding:10px 13px;font-size:13.5px;color:var(--navy);font-family:inherit}
+  textarea.field{min-height:58px;resize:vertical}
+  textarea.field:focus,input.field:focus{outline:none;background:#FFFDFB;border-color:var(--terra);box-shadow:0 0 0 3px #FAECE7}
+  input.field::placeholder,textarea.field::placeholder{color:var(--faint)}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .mt14{margin-top:14px}.mt18{margin-top:18px}
+  .tagbtn{height:32px;padding:0 12px;border-radius:999px;border:1px dashed var(--bd2);background:#fff;color:var(--terra);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+
+  .override-link{display:inline-flex;align-items:center;gap:6px;margin-top:14px;font-size:12.5px;font-weight:600;color:var(--terra);cursor:pointer;background:none;border:0;padding:0}
+  .override{margin-top:12px;border-top:1px dashed var(--bd2);padding-top:12px}
+  .override-row{display:grid;grid-template-columns:80px 1fr 24px;align-items:center;gap:10px;margin-bottom:8px}
+  . x{color:var(--faint);cursor:pointer;text-align:center}
+
+  /* inline-on-page concept */
+  .pageframe{background:#fff;border:1px solid var(--bd);border-radius:16px;padding:22px 24px;box-shadow:0 24px 60px -16px rgba(28,27,58,.32)}
+  .sec-eyebrow{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+  .sec-h{font-family:'DM Serif Display',Georgia,serif;font-size:20px;margin:2px 0 2px}
+  .notice{display:flex;align-items:center;gap:8px;background:var(--tint);color:var(--terra-h);border-radius:10px;padding:9px 13px;font-size:12.5px;font-weight:500;margin:12px 0 16px}
+  .pl-row{display:grid;grid-template-columns:104px 44px 1fr auto;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--hair)}
+  .pl-row:last-child{border-bottom:0}
+  .pl-date{font-size:14.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 class="pageh">Breach reasons — two interactions</h1>
+  <p class="pagesub">Same data (5 breached days). The idea: stop making you type a reason five times.</p>
+
+  <!-- ============ A: ONE SHARED REASON ============ -->
+  <div class="opt-label">A · One shared reason</div>
+  <p class="opt-desc">Type the reason once; it covers every breached day. Pick a tag, optionally give the odd day its own reason. The whole thing is one short card — no scrolling.</p>
+  <div class="panel">
+    <div class="head"><div class="title">Breach notes</div><div class="sub">5 days flagged · most breaches share a cause</div></div>
+    <div class="body">
+      <label class="lbl">Reason — applies to all 5 days <span class="req">required</span></label>
+      <textarea class="field">Guest charter — night security watch</textarea>
+
+      <label class="lbl mt18">Quick tag <span class="optn">optional</span></label>
+      <div class="row">
+        <span class="pill sel">Guest trip</span><span class="pill">Turnaround</span><span class="pill">Night watch</span><span class="pill">Medical</span><span class="pill">Drill / ops</span>
+      </div>
+
+      <label class="lbl mt18">Days covered</label>
+      <div class="row">
+        <span class="daychip">27/06</span><span class="daychip">29/06</span><span class="daychip">30/06</span><span class="daychip">01/07</span><span class="daychip">02/07</span>
+      </div>
+
+      <button class="override-link">✎ Give some days a different reason</button>
+      <div class="override">
+        <div class="override-row"><span class="date" style="font-size:13px">30/06</span><input class="field" value="Medical assist — crew injury"/><span class="x">✕</span></div>
+        <div class="override-row"><span class="date" style="font-size:13px;color:var(--faint)">+ add</span><input class="field" placeholder="pick a day to override…"/><span class="x"></span></div>
+      </div>
+    </div>
+    <div class="foot"><span class="prog">5 of 5 covered</span><button class="btn">✓ Submit notes</button></div>
+  </div>
+
+  <!-- ============ B: INLINE ON THE PAGE ============ -->
+  <div class="opt-label">B · Inline on the page (no modal)</div>
+  <p class="opt-desc">No pop-up at all. The reason fields live right under the “Breaches” section on the HOR page; sign-off is simply blocked until each is filled.</p>
+  <div class="pageframe">
+    <div class="sec-eyebrow">Compliance</div>
+    <div class="sec-h">Breaches</div>
+    <div class="notice">⚠ Add a reason for each breach day to enable sign-off.</div>
+
+    <div class="pl-row">
+      <span class="date pl-date">27/06/2026</span><span class="rest">0.0h</span>
+      <input class="field" value="Guest charter — night security watch"/>
+      <button class="tagbtn">+ tag</button>
+    </div>
+    <div class="pl-row">
+      <span class="date pl-date">29/06/2026</span><span class="rest">0.0h</span>
+      <input class="field" placeholder="Add reason…"/>
+      <button class="tagbtn">+ tag</button>
+    </div>
+    <div class="pl-row">
+      <span class="date pl-date">30/06/2026</span><span class="rest">0.0h</span>
+      <input class="field" placeholder="Add reason…"/>
+      <button class="tagbtn">+ tag</button>
+    </div>
+    <div class="pl-row">
+      <span class="date pl-date">01/07/2026</span><span class="rest">0.0h</span>
+      <input class="field" placeholder="Add reason…"/>
+      <button class="tagbtn">+ tag</button>
+    </div>
+    <div class="pl-row">
+      <span class="date pl-date">02/07/2026</span><span class="rest">0.0h</span>
+      <input class="field" placeholder="Add reason…"/>
+      <button class="tagbtn">+ tag</button>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
