@@ -604,7 +604,7 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .cp-kpi-ink   { border-top-color: #1C1B3A; }
 .crew-profile-page .cp-kpi-amber { border-top-color: #C0851F; }
-.crew-profile-page .cp-kpi-red   { border-top-color: #E4574C; }
+.crew-profile-page .cp-kpi-red   { border-top-color: #C65A1A; }
 .crew-profile-page .cp-kpi .cp-kpi-n {
   font-family: 'DM Serif Display', Georgia, serif;
   font-size: 28px;
@@ -613,7 +613,7 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .cp-kpi-ink   .cp-kpi-n { color: #1C1B3A; }
 .crew-profile-page .cp-kpi-amber .cp-kpi-n { color: #C0851F; }
-.crew-profile-page .cp-kpi-red   .cp-kpi-n { color: #E4574C; }
+.crew-profile-page .cp-kpi-red   .cp-kpi-n { color: #C65A1A; }
 .crew-profile-page .cp-kpi .cp-kpi-l {
   font-size: 9.5px;
   letter-spacing: 0.06em;
