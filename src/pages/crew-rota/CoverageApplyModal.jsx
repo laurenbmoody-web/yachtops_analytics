@@ -160,6 +160,12 @@ export default function CoverageApplyModal({
   const sourceDaySegments = () => {
     const dur = (st, en) => { let d = toDecLocal(en) - toDecLocal(st); if (d <= 0) d += 24; return d; };
     const covered = slices.map((s) => [toDecLocal(s.start), Math.min(24, toDecLocal(s.start) + dur(s.start, s.end))]);
+    // A trim comes off the source regardless of cover, so subtract the whole
+    // freed tail from their day — the dropped hour shows as rest, not duty.
+    if (freed.dropIfUncovered) {
+      const fs = toDecLocal(freed.start);
+      covered.push([fs, Math.min(24, fs + dur(freed.start, freed.end))]);
+    }
     const subtractCovered = (start, end) => {
       let pieces = [[start, end]];
       for (const [cs, ce] of covered) {
@@ -223,13 +229,23 @@ export default function CoverageApplyModal({
         base: { ...base, sourceMemberId: sourceCrew.id, status: publishImmediately ? 'published' : 'draft' },
         freed,
         slices,
-        // Any uncovered gap stays on the source rather than vanishing.
-        sourceKeep: gapSlices.map((g) => ({ start: g.start, end: g.end })),
+        // A trim (shorten) drops any uncovered tail — the crew just works less.
+        // For a removed block, uncovered hours stay on the source, not vanish.
+        sourceKeep: freed.dropIfUncovered ? [] : gapSlices.map((g) => ({ start: g.start, end: g.end })),
       });
       const res = await applyTemplate(applyPlan);
       if (res?.ok) {
-        const gapNote = remaining > 0 ? ` · ${remaining}h left with ${sourceCrew.name.split(' ')[0]} (no cover)` : '';
-        onToast?.(`${publishImmediately ? 'Published' : 'Applied'} — ${assigned}h reassigned across ${slices.length} crew${gapNote}`, { type: 'success' });
+        const verb = publishImmediately ? 'Published' : 'Applied';
+        let msg;
+        if (freed.dropIfUncovered && slices.length === 0) {
+          msg = `${verb} — trimmed ${fmt(freed.hours)} off ${sourceCrew.name.split(' ')[0]}’s watch (running short, no cover)`;
+        } else {
+          const gapNote = remaining > 0
+            ? (freed.dropIfUncovered ? ` · ${remaining}h trimmed (running short)` : ` · ${remaining}h left with ${sourceCrew.name.split(' ')[0]} (no cover)`)
+            : '';
+          msg = `${verb} — ${assigned}h reassigned across ${slices.length} crew${gapNote}`;
+        }
+        onToast?.(msg, { type: 'success' });
         onApplied?.();
       } else {
         onToast?.(res?.error || 'Could not apply to grid', { type: 'error' });
@@ -264,9 +280,12 @@ export default function CoverageApplyModal({
     </div>
   );
 
-  // Source's resulting rest once the freed hours come off its day/week.
-  const srcRest24 = (sourceCrew.rest24hDecimal ?? 0) + assigned;
-  const srcWeek = (sourceCrew.pastWeekHours ?? 0) + assigned;
+  // Source's resulting rest once the freed hours come off its day/week. A trim
+  // comes off in full (dropped tail counts too); a reassignment only credits
+  // the hours actually picked up.
+  const sourceRelief = freed.dropIfUncovered ? freed.hours : assigned;
+  const srcRest24 = (sourceCrew.rest24hDecimal ?? 0) + sourceRelief;
+  const srcWeek = (sourceCrew.pastWeekHours ?? 0) + sourceRelief;
   const srcDailyOk = srcRest24 >= MLC_DAILY_REST_MIN;
   const srcWeeklyOk = srcWeek >= MLC_WEEKLY_REST_MIN;
 
@@ -286,10 +305,16 @@ export default function CoverageApplyModal({
           <div className="cov-body">
             <div className="cov-freed">
               <div className="cov-freed-t">
-                Freeing <b>{freed.start}–{freed.end}</b> from {sourceCrew.name} · <b>{fmt(freed.hours)}</b> to cover
+                {freed.dropIfUncovered ? 'Trimming' : 'Freeing'} <b>{freed.start}–{freed.end}</b> off {sourceCrew.name} · <b>{fmt(freed.hours)}</b>
+                {freed.dropIfUncovered ? ' — assign it or run short' : ' to cover'}
               </div>
               <div className={`cov-tally ${remaining === 0 ? 'full' : 'part'}`}>
-                {assigned}h of {freedH}h covered{remaining === 0 ? ' ✓' : ` · ${remaining}h no one free (stays with ${sourceCrew.name.split(' ')[0]})`}
+                {assigned}h of {freedH}h covered
+                {remaining === 0
+                  ? ' ✓'
+                  : (freed.dropIfUncovered
+                    ? ` · ${remaining}h dropped (running short)`
+                    : ` · ${remaining}h no one free (stays with ${sourceCrew.name.split(' ')[0]})`)}
               </div>
             </div>
 
@@ -414,8 +439,17 @@ export default function CoverageApplyModal({
             )}
             {remaining > 0 && (
               <div className="cov-note warn">
-                {gapSlices.map((g) => `${g.start}–${g.end}`).join(', ')} — no one is free to cover
-                ({remaining}h), so {sourceCrew.name.split(' ')[0]} keeps that portion. The rest of the block is still handed off.
+                {freed.dropIfUncovered ? (
+                  <>
+                    {gapSlices.map((g) => `${g.start}–${g.end}`).join(', ')} — no one is free to cover
+                    ({remaining}h), so this hour is dropped: {sourceCrew.name.split(' ')[0]} works less and the watch runs short.
+                  </>
+                ) : (
+                  <>
+                    {gapSlices.map((g) => `${g.start}–${g.end}`).join(', ')} — no one is free to cover
+                    ({remaining}h), so {sourceCrew.name.split(' ')[0]} keeps that portion. The rest of the block is still handed off.
+                  </>
+                )}
               </div>
             )}
             <div className="cov-note">Recipients re-checked against all four MLC rules (10h daily · 77h weekly · rest split · 14h continuous). Confirm {publishImmediately ? 'publishes all edits to the grid live' : 'writes all edits to the grid as draft'}.</div>
