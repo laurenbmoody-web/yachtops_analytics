@@ -185,6 +185,36 @@ const SeaTimeTracker = ({ userId, tenantId, currentUser }) => {
       {/* My Sea Time View */}
       {view === 'my' && (
         <>
+          {/* No active vessel context — explain rather than render blank */}
+          {!tenantId && (
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6 flex items-start gap-3">
+              <Icon name="Info" size={20} className="text-amber-600 dark:text-amber-400 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-foreground">No active vessel selected</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Sea time is recorded per vessel. Select a vessel to view and log sea service.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* First-run empty state — make it obvious the tracker is live with no data yet */}
+          {tenantId && !loading && progressData && progressData.totalDays === 0 && (
+            <div className="bg-card border border-border rounded-2xl p-8 text-center">
+              <Icon name="Ship" size={40} className="text-primary mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-foreground">No sea service logged yet</h3>
+              <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+                Add your first entry to start building your MCA-qualifying sea time. Days are
+                classified automatically into seagoing, watchkeeping, standby and shipyard service.
+              </p>
+              <div className="mt-4">
+                <Button onClick={() => setShowAddManualModal(true)} iconName="Plus">
+                  Add sea service
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Progress — multiple requirement bars per pathway */}
           {progressData && (
             <div className="space-y-4">
