@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sea Time Tracker — layout options (Cargo editorial)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --d-bg:#F8FAFC; --d-card:#FFFFFF; --d-card-edge:#C8CBDA; --d-border:#E5E7EB;
+    --d-border-soft:#EEF0F4; --d-navy:#262A53; --d-navy-deep:#1A1D3F; --d-orange:#C65A1A;
+    --d-cream-warm:#FAEEDA; --d-muted:#7C7E9B; --d-muted-soft:#9098B1;
+    --d-shadow:0 2px 6px rgba(38,42,83,.04); --d-shadow-lg:0 8px 28px rgba(38,42,83,.08);
+    --d-danger:#A32D2D; --d-sage:#5C9B6A; --d-sage-deep:#047857; --d-sage-soft:#E8F5EE;
+    --d-warn:#8B5A1F; --d-warn-soft:#F5E6C1;
+    --serif:'DM Serif Display',Georgia,serif; --sans:'Plus Jakarta Sans',system-ui,sans-serif;
+    /* service-type accents */
+    --t-seagoing:#3B6FB0; --t-seagoing-soft:#E6EEF7;
+    --t-watch:#047857; --t-watch-soft:#E8F5EE;
+    --t-standby:#8B5A1F; --t-standby-soft:#F5E6C1;
+    --t-yard:#5B6275; --t-yard-soft:#EEF0F4;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--d-bg);color:var(--d-navy);font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;line-height:1.45;}
+  .wrap{max-width:1120px;margin:0 auto;padding:40px 28px 120px;}
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--d-muted-soft);}
+  h1.title{font-family:var(--serif);font-weight:400;font-size:40px;line-height:1.1;color:var(--d-navy-deep);margin:6px 0 10px;}
+  .lede{color:var(--d-muted);max-width:680px;font-size:15px;}
+  .opthead{margin:64px 0 18px;border-top:2px solid var(--d-navy-deep);padding-top:18px;}
+  .opthead .tag{display:inline-block;background:var(--d-navy-deep);color:#fff;font-weight:700;
+    font-size:12px;letter-spacing:.5px;border-radius:6px;padding:4px 10px;margin-bottom:10px;}
+  .opthead h2{font-family:var(--serif);font-weight:400;font-size:27px;color:var(--d-navy-deep);margin:0 0 6px;}
+  .opthead p{color:var(--d-muted);margin:0;font-size:14px;max-width:760px;}
+  .pros{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+  .pro{font-size:12px;font-weight:600;color:var(--d-sage-deep);background:var(--d-sage-soft);
+    border-radius:999px;padding:4px 11px;}
+  .con{font-size:12px;font-weight:600;color:var(--d-warn);background:var(--d-warn-soft);
+    border-radius:999px;padding:4px 11px;}
+
+  /* ---- shared editorial primitives ---- */
+  .card{background:var(--d-card);border:1px solid var(--d-border);border-radius:16px;box-shadow:var(--d-shadow);}
+  .card.feat{border-bottom:4px solid var(--d-card-edge);}
+  .pad{padding:24px;}
+  .lbl{font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--d-muted-soft);}
+  .serif-num{font-family:var(--serif);font-weight:400;color:var(--d-navy-deep);line-height:1;}
+  .pillUV{display:inline-flex;align-items:center;gap:7px;background:var(--d-warn-soft);color:var(--d-warn);
+    border:1px solid #E7D3A3;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700;}
+  .row{display:flex;align-items:center;}
+  .muted{color:var(--d-muted);} .msoft{color:var(--d-muted-soft);}
+  svg.i{width:16px;height:16px;flex:none;}
+
+  /* requirement rail */
+  .rail{padding:18px 0;border-top:1px solid var(--d-border-soft);}
+  .rail:first-child{border-top:0;}
+  .rail .top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:10px;}
+  .rail .name{font-weight:700;font-size:15px;color:var(--d-navy-deep);}
+  .gate{font-size:11px;font-weight:700;color:var(--d-orange);background:#FBEFE6;border-radius:999px;padding:2px 9px;margin-left:8px;}
+  .rail .count{white-space:nowrap;}
+  .rail .count b{font-family:var(--serif);font-size:26px;color:var(--d-navy-deep);}
+  .bar{position:relative;height:10px;border-radius:999px;background:var(--d-border-soft);overflow:hidden;}
+  .bar .logged{position:absolute;inset:0 0 0 0;background:#CFE0D6;border-radius:999px;}
+  .bar .verified{position:absolute;top:0;bottom:0;left:0;background:var(--d-sage);border-radius:999px;}
+  .legend{display:flex;gap:16px;margin-top:9px;font-size:12px;font-weight:600;}
+  .legend .v{color:var(--d-sage-deep);} .legend .p{color:var(--d-warn);} .legend .r{color:var(--d-muted);}
+
+  /* bucket chips */
+  .buckets{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  .bucket{border:1px solid var(--d-border);border-radius:13px;padding:14px;background:#fff;}
+  .bucket .h{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;}
+  .bucket .n{font-family:var(--serif);font-size:30px;color:var(--d-navy-deep);margin-top:6px;line-height:1;}
+  .bucket .u{font-size:12px;color:var(--d-muted-soft);margin-left:4px;}
+  .dot{width:9px;height:9px;border-radius:3px;flex:none;}
+
+  /* calendar */
+  .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:7px;}
+  .cal .dh{text-align:center;font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--d-muted-soft);padding-bottom:2px;}
+  .day{aspect-ratio:1;border:1.5px solid var(--d-border);border-radius:11px;padding:7px;display:flex;
+    flex-direction:column;justify-content:space-between;background:#fff;}
+  .day .d{font-size:13px;font-weight:600;color:var(--d-navy);}
+  .day .t{font-size:9px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;display:flex;align-items:center;gap:3px;}
+  .day.dim{opacity:.32;}
+  .day.seagoing{background:var(--t-seagoing-soft);border-color:#BCD2EA;}
+  .day.seagoing .t{color:var(--t-seagoing);}
+  .day.watch{background:var(--t-watch-soft);border-color:#B7DEC8;}
+  .day.watch .t{color:var(--t-watch);}
+  .day.standby{background:var(--t-standby-soft);border-color:#E7D3A3;}
+  .day.standby .t{color:var(--t-standby);}
+  .day.yard{background:var(--t-yard-soft);border-color:#D5D9E2;}
+  .day.yard .t{color:var(--t-yard);}
+  .day .vk{align-self:flex-end;}
+  .callegend{display:flex;flex-wrap:wrap;gap:14px;margin-top:14px;font-size:12px;font-weight:600;}
+  .callegend span{display:flex;align-items:center;gap:6px;color:var(--d-muted);}
+
+  .btn{display:inline-flex;align-items:center;gap:8px;font-family:var(--sans);font-weight:700;font-size:13px;
+    border-radius:10px;padding:10px 16px;border:1px solid var(--d-border);background:#fff;color:var(--d-navy-deep);cursor:pointer;}
+  .btn.primary{background:var(--d-navy-deep);color:#fff;border-color:var(--d-navy-deep);}
+  .btn.accent{background:var(--d-orange);color:#fff;border-color:var(--d-orange);}
+
+  .grid2{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start;}
+  .stack{display:flex;flex-direction:column;gap:16px;}
+
+  /* timeline */
+  .tl{position:relative;padding-left:22px;}
+  .tl:before{content:"";position:absolute;left:6px;top:4px;bottom:4px;width:2px;background:var(--d-border);}
+  .tl .ev{position:relative;padding:0 0 16px 0;}
+  .tl .ev:before{content:"";position:absolute;left:-19px;top:3px;width:11px;height:11px;border-radius:50%;
+    background:#fff;border:2.5px solid var(--d-muted-soft);}
+  .tl .ev.sign:before{border-color:var(--d-sage-deep);background:var(--d-sage-deep);}
+  .tl .ev.sub:before{border-color:var(--d-orange);}
+  .tl .ev .w{font-weight:700;font-size:13px;color:var(--d-navy-deep);}
+  .tl .ev .m{font-size:12px;color:var(--d-muted);}
+
+  /* KPI tiles (option C) */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+  .kpi{background:#fff;border:1px solid var(--d-border);border-radius:14px;padding:18px;border-bottom:4px solid var(--d-card-edge);}
+  .kpi .l{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--d-muted-soft);}
+  .kpi .big{font-family:var(--serif);font-size:34px;color:var(--d-navy-deep);line-height:1;margin:8px 0 2px;}
+  .kpi .sub{font-size:12px;font-weight:600;}
+  .arc{--p:58;width:54px;height:54px;border-radius:50%;
+    background:conic-gradient(var(--d-sage) calc(var(--p)*1%),var(--d-border-soft) 0);
+    display:grid;place-items:center;}
+  .arc i{width:40px;height:40px;border-radius:50%;background:#fff;display:grid;place-items:center;
+    font-weight:800;font-size:12px;color:var(--d-navy-deep);font-style:normal;}
+
+  /* ledger table */
+  table.ledger{width:100%;border-collapse:collapse;}
+  .ledger th{text-align:left;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
+    color:var(--d-muted-soft);padding:0 12px 10px;border-bottom:1px solid var(--d-border);}
+  .ledger td{padding:14px 12px;border-bottom:1px solid var(--d-border-soft);font-size:14px;vertical-align:middle;}
+  .ledger tr:hover td{background:#FBFCFE;}
+  .vname{font-weight:700;color:var(--d-navy-deep);}
+  .vmeta{font-size:12px;color:var(--d-muted-soft);}
+  .chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;border-radius:999px;padding:3px 9px;}
+  .chip.seagoing{background:var(--t-seagoing-soft);color:var(--t-seagoing);}
+  .chip.watch{background:var(--t-watch-soft);color:var(--t-watch);}
+  .chip.standby{background:var(--t-standby-soft);color:var(--t-standby);}
+  .chip.yard{background:var(--t-yard-soft);color:var(--t-yard);}
+  .chip.signed{background:var(--d-sage-soft);color:var(--d-sage-deep);}
+  .chip.pending{background:var(--d-warn-soft);color:var(--d-warn);}
+  .note{font-size:12px;color:var(--d-muted);background:#fff;border:1px dashed var(--d-border);border-radius:10px;padding:10px 12px;margin-top:8px;}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs>
+  <symbol id="ship" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M3 14l1.5 5h15L21 14M5 14V8h14v6M9 8V5h6v3M12 14V8M3 14h18"/></symbol>
+  <symbol id="compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M15.5 8.5l-2 5-5 2 2-5z"/></symbol>
+  <symbol id="anchor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 7v13M5 13a7 7 0 0014 0M5 13H3m2 0l1.5 1.5M19 13h2m-2 0l-1.5 1.5"/></symbol>
+  <symbol id="wrench" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M14.5 6a3.5 3.5 0 00-4.6 4.3l-5.3 5.3a1.6 1.6 0 102.3 2.3l5.3-5.3A3.5 3.5 0 0018 9.5l-2 2-1.5-1.5 2-2A3.5 3.5 0 0014.5 6z"/></symbol>
+  <symbol id="check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M20 7L10 17l-5-5"/></symbol>
+  <symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 8v4.5l3 2"/></symbol>
+  <symbol id="shield" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4"/></symbol>
+  <symbol id="qr" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4z"/><path fill="currentColor" d="M14 14h2v2h-2zM18 14h2v2h-2zM16 16h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z"/></symbol>
+</defs></svg>
+
+<div class="wrap">
+  <div class="eyebrow">Profile · Sea Time Tracker</div>
+  <h1 class="title">Three ways to lay out the tracker</h1>
+  <p class="lede">All three speak the new editorial Cargo language — Plus Jakarta Sans + DM Serif, the cool
+  <code style="background:#fff;border:1px solid var(--d-border);border-radius:5px;padding:1px 5px">#F8FAFC</code>
+  surface, hairline rules, terracotta accent, sage for verified. Same data, same four MCA service types and
+  multi-requirement bars — different information architecture. Status is always icon + text, never colour alone.
+  Pick a direction (or mix) and I'll build it.</p>
+
+  <!-- ============ OPTION A ============ -->
+  <div class="opthead">
+    <span class="tag">Option A</span>
+    <h2>Editorial brief — one vertical, magazine-style read</h2>
+    <p>A serif hero states where you stand, requirement “rails” stack beneath it, then the four-service breakdown,
+    then the calendar. Calm, scannable, top-to-bottom. Closest to today’s structure but re-dressed and re-ranked.</p>
+    <div class="pros"><span class="pro">Familiar</span><span class="pro">Reads great on mobile</span><span class="pro">Lowest build risk</span><span class="con">Less “at a glance” for command</span></div>
+  </div>
+
+  <div class="card feat pad">
+    <div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px;">
+      <div>
+        <div class="lbl">MCA OOW (Yachts) · MSN 1858 Amd 2</div>
+        <div style="display:flex;align-items:baseline;gap:10px;margin-top:8px;">
+          <span class="serif-num" style="font-size:56px;">212</span>
+          <span class="muted" style="font-size:17px;">/ 365 seagoing days · <b style="color:var(--d-navy-deep)">58%</b></span>
+        </div>
+        <div class="muted" style="font-size:13px;margin-top:6px;">On Maya’s current rota she clears OOW seagoing around <b style="color:var(--d-navy-deep)">Feb 2027</b>.</div>
+      </div>
+      <span class="pillUV"><svg class="i" style="width:14px;height:14px"><use href="#shield"/></svg> Draft thresholds — pending MCA verification</span>
+    </div>
+
+    <div style="margin-top:20px;">
+      <div class="rail">
+        <div class="top">
+          <div class="name">Seagoing service <span class="gate">≥15m · ≥80GT</span></div>
+          <div class="count"><b>212</b> <span class="muted">/ 365</span></div>
+        </div>
+        <div class="bar"><div class="logged" style="width:64%"></div><div class="verified" style="width:58%"></div></div>
+        <div class="legend"><span class="v">● 212 verified</span><span class="p">● 21 pending</span><span class="r">153 to go</span></div>
+      </div>
+      <div class="rail">
+        <div class="top">
+          <div class="name">Watchkeeping service <span class="gate">watch ≥4h</span></div>
+          <div class="count"><b>78</b> <span class="muted">/ 120</span></div>
+        </div>
+        <div class="bar"><div class="logged" style="width:71%"></div><div class="verified" style="width:65%"></div></div>
+        <div class="legend"><span class="v">● 78 verified</span><span class="p">● 7 pending</span><span class="r">42 to go</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="height:16px"></div>
+  <div class="card pad">
+    <div class="lbl" style="margin-bottom:14px;">Service breakdown · 318 days logged</div>
+    <div class="buckets">
+      <div class="bucket"><div class="h" style="color:var(--t-seagoing)"><svg class="i"><use href="#ship"/></svg> Seagoing</div><div><span class="n">198</span><span class="u">days</span></div></div>
+      <div class="bucket"><div class="h" style="color:var(--t-watch)"><svg class="i"><use href="#compass"/></svg> Watchkeeping</div><div><span class="n">78</span><span class="u">days</span></div></div>
+      <div class="bucket"><div class="h" style="color:var(--t-standby)"><svg class="i"><use href="#anchor"/></svg> Standby</div><div><span class="n">31</span><span class="u">days</span></div></div>
+      <div class="bucket"><div class="h" style="color:var(--t-yard)"><svg class="i"><use href="#wrench"/></svg> Shipyard</div><div><span class="n">11</span><span class="u">days</span></div></div>
+    </div>
+  </div>
+
+  <div style="height:16px"></div>
+  <div class="card pad">
+    <div class="row" style="justify-content:space-between;margin-bottom:16px;">
+      <div class="serif-num" style="font-size:22px;">September 2026</div>
+      <div class="row" style="gap:8px;"><button class="btn">Today</button><button class="btn accent">+ Add sea service</button></div>
+    </div>
+    <div class="cal">
+      <div class="dh">Mon</div><div class="dh">Tue</div><div class="dh">Wed</div><div class="dh">Thu</div><div class="dh">Fri</div><div class="dh">Sat</div><div class="dh">Sun</div>
+      <div class="day dim"><span class="d">31</span></div>
+      <div class="day watch"><span class="d">1</span><span class="t"><svg class="i" style="width:11px;height:11px"><use href="#compass"/></svg>W</span></div>
+      <div class="day watch"><span class="d">2</span><span class="t"><svg class="i" style="width:11px;height:11px"><use href="#compass"/></svg>W</span></div>
+      <div class="day seagoing"><span class="d">3</span><span class="t"><svg class="i" style="width:11px;height:11px"><use href="#ship"/></svg>S</span></div>
+      <div class="day seagoing"><span class="d">4</span><span class="t"><svg class="i" style="width:11px;height:11px"><use href="#ship"/></svg>S</span></div>
+      <div class="day standby"><span class="d">5</span><span class="t"><svg class="i" style="width:11px;height:11px"><use href="#anchor"/></svg>SB</span></div>
+      <div class="day standby"><span class="d">6</span><span class="t"><svg class="i" style="width:11px;height:11px"><use href="#anchor"/></svg>SB</span></div>
+      <div class="day watch"><span class="d">7</span><span class="t"><svg class="i" style="width:11px;height:11px"><use href="#compass"/></svg>W</span></div>
+      <div class="day watch"><span class="d">8</span><span class="t"><svg class="i" style="width:11px;height:11px"><use href="#compass"/></svg>W</span></div>
+      <div class="day seagoing"><span class="d">9</span><span class="t"><svg class="i" style="width:11px;height:11px"><use href="#ship"/></svg>S</span></div>
+      <div class="day seagoing"><span class="d">10</span><span class="t"><svg class="i" style="width:11px;height:11px"><use href="#ship"/></svg>S</span></div>
+      <div class="day yard"><span class="d">11</span><span class="t"><svg class="i" style="width:11px;height:11px"><use href="#wrench"/></svg>Y</span></div>
+      <div class="day yard"><span class="d">12</span><span class="t"><svg class="i" style="width:11px;height:11px"><use href="#wrench"/></svg>Y</span></div>
+      <div class="day yard"><span class="d">13</span><span class="t"><svg class="i" style="width:11px;height:11px"><use href="#wrench"/></svg>Y</span></div>
+      <div class="day watch"><span class="d">14</span><span class="t"><svg class="i" style="width:11px;height:11px"><use href="#compass"/></svg>W</span></div>
+    </div>
+    <div class="callegend">
+      <span><span class="dot" style="background:var(--t-seagoing)"></span><svg class="i" style="width:13px;height:13px;color:var(--t-seagoing)"><use href="#ship"/></svg> Seagoing</span>
+      <span><span class="dot" style="background:var(--t-watch)"></span><svg class="i" style="width:13px;height:13px;color:var(--t-watch)"><use href="#compass"/></svg> Watchkeeping</span>
+      <span><span class="dot" style="background:var(--t-standby)"></span><svg class="i" style="width:13px;height:13px;color:var(--t-standby)"><use href="#anchor"/></svg> Standby</span>
+      <span><span class="dot" style="background:var(--t-yard)"></span><svg class="i" style="width:13px;height:13px;color:var(--t-yard)"><use href="#wrench"/></svg> Shipyard</span>
+    </div>
+  </div>
+
+  <!-- ============ OPTION B ============ -->
+  <div class="opthead">
+    <span class="tag">Option B</span>
+    <h2>Workspace — sticky summary rail + calendar canvas</h2>
+    <p>For the crew member who logs often. A left rail keeps progress + service mix always in view while the
+    calendar is the working surface, with a live verification timeline underneath showing submit → captain sign-off.
+    The captain sign-off + tamper-evident verify (Phase 1) live right where the action is.</p>
+    <div class="pros"><span class="pro">Best for frequent logging</span><span class="pro">Sign-off in context</span><span class="pro">Desktop-strong</span><span class="con">Needs a mobile reflow</span></div>
+  </div>
+
+  <div class="grid2">
+    <div class="stack">
+      <div class="card feat pad">
+        <div class="lbl">OOW (Yachts)</div>
+        <div style="display:flex;align-items:baseline;gap:8px;margin:6px 0 2px;">
+          <span class="serif-num" style="font-size:40px;">212</span><span class="muted">/ 365</span>
+        </div>
+        <div class="bar" style="margin-top:10px;"><div class="logged" style="width:64%"></div><div class="verified" style="width:58%"></div></div>
+        <div class="legend" style="margin-top:8px;"><span class="v">● 212 verified</span><span class="p">● 21 pending</span></div>
+        <div style="height:14px;border-top:1px solid var(--d-border-soft);margin-top:16px;padding-top:14px;"></div>
+        <div class="lbl">Watchkeeping</div>
+        <div style="display:flex;align-items:baseline;gap:8px;margin:6px 0 2px;">
+          <span class="serif-num" style="font-size:40px;">78</span><span class="muted">/ 120</span>
+        </div>
+        <div class="bar" style="margin-top:10px;"><div class="logged" style="width:71%"></div><div class="verified" style="width:65%"></div></div>
+        <div class="legend" style="margin-top:8px;"><span class="v">● 78 verified</span><span class="p">● 7 pending</span></div>
+      </div>
+
+      <div class="card pad">
+        <div class="lbl" style="margin-bottom:12px;">Service mix</div>
+        <div style="display:flex;flex-direction:column;gap:11px;">
+          <div class="row" style="justify-content:space-between"><span class="row" style="gap:8px;color:var(--t-seagoing);font-weight:700;font-size:13px"><svg class="i"><use href="#ship"/></svg>Seagoing</span><b>198</b></div>
+          <div class="row" style="justify-content:space-between"><span class="row" style="gap:8px;color:var(--t-watch);font-weight:700;font-size:13px"><svg class="i"><use href="#compass"/></svg>Watchkeeping</span><b>78</b></div>
+          <div class="row" style="justify-content:space-between"><span class="row" style="gap:8px;color:var(--t-standby);font-weight:700;font-size:13px"><svg class="i"><use href="#anchor"/></svg>Standby</span><b>31</b></div>
+          <div class="row" style="justify-content:space-between"><span class="row" style="gap:8px;color:var(--t-yard);font-weight:700;font-size:13px"><svg class="i"><use href="#wrench"/></svg>Shipyard</span><b>11</b></div>
+        </div>
+        <span class="pillUV" style="margin-top:16px;font-size:11px;padding:5px 10px;"><svg class="i" style="width:13px;height:13px"><use href="#shield"/></svg> Draft thresholds</span>
+      </div>
+    </div>
+
+    <div class="stack">
+      <div class="card pad">
+        <div class="row" style="justify-content:space-between;margin-bottom:14px;">
+          <div class="serif-num" style="font-size:20px;">September 2026</div>
+          <div class="row" style="gap:8px;"><button class="btn">Today</button><button class="btn accent">+ Add</button></div>
+        </div>
+        <div class="cal">
+          <div class="dh">M</div><div class="dh">T</div><div class="dh">W</div><div class="dh">T</div><div class="dh">F</div><div class="dh">S</div><div class="dh">S</div>
+          <div class="day dim"><span class="d">31</span></div>
+          <div class="day watch"><span class="d">1</span><span class="t"><svg class="i" style="width:10px;height:10px"><use href="#compass"/></svg>W</span></div>
+          <div class="day watch"><span class="d">2</span><span class="t"><svg class="i" style="width:10px;height:10px"><use href="#compass"/></svg>W</span></div>
+          <div class="day seagoing"><span class="d">3</span><span class="t"><svg class="i" style="width:10px;height:10px"><use href="#ship"/></svg>S</span></div>
+          <div class="day seagoing"><span class="d">4</span><span class="t"><svg class="i" style="width:10px;height:10px"><use href="#ship"/></svg>S</span></div>
+          <div class="day standby"><span class="d">5</span><span class="t"><svg class="i" style="width:10px;height:10px"><use href="#anchor"/></svg>SB</span></div>
+          <div class="day standby"><span class="d">6</span><span class="t"><svg class="i" style="width:10px;height:10px"><use href="#anchor"/></svg>SB</span></div>
+          <div class="day watch"><span class="d">7</span><span class="t"><svg class="i" style="width:10px;height:10px"><use href="#compass"/></svg>W</span></div>
+          <div class="day watch"><span class="d">8</span><span class="t"><svg class="i" style="width:10px;height:10px"><use href="#compass"/></svg>W</span></div>
+          <div class="day seagoing"><span class="d">9</span><span class="t"><svg class="i" style="width:10px;height:10px"><use href="#ship"/></svg>S</span></div>
+          <div class="day seagoing"><span class="d">10</span><span class="t"><svg class="i" style="width:10px;height:10px"><use href="#ship"/></svg>S</span></div>
+          <div class="day yard"><span class="d">11</span><span class="t"><svg class="i" style="width:10px;height:10px"><use href="#wrench"/></svg>Y</span></div>
+          <div class="day yard"><span class="d">12</span><span class="t"><svg class="i" style="width:10px;height:10px"><use href="#wrench"/></svg>Y</span></div>
+          <div class="day yard"><span class="d">13</span><span class="t"><svg class="i" style="width:10px;height:10px"><use href="#wrench"/></svg>Y</span></div>
+          <div class="day watch"><span class="d">14</span><span class="t"><svg class="i" style="width:10px;height:10px"><use href="#compass"/></svg>W</span></div>
+        </div>
+      </div>
+
+      <div class="card pad">
+        <div class="row" style="justify-content:space-between;margin-bottom:16px;">
+          <div class="lbl">Verification activity</div>
+          <button class="btn primary"><svg class="i" style="width:14px;height:14px;color:#fff"><use href="#check"/></svg> Submit 21 draft days</button>
+        </div>
+        <div class="tl">
+          <div class="ev sign"><div class="w">Captain signed 14 days · Aug 2026</div><div class="m">Capt. R. Okafor · 22 Aug · <span style="color:var(--d-sage-deep);font-weight:700">hash a1f3…9c08</span> <svg class="i" style="width:12px;height:12px;color:var(--d-sage-deep);vertical-align:-2px"><use href="#qr"/></svg> verifiable</div></div>
+          <div class="ev sub"><div class="w">You submitted 7 watchkeeping days</div><div class="m">18 Aug · awaiting captain sign-off</div></div>
+          <div class="ev"><div class="w">3 days flagged non-qualifying</div><div class="m">M/Y Halcyon · 12 m — below the 15 m seagoing gate</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ OPTION C ============ -->
+  <div class="opthead">
+    <span class="tag">Option C</span>
+    <h2>Ledger — KPI gauges + voyage rows (testimonial preview)</h2>
+    <p>Reframes the tracker around the <b>testimonial you’ll export</b>. KPI gauges up top, then service grouped into
+    <b>voyage rows</b> (not 318 loose days) — each row a vessel + period + day-split + sign-off state, one tap from the
+    MIN 642 export. Calendar becomes a secondary tab. Best for review &amp; the captain’s cockpit.</p>
+    <div class="pros"><span class="pro">Maps to the export</span><span class="pro">Scales to years of service</span><span class="pro">Command-friendly</span><span class="con">Calendar demoted to a tab</span></div>
+  </div>
+
+  <div class="kpis" style="margin-bottom:16px;">
+    <div class="kpi"><div class="row" style="justify-content:space-between"><div><div class="l">Seagoing ≥15m</div><div class="big">212</div><div class="sub muted">of 365</div></div><div class="arc" style="--p:58"><i>58%</i></div></div></div>
+    <div class="kpi"><div class="row" style="justify-content:space-between"><div><div class="l">Watchkeeping</div><div class="big">78</div><div class="sub muted">of 120</div></div><div class="arc" style="--p:65"><i>65%</i></div></div></div>
+    <div class="kpi"><div class="l">Verified / pending</div><div class="big">290</div><div class="sub"><span style="color:var(--d-sage-deep)">● 290 signed</span> &nbsp;<span style="color:var(--d-warn)">● 28 pending</span></div></div>
+    <div class="kpi"><div class="l">Projected OOW</div><div class="big" style="font-size:26px;">Feb 2027</div><div class="sub muted">at current accrual</div></div>
+  </div>
+
+  <div class="card pad">
+    <div class="row" style="justify-content:space-between;margin-bottom:16px;">
+      <div class="serif-num" style="font-size:21px;">Service record</div>
+      <div class="row" style="gap:8px;">
+        <button class="btn"><svg class="i" style="width:14px;height:14px"><use href="#qr"/></svg> Verify page</button>
+        <button class="btn accent">Export MIN 642 (PDF · CSV)</button>
+      </div>
+    </div>
+    <table class="ledger">
+      <thead><tr><th>Vessel</th><th>Period</th><th>Service split</th><th>Capacity</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><div class="vname">M/Y Aurelia</div><div class="vmeta">Cayman · IMO 9854321 · 42 m · 498 GT</div></td>
+          <td>03 Jun – 14 Sep 26<div class="vmeta">104 days</div></td>
+          <td><span class="chip seagoing"><svg class="i" style="width:11px;height:11px"><use href="#ship"/></svg>61</span> <span class="chip watch"><svg class="i" style="width:11px;height:11px"><use href="#compass"/></svg>34</span> <span class="chip standby"><svg class="i" style="width:11px;height:11px"><use href="#anchor"/></svg>9</span></td>
+          <td>OOW</td>
+          <td><span class="chip signed"><svg class="i" style="width:11px;height:11px"><use href="#check"/></svg>Captain signed</span></td>
+        </tr>
+        <tr>
+          <td><div class="vname">M/Y Aurelia</div><div class="vmeta">Cayman · IMO 9854321 · 42 m · 498 GT</div></td>
+          <td>02 Apr – 28 May 26<div class="vmeta">57 days</div></td>
+          <td><span class="chip seagoing"><svg class="i" style="width:11px;height:11px"><use href="#ship"/></svg>38</span> <span class="chip watch"><svg class="i" style="width:11px;height:11px"><use href="#compass"/></svg>12</span> <span class="chip yard"><svg class="i" style="width:11px;height:11px"><use href="#wrench"/></svg>7</span></td>
+          <td>OOW</td>
+          <td><span class="chip pending"><svg class="i" style="width:11px;height:11px"><use href="#clock"/></svg>28 pending</span></td>
+        </tr>
+        <tr>
+          <td><div class="vname">S/Y Halcyon</div><div class="vmeta">Malta · IMO 9712006 · 12 m · 60 GT</div></td>
+          <td>10 Jan – 02 Mar 26<div class="vmeta">52 days</div></td>
+          <td><span class="chip standby"><svg class="i" style="width:11px;height:11px"><use href="#anchor"/></svg>22</span> <span class="chip" style="background:var(--d-border-soft);color:var(--d-muted)">30 non-qual.</span></td>
+          <td>Deckhand</td>
+          <td><span class="chip" style="background:var(--d-border-soft);color:var(--d-muted)">Below 15 m gate</span></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="note">↳ The “Below 15 m gate” row is the rules engine showing its work — S/Y Halcyon’s seagoing days don’t count toward OOW because she’s under 15 m. Tap any row for the day-by-day detail.</div>
+  </div>
+
+  <p class="muted" style="margin-top:48px;font-size:13px;border-top:1px solid var(--d-border);padding-top:18px;">
+  Mock only — static HTML, real data shape. Tokens pulled from <code>src/styles/editorial-tokens.css</code>.
+  Tell me which option (or a hybrid, e.g. <b>B for crew + C for the captain’s cockpit</b>) and I’ll build it for real.</p>
+</div>
+</body>
+</html>
