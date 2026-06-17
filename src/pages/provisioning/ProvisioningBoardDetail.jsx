@@ -625,10 +625,35 @@ const ProvisioningBoardDetail = () => {
       (order.supplier_order_items || []).forEach(oi => {
         const key = (oi.item_name || '').toLowerCase().trim();
         if (!map[key]) {
+          // Detect supplier-side overrides of the crew's original ask
+          // (qty/unit/size). When any differ, the board items table
+          // renders a struck-through original next to the bold actual.
+          const qtyChanged  = oi.requested_quantity != null && String(oi.requested_quantity) !== String(oi.quantity);
+          const unitChanged = !!oi.requested_unit && String(oi.requested_unit).toLowerCase() !== String(oi.unit || '').toLowerCase();
+          const sizeChanged = !!oi.requested_size && String(oi.requested_size).toLowerCase() !== String(oi.size || '').toLowerCase();
           map[key] = {
             status: oi.status,
+            quoteStatus: oi.quote_status,
             substitution: oi.substitute_description,
             subPrice: oi.substitution_price,
+            supplierNote: oi.supplier_item_note,
+            // Best price the supplier has settled — agreed > quoted.
+            // Used to populate the Unit Cost column on the board view
+            // once the order is sent so the chief sees the real number,
+            // not the crew's pre-send estimate (which is what the row
+            // still carries).
+            supplierPrice: oi.agreed_price ?? oi.quoted_price ?? null,
+            supplierCurrency: oi.agreed_currency || oi.quoted_currency || null,
+            // qty/unit/size — live vs originally-requested.
+            quantity:          oi.quantity,
+            unit:              oi.unit,
+            size:              oi.size,
+            requestedQuantity: oi.requested_quantity,
+            requestedUnit:     oi.requested_unit,
+            requestedSize:     oi.requested_size,
+            qtyChanged, unitChanged, sizeChanged,
+            hasChanges: qtyChanged || unitChanged || sizeChanged,
+            hasNote: !!(oi.supplier_item_note && String(oi.supplier_item_note).trim()),
             parentOrder: order,
           };
         }
@@ -1734,31 +1759,49 @@ const ProvisioningBoardDetail = () => {
     collapsedSeededRef.current = true;
   }, [deptGroups, groupBy, collapsedCategories.size]);
 
+  // Once an item's line is sitting inside a supplier_order, the
+  // chief's view of cost / qty should reflect what the supplier
+  // confirmed, not the crew's pre-send estimate. These helpers walk
+  // itemStatusMap and fall back to the row's own values when no
+  // supplier match exists yet (pre-send rows + unmatched names).
+  const effectiveCost = useCallback((i) => {
+    const oi = itemStatusMap[(i.name || '').toLowerCase().trim()];
+    if (oi?.supplierPrice != null && Number(oi.supplierPrice) > 0) {
+      return Number(oi.supplierPrice);
+    }
+    return parseFloat(i.estimated_unit_cost) || 0;
+  }, [itemStatusMap]);
+  const effectiveOrderedQty = useCallback((i) => {
+    const oi = itemStatusMap[(i.name || '').toLowerCase().trim()];
+    if (oi?.quantity != null) return Number(oi.quantity) || 0;
+    return parseFloat(i.quantity_ordered) || 0;
+  }, [itemStatusMap]);
+
   const grandTotals = useMemo(() => items.reduce((acc, i) => {
-    const qty = parseFloat(i.quantity_ordered) || 0;
+    const qty = effectiveOrderedQty(i);
     const qtyRec = parseFloat(i.quantity_received) || 0;
-    const cost = parseFloat(i.estimated_unit_cost) || 0;
+    const cost = effectiveCost(i);
     return { estimated: acc.estimated + qty * cost, actual: acc.actual + qtyRec * cost };
-  }, { estimated: 0, actual: 0 }), [items]);
+  }, { estimated: 0, actual: 0 }), [items, effectiveCost, effectiveOrderedQty]);
 
   const convertedTotals = useMemo(() => {
     const disp = displayCurrency || 'GBP';
     return items.reduce((acc, i) => {
-      const qty = parseFloat(i.quantity_ordered) || 0;
+      const qty = effectiveOrderedQty(i);
       const qtyRec = parseFloat(i.quantity_received) || 0;
-      const cost = parseFloat(i.estimated_unit_cost) || 0;
+      const cost = effectiveCost(i);
       const iCurr = i.currency || (list?.currency || 'GBP');
       const c = (cost / (fxRates[iCurr] || 1)) * (fxRates[disp] || 1);
       return { estimated: acc.estimated + qty * c, actual: acc.actual + qtyRec * c };
     }, { estimated: 0, actual: 0 });
-  }, [items, displayCurrency, fxRates, list]);
+  }, [items, displayCurrency, fxRates, list, effectiveCost, effectiveOrderedQty]);
 
   // Pre-computed values passed to SummaryGauges
   const gaugeProps = useMemo(() => {
     const disp = displayCurrency || 'GBP';
     const convItem = (i) => {
-      const cost = parseFloat(i.estimated_unit_cost) || 0;
-      const qty  = parseFloat(i.quantity_ordered) || 0;
+      const cost = effectiveCost(i);
+      const qty  = effectiveOrderedQty(i);
       const iCurr = i.currency || (list?.currency || 'GBP');
       return qty * ((cost / (fxRates[iCurr] || 1)) * (fxRates[disp] || 1));
     };
@@ -1775,7 +1818,7 @@ const ProvisioningBoardDetail = () => {
       paidValue:      paidItems.reduce((s, i) => s + convItem(i), 0),
       leftToPayValue: unpaidItems.reduce((s, i) => s + convItem(i), 0),
     };
-  }, [items, paymentStatusMap, convertedTotals, fxRates, displayCurrency, list]);
+  }, [items, paymentStatusMap, convertedTotals, fxRates, displayCurrency, list, effectiveCost, effectiveOrderedQty]);
 
   // ── Checkboxes / selection model ──────────────────────────────────────────
   // selectedItems is a Set of item ids. Survives filter/search changes
@@ -2813,8 +2856,20 @@ const ProvisioningBoardDetail = () => {
                               />}
                               {(isReceived || isLocked) && item.brand && <span style={{ fontSize: 11, color: dim || '#94A3B8', padding: '2px 6px' }}>{item.brand}</span>}
                               {isLocked && itemOrder?.status === 'substituted' && itemOrder.substitution && (
-                                <span style={{ fontSize: 11, color: '#92400E', paddingLeft: 6, borderLeft: '2px solid #F59E0B', marginTop: 2 }}>
-                                  → {itemOrder.substitution}{itemOrder.subPrice ? ` (${itemOrder.subPrice})` : ''}
+                                <span style={{ fontSize: 11, color: '#C65A1A', fontWeight: 600, paddingLeft: 6, marginTop: 2 }}>
+                                  Sub: {itemOrder.substitution}{itemOrder.subPrice ? ` (${itemOrder.subPrice})` : ''}
+                                </span>
+                              )}
+                              {isLocked && itemOrder?.hasNote && (
+                                <span style={{
+                                  fontSize: 11,
+                                  fontStyle: 'italic',
+                                  color: '#6B6F7A',
+                                  paddingLeft: 6,
+                                  marginTop: 2,
+                                  letterSpacing: '0.005em',
+                                }}>
+                                  “{itemOrder.supplierNote}”
                                 </span>
                               )}
                             </div>
@@ -2837,26 +2892,57 @@ const ProvisioningBoardDetail = () => {
                                 </span>
                               </div>
                             )}
-                            {/* Size */}
+                            {/* Size — locked rows show the supplier's size with
+                                a struck-through original when the supplier
+                                overrode the crew's ask. */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
                               {isReceived || isLocked
-                                ? <span style={{ fontSize: 12, color: dim || (isLocked ? '#94A3B8' : undefined) }}>{item.size || ''}</span>
+                                ? (
+                                    itemOrder?.sizeChanged
+                                      ? (
+                                          <span style={{ fontSize: 12 }}>
+                                            <span style={{ textDecoration: 'line-through', color: '#9CA3AF', marginRight: 4 }}>{itemOrder.requestedSize}</span>
+                                            <span style={{ color: '#C65A1A', fontWeight: 700 }}>{itemOrder.size}</span>
+                                          </span>
+                                        )
+                                      : <span style={{ fontSize: 12, color: dim || (isLocked ? '#94A3B8' : undefined) }}>{itemOrder?.size || item.size || ''}</span>
+                                  )
                                 : <AlwaysEditCell value={item.size ?? ''} placeholder="e.g. 750ml" onSave={v => handleCellSave(item, 'size', v)} inputStyle={{ fontSize: 12, color: '#0F172A' }} />
                               }
                             </div>
-                            {/* Unit */}
+                            {/* Unit — same strikethrough treatment as Size. */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
                               {isReceived || isLocked
-                                ? <span style={{ fontSize: 11, color: dim || (isLocked ? '#94A3B8' : undefined) }}>{item.unit || 'each'}</span>
+                                ? (
+                                    itemOrder?.unitChanged
+                                      ? (
+                                          <span style={{ fontSize: 11 }}>
+                                            <span style={{ textDecoration: 'line-through', color: '#9CA3AF', marginRight: 4 }}>{itemOrder.requestedUnit}</span>
+                                            <span style={{ color: '#C65A1A', fontWeight: 700 }}>{itemOrder.unit}</span>
+                                          </span>
+                                        )
+                                      : <span style={{ fontSize: 11, color: dim || (isLocked ? '#94A3B8' : undefined) }}>{itemOrder?.unit || item.unit || 'each'}</span>
+                                  )
                                 : <select value={item.unit || 'each'} onChange={e => handleCellSave(item, 'unit', e.target.value)} style={{ fontSize: 11, color: '#64748B', background: 'none', border: 'none', outline: 'none', cursor: 'pointer', padding: 0, width: '100%' }}>
                                     {PROVISION_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                                   </select>
                               }
                             </div>
-                            {/* Qty */}
+                            {/* Qty — strikethrough requested_quantity next to
+                                the supplier's actual quantity when it
+                                differs. Pre-send rows stay editable. */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px', gap: 3 }}>
                               {isReceived || isLocked
-                                ? <span style={{ fontSize: 13, color: dim || (isLocked ? '#94A3B8' : undefined), minWidth: 18, textAlign: 'center' }}>{item.quantity_ordered ?? '-'}</span>
+                                ? (
+                                    itemOrder?.qtyChanged
+                                      ? (
+                                          <span style={{ fontSize: 13, minWidth: 18, textAlign: 'center' }}>
+                                            <span style={{ textDecoration: 'line-through', color: '#9CA3AF', marginRight: 4 }}>{itemOrder.requestedQuantity}</span>
+                                            <span style={{ color: '#C65A1A', fontWeight: 700 }}>{itemOrder.quantity}</span>
+                                          </span>
+                                        )
+                                      : <span style={{ fontSize: 13, color: dim || (isLocked ? '#94A3B8' : undefined), minWidth: 18, textAlign: 'center' }}>{itemOrder?.quantity ?? item.quantity_ordered ?? '-'}</span>
+                                  )
                                 : <>
                                     <button onClick={() => handleQtyStep(item, 'quantity_ordered', -1)} style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F1F5F9', border: 'none', borderRadius: 3, cursor: 'pointer', fontSize: 13, color: '#64748B', flexShrink: 0, lineHeight: 1, padding: 0 }}>−</button>
                                     {editingCell?.itemId === item.id && editingCell?.field === 'quantity_ordered' ? (
@@ -2868,17 +2954,41 @@ const ProvisioningBoardDetail = () => {
                                   </>
                               }
                             </div>
-                            {/* Unit Cost */}
+                            {/* Unit Cost — once the order is sent, the chief
+                                sees the supplier's confirmed price (agreed
+                                > quoted) instead of the crew's pre-send
+                                estimate. Before send, the row's estimate
+                                stays editable. */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px', gap: 3 }}>
                               <span style={{ fontSize: 11, color: dim || '#94A3B8', flexShrink: 0 }}>{origSymbol}</span>
                               {isReceived || isLocked
-                                ? <span style={{ fontSize: 13, color: dim || (isLocked ? '#94A3B8' : undefined) }}>{item.estimated_unit_cost ?? ''}</span>
+                                ? (() => {
+                                    const supplierPrice = itemOrder?.supplierPrice;
+                                    if (supplierPrice != null && Number(supplierPrice) > 0) {
+                                      return (
+                                        <span style={{ fontSize: 13, color: '#0F172A', fontWeight: 700 }}>
+                                          {Number(supplierPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
+                                      );
+                                    }
+                                    return <span style={{ fontSize: 13, color: dim || (isLocked ? '#94A3B8' : undefined) }}>{item.estimated_unit_cost ?? ''}</span>;
+                                  })()
                                 : <AlwaysEditCell value={item.estimated_unit_cost ?? ''} placeholder="0.00" type="number" onSave={v => handleCellSave(item, 'estimated_unit_cost', v)} inputStyle={{ fontSize: 13, color: '#0F172A', textAlign: 'right' }} />
                               }
                             </div>
-                            {/* Total */}
+                            {/* Total — uses the supplier's confirmed price ×
+                                the supplier's (possibly overridden) quantity
+                                once the order is sent. Falls back to the
+                                pre-send estimate × crew qty otherwise. */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '11px 8px' }}>
                               {(() => {
+                                const supplierPrice = itemOrder?.supplierPrice;
+                                const supplierQty = itemOrder?.quantity;
+                                if ((isReceived || isLocked) && supplierPrice != null && Number(supplierPrice) > 0) {
+                                  const qty = Number(supplierQty ?? item.quantity_ordered) || 0;
+                                  const total = qty * convertCost(Number(supplierPrice));
+                                  return <span style={{ fontSize: 13, color: dim || '#0F172A', fontWeight: 600 }}>{dispSymbol}{total.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>;
+                                }
                                 const qty = parseFloat(item.quantity_ordered);
                                 const cost = parseFloat(item.estimated_unit_cost);
                                 return !isNaN(qty) && !isNaN(cost)
