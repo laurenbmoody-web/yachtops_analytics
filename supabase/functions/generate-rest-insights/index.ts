@@ -186,9 +186,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1024,
-        system: buildSystemPrompt(),
+        // Haiku is fast and more than capable for this tightly-constrained
+        // structured task (pick one shift, write ≤3 sentences); the system
+        // prompt is static so we cache it to shave repeat-call latency/cost.
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 768,
+        system: [{ type: 'text', text: buildSystemPrompt(), cache_control: { type: 'ephemeral' } }],
         tools: [REPORT_TOOL],
         tool_choice: { type: 'tool', name: 'report_rest_suggestions' },
         messages: [{ role: 'user', content: buildUserPrompt(body) }],

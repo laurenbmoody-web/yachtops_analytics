@@ -339,6 +339,15 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
         if (cancelled) return;
         setData({
           mlcWarning,
+          mlcChip: mlcWarning
+            ? (dailyBelow && weeklyBelow
+                ? 'Below MLC daily & weekly'
+                : dailyBelow
+                  ? 'Below MLC daily'
+                  : weeklyBelow
+                    ? 'Below MLC weekly'
+                    : 'Below MLC rest pattern')
+            : null,
           offToday,
           rest24hLabel: offToday ? 'Off duty today' : `${fmtHours(rest24h)} rest`,
           pastWeekLabel: `Past week ${fmtHours(pastWeekHours)}`,

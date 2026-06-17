@@ -109,7 +109,7 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
           <div style={{ minWidth: 0, flex: 1 }}>
             <div className="rest-id-name">
               {data.fullName}
-              {warn && <span className="rest-id-pill">Below MLC daily</span>}
+              {warn && <span className="rest-id-pill">{data.mlcChip || 'Below MLC'}</span>}
             </div>
             <div className="rest-id-role">{roleLine}</div>
             <div className="rest-id-sub">
@@ -273,8 +273,8 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
               </div>
             ))}
             <div className="rest-suggestion-why">
-              AI-generated from this rota — the before/after rest figures are computed by
-              Cargo’s MLC engine, not the model. Always confirm coverage before applying.
+              Suggested from this rota — the before/after rest figures are calculated by
+              Cargo’s MLC engine. Always confirm coverage before applying.
             </div>
           </div>
         )}
@@ -291,10 +291,6 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
             <button type="button" className="rest-btn primary" onClick={onViewSchedule}>View full schedule</button>
           )}
           <button type="button" className="rest-btn ghost push" onClick={onOpenHor}>Hours of rest log →</button>
-        </div>
-        <div className="rest-footer-prose">
-          Once the rota is locked for tomorrow, {data.fullName.split(' ')[0]} sees their
-          next 24 hours and any pending corrections they've submitted.
         </div>
 
       </div>
