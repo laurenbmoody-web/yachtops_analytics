@@ -460,10 +460,20 @@ const SendToSupplierModal = ({
   // ── Render ──────────────────────────────────────────────────────
   const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
-  const subtitle = allDone
-    ? plural(sentOrderCount, 'order') + ' created'
-    : plural(readySupplierCount, 'supplier') + ' ready'
-      + (unassignedUnsent.length > 0 ? ` · ${plural(unassignedUnsent.length, 'item')} unassigned` : '');
+  // Italic terracotta qualifier next to the headline + tracked-caps
+  // subtitle underneath. Editorial double-tier — the headline carries
+  // the brand voice, the subtitle gives the count.
+  const titleQualifier = allDone
+    ? null
+    : readySupplierCount > 0
+      ? `to ${plural(readySupplierCount, 'supplier')}.`
+      : unassigned.length > 0 ? 'still to assign.' : null;
+  const subtitleBits = allDone
+    ? [`${plural(sentOrderCount, 'order')} created`]
+    : [
+        `${plural(readySupplierCount, 'supplier')} ready`,
+        unassignedUnsent.length > 0 ? `${plural(unassignedUnsent.length, 'item')} unassigned` : null,
+      ].filter(Boolean);
 
   // Custom input className that overrides the legacy styling SupplierPicker
   // ships with — borderless input that sits inside the editorial field card.
@@ -547,8 +557,16 @@ const SendToSupplierModal = ({
             <div className="stsm-title">
               {allDone ? 'All orders sent' : 'Send orders'}
               <span className="stsm-title-accent">.</span>
+              {titleQualifier && <span className="stsm-title-q">{titleQualifier}</span>}
             </div>
-            <div className="stsm-sub">{subtitle}</div>
+            <div className="stsm-sub">
+              {subtitleBits.map((bit, i) => (
+                <React.Fragment key={bit}>
+                  {i > 0 && <span className="stsm-sub-dot">·</span>}
+                  {bit}
+                </React.Fragment>
+              ))}
+            </div>
           </div>
           <div className="stsm-head-actions">
             {!allDone && items.length > 0 && groups.length > 0 && (
@@ -587,7 +605,10 @@ const SendToSupplierModal = ({
             <div className="stsm-body">
               {/* Shared delivery context — applies to every order this session. */}
               <section className="stsm-section">
-                <div className="stsm-section-label">Order context</div>
+                <h3 className="stsm-subhead is-first">
+                  Where it's going
+                  <span className="stsm-subhead-q">delivery brief.</span>
+                </h3>
                 <div className="stsm-grid">
                   <div className="stsm-field">
                     <label className="stsm-label">
@@ -653,19 +674,27 @@ const SendToSupplierModal = ({
                 </div>
               </section>
 
-              <hr className="stsm-rule" />
-
               <section className="stsm-section">
-                <div className="stsm-section-label">Suppliers</div>
-                {groups.map(gi => (
-                  <GroupRow key={gi.supplier.id} supplier={gi.supplier} rows={gi.items} />
-                ))}
+                <h3 className="stsm-subhead">
+                  Who's getting them
+                  <span className="stsm-subhead-q">your suppliers.</span>
+                </h3>
+                {groups.length > 0 && (
+                  <div className="stsm-grouplist">
+                    {groups.map(gi => (
+                      <GroupRow key={gi.supplier.id} supplier={gi.supplier} rows={gi.items} />
+                    ))}
+                  </div>
+                )}
 
                 {unassigned.length > 0 && (
                   <div className="stsm-unassigned">
                     <div className="stsm-group-name">
                       Unassigned
-                      <span className="stsm-group-meta"> · {plural(unassigned.length, 'item')}</span>
+                      <span className="stsm-group-meta">{plural(unassigned.length, 'item')} waiting</span>
+                    </div>
+                    <div className="stsm-unassigned-note">
+                      Pick a supplier to send them on their way.
                     </div>
                     <div className="stsm-unassigned-row">
                       <div className="stsm-supplier-picker">
