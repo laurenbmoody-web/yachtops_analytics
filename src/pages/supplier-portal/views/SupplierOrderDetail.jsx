@@ -651,6 +651,15 @@ const SendArrow = () => (
   </svg>
 );
 
+// Compact message-bubble used for the per-line "note to vessel" trigger.
+// Filled when a note exists, outline otherwise — the row-actions cell
+// can tell the supplier at a glance which lines already carry a note.
+const NoteBubble = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z" />
+  </svg>
+);
+
 const ChatIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -999,22 +1008,13 @@ const ItemRow = ({ item, currency, canEdit, threadOpen, onToggleThread, onUpdate
               {item.notes && <div className="sod-item-note">{item.notes}</div>}
               {status === 'substituted' && item.substitute_description && (
                 <div className="sod-item-note sod-item-note-sub">
-                  <span className="sod-note-tag">SUBSTITUTE</span> {item.substitute_description}
+                  Sub: {item.substitute_description}
                 </div>
               )}
               {hasNote && (
                 <div className="sod-item-note sod-item-note-supplier">
-                  <span className="sod-note-tag">NOTE TO VESSEL</span> {item.supplier_item_note}
+                  {item.supplier_item_note}
                 </div>
-              )}
-              {canEdit && !noteExpanded && (
-                <button
-                  type="button"
-                  className="sod-note-link"
-                  onClick={openNote}
-                >
-                  {hasNote ? 'Edit note' : '+ Note to vessel'}
-                </button>
               )}
             </div>
           </div>
@@ -1066,6 +1066,17 @@ const ItemRow = ({ item, currency, canEdit, threadOpen, onToggleThread, onUpdate
                   title="Reset to pending"
                 >Edit</button>
               )
+            )}
+            {canEdit && (
+              <button
+                type="button"
+                className={`sod-note-icon${hasNote ? ' sod-note-icon-active' : ''}`}
+                onClick={openNote}
+                title={hasNote ? 'Edit note to vessel' : 'Add note to vessel'}
+                aria-label={hasNote ? 'Edit note to vessel' : 'Add note to vessel'}
+              >
+                <NoteBubble />
+              </button>
             )}
           </div>
         </td>
