@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Rest panel — MLC dimensions + breach states</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1C1B3A; --serif:'DM Serif Display',Georgia,serif; --sans:'Plus Jakarta Sans',system-ui,sans-serif;
+    --tan:#8B8478; --tan2:#A89F8C; --faint:#C9C0AE;
+    --line:#ECE6DC; --line2:#DFD8CC; --tile:#FCFBF8;
+    --terra:#C65A1A; --terra-deep:#7A2E1E; --green:#3C7A4E; --purple:#695880;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:#EDEAE3;font-family:var(--sans);padding:36px 28px 60px;color:var(--ink);}
+  h1{font-family:var(--serif);font-weight:400;font-size:24px;margin:0 0 4px;}
+  .lede{font-size:13px;color:var(--tan);margin:0 0 28px;max-width:760px;line-height:1.55;}
+  .group > h2{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--purple);
+              margin:34px 0 16px;font-weight:700;border-bottom:0.5px solid var(--line2);padding-bottom:8px;}
+
+  .panel{background:#fff;border-radius:16px;border:0.5px solid var(--line2);
+         box-shadow:0 24px 60px -28px rgba(28,27,58,.30);padding:26px 28px 24px;max-width:560px;}
+
+  /* ── header ── */
+  .id-row{display:flex;align-items:flex-start;gap:13px;}
+  .avatar{width:46px;height:46px;border-radius:50%;background:#F1ECE2;border:0.5px solid var(--line2);
+          display:flex;align-items:center;justify-content:center;font-weight:600;color:var(--purple);font-size:13px;flex-shrink:0;}
+  .id-name{font-family:var(--serif);font-size:24px;line-height:1.05;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .pill{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--terra-deep);
+        background:#FAECE7;border:0.5px solid #F5C9B8;border-radius:999px;padding:4px 10px;font-weight:600;}
+  .id-role{font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--purple);margin-top:6px;}
+
+  /* dual MLC status line — replaces the redundant weekly meter */
+  .duo{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;}
+  .stat{display:flex;align-items:baseline;gap:7px;border:0.5px solid var(--line2);border-radius:8px;
+        padding:7px 11px;background:#FCFBF8;}
+  .stat .k{font-size:8.5px;letter-spacing:1px;text-transform:uppercase;color:var(--tan2);font-weight:600;}
+  .stat .v{font-family:var(--serif);font-size:16px;line-height:1;}
+  .stat .x{font-size:10px;font-weight:600;}
+  .stat.ok{border-color:#CFE0D2;}
+  .stat.ok .x{color:var(--green);}
+  .stat.bad{border-color:#F0C7B6;background:#FCF3EF;}
+  .stat.bad .v{color:var(--terra-deep);}
+  .stat.bad .x{color:var(--terra);}
+
+  /* ── section heads with inline compliance tag ── */
+  .rule{height:0.5px;background:var(--line);border:0;margin:22px 0;}
+  .sec-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;}
+  .sec-label{font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--tan2);}
+  .sec-tag{font-size:10px;font-weight:600;}
+  .sec-tag.ok{color:var(--green);}
+  .sec-tag.bad{color:var(--terra);}
+  .sec-sum{font-family:var(--serif);font-size:15px;margin:8px 0 14px;}
+  .sec-sum .short{color:var(--terra);}
+
+  .placeholder{height:54px;border:1px dashed var(--line2);border-radius:8px;display:flex;align-items:center;
+               justify-content:center;color:var(--faint);font-size:10.5px;font-style:italic;letter-spacing:.5px;}
+  .placeholder.tall{height:118px;}
+
+  /* ── states grid ── */
+  .states{display:grid;grid-template-columns:1fr 1fr;gap:22px;}
+  .state{background:#fff;border-radius:14px;border:0.5px solid var(--line2);
+         box-shadow:0 16px 40px -28px rgba(28,27,58,.30);padding:20px 20px 18px;}
+  .state .cap{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--purple);font-weight:700;margin-bottom:13px;}
+  .mini-flag{font-size:10px;color:var(--terra);margin-top:12px;line-height:1.5;}
+  .mini-flag.ok{color:var(--green);}
+  .why{font-size:10.5px;color:var(--tan);margin-top:14px;line-height:1.5;}
+</style>
+</head>
+<body>
+  <h1>MLC dimensions + breach states</h1>
+  <p class="lede">Proposal: drop the top weekly meter (it duplicates the chart), add a compact two-dimension status line,
+     and rename the sections to the MLC limits they represent — <b>Daily rest</b> (≥10h / 24h) and
+     <b>Weekly rest</b> (≥77h / 7 days). Each dimension shows its own ✓ or shortfall, so any breach combination
+     reads at a glance. Mock only — nothing changed in the app.</p>
+
+  <!-- ════ FULL PANEL (weekly breach) ════ -->
+  <div class="group">
+    <h2>Full header — weekly breach (your current case)</h2>
+    <div class="panel">
+      <div class="id-row">
+        <div class="avatar">CS</div>
+        <div style="flex:1;">
+          <div class="id-name">Chief Stew <span class="pill">Below MLC weekly</span></div>
+          <div class="id-role">Interior · Chief Stewardess · On duty now until 16:00</div>
+          <div class="duo">
+            <div class="stat ok"><span class="k">Daily</span><span class="v">16h</span><span class="x">✓ ≥10h</span></div>
+            <div class="stat bad"><span class="k">Weekly</span><span class="v">72h</span><span class="x">5h short of 77h</span></div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="rule">
+      <div class="sec-head"><span class="sec-label">Daily rest · today</span><span class="sec-tag ok">16h rest · meets 10h minimum ✓</span></div>
+      <div class="sec-sum">16h rest · 8h on duty</div>
+      <div class="placeholder">— 24h timeline strip —</div>
+
+      <hr class="rule">
+      <div class="sec-head"><span class="sec-label">Weekly rest · rolling 7 days</span><span class="sec-tag bad">72h · 5h short of 77h</span></div>
+      <div class="sec-sum">Trending <span class="short">5h short</span> of the 77h minimum.</div>
+      <div class="placeholder tall">— 7-bar rolling chart —</div>
+    </div>
+  </div>
+
+  <!-- ════ STATES ════ -->
+  <div class="group">
+    <h2>How each breach combination appears</h2>
+    <div class="states">
+
+      <!-- weekly only -->
+      <div class="state">
+        <div class="cap">① Weekly only</div>
+        <div class="id-name" style="font-size:19px;">Chief Stew <span class="pill">Below MLC weekly</span></div>
+        <div class="duo">
+          <div class="stat ok"><span class="k">Daily</span><span class="v">16h</span><span class="x">✓</span></div>
+          <div class="stat bad"><span class="k">Weekly</span><span class="v">72h</span><span class="x">−5h</span></div>
+        </div>
+        <div class="mini-flag">Weekly section flagged terracotta; Daily section shows a quiet ✓.</div>
+      </div>
+
+      <!-- daily only -->
+      <div class="state">
+        <div class="cap">② Daily only</div>
+        <div class="id-name" style="font-size:19px;">Deckhand <span class="pill">Below MLC daily</span></div>
+        <div class="duo">
+          <div class="stat bad"><span class="k">Daily</span><span class="v">8h</span><span class="x">2h short of 10h</span></div>
+          <div class="stat ok"><span class="k">Weekly</span><span class="v">84h</span><span class="x">✓</span></div>
+        </div>
+        <div class="mini-flag">Daily section flagged; weekly chart stays calm/green. The number that's wrong is the one in terracotta — no more green meter on a daily breach.</div>
+      </div>
+
+      <!-- both -->
+      <div class="state">
+        <div class="cap">③ Daily & weekly</div>
+        <div class="id-name" style="font-size:19px;">2nd Engineer <span class="pill">Below MLC daily &amp; weekly</span></div>
+        <div class="duo">
+          <div class="stat bad"><span class="k">Daily</span><span class="v">7h</span><span class="x">−3h</span></div>
+          <div class="stat bad"><span class="k">Weekly</span><span class="v">68h</span><span class="x">−9h</span></div>
+        </div>
+        <div class="mini-flag">Both stats terracotta; both sections flagged. The chip says "daily &amp; weekly".</div>
+      </div>
+
+      <!-- structural -->
+      <div class="state">
+        <div class="cap">④ Rest pattern (structural)</div>
+        <div class="id-name" style="font-size:19px;">Bosun <span class="pill">Below MLC rest pattern</span></div>
+        <div class="duo">
+          <div class="stat bad"><span class="k">Daily</span><span class="v">11h</span><span class="x">split &gt; 2 periods</span></div>
+          <div class="stat ok"><span class="k">Weekly</span><span class="v">79h</span><span class="x">✓</span></div>
+        </div>
+        <div class="mini-flag">Totals can pass but the <i>shape</i> fails (rest in &gt;2 blocks, no 6h block, or &gt;14h between rests). Flag sits on the Daily section since the timeline shows the split.</div>
+      </div>
+
+    </div>
+  </div>
+
+</body>
+</html>
