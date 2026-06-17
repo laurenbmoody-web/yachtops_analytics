@@ -41,8 +41,6 @@
   .legend i.n{background:var(--seg-new);}
   .legend i.d{background:var(--seg-duty);}
   .legend i.r{background:var(--seg-rest);border:1px solid #cdd6cd;}
-  .legend i.f{background:var(--seg-rest);border:1px solid var(--seg-new);
-              background-image:repeating-linear-gradient(45deg,transparent,transparent 2px,rgba(200,100,60,.45) 2px,rgba(200,100,60,.45) 3.5px);}
 
   /* timeline bar with ticks */
   .bar{position:relative;display:flex;height:18px;border-radius:5px;overflow:hidden;background:var(--seg-rest);}
@@ -50,9 +48,6 @@
   .bar .seg.new{background:var(--seg-new);}
   .bar .seg.duty{background:var(--seg-duty);}
   .bar .seg.rest{background:var(--seg-rest);}
-  /* freed = was on-duty, now released to rest — hatched so the change reads */
-  .bar .seg.freed{background:var(--seg-rest);
-    background-image:repeating-linear-gradient(45deg,transparent,transparent 3px,rgba(200,100,60,.5) 3px,rgba(200,100,60,.5) 5px);}
   .ticks{position:relative;height:13px;margin-top:3px;}
   .ticks span{position:absolute;transform:translateX(-50%);font-size:8.5px;color:var(--faint);letter-spacing:.3px;}
   .ticks span:first-child{transform:none;}
@@ -127,8 +122,9 @@
 <body>
   <h1>Preview &amp; Confirm — clean layouts</h1>
   <p class="lede">
-    Same content as today (source give-back, recipient cover, 24h timeline, four-rule compliance) —
-    re-spaced for a steadier vertical rhythm and a timeline that actually reads. Two directions below.
+    This step is about the <b>new shifts</b> going onto the grid — the removal was confirmed in the previous
+    step, so the source simply shows its resulting day and rest gain. Re-spaced for a steadier vertical
+    rhythm and a 24h timeline that actually reads. Two directions below.
     Sample: <b>Drop the midnight watch tomorrow</b> · Chief Stew frees 00:00–04:00, Claire Dubois covers.
   </p>
 
@@ -150,13 +146,12 @@
           <span class="sub">2 crew affected · 2026-06-18</span>
           <span class="legend">
             <span><i class="n"></i>cover</span>
-            <span><i class="f"></i>freed</span>
             <span><i class="d"></i>duty</span>
             <span><i class="r"></i>rest</span>
           </span>
         </div>
 
-        <!-- source -->
+        <!-- source: resulting day, freed time is simply rest now -->
         <div class="unit">
           <div class="av">CS</div>
           <div>
@@ -164,10 +159,8 @@
               <div><span class="name">Chief Stew</span><span class="role">Chief Stewardess</span></div>
               <div class="delta">+4h rest</div>
             </div>
-            <div class="change"><span class="rm">– remove 00:00–04:00</span></div>
-            <div class="bar">
-              <div class="seg freed" style="width:16.6%"></div>
-              <div class="seg rest" style="width:33.4%"></div>
+            <div class="bar" style="margin-top:9px">
+              <div class="seg rest" style="width:50%"></div>
               <div class="seg duty" style="width:41.7%"></div>
               <div class="seg rest" style="width:8.3%"></div>
             </div>
@@ -210,7 +203,7 @@
           </div>
         </div>
       </div>
-      <div class="col-note"><b>Why it reads cleaner:</b> a single avatar gutter aligns every crew member, the rest delta sits flush-right on the name line, and <b>both</b> crew get a 24h timeline with 00–24 ticks — the source shows the watch (hatched "freed") turning into rest, the recipient shows where the cover lands. Even rhythm on hairline dividers.</div>
+      <div class="col-note"><b>Why it reads cleaner:</b> a single avatar gutter aligns every crew member, the rest delta sits flush-right on the name line. The removal was already confirmed last step, so the source just shows its <b>resulting day</b> (+4h rest, freed time now plain rest); the highlighted <b>cover</b> band is reserved for the new shift being added. Even rhythm on hairline dividers.</div>
     </div>
 
     <!-- ============== VARIANT B — Stacked tiles ============== -->
@@ -236,16 +229,14 @@
             <div class="txt"><div class="name">Chief Stew</div><div class="role">Chief Stewardess</div></div>
             <div class="delta give">+4h rest</div>
           </div>
-          <div class="change"><span class="rm" style="color:var(--terra-deep)">– remove 00:00–04:00</span></div>
-          <div class="bar">
-            <div class="seg freed" style="width:16.6%"></div>
-            <div class="seg rest" style="width:33.4%"></div>
+          <div style="margin-top:13px;border-top:0.5px dashed var(--line)"></div>
+          <div class="bar" style="margin-top:13px">
+            <div class="seg rest" style="width:50%"></div>
             <div class="seg duty" style="width:41.7%"></div>
             <div class="seg rest" style="width:8.3%"></div>
           </div>
           <div class="ticks"><span style="left:0">00</span><span style="left:25%">06</span><span style="left:50%">12</span><span style="left:75%">18</span><span style="left:100%">24</span></div>
           <div class="legend">
-            <span><i class="f"></i>freed</span>
             <span><i class="d"></i>duty</span>
             <span><i class="r"></i>rest</span>
           </div>
@@ -289,7 +280,7 @@
           </div>
         </div>
       </div>
-      <div class="col-note"><b>Why it reads cleaner:</b> each crew member is a self-contained tile, so give-back and cover never blur together. Both tiles carry their own 24h timeline — source shows the freed watch becoming rest, recipient shows the new cover. The source keeps its warm terracotta wash. More air, slightly taller.</div>
+      <div class="col-note"><b>Why it reads cleaner:</b> each crew member is a self-contained tile. The source tile shows its resulting day (+4h rest, no red "remove" line — that was settled last step); only the recipient carries a highlighted <b>cover</b> band for the new shift. Source keeps its warm terracotta wash. More air, slightly taller.</div>
     </div>
 
   </div>
