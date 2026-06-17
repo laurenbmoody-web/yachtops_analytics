@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
-import Button from '../../../components/ui/Button';
 import { BREACH_TYPE_LABELS, QUICK_TAGS, upsertBreachNote, getBreachNoteForDate } from '../utils/horBreachNotesStorage';
 import { upsertBreachReason } from '../utils/horBreachReasons';
 
 import ModalShell from '../../../components/ui/ModalShell';
+import './breach-notes.css';
 const BreachNotesModal = ({ isOpen, onClose, breachedDates, userId, currentUserId, tenantId }) => {
   const [notes, setNotes] = useState({});
   const [selectedTags, setSelectedTags] = useState({});
@@ -99,122 +99,90 @@ const BreachNotesModal = ({ isOpen, onClose, breachedDates, userId, currentUserI
   if (!isOpen) return null;
 
   const formatDate = (dateStr) => {
-    const date = new Date(dateStr);
-    return date?.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    const d = new Date(dateStr);
+    const dd = String(d?.getDate()).padStart(2, '0');
+    const mm = String(d?.getMonth() + 1).padStart(2, '0');
+    return `${dd}/${mm}/${d?.getFullYear()}`;
   };
 
   return (
-    <>
-      {/* Backdrop */}
-      <ModalShell onClose={handleBackdropClick} panelClassName="bg-background rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+    <ModalShell onClose={handleBackdropClick} panelClassName="bn-panel">
+      <div className="bn">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
+        <div className="bn-head">
           <div>
-            <h2 className="text-xl font-semibold text-foreground">Breach Notes Required</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Some days are non-compliant. Please add a short reason for each breached day.
+            <h2 className="bn-title">Breach notes required</h2>
+            <p className="bn-sub">
+              Some days are non-compliant. Add a short reason for each breached day.
             </p>
           </div>
           {breachedDates?.length === 0 && (
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-muted rounded-lg transition-smooth"
-            >
-              <Icon name="X" size={20} className="text-foreground" />
+            <button onClick={onClose} className="bn-close" aria-label="Close">
+              <Icon name="X" size={18} />
             </button>
           )}
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {breachedDates?.map((breach, index) => (
-            <div 
-              key={breach?.date}
-              className="bg-card border border-border rounded-xl p-5 space-y-4"
-            >
-              {/* Date and Breach Types */}
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-foreground">
-                    {formatDate(breach?.date)}
-                  </h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Rest: {breach?.restHours?.toFixed(1)}h
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2 justify-end">
-                  {breach?.breachTypes?.map(type => (
-                    <span
-                      key={type}
-                      className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-                    >
-                      {BREACH_TYPE_LABELS?.[type]}
-                    </span>
-                  ))}
-                </div>
+        {/* Days */}
+        <div className="bn-body">
+          {breachedDates?.map((breach) => (
+            <div key={breach?.date} className="bn-day">
+              <div className="bn-day-head">
+                <span className="bn-date">{formatDate(breach?.date)}</span>
+                <span className="bn-rest">Rest {Number(breach?.restHours || 0)?.toFixed(1)}h</span>
+                {breach?.breachTypes?.length > 0 && (
+                  <span className="bn-types">
+                    {breach?.breachTypes?.map((type) => (
+                      <span key={type} className="bn-typepill">{BREACH_TYPE_LABELS?.[type] || type}</span>
+                    ))}
+                  </span>
+                )}
               </div>
 
-              {/* Quick Tags */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Quick Tags (optional)
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {QUICK_TAGS?.map(tag => (
-                    <button
-                      key={tag?.id}
-                      onClick={() => handleQuickTag(breach?.date, tag)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-smooth ${
-                        selectedTags?.[breach?.date] === tag?.id
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted text-foreground hover:bg-muted/80'
-                      }`}
-                    >
-                      {tag?.label}
-                    </button>
-                  ))}
-                </div>
+              {/* Quick-tag pills */}
+              <label className="bn-label">Quick tags <span className="bn-opt">optional</span></label>
+              <div className="bn-tags">
+                {QUICK_TAGS?.map((tag) => (
+                  <button
+                    key={tag?.id}
+                    type="button"
+                    onClick={() => handleQuickTag(breach?.date, tag)}
+                    className={`bn-pill${selectedTags?.[breach?.date] === tag?.id ? ' is-sel' : ''}`}
+                  >
+                    {tag?.label}
+                  </button>
+                ))}
               </div>
 
-              {/* Note Text Area */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Reason / Notes <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  value={notes?.[breach?.date] || ''}
-                  onChange={(e) => handleNoteChange(breach?.date, e?.target?.value)}
-                  placeholder="Enter reason for breach..."
-                  rows={3}
-                  className="w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
-                />
-              </div>
+              {/* Reason */}
+              <label className="bn-label">Reason <span className="bn-req">required</span></label>
+              <textarea
+                value={notes?.[breach?.date] || ''}
+                onChange={(e) => handleNoteChange(breach?.date, e?.target?.value)}
+                placeholder="e.g. Night watch during guest departure…"
+                rows={3}
+                className="bn-textarea"
+              />
 
-              {/* Explanation */}
               {breach?.explanation && (
-                <div className="bg-muted/50 rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground">
-                    <Icon name="AlertCircle" size={12} className="inline mr-1" />
-                    {breach?.explanation}
-                  </p>
-                </div>
+                <p className="bn-expl">
+                  <Icon name="AlertCircle" size={12} />
+                  {breach?.explanation}
+                </p>
               )}
             </div>
           ))}
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-border">
-          <Button
-            variant="primary"
-            onClick={handleSubmit}
-            disabled={!isAllNotesComplete()}
-          >
-            Submit Notes
-          </Button>
+        <div className="bn-foot">
+          <button type="button" className="bn-submit" onClick={handleSubmit} disabled={!isAllNotesComplete()}>
+            <Icon name="Check" size={16} />
+            Submit notes
+          </button>
         </div>
-      </ModalShell>
-    </>
+      </div>
+    </ModalShell>
   );
 };
 
