@@ -28,7 +28,7 @@ function SectionHead({ label, tag, tagState }) {
   );
 }
 
-export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpenHor, anchorDate = null }) {
+export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpenHor, onApplySuggestion, anchorDate = null }) {
   useEffect(() => {
     if (!crew) return undefined;
     const prevOverflow = document.body.style.overflow;
@@ -272,7 +272,13 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
                   ))}
                 </div>
                 <div className="rest-actions">
-                  <button type="button" className="rest-btn primary" onClick={onViewSchedule}>{sg.primaryAction}</button>
+                  <button
+                    type="button"
+                    className="rest-btn primary"
+                    onClick={() => (sg.freedBlock && onApplySuggestion
+                      ? onApplySuggestion(sg)
+                      : onViewSchedule())}
+                  >{sg.primaryAction}</button>
                   <button type="button" className="rest-btn ghost" onClick={onOpenHor}>{sg.secondaryAction}</button>
                 </div>
               </div>

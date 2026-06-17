@@ -13,6 +13,7 @@ import HodEditConfirmModal from './HodEditConfirmModal';
 import CancelEditModal from './CancelEditModal';
 import ClearRotaModal from './ClearRotaModal';
 import RestPanelPopover from './RestPanelPopover';
+import CoverageApplyModal from './CoverageApplyModal';
 import DepartmentFilter from './DepartmentFilter';
 import PatternPicker from './PatternPicker';
 import SimpleTemplateEditor from './SimpleTemplateEditor';
@@ -140,6 +141,8 @@ export default function RotaWorkspace({
   const selectedDateObj = parseLocalDate(selectedDate);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [selectedCrew, setSelectedCrew] = useState(null);
+  // Coverage-apply flow: a rest suggestion the chief chose to push to the grid.
+  const [applySuggestion, setApplySuggestion] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [shiftType, setShiftType] = useState('duty');
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -1013,6 +1016,25 @@ export default function RotaWorkspace({
         onClose={() => setSelectedCrew(null)}
         onViewSchedule={() => { setSelectedCrew(null); setView('grid'); }}
         onOpenHor={() => { setSelectedCrew(null); setView('hor'); }}
+        onApplySuggestion={(sg) => setApplySuggestion({ suggestion: sg, sourceCrew: selectedCrew })}
+      />
+
+      <CoverageApplyModal
+        open={!!applySuggestion}
+        suggestion={applySuggestion?.suggestion}
+        sourceCrew={applySuggestion?.sourceCrew}
+        crew={crew}
+        base={{
+          tenantId: rota?.tenantId,
+          rotaId: rota?.id,
+          tripId: rota?.tripId || null,
+          createdBy: myMemberId,
+        }}
+        ensureDraft={ensureDraft}
+        applyTemplate={applyTemplate}
+        onToast={showToast}
+        onClose={() => setApplySuggestion(null)}
+        onApplied={() => { setApplySuggestion(null); setSelectedCrew(null); refetch?.(); }}
       />
     </>
   );

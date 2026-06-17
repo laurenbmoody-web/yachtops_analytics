@@ -12,6 +12,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import { hhmmToDecimal } from './useRotaShifts';
 import { ON_DUTY_TYPES, assessMlc, restForWeek } from './restHours';
+import { blockHours } from './coverageEngine';
 
 const WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -146,8 +147,49 @@ function enrichSuggestion(sg, ctx) {
     headline: sg.headline,
     body: sg.body,
     effects,
-    primaryAction: 'Adjust in grid',
+    // Structured change + the block of hours it frees, so the panel can hand
+    // off to the coverage flow instead of making the chief edit by hand.
+    change,
+    freedBlock: computeFreed(change, allRows),
+    primaryAction: change ? 'Apply to grid' : 'Adjust in grid',
     secondaryAction: 'Dismiss',
+  };
+}
+
+// Resolve the actual rota_shifts block a change touches and the hours it frees.
+// `remove` frees the whole block; `shorten` frees the trimmed-off portion and
+// records the kept remainder so the source keeps a (shorter) shift.
+function computeFreed(change, allRows) {
+  if (!change || !change.shift_date) return null;
+  const targetHH = (change.original_start || '').slice(0, 5);
+  const src = (allRows || []).find(r => r.shift_date === change.shift_date
+    && ON_DUTY_TYPES.has(r.shift_type)
+    && (r.start_time || '').slice(0, 5) === targetHH);
+  if (!src) return null;
+  const sStart = (src.start_time || '').slice(0, 5);
+  const sEnd = (src.end_time || '').slice(0, 5);
+  const base = {
+    date: change.shift_date,
+    sourceShiftId: src.id,
+    sourceShiftType: src.shift_type,
+    sourceSubType: src.sub_type ?? null,
+  };
+  if (change.action !== 'shorten') {
+    return { ...base, action: 'remove', start: sStart, end: sEnd, hours: blockHours(sStart, sEnd) };
+  }
+  // Shorten: kept = [new_start, new_end]; the freed slice is whatever the trim
+  // removes (a suffix trim if the start is unchanged, else a prefix trim).
+  const kStart = (change.new_start || sStart).slice(0, 5);
+  const kEnd = (change.new_end || sEnd).slice(0, 5);
+  const freedStart = kStart === sStart ? kEnd : sStart;
+  const freedEnd = kStart === sStart ? sEnd : kStart;
+  return {
+    ...base,
+    action: 'shorten',
+    keep: { start: kStart, end: kEnd },
+    start: freedStart,
+    end: freedEnd,
+    hours: blockHours(freedStart, freedEnd),
   };
 }
 
