@@ -1835,18 +1835,22 @@ const ProvisioningBoardDetail = () => {
 
   // ── Style constants ───────────────────────────────────────────────────────
 
-  // TODO(backlog): DEPT_CHIP_STYLES is a hardcoded dept→colour map that predates the
-  // dept.color DB column. Migrate to use dept.color as single source of truth.
-  const DEPT_CHIP_STYLES = {
-    Galley:      { bg: '#FEF9C3', color: '#854D0E' },
-    Interior:    { bg: '#EDE9FE', color: '#5B21B6' },
-    Deck:        { bg: '#DCFCE7', color: '#166534' },
-    Engineering: { bg: '#FFF7ED', color: '#9A3412' },
+  // Dept chip palette — single source of truth is the
+  // `public.departments.color` hex set in the
+  // 20260617130000_departments_color_editorial_repalette migration.
+  // Resolved by name from the live `departments` array so per-tenant
+  // overrides (Studio edits) flow through automatically.
+  //
+  // bg = the dept colour at 12% alpha for a soft tint; text colour
+  // stays the full dept hex so it reads with conviction against the
+  // tinted bg. Fallback for unknown dept names is the cool
+  // border-soft / muted ink pair.
+  const getDeptChip = (deptName) => {
+    const match = departments.find(d => d.name === deptName);
+    const color = match?.color;
+    if (!color) return { bg: '#EEF0F4', color: '#7C7E9B' };
+    return { bg: hexToRgba(color, 0.12), color };
   };
-  // Fallback chip for any dept outside the canonical 4 (e.g. Bridge,
-  // Admin). Cool border-soft + muted ink so the chip doesn't sit warmer
-  // than the cool dashboard surface around it.
-  const getDeptChip = (dept) => DEPT_CHIP_STYLES[dept] || { bg: '#EEF0F4', color: '#7C7E9B' };
 
   // Per-row item-status pill palette comes from the unified statusConfig.
   // getItemStatusConfig(status).badge yields {bg, color, border, dot}; label
