@@ -351,6 +351,9 @@ export function useRotaRestData(memberId, crewName = null, crewRole = null, crew
           offToday,
           rest24hLabel: offToday ? 'Off duty today' : `${fmtHours(rest24h)} rest`,
           pastWeekLabel: `Past week ${fmtHours(pastWeekHours)}`,
+          // Numeric weekly figures drive the header rest meter (replaces the banner).
+          weeklyHours: Math.round(pastWeekHours),
+          weeklyBelow,
           bannerHeadline: banner.headline,
           bannerBody: banner.body,
           timelineMeta: 'Today · 00:00 → 24:00',
