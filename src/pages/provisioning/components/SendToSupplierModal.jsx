@@ -601,7 +601,7 @@ const SendToSupplierModal = ({
             <div className="stsm-body">
               {/* Shared delivery context — applies to every order this session. */}
               <section className="stsm-section">
-                <h3 className="stsm-subhead is-first">delivery brief.</h3>
+                <h3 className="stsm-subhead is-first">Delivery brief</h3>
                 <div className="stsm-grid">
                   <div className="stsm-field">
                     <label className="stsm-label">
@@ -668,7 +668,7 @@ const SendToSupplierModal = ({
               </section>
 
               <section className="stsm-section">
-                <h3 className="stsm-subhead">suppliers list.</h3>
+                <h3 className="stsm-subhead">Suppliers list</h3>
                 {groups.length > 0 && (
                   <div className="stsm-grouplist">
                     {groups.map(gi => (
