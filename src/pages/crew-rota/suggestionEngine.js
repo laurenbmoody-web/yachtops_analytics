@@ -234,18 +234,24 @@ export function generateRankedSuggestions({
     }
   }
 
-  scored.sort((a, b) => (b.score - a.score) || (a.id < b.id ? -1 : 1));
+  // Only surface a fix that is actually actionable: it either clears the
+  // breach, or hands at least part of the block to someone genuinely free.
+  // A fix that does NEITHER (everyone's on duty then AND it doesn't resolve)
+  // would just dump an unstaffed gap — never worth suggesting.
+  const usable = scored.filter((c) => c.resolvesAll || c.coverage.partial);
+  usable.sort((a, b) => (b.score - a.score) || (a.id < b.id ? -1 : 1));
+  const ranked = usable;
 
   // Diversify: prefer fixes of DIFFERENT kinds so the second slot isn't a
   // near-duplicate of the first (e.g. day_off + shorten, not two removes). Top
   // up with the next best regardless of kind if we can't fill on variety alone.
   const picked = [];
-  for (const c of scored) {
+  for (const c of ranked) {
     if (picked.length >= limit) break;
     if (picked.some(p => p.kind === c.kind)) continue;
     picked.push(c);
   }
-  for (const c of scored) {
+  for (const c of ranked) {
     if (picked.length >= limit) break;
     if (!picked.includes(c)) picked.push(c);
   }
