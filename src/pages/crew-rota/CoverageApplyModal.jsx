@@ -2,13 +2,12 @@ import React, { useMemo, useState } from 'react';
 import {
   buildCandidates, defaultSpread, sliceFreed, assessRecipient, buildApplyPlan,
 } from './coverageEngine';
-import { ON_DUTY_TYPES } from './restHours';
+import { ON_DUTY_TYPES, MLC_DAILY_REST_MIN, MLC_WEEKLY_REST_MIN } from './restHours';
 
 const toDecLocal = (hhmm) => {
   const [h, m] = String(hhmm || '').slice(0, 5).split(':').map(Number);
   return (Number.isNaN(h) ? 0 : h) + ((m || 0) / 60);
 };
-const SEG_COLOR = { new: '#C8643C', duty: '#2A3550', rest: '#E8EEE8' };
 
 // CoverageApplyModal — turns a rest suggestion into real grid edits. The hours
 // the suggestion frees from the breaching crew are spread across same-dept crew
@@ -94,6 +93,36 @@ export default function CoverageApplyModal({
     return segs;
   };
 
+  // Source's RESULTING day as a 24h bar: their existing on-duty blocks with the
+  // freed interval subtracted, gaps shown as rest. The removal was already
+  // confirmed in the previous step, so the freed time reads as plain rest (no
+  // highlight) — this bar just shows the cleaner day they end up with.
+  const sourceDaySegments = () => {
+    const dur = (st, en) => { let d = toDecLocal(en) - toDecLocal(st); if (d <= 0) d += 24; return d; };
+    const fs = toDecLocal(freed.start);
+    const fe = Math.min(24, fs + freed.hours);
+    const duties = [];
+    for (const s of (windowShifts || [])) {
+      if (s.memberId !== sourceCrew.id || s.date !== freed.date || !ON_DUTY_TYPES.has(s.shiftType)) continue;
+      const start = toDecLocal(s.startTime);
+      const end = Math.min(24, start + dur(s.startTime, s.endTime));
+      // Subtract the freed interval [fs, fe] from this duty block.
+      if (end <= fs || start >= fe) { duties.push({ start, end }); continue; }
+      if (start < fs) duties.push({ start, end: fs });
+      if (end > fe) duties.push({ start: fe, end });
+    }
+    duties.sort((a, b) => a.start - b.start);
+    const segs = [];
+    let cursor = 0;
+    for (const b of duties) {
+      if (b.start > cursor) segs.push({ kind: 'rest', hours: b.start - cursor });
+      if (b.end > Math.max(b.start, cursor)) segs.push({ kind: 'duty', hours: b.end - Math.max(b.start, cursor) });
+      cursor = Math.max(cursor, b.end);
+    }
+    if (cursor < 24) segs.push({ kind: 'rest', hours: 24 - cursor });
+    return segs;
+  };
+
   // Full four-rule MLC re-check for a recipient given their carved slice.
   const assessFor = (id) => {
     const slice = slices.find((s) => s.id === id);
@@ -133,6 +162,33 @@ export default function CoverageApplyModal({
   };
 
   const fmt = (h) => `${Number.isInteger(h) ? h : h.toFixed(1)}h`;
+
+  // 24h timeline pieces, shared by both source + recipient bars.
+  const Bar = ({ segs, label }) => (
+    <div className="cov-bar" aria-label={label}>
+      {segs.map((seg, i) => (
+        <div
+          key={i}
+          className={`cov-seg ${seg.kind}`}
+          title={`${seg.kind === 'new' ? 'New cover' : seg.kind === 'duty' ? 'On duty' : 'Rest'} · ${seg.hours.toFixed(1)}h`}
+          style={{ width: `${(seg.hours / 24) * 100}%` }}
+        />
+      ))}
+    </div>
+  );
+  const Ticks = () => (
+    <div className="cov-ticks" aria-hidden="true">
+      {['00', '06', '12', '18', '24'].map((t, i) => (
+        <span key={t} style={{ left: `${i * 25}%` }}>{t}</span>
+      ))}
+    </div>
+  );
+
+  // Source's resulting rest once the freed hours come off its day/week.
+  const srcRest24 = (sourceCrew.rest24hDecimal ?? 0) + assigned;
+  const srcWeek = (sourceCrew.pastWeekHours ?? 0) + assigned;
+  const srcDailyOk = srcRest24 >= MLC_DAILY_REST_MIN;
+  const srcWeeklyOk = srcWeek >= MLC_WEEKLY_REST_MIN;
 
   return (
     <>
@@ -214,52 +270,53 @@ export default function CoverageApplyModal({
 
         {step === 'preview' && (
           <div className="cov-body">
-            <div className="cov-sec-label">{slices.length + 1} crew affected · {freed.date}</div>
+            <div className="cov-meta">
+              <span className="cov-sec-label">{slices.length + 1} crew affected · {freed.date}</span>
+              <span className="cov-legend">
+                <span><i className="n" />cover</span>
+                <span><i className="d" />duty</span>
+                <span><i className="r" />rest</span>
+              </span>
+            </div>
 
-            {/* Source */}
-            <div className="cov-pv">
-              <div className="cov-pv-name">{sourceCrew.name} <span className="cov-pv-delta">+{fmt(assigned)} rest</span></div>
-              <div className="cov-pv-diff">
-                {freed.action === 'shorten'
-                  ? <span className="rm">– trim to {freed.keep.start}–{freed.keep.end}</span>
-                  : <span className="rm">– remove {freed.start}–{freed.end}</span>}
+            {/* Source — resulting day (the removal was confirmed last step, so
+                the freed time just shows as rest and the rest gain is flush-right) */}
+            <div className="cov-unit">
+              <div className="cov-av">{sourceCrew.initials}</div>
+              <div className="cov-unit-main">
+                <div className="cov-who">
+                  <div className="cov-who-name">{sourceCrew.name}<span className="cov-who-role">{sourceCrew.role}</span></div>
+                  <div className="cov-delta">+{fmt(assigned)} rest</div>
+                </div>
+                <Bar segs={sourceDaySegments()} label={`${sourceCrew.name} resulting day on ${freed.date}`} />
+                <Ticks />
+                <div className="cov-compliance">
+                  <span className="k">Daily</span><span className={`cov-chip ${srcDailyOk ? 'ok' : 'warn'}`}>{fmt(srcRest24)}{srcDailyOk ? ' ✓' : ' ✗'}</span>
+                  <span className="k">Weekly</span><span className={`cov-chip ${srcWeeklyOk ? 'ok' : 'warn'}`}>{fmt(srcWeek)}{srcWeeklyOk ? ' ✓' : ' ✗'}</span>
+                </div>
               </div>
             </div>
 
-            <div className="cov-pv-legend" style={{ display: 'flex', gap: 14, fontSize: 11, color: '#6b7280', margin: '0 0 8px' }}>
-              {[['new', 'new cover'], ['duty', 'existing duty'], ['rest', 'rest']].map(([k, lbl]) => (
-                <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                  <i style={{ width: 10, height: 10, borderRadius: 2, background: SEG_COLOR[k], border: k === 'rest' ? '1px solid #cdd6cd' : 'none' }} />
-                  {lbl}
-                </span>
-              ))}
-            </div>
-
-            {/* Recipients — resulting-day bar + full four-rule re-check */}
+            {/* Recipients — new cover highlighted, full four-rule re-check */}
             {slices.map((s) => {
               const c = candById.get(s.id);
               const a = assessFor(s.id);
               return (
-                <div key={s.id} className="cov-pv">
-                  <div className="cov-pv-name">{c.name} · {c.role}</div>
-                  <div className="cov-pv-diff"><span className="add">+ add {s.start}–{s.end}</span></div>
-                  <div
-                    className="cov-pv-bar"
-                    style={{ display: 'flex', height: 16, borderRadius: 4, overflow: 'hidden', margin: '8px 0 6px', background: SEG_COLOR.rest }}
-                    aria-label={`${c.name} resulting day on ${freed.date}`}
-                  >
-                    {daySegments(s.id, s).map((seg, i) => (
-                      <div
-                        key={i}
-                        title={`${seg.kind === 'new' ? 'New cover' : seg.kind === 'duty' ? 'On duty' : 'Rest'} · ${seg.hours.toFixed(1)}h`}
-                        style={{ width: `${(seg.hours / 24) * 100}%`, background: SEG_COLOR[seg.kind] }}
-                      />
-                    ))}
-                  </div>
-                  <div className="cov-pv-line">
-                    Daily <span className={`cov-chip ${a.dailyOk ? 'ok' : 'warn'}`}>{fmt(a.rest24)}{a.dailyOk ? ' ✓' : ' ✗'}</span>
-                    Weekly <span className={`cov-chip ${a.weeklyOk ? 'ok' : 'warn'}`}>{fmt(a.week)}{a.weeklyOk ? ' ✓' : ' ✗'}</span>
-                    {a.structuralNote && <span className="cov-chip warn">{a.structuralNote} ✗</span>}
+                <div key={s.id} className="cov-unit">
+                  <div className="cov-av">{c.initials}</div>
+                  <div className="cov-unit-main">
+                    <div className="cov-who">
+                      <div className="cov-who-name">{c.name}<span className="cov-who-role">{c.role}</span></div>
+                      <div className="cov-delta cover">+{fmt(s.hours)} cover</div>
+                    </div>
+                    <div className="cov-change"><span className="add">+ add {s.start}–{s.end}</span></div>
+                    <Bar segs={daySegments(s.id, s)} label={`${c.name} resulting day on ${freed.date}`} />
+                    <Ticks />
+                    <div className="cov-compliance">
+                      <span className="k">Daily</span><span className={`cov-chip ${a.dailyOk ? 'ok' : 'warn'}`}>{fmt(a.rest24)}{a.dailyOk ? ' ✓' : ' ✗'}</span>
+                      <span className="k">Weekly</span><span className={`cov-chip ${a.weeklyOk ? 'ok' : 'warn'}`}>{fmt(a.week)}{a.weeklyOk ? ' ✓' : ' ✗'}</span>
+                      {a.structuralNote && <span className="cov-chip warn">{a.structuralNote} ✗</span>}
+                    </div>
                   </div>
                 </div>
               );
