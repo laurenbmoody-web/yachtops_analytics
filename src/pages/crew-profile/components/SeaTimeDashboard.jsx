@@ -3,6 +3,7 @@ import Icon from '../../../components/AppIcon';
 import { supabase } from '../../../lib/supabase';
 import { fetchEntriesForUser, addManualEntries } from '../utils/seaTimeService';
 import { adaptLiveEntries } from '../utils/seaTimeLiveAdapter';
+import SeaServiceCalendar from './SeaServiceCalendar';
 import {
   DEFAULT_CONFIG, TYPE_META, SOURCE_META, VERIFIER_PROFILES,
   classify, computeBuckets, buildRequirementBars, runChecks, buildTestimonialDataset
@@ -33,6 +34,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
   const [roleId, setRoleId] = useState('master');
   const [certId, setCertId] = useState(DEFAULT_CERTIFICATE);
   const [serviceFilter, setServiceFilter] = useState('all');
+  const [logView, setLogView] = useState('list');
   const [verifier, setVerifier] = useState('pya');
   const [signatory, setSignatory] = useState('master');
   const [signed, setSigned] = useState(false);
@@ -159,7 +161,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
     const fm = (iso) => { const d = new Date(iso); return String(d.getDate()).padStart(2, '0') + ' ' + d.toLocaleString('en-GB', { month: 'short' }); };
     const main = fm(form.from) + (form.to && form.to !== form.from ? ' – ' + fm(form.to) : '');
     const yr = form.from ? new Date(form.from).getFullYear() : 2026;
-    const entry = { id: 'e' + Date.now(), vesselId: form.vesselId, label: TYPE_META[form.type].label + ' — ' + (vessels[form.vesselId]?.name || ''), dateMain: main, dateSub: yr + ' · ' + days + (days === 1 ? ' day' : ' days'), days, type: form.type, watchHours: form.watchHours, capacity: form.capacity, source: 'manual' };
+    const entry = { id: 'e' + Date.now() + Math.random().toString(36).slice(2, 6), vesselId: form.vesselId, label: TYPE_META[form.type].label + ' — ' + (vessels[form.vesselId]?.name || ''), from: form.from, to: form.to || form.from, dateMain: main, dateSub: yr + ' · ' + days + (days === 1 ? ' day' : ' days'), days, type: form.type, watchHours: form.watchHours, capacity: form.capacity, source: 'manual' };
     setEntries(es => [entry, ...es]); setDrawerOpen(false); setSigned(false); flash('Sea time logged & classified');
   };
 
@@ -170,13 +172,24 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
     const excludedCount = entries.filter(e => e.excluded).length;
     return (
       <div className="std-ledger std-card" ref={ledgerRef} style={{ overflow: 'hidden' }}>
-        <div className="lhead" style={{ padding: '20px 18px 0' }}>
+        <div className="lhead" style={{ padding: '20px 18px 0', alignItems: 'flex-start' }}>
           <h4>Logged sea service</h4>
-          <div className="std-filter">
-            {filters.map(([k, l]) => <button key={k} className={serviceFilter === k ? 'on' : ''} onClick={() => setServiceFilter(k)}>{l}</button>)}
+          <div className="std-flex std-ac" style={{ gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <div className="std-filter">
+              {filters.map(([k, l]) => <button key={k} className={serviceFilter === k ? 'on' : ''} onClick={() => setServiceFilter(k)}>{l}</button>)}
+            </div>
+            <div className="std-toggle">
+              <button className={logView === 'list' ? 'on' : ''} onClick={() => setLogView('list')}><Icon name="List" size={14} /> List</button>
+              <button className={logView === 'calendar' ? 'on' : ''} onClick={() => setLogView('calendar')}><Icon name="Calendar" size={14} /> Calendar</button>
+            </div>
           </div>
         </div>
-        <div style={{ marginTop: 12 }}>
+        {logView === 'calendar' && (
+          <div style={{ padding: '6px 18px 0' }}>
+            <SeaServiceCalendar entries={entries} vessels={vessels} config={config} serviceFilter={serviceFilter} />
+          </div>
+        )}
+        <div style={{ marginTop: 12, display: logView === 'list' ? 'block' : 'none' }}>
           {shown.length === 0 && <div className="std-foot">No sea service logged yet — use “Log sea time”.</div>}
           {shown.map(e => {
             const v = vessels[e.vesselId] || {}, tm = TYPE_META[e.type], c = classify(e, v, config), sm = SOURCE_META[e.source] || SOURCE_META.manual;
