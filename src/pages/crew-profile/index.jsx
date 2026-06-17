@@ -2344,10 +2344,37 @@ const canEdit = (() => {
     ([uid, t]) => uid !== crewId && horRankOf(t) >= horRequiredRank,
   );
 
+  // Breaches that fall in the viewed month — surfaced in the sign-off modal so
+  // the signer (crew or approver) knowingly includes them. Pairs each breach
+  // day with its documented reason + sign-off state, if any.
+  const buildMonthBreaches = () => {
+    const calendar = horData?.calendarData || [];
+    const dates = calendar.filter((d) => d?.status === 'breach').map((d) => d?.date).filter(Boolean);
+    return [...new Set(dates)].sort().map((date) => {
+      const r = breachReasonsByDate[date];
+      return { date, note: r?.note_text || '', documented: !!r, signed: !!r?.signed_off_at };
+    });
+  };
+
   const handleConfirmMonth = () => {
     if (!crewId) return;
+    // Force a documented reason for every breach day before sign-off is allowed.
+    // Undocumented breaches are routed into the breach-notes modal (which also
+    // writes hor_breach_reasons); the user re-opens sign-off once reasons exist.
+    const undoc = buildMonthBreaches().filter((b) => !b.documented);
+    if (undoc.length > 0) {
+      const y = horCurrentMonth?.getFullYear();
+      const m = horCurrentMonth?.getMonth();
+      const undocSet = new Set(undoc.map((b) => b.date));
+      const full = detectBreachedDatesAfterSave(crewId, [], y, m).filter((b) => undocSet.has(b.date));
+      setBreachedDates(full.length ? full : undoc.map((b) => ({ date: b.date, breachTypes: [], restHours: 0, explanation: '' })));
+      setShowBreachNotesModal(true);
+      showToast(`Add a reason for ${undoc.length} breach day${undoc.length > 1 ? 's' : ''} before signing off`, 'error');
+      return;
+    }
     setSignOff({
       kind: 'submit',
+      breaches: buildMonthBreaches(),
       title: horSelfCertifies ? 'Certify your Hours of Rest' : 'Sign off your Hours of Rest',
       confirmLabel: (vesselHorSettings?.mode === 'trust' || horSelfCertifies) ? 'Sign & confirm' : 'Sign & submit',
       declaration:
@@ -2374,6 +2401,7 @@ const canEdit = (() => {
   const handleApproveMonth = () => {
     setSignOff({
       kind: 'approve',
+      breaches: buildMonthBreaches(),
       title: 'Counter-sign Hours of Rest',
       confirmLabel: 'Sign & approve',
       declaration: `I have reviewed the Hours of Rest for ${
@@ -3169,6 +3197,7 @@ const canEdit = (() => {
               defaultName={signOff.defaultName}
               confirmLabel={signOff.confirmLabel}
               kind={signOff.kind}
+              breaches={signOff.breaches}
             />
           )}
         </main>
