@@ -78,6 +78,12 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
 
   const data = { ...restData, fullName: crew.name };
   const warn = data.mlcWarning;
+  // Proactive path: today is compliant, but the 2-day projection dips below
+  // 77h. The suggestions section still opens — framed as staying ahead of a
+  // breach rather than clearing a present one.
+  const lookaheadLow = data.lookaheadLow;
+  const showSuggestions = warn || lookaheadLow;
+  const firstName = data.fullName.split(' ')[0];
 
   const initials = crew.initials || crew.name?.slice(0, 2).toUpperCase() || '??';
   // Status segment of the role line, driven by the live crew flags:
@@ -256,16 +262,20 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
           </div>
         </div>
 
-        {/* 6 · AI suggestions (violation only) */}
-        {warn && (suggestionsLoading || visibleCount > 0) && (
+        {/* 6 · AI suggestions — present breach OR a projected forward dip */}
+        {showSuggestions && (suggestionsLoading || visibleCount > 0) && (
           <div className="rest-section">
             <SectionHead label="WORTH CONSIDERING" accent />
             <div className="rest-section-summary">
               {suggestionsLoading
-                ? `Looking for ways to bring ${data.fullName.split(' ')[0]} back into compliance…`
-                : anyResolves
-                  ? `${visibleCount === 1 ? 'A way' : `${visibleCount} ways`} to bring ${data.fullName.split(' ')[0]} into compliance without losing coverage.`
-                  : `${visibleCount === 1 ? 'One option' : `${visibleCount} options`} to ease ${data.fullName.split(' ')[0]}’s load — but the current breach can’t be cleared by rescheduling alone.`}
+                ? (lookaheadLow
+                    ? `Looking for ways to keep ${firstName} above the line over the next 2 days…`
+                    : `Looking for ways to bring ${firstName} back into compliance…`)
+                : lookaheadLow
+                  ? `${visibleCount === 1 ? 'A way' : `${visibleCount} ways`} to ease the days ahead so ${firstName} stays above 77h — trim now, while there's still time.`
+                  : anyResolves
+                    ? `${visibleCount === 1 ? 'A way' : `${visibleCount} ways`} to bring ${firstName} into compliance without losing coverage.`
+                    : `${visibleCount === 1 ? 'One option' : `${visibleCount} options`} to ease ${firstName}’s load — but the current breach can’t be cleared by rescheduling alone.`}
             </div>
             {suggestions.map((sg, i) => (dismissed.includes(i) ? null : (
               <div key={i} className={`rest-suggestion ${sg.type}`}>
@@ -314,14 +324,19 @@ export default function RestPanelPopover({ crew, onClose, onViewSchedule, onOpen
           </div>
         )}
 
-        {/* 6b · Honest empty state — breach stands but nothing actionable to offer */}
-        {warn && !suggestionsLoading && visibleCount === 0 && (
+        {/* 6b · Honest empty state — breach (or projected dip) stands but
+           nothing actionable to offer */}
+        {showSuggestions && !suggestionsLoading && visibleCount === 0 && (
           <div className="rest-section">
             <SectionHead label="WORTH CONSIDERING" accent />
             <div className="rest-empty-note">
-              No coverage-safe fix to suggest — the department is fully on duty during
-              {' '}{data.fullName.split(' ')[0]}’s watches, and this breach is from hours already
-              worked. Log a reason or adjust the rota manually.
+              {lookaheadLow
+                ? `The projected dip comes from shifts that can’t be eased without leaving
+                   the watch short — no coverage-safe trim to suggest. Keep an eye on it,
+                   or adjust ${firstName}’s upcoming rota manually.`
+                : `No coverage-safe fix to suggest — the department is fully on duty during
+                   ${firstName}’s watches, and this breach is from hours already worked. Log a
+                   reason or adjust the rota manually.`}
             </div>
           </div>
         )}

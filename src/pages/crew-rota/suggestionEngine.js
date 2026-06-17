@@ -123,12 +123,30 @@ const dayLabel = (dateStr, effDate) => {
 // Main entry. Returns up to `limit` ranked, fully-costed suggestions.
 export function generateRankedSuggestions({
   sourceMember, effDate, allRows, report, roster, windowShifts, limit = 2,
-  realToday = null, nowHHMM = null,
+  realToday = null, nowHHMM = null, lookaheadDays = 0,
 }) {
   if (!sourceMember || !report) return [];
   const restFrom = report.pastWeekHours;
   const dailyBelow = report.rest24h < MLC_DAILY_REST_MIN;
-  const weeklyDeficit = Math.max(0, MLC_WEEKLY_REST_MIN - restFrom);
+
+  // Full MLC report for the trailing-7 window ENDING on `date`, computed from
+  // the same rows the panel charts. Lets the engine reason about FORWARD
+  // windows (the projected next days) as well as today's.
+  const windowReport = (date) => {
+    const winStart = addDays(date, -6);
+    const dayRows = (allRows || []).filter((s) => s.shift_date === date);
+    const weekRows = (allRows || []).filter((s) => s.shift_date >= winStart && s.shift_date <= date);
+    return assessMlc({ dayShifts: dayRows.map(toCamel), weekShifts: weekRows.map(toCamel) });
+  };
+
+  // Size trims against the WORST rolling-7 rest across the horizon (today + the
+  // projected look-ahead days), so a fix aimed at a forward dip is trimmed by
+  // enough to clear that dip — not just today's (possibly fine) total.
+  let worstRest = restFrom;
+  for (let i = 1; i <= lookaheadDays; i += 1) {
+    worstRest = Math.min(worstRest, windowReport(addDays(effDate, i)).pastWeekHours);
+  }
+  const weeklyDeficit = Math.max(0, MLC_WEEKLY_REST_MIN - worstRest);
   // Which rules are actually breaching drives both lever shaping and copy.
   const breachRules = new Set((report.breaches || []).map((b) => b.rule));
   const stretchBreach = breachRules.has('max_work_stretch_14h');
@@ -170,33 +188,34 @@ export function generateRankedSuggestions({
     }
   }
 
-  // Future-day lever: the soonest upcoming day that currently has duty. If that
-  // day has a SINGLE on-duty block, removing it genuinely clears the day → a
-  // true 'day_off'. If it has several blocks we only drop the largest, so it's
-  // an honest 'future_off' (lighten the day), never sold as a full day off.
-  for (let i = 1; i <= 6; i += 1) {
+  // Forward levers: lighten the upcoming duty days WITHIN the look-ahead
+  // horizon (so a dip projected two days out gets its own fix, not just the
+  // soonest day). Each lever is scored against the rolling window it lands in,
+  // so it's only credited when it clears a window that genuinely dips (see the
+  // `windowBreached` gate in `usable`). A SINGLE block removed clears the day →
+  // a true 'day_off'; with several blocks we only drop the largest → an honest
+  // 'future_off' (lighten the day), never sold as a full day off.
+  for (let i = 1; i <= lookaheadDays; i += 1) {
     const d = addDays(effDate, i);
     const blocks = (allRows || []).filter(r => r.shift_date === d && ON_DUTY_TYPES.has(r.shift_type));
-    if (blocks.length) {
-      const big = blocks.reduce((a, c) => (blockHours(c.start_time, c.end_time) > blockHours(a.start_time, a.end_time) ? c : a));
-      const bigStart = (big.start_time || '').slice(0, 5);
-      const bigHrs = blockHours(big.start_time, big.end_time);
-      const kind = blocks.length === 1 ? 'day_off' : 'future_off';
-      pushChange(kind, { shift_date: d, original_start: bigStart, action: 'remove' });
-      // Minimal lever: trim just the deficit off the tail (≥1h, keep ≥1h) so the
-      // crew works a little less without anyone needing to absorb it — the
-      // smallest change that clears the weekly shortfall going forward.
-      if (bigHrs >= 2) {
-        const need = stretchBreach
-          ? Math.max(Math.max(1, Math.ceil(weeklyDeficit) || 1), bigHrs - 13)
-          : Math.max(1, Math.ceil(weeklyDeficit) || 1);
-        const trim = Math.min(bigHrs - 1, need);
-        pushChange('shorten', {
-          shift_date: d, original_start: bigStart, action: 'shorten',
-          new_start: bigStart, new_end: addHHMM(bigStart, bigHrs - trim),
-        });
-      }
-      break;
+    if (!blocks.length) continue;
+    const big = blocks.reduce((a, c) => (blockHours(c.start_time, c.end_time) > blockHours(a.start_time, a.end_time) ? c : a));
+    const bigStart = (big.start_time || '').slice(0, 5);
+    const bigHrs = blockHours(big.start_time, big.end_time);
+    const kind = blocks.length === 1 ? 'day_off' : 'future_off';
+    pushChange(kind, { shift_date: d, original_start: bigStart, action: 'remove' });
+    // Minimal lever: trim just the deficit off the tail (≥1h, keep ≥1h) so the
+    // crew works a little less without anyone needing to absorb it — the
+    // smallest change that clears the projected shortfall.
+    if (bigHrs >= 2) {
+      const need = stretchBreach
+        ? Math.max(Math.max(1, Math.ceil(weeklyDeficit) || 1), bigHrs - 13)
+        : Math.max(1, Math.ceil(weeklyDeficit) || 1);
+      const trim = Math.min(bigHrs - 1, need);
+      pushChange('shorten', {
+        shift_date: d, original_start: bigStart, action: 'shorten',
+        new_start: bigStart, new_end: addHHMM(bigStart, bigHrs - trim),
+      });
     }
   }
 
@@ -209,9 +228,21 @@ export function generateRankedSuggestions({
     if (seen.has(sig)) continue;
     seen.add(sig);
     try {
+      // Score every lever against the rolling window it actually lands in: a
+      // future trim is judged on its own future window, today's blocks on
+      // today's. This is what makes a forward fix read in forward terms
+      // ("tomorrow's rolling rest 74h → 78h") instead of today's numbers.
+      const evalDate = r.change.shift_date > effDate ? r.change.shift_date : effDate;
+      const preReport = evalDate === effDate ? report : windowReport(evalDate);
+      const restFromEval = preReport.pastWeekHours;
+      // Only credit a lever that eases a window that genuinely breaches. Without
+      // this, trimming a future shift whose window is already ≥77h would read as
+      // "resolving" a breach that never existed.
+      const windowBreached = preReport.anyBreach;
+      const deficitEval = Math.max(0, MLC_WEEKLY_REST_MIN - restFromEval);
       const projected = projectReport(r.change, allRows, effDate);
       const restTo = projected.pastWeekHours;
-      const closed = weeklyDeficit > 0 ? Math.min(restTo - restFrom, weeklyDeficit) / weeklyDeficit : 1;
+      const closed = deficitEval > 0 ? Math.min(restTo - restFromEval, deficitEval) / deficitEval : 1;
       const resolvesWeekly = restTo >= MLC_WEEKLY_REST_MIN;
       // Honest success measure: did EVERY breaching rule clear (incl. the
       // structural 14h-stretch / split), not just the weekly total?
@@ -235,8 +266,9 @@ export function generateRankedSuggestions({
         kind: r.kind,
         change: r.change,
         freedBlock: r.freed,
-        restFrom,
-        restTo: Number.isFinite(restTo) ? restTo : restFrom,
+        restFrom: restFromEval,
+        restTo: Number.isFinite(restTo) ? restTo : restFromEval,
+        windowBreached,
         resolvesWeekly,
         resolvesAll,
         remainingBreaches,
@@ -253,12 +285,13 @@ export function generateRankedSuggestions({
   }
 
   // Only surface a fix that is actually actionable: it fully clears the breach,
-  // or hands at least part of the block to someone genuinely free. We do NOT
-  // credit a future lever just because that future window already sits above
-  // 77h (the heavy days have rolled out of it) — trimming an already-compliant
-  // week "resolves" nothing. A trim is surfaced (even with no taker, dropping
-  // the hour) only when it genuinely clears that window's breach: resolvesAll.
-  const usable = scored.filter((c) => c.resolvesAll || c.coverage.partial);
+  // or hands at least part of the block to someone genuinely free — AND it eases
+  // a window that genuinely dips (`windowBreached`). We do NOT credit a future
+  // lever just because that future window already sits above 77h (the heavy days
+  // have rolled out of it) — trimming an already-compliant week "resolves"
+  // nothing. A trim is surfaced (even with no taker, dropping the hour) only
+  // when it genuinely clears that window's breach: resolvesAll.
+  const usable = scored.filter((c) => c.windowBreached && (c.resolvesAll || c.coverage.partial));
   usable.sort((a, b) => (b.score - a.score) || (a.id < b.id ? -1 : 1));
   const ranked = usable;
 
