@@ -2358,6 +2358,20 @@ const canEdit = (() => {
 
   const handleConfirmMonth = () => {
     if (!crewId) return;
+    // Force a documented reason for every breach day before sign-off is allowed.
+    // Undocumented breaches are routed into the breach-notes modal (which also
+    // writes hor_breach_reasons); the user re-opens sign-off once reasons exist.
+    const undoc = buildMonthBreaches().filter((b) => !b.documented);
+    if (undoc.length > 0) {
+      const y = horCurrentMonth?.getFullYear();
+      const m = horCurrentMonth?.getMonth();
+      const undocSet = new Set(undoc.map((b) => b.date));
+      const full = detectBreachedDatesAfterSave(crewId, [], y, m).filter((b) => undocSet.has(b.date));
+      setBreachedDates(full.length ? full : undoc.map((b) => ({ date: b.date, breachTypes: [], restHours: 0, explanation: '' })));
+      setShowBreachNotesModal(true);
+      showToast(`Add a reason for ${undoc.length} breach day${undoc.length > 1 ? 's' : ''} before signing off`, 'error');
+      return;
+    }
     setSignOff({
       kind: 'submit',
       breaches: buildMonthBreaches(),
