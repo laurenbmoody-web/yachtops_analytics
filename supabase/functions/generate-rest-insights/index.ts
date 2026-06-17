@@ -85,8 +85,9 @@ function buildUserPrompt(body: RequestBody): string {
     const roles = (c.coverage_roles && c.coverage_roles.length)
       ? c.coverage_roles.join(', ')
       : 'another crew member in the department';
-    const kindLabel = c.kind === 'day_off' ? 'give a full day off'
-      : c.kind === 'shorten' ? 'shorten the block' : 'remove the block';
+    const kindLabel = c.kind === 'day_off' ? 'give a full day off (this is the only duty that day)'
+      : c.kind === 'future_off' ? 'drop one duty block to lighten that day (NOT a full day off — other duty remains)'
+        : c.kind === 'shorten' ? 'shorten the block' : 'remove the block';
     lines.push(
       `- id=${c.id} · ${kindLabel} · ${c.day_label} · block ${c.block_label} · frees ${c.freed_hours}h`
       + ` · ${c.resolves ? 'clears the weekly minimum' : 'reduces but does not fully clear the deficit'}`

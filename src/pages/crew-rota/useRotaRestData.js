@@ -96,6 +96,7 @@ function buildSuggestion(r, copy, effDate) {
 
 function fallbackHeadline(r) {
   if (r.kind === 'day_off') return `Full day off ${r.dayLabel}`;
+  if (r.kind === 'future_off') return `Lighten ${r.dayLabel}`;
   if (r.kind === 'shorten') return `Trim the ${r.dayLabel} watch`;
   return `Hand off the ${r.dayLabel} watch`;
 }
@@ -103,7 +104,9 @@ function fallbackBody(r) {
   const who = (r.coverage.roles && r.coverage.roles.length)
     ? r.coverage.roles[0]
     : 'another crew member in the department';
-  const verb = r.kind === 'day_off' ? 'A full day off' : r.kind === 'shorten' ? 'Trimming this block' : 'Freeing this block';
+  const verb = r.kind === 'day_off' ? 'A full day off'
+    : r.kind === 'future_off' ? 'Dropping this block'
+      : r.kind === 'shorten' ? 'Trimming this block' : 'Freeing this block';
   return `${verb} ${r.dayLabel} helps close the rest deficit. ${who} can absorb the coverage.`;
 }
 

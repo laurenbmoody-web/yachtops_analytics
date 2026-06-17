@@ -2,6 +2,13 @@ import React, { useMemo, useState } from 'react';
 import {
   buildCandidates, defaultSpread, sliceFreed, assessRecipient, buildApplyPlan,
 } from './coverageEngine';
+import { ON_DUTY_TYPES } from './restHours';
+
+const toDecLocal = (hhmm) => {
+  const [h, m] = String(hhmm || '').slice(0, 5).split(':').map(Number);
+  return (Number.isNaN(h) ? 0 : h) + ((m || 0) / 60);
+};
+const SEG_COLOR = { new: '#C8643C', duty: '#2A3550', rest: '#E8EEE8' };
 
 // CoverageApplyModal — turns a rest suggestion into real grid edits. The hours
 // the suggestion frees from the breaching crew are spread across same-dept crew
@@ -61,6 +68,31 @@ export default function CoverageApplyModal({
     .map((c) => ({ id: c.id, hours: alloc?.[c.id] || 0 }))
     .filter((a) => a.hours > 0);
   const slices = sliceFreed(freed, orderedAllocs);
+
+  // Build a recipient's resulting day as a 24h bar: their existing on-duty
+  // blocks on the freed date PLUS the new covering slice (highlighted), with
+  // the gaps shown as rest — so the chief sees where the cover actually lands.
+  const daySegments = (memberId, slice) => {
+    const dur = (st, en) => { let d = toDecLocal(en) - toDecLocal(st); if (d <= 0) d += 24; return d; };
+    const raw = [];
+    for (const s of (windowShifts || [])) {
+      if (s.memberId === memberId && s.date === freed.date && ON_DUTY_TYPES.has(s.shiftType)) {
+        raw.push({ start: toDecLocal(s.startTime), hours: dur(s.startTime, s.endTime), kind: 'duty' });
+      }
+    }
+    if (slice) raw.push({ start: toDecLocal(slice.start), hours: dur(slice.start, slice.end), kind: 'new' });
+    raw.sort((a, b) => a.start - b.start);
+    const segs = [];
+    let cursor = 0;
+    for (const b of raw) {
+      const end = Math.min(24, b.start + b.hours);
+      if (b.start > cursor) segs.push({ kind: 'rest', hours: b.start - cursor });
+      if (end > Math.max(b.start, cursor)) segs.push({ kind: b.kind, hours: end - Math.max(b.start, cursor) });
+      cursor = Math.max(cursor, end);
+    }
+    if (cursor < 24) segs.push({ kind: 'rest', hours: 24 - cursor });
+    return segs;
+  };
 
   // Full four-rule MLC re-check for a recipient given their carved slice.
   const assessFor = (id) => {
@@ -194,7 +226,16 @@ export default function CoverageApplyModal({
               </div>
             </div>
 
-            {/* Recipients — full four-rule re-check */}
+            <div className="cov-pv-legend" style={{ display: 'flex', gap: 14, fontSize: 11, color: '#6b7280', margin: '0 0 8px' }}>
+              {[['new', 'new cover'], ['duty', 'existing duty'], ['rest', 'rest']].map(([k, lbl]) => (
+                <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <i style={{ width: 10, height: 10, borderRadius: 2, background: SEG_COLOR[k], border: k === 'rest' ? '1px solid #cdd6cd' : 'none' }} />
+                  {lbl}
+                </span>
+              ))}
+            </div>
+
+            {/* Recipients — resulting-day bar + full four-rule re-check */}
             {slices.map((s) => {
               const c = candById.get(s.id);
               const a = assessFor(s.id);
@@ -202,6 +243,19 @@ export default function CoverageApplyModal({
                 <div key={s.id} className="cov-pv">
                   <div className="cov-pv-name">{c.name} · {c.role}</div>
                   <div className="cov-pv-diff"><span className="add">+ add {s.start}–{s.end}</span></div>
+                  <div
+                    className="cov-pv-bar"
+                    style={{ display: 'flex', height: 16, borderRadius: 4, overflow: 'hidden', margin: '8px 0 6px', background: SEG_COLOR.rest }}
+                    aria-label={`${c.name} resulting day on ${freed.date}`}
+                  >
+                    {daySegments(s.id, s).map((seg, i) => (
+                      <div
+                        key={i}
+                        title={`${seg.kind === 'new' ? 'New cover' : seg.kind === 'duty' ? 'On duty' : 'Rest'} · ${seg.hours.toFixed(1)}h`}
+                        style={{ width: `${(seg.hours / 24) * 100}%`, background: SEG_COLOR[seg.kind] }}
+                      />
+                    ))}
+                  </div>
                   <div className="cov-pv-line">
                     Daily <span className={`cov-chip ${a.dailyOk ? 'ok' : 'warn'}`}>{fmt(a.rest24)}{a.dailyOk ? ' ✓' : ' ✗'}</span>
                     Weekly <span className={`cov-chip ${a.weeklyOk ? 'ok' : 'warn'}`}>{fmt(a.week)}{a.weeklyOk ? ' ✓' : ' ✗'}</span>
