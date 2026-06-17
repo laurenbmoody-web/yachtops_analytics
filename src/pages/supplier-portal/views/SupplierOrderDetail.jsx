@@ -841,389 +841,348 @@ const PriceCell = ({ item, currency, canEdit, onQuote }) => {
   );
 };
 
-const ItemRow = ({ item, currency, canEdit, threadOpen, onToggleThread, onUpdate, onQuote }) => {
-  const status = item.status || 'pending';
-  const rowClass = STATUS_TO_ROW_CLASS[status] || '';
-  const labelClass = STATUS_TO_LABEL_CLASS[status] || '';
+// ─── Editable cell (qty / unit / size) ─────────────────────────────────────
+//
+// Click-to-edit cell. Persists on blur / Enter, reverts on Escape. When the
+// supplier overrides the crew's original value (qty/unit/size) we strike
+// through the original (requested_*) alongside the new value so both sides
+// can see exactly what changed against the original ask.
+const EditableCell = ({
+  value, requested, canEdit, onCommit,
+  type = 'text', placeholder = '—', step,
+  align = 'left', width,
+}) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value == null ? '' : String(value));
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef(null);
 
-  const messageCount = Number(item.message_count ?? 0);    // TODO(schema): item.message_count
-  const unreadCount = Number(item.unread_message_count ?? 0); // TODO(schema): item.unread_message_count
-  const showMsgIcon = messageCount > 0 || threadOpen;
-
-  // TODO(schema): item.size, item.pack, item.brand, item.category, item.subcategory,
-  //               item.type, item.requires_chilled, item.vintage_year, item.grade,
-  //               item.unit_price (currently inferred from server only when available)
-  const unitPrice = item.unit_price != null ? Number(item.unit_price) : null;
-
-  // Inline expand state for Sub (substitute_description + sub price) and
-  // Note (supplier_item_note). Mutually exclusive — opening one closes the
-  // other so the row never balloons to two expanded sub-rows.
-  const [subExpanded, setSubExpanded] = useState(false);
-  const [noteExpanded, setNoteExpanded] = useState(false);
-  const [subDescDraft, setSubDescDraft] = useState(item.substitute_description || '');
-  const [subPriceDraft, setSubPriceDraft] = useState(
-    item.quoted_price != null ? String(item.quoted_price) : '',
-  );
-  const [noteDraft, setNoteDraft] = useState(item.supplier_item_note || '');
-  const [expandSaving, setExpandSaving] = useState(false);
-
-  // Re-seed drafts whenever the upstream row changes — keeps the expand
-  // forms reflecting the persisted values after a save round-trip.
   useEffect(() => {
-    setSubDescDraft(item.substitute_description || '');
-    setSubPriceDraft(item.quoted_price != null ? String(item.quoted_price) : '');
-    setNoteDraft(item.supplier_item_note || '');
-  }, [item.id, item.substitute_description, item.quoted_price, item.supplier_item_note]);
+    setDraft(value == null ? '' : String(value));
+  }, [value]);
 
-  const openSub = () => { setSubExpanded(true); setNoteExpanded(false); };
-  const openNote = () => { setNoteExpanded(true); setSubExpanded(false); };
+  const requestedKey = requested == null ? '' : String(requested);
+  const valueKey = value == null ? '' : String(value);
+  const changed = canEdit && requestedKey !== '' && requestedKey !== valueKey;
 
-  const saveSub = async () => {
-    const description = subDescDraft.trim();
-    if (!description) {
-      window.alert('Describe the substitute item before saving.');
-      return;
-    }
-    let priceNum = null;
-    if (subPriceDraft.trim()) {
-      priceNum = Number(subPriceDraft);
-      if (Number.isNaN(priceNum) || priceNum < 0) {
-        window.alert('Substitute price is not a valid number.');
-        return;
+  const begin = () => {
+    if (!canEdit) return;
+    setEditing(true);
+    setTimeout(() => inputRef.current?.select(), 0);
+  };
+
+  const commit = async () => {
+    const trimmed = (draft ?? '').trim();
+    let next;
+    if (type === 'number') {
+      if (trimmed === '') {
+        next = null;
+      } else {
+        const n = Number(trimmed);
+        if (Number.isNaN(n) || n < 0) { setEditing(false); return; }
+        next = n;
       }
+    } else {
+      next = trimmed === '' ? null : trimmed;
     }
-    setExpandSaving(true);
-    try {
-      const updates = {
-        status: 'substituted',
-        substitute_description: description,
-      };
-      if (priceNum != null) {
-        updates.quoted_price = priceNum;
-        updates.quoted_currency = currency;
-      }
-      await onUpdate(item.id, updates);
-      setSubExpanded(false);
-    } catch (e) {
-      window.alert(`Save failed: ${e.message}`);
-    } finally {
-      setExpandSaving(false);
+    const currentKey = value == null ? '' : String(value);
+    const nextKey = next == null ? '' : String(next);
+    if (currentKey === nextKey) { setEditing(false); return; }
+    setSaving(true);
+    try { await onCommit(next); }
+    catch (e) { window.alert(`Save failed: ${e.message}`); }
+    finally { setSaving(false); setEditing(false); }
+  };
+
+  const onKeyDown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+    else if (e.key === 'Escape') {
+      setDraft(value == null ? '' : String(value));
+      setEditing(false);
     }
   };
 
-  const saveNote = async () => {
-    setExpandSaving(true);
-    try {
-      await onUpdate(item.id, { supplier_item_note: noteDraft.trim() || null });
-      setNoteExpanded(false);
-    } catch (e) {
-      window.alert(`Save failed: ${e.message}`);
-    } finally {
-      setExpandSaving(false);
-    }
-  };
-
-  const handleAct = async (next) => {
-    // Sub no longer commits inline — it opens the expand so the supplier
-    // can describe what they're substituting with and (optionally) the
-    // sub's price before the row flips status.
-    if (next === 'substituted') {
-      openSub();
-      return;
-    }
-    // Confirming a line without a quote price is a no-op the supplier
-    // will regret — the vessel needs the number to approve. Guard it.
-    if (next === 'confirmed') {
-      const hasQuote = item.quoted_price != null && Number(item.quoted_price) > 0;
-      const hasAgreed = item.agreed_price != null && Number(item.agreed_price) > 0;
-      if (!hasQuote && !hasAgreed) {
-        window.alert('Enter a quote price before confirming this line.');
-        return;
-      }
-    }
-    try {
-      const updates = { status: next };
-      if (next === 'substituted' && item.substitute_description) {
-        updates.substitute_description = item.substitute_description;
-      }
-      await onUpdate(item.id, updates);
-    } catch (e) {
-      window.alert(`Update failed: ${e.message}`);
-    }
-  };
-
-  const isPending = status === 'pending';
-  const hasNote = !!(item.supplier_item_note && item.supplier_item_note.trim());
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        type={type}
+        step={step}
+        min={type === 'number' ? 0 : undefined}
+        className={`sod-wq-edit sod-wq-edit-${align}`}
+        style={width ? { width } : undefined}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={onKeyDown}
+        disabled={saving}
+      />
+    );
+  }
 
   return (
-    <>
-      <tr className={`${rowClass}${threadOpen ? ' sod-has-thread' : ''}`}>
-        <td>
-          <div className="sod-item-cell">
-            <div>
-              <div className="sod-item-name-row">
-                <span className="sod-item-name">
-                  {item.item_name}
-                  {item.brand && <span className="sod-brand">{item.brand}</span>}
-                </span>
-                {STATUS_LABEL[status] && (
-                  <span className={`sod-item-status ${labelClass}`}>{STATUS_LABEL[status]}</span>
-                )}
-                {showMsgIcon && (
-                  <button
-                    type="button"
-                    className={`sod-msg-icon${unreadCount > 0 ? ' sod-has-new' : ''}`}
-                    onClick={() => onToggleThread(item.id)}
-                    title={threadOpen ? 'Hide messages' : 'View messages'}
-                  >
-                    <ChatIcon />
-                    <span className="sod-msg-count">{messageCount}</span>
-                  </button>
-                )}
-              </div>
-
-              {/* TODO(schema): item.category / subcategory / type — breadcrumb */}
-              {item.category && (
-                <div className="sod-item-category">
-                  {[item.category, item.subcategory, item.type]
-                    .filter(Boolean)
-                    .map((part, i, arr) => (
-                      <React.Fragment key={i}>
-                        {part}
-                        {i < arr.length - 1 && <span className="sod-cat-sep">›</span>}
-                      </React.Fragment>
-                    ))}
-                </div>
-              )}
-
-              {/* TODO(schema): item.requires_chilled / vintage_year / grade — chips */}
-              {(item.requires_chilled || item.vintage_year || item.grade) && (
-                <div className="sod-item-tags">
-                  {item.requires_chilled && <span className="sod-tag sod-tag-cold">❄ Chilled</span>}
-                  {item.vintage_year && <span className="sod-tag">{item.vintage_year} vintage</span>}
-                  {item.grade && <span className="sod-tag">{item.grade}</span>}
-                </div>
-              )}
-
-              {item.notes && <div className="sod-item-note sod-item-note-vessel">{item.notes}</div>}
-              {status === 'substituted' && item.substitute_description && (
-                <div className="sod-item-note sod-item-note-sub">
-                  Sub: {item.substitute_description}
-                </div>
-              )}
-              {hasNote && (
-                <div className="sod-item-note sod-item-note-supplier">
-                  {item.supplier_item_note}
-                </div>
-              )}
-            </div>
-          </div>
-        </td>
-
-        <td className="sod-num">{item.unit ?? '—'}</td>
-        <td className="sod-num">{item.size ?? '—'}{/* TODO(schema): item.size */}</td>
-        <td className="sod-num">{item.quantity ?? '—'}</td>
-        <td className={`sod-pack${item.pack ? '' : ' sod-empty'}`}>
-          {item.pack ? String(item.pack).toLowerCase() : '—'}
-          {/* TODO(schema): item.pack */}
-        </td>
-        <td>
-          <PriceCell item={item} currency={currency} canEdit={canEdit} onQuote={onQuote} />
-        </td>
-        <td>
-          <div className="sod-row-actions">
-            {isPending ? (
-              <>
-                <button
-                  type="button"
-                  className="sod-confirm-btn"
-                  disabled={!canEdit}
-                  title={canEdit ? 'Confirm' : NO_PERMISSION_TITLE}
-                  onClick={() => handleAct('confirmed')}
-                >Confirm</button>
-                <button
-                  type="button"
-                  className="sod-action-text-btn sod-act-sub"
-                  disabled={!canEdit}
-                  title={canEdit ? 'Substitute' : NO_PERMISSION_TITLE}
-                  onClick={() => handleAct('substituted')}
-                >Sub</button>
-                <button
-                  type="button"
-                  className="sod-action-icon sod-act-unavail"
-                  disabled={!canEdit}
-                  title={canEdit ? 'Unavailable' : NO_PERMISSION_TITLE}
-                  onClick={() => handleAct('unavailable')}
-                ><SendArrow /></button>
-              </>
-            ) : (
-              canEdit && (
-                <button
-                  type="button"
-                  className="sod-pill sod-ghost"
-                  style={{ fontSize: 11.5, padding: '4px 10px' }}
-                  onClick={() => handleAct('pending')}
-                  title="Reset to pending"
-                >Edit</button>
-              )
-            )}
-            {canEdit && (
-              <button
-                type="button"
-                className={`sod-note-icon${hasNote ? ' sod-note-icon-active' : ''}`}
-                onClick={openNote}
-                title={hasNote ? 'Edit note to vessel' : 'Add note to vessel'}
-                aria-label={hasNote ? 'Edit note to vessel' : 'Add note to vessel'}
-              >
-                <NoteBubble />
-              </button>
-            )}
-          </div>
-        </td>
-      </tr>
-
-      {subExpanded && (
-        <tr className="sod-expand-row">
-          <td colSpan={7}>
-            <div className="sod-expand">
-              <div className="sod-expand-head">
-                <span className="sod-expand-title">Substitute for {item.item_name}</span>
-                <span className="sod-expand-sub">
-                  Tell the vessel what you're swapping in — they'll see this on their board.
-                </span>
-              </div>
-              <div className="sod-expand-grid">
-                <div className="sod-expand-field sod-expand-field-wide">
-                  <label className="sod-expand-label">Sub with</label>
-                  <input
-                    type="text"
-                    className="sod-expand-input"
-                    placeholder="e.g. Pacific oysters (Coffin Bay)"
-                    value={subDescDraft}
-                    onChange={(e) => setSubDescDraft(e.target.value)}
-                    autoFocus
-                  />
-                </div>
-                <div className="sod-expand-field">
-                  <label className="sod-expand-label">
-                    Sub price <span className="sod-expand-opt">optional</span>
-                  </label>
-                  <div className="sod-expand-price">
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      className="sod-expand-input"
-                      placeholder="0.00"
-                      value={subPriceDraft}
-                      onChange={(e) => setSubPriceDraft(e.target.value)}
-                    />
-                    <span className="sod-expand-currency">{currency || 'EUR'}</span>
-                  </div>
-                </div>
-              </div>
-              <div className="sod-expand-foot">
-                <button
-                  type="button"
-                  className="sod-expand-cancel"
-                  onClick={() => setSubExpanded(false)}
-                  disabled={expandSaving}
-                >Cancel</button>
-                <button
-                  type="button"
-                  className="sod-expand-save"
-                  onClick={saveSub}
-                  disabled={expandSaving}
-                >{expandSaving ? 'Saving…' : 'Save substitute'}</button>
-              </div>
-            </div>
-          </td>
-        </tr>
-      )}
-
-      {noteExpanded && (
-        <tr className="sod-expand-row">
-          <td colSpan={7}>
-            <div className="sod-expand">
-              <div className="sod-expand-head">
-                <span className="sod-expand-title">Note to vessel — {item.item_name}</span>
-                <span className="sod-expand-sub">
-                  Anything the chief should know about this line.
-                </span>
-              </div>
-              <textarea
-                className="sod-expand-textarea"
-                rows={3}
-                placeholder="e.g. New season — flavour is lighter than last batch."
-                value={noteDraft}
-                onChange={(e) => setNoteDraft(e.target.value)}
-                autoFocus
-              />
-              <div className="sod-expand-foot">
-                <button
-                  type="button"
-                  className="sod-expand-cancel"
-                  onClick={() => setNoteExpanded(false)}
-                  disabled={expandSaving}
-                >Cancel</button>
-                <button
-                  type="button"
-                  className="sod-expand-save"
-                  onClick={saveNote}
-                  disabled={expandSaving}
-                >{expandSaving ? 'Saving…' : (hasNote ? 'Update note' : 'Save note')}</button>
-              </div>
-            </div>
-          </td>
-        </tr>
-      )}
-
-      {threadOpen && (
-        <tr className="sod-thread-row">
-          <td colSpan={7}>
-            <div className="sod-thread">
-              {/* TODO(out-of-scope): real threaded messages (storage + send + realtime) */}
-              <div className="sod-thread-empty">
-                No messages yet. Threaded messaging is not wired up — this is a UI stub.
-              </div>
-              <div className="sod-thread-input">
-                <input
-                  type="text"
-                  placeholder="Send a follow-up — Cmd↵ to send"
-                  disabled
-                />
-                <button type="button" disabled>Send</button>
-              </div>
-            </div>
-          </td>
-        </tr>
-      )}
-    </>
+    <button
+      type="button"
+      className={`sod-wq-edit-display sod-wq-edit-display-${align}${changed ? ' sod-wq-changed' : ''}${canEdit ? '' : ' sod-wq-readonly'}`}
+      onClick={begin}
+      title={changed ? `Vessel asked for ${requestedKey}` : (canEdit ? 'Click to edit' : '')}
+      disabled={!canEdit}
+    >
+      {changed && <span className="sod-wq-strike">{requestedKey}</span>}
+      <span className="sod-wq-val">{value == null || value === '' ? placeholder : valueKey}</span>
+    </button>
   );
 };
 
+// ─── Note / Sub column ─────────────────────────────────────────────────────
+//
+// One text input per row. Two writing conventions:
+//   1. Type "Sub: <description>" → flip status to substituted +
+//      set substitute_description = <description>.
+//   2. Anything else → save as supplier_item_note. If the line was
+//      previously substituted, that gets cleared (back to pending).
+//
+// Display value: shows "Sub: <description>" when substituted, else the
+// supplier note, else empty (placeholder).
+const NoteCell = ({ item, canEdit, onUpdate }) => {
+  const isSub = item.status === 'substituted' && !!item.substitute_description;
+  const initial = isSub
+    ? `Sub: ${item.substitute_description}`
+    : (item.supplier_item_note || '');
+
+  const [draft, setDraft] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  const lastSavedRef = useRef(initial);
+
+  useEffect(() => {
+    setDraft(initial);
+    lastSavedRef.current = initial;
+  }, [item.id, item.status, item.substitute_description, item.supplier_item_note]);
+
+  const commit = async () => {
+    const trimmed = (draft ?? '').trim();
+    if (trimmed === (lastSavedRef.current ?? '').trim()) return;
+    const subMatch = trimmed.match(/^sub:\s*(.+)$/i);
+    const updates = {};
+    if (subMatch) {
+      updates.status = 'substituted';
+      updates.substitute_description = subMatch[1].trim();
+      updates.supplier_item_note = null;
+    } else {
+      updates.supplier_item_note = trimmed || null;
+      // Clearing the Sub: prefix on a substituted line drops it back to
+      // pending so the price/confirm flow can resume.
+      if (item.status === 'substituted') {
+        updates.status = 'pending';
+        updates.substitute_description = null;
+      }
+    }
+    setSaving(true);
+    try {
+      await onUpdate(item.id, updates);
+      lastSavedRef.current = trimmed;
+    } catch (e) {
+      window.alert(`Save failed: ${e.message}`);
+      setDraft(lastSavedRef.current);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onKeyDown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+    else if (e.key === 'Escape') {
+      setDraft(lastSavedRef.current);
+      e.currentTarget.blur();
+    }
+  };
+
+  return (
+    <input
+      type="text"
+      className={`sod-wq-note-input${isSub ? ' sod-wq-note-sub' : ''}`}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={onKeyDown}
+      placeholder='Note or "Sub: …"'
+      disabled={!canEdit || saving}
+    />
+  );
+};
+
+// Status dot — the single visual signal for status on the new layout.
+// Inline label chips (CONFIRMED / UNAVAILABLE / SUBSTITUTED) are gone.
+const StatusDot = ({ status }) => (
+  <span className={`sod-wq-dot sod-wq-dot-${status || 'pending'}`} aria-hidden="true" />
+);
+
+// Reset (↺) icon used to drop a completed line back into the To do
+// section. Replaces the old "Edit" ghost pill.
+const ResetIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M3 12a9 9 0 1 0 3-6.7" />
+    <polyline points="3 4 3 11 10 11" />
+  </svg>
+);
+
+// X (Unavailable) icon.
+const XIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+    <line x1="6" y1="6" x2="18" y2="18" />
+    <line x1="6" y1="18" x2="18" y2="6" />
+  </svg>
+);
+
+const ItemRow = ({ item, currency, canEdit, onUpdate, onQuote }) => {
+  const status = item.status || 'pending';
+  const isPending = status === 'pending';
+  const completed = !isPending;
+
+  const setUnavailable = async () => {
+    try { await onUpdate(item.id, { status: 'unavailable' }); }
+    catch (e) { window.alert(`Update failed: ${e.message}`); }
+  };
+  const resetToPending = async () => {
+    try {
+      await onUpdate(item.id, {
+        status: 'pending',
+        substitute_description: null,
+      });
+    } catch (e) { window.alert(`Update failed: ${e.message}`); }
+  };
+
+  // Line total for the right-most column — same precedence the subtotal uses.
+  const linePrice = Number(
+    item.agreed_price ?? item.quoted_price ?? item.estimated_price ?? item.unit_price ?? 0,
+  ) || 0;
+  const lineTotal = linePrice * (Number(item.quantity) || 0);
+
+  return (
+    <div className={`sod-wq-row sod-wq-row-${status}${completed ? ' sod-wq-row-completed' : ''}`}>
+      <div className="sod-wq-cell sod-wq-cell-status">
+        <StatusDot status={status} />
+      </div>
+
+      <div className="sod-wq-cell sod-wq-cell-item">
+        <div className="sod-wq-name">
+          {item.item_name}
+          {item.brand && <span className="sod-wq-brand">{item.brand}</span>}
+        </div>
+        {item.notes && (
+          <div className="sod-wq-vessel-note">{item.notes}</div>
+        )}
+      </div>
+
+      <div className="sod-wq-cell sod-wq-cell-unit">
+        <EditableCell
+          value={item.unit}
+          requested={item.requested_unit}
+          canEdit={canEdit && !completed}
+          onCommit={(v) => onUpdate(item.id, { unit: v })}
+          placeholder="—"
+        />
+      </div>
+
+      <div className="sod-wq-cell sod-wq-cell-size">
+        <EditableCell
+          value={item.size}
+          requested={item.requested_size}
+          canEdit={canEdit && !completed}
+          onCommit={(v) => onUpdate(item.id, { size: v })}
+          placeholder="—"
+        />
+      </div>
+
+      <div className="sod-wq-cell sod-wq-cell-qty">
+        <EditableCell
+          value={item.quantity}
+          requested={item.requested_quantity}
+          canEdit={canEdit && !completed}
+          onCommit={(v) => onUpdate(item.id, { quantity: v })}
+          type="number"
+          step="1"
+          align="right"
+          placeholder="—"
+        />
+      </div>
+
+      <div className="sod-wq-cell sod-wq-cell-est">
+        {item.estimated_price != null
+          ? formatCurrency(item.estimated_price, item.estimated_currency || currency)
+          : <span className="sod-wq-muted">—</span>}
+      </div>
+
+      <div className="sod-wq-cell sod-wq-cell-price">
+        <PriceCell item={item} currency={currency} canEdit={canEdit} onQuote={onQuote} />
+      </div>
+
+      <div className="sod-wq-cell sod-wq-cell-note">
+        <NoteCell item={item} canEdit={canEdit} onUpdate={onUpdate} />
+      </div>
+
+      <div className="sod-wq-cell sod-wq-cell-total">
+        {status === 'unavailable'
+          ? <span className="sod-wq-unavail">Unavailable</span>
+          : (linePrice > 0
+              ? <span className="sod-wq-total">{formatCurrency(lineTotal, currency)}</span>
+              : <span className="sod-wq-muted">—</span>)}
+      </div>
+
+      <div className="sod-wq-cell sod-wq-cell-action">
+        {canEdit && (
+          isPending ? (
+            <button
+              type="button"
+              className="sod-wq-icon-btn sod-wq-icon-x"
+              onClick={setUnavailable}
+              title="Mark unavailable"
+              aria-label="Mark unavailable"
+            ><XIcon /></button>
+          ) : (
+            <button
+              type="button"
+              className="sod-wq-icon-btn"
+              onClick={resetToPending}
+              title="Reset to pending"
+              aria-label="Reset to pending"
+            ><ResetIcon /></button>
+          )
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── ItemsCard — work-queue + spreadsheet hybrid ───────────────────────────
+//
+// Header carries a progress bar + "Confirm all available" CTA. Items are
+// split into two sections — "To do" (pending) at the top, "Done"
+// (everything else, dimmed) at the bottom. Rows are spreadsheet-density
+// with inline editable qty / unit / size / price / note; the Sub flow
+// is folded into the note column ("Sub: …" prefix).
 const ItemsCard = ({
   items,
   currency,
   canEdit,
-  openThreadId,
-  onToggleThread,
   onItemUpdate,
   onItemQuote,
   onConfirmAll,
 }) => {
   const itemCount = items.length;
-  const totalQty = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
   const counts = items.reduce((acc, i) => {
     const k = i.status || 'pending';
     acc[k] = (acc[k] || 0) + 1;
     return acc;
   }, {});
-  // Subtotal honours the strongest signal available per line:
-  // agreed > quoted > estimated > unit. Unavailable lines and lines
-  // with no price at any level are excluded so the total reflects what
-  // will actually invoice. Previously only read i.unit_price which
-  // stayed €0 throughout the confirming/quoting flow.
+
+  const pendingItems = items.filter((i) => (i.status || 'pending') === 'pending');
+  const doneItems    = items.filter((i) => (i.status || 'pending') !== 'pending');
+
+  // Subtotal honours the strongest price signal available per line:
+  // agreed > quoted > estimated > unit. Unavailable lines and lines with
+  // no usable price at any level are excluded so the total reflects what
+  // will actually invoice.
   const subtotal = items.reduce((s, i) => {
     if (i.status === 'unavailable') return s;
     const price = Number(
@@ -1233,80 +1192,116 @@ const ItemsCard = ({
     return s + price * qty;
   }, 0);
 
-  const segs = [
-    counts.pending     && { cls: 'sod-seg-pending',   label: `${counts.pending} pending` },
-    counts.confirmed   && { cls: 'sod-seg-confirmed', label: `${counts.confirmed} confirmed` },
-    counts.question    && { cls: 'sod-seg-question',  label: `${counts.question} question${counts.question === 1 ? '' : 's'}` },
-    counts.substituted && { cls: 'sod-seg-question',  label: `${counts.substituted} substituted` },
-    counts.unavailable && { cls: 'sod-seg-unavail',   label: `${counts.unavailable} unavailable` },
-  ].filter(Boolean);
+  // Progress segments for the header bar — done / sub / unavailable widths
+  // sum to (done + sub + un) / total; the remaining gap is the "to do"
+  // share. Each segment shows up only when its count is non-zero.
+  const denom = itemCount || 1;
+  const doneCt   = (counts.confirmed || 0);
+  const subCt    = (counts.substituted || 0);
+  const unCt     = (counts.unavailable || 0);
+  const readyCt  = doneCt + subCt;
 
   const hasPending = (counts.pending || 0) > 0;
 
   return (
-    <div className="sod-card">
-      <div className="sod-items-toolbar">
-        <div className="sod-items-summary">
-          <span><strong>{itemCount} item{itemCount === 1 ? '' : 's'}</strong> · {totalQty} total</span>
-          {segs.length > 0 && (
-            <span className="sod-seg">
-              {segs.map((s, i) => (
-                <span key={i} className={s.cls}>{s.label}</span>
-              ))}
-            </span>
-          )}
+    <div className="sod-card sod-wq-card">
+
+      {/* progress + CTA header */}
+      <div className="sod-wq-head">
+        <div className="sod-wq-progress">
+          <div className="sod-wq-progress-label">
+            <strong>{readyCt} of {itemCount} lines</strong> ready to send
+            {(doneCt > 0 || subCt > 0 || unCt > 0) && (
+              <span className="sod-wq-progress-meta">
+                {doneCt > 0 && <> · {doneCt} confirmed</>}
+                {subCt  > 0 && <> · {subCt} substituted</>}
+                {unCt   > 0 && <> · {unCt} unavailable</>}
+              </span>
+            )}
+          </div>
+          <div className="sod-wq-bar">
+            {doneCt > 0 && <i className="done" style={{ width: `${(doneCt / denom) * 100}%` }} />}
+            {subCt  > 0 && <i className="sub"  style={{ width: `${(subCt  / denom) * 100}%` }} />}
+            {unCt   > 0 && <i className="un"   style={{ width: `${(unCt   / denom) * 100}%` }} />}
+          </div>
         </div>
-        <div className="sod-items-actions">
-          <button type="button" className="sod-pill sod-ghost" disabled title="Coming soon">+ Add line</button>
+        <div className="sod-wq-cta-wrap">
           <button
             type="button"
-            className="sod-pill sod-primary"
+            className="sod-wq-cta"
             disabled={!canEdit || !hasPending}
             title={!canEdit ? NO_PERMISSION_TITLE : (!hasPending ? 'Nothing to confirm' : 'Confirm all available items')}
             onClick={onConfirmAll}
           >
             Confirm all available
-            <span className="sod-kbd">A</span>
+            <span className="sod-wq-kbd">A</span>
           </button>
         </div>
       </div>
 
-      <table className="sod-items-table">
-        <colgroup>
-          <col className="sod-col-item" />
-          <col className="sod-col-unit" />
-          <col className="sod-col-size" />
-          <col className="sod-col-qty" />
-          <col className="sod-col-pack" />
-          <col className="sod-col-price" />
-          <col className="sod-col-action" />
-        </colgroup>
-        <thead>
-          <tr>
-            <th>Item</th>
-            <th>Unit</th>
-            <th>Size</th>
-            <th>Qty</th>
-            <th>Pack</th>
-            <th>Price</th>
-            <th className="sod-th-action">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item) => (
+      {/* column header strip */}
+      <div className="sod-wq-cols">
+        <div className="sod-wq-cell sod-wq-cell-status" />
+        <div className="sod-wq-cell sod-wq-cell-item">Item</div>
+        <div className="sod-wq-cell sod-wq-cell-unit">Unit</div>
+        <div className="sod-wq-cell sod-wq-cell-size">Size</div>
+        <div className="sod-wq-cell sod-wq-cell-qty">Qty</div>
+        <div className="sod-wq-cell sod-wq-cell-est">Est.</div>
+        <div className="sod-wq-cell sod-wq-cell-price">Your quote</div>
+        <div className="sod-wq-cell sod-wq-cell-note">Note / Sub</div>
+        <div className="sod-wq-cell sod-wq-cell-total">Line total</div>
+        <div className="sod-wq-cell sod-wq-cell-action" />
+      </div>
+
+      {/* To do */}
+      {pendingItems.length > 0 && (
+        <div className="sod-wq-sec sod-wq-sec-todo">
+          <div className="sod-wq-sec-head">
+            <div className="sod-wq-sec-title">To do</div>
+            <div className="sod-wq-sec-meta">
+              {pendingItems.length} line{pendingItems.length === 1 ? '' : 's'} blocking send
+            </div>
+          </div>
+          {pendingItems.map((item) => (
             <ItemRow
               key={item.id}
               item={item}
               currency={currency}
               canEdit={canEdit}
-              threadOpen={openThreadId === item.id}
-              onToggleThread={onToggleThread}
               onUpdate={onItemUpdate}
               onQuote={onItemQuote}
             />
           ))}
-        </tbody>
-      </table>
+        </div>
+      )}
+
+      {/* Done */}
+      {doneItems.length > 0 && (
+        <div className="sod-wq-sec sod-wq-sec-done">
+          <div className="sod-wq-sec-head">
+            <div className="sod-wq-sec-title">Done</div>
+            <div className="sod-wq-sec-meta">
+              {doneCt > 0 && <span><span className="sod-wq-dot sod-wq-dot-confirmed" /> {doneCt} confirmed</span>}
+              {subCt  > 0 && <span><span className="sod-wq-dot sod-wq-dot-substituted" /> {subCt} substituted</span>}
+              {unCt   > 0 && <span><span className="sod-wq-dot sod-wq-dot-unavailable" /> {unCt} unavailable</span>}
+            </div>
+          </div>
+          {doneItems.map((item) => (
+            <ItemRow
+              key={item.id}
+              item={item}
+              currency={currency}
+              canEdit={canEdit}
+              onUpdate={onItemUpdate}
+              onQuote={onItemQuote}
+            />
+          ))}
+        </div>
+      )}
+
+      {pendingItems.length === 0 && doneItems.length === 0 && (
+        <div className="sod-wq-empty">No items on this order.</div>
+      )}
 
       <div className="sod-totals-footer">
         <div className="sod-totals-row">
@@ -1893,7 +1888,6 @@ const SupplierOrderDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [openMenu, setOpenMenu] = useState(null);          // 'docs' | 'actions' | 'returns' | null
-  const [openThreadId, setOpenThreadId] = useState(null);  // item.id whose thread is expanded
   const [returnsDrawerOpen, setReturnsDrawerOpen] = useState(false);
   // Count of supplier_return_tasks filed against this order — drives the
   // "Returns (N)" badge. Refreshed when the drawer closes and on the
@@ -1935,10 +1929,6 @@ const SupplierOrderDetail = () => {
     window.addEventListener('supplier-return-tasks-changed', onChange);
     return () => window.removeEventListener('supplier-return-tasks-changed', onChange);
   }, [refreshReturnsCount]);
-
-  const toggleThread = useCallback((itemId) => {
-    setOpenThreadId((prev) => (prev === itemId ? null : itemId));
-  }, []);
 
   const toggleMenu = useCallback((id) => {
     setOpenMenu((prev) => (prev === id ? null : id));
@@ -2364,13 +2354,11 @@ const SupplierOrderDetail = () => {
         onAdvance={handleStatusAdvance}
       />
 
-      {/* ── Items: toolbar, table with status stripes + thread row, totals footer ── */}
+      {/* ── Items: progress header, To do / Done sections, totals footer ── */}
       <ItemsCard
         items={items}
         currency={order.currency || 'USD'}
         canEdit={canEdit}
-        openThreadId={openThreadId}
-        onToggleThread={toggleThread}
         onItemUpdate={handleItemUpdate}
         onItemQuote={handleItemQuote}
         onConfirmAll={handleConfirmAll}

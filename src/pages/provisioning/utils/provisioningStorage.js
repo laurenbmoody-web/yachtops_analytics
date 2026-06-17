@@ -2760,6 +2760,12 @@ export const createSupplierOrder = async ({
       sub_category:        it.sub_category || null,
       department:          it.department || null,
       allergen_flags:      it.allergen_flags || [],
+      // Snapshot the vessel's original ask. Frozen against subsequent
+      // supplier-side qty/unit/size overrides so the order detail UI
+      // can render struck-through originals next to bold actuals.
+      requested_quantity:  it.quantity ?? it.qty,
+      requested_unit:      it.unit || null,
+      requested_size:      it.size || null,
       // Fall back to the order's supplier when the item carries no
       // explicit FK — covers the Unassigned-bucket case where the
       // client-side back-fill (setItemsSupplierProfile) runs after
