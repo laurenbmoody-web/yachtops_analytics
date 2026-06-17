@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import Icon from '../../../components/AppIcon';
-import Button from '../../../components/ui/Button';
-import Input from '../../../components/ui/Input';
 import ModalShell from '../../../components/ui/ModalShell';
 import SignaturePad from '../../../components/ui/SignaturePad';
 import { uploadSignature, bestEffortIp, currentUserAgent } from '../utils/horSignatures';
 import { showToast } from '../../../utils/toast';
+import './SignOffModal.css';
 
 // SignOffModal — captures a drawn signature + audit trail (typed legal name,
 // server timestamp via the writer RPC, best-effort IP, user agent) before a HOR
@@ -55,20 +54,20 @@ const SignOffModal = ({
       onClose={onClose}
       isBusy={busy}
       isDirty={!!dataUrl || name.trim() !== defaultName.trim()}
-      panelClassName="bg-card border border-border rounded-xl shadow-xl w-full max-w-md"
+      panelClassName="so-panel"
     >
-      <div className="p-6 space-y-5">
-        <div className="flex items-start gap-3">
-          <div className="mt-0.5 rounded-lg bg-primary/10 p-2">
-            <Icon name="PenLine" size={18} className="text-primary" />
-          </div>
+      <div className="so-wrap">
+        <div className="so-head">
+          <span className="so-head-icon">
+            <Icon name="PenLine" size={18} />
+          </span>
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-foreground">{title}</h3>
-            {periodLabel && <p className="text-sm text-muted-foreground">{periodLabel}</p>}
+            <h3 className="so-title">{title}</h3>
+            {periodLabel && <p className="so-period">{periodLabel}</p>}
           </div>
         </div>
 
-        <p className="text-sm text-muted-foreground leading-relaxed">{declaration}</p>
+        <p className="so-decl">{declaration}</p>
 
         {/* Rest-hour breaches in this period — surfaced so the signer knowingly
             includes them. Editorial (Cargo) treatment: the reasons are already
@@ -128,31 +127,40 @@ const SignOffModal = ({
         )}
 
         <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-            Full name (as it appears on your record)
+          <label className="so-label">
+            Full name (as it appears on your record)<span className="so-req">required</span>
           </label>
-          <Input value={name} onChange={(e) => setName(e?.target?.value)} placeholder="e.g. Jane Smith" />
+          <input
+            className="so-input"
+            value={name}
+            onChange={(e) => setName(e?.target?.value)}
+            placeholder="e.g. Jane Smith"
+          />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1.5">Signature</label>
+          <label className="so-label">
+            Signature<span className="so-req">required</span>
+          </label>
           <SignaturePad onChange={setDataUrl} disabled={busy} />
         </div>
 
-        <p className="text-[11px] text-muted-foreground">
+        <p className="so-audit">
           Your name, the time of signing, your IP address and device are recorded with this
           signature as an audit trail.
         </p>
 
-        <div className="flex justify-end gap-3 pt-1">
-          <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
-          <Button onClick={handleConfirm} disabled={!canSign}>
+        <div className="so-actions">
+          <button type="button" className="so-btn so-btn-ghost" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
+          <button type="button" className="so-btn so-btn-primary" onClick={handleConfirm} disabled={!canSign}>
             {busy ? (
               <><Icon name="Loader" size={16} className="animate-spin" /> Recording…</>
             ) : (
               <><Icon name="Check" size={16} /> {confirmLabel}</>
             )}
-          </Button>
+          </button>
         </div>
       </div>
     </ModalShell>
