@@ -127,12 +127,33 @@ const SendToSupplierModal = ({
     return { groups: [...g.values()], unassigned: un };
   }, [items, suppliers]);
 
+  // Picking a supplier in the Unassigned row "moves" those items into
+  // the picked supplier's group for the purposes of sending — either
+  // merging into an existing supplier's row (so they ship in one
+  // order) or creating a new pending group when the supplier doesn't
+  // already have one. The actual provisioning_items.supplier_profile_id
+  // backfill happens at send time inside sendGroup.
+  const visualGroups = useMemo(() => {
+    if (!unassignedSupplierId || unassigned.length === 0) return groups;
+    const picked = suppliers.find(s => s.id === unassignedSupplierId);
+    if (!picked) return groups;
+    const existing = groups.find(gi => gi.supplier.id === picked.id);
+    if (existing) {
+      return groups.map(gi =>
+        gi.supplier.id === picked.id
+          ? { ...gi, items: [...gi.items, ...unassigned] }
+          : gi,
+      );
+    }
+    return [...groups, { supplier: picked, items: [...unassigned] }];
+  }, [groups, unassigned, unassignedSupplierId, suppliers]);
+
   const isSent = (k) => sentItemKeys.has(k);
   const groupUnsent = (gi) => gi.items.filter(x => !isSent(x.key));
   const unassignedUnsent = unassigned.filter(x => !isSent(x.key));
   const totalUnsent = items.length - sentItemKeys.size;
   const allDone = items.length > 0 && totalUnsent === 0;
-  const readySupplierCount = groups.filter(gi => groupUnsent(gi).length > 0).length;
+  const readySupplierCount = visualGroups.filter(gi => groupUnsent(gi).length > 0).length;
 
   // Dismiss gate — backdrop / Esc / × all prompt "Discard changes?" when
   // the user has typed something into the order context fields, or picked
@@ -253,14 +274,18 @@ const SendToSupplierModal = ({
 
     if (!silent) setSendingKey(key);
     try {
-      // Unassigned bucket: persist the chosen supplier onto the items
-      // before the order is created so the data stays consistent.
-      if (key === '__unassigned__') {
-        const ids = unsent.map(r => r.item.id).filter(Boolean);
-        if (ids.length) {
-          const { error } = await setItemsSupplierProfile(ids, supplier.id, supplierName);
-          if (error) console.warn('[SendToSupplierModal] back-fill failed (non-fatal):', error);
-        }
+      // Backfill supplier on any item that doesn't already point at the
+      // resolved supplier. Covers the original "Unassigned → assign"
+      // case and the new "Unassigned merged into existing supplier"
+      // case where a row's items[] is a mix of originally-assigned and
+      // newly-picked items. Items that are already correct are
+      // filtered out so this stays a no-op for them.
+      const idsToBackfill = unsent
+        .filter(r => r.item.id && r.item.supplier_profile_id !== supplier.id)
+        .map(r => r.item.id);
+      if (idsToBackfill.length) {
+        const { error } = await setItemsSupplierProfile(idsToBackfill, supplier.id, supplierName);
+        if (error) console.warn('[SendToSupplierModal] back-fill failed (non-fatal):', error);
       }
 
       const order = await createSupplierOrder({
@@ -374,7 +399,7 @@ const SendToSupplierModal = ({
       showToast('Complete the order context to send all', 'error');
       return;
     }
-    const ready = groups
+    const ready = visualGroups
       .map(gi => ({ supplier: gi.supplier, rows: gi.items }))
       .filter(g => g.rows.some(r => !isSent(r.key)));
 
@@ -443,7 +468,7 @@ const SendToSupplierModal = ({
     }
   };
 
-  const sendableCount = groups.filter(gi =>
+  const sendableCount = visualGroups.filter(gi =>
     groupUnsent(gi).length > 0 && (gi.supplier.email || gi.supplier.phone)).length;
 
   const handleAddNewSupplier = async (name) => {
@@ -583,15 +608,16 @@ const SendToSupplierModal = ({
 
   const UnassignedRow = () => {
     const isOpen = expandedKeys.has('__unassigned__');
-    const busy = sendingKey === '__unassigned__';
     const supplier = unassignedSupplier;
-    const hasEmail = Boolean(supplier?.email) && supplier.email.includes('@');
-    const hasPhone = Boolean(supplier?.phone);
-    const baseDisabled = !supplier || unassignedUnsent.length === 0 || !!sendingKey || sendingAll || !requiredComplete;
-    const sendDisabled = baseDisabled || !hasEmail;
-    const waDisabled = baseDisabled || !hasPhone;
+    // When a supplier is picked, the items merge into that supplier's
+    // row above (existing or new pending) — so the action buttons live
+    // there. The Unassigned row just hosts the picker for ongoing
+    // edits. When nothing is picked yet, buttons render disabled to
+    // signpost the "still to send" state.
+    const isMerged = !!supplier;
+    const mergedWithExisting = isMerged && groups.some(gi => gi.supplier.id === supplier.id);
     return (
-      <div className={`stsm-row stsm-row-unassigned${isOpen ? ' is-open' : ''}`}>
+      <div className={`stsm-row stsm-row-unassigned${isOpen ? ' is-open' : ''}${isMerged ? ' is-merged' : ''}`}>
         <button
           type="button"
           className="stsm-row-main"
@@ -607,35 +633,33 @@ const SendToSupplierModal = ({
               <span className="stsm-row-meta"> · {plural(unassigned.length, 'item')} waiting</span>
             </span>
             <span className="stsm-row-contact">
-              {supplier
-                ? [supplier.email, supplier.phone].filter(Boolean).join(' · ') || 'No contact on file'
+              {isMerged
+                ? <>Will send with <strong>{supplier.name}</strong>{mergedWithExisting ? ' (merged above).' : '.'}</>
                 : 'Choose a supplier to send these on their way.'}
             </span>
           </span>
         </button>
-        <div className="stsm-row-actions" onClick={(e) => e.stopPropagation()}>
-          <div className="stsm-btnpair">
-            <button
-              type="button"
-              disabled={waDisabled}
-              onClick={() => sendGroup({ key: '__unassigned__', supplier, rows: unassigned, via: 'whatsapp' })}
-              className={`stsm-btn stsm-btn-ghost${waDisabled ? ' is-disabled' : ''}`}
-            >
-              WhatsApp
-            </button>
-            <button
-              type="button"
-              disabled={sendDisabled}
-              onClick={() => sendGroup({ key: '__unassigned__', supplier, rows: unassigned, via: 'email' })}
-              className={`stsm-btn stsm-btn-primary${sendDisabled ? ' is-disabled' : ''}`}
-            >
-              {busy ? <><span className="stsm-spinner" /> Sending…</> : 'Send'}
-            </button>
+        {!isMerged && (
+          <div className="stsm-row-actions" onClick={(e) => e.stopPropagation()}>
+            <div className="stsm-btnpair">
+              <button
+                type="button"
+                disabled
+                className="stsm-btn stsm-btn-ghost is-disabled"
+              >
+                WhatsApp
+              </button>
+              <button
+                type="button"
+                disabled
+                className="stsm-btn stsm-btn-primary is-disabled"
+              >
+                Send
+              </button>
+            </div>
+            <span className="stsm-hint">Pick a supplier below to enable.</span>
           </div>
-          {supplier && !requiredComplete && (
-            <span className="stsm-hint">Complete the order context above</span>
-          )}
-        </div>
+        )}
         <div className="stsm-row-picker" onClick={(e) => e.stopPropagation()}>
           <SupplierPicker
             value={unassignedSupplierId}
@@ -779,7 +803,7 @@ const SendToSupplierModal = ({
               <section className="stsm-section">
                 <h3 className="stsm-subhead">Suppliers List</h3>
                 <div className="stsm-grouplist">
-                  {groups.map(gi => (
+                  {visualGroups.map(gi => (
                     <GroupRow key={gi.supplier.id} supplier={gi.supplier} rows={gi.items} />
                   ))}
                   {unassigned.length > 0 && <UnassignedRow />}

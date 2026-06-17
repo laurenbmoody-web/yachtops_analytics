@@ -176,6 +176,9 @@
 }
 .stsm-row:last-of-type { border-bottom: 0; }
 .stsm-row.is-sent { opacity: 0.55; }
+.stsm-row.is-merged { opacity: 0.7; }
+.stsm-row.is-merged .stsm-row-name { color: #6B7280; }
+.stsm-row.is-merged .stsm-row-contact strong { color: #1C1B3A; font-weight: 600; }
 
 .stsm-row-main {
   display: flex;
