@@ -37,7 +37,6 @@ import VesselHORDashboard from './components/VesselHORDashboard';
 import SignOffModal from './components/SignOffModal';
 import { getSignatureUrl } from './utils/horSignatures';
 import SeaTimeTracker from './components/SeaTimeTracker';
-import SeaTimeDashboard from './components/SeaTimeDashboard';
 import { supabase } from '../../lib/supabaseClient';
 import { useTenant } from '../../contexts/TenantContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -2865,6 +2864,46 @@ const canEdit = (() => {
                 <div className="cp-kpi-l">Breach days</div>
               </div>
             </div>
+
+            {/* Approver review — a scannable summary for the master signing a
+                submitted month: who submitted, the compliance headline, and the
+                breach days WITH their documented reasons (what's being certified).
+                The full day-by-day grid stays below for detail. */}
+            {canApprove && dbStatus === 'submitted' && (
+              <div className="cp-review">
+                <div className="cp-section-head">
+                  <span className="cp-section-kicker">For approval</span>
+                  <h3>Review {monthName}</h3>
+                </div>
+                <p className="cp-review-sub">
+                  Submitted by {dbMonthStatus?.submit_signed_name || crewMember?.fullName || 'crew'}
+                  {dbMonthStatus?.submitted_at ? ` on ${new Date(dbMonthStatus.submitted_at).toLocaleDateString('en-GB')}` : ''}
+                  {' '}· {monthCompliantPct}% compliant · {breachDayCount} breach day{breachDayCount === 1 ? '' : 's'}.
+                </p>
+                {(() => {
+                  const mb = buildMonthBreaches();
+                  return mb.length > 0 ? (
+                    <ul className="cp-review-breaches">
+                      {mb.map((b) => {
+                        const [yy, mm, dd] = String(b.date).split('-');
+                        return (
+                          <li key={b.date} className="cp-review-brow">
+                            <span className="cp-review-bdate">{dd}/{mm}/{yy}</span>
+                            {b.note
+                              ? <span className="cp-review-bnote">{b.note}</span>
+                              : <span className="cp-review-bnote none">No reason documented</span>}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="cp-review-clean">No breaches this month — all logged days compliant.</p>
+                  );
+                })()}
+                <p className="cp-review-hint">Day-by-day detail is below. Approve or send back using the buttons above.</p>
+              </div>
+            )}
+
             {/* Hybrid: compact calendar overview + inline-edit day list.
                 Replaces the old wide calendar + per-date panel — per-day
                 editing now happens inline in the list, on the shared engine. */}
@@ -2970,10 +3009,9 @@ const canEdit = (() => {
   };
 
   const renderSeaTime = () => {
-    // Design-handoff recreation (Countdown layout + MIN 642 pack generator),
-    // driven by the ported rules engine; live Supabase data with a sample
-    // fallback when the crew member has logged nothing yet.
-    return <SeaTimeDashboard userId={crewId} tenantId={activeTenantId} currentUser={currentUser} />;
+    return (
+      <SeaTimeTracker userId={crewId} tenantId={activeTenantId} currentUser={currentUser} />
+    );
   };
 
   // Placeholder until the document store is wired to this tab. Kept as a real
