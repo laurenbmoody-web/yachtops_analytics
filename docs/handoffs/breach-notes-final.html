@@ -38,6 +38,9 @@
   .tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
   .pill{border:1px solid var(--bd2);background:#fff;color:#4A4A63;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap}
   .pill.sel{background:var(--terra);border-color:var(--terra);color:#fff}
+  .help{font-size:11.5px;color:var(--muted2);margin:10px 0 0;line-height:1.5}
+  .r input.field.bad{border-color:#C9544B;box-shadow:0 0 0 3px #FBE9E7;background:#fff}
+  .r .flag{grid-column:1 / -1;font-size:11px;color:#C9544B;margin:-3px 0 0;padding-left:148px}
 
   /* compact per-day rows */
   .rows{padding:4px 0}
@@ -60,8 +63,8 @@
 </head>
 <body>
 <div class="wrap">
-  <h1 class="pageh">Breach Notes — the refined version</h1>
-  <p class="pagesub">Apply-to-all bar on top, then tight per-day rows. Type once, tweak the odd day. No big cards, no scroll.</p>
+  <h1 class="pageh">Breach Notes — specificity guarded</h1>
+  <p class="pagesub">No quick-pick pills. Free-text only, with a vague-reason guard. Apply-to-all stays for a genuine shared cause.</p>
 
   <div class="panel">
     <div class="head">
@@ -71,13 +74,10 @@
 
     <!-- apply to all -->
     <div class="all">
-      <label class="lbl">Apply to all days <span class="optn">type once · fills every row below</span></label>
+      <label class="lbl">Shared reason for all days <span class="optn">only when one genuine cause covers every day — e.g. a single charter</span></label>
       <div class="all-input">
-        <input class="field" placeholder="e.g. Guest charter — night security watch" value="Guest charter — night security watch"/>
+        <input class="field" placeholder="Describe the specific operation, guests, or event…" value="MY Aurora charter (Smith party) — 24h guest ops, no relief crew aboard"/>
         <button class="apply">Apply to 5</button>
-      </div>
-      <div class="tags">
-        <span class="pill sel">Guest trip</span><span class="pill">Turnaround / provisioning</span><span class="pill">Night watch / security</span><span class="pill">Medical / emergency</span><span class="pill">Drill / operations</span>
       </div>
     </div>
 
@@ -86,15 +86,15 @@
     <div class="rows">
       <div class="r"><span class="date">27/06/2026</span><span class="rest">0.0h</span><input class="field" value="Guest charter — night security watch"/><span class="tick">✓</span></div>
       <div class="r"><span class="date">29/06/2026</span><span class="rest">0.0h</span><input class="field" value="Guest charter — night security watch"/><span class="tick">✓</span></div>
-      <div class="r"><span class="date">30/06/2026</span><span class="rest">0.0h</span><input class="field" value="Medical assist — crew injury"/><span class="tick">✓</span></div>
-      <div class="r"><span class="date">01/07/2026</span><span class="rest">0.0h</span><input class="field" value="Guest charter — night security watch"/><span class="tick">✓</span></div>
+      <div class="r"><span class="date">30/06/2026</span><span class="rest">0.0h</span><input class="field" value="Medical assist — crew injury, ran tender to Antibes for treatment"/><span class="tick">✓</span></div>
+      <div class="r"><span class="date">01/07/2026</span><span class="rest">0.0h</span><input class="field bad" value="busy"/><span class="tick empty">○</span><p class="flag">Too vague — name the specific operation or event.</p></div>
       <div class="r"><span class="date">02/07/2026</span><span class="rest">0.0h</span><input class="field" placeholder="Add reason…"/><span class="tick empty">○</span></div>
     </div>
 
-    <div class="foot"><span class="prog">4 of 5 done</span><button class="btn">✓ Submit notes</button></div>
+    <div class="foot"><span class="prog">3 of 5 valid</span><button class="btn">✓ Submit notes</button></div>
   </div>
 
-  <p class="note"><strong>How it flows:</strong> type a reason once, hit <em>Apply to 5</em> → every row fills. Row 30/06 shows an individual tweak (a different cause), and 02/07 is still empty so the tick is hollow and the count reads 4 of 5. Quick-tag pills prefix the apply-to-all reason. Submit stays disabled until all five ticks are green.</p>
+  <p class="note"><strong>What changed:</strong> pills gone, helper line removed. The shared-reason bar is free-text and only for a real common cause (the charter). The guard is live per row — a one-word answer like <em>“busy”</em> on 01/07 is flagged red and doesn’t count toward the tally; 02/07 is still empty. Count reads <em>3 of 5 valid</em> and Submit stays disabled until every reason is a real, multi-word cause.</p>
 </div>
 </body>
 </html>

@@ -1,13 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
-import { BREACH_TYPE_LABELS, QUICK_TAGS, upsertBreachNote, getBreachNoteForDate } from '../utils/horBreachNotesStorage';
+import { upsertBreachNote, getBreachNoteForDate } from '../utils/horBreachNotesStorage';
 import { upsertBreachReason } from '../utils/horBreachReasons';
 
 import ModalShell from '../../../components/ui/ModalShell';
 import './breach-notes.css';
+
+// A reason must be a real, multi-word cause — single-word answers ("busy",
+// "work", "ops") are rejected so the record means something to an auditor.
+const isValidReason = (text) => {
+  const t = (text || '').trim();
+  if (!t) return false;
+  return t.split(/\s+/).filter(Boolean).length >= 2;
+};
+
 const BreachNotesModal = ({ isOpen, onClose, breachedDates, userId, currentUserId, tenantId }) => {
   const [notes, setNotes] = useState({});
-  const [selectedTags, setSelectedTags] = useState({});
+  const [sharedReason, setSharedReason] = useState('');
 
   useEffect(() => {
     if (isOpen && breachedDates?.length > 0) {
@@ -18,45 +27,27 @@ const BreachNotesModal = ({ isOpen, onClose, breachedDates, userId, currentUserI
         initialNotes[breach.date] = existingNote?.noteText || '';
       });
       setNotes(initialNotes);
-      setSelectedTags({});
+      setSharedReason('');
     }
   }, [isOpen, breachedDates, userId]);
 
   const handleNoteChange = (date, value) => {
-    setNotes(prev => ({
-      ...prev,
-      [date]: value
-    }));
+    setNotes(prev => ({ ...prev, [date]: value }));
   };
 
-  const handleQuickTag = (date, tag) => {
-    const currentNote = notes?.[date] || '';
-    const tagPrefix = tag?.prefix;
-    
-    // Toggle tag selection
-    const isSelected = selectedTags?.[date] === tag?.id;
-    
-    if (isSelected) {
-      // Remove tag prefix if it exists at the start
-      const newNote = currentNote?.startsWith(tagPrefix) 
-        ? currentNote?.substring(tagPrefix?.length)
-        : currentNote;
-      setNotes(prev => ({ ...prev, [date]: newNote }));
-      setSelectedTags(prev => ({ ...prev, [date]: null }));
-    } else {
-      // Add tag prefix
-      const newNote = tagPrefix + currentNote?.replace(/^[^:]+:\s*/, '');
-      setNotes(prev => ({ ...prev, [date]: newNote }));
-      setSelectedTags(prev => ({ ...prev, [date]: tag?.id }));
-    }
-  };
-
-  const isAllNotesComplete = () => {
-    return breachedDates?.every(breach => {
-      const note = notes?.[breach?.date]?.trim();
-      return note && note?.length > 0;
+  // Apply the shared reason to every breached day. The same guard still applies
+  // to each row, so a blanket one-word reason fails for all of them.
+  const handleApplyAll = () => {
+    const value = sharedReason;
+    setNotes(() => {
+      const next = {};
+      breachedDates?.forEach(breach => { next[breach.date] = value; });
+      return next;
     });
   };
+
+  const validCount = breachedDates?.filter(breach => isValidReason(notes?.[breach?.date]))?.length || 0;
+  const isAllValid = breachedDates?.length > 0 && validCount === breachedDates?.length;
 
   const handleSubmit = async () => {
     // Save all breach notes. localStorage stays as a mirror so the existing PDF
@@ -105,6 +96,8 @@ const BreachNotesModal = ({ isOpen, onClose, breachedDates, userId, currentUserI
     return `${dd}/${mm}/${d?.getFullYear()}`;
   };
 
+  const total = breachedDates?.length || 0;
+
   return (
     <ModalShell onClose={handleBackdropClick} panelClassName="bn-panel">
       <div className="bn">
@@ -113,70 +106,79 @@ const BreachNotesModal = ({ isOpen, onClose, breachedDates, userId, currentUserI
           <div>
             <h2 className="bn-title">Breach notes required</h2>
             <p className="bn-sub">
-              Some days are non-compliant. Add a short reason for each breached day.
+              {total} {total === 1 ? 'day needs' : 'days need'} a reason before sign-off.
             </p>
           </div>
-          {breachedDates?.length === 0 && (
+          {total === 0 && (
             <button onClick={onClose} className="bn-close" aria-label="Close">
               <Icon name="X" size={18} />
             </button>
           )}
         </div>
 
-        {/* Days */}
+        {/* Apply a shared reason to every day */}
+        <div className="bn-all">
+          <label className="bn-label bn-all-label">
+            Shared reason for all days
+            <span className="bn-opt"> only when one genuine cause covers every day — e.g. a single charter</span>
+          </label>
+          <div className="bn-all-input">
+            <input
+              type="text"
+              value={sharedReason}
+              onChange={(e) => setSharedReason(e?.target?.value)}
+              placeholder="Describe the specific operation, guests, or event…"
+              className="bn-field"
+            />
+            <button
+              type="button"
+              className="bn-apply"
+              onClick={handleApplyAll}
+              disabled={!sharedReason?.trim()}
+            >
+              Apply to {total}
+            </button>
+          </div>
+        </div>
+
+        {/* Per-day rows */}
+        <div className="bn-rowhead">
+          <span className="bn-label">Date</span>
+          <span className="bn-label">Rest</span>
+          <span className="bn-label">Reason</span>
+          <span />
+        </div>
         <div className="bn-body">
-          {breachedDates?.map((breach) => (
-            <div key={breach?.date} className="bn-day">
-              <div className="bn-day-head">
+          {breachedDates?.map((breach) => {
+            const value = notes?.[breach?.date] || '';
+            const filled = value.trim().length > 0;
+            const valid = isValidReason(value);
+            return (
+              <div key={breach?.date} className="bn-row">
                 <span className="bn-date">{formatDate(breach?.date)}</span>
-                <span className="bn-rest">Rest {Number(breach?.restHours || 0)?.toFixed(1)}h</span>
-                {breach?.breachTypes?.length > 0 && (
-                  <span className="bn-types">
-                    {breach?.breachTypes?.map((type) => (
-                      <span key={type} className="bn-typepill">{BREACH_TYPE_LABELS?.[type] || type}</span>
-                    ))}
-                  </span>
+                <span className="bn-rest">{Number(breach?.restHours || 0)?.toFixed(1)}h</span>
+                <input
+                  type="text"
+                  value={value}
+                  onChange={(e) => handleNoteChange(breach?.date, e?.target?.value)}
+                  placeholder="Add reason…"
+                  className={`bn-field${filled && !valid ? ' is-bad' : ''}`}
+                />
+                <span className={`bn-tick${valid ? '' : ' is-empty'}`}>
+                  <Icon name={valid ? 'Check' : 'Circle'} size={valid ? 16 : 13} />
+                </span>
+                {filled && !valid && (
+                  <p className="bn-flag">Too vague — name the specific operation or event.</p>
                 )}
               </div>
-
-              {/* Quick-tag pills */}
-              <label className="bn-label">Quick tags <span className="bn-opt">optional</span></label>
-              <div className="bn-tags">
-                {QUICK_TAGS?.map((tag) => (
-                  <button
-                    key={tag?.id}
-                    type="button"
-                    onClick={() => handleQuickTag(breach?.date, tag)}
-                    className={`bn-pill${selectedTags?.[breach?.date] === tag?.id ? ' is-sel' : ''}`}
-                  >
-                    {tag?.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Reason */}
-              <label className="bn-label">Reason <span className="bn-req">required</span></label>
-              <textarea
-                value={notes?.[breach?.date] || ''}
-                onChange={(e) => handleNoteChange(breach?.date, e?.target?.value)}
-                placeholder="e.g. Night watch during guest departure…"
-                rows={3}
-                className="bn-textarea"
-              />
-
-              {breach?.explanation && (
-                <p className="bn-expl">
-                  <Icon name="AlertCircle" size={12} />
-                  {breach?.explanation}
-                </p>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Footer */}
         <div className="bn-foot">
-          <button type="button" className="bn-submit" onClick={handleSubmit} disabled={!isAllNotesComplete()}>
+          <span className="bn-prog">{validCount} of {total} valid</span>
+          <button type="button" className="bn-submit" onClick={handleSubmit} disabled={!isAllValid}>
             <Icon name="Check" size={16} />
             Submit notes
           </button>
