@@ -235,9 +235,15 @@ export default function OrderApprovalRightPane({ request, onResolved, onToast })
     }
     setBusy(true);
     try {
+      // Both decisions carry the optional note. Request changes
+      // requires one (enforced above + RPC P0005); approve treats it
+      // as advisory context (supplier swap, port change, delivery
+      // instructions) that the submitter sees on the board's review
+      // chip + history.
+      const trimmed = comment.trim();
       await decideProvisioningApproval(
         request.id, decision,
-        decision === 'request_changes' ? comment.trim() : null,
+        trimmed || null,
       );
       setDecisionModal(null);
       setComment('');
