@@ -201,11 +201,11 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
                 </div>
                 <div className="std-right">
                   {isExcluded && <span className="std-pill" style={{ color: '#5A6478', background: '#EEF0F3' }}>Excluded from pack</span>}
-                  {isQual && <span className="std-pill" style={{ color: '#1F7A4D', background: '#E8F1EB' }}><Icon name="Check" size={12} /> {qualLabel}</span>}
+                  {isQual && <span className="std-pill" style={{ color: '#5E8E6F', background: '#E7F0E9' }}><Icon name="Check" size={12} /> {qualLabel}</span>}
                   {isBad && (
                     <div>
-                      <span className="std-pill" style={{ color: '#A3402F', background: '#F6E9E6' }}><Icon name="X" size={12} /> Non-qualifying</span>
-                      <div className="vs" style={{ color: '#A3402F', marginTop: 4, textAlign: 'right' }}>{c.reason}</div>
+                      <span className="std-pill" style={{ color: '#A32D2D', background: '#FCEDEA' }}><Icon name="X" size={12} /> Non-qualifying</span>
+                      <div className="vs" style={{ color: '#A32D2D', marginTop: 4, textAlign: 'right' }}>{c.reason}</div>
                       <button className="std-fix" onClick={() => e.type === 'watchkeeping' ? reclassify(e.id) : excludeEntry(e.id)}>
                         {e.type === 'watchkeeping' ? 'Reclassify to standby' : 'Exclude from pack'}
                       </button>
@@ -224,8 +224,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
   return (
     <div className="std">
       <div className="std-head">
-        <div className="std-title"><span className="num">07</span><span className="sl">/</span>Sea Time Tracker</div>
-        <div className="std-flex std-ac" style={{ gap: 8, flexWrap: 'wrap' }}>
+        <div className="std-sechead"><span className="std-secnum">07 /</span><h3>Sea Time Tracker</h3></div>
+        <div className="std-controls">
           <select className="std-select" value={deptId} onChange={e => changeDept(e.target.value)} aria-label="Department">
             {Object.values(DEPARTMENTS).map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
           </select>
@@ -269,15 +269,15 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
             {cert.note && <div className="ns" style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>{cert.note}</div>}
             <div className="std-reqmini">
               {requirements.map(r => (
-                <div className="c" key={r.key}>
+                <div className={`c ${r.met ? 'met' : ''}`} key={r.key}>
                   <div className="l">{r.label}</div>
                   <div className="n">{r.required ? `${r.current} / ${r.required}` : '—'}</div>
-                  <div className="std-bar"><i className="std-grow" style={{ width: `${r.pct}%`, background: r.met ? '#1F7A4D' : '#C65A1A' }} /></div>
+                  <div className="std-bar"><i className="std-grow" style={{ width: `${r.pct}%`, background: r.met ? '#5E8E6F' : '#C65A1A' }} /></div>
                 </div>
               ))}
             </div>
             <div className={`std-nudge ${hasAttention ? '' : 'clear'}`}>
-              <IcoPath d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2ZM9 21h6M10 17v4m4-4v4" color={hasAttention ? '#C65A1A' : '#1F7A4D'} size={20} />
+              <IcoPath d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2ZM9 21h6M10 17v4m4-4v4" color={hasAttention ? '#C65A1A' : '#5E8E6F'} size={20} />
               <div>
                 <div className="nt">{hasAttention ? `${badCount} logged ${badCount === 1 ? 'entry needs' : 'entries need'} attention.` : 'Your logged service is qualifying and on track.'}</div>
                 <div className="ns">{hasAttention ? 'Non-qualifying service is excluded from your totals — review and re-tag to keep your pack clean.' : 'Keep logging — projected eligibility updates as you add service.'}</div>
@@ -303,9 +303,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
         {[['seagoing', 'SEAGOING'], ['watchkeeping', 'WATCHKEEPING'], ['standby', 'STANDBY'], ['yard', 'SHIPYARD']].map(([k, up]) => {
           const tm = TYPE_META[k];
           return (
-            <div className="std-bpill" key={k}>
-              <div className="l" style={{ color: tm.color }}>● {up}</div>
-              <div className="n">{buckets[k]}</div><span className="u">days</span>
+            <div className="std-bpill" key={k} style={{ borderTopColor: tm.color }}>
+              <div className="l"><span className="dot" style={{ background: tm.color }} /> {up}</div>
+              <div className="n">{buckets[k]}</div> <span className="u">days</span>
             </div>
           );
         })}
@@ -320,7 +320,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
             <div>
               <div className="mlabel rustlabel">Captain-signed · MCA MIN 642</div>
               <h3>Sea Service Testimonial Pack</h3>
-              <div className="sub">Assemble a first-pass-clean, captain-signed testimonial for your chosen verifying organisation. Switching the verifier re-renders the checklist from the same record — no re-entry.</div>
+              <div className="sub">A captain-signed testimonial for your chosen verifying organisation. Switching the organisation keeps the same record — nothing to re-enter.</div>
             </div>
             <div>
               <div className="mlabel" style={{ marginBottom: 6 }}>Verifying organisation</div>
@@ -335,14 +335,14 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
               <div className="sh">
                 <span className="std-badge">1</span>
                 <div><div className="st">Validate</div><div className="ss">Blocked until every rule clears</div></div>
-                <span className="std-chip-ready" style={{ marginLeft: 'auto', color: '#fff', background: canGenerate ? '#1F7A4D' : '#C65A1A' }}>{passed} of {total} cleared</span>
+                <span className="std-chip-ready" style={{ marginLeft: 'auto', color: '#fff', background: canGenerate ? '#5E8E6F' : '#C65A1A' }}>{passed} of {total} cleared</span>
               </div>
-              <div className="std-readbar"><i className="std-grow" style={{ display: 'block', height: '100%', width: `${readinessPct}%`, background: canGenerate ? '#1F7A4D' : '#C65A1A', borderRadius: 999 }} /></div>
+              <div className="std-readbar"><i className="std-grow" style={{ display: 'block', height: '100%', width: `${readinessPct}%`, background: canGenerate ? '#5E8E6F' : '#C65A1A', borderRadius: 999 }} /></div>
               <div style={{ marginTop: 6 }}>
                 {checks.map((c, i) => (
                   <div className="std-check" key={i}>
-                    <span className="box" style={{ background: c.ok ? '#1F7A4D' : '#A3402F' }}><Icon name={c.ok ? 'Check' : 'X'} size={12} color="#fff" /></span>
-                    <div><div className="ct" style={{ color: c.ok ? '#1F7A4D' : '#A3402F' }}>{c.label}</div><div className="cd">{c.detail}</div></div>
+                    <span className="box" style={{ background: c.ok ? '#5E8E6F' : '#A32D2D' }}><Icon name={c.ok ? 'Check' : 'X'} size={12} color="#fff" /></span>
+                    <div><div className="ct" style={{ color: c.ok ? '#5E8E6F' : '#A32D2D' }}>{c.label}</div><div className="cd">{c.detail}</div></div>
                   </div>
                 ))}
               </div>
@@ -353,8 +353,8 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
               {vp.docs.map(d => {
                 const met = !!docMet[d.id];
                 return (
-                  <div className="std-doc" key={d.id} onClick={() => toggleDoc(d.id)} style={{ background: met ? '#E8F1EB' : '#fff', borderColor: met ? '#CFE2D5' : '#E6E8EC' }}>
-                    <span className="dbox" style={{ borderColor: met ? '#1F7A4D' : '#C7CCD5', background: met ? '#1F7A4D' : '#fff' }}>{met && <Icon name="Check" size={12} color="#fff" />}</span>
+                  <div className="std-doc" key={d.id} onClick={() => toggleDoc(d.id)} style={{ background: met ? '#E7F0E9' : '#fff', borderColor: met ? '#CDE6D3' : '#E6E8EC' }}>
+                    <span className="dbox" style={{ borderColor: met ? '#5E8E6F' : '#C7CCD5', background: met ? '#5E8E6F' : '#fff' }}>{met && <Icon name="Check" size={12} color="#fff" />}</span>
                     <span style={{ fontSize: 13, fontWeight: 600 }}>{d.label}</span>
                   </div>
                 );
@@ -369,9 +369,9 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
                   const sel = signatory === o.key;
                   return (
                     <div className="std-sigcard" key={o.key} onClick={() => pickSignatory(o.key)}
-                      style={{ borderColor: sel ? (o.bad ? '#A3402F' : '#1F7A4D') : '#E6E8EC', background: sel ? (o.bad ? '#F6E9E6' : '#E8F1EB') : '#fff' }}>
+                      style={{ borderColor: sel ? (o.bad ? '#A32D2D' : '#5E8E6F') : '#E6E8EC', background: sel ? (o.bad ? '#FCEDEA' : '#E7F0E9') : '#fff' }}>
                       <div className="nm">{o.name}</div>
-                      <div className="sb" style={{ color: o.bad ? '#A3402F' : '#8A93A3' }}>{o.sub}</div>
+                      <div className="sb" style={{ color: o.bad ? '#A32D2D' : '#8A93A3' }}>{o.sub}</div>
                     </div>
                   );
                 })}
@@ -386,14 +386,14 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
           </div>
 
           <div className="std-issue">
-            <span className="std-gate-ic" style={{ background: canGenerate ? '#E8F1EB' : '#F6E9E6' }}><Icon name={canGenerate ? 'Check' : 'X'} size={20} color={canGenerate ? '#1F7A4D' : '#A3402F'} /></span>
+            <span className="std-gate-ic" style={{ background: canGenerate ? '#E7F0E9' : '#FCEDEA' }}><Icon name={canGenerate ? 'Check' : 'X'} size={20} color={canGenerate ? '#5E8E6F' : '#A32D2D'} /></span>
             <div>
               <div className="mlabel">Step 4 · Issue</div>
               <div style={{ fontWeight: 800, fontSize: 15 }}>{canGenerate ? 'All checks passed' : `${checks.filter(c => !c.ok).length} check(s) blocking generation`}</div>
               <div className="vs">{canGenerate ? `Ready to generate a first-pass-clean pack for ${vp.short}.` : 'Resolve every item in step 1 to continue.'}</div>
             </div>
             <button className="std-genbtn" onClick={onGenerate}
-              style={{ background: canGenerate ? '#C65A1A' : '#E8E6DF', color: canGenerate ? '#fff' : '#A8A29A', cursor: canGenerate ? 'pointer' : 'not-allowed' }}>
+              style={{ background: canGenerate ? '#C65A1A' : '#F1EFE9', color: canGenerate ? '#fff' : '#AEB4C2', cursor: canGenerate ? 'pointer' : 'not-allowed' }}>
               <Icon name={canGenerate ? 'FileCheck' : 'Lock'} size={15} /> {canGenerate ? (signed ? 'Regenerate pack' : 'Generate signed pack') : 'Blocked'}
             </button>
           </div>
@@ -446,7 +446,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
                 <div className="vs" style={{ maxWidth: 480 }}>{vp.instructions}</div>
                 <div className="std-flex" style={{ gap: 10 }}>
                   <button className="std-dl" style={{ background: '#C65A1A', color: '#fff' }} onClick={onDownload}><Icon name="Download" size={15} /> Download PDF</button>
-                  <button className="std-dl" style={{ background: '#fff', color: '#1A2233', border: '1px solid #E6E8EC' }} onClick={() => flash('Pack emailed (demo)')}><Icon name="Mail" size={15} /> Email pack</button>
+                  <button className="std-dl" style={{ background: '#fff', color: '#1C1B3A', border: '1px solid #E6E8EC' }} onClick={() => flash('Pack emailed (demo)')}><Icon name="Mail" size={15} /> Email pack</button>
                 </div>
               </div>
             </div>
@@ -479,7 +479,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
                     const tm = TYPE_META[t], sel = form.type === t;
                     return (
                       <div className="std-typecard" key={t} onClick={() => setForm(f => ({ ...f, type: t }))} style={{ borderColor: sel ? tm.color : '#DDE0E6', background: sel ? tm.bg : '#fff' }}>
-                        <div className="tt" style={{ color: sel ? tm.color : '#1A2233' }}>{tm.label}</div>
+                        <div className="tt" style={{ color: sel ? tm.color : '#1C1B3A' }}>{tm.label}</div>
                         <div className="th">{tm.hint}</div>
                       </div>
                     );
@@ -493,10 +493,10 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
               {form.vesselId && vessels[form.vesselId] && (() => {
                 const pc = classify({ ...form }, vessels[form.vesselId], config);
                 return (
-                  <div className="std-preview" style={{ background: pc.qual ? '#E8F1EB' : '#F6E9E6', borderColor: pc.qual ? '#CFE2D5' : '#E7C9C2' }}>
-                    <Icon name={pc.qual ? 'Check' : 'X'} size={16} color={pc.qual ? '#1F7A4D' : '#A3402F'} />
+                  <div className="std-preview" style={{ background: pc.qual ? '#E7F0E9' : '#FCEDEA', borderColor: pc.qual ? '#CDE6D3' : '#F2C9C0' }}>
+                    <Icon name={pc.qual ? 'Check' : 'X'} size={16} color={pc.qual ? '#5E8E6F' : '#A32D2D'} />
                     <div>
-                      <div style={{ fontWeight: 700, fontSize: 13, color: pc.qual ? '#1F7A4D' : '#A3402F' }}>{pc.qual ? 'Will qualify' : 'Will be flagged non-qualifying'} · {formDays()} {formDays() === 1 ? 'day' : 'days'}</div>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: pc.qual ? '#5E8E6F' : '#A32D2D' }}>{pc.qual ? 'Will qualify' : 'Will be flagged non-qualifying'} · {formDays()} {formDays() === 1 ? 'day' : 'days'}</div>
                       <div className="vs" style={{ marginTop: 2 }}>{pc.reason || `${TYPE_META[form.type].label} service on ${vessels[form.vesselId].name} — counts toward your ${TYPE_META[form.type].label.toLowerCase()} total.`}</div>
                     </div>
                   </div>
@@ -504,14 +504,14 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser }) => {
               })()}
             </div>
             <div className="std-flex" style={{ gap: 10, padding: '16px 24px', borderTop: '1px solid #E6E8EC' }}>
-              <button className="std-dl" style={{ background: '#fff', border: '1px solid #E6E8EC', color: '#1A2233', flex: 1, justifyContent: 'center' }} onClick={() => setDrawerOpen(false)}>Cancel</button>
-              <button className="std-dl" style={{ background: '#1A2233', color: '#fff', flex: 1, justifyContent: 'center' }} onClick={saveEntry}>Add entry</button>
+              <button className="std-dl" style={{ background: '#fff', border: '1px solid #E6E8EC', color: '#1C1B3A', flex: 1, justifyContent: 'center' }} onClick={() => setDrawerOpen(false)}>Cancel</button>
+              <button className="std-dl" style={{ background: '#1C1B3A', color: '#fff', flex: 1, justifyContent: 'center' }} onClick={saveEntry}>Add entry</button>
             </div>
           </div>
         </>
       )}
 
-      {toast && <div className="std-toast"><Icon name="Check" size={16} color="#1F7A4D" /> {toast}</div>}
+      {toast && <div className="std-toast"><Icon name="Check" size={16} color="#5E8E6F" /> {toast}</div>}
     </div>
   );
 };
