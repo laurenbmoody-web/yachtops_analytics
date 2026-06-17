@@ -650,12 +650,16 @@ const SendArrow = () => (
   </svg>
 );
 
-// Compact message-bubble used for the per-line "note to vessel" trigger.
-// Filled when a note exists, outline otherwise — the row-actions cell
-// can tell the supplier at a glance which lines already carry a note.
+// Square-ish chat panel with a tail — used as the per-line "note to
+// vessel" trigger AND the yacht-client "open inbox" affordance. The
+// rectangular silhouette reads as sturdier than the rounded speech
+// bubble it replaces; the two stacked lines hint at a written note.
 const NoteBubble = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z" />
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="3" y="4" width="18" height="13" rx="2.5" />
+    <path d="M8 20l-1-3" />
+    <line x1="7.5" y1="9" x2="16.5" y2="9" />
+    <line x1="7.5" y1="13" x2="13.5" y2="13" />
   </svg>
 );
 
@@ -956,9 +960,6 @@ const ItemRow = ({ item, currency, canEdit, threadOpen, onToggleThread, onUpdate
       <tr className={`${rowClass}${threadOpen ? ' sod-has-thread' : ''}`}>
         <td>
           <div className="sod-item-cell">
-            <div className="sod-item-thumb" aria-hidden="true">
-              <span className="sod-item-thumb-letter">{thumbLetterFor(item)}</span>
-            </div>
             <div>
               <div className="sod-item-name-row">
                 <span className="sod-item-name">
@@ -1004,7 +1005,7 @@ const ItemRow = ({ item, currency, canEdit, threadOpen, onToggleThread, onUpdate
                 </div>
               )}
 
-              {item.notes && <div className="sod-item-note">{item.notes}</div>}
+              {item.notes && <div className="sod-item-note sod-item-note-vessel">{item.notes}</div>}
               {status === 'substituted' && item.substitute_description && (
                 <div className="sod-item-note sod-item-note-sub">
                   Sub: {item.substitute_description}
